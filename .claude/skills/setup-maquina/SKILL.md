@@ -14,7 +14,7 @@ Quem clona o repositório precisa de pouca coisa para trabalhar no pipeline (pla
 | 1 Pipeline | `/grill-with-docs`, `/to-prd`, `/to-issues`, `/pegar-issue`, `/ship` até o PR | clone com a `main` igual à `origin/main`, git, gh autenticado com WRITE, jq, Claude Code, os plugins de `references/plugins.txt`, `git config user.*` com e-mail da conta `gh` |
 | 2 Deploy e testes | `/tdd` (pytest e ruff do backend), `/ship` até o PR verde, a subida `fechar_onda.py` (merge e deploy), `/deploy`, `/onda-enxuta` | Claude Code 2.1.280 ou mais (a `/onda-enxuta` lança sessão de fundo), as regras do fluxo automático no `~/.claude/settings.json` (ADR 0068), CLI do Coolify com contexto `hsm`, `tokens/.env`, python3 3.9+, uv + `.venv` do backend, Pango, `hospital-reunioes/.env` com três valores fictícios (o snapshot importa o app), e Node >= 22.12, corepack (e o `pnpm@9` que ele entrega, sem prompt de download) e ffmpeg |
 | 3 App local | `/atualizar-app`, `vitest` e `tsc` do frontend na máquina | Docker, Supabase CLI, chaves de sandbox (Node e corepack já vêm do nível 2). **Opcional: hoje ninguém usa; teste de frontend confia no CI.** |
-| 4 Produzir vídeo | `/divulgar` | Chrome, skills globais de HyperFrames, `motion` e `narracao` com o VoiceStudio (vídeo da `/divulgar`) e time da Vercel. **Opcional: só quem produz vídeo.** |
+| 4 Divulgar | `/divulgar` | `playwright-cli` (o print da página) e time da Vercel. **Opcional: só quem publica a página.** |
 
 O padrão é conferir os níveis 1 e 2. `--nivel 3` ou `--nivel 4` acrescenta os opcionais. Node abaixo de 22.12 aparece como `FALTA` já no nível 2, com a versão que a máquina tem e o `brew install node@22` ao lado.
 

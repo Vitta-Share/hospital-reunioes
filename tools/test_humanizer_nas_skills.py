@@ -58,9 +58,7 @@ def passos_do_humanizer(trecho: str) -> list[str]:
 @pytest.mark.parametrize(
     ("skill", "titulo"),
     [
-        ("divulgar", "Modo rápido: o vídeo pelo modelo"),
-        ("divulgar", "Passo 1: o vídeo"),
-        ("divulgar", "Passo 2: a página"),
+        ("divulgar", "A página"),
         ("mensagem-prd", "Fluxo"),
         ("to-prd", "Process"),
         ("grill-with-docs", "Fim"),
