@@ -381,7 +381,7 @@ P, M ou G, pelo número de partes da Demanda: até 1 parte é P, de 2 a 5 é M, 
 _Evitar_: story points; tamanho escolhido à mão; tamanho pelo tempo que a entrega levou.
 
 **Demonstração**:
-O vídeo do que um card entregue mudou, com a página na Vercel, feito pelo `/divulgar` (ADR 0045) numa sessão aberta pelo botão "Gerar demonstração" do PedroOS, sempre por clique do Pedro (ADR 0084). A sessão grava na issue-raiz o marcador `<!-- demonstracao: <url> -->`, o webhook leva o link ao card e o card ganha o selo "Tem demonstração". Nem todo card tem. Quando fica pronta, o diretor recebe aviso por sino e e-mail, como recebe quando o card entra Em produção, com o resumo montado do [Documento do card], sem IA.
+A página na Vercel do que um card entregue mudou, feita pelo `/divulgar` (ADR 0045; o vídeo saiu em 14/11/2026) numa sessão aberta pelo botão "Gerar demonstração" do PedroOS, sempre por clique do Pedro (ADR 0084). A sessão grava na issue-raiz o marcador `<!-- demonstracao: <url> -->`, o webhook leva o link ao card e o card ganha o selo "Tem demonstração". Nem todo card tem. Quando fica pronta, o diretor recebe aviso por sino e e-mail, como recebe quando o card entra Em produção, com o resumo montado do [Documento do card], sem IA.
 _Evitar_: vídeo gerado pela Subida; link digitado no app; resumo do aviso escrito por IA.
 
 **Anexo da Demanda**:

@@ -404,8 +404,8 @@ else
   falta "hospital-reunioes/.env existe" "printf '%s\\n' $ENV_MIN > hospital-reunioes/.env (três valores fictícios; nada real)"
 fi
 
-# O frontend builda com `corepack pnpm@9` e Node >= 22.12, e o vídeo da /divulgar
-# passa pelo ffmpeg.
+# O frontend builda com `corepack pnpm@9` e Node >= 22.12, e as Falas da /express
+# --voz passam pelo ffmpeg.
 NODE_MIN=22.12
 if no_path_do_shell node; then
   nodev="$(PATH="$PATH_SHELL" node -v 2>/dev/null)"; nodev="${nodev#v}"
@@ -425,7 +425,7 @@ if PATH="$PATH_SHELL" COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack pnpm@9 --versio
 else
   falta "pnpm (corepack)" "o corepack não entregou o pnpm: rode COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack pnpm@9 --version e chame o pnpm sempre assim"
 fi
-bin_ok ffmpeg "brew install ffmpeg (o vídeo da /divulgar)"
+bin_ok ffmpeg "brew install ffmpeg (as Falas da /express --voz)"
 
 fi
 
@@ -440,9 +440,7 @@ fi
 
 # ---------------------------------------------------------------- Nível 4
 if [ "$NIVEL" -ge 4 ]; then
-titulo "Nível 4: produzir vídeo e print (opcional)"
-[ -d "/Applications/Google Chrome.app" ] && ok "Google Chrome" || opc "Google Chrome" "brew install --cask google-chrome"
-[ -d "$HOME/.claude/skills/hyperframes" ] && ok "skills globais hyperframes" || opc "skills globais hyperframes" "npx skills add heygen-com/hyperframes --all (skills globais, fora do repo; ver /divulgar)"
+titulo "Nível 4: página da /divulgar e print (opcional)"
 # Verificação de tela pelo agente (/express e fatias de frontend): Playwright CLI.
 PATH="$PATH_SHELL" command -v playwright-cli >/dev/null 2>&1 && ok "playwright-cli (verificar tela)" || opc "playwright-cli (verificar tela)" "npm i -g @playwright/cli && playwright-cli install --skills"
 fi

@@ -56,7 +56,7 @@ O diretor faz a metade de negócio do grill no app (ADR 0075). No card aberto de
 
 ## Pós-entrega
 
-- `/divulgar <PRD> [--so-video | --so-pagina]`: a entrega pro diretor em dois passos, um comando: vídeo de percepção de valor (MP4 narrado na voz oficial, feito com a skill global `motion` sobre telas reais do app, gate humano no draft e gate anti-travamento antes de entregar) e página de divulgação publicada na Vercel com o vídeo embutido. A fonte fica numa pasta por PRD em `docs/comunicacao/<contexto>/` (ADR 0045); o MP4 vai para `~/Videos/Hospital/`, nunca para o repositório.
+- `/divulgar <N>`: a entrega pro diretor numa página de divulgação publicada na Vercel, uma explicada leve no que mudou, com o link gravado na issue. Não faz vídeo (o estúdio saiu em 14/11/2026). A fonte fica numa pasta por PRD em `docs/comunicacao/<contexto>/` (ADR 0045).
 - `/mensagem-prd <PRD>`: a mensagem informal de WhatsApp que o Pedro manda ao diretor quando o PRD sobe: o que subiu e o que ele já consegue fazer no app, em tópicos e sem jargão, só o que já está em produção, com o link da página do `/divulgar` quando existir. A `/onda-enxuta` que fecha a última filha do PRD roda sozinha depois da subida e avisa no celular; à mão, para PRD fechado fora da onda. Sai em bloco para copiar e fica registrada como comentário no PRD. O envio é do Pedro.
 - `/snapshot`: mapa factual da app (roda sozinho numa Action no push da `main`, depois do registro da subida, ADR 0068).
 - `/atualizar-app`: rebuild local docker-compose (não toca produção).
@@ -64,7 +64,7 @@ O diretor faz a metade de negócio do grill no app (ADR 0075). No card aberto de
 
 ## Máquina nova
 
-- `/setup-maquina [--nivel N] [--env] [--mapa]`: diagnóstico de quem clonou (clone atualizado, binários, gh, plugins, Coolify, tokens) com o conserto ao lado e o item do 1Password de cada chave; `--mapa` explica cada pasta do repo pelo `README.md` da raiz e como se conectar a cada serviço. O app não roda local: nível 2 (deploy) é o alvo. Quem vai produzir vídeo da `/divulgar` roda `--nivel 4`.
+- `/setup-maquina [--nivel N] [--env] [--mapa]`: diagnóstico de quem clonou (clone atualizado, binários, gh, plugins, Coolify, tokens) com o conserto ao lado e o item do 1Password de cada chave; `--mapa` explica cada pasta do repo pelo `README.md` da raiz e como se conectar a cada serviço. O app não roda local: nível 2 (deploy) é o alvo. Quem vai publicar a página da `/divulgar` roda `--nivel 4`.
 
 ## Travessia de sessões
 
