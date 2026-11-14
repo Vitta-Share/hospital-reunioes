@@ -37,7 +37,7 @@ wheels = [
 
 [[package]]
 name = "anthropic"
-version = "2.7.0"
+version = "2.8.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -49,9 +49,9 @@ dependencies = [
     { name = "sniffio" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/80/d3/cedfb7ed99b796c3b6b01bcb8e189f793d4eedb05979149c0b2113c5511c/anthropic-2.7.0.tar.gz", hash = "sha256:04775ef8ea252c1815e33c289848b18efa59a5da466e42be9bd91e358c4ac6f0", size = 1968135, upload-time = "2026-11-09T18:52:41.504Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/75/e6/aabc3c266a0aaf38fa542648585741fce9616ba4cd034ddde74548f790a0/anthropic-2.8.0.tar.gz", hash = "sha256:d34e389ba0544cd64e033eb7475f46cc1ac6f2a388cdcd472b33ad4ac29ef40c", size = 1976933, upload-time = "2026-11-10T16:33:19.38Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8a/da/ed144ab553eb2bc7b5febbfb37858f28b33ec332c37f0fdf260012ae3fe2/anthropic-2.7.0-py3-none-any.whl", hash = "sha256:cafb1817435d095ef46551e9b0608f56c6490728406a73f2ea8664bc805e4352", size = 2448032, upload-time = "2026-11-09T18:52:39.769Z" },
+    { url = "https://files.pythonhosted.org/packages/96/8e/f8ef271dcbe3b187879b660c129ee36ef655c7b878f6878460891d9b2a26/anthropic-2.8.0-py3-none-any.whl", hash = "sha256:76ad332e2d500fc54d0112cf100544ad1a7605e71e092b98d9eb664d2b66e283", size = 2456925, upload-time = "2026-11-10T16:33:21.388Z" },
 ]
 
 [[package]]
@@ -1047,15 +1047,15 @@ woff = [
 
 [[package]]
 name = "google-auth"
-version = "2.62.1"
+version = "2.62.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
     { name = "pyasn1-modules" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c4/38/d79ab09dcfc1e1638d887c8f65657619d3ebc454165c558ef79355971ce3/google_auth-2.62.1.tar.gz", hash = "sha256:3c8e1ce2553784ae17fd220e6f88df3281d86ab98019278f436d06dffab17a9e", size = 398519, upload-time = "2026-11-03T03:06:03.008Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4a/d4/87353e950d653d87360176363d51f316e8e368e1ddbb7ba7aa5503c30c3e/google_auth-2.62.2.tar.gz", hash = "sha256:046c61a72d3a847d6df6417a7f0d5cf054e3b82bbcb54fb1e69d47880964049c", size = 404543, upload-time = "2026-11-10T15:50:55.102Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/14/dd/2e11f0976ecb3ce48ef3f324837460e9ea50071fa4eb01f1e49df87d3cee/google_auth-2.62.1-py3-none-any.whl", hash = "sha256:015399a5abde39033c69404cc1c079e6d4c2de2993e164c9f4eac6e5376ad72b", size = 267975, upload-time = "2026-11-03T03:06:01.422Z" },
+    { url = "https://files.pythonhosted.org/packages/a0/d4/0f8481baa50f75db3bb19a0df79fe19615e66eccfc3afb0b946dcb8791b3/google_auth-2.62.2-py3-none-any.whl", hash = "sha256:e9bcdb0679b6a4369ac327c5c59f06d92f7b4cd2624e7100294c14632f55a36b", size = 270150, upload-time = "2026-11-10T15:50:53.408Z" },
 ]
 
 [[package]]
@@ -2585,15 +2585,15 @@ wheels = [
 
 [[package]]
 name = "resend"
-version = "2.53.1"
+version = "2.53.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "requests" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/19/3b/9187c96343d8356813fdde7a862780d77e65747599d6880ec9f189cb7f87/resend-2.53.1.tar.gz", hash = "sha256:79aaa514f02586e09a139759466228143f0a3d175144a0c94fac21914d26cec0", size = 86541, upload-time = "2026-11-09T21:43:03.492Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/33/08/e6d56e1f16a0d910e9462007e475985c34eb88b1dc0c41df0f1035b08e01/resend-2.53.2.tar.gz", hash = "sha256:4904f79fe129344edb612beb5653b5755dfe63c73ea5d0c96842d2869da36e28", size = 86840, upload-time = "2026-11-10T15:26:41.169Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2f/a5/4dbd761411c77b7a077aa25d43a67fbe8dd3e93bb06eed62bfa15c45026c/resend-2.53.1-py3-none-any.whl", hash = "sha256:26112957d264739ec576ccc13665199a6df9b6325aa44220ff3ea4cc2ffd773d", size = 126549, upload-time = "2026-11-09T21:43:01.974Z" },
+    { url = "https://files.pythonhosted.org/packages/cb/36/8cbf990b7b7a66ad5d8aa7da7f0be1ebab665a55f7de529c6052f152b8a8/resend-2.53.2-py3-none-any.whl", hash = "sha256:e0416b6559b972a5b877acf21e3bbd4b59098f19093a72ecc26e40407d19f452", size = 127104, upload-time = "2026-11-10T15:26:39.857Z" },
 ]
 
 [[package]]
