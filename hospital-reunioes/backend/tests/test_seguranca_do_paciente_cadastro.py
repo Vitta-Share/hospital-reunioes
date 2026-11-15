@@ -77,16 +77,35 @@ class TestRegistroProfissional:
         with pytest.raises(ValidationError):
             AdminUsuarioUpdate(registro_uf=uf)
 
-    def test_a_criacao_tambem_aceita_o_registro(self):
-        corpo = AdminUsuarioCreate(
-            nome_completo="Pessoa Nova",
-            email="nova@exemplo.com.br",
-            conselho_profissional="CRF",
-            registro_profissional="000001",
-            registro_uf="mg",
+    @pytest.mark.asyncio
+    async def test_a_criacao_grava_o_registro_no_participante(self, monkeypatch):
+        """A pessoa criada pela tela de Usuários já nasce com o registro.
+
+        Mutante: tirar do INSERT o laço que põe os três campos no payload."""
+        import app.services.auth_provisioning as provisioning_mod
+
+        monkeypatch.setattr(provisioning_mod, "provision_auth_user", lambda *a, **k: None)
+        sb = _build_supabase(participantes=[])
+
+        novo = await usuarios_router.create_usuario(
+            body=AdminUsuarioCreate(
+                nome_completo="Pessoa Nova",
+                email="nova@exemplo.com.br",
+                conselho_profissional="CRF",
+                registro_profissional="000001",
+                registro_uf="mg",
+            ),
+            request=_FakeRequest(),
+            actor=_super_admin(),
+            supabase=sb,
         )
 
-        assert (corpo.conselho_profissional, corpo.registro_profissional, corpo.registro_uf) == ("CRF", "000001", "MG")
+        gravado = next(p for p in sb.participantes if p["id"] == novo["id"])
+        assert (gravado["conselho_profissional"], gravado["registro_profissional"], gravado["registro_uf"]) == (
+            "CRF",
+            "000001",
+            "MG",
+        )
 
 
 class TestAcessoPleno:
