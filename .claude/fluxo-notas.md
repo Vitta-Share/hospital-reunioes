@@ -72,25 +72,23 @@ The port (A/B/C) is still the triage's call: the button only opens the door.
 
 **Passo 5b.** Divulgação dos PRDs que fecham neste plano
 
-PRD que fecha é entrega para o diretor e para quem opera o hospital, e eles só "veem" a funcionalidade pelo vídeo e pela página do `/divulgar`. Para **cada PRD cuja última fatia está nos prompts**, o plano traz também uma linha de divulgação. Sem ela, o PRD fecha no GitHub e ninguém fora do time fica sabendo.
+PRD que fecha é entrega para o diretor e para quem opera o hospital, e eles só "veem" a funcionalidade pela página do `/divulgar`. Para **cada PRD cuja última fatia está nos prompts**, o plano traz também uma linha de divulgação. Sem ela, o PRD fecha no GitHub e ninguém fora do time fica sabendo.
 
 Regras:
 
-1. **Terminal próprio, nunca dentro da `/onda-enxuta`.** O `/divulgar` tem gate humano no draft do vídeo; a `/onda-enxuta` é AFK até produção. Misturar os dois deixa a onda parada esperando um OK que não é de merge. O plano abre uma **sessão de divulgação** (uma só, sequencial: um PRD de cada vez) com um prompt por PRD.
-2. **Quando cada vídeo pode começar** é decisão do plano, não do humano. Leia as fatias que faltam do PRD:
-   - Se as fatias restantes **não mudam tela** (chore, teste, docs): o vídeo começa **agora**, em paralelo com as ondas. O carimbo retrata a versão de prod de hoje e o PRD já está inteiro no app.
-   - Se alguma fatia restante **muda tela**: o vídeo espera o deploy da última fatia visual (o carimbo "retrata o app em vX.Y.Z" precisa da versão que tem a tela) e roda em paralelo com o que sobrar (docs).
-3. **Saída padrão é vídeo e página** (o comando sem flag). `--so-video` só se o humano pedir. Contexto com página de módulo (`docs/comunicacao/ouvidoria/modulo/`): o prompt lembra de republicar a página de módulo com o MP4 novo de `~/Videos/Hospital/`.
+1. **Terminal próprio, nunca dentro da `/onda-enxuta`.** O plano abre uma **sessão de divulgação** (uma só, sequencial: um PRD de cada vez) com um prompt por PRD.
+2. **Quando cada página pode começar** é decisão do plano, não do humano. Leia as fatias que faltam do PRD:
+   - Se as fatias restantes **não mudam tela** (chore, teste, docs): a página começa **agora**, em paralelo com as ondas. A versão de prod de hoje já tem o PRD inteiro no app.
+   - Se alguma fatia restante **muda tela**: a página espera o deploy da última fatia visual (a versão no rodapé precisa ser a que tem a tela) e roda em paralelo com o que sobrar (docs).
+3. **O comando é só `/divulgar <PRD>`**, sem flag: ele faz a página na Vercel e grava o link na issue.
 4. O prompt de divulgação segue o mesmo formato do passo 5 (cabeçalho de leitura fora do bloco, comando na primeira linha do bloco) e diz **o que esperar antes de colar**: "cole depois do deploy verde da onda N da sessão A" ou "pode colar agora". Template:
 
 ```
 /divulgar <PRD>
 
 Contexto: o PRD #<PRD> fechou com as fatias #a, #b, #c (as visuais já estão em prod v<X.Y.Z>; a #d é só <chore/docs> e não muda tela).
-O exemplo único da demonstração: <uma linha com o caso de uso ponta a ponta que a issue descreve, no vocabulário do CONTEXT.md>.
 Fontes: o PRD e as filhas no GitHub, o código real do frontend (gh pr view <PR> --json files), ROTAS.md e o CONTEXT.md.
-Pare no draft e me mostre os frames antes do render final. Depois da página publicada, registre o link no PRD com <!-- automacao --> na primeira linha do comentário.
-<Se houver página de módulo: Atualize a cópia do MP4 em docs/comunicacao/<contexto>/modulo/ e republique a página de módulo.>
+Depois da página publicada, registre o link no PRD com <!-- automacao --> na primeira linha do comentário.
 ```
 
 5. No passo a passo (6), a divulgação entra como item próprio: em qual momento colar cada prompt e a quem mandar o link depois (diretor, usuários do módulo). O envio do link é "precisa de você".
@@ -100,7 +98,7 @@ Pare no draft e me mostre os frames antes do render final. Depois da página pub
 
 - *decisão de domínio*: o insumo externo costuma ser organograma, número ou resposta do diretor.
 - O PRD do leitor aqui é a melhoria que o diretor criou na aba Tecnologia (ADR 0077), reconhecida pelo marcador da Demanda (`prd_do_leitor` no `fluxo.json`). "Grill técnico pendente" é a que ainda não tem a marca de Refino: o próximo passo é o Refino (`/grill-with-docs #N`, o botão Refinar do PedroOS).
-- *divulgação* (`type:divulgacao`): a pessoa aprova vídeo e página; o resto é `/divulgar`.
+- *divulgação* (`type:divulgacao`): a pessoa aprova a página; o resto é `/divulgar`.
 - *as três paradas*: migration copiada pelo botão do painel (ou `pbcopy`) e colada no Studio, segredo só na tela do Coolify.
 
 ## grill-with-docs
