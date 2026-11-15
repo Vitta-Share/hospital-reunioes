@@ -82,7 +82,7 @@ ALTER TABLE colegiados ENABLE ROW LEVEL SECURITY;
 CREATE TABLE IF NOT EXISTS participacoes (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   colegiado_id      UUID NOT NULL REFERENCES colegiados(id) ON DELETE RESTRICT,
-  participante_id   TEXT NOT NULL REFERENCES participantes(id) ON DELETE RESTRICT,
+  participante_id   VARCHAR(10) NOT NULL REFERENCES participantes(id) ON DELETE RESTRICT,
   papel             TEXT NOT NULL CHECK (papel IN ('presidencia', 'suplente', 'membro')),
   vigencia_inicio   DATE NOT NULL,
   vigencia_fim      DATE NOT NULL,
