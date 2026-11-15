@@ -105,6 +105,15 @@ class ParticipanteResponse(BaseModel):
         ]
         | None
     ) = None
+    # Segurança do Paciente (ADR 0095, decisão 4): o Acesso pleno ao NSP.
+    perfil_nsp: Literal["acesso_pleno"] | None = None
+    # O registro profissional da pessoa (issue #1765).
+    conselho_profissional: str | None = None
+    registro_profissional: str | None = None
+    registro_uf: str | None = None
+    # O que a pessoa alcança no módulo Segurança do Paciente. Só o `/me`
+    # preenche: é com isto que o menu decide mostrar o item.
+    recursos_nsp: list[str] = []
     data_cadastro: date | None = None
 
 

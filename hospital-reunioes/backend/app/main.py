@@ -42,6 +42,7 @@ from app.routers import (
     pendencias,
     perfil,
     reunioes,
+    seguranca_do_paciente,
     tecnologia_automacao,
     transcricao,
     webhooks,
@@ -152,6 +153,9 @@ app.include_router(contas_medicas_painel.router, prefix=settings.api_prefix)
 app.include_router(contas_medicas_validacao.router, prefix=settings.api_prefix)
 app.include_router(contas_medicas_coordenacao.router, prefix=settings.api_prefix)
 app.include_router(contas_medicas_conversa.router, prefix=settings.api_prefix)
+# Segurança do Paciente (PRD #1764, ADR 0095): rotas sob /nsp, um router por
+# área; o super admin não passa por cima do conteúdo.
+app.include_router(seguranca_do_paciente.router, prefix=settings.api_prefix)
 app.include_router(admin.router, prefix=settings.api_prefix)
 app.include_router(admin_super_admins.router, prefix=settings.api_prefix)
 app.include_router(admin_usuarios.router, prefix=settings.api_prefix)

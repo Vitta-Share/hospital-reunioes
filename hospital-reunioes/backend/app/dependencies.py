@@ -13,6 +13,7 @@ from supabase import Client, create_client
 
 from app.config import settings
 from app.middleware.request_context import set_user_id
+from app.services.seguranca_do_paciente.permissao import RECURSOS_NSP, recursos_nsp, situacao_da_pessoa
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +71,8 @@ async def get_current_user(
 
 _PARTICIPANTE_FULL_FIELDS = (
     "id, nome_completo, cargo, email, role, setor, area, ativo, is_externo, "
-    "is_super_admin, access_profile, perfil_pop, perfil_ouvidoria, perfil_contas_medicas, github_login, auth_user_id, "
-    "data_cadastro"
+    "is_super_admin, access_profile, perfil_pop, perfil_ouvidoria, perfil_contas_medicas, perfil_nsp, github_login, "
+    "auth_user_id, data_cadastro"
 )
 
 
@@ -85,7 +86,17 @@ _PARTICIPANTE_FULL_FIELDS = (
 # que impede um ambiente rodar meses com a Ouvidoria invisível sem ninguém
 # saber por quê. Coluna sai desta lista quando a migration dela é passado
 # garantido em todo ambiente.
-_COLUNAS_OPCIONAIS = ("perfil_ouvidoria", "perfil_contas_medicas", "github_login")
+_COLUNAS_OPCIONAIS = (
+    "perfil_ouvidoria",
+    "perfil_contas_medicas",
+    "github_login",
+    # Segurança do Paciente (migration 146): o perfil e os três campos do
+    # registro profissional nascem juntos, e o fallback abaixo tira um por vez.
+    "perfil_nsp",
+    "conselho_profissional",
+    "registro_profissional",
+    "registro_uf",
+)
 
 _COLUNA_INEXISTENTE = "42703"
 
@@ -102,21 +113,25 @@ def selecionar_participantes(supabase, campos: str, montar=None):
     tronco: a área admin tem a sua própria lista de campos e cairia igual
     (issue #375, item 14)."""
     montar = montar or (lambda q: q)
-    try:
-        return montar(supabase.table("participantes").select(campos)).execute()
-    except APIError as exc:
-        if getattr(exc, "code", None) != _COLUNA_INEXISTENTE:
-            raise
-        ausente = next((c for c in _COLUNAS_OPCIONAIS if c in str(exc)), None)
-        if ausente is None or ausente not in campos:
-            raise
-        logger.warning(
-            "Coluna %s ausente em participantes: o backend subiu antes da migration dela. "
-            "As funcionalidades que dependem dela ficam desligadas até a migration rodar.",
-            ausente,
-        )
-        reduzidos = ", ".join(c for c in (p.strip() for p in campos.split(",")) if c != ausente)
-        return montar(supabase.table("participantes").select(reduzidos)).execute()
+    # O PostgREST aponta UMA coluna ausente por erro; uma migration que trouxe
+    # várias colunas pede uma tentativa por coluna, até o teto da lista.
+    for _ in range(len(_COLUNAS_OPCIONAIS)):
+        try:
+            return montar(supabase.table("participantes").select(campos)).execute()
+        except APIError as exc:
+            if getattr(exc, "code", None) != _COLUNA_INEXISTENTE:
+                raise
+            colunas = [c.strip() for c in campos.split(",")]
+            ausente = next((c for c in _COLUNAS_OPCIONAIS if c in str(exc) and c in colunas), None)
+            if ausente is None:
+                raise
+            logger.warning(
+                "Coluna %s ausente em participantes: o backend subiu antes da migration dela. "
+                "As funcionalidades que dependem dela ficam desligadas até a migration rodar.",
+                ausente,
+            )
+            campos = ", ".join(c for c in colunas if c != ausente)
+    return montar(supabase.table("participantes").select(campos)).execute()
 
 
 def _buscar_participante(supabase, campos: str, coluna: str, valor):
@@ -551,6 +566,44 @@ def require_permissao_cm(permissao: str | None = None):
                 detail="Sem permissão para esta ação em Contas médicas",
             )
         return {**me, "permissoes_cm": permissoes}
+
+    return checker
+
+
+def recursos_nsp_da_pessoa(supabase, participante: dict[str, Any] | None) -> frozenset[str]:
+    """O que a pessoa alcança em Segurança do Paciente (ADR 0095, decisão 4).
+
+    A regra é a função pura de `permissao`; aqui só se junta o cadastro e a
+    flag de super admin. Sem participante, nada.
+    """
+    if not participante:
+        return frozenset()
+    return recursos_nsp(situacao_da_pessoa(supabase, participante, super_admin=is_super_admin(participante)))
+
+
+RECUSA_DO_NSP = "Conteúdo restrito ao Núcleo de Segurança do Paciente"
+
+
+def require_recurso_nsp(recurso: str):
+    """Gate das rotas de Segurança do Paciente: 403 sem o recurso.
+
+    Ao contrário de POPs, Ouvidoria e Contas médicas, o super admin NÃO passa
+    por cima: só chega à `configuracao` (ADR 0095, decisão 4). A recusa não diz
+    nada do Núcleo além do nome. Devolve o participante com `recursos_nsp`.
+    """
+    if recurso not in RECURSOS_NSP:
+        raise ValueError(f"Recurso de Segurança do Paciente desconhecido: {recurso!r}")
+
+    async def checker(
+        current_user: dict = Depends(get_current_user),
+        supabase: Client = Depends(get_supabase_client),
+    ) -> dict:
+        me = await get_participante_for_user(current_user, supabase)
+        barrar_desligado(me)
+        recursos = recursos_nsp_da_pessoa(supabase, me)
+        if not me or recurso not in recursos:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=RECUSA_DO_NSP)
+        return {**me, "recursos_nsp": sorted(recursos)}
 
     return checker
 

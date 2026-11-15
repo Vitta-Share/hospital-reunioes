@@ -62,6 +62,9 @@ class _Consulta:
         self._eq[coluna] = valor
         return self
 
+    def limit(self, *_a, **_kw):
+        return self
+
     def execute(self):
         casam = [dict(linha) for linha in self._linhas if all(linha.get(c) == v for c, v in self._eq.items())]
         return SimpleNamespace(data=casam)
