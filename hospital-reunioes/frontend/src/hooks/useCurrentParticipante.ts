@@ -28,6 +28,9 @@ export interface CurrentParticipante {
   perfil_ouvidoria?: PerfilOuvidoria | null;
   // Eixo de permissão do contexto Contas médicas (ADR 0070).
   perfil_contas_medicas?: PerfilContasMedicas | null;
+  // O que a pessoa alcança em Segurança do Paciente (ADR 0095), calculado no
+  // servidor pela Participação vigente, pelo Acesso pleno e pelo cargo.
+  recursos_nsp?: string[];
 }
 
 interface State {

@@ -22,6 +22,12 @@ export interface AdminUsuario {
    * desenvolvimento de quem vê só a Etapa em palavras.
    */
   github_login?: string | null;
+  /** Acesso pleno à Segurança do Paciente (ADR 0095, decisão 4). */
+  perfil_nsp?: "acesso_pleno" | null;
+  /** O registro profissional (issue #1765). */
+  conselho_profissional?: string | null;
+  registro_profissional?: string | null;
+  registro_uf?: string | null;
   auth_user_id?: string | null;
   data_cadastro?: string | null;
 }
@@ -59,6 +65,11 @@ export interface AdminUsuarioPayload {
   ativo?: boolean;
   /** `null` explícito APAGA o login; campo ausente não mexe nele. */
   github_login?: string | null;
+  conselho_profissional?: string | null;
+  registro_profissional?: string | null;
+  registro_uf?: string | null;
+  /** `null` explícito tira o Acesso pleno; campo ausente não mexe nele. */
+  perfil_nsp?: "acesso_pleno" | null;
   reason?: string;
 }
 

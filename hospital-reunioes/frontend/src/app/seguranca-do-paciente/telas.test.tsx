@@ -1,0 +1,195 @@
+/**
+ * @vitest-environment jsdom
+ */
+
+/**
+ * As telas da primeira fase de Segurança do Paciente (issue #1765, PRD #1764).
+ *
+ * Cada tela abre com uma linha dizendo o que fazer ali (seção 17 da
+ * especificação), título em h1 (a regra base da Caixa alta põe em maiúsculas,
+ * ADR 0080) e, enquanto a fatia dela não chega, o estado vazio. Quem não tem o
+ * recurso da tela vê a recusa, e não a tela.
+ *
+ * jsdom não mede largura. O que segura a tela a 375 px aqui é não ter largura
+ * fixa nenhuma e o texto curto: a orientação numa frase só, os passos do
+ * "Como funciona" com uma frase cada.
+ */
+
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join, resolve } from "node:path";
+
+import { cleanup, render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import type { CurrentParticipante } from "@/hooks/useCurrentParticipante";
+
+import InicioPage from "./page";
+import AgendaPage from "./agenda/page";
+import CapacitacoesPage from "./capacitacoes/page";
+import DocumentosPage from "./documentos/page";
+import MembrosPage from "./membros/page";
+import ReunioesPage from "./reunioes/page";
+
+const sessao = vi.hoisted(() => ({
+  participante: null as CurrentParticipante | null,
+}));
+
+vi.mock("@/hooks/useCurrentParticipante", () => ({
+  useCurrentParticipante: () => ({
+    participante: sessao.participante,
+    loading: false,
+    error: null,
+  }),
+}));
+
+afterEach(() => {
+  cleanup();
+  sessao.participante = null;
+});
+
+const TODOS = [
+  "ver_modulo",
+  "painel",
+  "calendario",
+  "agenda",
+  "membros",
+  "documentos",
+  "capacitacoes",
+  "reunioes",
+  "casos",
+];
+const SEM_TERMO = ["ver_modulo", "painel", "calendario", "agenda"];
+
+function entrar(recursos: string[]) {
+  sessao.participante = {
+    id: "p1",
+    nome_completo: "Pessoa de Teste",
+    email: "pessoa@hsm",
+    recursos_nsp: recursos,
+  };
+}
+
+const TELAS = [
+  {
+    nome: "Início",
+    Pagina: InicioPage,
+    titulo: "Segurança do Paciente",
+    orientacao: "O que precisa de você hoje vem primeiro. O resto é acompanhamento.",
+  },
+  {
+    nome: "Reuniões",
+    Pagina: ReunioesPage,
+    titulo: "Reuniões do Núcleo",
+    orientacao: "A pauta é montada pelo sistema. Depois da reunião, importe a transcrição e revise a ata.",
+  },
+  {
+    nome: "Membros",
+    Pagina: MembrosPage,
+    titulo: "Membros",
+    orientacao: "Quem compõe o Núcleo, até quando, e quem ainda precisa assinar.",
+  },
+  {
+    nome: "Documentos",
+    Pagina: DocumentosPage,
+    titulo: "Documentos",
+    orientacao: "A versão vigente de cada documento e as anteriores.",
+  },
+  {
+    nome: "Capacitações",
+    Pagina: CapacitacoesPage,
+    titulo: "Capacitações",
+    orientacao: "As capacitações do Núcleo e quem confirmou presença.",
+  },
+  {
+    nome: "Agenda regulatória",
+    Pagina: AgendaPage,
+    titulo: "Agenda regulatória",
+    orientacao: "O que a vigilância sanitária cobra do hospital, e até quando.",
+  },
+] as const;
+
+describe("as telas do módulo", () => {
+  it.each(TELAS)("$nome abre com o título e a linha de orientação", ({ Pagina, titulo, orientacao }) => {
+    entrar(TODOS);
+    render(<Pagina />);
+
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(titulo);
+    expect(screen.getByText(orientacao).tagName).toBe("P");
+  });
+
+  it.each(TELAS.filter((t) => t.nome !== "Início"))(
+    "$nome mostra o estado vazio enquanto a fatia dela não chega",
+    ({ Pagina }) => {
+      entrar(TODOS);
+      render(<Pagina />);
+
+      expect(screen.getByText("Nada por aqui ainda.")).toBeTruthy();
+    }
+  );
+
+  it("o Início explica como funciona o Núcleo em seis passos curtos", () => {
+    entrar(TODOS);
+    render(<InicioPage />);
+
+    const passos = within(screen.getByRole("list", { name: "Como funciona o Núcleo" })).getAllByRole("listitem");
+    expect(passos).toHaveLength(6);
+    for (const passo of passos) {
+      expect(passo.textContent!.length).toBeLessThanOrEqual(90);
+    }
+  });
+});
+
+describe("quem não tem o recurso da tela", () => {
+  it.each([
+    ["Membros", MembrosPage],
+    ["Documentos", DocumentosPage],
+    ["Capacitações", CapacitacoesPage],
+  ] as const)("o membro sem Termo vê a recusa em %s, e não a tela", (_nome, Pagina) => {
+    entrar(SEM_TERMO);
+    render(<Pagina />);
+
+    expect(screen.getByText("Esta tela ainda não está liberada para você.")).toBeTruthy();
+    expect(screen.queryByText("Nada por aqui ainda.")).toBeNull();
+  });
+
+  it.each([
+    ["Início", InicioPage],
+    ["Agenda regulatória", AgendaPage],
+    ["Reuniões", ReunioesPage],
+  ] as const)("o membro sem Termo abre %s (painel, calendário e agenda)", (_nome, Pagina) => {
+    entrar(SEM_TERMO);
+    render(<Pagina />);
+
+    expect(screen.queryByText("Esta tela ainda não está liberada para você.")).toBeNull();
+  });
+});
+
+describe("o texto das telas", () => {
+  const PASTAS = [resolve(process.cwd(), "src/app/seguranca-do-paciente"), resolve(process.cwd(), "src/components/seguranca-do-paciente")];
+
+  function arquivos(pasta: string): string[] {
+    return readdirSync(pasta).flatMap((nome) => {
+      const caminho = join(pasta, nome);
+      if (statSync(caminho).isDirectory()) return arquivos(caminho);
+      return /\.tsx?$/.test(nome) && !nome.endsWith(".test.tsx") ? [caminho] : [];
+    });
+  }
+
+  it("o detector acha os arquivos das telas (piso)", () => {
+    expect(PASTAS.flatMap(arquivos).length).toBeGreaterThanOrEqual(7);
+  });
+
+  it("nenhuma largura fixa, que quebraria a tela a 375 px", () => {
+    for (const caminho of PASTAS.flatMap(arquivos)) {
+      expect(readFileSync(caminho, "utf8")).not.toMatch(/\b(?:min-)?w-\[\d+px\]/);
+    }
+  });
+
+  it("sem travessão nem meia-risca", () => {
+    for (const caminho of PASTAS.flatMap(arquivos)) {
+      const texto = readFileSync(caminho, "utf8");
+      expect(texto.includes(String.fromCharCode(0x2014)), caminho).toBe(false);
+      expect(texto.includes(String.fromCharCode(0x2013)), caminho).toBe(false);
+    }
+  });
+});

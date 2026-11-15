@@ -13,6 +13,7 @@
  */
 
 import {
+  fireEvent,
   cleanup,
   render,
   screen,
@@ -310,5 +311,111 @@ describe("Sidebar com o item Contas médicas", () => {
     const menu = screen.getByRole("navigation");
     expect(within(menu).getAllByRole("link").length).toBeGreaterThan(0);
     expect(linkDeContasMedicas()).toBeUndefined();
+  });
+});
+
+/**
+ * O item Segurança do Paciente (issue #1765, PRD #1764, ADR 0095).
+ *
+ * Quem decide é o servidor: `/participantes/me` devolve `recursos_nsp`, e o
+ * item aparece só com `ver_modulo` (Participação vigente no Núcleo, Acesso
+ * pleno ou Diretoria). O super admin recebe só `configuracao` e não vê o item.
+ */
+describe("Sidebar com o item Segurança do Paciente", () => {
+  const SEM_TERMO = ["agenda", "calendario", "painel", "ver_modulo"];
+
+  function entrar(papeis: Partial<CurrentParticipante>) {
+    sessao.participante = {
+      id: "p1",
+      nome_completo: "Pessoa de Teste",
+      email: "pessoa@hsm",
+      ...papeis,
+    } as CurrentParticipante;
+    rota.atual = "/seguranca-do-paciente";
+    render(<Sidebar />);
+    return screen.getByRole("navigation");
+  }
+
+  function hrefs(menu: HTMLElement): string[] {
+    return within(menu)
+      .queryAllByRole("link")
+      .map((link) => link.getAttribute("href") ?? "");
+  }
+
+  it.each([
+    ["membro do Núcleo sem papel nas Reuniões", { access_profile: null, recursos_nsp: SEM_TERMO }],
+    ["diretor com papel nas Reuniões", { access_profile: "regular", recursos_nsp: SEM_TERMO }],
+  ] as const)("aparece para %s, com as cinco telas da primeira fase", (_nome, papeis) => {
+    const menu = entrar(papeis as Partial<CurrentParticipante>);
+
+    expect(within(menu).getByRole("button", { name: "Segurança do Paciente" })).toBeTruthy();
+    expect(hrefs(menu)).toEqual(
+      expect.arrayContaining([
+        "/seguranca-do-paciente",
+        "/seguranca-do-paciente/reunioes",
+        "/seguranca-do-paciente/membros",
+        "/seguranca-do-paciente/documentos",
+        "/seguranca-do-paciente/capacitacoes",
+        "/seguranca-do-paciente/agenda",
+      ])
+    );
+  });
+
+  it.each([
+    ["super admin sem Acesso pleno", { access_profile: "super_admin", recursos_nsp: ["configuracao"] }],
+    ["quem só tem papel nas Reuniões", { access_profile: "regular", recursos_nsp: [] }],
+    ["quem ainda não tem a lista do servidor", { access_profile: "regular" }],
+  ] as const)("não aparece para %s", (_nome, papeis) => {
+    const menu = entrar(papeis as Partial<CurrentParticipante>);
+
+    // Controle positivo: o menu montou, e o item é que não está nele.
+    expect(within(menu).getAllByRole("link").length).toBeGreaterThan(0);
+    expect(within(menu).queryByRole("button", { name: "Segurança do Paciente" })).toBeNull();
+    expect(hrefs(menu).filter((href) => href.startsWith("/seguranca-do-paciente"))).toEqual([]);
+  });
+
+  it.each([
+    [
+      "Auditorias de adesão",
+      "Em breve: auditorias rápidas pelo celular. Um membro da equipe observa uma amostra de pacientes ou de procedimentos (pulseira de identificação, lista de verificação cirúrgica, higiene das mãos, risco de queda) e marca o que encontrou. Os resultados alimentam os indicadores dos protocolos sem digitação.",
+    ],
+    [
+      "Gestão de riscos",
+      "Em breve: mapa de riscos por setor e análise preventiva de processos críticos, antes que o incidente aconteça.",
+    ],
+    [
+      "Comissões",
+      "Em breve: as demais comissões do hospital (prontuário, óbito, ética) com a mesma estrutura de membros, documentos, reuniões e atas.",
+    ],
+  ])("%s aparece desabilitado, com o selo Em breve e o texto da especificação", (rotulo, texto) => {
+    const menu = entrar({ access_profile: null, recursos_nsp: SEM_TERMO });
+
+    const item = within(menu).getByRole("button", { name: new RegExp(`^${rotulo}`) });
+    expect(item.getAttribute("aria-disabled")).toBe("true");
+    expect(within(item).getByText("Em breve")).toBeTruthy();
+    // Não é link: não leva a lugar nenhum.
+    expect(within(menu).queryByRole("link", { name: new RegExp(rotulo) })).toBeNull();
+
+    // O texto fica ligado ao item e aparece no toque (o celular não tem hover).
+    const explicacao = document.getElementById(item.getAttribute("aria-describedby") ?? "");
+    expect(explicacao?.textContent).toBe(texto);
+    expect(explicacao?.hidden).toBe(true);
+    fireEvent.click(item);
+    expect(explicacao?.hidden).toBe(false);
+    expect(item.getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("recolhido, o menu não mostra os itens Em breve como ícone navegável", () => {
+    localStorage.setItem("menu-recolhido", "1");
+    try {
+      const menu = entrar({ access_profile: null, recursos_nsp: SEM_TERMO });
+      // Controle positivo: recolhido de fato, com os ícones do módulo.
+      expect(hrefs(menu)).toContain("/seguranca-do-paciente/membros");
+      expect(within(menu).queryByRole("button", { name: "Segurança do Paciente" })).toBeNull();
+      expect(hrefs(menu).filter((href) => href === "" || href === "#")).toEqual([]);
+      expect(within(menu).queryByRole("link", { name: /Comissões/ })).toBeNull();
+    } finally {
+      localStorage.removeItem("menu-recolhido");
+    }
   });
 });
