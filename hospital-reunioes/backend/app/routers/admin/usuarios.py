@@ -61,7 +61,8 @@ router = APIRouter(prefix="/admin/usuarios", tags=["admin", "usuarios"])
 # Campos que exibimos/retornamos sempre que possivel.
 _SELECT_FIELDS = (
     "id, nome_completo, email, cargo, area, setor, role, ativo, is_externo, "
-    "is_super_admin, access_profile, perfil_pop, perfil_ouvidoria, github_login, auth_user_id, data_cadastro"
+    "is_super_admin, access_profile, perfil_pop, perfil_ouvidoria, github_login, auth_user_id, data_cadastro, "
+    "perfil_nsp, conselho_profissional, registro_profissional, registro_uf"
 )
 
 
@@ -375,6 +376,10 @@ async def create_usuario(
     login = _github_login_valido(supabase, body.github_login)
     if login is not None:
         payload["github_login"] = login
+    # O registro profissional, pelo mesmo motivo: só com valor (migration 146).
+    for campo in ("conselho_profissional", "registro_profissional", "registro_uf"):
+        if getattr(body, campo) is not None:
+            payload[campo] = getattr(body, campo)
 
     # Saga manual: INSERT participante + auth user com rollback se Admin API
     # falhar (evita registro órfão sem auth_user_id). Mantemos a postura
@@ -484,6 +489,15 @@ async def update_usuario(
     # os controles do Vinculo). Campo ausente nao mexe em nada.
     if "github_login" in data:
         data["github_login"] = _github_login_valido(supabase, data["github_login"], exclude_id=participante_id)
+
+    # O Acesso pleno à Segurança do Paciente é o que abre o conteúdo do Núcleo,
+    # que o super admin não lê (ADR 0095, decisão 4): ele concede a outra
+    # pessoa, com auditoria, e nunca a si mesmo. Tirar de si mesmo pode.
+    if data.get("perfil_nsp") and actor.get("id") == participante_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="O Acesso pleno à Segurança do Paciente não pode ser dado a si mesmo",
+        )
 
     # Monta changes (antes/depois) apenas para campos realmente alterados.
     changes: dict[str, dict] = {}

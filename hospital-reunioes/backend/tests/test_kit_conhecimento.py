@@ -47,6 +47,7 @@ ARQUIVO_POR_PRODUTO = {
     "Infra": "infra.md",
     "Central de Comando": "central-de-comando.md",
     "Contas médicas": "contas-medicas.md",
+    "Segurança do Paciente": "seguranca-do-paciente.md",
 }
 
 # O arquivo que sobra nao e de Produto nenhum: e o da propria aba.
@@ -104,7 +105,7 @@ class TestUmArquivoPorProduto:
         """Piso de sanidade do proprio detector: se a regex parar de casar, a
         lista volta vazia e TODO teste parametrizado por ela some em silencio,
         verde, sem ter olhado para nada."""
-        assert len(_produtos_do_seed()) == 9
+        assert len(_produtos_do_seed()) == 10
 
     def test_o_mapa_cobre_exatamente_o_seed(self):
         """Mutante: acrescentar um Produto ao seed sem escrever o texto dele."""
@@ -752,4 +753,12 @@ def test_a_aba_diz_que_a_conversa_fica_corrida_e_os_subtitulos_em_caixa_alta():
         "os subtítulos do resumo ficam em caixa alta",
         "o título de cada Demanda aparece como foi escrito",
     ):
+        assert termo in decidido, termo
+
+
+def test_seguranca_do_paciente_diz_o_que_ja_foi_decidido_sobre_o_acesso():
+    """O Assistente responde do kit: a pergunta "por que o super admin não
+    abre o Núcleo?" tem que achar a decisão escrita (issue #1765)."""
+    decidido = _secao(_texto("seguranca-do-paciente.md"), SECAO_DECIDIDO)
+    for termo in ("super admin", "Acesso pleno", "Termo de Adesão", "Em breve"):
         assert termo in decidido, termo
