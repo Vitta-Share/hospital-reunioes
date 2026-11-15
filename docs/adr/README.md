@@ -30,6 +30,7 @@ Só `status: accepted` vale como decisão; `superseded` é histórico (CLAUDE.md
 | [0092](0092-entregas-como-ritmo-semanal-com-tamanho-da-entrega.md) | accepted | Entregas como ritmo semanal, com Tamanho da entrega e o que cada entrega fez (substitui 0091; emenda 0054, 0084 e 0090) |
 | [0093](0093-projeto-na-tecnologia-aplicativo-do-hospital-e-ana.md) | accepted | Projeto na Tecnologia: Aplicativo do Hospital e Ana, com chave projeto mais número e filtro no Quadro e nas Entregas (emenda 0054, 0084, 0090 e 0092) |
 | [0094](0094-manual-novo-dentro-do-app-com-abas-hospital-e-ana.md) | accepted | Manual novo dentro do app, com as abas Aplicativo do Hospital e Ana (Retrato), e a fatia de manual de volta sem vídeo (emenda 0078 e 0068) |
+| [0095](0095-modulo-do-nucleo-de-seguranca-do-paciente-fundacao.md) | accepted | O módulo do Núcleo de Segurança do Paciente: fundação, fases e exceções de IA (emenda 0082) |
 
 ## Contas médicas
 

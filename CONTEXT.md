@@ -246,7 +246,7 @@ O envio a um setor que só confirma o recebimento, por um botão no e-mail, sem 
 _Evitar_: confundir com o [Acionamento de resposta]; deixar o ouvidor escolher o tipo.
 
 **Núcleo de Segurança do Paciente**:
-O setor que recebe, em ciência e em paralelo à área, todo caso que descreve um incidente relacionado à assistência (RDC 36/2013): queda, erro de medicação, identificação errada, lesão por pressão, infecção, problema em procedimento, exame trocado ou atrasado com impacto clínico, falha de equipamento, piora ou óbito inesperado. É um setor da taxonomia, com a presidência do NSP como titular no cadastro de [Responsável do setor]. É a única exceção ao sigilo reforçado: recebe o relato integral e o paciente atendido mesmo no caso sigiloso, mas o nome de quem manifestou só quando o caso não é sigiloso. O e-mail só traz o link; o conteúdo fica na tela.
+O setor que recebe, em ciência e em paralelo à área, todo caso que descreve um incidente relacionado à assistência (RDC 36/2013): queda, erro de medicação, identificação errada, lesão por pressão, infecção, problema em procedimento, exame trocado ou atrasado com impacto clínico, falha de equipamento, piora ou óbito inesperado. É um setor da taxonomia, com a presidência do NSP como titular no cadastro de [Responsável do setor]. É a única exceção ao sigilo reforçado: recebe o relato integral e o paciente atendido mesmo no caso sigiloso, mas o nome de quem manifestou só quando o caso não é sigiloso. O e-mail só traz o link; o conteúdo fica na tela. É também o primeiro [Colegiado] do app, com módulo próprio (seção Segurança do Paciente).
 _Evitar_: "NSP" sozinho em texto para o paciente; estender a exceção de sigilo a outro setor; deixar a investigação do Núcleo bloquear o encerramento do caso.
 
 **Em análise pelo NSP**:
@@ -284,6 +284,50 @@ O degrau de detalhe que a [API da Ana] escolhe **pelo tamanho** da resposta, par
 A seção somente leitura da tela Dados do Atendimento que mostra ao vivo o que a agenda online da Global Health publica (ADR 0038). Quatro elos encadeados: especialidades publicadas, convênios aceitos e profissionais da especialidade, planos do convênio, horários livres. Botão "Atualizar" dispara a chamada; nada é gravado no banco (espelho, não cópia). O backend é o único que fala com a Global Health (o token nunca chega ao navegador), sempre a base de homologação, só leitura. Falha de rede aparece como falha, e bloco vazio diz por quê. Responde as quatro perguntas de quando a Ana não acha horário: especialidade não publicada, convênio fora da lista, médico desligado no Painel, ou agenda sem horário livre.
 _Evitar_: chamar de integração de agendamento (não agenda nada), gravar o que a Global Health respondeu.
 _Evitar_: paginação; cortar a lista para caber; supor que a mesma chamada devolve sempre a mesma forma.
+
+## Segurança do Paciente (o módulo do Núcleo)
+
+O módulo em que o [Núcleo de Segurança do Paciente] funciona de ponta a ponta: constituição, notificação de incidente, triagem, investigação, plano de ação, reuniões e prestação de contas (ADR 0095). Entra em quatro fases. O Núcleo continua recebendo os casos da Ouvidoria pelo [Acionamento de ciência].
+
+**Colegiado**:
+Um grupo formal do hospital com regimento, composição e reuniões próprias. O Núcleo de Segurança do Paciente é o primeiro; as comissões (prontuário, óbito, ética) vêm depois, na mesma estrutura.
+_Evitar_: "comissão" para o Núcleo; cadastro de membros por módulo.
+
+**Participação**:
+O papel de uma pessoa num [Colegiado], sempre com vigência (início e fim). Participação vencida não recebe caso nem conta para quórum.
+_Evitar_: "membro" sem dizer de quê; apagar participação encerrada (o histórico responde quem compunha o Colegiado em qualquer data).
+
+**Presidência (do Núcleo)**:
+A pessoa que coordena o Núcleo e decide a triagem, a designação e as aprovações. "Presidência" e "coordenação" são a mesma pessoa; o suplente responde nas ausências.
+_Evitar_: "coordenação" como papel separado; "secretário" (não existe: a secretaria é da Presidência, com a automação).
+
+**Membro do Núcleo**:
+Quem tem [Participação] vigente no Núcleo e o [Termo de Adesão] assinado. Sem Termo válido, vê painel, calendário e agenda, e não abre caso, investigação nem ata.
+_Evitar_: tratar o cadastrado sem Termo como membro pleno.
+
+**Termo de Adesão**:
+O documento que cada membro assina ao entrar no Núcleo ou renovar a vigência: o Termo mais o Regimento vigente na íntegra, num único documento, com um único signatário.
+_Evitar_: pedir nova assinatura por revisão só de redação do Regimento.
+
+**Acesso pleno ao NSP**:
+A permissão nominal de quem vê e edita tudo no módulo, inclusive a identidade de quem notificou. Hoje é do Diretor Executivo. Não vem do super admin, que só alcança a configuração técnica.
+_Evitar_: dar leitura de caso a super admin; excluir registro (todo perfil corrige, com histórico).
+
+**Notificação de incidente**:
+O relato de um incidente relacionado à assistência, feito por um profissional, com ou sem login, ou vindo de um caso da Ouvidoria. Quem notifica conta o que aconteceu e não classifica.
+_Evitar_: "notificação" sozinha (confunde com a [Notificação da Ouvidoria], que é o registro de um e-mail); "denúncia"; nome de paciente no relato.
+
+**Triagem (do Núcleo)**:
+A confirmação, pela Presidência, da classificação que o agente sugere para cada [Notificação de incidente]. O agente sempre sugere e a Presidência sempre confirma, ajusta ou encaminha.
+_Evitar_: confundir com a [Triagem de e-mail] e com o [Agente de triagem] da Ouvidoria; tratar a sugestão como decisão.
+
+**Faixa (A a E)**:
+A prioridade de um caso do Núcleo, da mais grave para a mais leve: A (óbito ou evento que nunca deveria ocorrer), B (dano grave), C (dano moderado), D (dano leve ou sem dano), E (quase erro ou circunstância de risco). Na dúvida entre duas, vale a mais alta.
+_Evitar_: "never event" e "near miss" fora de parênteses; rebaixar caso grave.
+
+**Notificação externa**:
+A comunicação de um incidente à vigilância sanitária, com prazo legal. O app prepara o texto e guarda o protocolo; quem envia é a Presidência, no sistema da ANVISA.
+_Evitar_: confundir com a [Notificação de incidente]; "parar o relógio" de prazo legal.
 
 ## Tecnologia (o chat do diretor com o agente)
 
