@@ -1119,11 +1119,13 @@ class TestTermoNovoPelaAssinaturaDoRegimento:
 
     @pytest.mark.parametrize(
         "tipo, natureza",
-        [("regimento", "redacao"), ("ato_designacao", None), ("plano_seguranca_paciente", None)],
+        [("regimento", "redacao"), ("ato_designacao", "material"), ("plano_seguranca_paciente", "material")],
         ids=["regimento_de_redacao", "ato_de_designacao", "plano"],
     )
     def test_o_que_nao_e_revisao_material_do_regimento_nao_gera_termo(self, lotes, tipo, natureza):
-        """Mutante: tirar a conferência do tipo e da natureza."""
+        """Ato e Plano vão com natureza material de propósito: o formulário não
+        zera a natureza quando o tipo muda, e nada recusa. Mutantes, um por vez:
+        tirar a conferência do tipo; tirar a da natureza."""
         cenario = _Cenario(PRESIDENCIA)
         novo = cenario.enviar(tipo=tipo, natureza_revisao=natureza)["documento"]
 
