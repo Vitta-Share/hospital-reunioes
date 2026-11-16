@@ -420,16 +420,24 @@ def reconsultar(supabase, participacao: dict) -> dict | None:
     return envio
 
 
-def reenviar_termo(supabase, participacao: dict, *, autor_id: str) -> dict:
+def novo_termo(supabase, participacao: dict, *, autor_id: str, acao: str = "termo_enviado") -> dict:
     """Cancela o envio aberto (o link antigo morre) e gera outro, com outro
-    identificador. O retorno do envelope cancelado não muda mais nada."""
+    identificador. O retorno do envelope cancelado não muda mais nada.
+
+    A assinatura anterior fica onde está: o membro que já era Ativo segue as
+    regras de estado e de carência até assinar o novo (issue #1769)."""
     for envio in envios_abertos(supabase, participacao["id"]):
         if envio.get("envelope_id"):
             clicksign_service.cancel_envelope(envio["envelope_id"])
         supabase.table("nsp_termos_envios").update({"situacao": "cancelado", "cancelado_em": _agora()}).eq(
             "id", envio["id"]
         ).execute()
-    return gerar_e_enviar_termo(supabase, participacao, autor_id=autor_id, acao="termo_reenviado")
+    return gerar_e_enviar_termo(supabase, participacao, autor_id=autor_id, acao=acao)
+
+
+def reenviar_termo(supabase, participacao: dict, *, autor_id: str) -> dict:
+    """O reenvio da ficha: outro documento, com outro identificador."""
+    return novo_termo(supabase, participacao, autor_id=autor_id, acao="termo_reenviado")
 
 
 def liberar(supabase, participacao: dict, *, autor_id: str, justificativa: str) -> None:

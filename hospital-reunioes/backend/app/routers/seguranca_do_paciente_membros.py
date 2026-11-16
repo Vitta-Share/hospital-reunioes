@@ -396,10 +396,11 @@ async def cadastrar_membro(
 
 
 def _gerar_termo(supabase, participacao: dict, autor_id: str) -> str | None:
-    """Gera e envia o Termo do membro recém-cadastrado. O cadastro já está
-    gravado: falha aqui vira aviso na resposta, e a ficha tem o reenvio."""
+    """Gera e envia o Termo: no cadastro, na renovação e na mudança de papel
+    (issue #1769). A mudança já está gravada: falha aqui vira aviso na
+    resposta, e a ficha tem o reenvio."""
     try:
-        return termo.gerar_e_enviar_termo(supabase, participacao, autor_id=autor_id).get("erro")
+        return termo.novo_termo(supabase, participacao, autor_id=autor_id).get("erro")
     except termo.TermoNaoGeradoError as erro:
         return str(erro)
     except Exception:  # noqa: BLE001 (o cadastro não se desfaz por falha do Termo)
@@ -475,7 +476,9 @@ async def renovar_membro(
     _gravar_trilha(
         supabase, participacao_id, me["id"], "renovacao", [("vigencia_fim", atual["vigencia_fim"], body.vigencia_fim)]
     )
-    return _responder(supabase, participacao_id, nucleo_id)
+    renovada = _participacao(supabase, nucleo_id, participacao_id)
+    aviso = await run_in_threadpool(_gerar_termo, supabase, renovada, me["id"])
+    return {**_responder(supabase, participacao_id, nucleo_id), "aviso_termo": aviso}
 
 
 @router.post("/{participacao_id}/encerrar")
