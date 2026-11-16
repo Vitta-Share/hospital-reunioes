@@ -96,21 +96,20 @@ class MinutaComNomeError(ValueError):
 
 
 def reuniao_do_nucleo(supabase, id_reuniao: str) -> dict | None:
-    """A reunião, se for do Núcleo; None para a reunião comum."""
-    nucleo_id = id_do_nucleo(supabase)
-    if not nucleo_id:
-        return None
+    """A reunião, se for do Núcleo; None para a reunião comum. A reunião
+    comum (sem colegiado) não chega a ler os colegiados."""
     linhas = (
         supabase.table("reunioes")
         .select("id_reuniao, data, hora_inicio, hora_fim, tipo, titulo, status_ata, colegiado_id, json_ata")
         .eq("id_reuniao", id_reuniao)
-        .eq("colegiado_id", nucleo_id)
         .limit(1)
         .execute()
         .data
         or []
     )
-    return linhas[0] if linhas else None
+    if not linhas or not linhas[0].get("colegiado_id"):
+        return None
+    return linhas[0] if linhas[0]["colegiado_id"] == id_do_nucleo(supabase) else None
 
 
 def _presenca(supabase, id_reuniao: str) -> dict[str, str]:

@@ -39,6 +39,10 @@ from test_seguranca_do_paciente_reunioes import (  # noqa: E402
     MEMBRO,
     NUCLEO,
     PRESIDENCIA,
+    R_COMUM,
+    SUPER_ADMIN,
+    SUPER_ADMIN_PLENO,
+    _assert_recusado,
     _Banco,
     _banco,
     _cliente,
@@ -48,7 +52,8 @@ from test_seguranca_do_paciente_reunioes import (  # noqa: E402
     _reuniao,
 )
 
-from app.services import ai_processor, storage  # noqa: E402
+from app.limiter import limiter  # noqa: E402
+from app.services import ai_processor, clicksign_service, storage  # noqa: E402
 
 R_ATA = "RD_NUCLEO_ATA"
 R_ANTERIOR = "RD_NUCLEO_ANT"
@@ -152,6 +157,13 @@ def _minuta(**blocos) -> dict[str, Any]:
 
 
 @pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    limiter._storage.reset()
+    yield
+    limiter._storage.reset()
+
+
+@pytest.fixture(autouse=True)
 def _ia(monkeypatch) -> _IaDublada:
     def _estoura(*_a, **_kw):
         raise AssertionError("teste chamou a IA de verdade")
@@ -163,6 +175,8 @@ def _ia(monkeypatch) -> _IaDublada:
     monkeypatch.setattr(ai_processor, "_pedir_json", dublada)
     monkeypatch.setattr(ai_processor, "_pedir_texto", _estoura)
     monkeypatch.setattr(storage, "upload_file", lambda *a, **kw: "https://storage.test/transcricao.txt")
+    # A assinatura também nunca sai de verdade.
+    monkeypatch.setattr(clicksign_service, "start_signature_flow", _estoura)
     return dublada
 
 
@@ -296,3 +310,179 @@ class TestNomesForaDasPresencas:
 
         assert len(_ia.chamadas) == 1
         assert _ata_gravada(banco)["deliberacoes"][0]["responsavel"] == "Pessoa de Teste MEMB3"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. Quem valida: a Presidência, o suplente em exercício e o Acesso pleno
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _validar(cliente, rid: str = R_ATA):
+    return cliente.post(f"/api/nsp/reunioes/{rid}/ata/validar")
+
+
+def _status(banco: _Banco, rid: str = R_ATA) -> str:
+    return next(r for r in banco.tabelas["reunioes"] if r["id_reuniao"] == rid)["status_ata"]
+
+
+def _pendencias_da_ata(banco: _Banco) -> list[dict[str, Any]]:
+    return [p for p in banco.tabelas["pendencias"] if p["id_reuniao"] == R_ATA]
+
+
+def _com_ata() -> _BancoDaAta:
+    banco = _cenario()
+    _importar(_cliente(PRESIDENCIA, banco))
+    assert _status(banco) == "AGUARDANDO_VALIDACAO"
+    return banco
+
+
+def _presenca_de(banco: _Banco, **situacoes: str) -> None:
+    for linha in banco.tabelas["reuniao_presencas"]:
+        if linha["participante_id"] in situacoes:
+            linha["situacao"] = situacoes[linha["participante_id"]]
+
+
+class TestQuemValida:
+    def test_membro_comum_recebe_recusa_ao_validar(self):
+        banco = _com_ata()
+        cliente = _cliente(MEMBRO, banco)
+
+        resposta = _validar(cliente)
+
+        _assert_recusado(resposta)
+        assert _status(banco) == "AGUARDANDO_VALIDACAO"
+        assert _pendencias_da_ata(banco) == []
+        assert cliente.get(f"/api/nsp/reunioes/{R_ATA}/ata").json()["pode_conduzir"] is False
+
+    def test_membro_comum_nao_valida_pelas_rotas_gerais_da_reuniao(self):
+        banco = _com_ata()
+        cliente = _cliente(MEMBRO, banco)
+
+        for rota in ("aprovar", "aprovar-sem-assinatura"):
+            resposta = cliente.post(f"/api/reunioes/{R_ATA}/{rota}")
+            assert resposta.status_code == 409, resposta.text
+            assert "Segurança do Paciente" in resposta.json()["detail"]
+        assert _status(banco) == "AGUARDANDO_VALIDACAO"
+        assert _pendencias_da_ata(banco) == []
+
+    def test_membro_comum_nao_reescreve_a_ata(self):
+        banco = _com_ata()
+
+        resposta = _cliente(MEMBRO, banco).put(f"/api/nsp/reunioes/{R_ATA}/ata", json={"deliberacoes": []})
+
+        _assert_recusado(resposta)
+        assert len(_ata_gravada(banco)["deliberacoes"]) == 1
+
+    def test_super_admin_sem_acesso_pleno_nao_le_nem_valida(self):
+        banco = _com_ata()
+        cliente = _cliente(SUPER_ADMIN, banco)
+
+        _assert_recusado(cliente.get(f"/api/nsp/reunioes/{R_ATA}/ata"))
+        _assert_recusado(_validar(cliente))
+        assert _status(banco) == "AGUARDANDO_VALIDACAO"
+
+    def test_a_presidencia_valida(self):
+        banco = _com_ata()
+
+        resposta = _validar(_cliente(PRESIDENCIA, banco))
+
+        assert resposta.status_code == 200, resposta.text
+        assert _status(banco) == "APROVADA"
+        assert _ata_gravada(banco)["validacao"]["por"] == "PRES1"
+
+    def test_o_acesso_pleno_valida(self):
+        banco = _com_ata()
+
+        resposta = _validar(_cliente(SUPER_ADMIN_PLENO, banco))
+
+        assert resposta.status_code == 200, resposta.text
+        assert _status(banco) == "APROVADA"
+
+    def test_suplente_valida_so_quando_esta_em_exercicio(self):
+        banco = _com_ata()
+        _presenca_de(banco, SUPL1="presente")
+        cliente = _cliente(SUPLENTE, banco)
+
+        _assert_recusado(_validar(cliente))
+        _presenca_de(banco, PRES1="ausente_justificado")
+        resposta = _validar(cliente)
+
+        assert resposta.status_code == 200, resposta.text
+        assert _ata_gravada(banco)["validacao"]["por"] == "SUPL1"
+
+    def test_membro_comum_nao_importa_a_transcricao_do_nucleo(self, _ia):
+        banco = _cenario()
+
+        resposta = _importar(_cliente(MEMBRO, banco))
+
+        _assert_recusado(resposta)
+        assert _ia.chamadas == []
+        assert _status(banco) == "PROGRAMADA"
+
+    def test_reuniao_comum_nao_passa_pela_rota_da_ata_do_nucleo(self):
+        resposta = _validar(_cliente(PRESIDENCIA, _cenario()), rid=R_COMUM)
+
+        assert resposta.status_code == 404
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. Cada deliberação validada vira pendência com responsável e prazo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestDeliberacoesViramPendencias:
+    def test_cada_deliberacao_vira_pendencia_com_responsavel_e_prazo(self, _ia):
+        minuta = _minuta()
+        minuta["deliberacoes"].append(
+            {"texto": "Trocar as pulseiras de risco", "responsavel": "Farmácia", "prazo": "15/01/2027"}
+        )
+        _ia.minutas = [minuta]
+        banco = _com_ata()
+
+        resposta = _validar(_cliente(PRESIDENCIA, banco))
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["total_pendencias"] == 2
+        criadas = {
+            p["descricao_acao"]: (p["responsavel_nome"], p["prazo"], p["status"]) for p in _pendencias_da_ata(banco)
+        }
+        assert criadas == {
+            "Treinar as equipes no protocolo de quedas": (
+                "Coordenação de Enfermagem",
+                (HOJE + timedelta(days=30)).isoformat(),
+                "PENDENTE",
+            ),
+            "Trocar as pulseiras de risco": ("Farmácia", "2027-01-15", "PENDENTE"),
+        }
+
+    def test_deliberacao_sem_responsavel_ou_sem_prazo_segura_a_validacao(self, _ia):
+        minuta = _minuta()
+        minuta["deliberacoes"] = [{"texto": "Trocar as pulseiras", "responsavel": "a definir", "prazo": None}]
+        _ia.minutas = [minuta]
+        banco = _com_ata()
+        cliente = _cliente(PRESIDENCIA, banco)
+
+        recusada = _validar(cliente)
+
+        assert recusada.status_code == 422
+        assert "sem responsável" in recusada.json()["detail"]
+        assert "sem prazo" in recusada.json()["detail"]
+        assert _pendencias_da_ata(banco) == []
+        assert _status(banco) == "AGUARDANDO_VALIDACAO"
+
+        cliente.put(
+            f"/api/nsp/reunioes/{R_ATA}/ata",
+            json={"deliberacoes": [{"texto": "Trocar as pulseiras", "responsavel": "Farmácia", "prazo": "2027-01-15"}]},
+        )
+        assert _validar(cliente).status_code == 200
+        assert [(p["responsavel_nome"], p["prazo"]) for p in _pendencias_da_ata(banco)] == [("Farmácia", "2027-01-15")]
+
+    def test_validar_de_novo_nao_duplica_pendencia(self):
+        banco = _com_ata()
+        cliente = _cliente(PRESIDENCIA, banco)
+        _validar(cliente)
+
+        segunda = _validar(cliente)
+
+        assert segunda.status_code == 409
+        assert len(_pendencias_da_ata(banco)) == 1
