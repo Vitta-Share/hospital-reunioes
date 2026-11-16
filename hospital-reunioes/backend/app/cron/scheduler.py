@@ -55,6 +55,10 @@ Jobs:
      antecedência (issue #1779). Antes do marcar_atrasadas, para o lembrete de data
      já vencida virar ATRASADO no mesmo dia. Idempotente: a ocorrência lembrada
      (evento, data) não nasce de novo. Sem IA e sem email.
+ 15. avisar_termo_e_vigencia_nsp: 08:00 diário, manda os avisos do Núcleo por e-mail:
+     Termo de Adesão gerado e sem assinatura (3, 7 e 14 dias), fim da vigência (60 e
+     30 dias antes) e fim da carência sem renovação (issue #1770). Cada aviso é
+     gravado antes de sair e nunca se repete para o mesmo marco. Sem IA.
 
 Nenhum job dispara IA por conta própria (ADR 0082): a recomendação da Validação
 e o segundo agente de Contas médicas rodam só pelo botão da tela. A fila de
@@ -472,6 +476,24 @@ def lembrar_agenda_regulatoria() -> None:
         logger.info(f"[Cron] Agenda regulatória: {criados} lembrete(s) como Pendência da Presidência.")
 
 
+def avisar_termo_e_vigencia_nsp() -> None:
+    """Os avisos do Termo sem assinatura e do fim da vigência do Núcleo (issue
+    #1770). Os marcos, os destinatários e a guarda de um aviso por marco vivem
+    no serviço; aqui, só o relógio."""
+    from app.services.seguranca_do_paciente import avisos
+
+    try:
+        resultado = avisos.avisar(_supabase(), _hoje_em_sao_paulo())
+    except Exception as e:
+        logger.error(f"[Cron] Erro em avisar_termo_e_vigencia_nsp: {type(e).__name__}")
+        return
+    if resultado.get("enviados") or resultado.get("falhas"):
+        logger.info(
+            f"[Cron] Avisos do Núcleo: {resultado.get('enviados', 0)} enviado(s), "
+            f"{resultado.get('falhas', 0)} com falha."
+        )
+
+
 def _registrar_entrega(competencia: str, entrega, rotulo: str = "Relatório quinzenal") -> None:
     """Escreve no log o que aconteceu com uma tentativa de entrega.
 
@@ -692,6 +714,17 @@ def start_scheduler() -> None:
         id="agenda_regulatoria_nsp",
         replace_existing=True,
     )
+    # 08:00, no começo do expediente: o e-mail chega quando a pessoa está no
+    # hospital. Disparo perdido num deploy sai no dia seguinte (o marco
+    # continua alcançado) e nunca duas vezes (a linha em `nsp_avisos`).
+    scheduler.add_job(
+        avisar_termo_e_vigencia_nsp,
+        "cron",
+        hour=8,
+        minute=0,
+        id="avisos_termo_e_vigencia_nsp",
+        replace_existing=True,
+    )
     # Todo dia às 07h, no fuso do scheduler (America/Sao_Paulo). A quinzena
     # fecha nos dias 1 e 16, e é neles que o email sai; os outros dias existem
     # para a edição não se perder quando o container estiver fora do ar na hora
@@ -723,7 +756,7 @@ def start_scheduler() -> None:
         "retencao_contas_medicas (04:30), fila_contas_medicas (a cada 10s), contratos_contas_medicas (07:15), "
         "relatorio_quinzenal_ouvidoria (07:00 diário, email nos dias 1 e 16), "
         "reconciliacao_tecnologia (de hora em hora), nota_do_google (06:45, uma leitura por semana), "
-        "agenda_regulatoria_nsp (05:45)"
+        "agenda_regulatoria_nsp (05:45), avisos_termo_e_vigencia_nsp (08:00)"
     )
 
 
