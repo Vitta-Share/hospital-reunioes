@@ -305,6 +305,73 @@ describe("o Termo de Adesão na seção do membro", () => {
     expect(within(detalhes).queryByRole("button", { name: "Liberar sem assinatura" })).toBeNull();
   });
 
+  it("o Termo novo de quem já tinha assinado aparece com os botões (issue #1769)", async () => {
+    const renovado = membro({
+      id: "part-a",
+      participante_id: "PA",
+      nome: "Pessoa A",
+      papel: "presidencia",
+      estado: "ativo",
+      termo_assinado_em: "2026-07-02T10:00:00+00:00",
+      termo_gerado_em: "2026-11-10T12:00:00+00:00",
+      termo_enviado_em: "2026-11-10T12:00:01+00:00",
+    });
+    entrar(["membros", "gerir_nucleo"]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        chamadas.push({ url, init });
+        const corpo = (() => {
+          if (url === "/api/nsp/membros") return { data: null, membros: [renovado] };
+          if (url === "/api/participantes/setores") return [];
+          if (url.endsWith("/trilha")) return { trilha: [] };
+          if (url.endsWith("/termo")) return TERMO;
+          return {};
+        })();
+        return new Response(JSON.stringify(corpo), { status: 200 });
+      })
+    );
+    await abrir();
+    fireEvent.click(screen.getByRole("button", { name: "Pessoa A" }));
+    const detalhes = await screen.findByRole("region", { name: "Detalhes de Pessoa A" });
+
+    expect(await within(detalhes).findByRole("button", { name: "Reenviar o Termo" })).toBeTruthy();
+    expect(within(detalhes).getByText("Enviado para assinatura em 10/11/2026.")).toBeTruthy();
+  });
+
+  it("o Termo novo que nem chegou a ser gerado aparece com os botões, pela pendência do servidor", async () => {
+    const semDocumento = membro({
+      id: "part-a",
+      participante_id: "PA",
+      nome: "Pessoa A",
+      papel: "membro",
+      estado: "ativo",
+      termo_assinado_em: "2026-07-02T10:00:00+00:00",
+      termo_gerado_em: "2026-07-01T10:00:00+00:00",
+      termo_pendente: true,
+    });
+    entrar(["membros", "gerir_nucleo"]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        chamadas.push({ url, init });
+        const corpo = (() => {
+          if (url === "/api/nsp/membros") return { data: null, membros: [semDocumento] };
+          if (url === "/api/participantes/setores") return [];
+          if (url.endsWith("/trilha")) return { trilha: [] };
+          if (url.endsWith("/termo")) return TERMO;
+          return {};
+        })();
+        return new Response(JSON.stringify(corpo), { status: 200 });
+      })
+    );
+    await abrir();
+    fireEvent.click(screen.getByRole("button", { name: "Pessoa A" }));
+    const detalhes = await screen.findByRole("region", { name: "Detalhes de Pessoa A" });
+
+    expect(await within(detalhes).findByRole("button", { name: "Reenviar o Termo" })).toBeTruthy();
+  });
+
   it("quem só lê não vê os botões do Termo", async () => {
     entrar(["membros"]);
     await abrir();

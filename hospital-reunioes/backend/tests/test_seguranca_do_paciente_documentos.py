@@ -35,6 +35,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from app.dependencies import get_current_user, get_supabase_client  # noqa: E402
 from app.limiter import limiter  # noqa: E402
 from app.routers import seguranca_do_paciente_documentos as documentos_router  # noqa: E402
+from app.services.seguranca_do_paciente import termo  # noqa: E402
 from app.services.seguranca_do_paciente.permissao import hoje_em_sao_paulo  # noqa: E402
 
 ROTA = "/api/nsp/documentos"
@@ -54,6 +55,16 @@ def _reset_rate_limiter():
     limiter._storage.reset()
     yield
     limiter._storage.reset()
+
+
+@pytest.fixture(autouse=True)
+def termos_da_revisao(monkeypatch) -> list[str]:
+    """A revisão material gera o Termo dos membros (issue #1769), o que os
+    testes do Termo provam com a assinatura eletrônica dublada. Aqui ela só é
+    anotada: nenhum teste deste arquivo chega à assinatura de verdade."""
+    autores: list[str] = []
+    monkeypatch.setattr(termo, "termos_da_revisao_material", lambda _sb, *, autor_id: autores.append(autor_id))
+    return autores
 
 
 # ═══════════════════════════════════════════════════════════════════════════

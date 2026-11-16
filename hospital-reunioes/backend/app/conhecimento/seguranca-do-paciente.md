@@ -21,7 +21,8 @@ O Termo de Adesão:
 
 - ao cadastrar um membro, o aplicativo gera um documento só, com o Termo de Adesão preenchido (nome, cargo, setor, conselho, número do registro e UF, papel e vigência) e, no fim, o texto inteiro do Regimento vigente. O documento vai por e-mail para a assinatura eletrônica, com um signatário só: o próprio membro. Sem Regimento publicado em Documentos, o cadastro fica feito, o membro fica em Cadastrado e a tela avisa para publicar o Regimento;
 - quando o membro assina, ele fica Ativo sozinho, sem ninguém mexer, e o Termo assinado entra em Documentos como o Termo daquele membro e daquela vigência;
-- na seção de cada membro, a Presidência e o Acesso pleno têm três botões: **Reconsultar status da assinatura** (para quando a assinatura foi feita e o aplicativo não ficou sabendo), **Reenviar o Termo** (cancela o link anterior e manda um documento novo, com outro número) e **Liberar sem assinatura** (exige justificativa, que fica registrada com quem liberou e quando). A Diretoria não usa esses botões;
+- renovar a vigência ou mudar o papel de um membro gera um Termo novo, com a vigência e o papel de agora e o Regimento vigente, e o manda para assinatura. Quem já tinha o Termo assinado continua no estado em que estava até assinar o novo, seguindo as datas da vigência e a carência. Cada Termo assinado entra em Documentos, um por membro e por vigência;
+- na seção de cada membro com Termo à espera da assinatura, inclusive o Termo novo de quem já tinha assinado, a Presidência e o Acesso pleno têm três botões: **Reconsultar status da assinatura** (para quando a assinatura foi feita e o aplicativo não ficou sabendo), **Reenviar o Termo** (cancela o link anterior e manda um documento novo, com outro número) e **Liberar sem assinatura** (exige justificativa, que fica registrada com quem liberou e quando). A Diretoria não usa esses botões;
 - quem está no Núcleo e ainda não assinou vê, nas telas bloqueadas, a faixa "Assine o Termo de Adesão para liberar este acesso", com o botão que abre o documento pendente.
 
 A tela Núcleo, Documentos:
@@ -31,7 +32,7 @@ A tela Núcleo, Documentos:
 - o texto do Regimento fica guardado no aplicativo e é lido na própria tela, assim como o do Plano quando ele foi publicado com texto. Membro com o Termo assinado, Presidência e Acesso pleno leem;
 - quem publica uma versão nova é a Presidência ou o Acesso pleno. A versão publicada passa a ser a vigente e a anterior vai para a lista;
 - ao publicar uma revisão do Regimento, a Presidência escolhe se ela é material (muda o conteúdo) ou só de redação, e a escolha fica gravada e aparece na tela;
-- publicar ainda não manda nada para assinatura nem gera Termo novo: isso chega nas entregas de assinatura.
+- publicar uma revisão material do Regimento gera um Termo novo, já com o texto revisado, para todos os membros em Ativo, A vencer e Em carência, e o manda para assinatura. A revisão só de redação não gera Termo nem pede assinatura de ninguém.
 
 As reuniões do Núcleo:
 
@@ -98,7 +99,7 @@ Membro nunca é apagado. Encerrar termina a vigência no dia escolhido e a parti
 
 ## O que ele ainda não faz
 
-Nas Capacitações, o profissional de fora do Núcleo que está na lista ainda não abre o módulo, então não confirma a presença por enquanto; a capacitação registrada também não se edita depois de salva. Renovar a vigência, mudar o papel ou publicar uma revisão material do Regimento ainda não gera Termo novo, e os avisos de Termo sem assinatura (3, 7 e 14 dias) chegam depois. A assinatura de um documento publicado também chega depois. Nas reuniões, a ata própria do Núcleo também chega depois: por enquanto a ata segue o modelo das outras reuniões, e a pauta ainda não traz indicadores, casos, planos vencidos nem alertas, que dependem das próximas fases. A notificação de incidente e a triagem são da segunda fase. As notificações criadas a partir da reunião rápida chegam na segunda fase.
+Nas Capacitações, o profissional de fora do Núcleo que está na lista ainda não abre o módulo, então não confirma a presença por enquanto; a capacitação registrada também não se edita depois de salva. Os avisos de Termo sem assinatura (3, 7 e 14 dias) chegam depois. A assinatura de um documento publicado também chega depois. Nas reuniões, a ata própria do Núcleo também chega depois: por enquanto a ata segue o modelo das outras reuniões, e a pauta ainda não traz indicadores, casos, planos vencidos nem alertas, que dependem das próximas fases. A notificação de incidente e a triagem são da segunda fase. As notificações criadas a partir da reunião rápida chegam na segunda fase.
 
 ## O que já foi decidido
 
@@ -114,7 +115,7 @@ Nas Capacitações, o profissional de fora do Núcleo que está na lista ainda n
 - Os títulos das telas do módulo ficam em caixa alta, na identidade do hospital.
 - Nenhum documento do Núcleo é apagado nem editado: a correção é uma versão nova, e a anterior fica na lista com quem publicou e quando.
 - O texto do Regimento entra pela tela, nunca por carga automática.
-- Revisão só de redação do Regimento não pede nova assinatura do Termo de Adesão; revisão material pede, quando as entregas de assinatura chegarem.
+- Revisão só de redação do Regimento não pede nova assinatura do Termo de Adesão; revisão material pede, de todos os membros em Ativo, A vencer e Em carência.
 - O lembrete de cada obrigação é uma pendência da Presidência no aplicativo, e não um e-mail, criada por uma rotina diária que não usa inteligência artificial.
 - A pauta é montada pelo aplicativo, sem inteligência artificial.
 - A convocação vai só para quem conta para quórum, os membros Ativo, A vencer e Em carência.

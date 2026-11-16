@@ -10,9 +10,10 @@ campo, valor anterior e novo). Não existe rota DELETE, e o banco recusa apagar
 Participação (migration 150).
 
 O estado do membro sai da função pura de `membros`. Cadastrar gera o Termo de
-Adesão e o envia para assinatura (issue #1768, serviço `termo`); sem Regimento
-vigente ou com a assinatura eletrônica fora, o cadastro fica de pé e a resposta
-traz o aviso em `aviso_termo`.
+Adesão e o envia para assinatura (issue #1768, serviço `termo`); renovar a
+vigência e mudar o papel geram novo Termo (issue #1769). Sem Regimento vigente
+ou com a assinatura eletrônica fora, a mudança fica de pé e a resposta traz o
+aviso em `aviso_termo`.
 """
 
 from __future__ import annotations
@@ -138,7 +139,7 @@ def _pessoas(supabase, ids: list[str]) -> dict[str, dict]:
     return {linha["id"]: linha for linha in linhas}
 
 
-def _linha(participacao: dict, pessoa: dict | None, hoje: date) -> dict[str, Any]:
+def _linha(participacao: dict, pessoa: dict | None, hoje: date, revisao_material_em: str | None) -> dict[str, Any]:
     """O que a tela mostra de um membro. Sem e-mail nem telefone."""
     pessoa = pessoa or {}
     return {
@@ -155,6 +156,7 @@ def _linha(participacao: dict, pessoa: dict | None, hoje: date) -> dict[str, Any
         "termo_enviado_em": participacao.get("termo_enviado_em"),
         "termo_assinado_em": participacao.get("termo_assinado_em"),
         "estado": estado_do_membro(participacao, hoje),
+        "termo_pendente": termo.novo_termo_pendente(participacao, revisao_material_em, hoje),
     }
 
 
@@ -164,7 +166,8 @@ _ORDEM_DO_PAPEL = {papel: i for i, papel in enumerate(PAPEIS_DO_NUCLEO)}
 def _linhas(supabase, participacoes: list[dict]) -> list[dict]:
     hoje = hoje_em_sao_paulo()
     pessoas = _pessoas(supabase, [p["participante_id"] for p in participacoes])
-    linhas = [_linha(p, pessoas.get(p["participante_id"]), hoje) for p in participacoes]
+    revisao = termo.revisao_material_em(supabase)
+    linhas = [_linha(p, pessoas.get(p["participante_id"]), hoje, revisao) for p in participacoes]
     return sorted(
         linhas,
         key=lambda linha: (
@@ -396,10 +399,11 @@ async def cadastrar_membro(
 
 
 def _gerar_termo(supabase, participacao: dict, autor_id: str) -> str | None:
-    """Gera e envia o Termo do membro recém-cadastrado. O cadastro já está
-    gravado: falha aqui vira aviso na resposta, e a ficha tem o reenvio."""
+    """Gera e envia o Termo: no cadastro, na renovação e na mudança de papel
+    (issue #1769). A mudança já está gravada: falha aqui vira aviso na
+    resposta, e a ficha tem o reenvio."""
     try:
-        return termo.gerar_e_enviar_termo(supabase, participacao, autor_id=autor_id).get("erro")
+        return termo.novo_termo(supabase, participacao, autor_id=autor_id).get("erro")
     except termo.TermoNaoGeradoError as erro:
         return str(erro)
     except Exception:  # noqa: BLE001 (o cadastro não se desfaz por falha do Termo)
@@ -429,8 +433,11 @@ async def editar_membro(
     inicio = date.fromisoformat(_texto(da_participacao.get("vigencia_inicio", atual["vigencia_inicio"]))[:10])
     fim = date.fromisoformat(_texto(da_participacao.get("vigencia_fim", atual["vigencia_fim"]))[:10])
     _vigencia_valida(inicio, fim)
+    muda_o_papel = any(campo == "papel" for campo, _, _ in mudancas)
     if mudancas:
-        supabase.table("participacoes").update({campo: _texto(novo) for campo, _, novo in mudancas}).eq(
+        # O Termo novo fica pendente junto com a mudança (issue #1769).
+        marca = termo.marca_do_novo_termo(atual) if muda_o_papel else {}
+        supabase.table("participacoes").update({**{campo: _texto(novo) for campo, _, novo in mudancas}, **marca}).eq(
             "id", participacao_id
         ).execute()
         _gravar_trilha(
@@ -447,7 +454,11 @@ async def editar_membro(
             "edicao",
             _atualizar_registro(supabase, atual["participante_id"], pessoa, registro),
         )
-    return _responder(supabase, participacao_id, nucleo_id)
+    aviso = None
+    if muda_o_papel:
+        editada = _participacao(supabase, nucleo_id, participacao_id)
+        aviso = await run_in_threadpool(_gerar_termo, supabase, editada, me["id"])
+    return {**_responder(supabase, participacao_id, nucleo_id), "aviso_termo": aviso}
 
 
 @router.post("/{participacao_id}/renovar")
@@ -469,13 +480,15 @@ async def renovar_membro(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="A renovação tem de levar o fim da vigência para depois do fim atual",
         )
-    supabase.table("participacoes").update({"vigencia_fim": body.vigencia_fim.isoformat()}).eq(
-        "id", participacao_id
-    ).execute()
+    supabase.table("participacoes").update(
+        {"vigencia_fim": body.vigencia_fim.isoformat(), **termo.marca_do_novo_termo(atual)}
+    ).eq("id", participacao_id).execute()
     _gravar_trilha(
         supabase, participacao_id, me["id"], "renovacao", [("vigencia_fim", atual["vigencia_fim"], body.vigencia_fim)]
     )
-    return _responder(supabase, participacao_id, nucleo_id)
+    renovada = _participacao(supabase, nucleo_id, participacao_id)
+    aviso = await run_in_threadpool(_gerar_termo, supabase, renovada, me["id"])
+    return {**_responder(supabase, participacao_id, nucleo_id), "aviso_termo": aviso}
 
 
 @router.post("/{participacao_id}/encerrar")

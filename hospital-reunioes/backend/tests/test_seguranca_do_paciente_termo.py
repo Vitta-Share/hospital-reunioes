@@ -36,6 +36,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from app.config import settings  # noqa: E402
 from app.dependencies import get_current_user, get_supabase_client  # noqa: E402
 from app.limiter import limiter  # noqa: E402
+from app.routers import seguranca_do_paciente_documentos as documentos_router  # noqa: E402
 from app.routers import seguranca_do_paciente_membros as membros_router  # noqa: E402
 from app.routers import seguranca_do_paciente_termo as termo_router  # noqa: E402
 from app.routers import webhooks as webhooks_router  # noqa: E402
@@ -170,6 +171,7 @@ class _Consulta:
         self._teto: int | None = None
         self._ordem: tuple | None = None
         self._operacao = ("select", None)
+        self._recorte: tuple[int, int] | None = None
 
     @property
     def _linhas(self) -> list[dict]:
@@ -208,6 +210,10 @@ class _Consulta:
         self._teto = n
         return self
 
+    def range(self, inicio, fim):
+        self._recorte = (inicio, fim)
+        return self
+
     def insert(self, linha):
         self._operacao = ("insert", linha)
         return self
@@ -237,6 +243,9 @@ class _Consulta:
         if self._ordem:
             coluna, desc = self._ordem
             casam.sort(key=lambda linha: str(linha.get(coluna) or ""), reverse=desc)
+        if self._recorte:
+            inicio, fim = self._recorte
+            casam = casam[inicio : fim + 1]
         return SimpleNamespace(data=casam[: self._teto] if self._teto is not None else casam)
 
 
@@ -268,6 +277,29 @@ class _Banco:
 
     def table(self, nome: str):
         return _Consulta(self, nome)
+
+    def rpc(self, nome: str, params: dict):
+        """O que a `nsp_publicar_documento` faz: a versão seguinte do tipo
+        nasce vigente e a vigente anterior do mesmo tipo deixa de ser."""
+        assert nome == "nsp_publicar_documento", nome
+        documentos = self.tabelas.setdefault("nsp_documentos", [])
+        do_tipo = [d for d in documentos if d["tipo"] == params["p_tipo"]]
+        for anterior in do_tipo:
+            anterior["vigente"] = False
+        novo = {
+            "id": f"doc-{params['p_tipo']}-{len(do_tipo) + 2}",
+            "tipo": params["p_tipo"],
+            "versao": max((d["versao"] for d in do_tipo), default=0) + 1,
+            "titulo": params["p_titulo"],
+            "texto": params["p_texto"],
+            "natureza_revisao": params["p_natureza_revisao"],
+            "vigente": True,
+            "arquivo_assinado_path": None,
+            "publicado_por": params["p_publicado_por"],
+            "publicado_em": f"{HOJE.isoformat()}T12:00:00+00:00",
+        }
+        documentos.append(novo)
+        return SimpleNamespace(execute=lambda: SimpleNamespace(data=dict(novo)))
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -335,7 +367,8 @@ REGIMENTO = {
     "natureza_revisao": "material",
     "vigente": True,
     "publicado_por": "P2",
-    "publicado_em": "2026-09-01T12:00:00+00:00",
+    # Antes da assinatura de teste: quem assinou levou este Regimento no Termo.
+    "publicado_em": "2025-12-01T12:00:00+00:00",
 }
 
 NOVO = {
@@ -371,6 +404,7 @@ class _Cenario:
         app.include_router(membros_router.router, prefix="/api")
         app.include_router(termo_router.router, prefix="/api")
         app.include_router(webhooks_router.router, prefix="/api")
+        app.include_router(documentos_router.router, prefix="/api")
 
         async def _usuario() -> dict[str, Any]:
             return {"id": quem["auth_user_id"], "email": quem["email"], "metadata": {}}
@@ -766,6 +800,394 @@ class TestPdfDoTermo:
         assert "CRF nº 000444/RJ" in texto
         assert TRAVESSAO not in texto and MEIA_RISCA not in texto
         assert "Núcleo de Segurança do Paciente, instância consultiva, reúne-se" in texto
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 9. Novo Termo: renovação, mudança de papel e revisão material (issue #1769)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _dia_br(delta: int) -> str:
+    return (HOJE + timedelta(days=delta)).strftime("%d/%m/%Y")
+
+
+class TestNovoTermoPorRenovacao:
+    def test_renovar_a_vigencia_gera_novo_documento_e_envia_para_assinatura(self, assinatura):
+        """Mutante: a renovação não gerar o Termo."""
+        cenario = _Cenario(PRESIDENCIA)
+
+        resposta = cenario.api.post(f"{ROTA}/part-P3/renovar", json={"vigencia_fim": _iso(700)})
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["aviso_termo"] is None
+        [envio] = cenario.envios("P3")
+        assert envio["situacao"] == "enviado"
+        assert envio["regimento_id"] == REGIMENTO["id"]
+        assert ("add_signer", "env-1", "Pessoa de Teste P3", "p3@hsm.test") in assinatura.chamadas
+        assert "activate_envelope" in assinatura.nomes()
+        texto = _texto_do_pdf(assinatura.documentos[0])
+        assert _dia_br(700) in texto
+        assert envio["id"] in texto
+        assert len(cenario.trilha("termo_enviado")) == 1
+
+    def test_enquanto_o_novo_termo_nao_e_assinado_o_membro_ativo_segue_ativo(self):
+        """Mutante: gerar o novo Termo apagando a assinatura anterior."""
+        cenario = _Cenario(PRESIDENCIA)
+
+        resposta = cenario.api.post(f"{ROTA}/part-P3/renovar", json={"vigencia_fim": _iso(700)})
+
+        assert resposta.json()["estado"] == "ativo"
+        assert cenario.participacao("P3")["termo_assinado_em"] == ASSINADO
+
+    def test_em_carencia_que_renova_segue_contando_ate_assinar(self):
+        cenario = _Cenario(
+            PRESIDENCIA,
+            [_participacao("P2", papel="presidencia"), _participacao("P3", vigencia_fim=_iso(-10))],
+        )
+
+        resposta = cenario.api.post(f"{ROTA}/part-P3/renovar", json={"vigencia_fim": _iso(700)})
+
+        assert resposta.json()["estado"] == "ativo"
+        assert [e["situacao"] for e in cenario.envios("P3")] == ["enviado"]
+
+    def test_assinar_o_novo_termo_carimba_a_nova_assinatura(self):
+        cenario = _Cenario(PRESIDENCIA)
+        cenario.api.post(f"{ROTA}/part-P3/renovar", json={"vigencia_fim": _iso(700)})
+
+        assert cenario.retorno_da_assinatura("doc-env-1", "sign").status_code == 200
+
+        assert cenario.participacao("P3")["termo_assinado_em"] != ASSINADO
+        assert cenario.estado("P3") == "ativo"
+        assert len(cenario.trilha("termo_assinado")) == 1
+
+    def test_renovar_com_termo_ainda_aberto_cancela_o_anterior(self, assinatura):
+        """Só um envio aberto por Participação (o índice único da migration 151)."""
+        cenario = _Cenario(PRESIDENCIA)
+        cenario.cadastrar()
+        part = cenario.participacao("P4")["id"]
+
+        resposta = cenario.api.post(f"{ROTA}/{part}/renovar", json={"vigencia_fim": _iso(700)})
+
+        assert resposta.status_code == 200, resposta.text
+        assert ("cancel_envelope", "env-1") in assinatura.chamadas
+        assert sorted(e["situacao"] for e in cenario.envios("P4")) == ["cancelado", "enviado"]
+
+    def test_renovacao_com_a_assinatura_fora_do_ar_fica_de_pe_e_avisa(self, assinatura):
+        assinatura.falhar_em = "activate_envelope"
+        cenario = _Cenario(PRESIDENCIA)
+
+        resposta = cenario.api.post(f"{ROTA}/part-P3/renovar", json={"vigencia_fim": _iso(700)})
+
+        assert resposta.status_code == 200
+        assert "Reenviar" in resposta.json()["aviso_termo"]
+        assert cenario.participacao("P3")["vigencia_fim"] == _iso(700)
+
+
+class TestNovoTermoPorMudancaDePapel:
+    def test_mudar_o_papel_na_mesma_vigencia_gera_novo_documento_e_envia(self, assinatura):
+        """Mutante: a edição não gerar o Termo quando o papel muda."""
+        cenario = _Cenario(PRESIDENCIA)
+
+        resposta = cenario.api.patch(f"{ROTA}/part-P3", json={"papel": "suplente"})
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["aviso_termo"] is None
+        assert resposta.json()["estado"] == "ativo"
+        [envio] = cenario.envios("P3")
+        assert envio["situacao"] == "enviado"
+        assert ("add_signer", "env-1", "Pessoa de Teste P3", "p3@hsm.test") in assinatura.chamadas
+        assert "Suplente da Presidência" in _texto_do_pdf(assinatura.documentos[0])
+        assert len(cenario.trilha("termo_enviado")) == 1
+
+    @pytest.mark.parametrize(
+        "pedido",
+        [{"area": "Centro cirúrgico"}, {"papel": "membro"}, {"registro_profissional": "000033"}],
+        ids=["so_a_area", "o_mesmo_papel", "so_o_registro"],
+    )
+    def test_editar_sem_mudar_o_papel_nao_gera_termo(self, pedido, assinatura):
+        cenario = _Cenario(PRESIDENCIA)
+
+        resposta = cenario.api.patch(f"{ROTA}/part-P3", json=pedido)
+
+        assert resposta.status_code == 200, resposta.text
+        assert assinatura.chamadas == []
+        assert cenario.envios("P3") == []
+
+
+# Um membro em cada estado: P2 Ativo, P3 A vencer, P4 Em carência, P1 Vencido,
+# P6 Aguardando assinatura e P5 Encerrado.
+def _um_de_cada_estado() -> list[dict]:
+    return [
+        _participacao("P2", papel="presidencia"),
+        _participacao("P3", vigencia_fim=_iso(30)),
+        _participacao("P4", vigencia_fim=_iso(-10)),
+        _participacao("P1", vigencia_inicio=_iso(-400), vigencia_fim=_iso(-40)),
+        _participacao("P6", termo=False, termo_gerado_em=ASSINADO, termo_enviado_em=ASSINADO),
+        _participacao("P5", encerrada_em=_iso(-5), vigencia_fim=_iso(-5)),
+    ]
+
+
+TEXTO_DA_REVISAO = "Art. 1º O Núcleo reúne-se quinzenalmente, na revisão material."
+
+
+def _publicar_regimento(cenario: _Cenario, natureza: str):
+    return cenario.api.post(
+        "/api/nsp/documentos",
+        json={
+            "tipo": "regimento",
+            "titulo": "Regimento Interno do Núcleo, revisão 3",
+            "texto": TEXTO_DA_REVISAO,
+            "natureza_revisao": natureza,
+        },
+    )
+
+
+class TestNovoTermoPorRevisaoDoRegimento:
+    def test_os_estados_do_cenario_sao_os_que_o_teste_diz(self):
+        """O detector: sem isto, um cenário errado passaria por filtro certo."""
+        cenario = _Cenario(PRESIDENCIA, _um_de_cada_estado())
+
+        estados = {pid: cenario.estado(pid) for pid in ("P2", "P3", "P4", "P1", "P6", "P5")}
+
+        assert estados == {
+            "P2": "ativo",
+            "P3": "a_vencer",
+            "P4": "em_carencia",
+            "P1": "vencido",
+            "P6": "aguardando_assinatura",
+            "P5": "encerrado",
+        }
+
+    def test_revisao_material_gera_novo_termo_para_ativo_a_vencer_e_em_carencia(self, assinatura):
+        """Mutante: incluir o Vencido entre os que assinam a revisão."""
+        cenario = _Cenario(PRESIDENCIA, _um_de_cada_estado())
+
+        resposta = _publicar_regimento(cenario, "material")
+
+        assert resposta.status_code == 201, resposta.text
+        signatarios = sorted(c[2] for c in assinatura.chamadas if c[0] == "add_signer")
+        assert signatarios == ["Pessoa de Teste P2", "Pessoa de Teste P3", "Pessoa de Teste P4"]
+        nova = next(d for d in cenario.tabela("nsp_documentos") if d["tipo"] == "regimento" and d["vigente"])
+        for pid in ("P2", "P3", "P4"):
+            [envio] = cenario.envios(pid)
+            assert envio["situacao"] == "enviado"
+            assert envio["regimento_id"] == nova["id"]
+        for pid in ("P1", "P6", "P5"):
+            assert cenario.envios(pid) == []
+        assert all("reúne-se quinzenalmente" in _texto_do_pdf(pdf) for pdf in assinatura.documentos)
+        assert len(cenario.trilha("termo_enviado")) == 3
+
+    def test_revisao_material_mantem_os_membros_no_estado_ate_assinarem(self):
+        cenario = _Cenario(PRESIDENCIA, _um_de_cada_estado())
+
+        _publicar_regimento(cenario, "material")
+
+        assert cenario.estado("P2") == "ativo"
+        assert cenario.estado("P3") == "a_vencer"
+        assert cenario.estado("P4") == "em_carencia"
+
+    def test_revisao_de_redacao_nao_gera_documento_nem_envio(self, assinatura):
+        """Mutante: a revisão de redação também gerar o Termo."""
+        cenario = _Cenario(PRESIDENCIA, _um_de_cada_estado())
+
+        resposta = _publicar_regimento(cenario, "redacao")
+
+        assert resposta.status_code == 201, resposta.text
+        assert "create_envelope" not in assinatura.nomes()
+        assert assinatura.chamadas == []
+        assert cenario.tabela("nsp_termos_envios") == []
+        assert cenario.trilha("termo_enviado") == []
+
+    def test_publicar_outro_tipo_nao_gera_termo(self, assinatura):
+        cenario = _Cenario(PRESIDENCIA, _um_de_cada_estado())
+
+        resposta = cenario.api.post(
+            "/api/nsp/documentos",
+            json={"tipo": "plano_seguranca_paciente", "titulo": "Plano", "natureza_revisao": "material"},
+        )
+
+        assert resposta.status_code == 201, resposta.text
+        assert assinatura.chamadas == []
+
+    def test_falha_num_membro_nao_impede_os_outros(self, assinatura):
+        cenario = _Cenario(PRESIDENCIA, _um_de_cada_estado())
+        p3 = next(p for p in cenario.tabela("participantes") if p["id"] == "P3")
+        p3["email"] = None
+
+        resposta = _publicar_regimento(cenario, "material")
+
+        assert resposta.status_code == 201, resposta.text
+        signatarios = sorted(c[2] for c in assinatura.chamadas if c[0] == "add_signer")
+        assert signatarios == ["Pessoa de Teste P2", "Pessoa de Teste P4"]
+        # Quem falhou fica com o reenvio na ficha, depois de corrigir o e-mail.
+        p3["email"] = "p3@hsm.test"
+        reenvio = cenario.api.post(f"{ROTA}/part-P3/termo/reenviar")
+        assert reenvio.status_code == 200, reenvio.text
+        assert [e["situacao"] for e in cenario.envios("P3")] == ["enviado"]
+        assert "reúne-se quinzenalmente" in _texto_do_pdf(assinatura.documentos[-1])
+
+    def test_falha_antes_de_gerar_qualquer_termo_deixa_o_reenvio_para_todos(self, assinatura, monkeypatch):
+        """A leitura dos membros estoura depois da publicação. Mutante: a
+        pendência da revisão material depender do documento gerado."""
+        from app.services.seguranca_do_paciente import termo
+
+        def _estoura(*_a, **_kw):
+            raise httpx.ReadTimeout("o banco não respondeu")
+
+        monkeypatch.setattr(termo, "ler_tudo", _estoura)
+        cenario = _Cenario(PRESIDENCIA, _um_de_cada_estado())
+
+        resposta = _publicar_regimento(cenario, "material")
+
+        assert resposta.status_code == 201, resposta.text
+        assert cenario.tabela("nsp_termos_envios") == []
+        pendentes = {m["participante_id"]: m["termo_pendente"] for m in cenario.api.get(ROTA).json()["membros"]}
+        assert pendentes == {"P2": True, "P3": True, "P4": True, "P1": False, "P6": True, "P5": False}
+        reenvio = cenario.api.post(f"{ROTA}/part-P4/termo/reenviar")
+        assert reenvio.status_code == 200, reenvio.text
+        assert cenario.api.post(f"{ROTA}/part-P1/termo/reenviar").status_code == 409
+
+    def test_quem_assina_depois_da_revisao_material_nao_tem_termo_pendente(self):
+        """A revisão material saiu entre a assinatura de P3 e a de P2."""
+        cenario = _Cenario(PRESIDENCIA)
+        cenario.tabela("nsp_documentos")[0]["publicado_em"] = "2026-03-01T12:00:00+00:00"
+        cenario.participacao("P2")["termo_assinado_em"] = "2026-03-02T09:00:00+00:00"
+
+        assert cenario.api.post(f"{ROTA}/part-P2/termo/reenviar").status_code == 409
+        assert cenario.api.post(f"{ROTA}/part-P3/termo/reenviar").status_code == 200
+
+
+class TestCadaTermoNosDocumentos:
+    def test_cada_termo_assinado_fica_nos_documentos_por_membro_e_por_vigencia(self):
+        """Mutante: o Termo assinado entrar nos Documentos uma vez por
+        Participação (e não por envio)."""
+        cenario = _Cenario(PRESIDENCIA)
+        cenario.cadastrar()
+        cenario.retorno_da_assinatura("doc-env-1", "sign")
+        part = cenario.participacao("P4")["id"]
+        cenario.api.post(f"{ROTA}/{part}/renovar", json={"vigencia_fim": _iso(700)})
+        [renovacao] = [e for e in cenario.envios("P4") if e["situacao"] == "enviado"]
+
+        assert cenario.retorno_da_assinatura(renovacao["documento_key"], "sign").status_code == 200
+
+        termos = sorted(
+            (d for d in cenario.tabela("nsp_documentos") if d["tipo"] == "termo"), key=lambda d: d["versao"]
+        )
+        assert [d["termo_envio_id"] for d in termos] == [e["id"] for e in cenario.envios("P4")]
+        primeiro, segundo = termos
+        assert "Pessoa de Teste P4" in primeiro["titulo"] and "Pessoa de Teste P4" in segundo["titulo"]
+        assert f"de {_dia_br(0)} a {_dia_br(365)}" in primeiro["titulo"]
+        assert f"de {_dia_br(0)} a {_dia_br(700)}" in segundo["titulo"]
+        assert primeiro["arquivo_assinado_path"] != segundo["arquivo_assinado_path"]
+
+
+class TestNovoTermoPendenteNaFicha:
+    def test_presidencia_reenvia_o_novo_termo_de_quem_ja_tinha_assinado(self, assinatura):
+        """A renovação com a assinatura fora do ar manda usar o reenvio, e o
+        membro tem a assinatura anterior. Mutante: o reenvio recusar todo
+        membro com assinatura."""
+        assinatura.falhar_em = "activate_envelope"
+        cenario = _Cenario(PRESIDENCIA)
+        cenario.api.post(f"{ROTA}/part-P3/renovar", json={"vigencia_fim": _iso(700)})
+        assinatura.falhar_em = None
+
+        resposta = cenario.api.post(f"{ROTA}/part-P3/termo/reenviar")
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["aviso_termo"] is None
+        assert sorted(e["situacao"] for e in cenario.envios("P3")) == ["cancelado", "enviado"]
+
+    def test_carimbo_do_novo_termo_que_falhou_se_conserta_na_reconsulta(self, assinatura):
+        """O membro já tinha assinatura; o novo Termo virou assinado e o
+        carimbo estourou. Mutante: o conserto pular quem já tem assinatura."""
+        cenario = _Cenario(PRESIDENCIA)
+        cenario.api.post(f"{ROTA}/part-P3/renovar", json={"vigencia_fim": _iso(700)})
+        tabela_de_verdade = cenario.banco.table
+        falhas = {"restantes": 1}
+
+        class _CarimboQueEstoura(_Consulta):
+            def execute(self):
+                operacao, carga = self._operacao
+                if operacao == "update" and "termo_assinado_em" in carga and falhas["restantes"]:
+                    falhas["restantes"] -= 1
+                    raise httpx.ReadTimeout("o banco não respondeu")
+                return super().execute()
+
+        cenario.banco.table = lambda nome: (
+            _CarimboQueEstoura(cenario.banco, nome) if nome == "participacoes" else tabela_de_verdade(nome)
+        )
+        assert cenario.retorno_da_assinatura("doc-env-1", "sign").status_code == 500
+        assinatura.status = "closed"
+
+        assert cenario.api.post(f"{ROTA}/part-P3/termo/reconsultar").status_code == 200
+        assert cenario.api.post(f"{ROTA}/part-P3/termo/reconsultar").status_code == 200
+
+        [envio] = cenario.envios("P3")
+        assert cenario.participacao("P3")["termo_assinado_em"] == envio["assinado_em"]
+        assert len(cenario.trilha("termo_assinado")) == 1
+
+    def test_renovacao_sem_email_deixa_o_reenvio_para_depois_de_corrigir_o_cadastro(self, assinatura):
+        """O Termo nem chega a ser gerado (a pessoa não tem e-mail). Mutante:
+        o Termo novo só contar como pendente depois do documento gerado."""
+        cenario = _Cenario(PRESIDENCIA)
+        p3 = next(p for p in cenario.tabela("participantes") if p["id"] == "P3")
+        p3["email"] = None
+
+        renovacao = cenario.api.post(f"{ROTA}/part-P3/renovar", json={"vigencia_fim": _iso(700)})
+
+        assert "e-mail" in renovacao.json()["aviso_termo"]
+        assert renovacao.json()["termo_pendente"] is True
+        assert cenario.envios("P3") == []
+        p3["email"] = "p3@hsm.test"
+        resposta = cenario.api.post(f"{ROTA}/part-P3/termo/reenviar")
+        assert resposta.status_code == 200, resposta.text
+        assert [e["situacao"] for e in cenario.envios("P3")] == ["enviado"]
+        assert _dia_br(700) in _texto_do_pdf(assinatura.documentos[0])
+
+    def test_mudanca_de_papel_com_o_pdf_falhando_deixa_o_reenvio(self, assinatura, monkeypatch):
+        """O WeasyPrint estoura antes do carimbo do documento gerado."""
+        from app.services.seguranca_do_paciente import termo
+
+        def _estoura(_dados):
+            raise TimeoutError("o PDF não saiu")
+
+        pdf_de_verdade = termo.gerar_pdf_do_termo
+        monkeypatch.setattr(termo, "gerar_pdf_do_termo", _estoura)
+        cenario = _Cenario(PRESIDENCIA)
+
+        edicao = cenario.api.patch(f"{ROTA}/part-P3", json={"papel": "suplente"})
+
+        assert "Reenviar" in edicao.json()["aviso_termo"]
+        assert edicao.json()["termo_pendente"] is True
+        monkeypatch.setattr(termo, "gerar_pdf_do_termo", pdf_de_verdade)
+        resposta = cenario.api.post(f"{ROTA}/part-P3/termo/reenviar")
+        assert resposta.status_code == 200, resposta.text
+        assert "Suplente da Presidência" in _texto_do_pdf(assinatura.documentos[-1])
+
+    def test_reconsultar_o_termo_antigo_nao_carimba_o_novo_que_nao_saiu(self, assinatura):
+        """O último envio é o Termo antigo, já assinado; o novo nem foi gerado.
+        Mutante: o conserto do carimbo aceitar o envio que já estava carimbado."""
+        cenario = _Cenario(PRESIDENCIA)
+        cenario.cadastrar()
+        cenario.retorno_da_assinatura("doc-env-1", "sign")
+        part = cenario.participacao("P4")["id"]
+        next(p for p in cenario.tabela("participantes") if p["id"] == "P4")["email"] = None
+        cenario.api.post(f"{ROTA}/{part}/renovar", json={"vigencia_fim": _iso(700)})
+        assinatura.status = "closed"
+
+        resposta = cenario.api.post(f"{ROTA}/{part}/termo/reconsultar")
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["termo_pendente"] is True
+        assert len(cenario.trilha("termo_assinado")) == 1
+
+    def test_membro_ativo_sem_termo_novo_continua_sem_reenvio(self):
+        cenario = _Cenario(PRESIDENCIA)
+
+        resposta = cenario.api.post(f"{ROTA}/part-P3/termo/reenviar")
+
+        assert resposta.status_code == 409
+        assert resposta.json() == {"detail": "O Termo deste membro já está assinado."}
 
 
 # ═══════════════════════════════════════════════════════════════════════════
