@@ -52,9 +52,7 @@ class TestTemasMinimos:
         assert re.search(r"INSERT INTO nsp_temas_minimos", _sql(), re.IGNORECASE) is None
 
     def test_nenhuma_pessoa_nem_email(self):
-        assert (
-            re.search(r"INSERT INTO (participantes|participacoes|nsp_capacitac\w+)", _sql(), re.IGNORECASE) is None
-        )
+        assert re.search(r"INSERT INTO (participantes|participacoes|nsp_capacitac\w+)", _sql(), re.IGNORECASE) is None
         assert re.search(r"[\w.+-]+@[\w-]+\.[\w.]+", MIGRATION.read_text(encoding="utf-8")) is None
 
     def test_o_recibo_e_o_155(self):
