@@ -417,6 +417,11 @@ SEM_ANONIMATO_A_PROTEGER = {
     # `TECNOLOGIA_AUTOMACAO_API_KEY`, credencial de máquina no molde da Ana:
     # quem chega é o script do sócio, não um visitante anônimo.
     "GET /api/automacao/tecnologia/demandas/{demanda_id}/anexos",
+    # A Mensagem pelo terminal (issue #1805, ADR 0096): mesma ponte, mesma
+    # chave de máquina. Quem chega é a sessão do terminal de um Desenvolvedor,
+    # não um visitante anônimo.
+    "GET /api/automacao/tecnologia/projetos/{projeto}/issues/{numero}/demanda",
+    "POST /api/automacao/tecnologia/demandas/{demanda_id}/conversa",
     # O conector MCP da Central (ADR 0058, decisões 3 e 4). O transporte exige o
     # token OAuth do WorkOS (Super admin), não o login do app, então o schema não
     # o marca com `security`; e o metadata é documento público de descoberta
