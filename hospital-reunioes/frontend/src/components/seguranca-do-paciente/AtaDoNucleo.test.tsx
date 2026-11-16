@@ -188,4 +188,54 @@ describe("a ata do Núcleo depois da validação", () => {
     await waitFor(() => expect(abrir).toHaveBeenCalledWith("https://storage.test/ata.pdf", "_blank", "noopener"));
     expect(chamadas("GET", arquivo)).toHaveLength(1);
   });
+
+  // Envelope cancelado: recusa de um presente ou cancelamento no painel.
+  const CANCELADA = "A assinatura eletrônica foi cancelada. A Presidência pode reenviar para todos os presentes.";
+  const ASSINATURA_CANCELADA = { enviada_em: "2026-11-18T15:00:00-03:00", cancelada_em: "2026-11-19", erro: CANCELADA };
+
+  it("cancelada, avisa, não promete encerrar e a Presidência reenvia", async () => {
+    let cancelada = true;
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === `${ROTA}/reenviar` && init?.method === "POST") {
+        cancelada = false;
+        return responder({ id_reuniao: ID, status: "AGUARDANDO_ASSINATURA" });
+      }
+      return responder(
+        leitura(
+          { status_ata: "AGUARDANDO_ASSINATURA" },
+          {
+            validacao: VALIDACAO,
+            assinatura: cancelada
+              ? ASSINATURA_CANCELADA
+              : { enviada_em: "2026-11-24T10:00:00-03:00", erro: null },
+          },
+        ),
+      );
+    });
+    render(<AtaDoNucleo idReuniao={ID} />);
+
+    expect((await screen.findByRole("alert")).textContent).toContain(CANCELADA);
+    expect(screen.queryByText(/encerra sozinha/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Reenviar para assinatura/ }));
+
+    await waitFor(() => expect(chamadas("POST", `${ROTA}/reenviar`)).toHaveLength(1));
+    expect(await screen.findByText(/Enviada em 24\/11\/2026 para a assinatura dos presentes/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Reenviar para assinatura/ })).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("cancelada, o membro comum vê o aviso e não reenvia", async () => {
+    fetchMock.mockImplementation(async () =>
+      responder(
+        leitura(
+          { status_ata: "AGUARDANDO_ASSINATURA", pode_conduzir: false },
+          { validacao: VALIDACAO, assinatura: ASSINATURA_CANCELADA },
+        ),
+      ),
+    );
+    render(<AtaDoNucleo idReuniao={ID} />);
+
+    expect((await screen.findByRole("alert")).textContent).toContain(CANCELADA);
+    expect(screen.queryByRole("button", { name: /Reenviar para assinatura/ })).toBeNull();
+  });
 });

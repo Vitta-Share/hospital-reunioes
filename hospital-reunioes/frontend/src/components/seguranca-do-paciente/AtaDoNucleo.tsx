@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, BadgeCheck, Download, Pen, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, BadgeCheck, Download, Pen, Plus, Send, Trash2 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
 
@@ -28,7 +28,7 @@ export interface AtaDoNucleoJson {
   aviso: string | null;
   validacao?: { por: string; em: string } | null;
   // A assinatura dos presentes e o encerramento (issue #1776).
-  assinatura?: { enviada_em?: string; erro?: string | null } | null;
+  assinatura?: { enviada_em?: string; erro?: string | null; cancelada_em?: string | null } | null;
   encerramento?: { em: string; assinaram: string[]; nao_assinaram: string[] } | null;
 }
 
@@ -156,6 +156,20 @@ export function AtaDoNucleo({ idReuniao, onMudou }: { idReuniao: string; onMudou
     onMudou?.();
   }
 
+  async function reenviar() {
+    setSalvando(true);
+    setErro(null);
+    const tk = await token();
+    const res = await fetch(`${rota}/reenviar`, { method: "POST", headers: { Authorization: `Bearer ${tk}` } });
+    setSalvando(false);
+    if (!res.ok) {
+      setErro(await detalhe(res, "Não consegui reenviar a ata para assinatura."));
+      return;
+    }
+    await carregar();
+    onMudou?.();
+  }
+
   async function baixar(documentoId: string) {
     setErro(null);
     const tk = await token();
@@ -183,6 +197,9 @@ export function AtaDoNucleo({ idReuniao, onMudou }: { idReuniao: string; onMudou
   }
   const emValidacao = leitura.status_ata === "AGUARDANDO_VALIDACAO";
   const conduz = leitura.pode_conduzir && emValidacao;
+  // Envelope cancelado (recusa ou cancelamento no painel): a ata não encerra
+  // sozinha e quem conduz reenvia para todos os presentes.
+  const cancelada = leitura.status_ata === "AGUARDANDO_ASSINATURA" && Boolean(ata.assinatura?.cancelada_em);
 
   return (
     <section aria-label="Ata do Núcleo" className="space-y-4">
@@ -205,14 +222,31 @@ export function AtaDoNucleo({ idReuniao, onMudou }: { idReuniao: string; onMudou
         </div>
       )}
 
-      {leitura.status_ata === "APROVADA" && ata.assinatura?.erro && (
+      {(leitura.status_ata === "APROVADA" || cancelada) && ata.assinatura?.erro && (
         <div role="alert" className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200">
           <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" aria-hidden />
           <p className="text-sm text-amber-800">{ata.assinatura.erro}</p>
         </div>
       )}
 
-      {leitura.status_ata === "AGUARDANDO_ASSINATURA" && ata.assinatura?.enviada_em && (
+      {cancelada && leitura.pode_conduzir && (
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={reenviar}
+            disabled={salvando}
+            className="inline-flex items-center gap-2 rounded-xl bg-[#282760] text-white text-sm font-semibold px-4 py-2.5 disabled:opacity-60"
+          >
+            <Send className="w-4 h-4" aria-hidden />
+            Reenviar para assinatura
+          </button>
+          <p className="text-sm text-slate-600">
+            Vai para todos os presentes, e o prazo de 5 dias úteis recomeça do reenvio.
+          </p>
+        </div>
+      )}
+
+      {leitura.status_ata === "AGUARDANDO_ASSINATURA" && !cancelada && ata.assinatura?.enviada_em && (
         <p className="text-sm text-slate-600">
           Enviada em {dia(ata.assinatura.enviada_em)} para a assinatura dos presentes. A ata encerra sozinha 5 dias
           úteis depois do envio, com as assinaturas que tiver.

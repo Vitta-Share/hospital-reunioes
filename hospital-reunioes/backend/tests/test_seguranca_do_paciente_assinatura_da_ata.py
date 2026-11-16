@@ -695,6 +695,97 @@ class TestKitDeConhecimento:
         assert "entra em Documentos como ata, com o número seguinte" in texto
         assert "Baixar a ata assinada" in texto
         assert "a transcrição importada é apagada 30 dias corridos depois da ata assinada" in texto
+        assert "a Presidência usa **Reenviar para assinatura**" in texto
+        assert "todos os presentes, e o prazo de 5 dias úteis recomeça" in texto
         assert "A assinatura dos presentes chega numa próxima entrega" not in texto
         assert "—" not in texto
         assert "–" not in texto
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 7. O reenvio da ata com o envelope cancelado (decisão do Pedro na #1776)
+# ═══════════════════════════════════════════════════════════════════════════
+
+# O reenvio gera um envelope novo com todos os presentes, porque o cancelado
+# não tem versão assinada, e o prazo de 5 dias úteis recomeça do reenvio.
+REENVIADA_EM = datetime(2026, 11, 24, 10, 0, tzinfo=assinatura_da_ata.pauta.FUSO)
+
+
+def _cancelada(assinatura: _Assinatura):
+    banco = _enviada(assinatura, "pres1@hsm.test")
+    assinatura.status = "canceled"
+    assinatura_da_ata.encerrar_atas(banco, date(2026, 11, 19))
+    assert _ata_gravada(banco)["assinatura"]["cancelada_em"] == "2026-11-19"
+    assinatura.chamadas.clear()
+    assinatura.assinaram = set()
+    assinatura.status = "running"
+    return banco
+
+
+def _reenviar(cliente, rid: str = R_ATA):
+    return cliente.post(f"/api/nsp/reunioes/{rid}/ata/reenviar")
+
+
+class TestReenvio:
+    def test_a_presidencia_reenvia_a_ata_cancelada_para_todos_os_presentes(self, assinatura):
+        banco = _cancelada(assinatura)
+
+        resposta = _reenviar(_cliente(PRESIDENCIA, banco))
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["status"] == "AGUARDANDO_ASSINATURA"
+        # Todos os presentes, inclusive quem já tinha assinado o cancelado.
+        assert _emails_convidados(assinatura) == ["memb1@hsm.test", "memb3@hsm.test", "pres1@hsm.test"]
+        assert "activate_envelope" in assinatura.nomes()
+        nova = _ata_gravada(banco)["assinatura"]
+        assert nova["envelope_id"] == "env-2"
+        assert "cancelada_em" not in nova
+        assert nova["erro"] is None
+        assert nova["anteriores"] == [{"envelope_id": "env-1", "enviada_em": ENVIADA_EM, "cancelada_em": "2026-11-19"}]
+        assert _status(banco) == "AGUARDANDO_ASSINATURA"
+
+    def test_o_prazo_recomeca_do_reenvio(self, assinatura):
+        banco = _cancelada(assinatura)
+        assinatura_da_ata.reenviar_para_assinatura(banco, R_ATA, REENVIADA_EM)
+
+        # O prazo do primeiro envio (26/11) já não fecha a ata.
+        assinatura_da_ata.encerrar_atas(banco, QUINTA_SEGUINTE)
+        assert _status(banco) == "AGUARDANDO_ASSINATURA"
+        assert "close_envelope" not in assinatura.nomes()
+
+        # Segunda 24/11 + 5 dias úteis = segunda 01/12.
+        assinatura_da_ata.encerrar_atas(banco, date(2026, 11, 28))
+        assert _status(banco) == "AGUARDANDO_ASSINATURA"
+        assinatura_da_ata.encerrar_atas(banco, date(2026, 12, 1))
+        assert _status(banco) == "ASSINADA"
+
+    def test_ata_que_nao_foi_cancelada_nao_reenvia(self, assinatura):
+        banco = _enviada(assinatura, "pres1@hsm.test")
+        assinatura.chamadas.clear()
+
+        resposta = _reenviar(_cliente(PRESIDENCIA, banco))
+
+        assert resposta.status_code == 409
+        assert assinatura.chamadas == []
+        assert _ata_gravada(banco)["assinatura"]["envelope_id"] == "env-1"
+
+    def test_so_quem_conduz_a_ata_reenvia(self, assinatura):
+        banco = _cancelada(assinatura)
+
+        _assert_recusado(_reenviar(_cliente(MEMBRO, banco)))
+
+        assert assinatura.chamadas == []
+        assert _ata_gravada(banco)["assinatura"]["cancelada_em"] == "2026-11-19"
+
+    def test_falha_no_reenvio_deixa_a_ata_cancelada_e_avisa(self, assinatura):
+        banco = _cancelada(assinatura)
+        assinatura.falhar_em = "activate_envelope"
+
+        resposta = _reenviar(_cliente(PRESIDENCIA, banco))
+
+        assert resposta.status_code == 503
+        assert "Tente reenviar" in resposta.json()["detail"]
+        anterior = _ata_gravada(banco)["assinatura"]
+        assert anterior["envelope_id"] == "env-1"
+        assert anterior["cancelada_em"] == "2026-11-19"
+        assert _status(banco) == "AGUARDANDO_ASSINATURA"

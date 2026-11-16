@@ -54,8 +54,10 @@ FALHA_DO_ENVIO = "A assinatura eletrônica não respondeu. O aplicativo tenta de
 SEM_EMAIL = "Nenhum presente tem e-mail no cadastro. Corrija o cadastro: o aplicativo tenta de novo amanhã."
 CANCELADA = (
     "A assinatura eletrônica foi cancelada (recusa de um presente ou cancelamento no painel). "
-    "A ata não tem versão assinada e não encerra sozinha."
+    "A ata não tem versão assinada e não encerra sozinha. A Presidência pode reenviar para todos os presentes."
 )
+FALHA_DO_REENVIO = "A assinatura eletrônica não respondeu. Tente reenviar de novo em instantes."
+SEM_EMAIL_NO_REENVIO = "Nenhum presente tem e-mail no cadastro. Corrija o cadastro e tente reenviar."
 
 
 class _EnvioFalhouError(Exception):
@@ -157,20 +159,36 @@ def enviar_para_assinatura(supabase, id_reuniao: str, agora: datetime) -> dict[s
         or anterior.get("envelope_id")
     ):
         return anterior or None
-    lista = presentes(supabase, id_reuniao)
-    com_email = [p for p in lista if p["email"]]
     try:
-        if not com_email:
-            raise _EnvioFalhouError(SEM_EMAIL)
-        pdf = gerar_pdf_da_ata(reuniao, json_ata)
-        envelope_id, documento_key = _criar_envelope(id_reuniao, pdf, com_email)
+        json_ata["assinatura"] = _novo_envio(supabase, reuniao, json_ata, agora)
     except Exception as erro:  # a ata validada não volta atrás: o job tenta de novo
         mensagem = str(erro) if isinstance(erro, _EnvioFalhouError) else FALHA_DO_ENVIO
         logger.warning("Ata do Núcleo %s validada e não enviada para assinatura: %s", id_reuniao, erro)
         json_ata["assinatura"] = {"erro": mensagem, "tentativa_em": agora.isoformat()}
         supabase.table("reunioes").update({"json_ata": json_ata}).eq("id_reuniao", id_reuniao).execute()
         return json_ata["assinatura"]
-    json_ata["assinatura"] = {
+    supabase.table("reunioes").update({"json_ata": json_ata, "status_ata": "AGUARDANDO_ASSINATURA"}).eq(
+        "id_reuniao", id_reuniao
+    ).execute()
+    logger.info(
+        "Ata do Núcleo %s enviada para assinatura de %d presente(s)",
+        id_reuniao,
+        len(json_ata["assinatura"]["signatarios"]),
+    )
+    return json_ata["assinatura"]
+
+
+def _novo_envio(supabase, reuniao: dict, json_ata: dict, agora: datetime) -> dict[str, Any]:
+    """O envelope com todos os presentes e o prazo contando de `agora`. Sobe
+    `_EnvioFalhouError` (ou o erro do PDF) sem gravar nada."""
+    id_reuniao = reuniao["id_reuniao"]
+    lista = presentes(supabase, id_reuniao)
+    com_email = [p for p in lista if p["email"]]
+    if not com_email:
+        raise _EnvioFalhouError(SEM_EMAIL)
+    pdf = gerar_pdf_da_ata(reuniao, json_ata)
+    envelope_id, documento_key = _criar_envelope(id_reuniao, pdf, com_email)
+    return {
         "enviada_em": agora.isoformat(),
         "envelope_id": envelope_id,
         "documento_key": documento_key,
@@ -178,11 +196,32 @@ def enviar_para_assinatura(supabase, id_reuniao: str, agora: datetime) -> dict[s
         "sem_email": [p for p in lista if not p["email"]],
         "erro": None,
     }
-    supabase.table("reunioes").update({"json_ata": json_ata, "status_ata": "AGUARDANDO_ASSINATURA"}).eq(
-        "id_reuniao", id_reuniao
+
+
+def reenviar_para_assinatura(supabase, id_reuniao: str, agora: datetime) -> dict[str, Any] | None:
+    """O reenvio da ata com o envelope cancelado (decisão do Pedro na #1776):
+    envelope novo com todos os presentes, porque o cancelado não tem versão
+    assinada, e o prazo de 5 dias úteis recomeça de `agora`. O envelope
+    cancelado fica em `assinatura.anteriores`. Devolve None quando a ata não
+    está cancelada; a falha sobe e a ata continua cancelada, como estava."""
+    reuniao = ata_do_nucleo.reuniao_do_nucleo(supabase, id_reuniao)
+    if not reuniao:
+        return None
+    json_ata = dict(reuniao.get("json_ata") or {})
+    anterior = json_ata.get("assinatura") or {}
+    if reuniao.get("status_ata") != "AGUARDANDO_ASSINATURA" or not anterior.get("cancelada_em"):
+        return None
+    nova = _novo_envio(supabase, reuniao, json_ata, agora)
+    nova["anteriores"] = [
+        *(anterior.get("anteriores") or []),
+        {k: anterior.get(k) for k in ("envelope_id", "enviada_em", "cancelada_em")},
+    ]
+    json_ata["assinatura"] = nova
+    supabase.table("reunioes").update({"json_ata": json_ata}).eq("id_reuniao", id_reuniao).eq(
+        "status_ata", "AGUARDANDO_ASSINATURA"
     ).execute()
-    logger.info("Ata do Núcleo %s enviada para assinatura de %d presente(s)", id_reuniao, len(com_email))
-    return json_ata["assinatura"]
+    logger.info("Ata do Núcleo %s reenviada para assinatura de %d presente(s)", id_reuniao, len(nova["signatarios"]))
+    return nova
 
 
 # ---------------------------------------------------------------------------

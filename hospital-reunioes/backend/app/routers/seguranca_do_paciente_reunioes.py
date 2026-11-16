@@ -732,6 +732,34 @@ async def validar_ata(
     }
 
 
+@router.post("/{id_reuniao}/ata/reenviar")
+@limiter.limit("10/minute")
+async def reenviar_ata(
+    request: Request,
+    id_reuniao: str,
+    me: dict = Depends(require_recurso_nsp("reunioes")),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """A ata com o envelope cancelado (recusa ou cancelamento no painel) vai
+    de novo para todos os presentes, e o prazo de 5 dias úteis recomeça
+    (issue #1776). Quem reenvia é quem conduz a ata."""
+    reuniao = _ata_do_nucleo_ou_404(supabase, id_reuniao)
+    _so_quem_conduz(supabase, me, reuniao)
+    try:
+        envio = await run_in_threadpool(assinatura_da_ata.reenviar_para_assinatura, supabase, id_reuniao, _agora())
+    except Exception as erro:
+        sem_email = str(erro) == assinatura_da_ata.SEM_EMAIL
+        logger.warning("Ata do Núcleo %s não reenviada para assinatura: %s", id_reuniao, erro)
+        raise HTTPException(
+            status_code=422 if sem_email else 503,
+            detail=assinatura_da_ata.SEM_EMAIL_NO_REENVIO if sem_email else assinatura_da_ata.FALHA_DO_REENVIO,
+        ) from erro
+    if not envio:
+        raise HTTPException(status_code=409, detail="A assinatura desta ata não foi cancelada.")
+    logger.info("Ata do Núcleo %s reenviada por %s", id_reuniao, me["id"])
+    return {"id_reuniao": id_reuniao, "status": "AGUARDANDO_ASSINATURA"}
+
+
 # ---------------------------------------------------------------------------
 # A ata assinada (issue #1776)
 # ---------------------------------------------------------------------------
