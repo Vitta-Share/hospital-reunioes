@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T01:45+0000 -->
+<!-- last_update: 2026-11-16T02:02+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -148,7 +148,8 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 146 | `146_nsp_fundacao.sql` | Segurança do Paciente, a fundação | 2 | 4 | 2 | 0 |
 | 147 | `147_nsp_documentos.sql` | os documentos do Núcleo de Segurança do Paciente | 1 | 0 | 1 | 0 |
 | 148 | `148_nsp_reunioes_do_nucleo.sql` | as reuniões do Núcleo de Segurança do Paciente | 0 | 1 | 1 | 0 |
+| 149 | `149_nsp_agenda_regulatoria.sql` | Segurança do Paciente, a Agenda regulatória | 2 | 0 | 2 | 0 |
 | 150 | `150_nsp_membros.sql` | Segurança do Paciente, os membros do Núcleo | 1 | 2 | 3 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 143 migrations.
+**Total:** 144 migrations.

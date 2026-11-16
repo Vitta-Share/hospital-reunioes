@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T01:45+0000 -->
+<!-- last_update: 2026-11-16T02:02+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -1954,6 +1954,45 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `nsp_documentos_um_vigente_por_tipo` em `(tipo)` (de `147_nsp_documentos.sql`)
 
+## nsp_agenda_regulatoria
+
+> Origem: `149_nsp_agenda_regulatoria.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `evento` | `TEXT` | NOT NULL | — | — |
+| `periodicidade` | `TEXT` | NOT NULL | — | — |
+| `regra` | `TEXT` | — | — | — |
+| `proxima_data` | `DATE` | — | — | — |
+| `link` | `TEXT` | — | — | — |
+| `antecedencia_dias` | `INTEGER` | NOT NULL | `7` | — |
+| `ativo` | `BOOLEAN` | NOT NULL | `true` | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_agenda_proxima_data` em `(proxima_data)` (de `149_nsp_agenda_regulatoria.sql`)
+
+## nsp_agenda_ocorrencias
+
+> Origem: `149_nsp_agenda_regulatoria.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `item_id` | `UUID` | NOT NULL | — | `nsp_agenda_regulatoria.id` |
+| `data_prevista` | `DATE` | NOT NULL | — | — |
+| `pendencia_id` | `VARCHAR(10)` | — | — | `pendencias.id_acao` |
+| `resultado` | `TEXT` | — | — | — |
+| `realizada_em` | `DATE` | — | — | — |
+| `registrado_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `registrado_em` | `TIMESTAMPTZ` | — | — | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_agenda_ocorrencias_pendencia` em `(pendencia_id)` (de `149_nsp_agenda_regulatoria.sql`)
+
 ## participacoes_trilha
 
 > Origem: `150_nsp_membros.sql`
@@ -1975,4 +2014,4 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ---
 
-**Resumo:** 96 tabelas vivas.
+**Resumo:** 98 tabelas vivas.

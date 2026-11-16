@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T01:45+0000 -->
+<!-- last_update: 2026-11-16T02:02+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -64,6 +64,7 @@ erDiagram
     cm_validacao_tema ||--o{ cm_validacao_tema_linha : "tema_id"
     colegiados ||--o{ participacoes : "colegiado_id"
     colegiados ||--o{ reunioes : "colegiado_id"
+    nsp_agenda_regulatoria ||--o{ nsp_agenda_ocorrencias : "item_id"
     ouvidoria_pontos ||--o{ ouvidoria_avaliacoes : "ponto_id"
     participacoes ||--o{ participacoes_trilha : "participacao_id"
     participantes ||--o{ audit_log : "actor_id"
@@ -90,6 +91,7 @@ erDiagram
     participantes ||--o{ cm_validacao_tema : "decidido_por"
     participantes ||--o{ comentarios_pendencias : "autor_id"
     participantes ||--o{ notificacoes : "destinatario_id"
+    participantes ||--o{ nsp_agenda_ocorrencias : "registrado_por"
     participantes ||--o{ nsp_documentos : "publicado_por"
     participantes ||--o{ ouvidoria_acessos : "ator_id"
     participantes ||--o{ ouvidoria_anexos : "enviado_por"
@@ -130,6 +132,7 @@ erDiagram
     participantes ||--o{ user_preferences : "participante_id"
     pendencias ||--o{ agendamentos_email : "id_acao"
     pendencias ||--o{ comentarios_pendencias : "id_acao"
+    pendencias ||--o{ nsp_agenda_ocorrencias : "pendencia_id"
     pops ||--o{ pops_versoes : "pop_id"
     pops_setores ||--o{ pops : "setor_id"
     pops_setores ||--o{ pops_setores_participantes : "setor_id"
@@ -1040,6 +1043,28 @@ erDiagram
         TEXT arquivo_assinado_path
         _ mais_colunas "+2"
     }
+    nsp_agenda_regulatoria {
+        UUID id PK
+        TEXT evento
+        TEXT periodicidade
+        TEXT regra
+        DATE proxima_data
+        TEXT link
+        INTEGER antecedencia_dias
+        BOOLEAN ativo
+        _ mais_colunas "+2"
+    }
+    nsp_agenda_ocorrencias {
+        UUID id PK
+        UUID item_id FK
+        DATE data_prevista
+        VARCHAR pendencia_id FK
+        TEXT resultado
+        DATE realizada_em
+        VARCHAR registrado_por FK
+        TIMESTAMPTZ registrado_em
+        _ mais_colunas "+1"
+    }
     participacoes_trilha {
         UUID id PK
         UUID participacao_id FK
@@ -1217,8 +1242,10 @@ erDiagram
 | `participacoes` | `idx_participacoes_colegiado_vigencia` | `colegiado_id, vigencia_inicio, vigencia_fim` | `146_nsp_fundacao.sql` |
 | `participacoes` | `uq_participacoes_aberta_por_pessoa` | `colegiado_id, participante_id` | `150_nsp_membros.sql` |
 | `nsp_documentos` | `nsp_documentos_um_vigente_por_tipo` | `tipo` | `147_nsp_documentos.sql` |
+| `nsp_agenda_regulatoria` | `idx_nsp_agenda_proxima_data` | `proxima_data` | `149_nsp_agenda_regulatoria.sql` |
+| `nsp_agenda_ocorrencias` | `idx_nsp_agenda_ocorrencias_pendencia` | `pendencia_id` | `149_nsp_agenda_regulatoria.sql` |
 | `participacoes_trilha` | `idx_participacoes_trilha_participacao` | `participacao_id, created_at DESC` | `150_nsp_membros.sql` |
 | `participacoes_trilha` | `idx_participacoes_trilha_autor` | `autor_id` | `150_nsp_membros.sql` |
 
 ---
-**Resumo:** 96 tabelas · 138 relacionamentos FK detectados.
+**Resumo:** 98 tabelas · 141 relacionamentos FK detectados.
