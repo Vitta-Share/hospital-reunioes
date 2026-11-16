@@ -2,6 +2,58 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-16T01:20:33-03:00",
+      "sha": "f6b669395056dcc9c43e205eef2065b0480eade5",
+      "app_version": "0.297.0",
+      "subject": "Onda nsp-fase1-onda5: Reunião rápida de segurança em três linhas, sem ata; Reuniões do Núcleo na página de Reuniões e pendências; Capacitações do Núcleo com presença confirmada por um toque",
+      "raw_subject": "chore(deploy): registro da onda nsp-fase1-onda5 (#1794 #1792 #1793)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1764
+      ],
+      "result": "healthy",
+      "duration_seconds": 547,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "154_nsp_reunioes_rapidas.sql",
+        "154_nsp_reunioes_rapidas.sql",
+        "155_nsp_capacitacoes.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp-fase1-onda5: PR #1794 (issue #1777), PR #1792 (issue #1781), PR #1793 (issue #1778), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 9,
+        "build_s": {
+          "backend": 19,
+          "frontend": 160
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-16T00:29:38-03:00",
       "sha": "199d5fe82b1c2e06eb6e065d94e3e47d2687b886",
       "app_version": "0.296.0",
