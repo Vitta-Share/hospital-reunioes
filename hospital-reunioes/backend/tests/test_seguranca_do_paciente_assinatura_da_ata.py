@@ -26,7 +26,7 @@ from __future__ import annotations
 import copy
 import os
 import sys
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -241,13 +241,27 @@ class TestSoOsPresentesAssinam:
         assert _status(banco) == "AGUARDANDO_ASSINATURA"
         assert resposta.json()["status"] == "AGUARDANDO_ASSINATURA"
 
-    def test_a_ata_em_validacao_nao_sai_para_assinatura_pelo_job(self, assinatura):
+    def test_a_ata_em_validacao_nao_sai_para_assinatura(self, assinatura):
         banco = _com_ata()
 
         assinatura_da_ata.encerrar_atas(banco, HOJE)
+        assinatura_da_ata.enviar_para_assinatura(banco, R_ATA, datetime.now())
 
         assert assinatura.chamadas == []
         assert _status(banco) == "AGUARDANDO_VALIDACAO"
+        assert "assinatura" not in _ata_gravada(banco)
+
+    def test_presente_sem_e_mail_nao_e_convidado_e_fica_como_quem_nao_assinou(self, assinatura):
+        banco = _com_ata()
+        next(p for p in banco.tabelas["participantes"] if p["id"] == "MEMB3")["email"] = None
+        _validar(_cliente(PRESIDENCIA, banco))
+        _reuniao_gravada(banco)["json_ata"]["assinatura"]["enviada_em"] = ENVIADA_EM
+        assinatura.assinaram = {"pres1@hsm.test", "memb1@hsm.test"}
+
+        assinatura_da_ata.encerrar_atas(banco, QUINTA_SEGUINTE)
+
+        assert _emails_convidados(assinatura) == ["memb1@hsm.test", "pres1@hsm.test"]
+        assert _ata_gravada(banco)["encerramento"]["nao_assinaram"] == ["Pessoa de Teste MEMB3"]
 
     def test_o_envio_que_falhou_na_validacao_sai_no_job(self, assinatura):
         assinatura.falhar_em = "activate_envelope"

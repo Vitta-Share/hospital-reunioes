@@ -746,13 +746,13 @@ async def arquivo_da_ata_assinada(
     supabase: Client = Depends(get_supabase_client),
 ) -> dict:
     """O link do PDF da ata assinada, válido por 10 minutos. Só o documento
-    de tipo ata, preso a uma reunião, sai por aqui; a rota genérica dos
+    de tipo ata sai por aqui; a rota genérica dos
     Documentos não entrega a ata. Quem pede tem que abrir as atas do Núcleo
     (`reunioes`), e o super admin sem Acesso pleno não abre."""
     try:
         linhas = (
             supabase.table("nsp_documentos")
-            .select("id, tipo, reuniao_id, arquivo_assinado_path")
+            .select("id, tipo, arquivo_assinado_path")
             .eq("id", documento_id)
             .limit(1)
             .execute()
@@ -764,7 +764,7 @@ async def arquivo_da_ata_assinada(
             raise
         linhas = []
     documento = linhas[0] if linhas else {}
-    if documento.get("tipo") != "ata" or not documento.get("reuniao_id") or not documento.get("arquivo_assinado_path"):
+    if documento.get("tipo") != "ata" or not documento.get("arquivo_assinado_path"):
         raise HTTPException(status_code=404, detail="Ata assinada não encontrada.")
     url = assinatura_da_ata.link_do_arquivo(supabase, documento["arquivo_assinado_path"])
     if not url:
