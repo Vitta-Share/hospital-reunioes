@@ -44,9 +44,11 @@ DIRETOR = _pessoa("P3", "Diretor Geral")
 CADASTRO = [LUCAS, DIRETOR]
 
 # A pergunta do terminal, a resposta do diretor e o agradecimento, fora de
-# ordem na tabela de propósito: quem ordena é a rota.
+# ordem na tabela de propósito: quem ordena é a rota. Os ids andam ao contrário
+# da data (em produção o id é `gen_random_uuid()`, sem ordem nenhuma), para que
+# ordenar por id em vez de `criado_em` saia na ordem errada.
 PERGUNTA = {
-    "id": "m1",
+    "id": "m3",
     "demanda_id": DEMANDA,
     "autor_id": LUCAS["id"],
     "texto": "O senhor prefere a opção A ou a B?",
@@ -62,7 +64,7 @@ RESPOSTA = {
     "origem": "app",
 }
 COMPLEMENTO = {
-    "id": "m3",
+    "id": "m1",
     "demanda_id": DEMANDA,
     "autor_id": DIRETOR["id"],
     "texto": "E manda o relatório na segunda.",
@@ -242,7 +244,8 @@ class TestSemInstante:
         total = paginacao.PAGINA + 3
         conversa = [
             {
-                "id": f"m{i:05d}",
+                # id decrescente com a data: só o `criado_em` acerta a ordem.
+                "id": f"m{total - 1 - i:05d}",
                 "demanda_id": DEMANDA,
                 "autor_id": DIRETOR["id"] if i % 2 else LUCAS["id"],
                 "texto": f"mensagem {i}",
