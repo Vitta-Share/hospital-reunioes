@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T15:13+0000 -->
+<!-- last_update: 2026-11-16T17:22+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -520,10 +520,12 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 |--------|------|-----------|------|
 | GET | `/nsp/reunioes` | As reuniões do Núcleo, por data, sem as canceladas, e o que a pessoa | ✅ |
 | POST | `/nsp/reunioes` | A Presidência cria a reunião à mão, programada, e fica como | ✅ |
+| GET | `/nsp/reunioes/atas/{documento_id}/arquivo-assinado` | O link do PDF da ata assinada, válido por 10 minutos. Só o documento | ✅ |
 | POST | `/nsp/reunioes/calendario` | As doze ordinárias do ano, uma por mês, programadas. Mês que já tem | ✅ |
 | POST | `/nsp/reunioes/rapidas` | A reunião rápida de segurança (issue #1777): data, setor, participantes | ✅ |
 | GET | `/nsp/reunioes/{id_reuniao}/ata` | A ata em dez blocos e se a pessoa pode revisar e validar. | ✅ |
 | PUT | `/nsp/reunioes/{id_reuniao}/ata` | A Presidência reescreve os blocos do agente antes de validar. Os | ✅ |
+| POST | `/nsp/reunioes/{id_reuniao}/ata/reenviar` | A ata com o envelope cancelado (recusa ou cancelamento no painel) vai | ✅ |
 | POST | `/nsp/reunioes/{id_reuniao}/ata/validar` | Só a Presidência, o suplente em exercício ou o Acesso pleno valida. | ✅ |
 | POST | `/nsp/reunioes/{id_reuniao}/convocacao` | Um clique: e-mail nominal a quem conta para quórum, com data e hora | ✅ |
 | POST | `/nsp/reunioes/{id_reuniao}/nao-instalada` | Sem quórum, a reunião fica como não instalada e nasce a reagendada, | ✅ |
@@ -647,4 +649,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 371 endpoints em 54 routers · 93% exigem auth.
+**Totais:** 373 endpoints em 54 routers · 93% exigem auth.

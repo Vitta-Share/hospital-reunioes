@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T14:53+0000 -->
+<!-- last_update: 2026-11-16T17:22+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -1941,7 +1941,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## nsp_documentos
 
-> Origem: `147_nsp_documentos.sql` (alterada em: 151_nsp_termo_de_adesao.sql)
+> Origem: `147_nsp_documentos.sql` (alterada em: 151_nsp_termo_de_adesao.sql, 160_nsp_ata_assinada.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -1956,6 +1956,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `publicado_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
 | `publicado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
 | `termo_envio_id` | `UUID` | UNIQUE | — | `nsp_termos_envios.id` |
+| `reuniao_id` | `VARCHAR(20)` | UNIQUE | — | `reunioes.id_reuniao` |
 
 **Indexes:**
 - `nsp_documentos_um_vigente_por_tipo` em `(tipo)` (de `147_nsp_documentos.sql`)

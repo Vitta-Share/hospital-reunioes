@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T14:53+0000 -->
+<!-- last_update: 2026-11-16T17:22+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -158,6 +158,7 @@ erDiagram
     pops_versoes ||--o{ pops_devolucoes : "versao_id"
     pops_versoes ||--o{ pops_materiais_referencia : "versao_id"
     reunioes ||--o{ nsp_convocados : "id_reuniao"
+    reunioes ||--o{ nsp_documentos : "reuniao_id"
     reunioes ||--o{ nsp_pautas : "id_reuniao"
     reunioes ||--o{ pendencias : "id_reuniao"
     reunioes ||--o{ reuniao_participantes : "id_reuniao"
@@ -1065,7 +1066,7 @@ erDiagram
         TEXT natureza_revisao
         BOOLEAN vigente
         TEXT arquivo_assinado_path
-        _ mais_colunas "+3"
+        _ mais_colunas "+4"
     }
     nsp_agenda_regulatoria {
         UUID id PK
@@ -1394,4 +1395,4 @@ erDiagram
 | `nsp_documentos_signatarios` | `idx_nsp_documentos_signatarios_participante` | `participante_id` | `159_nsp_assinatura_dos_documentos.sql` |
 
 ---
-**Resumo:** 109 tabelas · 164 relacionamentos FK detectados.
+**Resumo:** 109 tabelas · 165 relacionamentos FK detectados.
