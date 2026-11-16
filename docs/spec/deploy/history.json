@@ -2,6 +2,106 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-16T03:09:31-03:00",
+      "sha": "c23baf472734711e8a8bbb38a2a1300c71a5e0ad",
+      "app_version": "0.299.0",
+      "subject": "Onda nsp-fase1-onda7: Assinatura eletrônica do ato de designação, do Regimento e do Plano",
+      "raw_subject": "chore(deploy): registro da onda nsp-fase1-onda7 (#1799)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1764
+      ],
+      "result": "healthy",
+      "duration_seconds": 194,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "159_nsp_assinatura_dos_documentos.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp-fase1-onda7: PR #1799 (issue #1771), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 2,
+        "build_s": {
+          "backend": 16,
+          "frontend": 175
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
+      "at": "2026-11-16T02:55:34-03:00",
+      "sha": "bb388df103efdc94186940a141a869bfb6f20474",
+      "app_version": "0.298.0",
+      "subject": "Onda nsp-fase1-onda6: Ata do Núcleo em dez blocos, validada só pela Presidência; Novo Termo por renovação, mudança de papel e revisão material do Regimento; Avisos do Termo sem assinatura e do fim da ",
+      "raw_subject": "chore(deploy): registro da onda nsp-fase1-onda6 (#1798 #1795 #1796)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1764
+      ],
+      "result": "healthy",
+      "duration_seconds": 4381,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "158_nsp_avisos.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp-fase1-onda6: PR #1798 (issue #1775), PR #1795 (issue #1769), PR #1796 (issue #1770), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 9,
+        "build_s": {
+          "backend": 16,
+          "frontend": 18
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-16T01:20:33-03:00",
       "sha": "f6b669395056dcc9c43e205eef2065b0480eade5",
       "app_version": "0.297.0",

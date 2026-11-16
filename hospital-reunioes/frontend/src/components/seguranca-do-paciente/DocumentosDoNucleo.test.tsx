@@ -13,7 +13,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { DocumentoDoNucleo } from "@/lib/seguranca-do-paciente/documentos";
+import type { AssinaturaDoDocumento, DocumentoDoNucleo } from "@/lib/seguranca-do-paciente/documentos";
 
 import { DocumentosDoNucleo } from "./DocumentosDoNucleo";
 
@@ -173,5 +173,137 @@ describe("a publicação", () => {
     await waitFor(() =>
       expect(fetch.mock.calls.filter(([url, init]) => url === "/api/nsp/documentos" && !init?.method)).toHaveLength(2)
     );
+  });
+});
+
+/*
+ * A assinatura eletrônica (issue #1771): o ato de designação, o Regimento e o
+ * Plano vão para assinatura; a versão enviada espera, com quem já assinou e
+ * quem falta, e a anterior continua vigente. O arquivo assinado se baixa.
+ */
+describe("a assinatura", () => {
+  const REGIMENTO_V3 = documento({ id: "reg-3", versao: 3, vigente: false, natureza_revisao: "material" });
+  const ESPERANDO: AssinaturaDoDocumento = {
+    documento_id: "reg-3",
+    situacao: "enviado",
+    erro: null,
+    enviado_em: "2026-11-10T12:00:00+00:00",
+    assinado_em: null,
+    pode_reenviar: true,
+    signatarios: [
+      { nome: "Pessoa de Teste P1", qualidade: "diretoria_executiva", assinado_em: null },
+      { nome: "Pessoa de Teste P2", qualidade: "presidencia", assinado_em: "2026-11-11T12:00:00+00:00" },
+    ],
+  };
+
+  function servidorComAssinaturas(documentos: DocumentoDoNucleo[], assinaturas: AssinaturaDoDocumento[]) {
+    const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        return { ok: true, status: 201, json: async () => ({ aviso: null, situacao: "enviado", signatarios: [] }) };
+      }
+      if (url === "/api/nsp/documentos") return { ok: true, status: 200, json: async () => ({ documentos }) };
+      if (url === "/api/nsp/assinaturas-dos-documentos") {
+        return { ok: true, status: 200, json: async () => ({ assinaturas }) };
+      }
+      if (url.endsWith("/arquivo-assinado")) {
+        return { ok: true, status: 200, json: async () => ({ url: "https://storage.test/assinado.pdf" }) };
+      }
+      return { ok: true, status: 200, json: async () => ({ texto: "Texto de teste." }) };
+    });
+    vi.stubGlobal("fetch", fetch);
+    return fetch;
+  }
+
+  it("a versão enviada espera com quem assinou e quem falta, e a anterior continua vigente", async () => {
+    servidorComAssinaturas([REGIMENTO_V3, REGIMENTO_V2, REGIMENTO_V1], [ESPERANDO]);
+
+    render(<DocumentosDoNucleo podePublicar={false} />);
+
+    const regimento = await screen.findByRole("region", { name: "Regimento" });
+    const esperando = await within(regimento).findByRole("article", { name: "Versão 3, aguardando assinatura" });
+    expect(within(esperando).getByText(/Diretoria Executiva: Pessoa de Teste P1, falta assinar/)).toBeTruthy();
+    expect(within(esperando).getByText(/Presidência do Núcleo: Pessoa de Teste P2, assinou em 11\/11\/2026/)).toBeTruthy();
+    expect(within(regimento).getByRole("article", { name: "Versão 2, vigente" })).toBeTruthy();
+    const anteriores = within(regimento).getByRole("list", { name: "Versões anteriores" });
+    expect(within(anteriores).queryByText("Versão 3")).toBeNull();
+    expect(within(esperando).queryByRole("button", { name: "Reconsultar status da assinatura" })).toBeNull();
+    expect(within(esperando).queryByRole("button", { name: "Reenviar para assinatura" })).toBeNull();
+  });
+
+  it("a Presidência reconsulta e reenvia a versão que espera", async () => {
+    const fetch = servidorComAssinaturas([REGIMENTO_V3, REGIMENTO_V2], [ESPERANDO]);
+    render(<DocumentosDoNucleo podePublicar />);
+    const esperando = await screen.findByRole("article", { name: "Versão 3, aguardando assinatura" });
+
+    fireEvent.click(within(esperando).getByRole("button", { name: "Reconsultar status da assinatura" }));
+    await waitFor(() =>
+      expect(posts(fetch).map(([url]) => url)).toContain("/api/nsp/documentos/reg-3/assinatura/reconsultar")
+    );
+
+    fireEvent.click(within(esperando).getByRole("button", { name: "Reenviar para assinatura" }));
+    await waitFor(() =>
+      expect(posts(fetch).map(([url]) => url)).toContain("/api/nsp/documentos/reg-3/assinatura/reenviar")
+    );
+  });
+
+  it("envia o Regimento para assinatura pelo formulário", async () => {
+    const fetch = servidorComAssinaturas([], []);
+    render(<DocumentosDoNucleo podePublicar />);
+    fireEvent.click(await screen.findByRole("button", { name: "Publicar versão nova" }));
+    fireEvent.change(screen.getByLabelText("Tipo"), { target: { value: "regimento" } });
+    fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Regimento Interno do Núcleo" } });
+    fireEvent.change(screen.getByLabelText("Texto"), { target: { value: "Art. 1º Texto de teste." } });
+    fireEvent.click(screen.getByLabelText("Material (pede nova assinatura do Termo)"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Enviar para assinatura" }));
+
+    await waitFor(() => expect(posts(fetch)).toHaveLength(1));
+    const [url, init] = posts(fetch)[0];
+    expect(url).toBe("/api/nsp/documentos/assinatura");
+    expect(JSON.parse(String((init as RequestInit).body))).toEqual({
+      tipo: "regimento",
+      titulo: "Regimento Interno do Núcleo",
+      texto: "Art. 1º Texto de teste.",
+      natureza_revisao: "material",
+    });
+  });
+
+  it("ata e outros documentos não vão para assinatura pelo formulário", async () => {
+    servidorComAssinaturas([], []);
+    render(<DocumentosDoNucleo podePublicar />);
+    fireEvent.click(await screen.findByRole("button", { name: "Publicar versão nova" }));
+
+    fireEvent.change(screen.getByLabelText("Tipo"), { target: { value: "ata" } });
+
+    expect(screen.queryByRole("button", { name: "Enviar para assinatura" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Publicar" })).toBeTruthy();
+  });
+
+  it("quem lê Documentos baixa o arquivo assinado", async () => {
+    const fetch = servidorComAssinaturas([documento({ id: "reg-4", versao: 4, tem_arquivo_assinado: true })], []);
+    const aba = { opener: {}, location: { href: "" }, close: vi.fn() };
+    vi.stubGlobal("open", vi.fn(() => aba));
+    render(<DocumentosDoNucleo podePublicar={false} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Baixar o arquivo assinado" }));
+
+    await waitFor(() => expect(aba.location.href).toBe("https://storage.test/assinado.pdf"));
+    expect(fetch).toHaveBeenCalledWith("/api/nsp/documentos/reg-4/arquivo-assinado", expect.anything());
+  });
+
+  it("o Termo assinado de cada membro não tem botão de baixar na lista", async () => {
+    const termo = documento({
+      id: "termo-1",
+      tipo: "termo",
+      titulo: "Termo de Adesão de Pessoa de Teste",
+      natureza_revisao: null,
+      tem_arquivo_assinado: true,
+    });
+    const fetch = servidorComAssinaturas([termo, documento({ id: "reg-4", versao: 4, tem_arquivo_assinado: true })], []);
+    render(<DocumentosDoNucleo podePublicar={false} />);
+
+    expect(await screen.findByText("Termo de Adesão de Pessoa de Teste")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Baixar o arquivo assinado" })).toHaveLength(1);
+    expect(fetch).not.toHaveBeenCalledWith("/api/nsp/documentos/termo-1/arquivo-assinado", expect.anything());
   });
 });

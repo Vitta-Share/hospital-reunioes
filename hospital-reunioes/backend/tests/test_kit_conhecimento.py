@@ -847,3 +847,31 @@ class TestNovoTermoNoKit:
         decidido = _secao(texto, SECAO_DECIDIDO)
         assert "quando as entregas de assinatura chegarem" not in decidido
         assert "revisão material pede" in decidido
+
+
+class TestAssinaturaDosDocumentosNoKit:
+    """A assinatura dos documentos do Núcleo (issue #1771): o Assistente
+    responde "quem assina o Regimento?" e "por que o Regimento novo ainda não
+    vale?" pelo kit."""
+
+    @pytest.fixture
+    def texto(self) -> str:
+        return _texto("seguranca-do-paciente.md")
+
+    def test_no_ar_diz_quem_assina_cada_tipo_e_quando_vira_vigente(self, texto):
+        no_ar = _secao(texto, "O que já está no ar")
+        for termo in (
+            "Enviar para assinatura",
+            "O ato de designação é assinado pela Diretoria Executiva",
+            "o Regimento e o Plano, pela Diretoria Executiva e pela Presidência",
+            "só vira a vigente quando todos assinam",
+            "a anterior continua valendo",
+            "Baixar o arquivo assinado",
+            "Reenviar para assinatura",
+        ):
+            assert termo in no_ar, termo
+
+    def test_a_assinatura_saiu_do_que_ainda_nao_faz(self, texto):
+        """Mutante: deixar a frase antiga, que dizia que a assinatura chega depois."""
+        assert "assinatura de um documento publicado" not in _secao(texto, "O que ele ainda não faz")
+        assert "isso chega nas entregas de assinatura" not in _secao(texto, "O que já está no ar")

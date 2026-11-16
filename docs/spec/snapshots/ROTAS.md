@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T05:47+0000 -->
+<!-- last_update: 2026-11-16T06:06+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -492,6 +492,16 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/nsp/documentos` | Publica a versão seguinte do tipo, que passa a ser a vigente. | ✅ |
 | GET | `/nsp/documentos/{documento_id}` | Uma versão inteira, com o texto (o Regimento e o Plano lidos na tela). | ✅ |
 
+## seguranca-do-paciente (`app/routers/seguranca_do_paciente_documentos_assinatura.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| GET | `/nsp/assinaturas-dos-documentos` | O último envio de cada versão assinada: quem já assinou e quem falta. | ✅ |
+| POST | `/nsp/documentos/assinatura` | Grava a versão seguinte do tipo fora da vigência e a manda para os | ✅ |
+| GET | `/nsp/documentos/{documento_id}/arquivo-assinado` | O link do PDF assinado da versão, válido por 10 minutos. Só dos tipos que | ✅ |
+| POST | `/nsp/documentos/{documento_id}/assinatura/reconsultar` | Pergunta à assinatura eletrônica quem já assinou e aplica o mesmo | ✅ |
+| POST | `/nsp/documentos/{documento_id}/assinatura/reenviar` | Cancela o envio aberto da versão e manda outro, com os signatários de | ✅ |
+
 ## seguranca-do-paciente (`app/routers/seguranca_do_paciente_membros.py`)
 
 | Método | Rota | O que faz | Auth |
@@ -634,4 +644,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 363 endpoints em 53 routers · 93% exigem auth.
+**Totais:** 368 endpoints em 54 routers · 93% exigem auth.

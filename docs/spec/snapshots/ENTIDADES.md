@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T05:52+0000 -->
+<!-- last_update: 2026-11-16T06:06+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2179,6 +2179,47 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_nsp_avisos_destinatario` em `(destinatario_id)` (de `158_nsp_avisos.sql`)
 
+## nsp_documentos_envios
+
+> Origem: `159_nsp_assinatura_dos_documentos.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `documento_id` | `UUID` | NOT NULL | — | `nsp_documentos.id` |
+| `situacao` | `TEXT` | NOT NULL | `'gerado'` | — |
+| `envelope_id` | `TEXT` | — | — | — |
+| `documento_key` | `TEXT` | — | — | — |
+| `erro` | `TEXT` | — | — | — |
+| `autor_id` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `enviado_em` | `TIMESTAMPTZ` | — | — | — |
+| `assinado_em` | `TIMESTAMPTZ` | — | — | — |
+| `cancelado_em` | `TIMESTAMPTZ` | — | — | — |
+
+**Indexes:**
+- `uq_nsp_documentos_envios_documento_key` em `(documento_key)` (de `159_nsp_assinatura_dos_documentos.sql`)
+- `uq_nsp_documentos_envios_aberto` em `(documento_id)` (de `159_nsp_assinatura_dos_documentos.sql`)
+- `idx_nsp_documentos_envios_documento` em `(documento_id, created_at DESC)` (de `159_nsp_assinatura_dos_documentos.sql`)
+- `idx_nsp_documentos_envios_autor` em `(autor_id)` (de `159_nsp_assinatura_dos_documentos.sql`)
+
+## nsp_documentos_signatarios
+
+> Origem: `159_nsp_assinatura_dos_documentos.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `envio_id` | `UUID` | NOT NULL | — | `nsp_documentos_envios.id` |
+| `participante_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `qualidade` | `TEXT` | NOT NULL | — | — |
+| `signatario_id` | `TEXT` | — | — | — |
+| `assinado_em` | `TIMESTAMPTZ` | — | — | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_documentos_signatarios_participante` em `(participante_id)` (de `159_nsp_assinatura_dos_documentos.sql`)
+
 ---
 
-**Resumo:** 107 tabelas vivas.
+**Resumo:** 109 tabelas vivas.

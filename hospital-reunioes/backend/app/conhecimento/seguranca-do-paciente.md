@@ -41,7 +41,12 @@ A tela Núcleo, Documentos:
 - o texto do Regimento fica guardado no aplicativo e é lido na própria tela, assim como o do Plano quando ele foi publicado com texto. Membro com o Termo assinado, Presidência e Acesso pleno leem;
 - quem publica uma versão nova é a Presidência ou o Acesso pleno. A versão publicada passa a ser a vigente e a anterior vai para a lista;
 - ao publicar uma revisão do Regimento, a Presidência escolhe se ela é material (muda o conteúdo) ou só de redação, e a escolha fica gravada e aparece na tela;
-- publicar uma revisão material do Regimento gera um Termo novo, já com o texto revisado, para todos os membros em Ativo, A vencer e Em carência, e o manda para assinatura. A revisão só de redação não gera Termo nem pede assinatura de ninguém.
+- publicar pelo botão Publicar não passa por assinatura;
+- publicar uma revisão material do Regimento gera um Termo novo, já com o texto revisado, para todos os membros em Ativo, A vencer e Em carência, e o manda para assinatura. A revisão só de redação não gera Termo nem pede assinatura de ninguém;
+- o ato de designação, o Regimento e o Plano de Segurança do Paciente também podem sair pelo botão **Enviar para assinatura**, no mesmo formulário. O ato de designação é assinado pela Diretoria Executiva (quem tem o Acesso pleno ao NSP); o Regimento e o Plano, pela Diretoria Executiva e pela Presidência do Núcleo. Cada pessoa recebe o documento por e-mail. Sem Presidência vigente, sem Diretoria Executiva cadastrada ou com alguém sem e-mail, nada é criado e a tela diz o que falta;
+- a versão enviada aparece em Aguardando assinatura, com o nome de quem assina, quem já assinou e quando. Ela só vira a vigente quando todos assinam; até lá a anterior continua valendo, e o Termo de Adesão de quem for cadastrado sai com o Regimento que ainda vale;
+- quando a última assinatura chega, a versão vira a vigente sozinha e o arquivo assinado fica guardado nela, com o selo Assinado. Membro com o Termo assinado, Presidência e Acesso pleno abrem o arquivo pelo botão **Baixar o arquivo assinado**;
+- na versão que espera assinatura, a Presidência e o Acesso pleno têm os botões **Reconsultar status da assinatura** (para quando alguém assinou e o aplicativo não ficou sabendo) e **Reenviar para assinatura** (cancela o link anterior e manda outro). Mandar outra versão do mesmo tipo para assinatura cancela a que esperava.
 
 As reuniões do Núcleo:
 
@@ -112,7 +117,7 @@ Membro nunca é apagado. Encerrar termina a vigência no dia escolhido e a parti
 
 ## O que ele ainda não faz
 
-Nas Capacitações, o profissional de fora do Núcleo que está na lista ainda não abre o módulo, então não confirma a presença por enquanto; a capacitação registrada também não se edita depois de salva. A assinatura de um documento publicado também chega depois. Nas reuniões, a ata própria do Núcleo também chega depois: por enquanto a ata segue o modelo das outras reuniões, e a pauta ainda não traz indicadores, casos, planos vencidos nem alertas, que dependem das próximas fases. A notificação de incidente e a triagem são da segunda fase. As notificações criadas a partir da reunião rápida chegam na segunda fase.
+Nas Capacitações, o profissional de fora do Núcleo que está na lista ainda não abre o módulo, então não confirma a presença por enquanto; a capacitação registrada também não se edita depois de salva. Nas reuniões, a ata própria do Núcleo também chega depois: por enquanto a ata segue o modelo das outras reuniões, e a pauta ainda não traz indicadores, casos, planos vencidos nem alertas, que dependem das próximas fases. A notificação de incidente e a triagem são da segunda fase. As notificações criadas a partir da reunião rápida chegam na segunda fase.
 
 ## O que já foi decidido
 
@@ -128,6 +133,7 @@ Nas Capacitações, o profissional de fora do Núcleo que está na lista ainda n
 - Os títulos das telas do módulo ficam em caixa alta, na identidade do hospital.
 - Nenhum documento do Núcleo é apagado nem editado: a correção é uma versão nova, e a anterior fica na lista com quem publicou e quando.
 - O texto do Regimento entra pela tela, nunca por carga automática.
+- A versão do ato de designação, do Regimento ou do Plano enviada para assinatura só vale depois que todos os signatários assinam.
 - Revisão só de redação do Regimento não pede nova assinatura do Termo de Adesão; revisão material pede, de todos os membros em Ativo, A vencer e Em carência.
 - O lembrete de cada obrigação é uma pendência da Presidência no aplicativo, e não um e-mail, criada por uma rotina diária que não usa inteligência artificial.
 - A pauta é montada pelo aplicativo, sem inteligência artificial.
@@ -144,6 +150,7 @@ Nas Capacitações, o profissional de fora do Núcleo que está na lista ainda n
 - Um presente que não recebeu o e-mail para assinar a ata: costuma ser e-mail errado no cadastro. A ata encerra mesmo assim no 5º dia útil, e ele fica registrado como quem não assinou.
 - Pedido para apagar um documento publicado errado: não existe; a Presidência publica uma versão nova corrigida, que passa a ser a vigente.
 - Um membro que não abre a tela Documentos: costuma ser o Termo de Adesão ainda não assinado.
+- Um Regimento ou Plano assinado por todos que continua em Aguardando assinatura: a Presidência usa Reconsultar status da assinatura na versão.
 - Um membro que diz ter assinado e continua em Aguardando assinatura: a Presidência usa Reconsultar status da assinatura na seção dele.
 - Um membro que não recebeu o e-mail para assinar: costuma ser e-mail errado no cadastro; corrigido o e-mail, a Presidência usa Reenviar o Termo.
 - Uma reunião do Núcleo que alguém de fora diz não achar na lista de reuniões: é o sigilo funcionando, e a reunião está no módulo Segurança do Paciente.

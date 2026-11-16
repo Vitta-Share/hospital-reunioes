@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ documento.tipo }}, versão {{ documento.versao }}</title>
+    <style>
+        {% if font_path %}
+        @font-face {
+            font-family: "HP Simplified";
+            src: url("{{ font_path }}") format("truetype");
+            font-weight: 400;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: "HP Simplified";
+            src: url("{{ font_path }}") format("truetype");
+            font-weight: 700;
+            font-style: normal;
+        }
+        {% endif %}
+
+        @page {
+            size: A4;
+            margin: 2cm 1.8cm 1.8cm 1.8cm;
+            @bottom-right {
+                content: "Página " counter(page) " de " counter(pages);
+                font-family: "HP Simplified", sans-serif;
+                font-size: 8.5pt;
+                color: #64748B;
+            }
+            @bottom-left {
+                content: "{{ documento.tipo }}, versão {{ documento.versao }} · Documento {{ documento.identificador }}";
+                font-family: "HP Simplified", sans-serif;
+                font-size: 8pt;
+                color: #64748B;
+            }
+        }
+
+        body {
+            font-family: "HP Simplified", sans-serif;
+            font-synthesis: weight style;
+            color: #1E293B;
+            line-height: 1.55;
+            margin: 0;
+            font-size: 10.5pt;
+        }
+
+        .header { display: table; width: 100%; border-bottom: 1px solid #E2E8F0; padding-bottom: 16px; margin-bottom: 14px; }
+        .header-logo { display: table-cell; vertical-align: middle; width: 110px; }
+        .header-logo img { max-width: 96px; height: auto; }
+        .header-title { display: table-cell; vertical-align: middle; padding-left: 12px; }
+        .header-title h1 { color: #2B2E7E; margin: 0 0 4px 0; font-size: 18pt; text-transform: uppercase; line-height: 1.15; }
+        .header-title p { margin: 0; font-size: 10.5pt; font-weight: 700; }
+        .header-title .instituicao { color: #64748B; font-size: 9pt; font-weight: 400; }
+
+        h2 { color: #2B2E7E; font-size: 11.5pt; text-transform: uppercase; margin: 18px 0 6px 0; break-after: avoid; }
+        p { margin: 0 0 6px 0; text-align: justify; }
+        .texto { white-space: pre-wrap; text-align: left; }
+
+        .assinatura { border: 1px solid #E2E8F0; border-radius: 6px; padding: 10px 12px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        {% if logo_path %}<div class="header-logo"><img src="{{ logo_path }}" alt="Hospital São Matheus"></div>{% endif %}
+        <div class="header-title">
+            <h1>{{ documento.tipo }}</h1>
+            <p>Núcleo de Segurança do Paciente</p>
+            <p class="instituicao">Hospital São Matheus, AMA Assistência Médica</p>
+        </div>
+    </div>
+
+    <p><strong>{{ documento.titulo }}</strong>, versão {{ documento.versao }}.</p>
+    <p class="texto">{{ documento.texto }}</p>
+
+    <h2>Assinaturas</h2>
+    <p>Este documento é assinado eletronicamente, por meio da plataforma de assinatura eletrônica contratada pelo Hospital São Matheus, sendo a assinatura eletrônica reconhecida como manifestação válida de vontade, nos termos da Lei nº 14.063/2020. Ele passa a valer quando todos os signatários abaixo assinarem.</p>
+    <div class="assinatura">
+        {% for signatario in signatarios %}
+        <p><strong>{{ signatario.qualidade }}:</strong> {{ signatario.nome }}</p>
+        {% endfor %}
+        <p><strong>Data e hora:</strong> registradas pela plataforma de assinatura eletrônica</p>
+        <p><strong>Documento:</strong> {{ documento.identificador }}</p>
+    </div>
+</body>
+</html>

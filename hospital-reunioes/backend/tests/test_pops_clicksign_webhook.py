@@ -179,6 +179,8 @@ def _sb(versao: dict | None = None, reunioes: list[dict] | None = None) -> _Supa
             "audit_log": [],
             # O terceiro destino do webhook (issue #1768): o Termo do Núcleo.
             "nsp_termos_envios": [],
+            # O quarto destino (issue #1771): os documentos do Núcleo.
+            "nsp_documentos_envios": [],
         }
     )
 
