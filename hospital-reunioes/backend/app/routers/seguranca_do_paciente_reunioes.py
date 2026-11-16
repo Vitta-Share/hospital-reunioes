@@ -294,7 +294,7 @@ async def ver_pauta(
     reuniao = _reuniao_do_nucleo(supabase, id_reuniao)
     agora = _agora()
     disponivel_em = _disponivel_em(supabase, reuniao)
-    disponivel =disponivel_em is None or agora.date() >= disponivel_em
+    disponivel = disponivel_em is None or agora.date() >= disponivel_em
     gravada = pauta.garantir_pauta(supabase, reuniao, agora) if disponivel else None
     gerir = "gerir_nucleo" in me["recursos_nsp"]
     lista = convocacao.convocados(supabase, id_reuniao)
@@ -347,7 +347,11 @@ async def convocar(
             supabase, reuniao, nucleo_id=reuniao["colegiado_id"], autor_id=me["id"], agora=agora
         )
     except convocacao.JaConvocadaError as erro:
-        quando = f" em {erro.convocada_em[8:10]}/{erro.convocada_em[5:7]}/{erro.convocada_em[:4]}" if erro.convocada_em else ""
+        quando = (
+            f" em {erro.convocada_em[8:10]}/{erro.convocada_em[5:7]}/{erro.convocada_em[:4]}"
+            if erro.convocada_em
+            else ""
+        )
         raise HTTPException(status_code=409, detail=f"Esta reunião já foi convocada{quando}.") from erro
     except convocacao.NinguemParaConvocarError as erro:
         raise HTTPException(status_code=409, detail="Nenhum membro conta para quórum hoje.") from erro

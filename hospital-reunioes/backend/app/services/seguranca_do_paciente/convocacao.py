@@ -79,7 +79,12 @@ def quem_convocar(supabase, nucleo_id: str, hoje: date) -> list[dict[str, Any]]:
         or []
     )
     return [
-        {"participante_id": p["id"], "nome": p.get("nome_completo"), "email": p.get("email"), "estado": estados[p["id"]]}
+        {
+            "participante_id": p["id"],
+            "nome": p.get("nome_completo"),
+            "email": p.get("email"),
+            "estado": estados[p["id"]],
+        }
         for p in sorted(pessoas, key=lambda p: (p.get("nome_completo") or "").lower())
     ]
 
@@ -138,12 +143,7 @@ def convocar(supabase, reuniao: dict, *, nucleo_id: str, autor_id: str, agora: d
     """Grava os convocados e manda o e-mail a cada um. Devolve quem foi
     convocado, com o resultado do envio."""
     ja = (
-        supabase.table(TABELA)
-        .select("convocado_em")
-        .eq("id_reuniao", reuniao["id_reuniao"])
-        .limit(1)
-        .execute()
-        .data
+        supabase.table(TABELA).select("convocado_em").eq("id_reuniao", reuniao["id_reuniao"]).limit(1).execute().data
         or []
     )
     if ja:

@@ -714,7 +714,12 @@ def _instante(dia: date, hora: int, minuto: int = 0) -> datetime:
 
 class TestAntecedencia:
     def test_ordinaria_convocada_no_quinto_dia_util_antes_passa(self):
-        assert pauta.recusa_da_convocacao(ORDINARIA, date(2027, 3, 15), time(9), _instante(date(2027, 3, 8), 17), frozenset()) is None
+        assert (
+            pauta.recusa_da_convocacao(
+                ORDINARIA, date(2027, 3, 15), time(9), _instante(date(2027, 3, 8), 17), frozenset()
+            )
+            is None
+        )
 
     def test_ordinaria_convocada_depois_do_quinto_dia_util_e_recusada(self):
         recusa = pauta.recusa_da_convocacao(
@@ -735,7 +740,9 @@ class TestAntecedencia:
         reuniao = date(2027, 3, 9)
         analise = "Análise de evento"
 
-        assert pauta.recusa_da_convocacao(analise, reuniao, time(10), _instante(date(2027, 3, 8), 10), frozenset()) is None
+        assert (
+            pauta.recusa_da_convocacao(analise, reuniao, time(10), _instante(date(2027, 3, 8), 10), frozenset()) is None
+        )
         recusa = pauta.recusa_da_convocacao(analise, reuniao, time(9, 59), _instante(date(2027, 3, 8), 10), frozenset())
         assert "24 horas" in recusa
 
