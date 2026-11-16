@@ -25,6 +25,7 @@ from typing import Any, Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from postgrest.exceptions import APIError
 from pydantic import BaseModel, Field, field_validator
 from starlette.concurrency import run_in_threadpool
 from supabase import Client
@@ -673,6 +674,11 @@ async def ler_ata_do_nucleo(
         "status_ata": reuniao["status_ata"],
         "ata": ata if ata.get("modelo") == ata_do_nucleo.MODELO_DA_ATA else None,
         "pode_conduzir": ata_do_nucleo.conduz_a_ata(supabase, me, me["recursos_nsp"], reuniao),
+        # A ata encerrada nos Documentos (issue #1776): o PDF assinado sai pela
+        # rota abaixo, com o id do documento.
+        "documento_id": (assinatura_da_ata.documento_da_ata(supabase, id_reuniao) or {}).get("id")
+        if reuniao["status_ata"] == "ASSINADA"
+        else None,
     }
 
 
@@ -724,3 +730,43 @@ async def validar_ata(
         "total_pendencias": total,
         "aviso": envio.get("erro"),
     }
+
+
+# ---------------------------------------------------------------------------
+# A ata assinada (issue #1776)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/atas/{documento_id}/arquivo-assinado")
+@limiter.limit("60/minute")
+async def arquivo_da_ata_assinada(
+    request: Request,
+    documento_id: str,
+    _: dict = Depends(require_recurso_nsp("reunioes")),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """O link do PDF da ata assinada, válido por 10 minutos. Só o documento
+    de tipo ata, preso a uma reunião, sai por aqui; a rota genérica dos
+    Documentos não entrega a ata. Quem pede tem que abrir as atas do Núcleo
+    (`reunioes`), e o super admin sem Acesso pleno não abre."""
+    try:
+        linhas = (
+            supabase.table("nsp_documentos")
+            .select("id, tipo, reuniao_id, arquivo_assinado_path")
+            .eq("id", documento_id)
+            .limit(1)
+            .execute()
+            .data
+        ) or []
+    except APIError as erro:
+        # Id que não é UUID (22P02) é documento que não existe.
+        if getattr(erro, "code", None) != "22P02":
+            raise
+        linhas = []
+    documento = linhas[0] if linhas else {}
+    if documento.get("tipo") != "ata" or not documento.get("reuniao_id") or not documento.get("arquivo_assinado_path"):
+        raise HTTPException(status_code=404, detail="Ata assinada não encontrada.")
+    url = assinatura_da_ata.link_do_arquivo(supabase, documento["arquivo_assinado_path"])
+    if not url:
+        raise HTTPException(status_code=503, detail="A ata assinada está indisponível agora. Tente de novo em instantes.")
+    return {"url": url}

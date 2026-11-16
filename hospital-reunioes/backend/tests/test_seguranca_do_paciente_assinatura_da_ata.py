@@ -28,6 +28,7 @@ import os
 import sys
 from datetime import date, datetime, timedelta
 from typing import Any
+from uuid import uuid4
 
 import pytest
 
@@ -35,10 +36,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.dirname(__file__))
 
 from test_seguranca_do_paciente_ata import (  # noqa: E402, F401
+    DIA_DA_REUNIAO,
     R_ATA,
     _ata_gravada,
     _BancoDaAta,
     _com_ata,
+    _ConsultaComLt,
     _ia,
     _reset_rate_limiter,
     _status,
@@ -62,6 +65,7 @@ from app.services import clicksign_service, storage  # noqa: E402
 from app.services.seguranca_do_paciente import assinatura_da_ata  # noqa: E402
 
 FERIADO = date(2026, 11, 20)
+DIA_DA_ATA = DIA_DA_REUNIAO.strftime("%d/%m/%Y")
 
 
 # ─── A assinatura eletrônica e o Storage dublados ───────────────────────────
@@ -191,8 +195,23 @@ def _reuniao_gravada(banco, rid: str = R_ATA) -> dict[str, Any]:
     return next(r for r in banco.tabelas["reunioes"] if r["id_reuniao"] == rid)
 
 
+class _ConsultaComId(_ConsultaComLt):
+    """O banco de verdade dá o id do documento na inserção (gen_random_uuid)."""
+
+    def insert(self, linhas):
+        if self._tabela == "nsp_documentos" and isinstance(linhas, dict):
+            linhas = {"id": f"doc-{uuid4()}", "publicado_em": "2026-11-26T08:00:00+00:00", **linhas}
+        return super().insert(linhas)
+
+
+class _BancoComDocumentos(_BancoDaAta):
+    def table(self, nome: str):
+        return _ConsultaComId(self, nome)
+
+
 def _validada() -> Any:
     banco = _com_ata()
+    banco.__class__ = _BancoComDocumentos
     resposta = _validar(_cliente(PRESIDENCIA, banco))
     assert resposta.status_code == 200, resposta.text
     return banco
@@ -306,3 +325,132 @@ class TestEncerramento:
 
         assert comum["status_ata"] == "AGUARDANDO_ASSINATURA"
         assert "encerramento" not in comum["json_ata"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. A ata encerrada entra nos Documentos, com número sequencial
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _ata_anterior_nos_documentos(banco) -> None:
+    banco.tabelas["nsp_documentos"] = [
+        {
+            "id": "doc-ata-1",
+            "tipo": "ata",
+            "versao": 1,
+            "titulo": "Ata de uma reunião anterior",
+            "texto": None,
+            "natureza_revisao": None,
+            "vigente": False,
+            "arquivo_assinado_path": "atas/RD_ANTERIOR-assinada.pdf",
+            "publicado_por": "PRES1",
+            "publicado_em": "2026-10-20T12:00:00+00:00",
+            "reuniao_id": "RD_ANTERIOR",
+        },
+        {
+            "id": "doc-regimento-1",
+            "tipo": "regimento",
+            "versao": 1,
+            "titulo": "Regimento Interno",
+            "texto": "Art. 1",
+            "natureza_revisao": "material",
+            "vigente": True,
+            "arquivo_assinado_path": "regimentos/1-assinado.pdf",
+            "publicado_por": "PRES1",
+            "publicado_em": "2026-10-01T12:00:00+00:00",
+            "reuniao_id": None,
+        },
+    ]
+
+
+def _documento_da_ata(banco) -> dict[str, Any] | None:
+    return next((d for d in banco.tabelas.get("nsp_documentos", []) if d.get("reuniao_id") == R_ATA), None)
+
+
+def _cliente_dos_documentos(pessoa, banco):
+    from app.routers import seguranca_do_paciente_documentos as documentos_router
+
+    cliente = _cliente(pessoa, banco)
+    cliente.app.include_router(documentos_router.router, prefix="/api")
+    return cliente
+
+
+class TestDocumentos:
+    def test_a_ata_encerrada_aparece_nos_documentos_com_o_numero_seguinte(self, assinatura, arquivos):
+        banco = _enviada(assinatura, "pres1@hsm.test")
+        _ata_anterior_nos_documentos(banco)
+
+        assinatura_da_ata.encerrar_atas(banco, QUINTA_SEGUINTE)
+
+        documento = _documento_da_ata(banco)
+        assert documento is not None
+        assert (documento["tipo"], documento["versao"], documento["vigente"]) == ("ata", 2, False)
+        assert documento["publicado_por"] == "PRES1"
+        assert arquivos.arquivos[(settings.supabase_storage_bucket_nsp_documentos, documento["arquivo_assinado_path"])]
+        lista = _cliente_dos_documentos(MEMBRO, banco).get("/api/nsp/documentos").json()["documentos"]
+        da_ata = next(d for d in lista if d["id"] == documento["id"])
+        assert (da_ata["versao"], da_ata["tem_arquivo_assinado"]) == (2, True)
+        assert DIA_DA_ATA in da_ata["titulo"]
+
+    def test_sem_o_pdf_assinado_pronto_o_documento_entra_na_rodada_seguinte(self, assinatura, monkeypatch):
+        banco = _enviada(assinatura, "pres1@hsm.test")
+        monkeypatch.setattr(clicksign_service, "get_signed_document", lambda envelope_id: None)
+
+        assinatura_da_ata.encerrar_atas(banco, QUINTA_SEGUINTE)
+
+        assert _status(banco) == "ASSINADA"
+        assert _documento_da_ata(banco) is None
+        monkeypatch.setattr(clicksign_service, "get_signed_document", assinatura.get_signed_document)
+
+        assinatura_da_ata.encerrar_atas(banco, QUINTA_SEGUINTE + timedelta(days=1))
+
+        assert _documento_da_ata(banco)["versao"] == 1
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# A ata assinada sai só pela rota do Núcleo (decisão da triagem)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _encerrada(assinatura) -> Any:
+    banco = _enviada(assinatura, "pres1@hsm.test")
+    _ata_anterior_nos_documentos(banco)
+    assinatura_da_ata.encerrar_atas(banco, QUINTA_SEGUINTE)
+    return banco
+
+
+def _baixar(cliente, documento_id: str):
+    return cliente.get(f"/api/nsp/reunioes/atas/{documento_id}/arquivo-assinado")
+
+
+class TestArquivoAssinado:
+    def test_o_membro_baixa_a_ata_assinada_pela_rota_do_nucleo(self, assinatura):
+        banco = _encerrada(assinatura)
+        cliente = _cliente(MEMBRO, banco)
+        documento_id = cliente.get(f"/api/nsp/reunioes/{R_ATA}/ata").json()["documento_id"]
+        assert documento_id == _documento_da_ata(banco)["id"]
+
+        resposta = _baixar(cliente, documento_id)
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["url"].startswith("https://storage.test/nsp-documentos/atas/")
+
+    @pytest.mark.parametrize(
+        "pessoa", [pytest.param(SUPER_ADMIN, id="super_admin"), pytest.param(MEMBRO_SEM_TERMO, id="sem_termo")]
+    )
+    def test_quem_nao_abre_a_ata_do_nucleo_nao_baixa(self, assinatura, pessoa):
+        banco = _encerrada(assinatura)
+
+        _assert_recusado(_baixar(_cliente(pessoa, banco), _documento_da_ata(banco)["id"]))
+
+    def test_o_acesso_pleno_baixa(self, assinatura):
+        banco = _encerrada(assinatura)
+
+        assert _baixar(_cliente(SUPER_ADMIN_PLENO, banco), _documento_da_ata(banco)["id"]).status_code == 200
+
+    def test_a_rota_da_ata_nao_entrega_documento_de_outro_tipo(self, assinatura):
+        banco = _encerrada(assinatura)
+
+        resposta = _baixar(_cliente(MEMBRO, banco), "doc-regimento-1")
+
+        assert resposta.status_code == 404

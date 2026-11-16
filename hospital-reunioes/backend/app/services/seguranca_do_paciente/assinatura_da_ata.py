@@ -30,10 +30,11 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 from app.config import settings
-from app.services import clicksign_service
+from app.services import clicksign_service, storage
 from app.services.paginacao import ler_tudo
 from app.services.seguranca_do_paciente import ata as ata_do_nucleo
 from app.services.seguranca_do_paciente import pauta, permissao
+from app.utils.text_sanitizer import sanitizar_estrutura
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,9 @@ DIAS_ATE_APAGAR_A_TRANSCRICAO = 30
 # `closed`: todos assinaram (ou alguém finalizou); `canceled`: recusa. Nos
 # dois, esperar o prazo não traz assinatura nova.
 ENVELOPE_FECHADO = frozenset({"closed", "canceled", "cancelled"})
+
+# O link do PDF assinado vale 10 minutos, como o do Termo.
+VALIDADE_DO_LINK = 600
 
 FALHA_DO_ENVIO = "A assinatura eletrônica não respondeu. O aplicativo tenta de novo amanhã."
 SEM_EMAIL = "Nenhum presente tem e-mail no cadastro. Corrija o cadastro: o aplicativo tenta de novo amanhã."
@@ -211,7 +215,7 @@ def _atas_do_nucleo(supabase, situacoes: list[str]) -> list[dict]:
     return ler_tudo(
         lambda: (
             supabase.table("reunioes")
-            .select("id_reuniao, status_ata, data_assinatura, url_transcricao, colegiado_id, json_ata")
+            .select("id_reuniao, data, tipo, status_ata, data_assinatura, colegiado_id, json_ata")
             .eq("colegiado_id", nucleo_id)
             .in_("status_ata", situacoes)
             .is_("deleted_at", "null")
@@ -281,18 +285,93 @@ def _encerrar(supabase, reuniao: dict, hoje: date) -> bool:
     return True
 
 
+# ---------------------------------------------------------------------------
+# A ata encerrada nos Documentos do Núcleo
+# ---------------------------------------------------------------------------
+
+
+def documento_da_ata(supabase, id_reuniao: str) -> dict | None:
+    linhas = (
+        supabase.table("nsp_documentos")
+        .select("id, versao, arquivo_assinado_path")
+        .eq("reuniao_id", id_reuniao)
+        .limit(1)
+        .execute()
+        .data
+    ) or []
+    return linhas[0] if linhas else None
+
+
+def link_do_arquivo(supabase, caminho: str) -> str | None:
+    return storage.signed_url(supabase, _bucket(), caminho, VALIDADE_DO_LINK)
+
+
+def _proxima_versao_da_ata(supabase) -> int:
+    linhas = (
+        supabase.table("nsp_documentos")
+        .select("versao")
+        .eq("tipo", "ata")
+        .order("versao", desc=True)
+        .limit(1)
+        .execute()
+        .data
+    ) or []
+    return int(linhas[0]["versao"]) + 1 if linhas else 1
+
+
+def _titulo(reuniao: dict) -> str:
+    dia = date.fromisoformat(str(reuniao["data"])[:10]).strftime("%d/%m/%Y")
+    return sanitizar_estrutura(f"Ata da reunião {reuniao.get('tipo') or 'do Núcleo'} de {dia}")[:200]
+
+
+def _guardar_nos_documentos(supabase, reuniao: dict) -> bool:
+    """O PDF assinado nos Documentos, uma vez por reunião, com o número
+    seguinte das atas. Sem o PDF pronto, a rodada seguinte tenta de novo."""
+    json_ata = reuniao.get("json_ata") or {}
+    envelope_id = (json_ata.get("assinatura") or {}).get("envelope_id")
+    if not envelope_id or not json_ata.get("encerramento") or documento_da_ata(supabase, reuniao["id_reuniao"]):
+        return False
+    pdf = clicksign_service.get_signed_document(envelope_id)
+    if not pdf:
+        logger.warning("PDF assinado da ata do Núcleo %s ainda indisponível", reuniao["id_reuniao"])
+        return False
+    caminho = f"atas/{reuniao['id_reuniao']}-assinada.pdf"
+    if not storage.upload_private(supabase, _bucket(), caminho, pdf, "application/pdf"):
+        return False
+    supabase.table("nsp_documentos").insert(
+        {
+            "tipo": "ata",
+            "versao": _proxima_versao_da_ata(supabase),
+            "titulo": _titulo(reuniao),
+            "vigente": False,
+            "arquivo_assinado_path": caminho,
+            "publicado_por": (json_ata.get("validacao") or {}).get("por"),
+            "reuniao_id": reuniao["id_reuniao"],
+        }
+    ).execute()
+    logger.info("Ata do Núcleo %s guardada nos Documentos", reuniao["id_reuniao"])
+    return True
+
+
 def encerrar_atas(supabase, hoje: date, agora: datetime | None = None) -> dict[str, int]:
-    """O job diário: tenta de novo o envio que falhou e encerra a ata no
-    quinto dia útil. Uma ata que falha não segura as outras."""
+    """O job diário: tenta de novo o envio que falhou, encerra a ata no
+    quinto dia útil e guarda a encerrada nos Documentos. Uma ata que falha
+    não segura as outras."""
     agora = agora or datetime.now(tz=pauta.FUSO)
-    contagem = {"enviadas": 0, "encerradas": 0}
-    for reuniao in _atas_do_nucleo(supabase, ["APROVADA", "AGUARDANDO_ASSINATURA"]):
+    contagem = {"enviadas": 0, "encerradas": 0, "documentos": 0}
+    for reuniao in _atas_do_nucleo(supabase, ["APROVADA", "AGUARDANDO_ASSINATURA", "ASSINADA"]):
         try:
             if reuniao["status_ata"] == "APROVADA":
                 if (enviar_para_assinatura(supabase, reuniao["id_reuniao"], agora) or {}).get("envelope_id"):
                     contagem["enviadas"] += 1
-            elif _encerrar(supabase, reuniao, hoje):
+                continue
+            if reuniao["status_ata"] == "AGUARDANDO_ASSINATURA":
+                if not _encerrar(supabase, reuniao, hoje):
+                    continue
                 contagem["encerradas"] += 1
+                reuniao = ata_do_nucleo.reuniao_do_nucleo(supabase, reuniao["id_reuniao"]) or reuniao
+            if _guardar_nos_documentos(supabase, reuniao):
+                contagem["documentos"] += 1
         except Exception:  # noqa: BLE001 (uma ata não segura as outras; amanhã tem outra rodada)
             logger.exception("Ata do Núcleo %s: o encerramento falhou nesta rodada", reuniao["id_reuniao"])
     return contagem
