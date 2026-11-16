@@ -86,6 +86,12 @@ export function UsuarioFormModal({
   const [perfilOuvidoria, setPerfilOuvidoria] = useState<PerfilOuvidoria | "">(
     initialPerfilOuvidoria
   );
+  // O registro profissional e o Acesso pleno à Segurança do Paciente (issue #1765).
+  const [conselho, setConselho] = useState(initial?.conselho_profissional ?? "");
+  const [registro, setRegistro] = useState(initial?.registro_profissional ?? "");
+  const [registroUf, setRegistroUf] = useState(initial?.registro_uf ?? "");
+  const initialAcessoPleno = initial?.perfil_nsp === "acesso_pleno";
+  const [acessoPleno, setAcessoPleno] = useState(initialAcessoPleno);
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
   const formId = useId();
@@ -110,6 +116,9 @@ export function UsuarioFormModal({
           is_externo: isExterno,
           ativo,
           github_login: githubLogin.trim() || null,
+          conselho_profissional: conselho.trim().toUpperCase() || null,
+          registro_profissional: registro.trim() || null,
+          registro_uf: registroUf.trim().toUpperCase() || null,
         };
       } else {
         payload = {};
@@ -134,6 +143,13 @@ export function UsuarioFormModal({
         // trabalha no GitHub" é a ausência de login, e é isso que o backend
         // grava (ADR 0054).
         if (githubLogin !== (initial?.github_login ?? "")) payload.github_login = githubLogin.trim() || null;
+        if (conselho !== (initial?.conselho_profissional ?? ""))
+          payload.conselho_profissional = conselho.trim().toUpperCase() || null;
+        if (registro !== (initial?.registro_profissional ?? ""))
+          payload.registro_profissional = registro.trim() || null;
+        if (registroUf !== (initial?.registro_uf ?? ""))
+          payload.registro_uf = registroUf.trim().toUpperCase() || null;
+        if (acessoPleno !== initialAcessoPleno) payload.perfil_nsp = acessoPleno ? "acesso_pleno" : null;
         if (reason.trim()) payload.reason = reason.trim();
       }
       const perfilPopChange: PerfilPopChange | undefined =
@@ -271,6 +287,28 @@ export function UsuarioFormModal({
           </fieldset>
         )}
 
+        {mode === "edit" && (
+          <fieldset className="space-y-2">
+            <legend className="text-xs font-medium text-slate-500 uppercase">
+              Acesso à Segurança do Paciente
+            </legend>
+            <label className="inline-flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={acessoPleno}
+                onChange={(e) => setAcessoPleno(e.target.checked)}
+                className="accent-primary"
+              />
+              Acesso pleno à Segurança do Paciente
+            </label>
+            <p className="text-xs text-slate-500 leading-snug">
+              Vê e edita tudo no módulo do Núcleo, inclusive quem notificou. É
+              do Diretor Executivo. Nem o Super Admin lê o Núcleo sem ele, e
+              ninguém dá este acesso a si mesmo.
+            </p>
+          </fieldset>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Nome completo" required>
             <input
@@ -331,6 +369,32 @@ export function UsuarioFormModal({
               value={githubLogin ?? ""}
               onChange={(e) => setGithubLogin(e.target.value)}
               placeholder="Ex.: pedrorezendefig"
+              className={INPUT_CLASS}
+            />
+          </Field>
+          <Field label="Conselho profissional">
+            <input
+              value={conselho}
+              onChange={(e) => setConselho(e.target.value)}
+              placeholder="Ex.: COREN, CRM"
+              maxLength={20}
+              className={INPUT_CLASS}
+            />
+          </Field>
+          <Field label="Número do registro">
+            <input
+              value={registro}
+              onChange={(e) => setRegistro(e.target.value)}
+              maxLength={30}
+              className={INPUT_CLASS}
+            />
+          </Field>
+          <Field label="UF do registro">
+            <input
+              value={registroUf}
+              onChange={(e) => setRegistroUf(e.target.value)}
+              placeholder="Ex.: RJ"
+              maxLength={2}
               className={INPUT_CLASS}
             />
           </Field>

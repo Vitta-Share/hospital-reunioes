@@ -49,6 +49,9 @@ class _ParticipantesQuery:
     def range(self, *_args, **_kwargs):
         return self
 
+    def limit(self, *_args, **_kwargs):
+        return self
+
     def ilike(self, *_args, **_kwargs):
         return self
 
@@ -78,6 +81,10 @@ class _SupabaseMock:
     def table(self, name: str):
         if name == "participantes":
             return _ParticipantesQuery(self.participantes)
+        if name == "colegiados":
+            # O `/me` pergunta pelo Núcleo para o menu de Segurança do Paciente
+            # (issue #1765); sem Núcleo, ninguém tem Participação.
+            return _ParticipantesQuery([])
         raise AssertionError(f"Tabela inesperada: {name}")
 
 

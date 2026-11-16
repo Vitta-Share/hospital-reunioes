@@ -20,6 +20,7 @@ export interface AuthUser {
   perfil_pop?: PerfilPop | null;
   perfil_ouvidoria?: PerfilOuvidoria | null;
   perfil_contas_medicas?: PerfilContasMedicas | null;
+  recursos_nsp?: string[];
 }
 
 export function isSuperAdmin(user: AuthUser | null | undefined): boolean {
@@ -68,6 +69,16 @@ export function temPerfilOuvidoria(user: AuthUser | null | undefined): boolean {
  */
 export function temAcessoContasMedicas(user: AuthUser | null | undefined): boolean {
   return isSuperAdmin(user) || Boolean(user?.perfil_contas_medicas);
+}
+
+/**
+ * Segurança do Paciente (ADR 0095, decisão 4): quem entra no módulo é o
+ * servidor que diz, em `recursos_nsp` (Participação vigente no Núcleo, Acesso
+ * pleno ou Diretoria). Ao contrário de Contas médicas, o super admin não
+ * entra só por ser super admin. Decide o menu; quem barra é a rota.
+ */
+export function temAcessoSegurancaDoPaciente(user: AuthUser | null | undefined): boolean {
+  return Boolean(user?.recursos_nsp?.includes("ver_modulo"));
 }
 
 /**

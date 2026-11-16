@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/ui/Logo";
@@ -17,6 +17,14 @@ import {
   BookOpenCheck,
   Target,
   ReceiptText,
+  HeartPulse,
+  Users,
+  FileText,
+  GraduationCap,
+  CalendarClock,
+  ClipboardCheck,
+  ShieldAlert,
+  Landmark,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -27,6 +35,7 @@ import {
   isSecretaria,
   temAcessoContasMedicas,
   temAcessoReunioes,
+  temAcessoSegurancaDoPaciente,
   temPerfilPop,
 } from "@/lib/auth";
 import { Home, CalendarPlus } from "lucide-react";
@@ -55,7 +64,43 @@ export type NavItem = {
   // grupo "Reuniões e metas" contém Pendências, que por sua vez tem o seu
   // próprio submenu Lista/Kanban (dois níveis).
   subItems?: NavItem[];
+  // Item previsto para depois, que já aparece no menu desabilitado, com o selo
+  // "Em breve" e esta explicação (Segurança do Paciente, seção 14 da
+  // especificação). Não navega: o href só identifica o item.
+  emBreve?: string;
 };
+
+const HREF_DA_SEGURANCA_DO_PACIENTE = "/seguranca-do-paciente";
+const GRUPO_DA_SEGURANCA_DO_PACIENTE = "grupo:seguranca-do-paciente";
+const GRUPO_DO_NUCLEO = "grupo:seguranca-do-paciente/nucleo";
+
+/**
+ * O que a Diretoria quer que já apareça no menu, desabilitado (seção 14 da
+ * especificação do Núcleo de Segurança do Paciente). Os textos são os dela.
+ */
+export const ITENS_EM_BREVE_DO_NSP: readonly NavItem[] = [
+  {
+    href: `${HREF_DA_SEGURANCA_DO_PACIENTE}/auditorias-de-adesao`,
+    label: "Auditorias de adesão",
+    icon: ClipboardCheck,
+    emBreve:
+      "Em breve: auditorias rápidas pelo celular. Um membro da equipe observa uma amostra de pacientes ou de procedimentos (pulseira de identificação, lista de verificação cirúrgica, higiene das mãos, risco de queda) e marca o que encontrou. Os resultados alimentam os indicadores dos protocolos sem digitação.",
+  },
+  {
+    href: `${HREF_DA_SEGURANCA_DO_PACIENTE}/gestao-de-riscos`,
+    label: "Gestão de riscos",
+    icon: ShieldAlert,
+    emBreve:
+      "Em breve: mapa de riscos por setor e análise preventiva de processos críticos, antes que o incidente aconteça.",
+  },
+  {
+    href: `${HREF_DA_SEGURANCA_DO_PACIENTE}/comissoes`,
+    label: "Comissões",
+    icon: Landmark,
+    emBreve:
+      "Em breve: as demais comissões do hospital (prontuário, óbito, ética) com a mesma estrutura de membros, documentos, reuniões e atas.",
+  },
+];
 
 export function Sidebar({
   variant = "desktop",
@@ -71,10 +116,16 @@ export function Sidebar({
   const isSec = isSecretaria(participante);
   const popsOnly =
     temPerfilPop(participante) && participante != null && !temAcessoReunioes(participante);
+  const dentroDaSegurancaDoPaciente = pathname.startsWith(HREF_DA_SEGURANCA_DO_PACIENTE);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({
     "/reunioes-metas": true,
     "/pendencias": pathname.startsWith("/pendencias"),
+    [GRUPO_DA_SEGURANCA_DO_PACIENTE]: dentroDaSegurancaDoPaciente,
+    [GRUPO_DO_NUCLEO]: dentroDaSegurancaDoPaciente,
   });
+  // A explicação do item "Em breve" aberta no toque (o celular não tem hover).
+  const [emBreveAberto, setEmBreveAberto] = useState<string | null>(null);
+  const idDoMenu = useId();
 
   const toggleExpand = (href: string) => {
     setExpandedItems((prev) => ({ ...prev, [href]: !prev[href] }));
@@ -89,6 +140,36 @@ export function Sidebar({
     const hasSubItems = Boolean(item.subItems && item.subItems.length > 0);
     const isExpanded = expandedItems[item.href];
     const Icon = item.icon;
+
+    if (item.emBreve) {
+      const aberto = emBreveAberto === item.href;
+      const idDaExplicacao = `${idDoMenu}-${item.href}`;
+      return (
+        <div key={item.href} className="flex flex-col">
+          <button
+            type="button"
+            aria-disabled="true"
+            aria-expanded={aberto}
+            aria-describedby={idDaExplicacao}
+            onClick={() => setEmBreveAberto(aberto ? null : item.href)}
+            className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium text-text-secondary/60 cursor-default text-left"
+          >
+            <Icon className="w-4 h-4 shrink-0" strokeWidth={1.5} />
+            <span className="flex-1">{item.label}</span>
+            <span className="etiqueta shrink-0 rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-semibold">
+              Em breve
+            </span>
+          </button>
+          <p
+            id={idDaExplicacao}
+            hidden={!aberto}
+            className="px-3 pb-2 text-xs leading-relaxed text-text-secondary"
+          >
+            {item.emBreve}
+          </p>
+        </div>
+      );
+    }
 
     if (hasSubItems) {
       // Um grupo está "ativo" quando a rota atual está sob algum dos seus
@@ -297,6 +378,46 @@ export function itensDoMenu(participante: CurrentParticipante | null): NavItem[]
   const contasMedicasItens: NavItem[] = temAcessoContasMedicas(participante)
     ? [{ href: "/contas-medicas", label: "Contas médicas", icon: ReceiptText }]
     : [];
+  // Segurança do Paciente (ADR 0095): quem entra o servidor diz; o super admin
+  // sem Acesso pleno não vê o item. As cinco telas da Fase 1 e os três itens
+  // "Em breve" já ficam aqui: as fatias seguintes só preenchem as páginas.
+  const segurancaDoPacienteItens: NavItem[] = temAcessoSegurancaDoPaciente(participante)
+    ? [
+        {
+          href: GRUPO_DA_SEGURANCA_DO_PACIENTE,
+          label: "Segurança do Paciente",
+          icon: HeartPulse,
+          subItems: [
+            { href: HREF_DA_SEGURANCA_DO_PACIENTE, label: "Início", icon: Home },
+            {
+              href: `${HREF_DA_SEGURANCA_DO_PACIENTE}/reunioes`,
+              label: "Reuniões",
+              icon: CalendarDays,
+            },
+            {
+              href: GRUPO_DO_NUCLEO,
+              label: "Núcleo",
+              icon: Users,
+              subItems: [
+                { href: `${HREF_DA_SEGURANCA_DO_PACIENTE}/membros`, label: "Membros", icon: Users },
+                { href: `${HREF_DA_SEGURANCA_DO_PACIENTE}/documentos`, label: "Documentos", icon: FileText },
+                {
+                  href: `${HREF_DA_SEGURANCA_DO_PACIENTE}/capacitacoes`,
+                  label: "Capacitações",
+                  icon: GraduationCap,
+                },
+                {
+                  href: `${HREF_DA_SEGURANCA_DO_PACIENTE}/agenda`,
+                  label: "Agenda regulatória",
+                  icon: CalendarClock,
+                },
+              ],
+            },
+            ...ITENS_EM_BREVE_DO_NSP,
+          ],
+        },
+      ]
+    : [];
 
   // Grupo colapsável que reúne todo o tema Reuniões (Dashboard, Calendário,
   // Pendências). "Metas" é só o rótulo, não há feature nova.
@@ -320,7 +441,7 @@ export function itensDoMenu(participante: CurrentParticipante | null): NavItem[]
   };
 
   return popsOnly
-    ? [popsItem, ...contasMedicasItens]
+    ? [popsItem, ...contasMedicasItens, ...segurancaDoPacienteItens]
     : isSec
     ? [
         { href: "/secretaria", label: "Início", icon: Home },
@@ -329,6 +450,7 @@ export function itensDoMenu(participante: CurrentParticipante | null): NavItem[]
         ouvidoriaItem,
         ...(showPops ? [popsItem] : []),
         ...contasMedicasItens,
+        ...segurancaDoPacienteItens,
         ...(showAdmin
           ? [{ href: "/admin", label: "Admin", icon: ShieldCheck }]
           : []),
@@ -338,6 +460,7 @@ export function itensDoMenu(participante: CurrentParticipante | null): NavItem[]
         ouvidoriaItem,
         ...(showPops ? [popsItem] : []),
         ...contasMedicasItens,
+        ...segurancaDoPacienteItens,
         ...(showAdmin
           ? [{ href: "/admin", label: "Admin", icon: ShieldCheck }]
           : []),
@@ -354,6 +477,8 @@ function folhaAtiva(item: NavItem, depth: number, pathname: string): boolean {
 // Os links folha da subárvore, cada um com a profundidade em que mora (é ela
 // que decide o critério de "ativo").
 function folhas(item: NavItem, depth: number): { item: NavItem; depth: number }[] {
+  // O item "Em breve" não navega: recolhido, ele não vira ícone.
+  if (item.emBreve) return [];
   if (!item.subItems || item.subItems.length === 0) return [{ item, depth }];
   return item.subItems.flatMap((sub) => folhas(sub, depth + 1));
 }

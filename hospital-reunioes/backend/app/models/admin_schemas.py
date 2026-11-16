@@ -10,11 +10,40 @@ from __future__ import annotations
 from datetime import date, datetime, time
 from typing import Any, Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.models.schemas import StatusAta, StatusPendencia, TipoReuniao, UserRole
 
 AccessProfile = Literal["regular", "secretaria", "super_admin"]
+
+# Segurança do Paciente (ADR 0095, decisão 4): o perfil do módulo no cadastro.
+PerfilNsp = Literal["acesso_pleno"]
+
+
+class RegistroProfissional(BaseModel):
+    """Conselho, número de registro e UF no cadastro da pessoa (issue #1765).
+
+    A UF chega em qualquer caixa e grava em maiúsculas; texto vazio vale como
+    "sem registro". O banco tem o mesmo CHECK de duas letras (migration 146).
+    """
+
+    conselho_profissional: str | None = Field(None, min_length=1, max_length=20)
+    registro_profissional: str | None = Field(None, min_length=1, max_length=30)
+    registro_uf: str | None = Field(None, pattern=r"^[A-Z]{2}$")
+
+    @field_validator("conselho_profissional", "registro_profissional", "registro_uf", mode="before")
+    @classmethod
+    def _limpar(cls, valor):
+        if isinstance(valor, str):
+            valor = valor.strip()
+            return valor or None
+        return valor
+
+    @field_validator("conselho_profissional", "registro_uf", mode="before")
+    @classmethod
+    def _maiusculas(cls, valor):
+        return valor.upper() if isinstance(valor, str) else valor
+
 
 # ─── Super Admins ────────────────────────────────────────────────────────────
 
@@ -86,11 +115,16 @@ class AdminUsuarioResponse(BaseModel):
     # lado. E ele que separa, na aba Tecnologia, quem ve o Vinculo com o
     # desenvolvimento de quem ve so a Etapa em palavras.
     github_login: str | None = None
+    # Segurança do Paciente (issue #1765): o perfil e o registro profissional.
+    perfil_nsp: PerfilNsp | None = None
+    conselho_profissional: str | None = None
+    registro_profissional: str | None = None
+    registro_uf: str | None = None
     auth_user_id: str | None = None
     data_cadastro: date | None = None
 
 
-class AdminUsuarioCreate(BaseModel):
+class AdminUsuarioCreate(RegistroProfissional):
     """Payload de POST /admin/usuarios, cria um novo participante.
 
     `access_profile` opcional (default 'regular'). Para 'secretaria', `role`
@@ -112,7 +146,7 @@ class AdminUsuarioCreate(BaseModel):
     github_login: str | None = Field(None, max_length=39)
 
 
-class AdminUsuarioUpdate(BaseModel):
+class AdminUsuarioUpdate(RegistroProfissional):
     """Payload de PATCH /admin/usuarios/{id}. Todos os campos opcionais.
 
     `access_profile` quando informado espelha em is_super_admin (compat
@@ -134,6 +168,8 @@ class AdminUsuarioUpdate(BaseModel):
     # `model_fields_set`: quem deixou de trabalhar no GitHub deixa de ver os
     # controles do Vinculo, e isso precisa ser possivel pela mesma tela.
     github_login: str | None = Field(None, max_length=39)
+    # `null` explícito tira o Acesso pleno. O router recusa dar a si mesmo.
+    perfil_nsp: PerfilNsp | None = None
     reason: str | None = Field(None, max_length=1000)
 
 

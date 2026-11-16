@@ -46,6 +46,7 @@ from app.dependencies import (
     get_participante_id_for_user,
     get_supabase_client,
     is_super_admin,
+    recursos_nsp_da_pessoa,
     require_participante_reunioes,
     require_role,
 )
@@ -282,7 +283,7 @@ async def get_me(
             status_code=404,
             detail="Participante nao encontrado para o usuario autenticado",
         )
-    return me
+    return {**me, "recursos_nsp": sorted(recursos_nsp_da_pessoa(supabase, me))}
 
 
 @router.get("/{participante_id}", response_model=ParticipanteResponse)

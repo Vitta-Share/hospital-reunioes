@@ -140,6 +140,9 @@ class _Query:
     def range(self, *_a, **_kw):
         return self
 
+    def limit(self, *_a, **_kw):
+        return self
+
     def execute(self):
         casadas = [
             r
