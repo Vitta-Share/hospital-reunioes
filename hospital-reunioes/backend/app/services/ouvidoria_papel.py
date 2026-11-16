@@ -1,0 +1,94 @@
+"""O papel de quem está logado na Ouvidoria (issue #1884, ADR 0099).
+
+Módulo fundo: `papel_na_ouvidoria` é pura (participante, linhas do cadastro de
+responsáveis e o dia entram, um papel sai) e `papel_de` é a casca que lê o
+cadastro só quando precisa. O papel maior vence:
+
+1. `perfil_ouvidoria`: ouvidor ou Diretoria Executiva, a fila inteira;
+2. `indice_geral`: Secretária ou Super admin sem Perfil da Ouvidoria, o índice
+   de todos os casos sem o sigiloso (ADR 0099, decisão 3);
+3. `responsavel`: titular, substituto ou gestor vigente de algum setor, com os
+   setores em que está vigente (decisões 1 e 2);
+4. `nenhum`: não vê a Ouvidoria.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import date
+
+from app.dependencies import is_secretaria, is_super_admin
+from app.services.ouvidoria_responsaveis import PAPEIS, esta_vigente
+from app.services.paginacao import ler_tudo
+
+PERFIL_OUVIDORIA = "perfil_ouvidoria"
+INDICE_GERAL = "indice_geral"
+RESPONSAVEL = "responsavel"
+NENHUM = "nenhum"
+
+PERFIS_OUVIDORIA = ("ouvidor", "diretoria_executiva")
+
+
+@dataclass(frozen=True)
+class PapelNaOuvidoria:
+    """O papel e, só para o responsável, os setores vigentes dele."""
+
+    papel: str
+    setores: frozenset[str] = field(default_factory=frozenset)
+
+
+def _normalizar(email: str | None) -> str:
+    return (email or "").strip().lower()
+
+
+def precisa_do_cadastro(participante: dict | None) -> bool:
+    """Só quem não tem papel maior depende do cadastro de responsáveis."""
+    return bool(participante) and not (
+        participante.get("perfil_ouvidoria") in PERFIS_OUVIDORIA
+        or is_secretaria(participante)
+        or is_super_admin(participante)
+    )
+
+
+def papel_na_ouvidoria(participante: dict | None, responsaveis: list[dict], dia: date) -> PapelNaOuvidoria:
+    """O papel de `participante` na Ouvidoria em `dia`.
+
+    O e-mail casa sem diferenciar maiúsculas e sem os espaços das pontas; a
+    vigência é a do acionamento (`esta_vigente`, fim inclusivo)."""
+    if not participante:
+        return PapelNaOuvidoria(NENHUM)
+    if participante.get("perfil_ouvidoria") in PERFIS_OUVIDORIA:
+        return PapelNaOuvidoria(PERFIL_OUVIDORIA)
+    if is_secretaria(participante) or is_super_admin(participante):
+        return PapelNaOuvidoria(INDICE_GERAL)
+    email = _normalizar(participante.get("email"))
+    setores = frozenset(
+        r["setor"]
+        for r in responsaveis
+        if email
+        and _normalizar(r.get("email")) == email
+        and r.get("papel") in PAPEIS
+        and r.get("setor")
+        and esta_vigente(r, dia)
+    )
+    return PapelNaOuvidoria(RESPONSAVEL, setores) if setores else PapelNaOuvidoria(NENHUM)
+
+
+def papel_de(supabase, participante: dict | None, dia: date) -> PapelNaOuvidoria:
+    """O papel com o cadastro lido do banco, e só quando ele decide algo.
+
+    O cadastro é lido inteiro e o casamento do e-mail fica na função pura: um
+    `ilike` no banco trataria `_` do e-mail como curinga e não tiraria espaço
+    digitado na ponta. Leitura que falha sobe: virar `nenhum` esconderia a
+    Ouvidoria de quem responde por um setor por causa de um timeout."""
+    linhas: list[dict] = []
+    if precisa_do_cadastro(participante):
+        linhas = ler_tudo(
+            lambda: (
+                supabase.table("ouvidoria_setor_responsaveis")
+                .select("id, setor, papel, email, vigencia_inicio, vigencia_fim")
+                .order("id")
+            ),
+            rotulo="responsáveis por setor",
+        )
+    return papel_na_ouvidoria(participante, linhas, dia)
