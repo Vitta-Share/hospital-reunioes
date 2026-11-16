@@ -331,6 +331,17 @@ class TestNaoInstalada:
         assert resposta.status_code == 200, resposta.text
         assert {r["id_reuniao"]: r["status_ata"] for r in resposta.json()}[R_PROG] == "NAO_INSTALADA"
 
+    def test_o_kit_de_conhecimento_diz_o_comportamento_novo(self):
+        caminho = os.path.join(os.path.dirname(__file__), "..", "app", "conhecimento", "seguranca-do-paciente.md")
+        with open(caminho, encoding="utf-8") as arquivo:
+            texto = " ".join(arquivo.read().split())
+
+        assert "presente, ausente, ausente justificado ou convidado" in texto
+        assert "metade de quem conta para quórum no dia da reunião, arredondada para cima" in texto
+        assert "com a Presidência ou o suplente presente" in texto
+        assert "fica como não instalada, não aceita transcrição nem ata" in texto
+        assert "a reunião reagendada nasce ligada à original" in texto
+
     def test_reuniao_nao_instalada_nao_aceita_nova_presenca_nem_segundo_reagendamento(self):
         banco = _cenario()
         cliente = _cliente(PRESIDENCIA, banco)
