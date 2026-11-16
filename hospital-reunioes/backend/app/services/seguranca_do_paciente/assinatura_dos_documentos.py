@@ -423,8 +423,8 @@ def _concluir(
     ja_vigente = _documento(supabase, envio["documento_id"]).get("vigente")
     vigente = supabase.rpc("nsp_tornar_vigente", {"p_documento_id": envio["documento_id"]}).execute().data
     vigente = (vigente[0] if vigente else None) if isinstance(vigente, list) else vigente
-    # Sem versão de volta (uma mais nova já vale), o PostgREST devolve a
-    # linha com tudo nulo: o id não bate e nada vigorou.
+    # Sem versão de volta (uma mais nova já vale), vem nulo ou a linha com
+    # tudo nulo: o id não bate e nada vigorou.
     if (
         ao_vigorar_revisao_material
         and not ja_vigente
