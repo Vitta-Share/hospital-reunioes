@@ -419,3 +419,58 @@ describe("Sidebar com o item Segurança do Paciente", () => {
     }
   });
 });
+
+/**
+ * O item Ouvidoria pelo papel na Ouvidoria (issue #1884, ADR 0099): o
+ * responsável do setor vê o item, e quem não tem papel nenhum deixa de ver.
+ */
+describe("Sidebar com o item Ouvidoria pelo papel", () => {
+  function links(): string[] {
+    return within(screen.getByRole("navigation"))
+      .getAllByRole("link")
+      .map((link) => link.textContent?.trim() ?? "");
+  }
+
+  it("o médico sem papel na Ouvidoria não vê o item", () => {
+    sessao.participante = {
+      id: "p1",
+      nome_completo: "Dra. Clara",
+      email: "clara@hsm",
+      access_profile: "regular",
+      papel_ouvidoria: "nenhum",
+    };
+
+    render(<Sidebar />);
+
+    expect(links()).not.toContain("Ouvidoria");
+  });
+
+  it("o responsável do setor vê o item", () => {
+    sessao.participante = {
+      id: "p1",
+      nome_completo: "Dr. Bruno",
+      email: "bruno@hsm",
+      access_profile: "regular",
+      papel_ouvidoria: "responsavel",
+    };
+
+    render(<Sidebar />);
+
+    expect(links()).toContain("Ouvidoria");
+  });
+
+  it("o responsável que só tem POPs também vê o item", () => {
+    sessao.participante = {
+      id: "p1",
+      nome_completo: "Enf. Dora",
+      email: "dora@hsm",
+      access_profile: null,
+      perfil_pop: "coordenador",
+      papel_ouvidoria: "responsavel",
+    };
+
+    render(<Sidebar />);
+
+    expect(links()).toEqual(["POPs", "Ouvidoria"]);
+  });
+});

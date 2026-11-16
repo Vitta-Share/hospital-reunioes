@@ -19,6 +19,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getUser = vi.fn();
+const getSession = vi.fn();
 const redirect = vi.fn();
 
 vi.mock("next/navigation", () => ({
@@ -27,7 +28,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
-  createClient: async () => ({ auth: { getUser } }),
+  createClient: async () => ({ auth: { getUser, getSession } }),
 }));
 
 vi.mock("@/components/layout/AppShell", () => ({
@@ -44,11 +45,18 @@ async function montar() {
 
 beforeEach(() => {
   getUser.mockReset();
+  getSession.mockReset();
+  getSession.mockResolvedValue({ data: { session: { access_token: "token-de-teste" } } });
   redirect.mockReset();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ papel_ouvidoria: "perfil_ouvidoria" }) }))
+  );
 });
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
 });
 
 describe("a área da Ouvidoria sem sessão", () => {
@@ -72,6 +80,38 @@ describe("a área da Ouvidoria com sessão", () => {
 
     await montar();
 
+    expect(screen.getByText(SEGREDO)).not.toBeNull();
+  });
+});
+
+describe("a área da Ouvidoria para quem não tem papel nela (issue #1884, ADR 0099)", () => {
+  it("barra a rota: manda para o Dashboard e não entrega a fila", async () => {
+    getUser.mockResolvedValue({
+      data: { user: { email: "clara@hsm.test", user_metadata: { nome: "Clara" } } },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ papel_ouvidoria: "nenhum" }) }))
+    );
+
+    await montar();
+
+    expect(redirect).toHaveBeenCalledWith("/dashboard");
+    expect(screen.queryByText(SEGREDO)).toBeNull();
+  });
+
+  it("o responsável do setor entra", async () => {
+    getUser.mockResolvedValue({
+      data: { user: { email: "bruno@hsm.test", user_metadata: { nome: "Bruno" } } },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ papel_ouvidoria: "responsavel" }) }))
+    );
+
+    await montar();
+
+    expect(redirect).not.toHaveBeenCalled();
     expect(screen.getByText(SEGREDO)).not.toBeNull();
   });
 });

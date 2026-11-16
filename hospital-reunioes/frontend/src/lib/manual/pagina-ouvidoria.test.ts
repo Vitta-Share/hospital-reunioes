@@ -66,8 +66,15 @@ function alcancaveis(fluxo: Fluxo, de: string): Set<string> {
 describe("a página de Ouvidoria do manual", () => {
   it("existe e aparece para quem tem a Ouvidoria no menu", () => {
     expect(OUVIDORIA?.pasta).toBe("ouvidoria");
-    const facilitador = pessoa({ access_profile: "regular" });
-    expect(paginasVisiveis(PAGINAS, facilitador).map((p) => p.modulo)).toContain("ouvidoria");
+    // Desde a issue #1884 (ADR 0099) o facilitador só tem a Ouvidoria no menu
+    // quando responde por algum setor.
+    const responsavel = pessoa({ access_profile: "regular", papel_ouvidoria: "responsavel" });
+    expect(paginasVisiveis(PAGINAS, responsavel).map((p) => p.modulo)).toContain("ouvidoria");
+  });
+
+  it("não aparece para o facilitador sem papel na Ouvidoria (issue #1884)", () => {
+    const facilitador = pessoa({ access_profile: "regular", papel_ouvidoria: "nenhum" });
+    expect(paginasVisiveis(PAGINAS, facilitador).map((p) => p.modulo)).not.toContain("ouvidoria");
   });
 
   it("não aparece para quem só tem os POPs, que não vê a Ouvidoria no menu", () => {

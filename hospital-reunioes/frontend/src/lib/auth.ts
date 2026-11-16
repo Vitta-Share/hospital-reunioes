@@ -6,6 +6,7 @@
 
 import type {
   AccessProfile,
+  PapelOuvidoria,
   PerfilContasMedicas,
   PerfilOuvidoria,
   PerfilPop,
@@ -21,6 +22,7 @@ export interface AuthUser {
   perfil_ouvidoria?: PerfilOuvidoria | null;
   perfil_contas_medicas?: PerfilContasMedicas | null;
   recursos_nsp?: string[];
+  papel_ouvidoria?: PapelOuvidoria | null;
 }
 
 export function isSuperAdmin(user: AuthUser | null | undefined): boolean {
@@ -59,6 +61,25 @@ export function isSuperadminPops(user: AuthUser | null | undefined): boolean {
  */
 export function temPerfilOuvidoria(user: AuthUser | null | undefined): boolean {
   return Boolean(user?.perfil_ouvidoria);
+}
+
+/**
+ * O papel na Ouvidoria (ADR 0099). Quem decide é o servidor, em
+ * `papel_ouvidoria`; sem ele (o cadastro de responsáveis não pôde ser lido),
+ * vale o que dá para saber aqui: o Perfil da Ouvidoria e o índice geral da
+ * Secretária e do Super admin. O responsável do setor só vem do servidor.
+ */
+export function papelNaOuvidoria(user: AuthUser | null | undefined): PapelOuvidoria {
+  if (!user) return "nenhum";
+  if (user.papel_ouvidoria) return user.papel_ouvidoria;
+  if (temPerfilOuvidoria(user)) return "perfil_ouvidoria";
+  if (isSecretaria(user) || isSuperAdmin(user)) return "indice_geral";
+  return "nenhum";
+}
+
+/** Quem vê a Ouvidoria no menu e entra na rota (ADR 0099, decisão 3). */
+export function temPapelNaOuvidoria(user: AuthUser | null | undefined): boolean {
+  return papelNaOuvidoria(user) !== "nenhum";
 }
 
 /**

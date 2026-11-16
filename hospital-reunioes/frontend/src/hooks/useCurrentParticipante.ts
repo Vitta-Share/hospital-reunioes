@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type {
   AccessProfile,
+  PapelOuvidoria,
   PerfilContasMedicas,
   PerfilOuvidoria,
   PerfilPop,
@@ -31,6 +32,9 @@ export interface CurrentParticipante {
   // O que a pessoa alcança em Segurança do Paciente (ADR 0095), calculado no
   // servidor pela Participação vigente, pelo Acesso pleno e pelo cargo.
   recursos_nsp?: string[];
+  // O papel na Ouvidoria (ADR 0099): decide o item do menu e a rota. Nulo
+  // quando o servidor não conseguiu ler o cadastro de responsáveis.
+  papel_ouvidoria?: PapelOuvidoria | null;
 }
 
 interface State {

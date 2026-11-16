@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useCurrentParticipante } from "@/hooks/useCurrentParticipante";
-import { temAcessoReunioes, temPerfilOuvidoria } from "@/lib/auth";
+import { papelNaOuvidoria, temAcessoReunioes } from "@/lib/auth";
 import { DistintivoDeNovidades } from "@/components/layout/DistintivoDeNovidades";
 import type { ContagemDeNovidades } from "@/lib/ouvidoria/novidades";
 
@@ -79,8 +79,12 @@ export function BottomNav({
   // Todo papel de Reuniões entra no /admin (ADR 0031): a raiz redireciona
   // por papel e o backend segue 403ando o que não é do papel.
   const showAdmin = participante != null && temAcessoReunioes(participante);
-  // Quem é da Ouvidoria alcança a fila pelo celular (issue #478, PRD #468).
-  const showOuvidoria = temPerfilOuvidoria(participante);
+  // Quem é da Ouvidoria alcança a fila pelo celular (issue #478, PRD #468), e
+  // o responsável do setor também (issue #1884, ADR 0099): a fila dele não tem
+  // outro atalho aqui embaixo. A Secretária e o Super admin seguem com o Admin
+  // na vaga, como antes, e chegam à Ouvidoria pelo menu lateral.
+  const papel = papelNaOuvidoria(participante);
+  const showOuvidoria = papel === "perfil_ouvidoria" || papel === "responsavel";
 
   // Sobra uma vaga depois dos quatro itens fixos, e o Admin e a Ouvidoria
   // disputam essa vaga. Quem leva é a Ouvidoria: o Admin continua no menu
