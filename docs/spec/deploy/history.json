@@ -2,6 +2,51 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-16T19:59:37-03:00",
+      "sha": "63a2cadf0c757415f75609bceea24482c1e8f90d",
+      "app_version": "0.304.1",
+      "subject": "Onda avulsas-1813-onda1: Peneira deixa termo do domínio inteiro e troca nome só em palavra inteira; Demonstração volta a ter vídeo, feito pelo Estúdio",
+      "raw_subject": "chore(deploy): registro da onda avulsas-1813-onda1 (#1895 #1894)",
+      "scope": [
+        "backend"
+      ],
+      "prds": [
+        788
+      ],
+      "result": "healthy",
+      "duration_seconds": 293,
+      "services_touched": [
+        "backend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta avulsas-1813-onda1: PR #1895 (issue #1813), PR #1894 (issue #1761), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 5,
+        "build_s": {
+          "backend": 15
+        },
+        "health_s": 10
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-16T19:20:36-03:00",
       "sha": "e74110014e70504aee71f4d8c68adaec988ea6d4",
       "app_version": "0.304.0",
