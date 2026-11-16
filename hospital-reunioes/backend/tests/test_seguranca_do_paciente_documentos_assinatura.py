@@ -1044,3 +1044,38 @@ class TestQuemAlcanca:
         cenario.api.app.dependency_overrides[get_current_user] = _usuario_de(quem)
 
         _assert_recusado(cenario.api.get(SITUACAO))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 7. A revisão material do Regimento que vira vigente pela assinatura gera o
+#    Termo novo dos membros, uma vez só (issue #1800)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@pytest.fixture
+def lotes(monkeypatch) -> list[dict]:
+    """Cada lote de Termos da revisão material: quem é o autor e qual Regimento
+    valia na hora em que o lote rodou (o Termo sai com o texto vigente)."""
+    from app.services.seguranca_do_paciente import termo
+
+    anotados: list[dict] = []
+
+    def _anota(supabase, *, autor_id):
+        vigente = next(d for d in supabase.tabelas["nsp_documentos"] if d["tipo"] == "regimento" and d["vigente"])
+        anotados.append({"autor_id": autor_id, "regimento_vigente": vigente["id"]})
+
+    monkeypatch.setattr(termo, "termos_da_revisao_material", _anota)
+    return anotados
+
+
+class TestTermoNovoPelaAssinaturaDoRegimento:
+    def test_a_ultima_assinatura_do_regimento_material_gera_o_lote_de_termos(self, lotes):
+        """Mutante: o webhook não agendar o lote de Termos."""
+        cenario = _Cenario(PRESIDENCIA)
+        novo = cenario.enviar(tipo="regimento", natureza_revisao="material")["documento"]
+
+        cenario.retorno_da_assinatura("doc-env-1", "sign", signatario="sig-env-1-1")
+        assert lotes == []
+        cenario.retorno_da_assinatura("doc-env-1", "sign", signatario="sig-env-1-2")
+
+        assert lotes == [{"autor_id": "P2", "regimento_vigente": novo["id"]}]

@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 
 import anyio
 import anyio.to_thread
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 
 from app.config import settings
@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 @router.post("/clicksign")
 async def webhook_clicksign(
     request: Request,
+    tarefas: BackgroundTasks,
     supabase=Depends(get_supabase_client),
 ):
     """
@@ -105,13 +106,25 @@ async def webhook_clicksign(
     # designação, do Regimento ou do Plano de Segurança do Paciente.
     versao_nsp_q = supabase.table("nsp_documentos_envios").select("*").eq("documento_key", envelope_key).execute()
     if versao_nsp_q.data:
-        from app.services.seguranca_do_paciente import assinatura_dos_documentos
+        from app.services.seguranca_do_paciente import assinatura_dos_documentos, termo
 
         evento = payload.get("event") or {}
         signatario = dict((evento.get("data") or {}).get("signer") or {})
         signatario["occurred_at"] = evento.get("occurred_at")
+
+        # A revisão material do Regimento que vigorou agora gera o Termo novo
+        # dos membros depois da resposta, como o Publicar (issue #1800).
+        def _termos_da_revisao(autor_id):
+            tarefas.add_task(termo.termos_da_revisao_material, supabase, autor_id=autor_id)
+
         try:
-            assinatura_dos_documentos.tratar_retorno_da_versao(supabase, versao_nsp_q.data[0], event_name, signatario)
+            assinatura_dos_documentos.tratar_retorno_da_versao(
+                supabase,
+                versao_nsp_q.data[0],
+                event_name,
+                signatario,
+                ao_vigorar_revisao_material=_termos_da_revisao,
+            )
         except Exception as e:
             logger.error(f"[ClickSign webhook] Falha no documento do Núcleo: {e}", exc_info=True)
             raise HTTPException(
