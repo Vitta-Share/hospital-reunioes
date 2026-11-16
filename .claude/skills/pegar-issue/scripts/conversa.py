@@ -150,10 +150,44 @@ def enviar(numero: str, arquivo: str, env) -> int:
     return 0
 
 
+def ler(numero: str, env) -> int:
+    chave_api = anexos.chave(env)
+    if not chave_api:
+        print(f"Conversa não lida: falta {anexos.CHAVE} no tokens/.env (peça ao Pedro).", file=sys.stderr)
+        return 1
+    base = anexos.base_da_api(env)
+    raiz = raiz_da_issue(numero)
+    demanda = demanda_da_raiz(base, raiz, chave_api)
+    if demanda is None:
+        print(f"A issue #{raiz} não tem Demanda no app: a resposta vem pelo WhatsApp.", file=sys.stderr)
+        return SEM_DEMANDA
+    instante = arquivo_do_instante(demanda)
+    if not instante.is_file():
+        print(
+            f"Nenhuma mensagem do terminal registrada nesta máquina para a Demanda da issue #{raiz}: "
+            "a pergunta sai antes pelo enviar.",
+            file=sys.stderr,
+        )
+        return 1
+    depois = json.loads(instante.read_text(encoding="utf-8"))["criado_em"]
+    lidas = pedir(base, f"{caminho_da_conversa(demanda)}?{urllib.parse.urlencode({'depois': depois})}", chave_api)
+    mensagens = (lidas or {}).get("mensagens") or []
+    if not mensagens:
+        print(f"Sem resposta ainda na Conversa da Demanda da issue #{raiz} (desde {depois}).")
+        return 0
+    for mensagem in mensagens:
+        print(f"{mensagem.get('autor') or 'sem nome'} ({mensagem.get('criado_em')}):")
+        print(mensagem.get("texto") or "")
+        print()
+    return 0
+
+
 def main(argv: list[str], env=os.environ) -> int:
     try:
         if len(argv) == 3 and argv[0] == "enviar" and argv[1].isdigit():
             return enviar(argv[1], argv[2], env)
+        if len(argv) == 2 and argv[0] == "ler" and argv[1].isdigit():
+            return ler(argv[1], env)
     except Falha as falha:
         print(f"Conversa da Demanda: {falha}.", file=sys.stderr)
         return 1

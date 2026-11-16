@@ -179,3 +179,88 @@ def test_enviar_sobe_da_fatia_ate_a_raiz_e_escreve_na_conversa_da_demanda(repo, 
     ]
     assert pedidos[1]["corpo"] == {"texto": TEXTO, "github_login": LOGIN}
     assert {p["chave"] for p in pedidos} == {CHAVE}
+
+
+def test_raiz_sem_demanda_sai_com_o_codigo_proprio_e_imprime_a_mensagem_para_o_whatsapp(repo, app_falso):
+    base, pedidos, estado = app_falso
+    estado["demandas"] = {}
+
+    feito = rodar(repo, base, "enviar", "1808", str(texto_aprovado(repo)))
+
+    assert feito.returncode == 3, feito.stderr
+    assert feito.stdout.strip() == TEXTO
+    assert "WhatsApp" in feito.stderr
+    # Perguntou pela Demanda e parou: nada foi escrito, nem o login foi pedido.
+    assert [p["metodo"] for p in pedidos] == ["GET"]
+    assert ["api", "user"] not in chamadas_do_gh(repo)
+    assert not (repo / "local").exists()
+
+
+# ------------------------------------------------- ler
+
+
+def _arquivos_com(raiz: Path, trecho: str) -> list[Path]:
+    achados = []
+    for caminho in raiz.rglob("*"):
+        if caminho.is_file() and ".git" not in caminho.parts and trecho.encode() in caminho.read_bytes():
+            achados.append(caminho)
+    return achados
+
+
+def _estado_do_git(repo: Path) -> tuple[str, str]:
+    """O que o git vê: arquivos versionáveis mexidos e commits, em todas as refs."""
+    status = subprocess.run(["git", "status", "--porcelain"], cwd=repo, capture_output=True, text=True).stdout
+    log = subprocess.run(["git", "log", "--all", "--oneline"], cwd=repo, capture_output=True, text=True).stdout
+    return status, log
+
+
+def test_ler_mostra_so_o_que_chegou_depois_da_ultima_mensagem_do_terminal(repo, app_falso):
+    base, pedidos, estado = app_falso
+    estado["mensagens"] = [
+        {"autor": "Diretor", "criado_em": "2026-11-10T09:00:00+00:00", "texto": "Conversa antiga, antes da pergunta."}
+    ]
+    assert rodar(repo, base, "enviar", "1808", str(texto_aprovado(repo))).returncode == 0
+    estado["mensagens"].append({"autor": "Diretor", "criado_em": "2026-11-16T15:30:00+00:00", "texto": RESPOSTA})
+    pedidos.clear()
+
+    feito = rodar(repo, base, "ler", "1808")
+
+    assert feito.returncode == 0, feito.stderr
+    assert RESPOSTA in feito.stdout and "Diretor" in feito.stdout
+    assert "Conversa antiga" not in feito.stdout
+    assert TEXTO not in feito.stdout
+    # Leu a conversa depois do instante da pergunta do terminal.
+    leitura = [p for p in pedidos if p["caminho"].endswith("/conversa")]
+    assert len(leitura) == 1 and leitura[0]["metodo"] == "GET"
+    assert parse_qs(leitura[0]["query"])["depois"] == [CRIADO_EM_DA_PERGUNTA]
+
+
+def test_ler_nao_grava_a_resposta_em_arquivo_issue_pr_nem_commit(repo, app_falso, tmp_path):
+    base, pedidos, estado = app_falso
+    assert rodar(repo, base, "enviar", "1808", str(texto_aprovado(repo))).returncode == 0
+    estado["mensagens"].append({"autor": "Diretor", "criado_em": "2026-11-16T15:30:00+00:00", "texto": RESPOSTA})
+    antes = len(chamadas_do_gh(repo))
+    git_antes = _estado_do_git(repo)
+
+    feito = rodar(repo, base, "ler", "1808")
+
+    assert RESPOSTA in feito.stdout
+    # Nenhum arquivo, dentro ou fora do clone, guarda a fala do diretor.
+    assert _arquivos_com(tmp_path, RESPOSTA) == []
+    # O gh só subiu pelos pais: nada de comentário, edição de issue, PR ou commit.
+    assert all(c[0] == "api" and c[1].endswith("/parent") and len(c) == 2 for c in chamadas_do_gh(repo)[antes:])
+    assert _estado_do_git(repo) == git_antes
+    # E a ponte só foi lida: a escrita foi a do enviar, antes.
+    assert [p["metodo"] for p in pedidos].count("POST") == 1
+
+
+def test_ler_sem_pergunta_do_terminal_nesta_maquina_avisa_e_nao_mostra_a_conversa(repo, app_falso):
+    base, pedidos, estado = app_falso
+    estado["mensagens"] = [{"autor": "Diretor", "criado_em": "2026-11-10T09:00:00+00:00", "texto": RESPOSTA}]
+
+    feito = rodar(repo, base, "ler", "1808")
+
+    assert feito.returncode == 1
+    assert "enviar" in feito.stderr
+    assert RESPOSTA not in feito.stdout
+    assert not any(p["caminho"].endswith("/conversa") for p in pedidos)
