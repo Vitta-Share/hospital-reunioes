@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T04:12+0000 -->
+<!-- last_update: 2026-11-16T04:18+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -66,6 +66,7 @@ erDiagram
     colegiados ||--o{ participacoes : "colegiado_id"
     colegiados ||--o{ reunioes : "colegiado_id"
     nsp_agenda_regulatoria ||--o{ nsp_agenda_ocorrencias : "item_id"
+    nsp_capacitacoes ||--o{ nsp_capacitacao_participantes : "capacitacao_id"
     nsp_documentos ||--o{ nsp_termos_envios : "regimento_id"
     nsp_termos_envios ||--o{ nsp_documentos : "termo_envio_id"
     ouvidoria_pontos ||--o{ ouvidoria_avaliacoes : "ponto_id"
@@ -96,6 +97,8 @@ erDiagram
     participantes ||--o{ comentarios_pendencias : "autor_id"
     participantes ||--o{ notificacoes : "destinatario_id"
     participantes ||--o{ nsp_agenda_ocorrencias : "registrado_por"
+    participantes ||--o{ nsp_capacitacao_participantes : "participante_id"
+    participantes ||--o{ nsp_capacitacoes : "criado_por"
     participantes ||--o{ nsp_convocados : "convocado_por"
     participantes ||--o{ nsp_convocados : "participante_id"
     participantes ||--o{ nsp_documentos : "publicado_por"
@@ -1135,6 +1138,31 @@ erDiagram
         VARCHAR criada_por FK
         TIMESTAMPTZ created_at
     }
+    nsp_temas_minimos {
+        UUID id PK
+        TEXT nome
+        BOOLEAN ativo
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+    nsp_capacitacoes {
+        UUID id PK
+        TEXT titulo
+        DATE data
+        NUMERIC carga_horaria
+        TEXT instrutor
+        TEXT publico
+        UUID[] tema_ids
+        VARCHAR criado_por FK
+        _ mais_colunas "+1"
+    }
+    nsp_capacitacao_participantes {
+        UUID id PK
+        UUID capacitacao_id FK
+        VARCHAR participante_id FK
+        TIMESTAMPTZ presenca_confirmada_em
+        TIMESTAMPTZ created_at
+    }
 ```
 
 ## Indexes principais
@@ -1316,6 +1344,10 @@ erDiagram
 | `reuniao_presencas` | `idx_reuniao_presencas_participante` | `participante_id` | `153_nsp_presenca_e_quorum.sql` |
 | `reuniao_presencas` | `idx_reuniao_presencas_registrada_por` | `registrada_por` | `153_nsp_presenca_e_quorum.sql` |
 | `nsp_reunioes_rapidas` | `idx_nsp_reunioes_rapidas_colegiado_data` | `colegiado_id, data` | `154_nsp_reunioes_rapidas.sql` |
+| `nsp_temas_minimos` | `uq_nsp_temas_minimos_nome` | `lower(btrim(nome` | `155_nsp_capacitacoes.sql` |
+| `nsp_capacitacoes` | `idx_nsp_capacitacoes_data` | `data DESC` | `155_nsp_capacitacoes.sql` |
+| `nsp_capacitacoes` | `idx_nsp_capacitacoes_criado_por` | `criado_por` | `155_nsp_capacitacoes.sql` |
+| `nsp_capacitacao_participantes` | `idx_nsp_capacitacao_participantes_pessoa` | `participante_id` | `155_nsp_capacitacoes.sql` |
 
 ---
-**Resumo:** 103 tabelas · 155 relacionamentos FK detectados.
+**Resumo:** 106 tabelas · 158 relacionamentos FK detectados.

@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T04:12+0000 -->
+<!-- last_update: 2026-11-16T04:18+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2110,6 +2110,56 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_nsp_reunioes_rapidas_colegiado_data` em `(colegiado_id, data)` (de `154_nsp_reunioes_rapidas.sql`)
 
+## nsp_temas_minimos
+
+> Origem: `155_nsp_capacitacoes.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `nome` | `TEXT` | NOT NULL | — | — |
+| `ativo` | `BOOLEAN` | NOT NULL | `true` | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `uq_nsp_temas_minimos_nome` em `(lower(btrim(nome)` (de `155_nsp_capacitacoes.sql`)
+
+## nsp_capacitacoes
+
+> Origem: `155_nsp_capacitacoes.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `titulo` | `TEXT` | NOT NULL | — | — |
+| `data` | `DATE` | NOT NULL | — | — |
+| `carga_horaria` | `NUMERIC(5, 1)` | NOT NULL | — | — |
+| `instrutor` | `TEXT` | NOT NULL | — | — |
+| `publico` | `TEXT` | NOT NULL | — | — |
+| `tema_ids` | `UUID[]` | NOT NULL | `'{}'` | — |
+| `criado_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_capacitacoes_data` em `(data DESC)` (de `155_nsp_capacitacoes.sql`)
+- `idx_nsp_capacitacoes_criado_por` em `(criado_por)` (de `155_nsp_capacitacoes.sql`)
+
+## nsp_capacitacao_participantes
+
+> Origem: `155_nsp_capacitacoes.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `capacitacao_id` | `UUID` | NOT NULL | — | `nsp_capacitacoes.id` |
+| `participante_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `presenca_confirmada_em` | `TIMESTAMPTZ` | — | — | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_capacitacao_participantes_pessoa` em `(participante_id)` (de `155_nsp_capacitacoes.sql`)
+
 ---
 
-**Resumo:** 103 tabelas vivas.
+**Resumo:** 106 tabelas vivas.
