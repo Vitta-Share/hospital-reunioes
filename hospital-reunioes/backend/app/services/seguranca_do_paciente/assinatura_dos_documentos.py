@@ -20,6 +20,7 @@ from __future__ import annotations
 import io
 import logging
 import os
+from collections.abc import Callable
 from datetime import UTC, datetime
 
 from app.config import settings
@@ -61,6 +62,10 @@ ABERTAS = ("gerado", "enviado")
 VALIDADE_DO_LINK = 600
 
 _FALHA_DO_ENVIO = "A assinatura eletrônica não respondeu. Use Reenviar para assinatura em instantes."
+
+# Quem chama o retorno da assinatura agenda o Termo novo dos membros quando a
+# revisão material do Regimento vigora (issue #1800); recebe o autor do envio.
+AoVigorar = Callable[[str | None], None]
 
 
 class AssinaturaNaoEnviadaError(Exception):
@@ -391,11 +396,18 @@ def _guardar_arquivo(supabase, envio: dict) -> None:
     ).execute()
 
 
-def _concluir(supabase, envio: dict, *, todos_assinaram: bool = False) -> None:
+def _concluir(
+    supabase, envio: dict, *, todos_assinaram: bool = False, ao_vigorar_revisao_material: AoVigorar | None = None
+) -> None:
     """Todas as assinaturas chegaram: o envio vira "assinado" (troca
     condicional, o retorno repetido não acha mais nada), a versão vira a
     vigente e o arquivo assinado fica guardado nela. Com o envio já assinado,
-    só completa o que faltou (a vigência ou o arquivo)."""
+    só completa o que faltou (a vigência ou o arquivo).
+
+    A revisão material do Regimento que esta chamada tornou vigente avisa
+    `ao_vigorar_revisao_material` com o autor do envio (issue #1800): o
+    Termo novo dos membros sai uma vez por versão, como no Publicar. O
+    retorno repetido acha a versão já vigente e não avisa de novo."""
     if envio.get("situacao") == "enviado":
         agora = _agora()
         if todos_assinaram:
@@ -408,7 +420,21 @@ def _concluir(supabase, envio: dict, *, todos_assinaram: bool = False) -> None:
         envio = _ler_envio(supabase, envio["id"])
     if envio.get("situacao") != "assinado":
         return
-    supabase.rpc("nsp_tornar_vigente", {"p_documento_id": envio["documento_id"]}).execute()
+    ja_vigente = _documento(supabase, envio["documento_id"]).get("vigente")
+    vigente = supabase.rpc("nsp_tornar_vigente", {"p_documento_id": envio["documento_id"]}).execute().data
+    vigente = (vigente[0] if vigente else None) if isinstance(vigente, list) else vigente
+    # Sem versão de volta (uma mais nova já vale), vem nulo ou a linha com
+    # tudo nulo: o id não bate e nada vigorou.
+    if (
+        ao_vigorar_revisao_material
+        and not ja_vigente
+        and vigente
+        and vigente.get("id") == envio["documento_id"]
+        and vigente.get("vigente")
+        and vigente.get("tipo") == "regimento"
+        and vigente.get("natureza_revisao") == "material"
+    ):
+        ao_vigorar_revisao_material(envio.get("autor_id"))
     _guardar_arquivo(supabase, envio)
 
 
@@ -417,7 +443,14 @@ def _todos_assinaram(supabase, envio_id: str) -> bool:
     return bool(linhas) and all(linha.get("assinado_em") for linha in linhas)
 
 
-def tratar_retorno_da_versao(supabase, envio: dict, evento: str, signatario: dict | None = None) -> None:
+def tratar_retorno_da_versao(
+    supabase,
+    envio: dict,
+    evento: str,
+    signatario: dict | None = None,
+    *,
+    ao_vigorar_revisao_material: AoVigorar | None = None,
+) -> None:
     """O retorno automático da assinatura para o envelope de uma versão."""
     situacao = envio.get("situacao")
     if situacao not in ("enviado", "assinado"):
@@ -438,11 +471,11 @@ def tratar_retorno_da_versao(supabase, envio: dict, evento: str, signatario: dic
             _marcar(supabase, linha, signatario.get("occurred_at"))
             if not _todos_assinaram(supabase, envio["id"]):
                 return
-        _concluir(supabase, envio)
+        _concluir(supabase, envio, ao_vigorar_revisao_material=ao_vigorar_revisao_material)
     elif evento in EVENTOS_DE_TODOS_ASSINARAM:
-        _concluir(supabase, envio, todos_assinaram=True)
+        _concluir(supabase, envio, todos_assinaram=True, ao_vigorar_revisao_material=ao_vigorar_revisao_material)
     elif evento == EVENTO_DOCUMENTO_PRONTO and situacao == "assinado":
-        _concluir(supabase, envio)
+        _concluir(supabase, envio, ao_vigorar_revisao_material=ao_vigorar_revisao_material)
     else:
         logger.info("Evento %r do envio %s sem efeito", evento, envio["id"])
 
@@ -465,7 +498,9 @@ def ultimo_envio(supabase, documento_id: str) -> dict | None:
     return linhas[0] if linhas else None
 
 
-def reconsultar_assinaturas(supabase, documento: dict) -> dict | None:
+def reconsultar_assinaturas(
+    supabase, documento: dict, *, ao_vigorar_revisao_material: AoVigorar | None = None
+) -> dict | None:
     """Pergunta à assinatura eletrônica quem já assinou o último envio e aplica
     o mesmo tratamento do retorno automático. None quando não há envelope."""
     envio = ultimo_envio(supabase, documento["id"])
@@ -483,7 +518,7 @@ def reconsultar_assinaturas(supabase, documento: dict) -> dict | None:
             if linha and not linha.get("assinado_em"):
                 _marcar(supabase, linha, assinou.get("signed_at"))
         if _todos_assinaram(supabase, envio["id"]):
-            _concluir(supabase, envio)
+            _concluir(supabase, envio, ao_vigorar_revisao_material=ao_vigorar_revisao_material)
     return _ler_envio(supabase, envio["id"])
 
 

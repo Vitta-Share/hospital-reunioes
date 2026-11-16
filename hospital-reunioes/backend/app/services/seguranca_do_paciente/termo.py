@@ -96,18 +96,44 @@ def marca_do_novo_termo(participacao: dict) -> dict:
 
 
 def revisao_material_em(supabase) -> str | None:
-    """Quando saiu a última revisão material do Regimento (a vigente ou não)."""
-    linhas = (
+    """Quando passou a valer a última revisão material do Regimento (issue
+    #1800). Só conta a que de fato vigorou: a publicada direto, pelo
+    `publicado_em`; a enviada para assinatura, pela conclusão do envio, e
+    nada enquanto ela espera. A assinada depois de uma versão mais nova já
+    valer nunca vigorou (`nsp_tornar_vigente` não a troca) e também não conta."""
+    versoes = (
         supabase.table("nsp_documentos")
-        .select("publicado_em")
+        .select("id, versao, natureza_revisao, publicado_em")
         .eq("tipo", "regimento")
-        .eq("natureza_revisao", "material")
-        .order("publicado_em", desc=True)
-        .limit(1)
         .execute()
         .data
     ) or []
-    return linhas[0].get("publicado_em") if linhas else None
+    if not any(v.get("natureza_revisao") == "material" for v in versoes):
+        return None
+    envios = (
+        supabase.table("nsp_documentos_envios")
+        .select("documento_id, situacao, assinado_em")
+        .in_("documento_id", [v["id"] for v in versoes])
+        .execute()
+        .data
+    ) or []
+    com_envio = {e["documento_id"] for e in envios}
+    vigorou_em = {v["id"]: v.get("publicado_em") for v in versoes if v["id"] not in com_envio}
+    for envio in envios:
+        if envio.get("situacao") == "assinado" and envio.get("assinado_em"):
+            vigorou_em[envio["documento_id"]] = envio["assinado_em"]
+
+    def _vigorou(versao: dict) -> bool:
+        quando = vigorou_em.get(versao["id"])
+        return bool(quando) and not any(
+            outra["versao"] > versao["versao"]
+            and vigorou_em.get(outra["id"])
+            and not _depois(vigorou_em[outra["id"]], quando)
+            for outra in versoes
+        )
+
+    datas = [vigorou_em[v["id"]] for v in versoes if v.get("natureza_revisao") == "material" and _vigorou(v)]
+    return max(datas, key=lambda d: datetime.fromisoformat(str(d))) if datas else None
 
 
 def _bucket() -> str:

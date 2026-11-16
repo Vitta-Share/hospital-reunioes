@@ -23,7 +23,7 @@ import os
 import re
 import sys
 import uuid
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any
 
@@ -1044,3 +1044,164 @@ class TestQuemAlcanca:
         cenario.api.app.dependency_overrides[get_current_user] = _usuario_de(quem)
 
         _assert_recusado(cenario.api.get(SITUACAO))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 7. A revisão material do Regimento que vira vigente pela assinatura gera o
+#    Termo novo dos membros, uma vez só (issue #1800)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@pytest.fixture
+def lotes(monkeypatch) -> list[dict]:
+    """Cada lote de Termos da revisão material: quem é o autor e qual Regimento
+    valia na hora em que o lote rodou (o Termo sai com o texto vigente)."""
+    from app.services.seguranca_do_paciente import termo
+
+    anotados: list[dict] = []
+
+    def _anota(supabase, *, autor_id):
+        vigente = next(d for d in supabase.tabelas["nsp_documentos"] if d["tipo"] == "regimento" and d["vigente"])
+        anotados.append({"autor_id": autor_id, "regimento_vigente": vigente["id"]})
+
+    monkeypatch.setattr(termo, "termos_da_revisao_material", _anota)
+    return anotados
+
+
+class TestTermoNovoPelaAssinaturaDoRegimento:
+    def test_a_ultima_assinatura_do_regimento_material_gera_o_lote_de_termos(self, lotes):
+        """Mutante: o webhook não agendar o lote de Termos."""
+        cenario = _Cenario(PRESIDENCIA)
+        novo = cenario.enviar(tipo="regimento", natureza_revisao="material")["documento"]
+
+        cenario.retorno_da_assinatura("doc-env-1", "sign", signatario="sig-env-1-1")
+        assert lotes == []
+        cenario.retorno_da_assinatura("doc-env-1", "sign", signatario="sig-env-1-2")
+
+        assert lotes == [{"autor_id": "P2", "regimento_vigente": novo["id"]}]
+
+    def test_o_reconsultar_com_todos_assinados_gera_o_lote_com_o_autor_do_envio(self, lotes, assinatura):
+        """Quem reconsulta é o Acesso pleno; quem mandou para assinatura, a
+        Presidência. Mutante: a rota do Reconsultar não agendar o lote."""
+        cenario = _Cenario(PRESIDENCIA)
+        novo = cenario.enviar(tipo="regimento", natureza_revisao="material")["documento"]
+        assinatura.assinaram = {"sig-env-1-1", "sig-env-1-2"}
+        cenario.api.app.dependency_overrides[get_current_user] = _usuario_de(ACESSO_PLENO)
+
+        assert _reconsultar(cenario, novo["id"]).status_code == 200
+
+        assert lotes == [{"autor_id": "P2", "regimento_vigente": novo["id"]}]
+
+    @pytest.mark.parametrize(
+        "eventos",
+        [
+            [("sign", "sig-env-1-1"), ("sign", "sig-env-1-2"), ("auto_close", None), ("document_closed", None)],
+            [("auto_close", None), ("auto_close", None), ("sign", "sig-env-1-2"), ("document_closed", None)],
+            [("auto_close", None), ("reconsultar", None)],
+        ],
+        ids=["sign_final_auto_close_document_closed", "retentativa_da_assinatura", "webhook_e_reconsultar"],
+    )
+    def test_o_retorno_repetido_nao_gera_segundo_lote(self, lotes, assinatura, eventos):
+        """Mutante: avisar a cada passagem pelo `_concluir` com o envio
+        assinado, sem conferir se a versão já era a vigente."""
+        cenario = _Cenario(PRESIDENCIA)
+        novo = cenario.enviar(tipo="regimento", natureza_revisao="material")["documento"]
+        assinatura.assinaram = {"sig-env-1-1", "sig-env-1-2"}
+
+        for evento, signatario in eventos:
+            if evento == "reconsultar":
+                resposta = _reconsultar(cenario, novo["id"])
+            else:
+                resposta = cenario.retorno_da_assinatura("doc-env-1", evento, signatario=signatario)
+            assert resposta.status_code == 200, resposta.text
+
+        assert lotes == [{"autor_id": "P2", "regimento_vigente": novo["id"]}]
+
+    @pytest.mark.parametrize(
+        "tipo, natureza",
+        [("regimento", "redacao"), ("ato_designacao", "material"), ("plano_seguranca_paciente", "material")],
+        ids=["regimento_de_redacao", "ato_de_designacao", "plano"],
+    )
+    def test_o_que_nao_e_revisao_material_do_regimento_nao_gera_termo(self, lotes, tipo, natureza):
+        """Ato e Plano vão com natureza material de propósito: o formulário não
+        zera a natureza quando o tipo muda, e nada recusa. Mutantes, um por vez:
+        tirar a conferência do tipo; tirar a da natureza."""
+        cenario = _Cenario(PRESIDENCIA)
+        novo = cenario.enviar(tipo=tipo, natureza_revisao=natureza)["documento"]
+
+        assert cenario.retorno_da_assinatura("doc-env-1", "auto_close").status_code == 200
+
+        assert cenario.documento(novo["id"])["vigente"] is True
+        assert lotes == []
+
+    def test_a_versao_que_perde_para_uma_mais_nova_nao_gera_termo(self, lotes):
+        """A Presidência publicou uma revisão de redação mais nova antes de a
+        material terminar de assinar: `nsp_tornar_vigente` não devolve nada.
+        Mutante: avisar sem conferir a versão que voltou."""
+        cenario = _Cenario(PRESIDENCIA)
+        enviada = cenario.enviar(tipo="regimento", natureza_revisao="material")["documento"]
+        cenario.api.post("/api/nsp/documentos", json={**_versao(tipo="regimento"), "natureza_revisao": "redacao"})
+
+        assert cenario.retorno_da_assinatura("doc-env-1", "auto_close").status_code == 200
+
+        assert cenario.documento(enviada["id"])["vigente"] is False
+        assert lotes == []
+
+
+# P3 assinou o Termo depois da versão 1 do Regimento (a vigente do cenário).
+TERMO_DEPOIS_DA_VERSAO_1 = "2026-10-01T12:00:00+00:00"
+
+
+class TestDataDaRevisaoMaterial:
+    def _cenario(self) -> _Cenario:
+        cenario = _Cenario(PRESIDENCIA)
+        p3 = next(p for p in cenario.tabela("participacoes") if p["participante_id"] == "P3")
+        p3["termo_assinado_em"] = TERMO_DEPOIS_DA_VERSAO_1
+        return cenario
+
+    def _pendente(self, cenario: _Cenario) -> bool:
+        from app.services.seguranca_do_paciente import termo
+
+        p3 = next(p for p in cenario.tabela("participacoes") if p["participante_id"] == "P3")
+        return termo.novo_termo_pendente(p3, termo.revisao_material_em(cenario.banco), HOJE)
+
+    def test_o_regimento_material_esperando_assinatura_nao_deixa_termo_pendente(self, lotes):
+        """Mutante: voltar a contar a revisão material vigente ou não."""
+        from app.services.seguranca_do_paciente import termo
+
+        cenario = self._cenario()
+        cenario.enviar(tipo="regimento", natureza_revisao="material")
+
+        assert termo.revisao_material_em(cenario.banco) == REGIMENTO_VIGENTE["publicado_em"]
+        assert self._pendente(cenario) is False
+
+    def test_depois_de_vigente_a_data_e_a_da_conclusao_da_assinatura(self, lotes):
+        """Mutante: datar a revisão assinada pelo `publicado_em` (o envio)."""
+        from app.services.seguranca_do_paciente import termo
+
+        cenario = self._cenario()
+        novo = cenario.enviar(tipo="regimento", natureza_revisao="material")["documento"]
+        cenario.retorno_da_assinatura("doc-env-1", "auto_close")
+
+        [envio] = cenario.envios(novo["id"])
+        assert envio["assinado_em"] != cenario.documento(novo["id"])["publicado_em"]
+        assert termo.revisao_material_em(cenario.banco) == envio["assinado_em"]
+        assert self._pendente(cenario) is True
+
+    def test_a_revisao_material_que_nunca_vigorou_nao_conta(self, lotes):
+        """Uma revisão de redação mais nova passou a valer antes de a material
+        terminar de assinar: a material nunca vigorou."""
+        from app.services.seguranca_do_paciente import termo
+
+        cenario = self._cenario()
+        cenario.enviar(tipo="regimento", natureza_revisao="material")
+        redacao = cenario.api.post(
+            "/api/nsp/documentos", json={**_versao(tipo="regimento"), "natureza_revisao": "redacao"}
+        ).json()
+        # O dublê data toda publicação às 13h de hoje; a conclusão da
+        # assinatura sai com o relógio de verdade, que pode estar antes.
+        cenario.documento(redacao["id"])["publicado_em"] = (datetime.now(UTC) - timedelta(minutes=1)).isoformat()
+        cenario.retorno_da_assinatura("doc-env-1", "auto_close")
+
+        assert termo.revisao_material_em(cenario.banco) == REGIMENTO_VIGENTE["publicado_em"]
+        assert self._pendente(cenario) is False
