@@ -19,7 +19,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 import { cleanup, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CurrentParticipante } from "@/hooks/useCurrentParticipante";
 
@@ -42,8 +42,25 @@ vi.mock("@/hooks/useCurrentParticipante", () => ({
   }),
 }));
 
+// A tela Documentos já tem conteúdo (issue #1767) e pede a lista ao servidor.
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: () => ({
+    auth: {
+      getSession: async () => ({ data: { session: { access_token: "token-de-teste" } } }),
+    },
+  }),
+}));
+
+beforeEach(() => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ documentos: [] }) }))
+  );
+});
+
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
   sessao.participante = null;
 });
 
@@ -117,7 +134,7 @@ describe("as telas do módulo", () => {
     expect(screen.getByText(orientacao).tagName).toBe("P");
   });
 
-  it.each(TELAS.filter((t) => t.nome !== "Início"))(
+  it.each(TELAS.filter((t) => t.nome !== "Início" && t.nome !== "Documentos"))(
     "$nome mostra o estado vazio enquanto a fatia dela não chega",
     ({ Pagina }) => {
       entrar(TODOS);
@@ -126,6 +143,25 @@ describe("as telas do módulo", () => {
       expect(screen.getByText("Nada por aqui ainda.")).toBeTruthy();
     }
   );
+
+  it("Documentos mostra os documentos do Núcleo, e não o estado vazio (issue #1767)", async () => {
+    entrar(TODOS);
+    render(<DocumentosPage />);
+
+    expect(await screen.findByText("Nenhum documento publicado ainda.")).toBeTruthy();
+    expect(screen.queryByText("Nada por aqui ainda.")).toBeNull();
+  });
+
+  it.each([
+    ["a Presidência", [...TODOS, "gerir_nucleo"], true],
+    ["o membro", TODOS, false],
+  ] as const)("em Documentos, %s vê o botão de publicar: %s", async (_quem, recursos, ve) => {
+    entrar([...recursos]);
+    render(<DocumentosPage />);
+
+    await screen.findByText("Nenhum documento publicado ainda.");
+    expect(screen.queryByRole("button", { name: "Publicar versão nova" }) !== null).toBe(ve);
+  });
 
   it("o Início explica como funciona o Núcleo em seis passos curtos", () => {
     entrar(TODOS);
