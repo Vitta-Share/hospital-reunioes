@@ -2,6 +2,53 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-16T11:54:01-03:00",
+      "sha": "4d2b996077a83cc5f57b37c153e58f0eed528782",
+      "app_version": "0.300.0",
+      "subject": "Onda onda-a-onda1: Pergunta ao diretor pela ponte, escrita na Conversa da Demanda pelo terminal",
+      "raw_subject": "chore(deploy): registro da onda onda-a-onda1 (#1809)",
+      "scope": [
+        "backend"
+      ],
+      "prds": [
+        1803
+      ],
+      "result": "healthy",
+      "duration_seconds": 844,
+      "services_touched": [
+        "backend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "161_tecnologia_origem_da_mensagem.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta onda-a-onda1: PR #1809 (issue #1805), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 22
+        },
+        "health_s": 10
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-16T03:09:31-03:00",
       "sha": "c23baf472734711e8a8bbb38a2a1300c71a5e0ad",
       "app_version": "0.299.0",
