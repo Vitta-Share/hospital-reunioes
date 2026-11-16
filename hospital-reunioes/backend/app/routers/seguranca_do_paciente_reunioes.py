@@ -26,13 +26,14 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
+from starlette.concurrency import run_in_threadpool
 from supabase import Client
 
 from app.dependencies import RECUSA_DO_NSP, get_supabase_client, require_recurso_nsp, selecionar_participantes
 from app.limiter import limiter
 from app.routers.reunioes import _generate_reuniao_id
 from app.services.seguranca_do_paciente import ata as ata_do_nucleo
-from app.services.seguranca_do_paciente import convocacao, pauta
+from app.services.seguranca_do_paciente import assinatura_da_ata, convocacao, pauta
 from app.services.seguranca_do_paciente.membros import vigente_em
 from app.services.seguranca_do_paciente.permissao import id_do_nucleo
 from app.services.seguranca_do_paciente.quorum import apurar_quorum, conta_para_quorum
@@ -712,5 +713,14 @@ async def validar_ata(
     faltas = ata_do_nucleo.faltas_para_validar(ata)
     if faltas:
         raise HTTPException(status_code=422, detail="Complete antes de validar: " + "; ".join(faltas) + ".")
-    total = ata_do_nucleo.validar_ata_do_nucleo(supabase, reuniao, me, _agora())
-    return {"id_reuniao": id_reuniao, "status": "APROVADA", "total_pendencias": total}
+    agora = _agora()
+    total = ata_do_nucleo.validar_ata_do_nucleo(supabase, reuniao, me, agora)
+    # A ata validada vai para a assinatura dos presentes (issue #1776). Falha
+    # deixa a ata aprovada, com o aviso, e o job diário tenta de novo.
+    envio = await run_in_threadpool(assinatura_da_ata.enviar_para_assinatura, supabase, id_reuniao, agora) or {}
+    return {
+        "id_reuniao": id_reuniao,
+        "status": "AGUARDANDO_ASSINATURA" if envio.get("envelope_id") else "APROVADA",
+        "total_pendencias": total,
+        "aviso": envio.get("erro"),
+    }

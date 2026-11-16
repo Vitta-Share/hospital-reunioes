@@ -185,6 +185,9 @@ def _ia(monkeypatch) -> _IaDublada:
     monkeypatch.setattr(storage, "upload_file", lambda *a, **kw: "https://storage.test/transcricao.txt")
     # A assinatura também nunca sai de verdade.
     monkeypatch.setattr(clicksign_service, "start_signature_flow", _estoura)
+    # A ata validada vai para a assinatura dos presentes (issue #1776): aqui o
+    # envio falha, e a ata fica aprovada esperando a nova tentativa.
+    monkeypatch.setattr(clicksign_service, "create_envelope", _estoura)
     return dublada
 
 
