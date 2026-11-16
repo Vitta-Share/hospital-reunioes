@@ -18,6 +18,7 @@ cria a reagendada, ligada à original (`reagendada_de`, migration 153).
 import logging
 from datetime import date, datetime, time, timedelta
 from typing import Any, Literal
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
@@ -30,7 +31,12 @@ from app.services.seguranca_do_paciente import convocacao, pauta
 from app.services.seguranca_do_paciente.membros import vigente_em
 from app.services.seguranca_do_paciente.permissao import id_do_nucleo
 from app.services.seguranca_do_paciente.quorum import apurar_quorum, conta_para_quorum
-from app.services.seguranca_do_paciente.reunioes import TETO_DO_TEXTO, TipoReuniaoNsp, texto_da_reuniao_rapida
+from app.services.seguranca_do_paciente.reunioes import (
+    TETO_DO_TEXTO,
+    TipoReuniaoNsp,
+    reunioes_rapidas,
+    texto_da_reuniao_rapida,
+)
 
 router = APIRouter(prefix="/nsp/reunioes", tags=["seguranca-do-paciente"])
 logger = logging.getLogger(__name__)
@@ -99,10 +105,16 @@ async def listar_reunioes_do_nucleo(
         if nucleo_id
         else []
     )
+    pode_abrir = "reunioes" in me["recursos_nsp"]
+    if nucleo_id:
+        linhas = sorted(
+            [*linhas, *reunioes_rapidas(supabase, nucleo_id, com_conteudo=pode_abrir)],
+            key=lambda r: r["data"],
+        )
     return {
         "reunioes": linhas,
         "tipos": [t.value for t in TipoReuniaoNsp],
-        "pode_abrir": "reunioes" in me["recursos_nsp"],
+        "pode_abrir": pode_abrir,
         "pode_criar": "gerir_nucleo" in me["recursos_nsp"],
     }
 
@@ -581,6 +593,7 @@ async def registrar_reuniao_rapida(
     if len(existem) != len(participantes):
         raise HTTPException(status_code=422, detail="Algum participante não está no cadastro de pessoas.")
     linha = {
+        "id": str(uuid4()),
         "colegiado_id": nucleo_id,
         "data": req.data.isoformat(),
         "setor": req.setor.strip(),
@@ -588,6 +601,6 @@ async def registrar_reuniao_rapida(
         "texto": req.texto,
         "criada_por": me["id"],
     }
-    gravada = (supabase.table("nsp_reunioes_rapidas").insert(linha).execute().data or [{}])[0]
-    logger.info("Reunião rápida do Núcleo registrada por %s", me["id"])
-    return {"id": gravada.get("id"), "tipo": TipoReuniaoNsp.REUNIAO_RAPIDA.value}
+    supabase.table("nsp_reunioes_rapidas").insert(linha).execute()
+    logger.info("Reunião rápida do Núcleo %s registrada por %s", linha["id"], me["id"])
+    return {"id": linha["id"], "tipo": TipoReuniaoNsp.REUNIAO_RAPIDA.value}

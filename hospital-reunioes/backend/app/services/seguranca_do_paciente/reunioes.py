@@ -46,6 +46,7 @@ def texto_da_reuniao_rapida(texto: str) -> str:
         raise ValueError("O texto da reunião rápida tem no máximo três linhas")
     return limpo
 
+
 # Coluna (42703) ou tabela (42P01) que o banco ainda não tem.
 _AINDA_SEM_MIGRATION = ("42703", "42P01")
 
@@ -71,3 +72,47 @@ def reunioes_do_nucleo(supabase) -> list[str]:
         logger.warning("Reuniões do Núcleo ilegíveis: a migration 148 ainda não rodou (%s).", erro)
         return []
     return [linha["id_reuniao"] for linha in (linhas or [])]
+
+
+def reunioes_rapidas(supabase, nucleo_id: str, *, com_conteudo: bool) -> list[dict]:
+    """As reuniões rápidas do Núcleo no formato da lista do módulo (issue #1777).
+
+    O setor faz as vezes de título. O texto e os nomes de quem participou só
+    vão a quem abre a ata das outras reuniões do Núcleo (`com_conteudo`); quem
+    ainda não assinou o Termo vê a data, o tipo e o setor, como nas outras.
+    Entre o deploy e a migration 154 colada no Studio, a lista vazia é a verdade.
+    """
+    try:
+        linhas = (
+            supabase.table("nsp_reunioes_rapidas")
+            .select("id, data, setor, participantes, texto")
+            .eq("colegiado_id", nucleo_id)
+            .execute()
+            .data
+        ) or []
+    except APIError as erro:
+        if getattr(erro, "code", None) not in _AINDA_SEM_MIGRATION:
+            raise
+        logger.warning("Reuniões rápidas ilegíveis: a migration 154 ainda não rodou (%s).", erro)
+        return []
+    nomes: dict[str, str] = {}
+    ids = sorted({pid for linha in linhas for pid in (linha.get("participantes") or [])})
+    if com_conteudo and ids:
+        pessoas = supabase.table("participantes").select("id, nome_completo").in_("id", ids).execute().data or []
+        nomes = {p["id"]: p["nome_completo"] for p in pessoas}
+    itens = []
+    for linha in linhas:
+        item = {
+            "id_reuniao": linha["id"],
+            "data": linha["data"],
+            "hora_inicio": None,
+            "tipo": TipoReuniaoNsp.REUNIAO_RAPIDA.value,
+            "titulo": linha["setor"],
+            "status_ata": None,
+            "rapida": True,
+        }
+        if com_conteudo:
+            item["texto"] = linha["texto"]
+            item["participantes"] = [nomes.get(pid, "Pessoa sem cadastro") for pid in linha.get("participantes") or []]
+        itens.append(item)
+    return itens

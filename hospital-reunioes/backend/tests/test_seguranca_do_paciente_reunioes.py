@@ -849,3 +849,70 @@ class TestReuniaoRapida:
 
         assert resposta.status_code == 422, resposta.text
         assert banco.tabelas.get("nsp_reunioes_rapidas", []) == []
+
+
+def _com_rapida() -> _Banco:
+    banco = _banco()
+    resposta = _cliente(PRESIDENCIA, banco).post(ROTA_RAPIDA, json=_rapida())
+    assert resposta.status_code == 201, resposta.text
+    return banco
+
+
+def _rapidas_da_lista(corpo: dict) -> list[dict]:
+    return [r for r in corpo["reunioes"] if r["tipo"] == RAPIDA]
+
+
+class TestReuniaoRapidaNaLista:
+    def test_a_reuniao_rapida_aparece_na_lista_do_modulo_com_o_tipo_marcado(self):
+        corpo = _cliente(MEMBRO, _com_rapida()).get("/api/nsp/reunioes").json()
+
+        [rapida] = _rapidas_da_lista(corpo)
+        assert rapida["rapida"] is True
+        assert rapida["data"] == HOJE.isoformat()
+        assert rapida["titulo"] == "Setor de Teste"
+        assert rapida["texto"] == "Piso molhado no corredor.\nSinalização reposta.\nConferir de novo amanhã."
+        assert rapida["participantes"] == ["Pessoa de Teste MEMB1", "Pessoa de Teste FORA1"]
+        # A ordinária do cenário continua na lista, ao lado da rápida.
+        assert R_NUCLEO in [r["id_reuniao"] for r in corpo["reunioes"]]
+
+    def test_membro_sem_termo_ve_a_data_o_tipo_e_o_setor_sem_o_texto(self):
+        """Mutante: mandar o texto da rápida a quem não abre a ata."""
+        corpo = _cliente(MEMBRO_SEM_TERMO, _com_rapida()).get("/api/nsp/reunioes").json()
+
+        [rapida] = _rapidas_da_lista(corpo)
+        assert rapida["data"] == HOJE.isoformat()
+        assert rapida["titulo"] == "Setor de Teste"
+        assert "texto" not in rapida
+        assert "participantes" not in rapida
+
+    @pytest.mark.parametrize("pessoa", [SUPER_ADMIN, DE_FORA], ids=["super_admin", "regular_na_lista"])
+    def test_quem_e_de_fora_recebe_recusa_na_lista_que_tem_a_rapida(self, pessoa):
+        """O de fora está entre os participantes da rápida de propósito: o que
+        o barra é o sigilo do Núcleo, não a lista."""
+        _assert_recusado(_cliente(pessoa, _com_rapida()).get("/api/nsp/reunioes"))
+
+    @pytest.mark.parametrize("pessoa", [MEMBRO, MEMBRO_SEM_TERMO, SUPER_ADMIN], ids=["membro", "sem_termo", "super"])
+    def test_so_a_presidencia_registra_a_reuniao_rapida(self, pessoa):
+        banco = _banco()
+        antes = _tamanhos(banco)
+
+        _assert_recusado(_cliente(pessoa, banco).post(ROTA_RAPIDA, json=_rapida()))
+        assert _tamanhos(banco) == antes
+
+    def test_banco_sem_a_tabela_da_rapida_nao_derruba_a_lista(self):
+        """Entre o deploy e a migration 154 colada no Studio."""
+        from postgrest.exceptions import APIError
+
+        banco = _banco()
+        original = banco.table
+
+        def _table(nome):
+            if nome == "nsp_reunioes_rapidas":
+                raise APIError({"code": "42P01", "message": 'relation "nsp_reunioes_rapidas" does not exist'})
+            return original(nome)
+
+        banco.table = _table
+        resposta = _cliente(PRESIDENCIA, banco).get("/api/nsp/reunioes")
+
+        assert resposta.status_code == 200, resposta.text
+        assert [r["id_reuniao"] for r in resposta.json()["reunioes"]] == [R_NUCLEO]
