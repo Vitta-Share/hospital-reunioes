@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T04:18+0000 -->
+<!-- last_update: 2026-11-16T05:52+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2160,6 +2160,25 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_nsp_capacitacao_participantes_pessoa` em `(participante_id)` (de `155_nsp_capacitacoes.sql`)
 
+## nsp_avisos
+
+> Origem: `158_nsp_avisos.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `participacao_id` | `UUID` | NOT NULL | — | `participacoes.id` |
+| `marco` | `TEXT` | NOT NULL | — | — |
+| `referencia` | `TEXT` | NOT NULL | — | — |
+| `destinatario_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `situacao` | `TEXT` | NOT NULL | `'pendente'` | — |
+| `erro` | `TEXT` | — | — | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `enviado_em` | `TIMESTAMPTZ` | — | — | — |
+
+**Indexes:**
+- `idx_nsp_avisos_destinatario` em `(destinatario_id)` (de `158_nsp_avisos.sql`)
+
 ---
 
-**Resumo:** 106 tabelas vivas.
+**Resumo:** 107 tabelas vivas.
