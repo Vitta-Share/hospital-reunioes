@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T01:41+0000 -->
+<!-- last_update: 2026-11-16T01:45+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -1913,7 +1913,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## participacoes
 
-> Origem: `146_nsp_fundacao.sql`
+> Origem: `146_nsp_fundacao.sql` (alterada em: 150_nsp_membros.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -1926,10 +1926,13 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `termo_assinado_em` | `TIMESTAMPTZ` | — | — | — |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
 | `updated_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `area` | `TEXT` | — | — | — |
+| `encerrada_em` | `DATE` | — | — | — |
 
 **Indexes:**
 - `idx_participacoes_participante` em `(participante_id, colegiado_id)` (de `146_nsp_fundacao.sql`)
 - `idx_participacoes_colegiado_vigencia` em `(colegiado_id, vigencia_inicio, vigencia_fim)` (de `146_nsp_fundacao.sql`)
+- `uq_participacoes_aberta_por_pessoa` em `(colegiado_id, participante_id)` (de `150_nsp_membros.sql`)
 
 ## nsp_documentos
 
@@ -1951,6 +1954,25 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `nsp_documentos_um_vigente_por_tipo` em `(tipo)` (de `147_nsp_documentos.sql`)
 
+## participacoes_trilha
+
+> Origem: `150_nsp_membros.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `participacao_id` | `UUID` | NOT NULL | — | `participacoes.id` |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `acao` | `TEXT` | NOT NULL | — | — |
+| `campo` | `TEXT` | — | — | — |
+| `valor_anterior` | `TEXT` | — | — | — |
+| `valor_novo` | `TEXT` | — | — | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_participacoes_trilha_participacao` em `(participacao_id, created_at DESC)` (de `150_nsp_membros.sql`)
+- `idx_participacoes_trilha_autor` em `(autor_id)` (de `150_nsp_membros.sql`)
+
 ---
 
-**Resumo:** 95 tabelas vivas.
+**Resumo:** 96 tabelas vivas.

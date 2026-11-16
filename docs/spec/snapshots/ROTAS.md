@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T01:41+0000 -->
+<!-- last_update: 2026-11-16T01:45+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -473,6 +473,18 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/nsp/documentos` | Publica a versão seguinte do tipo, que passa a ser a vigente. | ✅ |
 | GET | `/nsp/documentos/{documento_id}` | Uma versão inteira, com o texto (o Regimento e o Plano lidos na tela). | ✅ |
 
+## seguranca-do-paciente (`app/routers/seguranca_do_paciente_membros.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| GET | `/nsp/membros` | Todas as Participações do Núcleo, encerradas inclusive, com o estado de | ✅ |
+| POST | `/nsp/membros` | Cadastrar membro | ✅ |
+| GET | `/nsp/membros/pessoas` | As pessoas ativas do cadastro, só id e nome, para escolher no cadastro. | ✅ |
+| PATCH | `/nsp/membros/{participacao_id}` | Editar membro | ✅ |
+| POST | `/nsp/membros/{participacao_id}/encerrar` | Encerra sem apagar: a vigência termina no dia (inclusive) e a linha | ✅ |
+| POST | `/nsp/membros/{participacao_id}/renovar` | Estende o fim da vigência. A mesma Participação segue, com a trilha | ✅ |
+| GET | `/nsp/membros/{participacao_id}/trilha` | Trilha do membro | ✅ |
+
 ## seguranca-do-paciente (`app/routers/seguranca_do_paciente_reunioes.py`)
 
 | Método | Rota | O que faz | Auth |
@@ -582,4 +594,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 331 endpoints em 49 routers · 93% exigem auth.
+**Totais:** 338 endpoints em 50 routers · 93% exigem auth.

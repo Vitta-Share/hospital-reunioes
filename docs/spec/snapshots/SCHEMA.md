@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T01:41+0000 -->
+<!-- last_update: 2026-11-16T01:45+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -65,6 +65,7 @@ erDiagram
     colegiados ||--o{ participacoes : "colegiado_id"
     colegiados ||--o{ reunioes : "colegiado_id"
     ouvidoria_pontos ||--o{ ouvidoria_avaliacoes : "ponto_id"
+    participacoes ||--o{ participacoes_trilha : "participacao_id"
     participantes ||--o{ audit_log : "actor_id"
     participantes ||--o{ bulk_jobs : "actor_id"
     participantes ||--o{ cm_cenario : "autor_id"
@@ -99,6 +100,7 @@ erDiagram
     participantes ||--o{ ouvidoria_prorrogacoes : "decidida_por"
     participantes ||--o{ ouvidoria_tentativas_contato : "autor_id"
     participantes ||--o{ participacoes : "participante_id"
+    participantes ||--o{ participacoes_trilha : "autor_id"
     participantes ||--o{ pendencias : "co_responsavel_id"
     participantes ||--o{ pendencias : "responsavel_id"
     participantes ||--o{ pops : "criado_por"
@@ -1025,7 +1027,7 @@ erDiagram
         DATE vigencia_fim
         TIMESTAMPTZ termo_assinado_em
         TIMESTAMPTZ created_at
-        _ mais_colunas "+1"
+        _ mais_colunas "+3"
     }
     nsp_documentos {
         UUID id PK
@@ -1037,6 +1039,16 @@ erDiagram
         BOOLEAN vigente
         TEXT arquivo_assinado_path
         _ mais_colunas "+2"
+    }
+    participacoes_trilha {
+        UUID id PK
+        UUID participacao_id FK
+        VARCHAR autor_id FK
+        TEXT acao
+        TEXT campo
+        TEXT valor_anterior
+        TEXT valor_novo
+        TIMESTAMPTZ created_at
     }
 ```
 
@@ -1203,7 +1215,10 @@ erDiagram
 | `ouvidoria_convite_google_auditoria` | `idx_ouvidoria_convite_google_auditoria_em` | `alterado_em DESC` | `142_ouvidoria_convite_google_no_qr.sql` |
 | `participacoes` | `idx_participacoes_participante` | `participante_id, colegiado_id` | `146_nsp_fundacao.sql` |
 | `participacoes` | `idx_participacoes_colegiado_vigencia` | `colegiado_id, vigencia_inicio, vigencia_fim` | `146_nsp_fundacao.sql` |
+| `participacoes` | `uq_participacoes_aberta_por_pessoa` | `colegiado_id, participante_id` | `150_nsp_membros.sql` |
 | `nsp_documentos` | `nsp_documentos_um_vigente_por_tipo` | `tipo` | `147_nsp_documentos.sql` |
+| `participacoes_trilha` | `idx_participacoes_trilha_participacao` | `participacao_id, created_at DESC` | `150_nsp_membros.sql` |
+| `participacoes_trilha` | `idx_participacoes_trilha_autor` | `autor_id` | `150_nsp_membros.sql` |
 
 ---
-**Resumo:** 95 tabelas · 136 relacionamentos FK detectados.
+**Resumo:** 96 tabelas · 138 relacionamentos FK detectados.
