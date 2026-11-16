@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-16T19:20:36-03:00",
+      "sha": "e74110014e70504aee71f4d8c68adaec988ea6d4",
+      "app_version": "0.304.0",
+      "subject": "Onda onda-respondedor-onda1: Fila recortada por papel, responsável vê só o setor dele; Ações da Tela do responsável num serviço só, com ator e porta na trilha",
+      "raw_subject": "chore(deploy): registro da onda onda-respondedor-onda1 (#1890 #1889)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1883
+      ],
+      "result": "healthy",
+      "duration_seconds": 402,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta onda-respondedor-onda1: PR #1890 (issue #1884), PR #1889 (issue #1885), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 6,
+        "build_s": {
+          "backend": 25,
+          "frontend": 198
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-16T17:16:57-03:00",
       "sha": "1cf413d012f86bc580ffa79c0086c64767160166",
       "app_version": "0.303.0",
