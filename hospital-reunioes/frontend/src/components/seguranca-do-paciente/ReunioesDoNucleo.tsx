@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { CalendarDays, CalendarPlus, ClipboardList, Lock, Plus, Users } from "lucide-react";
+import { CalendarDays, CalendarPlus, ClipboardList, Lock, Plus, Users, X } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
 
@@ -11,6 +11,21 @@ import { PresencaDaReuniao } from "./PresencaDaReuniao";
 
 const CARTAO = "bg-white rounded-2xl border border-border shadow-premium";
 const ROTA = "/api/nsp/reunioes";
+const ROTA_RAPIDA = "/api/nsp/reunioes/rapidas";
+
+/** A reunião rápida de segurança (issue #1777): sem ata, um registro de até três linhas. */
+const RAPIDA = "Reunião rápida de segurança";
+const TETO_DE_LINHAS = 3;
+
+/** Corta o que passa da terceira linha: o texto da rápida não aceita mais. */
+function ateTresLinhas(texto: string): string {
+  return texto.split("\n").slice(0, TETO_DE_LINHAS).join("\n");
+}
+
+interface Pessoa {
+  id: string;
+  nome: string;
+}
 
 export interface ReuniaoDoNucleo {
   id_reuniao: string;
@@ -19,6 +34,10 @@ export interface ReuniaoDoNucleo {
   tipo: string;
   titulo: string | null;
   status_ata: string | null;
+  /** Só na reunião rápida, que não tem ata. O texto e os nomes vêm só para quem pode abrir. */
+  rapida?: boolean;
+  texto?: string;
+  participantes?: string[];
 }
 
 interface Calendario {
@@ -96,6 +115,12 @@ export function ReunioesDoNucleo() {
   const [pautaAberta, setPautaAberta] = useState<string | null>(null);
   // A reunião com o painel de presença aberto (issue #1774).
   const [presenca, setPresenca] = useState<string | null>(null);
+  const [setor, setSetor] = useState("");
+  const [texto, setTexto] = useState("");
+  const [participantes, setParticipantes] = useState<string[]>([]);
+  const [pessoas, setPessoas] = useState<Pessoa[]>([]);
+  const [setores, setSetores] = useState<string[]>([]);
+  const rapida = tipo === RAPIDA;
 
   const carregar = useCallback(async () => {
     const tk = await token();
@@ -117,25 +142,50 @@ export function ReunioesDoNucleo() {
     carregar();
   }, [carregar]);
 
+  // Quem participou e o setor só entram na reunião rápida: as listas vêm
+  // quando a Presidência escolhe esse tipo.
+  useEffect(() => {
+    if (!criando || !rapida) return;
+    (async () => {
+      const tk = await token();
+      const headers = { Authorization: `Bearer ${tk}` };
+      const [rp, rs] = await Promise.all([
+        fetch("/api/nsp/membros/pessoas", { headers }),
+        fetch("/api/participantes/setores", { headers }),
+      ]);
+      if (rp.ok) setPessoas(((await rp.json()) as { pessoas: Pessoa[] }).pessoas);
+      if (rs.ok) setSetores((await rs.json()) as string[]);
+    })();
+  }, [criando, rapida]);
+
   async function criar(e: FormEvent) {
     e.preventDefault();
     setSalvando(true);
     setErro(null);
     const tk = await token();
-    const res = await fetch(ROTA, {
+    const res = await fetch(rapida ? ROTA_RAPIDA : ROTA, {
       method: "POST",
       headers: { Authorization: `Bearer ${tk}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ titulo, data, tipo, hora_inicio: hora || null }),
+      body: JSON.stringify(
+        rapida ? { data, setor, participantes, texto } : { titulo, data, tipo, hora_inicio: hora || null },
+      ),
     });
     setSalvando(false);
     if (!res.ok) {
-      setErro("Não consegui criar a reunião. Confira o título, a data e o tipo.");
+      setErro(
+        rapida
+          ? "Não consegui registrar a reunião rápida. Confira a data, o setor, quem participou e o texto."
+          : "Não consegui criar a reunião. Confira o título, a data e o tipo.",
+      );
       return;
     }
     setCriando(false);
     setTitulo("");
     setData("");
     setHora("");
+    setSetor("");
+    setTexto("");
+    setParticipantes([]);
     await carregar();
   }
 
@@ -261,15 +311,17 @@ export function ReunioesDoNucleo() {
 
       {criando && (
         <form onSubmit={criar} aria-label="Nova reunião do Núcleo" className={`${CARTAO} space-y-3 px-4 py-4`}>
-          <label className="block text-sm text-slate-700">
-            Título
-            <input
-              required
-              value={titulo}
-              onChange={(e) => setTitulo(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm"
-            />
-          </label>
+          {!rapida && (
+            <label className="block text-sm text-slate-700">
+              Título
+              <input
+                required
+                value={titulo}
+                onChange={(e) => setTitulo(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm"
+              />
+            </label>
+          )}
           <div className="flex flex-wrap gap-3">
             <label className="block text-sm text-slate-700">
               Data
@@ -281,15 +333,17 @@ export function ReunioesDoNucleo() {
                 className="mt-1 block rounded-lg border border-border px-3 py-2 text-sm"
               />
             </label>
-            <label className="block text-sm text-slate-700">
-              Hora
-              <input
-                type="time"
-                value={hora}
-                onChange={(e) => setHora(e.target.value)}
-                className="mt-1 block rounded-lg border border-border px-3 py-2 text-sm"
-              />
-            </label>
+            {!rapida && (
+              <label className="block text-sm text-slate-700">
+                Hora
+                <input
+                  type="time"
+                  value={hora}
+                  onChange={(e) => setHora(e.target.value)}
+                  className="mt-1 block rounded-lg border border-border px-3 py-2 text-sm"
+                />
+              </label>
+            )}
           </div>
           <label className="block text-sm text-slate-700">
             Tipo
@@ -305,13 +359,93 @@ export function ReunioesDoNucleo() {
               ))}
             </select>
           </label>
+          {rapida && (
+            <>
+              <p className="text-xs text-slate-500">Sem ata nem assinatura: fica só o registro.</p>
+              <label className="block text-sm text-slate-700">
+                Setor
+                <input
+                  required
+                  maxLength={120}
+                  list="nsp-rapida-setores"
+                  value={setor}
+                  onChange={(e) => setSetor(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm"
+                />
+                <datalist id="nsp-rapida-setores">
+                  {setores.map((s) => (
+                    <option key={s} value={s} />
+                  ))}
+                </datalist>
+              </label>
+              <div className="text-sm text-slate-700">
+                <label htmlFor="nsp-rapida-participante">Participantes</label>
+                <select
+                  id="nsp-rapida-participante"
+                  value=""
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    if (id) setParticipantes((atual) => (atual.includes(id) ? atual : [...atual, id]));
+                  }}
+                  className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm bg-white"
+                >
+                  <option value="">Adicionar quem participou</option>
+                  {pessoas
+                    .filter((p) => !participantes.includes(p.id))
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.nome}
+                      </option>
+                    ))}
+                </select>
+                {participantes.length > 0 && (
+                  <ul className="mt-2 flex flex-wrap gap-2">
+                    {participantes.map((id) => {
+                      const nome = pessoas.find((p) => p.id === id)?.nome ?? id;
+                      return (
+                        <li
+                          key={id}
+                          className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700"
+                        >
+                          {nome}
+                          <button
+                            type="button"
+                            aria-label={`Tirar ${nome}`}
+                            onClick={() => setParticipantes((atual) => atual.filter((p) => p !== id))}
+                          >
+                            <X className="w-3 h-3" aria-hidden />
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+              <div className="text-sm text-slate-700">
+                <label htmlFor="nsp-rapida-texto">O que foi conversado</label>
+                <textarea
+                  id="nsp-rapida-texto"
+                  required
+                  rows={TETO_DE_LINHAS}
+                  maxLength={500}
+                  aria-describedby="nsp-rapida-texto-dica"
+                  value={texto}
+                  onChange={(e) => setTexto(ateTresLinhas(e.target.value))}
+                  className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm resize-none"
+                />
+                <span id="nsp-rapida-texto-dica" className="block text-xs text-slate-500">
+                  Até três linhas.
+                </span>
+              </div>
+            </>
+          )}
           <div className="flex gap-2">
             <button
               type="submit"
-              disabled={salvando}
+              disabled={salvando || (rapida && participantes.length === 0)}
               className="rounded-xl bg-[#282760] text-white text-sm font-semibold px-4 py-2.5 disabled:opacity-60"
             >
-              Criar reunião
+              {rapida ? "Registrar" : "Criar reunião"}
             </button>
             <button
               type="button"
@@ -353,6 +487,12 @@ export function ReunioesDoNucleo() {
                         {r.tipo}
                         {r.hora_inicio ? `, ${r.hora_inicio.slice(0, 5)}` : ""}
                       </span>
+                      {r.texto && <span className="block mt-1 text-sm text-slate-700 whitespace-pre-line">{r.texto}</span>}
+                      {r.participantes && r.participantes.length > 0 && (
+                        <span className="block mt-1 text-xs text-slate-500">
+                          Participaram: {r.participantes.join(", ")}
+                        </span>
+                      )}
                     </span>
                     {r.status_ata === "NAO_INSTALADA" && (
                       <span className="ml-auto shrink-0 rounded-full bg-orange-100 text-orange-800 text-xs font-semibold px-2 py-0.5">
@@ -365,7 +505,7 @@ export function ReunioesDoNucleo() {
                 const podePresenca = calendario.pode_criar && r.status_ata === "PROGRAMADA";
                 return (
                   <li key={r.id_reuniao} className="space-y-2">
-                    {calendario.pode_abrir ? (
+                    {calendario.pode_abrir && !r.rapida ? (
                       <div className="flex gap-2 items-stretch">
                         <Link
                           href={`/reunioes/${r.id_reuniao}`}
