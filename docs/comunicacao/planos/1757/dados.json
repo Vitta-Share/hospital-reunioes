@@ -1,0 +1,417 @@
+{
+ "prd": 1757,
+ "contexto": "Reuniões",
+ "titulo_aba": "Plano das Pendências",
+ "descricao": "O plano do pedido de Pendências, rotinas, painel e calendário das Reuniões, em 7 etapas, para o diretor validar antes do trabalho começar.",
+ "selo": "Plano para validar · Demanda 32",
+ "titulo": "As pendências ganham histórico,",
+ "destaque": "e o painel passa a cobrar.",
+ "resumo": "Este é o plano do pedido que você fez na Demanda 32. São 20 partes, em 7 etapas, e nenhuma foi entregue ainda. Passe o mouse em cada parte para ver o que muda, do que ela depende e como vamos saber que ficou pronta. No fim da página, você valida o plano.",
+ "numeros": [
+  {
+   "valor": 20,
+   "rotulo": "partes"
+  },
+  {
+   "valor": 7,
+   "rotulo": "etapas, uma depois da outra"
+  },
+  {
+   "valor": 4,
+   "rotulo": "respostas suas de 16/11 já incluídas"
+  }
+ ],
+ "decidido": {
+  "titulo": "O plano segue as suas escolhas",
+  "texto": "Estas decisões vieram do planejamento na aba Tecnologia e das quatro respostas que você deu em 16/11.",
+  "blocos": [
+   {
+    "titulo": "No planejamento",
+    "numerado": false,
+    "itens": [
+     "Toda mudança de pendência pede anotação, e o histórico nunca se apaga.",
+     "O responsável conclui e repactua sozinho. Atraso e reabertura pesam no ranking de 90 dias.",
+     "O fluxo contínuo vira rotina semanal, quinzenal ou mensal, com verificação por ciclo.",
+     "Processo vai para uma lista do setor nas Reuniões, sem virar meta.",
+     "E-mail às segundas, 8h, para o facilitador e o responsável."
+    ]
+   },
+   {
+    "titulo": "Nas suas respostas de 16/11",
+    "numerado": true,
+    "itens": [
+     "Abrem a foto ou o PDF da conclusão: o responsável, o facilitador, o diretor executivo e o superadmin.",
+     "Só o superadmin vê a lista de processos do setor. A secretária não vê.",
+     "Só o facilitador ou o superadmin tiram um item da lista, sempre com anotação.",
+     "Reunião com todas as pendências canceladas não se exclui. Ela segue com a ata e o histórico."
+    ]
+   }
+  ]
+ },
+ "fora": {
+  "itens": [
+   "Organograma",
+   "Visão da equipe",
+   "Rascunho e revisão de POP"
+  ],
+  "texto": "Esses três ficam para depois."
+ },
+ "etapas": [
+  {
+   "nome": "A base",
+   "texto": "Calendário, setor das reuniões, as regras novas da pendência e quem vê o quê. As outras etapas dependem desta."
+  },
+  {
+   "nome": "As pendências mudam",
+   "texto": "Nascem no envio da ata, guardam a prova da conclusão, e o painel passa a cobrar."
+  },
+  {
+   "nome": "Assinatura e painel",
+   "texto": "Contestar um item na assinatura, o gráfico por setor com o ranking, e um tipo para cada item da ata."
+  },
+  {
+   "nome": "Rotinas e processos",
+   "texto": "Rotina com verificação por ciclo, a lista de processos do setor e a evolução das semanas."
+  },
+  {
+   "nome": "A cobrança semanal",
+   "texto": "O e-mail de segunda, e as pendências antigas de fluxo contínuo viram rotina."
+  },
+  {
+   "nome": "Quem não usa o app",
+   "texto": "Link pessoal para atualizar sem senha, e as rotinas entram no ranking."
+  },
+  {
+   "nome": "O manual",
+   "texto": "Tudo o que mudou, explicado com passos e prints."
+  }
+ ],
+ "partes": [
+  {
+   "id": 1,
+   "etapa": 1,
+   "titulo": "Calendário em ordem de horário",
+   "muda": "No calendário, as reuniões de cada dia aparecem na ordem do horário, e o botão de excluir reunião deixa de ser o mais chamativo da tela.",
+   "vale": "Fica mais fácil achar a reunião do dia e mais difícil excluir uma sem querer.",
+   "saber": [
+    "Dentro de cada dia, a reunião mais cedo vem primeiro.",
+    "Passando o mouse sobre a reunião, aparece o título completo.",
+    "Excluir continua existindo, mas com aparência discreta."
+   ],
+   "pronto": "Num dia com reuniões às 14h, 8h e 10h, o calendário mostra 8h, 10h e 14h, e o título longo aparece inteiro ao passar o mouse.",
+   "depende": []
+  },
+  {
+   "id": 2,
+   "etapa": 1,
+   "titulo": "Toda reunião com setor",
+   "muda": "Toda reunião passa a ter setor, e o superadmin ganha uma tela para preencher o setor das reuniões e dos responsáveis antigos que ficaram sem.",
+   "vale": "O gráfico por setor só mostra o retrato certo quando reuniões e responsáveis têm setor.",
+   "saber": [
+    "Não dá para agendar reunião sem escolher o setor.",
+    "As reuniões e os responsáveis antigos sem setor aparecem numa lista para o superadmin acertar."
+   ],
+   "pronto": "Ninguém consegue agendar reunião sem setor, e cada reunião antiga sai da lista do superadmin quando ele preenche o setor dela.",
+   "depende": []
+  },
+  {
+   "id": 3,
+   "etapa": 1,
+   "titulo": "Pendência com anotação e histórico",
+   "muda": "Toda mudança de pendência passa a pedir uma anotação e fica guardada num histórico que ninguém edita nem apaga, e o atraso passa a ser medido pelo prazo que estourou.",
+   "vale": "Você passa a ter o registro de como cada pendência andou, que é a base para cobrar e avaliar os responsáveis.",
+   "saber": [
+    "Iniciar, concluir, repactuar, cancelar ou reabrir sempre pede uma anotação.",
+    "A pendência vencida fica atrasada com o prazo que venceu, até ser repactuada ou concluída.",
+    "Repactuar antes de vencer não conta como atraso; depois de vencer, conta."
+   ],
+   "pronto": "Não existe jeito de mudar uma pendência sem anotação, e ninguém consegue editar ou apagar o histórico.",
+   "depende": []
+  },
+  {
+   "id": 4,
+   "etapa": 1,
+   "titulo": "Cada um vê o que é seu",
+   "muda": "Cada pessoa passa a ver só as pendências que são dela ou das reuniões que ela facilitou, o superadmin vê todas, e a secretária não vê nenhuma.",
+   "vale": "Ninguém vê a cobrança dos outros sem motivo, e cada um acha logo o que é seu.",
+   "saber": [
+    "O responsável vê só as pendências dele.",
+    "O facilitador vê as pendências das reuniões que ele facilitou, além das dele.",
+    "Quem só participou da reunião deixa de ver as pendências dos outros."
+   ],
+   "pronto": "Quem só participou da reunião não vê a pendência de outra pessoa em nenhuma tela.",
+   "depende": []
+  },
+  {
+   "id": 5,
+   "etapa": 2,
+   "titulo": "Nada apaga pendência",
+   "muda": "Excluir uma reunião nunca mais apaga as pendências dela, e uma reunião que já teve pendência não pode ser excluída.",
+   "vale": "O histórico das pendências fica guardado, mesmo quando uma reunião sai da agenda.",
+   "saber": [
+    "Reunião que nunca teve pendência continua podendo ser excluída.",
+    "Reunião que já teve pendência mostra por que não pode ser excluída."
+   ],
+   "pronto": "Tentar excluir uma reunião com pendência, mesmo cancelada, mostra uma mensagem que explica o motivo.",
+   "depende": [
+    3
+   ]
+  },
+  {
+   "id": 6,
+   "etapa": 2,
+   "titulo": "Foto ou PDF na conclusão",
+   "muda": "Ao concluir uma pendência, o responsável pode anexar uma foto ou um PDF além da anotação, que continua obrigatória.",
+   "vale": "Quem confere a entrega consegue ver a prova sem pedir por fora.",
+   "saber": [
+    "O anexo é opcional; a anotação de texto é que é obrigatória.",
+    "A tela lembra de não mandar foto com paciente ou documento interno sensível.",
+    "Só quem tem motivo consegue abrir o anexo."
+   ],
+   "pronto": "Concluir sem anexo funciona, concluir sem anotação não, e só quem tem motivo abre o arquivo.",
+   "depende": [
+    3
+   ]
+  },
+  {
+   "id": 7,
+   "etapa": 2,
+   "titulo": "Núcleo com o mesmo histórico",
+   "muda": "As pendências do Núcleo de Segurança do Paciente passam a ter o mesmo histórico das outras, com o resultado do lembrete valendo como anotação.",
+   "vale": "Toda pendência do hospital fica com o mesmo registro, sem exceção para o Núcleo.",
+   "saber": [
+    "Responder um lembrete do Núcleo grava um evento no histórico da pendência.",
+    "O que a pessoa escreveu no lembrete é a anotação."
+   ],
+   "pronto": "A resposta a um lembrete do Núcleo aparece no histórico da pendência, com o texto escrito.",
+   "depende": [
+    3
+   ]
+  },
+  {
+   "id": 8,
+   "etapa": 2,
+   "titulo": "Pendência nasce no envio da ata",
+   "muda": "As pendências passam a existir no momento em que o facilitador aprova a ata e manda para assinatura, sem esperar ninguém assinar.",
+   "vale": "Nenhuma pendência fica parada esperando assinatura, e a cobrança começa no mesmo dia.",
+   "saber": [
+    "A assinatura passa a ser a ciência da ata.",
+    "Se a assinatura eletrônica falhar, aparece o Reenviar, e as pendências já nasceram.",
+    "As atas que já estão em assinatura ganham as pendências delas logo que a mudança entrar."
+   ],
+   "pronto": "Ao mandar a ata para assinatura, todas as pendências dela aparecem na hora, e reenviar não repete nenhuma.",
+   "depende": [
+    3
+   ]
+  },
+  {
+   "id": 9,
+   "etapa": 2,
+   "titulo": "Painel com alerta de 48 horas",
+   "muda": "O painel passa a mostrar a cada pessoa o que vence nas próximas 48 horas, uma fila com o que depende dela e cards com os números das reuniões e pendências dela.",
+   "vale": "Cada um abre o app e vê na hora o que precisa fazer, com números que contam a base inteira.",
+   "saber": [
+    "A pendência entra no alerta 48 horas antes de vencer.",
+    "A Minha Fila traz também a ata que a pessoa ainda precisa assinar, e o facilitador tem o Cobrar para quem falta assinar.",
+    "A secretária não vê o painel de pendências."
+   ],
+   "pronto": "Uma pendência que vence em 47 horas entra no alerta, e uma que vence em 49 horas ainda não.",
+   "depende": [
+    3,
+    4
+   ]
+  },
+  {
+   "id": 10,
+   "etapa": 3,
+   "titulo": "Contestar um item da ata",
+   "muda": "Durante a assinatura, o responsável por um item pode contestar aquele item e assinar a ata mesmo assim, e o facilitador vê a contestação na hora para ajustar ou recusar.",
+   "vale": "Erro de prazo ou de responsável na ata é corrigido sem travar a assinatura.",
+   "saber": [
+    "Só o responsável pelo item contesta.",
+    "O item contestado continua cobrado até o facilitador ajustar.",
+    "O ajuste fica na pendência e no histórico, e a ata não volta para assinar de novo."
+   ],
+   "pronto": "O responsável contesta e assina, o item segue cobrado, e o facilitador vê a contestação na Minha Fila.",
+   "depende": [
+    8,
+    9
+   ]
+  },
+  {
+   "id": 11,
+   "etapa": 3,
+   "titulo": "Gráfico por setor e ranking",
+   "muda": "O painel ganha o gráfico de atrasos por setor e o ranking dos responsáveis nos últimos 90 dias, com atrasos e reaberturas lado a lado.",
+   "vale": "Você vê quem atrasa e onde, com o hospital inteiro na conta.",
+   "saber": [
+    "O ranking conta os últimos 90 dias.",
+    "Aparece para o superadmin e para quem facilitou pelo menos uma reunião; o responsável não vê ranking.",
+    "O setor que conta é o do responsável pela pendência."
+   ],
+   "pronto": "Pendência cancelada fica fora do ranking, e repactuar depois do vencimento conta para o responsável.",
+   "depende": [
+    2,
+    9
+   ]
+  },
+  {
+   "id": 12,
+   "etapa": 3,
+   "titulo": "Ação, Rotina ou Processo",
+   "muda": "Cada item da ata passa a ser marcado como Ação, Rotina ou Processo, e só a Ação vira pendência com prazo.",
+   "vale": "O que se repete deixa de virar pendência sem prazo, e o que é regra do setor deixa de ser cobrado como tarefa.",
+   "saber": [
+    "A IA sugere o tipo e o facilitador ajusta na validação da ata.",
+    "Rotina precisa de responsável e frequência antes de enviar a ata.",
+    "Item sem tipo vale como Ação."
+   ],
+   "pronto": "Ao enviar a ata, só os itens marcados como Ação viram pendência.",
+   "depende": [
+    8
+   ]
+  },
+  {
+   "id": 13,
+   "etapa": 4,
+   "titulo": "Evolução de 8 semanas",
+   "muda": "Toda segunda o app guarda os números da semana, e o painel passa a mostrar a evolução das últimas 8 semanas e a seta de subida ou descida em cada card.",
+   "vale": "Você vê se o atraso está melhorando, com números medidos de verdade.",
+   "saber": [
+    "A seta aparece a partir da segunda semana depois da mudança.",
+    "A evolução começa a contar quando a mudança entra, sem número aproximado do passado."
+   ],
+   "pronto": "A seta do card só aparece quando já existe a semana anterior para comparar.",
+   "depende": [
+    11
+   ]
+  },
+  {
+   "id": 14,
+   "etapa": 4,
+   "titulo": "Rotina com verificação por ciclo",
+   "muda": "O que antes era fluxo contínuo vira rotina semanal, quinzenal ou mensal, e o responsável marca a cada ciclo se fez ou não.",
+   "vale": "Rotina passa a poder atrasar e ser cobrada, coisa que o fluxo contínuo nunca fez.",
+   "saber": [
+    "A quinzena vai do dia 1 ao 15 e do 16 ao fim do mês.",
+    "Realizada é um clique; Não realizada pede anotação.",
+    "A rotina começa no primeiro ciclo inteiro depois da ata."
+   ],
+   "pronto": "Marcar \"Não realizada\" sem anotação não passa, e a verificação feita depois do ciclo fica registrada como atrasada.",
+   "depende": [
+    9,
+    12
+   ]
+  },
+  {
+   "id": 15,
+   "etapa": 4,
+   "titulo": "Lista de processos do setor",
+   "muda": "Os itens da ata marcados como Processo vão para uma lista do setor dentro das Reuniões, com o trecho da ata copiado.",
+   "vale": "As regras combinadas em reunião ficam num lugar só, sem virar tarefa cobrada.",
+   "saber": [
+    "A lista é por setor e fica nas Reuniões, não nos POPs.",
+    "Cada item traz o trecho da ata, sem precisar abrir a ata.",
+    "Tirar um item da lista pede anotação."
+   ],
+   "pronto": "O facilitador vê a lista do setor dele, o superadmin vê todas, e a secretária não vê nenhuma.",
+   "depende": [
+    2,
+    12
+   ]
+  },
+  {
+   "id": 16,
+   "etapa": 5,
+   "titulo": "E-mail de segunda",
+   "muda": "Toda segunda às 8h, o facilitador recebe o resumo da semana das reuniões dele, e o responsável recebe as pendências dele que seguem em aberto.",
+   "vale": "A cobrança chega sozinha uma vez por semana, sem e-mail solto durante a semana.",
+   "saber": [
+    "O facilitador recebe o que foi concluído, atualizado e repactuado na semana, mais o que segue atrasado.",
+    "O responsável recebe só as pendências dele em aberto.",
+    "Quem não tem nada para ver não recebe e-mail."
+   ],
+   "pronto": "Cada pessoa recebe um e-mail só na segunda, e quem não tem nada para ver não recebe.",
+   "depende": [
+    3,
+    13
+   ]
+  },
+  {
+   "id": 17,
+   "etapa": 5,
+   "titulo": "Fluxo contínuo vira Rotina",
+   "muda": "As pendências antigas de fluxo contínuo viram rotina, e o facilitador escolhe a frequência de cada uma.",
+   "vale": "Nada do que já existia fica de fora da cobrança nova.",
+   "saber": [
+    "A rotina convertida espera o facilitador escolher a frequência, na Minha Fila dele.",
+    "Pendência sem prazo que não é fluxo contínuo vai para a lista do superadmin acertar."
+   ],
+   "pronto": "Cada pendência antiga de fluxo contínuo vira uma rotina só, e as que não se encaixam vão para o superadmin acertar.",
+   "depende": [
+    2,
+    14
+   ]
+  },
+  {
+   "id": 18,
+   "etapa": 6,
+   "titulo": "Link pessoal sem senha",
+   "muda": "Quem nunca entrou no app recebe, no e-mail de segunda, um link pessoal para atualizar as próprias pendências sem precisar de senha.",
+   "vale": "A pequena parte dos responsáveis que não usa o app também consegue concluir e repactuar com anotação.",
+   "saber": [
+    "O link só serve para as pendências daquela pessoa.",
+    "O link tem validade e pode ser cancelado.",
+    "Quem já entrou no app recebe o link comum."
+   ],
+   "pronto": "O link de uma pessoa não abre a pendência de outra, e o link vencido mostra uma mensagem clara.",
+   "depende": [
+    16
+   ]
+  },
+  {
+   "id": 19,
+   "etapa": 6,
+   "titulo": "Rotina no ranking e no e-mail",
+   "muda": "A verificação de rotina não feita passa a contar no ranking, e o e-mail de segunda traz as verificações da semana.",
+   "vale": "Rotina esquecida pesa na avaliação do responsável como pendência atrasada.",
+   "saber": [
+    "No ranking, as rotinas não realizadas ou atrasadas aparecem ao lado dos atrasos e reaberturas.",
+    "O e-mail de segunda do facilitador traz as verificações da semana e as não realizadas."
+   ],
+   "pronto": "Rotina não feita aparece no ranking do responsável e no e-mail de segunda do facilitador.",
+   "depende": [
+    11,
+    14,
+    16
+   ]
+  },
+  {
+   "id": 20,
+   "etapa": 7,
+   "titulo": "Manual atualizado",
+   "muda": "O manual de Reuniões e Pendências passa a explicar, passo a passo e com prints, tudo o que mudou neste pedido.",
+   "vale": "Quem usa o app aprende o jeito novo sem precisar perguntar.",
+   "saber": [
+    "Cada tarefa nova ou alterada tem passos numerados e pelo menos um print.",
+    "Os prints usam só dado fictício."
+   ],
+   "pronto": "Cada tarefa nova tem passos numerados e pelo menos um print, sem nenhum dado real.",
+   "depende": [
+    1,
+    2,
+    3,
+    6,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    18
+   ]
+  }
+ ]
+}

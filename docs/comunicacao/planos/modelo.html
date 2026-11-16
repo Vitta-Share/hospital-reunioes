@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{{titulo_aba}}</title>
+<meta name="description" content="{{descricao}}" />
+<meta name="robots" content="noindex" />
+<style>
+  /* Design system do app (globals.css do Hospital Reuniões) */
+  @font-face{font-family:"HP Simplified";src:url("/HPSimplified_Rg.ttf") format("truetype");font-weight:400;font-style:normal;font-display:swap}
+  :root{
+    --color-primary:#2B2E7E;--color-primary-light:#3B6FB6;--color-primary-dark:#1A1C4E;
+    --color-secondary:#88D7A4;--color-accent:#FFC067;
+    --color-bg:#ffffff;--color-surface:#ffffff;--color-soft:#EEF2FA;
+    --color-text:#1E293B;--color-text-secondary:#64748B;--color-border:#E2E8F0;
+    --color-shadow:rgba(0,0,0,.08);--color-shadow-strong:rgba(0,0,0,.12);
+    --shadow-premium:0 10px 25px -5px var(--color-shadow),0 8px 10px -6px var(--color-shadow);
+    --shadow-premium-strong:0 20px 25px -5px var(--color-shadow-strong),0 8px 10px -6px var(--color-shadow-strong);
+    --radius-xl:6px;--radius-2xl:8px;--radius-3xl:12px;
+    --font-app:"HP Simplified",system-ui,-apple-system,sans-serif;
+    --ok:#1d7a45;
+  }
+  *{box-sizing:border-box}
+  em,i,cite{font-style:normal}
+  b,strong,h1,h2,h3{font-weight:400}
+  html{font-size:17px;scroll-behavior:smooth}
+  body{margin:0;background:var(--color-bg);color:var(--color-text);font-family:var(--font-app);line-height:1.6;-webkit-font-smoothing:antialiased}
+  button,textarea{font-family:inherit;font-size:inherit;color:inherit}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+  @media(max-width:600px){.wrap{padding:0 16px}}
+
+  /* cabeçalho */
+  header.top{position:sticky;top:0;z-index:40;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--color-border)}
+  .top-in{display:flex;align-items:center;gap:14px;padding:10px 0}
+  .top-logo{height:40px;width:auto;display:block;animation:logo .6s ease both}
+  @keyframes logo{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+  .top-t{font-size:16px;color:var(--color-primary-dark)}
+  .estado{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--color-text-secondary);white-space:nowrap}
+  .ponto{width:8px;height:8px;border-radius:50%;background:var(--color-accent);animation:pulso 2.2s infinite}
+  .estado.ok .ponto{background:var(--color-secondary)}
+  @keyframes pulso{0%{box-shadow:0 0 0 0 rgba(255,192,103,.6)}70%{box-shadow:0 0 0 8px rgba(255,192,103,0)}100%{box-shadow:0 0 0 0 rgba(255,192,103,0)}}
+
+  /* hero */
+  .hero{padding:52px 0 8px}
+  .eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--color-text-secondary)}
+  h1{font-size:clamp(30px,4.6vw,46px);line-height:1.12;margin:14px 0 16px;max-width:22ch;color:var(--color-primary-dark)}
+  h1 .hi{color:var(--color-primary-light)}
+  .dek{font-size:18px;color:var(--color-text-secondary);max-width:62ch;margin:0}
+  .entra{opacity:0;transform:translateY(10px);animation:entra .7s ease forwards}
+  .entra.d1{animation-delay:.1s}.entra.d2{animation-delay:.22s}.entra.d3{animation-delay:.34s}
+  @keyframes entra{to{opacity:1;transform:none}}
+
+  .numeros{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:32px 0 0}
+  .num{background:var(--color-soft);border-radius:var(--radius-3xl);padding:18px 20px}
+  .num .v{font-size:40px;line-height:1;color:var(--color-primary)}
+  .num .r{font-size:14px;color:var(--color-text-secondary);margin-top:6px}
+  @media(max-width:600px){.numeros{grid-template-columns:1fr}.num{display:flex;align-items:baseline;gap:12px}.num .r{margin:0}}
+
+  /* seções */
+  section{padding:44px 0 8px}
+  .mark{display:flex;align-items:center;gap:12px;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-text-secondary)}
+  .mark::before{content:"";width:34px;height:2px;background:var(--color-primary);border-radius:2px}
+  h2{font-size:clamp(23px,3vw,30px);margin:12px 0 10px;line-height:1.2;color:var(--color-primary-dark)}
+  .lede{color:var(--color-text-secondary);max-width:70ch;margin:0 0 22px}
+
+  /* o que já decidiu */
+  .duas{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:820px){.duas{grid-template-columns:1fr}}
+  .bloco{border:1px solid var(--color-border);border-radius:var(--radius-3xl);padding:20px 22px;box-shadow:var(--shadow-premium);background:var(--color-surface)}
+  .bloco h3{font-size:17px;margin:0 0 12px;color:var(--color-primary-dark)}
+  .bloco ol,.bloco ul{margin:0;padding:0;list-style:none;display:grid;gap:10px}
+  .bloco li{display:grid;grid-template-columns:24px 1fr;gap:10px;font-size:15px;color:var(--color-text)}
+  .bloco li .ck{width:22px;height:22px;border-radius:50%;background:rgba(136,215,164,.3);color:var(--ok);display:flex;align-items:center;justify-content:center;font-size:12px;margin-top:2px}
+  .bloco li .nn{width:22px;height:22px;border-radius:50%;background:var(--color-soft);color:var(--color-primary);display:flex;align-items:center;justify-content:center;font-size:12px;margin-top:2px}
+
+  /* o plano */
+  .faixa{background:var(--color-soft);margin-top:44px;padding:44px 0 56px}
+  .faixa section{padding-top:0}
+  .acoes{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:0 0 22px}
+  .btn{display:inline-flex;align-items:center;gap:10px;border:1px solid var(--color-primary);background:var(--color-primary);color:#fff;border-radius:9999px;padding:10px 20px;cursor:pointer;transition:background .2s,box-shadow .2s,transform .2s}
+  .btn:hover{background:var(--color-primary-dark);box-shadow:0 6px 16px -4px rgba(43,46,126,.45)}
+  .btn:active{transform:scale(.98)}
+  .btn.claro{background:var(--color-surface);color:var(--color-primary)}
+  .btn.claro:hover{background:#fff;color:var(--color-primary-dark)}
+  .btn:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+  .legenda{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--color-text-secondary)}
+  .legenda span{display:inline-flex;align-items:center;gap:6px}
+  .legenda i{width:12px;height:12px;border-radius:3px;display:inline-block}
+  .lg-a{background:var(--color-primary)}.lg-b{border:2px solid var(--color-primary-light);background:#fff}.lg-c{border:2px solid var(--color-accent);background:#fff}
+
+  .plano{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:28px;align-items:start}
+  @media(max-width:980px){.plano{grid-template-columns:1fr}}
+  .etapas{position:relative;display:grid;gap:8px}
+  .etapa{display:grid;grid-template-columns:52px minmax(0,1fr);gap:14px;position:relative;padding-bottom:18px}
+  .trilho{position:relative;display:flex;justify-content:center}
+  .trilho::before{content:"";position:absolute;top:44px;bottom:-10px;width:2px;background:var(--color-border)}
+  .trilho::after{content:"";position:absolute;top:44px;bottom:-10px;width:2px;background:var(--color-primary-light);transform:scaleY(0);transform-origin:top;transition:transform .9s ease}
+  .etapa:last-child .trilho::before,.etapa:last-child .trilho::after{display:none}
+  .etapa.visivel .trilho::after{transform:scaleY(1)}
+  .bola{position:relative;z-index:1;width:42px;height:42px;border-radius:50%;background:var(--color-surface);border:2px solid var(--color-border);color:var(--color-text-secondary);display:flex;align-items:center;justify-content:center;font-size:17px;transition:all .4s ease}
+  .etapa.visivel .bola{border-color:var(--color-primary);color:var(--color-primary)}
+  .etapa.acesa .bola{background:var(--color-primary);color:#fff;box-shadow:0 0 0 6px rgba(43,46,126,.12)}
+  .etapa-nome{font-size:19px;color:var(--color-primary-dark);margin:6px 0 2px}
+  .etapa-texto{font-size:14px;color:var(--color-text-secondary);margin:0 0 12px;max-width:62ch}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+  .parte{position:relative;text-align:left;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-2xl);padding:12px 14px 13px;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.04);
+    opacity:0;transform:translateY(12px) scale(.98);transition:opacity .5s ease,transform .5s ease,box-shadow .25s,border-color .25s,background .25s}
+  .etapa.visivel .parte{opacity:1;transform:none}
+  .parte .pn{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--color-text-secondary)}
+  .parte .pt{font-size:15px;line-height:1.3;margin-top:3px;color:var(--color-text)}
+  .parte .tag{position:absolute;top:-9px;right:10px;font-size:11px;border-radius:9999px;padding:1px 9px;opacity:0;transform:translateY(4px);transition:all .25s}
+  .parte:hover,.parte:focus-visible{box-shadow:var(--shadow-premium);border-color:var(--color-primary-light);outline:none}
+  .plano.foco .parte{opacity:.32}
+  .plano.foco .parte.ativa,.plano.foco .parte.antes,.plano.foco .parte.depois{opacity:1}
+  .parte.ativa{background:var(--color-primary);border-color:var(--color-primary);box-shadow:var(--shadow-premium-strong);transform:translateY(-2px)}
+  .parte.ativa .pn{color:rgba(255,255,255,.7)}.parte.ativa .pt{color:#fff}
+  .parte.antes{border:2px solid var(--color-primary-light);padding:11px 13px 12px}
+  .parte.antes .tag{opacity:1;transform:none;background:var(--color-primary-light);color:#fff}
+  .parte.depois{border:2px solid var(--color-accent);padding:11px 13px 12px}
+  .parte.depois .tag{opacity:1;transform:none;background:var(--color-accent);color:var(--color-primary-dark)}
+
+  /* painel do detalhe */
+  .detalhe{position:sticky;top:80px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-3xl);box-shadow:var(--shadow-premium-strong);padding:22px 22px 20px;max-height:calc(100vh - 100px);overflow:auto}
+  .detalhe .vazio{color:var(--color-text-secondary);font-size:15px}
+  .detalhe .vazio .seta{font-size:28px;color:var(--color-primary-light);display:block;margin-bottom:6px;animation:aceno 1.8s ease-in-out infinite}
+  @keyframes aceno{50%{transform:translateX(-6px)}}
+  .d-top{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--color-text-secondary)}
+  .d-tit{font-size:21px;line-height:1.25;color:var(--color-primary-dark);margin:6px 0 14px}
+  .d-rot{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--color-text-secondary);margin:16px 0 4px}
+  .d-txt{margin:0;font-size:15px}
+  .d-lista{margin:4px 0 0;padding-left:18px;font-size:15px}
+  .d-lista li{margin:3px 0}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+  .chip{border-radius:9999px;padding:3px 11px;font-size:13px;cursor:pointer;border:1px solid}
+  .chip.a{border-color:var(--color-primary-light);color:var(--color-primary-light);background:#fff}
+  .chip.b{border-color:var(--color-accent);color:var(--color-primary-dark);background:rgba(255,192,103,.15)}
+  .chip:hover{box-shadow:var(--shadow-premium)}
+  .nada{font-size:14px;color:var(--color-text-secondary)}
+  .pronto{margin-top:16px;display:grid;grid-template-columns:24px 1fr;gap:10px;background:rgba(136,215,164,.16);border-radius:var(--radius-2xl);padding:12px 14px;font-size:14.5px}
+  .pronto .ck{width:22px;height:22px;border-radius:50%;background:rgba(136,215,164,.45);color:var(--ok);display:flex;align-items:center;justify-content:center;font-size:12px}
+  .pronto .r{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ok);display:block}
+  .d-anim{animation:troca .3s ease}
+  @keyframes troca{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .fechar{display:none}
+  @media(max-width:980px){
+    .detalhe{position:fixed;left:12px;right:12px;bottom:12px;top:auto;max-height:70vh;z-index:60;transform:translateY(120%);transition:transform .35s ease}
+    .detalhe.aberto{transform:none}
+    .detalhe .vazio{display:none}
+    .fechar{display:block;position:absolute;top:10px;right:12px;border:none;background:var(--color-soft);border-radius:9999px;width:32px;height:32px;cursor:pointer;color:var(--color-primary)}
+  }
+
+  /* fora */
+  .fora{display:flex;flex-wrap:wrap;gap:10px}
+  .fora span{border:1px dashed var(--color-text-secondary);color:var(--color-text-secondary);border-radius:9999px;padding:6px 14px;font-size:14px}
+
+  /* validar */
+  .validar{border:1px solid var(--color-border);border-radius:var(--radius-3xl);box-shadow:var(--shadow-premium-strong);padding:28px;display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start;background:linear-gradient(180deg,#fff, var(--color-soft))}
+  @media(max-width:820px){.validar{grid-template-columns:1fr;padding:20px}}
+  .validar h2{margin-top:0}
+  label.rot{display:block;font-size:13px;color:var(--color-text-secondary);margin-bottom:6px}
+  textarea{width:100%;min-height:110px;border:1px solid var(--color-border);border-radius:var(--radius-2xl);padding:12px 14px;resize:vertical;background:#fff;line-height:1.5}
+  textarea:focus{outline:2px solid var(--color-primary-light);outline-offset:1px}
+  .aviso-dado{font-size:13px;color:var(--color-text-secondary);margin:6px 0 16px}
+  .resposta{margin-top:14px;font-size:15px;min-height:1.6em}
+  .resposta.erro{color:#b42318}
+  .feito{display:none;align-items:center;gap:14px;background:rgba(136,215,164,.2);border-radius:var(--radius-2xl);padding:16px 18px}
+  .feito.on{display:flex;animation:troca .4s ease}
+  .feito .selo{width:44px;height:44px;border-radius:50%;background:var(--color-secondary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;animation:selo .6s cubic-bezier(.3,1.6,.5,1)}
+  @keyframes selo{from{transform:scale(.3);opacity:0}to{transform:none;opacity:1}}
+
+  footer{padding:34px 0 28px;color:var(--color-text-secondary);font-size:13px}
+
+  @media(prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+    .entra,.parte{opacity:1;transform:none}
+    .trilho::after{transform:none}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top-in">
+    <img class="top-logo" src="/logo-hsm.png" alt="Hospital São Matheus" />
+    <div class="top-t">{{contexto}}</div>
+    <div class="estado" id="estado"><span class="ponto"></span><span id="estado-t">Plano para validar</span></div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="hero">
+    <div class="eyebrow entra">{{selo}}</div>
+    <h1 class="entra d1">{{titulo}} <span class="hi">{{destaque}}</span></h1>
+    <p class="dek entra d2">{{resumo}}</p>
+    <div class="numeros entra d3">
+{{numeros}}
+    </div>
+  </div>
+
+{{decidido}}
+</div>
+
+<div class="faixa">
+  <div class="wrap">
+    <section>
+      <div class="mark">O plano, etapa por etapa</div>
+      <h2>Cada etapa começa quando a anterior libera</h2>
+      <p class="lede">Passe o mouse (ou toque) numa parte. As partes de contorno azul vêm antes dela. As de contorno amarelo só começam depois dela.</p>
+      <div class="acoes">
+        <button class="btn" id="tocar" type="button"><span aria-hidden="true">▶</span> Ver a ordem das etapas</button>
+        <div class="legenda" aria-hidden="true"><span><i class="lg-a"></i>a parte escolhida</span><span><i class="lg-b"></i>vem antes</span><span><i class="lg-c"></i>vem depois</span></div>
+      </div>
+      <div class="plano" id="plano">
+        <div class="etapas" id="etapas"></div>
+        <aside class="detalhe" id="detalhe" aria-live="polite">
+          <button class="fechar" id="fechar" type="button" aria-label="Fechar">✕</button>
+          <div id="detalhe-c"><div class="vazio"><span class="seta">←</span>Passe o mouse numa parte para ver o que muda, do que ela depende e como vamos saber que ficou pronta.</div></div>
+        </aside>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="wrap">
+{{fora}}
+
+  <section id="validar">
+    <div class="validar">
+      <div>
+        <div class="mark">Sua validação</div>
+        <h2>Está de acordo com o plano?</h2>
+        <p class="lede" style="margin:0">Se o plano está certo, clique em Validar. Se quiser mudar alguma coisa, escreva no campo antes. A sua observação chega ao Pedro junto com a validação.</p>
+      </div>
+      <div>
+        <div id="form">
+          <label class="rot" for="obs">Observação (opcional)</label>
+          <textarea id="obs" maxlength="2000" placeholder="Escreva aqui se quiser mudar ou perguntar alguma coisa."></textarea>
+          <p class="aviso-dado">Não escreva nome de paciente nem informação interna sensível: a observação fica registrada junto do plano.</p>
+          <button class="btn" id="validar-b" type="button">Validar o plano</button>
+          <div class="resposta" id="resposta" role="status"></div>
+        </div>
+        <div class="feito" id="feito"><span class="selo">✓</span><span id="feito-t">Plano validado. Obrigado.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>{{rodape}}</footer>
+</div>
+
+<script>
+const DADOS = __DADOS__;
+(function(){
+  const reduz = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const P = {}; DADOS.partes.forEach(p => P[p.id] = p);
+  const libera = {}; DADOS.partes.forEach(p => p.depende.forEach(d => (libera[d] = libera[d] || []).push(p.id)));
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  // contadores
+  document.querySelectorAll('[data-conta]').forEach(el => {
+    const fim = +el.dataset.conta; if (reduz) { el.textContent = fim; return; }
+    const t0 = performance.now() + 450;
+    const passo = t => { const k = Math.min(1, Math.max(0, (t - t0) / 900)); el.textContent = Math.round(fim * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(passo); };
+    requestAnimationFrame(passo);
+  });
+
+  // etapas e partes
+  const box = document.getElementById('etapas');
+  DADOS.etapas.forEach((e, i) => {
+    const n = i + 1;
+    const div = document.createElement('div'); div.className = 'etapa'; div.dataset.etapa = n;
+    const ps = DADOS.partes.filter(p => p.etapa === n);
+    div.innerHTML = '<div class="trilho"><div class="bola">' + n + '</div></div><div><div class="etapa-nome">' + esc(e.nome) +
+      '</div><p class="etapa-texto">' + esc(e.texto) + '</p><div class="cards">' +
+      ps.map((p, j) => '<button type="button" class="parte" data-id="' + p.id + '" style="transition-delay:' + (j * 70) + 'ms,' + (j * 70) + 'ms,0s,0s,0s"><span class="tag"></span><div class="pn">Parte ' + p.id + '</div><div class="pt">' + esc(p.titulo) + '</div></button>').join('') +
+      '</div></div>';
+    box.appendChild(div);
+  });
+
+  // revela ao rolar
+  const etapas = [...document.querySelectorAll('.etapa')];
+  if (reduz || !('IntersectionObserver' in window)) etapas.forEach(e => e.classList.add('visivel'));
+  else { const io = new IntersectionObserver(es => es.forEach(x => { if (x.isIntersecting) { x.target.classList.add('visivel'); io.unobserve(x.target); } }), { threshold: .25 }); etapas.forEach(e => io.observe(e)); }
+
+  // detalhe
+  const plano = document.getElementById('plano'), det = document.getElementById('detalhe'), dc = document.getElementById('detalhe-c');
+  const botoes = [...document.querySelectorAll('.parte')];
+  let atual = null, fixo = false;
+  const chips = (ids, cls) => ids.length ? '<div class="chips">' + ids.map(id => '<span class="chip ' + cls + '" data-ir="' + id + '">Parte ' + id + ': ' + esc(P[id].titulo) + '</span>').join('') + '</div>' : '<div class="nada">Nenhuma.</div>';
+  function mostra(id){
+    if (atual === id) return; atual = id;
+    const p = P[id], antes = p.depende, depois = libera[id] || [];
+    plano.classList.add('foco');
+    botoes.forEach(b => {
+      const bid = +b.dataset.id, t = b.querySelector('.tag');
+      b.classList.toggle('ativa', bid === id);
+      b.classList.toggle('antes', antes.includes(bid));
+      b.classList.toggle('depois', depois.includes(bid));
+      t.textContent = antes.includes(bid) ? 'vem antes' : depois.includes(bid) ? 'vem depois' : '';
+    });
+    dc.innerHTML = '<div class="d-anim"><div class="d-top">Parte ' + p.id + ' · Etapa ' + p.etapa + ': ' + esc(DADOS.etapas[p.etapa - 1].nome) + '</div>' +
+      '<div class="d-tit">' + esc(p.titulo) + '</div>' +
+      '<div class="d-rot">O que muda</div><p class="d-txt">' + esc(p.muda) + '</p>' +
+      '<div class="d-rot">Por que vale</div><p class="d-txt">' + esc(p.vale) + '</p>' +
+      (p.saber.length ? '<div class="d-rot">O que você precisa saber</div><ul class="d-lista">' + p.saber.map(s => '<li>' + esc(s) + '</li>').join('') + '</ul>' : '') +
+      '<div class="d-rot">Vem depois de</div>' + chips(antes, 'a') +
+      '<div class="d-rot">Libera</div>' + chips(depois, 'b') +
+      '<div class="pronto"><span class="ck">✓</span><span><span class="r">Pronto quando</span>' + esc(p.pronto) + '</span></div></div>';
+    det.classList.add('aberto');
+  }
+  function limpa(){
+    if (fixo) return; atual = null; plano.classList.remove('foco');
+    botoes.forEach(b => { b.classList.remove('ativa', 'antes', 'depois'); b.querySelector('.tag').textContent = ''; });
+  }
+  const hover = matchMedia('(hover: hover)').matches;
+  botoes.forEach(b => {
+    const id = +b.dataset.id;
+    if (hover) b.addEventListener('mouseenter', () => { if (!fixo) mostra(id); });
+    b.addEventListener('focus', () => { if (!fixo) mostra(id); });
+    b.addEventListener('click', () => { fixo = !(fixo && atual === id); atual = null; mostra(id); });
+  });
+  dc.addEventListener('click', e => { const c = e.target.closest('[data-ir]'); if (!c) return; const id = +c.dataset.ir; fixo = true; atual = null; mostra(id);
+    const b = document.querySelector('.parte[data-id="' + id + '"]'); if (b && innerWidth > 980) b.scrollIntoView({ behavior: reduz ? 'auto' : 'smooth', block: 'center' }); });
+  document.getElementById('fechar').addEventListener('click', () => { det.classList.remove('aberto'); fixo = false; limpa(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { det.classList.remove('aberto'); fixo = false; limpa(); } });
+
+  // ver a ordem
+  const tocar = document.getElementById('tocar'); let tocando = false;
+  tocar.addEventListener('click', async () => {
+    if (tocando) return; tocando = true; tocar.disabled = true; fixo = false; limpa();
+    const espera = ms => new Promise(r => setTimeout(r, reduz ? 0 : ms));
+    etapas.forEach(e => e.classList.remove('acesa'));
+    for (const e of etapas) {
+      e.classList.add('visivel', 'acesa');
+      if (innerWidth > 980) e.scrollIntoView({ behavior: reduz ? 'auto' : 'smooth', block: 'center' });
+      const ids = [...e.querySelectorAll('.parte')].map(b => +b.dataset.id);
+      for (const id of ids) { mostra(id); await espera(900); }
+      e.classList.remove('acesa');
+    }
+    limpa(); tocando = false; tocar.disabled = false;
+  });
+
+  // validar
+  const q = new URLSearchParams(location.search), codigo = q.get('c') || '';
+  const btn = document.getElementById('validar-b'), resp = document.getElementById('resposta');
+  const chave = 'validado-' + DADOS.prd;
+  function feito(texto){
+    document.getElementById('form').style.display = 'none';
+    const f = document.getElementById('feito'); f.classList.add('on'); document.getElementById('feito-t').textContent = texto;
+    const est = document.getElementById('estado'); est.classList.add('ok'); document.getElementById('estado-t').textContent = 'Plano validado';
+  }
+  try { const v = localStorage.getItem(chave); if (v) feito(v); } catch (e) {}
+  if (!codigo) { btn.disabled = true; resp.textContent = 'Abra esta página pelo link do e-mail para validar.'; }
+  btn.addEventListener('click', async () => {
+    btn.disabled = true; resp.className = 'resposta'; resp.textContent = 'Enviando...';
+    try {
+      const r = await fetch('/api/validar', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prd: DADOS.prd, c: codigo, observacao: document.getElementById('obs').value }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok) throw new Error(j.erro || 'Não deu para validar agora.');
+      const texto = 'Plano validado em ' + j.data + ', às ' + j.hora + '. Obrigado.';
+      try { localStorage.setItem(chave, texto); } catch (e) {}
+      feito(texto);
+    } catch (e) {
+      resp.className = 'resposta erro'; resp.textContent = e.message + ' Tente de novo em alguns minutos.'; btn.disabled = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>

@@ -21,6 +21,8 @@ SKILLS = RAIZ / ".claude" / "skills"
 # skill nova que escreve para o hospital entra aqui junto com o passo.
 TEXTO_PARA_FORA = {
     "divulgar",
+    # A Apresentação do PRD, que o diretor lê para validar o plano (issue #1891).
+    "apresentar-prd",
     "mensagem-prd",
     "to-prd",
     "to-issues",
@@ -59,6 +61,7 @@ def passos_do_humanizer(trecho: str) -> list[str]:
     ("skill", "titulo"),
     [
         ("divulgar", "A página"),
+        ("apresentar-prd", "Passo a passo"),
         ("mensagem-prd", "Fluxo"),
         ("to-prd", "Process"),
         ("grill-with-docs", "Fim"),
