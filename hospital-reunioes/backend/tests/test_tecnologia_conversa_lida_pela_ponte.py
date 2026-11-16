@@ -100,6 +100,14 @@ class _ConsultaComGt(_TableQuery):
             for c, v in self._gt.items()
         )
 
+    def execute(self):
+        """Como o PostgREST do Supabase: leitura sem recorte para no
+        `max-rows` (1000 linhas). Quem não pagina perde o resto calado."""
+        resultado = super().execute()
+        if self._insert is None and self._update is None and not self._delete and self._range is None:
+            resultado.data = resultado.data[: paginacao.PAGINA]
+        return resultado
+
     def insert(self, payload):
         self._dono.escritas.append(("insert", self._nome))
         return super().insert(payload)
@@ -189,3 +197,147 @@ class TestAsMensagensDepoisDoInstante:
                 },
             ]
         }
+
+    def test_o_autor_vem_pelo_nome_e_cada_um_com_o_seu(self):
+        cliente, _ = _cliente()
+
+        resposta = _ler(cliente, params={"depois": "2026-11-16T13:00:00+00:00"})
+
+        assert [(m["autor"], m["texto"]) for m in resposta.json()["mensagens"]] == [
+            ("Lucas Sampaio", "O senhor prefere a opção A ou a B?"),
+            ("Diretor Geral", "A opção B, por favor."),
+            ("Diretor Geral", "E manda o relatório na segunda."),
+        ]
+
+    def test_o_instante_com_fuso_de_brasilia_vale_o_mesmo_instante(self):
+        cliente, _ = _cliente()
+
+        resposta = _ler(cliente, params={"depois": "2026-11-16T11:05:00-03:00"})
+
+        assert [m["texto"] for m in resposta.json()["mensagens"]] == ["E manda o relatório na segunda."]
+
+    def test_nada_depois_do_instante_devolve_a_lista_vazia(self):
+        cliente, _ = _cliente()
+
+        resposta = _ler(cliente, params={"depois": COMPLEMENTO["criado_em"]})
+
+        assert resposta.status_code == 200
+        assert resposta.json() == {"mensagens": []}
+
+
+class TestSemInstante:
+    def test_sem_instante_devolve_a_conversa_inteira_da_demanda_em_ordem(self):
+        cliente, _ = _cliente()
+
+        resposta = _ler(cliente)
+
+        assert resposta.status_code == 200, resposta.text
+        assert [m["texto"] for m in resposta.json()["mensagens"]] == [
+            "O senhor prefere a opção A ou a B?",
+            "A opção B, por favor.",
+            "E manda o relatório na segunda.",
+        ]
+
+    def test_conversa_maior_que_uma_pagina_volta_inteira(self):
+        total = paginacao.PAGINA + 3
+        conversa = [
+            {
+                "id": f"m{i:05d}",
+                "demanda_id": DEMANDA,
+                "autor_id": DIRETOR["id"] if i % 2 else LUCAS["id"],
+                "texto": f"mensagem {i}",
+                "criado_em": f"2026-11-{1 + i // 1440:02d}T{(i // 60) % 24:02d}:{i % 60:02d}:00+00:00",
+                "origem": "app",
+            }
+            for i in range(total)
+        ]
+        cliente, _ = _cliente(conversa=list(reversed(conversa)))
+
+        resposta = _ler(cliente)
+
+        mensagens = resposta.json()["mensagens"]
+        assert len(mensagens) == total
+        assert mensagens[0]["texto"] == "mensagem 0"
+        assert mensagens[-1]["texto"] == f"mensagem {total - 1}"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# A chave
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestAChave:
+    @pytest.mark.parametrize(
+        "cabecalhos", [{}, {"X-API-Key": ""}, {"X-API-Key": CHAVE + "x"}], ids=["ausente", "vazia", "errada"]
+    )
+    def test_chave_ausente_ou_errada_recusa_com_401(self, cabecalhos):
+        cliente, _ = _cliente()
+
+        resposta = _ler(cliente, headers=cabecalhos)
+
+        assert resposta.status_code == 401
+        assert resposta.json() == {"detail": "API key inválida ou ausente"}
+
+    def test_sem_chave_configurada_responde_503(self, monkeypatch):
+        monkeypatch.setattr(settings, "tecnologia_automacao_api_key", "")
+        cliente, _ = _cliente()
+
+        resposta = _ler(cliente)
+
+        assert resposta.status_code == 503
+        assert "TECNOLOGIA_AUTOMACAO_API_KEY" in resposta.json()["detail"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Demanda que não existe e pedido torto
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestPedidoTorto:
+    def test_demanda_inexistente_responde_404(self):
+        cliente, _ = _cliente()
+
+        resposta = _ler(cliente, rota=f"{BASE}/demandas/{INEXISTENTE}/conversa")
+
+        assert resposta.status_code == 404
+        assert resposta.json() == {"detail": "Demanda não encontrada."}
+
+    def test_demanda_apagada_responde_404_como_inexistente(self):
+        apagada = _demanda(DEMANDA, autor_id=DIRETOR["id"], apagada_em="2026-11-10T10:00:00+00:00")
+        cliente, _ = _cliente(demandas=[apagada])
+
+        resposta = _ler(cliente)
+
+        assert resposta.status_code == 404
+
+    def test_id_que_nao_e_uuid_responde_422(self):
+        cliente, _ = _cliente()
+
+        resposta = _ler(cliente, rota=f"{BASE}/demandas/nao-e-uuid/conversa")
+
+        assert resposta.status_code == 422
+
+    def test_instante_que_nao_e_data_responde_422(self):
+        cliente, _ = _cliente()
+
+        resposta = _ler(cliente, params={"depois": "ontem"})
+
+        assert resposta.status_code == 422
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Só leitura
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestSoLe:
+    @pytest.mark.parametrize("params", [None, {"depois": PERGUNTA["criado_em"]}], ids=["inteira", "depois"])
+    def test_ler_a_conversa_nao_grava_nada_no_banco(self, params):
+        cliente, sb = _cliente()
+        antes = {nome: [dict(linha) for linha in linhas] for nome, linhas in sb.tabelas.items()}
+
+        resposta = _ler(cliente, params=params)
+
+        assert resposta.status_code == 200
+        assert sb.escritas == []
+        assert sb.tabelas == antes
