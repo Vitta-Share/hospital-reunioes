@@ -290,7 +290,7 @@ _Evitar_: paginação; cortar a lista para caber; supor que a mesma chamada devo
 O módulo em que o [Núcleo de Segurança do Paciente] funciona de ponta a ponta: constituição, notificação de incidente, triagem, investigação, plano de ação, reuniões e prestação de contas (ADR 0095). Entra em quatro fases. O Núcleo continua recebendo os casos da Ouvidoria pelo [Acionamento de ciência].
 
 **Colegiado**:
-Um grupo formal do hospital com regimento, composição e reuniões próprias. O Núcleo de Segurança do Paciente é o primeiro; as comissões (prontuário, óbito, ética) vêm depois, na mesma estrutura.
+Um grupo formal do hospital com regimento, composição e reuniões próprias. O Núcleo de Segurança do Paciente é o primeiro e o [Comitê de Conduta] é o segundo; as comissões (prontuário, óbito, ética) vêm depois, na mesma estrutura.
 _Evitar_: "comissão" para o Núcleo; cadastro de membros por módulo.
 
 **Participação**:
@@ -328,6 +328,82 @@ _Evitar_: "never event" e "near miss" fora de parênteses; rebaixar caso grave.
 **Notificação externa**:
 A comunicação de um incidente à vigilância sanitária, com prazo legal. O app prepara o texto e guarda o protocolo; quem envia é a Presidência, no sistema da ANVISA.
 _Evitar_: confundir com a [Notificação de incidente]; "parar o relógio" de prazo legal.
+
+## Canal de Conduta
+
+O módulo em que quem trabalha no hospital relata conduta grave e o [Comitê de Conduta] apura o caso até a medida (ADR 0097). Tem um lado público, sem login, e o lado do Comitê.
+
+**Canal de Conduta**:
+O canal próprio, sem login, em que quem trabalha no hospital, com qualquer vínculo, relata conduta grave (assédio, discriminação, violência, fraude, desvio) e acompanha o caso por protocolo e código. Pode relatar sem dizer quem é.
+_Evitar_: "o Canal" solto em texto que também fala da Ouvidoria (o [Canal aberto] é dela); "denúncia"; tratar aqui salário, escala ou atendimento a paciente.
+
+**Comitê de Conduta**:
+O [Colegiado] que trata os casos do [Canal de Conduta]: três membros votantes e um ou dois suplentes, cada um com [Participação] vigente e termo assinado.
+_Evitar_: "comissão de ética"; "secretário" (não existe); suplente lendo caso sem convocação.
+
+**Coordenação (do Comitê)**:
+O membro que confirma a triagem, conduz o rito rápido, convoca e aprova os retornos. Também decide o [Afastamento cautelar].
+_Evitar_: "presidência" (no Canal, Presidente é quem decide a medida); confundir com a [Presidência (do Núcleo)].
+
+**Segundo leitor**:
+O membro que vê a mesma fila de triagem da Coordenação e pode contestar a triagem.
+_Evitar_: tratar como revisor opcional.
+
+**Triagem (do Comitê)**:
+A confirmação, pela Coordenação, do que o agente sugere para cada relato: se é do canal, a categoria e o [Rito].
+_Evitar_: confundir com a [Triagem (do Núcleo)], a [Triagem de e-mail] e o [Agente de triagem] da Ouvidoria; tratar a sugestão como decisão.
+
+**Rito**:
+O caminho do caso, cada um com prazo próprio contado do envio do relato: Encaminhamento, Rápido, Completo ou Especial.
+_Evitar_: "fluxo"; prazo contado da triagem.
+
+**Rota Especial**:
+O [Rito] do relato que envolve a Direção, a Presidência ou a família proprietária. Quem apura é o [Grupo Especial], sem nenhum diretor.
+_Evitar_: mostrar o caso a quem ele pode envolver; mudar o grupo de um caso aberto.
+
+**Grupo Especial**:
+Os três que apuram um caso da [Rota Especial]: o membro não diretor do Comitê, um suplente não diretor e um membro eleito da CIPA.
+_Evitar_: diretor no grupo.
+
+**Apurador designado**:
+A pessoa de fora do Comitê que apura um caso do rito completo e só vê esse caso.
+_Evitar_: dar a ele a lista de casos.
+
+**Citado**:
+A pessoa apontada no caso como envolvida. Nunca vê o caso, em nenhum perfil.
+_Evitar_: "acusado" antes da apuração; "denunciado".
+
+**Afastamento cautelar**:
+O afastamento remunerado de alguém durante o caso, que não é punição. Nunca recai sobre quem relatou.
+_Evitar_: tratar como medida disciplinar.
+
+**Termo de declaração**:
+O depoimento reduzido a escrito, assinado à caneta pelo depoente e por quem conduziu a conversa.
+_Evitar_: "ata do depoimento"; termo com conclusão ou interpretação.
+
+**Ata de deliberação**:
+A ata com a decisão do Comitê e o fundamento dela, assinada pelos três votantes.
+_Evitar_: confundir com a ata das Reuniões; resumo de quem disse o quê.
+
+**Trava de robustez**:
+A lista que precisa estar completa para um caso concluir como procedente.
+_Evitar_: concluir como procedente só com relato anônimo.
+
+**Matriz de Consequências**:
+A lista fechada de medidas que o Comitê pode recomendar.
+_Evitar_: medida fora da lista.
+
+**Trilha do caso**:
+A linha do tempo de atos e documentos de um caso do Canal. Não se edita nem se apaga.
+_Evitar_: substituir documento (correção entra como nova versão); confundir com a trilha de movimentos da Ouvidoria.
+
+**Recomendação do Comitê**:
+O que a Direção lê de um caso: a página de conclusão e a [Ata de deliberação]. O Presidente só lê, e a diretoria executiva registra a decisão sobre a medida.
+_Evitar_: "dossiê de uma página"; entregar o [Dossiê do caso] à Direção.
+
+**Dossiê do caso**:
+O pacote baixável com tudo do caso, disponível só ao Comitê.
+_Evitar_: "dossiê" solto (a Ouvidoria tem o Dossiê dela, e a Direção recebe a [Recomendação do Comitê]).
 
 ## Tecnologia (o chat do diretor com o agente)
 

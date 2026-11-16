@@ -32,6 +32,7 @@ Só `status: accepted` vale como decisão; `superseded` é histórico (CLAUDE.md
 | [0094](0094-manual-novo-dentro-do-app-com-abas-hospital-e-ana.md) | accepted | Manual novo dentro do app, com as abas Aplicativo do Hospital e Ana (Retrato), e a fatia de manual de volta sem vídeo (emenda 0078 e 0068) |
 | [0095](0095-modulo-do-nucleo-de-seguranca-do-paciente-fundacao.md) | accepted | O módulo do Núcleo de Segurança do Paciente: fundação, fases e exceções de IA (emenda 0082) |
 | [0096](0096-mensagem-pelo-terminal-na-conversa-da-demanda.md) | accepted | Mensagem pelo terminal: a sessão do desenvolvedor escreve e lê na Conversa da Demanda, pela ponte de automação (emenda 0069 e 0083) |
+| [0097](0097-canal-de-conduta-fundacao.md) | accepted | Canal de Conduta: fundação, sigilo do conteúdo e exceções de IA (emenda 0082, 0088 e 0095) |
 
 ## Contas médicas
 
