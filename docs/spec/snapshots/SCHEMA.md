@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T01:35+0000 -->
+<!-- last_update: 2026-11-16T01:41+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -63,6 +63,7 @@ erDiagram
     cm_tabela_preco ||--o{ cm_tabela_preco_item : "tabela_id"
     cm_validacao_tema ||--o{ cm_validacao_tema_linha : "tema_id"
     colegiados ||--o{ participacoes : "colegiado_id"
+    colegiados ||--o{ reunioes : "colegiado_id"
     ouvidoria_pontos ||--o{ ouvidoria_avaliacoes : "ponto_id"
     participantes ||--o{ audit_log : "actor_id"
     participantes ||--o{ bulk_jobs : "actor_id"
@@ -164,7 +165,7 @@ erDiagram
         TEXT tipo
         VARCHAR facilitador_id FK
         TEXT setor
-        _ mais_colunas "+29"
+        _ mais_colunas "+30"
     }
     reuniao_participantes {
         UUID id PK
@@ -1068,6 +1069,7 @@ erDiagram
 | `reunioes` | `idx_reunioes_criada_por` | `criada_por` | `036_add_access_profile.sql` |
 | `reunioes` | `idx_reunioes_facilitador` | `facilitador_id` | `038_fk_indexes.sql` |
 | `reunioes` | `idx_reunioes_tipo_id` | `tipo_id` | `038_fk_indexes.sql` |
+| `reunioes` | `idx_reunioes_colegiado` | `colegiado_id` | `148_nsp_reunioes_do_nucleo.sql` |
 | `reuniao_participantes` | `idx_reuniao_part_reuniao` | `id_reuniao` | `002_create_reunioes.sql` |
 | `reuniao_participantes` | `idx_reuniao_part_participante` | `participante_id` | `002_create_reunioes.sql` |
 | `pendencias` | `idx_pendencias_reuniao` | `id_reuniao` | `003_create_pendencias.sql` |
@@ -1204,4 +1206,4 @@ erDiagram
 | `nsp_documentos` | `nsp_documentos_um_vigente_por_tipo` | `tipo` | `147_nsp_documentos.sql` |
 
 ---
-**Resumo:** 95 tabelas · 135 relacionamentos FK detectados.
+**Resumo:** 95 tabelas · 136 relacionamentos FK detectados.
