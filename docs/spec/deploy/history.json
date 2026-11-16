@@ -2,6 +2,51 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-16T20:43:44-03:00",
+      "sha": "51a9c8989241bc111af1ae5a3fa299ac4c5ee8d4",
+      "app_version": "0.305.1",
+      "subject": "Onda onda-respondedor-onda3: Ouvidoria ensina o responsável a responder um caso do setor pelo app",
+      "raw_subject": "chore(deploy): registro da onda onda-respondedor-onda3 (#1899)",
+      "scope": [
+        "frontend"
+      ],
+      "prds": [
+        1883
+      ],
+      "result": "healthy",
+      "duration_seconds": 192,
+      "services_touched": [
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta onda-respondedor-onda3: PR #1899 (issue #1888), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 2,
+        "build_s": {
+          "frontend": 175
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-16T20:22:34-03:00",
       "sha": "3fd9e400d455fd1e0c2762d226ca02da227f15c7",
       "app_version": "0.305.0",
