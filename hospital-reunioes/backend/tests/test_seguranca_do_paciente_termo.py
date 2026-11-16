@@ -882,6 +882,37 @@ class TestNovoTermoPorRenovacao:
         assert cenario.participacao("P3")["vigencia_fim"] == _iso(700)
 
 
+class TestNovoTermoPorMudancaDePapel:
+    def test_mudar_o_papel_na_mesma_vigencia_gera_novo_documento_e_envia(self, assinatura):
+        """Mutante: a edição não gerar o Termo quando o papel muda."""
+        cenario = _Cenario(PRESIDENCIA)
+
+        resposta = cenario.api.patch(f"{ROTA}/part-P3", json={"papel": "suplente"})
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["aviso_termo"] is None
+        assert resposta.json()["estado"] == "ativo"
+        [envio] = cenario.envios("P3")
+        assert envio["situacao"] == "enviado"
+        assert ("add_signer", "env-1", "Pessoa de Teste P3", "p3@hsm.test") in assinatura.chamadas
+        assert "Suplente da Presidência" in _texto_do_pdf(assinatura.documentos[0])
+        assert len(cenario.trilha("termo_enviado")) == 1
+
+    @pytest.mark.parametrize(
+        "pedido",
+        [{"area": "Centro cirúrgico"}, {"papel": "membro"}, {"registro_profissional": "000033"}],
+        ids=["so_a_area", "o_mesmo_papel", "so_o_registro"],
+    )
+    def test_editar_sem_mudar_o_papel_nao_gera_termo(self, pedido, assinatura):
+        cenario = _Cenario(PRESIDENCIA)
+
+        resposta = cenario.api.patch(f"{ROTA}/part-P3", json=pedido)
+
+        assert resposta.status_code == 200, resposta.text
+        assert assinatura.chamadas == []
+        assert cenario.envios("P3") == []
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # 8. Nenhum teste chama a assinatura eletrônica de verdade
 # ═══════════════════════════════════════════════════════════════════════════

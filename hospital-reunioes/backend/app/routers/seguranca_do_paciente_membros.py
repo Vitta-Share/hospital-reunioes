@@ -10,9 +10,10 @@ campo, valor anterior e novo). Não existe rota DELETE, e o banco recusa apagar
 Participação (migration 150).
 
 O estado do membro sai da função pura de `membros`. Cadastrar gera o Termo de
-Adesão e o envia para assinatura (issue #1768, serviço `termo`); sem Regimento
-vigente ou com a assinatura eletrônica fora, o cadastro fica de pé e a resposta
-traz o aviso em `aviso_termo`.
+Adesão e o envia para assinatura (issue #1768, serviço `termo`); renovar a
+vigência e mudar o papel geram novo Termo (issue #1769). Sem Regimento vigente
+ou com a assinatura eletrônica fora, a mudança fica de pé e a resposta traz o
+aviso em `aviso_termo`.
 """
 
 from __future__ import annotations
@@ -448,7 +449,11 @@ async def editar_membro(
             "edicao",
             _atualizar_registro(supabase, atual["participante_id"], pessoa, registro),
         )
-    return _responder(supabase, participacao_id, nucleo_id)
+    aviso = None
+    if any(campo == "papel" for campo, _, _ in mudancas):
+        editada = _participacao(supabase, nucleo_id, participacao_id)
+        aviso = await run_in_threadpool(_gerar_termo, supabase, editada, me["id"])
+    return {**_responder(supabase, participacao_id, nucleo_id), "aviso_termo": aviso}
 
 
 @router.post("/{participacao_id}/renovar")
