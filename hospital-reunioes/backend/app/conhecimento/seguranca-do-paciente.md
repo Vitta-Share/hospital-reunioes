@@ -25,6 +25,15 @@ O Termo de Adesão:
 - na seção de cada membro com Termo à espera da assinatura, inclusive o Termo novo de quem já tinha assinado, a Presidência e o Acesso pleno têm três botões: **Reconsultar status da assinatura** (para quando a assinatura foi feita e o aplicativo não ficou sabendo), **Reenviar o Termo** (cancela o link anterior e manda um documento novo, com outro número) e **Liberar sem assinatura** (exige justificativa, que fica registrada com quem liberou e quando). A Diretoria não usa esses botões;
 - quem está no Núcleo e ainda não assinou vê, nas telas bloqueadas, a faixa "Assine o Termo de Adesão para liberar este acesso", com o botão que abre o documento pendente.
 
+Os avisos por e-mail:
+
+- todo dia de manhã o aplicativo manda os avisos do Núcleo, um e-mail com o nome de cada pessoa, sem nada do conteúdo do Núcleo. O assunto diz o que fazer e traz a data por extenso, como 16/11/2026;
+- Termo de Adesão: quando o documento é gerado, o membro recebe o aviso para assinar. Sem assinatura, ele recebe de novo com 3 e 7 dias, e com 14 dias o aviso vai para ele e para a Presidência. Assinado ou liberado sem assinatura, os avisos param. Reenviar o Termo recomeça a contagem pelo documento novo;
+- vigência: 60 e 30 dias antes do fim, o membro e a Presidência recebem o aviso para renovar. Renovada a vigência, os avisos recomeçam pelo fim novo;
+- fim da carência sem renovação: a Presidência e a Diretoria Executiva recebem o aviso para recompor o Núcleo;
+- cada aviso sai uma vez só para cada pessoa. Se o aplicativo ficou fora do ar uns dias, sai só o aviso mais recente que ficou para trás (o de 7 dias, e não o de 3 e o de 7 juntos). O envio que falha, ou a pessoa sem e-mail no cadastro, fica registrado e não impede os outros avisos do dia;
+- participação encerrada não recebe aviso.
+
 A tela Núcleo, Documentos:
 
 - guarda o ato de designação, o Regimento, o Plano de Segurança do Paciente, o Termo, as atas e outros documentos do Núcleo, cada um com as suas versões;
@@ -99,7 +108,7 @@ Membro nunca é apagado. Encerrar termina a vigência no dia escolhido e a parti
 
 ## O que ele ainda não faz
 
-Nas Capacitações, o profissional de fora do Núcleo que está na lista ainda não abre o módulo, então não confirma a presença por enquanto; a capacitação registrada também não se edita depois de salva. Os avisos de Termo sem assinatura (3, 7 e 14 dias) chegam depois. A assinatura de um documento publicado também chega depois. Nas reuniões, a ata própria do Núcleo também chega depois: por enquanto a ata segue o modelo das outras reuniões, e a pauta ainda não traz indicadores, casos, planos vencidos nem alertas, que dependem das próximas fases. A notificação de incidente e a triagem são da segunda fase. As notificações criadas a partir da reunião rápida chegam na segunda fase.
+Nas Capacitações, o profissional de fora do Núcleo que está na lista ainda não abre o módulo, então não confirma a presença por enquanto; a capacitação registrada também não se edita depois de salva. A assinatura de um documento publicado também chega depois. Nas reuniões, a ata própria do Núcleo também chega depois: por enquanto a ata segue o modelo das outras reuniões, e a pauta ainda não traz indicadores, casos, planos vencidos nem alertas, que dependem das próximas fases. A notificação de incidente e a triagem são da segunda fase. As notificações criadas a partir da reunião rápida chegam na segunda fase.
 
 ## O que já foi decidido
 
@@ -119,6 +128,7 @@ Nas Capacitações, o profissional de fora do Núcleo que está na lista ainda n
 - O lembrete de cada obrigação é uma pendência da Presidência no aplicativo, e não um e-mail, criada por uma rotina diária que não usa inteligência artificial.
 - A pauta é montada pelo aplicativo, sem inteligência artificial.
 - A convocação vai só para quem conta para quórum, os membros Ativo, A vencer e Em carência.
+- Os avisos do Termo e da vigência saem por uma rotina diária que não usa inteligência artificial, e cada aviso sai uma vez só.
 
 ## O que costuma virar Demanda
 
@@ -134,6 +144,7 @@ Nas Capacitações, o profissional de fora do Núcleo que está na lista ainda n
 - Pedido de ata ou de assinatura de uma reunião rápida de segurança: ela não tem ata. O registro é o texto de três linhas, que aparece na lista de reuniões do módulo.
 - Um lembrete da agenda que não apareceu: costuma ser evento sem próxima data, evento desativado ou o Núcleo sem Presidência vigente.
 - Um membro que diz não ter recebido a convocação: costuma ser Termo não assinado, vigência vencida ou cadastro sem e-mail.
+- Um membro que diz não ter recebido o aviso do Termo ou da vigência: costuma ser cadastro sem e-mail, participação encerrada ou Termo já assinado.
 - A Presidência que não consegue convocar a ordinária: passou do 5º dia útil antes da reunião, e o aplicativo diz qual era o último dia.
 - Um membro que fez a capacitação e o tema não aparece como coberto: costuma ser que ele não confirmou a presença, ou que o tema foi desativado na lista.
 - Pedido para a Presidência confirmar a presença de alguém: não existe; cada participante confirma a própria.

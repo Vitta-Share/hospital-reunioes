@@ -542,3 +542,97 @@ class TestFalhaDeEnvio:
         assert _para(emails) == ["p3@hsm.test"]
         situacao = {a["destinatario_id"]: a["situacao"] for a in banco.tabelas["nsp_avisos"]}
         assert situacao == {"P2": "falhou", "P3": "enviado"}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. O job não chama IA
+# ═══════════════════════════════════════════════════════════════════════════
+
+# O que denuncia IA no código: os módulos do app que falam com provedor de
+# modelo e os SDKs.
+_MARCAS_DE_IA = ("ai_processor", "anthropic", "openai", "openrouter")
+
+
+def _marcas(codigo: str) -> list[str]:
+    return [marca for marca in _MARCAS_DE_IA if marca in codigo.lower()]
+
+
+class TestSemIa:
+    def test_o_detector_reconhece_um_modulo_que_chama_ia(self):
+        """Piso do detector: o módulo de IA do app tem marca."""
+        from app.services import ai_processor
+
+        assert _marcas(inspect.getsource(ai_processor))
+
+    def test_o_servico_dos_avisos_nao_fala_com_ia(self):
+        """Mutante: importar o `ai_processor` no serviço dos avisos."""
+        assert _marcas(inspect.getsource(avisos)) == []
+
+    def test_o_job_do_scheduler_so_chama_o_servico(self):
+        assert _marcas(inspect.getsource(scheduler.avisar_termo_e_vigencia_nsp)) == []
+        assert "avisos.avisar(" in inspect.getsource(scheduler.avisar_termo_e_vigencia_nsp)
+
+    def test_o_job_esta_registrado_uma_vez_por_dia(self):
+        assert 'avisar_termo_e_vigencia_nsp,\n        "cron"' in inspect.getsource(scheduler.start_scheduler)
+
+    def test_os_avisos_saem_com_o_provedor_de_ia_fora_do_ar(self, emails, monkeypatch):
+        import anthropic
+
+        def _explode(*_a, **_kw):
+            raise AssertionError("o job dos avisos chamou IA")
+
+        monkeypatch.setattr(anthropic, "Anthropic", _explode)
+        monkeypatch.setattr(anthropic, "AsyncAnthropic", _explode)
+        participacao, envio = _sem_assinatura("P2", DIA - timedelta(days=14))
+
+        resultado = avisos.avisar(_banco([participacao], [envio]), DIA)
+
+        assert resultado == {"enviados": 2, "falhas": 0}
+
+    def test_o_job_le_o_dia_em_sao_paulo_e_chama_o_servico(self, monkeypatch):
+        chamadas: list[date] = []
+        monkeypatch.setattr(scheduler, "_supabase", lambda: "banco")
+        monkeypatch.setattr(scheduler, "_hoje_em_sao_paulo", lambda: DIA)
+        monkeypatch.setattr(avisos, "avisar", lambda _banco, hoje: chamadas.append(hoje) or {"enviados": 0})
+
+        scheduler.avisar_termo_e_vigencia_nsp()
+
+        assert chamadas == [DIA]
+
+    def test_o_job_que_falha_nao_derruba_o_scheduler(self, monkeypatch):
+        monkeypatch.setattr(scheduler, "_supabase", lambda: "banco")
+
+        def _explode(*_a):
+            raise RuntimeError("banco fora do ar")
+
+        monkeypatch.setattr(avisos, "avisar", _explode)
+
+        scheduler.avisar_termo_e_vigencia_nsp()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. O texto do Produto no Kit de conhecimento diz o comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _secao_do_kit(titulo: str) -> str:
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = (CONHECIMENTO_DIR / "seguranca-do-paciente.md").read_text(encoding="utf-8")
+    partes = texto.split(f"## {titulo}\n", 1)
+    assert len(partes) == 2, f"a seção {titulo!r} sumiu do kit"
+    return partes[1].split("\n## ", 1)[0]
+
+
+class TestKitDeConhecimento:
+    def test_os_avisos_estao_no_que_ja_esta_no_ar(self):
+        """Mutante: deixar o kit dizendo que os avisos chegam depois."""
+        secao = _secao_do_kit("O que já está no ar")
+        assert "3 e 7 dias" in secao
+        assert "14 dias" in secao
+        assert "60 e 30 dias" in secao
+        assert "carência" in secao
+        assert "Diretoria Executiva" in secao
+
+    def test_os_avisos_sairam_do_que_ele_ainda_nao_faz(self):
+        assert "aviso" not in _secao_do_kit("O que ele ainda não faz").lower()
