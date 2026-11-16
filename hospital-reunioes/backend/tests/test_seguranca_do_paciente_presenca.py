@@ -233,6 +233,33 @@ class TestQuorumNaTela:
 
         assert (quorum["presentes"], quorum["instalada"]) == (2, False)
 
+    def test_a_rota_apura_no_dia_da_reuniao_e_nao_no_dia_de_hoje(self):
+        """A reunião foi há 20 dias. MEMB3 entrou no Núcleo há 10 e MEMB4
+        assinou o Termo há 5: hoje os dois contariam, no dia da reunião não.
+        Contam PRES1, SUPL1 e MEMB1 (três), e o mínimo é dois."""
+        banco = _cenario()
+        dia = HOJE - timedelta(days=20)
+        _reuniao_do_banco(banco, R_PROG)["data"] = dia.isoformat()
+        for p in banco.tabelas["participacoes"]:
+            if p["participante_id"] == "MEMB3":
+                p["vigencia_inicio"] = (HOJE - timedelta(days=10)).isoformat()
+            if p["participante_id"] == "MEMB4":
+                p["termo_assinado_em"] = f"{(HOJE - timedelta(days=5)).isoformat()}T12:00:00+00:00"
+        presenca = {"PRES1": "presente", "MEMB1": "presente", "MEMB3": "presente", "MEMB4": "presente"}
+
+        lida = _registrar(_cliente(PRESIDENCIA, banco), presenca).json()
+
+        assert lida["data"] == dia.isoformat()
+        assert lida["quorum"] == {
+            "total": 3,
+            "presentes": 2,
+            "minimo": 2,
+            "presidencia_ou_suplente": True,
+            "instalada": True,
+        }
+        conta = {p["participante_id"]: p["conta_para_quorum"] for p in lida["pessoas"]}
+        assert (conta["MEMB1"], conta["MEMB3"], conta["MEMB4"]) == (True, False, False)
+
     def test_sem_termo_e_vencido_presentes_nao_somam(self):
         presenca = {"PRES1": "presente", "MEMB1": "presente", "MEMB2": "presente", "VENC1": "presente"}
 
@@ -341,6 +368,8 @@ class TestNaoInstalada:
         assert "com a Presidência ou o suplente presente" in texto
         assert "fica como não instalada, não aceita transcrição nem ata" in texto
         assert "a reunião reagendada nasce ligada à original" in texto
+        assert "O botão Presença só aparece para a Presidência e o Acesso pleno" in texto
+        assert "os outros membros não veem a presença na tela" in texto
 
     def test_reuniao_nao_instalada_nao_aceita_nova_presenca_nem_segundo_reagendamento(self):
         banco = _cenario()
