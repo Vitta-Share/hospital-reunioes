@@ -137,7 +137,33 @@ def semear() -> None:
         prefer="resolution=merge-duplicates",
     )
 
+    # O responsável do setor entra pelo login e vê os casos do setor dele
+    # (issue #1888, ADR 0099): participante comum, sem Perfil da Ouvidoria,
+    # que vira responsável pelo e-mail casado com o cadastro abaixo.
     responsavel = SEED["responsavel"]
+    rest(
+        url,
+        chave,
+        "participantes",
+        "POST",
+        [
+            {
+                "id": responsavel["id"],
+                "nome_completo": responsavel["nome"],
+                "email": responsavel["email"],
+                "cargo": responsavel["cargo"],
+                "role": "coordenador",
+                "ativo": True,
+                "access_profile": "regular",
+                "perfil_ouvidoria": None,
+                "is_super_admin": False,
+                "is_externo": False,
+                "auth_user_id": login_de_exemplo(url, chave, responsavel["email"], responsavel["senha"]),
+            }
+        ],
+        prefer="resolution=merge-duplicates",
+    )
+
     filtro = (
         "ouvidoria_setor_responsaveis?setor=eq."
         + urllib.parse.quote(responsavel["setor"])
@@ -151,10 +177,18 @@ def semear() -> None:
             chave,
             "ouvidoria_setor_responsaveis",
             "POST",
-            [{**responsavel, "vigencia_inicio": "2026-01-01"}],
+            [
+                {
+                    **{campo: responsavel[campo] for campo in ("setor", "papel", "nome", "email")},
+                    "vigencia_inicio": "2026-01-01",
+                }
+            ],
         )
 
-    for receita in SEED["casos"].values():
+    # O id de cada caso sai na saída, uma linha `caso <chave> <id>`: a lista do
+    # responsável não mostra o resumo, e o roteiro acha a linha pelo link do
+    # RESPONDER, que leva o id (issue #1888).
+    for nome, receita in SEED["casos"].items():
         linha = linha_do_caso(receita)
         achado = rest(
             url,
@@ -163,9 +197,10 @@ def semear() -> None:
             f"&resumo=eq.{urllib.parse.quote(receita['resumo'])}&select=id",
         )
         if achado:
-            rest(url, chave, f"ouvidoria_protocolos?id=eq.{achado[0]['id']}", "PATCH", linha)
+            caso_id = achado[0]["id"]
+            rest(url, chave, f"ouvidoria_protocolos?id=eq.{caso_id}", "PATCH", linha)
         else:
-            rest(
+            [criado] = rest(
                 url,
                 chave,
                 "ouvidoria_protocolos",
@@ -179,7 +214,10 @@ def semear() -> None:
                         "anonimo": False,
                     }
                 ],
+                prefer="return=representation",
             )
+            caso_id = criado["id"]
+        print(f"caso {nome} {caso_id}")
 
     print("dados de exemplo da página de Ouvidoria prontos.")
 

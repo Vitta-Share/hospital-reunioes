@@ -27,6 +27,20 @@ function imagensDoRoteiro(texto: string): string[] {
   return Array.from(texto.matchAll(/^\s*print(?:_janela)?\s.*"([^"/]+\.png)"\s*$/gm), (m) => m[1]);
 }
 
+/** Para cada PNG do roteiro, a pessoa do seed com quem o roteiro entrou por
+ * último antes de fotografá-lo (`entrar <pessoa>`). */
+function quemFotografa(texto: string): Record<string, string> {
+  const quem: Record<string, string> = {};
+  let logada = "ninguém";
+  for (const linha of texto.split("\n")) {
+    const entrada = /^\s*entrar\s+(\w+)\s*$/.exec(linha);
+    if (entrada) logada = entrada[1];
+    const [png] = imagensDoRoteiro(linha);
+    if (png) quem[png] = logada;
+  }
+  return quem;
+}
+
 /** Todo texto do seed, folha por folha. */
 function folhas(valor: unknown): string[] {
   if (typeof valor === "string") return [valor];
@@ -42,6 +56,15 @@ describe("o roteiro dos prints da página de Ouvidoria", () => {
 
     expect(citadas.length).toBeGreaterThan(0);
     expect([...doRoteiro].sort()).toEqual([...citadas].sort());
+  });
+
+  it("fotografa a lista e a Tela do responsável entrando como o responsável do setor, e o resto como a ouvidora (issue #1888)", () => {
+    const quem = quemFotografa(readFileSync(ROTEIRO, "utf8"));
+    expect(quem["linha-responder.png"]).toBe("responsavel");
+    expect(quem["tela-do-responsavel.png"]).toBe("responsavel");
+    const daOuvidora = Object.entries(quem).filter(([png]) => !["linha-responder.png", "tela-do-responsavel.png"].includes(png));
+    expect(daOuvidora.length).toBeGreaterThan(0);
+    expect(daOuvidora.filter(([, pessoa]) => pessoa !== "ouvidora")).toEqual([]);
   });
 
   it("recusa rodar contra um endereço que não é o app local", () => {
@@ -61,6 +84,12 @@ describe("o seed da página de Ouvidoria", () => {
     expect(SEED.ouvidora.id).toMatch(/^P13\d\d$/);
   });
 
+  it("o responsável do setor de exemplo tem login, na mesma faixa e com outro id (issue #1888)", () => {
+    expect(SEED.responsavel.id).toMatch(/^P13\d\d$/);
+    expect(SEED.responsavel.id).not.toBe(SEED.ouvidora.id);
+    expect(SEED.responsavel.senha).toBeTruthy();
+  });
+
   it("todo e-mail do seed é de exemplo", () => {
     const emails = SEED_CRU.match(/[\w.+-]+@[\w.-]+/g) ?? [];
     expect(emails.length).toBeGreaterThan(0);
@@ -77,6 +106,17 @@ describe("os detectores do roteiro e do seed", () => {
   it("o print de uma janela também conta como imagem do roteiro", () => {
     const texto = 'print "$(linha x)" "linha.png"\nprint_janela "Encerrar" "encerrar.png"\n# print "velho.png"';
     expect(imagensDoRoteiro(texto)).toEqual(["linha.png", "encerrar.png"]);
+  });
+
+  it("cada print fica com a última pessoa que entrou antes dele", () => {
+    const texto = [
+      "entrar ouvidora",
+      'print "x" "a.png"',
+      "entrar responsavel",
+      'print "y" "b.png"',
+      'print_janela "Z" "c.png"',
+    ].join("\n");
+    expect(quemFotografa(texto)).toEqual({ "a.png": "ouvidora", "b.png": "responsavel", "c.png": "responsavel" });
   });
 
   it("telefone escrito de qualquer jeito é pego", () => {

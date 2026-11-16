@@ -8,10 +8,13 @@
     "cargo": "Ouvidora"
   },
   "responsavel": {
+    "id": "P1301",
     "setor": "Nutrição",
     "papel": "titular",
     "nome": "Caio Mendes",
-    "email": "caio.mendes@exemplo.local"
+    "email": "caio.mendes@exemplo.local",
+    "senha": "ManualOuvidoria1888!",
+    "cargo": "Coordenador da Nutrição"
   },
   "nova_manifestacao": {
     "tipo": "Reclamação",
@@ -30,6 +33,9 @@
   "encerramento": {
     "desfecho": "Procedente",
     "texto": "A Nutrição confirmou o atraso do café da manhã na ala B. A copa ganhou mais uma pessoa de manhã, e o café sai às 7h30 desde segunda. Obrigado por avisar a Ouvidoria."
+  },
+  "resposta_pelo_app": {
+    "texto": "Refizemos a etiqueta da dieta do quarto 212, e a copa confere a prescrição antes de montar cada bandeja. A nutricionista do andar passou a revisar o almoço todo dia."
   },
   "casos": {
     "para_validar": {

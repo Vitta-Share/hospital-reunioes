@@ -5,7 +5,7 @@ titulo: Ouvidoria
 
 Aqui chegam as reclamações, sugestões, elogios e denúncias de pacientes, acompanhantes e colaboradores. A Ouvidoria confere cada caso, manda para o setor certo, cobra a resposta e devolve o desfecho a quem manifestou.
 
-Quem não é da Ouvidoria vê só a lista dos casos, sem o relato. As tarefas abaixo são de quem tem o acesso de ouvidor ou da Diretoria Executiva.
+Quem é da Ouvidoria ou da Diretoria Executiva, a secretária e o Super admin veem a lista de todos os casos. O responsável do setor vê os casos do setor dele e responde por eles no app. Os outros não veem a Ouvidoria no menu. As tarefas abaixo são de quem tem o acesso de ouvidor ou da Diretoria Executiva, menos a de responder um caso, que é do responsável do setor.
 
 ## O caminho de uma manifestação
 
@@ -61,6 +61,26 @@ Todo caso novo fica no grupo **Em classificação** até a Ouvidoria conferir e 
 6. Clique em **Enviar à área**. O responsável do setor recebe o e-mail com o caso e o prazo, e o caso passa para **Aguardando área**.
 
 ![A janela Validar e acionar preenchida](validar-e-acionar.png)
+
+Se o responsável do setor tem login, ele também acha o caso no app, em **A responder**, e pode responder por lá ou pelo link do e-mail.
+
+## Responder um caso do seu setor pelo app
+
+Esta tarefa é de quem responde por um setor: o titular, o substituto ou o gestor que a Ouvidoria cadastrou com o seu e-mail. Com o login no app, você acha os casos do seu setor sem depender do e-mail.
+
+1. Entre no app com o seu e-mail e a sua senha.
+2. No menu da esquerda, clique em **Ouvidoria**. A lista mostra só os casos do seu setor: no alto, **A responder**, do prazo mais curto ao mais longo; embaixo, **Respondidos pelo setor**, só para consulta.
+3. Ache o caso em **A responder** e clique em **Responder** na linha dele.
+
+![Um caso do setor em A responder, com o botão Responder](linha-responder.png)
+
+4. Leia o caso. É a mesma tela do link do e-mail, com a gravidade, o prazo, o relato e a **Nota da Ouvidoria**, que diz o que o setor precisa apurar.
+5. Em **O que foi feito**, conte o que o setor fez para corrigir. Se tiver foto ou documento, clique em **Anexar arquivos**.
+6. Clique em **Responder à Ouvidoria**. A Ouvidoria confere a resposta e encerra o caso com quem manifestou.
+
+![A Tela do responsável aberta pelo app, com O que foi feito preenchido](tela-do-responsavel.png)
+
+Cada caso recebe uma resposta só. Respondeu pelo app, o link do e-mail desse caso deixa de valer. Se você já respondeu pelo link, o botão **Responder** some da lista. Na mesma tela dá para pedir mais prazo ou devolver à Ouvidoria o caso que não é do seu setor.
 
 ## Cobrar a resposta do setor
 
