@@ -148,6 +148,13 @@ def _inserir_pendencias(supabase, id_reuniao: str, itens: list[dict]) -> list[di
     return []
 
 
+def criar_pendencia_sem_reuniao(supabase, item: dict) -> dict:
+    """A Pendência que não nasce de Ata: o lembrete da Agenda regulatória do
+    Núcleo (issue #1779). Mesma numeração `A###` e o mesmo retry; sem Reunião,
+    ela aparece em "Minhas pendências" de quem é o responsável."""
+    return _inserir_pendencias(supabase, None, [item])[0]
+
+
 def liberar_pendencias(
     supabase,
     id_reuniao: str,
