@@ -74,7 +74,7 @@ Esta tarefa é de quem responde por um setor: o titular, o substituto ou o gesto
 
 ![Um caso do setor em A responder, com o botão Responder](linha-responder.png)
 
-4. Leia o caso. É a mesma tela do link do e-mail, com a gravidade, o prazo e o que a Ouvidoria pede que o setor apure.
+4. Leia o caso. É a mesma tela do link do e-mail, com a gravidade, o prazo, o relato e a **Nota da Ouvidoria**, que diz o que o setor precisa apurar.
 5. Em **O que foi feito**, conte o que o setor fez para corrigir. Se tiver foto ou documento, clique em **Anexar arquivos**.
 6. Clique em **Responder à Ouvidoria**. A Ouvidoria confere a resposta e encerra o caso com quem manifestou.
 

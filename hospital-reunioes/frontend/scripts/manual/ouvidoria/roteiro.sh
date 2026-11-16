@@ -44,7 +44,10 @@ print() { pw screenshot "$1" --filename="$SAIDA/$2"; echo "  $2"; }
 linha() { echo "getByRole('listitem').filter({ hasText: '$1' }).first()"; }
 janela() { echo "getByRole('dialog', { name: '$1' }).locator('> div').first()"; }
 
-python3 "$AQUI/semear.py"
+SEMEADO="$(python3 "$AQUI/semear.py")"
+echo "$SEMEADO" | tail -1
+# O id que o semeador deu a um caso do seed (linha `caso <chave> <id>`).
+id_do_caso() { awk -v chave="$1" '$1 == "caso" && $2 == chave { print $3 }' <<<"$SEMEADO"; }
 mkdir -p "$SAIDA"
 
 # Entra no app como uma pessoa do seed ("ouvidora" ou "responsavel"), num
@@ -122,13 +125,16 @@ print_janela "Encerrar" "encerrar.png"
 # Responder um caso do seu setor pelo app (issue #1888, ADR 0099): o
 # responsável do setor de exemplo entra, acha o caso em A responder e abre a
 # Tela do responsável. O botão Responder à Ouvidoria não é clicado: enviar
-# gastaria o caso do seed e o link do e-mail dele.
+# gastaria o caso do seed e o link do e-mail dele. A lista do responsável não
+# mostra o resumo, então a linha se acha pelo link do RESPONDER, que leva o id.
 entrar responsavel
 pw goto "$BASE/ouvidoria"
-A_RESPONDER="$(seed "['casos']['com_a_area']['assunto']")"
-pw run-code "async page => { await page.$(linha "$A_RESPONDER").getByRole('link', { name: 'Responder' }).waitFor() }"
-print "$(linha "$A_RESPONDER")" "linha-responder.png"
-pw click "$(linha "$A_RESPONDER").getByRole('link', { name: 'Responder' })"
+LINK="a[href=\"/ouvidoria/responder/$(id_do_caso com_a_area)\"]"
+RESPONDER="locator('$LINK')"
+A_RESPONDER="locator('li:has($LINK)')"
+pw run-code "async page => { await page.$RESPONDER.waitFor() }"
+print "$A_RESPONDER" "linha-responder.png"
+pw click "$RESPONDER"
 pw run-code "async page => { await page.getByLabel('O que foi feito', { exact: true }).waitFor() }"
 pw fill "getByLabel('O que foi feito', { exact: true })" "$(seed "['resposta_pelo_app']['texto']")"
 pw resize 1440 2200
