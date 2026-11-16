@@ -222,7 +222,9 @@ export type StatusAta =
   | "ASSINADA"
   | "APROVADA"
   | "CANCELADA"
-  | "MIGRADA";
+  | "MIGRADA"
+  // Reunião do Núcleo sem quórum (issue #1774).
+  | "NAO_INSTALADA";
 
 export type StatusPendencia =
   | "PENDENTE"
