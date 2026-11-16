@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { CalendarDays, Lock, Plus } from "lucide-react";
+import { CalendarDays, CalendarPlus, ClipboardList, Lock, Plus } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
+
+import { PautaDaReuniao } from "./PautaDaReuniao";
 
 const CARTAO = "bg-white rounded-2xl border border-border shadow-premium";
 const ROTA = "/api/nsp/reunioes";
@@ -85,6 +87,12 @@ export function ReunioesDoNucleo() {
   const [data, setData] = useState("");
   const [hora, setHora] = useState("");
   const [tipo, setTipo] = useState("");
+  const [gerando, setGerando] = useState(false);
+  const [ano, setAno] = useState(String(new Date().getFullYear() + 1));
+  const [diaDoMes, setDiaDoMes] = useState("10");
+  const [horaDoCalendario, setHoraDoCalendario] = useState("14:00");
+  const [aviso, setAviso] = useState<string | null>(null);
+  const [pautaAberta, setPautaAberta] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     const tk = await token();
@@ -128,22 +136,125 @@ export function ReunioesDoNucleo() {
     await carregar();
   }
 
+  async function gerarCalendario(e: FormEvent) {
+    e.preventDefault();
+    setSalvando(true);
+    setErro(null);
+    setAviso(null);
+    const tk = await token();
+    const res = await fetch(`${ROTA}/calendario`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tk}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ ano: Number(ano), dia: Number(diaDoMes), hora_inicio: horaDoCalendario }),
+    });
+    setSalvando(false);
+    if (!res.ok) {
+      setErro("Não consegui gerar o calendário. Confira o ano, o dia e a hora.");
+      return;
+    }
+    const corpo: { criadas: unknown[] } = await res.json();
+    setGerando(false);
+    setAviso(
+      corpo.criadas.length === 0
+        ? `O calendário de ${ano} já tinha as doze ordinárias. Nada foi criado.`
+        : `${corpo.criadas.length} ${corpo.criadas.length === 1 ? "reunião ordinária criada" : "reuniões ordinárias criadas"} em ${ano}.`,
+    );
+    await carregar();
+  }
+
   if (!calendario) {
     return erro ? <p className="text-sm text-red-700">{erro}</p> : null;
   }
 
   return (
     <div className="space-y-5">
-      {calendario.pode_criar && !criando && (
-        <button
-          type="button"
-          onClick={() => setCriando(true)}
-          className="inline-flex items-center gap-2 rounded-xl bg-[#282760] text-white text-sm font-semibold px-4 py-2.5"
-        >
-          <Plus className="w-4 h-4" aria-hidden />
-          Nova reunião
-        </button>
+      {calendario.pode_criar && !criando && !gerando && (
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setCriando(true)}
+            className="inline-flex items-center gap-2 rounded-xl bg-[#282760] text-white text-sm font-semibold px-4 py-2.5"
+          >
+            <Plus className="w-4 h-4" aria-hidden />
+            Nova reunião
+          </button>
+          <button
+            type="button"
+            onClick={() => setGerando(true)}
+            className="inline-flex items-center gap-2 rounded-xl border border-border text-sm font-semibold px-4 py-2.5"
+          >
+            <CalendarPlus className="w-4 h-4" aria-hidden />
+            Gerar o calendário do ano
+          </button>
+        </div>
       )}
+
+      {gerando && (
+        <form
+          onSubmit={gerarCalendario}
+          aria-label="Calendário do ano"
+          className={`${CARTAO} space-y-3 px-4 py-4`}
+        >
+          <p className="text-sm text-slate-600">
+            Cria as doze reuniões ordinárias do ano, uma por mês. Dia que cai em fim de semana ou feriado vai para o
+            próximo dia útil. Mês que já tem ordinária fica como está.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <label className="block text-sm text-slate-700">
+              Ano
+              <input
+                required
+                type="number"
+                min={2020}
+                max={2100}
+                value={ano}
+                onChange={(e) => setAno(e.target.value)}
+                className="mt-1 block w-24 rounded-lg border border-border px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="block text-sm text-slate-700">
+              Dia do mês
+              <input
+                required
+                type="number"
+                min={1}
+                max={28}
+                value={diaDoMes}
+                onChange={(e) => setDiaDoMes(e.target.value)}
+                className="mt-1 block w-20 rounded-lg border border-border px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="block text-sm text-slate-700">
+              Hora
+              <input
+                required
+                type="time"
+                value={horaDoCalendario}
+                onChange={(e) => setHoraDoCalendario(e.target.value)}
+                className="mt-1 block rounded-lg border border-border px-3 py-2 text-sm"
+              />
+            </label>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={salvando}
+              className="rounded-xl bg-[#282760] text-white text-sm font-semibold px-4 py-2.5 disabled:opacity-60"
+            >
+              Gerar
+            </button>
+            <button
+              type="button"
+              onClick={() => setGerando(false)}
+              className="rounded-xl border border-border text-sm px-4 py-2.5"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+
+      {aviso && <p className="text-sm text-emerald-700">{aviso}</p>}
 
       {criando && (
         <form onSubmit={criar} aria-label="Nova reunião do Núcleo" className={`${CARTAO} space-y-3 px-4 py-4`}>
@@ -242,14 +353,35 @@ export function ReunioesDoNucleo() {
                     </span>
                   </>
                 );
+                const aberta = pautaAberta === r.id_reuniao;
                 return (
-                  <li key={r.id_reuniao}>
+                  <li key={r.id_reuniao} className="space-y-2">
                     {calendario.pode_abrir ? (
-                      <Link href={`/reunioes/${r.id_reuniao}`} className={`${CARTAO} flex gap-3 items-center px-4 py-3`}>
-                        {miolo}
-                      </Link>
+                      <div className="flex gap-2 items-stretch">
+                        <Link
+                          href={`/reunioes/${r.id_reuniao}`}
+                          className={`${CARTAO} flex flex-1 min-w-0 gap-3 items-center px-4 py-3`}
+                        >
+                          {miolo}
+                        </Link>
+                        <button
+                          type="button"
+                          aria-expanded={aberta}
+                          aria-label={`Pauta de ${r.titulo ?? r.tipo}`}
+                          onClick={() => setPautaAberta(aberta ? null : r.id_reuniao)}
+                          className={`${CARTAO} shrink-0 inline-flex items-center gap-1.5 px-3 text-sm font-semibold text-[#282760]`}
+                        >
+                          <ClipboardList className="w-4 h-4" aria-hidden />
+                          Pauta
+                        </button>
+                      </div>
                     ) : (
                       <div className={`${CARTAO} flex gap-3 items-center px-4 py-3`}>{miolo}</div>
+                    )}
+                    {aberta && (
+                      <div className={`${CARTAO} px-4 py-4`}>
+                        <PautaDaReuniao idReuniao={r.id_reuniao} />
+                      </div>
                     )}
                   </li>
                 );
