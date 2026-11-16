@@ -1,6 +1,7 @@
 ---
 status: accepted
 amends: 0034, 0041, 0052
+amended_by: 0097
 ---
 
 # Acionamento de ciência: o elogio e o Núcleo de Segurança do Paciente, com exceção de sigilo para o Núcleo
