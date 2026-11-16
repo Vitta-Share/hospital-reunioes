@@ -74,6 +74,8 @@ class _Consulta:
         self._teto: int | None = None
         self._acao = "select"
         self._valores: Any = None
+        self._malformado = False
+        self._recorte: tuple[int, int] | None = None
 
     def select(self, *_a, **_kw):
         return self
@@ -91,11 +93,15 @@ class _Consulta:
         return self
 
     def eq(self, coluna, valor):
+        if valor in self._banco.fora_do_formato_uuid:
+            self._malformado = True
         self._filtros.append(lambda linha: linha.get(coluna) == valor)
         return self
 
     def in_(self, coluna, valores):
-        self._filtros.append(lambda linha: linha.get(coluna) in list(valores))
+        valores = list(valores)
+        self._banco.maior_in = max(self._banco.maior_in, len(valores))
+        self._filtros.append(lambda linha: linha.get(coluna) in valores)
         return self
 
     def is_(self, coluna, valor):
@@ -119,7 +125,14 @@ class _Consulta:
         self._teto = n
         return self
 
+    def range(self, inicio, fim):
+        self._recorte = (inicio, fim)
+        return self
+
     def execute(self):
+        if self._malformado:
+            # O que o PostgREST responde a um id fora do formato numa coluna UUID.
+            raise APIError({"code": "22P02", "message": "invalid input syntax for type uuid"})
         if self._acao != "select":
             self._banco.escritas.append((self._acao, self._nome))
         if self._acao == "insert":
@@ -136,6 +149,12 @@ class _Consulta:
         if self._ordem:
             coluna, desc = self._ordem
             casam.sort(key=lambda linha: (linha.get(coluna) is None, str(linha.get(coluna))), reverse=desc)
+        if self._recorte:
+            casam = casam[self._recorte[0] : self._recorte[1] + 1]
+        # O `PGRST_DB_MAX_ROWS`: a resposta volta cortada, com 200 e sem aviso.
+        teto_do_servidor = self._banco.teto_do_servidor.get(self._nome)
+        if teto_do_servidor is not None:
+            casam = casam[:teto_do_servidor]
         return SimpleNamespace(data=casam[: self._teto] if self._teto is not None else casam)
 
     def _inserir(self) -> list[dict]:
@@ -155,6 +174,12 @@ class _Banco:
     def __init__(self, tabelas: dict[str, list[dict]]):
         self.tabelas = tabelas
         self.escritas: list[tuple[str, str]] = []
+        # Valores que a coluna UUID do banco de verdade recusa com 22P02.
+        self.fora_do_formato_uuid: set[str] = set()
+        # Teto de linhas por resposta, por tabela, como o PostgREST corta.
+        self.teto_do_servidor: dict[str, int] = {}
+        # O maior `in_` pedido: muitos ids numa URL só estouram o tamanho dela.
+        self.maior_in = 0
 
     def table(self, nome: str):
         return _Consulta(self, nome)
@@ -493,6 +518,47 @@ class TestPresenca:
         assert _presencas(banco)["P2"] == "2026-10-20T15:00:00-03:00"
         assert banco.escritas == []
 
+    def test_capacitacao_que_ainda_nao_aconteceu_nao_aceita_presenca(self):
+        """Mutante: tirar a comparação da data com hoje."""
+        amanha = (HOJE + timedelta(days=1)).isoformat()
+        banco = _banco(
+            capacitacoes=[_capacitacao(data=amanha)],
+            presencas=[_presenca("cap-fixa", "P2")],
+        )
+
+        resposta = _cliente(MEMBRO, banco).post(f"{ROTA}/cap-fixa/presenca")
+
+        assert resposta.status_code == 409, resposta.text
+        assert resposta.json() == {"detail": "A presença só se confirma a partir do dia da capacitação."}
+        assert banco.escritas == []
+        assert _presencas(banco)["P2"] is None
+
+    def test_no_dia_da_capacitacao_a_presenca_se_confirma(self):
+        banco = _banco(
+            capacitacoes=[_capacitacao(data=HOJE.isoformat())],
+            presencas=[_presenca("cap-fixa", "P2")],
+        )
+
+        resposta = _cliente(MEMBRO, banco).post(f"{ROTA}/cap-fixa/presenca")
+
+        assert resposta.status_code == 200, resposta.text
+        assert _presencas(banco)["P2"] is not None
+
+    def test_a_lista_diz_o_dia_de_hoje_para_a_tela_esconder_o_botao(self):
+        corpo = _cliente(MEMBRO, _cenario_da_presenca()).get(ROTA).json()
+
+        assert corpo["hoje"] == HOJE.isoformat()
+
+    def test_id_fora_do_formato_recebe_a_recusa_do_modulo(self):
+        """Mutante: deixar o APIError 22P02 subir (vira 500 no handler global)."""
+        banco = _cenario_da_presenca()
+        banco.fora_do_formato_uuid = {"nao-e-uuid"}
+
+        resposta = _cliente(MEMBRO, banco).post(f"{ROTA}/nao-e-uuid/presenca")
+
+        _assert_recusado(resposta)
+        assert banco.escritas == []
+
     def test_pessoa_desligada_nao_confirma(self):
         desligada = _pessoa("P2", ativo=False)
         banco = _banco(
@@ -579,6 +645,53 @@ class TestCobertura:
         assert "P4" not in _cobertura(corpo)
 
 
+class TestLeituraInteira:
+    def test_o_teto_do_servidor_nao_corta_participantes_nem_cobertura(self):
+        """Mutante: ler as presenças numa resposta só, sem página."""
+        caps = [_capacitacao(f"cap-{i}", tema_ids=["t-maos"], data=f"2026-10-0{i}") for i in range(1, 4)]
+        banco = _banco(
+            temas=[_tema("t-maos", "Higiene das mãos")],
+            capacitacoes=caps,
+            presencas=[
+                _presenca(c["id"], pid, "2026-10-20T15:00:00-03:00" if pid == "P3" and c["id"] == "cap-3" else None)
+                for c in caps
+                for pid in ("P2", "P3", "P4")
+            ],
+        )
+        banco.teto_do_servidor = {
+            "nsp_capacitacoes": 2,
+            "nsp_capacitacao_participantes": 2,
+            "participantes": 2,
+        }
+
+        corpo = _cliente(PRESIDENTE, banco).get(ROTA).json()
+
+        assert [c["id"] for c in corpo["capacitacoes"]] == ["cap-3", "cap-2", "cap-1"]
+        for capacitacao in corpo["capacitacoes"]:
+            assert [(p["participante_id"], p["nome"]) for p in capacitacao["participantes"]] == [
+                ("P2", "Pessoa de Teste P2"),
+                ("P3", "Pessoa de Teste P3"),
+                ("P4", "Pessoa de Teste P4"),
+            ]
+        assert _cobertura(corpo)["P3"] == ["t-maos"]
+
+    def test_os_nomes_vao_em_lotes_de_ids(self):
+        """Mutante: juntar todos os ids num `in_` só."""
+        pessoas = [_pessoa(f"Q{i:03d}") for i in range(250)]
+        banco = _banco(
+            [PRESIDENTE, *pessoas],
+            capacitacoes=[_capacitacao()],
+            presencas=[_presenca("cap-fixa", p["id"]) for p in pessoas],
+        )
+
+        corpo = _cliente(PRESIDENTE, banco).get(ROTA).json()
+
+        [capacitacao] = corpo["capacitacoes"]
+        assert len(capacitacao["participantes"]) == 250
+        assert all(p["nome"] == f"Pessoa de Teste {p['participante_id']}" for p in capacitacao["participantes"])
+        assert banco.maior_in <= 100
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # 4. A Presidência edita a lista de temas mínimos
 # ═══════════════════════════════════════════════════════════════════════════
@@ -625,6 +738,17 @@ class TestTemasMinimos:
         resposta = _cliente(PRESIDENTE, _banco()).patch(f"{ROTA}/temas/nao-existe", json={"ativo": False})
 
         assert resposta.status_code == 404
+
+    def test_tema_com_id_fora_do_formato_responde_404(self):
+        """Mutante: deixar o APIError 22P02 subir (vira 500 no handler global)."""
+        banco = _banco(temas=[_tema("tema-id", "Higiene das mãos")])
+        banco.fora_do_formato_uuid = {"nao-e-uuid"}
+
+        resposta = _cliente(PRESIDENTE, banco).patch(f"{ROTA}/temas/nao-e-uuid", json={"ativo": False})
+
+        assert resposta.status_code == 404, resposta.text
+        assert resposta.json() == {"detail": "Tema não encontrado"}
+        assert banco.escritas == []
 
     @pytest.mark.parametrize(
         ("metodo", "rota", "corpo"),

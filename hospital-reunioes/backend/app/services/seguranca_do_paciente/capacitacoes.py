@@ -17,6 +17,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
+from app.services.paginacao import ler_tudo
 from app.services.seguranca_do_paciente.permissao import PAPEIS_DO_NUCLEO, id_do_nucleo, participacoes_vigentes
 
 TABELA = "nsp_capacitacoes"
@@ -25,12 +26,21 @@ TABELA_TEMAS = "nsp_temas_minimos"
 
 _ORDEM_DO_PAPEL = {papel: i for i, papel in enumerate(PAPEIS_DO_NUCLEO)}
 
+# Ids por `in_`: todos numa URL só estourariam o tamanho dela.
+LOTE_DE_IDS = 100
+
 
 def _nomes(supabase, ids: set[str]) -> dict[str, str]:
-    if not ids:
-        return {}
-    linhas = (supabase.table("participantes").select("id, nome_completo").in_("id", sorted(ids)).execute().data) or []
-    return {linha["id"]: linha["nome_completo"] for linha in linhas}
+    ordenados = sorted(ids)
+    nomes: dict[str, str] = {}
+    for i in range(0, len(ordenados), LOTE_DE_IDS):
+        lote = ordenados[i : i + LOTE_DE_IDS]
+        linhas = ler_tudo(
+            lambda lote=lote: supabase.table("participantes").select("id, nome_completo").in_("id", lote).order("id"),
+            rotulo="nomes das Capacitações",
+        )
+        nomes.update({linha["id"]: linha["nome_completo"] for linha in linhas})
+    return nomes
 
 
 def temas(supabase) -> list[dict[str, Any]]:
@@ -76,13 +86,21 @@ def _membros_vigentes(supabase, hoje: date) -> list[dict]:
 def listar(supabase, hoje: date) -> dict[str, Any]:
     """O que a tela Capacitações mostra: as capacitações (mais nova primeiro),
     com os participantes e a presença, a lista de temas e a cobertura por membro."""
-    capacitacoes = supabase.table(TABELA).select("*").order("data", desc=True).execute().data or []
-    presencas = (
-        supabase.table(TABELA_PARTICIPANTES)
-        .select("capacitacao_id, participante_id, presenca_confirmada_em")
-        .execute()
-        .data
-    ) or []
+    # Em páginas: a resposta única volta cortada no teto do PostgREST, sem
+    # aviso, e somem participante, botão e cobertura (issue #430).
+    capacitacoes = sorted(
+        ler_tudo(lambda: supabase.table(TABELA).select("*").order("id"), rotulo="capacitações"),
+        key=lambda c: (str(c["data"]), c["id"]),
+        reverse=True,
+    )
+    presencas = ler_tudo(
+        lambda: (
+            supabase.table(TABELA_PARTICIPANTES)
+            .select("id, capacitacao_id, participante_id, presenca_confirmada_em")
+            .order("id")
+        ),
+        rotulo="participantes das capacitações",
+    )
     lista_de_temas = temas(supabase)
     membros = _membros_vigentes(supabase, hoje)
     nomes = _nomes(supabase, {p["participante_id"] for p in presencas} | {m["participante_id"] for m in membros})

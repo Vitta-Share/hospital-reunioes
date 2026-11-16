@@ -17,6 +17,7 @@ from datetime import date, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from postgrest.exceptions import APIError
 from pydantic import BaseModel, Field
 from supabase import Client
 
@@ -56,6 +57,12 @@ class TemaEditado(BaseModel):
     ativo: bool | None = None
 
 
+def _fora_do_formato(erro: APIError) -> bool:
+    """Id da URL que não é UUID (22P02), de link velho ou URL digitada: o
+    PostgREST recusa antes de procurar, e a rota responde como se não achasse."""
+    return getattr(erro, "code", None) == "22P02"
+
+
 def _limpo(texto: str | None) -> str:
     return (texto or "").strip()
 
@@ -74,10 +81,14 @@ async def listar_capacitacoes(
     me: dict = Depends(require_recurso_nsp("capacitacoes")),
     supabase: Client = Depends(get_supabase_client),
 ) -> dict:
+    hoje = hoje_em_sao_paulo()
     return {
-        **capacitacoes.listar(supabase, hoje_em_sao_paulo()),
+        **capacitacoes.listar(supabase, hoje),
         "pode_editar": "gerir_nucleo" in me["recursos_nsp"],
         "eu": me.get("id"),
+        # O dia de São Paulo: a tela só mostra o botão de confirmar a partir do
+        # dia da capacitação, sem depender do relógio do aparelho.
+        "hoje": hoje.isoformat(),
     }
 
 
@@ -156,7 +167,12 @@ async def editar_tema(
     campos = corpo.model_dump(exclude_unset=True)
     if any(valor is None for valor in campos.values()):
         raise HTTPException(status_code=422, detail="Esse campo não pode ficar em branco.")
-    existe = supabase.table(capacitacoes.TABELA_TEMAS).select("id").eq("id", tema_id).limit(1).execute().data
+    try:
+        existe = supabase.table(capacitacoes.TABELA_TEMAS).select("id").eq("id", tema_id).limit(1).execute().data
+    except APIError as erro:
+        if not _fora_do_formato(erro):
+            raise
+        existe = []
     if not existe:
         raise HTTPException(status_code=404, detail="Tema não encontrado")
     if "nome" in campos:
@@ -180,17 +196,32 @@ async def confirmar_minha_presenca(
     barrar_desligado(me)
     if not me:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=RECUSA_DO_NSP)
-    linhas = (
-        supabase.table(capacitacoes.TABELA_PARTICIPANTES)
-        .select("id, presenca_confirmada_em")
-        .eq("capacitacao_id", capacitacao_id)
-        .eq("participante_id", me["id"])
-        .limit(1)
-        .execute()
-        .data
-    ) or []
+    try:
+        linhas = (
+            supabase.table(capacitacoes.TABELA_PARTICIPANTES)
+            .select("id, presenca_confirmada_em")
+            .eq("capacitacao_id", capacitacao_id)
+            .eq("participante_id", me["id"])
+            .limit(1)
+            .execute()
+            .data
+        ) or []
+    except APIError as erro:
+        if not _fora_do_formato(erro):
+            raise
+        linhas = []
     if not linhas:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=RECUSA_DO_NSP)
+    # A presença comprova a formação: antes do dia, a capacitação ainda não
+    # aconteceu e não há o que confirmar.
+    capacitacao = (
+        supabase.table(capacitacoes.TABELA).select("data").eq("id", capacitacao_id).limit(1).execute().data
+    ) or []
+    if not capacitacao or str(capacitacao[0]["data"]) > hoje_em_sao_paulo().isoformat():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A presença só se confirma a partir do dia da capacitação.",
+        )
     linha = linhas[0]
     if not linha.get("presenca_confirmada_em"):
         agora = datetime.now().astimezone().isoformat()

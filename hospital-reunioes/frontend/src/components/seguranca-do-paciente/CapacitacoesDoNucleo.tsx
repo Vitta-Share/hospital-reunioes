@@ -46,6 +46,8 @@ export interface RespostaDasCapacitacoes {
   pode_editar: boolean;
   /** O id de quem está logado: o botão de confirmar só aparece para ele. */
   eu: string | null;
+  /** O dia de hoje em São Paulo (AAAA-MM-DD): antes do dia da capacitação não se confirma presença. */
+  hoje: string;
 }
 
 const LABEL_PUBLICO: Record<Publico, string> = {
@@ -489,7 +491,7 @@ export function CapacitacoesDoNucleo() {
                 ))}
               </ul>
 
-              {minha && !minha.presenca_confirmada_em && (
+              {minha && !minha.presenca_confirmada_em && cap.data <= dados.hoje && (
                 <button
                   type="button"
                   className={`${BOTAO} mt-3`}

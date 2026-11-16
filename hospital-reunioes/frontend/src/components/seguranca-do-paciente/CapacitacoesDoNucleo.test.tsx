@@ -26,6 +26,7 @@ vi.mock("@/lib/supabase/client", () => ({
 function resposta(campos: Partial<RespostaDasCapacitacoes> = {}): RespostaDasCapacitacoes {
   return {
     eu: "p2",
+    hoje: "2026-11-16",
     pode_editar: false,
     temas: [
       { id: "t-maos", nome: "Higiene das mãos", ativo: true },
@@ -164,6 +165,22 @@ describe("a presença", () => {
 
     const segunda = within(await cartao("Cirurgia segura"));
     expect(segunda.queryByRole("button", { name: "Confirmar minha presença" })).toBeNull();
+  });
+
+  it("na capacitação que ainda não aconteceu, o botão não aparece", async () => {
+    lista = resposta({ hoje: "2026-10-19" });
+    render(<CapacitacoesDoNucleo />);
+
+    const primeira = within(await cartao("Higiene das mãos na prática"));
+    expect(primeira.queryByRole("button", { name: "Confirmar minha presença" })).toBeNull();
+  });
+
+  it("no dia da capacitação, o botão aparece", async () => {
+    lista = resposta({ hoje: "2026-10-20" });
+    render(<CapacitacoesDoNucleo />);
+
+    const primeira = within(await cartao("Higiene das mãos na prática"));
+    expect(primeira.getByRole("button", { name: "Confirmar minha presença" })).toBeTruthy();
   });
 
   it("depois de confirmar, o botão some", async () => {
