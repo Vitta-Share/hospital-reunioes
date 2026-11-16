@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T05:52+0000 -->
+<!-- last_update: 2026-11-16T06:06+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -67,7 +67,9 @@ erDiagram
     colegiados ||--o{ reunioes : "colegiado_id"
     nsp_agenda_regulatoria ||--o{ nsp_agenda_ocorrencias : "item_id"
     nsp_capacitacoes ||--o{ nsp_capacitacao_participantes : "capacitacao_id"
+    nsp_documentos ||--o{ nsp_documentos_envios : "documento_id"
     nsp_documentos ||--o{ nsp_termos_envios : "regimento_id"
+    nsp_documentos_envios ||--o{ nsp_documentos_signatarios : "envio_id"
     nsp_termos_envios ||--o{ nsp_documentos : "termo_envio_id"
     ouvidoria_pontos ||--o{ ouvidoria_avaliacoes : "ponto_id"
     participacoes ||--o{ nsp_avisos : "participacao_id"
@@ -104,6 +106,8 @@ erDiagram
     participantes ||--o{ nsp_convocados : "convocado_por"
     participantes ||--o{ nsp_convocados : "participante_id"
     participantes ||--o{ nsp_documentos : "publicado_por"
+    participantes ||--o{ nsp_documentos_envios : "autor_id"
+    participantes ||--o{ nsp_documentos_signatarios : "participante_id"
     participantes ||--o{ nsp_pautas : "editada_por"
     participantes ||--o{ nsp_reunioes_rapidas : "criada_por"
     participantes ||--o{ ouvidoria_acessos : "ator_id"
@@ -1176,6 +1180,26 @@ erDiagram
         TIMESTAMPTZ created_at
         _ mais_colunas "+1"
     }
+    nsp_documentos_envios {
+        UUID id PK
+        UUID documento_id FK
+        TEXT situacao
+        TEXT envelope_id
+        TEXT documento_key
+        TEXT erro
+        VARCHAR autor_id FK
+        TIMESTAMPTZ created_at
+        _ mais_colunas "+3"
+    }
+    nsp_documentos_signatarios {
+        UUID id PK
+        UUID envio_id FK
+        VARCHAR participante_id FK
+        TEXT qualidade
+        TEXT signatario_id
+        TIMESTAMPTZ assinado_em
+        TIMESTAMPTZ created_at
+    }
 ```
 
 ## Indexes principais
@@ -1362,6 +1386,11 @@ erDiagram
 | `nsp_capacitacoes` | `idx_nsp_capacitacoes_criado_por` | `criado_por` | `155_nsp_capacitacoes.sql` |
 | `nsp_capacitacao_participantes` | `idx_nsp_capacitacao_participantes_pessoa` | `participante_id` | `155_nsp_capacitacoes.sql` |
 | `nsp_avisos` | `idx_nsp_avisos_destinatario` | `destinatario_id` | `158_nsp_avisos.sql` |
+| `nsp_documentos_envios` | `uq_nsp_documentos_envios_documento_key` | `documento_key` | `159_nsp_assinatura_dos_documentos.sql` |
+| `nsp_documentos_envios` | `uq_nsp_documentos_envios_aberto` | `documento_id` | `159_nsp_assinatura_dos_documentos.sql` |
+| `nsp_documentos_envios` | `idx_nsp_documentos_envios_documento` | `documento_id, created_at DESC` | `159_nsp_assinatura_dos_documentos.sql` |
+| `nsp_documentos_envios` | `idx_nsp_documentos_envios_autor` | `autor_id` | `159_nsp_assinatura_dos_documentos.sql` |
+| `nsp_documentos_signatarios` | `idx_nsp_documentos_signatarios_participante` | `participante_id` | `159_nsp_assinatura_dos_documentos.sql` |
 
 ---
-**Resumo:** 107 tabelas · 160 relacionamentos FK detectados.
+**Resumo:** 109 tabelas · 164 relacionamentos FK detectados.
