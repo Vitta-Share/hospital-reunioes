@@ -51,6 +51,24 @@ class TestTrocaSoEmPalavraInteira:
         assert pseudonimizar("Mandar o Envelope ClickSign agora") == "Mandar o Envelope ClickSign agora"
 
 
+class TestNomeComApostrofoNoMeio:
+    """A guarda de palavra inteira trata o apostrofo como parte da palavra.
+    Nome com apostrofo no meio tem que caber inteiro no desenho, senao a
+    guarda recusa a sequencia e o nome sai todo (review do PR #1895)."""
+
+    @pytest.mark.parametrize(
+        ("texto", "esperado"),
+        [
+            ("Falei com a Maria Sant'Anna ontem.", "Falei com a [NOME] ontem."),
+            ("A paciente Maria Sant'Anna Silva reclamou.", "A paciente [NOME] reclamou."),
+            ("Manuela d'Ávila Souza foi atendida.", "[NOME] foi atendida."),
+            ("Falei com a Maria Sant’Ana ontem.", "Falei com a [NOME] ontem."),
+        ],
+    )
+    def test_nome_com_apostrofo_no_meio_vira_marcador(self, texto, esperado):
+        assert pseudonimizar(texto) == esperado
+
+
 class TestTermoDoDominioSaiInteiro:
     """Nome de modulo, colegiado ou setor do CONTEXT.md e do catalogo de
     Produtos da aba Tecnologia sai inteiro, mesmo com desenho de nome."""
@@ -92,6 +110,29 @@ class TestNomeDePessoaContinuaSaindo:
 
     def test_pessoa_em_minusculas_colada_no_termo_vira_marcador(self):
         assert pseudonimizar("maria souza comite de conduta") == "[NOME] comite de conduta"
+
+    @pytest.mark.parametrize(
+        ("texto", "esperado"),
+        [
+            ("Abri o Retrato da Ana Souza ontem.", "Abri o [NOME] ontem."),
+            ("A API da Ana Maria caiu.", "A [NOME] caiu."),
+            ("Abri o Retrato da Ana Kowalski ontem.", "Abri o [NOME] ontem."),
+        ],
+    )
+    def test_termo_que_termina_em_prenome_nao_rouba_o_prenome_da_pessoa(self, texto, esperado):
+        """ "Retrato da Ana" e "API da Ana" terminam num prenome. Com uma Ana
+        de sobrenome logo depois, guardar o termo deixava o nome inteiro no
+        texto (review do PR #1895): ali a pessoa vence o termo."""
+        assert pseudonimizar(texto) == esperado
+
+    def test_termo_que_termina_em_prenome_sai_inteiro_sem_pessoa_ao_lado(self):
+        trecho = "O Retrato da Ana mostra a sala."
+        assert pseudonimizar(trecho) == trecho
+
+    def test_termo_em_minusculas_nao_e_guardado_e_a_base_ve_a_pessoa(self):
+        """O termo só é guardado com maiúscula inicial no texto. Em minúsculas
+        quem protege o nome é a base, e o termo guardado a cegaria."""
+        assert pseudonimizar("o api da ana maria caiu") == "o api da [NOME] caiu"
 
 
 class TestRegressaoDaDemanda1786:

@@ -820,7 +820,15 @@ _ESPACO = r"(?:[^\S\n]|\n(?!\n))+"
 # O teto de 40 letras por palavra não é sobre nome comprido: sem ele, uma
 # sequência longa de letras faz a busca tentar todos os tamanhos em cada
 # posição (medido: 3,7s em 20 mil maiúsculas seguidas).
-_TITULO = rf"[{_MAIUSCULA}](?:[{_MINUSCULA}]{{1,40}}|[{_APOSTROFO}][{_LETRA}][{_MINUSCULA}]{{0,40}})"
+#
+# O apóstrofo cabe em três lugares: depois da inicial ("D'Ávila", "O'Brien"),
+# no meio ("Sant'Anna") e na partícula minúscula colada ("d'Ávila"). Como a
+# sequência só aceita palavra inteira (issue #1813), um apóstrofo que a palavra
+# não comporta fazia o nome inteiro ficar no texto (review do PR #1895).
+_TITULO = (
+    rf"(?:[dD][{_APOSTROFO}])?[{_MAIUSCULA}](?:[{_MINUSCULA}]{{1,40}}|[{_APOSTROFO}][{_LETRA}][{_MINUSCULA}]{{0,40}})"
+    rf"(?:[{_APOSTROFO}][{_LETRA}][{_MINUSCULA}]{{0,40}})?"
+)
 # Três letras é o piso da caixa alta: com duas, sigla de exame ("TC", "RX")
 # entrava como nome e levava a frase inteira junto.
 _CAIXA_ALTA = rf"[{_MAIUSCULA}]{{3,40}}"
@@ -961,8 +969,11 @@ _TERMOS_DO_DOMINIO = sorted(
     key=len,
     reverse=True,
 )
+# A maiúscula inicial é conferida FORA do IGNORECASE: dentro dele a classe
+# também casa minúscula, e o termo em minúsculas cegaria a base para a pessoa
+# ao lado ("o api da ana maria", review do PR #1895).
 _TERMO_DO_DOMINIO = re.compile(
-    rf"(?<![{_LETRA}{_APOSTROFO}])(?=[{_MAIUSCULA}])"
+    rf"(?<![{_LETRA}{_APOSTROFO}])(?-i:(?=[{_MAIUSCULA}]))"
     rf"(?:{'|'.join(_ESPACO.join(map(re.escape, termo.split())) for termo in _TERMOS_DO_DOMINIO)})"
     rf"(?![{_LETRA}{_APOSTROFO}])",
     re.IGNORECASE,
@@ -977,10 +988,45 @@ def _guardar_termos(texto: str) -> tuple[str, list[str]]:
     guardados: list[str] = []
 
     def trocar(match: re.Match[str]) -> str:
+        if _termo_rouba_prenome(texto, match):
+            return match.group(0)
         guardados.append(match.group(0))
         return _LUGAR_DO_TERMO
 
     return _TERMO_DO_DOMINIO.sub(trocar, texto), guardados
+
+
+# Termo que começa ou termina num prenome ("Retrato da Ana", "API da Ana") pode
+# levar o prenome de uma pessoa colada nele: "Retrato da Ana Souza" guardava
+# "Retrato da Ana" e o sobrenome sozinho ficava no texto, com o nome inteiro à
+# vista (review do PR #1895). Com nome do lado do prenome, o termo não é
+# guardado e as camadas de nome decidem, como antes da issue #1813.
+_CONECTIVO_NO_CAMINHO = rf"(?:{_ESPACO}(?:{'|'.join(_CONECTIVOS)}))*{_ESPACO}"
+_VIZINHA_DEPOIS = re.compile(rf"{_CONECTIVO_NO_CAMINHO}({_PALAVRA_SOLTA})")
+_VIZINHA_ANTES = re.compile(rf"(?<![{_LETRA}{_APOSTROFO}])({_PALAVRA_SOLTA}){_CONECTIVO_NO_CAMINHO}$")
+
+
+def _esta_na_base(palavra: str) -> bool:
+    return _sem_acento(palavra.lower()).strip(".'’") in _NOMES_PROPRIOS
+
+
+def _pode_ser_nome(palavra: str) -> bool:
+    if _esta_na_base(palavra):
+        return True
+    return re.fullmatch(_TITULO, palavra) is not None and not _e_palavra_neutra(palavra)
+
+
+def _termo_rouba_prenome(texto: str, match: re.Match[str]) -> bool:
+    palavras = match.group(0).split()
+    if _esta_na_base(palavras[-1]):
+        depois = _VIZINHA_DEPOIS.match(texto, match.end())
+        if depois and _pode_ser_nome(depois.group(1)):
+            return True
+    if _esta_na_base(palavras[0]):
+        antes = _VIZINHA_ANTES.search(texto, 0, match.start())
+        if antes and _pode_ser_nome(antes.group(1)):
+            return True
+    return False
 
 
 def _repor_termos(texto: str, guardados: list[str]) -> str:
