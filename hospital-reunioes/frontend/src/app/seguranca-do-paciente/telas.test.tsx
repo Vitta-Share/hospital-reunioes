@@ -47,6 +47,12 @@ vi.mock("@/components/seguranca-do-paciente/AgendaRegulatoria", () => ({
   AgendaRegulatoria: () => <p>Conteúdo da agenda</p>,
 }));
 
+// As capacitações chamam a API (issue #1778) e têm teste próprio, ao lado do
+// componente. Aqui só importa que a tela Capacitações as mostra.
+vi.mock("@/components/seguranca-do-paciente/CapacitacoesDoNucleo", () => ({
+  CapacitacoesDoNucleo: () => <p>Conteúdo das capacitações</p>,
+}));
+
 // A lista dos membros chama a API (issue #1766) e tem teste próprio, ao lado
 // do componente. Aqui só importa que a tela Membros a mostra.
 vi.mock("@/components/seguranca-do-paciente/MembrosDoNucleo", () => ({
@@ -157,26 +163,21 @@ describe("as telas do módulo", () => {
     expect(screen.getByText(orientacao).tagName).toBe("P");
   });
 
-  // Início, Membros, Documentos, Reuniões e Agenda regulatória já têm conteúdo
-  // (issues #1766, #1767, #1772 e #1779).
-  it.each(
-    TELAS.filter(
-      (t) =>
-        t.nome !== "Início" &&
-        t.nome !== "Membros" &&
-        t.nome !== "Documentos" &&
-        t.nome !== "Reuniões" &&
-        t.nome !== "Agenda regulatória"
-    )
-  )(
-    "$nome mostra o estado vazio enquanto a fatia dela não chega",
-    ({ Pagina }) => {
-      entrar(TODOS);
-      render(<Pagina />);
+  // Toda tela do grupo Núcleo já tem conteúdo (issues #1766, #1767, #1772,
+  // #1778 e #1779): o estado vazio não aparece em nenhuma.
+  it.each(TELAS)("$nome não mostra o estado vazio", ({ Pagina }) => {
+    entrar(TODOS);
+    render(<Pagina />);
 
-      expect(screen.getByText("Nada por aqui ainda.")).toBeTruthy();
-    }
-  );
+    expect(screen.queryByText("Nada por aqui ainda.")).toBeNull();
+  });
+
+  it("Capacitações mostra as capacitações, e não o estado vazio (issue #1778)", () => {
+    entrar(TODOS);
+    render(<CapacitacoesPage />);
+
+    expect(screen.getByText("Conteúdo das capacitações")).toBeTruthy();
+  });
 
   it("Documentos mostra os documentos do Núcleo, e não o estado vazio (issue #1767)", async () => {
     entrar(TODOS);
@@ -237,6 +238,7 @@ describe("quem não tem o recurso da tela", () => {
     expect(screen.getByText("Esta tela ainda não está liberada para você.")).toBeTruthy();
     expect(screen.queryByText("Nada por aqui ainda.")).toBeNull();
     expect(screen.queryByText("Lista dos membros")).toBeNull();
+    expect(screen.queryByText("Conteúdo das capacitações")).toBeNull();
   });
 
   it.each([
