@@ -216,3 +216,93 @@ class TestSoOsPresentesAssinam:
         assert "activate_envelope" in assinatura.nomes()
         assert _status(banco) == "AGUARDANDO_ASSINATURA"
         assert resposta.json()["status"] == "AGUARDANDO_ASSINATURA"
+
+    def test_a_ata_em_validacao_nao_sai_para_assinatura_pelo_job(self, assinatura):
+        banco = _com_ata()
+
+        assinatura_da_ata.encerrar_atas(banco, HOJE)
+
+        assert assinatura.chamadas == []
+        assert _status(banco) == "AGUARDANDO_VALIDACAO"
+
+    def test_o_envio_que_falhou_na_validacao_sai_no_job(self, assinatura):
+        assinatura.falhar_em = "activate_envelope"
+        banco = _com_ata()
+
+        resposta = _validar(_cliente(PRESIDENCIA, banco))
+
+        assert resposta.json()["status"] == "APROVADA"
+        assert resposta.json()["aviso"]
+        assert _status(banco) == "APROVADA"
+        assinatura.falhar_em = None
+        assinatura.chamadas.clear()
+
+        assinatura_da_ata.encerrar_atas(banco, HOJE)
+
+        assert _emails_convidados(assinatura) == ["memb1@hsm.test", "memb3@hsm.test", "pres1@hsm.test"]
+        assert _status(banco) == "AGUARDANDO_ASSINATURA"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. O encerramento conta 5 dias úteis com os feriados e registra quem faltou
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Quarta-feira. Os 5 dias úteis, com o feriado de sexta (20/11), vencem na
+# quinta seguinte, 26/11; sem o feriado, venceriam na quarta, 25/11.
+ENVIADA_EM = "2026-11-18T15:00:00-03:00"
+QUARTA_SEGUINTE = date(2026, 11, 25)
+QUINTA_SEGUINTE = date(2026, 11, 26)
+
+
+def _enviada(assinatura: _Assinatura, *assinaram: str):
+    banco = _validada()
+    reuniao = _reuniao_gravada(banco)
+    reuniao["json_ata"]["assinatura"]["enviada_em"] = ENVIADA_EM
+    banco.tabelas["ouvidoria_feriados"] = [{"data": FERIADO.isoformat()}]
+    assinatura.assinaram = set(assinaram)
+    return banco
+
+
+class TestEncerramento:
+    def test_antes_do_quinto_dia_util_a_ata_continua_esperando(self, assinatura):
+        banco = _enviada(assinatura, "pres1@hsm.test")
+
+        assinatura_da_ata.encerrar_atas(banco, QUARTA_SEGUINTE)
+
+        assert _status(banco) == "AGUARDANDO_ASSINATURA"
+        assert "close_envelope" not in assinatura.nomes()
+
+    def test_no_quinto_dia_util_a_ata_encerra_e_registra_quem_nao_assinou(self, assinatura):
+        banco = _enviada(assinatura, "pres1@hsm.test", "memb1@hsm.test")
+
+        assinatura_da_ata.encerrar_atas(banco, QUINTA_SEGUINTE)
+
+        reuniao = _reuniao_gravada(banco)
+        assert reuniao["status_ata"] == "ASSINADA"
+        assert reuniao["data_assinatura"] == QUINTA_SEGUINTE.isoformat()
+        assert "close_envelope" in assinatura.nomes()
+        encerramento = reuniao["json_ata"]["encerramento"]
+        assert encerramento["assinaram"] == ["Pessoa de Teste MEMB1", "Pessoa de Teste PRES1"]
+        assert encerramento["nao_assinaram"] == ["Pessoa de Teste MEMB3"]
+        assinaturas = next(b for b in reuniao["json_ata"]["blocos"] if b["chave"] == "assinaturas")["itens"]
+        assert "Assinaram: Pessoa de Teste MEMB1, Pessoa de Teste PRES1." in assinaturas
+        assert "Presentes que não assinaram: Pessoa de Teste MEMB3." in assinaturas
+
+    def test_com_todos_assinados_a_ata_encerra_antes_do_prazo(self, assinatura):
+        banco = _enviada(assinatura, "pres1@hsm.test", "memb1@hsm.test", "memb3@hsm.test")
+        assinatura.status = "closed"
+
+        assinatura_da_ata.encerrar_atas(banco, date(2026, 11, 19))
+
+        assert _status(banco) == "ASSINADA"
+        assert _ata_gravada(banco)["encerramento"]["nao_assinaram"] == []
+
+    def test_a_reuniao_comum_nao_entra_no_encerramento(self, assinatura):
+        banco = _enviada(assinatura)
+        comum = _reuniao_gravada(banco, R_COMUM)
+        comum.update({"status_ata": "AGUARDANDO_ASSINATURA", "json_ata": copy.deepcopy(_ata_gravada(banco))})
+
+        assinatura_da_ata.encerrar_atas(banco, QUINTA_SEGUINTE)
+
+        assert comum["status_ata"] == "AGUARDANDO_ASSINATURA"
+        assert "encerramento" not in comum["json_ata"]

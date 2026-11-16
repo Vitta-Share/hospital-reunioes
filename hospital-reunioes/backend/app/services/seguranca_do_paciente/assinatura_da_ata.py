@@ -26,14 +26,22 @@ from __future__ import annotations
 import io
 import logging
 import os
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from app.config import settings
 from app.services import clicksign_service
+from app.services.paginacao import ler_tudo
 from app.services.seguranca_do_paciente import ata as ata_do_nucleo
+from app.services.seguranca_do_paciente import pauta, permissao
 
 logger = logging.getLogger(__name__)
+
+DIAS_UTEIS_PARA_ASSINAR = 5
+DIAS_ATE_APAGAR_A_TRANSCRICAO = 30
+# `closed`: todos assinaram (ou alguém finalizou); `canceled`: recusa. Nos
+# dois, esperar o prazo não traz assinatura nova.
+ENVELOPE_FECHADO = frozenset({"closed", "canceled", "cancelled"})
 
 FALHA_DO_ENVIO = "A assinatura eletrônica não respondeu. O aplicativo tenta de novo amanhã."
 SEM_EMAIL = "Nenhum presente tem e-mail no cadastro. Corrija o cadastro: o aplicativo tenta de novo amanhã."
@@ -164,6 +172,130 @@ def enviar_para_assinatura(supabase, id_reuniao: str, agora: datetime) -> dict[s
     ).execute()
     logger.info("Ata do Núcleo %s enviada para assinatura de %d presente(s)", id_reuniao, len(com_email))
     return json_ata["assinatura"]
+
+
+# ---------------------------------------------------------------------------
+# O encerramento
+# ---------------------------------------------------------------------------
+
+
+def prazo_do_encerramento(enviada_em: date, feriados: frozenset[date]) -> date:
+    """O quinto dia útil depois do envio (o próprio dia não conta)."""
+    dia = enviada_em
+    for _ in range(DIAS_UTEIS_PARA_ASSINAR):
+        dia += timedelta(days=1)
+        while not pauta.e_dia_util(dia, feriados):
+            dia += timedelta(days=1)
+    return dia
+
+
+def _feriados(supabase, inicio: date, fim: date) -> frozenset[date]:
+    """Os feriados cadastrados. Aqui a falha de leitura sobe: encerrar antes
+    do prazo tiraria a assinatura de quem ainda tinha tempo, e o job tenta de
+    novo amanhã."""
+    linhas = (
+        supabase.table("ouvidoria_feriados")
+        .select("data")
+        .gte("data", inicio.isoformat())
+        .lte("data", fim.isoformat())
+        .execute()
+        .data
+    ) or []
+    return frozenset(date.fromisoformat(str(linha["data"])[:10]) for linha in linhas if linha.get("data"))
+
+
+def _atas_do_nucleo(supabase, situacoes: list[str]) -> list[dict]:
+    nucleo_id = permissao.id_do_nucleo(supabase)
+    if not nucleo_id:
+        return []
+    return ler_tudo(
+        lambda: (
+            supabase.table("reunioes")
+            .select("id_reuniao, status_ata, data_assinatura, url_transcricao, colegiado_id, json_ata")
+            .eq("colegiado_id", nucleo_id)
+            .in_("status_ata", situacoes)
+            .is_("deleted_at", "null")
+            .order("id_reuniao")
+        ),
+        rotulo="atas do Núcleo",
+    )
+
+
+def _lista(nomes: list[str]) -> str:
+    return ", ".join(nomes) + "."
+
+
+def _encerrar(supabase, reuniao: dict, hoje: date) -> bool:
+    """Encerra a ata no prazo (ou antes, com o envelope já fechado). Devolve
+    se encerrou. Qualquer resposta que falta da assinatura eletrônica deixa
+    para amanhã."""
+    json_ata = dict(reuniao["json_ata"])
+    assinatura = json_ata.get("assinatura") or {}
+    envelope_id = assinatura.get("envelope_id")
+    if not envelope_id:
+        return False
+    situacao = clicksign_service.get_envelope_status(envelope_id)
+    if situacao is None:
+        return False
+    fechado = situacao in ENVELOPE_FECHADO
+    if not fechado:
+        enviada_em = datetime.fromisoformat(assinatura["enviada_em"]).astimezone(pauta.FUSO).date()
+        prazo = prazo_do_encerramento(enviada_em, _feriados(supabase, enviada_em, enviada_em + timedelta(days=60)))
+        if hoje < prazo:
+            return False
+    signatarios = clicksign_service.list_signers(envelope_id)
+    if signatarios is None:
+        return False
+    if not fechado and not clicksign_service.close_envelope(envelope_id):
+        return False
+
+    assinados = {(s.get("email") or "").strip().lower() for s in signatarios if s.get("status") == "signed"}
+    convidados = assinatura.get("signatarios") or []
+    assinaram = sorted(p["nome"] for p in convidados if p["email"].lower() in assinados)
+    nao_assinaram = sorted(
+        [p["nome"] for p in convidados if p["email"].lower() not in assinados]
+        + [p["nome"] for p in assinatura.get("sem_email") or []]
+    )
+    itens = [f"Assinaram: {_lista(assinaram)}" if assinaram else "Nenhum presente assinou."]
+    if nao_assinaram:
+        itens.append(f"Presentes que não assinaram: {_lista(nao_assinaram)}")
+    json_ata["blocos"] = [
+        {**bloco, "itens": itens} if bloco.get("chave") == "assinaturas" else bloco for bloco in json_ata["blocos"]
+    ]
+    json_ata["encerramento"] = {"em": hoje.isoformat(), "assinaram": assinaram, "nao_assinaram": nao_assinaram}
+    supabase.table("reunioes").update(
+        {
+            "json_ata": json_ata,
+            "status_ata": "ASSINADA",
+            "data_assinatura": hoje.isoformat(),
+            "signatarios_total": len(assinaram) + len(nao_assinaram),
+            "signatarios_assinaram": len(assinaram),
+        }
+    ).eq("id_reuniao", reuniao["id_reuniao"]).eq("status_ata", "AGUARDANDO_ASSINATURA").execute()
+    logger.info(
+        "Ata do Núcleo %s encerrada: %d assinatura(s), %d presente(s) sem assinar",
+        reuniao["id_reuniao"],
+        len(assinaram),
+        len(nao_assinaram),
+    )
+    return True
+
+
+def encerrar_atas(supabase, hoje: date, agora: datetime | None = None) -> dict[str, int]:
+    """O job diário: tenta de novo o envio que falhou e encerra a ata no
+    quinto dia útil. Uma ata que falha não segura as outras."""
+    agora = agora or datetime.now(tz=pauta.FUSO)
+    contagem = {"enviadas": 0, "encerradas": 0}
+    for reuniao in _atas_do_nucleo(supabase, ["APROVADA", "AGUARDANDO_ASSINATURA"]):
+        try:
+            if reuniao["status_ata"] == "APROVADA":
+                if (enviar_para_assinatura(supabase, reuniao["id_reuniao"], agora) or {}).get("envelope_id"):
+                    contagem["enviadas"] += 1
+            elif _encerrar(supabase, reuniao, hoje):
+                contagem["encerradas"] += 1
+        except Exception:  # noqa: BLE001 (uma ata não segura as outras; amanhã tem outra rodada)
+            logger.exception("Ata do Núcleo %s: o encerramento falhou nesta rodada", reuniao["id_reuniao"])
+    return contagem
 
 
 # ---------------------------------------------------------------------------
