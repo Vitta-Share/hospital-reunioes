@@ -442,7 +442,7 @@ async def listar_protocolos(
       volume do período seguia em 40, e a soma das colunas deixaria de fechar.
 
     Pedir qualquer recorte que não seja `nao` exige o Perfil da Ouvidoria. O
-    gate desta rota é o largo (a equipe de Reuniões inteira lê o índice), mas o
+    gate desta rota é o largo (todo papel na Ouvidoria lê o índice), mas o
     arquivo é ato da Ouvidoria, e ler o que ela guardou é a outra metade dele.
 
     O responsável do setor recebe só os casos acionados para os setores em que
