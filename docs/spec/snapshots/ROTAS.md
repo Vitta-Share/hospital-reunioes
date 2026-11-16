@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T22:15+0000 -->
+<!-- last_update: 2026-11-16T23:05+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -345,6 +345,15 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/ouvidoria/publico/pontos/{codigo}/avaliacoes` | Grava a nota de um cartaz (issue #1622). Não abre caso nem protocolo: a | ❌ |
 | GET | `/ouvidoria/qr` | O QR dos cartazes de antes da ADR 0086: redireciona ao endereço curto | ❌ |
 
+## ouvidoria-responder (`app/routers/ouvidoria_responder.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| GET | `/ouvidoria/responder/{manifestacao_id}` | A Tela do responsável aberta pelo app, com o mesmo conteúdo do link. | ✅ |
+| POST | `/ouvidoria/responder/{manifestacao_id}/devolver` | A Devolução à Ouvidoria pelo app. Consome os links vivos do caso. | ✅ |
+| POST | `/ouvidoria/responder/{manifestacao_id}/prorrogacao` | O pedido de mais prazo pelo app. Como no link, não gasta o uso único: | ✅ |
+| POST | `/ouvidoria/responder/{manifestacao_id}/responder` | A resposta da área pelo app. Consome os links vivos do caso. | ✅ |
+
 ## ouvidoria-setor (`app/routers/ouvidoria_setor.py`)
 
 | Método | Rota | O que faz | Auth |
@@ -649,4 +658,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 373 endpoints em 54 routers · 93% exigem auth.
+**Totais:** 377 endpoints em 55 routers · 93% exigem auth.
