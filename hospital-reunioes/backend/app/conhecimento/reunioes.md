@@ -33,7 +33,7 @@ A coleta de assinaturas também tem prazo: são 30 dias. Vencido o prazo, a ata 
 
 ## As reuniões do Núcleo de Segurança do Paciente
 
-As reuniões do Núcleo de Segurança do Paciente ficam no módulo Segurança do Paciente, no item Reuniões, e não são marcadas pela tela de Reuniões. São de quatro tipos: ordinária mensal, análise de evento, apresentação à Diretoria e reunião rápida de segurança. Depois de criada, a reunião do Núcleo segue o mesmo caminho das outras até a ata.
+As reuniões do Núcleo de Segurança do Paciente ficam no módulo Segurança do Paciente, no item Reuniões, e não são marcadas pela tela de Reuniões. São de quatro tipos: ordinária mensal, análise de evento, apresentação à Diretoria e reunião rápida de segurança. Depois de criada, a reunião do Núcleo segue o mesmo caminho das outras até a ata. A reunião rápida de segurança é só um registro de três linhas, sem transcrição nem ata.
 
 Só quem é do Núcleo vê essas reuniões. Para quem é de fora, elas não aparecem na lista de reuniões, no calendário, nas pendências, nos números do painel, no sino nem no que o Claude da diretoria consulta. Isso vale também para quem administra o aplicativo.
 

@@ -754,6 +754,22 @@ class TestKitDeConhecimento:
         assert "Isso vale também para o super admin." in texto
         assert "Reuniões estão vazias" not in texto
 
+    def test_o_produto_seguranca_do_paciente_diz_que_a_reuniao_rapida_nao_tem_ata(self):
+        """Issue #1777."""
+        texto = _kit("seguranca-do-paciente.md")
+
+        assert "a reunião rápida de segurança não tem transcrição, ata nem assinatura, e não conta quórum" in texto
+        assert "a Presidência preenche a data, o setor, quem participou e um texto de até três linhas" in texto
+        assert "quem ainda não assinou vê só a data, o tipo e o setor" in texto
+        assert "As notificações criadas a partir da reunião rápida chegam na segunda fase." in texto
+        # A frase antiga punha a rápida no caminho da ata.
+        assert "Depois disso a reunião segue o caminho de sempre" not in texto
+
+    def test_o_produto_reunioes_diz_que_a_rapida_nao_chega_a_ata(self):
+        texto = _kit("reunioes.md")
+
+        assert "A reunião rápida de segurança é só um registro de três linhas, sem transcrição nem ata." in texto
+
     def test_o_produto_reunioes_diz_que_as_do_nucleo_ficam_no_modulo(self):
         texto = _kit("reunioes.md")
 
