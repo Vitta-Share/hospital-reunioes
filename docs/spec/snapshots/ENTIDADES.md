@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T00:03+0000 -->
+<!-- last_update: 2026-11-16T01:35+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -1929,6 +1929,26 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_participacoes_participante` em `(participante_id, colegiado_id)` (de `146_nsp_fundacao.sql`)
 - `idx_participacoes_colegiado_vigencia` em `(colegiado_id, vigencia_inicio, vigencia_fim)` (de `146_nsp_fundacao.sql`)
 
+## nsp_documentos
+
+> Origem: `147_nsp_documentos.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `tipo` | `TEXT` | NOT NULL | — | — |
+| `versao` | `INTEGER` | NOT NULL | — | — |
+| `titulo` | `TEXT` | NOT NULL | — | — |
+| `texto` | `TEXT` | — | — | — |
+| `natureza_revisao` | `TEXT` | — | — | — |
+| `vigente` | `BOOLEAN` | NOT NULL | `false` | — |
+| `arquivo_assinado_path` | `TEXT` | — | — | — |
+| `publicado_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `publicado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `nsp_documentos_um_vigente_por_tipo` em `(tipo)` (de `147_nsp_documentos.sql`)
+
 ---
 
-**Resumo:** 94 tabelas vivas.
+**Resumo:** 95 tabelas vivas.

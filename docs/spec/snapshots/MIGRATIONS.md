@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T00:03+0000 -->
+<!-- last_update: 2026-11-16T01:35+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -146,6 +146,7 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 144 | `144_ouvidoria_motivo_do_arquivo_da_revisao.sql` | o motivo de arquivar a revisao da Avaliacao | 0 | 1 | 2 | 0 |
 | 145 | `145_tecnologia_projeto_da_demanda.sql` | o Projeto na Demanda | 0 | 1 | 1 | 0 |
 | 146 | `146_nsp_fundacao.sql` | Segurança do Paciente, a fundação | 2 | 4 | 2 | 0 |
+| 147 | `147_nsp_documentos.sql` | os documentos do Núcleo de Segurança do Paciente | 1 | 0 | 1 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 140 migrations.
+**Total:** 141 migrations.

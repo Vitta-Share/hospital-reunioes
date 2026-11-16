@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T00:03+0000 -->
+<!-- last_update: 2026-11-16T01:35+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -88,6 +88,7 @@ erDiagram
     participantes ||--o{ cm_validacao_tema : "decidido_por"
     participantes ||--o{ comentarios_pendencias : "autor_id"
     participantes ||--o{ notificacoes : "destinatario_id"
+    participantes ||--o{ nsp_documentos : "publicado_por"
     participantes ||--o{ ouvidoria_acessos : "ator_id"
     participantes ||--o{ ouvidoria_anexos : "enviado_por"
     participantes ||--o{ ouvidoria_avaliacoes : "revisada_por"
@@ -1025,6 +1026,17 @@ erDiagram
         TIMESTAMPTZ created_at
         _ mais_colunas "+1"
     }
+    nsp_documentos {
+        UUID id PK
+        TEXT tipo
+        INTEGER versao
+        TEXT titulo
+        TEXT texto
+        TEXT natureza_revisao
+        BOOLEAN vigente
+        TEXT arquivo_assinado_path
+        _ mais_colunas "+2"
+    }
 ```
 
 ## Indexes principais
@@ -1189,6 +1201,7 @@ erDiagram
 | `ouvidoria_convite_google_auditoria` | `idx_ouvidoria_convite_google_auditoria_em` | `alterado_em DESC` | `142_ouvidoria_convite_google_no_qr.sql` |
 | `participacoes` | `idx_participacoes_participante` | `participante_id, colegiado_id` | `146_nsp_fundacao.sql` |
 | `participacoes` | `idx_participacoes_colegiado_vigencia` | `colegiado_id, vigencia_inicio, vigencia_fim` | `146_nsp_fundacao.sql` |
+| `nsp_documentos` | `nsp_documentos_um_vigente_por_tipo` | `tipo` | `147_nsp_documentos.sql` |
 
 ---
-**Resumo:** 94 tabelas · 134 relacionamentos FK detectados.
+**Resumo:** 95 tabelas · 135 relacionamentos FK detectados.
