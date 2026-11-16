@@ -28,13 +28,15 @@ def consultar_reunioes(
     data_inicio: date | None = None,
     data_fim: date | None = None,
     termo: str | None = None,
+    ocultas: list[str] = (),
     limit: int,
     offset: int = 0,
 ) -> tuple[list[dict], int]:
     """As Reuniões visíveis com os filtros, da mais recente para a mais antiga,
     cortadas em `limit` a partir de `offset`. Devolve as linhas e o total antes
     do corte. `termo` já vem limpo de caractere que o filtro `or` do PostgREST
-    leia como sintaxe."""
+    leia como sintaxe. `ocultas` são as reuniões do Núcleo que a pessoa não
+    alcança (`visibilidade_das_reunioes`), tiradas mesmo sem lista branca."""
     if allowed_reuniao_ids is not None and not allowed_reuniao_ids:
         return [], 0
 
@@ -60,6 +62,9 @@ def consultar_reunioes(
     # Visibilidade binária
     if allowed_reuniao_ids is not None:
         query = query.in_("id_reuniao", allowed_reuniao_ids)
+    # O sigilo do Núcleo (issue #1772), que vale também para o super admin.
+    if ocultas:
+        query = query.not_.in_("id_reuniao", list(ocultas))
 
     result = query.order("data", desc=True).range(offset, offset + limit - 1).execute()
     return result.data or [], result.count or 0

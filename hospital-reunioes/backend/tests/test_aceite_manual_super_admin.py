@@ -182,6 +182,9 @@ def _sb(**reuniao_over) -> _SupabaseMock:
             "pendencias": [],
             "reuniao_aceites": [],
             "audit_log": [],
+            # O sigilo do Núcleo procura o Colegiado em toda rota da reunião
+            # (issue #1772); sem o Núcleo, nenhuma reunião é do Núcleo.
+            "colegiados": [],
         }
     )
 

@@ -15,6 +15,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from app.dependencies import VisibilidadeDasReunioes  # noqa: E402
 from app.models.schemas import ComentarioCreate  # noqa: E402
 from app.routers import comentarios as comentarios_router  # noqa: E402
 
@@ -100,11 +101,13 @@ def _patch_deps(monkeypatch, autor: dict, allowed: list[str] | None):
     async def _fake_participante(_user, _sb, fields=None):
         return dict(autor)
 
-    async def _fake_allowed(_user, _sb):
-        return allowed
+    # Desde a issue #1772 a pendência lê a visibilidade inteira (a lista branca
+    # e as reuniões do Núcleo ocultas); aqui, nenhuma reunião do Núcleo.
+    async def _fake_visibilidade(_user, _sb, recurso="reunioes"):
+        return VisibilidadeDasReunioes(permitidas=allowed, ocultas=[])
 
     monkeypatch.setattr(comentarios_router, "get_participante_for_user", _fake_participante)
-    monkeypatch.setattr(comentarios_router, "get_allowed_reuniao_ids", _fake_allowed)
+    monkeypatch.setattr(comentarios_router, "get_visibilidade_das_reunioes", _fake_visibilidade)
 
 
 # ─── Testes ───────────────────────────────────────────────────────────────────
@@ -198,11 +201,11 @@ class TestTokenOrfao:
         async def _sem_participante(_user, _sb, fields=None):
             return None
 
-        async def _allowed_vazio(_user, _sb):
-            return []
+        async def _visibilidade_vazia(_user, _sb, recurso="reunioes"):
+            return VisibilidadeDasReunioes(permitidas=[], ocultas=[])
 
         monkeypatch.setattr(comentarios_router, "get_participante_for_user", _sem_participante)
-        monkeypatch.setattr(comentarios_router, "get_allowed_reuniao_ids", _allowed_vazio)
+        monkeypatch.setattr(comentarios_router, "get_visibilidade_das_reunioes", _visibilidade_vazia)
 
         from fastapi import HTTPException
 

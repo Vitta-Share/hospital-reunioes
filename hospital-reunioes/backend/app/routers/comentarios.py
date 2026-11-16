@@ -9,10 +9,11 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.dependencies import (
-    get_allowed_reuniao_ids,
+    RECUSA_DO_NSP,
     get_current_user,
     get_participante_for_user,
     get_supabase_client,
+    get_visibilidade_das_reunioes,
     is_secretaria,
     require_acesso_reunioes,
 )
@@ -73,7 +74,13 @@ async def _carregar_pendencia_visivel(
         raise HTTPException(status_code=404, detail="Pendência não encontrada")
 
     pendencia = pend.data[0]
-    allowed_ids = await get_allowed_reuniao_ids(current_user, supabase)
+    # O sigilo do Núcleo (issue #1772), antes da lista e para todo perfil: o
+    # super admin sem Acesso pleno tem `permitidas` None e só as `ocultas` o
+    # barram, como no `GET /pendencias/{id_acao}`.
+    visibilidade = await get_visibilidade_das_reunioes(current_user, supabase)
+    if pendencia.get("id_reuniao") in visibilidade.ocultas:
+        raise HTTPException(status_code=403, detail=RECUSA_DO_NSP)
+    allowed_ids = visibilidade.permitidas
     if allowed_ids is not None:
         # my_id None (token órfão) não pode casar com co_responsavel_id None e desarmar o gate
         my_id = me["id"] if me else None

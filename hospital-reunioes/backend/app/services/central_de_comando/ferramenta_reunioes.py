@@ -79,7 +79,7 @@ def executar(argumentos: dict, participante: dict, supabase) -> dict:
     """As Reuniões que a tela mostra a esta pessoa, com a busca pedida.
     Levanta `PedidoRecusadoError` para argumento inválido ou para quem não vê
     a Ata na tela."""
-    from app.dependencies import is_secretaria, reunioes_visiveis, tem_acesso_reunioes
+    from app.dependencies import is_secretaria, tem_acesso_reunioes, visibilidade_das_reunioes
 
     if is_secretaria(participante) or not tem_acesso_reunioes(participante):
         raise PedidoRecusadoError("A Ata das Reuniões não está aberta para o seu acesso.")
@@ -88,9 +88,12 @@ def executar(argumentos: dict, participante: dict, supabase) -> dict:
     data_ate = _data(argumentos.get("dataAte"), "dataAte")
     termo = _termo(argumentos.get("termo"))
 
+    # A reunião do Núcleo só vem a quem o módulo libera (issue #1772).
+    visibilidade = visibilidade_das_reunioes(supabase, participante)
     reunioes, total = consultar_reunioes(
         supabase,
-        allowed_reuniao_ids=reunioes_visiveis(supabase, participante),
+        allowed_reuniao_ids=visibilidade.permitidas,
+        ocultas=visibilidade.ocultas,
         data_inicio=data_de,
         data_fim=data_ate,
         termo=termo,
