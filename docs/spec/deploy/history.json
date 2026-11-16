@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-16T20:22:34-03:00",
+      "sha": "3fd9e400d455fd1e0c2762d226ca02da227f15c7",
+      "app_version": "0.305.0",
+      "subject": "Onda onda-respondedor-onda2: Responder pelo app, botão Responder, porta do login e uma resposta por caso; Cadastro de responsáveis mostra quem tem login no app",
+      "raw_subject": "chore(deploy): registro da onda onda-respondedor-onda2 (#1896 #1893)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1883
+      ],
+      "result": "healthy",
+      "duration_seconds": 1068,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta onda-respondedor-onda2: PR #1896 (issue #1886), PR #1893 (issue #1887), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 6,
+        "build_s": {
+          "backend": 15,
+          "frontend": 162
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-16T19:59:37-03:00",
       "sha": "63a2cadf0c757415f75609bceea24482c1e8f90d",
       "app_version": "0.304.1",
