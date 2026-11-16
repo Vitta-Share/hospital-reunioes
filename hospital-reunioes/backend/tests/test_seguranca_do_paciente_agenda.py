@@ -520,3 +520,29 @@ class TestSemIa:
 
     def test_o_job_esta_registrado_uma_vez_por_dia(self):
         assert 'lembrar_agenda_regulatoria,\n        "cron"' in inspect.getsource(scheduler.start_scheduler)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. O texto do Produto no Kit de conhecimento diz o comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _secao_do_kit(titulo: str) -> str:
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = (CONHECIMENTO_DIR / "seguranca-do-paciente.md").read_text(encoding="utf-8")
+    partes = texto.split(f"## {titulo}\n", 1)
+    assert len(partes) == 2, f"a seção {titulo!r} sumiu do kit"
+    return partes[1].split("\n## ", 1)[0]
+
+
+class TestKitDeConhecimento:
+    def test_a_agenda_esta_no_que_ja_esta_no_ar(self):
+        """Mutante: deixar o kit dizendo que a agenda chega depois."""
+        secao = _secao_do_kit("O que já está no ar")
+        assert "Agenda regulatória" in secao
+        assert "pendência" in secao.lower()
+        assert "e-mail" in secao
+
+    def test_a_agenda_saiu_do_que_ele_ainda_nao_faz(self):
+        assert "agenda" not in _secao_do_kit("O que ele ainda não faz").lower()
