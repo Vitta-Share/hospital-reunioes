@@ -2,6 +2,61 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-15T22:47:59-03:00",
+      "sha": "ccb60e0de8db9b1a05acfa6fa5955a4ec4c43a53",
+      "app_version": "0.294.0",
+      "subject": "Onda nsp-fase1-onda2: Documentos do Núcleo com versões e Regimento vigente; Reuniões do Núcleo com quatro tipos, vínculo com o Colegiado e sigilo em toda leitura; Membros do Núcleo, cadastro, estado e",
+      "raw_subject": "chore(deploy): registro da onda nsp-fase1-onda2 (#1784 #1787 #1785)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1764
+      ],
+      "result": "healthy",
+      "duration_seconds": 1095,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "147_nsp_documentos.sql",
+        "147_nsp_documentos.sql",
+        "148_nsp_reunioes_do_nucleo.sql",
+        "147_nsp_documentos.sql",
+        "148_nsp_reunioes_do_nucleo.sql",
+        "150_nsp_membros.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp-fase1-onda2: PR #1784 (issue #1767), PR #1787 (issue #1772), PR #1785 (issue #1766), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 8,
+        "build_s": {
+          "backend": 152,
+          "frontend": 136
+        },
+        "health_s": 10
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-15T21:07:55-03:00",
       "sha": "7f7591029fb31860737765ca3ae148c692a7e0ed",
       "app_version": "0.293.0",
