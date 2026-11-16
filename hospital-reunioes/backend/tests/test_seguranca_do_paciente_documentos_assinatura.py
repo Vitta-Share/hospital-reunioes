@@ -1079,3 +1079,15 @@ class TestTermoNovoPelaAssinaturaDoRegimento:
         cenario.retorno_da_assinatura("doc-env-1", "sign", signatario="sig-env-1-2")
 
         assert lotes == [{"autor_id": "P2", "regimento_vigente": novo["id"]}]
+
+    def test_o_reconsultar_com_todos_assinados_gera_o_lote_com_o_autor_do_envio(self, lotes, assinatura):
+        """Quem reconsulta é o Acesso pleno; quem mandou para assinatura, a
+        Presidência. Mutante: a rota do Reconsultar não agendar o lote."""
+        cenario = _Cenario(PRESIDENCIA)
+        novo = cenario.enviar(tipo="regimento", natureza_revisao="material")["documento"]
+        assinatura.assinaram = {"sig-env-1-1", "sig-env-1-2"}
+        cenario.api.app.dependency_overrides[get_current_user] = _usuario_de(ACESSO_PLENO)
+
+        assert _reconsultar(cenario, novo["id"]).status_code == 200
+
+        assert lotes == [{"autor_id": "P2", "regimento_vigente": novo["id"]}]

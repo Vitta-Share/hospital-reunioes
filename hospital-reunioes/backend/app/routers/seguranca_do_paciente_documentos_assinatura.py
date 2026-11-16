@@ -17,7 +17,7 @@ import logging
 from typing import Literal
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from postgrest.exceptions import APIError
 from pydantic import BaseModel, Field, model_validator
 from starlette.concurrency import run_in_threadpool
@@ -26,6 +26,7 @@ from supabase import Client
 from app.dependencies import get_supabase_client, require_recurso_nsp
 from app.limiter import limiter
 from app.services.seguranca_do_paciente import assinatura_dos_documentos as assinatura
+from app.services.seguranca_do_paciente import termo
 
 logger = logging.getLogger(__name__)
 
@@ -147,14 +148,23 @@ async def assinaturas_dos_documentos(
 async def reconsultar_assinatura(
     request: Request,
     documento_id: str,
+    tarefas: BackgroundTasks,
     _: dict = Depends(require_recurso_nsp("gerir_nucleo")),
     supabase: Client = Depends(get_supabase_client),
 ) -> dict:
     """Pergunta à assinatura eletrônica quem já assinou e aplica o mesmo
-    tratamento do retorno automático."""
+    tratamento do retorno automático. A revisão material do Regimento que
+    vigorou agora gera o Termo novo dos membros depois da resposta, com o
+    autor do envio (issue #1800)."""
     documento = _documento(supabase, documento_id)
+
+    def _termos_da_revisao(autor_id):
+        tarefas.add_task(termo.termos_da_revisao_material, supabase, autor_id=autor_id)
+
     try:
-        envio = await run_in_threadpool(assinatura.reconsultar_assinaturas, supabase, documento)
+        envio = await run_in_threadpool(
+            assinatura.reconsultar_assinaturas, supabase, documento, ao_vigorar_revisao_material=_termos_da_revisao
+        )
     except assinatura.AssinaturaIndisponivelError as erro:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

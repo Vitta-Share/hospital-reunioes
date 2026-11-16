@@ -500,7 +500,9 @@ def ultimo_envio(supabase, documento_id: str) -> dict | None:
     return linhas[0] if linhas else None
 
 
-def reconsultar_assinaturas(supabase, documento: dict) -> dict | None:
+def reconsultar_assinaturas(
+    supabase, documento: dict, *, ao_vigorar_revisao_material: AoVigorar | None = None
+) -> dict | None:
     """Pergunta à assinatura eletrônica quem já assinou o último envio e aplica
     o mesmo tratamento do retorno automático. None quando não há envelope."""
     envio = ultimo_envio(supabase, documento["id"])
@@ -518,7 +520,7 @@ def reconsultar_assinaturas(supabase, documento: dict) -> dict | None:
             if linha and not linha.get("assinado_em"):
                 _marcar(supabase, linha, assinou.get("signed_at"))
         if _todos_assinaram(supabase, envio["id"]):
-            _concluir(supabase, envio)
+            _concluir(supabase, envio, ao_vigorar_revisao_material=ao_vigorar_revisao_material)
     return _ler_envio(supabase, envio["id"])
 
 
