@@ -103,6 +103,27 @@ describe("a página de Ouvidoria do manual", () => {
     );
   });
 
+  it("a abertura diz quem vê o quê: a lista inteira, os casos do setor ou nada (issue #1888, ADR 0099)", () => {
+    const abertura = OUVIDORIA!.corpo.split(/^## /m)[0];
+    for (const quemVeTudo of ["Ouvidoria", "Diretoria Executiva", "secretária", "Super admin"]) {
+      expect(abertura).toContain(quemVeTudo);
+    }
+    expect(abertura).toMatch(/lista de todos os casos/);
+    expect(abertura).toMatch(/responsável do setor vê os casos do setor dele/);
+    expect(abertura).toMatch(/não veem a Ouvidoria/);
+    expect(abertura).not.toMatch(/Quem não é da Ouvidoria vê só a lista/);
+  });
+
+  it("a tarefa Encaminhar ao setor diz que o responsável com login acha o caso no app (issue #1888)", () => {
+    const secao = secoes(OUVIDORIA!.corpo).find((s) => s.titulo === "Encaminhar ao setor");
+    expect(secao?.texto).toMatch(/responsável.*login.*acha o caso.*app/);
+  });
+
+  it("a tarefa de responder pelo app avisa que o link do e-mail deixa de valer (issue #1888)", () => {
+    const secao = secoes(OUVIDORIA!.corpo).find((s) => s.titulo === "Responder um caso do seu setor pelo app");
+    expect(secao?.texto).toMatch(/link do e-mail.*deixa de valer/);
+  });
+
   it("o fluxograma lê sem erro e vai do registro ao encerramento", () => {
     const leitura = lerFluxograma(blocoDoFluxograma(OUVIDORIA!.corpo));
     if (!leitura.ok) throw new Error(leitura.erros.join("\n"));

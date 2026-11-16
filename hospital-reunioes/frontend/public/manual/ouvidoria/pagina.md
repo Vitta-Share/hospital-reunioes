@@ -5,7 +5,7 @@ titulo: Ouvidoria
 
 Aqui chegam as reclamações, sugestões, elogios e denúncias de pacientes, acompanhantes e colaboradores. A Ouvidoria confere cada caso, manda para o setor certo, cobra a resposta e devolve o desfecho a quem manifestou.
 
-Quem não é da Ouvidoria vê só a lista dos casos, sem o relato. As tarefas abaixo são de quem tem o acesso de ouvidor ou da Diretoria Executiva.
+Quem é da Ouvidoria ou da Diretoria Executiva, a secretária e o Super admin veem a lista de todos os casos. O responsável do setor vê os casos do setor dele e responde por eles no app. Os outros não veem a Ouvidoria no menu. As tarefas abaixo são de quem tem o acesso de ouvidor ou da Diretoria Executiva, menos a de responder um caso, que é do responsável do setor.
 
 ## O caminho de uma manifestação
 
@@ -61,6 +61,8 @@ Todo caso novo fica no grupo **Em classificação** até a Ouvidoria conferir e 
 6. Clique em **Enviar à área**. O responsável do setor recebe o e-mail com o caso e o prazo, e o caso passa para **Aguardando área**.
 
 ![A janela Validar e acionar preenchida](validar-e-acionar.png)
+
+Se o responsável do setor tem login, ele também acha o caso no app, em **A responder**, e pode responder por lá ou pelo link do e-mail.
 
 ## Responder um caso do seu setor pelo app
 
