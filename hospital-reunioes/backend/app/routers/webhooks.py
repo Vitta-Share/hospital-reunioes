@@ -101,6 +101,24 @@ async def webhook_clicksign(
             raise HTTPException(status_code=500, detail="Falha ao registrar o Termo; a ClickSign deve reenviar.")
         return {"received": True}
 
+    # Quarto destino (issue #1771): o envelope de uma versão do ato de
+    # designação, do Regimento ou do Plano de Segurança do Paciente.
+    versao_nsp_q = supabase.table("nsp_documentos_envios").select("*").eq("documento_key", envelope_key).execute()
+    if versao_nsp_q.data:
+        from app.services.seguranca_do_paciente import assinatura_dos_documentos
+
+        evento = payload.get("event") or {}
+        signatario = dict((evento.get("data") or {}).get("signer") or {})
+        signatario["occurred_at"] = evento.get("occurred_at")
+        try:
+            assinatura_dos_documentos.tratar_retorno_da_versao(supabase, versao_nsp_q.data[0], event_name, signatario)
+        except Exception as e:
+            logger.error(f"[ClickSign webhook] Falha no documento do Núcleo: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=500, detail="Falha ao registrar a assinatura do documento; a ClickSign deve reenviar."
+            )
+        return {"received": True}
+
     logger.warning(f"[ClickSign webhook] envelope_key '{envelope_key}' não encontrado no banco.")
     return {"message": "Documento não encontrado."}
 

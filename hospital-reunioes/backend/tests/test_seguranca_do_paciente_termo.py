@@ -395,6 +395,7 @@ class _Cenario:
                 "participacoes_trilha": [],
                 "nsp_documentos": [dict(REGIMENTO)] if regimento else [],
                 "nsp_termos_envios": [],
+                "nsp_documentos_envios": [],
                 "reunioes": [],
                 "pops_versoes": [],
             }
