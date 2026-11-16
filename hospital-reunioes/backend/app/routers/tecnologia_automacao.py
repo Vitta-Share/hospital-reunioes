@@ -9,12 +9,14 @@ Autenticação por chave de serviço própria (`X-API-Key` contra
 `TECNOLOGIA_AUTOMACAO_API_KEY`), fora do fluxo JWT, no molde da API da Ana.
 
 Desde a ADR 0096 a ponte tambem escreve na Conversa da Demanda: a Mensagem
-pelo terminal, no perfil do Desenvolvedor cujo login do GitHub vem no pedido.
+pelo terminal, no perfil do Desenvolvedor cujo login do GitHub vem no pedido,
+e le a resposta do diretor na mesma conversa (decisao 6).
 """
 
+from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
 from pydantic import BaseModel, Field
 
 from app.dependencies import get_supabase_client, require_tecnologia_automacao_api_key
@@ -106,3 +108,17 @@ def escrever_pelo_terminal(
         supabase, demanda, autor=autor, texto=texto, origem=tecnologia_conversa.ORIGEM_TERMINAL
     )
     return {"id": str(linha["id"]), "criado_em": linha.get("criado_em")}
+
+
+@router.get("/demandas/{demanda_id}/conversa")
+def ler_pelo_terminal(
+    demanda_id: UUID,
+    depois: datetime | None = Query(default=None),
+    supabase=Depends(get_supabase_client),
+) -> dict:
+    """A resposta do diretor (ADR 0096, decisao 6): as mensagens da Conversa
+    da Demanda depois do instante `depois` (a data da pergunta da sessao), ou
+    a conversa inteira sem ele. So le. O id e UUID e o instante e data na
+    assinatura: lixo vira 422, nao 500."""
+    demanda = _demanda_ou_404(supabase, id=str(demanda_id))
+    return {"mensagens": tecnologia_conversa.ler(supabase, str(demanda["id"]), depois=depois)}
