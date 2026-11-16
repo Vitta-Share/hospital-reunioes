@@ -47,8 +47,9 @@ class Liberacao(BaseModel):
 
 
 def _pendente(participacao: dict) -> None:
+    """Sem assinatura, ou com um Termo novo gerado depois dela (issue #1769)."""
     _aberta(participacao)
-    if participacao.get("termo_assinado_em"):
+    if not termo.novo_termo_pendente(participacao):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_JA_ASSINADO)
 
 

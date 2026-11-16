@@ -66,6 +66,17 @@ def _dia(valor: Any) -> str:
     return dia.strftime("%d/%m/%Y")
 
 
+def novo_termo_pendente(participacao: dict) -> bool:
+    """O membro tem um Termo à espera da assinatura: nunca assinou, ou o
+    último documento foi gerado depois da última assinatura (renovação,
+    mudança de papel, revisão material do Regimento; issue #1769)."""
+    assinado = participacao.get("termo_assinado_em")
+    if not assinado:
+        return True
+    gerado = participacao.get("termo_gerado_em")
+    return bool(gerado) and datetime.fromisoformat(str(gerado)) > datetime.fromisoformat(str(assinado))
+
+
 def _bucket() -> str:
     return settings.supabase_storage_bucket_nsp_documentos
 
@@ -208,7 +219,7 @@ def ultimo_envio(supabase, participacao_id: str) -> dict | None:
 def _participacao(supabase, participacao_id: str) -> dict:
     return (
         supabase.table("participacoes")
-        .select("id, participante_id, papel, area, vigencia_inicio, vigencia_fim, termo_assinado_em")
+        .select("id, participante_id, papel, area, vigencia_inicio, vigencia_fim, termo_gerado_em, termo_assinado_em")
         .eq("id", participacao_id)
         .limit(1)
         .execute()
@@ -375,16 +386,18 @@ def _completar_carimbo(supabase, envio: dict) -> None:
     falhado depois da troca. Carimba só se ainda falta: a troca é condicional,
     e o retorno repetido não grava a trilha duas vezes."""
     participacao = _participacao(supabase, envio["participacao_id"])
-    if participacao.get("termo_assinado_em"):
+    if not novo_termo_pendente(participacao):
         return
-    carimbadas = (
+    anterior = participacao.get("termo_assinado_em")
+    consulta = (
         supabase.table("participacoes")
         .update({"termo_assinado_em": envio.get("assinado_em") or _agora()})
         .eq("id", participacao["id"])
-        .is_("termo_assinado_em", "null")
-        .execute()
-        .data
-    ) or []
+    )
+    # Troca condicional: só carimba sobre o valor que leu (vazio, ou a
+    # assinatura do Termo anterior), e o retorno repetido não acha mais nada.
+    consulta = consulta.eq("termo_assinado_em", anterior) if anterior else consulta.is_("termo_assinado_em", "null")
+    carimbadas = (consulta.execute().data) or []
     if carimbadas:
         _trilha(supabase, participacao["id"], participacao["participante_id"], "termo_assinado", valor_novo=envio["id"])
 

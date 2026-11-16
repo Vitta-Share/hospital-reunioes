@@ -1020,6 +1020,84 @@ class TestNovoTermoPorRevisaoDoRegimento:
         assert signatarios == ["Pessoa de Teste P2", "Pessoa de Teste P4"]
 
 
+class TestCadaTermoNosDocumentos:
+    def test_cada_termo_assinado_fica_nos_documentos_por_membro_e_por_vigencia(self):
+        """Mutante: o Termo assinado entrar nos Documentos uma vez por
+        Participação (e não por envio)."""
+        cenario = _Cenario(PRESIDENCIA)
+        cenario.cadastrar()
+        cenario.retorno_da_assinatura("doc-env-1", "sign")
+        part = cenario.participacao("P4")["id"]
+        cenario.api.post(f"{ROTA}/{part}/renovar", json={"vigencia_fim": _iso(700)})
+        [renovacao] = [e for e in cenario.envios("P4") if e["situacao"] == "enviado"]
+
+        assert cenario.retorno_da_assinatura(renovacao["documento_key"], "sign").status_code == 200
+
+        termos = sorted(
+            (d for d in cenario.tabela("nsp_documentos") if d["tipo"] == "termo"), key=lambda d: d["versao"]
+        )
+        assert [d["termo_envio_id"] for d in termos] == [e["id"] for e in cenario.envios("P4")]
+        primeiro, segundo = termos
+        assert "Pessoa de Teste P4" in primeiro["titulo"] and "Pessoa de Teste P4" in segundo["titulo"]
+        assert f"de {_dia_br(0)} a {_dia_br(365)}" in primeiro["titulo"]
+        assert f"de {_dia_br(0)} a {_dia_br(700)}" in segundo["titulo"]
+        assert primeiro["arquivo_assinado_path"] != segundo["arquivo_assinado_path"]
+
+
+class TestNovoTermoPendenteNaFicha:
+    def test_presidencia_reenvia_o_novo_termo_de_quem_ja_tinha_assinado(self, assinatura):
+        """A renovação com a assinatura fora do ar manda usar o reenvio, e o
+        membro tem a assinatura anterior. Mutante: o reenvio recusar todo
+        membro com assinatura."""
+        assinatura.falhar_em = "activate_envelope"
+        cenario = _Cenario(PRESIDENCIA)
+        cenario.api.post(f"{ROTA}/part-P3/renovar", json={"vigencia_fim": _iso(700)})
+        assinatura.falhar_em = None
+
+        resposta = cenario.api.post(f"{ROTA}/part-P3/termo/reenviar")
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["aviso_termo"] is None
+        assert sorted(e["situacao"] for e in cenario.envios("P3")) == ["cancelado", "enviado"]
+
+    def test_carimbo_do_novo_termo_que_falhou_se_conserta_na_reconsulta(self, assinatura):
+        """O membro já tinha assinatura; o novo Termo virou assinado e o
+        carimbo estourou. Mutante: o conserto pular quem já tem assinatura."""
+        cenario = _Cenario(PRESIDENCIA)
+        cenario.api.post(f"{ROTA}/part-P3/renovar", json={"vigencia_fim": _iso(700)})
+        tabela_de_verdade = cenario.banco.table
+        falhas = {"restantes": 1}
+
+        class _CarimboQueEstoura(_Consulta):
+            def execute(self):
+                operacao, carga = self._operacao
+                if operacao == "update" and "termo_assinado_em" in carga and falhas["restantes"]:
+                    falhas["restantes"] -= 1
+                    raise httpx.ReadTimeout("o banco não respondeu")
+                return super().execute()
+
+        cenario.banco.table = lambda nome: (
+            _CarimboQueEstoura(cenario.banco, nome) if nome == "participacoes" else tabela_de_verdade(nome)
+        )
+        assert cenario.retorno_da_assinatura("doc-env-1", "sign").status_code == 500
+        assinatura.status = "closed"
+
+        assert cenario.api.post(f"{ROTA}/part-P3/termo/reconsultar").status_code == 200
+        assert cenario.api.post(f"{ROTA}/part-P3/termo/reconsultar").status_code == 200
+
+        [envio] = cenario.envios("P3")
+        assert cenario.participacao("P3")["termo_assinado_em"] == envio["assinado_em"]
+        assert len(cenario.trilha("termo_assinado")) == 1
+
+    def test_membro_ativo_sem_termo_novo_continua_sem_reenvio(self):
+        cenario = _Cenario(PRESIDENCIA)
+
+        resposta = cenario.api.post(f"{ROTA}/part-P3/termo/reenviar")
+
+        assert resposta.status_code == 409
+        assert resposta.json() == {"detail": "O Termo deste membro já está assinado."}
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # 8. Nenhum teste chama a assinatura eletrônica de verdade
 # ═══════════════════════════════════════════════════════════════════════════
