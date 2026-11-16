@@ -843,8 +843,17 @@ _CONECTIVOS = ("de", "da", "do", "das", "dos", "e")
 # todo dia que por acaso também são nome ("esperei dias e dias", "fui ao porto
 # de santos") e a frase inteira virava marcador (review do PR #423).
 _CONECTIVOS_DA_BASE = ("de", "da", "do", "das", "dos")
+#
+# As duas pontas exigem PALAVRA INTEIRA (issue #1813): sem elas, a sequência
+# começava ou terminava dentro de uma palavra, e "Envelope ClickSign" saía
+# "[NOME]Sign", "ClickSign API" saía "Click[NOME]" e "GRupo Especial" saía
+# "G[NOME]". A guarda é de letra, não de `\w`, porque o que ela protege é a
+# palavra. A inicial do meio termina em ponto e pode vir colada no sobrenome
+# ("Maria S.Souza"): ali o ponto já é a fronteira.
 _SEQUENCIA_DE_NOME = re.compile(
-    rf"{_PALAVRA_DE_NOME}(?:{_ESPACO}(?:(?:{'|'.join(_CONECTIVOS)}){_ESPACO})*{_PALAVRA_DE_NOME})+"
+    rf"(?<![{_LETRA}{_APOSTROFO}]){_PALAVRA_DE_NOME}"
+    rf"(?:{_ESPACO}(?:(?:{'|'.join(_CONECTIVOS)}){_ESPACO})*{_PALAVRA_DE_NOME})+"
+    rf"(?:(?<=\.)|(?![{_LETRA}{_APOSTROFO}]))"
 )
 
 # Pista que anuncia pessoa. Vale sem olhar caixa, e é o que pega o nome
