@@ -40,15 +40,22 @@ logger = logging.getLogger(__name__)
 
 DIAS_UTEIS_PARA_ASSINAR = 5
 DIAS_ATE_APAGAR_A_TRANSCRICAO = 30
-# `closed`: todos assinaram (ou alguém finalizou); `canceled`: recusa. Nos
-# dois, esperar o prazo não traz assinatura nova.
-ENVELOPE_FECHADO = frozenset({"closed", "canceled", "cancelled"})
+# `closed`: todos assinaram (ou alguém finalizou), e há versão assinada.
+ENVELOPE_FECHADO = frozenset({"closed"})
+# `canceled`: recusa de um presente ou cancelamento no painel. O envelope
+# morreu e não tem versão assinada (ADR 0030, decisão 3, como a reconciliação
+# das Reuniões): a ata não encerra nem entra nos Documentos.
+ENVELOPE_CANCELADO = frozenset({"canceled", "cancelled"})
 
 # O link do PDF assinado vale 10 minutos, como o do Termo.
 VALIDADE_DO_LINK = 600
 
 FALHA_DO_ENVIO = "A assinatura eletrônica não respondeu. O aplicativo tenta de novo amanhã."
 SEM_EMAIL = "Nenhum presente tem e-mail no cadastro. Corrija o cadastro: o aplicativo tenta de novo amanhã."
+CANCELADA = (
+    "A assinatura eletrônica foi cancelada (recusa de um presente ou cancelamento no painel). "
+    "A ata não tem versão assinada e não encerra sozinha."
+)
 
 
 class _EnvioFalhouError(Exception):
@@ -236,10 +243,17 @@ def _encerrar(supabase, reuniao: dict, hoje: date) -> bool:
     json_ata = dict(reuniao["json_ata"])
     assinatura = json_ata.get("assinatura") or {}
     envelope_id = assinatura.get("envelope_id")
-    if not envelope_id:
+    if not envelope_id or assinatura.get("cancelada_em"):
         return False
     situacao = clicksign_service.get_envelope_status(envelope_id)
     if situacao is None:
+        return False
+    if situacao in ENVELOPE_CANCELADO:
+        json_ata["assinatura"] = {**assinatura, "cancelada_em": hoje.isoformat(), "erro": CANCELADA}
+        supabase.table("reunioes").update({"json_ata": json_ata}).eq("id_reuniao", reuniao["id_reuniao"]).eq(
+            "status_ata", "AGUARDANDO_ASSINATURA"
+        ).execute()
+        logger.warning("Ata do Núcleo %s: envelope cancelado, a ata não encerra", reuniao["id_reuniao"])
         return False
     fechado = situacao in ENVELOPE_FECHADO
     if not fechado:

@@ -335,6 +335,27 @@ class TestEncerramento:
         assert _status(banco) == "ASSINADA"
         assert _ata_gravada(banco)["encerramento"]["nao_assinaram"] == []
 
+    @pytest.mark.parametrize("cancelado", ["canceled", "cancelled"])
+    def test_o_envelope_cancelado_nao_encerra_a_ata_nem_guarda_pdf(self, assinatura, cancelado):
+        # Recusa de um presente ou cancelamento no painel: o envelope morreu e
+        # não tem versão assinada (ADR 0030, decisão 3). Nem antes nem depois
+        # do prazo a ata vira ASSINADA ou entra nos Documentos.
+        banco = _enviada(assinatura, "pres1@hsm.test")
+        assinatura.status = cancelado
+
+        assinatura_da_ata.encerrar_atas(banco, date(2026, 11, 19))
+        assinatura_da_ata.encerrar_atas(banco, QUINTA_SEGUINTE)
+
+        reuniao = _reuniao_gravada(banco)
+        assert reuniao["status_ata"] == "AGUARDANDO_ASSINATURA"
+        assert "encerramento" not in reuniao["json_ata"]
+        assert reuniao["json_ata"]["assinatura"]["cancelada_em"] == "2026-11-19"
+        assert reuniao["json_ata"]["assinatura"]["erro"]
+        assert _documento_da_ata(banco) is None
+        assert {"close_envelope", "list_signers", "get_signed_document"}.isdisjoint(assinatura.nomes())
+        # Marcada, a ata sai da consulta à assinatura eletrônica.
+        assert assinatura.nomes().count("get_envelope_status") == 1
+
     def test_a_reuniao_comum_nao_entra_no_encerramento(self, assinatura):
         banco = _enviada(assinatura)
         comum = _reuniao_gravada(banco, R_COMUM)
