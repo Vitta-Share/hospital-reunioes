@@ -110,6 +110,39 @@ describe("a página de Tecnologia do manual", () => {
   });
 });
 
+/** Os passos numerados de uma tarefa, cada um com o texto que vem até o próximo número. */
+function passosDa(tarefa: string): string[] {
+  return secao(tarefa)
+    .texto.split(/^(?=\d+\. )/m)
+    .filter((bloco) => /^\d+\. /.test(bloco));
+}
+
+describe("a pergunta da Vitta na tarefa de conversar com ela (issue #1807, ADR 0096)", () => {
+  const TAREFA = "Acompanhar o pedido no Quadro";
+
+  it("um passo diz que a pergunta chega na Conversa da Demanda, com aviso no sino e por e-mail", () => {
+    const chegada = passosDa(TAREFA).find((p) => /pergunta/i.test(p) && /decisão sua/.test(p));
+    expect(chegada, "nenhum passo diz onde chega a pergunta da Vitta").toBeDefined();
+    expect(chegada).toMatch(/Conversa da Demanda/);
+    expect(chegada).toMatch(/\bsino\b/);
+    expect(chegada).toMatch(/\be-mail\b/);
+  });
+
+  it("o passo seguinte diz para responder ali mesmo, pelo Conversar", () => {
+    const passos = passosDa(TAREFA);
+    const i = passos.findIndex((p) => /pergunta/i.test(p) && /decisão sua/.test(p));
+    expect(i, "nenhum passo diz onde chega a pergunta da Vitta").toBeGreaterThanOrEqual(0);
+    const resposta = passos[i + 1] ?? "";
+    expect(resposta).toMatch(/\*\*Conversar\*\*/);
+    expect(resposta).toMatch(/responda ali mesmo/);
+  });
+
+  it("não traz travessão nem meia-risca, nem o nome de quem manda a pergunta", () => {
+    expect(TECNOLOGIA!.corpo).not.toMatch(/[–—]/);
+    expect(TECNOLOGIA!.corpo).not.toMatch(/\bPedro\b/);
+  });
+});
+
 describe("o fluxograma do caminho de um pedido", () => {
   function fluxo(): Fluxo {
     const blocos = fluxogramasCitados(TECNOLOGIA!.corpo);

@@ -43,7 +43,9 @@ Se a conversa parar no meio, ela fica guardada como Registrada. Clique no pedido
 
    ![Um pedido aberto no painel ao lado do Quadro](pedido-no-painel.png)
 
-6. Para fechar o painel, clique no X ou aperte Esc. O botão **Ampliar** abre o pedido na tela toda, e o **Voltar ao quadro** traz as colunas de volta.
+6. Quando a Vitta precisa de uma decisão sua sobre o pedido, a pergunta aparece nessa mesma Conversa da Demanda, como as outras mensagens da Vitta, e você recebe o aviso no sino e por e-mail. Clique no aviso do sino ou no link do e-mail para abrir o pedido na aba Tecnologia.
+7. Clique em **Conversar**, leia a pergunta e responda ali mesmo, na Conversa da Demanda.
+8. Para fechar o painel, clique no X ou aperte Esc. O botão **Ampliar** abre o pedido na tela toda, e o **Voltar ao quadro** traz as colunas de volta.
 
 A coluna Entregue mostra o que foi entregue nos últimos 30 dias. Os pedidos que não serão feitos ficam fora das colunas: para vê-los, ligue **Mostrar as que não serão feitas**, na barra de filtros.
 
