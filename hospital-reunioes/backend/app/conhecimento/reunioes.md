@@ -31,6 +31,12 @@ Quando a assinatura não se completa (alguém recusa, ou o processo é cancelado
 
 A coleta de assinaturas também tem prazo: são 30 dias. Vencido o prazo, a ata é finalizada com as assinaturas que tiver, a tela mostra quantos de quantos assinaram, e as pendências que faltavam nascem nesse momento.
 
+## As reuniões do Núcleo de Segurança do Paciente
+
+As reuniões do Núcleo de Segurança do Paciente ficam no módulo Segurança do Paciente, no item Reuniões, e não são marcadas pela tela de Reuniões. São de quatro tipos: ordinária mensal, análise de evento, apresentação à Diretoria e reunião rápida de segurança. Depois de criada, a reunião do Núcleo segue o mesmo caminho das outras até a ata.
+
+Só quem é do Núcleo vê essas reuniões. Para quem é de fora, elas não aparecem na lista de reuniões, no calendário, nas pendências, nos números do painel, no sino nem no que o Claude da diretoria consulta. Isso vale também para quem administra o aplicativo.
+
 ## O que ele não faz
 
 - Não grava a reunião: o aplicativo não capta o que se fala na sala. O áudio que ele recebe é o ditado, quando o facilitador prefere falar a digitar na ata guiada: esse áudio sobe, é transcrito ali mesmo e descartado. Áudio nenhum fica guardado.
@@ -51,6 +57,7 @@ A coleta de assinaturas também tem prazo: são 30 dias. Vencido o prazo, a ata 
 - As notas avulsas e a importação de atas antigas foram retiradas do aplicativo.
 - O papel interno de cada facilitador é uma etiqueta da administração, e a própria pessoa não vê o dela.
 - Os títulos e subtítulos do PDF da ata saem em caixa alta, inclusive os tópicos escritos pela inteligência artificial, e o resto do texto continua com maiúscula e minúscula.
+- As reuniões do Núcleo de Segurança do Paciente ficam no módulo Segurança do Paciente e não aparecem para quem não é do Núcleo, nem para quem administra o aplicativo.
 
 ## O que costuma virar Demanda
 

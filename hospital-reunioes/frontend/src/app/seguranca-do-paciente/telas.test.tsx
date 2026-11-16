@@ -42,7 +42,8 @@ vi.mock("@/hooks/useCurrentParticipante", () => ({
   }),
 }));
 
-// A tela Documentos já tem conteúdo (issue #1767) e pede a lista ao servidor.
+// As telas Documentos (issue #1767) e Reuniões (issue #1772) já têm conteúdo e
+// pedem a lista ao servidor; aqui só importa a moldura, e as listas voltam vazias.
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
     auth: {
@@ -54,7 +55,18 @@ vi.mock("@/lib/supabase/client", () => ({
 beforeEach(() => {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ documentos: [] }) }))
+    vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            documentos: [],
+            reunioes: [],
+            tipos: [],
+            pode_abrir: false,
+            pode_criar: false,
+          })
+        )
+    )
   );
 });
 
@@ -134,7 +146,10 @@ describe("as telas do módulo", () => {
     expect(screen.getByText(orientacao).tagName).toBe("P");
   });
 
-  it.each(TELAS.filter((t) => t.nome !== "Início" && t.nome !== "Documentos"))(
+  // Início, Documentos e Reuniões já têm conteúdo (issues #1767 e #1772).
+  it.each(
+    TELAS.filter((t) => t.nome !== "Início" && t.nome !== "Documentos" && t.nome !== "Reuniões")
+  )(
     "$nome mostra o estado vazio enquanto a fatia dela não chega",
     ({ Pagina }) => {
       entrar(TODOS);

@@ -12,7 +12,7 @@ from app.dependencies import (
     get_current_user,
     get_participante_for_user,
     get_supabase_client,
-    visibilidade_das_reunioes,
+    reunioes_ocultas,
 )
 from app.models.schemas import NotificacaoCount, NotificacaoResponse
 
@@ -25,7 +25,7 @@ def _sem_avisos_do_nucleo(query, supabase, participante: dict):
     alcança, ou para pendência dela (issue #1772). A referência do aviso é a
     reunião (aceite interno) ou a pendência (menção, responsável, comentário).
     O aviso sem referência fica: o `not.in` sozinho não casa NULL."""
-    ocultas = visibilidade_das_reunioes(supabase, participante).ocultas
+    ocultas = reunioes_ocultas(supabase, participante)
     if not ocultas:
         return query
     pendencias = supabase.table("pendencias").select("id_acao").in_("id_reuniao", ocultas).execute().data or []

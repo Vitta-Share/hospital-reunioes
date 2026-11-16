@@ -84,6 +84,10 @@ class _SupabaseFake:
         self._rows = rows
 
     def table(self, _nome):
+        # O sigilo do Núcleo procura o Colegiado em toda rota da reunião (issue
+        # #1772); sem o Núcleo, nenhuma reunião é do Núcleo.
+        if _nome == "colegiados":
+            return _Query([])
         return _Query(self._rows)
 
 

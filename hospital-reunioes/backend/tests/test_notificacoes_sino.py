@@ -78,6 +78,10 @@ class _Banco:
         self.linhas = linhas
 
     def table(self, nome: str):
+        # O sigilo do Núcleo procura o Colegiado antes de ler o sino (issue
+        # #1772); sem o Núcleo, nenhum aviso é escondido.
+        if nome == "colegiados":
+            return _Consulta([])
         assert nome == "notificacoes"
         return _Consulta(self.linhas)
 

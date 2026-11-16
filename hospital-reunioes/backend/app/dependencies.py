@@ -328,8 +328,8 @@ def visibilidade_das_reunioes(
     if not me:
         return VisibilidadeDasReunioes(permitidas=[], ocultas=[])
     do_nucleo = reunioes_do_nucleo(supabase)
-    liberado = bool(do_nucleo) and recurso in recursos_nsp_da_pessoa(supabase, me)
-    ocultas = [] if liberado else do_nucleo
+    ocultas = _ocultas(supabase, me, recurso, do_nucleo)
+    liberado = bool(do_nucleo) and not ocultas
     if is_super_admin(me) or is_secretaria(me):
         return VisibilidadeDasReunioes(permitidas=None, ocultas=ocultas)
     result = supabase.table("reuniao_participantes").select("id_reuniao").eq("participante_id", me["id"]).execute()
@@ -339,6 +339,22 @@ def visibilidade_das_reunioes(
     else:
         permitidas = [i for i in da_lista if i not in ocultas]
     return VisibilidadeDasReunioes(permitidas=permitidas, ocultas=ocultas)
+
+
+def _ocultas(supabase, me: dict[str, Any], recurso: str, do_nucleo: list[str]) -> list[str]:
+    """As reuniões do Núcleo fora do alcance da pessoa. Sem reunião do Núcleo,
+    a permissão do módulo nem é lida."""
+    if not do_nucleo or recurso in recursos_nsp_da_pessoa(supabase, me):
+        return []
+    return do_nucleo
+
+
+def reunioes_ocultas(supabase, me: dict[str, Any] | None, recurso: str = "reunioes") -> list[str]:
+    """Só as `ocultas` de `visibilidade_das_reunioes`, sem ler a lista de
+    participantes: para quem não lista reunião, só esconde (o sino)."""
+    if not me:
+        return []
+    return _ocultas(supabase, me, recurso, reunioes_do_nucleo(supabase))
 
 
 async def get_visibilidade_das_reunioes(
@@ -361,7 +377,7 @@ async def barrar_reuniao_do_nucleo(
     if not id_reuniao:
         return
     me = await get_participante_for_user(current_user, supabase)
-    if id_reuniao in visibilidade_das_reunioes(supabase, me).ocultas:
+    if id_reuniao in reunioes_ocultas(supabase, me):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=RECUSA_DO_NSP)
 
 

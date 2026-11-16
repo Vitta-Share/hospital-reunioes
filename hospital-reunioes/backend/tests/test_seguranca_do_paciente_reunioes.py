@@ -636,3 +636,33 @@ class TestItemReunioesDoModulo:
 
     def test_super_admin_recebe_recusa_no_item_reunioes_do_modulo(self):
         _assert_recusado(_cliente(SUPER_ADMIN).get("/api/nsp/reunioes"))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. O Kit de conhecimento do Assistente de Tecnologia diz o que mudou
+# ═══════════════════════════════════════════════════════════════════════════
+
+KIT = os.path.join(os.path.dirname(__file__), "..", "app", "conhecimento")
+
+
+def _kit(arquivo: str) -> str:
+    with open(os.path.join(KIT, arquivo), encoding="utf-8") as f:
+        return " ".join(f.read().split())
+
+
+class TestKitDeConhecimento:
+    def test_o_produto_seguranca_do_paciente_diz_o_comportamento_novo(self):
+        texto = _kit("seguranca-do-paciente.md")
+
+        assert "a Presidência cria a reunião ali mesmo" in texto
+        tipos = ("ordinária mensal", "análise de evento", "apresentação à Diretoria", "reunião rápida de segurança")
+        for tipo in tipos:
+            assert tipo in texto, tipo
+        assert "quem ainda não assinou vê a data, o tipo e o título, e não abre" in texto
+        assert "Isso vale também para o super admin." in texto
+        assert "Reuniões estão vazias" not in texto
+
+    def test_o_produto_reunioes_diz_que_as_do_nucleo_ficam_no_modulo(self):
+        texto = _kit("reunioes.md")
+
+        assert "As reuniões do Núcleo de Segurança do Paciente ficam no módulo Segurança do Paciente" in texto

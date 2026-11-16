@@ -16,7 +16,7 @@ from enum import StrEnum
 
 from postgrest.exceptions import APIError
 
-from app.services.seguranca_do_paciente.permissao import id_do_nucleo
+from app.services.seguranca_do_paciente.permissao import SLUG_DO_NUCLEO
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +43,12 @@ def reunioes_do_nucleo(supabase) -> list[str]:
     dela cai inteira, em vez de mostrar reunião do Núcleo a quem não podia.
     """
     try:
-        nucleo_id = id_do_nucleo(supabase)
-        if not nucleo_id:
+        # O slug é único: sem `limit`, a consulta fica no mínimo que toda
+        # leitura de reunião do app passa a fazer.
+        nucleos = supabase.table("colegiados").select("id").eq("slug", SLUG_DO_NUCLEO).execute().data or []
+        if not nucleos:
             return []
-        linhas = supabase.table("reunioes").select("id_reuniao").eq("colegiado_id", nucleo_id).execute().data
+        linhas = supabase.table("reunioes").select("id_reuniao").eq("colegiado_id", nucleos[0]["id"]).execute().data
     except APIError as erro:
         if getattr(erro, "code", None) not in _AINDA_SEM_MIGRATION:
             raise

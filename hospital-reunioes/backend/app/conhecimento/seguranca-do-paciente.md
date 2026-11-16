@@ -25,6 +25,12 @@ A tela Núcleo, Documentos:
 - ao publicar uma revisão do Regimento, a Presidência escolhe se ela é material (muda o conteúdo) ou só de redação, e a escolha fica gravada e aparece na tela;
 - publicar ainda não manda nada para assinatura nem gera Termo novo: isso chega nas entregas de assinatura.
 
+As reuniões do Núcleo:
+
+- o item **Reuniões** mostra o calendário das reuniões do Núcleo, mês a mês. Quem tem o Termo assinado clica na reunião e abre a ata; quem ainda não assinou vê a data, o tipo e o título, e não abre;
+- a Presidência cria a reunião ali mesmo, à mão, num dos quatro tipos do Núcleo: ordinária mensal, análise de evento, apresentação à Diretoria e reunião rápida de segurança. Depois disso a reunião segue o caminho de sempre: transcrição, revisão e ata;
+- a reunião do Núcleo some de todo o resto do aplicativo para quem não é do Núcleo: da lista de reuniões, do calendário geral, das pendências, dos números do painel, do sino e do que o Claude da diretoria consulta. Isso vale também para o super admin.
+
 ## Quem vê
 
 O item Segurança do Paciente aparece para quem tem participação vigente no Núcleo, para quem tem o Acesso pleno ao NSP e para a Diretoria. Os demais não veem o item.
@@ -42,7 +48,7 @@ Participação vencida, ou que ainda não começou, não dá acesso.
 
 ## O que ele ainda não faz
 
-Nesta primeira entrega as telas de Membros, Capacitações, Agenda regulatória e Reuniões estão vazias: o cadastro de membros com o Termo, as capacitações, a agenda e as reuniões do Núcleo chegam nas próximas entregas da primeira fase. A assinatura de um documento publicado também chega depois. A notificação de incidente e a triagem são da segunda fase.
+As telas de Membros, Capacitações e Agenda regulatória ainda estão vazias: o cadastro de membros com o Termo, as capacitações e a agenda chegam nas próximas entregas da primeira fase. A assinatura de um documento publicado também chega depois. Nas reuniões, a pauta montada pelo sistema, o convite aos membros e a ata própria do Núcleo também chegam depois: por enquanto a Presidência cria a reunião à mão e a ata segue o modelo das outras reuniões. A notificação de incidente e a triagem são da segunda fase.
 
 ## O que já foi decidido
 
@@ -51,6 +57,8 @@ Nesta primeira entrega as telas de Membros, Capacitações, Agenda regulatória 
 - A proteção é do aplicativo, e a Diretoria sabe que quem opera o banco de dados diretamente consegue ler.
 - Presidência, suplente e membro vêm da participação vigente no Núcleo, com início e fim, e não de um perfil marcado à mão.
 - Quem está no Núcleo sem o Termo de Adesão assinado vê só painel, calendário e agenda, até assinar.
+- A reunião do Núcleo é vista por quem é do Núcleo, e não por quem foi incluído na lista de participantes: quem é de fora não a vê nem estando na lista, e o membro a vê mesmo sem estar.
+- A reunião do Núcleo não aparece em nenhuma tela de quem é de fora, inclusive do super admin.
 - Os dados dos membros não entram no aplicativo por carga automática: a composição é cadastrada pela tela, depois da entrega.
 - Auditorias de adesão, Gestão de riscos e Comissões ficam no menu com o selo "Em breve", desabilitados, para quem usa já saber o que vem.
 - Os títulos das telas do módulo ficam em caixa alta, na identidade do hospital.
@@ -65,3 +73,4 @@ Nesta primeira entrega as telas de Membros, Capacitações, Agenda regulatória 
 - Pedido para o super admin ler uma ata ou um caso do Núcleo: não é atendido, por decisão da Diretoria.
 - Pedido para apagar um documento publicado errado: não existe; a Presidência publica uma versão nova corrigida, que passa a ser a vigente.
 - Um membro que não abre a tela Documentos: costuma ser o Termo de Adesão ainda não assinado.
+- Uma reunião do Núcleo que alguém de fora diz não achar na lista de reuniões: é o sigilo funcionando, e a reunião está no módulo Segurança do Paciente.
