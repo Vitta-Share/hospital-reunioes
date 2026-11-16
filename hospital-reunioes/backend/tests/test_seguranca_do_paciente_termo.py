@@ -446,3 +446,297 @@ class TestCadastroGeraEEnvia:
         assert envio["situacao"] == "enviado"
         assert envio["documento_key"] == "doc-env-1"
         assert envio["regimento_id"] == REGIMENTO["id"]
+
+    def test_sem_regimento_vigente_o_cadastro_fica_de_pe_e_avisa(self, assinatura):
+        cenario = _Cenario(PRESIDENCIA, regimento=False)
+
+        corpo = cenario.cadastrar()
+
+        assert corpo["estado"] == "cadastrado"
+        assert "Publique o Regimento" in corpo["aviso_termo"]
+        assert assinatura.chamadas == []
+        assert cenario.envios("P4") == []
+
+    def test_assinatura_fora_do_ar_deixa_o_documento_gerado_e_avisa(self, assinatura):
+        assinatura.falhar_em = "activate_envelope"
+        cenario = _Cenario(PRESIDENCIA)
+
+        corpo = cenario.cadastrar()
+
+        assert corpo["estado"] == "documento_gerado"
+        assert "Reenviar" in corpo["aviso_termo"]
+        [envio] = cenario.envios("P4")
+        assert envio["situacao"] == "gerado"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. O retorno da assinatura deixa o membro Ativo, sem repetir nada
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestRetornoDaAssinatura:
+    def test_assinatura_deixa_o_membro_ativo_e_guarda_o_termo_nos_documentos(self):
+        """Mutante: o tratamento do envelope do Núcleo não carimbar a Participação."""
+        cenario = _Cenario(PRESIDENCIA)
+        cenario.cadastrar()
+
+        resposta = cenario.retorno_da_assinatura("doc-env-1", "sign")
+
+        assert resposta.status_code == 200, resposta.text
+        assert cenario.estado("P4") == "ativo"
+        assert cenario.participacao("P4")["termo_assinado_em"]
+        [assinado] = cenario.trilha("termo_assinado")
+        assert assinado["autor_id"] == "P4"
+        [documento] = [d for d in cenario.tabela("nsp_documentos") if d["tipo"] == "termo"]
+        assert documento["termo_envio_id"] == cenario.envios("P4")[0]["id"]
+        assert documento["vigente"] is False
+        assert "Pessoa de Teste P4" in documento["titulo"]
+        guardado = (settings.supabase_storage_bucket_nsp_documentos, documento["arquivo_assinado_path"])
+        assert cenario.banco.storage.arquivos[guardado] == b"%PDF-1.4 assinado"
+
+    def test_evento_repetido_nao_duplica_nada(self):
+        """Mutante: tirar a troca condicional (só o envio "enviado" vira assinado)."""
+        cenario = _Cenario(PRESIDENCIA)
+        cenario.cadastrar()
+
+        for evento in ("sign", "sign", "auto_close", "document_closed"):
+            assert cenario.retorno_da_assinatura("doc-env-1", evento).status_code == 200
+
+        assert len(cenario.trilha("termo_assinado")) == 1
+        assert len([d for d in cenario.tabela("nsp_documentos") if d["tipo"] == "termo"]) == 1
+
+    def test_dois_retornos_simultaneos_carimbam_uma_vez(self):
+        """Os dois leram o envio ainda "enviado". Mutante: tirar a troca
+        condicional (só o envio "enviado" vira assinado)."""
+        from app.services.seguranca_do_paciente import termo
+
+        cenario = _Cenario(PRESIDENCIA)
+        cenario.cadastrar()
+        [lido_pelos_dois] = cenario.envios("P4")
+        lido_pelos_dois = dict(lido_pelos_dois)
+
+        termo.processar_evento(cenario.banco, lido_pelos_dois, "sign")
+        termo.processar_evento(cenario.banco, lido_pelos_dois, "auto_close")
+
+        assert len(cenario.trilha("termo_assinado")) == 1
+
+    def test_envelope_desconhecido_nao_muda_nada(self):
+        cenario = _Cenario(PRESIDENCIA)
+        cenario.cadastrar()
+        antes = json.dumps(cenario.banco.tabelas, sort_keys=True, default=str)
+
+        resposta = cenario.retorno_da_assinatura("doc-fantasma", "sign")
+
+        assert resposta.status_code == 200
+        assert json.dumps(cenario.banco.tabelas, sort_keys=True, default=str) == antes
+        assert cenario.estado("P4") == "aguardando_assinatura"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. Reconsultar aplica o mesmo tratamento
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestReconsultar:
+    def test_reconsultar_com_o_envelope_fechado_ativa_como_o_retorno_automatico(self, assinatura):
+        """Mutante: a reconsulta só ler o status e não aplicar o tratamento."""
+        cenario = _Cenario(PRESIDENCIA)
+        cenario.cadastrar()
+        assinatura.status = "closed"
+        part = cenario.participacao("P4")["id"]
+
+        resposta = cenario.api.post(f"{ROTA}/{part}/termo/reconsultar")
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["estado"] == "ativo"
+        assert len(cenario.trilha("termo_assinado")) == 1
+        assert len([d for d in cenario.tabela("nsp_documentos") if d["tipo"] == "termo"]) == 1
+
+    def test_reconsultar_ainda_sem_assinatura_nao_muda_nada(self, assinatura):
+        cenario = _Cenario(PRESIDENCIA)
+        cenario.cadastrar()
+        assinatura.status = "running"
+        part = cenario.participacao("P4")["id"]
+
+        resposta = cenario.api.post(f"{ROTA}/{part}/termo/reconsultar")
+
+        assert resposta.status_code == 200
+        assert resposta.json()["estado"] == "aguardando_assinatura"
+        assert cenario.trilha("termo_assinado") == []
+
+    def test_assinatura_fora_do_ar_na_reconsulta_responde_503(self, assinatura):
+        cenario = _Cenario(PRESIDENCIA)
+        cenario.cadastrar()
+        assinatura.status = None
+        part = cenario.participacao("P4")["id"]
+
+        resposta = cenario.api.post(f"{ROTA}/{part}/termo/reconsultar")
+
+        assert resposta.status_code == 503
+        assert "não respondeu" in resposta.json()["detail"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. O reenvio cancela o envelope anterior e gera outro identificador
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestReenvio:
+    def test_reenvio_cancela_o_anterior_e_gera_outro_identificador(self, assinatura):
+        """Mutante: o reenvio não cancelar o envio aberto."""
+        cenario = _Cenario(PRESIDENCIA)
+        cenario.cadastrar()
+        [antigo] = cenario.envios("P4")
+        part = cenario.participacao("P4")["id"]
+
+        resposta = cenario.api.post(f"{ROTA}/{part}/termo/reenviar")
+
+        assert resposta.status_code == 200, resposta.text
+        assert ("cancel_envelope", antigo["envelope_id"]) in assinatura.chamadas
+        antigo, novo = sorted(cenario.envios("P4"), key=lambda e: e["situacao"])
+        assert (antigo["situacao"], novo["situacao"]) == ("cancelado", "enviado")
+        assert novo["id"] != antigo["id"]
+        assert novo["envelope_id"] != antigo["envelope_id"]
+        assert novo["documento_key"] != antigo["documento_key"]
+        assert novo["id"] in _texto_do_pdf(assinatura.documentos[-1])
+        assert len(cenario.trilha("termo_reenviado")) == 1
+
+    def test_retorno_do_envelope_cancelado_nao_ativa(self):
+        cenario = _Cenario(PRESIDENCIA)
+        cenario.cadastrar()
+        part = cenario.participacao("P4")["id"]
+        cenario.api.post(f"{ROTA}/{part}/termo/reenviar")
+
+        assert cenario.retorno_da_assinatura("doc-env-1", "sign").status_code == 200
+
+        assert cenario.estado("P4") == "aguardando_assinatura"
+        assert cenario.trilha("termo_assinado") == []
+
+    def test_termo_ja_assinado_nao_se_reenvia(self):
+        cenario = _Cenario(PRESIDENCIA)
+
+        resposta = cenario.api.post(f"{ROTA}/part-P3/termo/reenviar")
+
+        assert resposta.status_code == 409
+        assert resposta.json() == {"detail": "O Termo deste membro já está assinado."}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. A liberação manual: justificativa, trilha, e só Presidência e Acesso pleno
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _com_pendente() -> list[dict]:
+    return [_participacao("P2", papel="presidencia"), _participacao("P3"), _participacao("P4", termo=False)]
+
+
+class TestLiberacaoManual:
+    @pytest.mark.parametrize("quem", [ACESSO_PLENO, PRESIDENCIA], ids=["acesso_pleno", "presidencia"])
+    def test_liberacao_grava_autor_data_e_motivo_e_ativa(self, quem):
+        cenario = _Cenario(quem, _com_pendente())
+
+        resposta = cenario.api.post(
+            f"{ROTA}/part-P4/termo/liberar", json={"justificativa": "  Assinatura eletrônica fora do ar no dia  "}
+        )
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["estado"] == "ativo"
+        [linha] = cenario.trilha("liberacao_manual")
+        assert linha["autor_id"] == quem["id"]
+        assert linha["created_at"]
+        assert linha["motivo"] == "Assinatura eletrônica fora do ar no dia"
+
+    @pytest.mark.parametrize("justificativa", ["", "   "], ids=["vazia", "so_espacos"])
+    def test_liberacao_sem_justificativa_e_recusada(self, justificativa):
+        """Mutante: aceitar justificativa em branco."""
+        cenario = _Cenario(PRESIDENCIA, _com_pendente())
+
+        resposta = cenario.api.post(f"{ROTA}/part-P4/termo/liberar", json={"justificativa": justificativa})
+
+        assert resposta.status_code == 422
+        assert cenario.participacao("P4")["termo_assinado_em"] is None
+        assert cenario.trilha("liberacao_manual") == []
+
+    @pytest.mark.parametrize(
+        "quem", [DIRETORIA, SUPER_ADMIN, MEMBRO], ids=["diretoria", "super_admin_sem_acesso_pleno", "membro"]
+    )
+    def test_so_presidencia_e_acesso_pleno_liberam(self, quem):
+        """ADR 0095, decisão 4. Mutante: trocar o recurso da liberação de `gerir_nucleo` para `membros`."""
+        cenario = _Cenario(quem, _com_pendente())
+
+        resposta = cenario.api.post(f"{ROTA}/part-P4/termo/liberar", json={"justificativa": "Motivo qualquer"})
+
+        _assert_recusado(resposta)
+        assert cenario.participacao("P4")["termo_assinado_em"] is None
+        assert cenario.trilha("liberacao_manual") == []
+
+    @pytest.mark.parametrize("acao", ["reconsultar", "reenviar"])
+    @pytest.mark.parametrize("quem", [DIRETORIA, SUPER_ADMIN], ids=["diretoria", "super_admin_sem_acesso_pleno"])
+    def test_diretoria_e_super_admin_nao_reconsultam_nem_reenviam(self, quem, acao, assinatura):
+        _assert_recusado(_Cenario(quem, _com_pendente()).api.post(f"{ROTA}/part-P4/termo/{acao}"))
+        assert assinatura.chamadas == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. A faixa: o membro sem Termo acha o documento pendente
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestMeuTermo:
+    def test_membro_sem_termo_recebe_o_link_do_documento_pendente(self):
+        """Mutante: a rota responder `pendente` sem o link do documento."""
+        presidencia = _Cenario(PRESIDENCIA)
+        presidencia.cadastrar()
+        membro = _Cenario(NOVA, presidencia.tabela("participacoes"))
+        membro.banco = presidencia.banco
+
+        corpo = membro.api.get("/api/nsp/meu-termo").json()
+
+        [envio] = presidencia.envios("P4")
+        assert corpo["pendente"] is True
+        bucket = settings.supabase_storage_bucket_nsp_documentos
+        assert corpo["documento_url"] == f"https://storage.test/{bucket}/{envio['arquivo_path']}?token=t"
+
+    def test_membro_com_termo_nao_tem_pendencia(self):
+        corpo = _Cenario(MEMBRO).api.get("/api/nsp/meu-termo").json()
+
+        assert corpo == {"pendente": False, "documento_url": None}
+
+    def test_super_admin_nao_pergunta_pelo_termo(self):
+        _assert_recusado(_Cenario(SUPER_ADMIN).api.get("/api/nsp/meu-termo"))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 7. O PDF: sem travessão nem meia-risca, com conselho, registro e UF
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestPdfDoTermo:
+    def test_pdf_traz_conselho_registro_e_uf_e_nao_tem_travessao(self, assinatura):
+        """Mutante: tirar o sanitizador dos dados do Termo (o Regimento de teste traz os dois sinais)."""
+        cenario = _Cenario(PRESIDENCIA)
+        cenario.cadastrar()
+
+        texto = _texto_do_pdf(assinatura.documentos[0])
+
+        assert "CRF nº 000444/RJ" in texto
+        assert re.search("[–—]", texto) is None
+        assert "Núcleo de Segurança do Paciente, instância consultiva, reúne-se" in texto
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 8. Nenhum teste chama a assinatura eletrônica de verdade
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_toda_chamada_do_termo_a_assinatura_eletronica_esta_dublada():
+    """O dublê autouse cobre toda função de `clicksign_service` que o Termo
+    chama. Função nova sem dublê faz este teste falhar.
+    Mutante: tirar `cancel_envelope` da lista do dublê."""
+    from app.services.seguranca_do_paciente import termo
+
+    with open(termo.__file__, encoding="utf-8") as arquivo:
+        usadas = set(re.findall(r"clicksign_service\.(\w+)\(", arquivo.read()))
+    assert "create_envelope" in usadas
+    for nome in usadas:
+        assert isinstance(getattr(getattr(clicksign_service, nome), "__self__", None), _Assinatura), nome
