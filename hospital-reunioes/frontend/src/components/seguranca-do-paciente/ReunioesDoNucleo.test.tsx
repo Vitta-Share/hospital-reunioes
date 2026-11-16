@@ -118,3 +118,64 @@ describe("a Presidência cria a reunião", () => {
     });
   });
 });
+
+describe("o calendário do ano e a pauta (issue #1773)", () => {
+  it("a Presidência gera o calendário do ano com o dia e a hora escolhidos", async () => {
+    fetchMock.mockImplementation(async (_rota: string, init?: RequestInit) =>
+      init?.method === "POST"
+        ? responder({ ano: 2027, criadas: Array.from({ length: 12 }, (_, i) => ({ id_reuniao: `R${i}` })), ja_existiam: [] }, 201)
+        : responder(calendario({ pode_abrir: true, pode_criar: true })),
+    );
+    render(<ReunioesDoNucleo />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Gerar o calendário do ano" }));
+    const form = screen.getByRole("form", { name: "Calendário do ano" });
+    fireEvent.change(within(form).getByLabelText("Ano"), { target: { value: "2027" } });
+    fireEvent.change(within(form).getByLabelText("Dia do mês"), { target: { value: "15" } });
+    fireEvent.change(within(form).getByLabelText("Hora"), { target: { value: "09:30" } });
+    fireEvent.submit(form);
+
+    expect(await screen.findByText("12 reuniões ordinárias criadas em 2027.")).toBeTruthy();
+    const [rota, init] = fetchMock.mock.calls.find(([, i]) => i?.method === "POST")!;
+    expect(rota).toBe("/api/nsp/reunioes/calendario");
+    expect(JSON.parse(init.body)).toEqual({ ano: 2027, dia: 15, hora_inicio: "09:30" });
+  });
+
+  it("pedir de novo no mesmo ano avisa que nada foi criado", async () => {
+    fetchMock.mockImplementation(async (_rota: string, init?: RequestInit) =>
+      init?.method === "POST"
+        ? responder({ ano: 2027, criadas: [], ja_existiam: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }, 201)
+        : responder(calendario({ pode_abrir: true, pode_criar: true })),
+    );
+    render(<ReunioesDoNucleo />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Gerar o calendário do ano" }));
+    const form = screen.getByRole("form", { name: "Calendário do ano" });
+    fireEvent.change(within(form).getByLabelText("Ano"), { target: { value: "2027" } });
+    fireEvent.submit(form);
+
+    expect(await screen.findByText("O calendário de 2027 já tinha as doze ordinárias. Nada foi criado.")).toBeTruthy();
+  });
+
+  it("quem abre a ata abre também a pauta da reunião", async () => {
+    fetchMock.mockImplementation(async (rota: string) =>
+      rota.endsWith("/pauta")
+        ? responder({ disponivel: false, disponivel_em: "2026-11-13", blocos: [] })
+        : responder(calendario({ pode_abrir: true, pode_criar: false })),
+    );
+    render(<ReunioesDoNucleo />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Pauta de Reunião ordinária de novembro" }));
+
+    expect(await screen.findByText(/A pauta aparece em 13\/11\/2026/)).toBeTruthy();
+    expect(fetchMock.mock.calls.some(([r]) => r === "/api/nsp/reunioes/RD_20261120_1/pauta")).toBe(true);
+  });
+
+  it("o membro sem Termo não tem o botão da pauta", async () => {
+    fetchMock.mockImplementation(async () => responder(calendario({ pode_abrir: false, pode_criar: false })));
+    render(<ReunioesDoNucleo />);
+
+    await screen.findByText("Reunião ordinária de novembro");
+    expect(screen.queryByRole("button", { name: /Pauta de/ })).toBeNull();
+  });
+});

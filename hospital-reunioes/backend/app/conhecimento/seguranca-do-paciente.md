@@ -37,6 +37,9 @@ As reuniões do Núcleo:
 
 - o item **Reuniões** mostra o calendário das reuniões do Núcleo, mês a mês. Quem tem o Termo assinado clica na reunião e abre a ata; quem ainda não assinou vê a data, o tipo e o título, e não abre;
 - a Presidência cria a reunião ali mesmo, à mão, num dos quatro tipos do Núcleo: ordinária mensal, análise de evento, apresentação à Diretoria e reunião rápida de segurança. Depois disso a reunião segue o caminho de sempre: transcrição, revisão e ata;
+- a Presidência gera o **calendário do ano** de uma vez: as doze reuniões ordinárias, uma por mês, no dia do mês e na hora que ela escolhe. Dia que cai em fim de semana ou feriado cadastrado vai para o próximo dia útil do mesmo mês. Pedir de novo no mesmo ano não duplica: o mês que já tem ordinária fica como está;
+- a **pauta** da ordinária aparece 5 dias úteis antes da reunião, contando os feriados cadastrados, montada pelo aplicativo: as pendências da ordinária anterior, com a situação de hoje de cada uma, e os eventos da Agenda regulatória previstos até um mês depois da reunião. Os blocos de indicadores, casos, planos de ação vencidos e alertas sanitários aparecem como "sem dados nesta fase". Nos outros tipos de reunião, a pauta aparece desde a criação. A Presidência muda, tira e inclui itens e blocos enquanto a reunião está programada; quem tem o Termo assinado lê;
+- a Presidência **convoca** em um clique: sai um e-mail nominal para cada membro Ativo, A vencer ou Em carência, com o dia da semana, a data e a hora, e o link para o módulo, sem o conteúdo da pauta. O aplicativo grava quem foi convocado e mostra a lista junto da pauta. A ordinária precisa ser convocada até o 5º dia útil antes da reunião; os outros tipos, até 24 horas antes. Fora desse prazo o aplicativo recusa e diz por quê. Cada reunião é convocada uma vez;
 - a reunião do Núcleo some de todo o resto do aplicativo para quem não é do Núcleo: da lista de reuniões, do calendário geral, das pendências, dos números do painel, do sino e do que o Claude da diretoria consulta. Isso vale também para o super admin.
 
 A Agenda regulatória do Núcleo:
@@ -77,7 +80,7 @@ Membro nunca é apagado. Encerrar termina a vigência no dia escolhido e a parti
 
 ## O que ele ainda não faz
 
-A tela de Capacitações ainda está vazia: as capacitações chegam nas próximas entregas da primeira fase. Renovar a vigência, mudar o papel ou publicar uma revisão material do Regimento ainda não gera Termo novo, e os avisos de Termo sem assinatura (3, 7 e 14 dias) chegam depois. A assinatura de um documento publicado também chega depois. Nas reuniões, a pauta montada pelo sistema, o convite aos membros e a ata própria do Núcleo também chegam depois: por enquanto a Presidência cria a reunião à mão e a ata segue o modelo das outras reuniões. A notificação de incidente e a triagem são da segunda fase.
+A tela de Capacitações ainda está vazia: as capacitações chegam nas próximas entregas da primeira fase. Renovar a vigência, mudar o papel ou publicar uma revisão material do Regimento ainda não gera Termo novo, e os avisos de Termo sem assinatura (3, 7 e 14 dias) chegam depois. A assinatura de um documento publicado também chega depois. Nas reuniões, a presença, o quórum e a ata própria do Núcleo também chegam depois: por enquanto a ata segue o modelo das outras reuniões, e a pauta ainda não traz indicadores, casos, planos vencidos nem alertas, que dependem das próximas fases. A notificação de incidente e a triagem são da segunda fase.
 
 ## O que já foi decidido
 
@@ -95,6 +98,8 @@ A tela de Capacitações ainda está vazia: as capacitações chegam nas próxim
 - O texto do Regimento entra pela tela, nunca por carga automática.
 - Revisão só de redação do Regimento não pede nova assinatura do Termo de Adesão; revisão material pede, quando as entregas de assinatura chegarem.
 - O lembrete de cada obrigação é uma pendência da Presidência no aplicativo, e não um e-mail, criada por uma rotina diária que não usa inteligência artificial.
+- A pauta é montada pelo aplicativo, sem inteligência artificial.
+- A convocação vai só para quem conta para quórum, os membros Ativo, A vencer e Em carência.
 
 ## O que costuma virar Demanda
 
@@ -108,3 +113,5 @@ A tela de Capacitações ainda está vazia: as capacitações chegam nas próxim
 - Um membro que não recebeu o e-mail para assinar: costuma ser e-mail errado no cadastro; corrigido o e-mail, a Presidência usa Reenviar o Termo.
 - Uma reunião do Núcleo que alguém de fora diz não achar na lista de reuniões: é o sigilo funcionando, e a reunião está no módulo Segurança do Paciente.
 - Um lembrete da agenda que não apareceu: costuma ser evento sem próxima data, evento desativado ou o Núcleo sem Presidência vigente.
+- Um membro que diz não ter recebido a convocação: costuma ser Termo não assinado, vigência vencida ou cadastro sem e-mail.
+- A Presidência que não consegue convocar a ordinária: passou do 5º dia útil antes da reunião, e o aplicativo diz qual era o último dia.
