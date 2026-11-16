@@ -208,6 +208,8 @@ export interface Responsavel {
   email: string;
   vigencia_inicio: string;
   vigencia_fim: string | null;
+  /** O e-mail casa com o de alguém que entra no app (ADR 0099, decisão 1). */
+  tem_login: boolean;
 }
 
 /**
