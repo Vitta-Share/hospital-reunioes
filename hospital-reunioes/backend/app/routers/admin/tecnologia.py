@@ -118,6 +118,7 @@ from app.services import (
     planejamento_demanda,
     tecnologia_anexos,
     tecnologia_apagar,
+    tecnologia_conversa,
     tecnologia_email,
     tecnologia_entregas,
     tecnologia_envio,
@@ -142,7 +143,6 @@ from app.services.tecnologia import (
     origem_da_demanda,
     pode_ver,
     projeto_da_demanda,
-    quem_avisar,
     recusa_de_apagar,
     recusa_de_revisar,
     responsavel_da_demanda,
@@ -1201,34 +1201,12 @@ async def escrever_na_conversa_da_demanda(
     if not texto:
         _recusar("Escreva a mensagem antes de enviar.")
     mencoes = extrair_mencoes(texto, _mencionaveis(supabase, demanda))
-    ja_escreveram = [
-        str(m["autor_id"])
-        for m in (
-            supabase.table(TABELA_CONVERSA_DA_DEMANDA).select("autor_id").eq("demanda_id", demanda_id).execute().data
-            or []
-        )
-        if m.get("autor_id")
-    ]
-    [linha] = (
-        supabase.table(TABELA_CONVERSA_DA_DEMANDA)
-        .insert({"demanda_id": demanda_id, "autor_id": ator["id"], "texto": texto, "mencoes": mencoes})
-        .execute()
-        .data
+    # A gravacao e o aviso moram no servico que a ponte do terminal tambem
+    # chama (issue #1805, ADR 0096); a tela grava a origem `app`.
+    linha = tecnologia_conversa.escrever(
+        supabase, demanda, autor=ator, texto=texto, origem=tecnologia_conversa.ORIGEM_APP, mencoes=mencoes
     )
     nome = ator.get("nome_completo") or ""
-    for destinatario in quem_avisar(demanda, autor_id=ator["id"], mencoes=mencoes, ja_escreveram=ja_escreveram):
-        aviso = f"{nome} mencionou você" if destinatario in mencoes else f"{nome} escreveu na Demanda"
-        criar_notificacao_tecnologia(
-            supabase,
-            destinatario_id=destinatario,
-            titulo=aviso,
-            mensagem=str(demanda.get("titulo") or "")[:80],
-            demanda_id=demanda_id,
-        )
-        # O mesmo aviso, por e-mail (issue #1538): o diretor não fica com o app aberto.
-        tecnologia_email.enviar_aviso_da_conversa(
-            supabase, destinatario_id=destinatario, aviso=aviso, autor_nome=nome, demanda=demanda
-        )
     return _mensagem_para_a_tela(linha, nomes={str(ator["id"]): nome}, ator=ator)
 
 
