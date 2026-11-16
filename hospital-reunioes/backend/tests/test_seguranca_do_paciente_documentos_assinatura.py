@@ -1091,3 +1091,56 @@ class TestTermoNovoPelaAssinaturaDoRegimento:
         assert _reconsultar(cenario, novo["id"]).status_code == 200
 
         assert lotes == [{"autor_id": "P2", "regimento_vigente": novo["id"]}]
+
+    @pytest.mark.parametrize(
+        "eventos",
+        [
+            [("sign", "sig-env-1-1"), ("sign", "sig-env-1-2"), ("auto_close", None), ("document_closed", None)],
+            [("auto_close", None), ("auto_close", None), ("sign", "sig-env-1-2"), ("document_closed", None)],
+            [("auto_close", None), ("reconsultar", None)],
+        ],
+        ids=["sign_final_auto_close_document_closed", "retentativa_da_assinatura", "webhook_e_reconsultar"],
+    )
+    def test_o_retorno_repetido_nao_gera_segundo_lote(self, lotes, assinatura, eventos):
+        """Mutante: avisar a cada passagem pelo `_concluir` com o envio
+        assinado, sem conferir se a versão já era a vigente."""
+        cenario = _Cenario(PRESIDENCIA)
+        novo = cenario.enviar(tipo="regimento", natureza_revisao="material")["documento"]
+        assinatura.assinaram = {"sig-env-1-1", "sig-env-1-2"}
+
+        for evento, signatario in eventos:
+            if evento == "reconsultar":
+                resposta = _reconsultar(cenario, novo["id"])
+            else:
+                resposta = cenario.retorno_da_assinatura("doc-env-1", evento, signatario=signatario)
+            assert resposta.status_code == 200, resposta.text
+
+        assert lotes == [{"autor_id": "P2", "regimento_vigente": novo["id"]}]
+
+    @pytest.mark.parametrize(
+        "tipo, natureza",
+        [("regimento", "redacao"), ("ato_designacao", None), ("plano_seguranca_paciente", None)],
+        ids=["regimento_de_redacao", "ato_de_designacao", "plano"],
+    )
+    def test_o_que_nao_e_revisao_material_do_regimento_nao_gera_termo(self, lotes, tipo, natureza):
+        """Mutante: tirar a conferência do tipo e da natureza."""
+        cenario = _Cenario(PRESIDENCIA)
+        novo = cenario.enviar(tipo=tipo, natureza_revisao=natureza)["documento"]
+
+        assert cenario.retorno_da_assinatura("doc-env-1", "auto_close").status_code == 200
+
+        assert cenario.documento(novo["id"])["vigente"] is True
+        assert lotes == []
+
+    def test_a_versao_que_perde_para_uma_mais_nova_nao_gera_termo(self, lotes):
+        """A Presidência publicou uma revisão de redação mais nova antes de a
+        material terminar de assinar: `nsp_tornar_vigente` não devolve nada.
+        Mutante: avisar sem conferir a versão que voltou."""
+        cenario = _Cenario(PRESIDENCIA)
+        enviada = cenario.enviar(tipo="regimento", natureza_revisao="material")["documento"]
+        cenario.api.post("/api/nsp/documentos", json={**_versao(tipo="regimento"), "natureza_revisao": "redacao"})
+
+        assert cenario.retorno_da_assinatura("doc-env-1", "auto_close").status_code == 200
+
+        assert cenario.documento(enviada["id"])["vigente"] is False
+        assert lotes == []
