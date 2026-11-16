@@ -200,8 +200,12 @@ async def arquivo_assinado(
     _: dict = Depends(require_recurso_nsp("documentos")),
     supabase: Client = Depends(get_supabase_client),
 ) -> dict:
-    """O link do PDF assinado da versão, válido por 10 minutos."""
+    """O link do PDF assinado da versão, válido por 10 minutos. Só dos tipos que
+    vão para assinatura aqui: o Termo de Adesão assinado de cada membro sai só
+    pela ficha do membro, com `gerir_nucleo`."""
     documento = _documento(supabase, documento_id)
+    if documento.get("tipo") not in assinatura.SIGNATARIOS_POR_TIPO:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_NAO_ENCONTRADO)
     if not documento.get("arquivo_assinado_path"):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Esta versão não tem arquivo assinado.")
     url = assinatura.link_do_arquivo_assinado(supabase, documento)

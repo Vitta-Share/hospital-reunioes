@@ -113,6 +113,8 @@ function Assinaturas({
 function Versao({ documento }: { documento: DocumentoDoNucleo }) {
   const [texto, setTexto] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  // O Termo assinado de cada membro sai só pela ficha do membro (gerir_nucleo).
+  const podeBaixar = documento.tem_arquivo_assinado && documento.tipo in TIPOS_COM_ASSINATURA;
 
   async function ler() {
     const t = await token();
@@ -166,14 +168,14 @@ function Versao({ documento }: { documento: DocumentoDoNucleo }) {
       </div>
       <p className="mt-0.5 text-sm text-slate-700 break-words">{documento.titulo}</p>
       {publicado && <p className="text-xs text-slate-500">{publicado}</p>}
-      {((documento.tem_texto && texto === null) || documento.tem_arquivo_assinado) && (
+      {((documento.tem_texto && texto === null) || podeBaixar) && (
         <div className="mt-2 flex flex-wrap gap-2">
           {documento.tem_texto && texto === null && (
             <button type="button" className={BOTAO_SECUNDARIO} onClick={ler}>
               Ler o texto
             </button>
           )}
-          {documento.tem_arquivo_assinado && (
+          {podeBaixar && (
             <button type="button" className={BOTAO_SECUNDARIO} onClick={baixar}>
               Baixar o arquivo assinado
             </button>

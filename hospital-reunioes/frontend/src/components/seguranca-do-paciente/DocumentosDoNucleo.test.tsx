@@ -290,4 +290,20 @@ describe("a assinatura", () => {
     await waitFor(() => expect(aba.location.href).toBe("https://storage.test/assinado.pdf"));
     expect(fetch).toHaveBeenCalledWith("/api/nsp/documentos/reg-4/arquivo-assinado", expect.anything());
   });
+
+  it("o Termo assinado de cada membro não tem botão de baixar na lista", async () => {
+    const termo = documento({
+      id: "termo-1",
+      tipo: "termo",
+      titulo: "Termo de Adesão de Pessoa de Teste",
+      natureza_revisao: null,
+      tem_arquivo_assinado: true,
+    });
+    const fetch = servidorComAssinaturas([termo, documento({ id: "reg-4", versao: 4, tem_arquivo_assinado: true })], []);
+    render(<DocumentosDoNucleo podePublicar={false} />);
+
+    expect(await screen.findByText("Termo de Adesão de Pessoa de Teste")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Baixar o arquivo assinado" })).toHaveLength(1);
+    expect(fetch).not.toHaveBeenCalledWith("/api/nsp/documentos/termo-1/arquivo-assinado", expect.anything());
+  });
 });

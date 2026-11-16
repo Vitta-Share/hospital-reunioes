@@ -806,6 +806,30 @@ class TestArquivoAssinado:
 
         _assert_recusado(cenario.api.get(f"/api/nsp/documentos/{novo['id']}/arquivo-assinado"))
 
+    @pytest.mark.parametrize("quem", [MEMBRO, PRESIDENCIA, ACESSO_PLENO], ids=["membro", "presidencia", "acesso_pleno"])
+    def test_termo_assinado_de_outro_membro_nao_baixa_por_aqui(self, quem):
+        """O Termo de Adesão assinado tem arquivo no mesmo bucket, mas só sai pela
+        ficha do membro (`gerir_nucleo`). Mutante: tirar a conferência do tipo
+        da rota (viraria 200 com o link do Termo de outra pessoa)."""
+        cenario = _Cenario(quem)
+        cenario.tabela("nsp_documentos").append(
+            {
+                **REGIMENTO_VIGENTE,
+                "id": "8d1f6a7e-0000-4000-8000-0000000000a1",
+                "tipo": "termo",
+                "titulo": "Termo de Adesão de Pessoa de Teste P4",
+                "natureza_revisao": None,
+                "arquivo_assinado_path": "termos/env-termo-assinado.pdf",
+            }
+        )
+        balde = settings.supabase_storage_bucket_nsp_documentos
+        cenario.banco.storage.arquivos[(balde, "termos/env-termo-assinado.pdf")] = b"%PDF termo"
+
+        resposta = cenario.api.get("/api/nsp/documentos/8d1f6a7e-0000-4000-8000-0000000000a1/arquivo-assinado")
+
+        assert resposta.status_code == 404, resposta.text
+        assert "url" not in resposta.json()
+
     def test_versao_sem_arquivo_assinado_da_404(self):
         cenario = _Cenario(PRESIDENCIA)
 
