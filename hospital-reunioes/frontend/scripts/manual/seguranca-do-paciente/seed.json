@@ -1,0 +1,78 @@
+{
+  "presidencia": {
+    "id": "P17800",
+    "nome": "Marina Couto",
+    "email": "marina.couto.nucleo@exemplo.local",
+    "senha": "ManualNucleo1780!",
+    "cargo": "Gerente de Enfermagem de exemplo"
+  },
+  "diretoria_executiva": "Augusto Ferraz",
+  "membros": [
+    {
+      "id": "P17800", "nome": "Marina Couto", "papel": "presidencia", "area": "Gerência de Enfermagem",
+      "conselho": "COREN", "registro": "214587", "uf": "RJ",
+      "inicio_ha": 300, "fim_em": 430, "assinou_ha": 298, "estado": "ativo"
+    },
+    {
+      "id": "P17801", "nome": "Rodrigo Teixeira", "papel": "suplente", "area": "Farmácia",
+      "conselho": "CRF", "registro": "31842", "uf": "RJ",
+      "inicio_ha": 300, "fim_em": 430, "assinou_ha": 297, "estado": "ativo"
+    },
+    {
+      "id": "P17802", "nome": "Juliana Prado", "papel": "membro", "area": "CTI Adulto",
+      "conselho": "COREN", "registro": "287430", "uf": "RJ",
+      "inicio_ha": 690, "fim_em": 40, "assinou_ha": 688, "estado": "a_vencer"
+    },
+    {
+      "id": "P17803", "nome": "Felipe Andrade", "papel": "membro", "area": "Centro Cirúrgico",
+      "conselho": "CRM", "registro": "540318", "uf": "RJ",
+      "inicio_ha": 200, "fim_em": 530, "assinou_ha": 199, "estado": "ativo"
+    },
+    {
+      "id": "P17804", "nome": "Beatriz Lima", "papel": "membro", "area": "Laboratório",
+      "conselho": "CRBM", "registro": "9821", "uf": "RJ",
+      "inicio_ha": 5, "fim_em": 725, "enviado_ha": 5, "estado": "aguardando_assinatura"
+    },
+    {
+      "id": "P17805", "nome": "Carlos Mendes", "papel": "membro", "area": "Qualidade",
+      "inicio_ha": 740, "fim_em": -12, "assinou_ha": 735, "estado": "em_carencia"
+    },
+    {
+      "id": "P17806", "nome": "Sônia Ribeiro", "papel": "membro", "area": "Nutrição",
+      "conselho": "CRN", "registro": "11904", "uf": "RJ",
+      "inicio_ha": 700, "fim_em": 30, "assinou_ha": 698, "encerrada_ha": 90, "estado": "encerrado"
+    }
+  ],
+  "pessoas_fora_do_nucleo": [
+    { "id": "P17807", "nome": "Lívia Castro" },
+    { "id": "P17808", "nome": "Tiago Martins" },
+    { "id": "P17809", "nome": "Renata Alves" }
+  ],
+  "setores": [
+    "CTI Adulto", "Centro Cirúrgico", "Emergência", "Farmácia", "Gerência de Enfermagem",
+    "Laboratório", "Nutrição", "Qualidade", "Radiologia"
+  ],
+  "cadastro": {
+    "pessoa": "Lívia Castro",
+    "area": "Emergência",
+    "conselho": "COREN",
+    "registro": "305112",
+    "uf": "RJ"
+  },
+  "abrir": {
+    "termo": "P17804",
+    "ficha": "P17801",
+    "composicao_dias_atras": 400
+  },
+  "regimento": {
+    "titulo": "Regimento Interno do Núcleo de Segurança do Paciente, revisão 3",
+    "texto": "Art. 1º O Núcleo de Segurança do Paciente se reúne uma vez por mês, em reunião ordinária.\nArt. 2º O quórum de instalação é a maioria simples dos membros, com a Presidência ou o suplente presente."
+  },
+  "capacitacao_nova": {
+    "titulo": "Higiene das mãos nos cinco momentos",
+    "carga": "2",
+    "instrutor": "Rodrigo Teixeira",
+    "temas": ["Higiene das mãos", "Identificação do paciente"],
+    "participantes": ["Juliana Prado", "Felipe Andrade", "Lívia Castro"]
+  }
+}

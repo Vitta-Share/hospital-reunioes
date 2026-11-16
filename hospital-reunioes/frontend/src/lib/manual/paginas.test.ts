@@ -35,6 +35,9 @@ const COM_TODOS_OS_ACESSOS: CurrentParticipante = {
   perfil_pop: "superadmin",
   perfil_ouvidoria: "ouvidor",
   perfil_contas_medicas: "coordenadora",
+  // O super admin não entra em Segurança do Paciente (ADR 0095): o módulo vem
+  // da permissão efetiva do servidor.
+  recursos_nsp: ["ver_modulo"],
 };
 
 const PAGINAS = carregarPaginasDoManual();
