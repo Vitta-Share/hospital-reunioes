@@ -1,6 +1,7 @@
 ---
 status: accepted
 amends: 0082
+amended_by: 0097
 ---
 
 # O módulo do Núcleo de Segurança do Paciente: fundação, fases e exceções de IA
