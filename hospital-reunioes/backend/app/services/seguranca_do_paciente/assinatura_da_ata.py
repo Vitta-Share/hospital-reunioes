@@ -387,5 +387,40 @@ def _remover_do_storage(supabase, bucket: str, caminhos: list[str]) -> list:
     return supabase.storage.from_(bucket).remove(caminhos) or []
 
 
-def _hoje(valor: Any) -> date:
-    return valor if isinstance(valor, date) else date.fromisoformat(str(valor)[:10])
+def _caminhos_da_transcricao(id_reuniao: str) -> list[str]:
+    """O original importado (em qualquer formato aceito) e o texto extraído,
+    como o pipeline da importação grava."""
+    from app.services.transcricao_extractor import CONTENT_TYPE_BY_EXT
+
+    return [f"{id_reuniao}/transcricao{extensao}" for extensao in sorted(CONTENT_TYPE_BY_EXT)]
+
+
+def apagar_transcricoes(supabase, hoje: date) -> int:
+    """O job diário: apaga a transcrição importada da reunião do Núcleo 30
+    dias corridos depois da ata assinada. Só reunião do Núcleo entra (a
+    consulta é pelo colegiado). A apagada ganha carimbo e sai da varredura;
+    falha do Storage deixa para amanhã. Devolve quantas apagou."""
+    limite = hoje - timedelta(days=DIAS_ATE_APAGAR_A_TRANSCRICAO)
+    apagadas = 0
+    for reuniao in _atas_do_nucleo(supabase, ["ASSINADA"]):
+        json_ata = dict(reuniao.get("json_ata") or {})
+        encerramento = json_ata.get("encerramento")
+        assinada_em = reuniao.get("data_assinatura")
+        if not encerramento or encerramento.get("transcricao_apagada_em") or not assinada_em:
+            continue
+        if date.fromisoformat(str(assinada_em)[:10]) > limite:
+            continue
+        try:
+            _remover_do_storage(
+                supabase, settings.supabase_storage_bucket_transcricoes, _caminhos_da_transcricao(reuniao["id_reuniao"])
+            )
+        except Exception:  # noqa: BLE001 (o Storage fora do ar não derruba o job; amanhã tem outra rodada)
+            logger.exception("Transcrição da ata do Núcleo %s não apagada nesta rodada", reuniao["id_reuniao"])
+            continue
+        json_ata["encerramento"] = {**encerramento, "transcricao_apagada_em": hoje.isoformat()}
+        supabase.table("reunioes").update({"json_ata": json_ata, "url_transcricao": None}).eq(
+            "id_reuniao", reuniao["id_reuniao"]
+        ).execute()
+        apagadas += 1
+        logger.info("Transcrição da ata do Núcleo %s apagada", reuniao["id_reuniao"])
+    return apagadas

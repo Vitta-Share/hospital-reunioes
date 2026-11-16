@@ -454,3 +454,102 @@ class TestArquivoAssinado:
         resposta = _baixar(_cliente(MEMBRO, banco), "doc-regimento-1")
 
         assert resposta.status_code == 404
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. A transcrição do Núcleo some 30 dias corridos depois da ata assinada
+# ═══════════════════════════════════════════════════════════════════════════
+
+TRANSCRICOES = settings.supabase_storage_bucket_transcricoes
+
+
+def _com_transcricoes(assinatura, arquivos) -> Any:
+    """A ata do Núcleo assinada em 26/11 e uma reunião comum assinada há mais
+    tempo, com o mesmo `json_ata` (para o filtro ser o do Núcleo, e não a
+    forma da ata). As duas com a transcrição importada no bucket."""
+    banco = _encerrada(assinatura)
+    comum = _reuniao_gravada(banco, R_COMUM)
+    comum.update(
+        {
+            "data_assinatura": "2026-10-01",
+            "json_ata": copy.deepcopy(_ata_gravada(banco)),
+            "url_transcricao": "https://storage.test/transcricoes/RD_COMUM_01/transcricao.docx",
+        }
+    )
+    _reuniao_gravada(banco)["url_transcricao"] = "https://storage.test/transcricoes/RD_NUCLEO_ATA/transcricao.docx"
+    for rid in (R_ATA, R_COMUM):
+        arquivos.arquivos[(TRANSCRICOES, f"{rid}/transcricao.docx")] = b"original"
+        arquivos.arquivos[(TRANSCRICOES, f"{rid}/transcricao.txt")] = b"texto"
+    return banco
+
+
+def _transcricoes_de(arquivos, rid: str) -> list[str]:
+    return sorted(c for b, c in arquivos.arquivos if b == TRANSCRICOES and c.startswith(f"{rid}/"))
+
+
+class TestLimpezaDaTranscricao:
+    def test_a_transcricao_do_nucleo_some_no_trigesimo_dia_e_a_da_comum_fica(self, assinatura, arquivos):
+        banco = _com_transcricoes(assinatura, arquivos)
+
+        assinatura_da_ata.apagar_transcricoes(banco, QUINTA_SEGUINTE + timedelta(days=29))
+
+        assert _transcricoes_de(arquivos, R_ATA) == [f"{R_ATA}/transcricao.docx", f"{R_ATA}/transcricao.txt"]
+
+        assinatura_da_ata.apagar_transcricoes(banco, QUINTA_SEGUINTE + timedelta(days=30))
+
+        assert _transcricoes_de(arquivos, R_ATA) == []
+        assert _reuniao_gravada(banco)["url_transcricao"] is None
+        assert _ata_gravada(banco)["encerramento"]["transcricao_apagada_em"] == (
+            QUINTA_SEGUINTE + timedelta(days=30)
+        ).isoformat()
+        # A reunião comum, assinada há mais de 30 dias, não é tocada.
+        assert _transcricoes_de(arquivos, R_COMUM) == [f"{R_COMUM}/transcricao.docx", f"{R_COMUM}/transcricao.txt"]
+        assert _reuniao_gravada(banco, R_COMUM)["url_transcricao"].endswith("transcricao.docx")
+
+    def test_falha_do_storage_deixa_para_a_rodada_seguinte(self, assinatura, arquivos, monkeypatch):
+        banco = _com_transcricoes(assinatura, arquivos)
+
+        def _fora_do_ar(*_a):
+            raise RuntimeError("Storage fora do ar")
+
+        monkeypatch.setattr(assinatura_da_ata, "_remover_do_storage", _fora_do_ar)
+
+        assinatura_da_ata.apagar_transcricoes(banco, QUINTA_SEGUINTE + timedelta(days=30))
+
+        assert "transcricao_apagada_em" not in _ata_gravada(banco)["encerramento"]
+        assert _reuniao_gravada(banco)["url_transcricao"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. Rodar os jobs duas vezes não muda o resultado
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestJobsDeNovo:
+    def test_os_dois_jobs_rodados_duas_vezes_dao_o_mesmo_resultado(self, assinatura, arquivos):
+        banco = _com_transcricoes(assinatura, arquivos)
+        trigesimo = QUINTA_SEGUINTE + timedelta(days=30)
+        assinatura_da_ata.apagar_transcricoes(banco, trigesimo)
+        depois_da_primeira = copy.deepcopy(banco.tabelas)
+        arquivos_da_primeira = dict(arquivos.arquivos)
+        assinatura.chamadas.clear()
+
+        assinatura_da_ata.encerrar_atas(banco, QUINTA_SEGUINTE)
+        assinatura_da_ata.encerrar_atas(banco, trigesimo)
+        assinatura_da_ata.apagar_transcricoes(banco, trigesimo)
+
+        assert banco.tabelas == depois_da_primeira
+        assert arquivos.arquivos == arquivos_da_primeira
+        assert [d for d in banco.tabelas["nsp_documentos"] if d.get("reuniao_id") == R_ATA][0]["versao"] == 2
+        assert {"close_envelope", "add_signer", "get_signed_document"}.isdisjoint(assinatura.nomes())
+
+    def test_o_encerramento_rodado_duas_vezes_no_mesmo_dia_nao_duplica(self, assinatura):
+        banco = _enviada(assinatura, "pres1@hsm.test")
+
+        assinatura_da_ata.encerrar_atas(banco, QUINTA_SEGUINTE)
+        primeira = copy.deepcopy(banco.tabelas)
+        assinatura_da_ata.encerrar_atas(banco, QUINTA_SEGUINTE)
+
+        assert banco.tabelas == primeira
+        assert assinatura.nomes().count("close_envelope") == 1
+        assert len([d for d in banco.tabelas["nsp_documentos"] if d.get("reuniao_id") == R_ATA]) == 1
