@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T03:21+0000 -->
+<!-- last_update: 2026-11-16T03:27+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -121,6 +121,8 @@ erDiagram
     participantes ||--o{ reuniao_aceite_tokens : "participante_id"
     participantes ||--o{ reuniao_aceites : "participante_id"
     participantes ||--o{ reuniao_participantes : "participante_id"
+    participantes ||--o{ reuniao_presencas : "participante_id"
+    participantes ||--o{ reuniao_presencas : "registrada_por"
     participantes ||--o{ reunioes : "criada_por"
     participantes ||--o{ reunioes : "facilitador_id"
     participantes ||--o{ reunioes : "nome_arquivo_original"
@@ -148,6 +150,8 @@ erDiagram
     reunioes ||--o{ nsp_pautas : "id_reuniao"
     reunioes ||--o{ pendencias : "id_reuniao"
     reunioes ||--o{ reuniao_participantes : "id_reuniao"
+    reunioes ||--o{ reuniao_presencas : "id_reuniao"
+    reunioes ||--o{ reunioes : "reagendada_de"
     reunioes ||--o{ tokens_validacao : "id_reuniao"
     tecnologia_conversas ||--o{ tecnologia_anexos : "conversa_id"
     tecnologia_demandas ||--o{ tecnologia_anexos : "demanda_id"
@@ -178,7 +182,7 @@ erDiagram
         TEXT tipo
         VARCHAR facilitador_id FK
         TEXT setor
-        _ mais_colunas "+30"
+        _ mais_colunas "+31"
     }
     reuniao_participantes {
         UUID id PK
@@ -1111,6 +1115,14 @@ erDiagram
         TIMESTAMPTZ convocado_em
         VARCHAR convocado_por FK
     }
+    reuniao_presencas {
+        UUID id PK
+        VARCHAR id_reuniao FK
+        VARCHAR participante_id FK
+        TEXT situacao
+        VARCHAR registrada_por FK
+        TIMESTAMPTZ created_at
+    }
 ```
 
 ## Indexes principais
@@ -1143,6 +1155,7 @@ erDiagram
 | `reunioes` | `idx_reunioes_facilitador` | `facilitador_id` | `038_fk_indexes.sql` |
 | `reunioes` | `idx_reunioes_tipo_id` | `tipo_id` | `038_fk_indexes.sql` |
 | `reunioes` | `idx_reunioes_colegiado` | `colegiado_id` | `148_nsp_reunioes_do_nucleo.sql` |
+| `reunioes` | `idx_reunioes_reagendada_de` | `reagendada_de` | `153_nsp_presenca_e_quorum.sql` |
 | `reuniao_participantes` | `idx_reuniao_part_reuniao` | `id_reuniao` | `002_create_reunioes.sql` |
 | `reuniao_participantes` | `idx_reuniao_part_participante` | `participante_id` | `002_create_reunioes.sql` |
 | `pendencias` | `idx_pendencias_reuniao` | `id_reuniao` | `003_create_pendencias.sql` |
@@ -1288,6 +1301,8 @@ erDiagram
 | `nsp_termos_envios` | `idx_nsp_termos_envios_regimento` | `regimento_id` | `151_nsp_termo_de_adesao.sql` |
 | `nsp_pautas` | `idx_nsp_pautas_editada_por` | `editada_por` | `152_nsp_pauta_e_convocacao.sql` |
 | `nsp_convocados` | `idx_nsp_convocados_participante` | `participante_id` | `152_nsp_pauta_e_convocacao.sql` |
+| `reuniao_presencas` | `idx_reuniao_presencas_participante` | `participante_id` | `153_nsp_presenca_e_quorum.sql` |
+| `reuniao_presencas` | `idx_reuniao_presencas_registrada_por` | `registrada_por` | `153_nsp_presenca_e_quorum.sql` |
 
 ---
-**Resumo:** 101 tabelas · 149 relacionamentos FK detectados.
+**Resumo:** 102 tabelas · 153 relacionamentos FK detectados.

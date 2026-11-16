@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T03:21+0000 -->
+<!-- last_update: 2026-11-16T03:27+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -502,8 +502,11 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/nsp/reunioes` | A Presidência cria a reunião à mão, programada, e fica como | ✅ |
 | POST | `/nsp/reunioes/calendario` | As doze ordinárias do ano, uma por mês, programadas. Mês que já tem | ✅ |
 | POST | `/nsp/reunioes/{id_reuniao}/convocacao` | Um clique: e-mail nominal a quem conta para quórum, com data e hora | ✅ |
+| POST | `/nsp/reunioes/{id_reuniao}/nao-instalada` | Sem quórum, a reunião fica como não instalada e nasce a reagendada, | ✅ |
 | GET | `/nsp/reunioes/{id_reuniao}/pauta` | A pauta da reunião. Da data da pauta em diante ela é montada pelo | ✅ |
 | PUT | `/nsp/reunioes/{id_reuniao}/pauta` | A Presidência ajusta a pauta montada: muda texto, tira, inclui item ou | ✅ |
+| GET | `/nsp/reunioes/{id_reuniao}/presenca` | A presença registrada e o quórum apurado da reunião do Núcleo. | ✅ |
+| PUT | `/nsp/reunioes/{id_reuniao}/presenca` | A Presidência registra a presença de cada pessoa. O registro novo | ✅ |
 
 ## seguranca-do-paciente (`app/routers/seguranca_do_paciente_termo.py`)
 
@@ -617,4 +620,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 351 endpoints em 52 routers · 93% exigem auth.
+**Totais:** 354 endpoints em 52 routers · 93% exigem auth.
