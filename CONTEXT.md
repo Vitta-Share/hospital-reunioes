@@ -5,11 +5,11 @@ Automatiza o ciclo de vida de reuniões corporativas de um hospital de alta comp
 ## Pessoas e papéis
 
 **Facilitador**:
-Quem conduz uma Reunião e responde pela Ata: marca, revisa, aprova e envia para assinatura. É um vínculo com a Reunião, não um perfil: vê as Pendências das Reuniões que conduziu, além das próprias (ADR 0097). Hoje são 5 (1 diretor + 4 diretoras).
+Quem conduz uma Reunião e responde pela Ata: marca, revisa, aprova e envia para assinatura. É um vínculo com a Reunião, não um perfil: vê as Pendências das Reuniões que conduziu, além das próprias (ADR 0098). Hoje são 5 (1 diretor + 4 diretoras).
 _Evitar_: admin, gestor, usuário.
 
 **Colaborador**:
-Pessoa citada numa Reunião e/ou responsável por uma Pendência. Tem conta no app: entra, vê só as Pendências dele e as atualiza com Anotação. Quem nunca entrou recebe no e-mail um link pessoal para fazer o mesmo (ADR 0097).
+Pessoa citada numa Reunião e/ou responsável por uma Pendência. Tem conta no app: entra, vê só as Pendências dele e as atualiza com Anotação. Quem nunca entrou recebe no e-mail um link pessoal para fazer o mesmo (ADR 0098).
 _Evitar_: funcionário, membro, usuário comum.
 
 **Secretária**:
@@ -69,10 +69,10 @@ _Evitar_: processamento, job de IA.
 
 ## Pendências
 
-> Os verbetes desta seção descrevem a regra da ADR 0097, que entra no código pelas ondas do PRD #1757. Até cada onda subir, o código segue a ADR 0030.
+> Os verbetes desta seção descrevem a regra da ADR 0098, que entra no código pelas ondas do PRD #1757. Até cada onda subir, o código segue a ADR 0030.
 
 **Pendência**:
-Uma Ação da Ata atribuída a um responsável, com prazo. Tem quatro estados (`PENDENTE`, `EM_PROGRESSO`, `CONCLUIDO`, `CANCELADO`). **Atrasada** e **repactuada** são situações calculadas, não estados: atrasada é a Pendência aberta com prazo vencido, repactuada é a que tem Repactuação no Histórico. Nasce quando o Facilitador envia a Ata para assinatura, todas de uma vez, e desde o primeiro segundo é plena (painel, prazo, cobrança); a assinatura passa a ser ciência da Ata (ADR 0097). No caminho sem assinatura, todas nascem na aprovação (**APROVADA**, ADR 0003). Conclui o responsável ou o Super admin, sem validação. Cancela o Facilitador da Reunião ou o Super admin. Nenhuma Pendência é apagada.
+Uma Ação da Ata atribuída a um responsável, com prazo. Tem quatro estados (`PENDENTE`, `EM_PROGRESSO`, `CONCLUIDO`, `CANCELADO`). **Atrasada** e **repactuada** são situações calculadas, não estados: atrasada é a Pendência aberta com prazo vencido, repactuada é a que tem Repactuação no Histórico. Nasce quando o Facilitador envia a Ata para assinatura, todas de uma vez, e desde o primeiro segundo é plena (painel, prazo, cobrança); a assinatura passa a ser ciência da Ata (ADR 0098). No caminho sem assinatura, todas nascem na aprovação (**APROVADA**, ADR 0003). Conclui o responsável ou o Super admin, sem validação. Cancela o Facilitador da Reunião ou o Super admin. Nenhuma Pendência é apagada.
 _Evitar_: tarefa, to-do, meta (o diretor chama de meta a Pendência com prazo; no app não existe cadastro de metas), ação (use "ação" só para a linha da Ata que origina a Pendência).
 
 **Repactuação**:
@@ -118,11 +118,11 @@ _Evitar_: relatório semanal, digest, newsletter.
 ## Assinatura digital
 
 **Envelope**:
-O container da ClickSign que agrupa o PDF da Ata e seus Signatários. Identificado por `envelope_key_clicksign`. Fecha de dois jeitos, e ambos são **finalização**: todos assinam, ou o deadline (30 dias) estoura e a ClickSign fecha com as assinaturas que tiver. Nos dois casos a Reunião vira ASSINADA; quando faltou gente, o banner ganha um selo discreto "N de M assinaram". Recusa ou cancelamento matam o Envelope sem reenvio: a ciência de quem falta segue por **Aceite interno** (ADR 0030, emendada pela 0097).
+O container da ClickSign que agrupa o PDF da Ata e seus Signatários. Identificado por `envelope_key_clicksign`. Fecha de dois jeitos, e ambos são **finalização**: todos assinam, ou o deadline (30 dias) estoura e a ClickSign fecha com as assinaturas que tiver. Nos dois casos a Reunião vira ASSINADA; quando faltou gente, o banner ganha um selo discreto "N de M assinaram". Recusa ou cancelamento matam o Envelope sem reenvio: a ciência de quem falta segue por **Aceite interno** (ADR 0030, emendada pela 0098).
 _Evitar_: documento, contrato, pacote.
 
 **Aceite interno**:
-O equivalente funcional da assinatura, colhido pelo próprio sistema quando o Envelope morre (recusa ou cancelamento). O Signatário pendente recebe email com link público tokenizado, vê a ata completa e clica "Li e aceito": o aceite conta como o "assinou" dele no desfecho. Não cria Pendência, porque elas já nasceram no envio (ADR 0097). O Super admin pode registrar o aceite em nome de um signatário (auditado em `audit_log`). Não é assinatura digital: a formalidade ClickSign continua exclusiva do Envelope.
+O equivalente funcional da assinatura, colhido pelo próprio sistema quando o Envelope morre (recusa ou cancelamento). O Signatário pendente recebe email com link público tokenizado, vê a ata completa e clica "Li e aceito": o aceite conta como o "assinou" dele no desfecho. Não cria Pendência, porque elas já nasceram no envio (ADR 0098). O Super admin pode registrar o aceite em nome de um signatário (auditado em `audit_log`). Não é assinatura digital: a formalidade ClickSign continua exclusiva do Envelope.
 _Evitar_: assinatura interna, aceite manual.
 
 ## Dados do Atendimento (Ana)
