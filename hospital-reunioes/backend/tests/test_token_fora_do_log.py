@@ -154,6 +154,9 @@ PARAMS_SEM_SEGREDO = {
     "pop_id",
     "produto_id",
     "participante_id",
+    # UUID da Participação no Núcleo (issue #1766). Não é credencial: a rota
+    # exige o recurso do módulo Segurança do Paciente.
+    "participacao_id",
     "prorrogacao_id",
     # UUID da proposta da IA no dicionário de Contas médicas (issue #1135). Nao
     # e credencial: a rota exige a permissao "regra contratual e tabelas", e o
