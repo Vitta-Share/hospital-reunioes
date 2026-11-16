@@ -59,4 +59,8 @@ def test_nenhuma_pessoa_na_migration():
 
 
 def test_o_recibo_e_o_149():
-    assert _sql().rstrip().endswith("INSERT INTO migracoes_aplicadas (numero) VALUES (149) ON CONFLICT (numero) DO NOTHING;")
+    assert (
+        _sql()
+        .rstrip()
+        .endswith("INSERT INTO migracoes_aplicadas (numero) VALUES (149) ON CONFLICT (numero) DO NOTHING;")
+    )
