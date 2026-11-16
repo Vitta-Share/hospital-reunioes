@@ -35,10 +35,9 @@ def _data(valor: Any) -> date:
 def estado_do_membro(participacao: Mapping[str, Any], hoje: date) -> str:
     """Um dos `ESTADOS`, para a Participação no dia `hoje`.
 
-    O Termo entra por três carimbos: gerado, enviado e assinado. Os dois
-    primeiros chegam com a fatia do Termo; até lá a Participação para em
-    Cadastrado. Carência é de quem assinou: sem assinatura, o membro espera a
-    assinatura até vencer.
+    O Termo entra por três carimbos: gerado, enviado e assinado (o serviço
+    `termo`, issue #1768). Carência é de quem assinou: sem assinatura, o membro
+    espera a assinatura até vencer.
     """
     if participacao.get("encerrada_em"):
         return "encerrado"
