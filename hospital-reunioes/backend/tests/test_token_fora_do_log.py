@@ -100,6 +100,9 @@ PARAMS_SEM_SEGREDO = {
     # credencial: a rota exige "conferencia da coordenacao" e "incluir regra
     # operacional", e o id sozinho nao abre porta nenhuma.
     "cenario_id",
+    # UUID da Capacitação do Núcleo (issue #1778). Não é credencial: confirmar
+    # a presença exige estar na lista da capacitação, e vale só para si.
+    "capacitacao_id",
     "codigo",
     "comentario_id",
     # UUID da Conta de Contas médicas (issue #1121). Nao e credencial: o Guia
