@@ -665,4 +665,7 @@ class TestKitDeConhecimento:
     def test_o_produto_reunioes_diz_que_as_do_nucleo_ficam_no_modulo(self):
         texto = _kit("reunioes.md")
 
-        assert "As reuniões do Núcleo de Segurança do Paciente ficam no módulo Segurança do Paciente" in texto
+        assert (
+            "As reuniões do Núcleo de Segurança do Paciente ficam no módulo Segurança do Paciente, no item Reuniões"
+            in texto
+        )

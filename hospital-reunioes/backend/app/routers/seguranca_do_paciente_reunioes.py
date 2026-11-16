@@ -19,6 +19,7 @@ from supabase import Client
 
 from app.dependencies import get_supabase_client, require_recurso_nsp
 from app.limiter import limiter
+from app.routers.reunioes import _generate_reuniao_id
 from app.services.seguranca_do_paciente.permissao import id_do_nucleo
 from app.services.seguranca_do_paciente.reunioes import TipoReuniaoNsp
 
@@ -89,8 +90,6 @@ async def criar_reuniao_do_nucleo(
     """A Presidência cria a reunião à mão, programada, e fica como
     facilitadora. Sem convite por e-mail: a pauta e o convite do Núcleo chegam
     nas próximas fatias."""
-    from app.routers.reunioes import _generate_reuniao_id
-
     nucleo_id = _nucleo_ou_503(supabase)
     id_reuniao = _generate_reuniao_id(req.data)
     linha = {
