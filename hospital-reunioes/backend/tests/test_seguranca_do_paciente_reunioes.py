@@ -464,13 +464,14 @@ class TestPendencias:
         assert P_NUCLEO not in _ids(resposta.json(), "id_acao")
         assert P_COMUM in _ids(resposta.json(), "id_acao")
 
-    def test_a_pendencia_sem_reuniao_continua_na_lista_do_super_admin(self):
-        """O filtro do sigilo não pode levar junto a pendência sem reunião
-        (o NOT IN do banco não casa NULL)."""
+    def test_a_pendencia_sem_reuniao_tambem_fica_fora_da_lista_do_super_admin(self):
+        """A pendência sem reunião é o lembrete da Agenda regulatória do Núcleo
+        (issue #1779): nenhuma lista de Pendências a mostra, nem ao super
+        admin. Sobra só a da reunião comum."""
         resposta = _cliente(SUPER_ADMIN).get("/api/pendencias")
 
-        assert _ids(resposta.json(), "id_acao") == {P_COMUM, P_SOLTA}
-        assert resposta.headers["X-Total-Count"] == "2"
+        assert _ids(resposta.json(), "id_acao") == {P_COMUM}
+        assert resposta.headers["X-Total-Count"] == "1"
 
     def test_super_admin_recebe_recusa_ao_abrir_pendencia_de_reuniao_do_nucleo(self):
         _assert_recusado(_cliente(SUPER_ADMIN).get(f"/api/pendencias/{P_NUCLEO}"))
@@ -541,13 +542,14 @@ class TestSerieRecorrente:
 
 class TestRelatorios:
     def test_os_numeros_do_painel_nao_contam_pendencia_de_reuniao_do_nucleo(self):
-        """O painel do super admin conta as pendências do hospital: com a do
-        Núcleo seriam 3."""
+        """O painel do super admin conta as pendências das reuniões do
+        hospital: com a do Núcleo seriam 2. A sem reunião é o lembrete da
+        agenda (issue #1779) e também fica fora."""
         resposta = _cliente(SUPER_ADMIN).get("/api/pendencias/stats")
 
         assert resposta.status_code == 200, resposta.text
-        assert resposta.json()["total"] == 2
-        assert resposta.json()["pendente"] == 2
+        assert resposta.json()["total"] == 1
+        assert resposta.json()["pendente"] == 1
 
     def test_os_numeros_do_painel_de_quem_esta_na_lista_tambem_nao_contam(self):
         resposta = _cliente(DE_FORA).get("/api/pendencias/stats")
@@ -567,7 +569,7 @@ class TestBuscaEConector:
     def test_o_conector_nao_entrega_pendencia_de_reuniao_do_nucleo(self):
         resposta = ferramenta_pendencias.executar({}, SUPER_ADMIN, _banco())
 
-        assert resposta["total"] == 2
+        assert resposta["total"] == 1
         assert "Ação PEND_N1" not in str(resposta)
 
     def test_o_conector_entrega_a_reuniao_do_nucleo_a_quem_tem_acesso_pleno(self):
