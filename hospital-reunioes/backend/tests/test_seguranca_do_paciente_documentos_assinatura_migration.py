@@ -13,9 +13,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-MIGRATION = (
-    Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "159_nsp_assinatura_dos_documentos.sql"
-)
+MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "159_nsp_assinatura_dos_documentos.sql"
 
 FUNCOES = ("nsp_versao_para_assinatura", "nsp_tornar_vigente")
 
