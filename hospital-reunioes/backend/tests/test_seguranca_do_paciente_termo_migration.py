@@ -43,6 +43,16 @@ def test_um_envio_aberto_por_participacao():
     )
 
 
+def test_o_ultimo_envio_da_participacao_tem_indice_sem_filtro():
+    """A ficha, o meu-termo e a reconsulta leem o último envio por Participação,
+    sem filtro de situação. Mutante: tirar o índice (ou deixá-lo parcial)."""
+    indice = re.search(
+        r"CREATE INDEX IF NOT EXISTS \w+\s+ON nsp_termos_envios\s*\(participacao_id, created_at DESC\)\s*;",
+        _sql(),
+    )
+    assert indice
+
+
 def test_a_trilha_aceita_a_liberacao_manual_com_motivo():
     assert re.search(r"ALTER TABLE participacoes_trilha\s+ADD COLUMN IF NOT EXISTS motivo TEXT", _sql())
     checagem = re.search(r"ADD CONSTRAINT participacoes_trilha_acao_check\s+CHECK \(acao IN \(([^)]*)\)\)", _sql())

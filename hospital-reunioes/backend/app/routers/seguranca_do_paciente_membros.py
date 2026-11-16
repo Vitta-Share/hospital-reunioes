@@ -399,7 +399,7 @@ def _gerar_termo(supabase, participacao: dict, autor_id: str) -> str | None:
     """Gera e envia o Termo do membro recém-cadastrado. O cadastro já está
     gravado: falha aqui vira aviso na resposta, e a ficha tem o reenvio."""
     try:
-        return termo.gerar_e_enviar(supabase, participacao, autor_id=autor_id).get("erro")
+        return termo.gerar_e_enviar_termo(supabase, participacao, autor_id=autor_id).get("erro")
     except termo.TermoNaoGeradoError as erro:
         return str(erro)
     except Exception:  # noqa: BLE001 (o cadastro não se desfaz por falha do Termo)

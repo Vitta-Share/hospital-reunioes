@@ -25,6 +25,7 @@ from datetime import timedelta
 from types import SimpleNamespace
 from typing import Any
 
+import httpx
 import pdfplumber
 import pytest
 from fastapi import FastAPI
@@ -522,6 +523,47 @@ class TestRetornoDaAssinatura:
 
         assert len(cenario.trilha("termo_assinado")) == 1
 
+    @pytest.mark.parametrize("conserto", ["reenvio_do_evento", "reconsulta"])
+    def test_carimbo_que_falhou_depois_da_troca_se_conserta_no_reenvio_e_na_reconsulta(self, conserto, assinatura):
+        """O envio já virou assinado, mas o carimbo da Participação estourou o
+        tempo. Mutante: o ramo `assinado` só guardar o PDF, sem carimbar."""
+        cenario = _Cenario(PRESIDENCIA)
+        cenario.cadastrar()
+        tabela_de_verdade = cenario.banco.table
+        falhas = {"restantes": 1}
+
+        class _CarimboQueEstoura(_Consulta):
+            def execute(self):
+                operacao, carga = self._operacao
+                if operacao == "update" and "termo_assinado_em" in carga and falhas["restantes"]:
+                    falhas["restantes"] -= 1
+                    raise httpx.ReadTimeout("o banco não respondeu")
+                return super().execute()
+
+        cenario.banco.table = lambda nome: (
+            _CarimboQueEstoura(cenario.banco, nome) if nome == "participacoes" else tabela_de_verdade(nome)
+        )
+
+        assert cenario.retorno_da_assinatura("doc-env-1", "sign").status_code == 500
+        [envio] = cenario.envios("P4")
+        assert envio["situacao"] == "assinado"
+        assert cenario.participacao("P4").get("termo_assinado_em") is None
+
+        if conserto == "reenvio_do_evento":
+            assert cenario.retorno_da_assinatura("doc-env-1", "sign").status_code == 200
+            assert cenario.retorno_da_assinatura("doc-env-1", "auto_close").status_code == 200
+        else:
+            assinatura.status = "closed"
+            part = cenario.participacao("P4")["id"]
+            assert cenario.api.post(f"{ROTA}/{part}/termo/reconsultar").status_code == 200
+            assert cenario.api.post(f"{ROTA}/{part}/termo/reconsultar").status_code == 200
+
+        assert cenario.estado("P4") == "ativo"
+        assert cenario.participacao("P4")["termo_assinado_em"] == envio["assinado_em"]
+        [assinado] = cenario.trilha("termo_assinado")
+        assert assinado["autor_id"] == "P4"
+        assert cenario.trilha("liberacao_manual") == []
+
     def test_envelope_desconhecido_nao_muda_nada(self):
         cenario = _Cenario(PRESIDENCIA)
         cenario.cadastrar()
@@ -656,7 +698,7 @@ class TestLiberacaoManual:
         resposta = cenario.api.post(f"{ROTA}/part-P4/termo/liberar", json={"justificativa": justificativa})
 
         assert resposta.status_code == 422
-        assert cenario.participacao("P4")["termo_assinado_em"] is None
+        assert cenario.participacao("P4").get("termo_assinado_em") is None
         assert cenario.trilha("liberacao_manual") == []
 
     @pytest.mark.parametrize(
@@ -669,7 +711,7 @@ class TestLiberacaoManual:
         resposta = cenario.api.post(f"{ROTA}/part-P4/termo/liberar", json={"justificativa": "Motivo qualquer"})
 
         _assert_recusado(resposta)
-        assert cenario.participacao("P4")["termo_assinado_em"] is None
+        assert cenario.participacao("P4").get("termo_assinado_em") is None
         assert cenario.trilha("liberacao_manual") == []
 
     @pytest.mark.parametrize("acao", ["reconsultar", "reenviar"])

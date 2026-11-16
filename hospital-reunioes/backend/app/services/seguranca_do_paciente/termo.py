@@ -243,7 +243,7 @@ def _enviar(pdf: bytes, envio_id: str, pessoa: dict) -> tuple[str, str] | str:
     return envelope_id, documento_id
 
 
-def gerar_e_enviar(supabase, participacao: dict, *, autor_id: str, acao: str = "termo_enviado") -> dict:
+def gerar_e_enviar_termo(supabase, participacao: dict, *, autor_id: str, acao: str = "termo_enviado") -> dict:
     """Gera o documento e o envia para a assinatura. Devolve o envio gravado.
 
     Sem Regimento vigente ou sem e-mail, nada é gerado e sobe `TermoNaoGeradoError`.
@@ -367,11 +367,31 @@ def aplicar_assinatura(supabase, envio: dict) -> bool:
     return True
 
 
+def _completar_carimbo(supabase, envio: dict) -> None:
+    """O envio já está assinado, mas o carimbo da Participação pode ter
+    falhado depois da troca. Carimba só se ainda falta: a troca é condicional,
+    e o retorno repetido não grava a trilha duas vezes."""
+    participacao = _participacao(supabase, envio["participacao_id"])
+    if participacao.get("termo_assinado_em"):
+        return
+    carimbadas = (
+        supabase.table("participacoes")
+        .update({"termo_assinado_em": envio.get("assinado_em") or _agora()})
+        .eq("id", participacao["id"])
+        .is_("termo_assinado_em", "null")
+        .execute()
+        .data
+    ) or []
+    if carimbadas:
+        _trilha(supabase, participacao["id"], participacao["participante_id"], "termo_assinado", valor_novo=envio["id"])
+
+
 def processar_evento(supabase, envio: dict, evento: str) -> None:
     """O mesmo tratamento para o webhook e para a reconsulta."""
     if envio.get("situacao") == "enviado" and evento in EVENTOS_DE_ASSINATURA:
         aplicar_assinatura(supabase, envio)
     elif envio.get("situacao") == "assinado" and (evento in EVENTOS_DE_ASSINATURA or evento == EVENTO_DOCUMENTO_PRONTO):
+        _completar_carimbo(supabase, envio)
         _guardar_documento_assinado(supabase, envio)
     else:
         logger.info("Evento %r do Termo %s (%s) sem efeito", evento, envio.get("id"), envio.get("situacao"))
@@ -400,7 +420,7 @@ def reconsultar(supabase, participacao: dict) -> dict | None:
     return envio
 
 
-def reenviar(supabase, participacao: dict, *, autor_id: str) -> dict:
+def reenviar_termo(supabase, participacao: dict, *, autor_id: str) -> dict:
     """Cancela o envio aberto (o link antigo morre) e gera outro, com outro
     identificador. O retorno do envelope cancelado não muda mais nada."""
     for envio in envios_abertos(supabase, participacao["id"]):
@@ -409,7 +429,7 @@ def reenviar(supabase, participacao: dict, *, autor_id: str) -> dict:
         supabase.table("nsp_termos_envios").update({"situacao": "cancelado", "cancelado_em": _agora()}).eq(
             "id", envio["id"]
         ).execute()
-    return gerar_e_enviar(supabase, participacao, autor_id=autor_id, acao="termo_reenviado")
+    return gerar_e_enviar_termo(supabase, participacao, autor_id=autor_id, acao="termo_reenviado")
 
 
 def liberar(supabase, participacao: dict, *, autor_id: str, justificativa: str) -> None:

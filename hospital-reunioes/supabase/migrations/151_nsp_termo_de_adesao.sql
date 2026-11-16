@@ -64,6 +64,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_nsp_termos_envios_aberto
   ON nsp_termos_envios (participacao_id)
   WHERE situacao IN ('gerado', 'enviado');
 
+-- O último envio da Participação (ficha, meu-termo, reconsulta) e a FK.
+CREATE INDEX IF NOT EXISTS idx_nsp_termos_envios_participacao
+  ON nsp_termos_envios (participacao_id, created_at DESC);
+
 CREATE INDEX IF NOT EXISTS idx_nsp_termos_envios_regimento
   ON nsp_termos_envios (regimento_id);
 

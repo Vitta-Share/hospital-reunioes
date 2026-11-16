@@ -92,7 +92,7 @@ async def reenviar_termo(
     participacao = _participacao(supabase, nucleo_id, participacao_id)
     _pendente(participacao)
     try:
-        envio = await run_in_threadpool(termo.reenviar, supabase, participacao, autor_id=me["id"])
+        envio = await run_in_threadpool(termo.reenviar_termo, supabase, participacao, autor_id=me["id"])
     except termo.TermoNaoGeradoError as erro:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(erro)) from erro
     return {**_responder(supabase, participacao_id, nucleo_id), "aviso_termo": envio.get("erro")}
