@@ -75,6 +75,10 @@ class _Query:
     def eq(self, *_a, **_kw):
         return self
 
+    def limit(self, *_a, **_kw):
+        # A ata do Núcleo (issue #1775) lê a reunião com limit(1) antes de extrair.
+        return self
+
     def execute(self):
         return _Result(self._rows)
 
