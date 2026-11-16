@@ -17,6 +17,13 @@ A fundação do módulo:
 - o cadastro de pessoas com conselho profissional, número de registro e UF;
 - o Acesso pleno ao NSP, marcado no cadastro da pessoa pela área administrativa.
 
+O Termo de Adesão:
+
+- ao cadastrar um membro, o aplicativo gera um documento só, com o Termo de Adesão preenchido (nome, cargo, setor, conselho, número do registro e UF, papel e vigência) e, no fim, o texto inteiro do Regimento vigente. O documento vai por e-mail para a assinatura eletrônica, com um signatário só: o próprio membro. Sem Regimento publicado em Documentos, o cadastro fica feito, o membro fica em Cadastrado e a tela avisa para publicar o Regimento;
+- quando o membro assina, ele fica Ativo sozinho, sem ninguém mexer, e o Termo assinado entra em Documentos como o Termo daquele membro e daquela vigência;
+- na seção de cada membro, a Presidência e o Acesso pleno têm três botões: **Reconsultar status da assinatura** (para quando a assinatura foi feita e o aplicativo não ficou sabendo), **Reenviar o Termo** (cancela o link anterior e manda um documento novo, com outro número) e **Liberar sem assinatura** (exige justificativa, que fica registrada com quem liberou e quando). A Diretoria não usa esses botões;
+- quem está no Núcleo e ainda não assinou vê, nas telas bloqueadas, a faixa "Assine o Termo de Adesão para liberar este acesso", com o botão que abre o documento pendente.
+
 A tela Núcleo, Documentos:
 
 - guarda o ato de designação, o Regimento, o Plano de Segurança do Paciente, o Termo, as atas e outros documentos do Núcleo, cada um com as suas versões;
@@ -70,7 +77,7 @@ Membro nunca é apagado. Encerrar termina a vigência no dia escolhido e a parti
 
 ## O que ele ainda não faz
 
-A tela de Capacitações ainda está vazia: as capacitações chegam nas próximas entregas da primeira fase. Em Membros, o cadastro ainda não gera o Termo de Adesão nem manda para assinatura, então todo membro novo fica em Cadastrado até a entrega do Termo. Renovar a vigência ou mudar o papel também não pede Termo novo por enquanto. A assinatura de um documento publicado também chega depois. Nas reuniões, a pauta montada pelo sistema, o convite aos membros e a ata própria do Núcleo também chegam depois: por enquanto a Presidência cria a reunião à mão e a ata segue o modelo das outras reuniões. A notificação de incidente e a triagem são da segunda fase.
+A tela de Capacitações ainda está vazia: as capacitações chegam nas próximas entregas da primeira fase. Renovar a vigência, mudar o papel ou publicar uma revisão material do Regimento ainda não gera Termo novo, e os avisos de Termo sem assinatura (3, 7 e 14 dias) chegam depois. A assinatura de um documento publicado também chega depois. Nas reuniões, a pauta montada pelo sistema, o convite aos membros e a ata própria do Núcleo também chegam depois: por enquanto a Presidência cria a reunião à mão e a ata segue o modelo das outras reuniões. A notificação de incidente e a triagem são da segunda fase.
 
 ## O que já foi decidido
 
@@ -97,5 +104,7 @@ A tela de Capacitações ainda está vazia: as capacitações chegam nas próxim
 - Pedido para o super admin ler uma ata ou um caso do Núcleo: não é atendido, por decisão da Diretoria.
 - Pedido para apagar um documento publicado errado: não existe; a Presidência publica uma versão nova corrigida, que passa a ser a vigente.
 - Um membro que não abre a tela Documentos: costuma ser o Termo de Adesão ainda não assinado.
+- Um membro que diz ter assinado e continua em Aguardando assinatura: a Presidência usa Reconsultar status da assinatura na seção dele.
+- Um membro que não recebeu o e-mail para assinar: costuma ser e-mail errado no cadastro; corrigido o e-mail, a Presidência usa Reenviar o Termo.
 - Uma reunião do Núcleo que alguém de fora diz não achar na lista de reuniões: é o sigilo funcionando, e a reunião está no módulo Segurança do Paciente.
 - Um lembrete da agenda que não apareceu: costuma ser evento sem próxima data, evento desativado ou o Núcleo sem Presidência vigente.
