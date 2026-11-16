@@ -124,8 +124,8 @@ describe("a pergunta da Vitta na tarefa de conversar com ela (issue #1807, ADR 0
     const chegada = passosDa(TAREFA).find((p) => /pergunta/i.test(p) && /decisão sua/.test(p));
     expect(chegada, "nenhum passo diz onde chega a pergunta da Vitta").toBeDefined();
     expect(chegada).toMatch(/Conversa da Demanda/);
-    expect(chegada).toMatch(/\bsino\b/);
-    expect(chegada).toMatch(/\be-mail\b/);
+    // O aviso vem pelos dois canais; o "link do e-mail" do mesmo passo não conta como aviso.
+    expect(chegada).toMatch(/aviso no sino e por e-mail/);
   });
 
   it("o passo seguinte diz para responder ali mesmo, pelo Conversar", () => {
