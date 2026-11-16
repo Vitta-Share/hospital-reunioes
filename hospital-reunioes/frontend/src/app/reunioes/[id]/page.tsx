@@ -155,6 +155,8 @@ interface Reuniao {
   modo_interno_desde?: string | null;
   fonte: string;
   metodo_geracao?: "TRANSCRICAO" | "GUIADA";
+  // Reunião do Núcleo (issue #1775): a ata dela não passa pela Ata Guiada.
+  do_nucleo?: boolean;
   created_at: string;
   facilitador_id: string | null;
   participantes_programada?: ParticipanteProgramada[];
@@ -1555,7 +1557,7 @@ export default function ReuniaoDetailPage() {
             )}
 
             {/* Ata Guiada — registrar reunião sem transcrição em tela dedicada (ADR 0005/0006) */}
-            {!hideAtaSections && (
+            {!hideAtaSections && !reuniao.do_nucleo && (
               <div className="bg-white rounded-2xl border border-border shadow-premium">
                 <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2.5">
                   <Sparkles className="w-4 h-4 text-primary" strokeWidth={1.5} />

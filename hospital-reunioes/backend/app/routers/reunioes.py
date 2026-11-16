@@ -48,6 +48,7 @@ from app.models.schemas import (
 from app.services import audit, participantes_ata_service, reuniao_email_service
 from app.services.reunioes_consulta import consultar_reunioes, participantes_por_reuniao
 from app.services.seguranca_do_paciente import ata as ata_do_nucleo
+from app.services.seguranca_do_paciente.permissao import id_do_nucleo
 from app.services.teto_dos_chats import motivo_corpo_grande
 from app.utils.query_params import parse_csv_param
 
@@ -417,6 +418,8 @@ async def get_reuniao(
                 }
             )
     reuniao["participantes_programada"] = participantes
+    # A tela esconde a Ata Guiada na reunião do Núcleo, que a recusa (issue #1775).
+    reuniao["do_nucleo"] = bool(reuniao.get("colegiado_id")) and reuniao["colegiado_id"] == id_do_nucleo(supabase)
 
     me = await get_participante_for_user(current_user, supabase)
     if is_secretaria(me):
@@ -1802,6 +1805,7 @@ async def chat_ata_guiada_endpoint(
     allowed_ids = await get_allowed_reuniao_ids(current_user, supabase)
     if allowed_ids is not None and id_reuniao not in allowed_ids:
         raise HTTPException(status_code=404, detail="Reunião não encontrada")
+    _recusar_ata_do_nucleo(supabase, id_reuniao)
 
     result = supabase.table("reunioes").select("status_ata").eq("id_reuniao", id_reuniao).execute()
     if not result.data:
@@ -1854,6 +1858,7 @@ async def extrair_documento_apoio(
     allowed_ids = await get_allowed_reuniao_ids(current_user, supabase)
     if allowed_ids is not None and id_reuniao not in allowed_ids:
         raise HTTPException(status_code=404, detail="Reunião não encontrada")
+    _recusar_ata_do_nucleo(supabase, id_reuniao)
 
     result = supabase.table("reunioes").select("status_ata").eq("id_reuniao", id_reuniao).execute()
     if not result.data:
@@ -1901,6 +1906,7 @@ async def concluir_ata_guiada(
     allowed_ids = await get_allowed_reuniao_ids(current_user, supabase)
     if allowed_ids is not None and id_reuniao not in allowed_ids:
         raise HTTPException(status_code=404, detail="Reunião não encontrada")
+    _recusar_ata_do_nucleo(supabase, id_reuniao)
 
     result = supabase.table("reunioes").select("status_ata").eq("id_reuniao", id_reuniao).execute()
     if not result.data:

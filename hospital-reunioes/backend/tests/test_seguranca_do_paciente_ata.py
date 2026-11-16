@@ -427,6 +427,31 @@ class TestQuemValida:
         assert _ia.chamadas == []
         assert _status(banco) == "PROGRAMADA"
 
+    def test_a_ata_guiada_recusa_a_reuniao_do_nucleo(self):
+        """A Guiada gravaria a ata comum e a reunião travaria em validação, sem
+        rota que a aprove (revisão do PR #1798). Recusa até para a Presidência."""
+        banco = _cenario(tipo="Reunião rápida de segurança")
+        cliente = _cliente(PRESIDENCIA, banco)
+        rascunho = {"resumo_executivo": "Conversa rápida", "quadro_atribuicoes": []}
+
+        chat = cliente.post(
+            f"/api/reunioes/{R_ATA}/ata-guiada/chat",
+            json={"rascunho": rascunho, "messages": [{"role": "user", "content": "Oi"}]},
+        )
+        concluir = cliente.post(f"/api/reunioes/{R_ATA}/ata-guiada/concluir", json={"rascunho": rascunho})
+
+        for resposta in (chat, concluir):
+            assert resposta.status_code == 409, resposta.text
+            assert "Segurança do Paciente" in resposta.json()["detail"]
+        assert _status(banco) == "PROGRAMADA"
+        assert _ata_gravada(banco) is None
+
+    def test_a_tela_da_reuniao_sabe_que_ela_e_do_nucleo(self):
+        cliente = _cliente(SUPER_ADMIN_PLENO, _cenario())
+
+        assert cliente.get(f"/api/reunioes/{R_ATA}").json()["do_nucleo"] is True
+        assert cliente.get(f"/api/reunioes/{R_COMUM}").json()["do_nucleo"] is False
+
     def test_reuniao_comum_nao_passa_pela_rota_da_ata_do_nucleo(self):
         resposta = _validar(_cliente(PRESIDENCIA, _cenario()), rid=R_COMUM)
 
