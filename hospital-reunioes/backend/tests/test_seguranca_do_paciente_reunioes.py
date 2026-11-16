@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import os
 import sys
-from datetime import date, timedelta
+from datetime import timedelta
 from types import SimpleNamespace
 from typing import Any
 
@@ -29,15 +29,17 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.dependencies import get_current_user, get_supabase_client  # noqa: E402
 from app.limiter import limiter  # noqa: E402
+from app.routers import comentarios as comentarios_router  # noqa: E402
 from app.routers import notificacoes as notificacoes_router  # noqa: E402
 from app.routers import pendencias as pendencias_router  # noqa: E402
 from app.routers import reunioes as reunioes_router  # noqa: E402
 from app.routers import seguranca_do_paciente_reunioes as nsp_reunioes_router  # noqa: E402
 from app.services.central_de_comando import ferramenta_pendencias, ferramenta_reunioes  # noqa: E402
+from app.services.seguranca_do_paciente.permissao import hoje_em_sao_paulo  # noqa: E402
 
 RECUSA = {"detail": "Conteúdo restrito ao Núcleo de Segurança do Paciente"}
 
-HOJE = date.today()
+HOJE = hoje_em_sao_paulo()
 NUCLEO = {"id": "col-nsp", "slug": "nsp", "nome": "Núcleo de Segurança do Paciente", "setor_id": None}
 
 R_COMUM = "RD_COMUM_01"
@@ -115,6 +117,8 @@ class _Consulta:
         self._faixa: tuple[int, int] | None = None
         self._teto: int | None = None
         self._inserir: Any = None
+        self._atualizar: dict | None = None
+        self._apagar = False
         self._colunas: list[str] | None = None
 
     def _filtro(self, teste) -> _Consulta:
@@ -178,12 +182,28 @@ class _Consulta:
         self._inserir = linhas
         return self
 
+    def update(self, campos):
+        self._atualizar = dict(campos)
+        return self
+
+    def delete(self):
+        self._apagar = True
+        return self
+
     def execute(self):
         linhas = self._banco.tabelas.setdefault(self._tabela, [])
         if self._inserir is not None:
             novas = self._inserir if isinstance(self._inserir, list) else [self._inserir]
             linhas.extend(dict(n) for n in novas)
             return SimpleNamespace(data=[dict(n) for n in novas], count=None)
+        if self._atualizar is not None or self._apagar:
+            alvo = [linha for linha in linhas if all(f(linha) for f in self._filtros)]
+            for linha in alvo:
+                if self._apagar:
+                    linhas.remove(linha)
+                else:
+                    linha.update(self._atualizar)
+            return SimpleNamespace(data=[dict(linha) for linha in alvo], count=None)
         casam = [dict(linha) for linha in linhas if all(f(linha) for f in self._filtros)]
         total = len(casam)
         if self._ordem:
@@ -329,7 +349,17 @@ def _banco() -> _Banco:
                 _notificacao("n-pend-comum", "FORA1", "RESPONSAVEL_ATRIBUIDO", P_COMUM),
                 _notificacao("n-solta", "FORA1", "MENCAO", None),
             ],
-            "comentarios_pendencias": [],
+            "comentarios_pendencias": [
+                {
+                    "id": "com-nucleo",
+                    "id_acao": P_NUCLEO,
+                    "autor_id": "MEMB1",
+                    "autor_nome": "Pessoa de Teste MEMB1",
+                    "conteudo": "Comentário da análise do evento",
+                    "mencoes": [],
+                    "created_at": "2026-11-15T10:00:00+00:00",
+                }
+            ],
         }
     )
 
@@ -337,7 +367,7 @@ def _banco() -> _Banco:
 def _cliente(pessoa: dict[str, Any], banco: _Banco | None = None) -> TestClient:
     app = FastAPI()
     app.state.limiter = limiter
-    for modulo in (reunioes_router, pendencias_router, notificacoes_router, nsp_reunioes_router):
+    for modulo in (reunioes_router, pendencias_router, comentarios_router, notificacoes_router, nsp_reunioes_router):
         app.include_router(modulo.router, prefix="/api")
     banco = banco or _banco()
 
@@ -449,6 +479,64 @@ class TestPendencias:
         resposta = _cliente(MEMBRO).get("/api/pendencias")
 
         assert _ids(resposta.json(), "id_acao") == {P_NUCLEO}
+
+
+# As rotas irmãs do `GET /pendencias/{id_acao}`: o super admin tem `permitidas`
+# None, então só as `ocultas` o barram. Cada uma é uma porta à parte, e o
+# `id_acao` sequencial deixa qualquer uma ser achada no chute.
+ROTAS_DA_PENDENCIA_DO_NUCLEO = [
+    pytest.param("GET", f"/api/pendencias/{P_NUCLEO}/comentarios", None, id="ler_comentarios"),
+    pytest.param("POST", f"/api/pendencias/{P_NUCLEO}/comentarios", {"conteudo": "Oi"}, id="comentar"),
+    pytest.param("DELETE", f"/api/pendencias/{P_NUCLEO}/comentarios/com-nucleo", None, id="apagar_comentario"),
+    pytest.param("GET", f"/api/pendencias/{P_NUCLEO}/mencionaveis", None, id="mencionaveis"),
+    pytest.param("PATCH", f"/api/pendencias/{P_NUCLEO}", {"status": "CONCLUIDO"}, id="mudar_status"),
+    pytest.param("PATCH", f"/api/pendencias/{P_NUCLEO}/force", {"status": "CONCLUIDO", "reason": "x"}, id="force"),
+    pytest.param("DELETE", f"/api/pendencias/{P_NUCLEO}/force", {"reason": "x"}, id="force_del"),
+]
+
+
+class TestRotasIrmasDaPendencia:
+    @pytest.mark.parametrize(("metodo", "caminho", "corpo"), ROTAS_DA_PENDENCIA_DO_NUCLEO)
+    def test_super_admin_sem_acesso_pleno_recebe_recusa_e_nada_muda(self, metodo, caminho, corpo):
+        banco = _banco()
+
+        _assert_recusado(_cliente(SUPER_ADMIN, banco).request(metodo, caminho, json=corpo))
+
+        pendencia = next(p for p in banco.tabelas["pendencias"] if p["id_acao"] == P_NUCLEO)
+        assert pendencia["status"] == "PENDENTE"
+        assert [c["id"] for c in banco.tabelas["comentarios_pendencias"]] == ["com-nucleo"]
+
+    def test_regular_na_lista_recebe_recusa_nos_comentarios(self):
+        _assert_recusado(_cliente(DE_FORA).get(f"/api/pendencias/{P_NUCLEO}/comentarios"))
+
+    def test_super_admin_com_acesso_pleno_le_os_comentarios(self):
+        resposta = _cliente(SUPER_ADMIN_PLENO).get(f"/api/pendencias/{P_NUCLEO}/comentarios")
+
+        assert resposta.status_code == 200, resposta.text
+        assert [c["id"] for c in resposta.json()] == ["com-nucleo"]
+
+    def test_super_admin_com_acesso_pleno_muda_o_status(self):
+        banco = _banco()
+
+        resposta = _cliente(SUPER_ADMIN_PLENO, banco).patch(f"/api/pendencias/{P_NUCLEO}", json={"status": "CANCELADO"})
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["status"] == "CANCELADO"
+
+
+class TestSerieRecorrente:
+    def test_apagar_a_serie_nao_leva_a_reuniao_do_nucleo_de_quem_e_de_fora(self):
+        """`DELETE /reunioes/grupo/{id}` não tem `id_reuniao` no caminho, então o
+        gate do router não a cobre: o filtro é da própria rota."""
+        banco = _banco()
+        for reuniao in banco.tabelas["reunioes"]:
+            reuniao.update(id_grupo_recorrencia="SERIE1", status_ata="PROGRAMADA")
+
+        resposta = _cliente(SUPER_ADMIN, banco).delete("/api/reunioes/grupo/SERIE1")
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["removidas"] == 1
+        assert _ids(banco.tabelas["reunioes"]) == {R_NUCLEO}
 
 
 class TestRelatorios:

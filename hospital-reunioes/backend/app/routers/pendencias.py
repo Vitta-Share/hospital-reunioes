@@ -6,7 +6,6 @@ from starlette.requests import Request
 
 from app.dependencies import (
     RECUSA_DO_NSP,
-    get_allowed_reuniao_ids,
     get_current_user,
     get_participante_for_user,
     get_participante_id_for_user,
@@ -16,6 +15,7 @@ from app.dependencies import (
     is_super_admin,
     require_acesso_reunioes,
     require_super_admin,
+    reunioes_ocultas,
 )
 from app.models.admin_schemas import ForceEditPendenciaRequest, ReasonRequest
 from app.models.schemas import PendenciaResponse, PendenciaStats, PendenciaUpdate
@@ -337,8 +337,13 @@ async def update_pendencia_status(
 
     pendencia = existing.data[0]
 
+    # O sigilo do Núcleo (issue #1772), como no GET: antes de tudo e para todo perfil.
+    visibilidade = await get_visibilidade_das_reunioes(current_user, supabase)
+    if pendencia.get("id_reuniao") in visibilidade.ocultas:
+        raise HTTPException(status_code=403, detail=RECUSA_DO_NSP)
+
     # Visibilidade binária (reunião + co-responsável)
-    allowed_reuniao_ids = await get_allowed_reuniao_ids(current_user, supabase)
+    allowed_reuniao_ids = visibilidade.permitidas
     if allowed_reuniao_ids is not None:
         my_id = await get_participante_id_for_user(current_user, supabase)
         pendencia_reuniao = pendencia.get("id_reuniao")
@@ -464,6 +469,14 @@ def _decrementar_acoes_concluidas(supabase, id_reuniao: str) -> None:
 # ─── Acoes de super admin (force) ────────────────────────────────────────────
 
 
+def _barrar_pendencia_do_nucleo(supabase, actor: dict, pendencia: dict) -> None:
+    """O force não passa por cima do sigilo do Núcleo (ADR 0095, decisão 4):
+    o super admin sem Acesso pleno não apaga nem edita pendência de reunião do
+    Núcleo (issue #1772)."""
+    if pendencia.get("id_reuniao") in reunioes_ocultas(supabase, actor):
+        raise HTTPException(status_code=403, detail=RECUSA_DO_NSP)
+
+
 @router.delete("/{id_acao}/force")
 async def force_deletar_pendencia(
     id_acao: str,
@@ -483,6 +496,7 @@ async def force_deletar_pendencia(
         raise HTTPException(status_code=404, detail="Pendência não encontrada")
 
     pendencia = existing.data[0]
+    _barrar_pendencia_do_nucleo(supabase, actor, pendencia)
     status_before = pendencia.get("status")
 
     supabase.table("pendencias").delete().eq("id_acao", id_acao).execute()
@@ -535,6 +549,7 @@ async def force_editar_pendencia(
         raise HTTPException(status_code=404, detail="Pendência não encontrada")
 
     pendencia = existing.data[0]
+    _barrar_pendencia_do_nucleo(supabase, actor, pendencia)
 
     payload = body.model_dump(exclude_unset=True)
     reason = payload.pop("reason", None)

@@ -138,6 +138,9 @@ class _Sb:
             return _ParticipantesQuery(self.participantes)
         if name == "audit_log":
             return _AuditInsert(self.audit_rows)
+        if name == "colegiados":
+            # O force lê as reuniões do Núcleo (issue #1772); aqui não há Núcleo.
+            return _ParticipantesQuery([])
         raise AssertionError(f"Tabela inesperada: {name}")
 
     def rpc(self, name, params):

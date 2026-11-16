@@ -915,7 +915,11 @@ async def cancelar_grupo_recorrencia(
     saíram, em vez de afirmar que a série inteira acabou.
     """
     me = await get_participante_for_user(current_user, supabase)
-    allowed_ids = await get_allowed_reuniao_ids(current_user, supabase)
+    # A rota não tem `id_reuniao`, então o gate do router não a cobre: as
+    # `ocultas` saem do select e do delete, para o super admin sem Acesso pleno
+    # (escopo nulo) e para a secretária na lista (issue #1772).
+    visibilidade = await get_visibilidade_das_reunioes(current_user, supabase)
+    allowed_ids = visibilidade.permitidas
     if allowed_ids is None and not is_super_admin(me):
         # Escopo nulo sem ser super admin é a secretária, e nesse caminho
         # `get_allowed_reuniao_ids` já garantiu que `me` existe (sem participante
@@ -930,6 +934,8 @@ async def cancelar_grupo_recorrencia(
     query = supabase.table("reunioes").select("id_reuniao, status_ata").eq("id_grupo_recorrencia", id_grupo_recorrencia)
     if allowed_ids is not None:
         query = query.in_("id_reuniao", allowed_ids)
+    if visibilidade.ocultas:
+        query = query.not_.in_("id_reuniao", visibilidade.ocultas)
     result = query.execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Grupo de recorrência não encontrado")
@@ -944,6 +950,8 @@ async def cancelar_grupo_recorrencia(
     del_query = supabase.table("reunioes").delete().eq("id_grupo_recorrencia", id_grupo_recorrencia)
     if allowed_ids is not None:
         del_query = del_query.in_("id_reuniao", allowed_ids)
+    if visibilidade.ocultas:
+        del_query = del_query.not_.in_("id_reuniao", visibilidade.ocultas)
     del_query.execute()
     removidas = len(result.data)
     logger.info(
