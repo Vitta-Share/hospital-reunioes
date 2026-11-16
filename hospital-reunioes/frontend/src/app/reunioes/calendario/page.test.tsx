@@ -12,7 +12,7 @@
  * outros perfis o modal continua, e ver os eventos não muda para ninguém.
  */
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ToastProvider } from "@/components/ui/Toast";
@@ -197,5 +197,18 @@ describe("Perfil ainda carregando", () => {
 
     expect(modalAberto()).toBe(false);
     expect(navegacao.empurrou).toEqual([]);
+  });
+});
+
+describe("Legenda de estados", () => {
+  beforeEach(() => {
+    perfil.participante = FACILITADOR;
+  });
+
+  it("mostra a situação Não instalada, da reunião do Núcleo sem quórum (issue #1774)", () => {
+    montar();
+
+    const legenda = screen.getByRole("list", { name: "Legenda de estados" });
+    expect(within(legenda).getByText("Não instalada")).toBeTruthy();
   });
 });

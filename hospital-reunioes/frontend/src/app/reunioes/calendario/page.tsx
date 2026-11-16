@@ -137,6 +137,8 @@ function getStatusColor(status: string) {
       return "bg-green-50 text-green-700 hover:bg-green-100 border-green-200";
     case "ERRO":
       return "bg-red-100 text-red-800 hover:bg-red-200 border-red-200";
+    case "NAO_INSTALADA":
+      return "bg-orange-100 text-orange-800 hover:bg-orange-200 border-orange-200";
     default:
       return "bg-slate-50 text-slate-500 hover:bg-slate-100 border-slate-100";
   }
@@ -158,6 +160,8 @@ function getStatusColorWeek(status: string) {
       return "bg-green-500 hover:bg-green-600";
     case "ERRO":
       return "bg-red-500 hover:bg-red-600";
+    case "NAO_INSTALADA":
+      return "bg-orange-500 hover:bg-orange-600";
     default:
       return "bg-slate-500 hover:bg-slate-600";
   }
@@ -173,6 +177,7 @@ function formatStatus(status: string) {
     case "APROVADA": return "Ata Aprovada";
     case "ERRO": return "Erro no Processamento";
     case "CANCELADA": return "Cancelada";
+    case "NAO_INSTALADA": return "Não instalada";
     default: return status;
   }
 }
@@ -1504,30 +1509,37 @@ export default function CalendarioPage() {
 
         {/* Legenda */}
         <div className="px-6 py-3 border-t border-slate-50 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-400">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 inline-block" />
-            Programada
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" />
-            Processando IA
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-blue-400 inline-block" />
-            Aguard. Validação
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-sky-400 inline-block" />
-            Aguard. Assinatura
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block" />
-            Assinada
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block" />
-            Erro
-          </span>
+          <ul aria-label="Legenda de estados" className="contents">
+            <li className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 inline-block" />
+              Programada
+            </li>
+            <li className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" />
+              Processando IA
+            </li>
+            <li className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-400 inline-block" />
+              Aguard. Validação
+            </li>
+            <li className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-sky-400 inline-block" />
+              Aguard. Assinatura
+            </li>
+            <li className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block" />
+              Assinada
+            </li>
+            <li className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block" />
+              Erro
+            </li>
+            {/* Reunião do Núcleo sem quórum (issue #1774). */}
+            <li className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block" />
+              Não instalada
+            </li>
+          </ul>
           <span className="text-slate-300">·</span>
           <span>
             {viewMode === "month"

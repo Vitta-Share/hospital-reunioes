@@ -32,6 +32,8 @@ class StatusAta(StrEnum):
     APROVADA = "APROVADA"
     CANCELADA = "CANCELADA"
     MIGRADA = "MIGRADA"
+    # Reunião do Núcleo sem quórum (issue #1774, migration 153).
+    NAO_INSTALADA = "NAO_INSTALADA"
 
 
 class StatusPendencia(StrEnum):
