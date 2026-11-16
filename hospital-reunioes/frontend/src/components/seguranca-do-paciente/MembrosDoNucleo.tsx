@@ -18,6 +18,7 @@ import {
   hojeLocal,
   registroDoMembro,
   situacaoDoTermo,
+  termoPendente,
   type EnvioDoTermo,
   type LinhaDaTrilha,
   type Membro,
@@ -488,7 +489,7 @@ function DetalhesDoMembro({
     <section aria-label={`Detalhes de ${nome}`} className="pt-3 space-y-4">
       {erro && <p className="text-sm text-red-700">{erro}</p>}
 
-      {gere && !membro.termo_assinado_em && (
+      {gere && termoPendente(membro) && (
         <TermoDoMembro membro={membro} ocupado={ocupado} enviar={enviar} />
       )}
 
@@ -600,7 +601,7 @@ function DetalhesDoMembro({
 }
 
 /**
- * O Termo de Adesão de quem ainda não assinou (issue #1768): o documento
+ * O Termo de Adesão à espera da assinatura (issues #1768 e #1769): o documento
  * enviado, o erro do último envio e os três caminhos da Presidência quando a
  * assinatura eletrônica falha. O servidor recusa de novo quem não gere o Núcleo.
  */

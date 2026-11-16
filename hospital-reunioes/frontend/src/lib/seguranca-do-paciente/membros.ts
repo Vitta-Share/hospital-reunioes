@@ -32,7 +32,7 @@ export interface Membro {
   termo_enviado_em?: string | null;
   termo_assinado_em: string | null;
   estado: EstadoDoMembro;
-  /** Só na resposta do cadastro e do reenvio: por que o Termo não saiu (issue #1768). */
+  /** Na resposta do cadastro, da renovação, da edição e do reenvio: por que o Termo não saiu (issues #1768 e #1769). */
   aviso_termo?: string | null;
 }
 
@@ -126,6 +126,17 @@ export function registroDoMembro(m: Membro): string {
   if (!m.conselho_profissional && !m.registro_profissional) return "Sem registro";
   const uf = m.registro_uf ? `/${m.registro_uf}` : "";
   return [m.conselho_profissional, `${m.registro_profissional ?? ""}${uf}`].filter(Boolean).join(" ");
+}
+
+/**
+ * O membro tem um Termo à espera da assinatura: nunca assinou, ou o último
+ * documento foi gerado depois da última assinatura (renovação, mudança de
+ * papel, revisão material do Regimento; issue #1769). A mesma regra do servidor.
+ */
+export function termoPendente(m: Membro): boolean {
+  if (!m.termo_assinado_em) return true;
+  if (!m.termo_gerado_em) return false;
+  return new Date(m.termo_gerado_em).getTime() > new Date(m.termo_assinado_em).getTime();
 }
 
 export function situacaoDoTermo(m: Membro): string {
