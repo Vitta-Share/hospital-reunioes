@@ -11,7 +11,7 @@ quem cria é quem tem `gerir_nucleo` (a Presidência e o Acesso pleno).
 """
 
 import logging
-from datetime import date, time
+from datetime import date, datetime, time, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -177,3 +177,72 @@ async def criar_reuniao_do_nucleo(
     supabase.table("reuniao_participantes").insert([{"id_reuniao": id_reuniao, "participante_id": me["id"]}]).execute()
     logger.info("Reunião do Núcleo %s (%s) criada por %s", id_reuniao, req.tipo.value, me["id"])
     return {"id_reuniao": id_reuniao, "tipo": req.tipo.value, "status": "PROGRAMADA"}
+
+
+# ---------------------------------------------------------------------------
+# A pauta e a convocação (issue #1773)
+# ---------------------------------------------------------------------------
+
+
+def _agora() -> datetime:
+    return datetime.now(tz=pauta.FUSO)
+
+
+def _reuniao_do_nucleo(supabase, id_reuniao: str) -> dict:
+    """A reunião, se for do Núcleo; senão 404 (a reunião comum tem a tela dela)."""
+    nucleo_id = id_do_nucleo(supabase)
+    linhas = (
+        (
+            supabase.table("reunioes")
+            .select("id_reuniao, data, hora_inicio, hora_fim, tipo, titulo, status_ata, colegiado_id")
+            .eq("id_reuniao", id_reuniao)
+            .eq("colegiado_id", nucleo_id)
+            .is_("deleted_at", "null")
+            .limit(1)
+            .execute()
+        ).data
+        or []
+        if nucleo_id
+        else []
+    )
+    if not linhas:
+        raise HTTPException(status_code=404, detail="Reunião do Núcleo não encontrada.")
+    return linhas[0]
+
+
+def _feriados_da_reuniao(supabase, reuniao: dict) -> frozenset:
+    dia = date.fromisoformat(str(reuniao["data"])[:10])
+    return pauta.feriados_entre(supabase, dia - timedelta(days=60), dia)
+
+
+@router.get("/{id_reuniao}/pauta")
+@limiter.limit("60/minute")
+async def ver_pauta(
+    request: Request,
+    id_reuniao: str,
+    me: dict = Depends(require_recurso_nsp("reunioes")),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """A pauta da reunião. Da data da pauta em diante ela é montada pelo
+    sistema (uma vez) e mostrada com a situação de hoje de cada pendência;
+    antes, a resposta diz quando ela aparece."""
+    reuniao = _reuniao_do_nucleo(supabase, id_reuniao)
+    agora = _agora()
+    data_reuniao = date.fromisoformat(str(reuniao["data"])[:10])
+    disponivel_em = pauta.data_da_pauta(reuniao["tipo"], data_reuniao, _feriados_da_reuniao(supabase, reuniao))
+    disponivel = disponivel_em is None or agora.date() >= disponivel_em
+    gravada = pauta.garantir_pauta(supabase, reuniao, agora) if disponivel else None
+    return {
+        "id_reuniao": reuniao["id_reuniao"],
+        "titulo": reuniao.get("titulo"),
+        "tipo": reuniao["tipo"],
+        "data": reuniao["data"],
+        "hora_inicio": reuniao.get("hora_inicio"),
+        "disponivel": disponivel,
+        "disponivel_em": disponivel_em.isoformat() if disponivel_em else None,
+        "blocos": pauta.com_situacao_atual(supabase, gravada["blocos"]) if gravada else [],
+        "editada_em": gravada.get("editada_em") if gravada else None,
+        "pode_editar": disponivel
+        and "gerir_nucleo" in me["recursos_nsp"]
+        and reuniao.get("status_ata") == "PROGRAMADA",
+    }

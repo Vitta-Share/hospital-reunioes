@@ -375,3 +375,148 @@ class TestCalendarioAnual:
             _cliente(MEMBRO, banco).post(f"{ROTA}/calendario", json={"ano": ANO, "dia": 10, "hora_inicio": "14:00"})
         )
         assert _ordinarias(banco, ANO) == []
+
+
+class TestDiaDoCalendario:
+    def test_dia_que_cai_no_fim_de_semana_vai_para_o_proximo_dia_util(self):
+        """10 de janeiro de 2027 é domingo."""
+        assert pauta.datas_do_calendario(2027, 10, frozenset())[0] == date(2027, 1, 11)
+
+    def test_dia_que_cai_em_feriado_cadastrado_vai_para_o_proximo_dia_util(self):
+        assert pauta.datas_do_calendario(2027, 8, frozenset({date(2027, 3, 8)}))[2] == date(2027, 3, 9)
+
+    def test_fim_de_semana_no_fim_do_mes_volta_para_o_ultimo_dia_util_do_mes(self):
+        """28 de fevereiro de 2027 é domingo; 1º de março já é outro mês."""
+        assert pauta.datas_do_calendario(2027, 28, frozenset())[1] == date(2027, 2, 26)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. A pauta aparece 5 dias úteis antes, com as pendências da anterior
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@pytest.fixture
+def relogio(monkeypatch):
+    """Fixa o agora das rotas do módulo num instante de São Paulo."""
+
+    def _fixar(dia: date, hora: time = time(10, 0)) -> None:
+        monkeypatch.setattr(nsp_reunioes_router, "_agora", lambda: datetime.combine(dia, hora, tzinfo=FUSO))
+
+    return _fixar
+
+
+def _pauta(banco: _Banco, rid: str, pessoa: dict | None = None) -> dict:
+    resposta = _cliente(pessoa or PRESIDENTE, banco).get(f"{ROTA}/{rid}/pauta")
+    assert resposta.status_code == 200, resposta.text
+    return resposta.json()
+
+
+def _bloco(corpo: dict, chave: str) -> dict:
+    return next(b for b in corpo["blocos"] if b["chave"] == chave)
+
+
+def _evento(eid: str, evento: str, proxima: date, ativo: bool = True) -> dict:
+    return {"id": eid, "evento": evento, "proxima_data": proxima.isoformat(), "ativo": ativo}
+
+
+class TestDiaDaPauta:
+    def test_a_pauta_da_ordinaria_aparece_cinco_dias_uteis_antes(self):
+        """Segunda, 15 de março de 2027: cinco dias úteis antes é segunda, 8."""
+        assert pauta.data_da_pauta(ORDINARIA, date(2027, 3, 15), frozenset()) == date(2027, 3, 8)
+
+    def test_feriado_cadastrado_nao_conta_como_dia_util(self):
+        """Com quarta, 10, feriado, a pauta sobe para sexta, 5."""
+        assert pauta.data_da_pauta(ORDINARIA, date(2027, 3, 15), frozenset({date(2027, 3, 10)})) == date(2027, 3, 5)
+
+    def test_antes_do_dia_a_pauta_ainda_nao_aparece(self, relogio):
+        relogio(date(2027, 3, 5))
+        banco = _banco(reunioes=[_reuniao("RD_MAR", date(2027, 3, 15))])
+
+        corpo = _pauta(banco, "RD_MAR")
+
+        assert corpo["disponivel"] is False
+        assert corpo["disponivel_em"] == "2027-03-08"
+        assert corpo["blocos"] == []
+        assert banco.tabelas["nsp_pautas"] == []
+
+    def test_o_feriado_cadastrado_entra_na_conta_da_rota(self, relogio):
+        relogio(date(2027, 3, 5))
+        banco = _banco(
+            reunioes=[_reuniao("RD_MAR", date(2027, 3, 15))],
+            ouvidoria_feriados=[{"data": "2027-03-10", "nome": "Feriado de teste"}],
+        )
+
+        corpo = _pauta(banco, "RD_MAR")
+
+        assert corpo["disponivel"] is True
+        assert corpo["disponivel_em"] == "2027-03-05"
+
+    def test_a_pauta_traz_as_pendencias_da_reuniao_anterior_com_a_situacao(self):
+        banco = _banco(
+            reunioes=[
+                _reuniao("RD_RETRASADA", HOJE - timedelta(days=60), status_ata="ASSINADA"),
+                _reuniao("RD_ANTERIOR", HOJE - timedelta(days=30), status_ata="ASSINADA"),
+                _reuniao("RD_PROXIMA", HOJE + timedelta(days=1)),
+            ],
+            pendencias=[
+                _pendencia("PA1", "RD_ANTERIOR", "PENDENTE"),
+                _pendencia("PA2", "RD_ANTERIOR", "CONCLUIDO"),
+                _pendencia("PA3", "RD_ANTERIOR", deleted_at="2026-11-01T10:00:00+00:00"),
+                _pendencia("PR1", "RD_RETRASADA"),
+            ],
+        )
+
+        corpo = _pauta(banco, "RD_PROXIMA")
+
+        assert corpo["disponivel"] is True
+        itens = _bloco(corpo, "pendencias")["itens"]
+        assert {(i["id_acao"], i["situacao"]) for i in itens} == {("PA1", "Pendente"), ("PA2", "Concluída")}
+        assert all("Ação PA" in i["texto"] for i in itens)
+
+    def test_a_situacao_e_a_de_hoje_e_nao_a_da_montagem(self):
+        banco = _banco(
+            reunioes=[
+                _reuniao("RD_ANTERIOR", HOJE - timedelta(days=30), status_ata="ASSINADA"),
+                _reuniao("RD_PROXIMA", HOJE + timedelta(days=1)),
+            ],
+            pendencias=[_pendencia("PA1", "RD_ANTERIOR", "PENDENTE")],
+        )
+        _pauta(banco, "RD_PROXIMA")
+        banco.tabelas["pendencias"][0]["status"] = "CONCLUIDO"
+
+        itens = _bloco(_pauta(banco, "RD_PROXIMA"), "pendencias")["itens"]
+
+        assert [(i["id_acao"], i["situacao"]) for i in itens] == [("PA1", "Concluída")]
+
+    def test_a_pauta_traz_a_agenda_regulatoria_e_os_blocos_das_proximas_fases(self):
+        banco = _banco(
+            reunioes=[_reuniao("RD_PROXIMA", HOJE + timedelta(days=1))],
+            nsp_agenda_regulatoria=[
+                _evento("ag1", "Notificação externa do mês", HOJE + timedelta(days=10)),
+                _evento("ag2", "Revisão do PSP", HOJE + timedelta(days=200)),
+                _evento("ag3", "Evento desativado", HOJE, ativo=False),
+            ],
+        )
+
+        corpo = _pauta(banco, "RD_PROXIMA")
+
+        agenda = _bloco(corpo, "agenda")["itens"]
+        assert [i["texto"].split(",")[0] for i in agenda] == ["Notificação externa do mês"]
+        for chave in ("indicadores", "casos", "planos_vencidos", "alertas_sanitarios"):
+            assert _bloco(corpo, chave)["sem_dados"] is True
+            assert _bloco(corpo, chave)["itens"] == []
+
+    def test_a_pauta_montada_fica_gravada_uma_vez(self):
+        banco = _banco(reunioes=[_reuniao("RD_PROXIMA", HOJE + timedelta(days=1))])
+
+        _pauta(banco, "RD_PROXIMA")
+        _pauta(banco, "RD_PROXIMA")
+
+        assert [p["id_reuniao"] for p in banco.tabelas["nsp_pautas"]] == ["RD_PROXIMA"]
+
+    def test_reuniao_de_fora_do_nucleo_nao_tem_pauta_aqui(self):
+        banco = _banco(reunioes=[_reuniao("RD_COMUM", HOJE + timedelta(days=1), tipo="Gerencial", colegiado_id=None)])
+
+        resposta = _cliente(PRESIDENTE, banco).get(f"{ROTA}/RD_COMUM/pauta")
+
+        assert resposta.status_code == 404

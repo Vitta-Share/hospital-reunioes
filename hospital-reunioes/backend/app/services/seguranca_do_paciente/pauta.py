@@ -177,3 +177,150 @@ def ordinarias_do_ano(supabase, nucleo_id: str, ano: int) -> list[dict]:
         .data
         or []
     )
+
+
+# ---------------------------------------------------------------------------
+# A montagem (sem IA)
+# ---------------------------------------------------------------------------
+
+
+def _dd_mm_aaaa(valor: Any) -> str:
+    return _data(valor).strftime("%d/%m/%Y")
+
+
+def _reuniao_anterior(supabase, reuniao: dict) -> dict | None:
+    """A ordinária do Núcleo imediatamente antes desta, sem as canceladas."""
+    linhas = (
+        supabase.table("reunioes")
+        .select("id_reuniao, data")
+        .eq("colegiado_id", reuniao["colegiado_id"])
+        .eq("tipo", ORDINARIA)
+        .lt("data", str(reuniao["data"])[:10])
+        .is_("deleted_at", "null")
+        .neq("status_ata", "CANCELADA")
+        .order("data", desc=True)
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+    return linhas[0] if linhas else None
+
+
+def _itens_das_pendencias(supabase, reuniao: dict) -> list[dict]:
+    anterior = _reuniao_anterior(supabase, reuniao)
+    if not anterior:
+        return []
+    pendencias = (
+        supabase.table("pendencias")
+        .select("id_acao, descricao_acao, responsavel_nome, prazo")
+        .eq("id_reuniao", anterior["id_reuniao"])
+        .is_("deleted_at", "null")
+        .order("id_acao")
+        .execute()
+        .data
+        or []
+    )
+    itens = []
+    for p in pendencias:
+        responsavel = p.get("responsavel_nome") or "sem responsável"
+        prazo = _dd_mm_aaaa(p["prazo"]) if p.get("prazo") else "sem prazo"
+        itens.append(
+            {"texto": f"{p['descricao_acao']}. Responsável: {responsavel}; prazo: {prazo}.", "id_acao": p["id_acao"]}
+        )
+    return itens
+
+
+def _itens_da_agenda(supabase, reuniao: dict) -> list[dict]:
+    teto = _data(reuniao["data"]) + timedelta(days=DIAS_DA_AGENDA_NA_PAUTA)
+    try:
+        eventos = (
+            supabase.table("nsp_agenda_regulatoria")
+            .select("evento, proxima_data")
+            .eq("ativo", True)
+            .lte("proxima_data", teto.isoformat())
+            .order("proxima_data")
+            .execute()
+            .data
+            or []
+        )
+    except APIError as erro:
+        if getattr(erro, "code", None) not in _AINDA_SEM_MIGRATION:
+            raise
+        return []
+    return [
+        {"texto": f"{e['evento']}, prevista para {_dd_mm_aaaa(e['proxima_data'])}"}
+        for e in eventos
+        if e.get("proxima_data")
+    ]
+
+
+def montar(supabase, reuniao: dict) -> list[dict]:
+    """Os blocos da pauta, montados pelo sistema a partir do banco."""
+    return [
+        {
+            "chave": "pendencias",
+            "titulo": "Pendências da reunião anterior",
+            "sem_dados": False,
+            "itens": _itens_das_pendencias(supabase, reuniao),
+        },
+        {
+            "chave": "agenda",
+            "titulo": "Agenda regulatória",
+            "sem_dados": False,
+            "itens": _itens_da_agenda(supabase, reuniao),
+        },
+        *({"chave": chave, "titulo": titulo, "sem_dados": True, "itens": []} for chave, titulo in BLOCOS_SEM_DADOS),
+    ]
+
+
+def pauta_gravada(supabase, id_reuniao: str) -> dict | None:
+    linhas = supabase.table(TABELA_PAUTAS).select("*").eq("id_reuniao", id_reuniao).limit(1).execute().data or []
+    return linhas[0] if linhas else None
+
+
+def garantir_pauta(supabase, reuniao: dict, agora: datetime) -> dict:
+    """A pauta gravada da reunião, montada agora se ainda não existe. Duas
+    leituras ao mesmo tempo montam uma pauta só: a chave é a reunião."""
+    existente = pauta_gravada(supabase, reuniao["id_reuniao"])
+    if existente:
+        return existente
+    linha = {"id_reuniao": reuniao["id_reuniao"], "blocos": montar(supabase, reuniao), "montada_em": agora.isoformat()}
+    try:
+        supabase.table(TABELA_PAUTAS).insert(linha).execute()
+    except APIError as erro:
+        if getattr(erro, "code", None) != "23505":
+            raise
+        return pauta_gravada(supabase, reuniao["id_reuniao"]) or linha
+    return linha
+
+
+def com_situacao_atual(supabase, blocos: list[dict]) -> list[dict]:
+    """Os blocos com a situação de hoje de cada pendência citada."""
+    ids = sorted({item["id_acao"] for bloco in blocos for item in bloco.get("itens", []) if item.get("id_acao")})
+    status = {}
+    if ids:
+        status = {
+            p["id_acao"]: p.get("status")
+            for p in (
+                supabase.table("pendencias")
+                .select("id_acao, status")
+                .in_("id_acao", ids)
+                .is_("deleted_at", "null")
+                .execute()
+                .data
+                or []
+            )
+        }
+    return [
+        {
+            **bloco,
+            "itens": [
+                {**item, "situacao": _SITUACAO.get(status.get(item["id_acao"]), "Removida")}
+                if item.get("id_acao")
+                else item
+                for item in bloco.get("itens", [])
+            ],
+        }
+        for bloco in blocos
+    ]
