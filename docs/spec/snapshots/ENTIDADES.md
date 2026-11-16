@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T02:02+0000 -->
+<!-- last_update: 2026-11-16T03:17+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -1913,7 +1913,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## participacoes
 
-> Origem: `146_nsp_fundacao.sql` (alterada em: 150_nsp_membros.sql)
+> Origem: `146_nsp_fundacao.sql` (alterada em: 150_nsp_membros.sql, 151_nsp_termo_de_adesao.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -1928,6 +1928,8 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `updated_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
 | `area` | `TEXT` | — | — | — |
 | `encerrada_em` | `DATE` | — | — | — |
+| `termo_gerado_em` | `TIMESTAMPTZ` | — | — | — |
+| `termo_enviado_em` | `TIMESTAMPTZ` | — | — | — |
 
 **Indexes:**
 - `idx_participacoes_participante` em `(participante_id, colegiado_id)` (de `146_nsp_fundacao.sql`)
@@ -1936,7 +1938,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## nsp_documentos
 
-> Origem: `147_nsp_documentos.sql`
+> Origem: `147_nsp_documentos.sql` (alterada em: 151_nsp_termo_de_adesao.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -1950,6 +1952,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `arquivo_assinado_path` | `TEXT` | — | — | — |
 | `publicado_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
 | `publicado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `termo_envio_id` | `UUID` | UNIQUE | — | `nsp_termos_envios.id` |
 
 **Indexes:**
 - `nsp_documentos_um_vigente_por_tipo` em `(tipo)` (de `147_nsp_documentos.sql`)
@@ -1995,7 +1998,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## participacoes_trilha
 
-> Origem: `150_nsp_membros.sql`
+> Origem: `150_nsp_membros.sql` (alterada em: 151_nsp_termo_de_adesao.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2007,11 +2010,37 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `valor_anterior` | `TEXT` | — | — | — |
 | `valor_novo` | `TEXT` | — | — | — |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `motivo` | `TEXT` | — | — | — |
 
 **Indexes:**
 - `idx_participacoes_trilha_participacao` em `(participacao_id, created_at DESC)` (de `150_nsp_membros.sql`)
 - `idx_participacoes_trilha_autor` em `(autor_id)` (de `150_nsp_membros.sql`)
 
+## nsp_termos_envios
+
+> Origem: `151_nsp_termo_de_adesao.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `participacao_id` | `UUID` | NOT NULL | — | `participacoes.id` |
+| `regimento_id` | `UUID` | — | — | `nsp_documentos.id` |
+| `situacao` | `TEXT` | NOT NULL | `'gerado'` | — |
+| `envelope_id` | `TEXT` | — | — | — |
+| `documento_key` | `TEXT` | — | — | — |
+| `arquivo_path` | `TEXT` | — | — | — |
+| `erro` | `TEXT` | — | — | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `enviado_em` | `TIMESTAMPTZ` | — | — | — |
+| `assinado_em` | `TIMESTAMPTZ` | — | — | — |
+| `cancelado_em` | `TIMESTAMPTZ` | — | — | — |
+
+**Indexes:**
+- `uq_nsp_termos_envios_documento_key` em `(documento_key)` (de `151_nsp_termo_de_adesao.sql`)
+- `uq_nsp_termos_envios_aberto` em `(participacao_id)` (de `151_nsp_termo_de_adesao.sql`)
+- `idx_nsp_termos_envios_participacao` em `(participacao_id, created_at DESC)` (de `151_nsp_termo_de_adesao.sql`)
+- `idx_nsp_termos_envios_regimento` em `(regimento_id)` (de `151_nsp_termo_de_adesao.sql`)
+
 ---
 
-**Resumo:** 98 tabelas vivas.
+**Resumo:** 99 tabelas vivas.

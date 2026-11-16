@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T02:02+0000 -->
+<!-- last_update: 2026-11-16T03:17+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -501,6 +501,16 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | GET | `/nsp/reunioes` | As reuniões do Núcleo, por data, sem as canceladas, e o que a pessoa | ✅ |
 | POST | `/nsp/reunioes` | A Presidência cria a reunião à mão, programada, e fica como | ✅ |
 
+## seguranca-do-paciente (`app/routers/seguranca_do_paciente_termo.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| GET | `/nsp/membros/{participacao_id}/termo` | O último envio do membro: situação, erro e o link do documento. | ✅ |
+| POST | `/nsp/membros/{participacao_id}/termo/liberar` | Libera o membro sem a assinatura eletrônica. Justificativa obrigatória, | ✅ |
+| POST | `/nsp/membros/{participacao_id}/termo/reconsultar` | Pergunta à assinatura eletrônica e aplica o mesmo tratamento do | ✅ |
+| POST | `/nsp/membros/{participacao_id}/termo/reenviar` | Cancela o envio anterior e gera outro documento, com outro identificador. | ✅ |
+| GET | `/nsp/meu-termo` | Para a faixa das telas bloqueadas: a pessoa tem Termo pendente numa | ✅ |
+
 ## pops (`app/routers/pops/setores.py`)
 
 | Método | Rota | O que faz | Auth |
@@ -603,4 +613,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 342 endpoints em 51 routers · 93% exigem auth.
+**Totais:** 347 endpoints em 52 routers · 93% exigem auth.

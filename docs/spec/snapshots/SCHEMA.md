@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T02:02+0000 -->
+<!-- last_update: 2026-11-16T03:17+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -65,7 +65,10 @@ erDiagram
     colegiados ||--o{ participacoes : "colegiado_id"
     colegiados ||--o{ reunioes : "colegiado_id"
     nsp_agenda_regulatoria ||--o{ nsp_agenda_ocorrencias : "item_id"
+    nsp_documentos ||--o{ nsp_termos_envios : "regimento_id"
+    nsp_termos_envios ||--o{ nsp_documentos : "termo_envio_id"
     ouvidoria_pontos ||--o{ ouvidoria_avaliacoes : "ponto_id"
+    participacoes ||--o{ nsp_termos_envios : "participacao_id"
     participacoes ||--o{ participacoes_trilha : "participacao_id"
     participantes ||--o{ audit_log : "actor_id"
     participantes ||--o{ bulk_jobs : "actor_id"
@@ -1030,7 +1033,7 @@ erDiagram
         DATE vigencia_fim
         TIMESTAMPTZ termo_assinado_em
         TIMESTAMPTZ created_at
-        _ mais_colunas "+3"
+        _ mais_colunas "+5"
     }
     nsp_documentos {
         UUID id PK
@@ -1041,7 +1044,7 @@ erDiagram
         TEXT natureza_revisao
         BOOLEAN vigente
         TEXT arquivo_assinado_path
-        _ mais_colunas "+2"
+        _ mais_colunas "+3"
     }
     nsp_agenda_regulatoria {
         UUID id PK
@@ -1074,6 +1077,18 @@ erDiagram
         TEXT valor_anterior
         TEXT valor_novo
         TIMESTAMPTZ created_at
+        _ mais_colunas "+1"
+    }
+    nsp_termos_envios {
+        UUID id PK
+        UUID participacao_id FK
+        UUID regimento_id FK
+        TEXT situacao
+        TEXT envelope_id
+        TEXT documento_key
+        TEXT arquivo_path
+        TEXT erro
+        _ mais_colunas "+4"
     }
 ```
 
@@ -1246,6 +1261,10 @@ erDiagram
 | `nsp_agenda_ocorrencias` | `idx_nsp_agenda_ocorrencias_pendencia` | `pendencia_id` | `149_nsp_agenda_regulatoria.sql` |
 | `participacoes_trilha` | `idx_participacoes_trilha_participacao` | `participacao_id, created_at DESC` | `150_nsp_membros.sql` |
 | `participacoes_trilha` | `idx_participacoes_trilha_autor` | `autor_id` | `150_nsp_membros.sql` |
+| `nsp_termos_envios` | `uq_nsp_termos_envios_documento_key` | `documento_key` | `151_nsp_termo_de_adesao.sql` |
+| `nsp_termos_envios` | `uq_nsp_termos_envios_aberto` | `participacao_id` | `151_nsp_termo_de_adesao.sql` |
+| `nsp_termos_envios` | `idx_nsp_termos_envios_participacao` | `participacao_id, created_at DESC` | `151_nsp_termo_de_adesao.sql` |
+| `nsp_termos_envios` | `idx_nsp_termos_envios_regimento` | `regimento_id` | `151_nsp_termo_de_adesao.sql` |
 
 ---
-**Resumo:** 98 tabelas · 141 relacionamentos FK detectados.
+**Resumo:** 99 tabelas · 144 relacionamentos FK detectados.
