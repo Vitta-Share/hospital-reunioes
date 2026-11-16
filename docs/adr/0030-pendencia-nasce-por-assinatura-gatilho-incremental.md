@@ -1,6 +1,7 @@
 ---
 status: accepted
 amends: 0003
+amended_by: 0097
 ---
 
 # Pendência nasce por assinatura: gatilho incremental e Aceite interno

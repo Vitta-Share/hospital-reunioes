@@ -5,15 +5,15 @@ Automatiza o ciclo de vida de reuniões corporativas de um hospital de alta comp
 ## Pessoas e papéis
 
 **Facilitador**:
-Quem conduz uma Reunião e responde pela Ata: marca, revisa, aprova e envia para assinatura. É quem **loga** no sistema. Hoje são 5 (1 diretor + 4 diretoras).
+Quem conduz uma Reunião e responde pela Ata: marca, revisa, aprova e envia para assinatura. É um vínculo com a Reunião, não um perfil: vê as Pendências das Reuniões que conduziu, além das próprias (ADR 0097). Hoje são 5 (1 diretor + 4 diretoras).
 _Evitar_: admin, gestor, usuário.
 
 **Colaborador**:
-Pessoa citada numa Reunião e/ou responsável por uma Pendência. **Não loga** no sistema — só recebe emails da ClickSign e links diretos para suas Pendências.
+Pessoa citada numa Reunião e/ou responsável por uma Pendência. Tem conta no app: entra, vê só as Pendências dele e as atualiza com Anotação. Quem nunca entrou recebe no e-mail um link pessoal para fazer o mesmo (ADR 0097).
 _Evitar_: funcionário, membro, usuário comum.
 
 **Secretária**:
-Papel de Facilitador com visão global: enxerga Reuniões de toda a organização e pode editar participantes e corrigir Atas além das suas próprias.
+Perfil que só agenda Reuniões e inclui Participantes, para qualquer Facilitador. Não vê Ata, Pendência, painel nem ranking, e nunca é a Facilitadora. Mantém a fila da Ouvidoria e o [Espelho da Global Health].
 _Evitar_: assistente, operador.
 
 **Super admin**:
@@ -35,7 +35,7 @@ _Evitar_: matching, match, reconhecimento, identificação.
 Participante que precisa assinar a Ata dentro de um Envelope da ClickSign.
 _Evitar_: assinante, signer.
 
-> **Ambiguidade sinalizada — "usuário":** evite o termo cru. Quem age no sistema é o **Facilitador** (loga) ou o **Colaborador** (não loga). Dizer "usuário" esconde essa distinção, que é central para acesso e notificação.
+> **Ambiguidade sinalizada — "usuário":** evite o termo cru. Quem age no sistema é o **Facilitador** (conduz a Reunião) ou o **Colaborador** (responde por Pendências), e os dois entram no app. Dizer "usuário" esconde essa distinção, que é central para acesso e notificação.
 
 ## Reunião e Ata
 
@@ -69,23 +69,61 @@ _Evitar_: processamento, job de IA.
 
 ## Pendências
 
+> Os verbetes desta seção descrevem a regra da ADR 0097, que entra no código pelas ondas do PRD #1757. Até cada onda subir, o código segue a ADR 0030.
+
 **Pendência**:
-Uma ação atribuída a um responsável, com prazo e máquina de estados própria (`PENDENTE → EM_PROGRESSO → CONCLUIDO`; ramos `ATRASADO`, `CANCELADO` e `REPACTUADA`). Nasce quando o compromisso do responsável se firma, e desde o primeiro segundo é plena (painel, prazo, cobrança). No caminho com assinatura o nascimento é **incremental** (ADR 0030): a assinatura do responsável no ClickSign cria as dele; a assinatura do Facilitador cria as de quem está fora do Envelope; o Aceite interno cria as do aceitante; a finalização do documento cria todo o resto. No caminho sem assinatura, todas nascem na aprovação (**APROVADA**, ADR 0003).
+Uma Ação da Ata atribuída a um responsável, com prazo. Tem quatro estados (`PENDENTE`, `EM_PROGRESSO`, `CONCLUIDO`, `CANCELADO`). **Atrasada** e **repactuada** são situações calculadas, não estados: atrasada é a Pendência aberta com prazo vencido, repactuada é a que tem Repactuação no Histórico. Nasce quando o Facilitador envia a Ata para assinatura, todas de uma vez, e desde o primeiro segundo é plena (painel, prazo, cobrança); a assinatura passa a ser ciência da Ata (ADR 0097). No caminho sem assinatura, todas nascem na aprovação (**APROVADA**, ADR 0003). Conclui o responsável ou o Super admin, sem validação. Cancela o Facilitador da Reunião ou o Super admin. Nenhuma Pendência é apagada.
 _Evitar_: tarefa, to-do, meta (o diretor chama de meta a Pendência com prazo; no app não existe cadastro de metas), ação (use "ação" só para a linha da Ata que origina a Pendência).
 
 **Repactuação**:
-O ato de o Facilitador remarcar o prazo de uma Pendência. **Não cria Pendência nova**: a mesma Pendência passa ao estado `REPACTUADA` e tem o prazo apagado, ficando "A repactuar" na tela até alguém marcar a data nova. É o caso mais comum a partir de `ATRASADO`.
+O prazo novo de uma Pendência, marcado com justificativa pelo responsável, pelo Facilitador ou pelo Super admin. Vale na hora, sem aprovação e sem limite de vezes. **Não cria Pendência nova** e não apaga o prazo antigo, que fica no Histórico. Conta como atraso só quando feita depois de o prazo vencer.
 _Evitar_: adiamento, remarcação, prorrogação.
+
+**Anotação**:
+O texto obrigatório que acompanha toda mudança de uma Pendência (andamento, conclusão, Repactuação, cancelamento, Reabertura). Pode levar uma prova anexada (foto ou PDF), que é opcional.
+_Evitar_: comentário, observação, justificativa como termo separado.
+
+**Histórico da Pendência**:
+O registro de cada mudança de uma Pendência, com quem fez, quando e a Anotação. Só cresce: ninguém edita nem apaga, nem o Super admin.
+_Evitar_: log, auditoria, trilha.
+
+**Reabertura**:
+O Facilitador devolve uma Pendência concluída, com Anotação e prazo novo. Pesa na avaliação do responsável, ao lado dos atrasos.
+_Evitar_: devolução, reprovação, validação.
+
+**Contestação**:
+O aviso do responsável, enquanto a Ata está em assinatura, de que o item dele está errado. A Pendência continua cobrada até o Facilitador ajustar ou recusar, com Anotação. A Ata não volta para assinatura.
+_Evitar_: recusa (é o que o Facilitador faz com a Contestação), discordância.
+
+**Ação, Rotina e Processo**:
+Os três tipos de linha do quadro da Ata. **Ação** acontece uma vez, tem entregável e vira Pendência. **Rotina** se repete toda semana, quinzena ou mês, tem responsável e substitui o fluxo contínuo. **Processo** define como se faz dali para frente, sem responsável e sem cobrança, e vai para as Definições de processo do setor.
+_Evitar_: fluxo contínuo (virou Rotina), meta recorrente, chamar Processo de POP (o POP é outro módulo).
+
+**Verificação**:
+O registro de um ciclo de uma Rotina, marcado pelo responsável como Realizada (um clique) ou Não realizada (com Anotação). O ciclo segue o calendário: semana, quinzena (do dia 1 ao 15 e do 16 ao fim do mês) ou mês, e vale até o último dia. Verificação não marcada depois do ciclo fica atrasada e ainda pode ser marcada.
+_Evitar_: checagem, conferência, validação.
+
+**Definições de processo do setor**:
+A lista das linhas do tipo Processo, por setor da Reunião, com o trecho da Ata copiado. Mora nas Reuniões, não nos POPs.
+_Evitar_: POP, rascunho de POP, norma.
+
+**Minha Fila**:
+O bloco do painel com o que depende de quem está olhando: Pendências próprias, Contestações a responder, Rotinas a revisar e Atas a assinar. Vazia, aparece em cinza com "Em dia".
+_Evitar_: caixa de entrada, tarefas.
+
+**E-mail de segunda**:
+O resumo semanal, toda segunda às 8h, um por pessoa: para o Facilitador, o que aconteceu nas Reuniões dele; para o responsável, as Pendências dele em aberto. Não sai quando não há nada para mostrar.
+_Evitar_: relatório semanal, digest, newsletter.
 
 ## Assinatura digital
 
 **Envelope**:
-O container da ClickSign que agrupa o PDF da Ata e seus Signatários. Identificado por `envelope_key_clicksign`. Fecha de dois jeitos, e ambos são **finalização**: todos assinam, ou o deadline (30 dias) estoura e a ClickSign fecha com as assinaturas que tiver. Nos dois casos a Reunião vira ASSINADA; quando faltou gente, o banner ganha um selo discreto "N de M assinaram". Recusa ou cancelamento matam o Envelope sem reenvio: a coleta dos compromissos restantes segue por **Aceite interno** (ADR 0030).
+O container da ClickSign que agrupa o PDF da Ata e seus Signatários. Identificado por `envelope_key_clicksign`. Fecha de dois jeitos, e ambos são **finalização**: todos assinam, ou o deadline (30 dias) estoura e a ClickSign fecha com as assinaturas que tiver. Nos dois casos a Reunião vira ASSINADA; quando faltou gente, o banner ganha um selo discreto "N de M assinaram". Recusa ou cancelamento matam o Envelope sem reenvio: a ciência de quem falta segue por **Aceite interno** (ADR 0030, emendada pela 0097).
 _Evitar_: documento, contrato, pacote.
 
 **Aceite interno**:
-O equivalente funcional da assinatura, colhido pelo próprio sistema quando o Envelope morre (recusa ou cancelamento). O Signatário pendente com ações recebe email com link público tokenizado, vê a ata completa e clica "Li e aceito": nascem de uma vez todas as Pendências dele, e o aceite conta como o "assinou" dele no desfecho. O Super admin pode registrar o aceite em nome de um signatário (auditado em `audit_log`). Não é assinatura digital: a formalidade ClickSign continua exclusiva do Envelope. Signatário sem ação não recebe link nem trava o desfecho.
-_Evitar_: assinatura interna, aceite manual, ciência.
+O equivalente funcional da assinatura, colhido pelo próprio sistema quando o Envelope morre (recusa ou cancelamento). O Signatário pendente recebe email com link público tokenizado, vê a ata completa e clica "Li e aceito": o aceite conta como o "assinou" dele no desfecho. Não cria Pendência, porque elas já nasceram no envio (ADR 0097). O Super admin pode registrar o aceite em nome de um signatário (auditado em `audit_log`). Não é assinatura digital: a formalidade ClickSign continua exclusiva do Envelope.
+_Evitar_: assinatura interna, aceite manual.
 
 ## Dados do Atendimento (Ana)
 
@@ -563,8 +601,8 @@ O vídeo de uma entrega (PRD) feito para o diretor ver o sistema funcionando (AD
 
 ## Diálogo de exemplo
 
-> **Dev:** Quando o Colaborador não loga, como ele resolve a Pendência?
-> **Facilitador:** Ele clica no link direto do email — não precisa de conta. Só Facilitador loga.
+> **Dev:** Como o Colaborador resolve a Pendência?
+> **Facilitador:** Ele entra no app, abre a Pendência e marca como concluída com uma Anotação. Fecha na hora, sem eu validar. Quem nunca entrou faz o mesmo pelo link pessoal do e-mail de segunda.
 > **Dev:** E se a Ata sai errada depois de PROCESSANDO?
 > **Facilitador:** Ela fica em AGUARDANDO_VALIDACAO. Eu peço uma correção (vai pra CORRIGINDO), a IA reescreve, e só então eu aprovo — aí cria o Envelope na ClickSign e vai pra AGUARDANDO_ASSINATURA.
 > **Dev:** E quando a reunião é só operacional, sem precisar de assinatura?
@@ -572,4 +610,4 @@ O vídeo de uma entrega (PRD) feito para o diretor ver o sistema funcionando (AD
 > **Dev:** E se a reunião nem teve Transcrição — foi um bate-papo rápido?
 > **Facilitador:** Aí eu faço uma **Ata Guiada**: converso com o agente (ou dito por voz), ele monta um resumo e o quadro de ações perguntando quem faz o quê e até quando. Reviso e finalizo sem assinatura — mesmas Pendências, sem Transcrição nem PDF.
 > **Dev:** Se o prazo de uma Pendência estoura?
-> **Facilitador:** Vira ATRASADO. Normalmente eu faço uma Repactuação: a mesma Pendência passa a REPACTUADA e fica sem prazo, até eu marcar a data nova.
+> **Facilitador:** Ela fica atrasada, com o prazo vencido à vista, até o responsável concluir ou fazer uma Repactuação com justificativa. Repactuar depois de vencer conta como atraso dele.

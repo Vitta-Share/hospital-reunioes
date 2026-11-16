@@ -1,6 +1,7 @@
 ---
 status: accepted
 supersedes: 0004
+amended_by: 0097
 ---
 
 # Descontinuar Notas e Importação de ATAs

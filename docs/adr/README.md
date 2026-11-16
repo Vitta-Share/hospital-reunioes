@@ -79,6 +79,7 @@ Só `status: accepted` vale como decisão; `superseded` é histórico (CLAUDE.md
 | [0011](0011-descontinuar-notas-e-importacao-de-atas.md) | accepted | Descontinuar Notas e Importação de ATAs |
 | [0023](0023-governanca-lista-participantes-ata.md) | accepted | Governança da lista de participantes da Ata |
 | [0030](0030-pendencia-nasce-por-assinatura-gatilho-incremental.md) | accepted | Pendência nasce por assinatura: gatilho incremental e Aceite interno |
+| [0097](0097-pendencia-nasce-no-envio-anotacao-obrigatoria-historico-imutavel.md) | accepted | Pendência nasce no envio para assinatura, toda mudança pede anotação e o histórico não se apaga (emenda 0030 e 0011) |
 
 ## POPs
 
