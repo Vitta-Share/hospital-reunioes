@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 
-from app.dependencies import is_secretaria, is_super_admin
+from app.dependencies import foi_desligado, is_secretaria, is_super_admin
 from app.services.ouvidoria_responsaveis import PAPEIS, esta_vigente
 
 PERFIL_OUVIDORIA = "perfil_ouvidoria"
@@ -38,6 +38,27 @@ class PapelNaOuvidoria:
 
 def _normalizar(email: str | None) -> str:
     return (email or "").strip().lower()
+
+
+def emails_com_login(participantes: list[dict]) -> frozenset[str]:
+    """Os e-mails dos participantes, na forma em que o papel os casa.
+
+    O desligado fica de fora: `barrar_desligado` o recusa no portão da fila
+    antes do papel, então ele não vê os casos do setor (revisão do PR #1893).
+    Só `ativo` gravado como False conta; NULL segue valendo (`foi_desligado`)."""
+    return frozenset(
+        email for email in (_normalizar(p.get("email")) for p in participantes if not foi_desligado(p)) if email
+    )
+
+
+def tem_login(email: str | None, com_login: frozenset[str]) -> bool:
+    """O e-mail de uma linha do cadastro casa com o de um participante.
+
+    É o casamento de `papel_na_ouvidoria`, pela mesma `_normalizar`: a tela do
+    cadastro (ADR 0099, decisão 1) não pode dizer "tem login" para quem o papel
+    não reconhece, nem o contrário (issue #1887)."""
+    chave = _normalizar(email)
+    return bool(chave) and chave in com_login
 
 
 def precisa_do_cadastro(participante: dict | None) -> bool:

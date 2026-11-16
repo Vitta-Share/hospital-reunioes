@@ -383,6 +383,22 @@ export default function ResponsaveisDaOuvidoriaPage() {
                           </span>
                           <span className="font-medium text-slate-800">{r.nome}</span>
                           <span className="text-slate-500">{r.email}</span>
+                          {/* Quem tem login vira Responsável do setor pelo
+                              e-mail (ADR 0099, decisão 1, issue #1887): "sem
+                              login" é o e-mail digitado errado, ou de quem
+                              só responde pelo link. */}
+                          {r.tem_login ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700">
+                              tem login
+                            </span>
+                          ) : (
+                            <span
+                              title="Nenhuma pessoa com login no app usa este e-mail. Ela recebe o link do e-mail normalmente, mas não vê os casos do setor no app."
+                              className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700"
+                            >
+                              sem login
+                            </span>
+                          )}
                           <span className={vigente ? "text-slate-400 text-xs" : "text-amber-600 text-xs"}>
                             {vigente ? "vigente" : "fora de vigência"}, de{" "}
                             {formatarData(r.vigencia_inicio)} até {formatarData(r.vigencia_fim)}

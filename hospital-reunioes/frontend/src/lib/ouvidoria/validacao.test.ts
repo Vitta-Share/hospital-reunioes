@@ -28,6 +28,7 @@ const TITULAR: Responsavel = {
   email: "carlos@hsm.br",
   vigencia_inicio: "2026-01-01",
   vigencia_fim: null,
+  tem_login: true,
 };
 
 describe("validação e acionamento (issue #325)", () => {
