@@ -40,6 +40,21 @@ def _normalizar(email: str | None) -> str:
     return (email or "").strip().lower()
 
 
+def emails_com_login(participantes: list[dict]) -> frozenset[str]:
+    """Os e-mails dos participantes, na forma em que o papel os casa."""
+    return frozenset(email for email in (_normalizar(p.get("email")) for p in participantes) if email)
+
+
+def tem_login(email: str | None, com_login: frozenset[str]) -> bool:
+    """O e-mail de uma linha do cadastro casa com o de um participante.
+
+    É o casamento de `papel_na_ouvidoria`, pela mesma `_normalizar`: a tela do
+    cadastro (ADR 0099, decisão 1) não pode dizer "tem login" para quem o papel
+    não reconhece, nem o contrário (issue #1887)."""
+    chave = _normalizar(email)
+    return bool(chave) and chave in com_login
+
+
 def precisa_do_cadastro(participante: dict | None) -> bool:
     """Só quem não tem papel maior depende do cadastro de responsáveis."""
     return bool(participante) and not (

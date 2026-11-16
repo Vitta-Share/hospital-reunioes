@@ -3659,6 +3659,16 @@ async def listar_responsaveis(
             ),
             rotulo="responsáveis por setor",
         )
+        # Quem tem login no app (ADR 0099, decisão 1, issue #1887): o e-mail
+        # da linha casa com o de um participante, pelo mesmo casamento que
+        # decide o papel na Ouvidoria. Lido inteiro e casado em Python porque
+        # o banco não normaliza o e-mail gravado.
+        com_login = ouvidoria_papel.emails_com_login(
+            ler_tudo(
+                lambda: supabase.table("participantes").select("id, email").order("id"),
+                rotulo="e-mails dos participantes",
+            )
+        )
     except (APIError, HTTPError) as exc:
         # Sem esta guarda o `APIError` subia até o handler global, que devolvia
         # a mensagem do PostgREST ao cliente (issue #375, item 3).
@@ -3674,7 +3684,15 @@ async def listar_responsaveis(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Não foi possível ler o cadastro de responsáveis agora. Tente de novo em instantes.",
         ) from exc
-    return {"responsaveis": [{campo: row.get(campo) for campo in _CAMPOS_RESPONSAVEL_TUPLA} for row in linhas]}
+    return {
+        "responsaveis": [
+            {
+                **{campo: row.get(campo) for campo in _CAMPOS_RESPONSAVEL_TUPLA},
+                "tem_login": ouvidoria_papel.tem_login(row.get("email"), com_login),
+            }
+            for row in linhas
+        ]
+    }
 
 
 @router.post("/responsaveis", status_code=status.HTTP_201_CREATED)
