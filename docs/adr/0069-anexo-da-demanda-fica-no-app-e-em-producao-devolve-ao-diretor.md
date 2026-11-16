@@ -1,7 +1,7 @@
 ---
 status: accepted
 amends: 0054
-amended_by: 0077
+amended_by: 0077, 0096
 ---
 
 # Anexo da Demanda fica no app, quem desenvolve busca; Em produção é a Etapa que devolve ao diretor
