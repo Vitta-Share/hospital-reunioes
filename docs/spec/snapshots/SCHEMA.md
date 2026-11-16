@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T03:17+0000 -->
+<!-- last_update: 2026-11-16T03:21+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -95,7 +95,10 @@ erDiagram
     participantes ||--o{ comentarios_pendencias : "autor_id"
     participantes ||--o{ notificacoes : "destinatario_id"
     participantes ||--o{ nsp_agenda_ocorrencias : "registrado_por"
+    participantes ||--o{ nsp_convocados : "convocado_por"
+    participantes ||--o{ nsp_convocados : "participante_id"
     participantes ||--o{ nsp_documentos : "publicado_por"
+    participantes ||--o{ nsp_pautas : "editada_por"
     participantes ||--o{ ouvidoria_acessos : "ator_id"
     participantes ||--o{ ouvidoria_anexos : "enviado_por"
     participantes ||--o{ ouvidoria_avaliacoes : "revisada_por"
@@ -141,6 +144,8 @@ erDiagram
     pops_setores ||--o{ pops_setores_participantes : "setor_id"
     pops_versoes ||--o{ pops_devolucoes : "versao_id"
     pops_versoes ||--o{ pops_materiais_referencia : "versao_id"
+    reunioes ||--o{ nsp_convocados : "id_reuniao"
+    reunioes ||--o{ nsp_pautas : "id_reuniao"
     reunioes ||--o{ pendencias : "id_reuniao"
     reunioes ||--o{ reuniao_participantes : "id_reuniao"
     reunioes ||--o{ tokens_validacao : "id_reuniao"
@@ -1090,6 +1095,22 @@ erDiagram
         TEXT erro
         _ mais_colunas "+4"
     }
+    nsp_pautas {
+        VARCHAR id_reuniao PK
+        JSONB blocos
+        TIMESTAMPTZ montada_em
+        TIMESTAMPTZ editada_em
+        VARCHAR editada_por FK
+    }
+    nsp_convocados {
+        UUID id PK
+        VARCHAR id_reuniao FK
+        VARCHAR participante_id FK
+        TEXT estado
+        BOOLEAN email_enviado
+        TIMESTAMPTZ convocado_em
+        VARCHAR convocado_por FK
+    }
 ```
 
 ## Indexes principais
@@ -1265,6 +1286,8 @@ erDiagram
 | `nsp_termos_envios` | `uq_nsp_termos_envios_aberto` | `participacao_id` | `151_nsp_termo_de_adesao.sql` |
 | `nsp_termos_envios` | `idx_nsp_termos_envios_participacao` | `participacao_id, created_at DESC` | `151_nsp_termo_de_adesao.sql` |
 | `nsp_termos_envios` | `idx_nsp_termos_envios_regimento` | `regimento_id` | `151_nsp_termo_de_adesao.sql` |
+| `nsp_pautas` | `idx_nsp_pautas_editada_por` | `editada_por` | `152_nsp_pauta_e_convocacao.sql` |
+| `nsp_convocados` | `idx_nsp_convocados_participante` | `participante_id` | `152_nsp_pauta_e_convocacao.sql` |
 
 ---
-**Resumo:** 99 tabelas · 144 relacionamentos FK detectados.
+**Resumo:** 101 tabelas · 149 relacionamentos FK detectados.

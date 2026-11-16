@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T03:17+0000 -->
+<!-- last_update: 2026-11-16T03:21+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2041,6 +2041,38 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_nsp_termos_envios_participacao` em `(participacao_id, created_at DESC)` (de `151_nsp_termo_de_adesao.sql`)
 - `idx_nsp_termos_envios_regimento` em `(regimento_id)` (de `151_nsp_termo_de_adesao.sql`)
 
+## nsp_pautas
+
+> Origem: `152_nsp_pauta_e_convocacao.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id_reuniao` | `VARCHAR(20)` | PK | — | `reunioes.id_reuniao` |
+| `blocos` | `JSONB` | NOT NULL | — | — |
+| `montada_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `editada_em` | `TIMESTAMPTZ` | — | — | — |
+| `editada_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+
+**Indexes:**
+- `idx_nsp_pautas_editada_por` em `(editada_por)` (de `152_nsp_pauta_e_convocacao.sql`)
+
+## nsp_convocados
+
+> Origem: `152_nsp_pauta_e_convocacao.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `id_reuniao` | `VARCHAR(20)` | NOT NULL | — | `reunioes.id_reuniao` |
+| `participante_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `estado` | `TEXT` | NOT NULL | — | — |
+| `email_enviado` | `BOOLEAN` | NOT NULL | `false` | — |
+| `convocado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `convocado_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+
+**Indexes:**
+- `idx_nsp_convocados_participante` em `(participante_id)` (de `152_nsp_pauta_e_convocacao.sql`)
+
 ---
 
-**Resumo:** 99 tabelas vivas.
+**Resumo:** 101 tabelas vivas.
