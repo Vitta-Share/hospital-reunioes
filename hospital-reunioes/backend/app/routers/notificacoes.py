@@ -8,11 +8,29 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.dependencies import get_current_user, get_participante_for_user, get_supabase_client
+from app.dependencies import (
+    get_current_user,
+    get_participante_for_user,
+    get_supabase_client,
+    visibilidade_das_reunioes,
+)
 from app.models.schemas import NotificacaoCount, NotificacaoResponse
 
 router = APIRouter(prefix="/notificacoes", tags=["notificacoes"])
 logger = logging.getLogger(__name__)
+
+
+def _sem_avisos_do_nucleo(query, supabase, participante: dict):
+    """Tira do sino o aviso que aponta para reunião do Núcleo que a pessoa não
+    alcança, ou para pendência dela (issue #1772). A referência do aviso é a
+    reunião (aceite interno) ou a pendência (menção, responsável, comentário).
+    O aviso sem referência fica: o `not.in` sozinho não casa NULL."""
+    ocultas = visibilidade_das_reunioes(supabase, participante).ocultas
+    if not ocultas:
+        return query
+    pendencias = supabase.table("pendencias").select("id_acao").in_("id_reuniao", ocultas).execute().data or []
+    referencias = ocultas + [p["id_acao"] for p in pendencias]
+    return query.or_(f"referencia_id.is.null,referencia_id.not.in.({','.join(referencias)})")
 
 
 @router.get("", response_model=list[NotificacaoResponse])
@@ -30,7 +48,9 @@ async def list_notificacoes(
 
     participante_id = participante["id"]
 
-    query = supabase.table("notificacoes").select("*").eq("destinatario_id", participante_id)
+    query = _sem_avisos_do_nucleo(
+        supabase.table("notificacoes").select("*").eq("destinatario_id", participante_id), supabase, participante
+    )
 
     if lida is not None:
         query = query.eq("lida", lida)
@@ -51,13 +71,13 @@ async def count_notificacoes(
         return NotificacaoCount(nao_lidas=0)
 
     participante_id = participante["id"]
-    result = (
+    query = (
         supabase.table("notificacoes")
         .select("id", count="exact")
         .eq("destinatario_id", participante_id)
         .eq("lida", False)
-        .execute()
     )
+    result = _sem_avisos_do_nucleo(query, supabase, participante).execute()
 
     return NotificacaoCount(nao_lidas=result.count or 0)
 

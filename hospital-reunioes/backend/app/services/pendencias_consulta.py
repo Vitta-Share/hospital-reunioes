@@ -7,13 +7,23 @@ atrasada. Atrasada é o status `ATRASADO`, que o job `marcar_atrasadas` grava
 na pendência PENDENTE de prazo vencido; nenhuma das duas portas recalcula.
 
 Quem chama resolve antes quem é (a visibilidade das Reuniões) e passa:
-`allowed_reuniao_ids` (None é sem filtro, a visão de Super admin) e o id do
-participante, para o OR de co-responsável.
+`allowed_reuniao_ids` (None é sem filtro, a visão de Super admin), o id do
+participante, para o OR de co-responsável, e as reuniões do Núcleo que a
+pessoa não alcança (`ocultas`, issue #1772).
 """
 
 from __future__ import annotations
 
 from datetime import date
+
+
+def sem_reunioes_ocultas(query, ocultas: list[str]):
+    """Tira da consulta as pendências das reuniões do Núcleo que a pessoa não
+    alcança (issue #1772) e mantém a pendência sem reunião: o `not.in` do
+    banco sozinho não casa NULL e a levaria junto."""
+    if not ocultas:
+        return query
+    return query.or_(f"id_reuniao.is.null,id_reuniao.not.in.({','.join(ocultas)})")
 
 
 def consultar_pendencias(
@@ -28,13 +38,16 @@ def consultar_pendencias(
     prazo_ate: date | None = None,
     setores: list[str] | None = None,
     facilitadores: list[str] | None = None,
+    ocultas: list[str] = (),
     limit: int,
     offset: int = 0,
 ) -> tuple[list[dict], int]:
     """As pendências visíveis com os filtros, por prazo (as sem prazo no fim),
     cortadas em `limit` a partir de `offset`. Devolve as linhas e o total antes
     do corte."""
-    query = supabase.table("pendencias").select("*", count="exact").is_("deleted_at", "null")
+    query = sem_reunioes_ocultas(
+        supabase.table("pendencias").select("*", count="exact").is_("deleted_at", "null"), list(ocultas)
+    )
 
     # Resolve filtro de facilitador cedo (afeta a aplicação de visibilidade)
     facilitator_meeting_ids: list[str] | None = None

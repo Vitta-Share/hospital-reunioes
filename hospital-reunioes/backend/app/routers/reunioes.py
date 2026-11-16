@@ -9,10 +9,12 @@ from starlette.requests import Request
 
 from app.config import settings
 from app.dependencies import (
+    barrar_reuniao_do_nucleo,
     get_allowed_reuniao_ids,
     get_current_user,
     get_participante_for_user,
     get_supabase_client,
+    get_visibilidade_das_reunioes,
     is_secretaria,
     is_super_admin,
     require_acesso_reunioes,
@@ -50,7 +52,9 @@ router = APIRouter(
     prefix="/reunioes",
     tags=["reunioes"],
     # Gate de contexto (ADR 0007): sem papel nas Reuniões -> 403 em todo o router.
-    dependencies=[Depends(require_acesso_reunioes)],
+    # Depois, o sigilo do Núcleo (issue #1772): 403 em toda rota `/{id_reuniao}`
+    # de reunião do Núcleo que a pessoa não abre, super admin inclusive.
+    dependencies=[Depends(require_acesso_reunioes), Depends(barrar_reuniao_do_nucleo)],
 )
 logger = logging.getLogger(__name__)
 
@@ -293,11 +297,16 @@ async def list_reunioes_calendario(
     if data_fim:
         query = query.lte("data", str(data_fim))
 
-    allowed_ids = await get_allowed_reuniao_ids(current_user, supabase)
+    # O calendário mostra a reunião do Núcleo a quem tem `calendario` no módulo,
+    # o membro sem Termo inclusive, que vê a data e não abre a ata (#1772).
+    visibilidade = await get_visibilidade_das_reunioes(current_user, supabase, recurso="calendario")
+    allowed_ids = visibilidade.permitidas
     if allowed_ids is not None:
         if not allowed_ids:
             return []
         query = query.in_("id_reuniao", allowed_ids)
+    if visibilidade.ocultas:
+        query = query.not_.in_("id_reuniao", visibilidade.ocultas)
 
     result = query.order("data", desc=False).execute()
     reunioes = result.data
@@ -325,9 +334,11 @@ async def list_reunioes(
     supabase=Depends(get_supabase_client),
 ):
     # A mesma consulta da ferramenta de Reuniões do Conector (issue #1610).
+    visibilidade = await get_visibilidade_das_reunioes(current_user, supabase)
     linhas, total = consultar_reunioes(
         supabase,
-        allowed_reuniao_ids=await get_allowed_reuniao_ids(current_user, supabase),
+        allowed_reuniao_ids=visibilidade.permitidas,
+        ocultas=visibilidade.ocultas,
         statuses=parse_csv_param(status),
         tipos=parse_csv_param(tipo),
         facilitadores=parse_csv_param(facilitador_id),

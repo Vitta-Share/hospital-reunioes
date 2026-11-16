@@ -3,10 +3,11 @@ from __future__ import annotations
 import logging
 import secrets
 from contextvars import ContextVar
+from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from postgrest.exceptions import APIError
 from supabase import Client, create_client
@@ -14,6 +15,7 @@ from supabase import Client, create_client
 from app.config import settings
 from app.middleware.request_context import set_user_id
 from app.services.seguranca_do_paciente.permissao import RECURSOS_NSP, recursos_nsp, situacao_da_pessoa
+from app.services.seguranca_do_paciente.reunioes import reunioes_do_nucleo
 
 logger = logging.getLogger(__name__)
 
@@ -284,6 +286,9 @@ async def get_allowed_reuniao_ids(current_user: dict, supabase) -> list[str] | N
       pendências e comentários é bloqueado por gates 403 explícitos nos
       endpoints correspondentes (defense-in-depth, não depende deste filtro).
     - regular: reuniões em que aparece em reuniao_participantes.
+
+    None não alcança as reuniões do Núcleo: quem lista com None aplica também
+    as `ocultas` de `visibilidade_das_reunioes` (issue #1772).
     """
     me = await get_participante_for_user(current_user, supabase)
     return reunioes_visiveis(supabase, me)
@@ -292,13 +297,72 @@ async def get_allowed_reuniao_ids(current_user: dict, supabase) -> list[str] | N
 def reunioes_visiveis(supabase, me: dict[str, Any] | None) -> list[str] | None:
     """A regra do `get_allowed_reuniao_ids` para quem já tem o participante na
     mão (o Conector, que não tem sessão do app, issue #1609)."""
+    return visibilidade_das_reunioes(supabase, me).permitidas
+
+
+@dataclass(frozen=True)
+class VisibilidadeDasReunioes:
+    """O que uma pessoa vê das reuniões.
+
+    `permitidas`: a lista branca (None = sem filtro, a visão de super admin e
+    de Secretária). `ocultas`: as reuniões do Núcleo que a pessoa não alcança,
+    que toda leitura tira, inclusive quando `permitidas` é None (ADR 0095,
+    decisão 4: o super admin não passa por cima).
+    """
+
+    permitidas: list[str] | None
+    ocultas: list[str]
+
+
+def visibilidade_das_reunioes(
+    supabase, me: dict[str, Any] | None, recurso: str = "reunioes"
+) -> VisibilidadeDasReunioes:
+    """As reuniões que a pessoa vê, com o sigilo do Núcleo (issue #1772).
+
+    A reunião do Núcleo segue a permissão do módulo, e não a lista de
+    participantes: quem tem o `recurso` vê todas, mesmo fora da lista; quem não
+    tem não vê nenhuma, mesmo dentro dela. `recurso` é `reunioes` para abrir a
+    reunião e `calendario` para vê-la no calendário (o membro sem Termo vê a
+    data e não abre a ata).
+    """
     if not me:
-        return []
+        return VisibilidadeDasReunioes(permitidas=[], ocultas=[])
+    do_nucleo = reunioes_do_nucleo(supabase)
+    liberado = bool(do_nucleo) and recurso in recursos_nsp_da_pessoa(supabase, me)
+    ocultas = [] if liberado else do_nucleo
     if is_super_admin(me) or is_secretaria(me):
-        return None
-    my_id = me["id"]
-    result = supabase.table("reuniao_participantes").select("id_reuniao").eq("participante_id", my_id).execute()
-    return [row["id_reuniao"] for row in (result.data or [])]
+        return VisibilidadeDasReunioes(permitidas=None, ocultas=ocultas)
+    result = supabase.table("reuniao_participantes").select("id_reuniao").eq("participante_id", me["id"]).execute()
+    da_lista = [row["id_reuniao"] for row in (result.data or [])]
+    if liberado:
+        permitidas = da_lista + [i for i in do_nucleo if i not in da_lista]
+    else:
+        permitidas = [i for i in da_lista if i not in ocultas]
+    return VisibilidadeDasReunioes(permitidas=permitidas, ocultas=ocultas)
+
+
+async def get_visibilidade_das_reunioes(
+    current_user: dict, supabase, recurso: str = "reunioes"
+) -> VisibilidadeDasReunioes:
+    me = await get_participante_for_user(current_user, supabase)
+    return visibilidade_das_reunioes(supabase, me, recurso)
+
+
+async def barrar_reuniao_do_nucleo(
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase_client),
+) -> None:
+    """Gate de router: 403 em toda rota `/{id_reuniao}` de reunião do Núcleo
+    que a pessoa não abre (issue #1772). Vale para o super admin sem Acesso
+    pleno e para o membro sem Termo, que vê a data no calendário e não abre a
+    ata. Rota sem `id_reuniao` passa reto, sem consulta nenhuma."""
+    id_reuniao = request.path_params.get("id_reuniao")
+    if not id_reuniao:
+        return
+    me = await get_participante_for_user(current_user, supabase)
+    if id_reuniao in visibilidade_das_reunioes(supabase, me).ocultas:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=RECUSA_DO_NSP)
 
 
 def tem_acesso_reunioes(participante: dict[str, Any] | None) -> bool:

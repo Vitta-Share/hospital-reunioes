@@ -77,7 +77,7 @@ def executar(argumentos: dict, participante: dict, supabase) -> dict:
     """As pendências que a tela de Pendências mostra a esta pessoa, com o
     filtro pedido. Levanta `PedidoRecusadoError` para argumento inválido ou para
     quem não abre a tela."""
-    from app.dependencies import is_secretaria, reunioes_visiveis, tem_acesso_reunioes
+    from app.dependencies import is_secretaria, tem_acesso_reunioes, visibilidade_das_reunioes
 
     if is_secretaria(participante) or not tem_acesso_reunioes(participante):
         raise PedidoRecusadoError("A tela de Pendências não está aberta para o seu acesso.")
@@ -97,9 +97,12 @@ def executar(argumentos: dict, participante: dict, supabase) -> dict:
         if not responsaveis:
             return _payload([], 0)
 
+    # A pendência de reunião do Núcleo só vem a quem o módulo libera (#1772).
+    visibilidade = visibilidade_das_reunioes(supabase, participante)
     linhas, total = consultar_pendencias(
         supabase,
-        allowed_reuniao_ids=reunioes_visiveis(supabase, participante),
+        allowed_reuniao_ids=visibilidade.permitidas,
+        ocultas=visibilidade.ocultas,
         my_participante_id=participante.get("id"),
         status=SITUACOES.get(situacao) if situacao else None,
         responsaveis=responsaveis,

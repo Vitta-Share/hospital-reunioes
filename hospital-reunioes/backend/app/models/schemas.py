@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field, model_validator
 
+from app.services.seguranca_do_paciente.reunioes import TipoReuniaoNsp
+
 # === Enums ===
 
 
@@ -145,6 +147,9 @@ class UploadTranscricaoRequest(ReuniaoBase):
 
 
 class ReuniaoResponse(ReuniaoBase):
+    # A lista geral também devolve a reunião do Núcleo a quem o módulo libera
+    # (issue #1772), com um dos quatro tipos dele.
+    tipo: TipoReuniao | TipoReuniaoNsp | None = None
     id_reuniao: str
     hora_inicio: time | None = None
     hora_fim: time | None = None

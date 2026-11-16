@@ -5,11 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from starlette.requests import Request
 
 from app.dependencies import (
+    RECUSA_DO_NSP,
     get_allowed_reuniao_ids,
     get_current_user,
     get_participante_for_user,
     get_participante_id_for_user,
     get_supabase_client,
+    get_visibilidade_das_reunioes,
     is_secretaria,
     is_super_admin,
     require_acesso_reunioes,
@@ -19,7 +21,7 @@ from app.models.admin_schemas import ForceEditPendenciaRequest, ReasonRequest
 from app.models.schemas import PendenciaResponse, PendenciaStats, PendenciaUpdate
 from app.services import audit
 from app.services.notificacao_service import criar_notificacao_responsavel
-from app.services.pendencias_consulta import consultar_pendencias
+from app.services.pendencias_consulta import consultar_pendencias, sem_reunioes_ocultas
 from app.utils.query_params import parse_csv_param
 
 router = APIRouter(
@@ -93,13 +95,17 @@ async def get_pendencias_stats(
     if is_secretaria(me):
         raise HTTPException(status_code=403, detail="Secretária não tem acesso a pendências")
 
-    allowed_reuniao_ids = await get_allowed_reuniao_ids(current_user, supabase)
+    visibilidade = await get_visibilidade_das_reunioes(current_user, supabase)
+    allowed_reuniao_ids = visibilidade.permitidas
     my_participante_id = await get_participante_id_for_user(current_user, supabase)
 
-    query = (
+    # O sigilo do Núcleo (issue #1772): os números do painel não contam
+    # pendência de reunião do Núcleo de quem não a alcança.
+    query = sem_reunioes_ocultas(
         supabase.table("pendencias")
         .select("status, responsavel_id, prazo, id_reuniao, co_responsavel_id")
-        .is_("deleted_at", "null")
+        .is_("deleted_at", "null"),
+        visibilidade.ocultas,
     )
 
     # Resolve filtro de facilitador cedo (afeta a aplicação de visibilidade)
@@ -250,12 +256,13 @@ async def list_pendencias(
     if is_secretaria(me):
         raise HTTPException(status_code=403, detail="Secretária não tem acesso a pendências")
 
-    allowed_reuniao_ids = await get_allowed_reuniao_ids(current_user, supabase)
+    visibilidade = await get_visibilidade_das_reunioes(current_user, supabase)
     my_participante_id = await get_participante_id_for_user(current_user, supabase)
 
     rows, total = consultar_pendencias(
         supabase,
-        allowed_reuniao_ids=allowed_reuniao_ids,
+        allowed_reuniao_ids=visibilidade.permitidas,
+        ocultas=visibilidade.ocultas,
         my_participante_id=my_participante_id,
         status=status,
         responsaveis=parse_csv_param(responsavel_id),
@@ -289,8 +296,13 @@ async def get_pendencia(
 
     pendencia = result.data[0]
 
+    # O sigilo do Núcleo (issue #1772), antes de tudo e para todo perfil.
+    visibilidade = await get_visibilidade_das_reunioes(current_user, supabase)
+    if pendencia.get("id_reuniao") in visibilidade.ocultas:
+        raise HTTPException(status_code=403, detail=RECUSA_DO_NSP)
+
     # Visibilidade binária: super users veem tudo, demais checam reunião + co-responsável.
-    allowed_reuniao_ids = await get_allowed_reuniao_ids(current_user, supabase)
+    allowed_reuniao_ids = visibilidade.permitidas
     if allowed_reuniao_ids is not None:
         my_id = await get_participante_id_for_user(current_user, supabase)
         pendencia_reuniao = pendencia.get("id_reuniao")
