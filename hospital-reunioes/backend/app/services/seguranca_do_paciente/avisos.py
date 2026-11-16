@@ -85,11 +85,15 @@ def _dia_em_sao_paulo(carimbo: Any) -> date:
 
 def marcos_do_dia(participacao: dict, envio: dict | None, hoje: date) -> list[tuple[str, str, date]]:
     """Os marcos que a Participação alcançou hoje, um por família, como
-    (marco, referência, data que o e-mail mostra). Função pura."""
+    (marco, referência, data que o e-mail mostra). `envio` é o envio do Termo
+    que espera a assinatura, se houver. Função pura.
+
+    Os marcos de assinatura valem só enquanto o membro está Aguardando
+    assinatura: assinado ou liberado à mão, eles param."""
     if participacao.get("encerrada_em"):
         return []
     marcos: list[tuple[str, str, date]] = []
-    if envio and envio.get("situacao") == "enviado" and estado_do_membro(participacao, hoje) == "aguardando_assinatura":
+    if envio and estado_do_membro(participacao, hoje) == "aguardando_assinatura":
         gerado = _dia_em_sao_paulo(envio["created_at"])
         dias = (hoje - gerado).days
         marco = next((nome for nome, limiar in MARCOS_DA_ASSINATURA if dias >= limiar), None)
@@ -200,7 +204,9 @@ def _pessoas(supabase, ids: Iterable[str]) -> dict[str, dict]:
     pessoas: dict[str, dict] = {}
     for i in range(0, len(ids), LOTE_DE_IDS):
         lote = ids[i : i + LOTE_DE_IDS]
-        resposta = selecionar_participantes(supabase, "id, nome_completo, email", lambda q, lote=lote: q.in_("id", lote))
+        resposta = selecionar_participantes(
+            supabase, "id, nome_completo, email", lambda q, lote=lote: q.in_("id", lote)
+        )
         pessoas.update({p["id"]: p for p in (resposta.data or [])})
     return pessoas
 
@@ -243,15 +249,19 @@ def avisar(supabase, hoje: date) -> dict[str, int]:
     if not nucleo_id:
         return resultado
     participacoes = ler_tudo(
-        lambda: supabase.table("participacoes")
-        .select("id, participante_id, vigencia_inicio, vigencia_fim, encerrada_em, termo_gerado_em, "
-                "termo_enviado_em, termo_assinado_em")
-        .eq("colegiado_id", nucleo_id)
-        .is_("encerrada_em", "null")
-        .order("id"),
+        lambda: (
+            supabase.table("participacoes")
+            .select(
+                "id, participante_id, vigencia_inicio, vigencia_fim, encerrada_em, termo_gerado_em, "
+                "termo_enviado_em, termo_assinado_em"
+            )
+            .eq("colegiado_id", nucleo_id)
+            .is_("encerrada_em", "null")
+            .order("id")
+        ),
         rotulo="Participações do Núcleo",
     )
-    esperando = [p["id"] for p in participacoes if not p.get("termo_assinado_em") and p.get("termo_enviado_em")]
+    # O envio que espera a assinatura (um aberto por Participação, pelo banco).
     envios = {
         e["participacao_id"]: e
         for e in _em_lotes(
@@ -259,7 +269,7 @@ def avisar(supabase, hoje: date) -> dict[str, int]:
             "nsp_termos_envios",
             "id, participacao_id, situacao, created_at",
             "participacao_id",
-            esperando,
+            (p["id"] for p in participacoes),
             "envios do Termo",
             lambda q: q.eq("situacao", "enviado"),
         )
@@ -324,9 +334,7 @@ def avisar(supabase, hoje: date) -> dict[str, int]:
                         continue
                     pessoa = pessoas.get(pid, {"id": pid})
                     papel_da_mensagem = MEMBRO if pid == participacao["participante_id"] else papel
-                    mensagem = montar_email(
-                        marco, papel_da_mensagem, pessoa.get("nome_completo") or "", membro, data
-                    )
+                    mensagem = montar_email(marco, papel_da_mensagem, pessoa.get("nome_completo") or "", membro, data)
                     saiu = _enviar(supabase, aviso, pessoa, mensagem)
                 except Exception as falha:  # noqa: BLE001 (um aviso que falha não para os outros)
                     logger.error("[Avisos NSP] Aviso %s para %s falhou: %s", marco, pid, type(falha).__name__)

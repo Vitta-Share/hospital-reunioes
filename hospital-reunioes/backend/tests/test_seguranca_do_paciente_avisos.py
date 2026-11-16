@@ -392,3 +392,153 @@ class TestMarcos:
 
         assert _para(emails) == ["p2@hsm.test"]
         assert (DIA + timedelta(days=1)).strftime("%d/%m/%Y") in emails[0]["assunto"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. O aviso de assinatura para depois que o membro assina
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestDepoisDaAssinatura:
+    def test_o_membro_que_assinou_nao_recebe_mais_o_aviso_de_assinatura(self, emails):
+        participacao, envio = _sem_assinatura("P2", DIA - timedelta(days=3))
+        banco = _banco([participacao], [envio])
+        avisos.avisar(banco, DIA)
+        # A assinatura chega como o retorno da assinatura eletrônica a grava.
+        banco.tabelas["participacoes"][1]["termo_assinado_em"] = f"{DIA.isoformat()}T18:00:00+00:00"
+        banco.tabelas["nsp_termos_envios"][0]["situacao"] = "assinado"
+        emails.clear()
+
+        for dias in (7, 14):
+            avisos.avisar(banco, DIA + timedelta(days=dias))
+
+        assert emails == []
+
+    def test_a_liberacao_sem_assinatura_tambem_para_o_aviso(self, emails):
+        participacao, envio = _sem_assinatura("P2", DIA - timedelta(days=14))
+        participacao["termo_assinado_em"] = f"{DIA.isoformat()}T12:00:00+00:00"
+        banco = _banco([participacao], [envio])
+
+        avisos.avisar(banco, DIA)
+
+        assert emails == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. Data absoluta, destinatário nominal e nenhum travessão
+# ═══════════════════════════════════════════════════════════════════════════
+
+_TRAVESSOES = re.compile("[–—]")
+_DATA_ABSOLUTA = re.compile(r"\b\d{2}/\d{2}/\d{4}\b")
+_DATA_RELATIVA = re.compile(r"\b(amanhã|ontem|hoje|daqui a|em \d+ dias)\b", re.IGNORECASE)
+
+
+def _todos_os_emails(emails: list[dict]) -> list[dict]:
+    """Um cenário que dispara todos os marcos de uma vez, com nomes que trazem
+    travessão do cadastro."""
+    com_travessao = [
+        _pessoa("P1", nome_completo="Presidente — de Teste"),
+        _pessoa("P2", nome_completo="Membro – de Teste"),
+        _pessoa("P3"),
+        _pessoa("P4"),
+        _pessoa("P5"),
+        _pessoa("P9", perfil_ouvidoria="diretoria_executiva", nome_completo="Diretoria — de Teste"),
+    ]
+    participacoes, envios = [], []
+    for pid, dias in (("P2", 0), ("P3", 14)):
+        participacao, envio = _sem_assinatura(pid, DIA - timedelta(days=dias))
+        participacoes.append(participacao)
+        envios.append(envio)
+    participacoes.append(_participacao("P4", vigencia_fim=(DIA + timedelta(days=60)).isoformat()))
+    participacoes.append(_participacao("P5", vigencia_fim=(DIA - timedelta(days=40)).isoformat()))
+    banco = _banco(participacoes, envios, com_travessao)
+    avisos.avisar(banco, DIA)
+    assert {a["marco"] for a in banco.tabelas["nsp_avisos"]} == {
+        "documento_gerado",
+        "assinatura_14",
+        "vigencia_60",
+        "fim_da_carencia",
+    }
+    return emails
+
+
+class TestOEmail:
+    def test_o_detector_de_travessao_pega_o_travessao_e_a_meia_risca(self):
+        """Piso do detector."""
+        assert _TRAVESSOES.search("a — b") and _TRAVESSOES.search("a – b")
+
+    def test_nenhum_email_sai_com_travessao(self, emails):
+        for email in _todos_os_emails(emails):
+            for parte in ("assunto", "html", "texto"):
+                assert not _TRAVESSOES.search(email[parte]), (email["para"], parte)
+
+    def test_todo_assunto_traz_data_absoluta_e_nenhuma_relativa(self, emails):
+        for email in _todos_os_emails(emails):
+            assert _DATA_ABSOLUTA.search(email["assunto"]), email["assunto"]
+            assert not _DATA_RELATIVA.search(email["assunto"] + email["texto"]), email["assunto"]
+
+    def test_todo_email_abre_com_o_nome_de_quem_recebe(self, emails):
+        nomes = {"p1@hsm.test": "Presidente", "p2@hsm.test": "Membro", "p9@hsm.test": "Diretoria"}
+        for email in _todos_os_emails(emails):
+            esperado = nomes.get(email["para"], f"Pessoa de Teste {email['para'][:2].upper()}")
+            assert email["texto"].startswith(f"Olá, {esperado}"), email["texto"][:40]
+            assert esperado in email["html"]
+
+    def test_o_assunto_diz_a_acao_pedida(self, emails):
+        acoes = ("Assine ", "Cobre ", "Renove ", "Recomponha ")
+        for email in _todos_os_emails(emails):
+            assert email["assunto"].startswith(acoes), email["assunto"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. A falha de envio fica registrada e não derruba os outros avisos
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestFalhaDeEnvio:
+    def _cenario(self) -> _Banco:
+        participacoes, envios = [], []
+        for pid in ("P2", "P3"):
+            participacao, envio = _sem_assinatura(pid, DIA - timedelta(days=3))
+            participacoes.append(participacao)
+            envios.append(envio)
+        return _banco(participacoes, envios, [PRESIDENTE, MEMBRO, _pessoa("P3"), DIRETOR])
+
+    def test_o_provedor_que_explode_num_aviso_nao_para_o_outro(self, monkeypatch):
+        enviados: list[str] = []
+
+        def _explode_no_p2(destinatario, *_a, **_kw):
+            if destinatario == "p2@hsm.test":
+                raise RuntimeError("provedor fora do ar")
+            enviados.append(destinatario)
+            return True
+
+        monkeypatch.setattr(avisos, "_enviar_email", _explode_no_p2)
+        banco = self._cenario()
+
+        resultado = avisos.avisar(banco, DIA)
+
+        assert enviados == ["p3@hsm.test"]
+        assert resultado == {"enviados": 1, "falhas": 1}
+        situacao = {a["destinatario_id"]: a for a in banco.tabelas["nsp_avisos"]}
+        assert situacao["P2"]["situacao"] == "falhou"
+        assert situacao["P2"]["erro"]
+        assert situacao["P3"]["situacao"] == "enviado"
+
+    def test_o_provedor_que_recusa_fica_registrado(self, monkeypatch):
+        monkeypatch.setattr(avisos, "_enviar_email", lambda *_a, **_kw: False)
+        banco = self._cenario()
+
+        avisos.avisar(banco, DIA)
+
+        assert {a["situacao"] for a in banco.tabelas["nsp_avisos"]} == {"falhou"}
+
+    def test_a_pessoa_sem_email_fica_registrada_e_os_outros_saem(self, emails):
+        banco = self._cenario()
+        banco.tabelas["participantes"][1]["email"] = None
+
+        avisos.avisar(banco, DIA)
+
+        assert _para(emails) == ["p3@hsm.test"]
+        situacao = {a["destinatario_id"]: a["situacao"] for a in banco.tabelas["nsp_avisos"]}
+        assert situacao == {"P2": "falhou", "P3": "enviado"}
