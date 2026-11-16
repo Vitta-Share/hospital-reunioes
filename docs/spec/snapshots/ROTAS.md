@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T17:22+0000 -->
+<!-- last_update: 2026-11-16T22:15+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -353,9 +353,9 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | GET | `/ouvidoria-setor/nsp/{token}` | A tela que o link do email do Núcleo abre, sem senha (ADR 0088, | ❌ |
 | POST | `/ouvidoria-setor/nsp/{token}/recebido` | O botão Recebido pelo NSP, sem senha e uma vez só (ADR 0088, decisão 4). | ❌ |
 | GET | `/ouvidoria-setor/{token}` | O que o titular vê ao abrir o link do email: extrato, prazo e se o caso | ❌ |
-| POST | `/ouvidoria-setor/{token}/devolver` | A Devolução à Ouvidoria: este caso não é do meu setor (issue #600). | ❌ |
+| POST | `/ouvidoria-setor/{token}/devolver` | A Devolução à Ouvidoria pelo link do email (issue #600): este caso não é | ❌ |
 | POST | `/ouvidoria-setor/{token}/prorrogacao` | O pedido de mais prazo, feito pelo próprio link do email (issue #333). | ❌ |
-| POST | `/ouvidoria-setor/{token}/responder` | A resposta da área: o que foi FEITO para corrigir. Grava o marco T2, | ❌ |
+| POST | `/ouvidoria-setor/{token}/responder` | A resposta da área pelo link do email. O token é de uso único, com | ❌ |
 
 ## ouvidoria-triagem-email (`app/routers/ouvidoria_triagem_email.py`)
 
