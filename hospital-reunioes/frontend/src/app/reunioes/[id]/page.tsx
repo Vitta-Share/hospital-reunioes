@@ -1718,8 +1718,9 @@ export default function ReuniaoDetailPage() {
           </div>
         )}
 
-      {/* Card: status live dos signatarios (polling 30s + botao Atualizar + Lembrar por linha) */}
-      {reuniao.status_ata === "AGUARDANDO_ASSINATURA" && !hideAtaSections && (
+      {/* Card: status live dos signatarios (polling 30s + botao Atualizar + Lembrar por linha).
+          A ata do Núcleo tem envelope próprio e a situação dela na tela da ata (issue #1776). */}
+      {reuniao.status_ata === "AGUARDANDO_ASSINATURA" && !hideAtaSections && !reuniao.do_nucleo && (
         <SignatariosCard
           idReuniao={reuniao.id_reuniao}
           envelopeKey={reuniao.envelope_key_clicksign || ""}
@@ -1731,7 +1732,10 @@ export default function ReuniaoDetailPage() {
 
       {/* Modo interno (ADR 0030, #276): o Envelope morreu, mas as acoes que
           ainda nao viraram Pendencia seguem editaveis pelo Facilitador dono. */}
-      {reuniao.status_ata === "AGUARDANDO_ASSINATURA" && Boolean(reuniao.modo_interno_desde) && !hideAtaSections && (
+      {reuniao.status_ata === "AGUARDANDO_ASSINATURA" &&
+        Boolean(reuniao.modo_interno_desde) &&
+        !hideAtaSections &&
+        !reuniao.do_nucleo && (
         <div className="flex items-center justify-between gap-4 bg-white rounded-2xl border border-border shadow-premium px-6 py-4">
           <p className="text-sm text-slate-600">
             As ações que ainda não viraram Pendência podem ser corrigidas enquanto aguardam o aceite.
@@ -1790,8 +1794,9 @@ export default function ReuniaoDetailPage() {
         </div>
       )}
 
-      {/* Banner: Ata Aprovada (finalizada sem assinatura digital) */}
-      {reuniao.status_ata === "APROVADA" && !hideAtaSections && (
+      {/* Banner: Ata Aprovada (finalizada sem assinatura digital). Na do Núcleo,
+          aprovada é a validada que ainda vai para assinatura (issue #1776). */}
+      {reuniao.status_ata === "APROVADA" && !hideAtaSections && !reuniao.do_nucleo && (
         <div className="flex items-center justify-between gap-4 bg-green-50 border border-green-200 rounded-2xl px-6 py-4">
           <div className="flex items-start gap-4">
             <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
