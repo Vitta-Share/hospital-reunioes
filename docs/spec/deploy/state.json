@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-11-16T11:54:01-03:00",
+  "updated_at": "2026-11-16T12:17:29-03:00",
   "updated_by": "onda-enxuta@fechar_onda",
-  "last_app_version": "0.300.0",
+  "last_app_version": "0.301.0",
   "production": {
     "domain_root": "hospitalsaomatheus.cloud",
     "vps_ip": "31.97.29.32",
@@ -21,15 +21,15 @@
       "port": 8000,
       "health_path": "/api/health",
       "status": "healthy",
-      "last_deploy_sha": "4d2b996077a83cc5f57b37c153e58f0eed528782",
-      "last_deploy_at": "2026-11-16T11:54:01-03:00",
+      "last_deploy_sha": "5efd99764c66ec1dd83ac6f75226d2c6f51d458c",
+      "last_deploy_at": "2026-11-16T12:17:29-03:00",
       "last_health_check": {
-        "at": "2026-11-16T11:54:01-03:00",
-        "latency_ms": 148,
+        "at": "2026-11-16T12:17:29-03:00",
+        "latency_ms": 181,
         "http_status": 200,
         "body_ok": true
       },
-      "build_duration_seconds": 22,
+      "build_duration_seconds": 24,
       "env_count": 24
     },
     {
@@ -39,15 +39,15 @@
       "port": 3000,
       "health_path": null,
       "status": "healthy",
-      "last_deploy_sha": "c23baf472734711e8a8bbb38a2a1300c71a5e0ad",
-      "last_deploy_at": "2026-11-16T03:09:31-03:00",
+      "last_deploy_sha": "5efd99764c66ec1dd83ac6f75226d2c6f51d458c",
+      "last_deploy_at": "2026-11-16T12:17:29-03:00",
       "last_health_check": {
-        "at": "2026-11-16T03:09:31-03:00",
-        "latency_ms": 216,
+        "at": "2026-11-16T12:17:29-03:00",
+        "latency_ms": 164,
         "http_status": 200,
         "body_ok": true
       },
-      "build_duration_seconds": 175,
+      "build_duration_seconds": 229,
       "env_count": 5
     },
     {
@@ -60,7 +60,7 @@
       "last_deploy_sha": "93870744",
       "last_deploy_at": "2026-09-23T13:21:42-03:00",
       "last_health_check": {
-        "at": "2026-11-16T11:54:01-03:00",
+        "at": "2026-11-16T12:17:29-03:00",
         "latency_ms": null,
         "http_status": null,
         "body_ok": true
@@ -208,8 +208,8 @@
   ],
   "last_run": {
     "mode": "onda-enxuta",
-    "sha": "4d2b996077a83cc5f57b37c153e58f0eed528782",
+    "sha": "5efd99764c66ec1dd83ac6f75226d2c6f51d458c",
     "result": "healthy",
-    "duration_seconds": 844
+    "duration_seconds": 319
   }
 }

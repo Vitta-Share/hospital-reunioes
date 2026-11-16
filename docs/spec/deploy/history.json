@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-16T12:17:29-03:00",
+      "sha": "5efd99764c66ec1dd83ac6f75226d2c6f51d458c",
+      "app_version": "0.301.0",
+      "subject": "Onda onda-a-onda2: Ponte de automação lê a resposta do diretor na Conversa da Demanda; Tecnologia diz onde chega e onde responder a pergunta da Vitta",
+      "raw_subject": "chore(deploy): registro da onda onda-a-onda2 (#1811 #1810)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1803
+      ],
+      "result": "healthy",
+      "duration_seconds": 319,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta onda-a-onda2: PR #1811 (issue #1806), PR #1810 (issue #1807), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 6,
+        "build_s": {
+          "backend": 24,
+          "frontend": 229
+        },
+        "health_s": 20
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-16T11:54:01-03:00",
       "sha": "4d2b996077a83cc5f57b37c153e58f0eed528782",
       "app_version": "0.300.0",
