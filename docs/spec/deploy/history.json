@@ -2,6 +2,49 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-16T15:11:44-03:00",
+      "sha": "e382be0b40366170947621fb2f6431cb3300fdac",
+      "app_version": "0.302.1",
+      "subject": "Onda nsp-1800-onda1: Regimento material assinado gera o Termo novo dos membros",
+      "raw_subject": "chore(deploy): registro da onda nsp-1800-onda1 (#1816)",
+      "scope": [
+        "backend"
+      ],
+      "prds": [],
+      "result": "healthy",
+      "duration_seconds": 58,
+      "services_touched": [
+        "backend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp-1800-onda1: PR #1816 (issue #1800), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 2,
+        "build_s": {
+          "backend": 25
+        },
+        "health_s": 10
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-16T14:26:55-03:00",
       "sha": "f981675f97992e454c4375a5ba1a1e0b4e2d00e5",
       "app_version": "0.302.0",
