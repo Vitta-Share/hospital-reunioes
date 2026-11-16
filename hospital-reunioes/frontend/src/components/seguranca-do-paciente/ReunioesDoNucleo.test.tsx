@@ -179,3 +179,57 @@ describe("o calendário do ano e a pauta (issue #1773)", () => {
     expect(screen.queryByRole("button", { name: /Pauta de/ })).toBeNull();
   });
 });
+
+describe("presença e reunião não instalada (issue #1774)", () => {
+  const NAO_INSTALADA: ReuniaoDoNucleo = {
+    ...REUNIAO,
+    id_reuniao: "RD_20261110_1",
+    data: "2026-11-10",
+    titulo: "Ordinária sem quórum",
+    status_ata: "NAO_INSTALADA",
+  };
+
+  it("a reunião sem quórum aparece como Não instalada", async () => {
+    fetchMock.mockImplementation(async () =>
+      responder(calendario({ pode_abrir: true, pode_criar: false, reunioes: [NAO_INSTALADA, REUNIAO] })),
+    );
+    render(<ReunioesDoNucleo />);
+
+    const linha = (await screen.findByText("Ordinária sem quórum")).closest("li")!;
+    expect(within(linha).getByText("Não instalada")).toBeTruthy();
+    const outra = screen.getByText("Reunião ordinária de novembro").closest("li")!;
+    expect(within(outra).queryByText("Não instalada")).toBeNull();
+  });
+
+  it("a Presidência abre a presença da reunião programada", async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === `/api/nsp/reunioes/${REUNIAO.id_reuniao}/presenca`) {
+        return responder({
+          id_reuniao: REUNIAO.id_reuniao,
+          data: REUNIAO.data,
+          status_ata: "PROGRAMADA",
+          pessoas: [],
+          quorum: { total: 0, presentes: 0, minimo: 0, presidencia_ou_suplente: false, instalada: false },
+          pode_registrar: false,
+        });
+      }
+      return responder(calendario({ pode_abrir: true, pode_criar: true, reunioes: [NAO_INSTALADA, REUNIAO] }));
+    });
+    render(<ReunioesDoNucleo />);
+
+    const linha = (await screen.findByText("Reunião ordinária de novembro")).closest("li")!;
+    const naoInstalada = screen.getByText("Ordinária sem quórum").closest("li")!;
+    expect(within(naoInstalada).queryByRole("button", { name: "Presença" })).toBeNull();
+    fireEvent.click(within(linha).getByRole("button", { name: "Presença" }));
+
+    expect(await within(linha).findByText("Sem quórum: 0 presentes de 0, mínimo de 0.")).toBeTruthy();
+  });
+
+  it("quem não cria reunião não vê o botão da presença", async () => {
+    fetchMock.mockImplementation(async () => responder(calendario({ pode_abrir: true, pode_criar: false })));
+    render(<ReunioesDoNucleo />);
+
+    await screen.findByText("Reunião ordinária de novembro");
+    expect(screen.queryByRole("button", { name: "Presença" })).toBeNull();
+  });
+});

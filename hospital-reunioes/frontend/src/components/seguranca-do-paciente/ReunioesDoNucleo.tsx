@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { CalendarDays, CalendarPlus, ClipboardList, Lock, Plus } from "lucide-react";
+import { CalendarDays, CalendarPlus, ClipboardList, Lock, Plus, Users } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
 
 import { PautaDaReuniao } from "./PautaDaReuniao";
+import { PresencaDaReuniao } from "./PresencaDaReuniao";
 
 const CARTAO = "bg-white rounded-2xl border border-border shadow-premium";
 const ROTA = "/api/nsp/reunioes";
@@ -93,6 +94,8 @@ export function ReunioesDoNucleo() {
   const [horaDoCalendario, setHoraDoCalendario] = useState("14:00");
   const [aviso, setAviso] = useState<string | null>(null);
   const [pautaAberta, setPautaAberta] = useState<string | null>(null);
+  // A reunião com o painel de presença aberto (issue #1774).
+  const [presenca, setPresenca] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     const tk = await token();
@@ -351,9 +354,15 @@ export function ReunioesDoNucleo() {
                         {r.hora_inicio ? `, ${r.hora_inicio.slice(0, 5)}` : ""}
                       </span>
                     </span>
+                    {r.status_ata === "NAO_INSTALADA" && (
+                      <span className="ml-auto shrink-0 rounded-full bg-orange-100 text-orange-800 text-xs font-semibold px-2 py-0.5">
+                        Não instalada
+                      </span>
+                    )}
                   </>
                 );
                 const aberta = pautaAberta === r.id_reuniao;
+                const podePresenca = calendario.pode_criar && r.status_ata === "PROGRAMADA";
                 return (
                   <li key={r.id_reuniao} className="space-y-2">
                     {calendario.pode_abrir ? (
@@ -381,6 +390,28 @@ export function ReunioesDoNucleo() {
                     {aberta && (
                       <div className={`${CARTAO} px-4 py-4`}>
                         <PautaDaReuniao idReuniao={r.id_reuniao} />
+                      </div>
+                    )}
+                    {podePresenca && (
+                      <button
+                        type="button"
+                        onClick={() => setPresenca((atual) => (atual === r.id_reuniao ? null : r.id_reuniao))}
+                        aria-expanded={presenca === r.id_reuniao}
+                        className="inline-flex items-center gap-2 rounded-xl border border-border text-sm px-3 py-1.5"
+                      >
+                        <Users className="w-4 h-4" aria-hidden />
+                        Presença
+                      </button>
+                    )}
+                    {podePresenca && presenca === r.id_reuniao && (
+                      <div className={`${CARTAO} px-4 py-3`}>
+                        <PresencaDaReuniao
+                          idReuniao={r.id_reuniao}
+                          onMudou={() => {
+                            setPresenca(null);
+                            carregar();
+                          }}
+                        />
                       </div>
                     )}
                   </li>
