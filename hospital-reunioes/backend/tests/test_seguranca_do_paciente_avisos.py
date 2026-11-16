@@ -428,7 +428,7 @@ class TestDepoisDaAssinatura:
 # 3. Data absoluta, destinatário nominal e nenhum travessão
 # ═══════════════════════════════════════════════════════════════════════════
 
-_TRAVESSOES = re.compile("[–—]")
+_TRAVESSOES = re.compile("[\u2013\u2014]")
 _DATA_ABSOLUTA = re.compile(r"\b\d{2}/\d{2}/\d{4}\b")
 _DATA_RELATIVA = re.compile(r"\b(amanhã|ontem|hoje|daqui a|em \d+ dias)\b", re.IGNORECASE)
 
@@ -437,12 +437,12 @@ def _todos_os_emails(emails: list[dict]) -> list[dict]:
     """Um cenário que dispara todos os marcos de uma vez, com nomes que trazem
     travessão do cadastro."""
     com_travessao = [
-        _pessoa("P1", nome_completo="Presidente — de Teste"),
-        _pessoa("P2", nome_completo="Membro – de Teste"),
+        _pessoa("P1", nome_completo="Presidente \u2014 de Teste"),
+        _pessoa("P2", nome_completo="Membro \u2013 de Teste"),
         _pessoa("P3"),
         _pessoa("P4"),
         _pessoa("P5"),
-        _pessoa("P9", perfil_ouvidoria="diretoria_executiva", nome_completo="Diretoria — de Teste"),
+        _pessoa("P9", perfil_ouvidoria="diretoria_executiva", nome_completo="Diretoria \u2014 de Teste"),
     ]
     participacoes, envios = [], []
     for pid, dias in (("P2", 0), ("P3", 14)):
@@ -465,7 +465,7 @@ def _todos_os_emails(emails: list[dict]) -> list[dict]:
 class TestOEmail:
     def test_o_detector_de_travessao_pega_o_travessao_e_a_meia_risca(self):
         """Piso do detector."""
-        assert _TRAVESSOES.search("a — b") and _TRAVESSOES.search("a – b")
+        assert _TRAVESSOES.search("a \u2014 b") and _TRAVESSOES.search("a \u2013 b")
 
     def test_nenhum_email_sai_com_travessao(self, emails):
         for email in _todos_os_emails(emails):
