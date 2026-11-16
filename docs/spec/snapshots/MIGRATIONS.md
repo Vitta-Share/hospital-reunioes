@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T06:06+0000 -->
+<!-- last_update: 2026-11-16T14:53+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -157,6 +157,7 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 155 | `155_nsp_capacitacoes.sql` | Segurança do Paciente, as Capacitações do Núcleo | 3 | 0 | 4 | 0 |
 | 158 | `158_nsp_avisos.sql` | Segurança do Paciente, os avisos do Termo e da vigência | 1 | 0 | 1 | 0 |
 | 159 | `159_nsp_assinatura_dos_documentos.sql` | Segurança do Paciente, a assinatura dos documentos do Núcleo | 2 | 0 | 5 | 0 |
+| 161 | `161_tecnologia_origem_da_mensagem.sql` | a origem da mensagem da Conversa da Demanda (issue #1805, | 0 | 1 | 0 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 151 migrations.
+**Total:** 152 migrations.
