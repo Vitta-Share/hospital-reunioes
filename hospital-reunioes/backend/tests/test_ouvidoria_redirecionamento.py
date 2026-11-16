@@ -1028,14 +1028,17 @@ class TestARegraDoRelogioSaiuDaRotaDaDevolucao:
     outra porta sem os ajustes das issues #607 e #623."""
 
     def test_as_duas_portas_chamam_a_mesma_funcao(self):
+        # A devolução do setor mora no serviço da Tela do responsável desde a
+        # issue #1885: é ele, e não mais a rota do token, que para o relógio.
         from app.routers import ouvidoria_setor
-        from app.services import ouvidoria_relogio_da_area
+        from app.services import ouvidoria_relogio_da_area, ouvidoria_tela_do_responsavel
 
-        assert ouvidoria_setor.ouvidoria_relogio_da_area is ouvidoria_relogio_da_area
+        assert ouvidoria_tela_do_responsavel.ouvidoria_relogio_da_area is ouvidoria_relogio_da_area
         assert ouvidoria_router.ouvidoria_relogio_da_area is ouvidoria_relogio_da_area
-        assert not hasattr(ouvidoria_setor, "_restaurar_prazo"), (
-            "a cópia antiga do rollback voltou a existir na rota da devolução"
-        )
+        for modulo in (ouvidoria_setor, ouvidoria_tela_do_responsavel):
+            assert not hasattr(modulo, "_restaurar_prazo"), (
+                "a cópia antiga do rollback voltou a existir na devolução do setor"
+            )
 
     def test_parar_o_relogio_filtra_pelo_estado_de_origem_lido(self):
         """A generalização que a fatia exigiu: a devolução parte só de

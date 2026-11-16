@@ -1,0 +1,785 @@
+"""As ações da Tela do responsável, por qualquer porta (issue #1885, ADR 0099).
+
+Abrir o caso, responder, pedir prorrogação e devolver à Ouvidoria moram aqui. O
+serviço recebe o caso e o ator e não conhece token: quem chega pelo link do
+email (`app.routers.ouvidoria_setor`) resolve o caso e o ator a partir do link e
+chama estas funções, e a porta do login (ADR 0099, decisão 4) vai chamar as
+mesmas, com as mesmas guardas e a mesma ordem.
+
+O que é de cada porta entra por parâmetro:
+
+- o `Ator` diz quem agiu e por qual porta, e a porta vai para a trilha
+  (`ouvidoria_porta`);
+- a `Trava` é o uso único da resposta. Na porta do link ela é o claim do
+  token: responder e devolver a consomem, e a devolvem quando a ação não
+  entrou.
+
+As recusas saem como `HTTPException` porque as duas portas são HTTP e o texto
+que o responsável lê é o mesmo nas duas.
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+import logging
+import uuid
+from dataclasses import dataclass
+from typing import Protocol
+
+from fastapi import HTTPException, UploadFile, status
+from httpx import HTTPError
+from postgrest.exceptions import APIError
+
+from app.config import settings
+from app.services import (
+    ouvidoria_blocos,
+    ouvidoria_devolucao_a_ouvidoria,
+    ouvidoria_notificacoes,
+    ouvidoria_porta,
+    ouvidoria_prorrogacao,
+    ouvidoria_relogio_da_area,
+    ouvidoria_respostas,
+    storage,
+)
+from app.services.ouvidoria_anexos import AnexoRecusadoError, validar_anexo
+from app.services.ouvidoria_prazos import (
+    TETO_PRORROGACAO_DIAS_UTEIS,
+    vencimento_prorrogado,
+)
+
+logger = logging.getLogger(__name__)
+
+# O que a Tela do responsável pode saber do caso. Fechado campo a campo, como no
+# email (`_CAMPOS_DO_EMAIL`): o setor recebe o necessário para resolver, nada
+# além. `contato_em` e `data_abertura` entram por causa do teto da prorrogação,
+# que conta da entrada da manifestação; nenhum dos dois vai para a resposta.
+CAMPOS_DO_CASO = (
+    "id, protocolo, setor, categoria, gravidade, extrato_para_o_setor, "
+    # `resumo` e `relato_integral` entraram com os três blocos do acionamento
+    # (issue #481, ADR 0041): a tela do responsável lê o mesmo que o email.
+    "resumo, relato_integral, "
+    "prazo_area_em, status, sigilo_reforcado, anonimo, manifestante_nome, "
+    # O Paciente do caso (issue #664, ADR 0052), pela mesma guarda do email:
+    # `ouvidoria_blocos.paciente_do_caso` decide se as duas colunas saem daqui.
+    "paciente_nome, paciente_referencia, "
+    # `area_estourou_em` entra porque a tela projeta o prazo com a MESMA
+    # função do painel: sem a coluna, as duas APIs diriam `cumprimento`
+    # diferente para o mesmo caso devolvido (issue #374).
+    "contato_em, data_abertura, respondida_em, area_estourou_em, "
+    # Os dois carimbos do apagamento entram na MESMA tupla da leitura do caso
+    # (issue #631), pelo mesmo motivo das outras portas de escrita: guarda que
+    # lê coluna não selecionada lê None e deixa passar em silêncio, com a
+    # chamada no lugar certo. Nenhum dos dois vai para a resposta da tela.
+    "anonimizada_em, apagamento_pedido_em"
+)
+
+# O caso que chegou à tela sem extrato diz aqui a MESMA coisa que diz no bloco
+# da nota: dois fallbacks para o mesmo conteúdo na mesma resposta são a
+# divergência que a montagem única veio matar (issue #481).
+_SEM_EXTRATO = ouvidoria_blocos.SEM_EXTRATO
+
+# O que o PostgREST pode levantar aqui (issue #509). `APIError` só nasce DEPOIS
+# que a resposta chega; timeout e conexão recusada sobem como `HTTPError` do
+# httpx, que herda de `Exception` e não de `OSError`. Sem os dois na tupla, a
+# falha de rede escapa, vira 500 cru e leva junto o uso único que já tinha sido
+# reivindicado.
+FALHAS_DO_POSTGREST = (APIError, HTTPError)
+
+# A mensagem que o responsável lê quando o banco não respondeu. Ela existe
+# separada das recusas do token de propósito: 404 e 410 dizem que o link acabou,
+# e esta diz que o link continua de pé e o problema é nosso.
+INSTABILIDADE = "O sistema está instável agora e o seu link continua valendo. Aguarde um instante e tente de novo."
+
+_LINK_JA_USADO = "Este link já foi usado: a resposta do setor já entrou"
+
+
+def indisponivel() -> HTTPException:
+    """A recusa temporária da tela, sempre com o mesmo texto e o mesmo 503."""
+    return HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=INSTABILIDADE)
+
+
+@dataclass(frozen=True)
+class Ator:
+    """Quem agiu na Tela do responsável e por qual porta.
+
+    `email` é o de quem recebeu o acionamento, gravado no pedido de prazo para
+    a Ouvidoria saber com quem falar."""
+
+    nome: str
+    email: str | None
+    porta: str
+
+
+class Trava(Protocol):
+    """O uso único da resposta, do jeito de cada porta.
+
+    `consumir` devolve se esta ação ganhou a vez; a falha do banco sobe como
+    `FALHAS_DO_POSTGREST`. `devolver` solta a vez desta ação quando ela não
+    entrou e nunca levanta."""
+
+    def consumir(self) -> bool: ...
+
+    def devolver(self) -> None: ...
+
+
+def registrar_acesso(supabase, manifestacao_id: str, nome: str, acao: str) -> None:
+    """Todo acesso ao caso deixa registro (RN-45, LGPD, ADR 0034). Best-effort:
+    o log não derruba a página do titular."""
+    try:
+        supabase.table("ouvidoria_acessos").insert(
+            {
+                "manifestacao_id": manifestacao_id,
+                "ator_id": None,
+                "ator_nome": f"{nome} (portal do setor)",
+                "acao": acao,
+            }
+        ).execute()
+    except Exception:
+        logger.warning("Falha ao registrar acesso do portal do setor à manifestação %s", manifestacao_id)
+
+
+def _carregar_pedido_de_prazo(supabase, manifestacao_id: str) -> dict | None:
+    """O pedido de prorrogação do caso, com a mesma recusa temporária das outras
+    leituras da tela. Sem isto, a última leitura da abertura seria a única do
+    fluxo a sair como 500 opaco por falha de rede."""
+    try:
+        return ouvidoria_prorrogacao.carregar_pedido(supabase, manifestacao_id)
+    except FALHAS_DO_POSTGREST as exc:
+        logger.error("Falha ao ler o pedido de prorrogação de %s pelo portal do setor", manifestacao_id)
+        raise indisponivel() from exc
+
+
+async def abrir(supabase, *, caso: dict, ator: Ator, agora: dt.datetime) -> dict:
+    """O que o responsável vê ao abrir o caso: extrato, prazo e se o caso ainda
+    aceita resposta. Cada abertura deixa o registro de acesso."""
+    from app.routers.ouvidoria import _projetar_prazo, carregar_feriados_ou_degradado
+
+    registrar_acesso(supabase, caso["id"], ator.nome, "portal_setor_abrir")
+
+    # O calendário que não pôde ser lido viaja na resposta (issue #449): esta
+    # página afirma "vence em N dias úteis" para quem tem que responder, e sem a
+    # marca ela afirmava isso com um calendário vazio por falha de leitura.
+    feriados, degradado = carregar_feriados_ou_degradado(supabase)
+    prazo = _projetar_prazo(caso, agora, feriados)
+    return {
+        "protocolo": caso.get("protocolo"),
+        "setor": caso.get("setor"),
+        "categoria": caso.get("categoria"),
+        "gravidade": caso.get("gravidade"),
+        "extrato": (caso.get("extrato_para_o_setor") or "").strip() or _SEM_EXTRATO,
+        # Os três blocos de leitura (ADR 0041), montados pela MESMA função que
+        # monta o email de acionamento: a tela e o email nunca contam versões
+        # diferentes do mesmo caso, inclusive na variante sigilosa da RN-79.
+        "blocos": ouvidoria_blocos.montar_blocos(caso),
+        "aviso": ouvidoria_blocos.aviso_do_caso(caso),
+        # O décimo elemento da RN-59 (issue #511), pela mesma guarda que corta
+        # os blocos: caso sigiloso e caso anônimo chegam sem quem manifestou.
+        "identificacao": ouvidoria_blocos.identificacao_do_caso(caso),
+        # O Paciente do caso (issue #664), logo abaixo de quem manifestou e pela
+        # MESMA função do email: viaja no caso comum e no anônimo, nunca no
+        # sigilo reforçado (ADR 0052, decisão 4).
+        "paciente": ouvidoria_blocos.paciente_do_caso(caso),
+        "sigiloso": bool(caso.get("sigilo_reforcado")),
+        "destinatario_nome": ator.nome,
+        "aceita_resposta": caso.get("status") == "aguardando_area",
+        # As regras da prorrogação ficam visíveis mesmo quando o pedido não
+        # cabe mais (PRD #318, história 2): quem lê precisa saber que o
+        # recurso existe e por que não está disponível.
+        "prorrogacao": ouvidoria_prorrogacao.resumo_para_o_portal(
+            caso, _carregar_pedido_de_prazo(supabase, caso["id"]), agora
+        ),
+        "degradado": degradado,
+        **prazo,
+    }
+
+
+def _limpar_t2(supabase, manifestacao_id: str) -> bool:
+    """Desfaz o carimbo T2 quando a transição NÃO entrou, e só nesse caso.
+    Devolve se desfez de fato.
+
+    O `ReadTimeout` não prova que o Postgres deixou de executar: ele diz que a
+    resposta não voltou a tempo, e a RPC pode ter commitado transição e
+    movimento. Limpar às cegas apagaria a resposta da área de um caso que já
+    andou, que é perda de dado do cidadão. O filtro por `aguardando_area` é o
+    que separa os dois mundos, porque ele só casa enquanto a transição não
+    passou, e a linha casada é a prova de que o caso continua onde a resposta o
+    deixou. É essa prova que decide se a trava pode voltar a valer."""
+    try:
+        result = (
+            supabase.table("ouvidoria_protocolos")
+            .update({"respondida_em": None, "resposta_da_area": None, "respondida_por_nome": None})
+            .eq("id", manifestacao_id)
+            .eq("status", "aguardando_area")
+            .execute()
+        )
+    except FALHAS_DO_POSTGREST:
+        logger.warning("Falha ao limpar o T2 da manifestação %s", manifestacao_id)
+        return False
+    return bool(result.data)
+
+
+def _consumir(trava: Trava, manifestacao_id: str) -> None:
+    """Gasta o uso único desta ação, ou recusa sem queimar nada.
+
+    O 410 mentiria na falha do banco (diria que a resposta do setor entrou
+    quando nada entrou), mas o 503 sozinho também mentiria: o claim pode ter
+    commitado antes do read estourar, e aí o link ficaria queimado por falha de
+    infraestrutura. A devolução pela própria trava resolve os dois casos sem
+    corrida."""
+    try:
+        ganhou = trava.consumir()
+    except FALHAS_DO_POSTGREST as exc:
+        trava.devolver()
+        logger.error("Falha ao consumir o link do portal do setor da manifestação %s", manifestacao_id)
+        raise indisponivel() from exc
+    if not ganhou:
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail=_LINK_JA_USADO)
+
+
+async def responder(
+    supabase,
+    *,
+    caso: dict,
+    ator: Ator,
+    trava: Trava,
+    agora: dt.datetime,
+    resposta: str,
+    arquivos: list[UploadFile],
+) -> dict:
+    """A resposta da área: o que foi FEITO para corrigir. Grava o marco T2,
+    leva o caso para "respondido" e registra o movimento, tudo pela mesma
+    máquina de estados do painel (RPC `ouvidoria_transicionar`).
+
+    A trava é de uso único: a segunda tentativa pela mesma porta não duplica
+    resposta nem quebra o estado."""
+    from app.routers.ouvidoria import _recusa_de_anexo, barrar_caso_apagado
+
+    manifestacao_id = caso["id"]
+
+    # Antes de ler o arquivo e antes de qualquer upload (issue #631): binário
+    # de terceiro no bucket privado de um caso apagado é PII permanente, porque
+    # a Retenção só revisita caso com `anonimizada_em IS NULL` e nunca mais
+    # volta a este. A guarda vem antes da conferência de estado de propósito: é
+    # ela que a porta tinha por consequência, e o responsável que lê a recusa
+    # precisa saber que o caso acabou, não que ele "foi movimentado".
+    #
+    # `canal_publico` porque a porta do link não tem login: a recusa do
+    # apagamento PENDENTE sai neutra, sem dizer que a Diretoria Executiva mandou
+    # apagar o caso, para o titular da área (que costuma ser a parte reclamada)
+    # não receber decisão de governança do hospital por um link de email.
+    barrar_caso_apagado(caso, "respondido pelo portal do setor", canal_publico=True)
+
+    # A regra do que vale como resposta vive inteira no serviço de respostas, e
+    # recebe o texto CRU: piso, teto, invisível e travessão são decididos num
+    # lugar só, e o texto que passa é o mesmo que a validação mediu.
+    recusa = ouvidoria_respostas.motivo_de_recusa(resposta)
+    if recusa:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=recusa)
+    texto = ouvidoria_respostas.texto_da_resposta(resposta)
+    if caso.get("status") != "aguardando_area":
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="A Ouvidoria já movimentou este caso e ele não aceita mais resposta por este link",
+        )
+
+    # Os anexos passam pelas MESMAS regras do registro manual (issue #321), e a
+    # validação vem toda ANTES da trava: arquivo recusado não queima o link do
+    # titular, ele troca o arquivo e envia de novo.
+    validados: list[tuple[str, str, str, bytes]] = []
+    for arquivo in arquivos:
+        try:
+            extensao, content_type = validar_anexo(arquivo.filename or "", arquivo.size or 0)
+        except AnexoRecusadoError as exc:
+            raise _recusa_de_anexo(exc) from exc
+        conteudo = await arquivo.read()
+        # O tamanho real manda: o Content-Length é do cliente.
+        try:
+            validar_anexo(arquivo.filename or "", len(conteudo))
+        except AnexoRecusadoError as exc:
+            raise _recusa_de_anexo(exc) from exc
+        validados.append((arquivo.filename or "anexo", extensao, content_type, conteudo))
+
+    _consumir(trava, manifestacao_id)
+
+    # O texto da área e o marco T2 entram ANTES da transição: sem transação
+    # entre as duas escritas, a ordem decide o que se perde numa falha. Assim,
+    # falha aqui devolve a trava e nada mudou; falha na RPC limpa o carimbo. O
+    # caso nunca vira "respondido" sem a resposta gravada.
+    carimbo_t2 = {
+        "respondida_em": agora.isoformat(),
+        "resposta_da_area": texto,
+        "respondida_por_nome": ator.nome,
+    }
+    try:
+        supabase.table("ouvidoria_protocolos").update(carimbo_t2).eq("id", manifestacao_id).execute()
+    except FALHAS_DO_POSTGREST as exc:
+        trava.devolver()
+        logger.error("Falha ao carimbar o T2 da manifestação %s", manifestacao_id)
+        raise indisponivel() from exc
+
+    try:
+        supabase.rpc(
+            "ouvidoria_transicionar",
+            {
+                "p_manifestacao_id": manifestacao_id,
+                "p_estado_novo": "respondido",
+                "p_autor_id": None,
+                "p_autor_nome": ator.nome,
+                # O TEXTO viaja junto: a coluna `resposta_da_area` guarda só
+                # a resposta corrente, e a tela a sobrescreve no ciclo
+                # seguinte. É este movimento que faz a resposta devolvida
+                # sobreviver à resposta que veio depois (issue #374). A porta
+                # vai na última linha, para o ouvidor saber por onde a resposta
+                # chegou (ADR 0099).
+                "p_observacao": ouvidoria_porta.com_porta(
+                    ouvidoria_respostas.observacao_da_resposta(texto), ator.porta
+                ),
+            },
+        ).execute()
+    except FALHAS_DO_POSTGREST as exc:
+        # A regra do banco recusou (corrida com outra transição), a rede caiu ou
+        # a RPC falhou. A limpeza do carimbo é quem diz onde o caso está: ela só
+        # casa linha enquanto ele continua aguardando a área.
+        desfez = _limpar_t2(supabase, manifestacao_id)
+        if not desfez:
+            # O caso saiu de `aguardando_area`, ou não foi possível saber. Nos
+            # dois, a trava não volta: a guarda de estado protege a ESCRITA, e a
+            # abertura pelo link não olha status nenhum, então um claim
+            # devolvido aqui reabriria a leitura do relato integral e da
+            # identificação de quem manifestou pelo resto dos 30 dias do token.
+            # Link queimado custa uma conversa com a Ouvidoria; leitura reaberta
+            # custa o dado do cidadão.
+            logger.error(
+                "Transição do portal do setor falhou com o caso %s fora de aguardando_area",
+                manifestacao_id,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "Este caso saiu da fila da área durante o envio, então este link não responde mais por ele. "
+                    "A sua resposta pode já ter sido registrada: confirme com a Ouvidoria antes de enviar de novo."
+                ),
+            ) from exc
+        # O caso continua onde estava e o carimbo saiu: o titular tenta de novo
+        # pela mesma porta. `code` só existe no `APIError`, porque a falha de
+        # transporte acontece antes de haver resposta do PostgREST para ter
+        # código.
+        trava.devolver()
+        codigo = getattr(exc, "code", None)
+        if codigo == "23514":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A Ouvidoria movimentou o caso agora mesmo: recarregue a página",
+            ) from exc
+        logger.error("Erro na RPC ouvidoria_transicionar pelo portal do setor (código %s)", codigo)
+        raise indisponivel() from exc
+
+    # A resposta já entrou; os anexos são best-effort a partir daqui, no mesmo
+    # desenho do registro manual: caminho sorteado, binário no bucket privado,
+    # só metadados no banco, e sem linha órfã apontando para o vazio.
+    anexos_gravados = 0
+    for filename, extensao, content_type, conteudo in validados:
+        path = f"manifestacao-{manifestacao_id}/{uuid.uuid4().hex}{extensao}"
+        if not storage.upload_private(
+            supabase,
+            bucket=settings.supabase_storage_bucket_anexos_ouvidoria,
+            path=path,
+            content=conteudo,
+            content_type=content_type,
+        ):
+            logger.error("Falha ao subir o anexo %s da resposta do setor (%s)", filename, manifestacao_id)
+            continue
+        try:
+            (
+                supabase.table("ouvidoria_anexos")
+                .insert(
+                    {
+                        "manifestacao_id": manifestacao_id,
+                        "filename": filename,
+                        "content_type": content_type,
+                        "tamanho_bytes": len(conteudo),
+                        "storage_path": path,
+                        "enviado_por": None,
+                        "enviado_por_nome": ator.nome,
+                    }
+                )
+                .execute()
+            )
+            anexos_gravados += 1
+        except FALHAS_DO_POSTGREST:
+            # Mesma limpeza do anexo da manifestação: sem a linha, o binário
+            # fica órfão. Se nem a limpeza der certo, o caminho vai para o log.
+            if not storage.delete_file(supabase, settings.supabase_storage_bucket_anexos_ouvidoria, path):
+                logger.error("Anexo órfão no bucket após falha de registro: %s", path)
+            logger.error("Falha ao registrar o anexo %s da resposta do setor (%s)", filename, manifestacao_id)
+
+    registrar_acesso(supabase, manifestacao_id, ator.nome, "portal_setor_responder")
+    return {
+        "protocolo": caso.get("protocolo"),
+        "respondida_em": agora.isoformat(),
+        "anexos_gravados": anexos_gravados,
+    }
+
+
+async def devolver_a_ouvidoria(
+    supabase,
+    *,
+    caso: dict,
+    ator: Ator,
+    trava: Trava,
+    agora: dt.datetime,
+    motivo: str,
+) -> dict:
+    """A Devolução à Ouvidoria: este caso não é do meu setor (issue #600).
+
+    O caso volta para a fila do ouvidor (`em_classificacao`), o relógio da área
+    para e a trava é gasta. A área não escolhe destino: quem despacha é a
+    Ouvidoria (ADR 0048, decisão 3).
+
+    `prazo_conclusivo_em` não é tocado: ele é o compromisso com o manifestante
+    (T0 até T3) e não depende de qual área está com o caso."""
+    from app.routers.ouvidoria import barrar_caso_apagado, carregar_feriados
+
+    manifestacao_id = caso["id"]
+
+    # Antes de tudo (issue #669): esta é a porta que tira o caso do
+    # encerramento levando para `em_classificacao`, que é o nó que a guarda
+    # existe para evitar. Caso apagado que volta à tramitação sai da fila do
+    # cron (ela exige `status = encerrado`) e o pedido de apagamento fica
+    # pendurado, com a trilha afirmando que um apagamento começou num caso que
+    # seguiu vivo.
+    #
+    # Vem antes da TRAVA pelo motivo do `responder`: recusa não pode queimar o
+    # link de uso único, senão o responsável fica sem devolução e sem link
+    # para tentar de novo.
+    #
+    # `canal_publico` porque a porta do link não tem login: a recusa do
+    # apagamento PENDENTE sai neutra, sem nomear a causa nem o órgão que pediu
+    # o ato, para o titular da área (que costuma ser a parte reclamada) não
+    # receber decisão de governança do hospital por um link de email.
+    barrar_caso_apagado(caso, "devolvido à Ouvidoria por este link", canal_publico=True)
+
+    recusa = ouvidoria_devolucao_a_ouvidoria.motivo_de_recusa(motivo)
+    if recusa:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=recusa)
+    motivo = ouvidoria_devolucao_a_ouvidoria.texto_do_motivo(motivo)
+    if caso.get("status") != "aguardando_area":
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="A Ouvidoria já movimentou este caso e ele não pode mais ser devolvido por este link",
+        )
+
+    # O estouro consumado é decidido ANTES de o relógio parar, pelo mesmo
+    # motivo e com a mesma função da devolução por insuficiência (issue #374):
+    # zerar `prazo_area_em` tira do indicador de cumprimento a única régua que
+    # ele tinha, e o atraso do ciclo que acabou sumiria junto. Aqui pesa mais,
+    # porque quem apaga é a própria área interessada, sem o ouvidor no meio
+    # (issue #607).
+    #
+    # E é decidido antes da TRAVA, na doutrina do `responder`: ler timestamp
+    # levanta `ValueError` cru, e uma coluna com formato inesperado viraria 500
+    # depois do uso único já queimado, deixando o responsável sem devolução e
+    # sem link para tentar de novo.
+    #
+    # Ciclo cumprido não carimba nada, e estouro já gravado não é reescrito:
+    # as duas regras moram em `estouro_consumado`, não aqui.
+    estourou = ouvidoria_relogio_da_area.estouro_a_carimbar(caso, agora)
+
+    _consumir(trava, manifestacao_id)
+
+    # A MESMA frase vai para a trilha e para o `detalhe` da notificação, com a
+    # porta na última linha. O setor viaja congelado na frase porque o
+    # reacionamento troca `setor` no caso logo depois: lido do caso na hora do
+    # envio, o aviso (e o reenvio dele meses adiante) culparia a área errada
+    # pela devolução.
+    observacao = ouvidoria_porta.com_porta(
+        ouvidoria_devolucao_a_ouvidoria.observacao_da_devolucao(caso.get("setor"), motivo), ator.porta
+    )
+    # O relógio da área para ANTES da transição, pela mesma função que o
+    # Redirecionamento pelo ouvidor usa (issue #708): as duas portas tiram o
+    # caso da área e devolvem à fila do ouvidor, e o par escrever/desfazer é o
+    # mesmo. O que a chamada guarda (prazo anterior e carimbo a restaurar) é o
+    # que o `except` da transição usa para desfazer.
+    try:
+        parado = ouvidoria_relogio_da_area.parar(supabase, manifestacao_id, caso, estourou)
+    except FALHAS_DO_POSTGREST as exc:
+        trava.devolver()
+        logger.error("Falha ao parar o relógio da área da manifestação %s", manifestacao_id)
+        raise indisponivel() from exc
+    if parado is None:
+        # O caso saiu de `aguardando_area` entre a leitura e esta escrita: a
+        # Ouvidoria o pausou, ou a área respondeu por outra porta.
+        #
+        # Até a issue #708 este ramo não precisava de resposta própria, porque a
+        # RPC logo abaixo recusava sozinha todo estado que não fosse
+        # `aguardando_area`. Com a aresta `respondido -> em_classificacao`
+        # aberta, ela passa a ACEITAR o caso que acabou de ser respondido, e
+        # seguir em frente devolveria à Ouvidoria um caso com o relógio da área
+        # ainda correndo e com a resposta recém-chegada intacta.
+        #
+        # A trava NÃO volta, pelo mesmo motivo do `responder` e do ramo em que a
+        # restauração não casa: a abertura pelo link não olha status nenhum, e
+        # um claim devolvido aqui reabriria a leitura do relato integral e da
+        # identificação de quem manifestou pelo resto dos 30 dias do token.
+        logger.warning(
+            "Devolução à Ouvidoria abortada: a manifestação %s saiu de aguardando_area antes da parada",
+            manifestacao_id,
+        )
+        # A frase NÃO é a do ramo em que a RPC pode ter commitado, e a diferença
+        # é o que de fato aconteceu: aqui o update casou ZERO linhas, então esta
+        # requisição não escreveu nada no caso. Dizer "a devolução pode já ter
+        # sido registrada" assustaria o responsável com um risco que este
+        # caminho não tem, e ele já ficou sem o link para conferir sozinho.
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Este caso saiu da fila da área durante o envio, então este link não responde mais por ele. "
+                "Nada foi alterado agora. Se ainda for preciso devolver, fale com a Ouvidoria."
+            ),
+        )
+
+    try:
+        supabase.rpc(
+            "ouvidoria_transicionar",
+            {
+                "p_manifestacao_id": manifestacao_id,
+                "p_estado_novo": "em_classificacao",
+                "p_autor_id": None,
+                "p_autor_nome": ator.nome,
+                "p_observacao": observacao,
+            },
+        ).execute()
+    except FALHAS_DO_POSTGREST as exc:
+        # Mesmo desenho do `responder`: a restauração do prazo é quem diz onde
+        # o caso está, porque ela só casa linha enquanto ele continua com a
+        # área.
+        restaurou = ouvidoria_relogio_da_area.restaurar(supabase, manifestacao_id, parado)
+        if not restaurou:
+            # O caso saiu de `aguardando_area`, ou não foi possível saber. Nos
+            # dois, a trava não volta, pelo mesmo motivo do `responder`: a
+            # abertura pelo link não olha status nenhum, e um claim devolvido
+            # aqui reabriria a leitura do relato integral e da identificação de
+            # quem manifestou pelo resto dos 30 dias do token.
+            logger.error("Devolução à Ouvidoria falhou com o caso %s fora de aguardando_area", manifestacao_id)
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "Este caso saiu da fila da área durante o envio, então este link não responde mais por ele. "
+                    "A devolução pode já ter sido registrada: confirme com a Ouvidoria antes de enviar de novo."
+                ),
+            ) from exc
+        trava.devolver()
+        codigo = getattr(exc, "code", None)
+        if codigo == "23514":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A Ouvidoria movimentou o caso agora mesmo: recarregue a página",
+            ) from exc
+        logger.error("Erro na RPC ouvidoria_transicionar pela devolução à Ouvidoria (código %s)", codigo)
+        raise indisponivel() from exc
+
+    # O aviso vem DEPOIS da transição, e é melhor esforço: o caso já voltou
+    # para a fila do ouvidor e a trava já foi gasta, então derrubar a resposta
+    # aqui não daria segunda tentativa a ninguém, e deixaria a área presa a um
+    # caso que não é dela (issue #599).
+    _avisar_a_ouvidoria(
+        supabase,
+        manifestacao_id,
+        caso.get("gravidade"),
+        agora,
+        carregar_feriados(supabase),
+        gatilho=ouvidoria_notificacoes.GATILHO_DEVOLVIDO_A_OUVIDORIA,
+        detalhe=observacao,
+    )
+    registrar_acesso(supabase, manifestacao_id, ator.nome, "portal_setor_devolver")
+    return {"protocolo": caso.get("protocolo"), "devolvida_em": agora.isoformat()}
+
+
+def _avisar_a_ouvidoria(
+    supabase,
+    manifestacao_id: str,
+    gravidade: str | None,
+    agora,
+    feriados,
+    *,
+    gatilho: str,
+    detalhe: str | None = None,
+) -> None:
+    """O que a área fez chega a quem decide. Melhor esforço no envio, nunca no
+    registro: a notificação nasce como linha (é o que prova o aviso e é o que
+    o ouvidor reenvia), e o email pode sair depois pelo job da fila.
+
+    Uma pessoa por linha, e sempre só quem está ATIVO, pelo mesmo motivo de
+    `ler_diretoria_executiva` (issue #403): o assunto destes emails leva o
+    número do protocolo e o corpo leva o setor, e o desligamento do hospital é
+    soft delete que não limpa `perfil_ouvidoria`.
+
+    Serve ao pedido de prorrogação (issue #333) e à Devolução à Ouvidoria
+    (issue #599). Os dois avisam as mesmas pessoas pelo mesmo caminho, e a
+    única diferença é o gatilho e o que viaja no `detalhe`."""
+    from app.routers.ouvidoria import PERFIS_OUVIDORIA
+
+    try:
+        result = (
+            supabase.table("participantes")
+            .select("id, nome_completo, email, perfil_ouvidoria")
+            .in_("perfil_ouvidoria", list(PERFIS_OUVIDORIA))
+            .eq("ativo", True)
+            .execute()
+        )
+        destinos = [d for d in (result.data or []) if (d.get("email") or "").strip()]
+    except Exception:
+        logger.error("Falha ao buscar a Ouvidoria para avisar de %s em %s", gatilho, manifestacao_id)
+        return
+    if not destinos:
+        logger.error("Aviso %s em %s sem ninguém da Ouvidoria com email", gatilho, manifestacao_id)
+        return
+
+    for pessoa in destinos:
+        aviso = ouvidoria_notificacoes.registrar(
+            supabase,
+            manifestacao_id=manifestacao_id,
+            gatilho=gatilho,
+            destinatario_nome=pessoa.get("nome_completo") or pessoa["email"],
+            destinatario_email=pessoa["email"],
+            papel_destinatario=pessoa.get("perfil_ouvidoria"),
+            enviar_a_partir_de=ouvidoria_notificacoes.quando_enviar(agora, gravidade, feriados),
+            detalhe=detalhe,
+        )
+        ouvidoria_notificacoes.despachar_agora_se_puder(supabase, aviso, agora, feriados)
+
+
+def justificativa_valida(texto: str) -> str:
+    """A justificativa do pedido de prazo como ela fica gravada, ou a recusa 422.
+
+    A regra do que vale vive inteira em `ouvidoria_prorrogacao`, e recebe o
+    texto CRU. A porta chama isto antes de qualquer leitura: corpo que já
+    sabemos recusar não custa nem a leitura do caso."""
+    recusa = ouvidoria_prorrogacao.motivo_de_recusa_da_justificativa(texto)
+    if recusa:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=recusa)
+    return ouvidoria_prorrogacao.texto_da_justificativa(texto)
+
+
+async def pedir_prorrogacao(
+    supabase,
+    *,
+    caso: dict,
+    ator: Ator,
+    agora: dt.datetime,
+    justificativa: str,
+    dias_uteis: int,
+) -> dict:
+    """O pedido de mais prazo (issue #333). `justificativa` já passou por
+    `justificativa_valida`.
+
+    As três regras da casa valem aqui, e o sistema as aplica sozinho: uma vez
+    só, antes do vencimento, com justificativa. O teto de 30 dias úteis da
+    entrada é do motor, que devolve o prazo novo já cortado nele.
+
+    O pedido NÃO gasta a trava: quem pede prorrogação ainda precisa responder
+    depois pela mesma porta."""
+    from app.routers.ouvidoria import barrar_caso_apagado, carregar_feriados
+
+    manifestacao_id = caso["id"]
+
+    # Antes de o texto livre entrar (issue #669): o pedido grava a
+    # justificativa escrita pelo setor em `ouvidoria_prorrogacoes` E na trilha,
+    # e não gasta a trava, então é repetível. Texto novo num caso que a
+    # Retenção nunca mais revisita (ela só varre `anonimizada_em IS NULL`) é o
+    # oposto do que o apagamento faz.
+    #
+    # `canal_publico` porque a porta do link não tem login: a recusa do
+    # apagamento PENDENTE sai neutra, sem nomear a causa nem o órgão que pediu
+    # o ato, para o titular da área (que costuma ser a parte reclamada) não
+    # receber decisão de governança do hospital por um link de email.
+    barrar_caso_apagado(caso, "acrescido de pedido de prazo pelo portal do setor", canal_publico=True)
+
+    anterior = _carregar_pedido_de_prazo(supabase, manifestacao_id)
+    motivo = ouvidoria_prorrogacao.motivo_de_recusa(caso, anterior, agora)
+    if motivo:
+        # Recusa automática: 409 porque o estado do caso é que fecha a porta,
+        # não o que o setor digitou.
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=motivo)
+
+    entrada = ouvidoria_prorrogacao.entrada_da_manifestacao(caso)
+    if entrada is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Esta manifestação não tem data de entrada registrada, então o teto da prorrogação não é calculável."
+            ),
+        )
+    feriados = carregar_feriados(supabase)
+    prazo_atual = dt.datetime.fromisoformat(str(caso["prazo_area_em"]))
+    prazo_novo = vencimento_prorrogado(entrada, prazo_atual, dias_uteis, feriados)
+    if prazo_novo is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "O prazo desta manifestação já alcançou o teto de "
+                f"{TETO_PRORROGACAO_DIAS_UTEIS} dias úteis da entrada. Não há prorrogação possível."
+            ),
+        )
+
+    try:
+        criado = (
+            supabase.table("ouvidoria_prorrogacoes")
+            .insert(
+                {
+                    "manifestacao_id": manifestacao_id,
+                    "justificativa": justificativa,
+                    "dias_uteis_pedidos": dias_uteis,
+                    "prazo_anterior": prazo_atual.isoformat(),
+                    "prazo_novo": prazo_novo.isoformat(),
+                    "status": ouvidoria_prorrogacao.PENDENTE,
+                    "solicitada_em": agora.isoformat(),
+                    "solicitante_nome": ator.nome,
+                    "solicitante_email": ator.email,
+                }
+            )
+            .execute()
+        )
+    except FALHAS_DO_POSTGREST as exc:
+        # O índice único da migration 073 é a mesma regra do "uma vez só",
+        # aplicada no banco: corrida entre dois cliques vira recusa, não 500.
+        # A falha de rede não tem código, e sai como indisponibilidade.
+        codigo = getattr(exc, "code", None)
+        if codigo == "23505":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Esta manifestação já teve um pedido de prorrogação. A regra permite apenas um.",
+            ) from exc
+        logger.error("Falha ao gravar o pedido de prorrogação de %s (código %s)", manifestacao_id, codigo)
+        raise indisponivel() from exc
+    if not criado.data:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Não foi possível registrar o pedido agora. Tente de novo.",
+        )
+
+    ouvidoria_prorrogacao.registrar_movimento(
+        supabase,
+        manifestacao_id,
+        autor_id=None,
+        autor_nome=ator.nome,
+        observacao=ouvidoria_porta.com_porta(
+            f"Prorrogação solicitada pelo setor: {dias_uteis} dia(s) útil(eis). Justificativa: {justificativa}",
+            ator.porta,
+        ),
+    )
+    _avisar_a_ouvidoria(
+        supabase,
+        manifestacao_id,
+        caso.get("gravidade"),
+        agora,
+        feriados,
+        gatilho=ouvidoria_notificacoes.GATILHO_PRORROGACAO_SOLICITADA,
+    )
+    registrar_acesso(supabase, manifestacao_id, ator.nome, "portal_setor_pedir_prorrogacao")
+
+    linha = criado.data[0]
+    return {
+        "protocolo": caso.get("protocolo"),
+        "prorrogacao": {campo: linha.get(campo) for campo in ouvidoria_prorrogacao.CAMPOS_PRORROGACAO_TUPLA},
+    }

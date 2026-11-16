@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 
+from app.services import ouvidoria_porta
 from app.utils.text_sanitizer import sanitizar_travessao, sem_invisiveis
 
 logger = logging.getLogger(__name__)
@@ -106,7 +107,11 @@ def texto_do_movimento(observacao: str | None) -> str | None:
     Público desde a issue #485: a linha do tempo do caso também mostra a
     resposta da área, e o rótulo interno da trilha não pode ser desmontado em
     dois lugares. Quem escreve chama `observacao_da_resposta`, quem lê chama
-    isto ou o `historico` inteiro."""
+    isto ou o `historico` inteiro.
+
+    A porta da última linha (issue #1885) sai antes: ela diz por onde a
+    resposta veio, e não faz parte do que o setor escreveu."""
+    observacao, _porta = ouvidoria_porta.separar(observacao)
     if not observacao:
         return None
     if observacao == MARCA:
