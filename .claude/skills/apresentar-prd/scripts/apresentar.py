@@ -332,7 +332,7 @@ def email(prd: int) -> Path:
     """Grava o texto do e-mail ao diretor (com o código) fora do repositório e devolve o caminho."""
     dados = dados_do_prd(prd)
     texto = (
-        f"Assunto: Plano para validar: {dados['titulo_aba']}\n\n"
+        f"Assunto: {dados['titulo_aba']} para você validar\n\n"
         "Bom dia,\n\n"
         "O plano do seu pedido está pronto para você conferir antes de o trabalho começar:\n\n"
         f"{link(prd)}\n\n"
