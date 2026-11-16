@@ -59,6 +59,7 @@ import {
   type ResolucaoEstado,
 } from "@/components/participantes/ParticipanteCombobox";
 import { ResponsavelInlineCombobox } from "@/components/reunioes/ResponsavelInlineCombobox";
+import { AtaDoNucleo } from "@/components/seguranca-do-paciente/AtaDoNucleo";
 
 // ──────────────────────────────────────────
 // Types
@@ -126,6 +127,7 @@ interface JsonAta {
   lacunas_identificadas?: string[];
   error?: string;
   _mock?: boolean;
+  modelo?: string;
 }
 
 interface Reuniao {
@@ -153,6 +155,8 @@ interface Reuniao {
   modo_interno_desde?: string | null;
   fonte: string;
   metodo_geracao?: "TRANSCRICAO" | "GUIADA";
+  // Reunião do Núcleo (issue #1775): a ata dela não passa pela Ata Guiada.
+  do_nucleo?: boolean;
   created_at: string;
   facilitador_id: string | null;
   participantes_programada?: ParticipanteProgramada[];
@@ -1214,6 +1218,9 @@ export default function ReuniaoDetailPage() {
   // Transcrição (Solicitar Correção baixa a Transcrição; Enviar para assinatura cria
   // Envelope a partir do PDF — ambos inexistentes aqui) e mostra um badge do método.
   const isGuiada = reuniao.metodo_geracao === "GUIADA";
+  // A ata do Núcleo (issue #1775) tem dez blocos e validação própria: a tela
+  // dela substitui as seções e as ações da ata comum.
+  const ataDoNucleo = ata?.modelo === "nsp_dez_blocos";
 
   // ══════════════════════════════════════════
   // PROGRAMADA MODE
@@ -1550,7 +1557,7 @@ export default function ReuniaoDetailPage() {
             )}
 
             {/* Ata Guiada — registrar reunião sem transcrição em tela dedicada (ADR 0005/0006) */}
-            {!hideAtaSections && (
+            {!hideAtaSections && !reuniao.do_nucleo && (
               <div className="bg-white rounded-2xl border border-border shadow-premium">
                 <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2.5">
                   <Sparkles className="w-4 h-4 text-primary" strokeWidth={1.5} />
@@ -1922,7 +1929,7 @@ export default function ReuniaoDetailPage() {
       )}
 
       {/* Ações de Validação */}
-      {reuniao.status_ata === "AGUARDANDO_VALIDACAO" && !hideAtaSections && (
+      {reuniao.status_ata === "AGUARDANDO_VALIDACAO" && !hideAtaSections && !ataDoNucleo && (
         <div className="bg-white rounded-2xl border border-primary/30 shadow-premium p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center">
@@ -2073,7 +2080,11 @@ export default function ReuniaoDetailPage() {
         </div>
       )}
 
-      {ata && !ata.error && reuniao.status_ata !== "PROCESSANDO" && !hideAtaSections && (
+      {ataDoNucleo && reuniao.status_ata !== "PROCESSANDO" && !hideAtaSections && (
+        <AtaDoNucleo idReuniao={reuniao.id_reuniao} onMudou={loadReuniao} />
+      )}
+
+      {ata && !ata.error && reuniao.status_ata !== "PROCESSANDO" && !hideAtaSections && !ataDoNucleo && (
         <>
           <AtaEnxutaView
             secoes="resumo"

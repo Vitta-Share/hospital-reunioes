@@ -9,6 +9,7 @@ from starlette.requests import Request
 
 from app.config import settings
 from app.dependencies import (
+    RECUSA_DO_NSP,
     barrar_reuniao_do_nucleo,
     get_allowed_reuniao_ids,
     get_current_user,
@@ -17,6 +18,7 @@ from app.dependencies import (
     get_visibilidade_das_reunioes,
     is_secretaria,
     is_super_admin,
+    recursos_nsp_da_pessoa,
     require_acesso_reunioes,
     require_participante_reunioes,
     require_role,
@@ -45,6 +47,8 @@ from app.models.schemas import (
 )
 from app.services import audit, participantes_ata_service, reuniao_email_service
 from app.services.reunioes_consulta import consultar_reunioes, participantes_por_reuniao
+from app.services.seguranca_do_paciente import ata as ata_do_nucleo
+from app.services.seguranca_do_paciente.permissao import id_do_nucleo
 from app.services.teto_dos_chats import motivo_corpo_grande
 from app.utils.query_params import parse_csv_param
 
@@ -57,6 +61,23 @@ router = APIRouter(
     dependencies=[Depends(require_acesso_reunioes), Depends(barrar_reuniao_do_nucleo)],
 )
 logger = logging.getLogger(__name__)
+
+
+# A ata do Núcleo (issue #1775) tem prompt, revisão e validação próprios, no
+# módulo. A importação da transcrição continua por aqui, mas só para quem
+# conduz a ata; aprovar e corrigir pelas rotas gerais fica recusado.
+_ATA_DO_NUCLEO_NO_MODULO = "A ata do Núcleo se revisa e se valida em Segurança do Paciente, Reuniões."
+
+
+def _so_quem_conduz_a_ata_do_nucleo(supabase, me: dict | None, id_reuniao: str) -> None:
+    reuniao = ata_do_nucleo.reuniao_do_nucleo(supabase, id_reuniao)
+    if reuniao and not ata_do_nucleo.conduz_a_ata(supabase, me, recursos_nsp_da_pessoa(supabase, me), reuniao):
+        raise HTTPException(status_code=403, detail=RECUSA_DO_NSP)
+
+
+def _recusar_ata_do_nucleo(supabase, id_reuniao: str) -> None:
+    if ata_do_nucleo.reuniao_do_nucleo(supabase, id_reuniao):
+        raise HTTPException(status_code=409, detail=_ATA_DO_NUCLEO_NO_MODULO)
 
 
 _DETALHE_SECRETARIA_SEM_FACILITADOR = "Escolha o facilitador da reunião. A Secretária agenda, mas não conduz a ata."
@@ -397,6 +418,8 @@ async def get_reuniao(
                 }
             )
     reuniao["participantes_programada"] = participantes
+    # A tela esconde a Ata Guiada na reunião do Núcleo, que a recusa (issue #1775).
+    reuniao["do_nucleo"] = bool(reuniao.get("colegiado_id")) and reuniao["colegiado_id"] == id_do_nucleo(supabase)
 
     me = await get_participante_for_user(current_user, supabase)
     if is_secretaria(me):
@@ -1157,6 +1180,7 @@ async def anexar_transcricao(
     allowed_ids = await get_allowed_reuniao_ids(current_user, supabase)
     if allowed_ids is not None and id_reuniao not in allowed_ids:
         raise HTTPException(status_code=404, detail="Reunião não encontrada")
+    _so_quem_conduz_a_ata_do_nucleo(supabase, me, id_reuniao)
 
     from app.services.transcricao_extractor import extrair_texto_async
 
@@ -1506,6 +1530,12 @@ async def reprocessar_reuniao(
     reuniao = result.data[0]
     if reuniao.get("status_ata") == "ASSINADA":
         raise HTTPException(status_code=400, detail="Reunião já assinada não pode ser reprocessada")
+    _so_quem_conduz_a_ata_do_nucleo(supabase, me, id_reuniao)
+    if reuniao.get("status_ata") not in ("ERRO", "AGUARDANDO_VALIDACAO") and ata_do_nucleo.reuniao_do_nucleo(
+        supabase, id_reuniao
+    ):
+        # A ata do Núcleo validada já criou as pendências: refazer não cabe.
+        raise HTTPException(status_code=409, detail="A ata desta reunião do Núcleo não pode mais ser refeita.")
 
     from app.services.storage import download_file
 
@@ -1553,6 +1583,7 @@ async def aprovar_reuniao(
     allowed_ids = await get_allowed_reuniao_ids(current_user, supabase)
     if allowed_ids is not None and id_reuniao not in allowed_ids:
         raise HTTPException(status_code=404, detail="Reunião não encontrada")
+    _recusar_ata_do_nucleo(supabase, id_reuniao)
 
     result = (
         supabase.table("reunioes")
@@ -1599,6 +1630,7 @@ async def aprovar_sem_assinatura(
     allowed_ids = await get_allowed_reuniao_ids(current_user, supabase)
     if allowed_ids is not None and id_reuniao not in allowed_ids:
         raise HTTPException(status_code=404, detail="Reunião não encontrada")
+    _recusar_ata_do_nucleo(supabase, id_reuniao)
 
     result = supabase.table("reunioes").select("status_ata").eq("id_reuniao", id_reuniao).execute()
     if not result.data:
@@ -1654,6 +1686,7 @@ async def corrigir_reuniao(
     allowed_ids = await get_allowed_reuniao_ids(current_user, supabase)
     if allowed_ids is not None and id_reuniao not in allowed_ids:
         raise HTTPException(status_code=404, detail="Reunião não encontrada")
+    _recusar_ata_do_nucleo(supabase, id_reuniao)
 
     result = (
         supabase.table("reunioes").select("status_ata, ciclo_correcao, tipo").eq("id_reuniao", id_reuniao).execute()
@@ -1708,6 +1741,7 @@ async def chat_correcao_endpoint(
     allowed_ids = await get_allowed_reuniao_ids(current_user, supabase)
     if allowed_ids is not None and id_reuniao not in allowed_ids:
         raise HTTPException(status_code=404, detail="Reunião não encontrada")
+    _recusar_ata_do_nucleo(supabase, id_reuniao)
 
     result = supabase.table("reunioes").select("status_ata, json_ata").eq("id_reuniao", id_reuniao).execute()
     if not result.data:
@@ -1771,6 +1805,7 @@ async def chat_ata_guiada_endpoint(
     allowed_ids = await get_allowed_reuniao_ids(current_user, supabase)
     if allowed_ids is not None and id_reuniao not in allowed_ids:
         raise HTTPException(status_code=404, detail="Reunião não encontrada")
+    _recusar_ata_do_nucleo(supabase, id_reuniao)
 
     result = supabase.table("reunioes").select("status_ata").eq("id_reuniao", id_reuniao).execute()
     if not result.data:
@@ -1823,6 +1858,7 @@ async def extrair_documento_apoio(
     allowed_ids = await get_allowed_reuniao_ids(current_user, supabase)
     if allowed_ids is not None and id_reuniao not in allowed_ids:
         raise HTTPException(status_code=404, detail="Reunião não encontrada")
+    _recusar_ata_do_nucleo(supabase, id_reuniao)
 
     result = supabase.table("reunioes").select("status_ata").eq("id_reuniao", id_reuniao).execute()
     if not result.data:
@@ -1870,6 +1906,7 @@ async def concluir_ata_guiada(
     allowed_ids = await get_allowed_reuniao_ids(current_user, supabase)
     if allowed_ids is not None and id_reuniao not in allowed_ids:
         raise HTTPException(status_code=404, detail="Reunião não encontrada")
+    _recusar_ata_do_nucleo(supabase, id_reuniao)
 
     result = supabase.table("reunioes").select("status_ata").eq("id_reuniao", id_reuniao).execute()
     if not result.data:

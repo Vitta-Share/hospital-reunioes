@@ -138,6 +138,15 @@ def run_pipeline(
 
         supabase.table("reunioes").update({"url_transcricao": url_transcricao}).eq("id_reuniao", id_reuniao).execute()
 
+        # A reunião do Núcleo tem ata própria, nos dez blocos do Regimento
+        # (issue #1775): prompt, montagem e validação são do módulo.
+        from app.services.seguranca_do_paciente import ata as ata_do_nucleo
+
+        reuniao_do_nucleo = ata_do_nucleo.reuniao_do_nucleo(supabase, id_reuniao)
+        if reuniao_do_nucleo:
+            ata_do_nucleo.redigir_minuta_do_nucleo(supabase, reuniao_do_nucleo, texto_extraido)
+            return
+
         # Etapa 1.5: Buscar participantes pre-vinculados para passar ao contexto da IA
         pre_linked_result = (
             supabase.table("reuniao_participantes")

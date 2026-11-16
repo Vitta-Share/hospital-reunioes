@@ -206,3 +206,33 @@ describe("Gerar a ata de novo", () => {
     await waitFor(() => expect(botao.disabled).toBe(false));
   });
 });
+
+// A Ata Guiada recusa a reunião do Núcleo (revisão do PR #1798, issue #1775):
+// o cartão que a abre não aparece nela, só na reunião comum.
+describe("Ata Guiada na reunião do Núcleo", () => {
+  function servirProgramada(do_nucleo: boolean) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url === "/api/reunioes/REU_TESTE") {
+          const corpo = { ...reuniao("PROGRAMADA", null), do_nucleo };
+          return { ok: true, status: 200, json: async () => corpo } as unknown as Response;
+        }
+        return { ok: true, status: 200, json: async () => [] } as unknown as Response;
+      }),
+    );
+  }
+
+  it("a reunião comum mostra o cartão da Ata Guiada", async () => {
+    servirProgramada(false);
+    montar();
+    expect(await screen.findByRole("button", { name: "Iniciar Ata Guiada" })).toBeTruthy();
+  });
+
+  it("a reunião do Núcleo não mostra o cartão da Ata Guiada", async () => {
+    servirProgramada(true);
+    montar();
+    await screen.findByText("Anexar Transcrição e Processar com IA");
+    expect(screen.queryByRole("button", { name: "Iniciar Ata Guiada" })).toBeNull();
+  });
+});

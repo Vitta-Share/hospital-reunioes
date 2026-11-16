@@ -28,9 +28,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 from supabase import Client
 
-from app.dependencies import get_supabase_client, require_recurso_nsp, selecionar_participantes
+from app.dependencies import RECUSA_DO_NSP, get_supabase_client, require_recurso_nsp, selecionar_participantes
 from app.limiter import limiter
 from app.routers.reunioes import _generate_reuniao_id
+from app.services.seguranca_do_paciente import ata as ata_do_nucleo
 from app.services.seguranca_do_paciente import convocacao, pauta
 from app.services.seguranca_do_paciente.membros import vigente_em
 from app.services.seguranca_do_paciente.permissao import id_do_nucleo
@@ -615,3 +616,101 @@ async def registrar_reuniao_rapida(
     supabase.table("nsp_reunioes_rapidas").insert(linha).execute()
     logger.info("Reunião rápida do Núcleo %s registrada por %s", linha["id"], me["id"])
     return {"id": linha["id"], "tipo": TipoReuniaoNsp.REUNIAO_RAPIDA.value}
+
+
+# ---------------------------------------------------------------------------
+# A ata em dez blocos (issue #1775)
+# ---------------------------------------------------------------------------
+
+
+class DeliberacaoDaAta(BaseModel):
+    texto: str = Field(..., min_length=1, max_length=2000)
+    responsavel: str = Field("", max_length=200)
+    prazo: str = Field("", max_length=20)
+    notificacao: str | None = Field(None, max_length=40)
+
+
+class RevisaoDaAtaRequest(BaseModel):
+    blocos: dict[Literal["plano_de_acao", "alertas_sanitarios", "proxima_reuniao"], list[str]] = Field(
+        default_factory=dict
+    )
+    deliberacoes: list[DeliberacaoDaAta] = Field(default_factory=list, max_length=100)
+
+
+def _ata_do_nucleo_ou_404(supabase, id_reuniao: str) -> dict[str, Any]:
+    reuniao = ata_do_nucleo.reuniao_do_nucleo(supabase, id_reuniao)
+    if not reuniao:
+        raise HTTPException(status_code=404, detail="Reunião do Núcleo não encontrada.")
+    return reuniao
+
+
+def _so_quem_conduz(supabase, me: dict, reuniao: dict) -> None:
+    if not ata_do_nucleo.conduz_a_ata(supabase, me, me["recursos_nsp"], reuniao):
+        raise HTTPException(status_code=403, detail=RECUSA_DO_NSP)
+
+
+def _so_a_ata_em_validacao(reuniao: dict) -> dict[str, Any]:
+    ata = reuniao.get("json_ata") or {}
+    if reuniao["status_ata"] != "AGUARDANDO_VALIDACAO" or ata.get("modelo") != ata_do_nucleo.MODELO_DA_ATA:
+        raise HTTPException(status_code=409, detail="A ata desta reunião não está aguardando validação.")
+    return ata
+
+
+@router.get("/{id_reuniao}/ata")
+@limiter.limit("60/minute")
+async def ler_ata_do_nucleo(
+    request: Request,
+    id_reuniao: str,
+    me: dict = Depends(require_recurso_nsp("reunioes")),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """A ata em dez blocos e se a pessoa pode revisar e validar."""
+    reuniao = _ata_do_nucleo_ou_404(supabase, id_reuniao)
+    ata = reuniao.get("json_ata") or {}
+    return {
+        "id_reuniao": id_reuniao,
+        "status_ata": reuniao["status_ata"],
+        "ata": ata if ata.get("modelo") == ata_do_nucleo.MODELO_DA_ATA else None,
+        "pode_conduzir": ata_do_nucleo.conduz_a_ata(supabase, me, me["recursos_nsp"], reuniao),
+    }
+
+
+@router.put("/{id_reuniao}/ata")
+@limiter.limit("30/minute")
+async def revisar_ata(
+    request: Request,
+    id_reuniao: str,
+    req: RevisaoDaAtaRequest,
+    me: dict = Depends(require_recurso_nsp("reunioes")),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """A Presidência reescreve os blocos do agente antes de validar. Os
+    blocos do sistema não mudam por aqui."""
+    reuniao = _ata_do_nucleo_ou_404(supabase, id_reuniao)
+    _so_quem_conduz(supabase, me, reuniao)
+    _so_a_ata_em_validacao(reuniao)
+    ata = ata_do_nucleo.revisar_ata_do_nucleo(
+        supabase, reuniao, dict(req.blocos), [d.model_dump() for d in req.deliberacoes]
+    )
+    logger.info("Ata do Núcleo %s revisada por %s", id_reuniao, me["id"])
+    return {"id_reuniao": id_reuniao, "ata": ata}
+
+
+@router.post("/{id_reuniao}/ata/validar")
+@limiter.limit("10/minute")
+async def validar_ata(
+    request: Request,
+    id_reuniao: str,
+    me: dict = Depends(require_recurso_nsp("reunioes")),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """Só a Presidência, o suplente em exercício ou o Acesso pleno valida.
+    Cada deliberação vira pendência, e cada uma precisa de responsável e prazo."""
+    reuniao = _ata_do_nucleo_ou_404(supabase, id_reuniao)
+    _so_quem_conduz(supabase, me, reuniao)
+    ata = _so_a_ata_em_validacao(reuniao)
+    faltas = ata_do_nucleo.faltas_para_validar(ata)
+    if faltas:
+        raise HTTPException(status_code=422, detail="Complete antes de validar: " + "; ".join(faltas) + ".")
+    total = ata_do_nucleo.validar_ata_do_nucleo(supabase, reuniao, me, _agora())
+    return {"id_reuniao": id_reuniao, "status": "APROVADA", "total_pendencias": total}
