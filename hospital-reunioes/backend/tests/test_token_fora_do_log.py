@@ -152,10 +152,18 @@ PARAMS_SEM_SEGREDO = {
     "material_id",
     "nome",
     "notificacao_id",
+    # Número da issue-raiz no GitHub (issue #1805, ADR 0093), como 1805. Não é
+    # credencial: é público no repositório, e a rota da ponte exige a chave
+    # `TECNOLOGIA_AUTOMACAO_API_KEY`.
+    "numero",
     "plano_id",
     "ponto_id",
     "pop_id",
     "produto_id",
+    # Nome do Projeto do GitHub da issue-raiz (issue #1805, ADR 0093), como
+    # "Hospital". Não é credencial: a rota da ponte exige a chave
+    # `TECNOLOGIA_AUTOMACAO_API_KEY`, e o nome sozinho não abre porta nenhuma.
+    "projeto",
     "participante_id",
     # UUID da Participação no Núcleo (issue #1766). Não é credencial: a rota
     # exige o recurso do módulo Segurança do Paciente.
