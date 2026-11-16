@@ -815,3 +815,35 @@ class TestTermoDeAdesaoNoKit:
     def test_o_cadastro_sem_termo_saiu_do_que_ainda_nao_faz(self, texto):
         """Mutante: deixar a frase antiga, que dizia que o cadastro não gera o Termo."""
         assert "o cadastro ainda não gera o Termo" not in _secao(texto, "O que ele ainda não faz")
+
+
+class TestNovoTermoNoKit:
+    """Os gatilhos do novo Termo (issue #1769): o Assistente responde "renovei
+    o membro, ele precisa assinar de novo?" e "revisei o Regimento, quem
+    assina?" pelo kit."""
+
+    @pytest.fixture
+    def texto(self) -> str:
+        return _texto("seguranca-do-paciente.md")
+
+    def test_no_ar_diz_os_tres_gatilhos_do_novo_termo(self, texto):
+        no_ar = _secao(texto, "O que já está no ar")
+        for termo in (
+            "renovar a vigência ou mudar o papel",
+            "revisão material do Regimento",
+            "Ativo, A vencer e Em carência",
+            "revisão só de redação não gera Termo",
+            "continua no estado em que estava",
+        ):
+            assert termo in no_ar, termo
+
+    def test_os_gatilhos_sairam_do_que_ainda_nao_faz(self, texto):
+        """Mutante: deixar a frase antiga, que dizia que renovar não gera Termo novo."""
+        ainda_nao = _secao(texto, "O que ele ainda não faz")
+        assert "Termo novo" not in ainda_nao
+        assert "publicar ainda não manda nada para assinatura nem gera Termo novo" not in texto
+
+    def test_decidido_nao_promete_mais_o_que_ja_chegou(self, texto):
+        decidido = _secao(texto, SECAO_DECIDIDO)
+        assert "quando as entregas de assinatura chegarem" not in decidido
+        assert "revisão material pede" in decidido
