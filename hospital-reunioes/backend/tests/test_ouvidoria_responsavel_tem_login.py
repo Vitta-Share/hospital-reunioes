@@ -91,3 +91,20 @@ class TestOMesmoCasamentoDoPapel:
 
         assert papel.papel == RESPONSAVEL
         assert papel.setores == frozenset({"Recepcao"})
+
+
+class TestKitDeConhecimento:
+    """CA: o texto do Produto Ouvidoria no kit de conhecimento diz o
+    comportamento novo."""
+
+    @pytest.fixture
+    def texto(self) -> str:
+        from app.services.conhecimento import CONHECIMENTO_DIR
+
+        return (CONHECIMENTO_DIR / "ouvidoria.md").read_text(encoding="utf-8")
+
+    def test_diz_que_cada_linha_do_cadastro_mostra_se_tem_login(self, texto):
+        assert "cada linha diz se a pessoa tem login ou está sem login" in texto
+
+    def test_diz_que_quem_esta_sem_login_continua_recebendo_o_link(self, texto):
+        assert "Quem aparece sem login continua recebendo o link do e-mail normalmente" in texto
