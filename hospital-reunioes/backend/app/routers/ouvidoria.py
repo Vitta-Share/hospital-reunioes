@@ -497,7 +497,9 @@ async def listar_protocolos(
 
 # Os estados de quem já saiu da classificação: o caso foi acionado para a área
 # e a partir daí é do setor (ADR 0099, decisão 2). `novo` e `em_classificacao`
-# ficam com a Ouvidoria, inclusive o caso devolvido ou redirecionado.
+# ficam com a Ouvidoria, inclusive o caso devolvido ou redirecionado. Só o
+# estado não prova o acionamento (`encerrado` sai também da classificação): a
+# fila cruza com o carimbo `validada_em`.
 ESTADOS_ACIONADOS = frozenset({"aguardando_area", "aguardando_manifestante", "respondido", "encerrado"})
 
 
@@ -533,8 +535,16 @@ def ler_fila(
             query = query.is_("arquivada_em", "null")
         # O recorte do responsável, na query: caso de outro setor nem sai do
         # banco. A sigilosa do setor fica, como na Tela do responsável.
+        # O estado não basta: o grafo deixa a Ouvidoria encerrar direto da
+        # classificação, e o `setor` já nasce no registro. Acionado é o caso
+        # que a validação carimbou (`validada_em`, marco T1); sem o carimbo o
+        # setor nunca o recebeu, e ele não entra.
         if setores is not None:
-            return query.in_("setor", sorted(setores)).in_("status", sorted(ESTADOS_ACIONADOS))
+            return (
+                query.in_("setor", sorted(setores))
+                .in_("status", sorted(ESTADOS_ACIONADOS))
+                .not_.is_("validada_em", "null")
+            )
         # Sigilo reforçado (RN-40): o resumo de uma denúncia já identifica quem
         # relatou, então a sigilosa não entra nem no índice de quem está fora da
         # Ouvidoria, super admin incluído. O filtro vive na query (a linha nem sai

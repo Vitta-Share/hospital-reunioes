@@ -77,6 +77,8 @@ def _caso(numero: int, setor: str, status: str = "aguardando_area", **extra) -> 
         "conversa_id": None,
         "sigilo_reforcado": False,
         "arquivada_em": None,
+        # O carimbo do acionamento: só a validação o grava (ADR 0034, marco T1).
+        "validada_em": "2026-11-10T12:00:00+00:00",
         **extra,
     }
 
@@ -188,6 +190,20 @@ def test_caso_ainda_na_classificacao_nao_chega_ao_responsavel(monkeypatch, statu
 
     assert r.status_code == 200
     assert r.json()["protocolos"] == []
+
+
+def test_caso_encerrado_direto_da_classificacao_nao_chega_ao_responsavel(monkeypatch):
+    """A Ouvidoria pode encerrar o caso sem nunca acioná-lo (`em_classificacao
+    -> encerrado`). O setor já vem gravado no registro, mas a área nunca o
+    recebeu: ele não é caso acionado para o setor (ADR 0099, decisão 2)."""
+    nunca_acionado = _caso(9, "Recepção", status="encerrado", validada_em=None, sigilo_reforcado=True)
+    acionado_e_encerrado = _caso(10, "Recepção", status="encerrado")
+    cliente = _cliente(monkeypatch, TITULAR_DA_RECEPCAO, [nunca_acionado, acionado_e_encerrado])
+
+    r = cliente.get("/api/ouvidoria/protocolos")
+
+    assert r.status_code == 200
+    assert [p["protocolo"] for p in r.json()["protocolos"]] == ["2026-0010"]
 
 
 def test_caso_sigiloso_do_setor_chega_sem_relato_e_sem_identificacao(monkeypatch):
