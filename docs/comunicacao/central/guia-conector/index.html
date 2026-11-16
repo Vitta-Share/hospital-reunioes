@@ -58,25 +58,14 @@
     align-items: center;
     gap: 12px;
   }
-  .brand .wordmark {
-    display: flex;
-    flex-direction: column;
-    line-height: 1.08;
+  .brand .logo {
+    height: 15mm;
+    width: auto;
+    display: block;
   }
-  .brand .wordmark .l1 {
-    font-size: 13px;
-    letter-spacing: 0.16em;
-    font-weight: 700;
-    color: var(--royal);
-  }
-  .brand .wordmark .l2 {
-    font-size: 18px;
-    letter-spacing: 0.05em;
-    font-weight: 800;
-    color: var(--marinho);
-  }
-  .brand .wordmark .sub {
-    margin-top: 3px;
+  .brand .sub {
+    padding-left: 12px;
+    border-left: 1px solid var(--linha-forte);
     font-size: 10px;
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -378,16 +367,6 @@
     z-index: 1;
   }
   .motto span { color: #9db8e8; }
-  /* arco decorativo (textura derivada da marca) */
-  .arcdeco {
-    position: absolute;
-    right: -40px;
-    bottom: -70px;
-    width: 220px;
-    height: 220px;
-    opacity: 0.10;
-    z-index: 0;
-  }
 </style>
 </head>
 <body>
@@ -395,16 +374,8 @@
 
     <div class="header">
       <div class="brand">
-        <!-- Simbolo oficial: dois arcos formando o "M" (marinho mais royal) -->
-        <svg width="46" height="46" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-          <path d="M6 40 C6 18 14 8 24 8 C34 8 42 18 42 40" stroke="#2B2C6B" stroke-width="4.5" stroke-linecap="round"/>
-          <path d="M16 40 C16 24 19 16 24 16 C29 16 32 24 32 40" stroke="#154D9C" stroke-width="4.5" stroke-linecap="round"/>
-        </svg>
-        <span class="wordmark">
-          <span class="l1">HOSPITAL</span>
-          <span class="l2">SÃO MATHEUS</span>
-          <span class="sub">Central de Comando</span>
-        </span>
+        <img class="logo" src="../../_assets/logo-hsm-transparente.png" alt="Hospital São Matheus" />
+        <span class="sub">Central de Comando</span>
       </div>
       <span class="chip">Guia do Conector</span>
     </div>
@@ -550,17 +521,9 @@
 
     <div class="footer">
       <div class="fbrand">
-        <svg width="30" height="30" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-          <path d="M6 40 C6 18 14 8 24 8 C34 8 42 18 42 40" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round"/>
-          <path d="M16 40 C16 24 19 16 24 16 C29 16 32 24 32 40" stroke="#9DB8E8" stroke-width="4.5" stroke-linecap="round"/>
-        </svg>
         <span><b>Hospital São Matheus</b><span>Central de Comando</span></span>
       </div>
       <div class="motto">Cuidar bem<span>.</span></div>
-      <svg class="arcdeco" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-        <path d="M6 40 C6 18 14 8 24 8 C34 8 42 18 42 40" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
-        <path d="M16 40 C16 24 19 16 24 16 C29 16 32 24 32 40" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
-      </svg>
     </div>
 
   </div>
