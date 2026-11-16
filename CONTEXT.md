@@ -370,8 +370,12 @@ Quem o diretor escolhe, entre os [Desenvolvedores], antes de "Criar o card" (ADR
 _Evitar_: dois Responsáveis; card sem Responsável; trocar pelo app; confundir com o Responsável do setor da Ouvidoria.
 
 **Conversa da Demanda**:
-A troca de mensagens entre o diretor e os [Desenvolvedores] dentro de uma Demanda, separada da conversa com o agente, com menção (ADR 0083). Vive só no app e nunca vai para a issue. Menção e mensagem nova avisam por sino e e-mail; sem menção, a mensagem do diretor avisa o [Responsável] e a do Desenvolvedor avisa quem abriu a Demanda.
+A troca de mensagens entre o diretor e os [Desenvolvedores] dentro de uma Demanda, separada da conversa com o agente, com menção (ADR 0083). Vive só no app e nunca vai para a issue. Menção e mensagem nova avisam por sino e e-mail; sem menção, a mensagem do diretor avisa o [Responsável] e a do Desenvolvedor avisa quem abriu a Demanda. Uma mensagem do Desenvolvedor também pode entrar pela [Mensagem pelo terminal].
 _Evitar_: espelhar com os comentários da issue (a versão aposentada em 02/11/2026); misturar com a conversa do agente; pedido da Vitta que não nasce de uma Demanda.
+
+**Mensagem pelo terminal**:
+A mensagem que a sessão do terminal de um [Desenvolvedor] escreve na [Conversa da Demanda] quando para numa decisão que é do diretor: a baixa de uma onda num PRD que ele planejou ou as perguntas do Refino (ADR 0096). Sai no perfil de quem roda a sessão, só depois do "aprovo" dele, pela ponte de automação, e avisa a diretoria no card da Vitta ou quem abriu a Demanda no card do diretor. Na tela não tem selo; o banco guarda a origem. A resposta do diretor volta à sessão pela mesma ponte e nunca vai para o GitHub.
+_Evitar_: mandar pelo app e pelo WhatsApp ao mesmo tempo; postar sem o "aprovo"; copiar a fala do diretor para a issue ou o PR.
 
 **Envio falhou**:
 O estado de uma Demanda cujo "Criar o card" não chegou ao GitHub (ADR 0083). Fica registrado com o motivo, aparece na lista e se resolve com "Reenviar", pelo diretor ou pelo Desenvolvedor. Nunca é reenviado sozinho.
