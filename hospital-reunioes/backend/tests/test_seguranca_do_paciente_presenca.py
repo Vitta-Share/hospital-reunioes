@@ -320,6 +320,17 @@ class TestNaoInstalada:
         assert _reuniao_do_banco(banco, R_PROG)["status_ata"] == "NAO_INSTALADA"
         assert chamadas == []
 
+    def test_a_lista_geral_de_reunioes_mostra_a_nao_instalada_a_quem_e_do_nucleo(self):
+        banco = _cenario()
+        cliente = _cliente(PRESIDENCIA, banco)
+        _registrar(cliente, SEM_QUORUM)
+        cliente.post(_rota("nao-instalada"), json=_nova_data())
+
+        resposta = _cliente(MEMBRO, banco).get("/api/reunioes")
+
+        assert resposta.status_code == 200, resposta.text
+        assert {r["id_reuniao"]: r["status_ata"] for r in resposta.json()}[R_PROG] == "NAO_INSTALADA"
+
     def test_reuniao_nao_instalada_nao_aceita_nova_presenca_nem_segundo_reagendamento(self):
         banco = _cenario()
         cliente = _cliente(PRESIDENCIA, banco)
