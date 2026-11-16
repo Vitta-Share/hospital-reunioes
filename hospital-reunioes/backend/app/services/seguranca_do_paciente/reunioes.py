@@ -30,6 +30,11 @@ class TipoReuniaoNsp(StrEnum):
     REUNIAO_RAPIDA = "Reunião rápida de segurança"
 
 
+# O texto da reunião rápida de segurança (issue #1777): até três linhas, e um
+# teto de caracteres para as três linhas não virarem um parágrafo.
+TETO_DE_LINHAS = 3
+TETO_DO_TEXTO = 500
+
 # Coluna (42703) ou tabela (42P01) que o banco ainda não tem.
 _AINDA_SEM_MIGRATION = ("42703", "42P01")
 

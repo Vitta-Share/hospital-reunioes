@@ -20,7 +20,7 @@ from datetime import date, datetime, time, timedelta
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from supabase import Client
 
 from app.dependencies import get_supabase_client, require_recurso_nsp, selecionar_participantes
@@ -30,7 +30,7 @@ from app.services.seguranca_do_paciente import convocacao, pauta
 from app.services.seguranca_do_paciente.membros import vigente_em
 from app.services.seguranca_do_paciente.permissao import id_do_nucleo
 from app.services.seguranca_do_paciente.quorum import apurar_quorum, conta_para_quorum
-from app.services.seguranca_do_paciente.reunioes import TipoReuniaoNsp
+from app.services.seguranca_do_paciente.reunioes import TETO_DO_TEXTO, TipoReuniaoNsp
 
 router = APIRouter(prefix="/nsp/reunioes", tags=["seguranca-do-paciente"])
 logger = logging.getLogger(__name__)
@@ -47,6 +47,20 @@ class ReuniaoDoNucleoRequest(BaseModel):
     hora_fim: time | None = None
     tipo: TipoReuniaoNsp
     objetivo: str | None = Field(None, max_length=500)
+
+    @field_validator("tipo")
+    @classmethod
+    def _tipo_com_ata(cls, tipo: TipoReuniaoNsp) -> TipoReuniaoNsp:
+        if tipo == TipoReuniaoNsp.REUNIAO_RAPIDA:
+            raise ValueError("A reunião rápida de segurança não tem ata: registre pelo formulário de três linhas")
+        return tipo
+
+
+class ReuniaoRapidaRequest(BaseModel):
+    data: date
+    setor: str = Field(..., min_length=1, max_length=120)
+    participantes: list[str] = Field(..., min_length=1, max_length=50)
+    texto: str = Field(..., min_length=1, max_length=TETO_DO_TEXTO)
 
 
 def _nucleo_ou_503(supabase) -> str:
@@ -543,3 +557,28 @@ async def registrar_nao_instalada(
         "status": "NAO_INSTALADA",
         "reagendada": {"id_reuniao": novo_id, "data": req.data.isoformat()},
     }
+
+
+@router.post("/rapidas", status_code=201)
+@limiter.limit("30/minute")
+async def registrar_reuniao_rapida(
+    request: Request,
+    req: ReuniaoRapidaRequest,
+    me: dict = Depends(require_recurso_nsp("gerir_nucleo")),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """A reunião rápida de segurança (issue #1777): data, setor, participantes
+    e até três linhas. Fica fora da tabela de reuniões de propósito: sem
+    transcrição, ata, assinatura nem quórum."""
+    nucleo_id = _nucleo_ou_503(supabase)
+    linha = {
+        "colegiado_id": nucleo_id,
+        "data": req.data.isoformat(),
+        "setor": req.setor.strip(),
+        "participantes": req.participantes,
+        "texto": req.texto,
+        "criada_por": me["id"],
+    }
+    gravada = (supabase.table("nsp_reunioes_rapidas").insert(linha).execute().data or [{}])[0]
+    logger.info("Reunião rápida do Núcleo registrada por %s", me["id"])
+    return {"id": gravada.get("id"), "tipo": TipoReuniaoNsp.REUNIAO_RAPIDA.value}

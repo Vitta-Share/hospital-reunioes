@@ -658,6 +658,8 @@ class TestReunioesComuns:
 # ═══════════════════════════════════════════════════════════════════════════
 
 TIPOS_DO_NUCLEO = ["Ordinária mensal", "Análise de evento", "Apresentação à Diretoria", "Reunião rápida de segurança"]
+# A reunião rápida não tem ata e entra pelo registro de três linhas (seção 5).
+TIPOS_COM_ATA = TIPOS_DO_NUCLEO[:3]
 
 
 def _nova(tipo: str) -> dict[str, Any]:
@@ -665,7 +667,7 @@ def _nova(tipo: str) -> dict[str, Any]:
 
 
 class TestItemReunioesDoModulo:
-    @pytest.mark.parametrize("tipo", TIPOS_DO_NUCLEO)
+    @pytest.mark.parametrize("tipo", TIPOS_COM_ATA)
     def test_presidencia_cria_reuniao_do_nucleo_e_ela_aparece_no_modulo(self, tipo):
         banco = _banco()
         cliente = _cliente(PRESIDENCIA, banco)
@@ -759,3 +761,57 @@ class TestKitDeConhecimento:
             "As reuniões do Núcleo de Segurança do Paciente ficam no módulo Segurança do Paciente, no item Reuniões"
             in texto
         )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. A reunião rápida de segurança: um registro de três linhas, sem ata
+#    (issue #1777)
+# ═══════════════════════════════════════════════════════════════════════════
+
+RAPIDA = "Reunião rápida de segurança"
+ROTA_RAPIDA = "/api/nsp/reunioes/rapidas"
+
+
+def _rapida(**campos) -> dict[str, Any]:
+    base = {
+        "data": HOJE.isoformat(),
+        "setor": "Setor de Teste",
+        "participantes": ["MEMB1", "FORA1"],
+        "texto": "Piso molhado no corredor.\nSinalização reposta.\nConferir de novo amanhã.",
+    }
+    return {**base, **campos}
+
+
+def _tamanhos(banco: _Banco) -> dict[str, int]:
+    return {nome: len(linhas) for nome, linhas in banco.tabelas.items()}
+
+
+class TestReuniaoRapida:
+    def test_registrar_a_reuniao_rapida_nao_pede_transcricao_nem_gera_ata_ou_envelope(self):
+        """Mutante: gravar a rápida como reunião, na tabela do pipeline da ata."""
+        banco = _banco()
+        antes = _tamanhos(banco)
+
+        resposta = _cliente(PRESIDENCIA, banco).post(ROTA_RAPIDA, json=_rapida())
+
+        assert resposta.status_code == 201, resposta.text
+        assert "status_ata" not in resposta.json()
+        # Só o registro rápido cresceu: nenhuma reunião, participante de
+        # reunião, transcrição, ata ou envelope de assinatura nasceu.
+        depois = _tamanhos(banco)
+        assert {nome: n for nome, n in depois.items() if n != antes.get(nome, 0)} == {"nsp_reunioes_rapidas": 1}
+        registro = banco.tabelas["nsp_reunioes_rapidas"][0]
+        assert registro["colegiado_id"] == NUCLEO["id"]
+        assert registro["data"] == HOJE.isoformat()
+        assert registro["setor"] == "Setor de Teste"
+        assert registro["participantes"] == ["MEMB1", "FORA1"]
+        assert registro["criada_por"] == "PRES1"
+
+    def test_a_reuniao_rapida_nao_entra_pela_criacao_de_reuniao_com_ata(self):
+        banco = _banco()
+        antes = _tamanhos(banco)
+
+        resposta = _cliente(PRESIDENCIA, banco).post("/api/nsp/reunioes", json=_nova(RAPIDA))
+
+        assert resposta.status_code == 422, resposta.text
+        assert _tamanhos(banco) == antes
