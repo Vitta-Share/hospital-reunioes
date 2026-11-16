@@ -42,12 +42,12 @@ _TERMOS = [
 
 
 class TestTrocaSoEmPalavraInteira:
-    def test_fornecedor_colado_num_nome_nao_e_cortado_no_fim(self):
+    def test_fornecedor_antes_de_palavra_capitalizada_nao_perde_o_fim(self):
         assert pseudonimizar("integração ClickSign API (Envelope e webhook)") == (
             "integração ClickSign API (Envelope e webhook)"
         )
 
-    def test_fornecedor_depois_de_palavra_capitalizada_nao_e_cortado_no_comeco(self):
+    def test_fornecedor_depois_de_palavra_capitalizada_nao_perde_o_comeco(self):
         assert pseudonimizar("Mandar o Envelope ClickSign agora") == "Mandar o Envelope ClickSign agora"
 
 

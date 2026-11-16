@@ -101,6 +101,10 @@ O que continua esforço, NÃO garantia:
 - primeiro nome sozinho ("Carlos") continua só saindo atrás de pista. A base
   exige duas palavras de nome seguidas, senão "levou uma rosa para o leito"
   perderia a flor junto com a pessoa;
+- termo do domínio (issue #1813) sai do caminho antes das camadas de nome, e
+  isso tem um preço: o prenome sozinho colado nele ("Membro do Núcleo Carlos")
+  fica no texto, onde antes o desenho o levava junto com o termo. Nome e
+  sobrenome ao lado do termo continuam virando `[NOME]`;
 - palavra que é nome E é do vocabulário da casa ("Socorro", "Matheus",
   "Domingo") vale como nome na base e como palavra da casa no desenho. Quem
   protege "Pronto Socorro" e "Hospital São Matheus" é a parede comum: "Pronto"
