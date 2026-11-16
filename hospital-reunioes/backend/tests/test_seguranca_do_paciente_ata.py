@@ -222,3 +222,77 @@ class TestBlocosDoSistema:
         assert _bloco(ata, "plano_de_acao") == ["Revisar a sinalização dos leitos de risco de queda"]
         reuniao = next(r for r in banco.tabelas["reunioes"] if r["id_reuniao"] == R_ATA)
         assert reuniao["status_ata"] == "AGUARDANDO_VALIDACAO"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. Nome de membro fora das presenças: recusa, uma nova tentativa, e a
+#    Presidência redige
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _com_nome(nome: str) -> dict[str, Any]:
+    return _minuta(plano_de_acao=[f"{nome} vai revisar a sinalização dos leitos"])
+
+
+class TestNomesForaDasPresencas:
+    def test_minuta_com_nome_de_membro_e_refeita_uma_vez(self, _ia):
+        _ia.minutas = [_com_nome("Pessoa de Teste MEMB3"), _minuta()]
+        banco = _cenario()
+
+        _importar(_cliente(PRESIDENCIA, banco))
+
+        assert len(_ia.chamadas) == 2
+        assert "recusada" not in _ia.chamadas[0]["usuario"]
+        assert "recusada porque trazia nome de membro" in _ia.chamadas[1]["usuario"]
+        ata = _ata_gravada(banco)
+        assert _bloco(ata, "plano_de_acao") == ["Revisar a sinalização dos leitos de risco de queda"]
+        assert ata["aviso"] is None
+
+    def test_recusada_de_novo_a_tela_avisa_e_deixa_a_presidencia_redigir(self, _ia):
+        # A segunda traz o nome curto (primeiro e último), sem acento e em
+        # minúsculas: a checagem não depende da grafia.
+        _ia.minutas = [_com_nome("Pessoa de Teste MEMB3"), _com_nome("pessoa memb1")]
+        banco = _cenario()
+        cliente = _cliente(PRESIDENCIA, banco)
+
+        _importar(cliente)
+
+        assert len(_ia.chamadas) == 2
+        tela = cliente.get(f"/api/nsp/reunioes/{R_ATA}/ata")
+        assert tela.status_code == 200, tela.text
+        corpo = tela.json()
+        assert corpo["ata"]["aviso"] == (
+            "A IA escreveu nome de membro fora da lista de presença duas vezes, e a minuta foi descartada. "
+            "Redija os blocos do Núcleo abaixo."
+        )
+        assert corpo["pode_conduzir"] is True
+        assert _bloco(corpo["ata"], "plano_de_acao") == []
+        assert corpo["status_ata"] == "AGUARDANDO_VALIDACAO"
+
+        redigida = cliente.put(
+            f"/api/nsp/reunioes/{R_ATA}/ata",
+            json={
+                "blocos": {"plano_de_acao": ["Revisar a sinalização"], "alertas_sanitarios": [], "proxima_reuniao": []},
+                "deliberacoes": [
+                    {"texto": "Treinar as equipes", "responsavel": "Coordenação de Enfermagem", "prazo": "a definir"}
+                ],
+            },
+        )
+
+        assert redigida.status_code == 200, redigida.text
+        ata = _ata_gravada(banco)
+        assert _bloco(ata, "plano_de_acao") == ["Revisar a sinalização"]
+        assert ata["aviso"] is None
+        assert ata["deliberacoes"][0]["responsavel"] == "Coordenação de Enfermagem"
+        assert "Pessoa de Teste PRES1" in " ".join(_bloco(ata, "presencas_e_quorum"))
+
+    def test_o_nome_no_responsavel_da_deliberacao_nao_recusa_a_minuta(self, _ia):
+        minuta = _minuta()
+        minuta["deliberacoes"][0]["responsavel"] = "Pessoa de Teste MEMB3"
+        _ia.minutas = [minuta]
+        banco = _cenario()
+
+        _importar(_cliente(PRESIDENCIA, banco))
+
+        assert len(_ia.chamadas) == 1
+        assert _ata_gravada(banco)["deliberacoes"][0]["responsavel"] == "Pessoa de Teste MEMB3"
