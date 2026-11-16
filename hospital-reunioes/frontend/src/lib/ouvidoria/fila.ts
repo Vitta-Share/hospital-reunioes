@@ -60,6 +60,9 @@ export interface ManifestacaoIndice {
   // ponto diz "a Ouvidoria ainda não viu", e não significa nada para os
   // outros perfis do painel.
   tem_novidade: boolean;
+  // O botão RESPONDER (issue #1886, ADR 0099): o caso aguarda a área num
+  // setor em que quem pede é responsável vigente. Quem decide é o servidor.
+  pode_responder?: boolean;
 }
 
 export const ORDEM_DA_FILA: StatusManifestacao[] = [
@@ -196,4 +199,23 @@ export function aguardandoSeuEncerramento<
   T extends { status: StatusManifestacao; tem_novidade: boolean },
 >(manifestacoes: T[]): T[] {
   return manifestacoes.filter((m) => m.status === "respondido" && m.tem_novidade);
+}
+
+/** Os dois grupos da lista do Responsável do setor (issue #1886, ADR 0099). */
+export const TITULO_A_RESPONDER = "A responder";
+export const TITULO_RESPONDIDOS_PELO_SETOR = "Respondidos pelo setor";
+
+/**
+ * A lista do Responsável do setor em dois grupos: primeiro o que aguarda a
+ * área, do prazo mais curto ao mais longo, e embaixo o que o setor já
+ * respondeu, na ordem em que chegou. Caso sem prazo vai para o fim do grupo.
+ */
+export function gruposDoResponsavel<T extends { status: StatusManifestacao; prazo_area_em: string | null }>(
+  itens: T[]
+): { aResponder: T[]; respondidos: T[] } {
+  const peloPrazo = (m: T) => (m.prazo_area_em ? new Date(m.prazo_area_em).getTime() : Infinity);
+  return {
+    aResponder: itens.filter((m) => m.status === "aguardando_area").sort((a, b) => peloPrazo(a) - peloPrazo(b)),
+    respondidos: itens.filter((m) => m.status !== "aguardando_area"),
+  };
 }

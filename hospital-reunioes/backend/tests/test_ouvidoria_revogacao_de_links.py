@@ -458,6 +458,7 @@ class TestOCadastroQueMudaNoMeioDoCaminho:
             enviar_a_partir_de=QUANDO_A_JANELA_ABRE,
         )
         sb.tabelas["ouvidoria_protocolos"][0]["setor"] = "Recepcao"
+        sb.tabelas["ouvidoria_protocolos"][0]["status"] = "aguardando_area"
 
         # O fim de semana da Diretoria: Carlos sai, Ana entra na MESMA Recepção.
         sb.tabelas["ouvidoria_setor_responsaveis"][0]["vigencia_fim"] = "2026-08-24"
@@ -520,6 +521,7 @@ class TestOCadastroQueMudaNoMeioDoCaminho:
             enviar_a_partir_de=QUANDO_A_JANELA_ABRE,
         )
         sb.tabelas["ouvidoria_protocolos"][0]["setor"] = "Recepcao"
+        sb.tabelas["ouvidoria_protocolos"][0]["status"] = "aguardando_area"
         sb.falhas_no_execute = {"ouvidoria_setor_responsaveis": httpx.ReadTimeout("o banco não respondeu no tempo")}
 
         ouvidoria_notificacoes.despachar_pendentes(sb, DEPOIS_DA_REVOGACAO, frozenset())

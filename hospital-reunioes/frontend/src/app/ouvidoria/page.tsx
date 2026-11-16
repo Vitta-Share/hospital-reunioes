@@ -24,6 +24,9 @@ import {
   aguardandoSeuEncerramento,
   agruparPorStatus,
   classeDoStatus,
+  gruposDoResponsavel,
+  TITULO_A_RESPONDER,
+  TITULO_RESPONDIDOS_PELO_SETOR,
   rotuloDoStatus,
   TITULO_AGUARDANDO_ENCERRAMENTO,
   type ManifestacaoIndice,
@@ -371,7 +374,25 @@ export default function OuvidoriaPage() {
   // de novo achando que o primeiro clique não pegou.
   const loteEmVoo = noArquivo === O_LOTE;
 
-  const grupos = agruparPorStatus(manifestacoes).filter((g) => g.itens.length > 0);
+  // O responsável do setor lê dois grupos, e não os estados da Ouvidoria
+  // (issue #1886, ADR 0099, decisão 2): o que ele tem para responder, pelo
+  // prazo, e embaixo o que o setor já respondeu, só para leitura.
+  const grupos = doSetor
+    ? (() => {
+        const { aResponder, respondidos } = gruposDoResponsavel(manifestacoes);
+        return [
+          { chave: "a-responder", titulo: TITULO_A_RESPONDER, classe: classeDoStatus("aguardando_area"), itens: aResponder },
+          { chave: "respondidos", titulo: TITULO_RESPONDIDOS_PELO_SETOR, classe: classeDoStatus("respondido"), itens: respondidos },
+        ].filter((g) => g.itens.length > 0);
+      })()
+    : agruparPorStatus(manifestacoes)
+        .filter((g) => g.itens.length > 0)
+        .map((g) => ({
+          chave: g.status,
+          titulo: rotuloDoStatus(g.status),
+          classe: classeDoStatus(g.status),
+          itens: g.itens,
+        }));
   // O trabalho do dia do ouvidor, em cima de tudo (issue #486, RN-67): o caso
   // que a área respondeu e que ele ainda não abriu. Sai da mesma lista que os
   // grupos, sem consumi-la: o caso destacado continua no grupo de estado dele.
@@ -660,7 +681,7 @@ export default function OuvidoriaPage() {
         ) : (
           <div className="divide-y divide-slate-100">
             {grupos.map((grupo) => (
-              <section key={grupo.status} aria-label={rotuloDoStatus(grupo.status)}>
+              <section key={grupo.chave} aria-label={grupo.titulo}>
                 {/* A faixa do grupo (issue #495, RN-70): largura total, fundo
                     na cor do estado e o contador na outra ponta. A cor de
                     estado vive só aqui (RN-71), e por isso a pílula que ficava
@@ -669,12 +690,8 @@ export default function OuvidoriaPage() {
                     escala com a gravidade. Caixa alta é do CSS, e não do texto:
                     o leitor de tela continua ouvindo o nome do estado como ele
                     se escreve. */}
-                <header
-                  className={`flex items-center justify-between gap-2 px-5 py-2 ${classeDoStatus(grupo.status)}`}
-                >
-                  <span className="text-xs font-bold uppercase tracking-wide">
-                    {rotuloDoStatus(grupo.status)}
-                  </span>
+                <header className={`flex items-center justify-between gap-2 px-5 py-2 ${grupo.classe}`}>
+                  <span className="text-xs font-bold uppercase tracking-wide">{grupo.titulo}</span>
                   <div className="flex items-center gap-3">
                     {/* O lote (issue #594). Mora no cabeçalho do grupo porque
                         é sobre o grupo inteiro que ele age, e não sobre uma
@@ -686,7 +703,7 @@ export default function OuvidoriaPage() {
 
                         Gate de perfil como no resto da tela: quem recusa de
                         verdade é o servidor, com 403. */}
-                    {!arquivados && podeAbrirDossie && grupo.status === "encerrado" && (
+                    {!arquivados && podeAbrirDossie && grupo.chave === "encerrado" && (
                       <button
                         type="button"
                         // Desabilitado por QUALQUER ato do arquivo em voo, e

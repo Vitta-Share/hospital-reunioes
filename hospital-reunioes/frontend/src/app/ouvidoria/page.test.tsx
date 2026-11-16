@@ -172,3 +172,66 @@ describe("a fila tem a legenda das cores e dos estados (issue #1629, regra T8)",
     expect(screen.getByRole("region", { name: "Legenda das cores e dos estados" })).toBeTruthy();
   });
 });
+
+describe("a lista do responsável do setor (issue #1886, ADR 0099)", () => {
+  function linha(id: string, status: string, prazo: string | null, podeResponder: boolean) {
+    return {
+      ...INDICE.protocolos[0],
+      id,
+      protocolo: `2026-00${id}`,
+      status,
+      setor: "Recepção",
+      categoria: "Atendimento",
+      gravidade: "medio",
+      prazo_area_em: prazo,
+      pode_responder: podeResponder,
+    };
+  }
+
+  const DO_SETOR = {
+    protocolos: [
+      linha("10", "respondido", "2026-08-28T20:00:00+00:00", false),
+      linha("11", "aguardando_area", "2026-09-02T20:00:00+00:00", true),
+      linha("12", "aguardando_area", "2026-08-31T20:00:00+00:00", true),
+      linha("13", "encerrado", "2026-08-20T20:00:00+00:00", false),
+    ],
+  };
+
+  beforeEach(() => {
+    sessao.perfilOuvidoria = null;
+    sessao.papelOuvidoria = "responsavel";
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200, json: async () => DO_SETOR }) as Response));
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    sessao.papelOuvidoria = undefined;
+  });
+
+  it("mostra A responder em cima, pelo prazo, e Respondidos pelo setor embaixo", async () => {
+    render(<OuvidoriaPage />);
+
+    const aResponder = await screen.findByRole("region", { name: "A responder" });
+    const respondidos = screen.getByRole("region", { name: "Respondidos pelo setor" });
+    expect(aResponder.compareDocumentPosition(respondidos) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const protocolos = (regiao: HTMLElement) =>
+      (regiao.textContent ?? "").match(/2026-00\d\d/g) ?? [];
+    expect(protocolos(aResponder)).toEqual(["2026-0012", "2026-0011"]);
+    expect(protocolos(respondidos)).toEqual(["2026-0010", "2026-0013"]);
+  });
+
+  it("o RESPONDER só aparece em A responder e abre a Tela do responsável no app", async () => {
+    render(<OuvidoriaPage />);
+
+    const aResponder = await screen.findByRole("region", { name: "A responder" });
+    const respondidos = screen.getByRole("region", { name: "Respondidos pelo setor" });
+    const botoes = screen.getAllByRole("link", { name: /^responder/i });
+    expect(botoes.map((b) => b.getAttribute("href"))).toEqual([
+      "/ouvidoria/responder/12",
+      "/ouvidoria/responder/11",
+    ]);
+    expect(botoes.every((b) => aResponder.contains(b))).toBe(true);
+    expect(respondidos.querySelector("a[href^='/ouvidoria/responder/']")).toBeNull();
+  });
+});

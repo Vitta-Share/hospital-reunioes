@@ -2,7 +2,7 @@
 
 O módulo da Ouvidoria é onde vive o caso de ouvidoria do hospital, do primeiro relato ao encerramento: quem falou, o que falou, quem ficou responsável, quanto tempo a área tem para responder e o que foi respondido.
 
-Quem trabalha nele é o ouvidor e a diretoria executiva, cada um com o seu acesso próprio. Nem quem administra o aplicativo abre o relato de um caso: administrar o sistema não dá direito a ler o que a pessoa contou. A secretária e quem administra o aplicativo veem a fila dos casos não sigilosos, com protocolo, prazo e estado, sem o relato, e não abrem o caso nem agem sobre ele; caso sigiloso e caso ainda sem tipo não aparecem nessa fila. O responsável do setor (titular, substituto ou gestor) entra com o próprio login e vê na Ouvidoria só os casos já encaminhados ao setor dele, inclusive o sigiloso, sempre sem o relato e sem o nome de quem manifestou; por enquanto ele responde pelo link do e-mail. Quem não é nenhum desses, como o médico ou o facilitador que não responde por setor, não vê a Ouvidoria no menu. Todo acesso a um caso fica registrado.
+Quem trabalha nele é o ouvidor e a diretoria executiva, cada um com o seu acesso próprio. Nem quem administra o aplicativo abre o relato de um caso: administrar o sistema não dá direito a ler o que a pessoa contou. A secretária e quem administra o aplicativo veem a fila dos casos não sigilosos, com protocolo, prazo e estado, sem o relato, e não abrem o caso nem agem sobre ele; caso sigiloso e caso ainda sem tipo não aparecem nessa fila. O responsável do setor (titular, substituto ou gestor) entra com o próprio login e vê na Ouvidoria só os casos já encaminhados ao setor dele, inclusive o sigiloso. A lista em si vem sem o relato e sem o nome de quem manifestou: eles só aparecem quando ele abre o caso pelo botão Responder, nos mesmos blocos que o link do e-mail mostra, sem o nome no caso anônimo e só com a nota da ouvidoria no caso sigiloso. A lista dele mostra primeiro o grupo A responder, com o prazo de cada caso e o botão Responder, e embaixo o grupo Respondidos pelo setor, só para leitura. A secretária ou quem administra o aplicativo que também responde por um setor ganha o botão Responder nos casos desse setor. Quem não é nenhum desses, como o médico ou o facilitador que não responde por setor, não vê a Ouvidoria no menu. Todo acesso a um caso fica registrado.
 
 ## Por onde um caso chega
 
@@ -40,6 +40,8 @@ No formulário público a pessoa pode marcar, se quiser, o que ela acha que o re
 Ao validar o caso, o ouvidor confere tipo, área e gravidade, escreve uma nota com as palavras dele e aciona a área no mesmo passo. Essa nota é obrigatória: sem ela o aplicativo não deixa acionar.
 
 O responsável do setor recebe um e-mail com um link e abre uma tela sem senha, do celular: ele vê a gravidade, o prazo em contagem regressiva, o resumo, o relato como o paciente escreveu, o nome de quem manifestou e a nota da ouvidoria, e escreve o que foi feito. Em caso anônimo, a área recebe o resumo, o relato e a nota da ouvidoria, sem o nome de quem manifestou, e um aviso de que a autoria não se procura. Em caso sigiloso, o resumo, o relato original e o nome de quem manifestou não são encaminhados: a área recebe a nota da ouvidoria e um aviso explicando por que o caso chegou com um bloco só. Quem escreve essa nota é o ouvidor, então é ela, e não uma regra do sistema, que separa o que a área precisa saber do que não deve sair.
+
+O titular, o substituto e o gestor do setor que têm login no aplicativo também respondem por dentro dele: o botão Responder abre a mesma tela do link, com os mesmos blocos, responder, pedir prorrogação e devolver à ouvidoria. Cada caso tem uma resposta só. Quem responde ou devolve pelo aplicativo faz o link do e-mail deixar de valer, e quem usa o link tira o caso do grupo A responder. A trilha do caso guarda o nome de quem respondeu e se foi pelo aplicativo ou pelo link.
 
 O prazo sai da gravidade e corre em horário útil: de segunda a sexta, das 8h às 17h, e sem contar feriado. Caso que entra de madrugada é registrado na hora real, mas o relógio só abre no expediente seguinte. Quando o prazo aperta, o aplicativo cobra a área, depois o gestor, depois a diretoria.
 
@@ -124,6 +126,7 @@ A nota do Google é buscada sozinha uma vez por semana, junto com o total de ava
 - O protocolo é ano mais número, numa sequência que nunca recomeça.
 - Administrar o aplicativo não dá acesso ao relato, que só o ouvidor e a diretoria executiva abrem.
 - A área recebe o caso por um link sem senha, que abre no celular.
+- O responsável do setor que tem login também responde pelo botão Responder do aplicativo, e cada caso tem uma resposta só, por qualquer um dos dois caminhos.
 - Acionar a área exige uma nota escrita pelo ouvidor, e no caso sigiloso é só essa nota que sai.
 - No caso anônimo, o nome de quem manifestou nunca vai para a área, e o paciente do caso vai, quando foi informado.
 - O prazo sai da gravidade e corre em horário útil, de segunda a sexta, das 8h às 17h, sem contar feriado.

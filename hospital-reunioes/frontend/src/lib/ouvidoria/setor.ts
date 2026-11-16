@@ -350,13 +350,18 @@ export interface TelaDeErroDoPortal {
  * a própria mensagem logo acima dela. O `status` 0 é a falha do fetch, que é a
  * mesma instabilidade vista do outro lado.
  */
-export function telaDeErroDoPortal(status: number): TelaDeErroDoPortal {
+export function telaDeErroDoPortal(status: number, peloApp = false): TelaDeErroDoPortal {
   if (status === 503 || status === 0) {
     return {
       titulo: "O sistema está instável agora",
       rodape: null,
       podeTentarDeNovo: true,
     };
+  }
+  // A porta do login (issue #1886) não tem link para pedir de novo: quem não
+  // abre o caso por aqui é porque o caso não está com o setor dele.
+  if (peloApp) {
+    return { titulo: "Este caso não abre para você", rodape: null, podeTentarDeNovo: false };
   }
   return {
     titulo: "Este link não abre o caso",

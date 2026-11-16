@@ -405,7 +405,18 @@ function LinhaDaFila({
       atrasado={classe === "estourado"}
       responsavel={cadastroLido ? (responsavel ? responsavel.nome : "Sem responsável") : null}
       acao={
-        podeAbrirDossie && (
+        // O RESPONDER de quem responde pelo setor (issue #1886, ADR 0099): um
+        // `<a href>` para a Tela do responsável dentro do app. O Perfil da
+        // Ouvidoria age pelo Dossiê e não o recebe.
+        !podeAbrirDossie && m.pode_responder ? (
+          <Link
+            href={`/ouvidoria/responder/${m.id}`}
+            className={`inline-flex w-full md:w-auto items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wide bg-primary text-white hover:bg-primary/90 transition-colors ${ALTURA_DE_TOQUE}`}
+          >
+            <Send className="w-3.5 h-3.5" />
+            Responder
+          </Link>
+        ) : podeAbrirDossie && (
           // No celular as ações tomam a largura toda (issue #496, RN-75).
           <div className="w-full md:w-auto flex items-center gap-1.5">
             <Acao

@@ -1687,6 +1687,7 @@ class TestNotificacaoEmVoo:
         # despacho só emite link do portal para quem responde pelo setor que
         # está com o caso, e o dublê precisa dizer qual é esse setor.
         supabase.tabelas["ouvidoria_protocolos"][0]["setor"] = "Recepcao"
+        supabase.tabelas["ouvidoria_protocolos"][0]["status"] = "aguardando_area"
         registro = ouvidoria_notificacoes.registrar(
             supabase,
             manifestacao_id="uuid-7",

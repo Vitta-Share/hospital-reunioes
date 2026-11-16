@@ -215,6 +215,12 @@ class _TabelaFake:
         self._filters: dict = {}
         self._em: dict = {}
         self._ate: dict = {}
+        # O `ilike` sem curinga e o `not_.is_` (issue #1886): o papel na
+        # Ouvidoria acha o e-mail sem diferenciar maiúsculas, e a fila do
+        # responsável exige o carimbo da validação.
+        self._sem_caixa: dict = {}
+        self._diferentes: dict = {}
+        self._negar = False
         self._insert: dict | list | None = None
         self._update: dict | None = None
         self._delete = False
@@ -248,7 +254,21 @@ class _TabelaFake:
         return self
 
     def is_(self, col, value):
-        self._filters[col] = None if value in ("null", None) else value
+        alvo = None if value in ("null", None) else value
+        if self._negar:
+            self._negar = False
+            self._diferentes[col] = alvo
+        else:
+            self._filters[col] = alvo
+        return self
+
+    @property
+    def not_(self):
+        self._negar = True
+        return self
+
+    def ilike(self, col, padrao):
+        self._sem_caixa[col] = padrao.replace("\\_", "_").replace("\\%", "%").replace("\\\\", "\\").lower()
         return self
 
     def lte(self, col, value):
@@ -311,6 +331,8 @@ class _TabelaFake:
             if all(r.get(c) == v for c, v in self._filters.items())
             and all(r.get(c) in v for c, v in self._em.items())
             and all(str(r.get(c) or "") <= v for c, v in self._ate.items())
+            and all((r.get(c) or "").lower() == v for c, v in self._sem_caixa.items())
+            and all(r.get(c) != v for c, v in self._diferentes.items())
         ]
         if self._update is not None:
             atualizadas = []

@@ -166,3 +166,54 @@ def devolver(supabase, vinculo: dict, carimbo: str) -> None:
         .is_("revogado_em", "null")
         .execute()
     )
+
+
+def consumir_os_vivos(supabase, manifestacao_id: str, agora: dt.datetime) -> bool:
+    """O uso único da porta do login (issue #1886, ADR 0099, decisão 6): agir
+    pelo app consome todos os links vivos do caso, com o carimbo `agora`.
+
+    Devolve se esta ação ganhou a vez. Caso sem link vivo (o email ainda não
+    saiu, ou o acionamento não teve destinatário) não tem o que disputar, e a
+    guarda de estado do serviço segue sendo a régua. O email retido pela janela
+    comercial não emite link depois: o `nova_demanda` está entre os gatilhos que
+    o `despachar` descarta fora de `aguardando_area`. Havia link vivo e o UPDATE
+    não pegou nenhum: outra resposta (pelo link ou pelo app) levou a vez entre
+    a leitura e a escrita.
+
+    O link vencido conta como vivo: ele não abre mais, e carimbá-lo mantém a
+    disputa num lugar só."""
+    vivos = (
+        supabase.table("ouvidoria_setor_tokens")
+        .select("id")
+        .eq("manifestacao_id", manifestacao_id)
+        .is_("usado_em", "null")
+        .is_("revogado_em", "null")
+        .execute()
+        .data
+        or []
+    )
+    if not vivos:
+        return True
+    result = (
+        supabase.table("ouvidoria_setor_tokens")
+        .update({"usado_em": agora.isoformat()})
+        .eq("manifestacao_id", manifestacao_id)
+        .is_("usado_em", "null")
+        .is_("revogado_em", "null")
+        .execute()
+    )
+    return bool(result.data)
+
+
+def devolver_os_do_carimbo(supabase, manifestacao_id: str, carimbo: str) -> None:
+    """Solta os links que `consumir_os_vivos` carimbou com `carimbo`, quando a
+    ação do app não entrou. Mesma régua do `devolver`: só o carimbo DESTE
+    request, e link revogado no meio do caminho não volta a valer."""
+    (
+        supabase.table("ouvidoria_setor_tokens")
+        .update({"usado_em": None})
+        .eq("manifestacao_id", manifestacao_id)
+        .eq("usado_em", carimbo)
+        .is_("revogado_em", "null")
+        .execute()
+    )

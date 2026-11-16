@@ -202,6 +202,12 @@ GATILHOS_COM_PORTAL = (
 # prorrogação também: quem pediu prazo tem direito de saber a resposta, mesmo
 # que o caso já tenha andado (issue #333).
 GATILHOS_QUE_COBRAM_A_AREA = (
+    # O acionamento também pede resposta (issue #1886, ADR 0099, decisão 6):
+    # retido pela janela comercial, o caso já aparece em "A responder" no app,
+    # e quem responde ou devolve por lá antes do expediente não tem link para
+    # consumir. Sair depois seria pedir resposta de um caso que andou, com um
+    # link novo de 30 dias que abre o relato sem olhar o estado.
+    GATILHO_NOVA_DEMANDA,
     GATILHO_PRAZO_ROMPIDO,
     GATILHO_VESPERA_VENCIMENTO,
     GATILHO_ESCALONAMENTO_GESTOR,
