@@ -1,0 +1,120 @@
+# Termos do domínio que a peneira de dado pessoal deixa passar (issue #1813).
+# GERADO por scripts/gerar_termos_do_dominio.py. Não edite à mão.
+# Fontes: verbetes e seções do CONTEXT.md e o catálogo de Produtos da aba
+# Tecnologia (migrations de tecnologia_produtos). Um termo por linha.
+API da Ana
+Aceite interno
+Acesso pleno ao NSP
+Acionamento de ciência
+Acionamento de resposta
+Afastamento cautelar
+Agente de triagem
+Anexo da Demanda
+Anexo da Manifestação
+Ao vivo
+Apagar a Demanda
+Apoio ao faturamento
+Apurador designado
+Arquivo da Manifestação
+Assinatura digital
+Assistente de Tecnologia
+Assunto do caso
+Ata Guiada
+Ata de deliberação
+Atualizar agora
+Caixa alta
+Calendário útil
+Canal aberto
+Canal de Conduta
+Canal de origem
+Central de Comando
+Comitê de Conduta
+Contas médicas
+Contatos gerados
+Conversa da Demanda
+Converter em manifestação
+Coordenação do Comitê
+Código de acompanhamento
+Dados do Atendimento
+Definições de processo do setor
+Devolução à Ouvidoria
+Diálogo de exemplo
+Documento de apoio
+Documento do card
+Dossiê do caso
+E-mail de segunda
+Em análise pelo NSP
+Envio falhou
+Espelho da Global Health
+Extrato para o setor
+Faturista da conta
+Fila de contas
+Funil do QR
+Grupo Especial
+Histórico da Pendência
+Integração Ana x MV
+Kit de conhecimento
+Manifestação guiada
+Manual do usuário
+Matriz de Consequências
+Membro do Núcleo
+Mensagem pelo terminal
+Minha Fila
+Modo de resposta
+Motor de prazos
+Nome público do ponto
+Nota externa
+Notificação da Ouvidoria
+Notificação de incidente
+Notificação externa
+Núcleo de Segurança do Paciente
+Número da Demanda
+O que muda
+O que vem por aí
+Origem do público
+PRD do diretor
+Paciente do caso
+Para revisar
+Perfil da Ouvidoria
+Pessoas e papéis
+Planejamento da Demanda
+Ponto de escuta
+Portão do push
+Presidência do Núcleo
+Principais publicações
+Pronto para encerrar
+Protocolo de ouvidoria
+Puxar a conta
+Página de acompanhamento
+Recomendação do Comitê
+Responsável do setor
+Retrato da Ana
+Reunião e Ata
+Revisão com o código de hoje
+Rota Especial
+Roteiro do bug
+Régua de texto
+Segundo leitor
+Segurança do Paciente
+Semáforo de prazo
+Super admin
+Tabela de prazos
+Tamanho da entrega
+Tela do responsável
+Termo de Adesão
+Termo de declaração
+Teste do convite ao Google
+Texto corrido
+Texto curto
+Texto e comunicação
+Tipo da manifestação
+Trava de robustez
+Triagem de e-mail
+Triagem do Comitê
+Triagem do Núcleo
+Trilha do caso
+Validação e acionamento
+Visto da Ouvidoria
+Vídeo de percepção de valor
+Vínculo com o desenvolvimento
+Área do site

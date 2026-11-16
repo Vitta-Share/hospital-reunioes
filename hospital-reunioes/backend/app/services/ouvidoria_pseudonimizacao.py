@@ -930,6 +930,59 @@ _NOMES_PROPRIOS = frozenset(
     if linha.strip() and not linha.startswith("#")
 )
 
+# Termo composto do domínio (issue #1813): verbete e seção do CONTEXT.md e
+# Produto do catálogo da aba Tecnologia, congelados em arquivo por
+# `scripts/gerar_termos_do_dominio.py` (a imagem do backend não leva o
+# CONTEXT.md). "Canal de Conduta" e "Núcleo de Segurança do Paciente" têm o
+# desenho de nome de gente, e a Demanda #1786 chegou à issue pública com eles
+# trocados por `[NOME]`, a começar pelo título.
+#
+# O termo sai do caminho ANTES das três camadas de nome e volta depois, como a
+# data sai das regras numéricas: guardar é mais forte que excetuar. O lugar
+# guardado não é letra, então ele também é parede: o nome de gente colado no
+# termo ("Maria Souza do Canal de Conduta") continua virando `[NOME]`.
+#
+# Só entra termo de duas palavras ou mais, e só casa em palavra inteira com
+# maiúscula inicial no texto. Palavra sozinha nunca vira nome pelo desenho, e
+# protegê-la deixaria um prenome no texto ("Ana Paula" virava "Ana [NOME]"). A
+# forma sem acento também casa, porque é como o diretor digita no celular.
+_ARQUIVO_DE_TERMOS = pathlib.Path(__file__).parent / "dados" / "termos_do_dominio.txt"
+_TERMOS_DO_DOMINIO = sorted(
+    {
+        forma
+        for linha in _ARQUIVO_DE_TERMOS.read_text(encoding="utf-8").splitlines()
+        if linha.strip() and not linha.startswith("#")
+        for forma in (linha.strip(), _sem_acento(linha.strip()))
+    },
+    key=len,
+    reverse=True,
+)
+_TERMO_DO_DOMINIO = re.compile(
+    rf"(?<![{_LETRA}{_APOSTROFO}])(?=[{_MAIUSCULA}])"
+    rf"(?:{'|'.join(_ESPACO.join(map(re.escape, termo.split())) for termo in _TERMOS_DO_DOMINIO)})"
+    rf"(?![{_LETRA}{_APOSTROFO}])",
+    re.IGNORECASE,
+)
+_LUGAR_DO_TERMO = "\x01"
+
+
+def _guardar_termos(texto: str) -> tuple[str, list[str]]:
+    # O mesmo cuidado do NUL das datas: um `\x01` vindo de fora desalinharia
+    # a reposição.
+    texto = texto.replace(_LUGAR_DO_TERMO, "")
+    guardados: list[str] = []
+
+    def trocar(match: re.Match[str]) -> str:
+        guardados.append(match.group(0))
+        return _LUGAR_DO_TERMO
+
+    return _TERMO_DO_DOMINIO.sub(trocar, texto), guardados
+
+
+def _repor_termos(texto: str, guardados: list[str]) -> str:
+    devolvendo = iter(guardados)
+    return re.sub(re.escape(_LUGAR_DO_TERMO), lambda _: next(devolvendo, ""), texto)
+
 
 # Palavra terminada assim é verbo ou advérbio, não nome de gente. Vale mais que
 # uma lista de verbos: é o que impede a pista de comer o resto da frase ("Sra.
@@ -1158,6 +1211,8 @@ def pseudonimizar(texto: str | None) -> str:
     # larga vai depois de desenho específico, sempre.
     texto = _BLOCO_NUMERICO.sub(_mascarar_cpf_pontuado, texto)
     texto = _TELEFONE.sub(MARCADOR_TELEFONE, texto)
+    # O termo do domínio sai do caminho das três camadas de nome (issue #1813).
+    texto, termos = _guardar_termos(texto)
     texto = _mascarar_por_desenho(texto, caixa_alta_conta)
     texto = _mascarar_por_pista(texto)
     # A base vem por ÚLTIMO de propósito. Rodando antes, o marcador que ela
@@ -1166,6 +1221,7 @@ def pseudonimizar(texto: str | None) -> str:
     # ("[NOME] Kowalski"). Por último, ela só acrescenta, e o que sobrou ao
     # lado de um marcador é absorvido por ele (review do PR #423).
     texto = _mascarar_pela_base(texto)
+    texto = _repor_termos(texto, termos)
     return _repor_datas(texto, datas)
 
 
