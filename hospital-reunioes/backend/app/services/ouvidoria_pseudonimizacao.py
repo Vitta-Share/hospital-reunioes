@@ -101,6 +101,10 @@ O que continua esforço, NÃO garantia:
 - primeiro nome sozinho ("Carlos") continua só saindo atrás de pista. A base
   exige duas palavras de nome seguidas, senão "levou uma rosa para o leito"
   perderia a flor junto com a pessoa;
+- termo do domínio (issue #1813) sai do caminho antes das camadas de nome, e
+  isso tem um preço: o prenome sozinho colado nele ("Membro do Núcleo Carlos")
+  fica no texto, onde antes o desenho o levava junto com o termo. Nome e
+  sobrenome ao lado do termo continuam virando `[NOME]`;
 - palavra que é nome E é do vocabulário da casa ("Socorro", "Matheus",
   "Domingo") vale como nome na base e como palavra da casa no desenho. Quem
   protege "Pronto Socorro" e "Hospital São Matheus" é a parede comum: "Pronto"
@@ -816,7 +820,15 @@ _ESPACO = r"(?:[^\S\n]|\n(?!\n))+"
 # O teto de 40 letras por palavra não é sobre nome comprido: sem ele, uma
 # sequência longa de letras faz a busca tentar todos os tamanhos em cada
 # posição (medido: 3,7s em 20 mil maiúsculas seguidas).
-_TITULO = rf"[{_MAIUSCULA}](?:[{_MINUSCULA}]{{1,40}}|[{_APOSTROFO}][{_LETRA}][{_MINUSCULA}]{{0,40}})"
+#
+# O apóstrofo cabe em três lugares: depois da inicial ("D'Ávila", "O'Brien"),
+# no meio ("Sant'Anna") e na partícula minúscula colada ("d'Ávila"). Como a
+# sequência só aceita palavra inteira (issue #1813), um apóstrofo que a palavra
+# não comporta fazia o nome inteiro ficar no texto (review do PR #1895).
+_TITULO = (
+    rf"(?:[dD][{_APOSTROFO}])?[{_MAIUSCULA}](?:[{_MINUSCULA}]{{1,40}}|[{_APOSTROFO}][{_LETRA}][{_MINUSCULA}]{{0,40}})"
+    rf"(?:[{_APOSTROFO}][{_LETRA}][{_MINUSCULA}]{{0,40}})?"
+)
 # Três letras é o piso da caixa alta: com duas, sigla de exame ("TC", "RX")
 # entrava como nome e levava a frase inteira junto.
 _CAIXA_ALTA = rf"[{_MAIUSCULA}]{{3,40}}"
@@ -843,8 +855,17 @@ _CONECTIVOS = ("de", "da", "do", "das", "dos", "e")
 # todo dia que por acaso também são nome ("esperei dias e dias", "fui ao porto
 # de santos") e a frase inteira virava marcador (review do PR #423).
 _CONECTIVOS_DA_BASE = ("de", "da", "do", "das", "dos")
+#
+# As duas pontas exigem PALAVRA INTEIRA (issue #1813): sem elas, a sequência
+# começava ou terminava dentro de uma palavra, e "Envelope ClickSign" saía
+# "[NOME]Sign", "ClickSign API" saía "Click[NOME]" e "GRupo Especial" saía
+# "G[NOME]". A guarda é de letra, não de `\w`, porque o que ela protege é a
+# palavra. A inicial do meio termina em ponto e pode vir colada no sobrenome
+# ("Maria S.Souza"): ali o ponto já é a fronteira.
 _SEQUENCIA_DE_NOME = re.compile(
-    rf"{_PALAVRA_DE_NOME}(?:{_ESPACO}(?:(?:{'|'.join(_CONECTIVOS)}){_ESPACO})*{_PALAVRA_DE_NOME})+"
+    rf"(?<![{_LETRA}{_APOSTROFO}]){_PALAVRA_DE_NOME}"
+    rf"(?:{_ESPACO}(?:(?:{'|'.join(_CONECTIVOS)}){_ESPACO})*{_PALAVRA_DE_NOME})+"
+    rf"(?:(?<=\.)|(?![{_LETRA}{_APOSTROFO}]))"
 )
 
 # Pista que anuncia pessoa. Vale sem olhar caixa, e é o que pega o nome
@@ -920,6 +941,97 @@ _NOMES_PROPRIOS = frozenset(
     for linha in _ARQUIVO_DE_NOMES.read_text(encoding="utf-8").splitlines()
     if linha.strip() and not linha.startswith("#")
 )
+
+# Termo composto do domínio (issue #1813): verbete e seção do CONTEXT.md e
+# Produto do catálogo da aba Tecnologia, congelados em arquivo por
+# `scripts/gerar_termos_do_dominio.py` (a imagem do backend não leva o
+# CONTEXT.md). "Canal de Conduta" e "Núcleo de Segurança do Paciente" têm o
+# desenho de nome de gente, e a Demanda #1786 chegou à issue pública com eles
+# trocados por `[NOME]`, a começar pelo título.
+#
+# O termo sai do caminho ANTES das três camadas de nome e volta depois, como a
+# data sai das regras numéricas: guardar é mais forte que excetuar. O lugar
+# guardado não é letra, então ele também é parede: o nome de gente colado no
+# termo ("Maria Souza do Canal de Conduta") continua virando `[NOME]`.
+#
+# Só entra termo de duas palavras ou mais, e só casa em palavra inteira com
+# maiúscula inicial no texto. Palavra sozinha nunca vira nome pelo desenho, e
+# protegê-la deixaria um prenome no texto ("Ana Paula" virava "Ana [NOME]"). A
+# forma sem acento também casa, porque é como o diretor digita no celular.
+_ARQUIVO_DE_TERMOS = pathlib.Path(__file__).parent / "dados" / "termos_do_dominio.txt"
+_TERMOS_DO_DOMINIO = sorted(
+    {
+        forma
+        for linha in _ARQUIVO_DE_TERMOS.read_text(encoding="utf-8").splitlines()
+        if linha.strip() and not linha.startswith("#")
+        for forma in (linha.strip(), _sem_acento(linha.strip()))
+    },
+    key=len,
+    reverse=True,
+)
+# A maiúscula inicial é conferida FORA do IGNORECASE: dentro dele a classe
+# também casa minúscula, e o termo em minúsculas cegaria a base para a pessoa
+# ao lado ("o api da ana maria", review do PR #1895).
+_TERMO_DO_DOMINIO = re.compile(
+    rf"(?<![{_LETRA}{_APOSTROFO}])(?-i:(?=[{_MAIUSCULA}]))"
+    rf"(?:{'|'.join(_ESPACO.join(map(re.escape, termo.split())) for termo in _TERMOS_DO_DOMINIO)})"
+    rf"(?![{_LETRA}{_APOSTROFO}])",
+    re.IGNORECASE,
+)
+_LUGAR_DO_TERMO = "\x01"
+
+
+def _guardar_termos(texto: str) -> tuple[str, list[str]]:
+    # O mesmo cuidado do NUL das datas: um `\x01` vindo de fora desalinharia
+    # a reposição.
+    texto = texto.replace(_LUGAR_DO_TERMO, "")
+    guardados: list[str] = []
+
+    def trocar(match: re.Match[str]) -> str:
+        if _termo_rouba_prenome(texto, match):
+            return match.group(0)
+        guardados.append(match.group(0))
+        return _LUGAR_DO_TERMO
+
+    return _TERMO_DO_DOMINIO.sub(trocar, texto), guardados
+
+
+# Termo que começa ou termina num prenome ("Retrato da Ana", "API da Ana") pode
+# levar o prenome de uma pessoa colada nele: "Retrato da Ana Souza" guardava
+# "Retrato da Ana" e o sobrenome sozinho ficava no texto, com o nome inteiro à
+# vista (review do PR #1895). Com nome do lado do prenome, o termo não é
+# guardado e as camadas de nome decidem, como antes da issue #1813.
+_CONECTIVO_NO_CAMINHO = rf"(?:{_ESPACO}(?:{'|'.join(_CONECTIVOS)}))*{_ESPACO}"
+_VIZINHA_DEPOIS = re.compile(rf"{_CONECTIVO_NO_CAMINHO}({_PALAVRA_SOLTA})")
+_VIZINHA_ANTES = re.compile(rf"(?<![{_LETRA}{_APOSTROFO}])({_PALAVRA_SOLTA}){_CONECTIVO_NO_CAMINHO}$")
+
+
+def _esta_na_base(palavra: str) -> bool:
+    return _sem_acento(palavra.lower()).strip(".'’") in _NOMES_PROPRIOS
+
+
+def _pode_ser_nome(palavra: str) -> bool:
+    if _esta_na_base(palavra):
+        return True
+    return re.fullmatch(_TITULO, palavra) is not None and not _e_palavra_neutra(palavra)
+
+
+def _termo_rouba_prenome(texto: str, match: re.Match[str]) -> bool:
+    palavras = match.group(0).split()
+    if _esta_na_base(palavras[-1]):
+        depois = _VIZINHA_DEPOIS.match(texto, match.end())
+        if depois and _pode_ser_nome(depois.group(1)):
+            return True
+    if _esta_na_base(palavras[0]):
+        antes = _VIZINHA_ANTES.search(texto, 0, match.start())
+        if antes and _pode_ser_nome(antes.group(1)):
+            return True
+    return False
+
+
+def _repor_termos(texto: str, guardados: list[str]) -> str:
+    devolvendo = iter(guardados)
+    return re.sub(re.escape(_LUGAR_DO_TERMO), lambda _: next(devolvendo, ""), texto)
 
 
 # Palavra terminada assim é verbo ou advérbio, não nome de gente. Vale mais que
@@ -1149,6 +1261,8 @@ def pseudonimizar(texto: str | None) -> str:
     # larga vai depois de desenho específico, sempre.
     texto = _BLOCO_NUMERICO.sub(_mascarar_cpf_pontuado, texto)
     texto = _TELEFONE.sub(MARCADOR_TELEFONE, texto)
+    # O termo do domínio sai do caminho das três camadas de nome (issue #1813).
+    texto, termos = _guardar_termos(texto)
     texto = _mascarar_por_desenho(texto, caixa_alta_conta)
     texto = _mascarar_por_pista(texto)
     # A base vem por ÚLTIMO de propósito. Rodando antes, o marcador que ela
@@ -1157,6 +1271,7 @@ def pseudonimizar(texto: str | None) -> str:
     # ("[NOME] Kowalski"). Por último, ela só acrescenta, e o que sobrou ao
     # lado de um marcador é absorvido por ele (review do PR #423).
     texto = _mascarar_pela_base(texto)
+    texto = _repor_termos(texto, termos)
     return _repor_datas(texto, datas)
 
 
