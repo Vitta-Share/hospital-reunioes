@@ -2,6 +2,51 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-16T17:16:57-03:00",
+      "sha": "1cf413d012f86bc580ffa79c0086c64767160166",
+      "app_version": "0.303.0",
+      "subject": "PR #1881, issue #1780: A página de Segurança do Paciente",
+      "raw_subject": "chore(deploy): registro do PR avulso (#1881)",
+      "scope": [
+        "frontend"
+      ],
+      "prds": [
+        1764
+      ],
+      "result": "healthy",
+      "duration_seconds": 270,
+      "services_touched": [
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "PR avulso: PR #1881, issue #1780. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "frontend": 246
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-16T15:11:44-03:00",
       "sha": "e382be0b40366170947621fb2f6431cb3300fdac",
       "app_version": "0.302.1",
