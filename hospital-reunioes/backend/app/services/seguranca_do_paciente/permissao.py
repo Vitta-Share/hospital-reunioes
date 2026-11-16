@@ -109,7 +109,7 @@ def participacoes_vigentes(supabase, nucleo_id: str, hoje: date) -> Any:
     """A consulta das Participações do Núcleo vigentes no dia, sem executar."""
     return (
         supabase.table("participacoes")
-        .select("participante_id, papel, termo_assinado_em")
+        .select("id, participante_id, papel, termo_assinado_em")
         .eq("colegiado_id", nucleo_id)
         .lte("vigencia_inicio", hoje.isoformat())
         .gte("vigencia_fim", hoje.isoformat())

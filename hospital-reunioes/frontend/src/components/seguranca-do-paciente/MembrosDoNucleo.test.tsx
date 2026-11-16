@@ -66,6 +66,13 @@ const LISTA = {
 
 const COMPOSICAO = { data: "2026-08-15", membros: [LISTA.membros[0], LISTA.membros[2]] };
 
+const TERMO = {
+  situacao: "enviado",
+  erro: null,
+  enviado_em: "2026-11-10T12:00:00+00:00",
+  documento_url: "https://storage.test/nsp-documentos/termos/envio-b.pdf?token=t",
+};
+
 let chamadas: { url: string; init?: RequestInit }[] = [];
 
 beforeEach(() => {
@@ -81,6 +88,8 @@ beforeEach(() => {
         if (url === "/api/nsp/membros/pessoas") return { pessoas: [{ id: "PN", nome: "Pessoa Nova" }] };
         if (url === "/api/participantes/setores") return ["Farmácia", "UTI adulto"];
         if (url.endsWith("/trilha")) return { trilha: [] };
+        if (url.endsWith("/termo")) return TERMO;
+        if (url.includes("/termo/")) return { ...membro({ id: "part-b" }), aviso_termo: null };
         return {};
       })();
       return new Response(JSON.stringify(corpo), { status: 200, headers: { "Content-Type": "application/json" } });
@@ -228,5 +237,109 @@ describe("quem gere o Núcleo", () => {
     const detalhes = await screen.findByRole("region", { name: "Detalhes de Pessoa B" });
     expect(within(detalhes).queryByRole("button", { name: "Renovar" })).toBeNull();
     expect(within(detalhes).queryByRole("button", { name: "Encerrar participação" })).toBeNull();
+  });
+});
+
+describe("o Termo de Adesão na seção do membro", () => {
+  async function abrirPessoaB() {
+    entrar(["membros", "gerir_nucleo"]);
+    await abrir();
+    fireEvent.click(screen.getByRole("button", { name: "Pessoa B" }));
+    return screen.findByRole("region", { name: "Detalhes de Pessoa B" });
+  }
+
+  it("a Presidência reconsulta o status da assinatura", async () => {
+    const detalhes = await abrirPessoaB();
+
+    fireEvent.click(await within(detalhes).findByRole("button", { name: "Reconsultar status da assinatura" }));
+
+    await waitFor(() =>
+      expect(chamadas.some((c) => c.url === "/api/nsp/membros/part-b/termo/reconsultar" && c.init?.method === "POST")).toBe(
+        true
+      )
+    );
+  });
+
+  it("a Presidência reenvia o Termo", async () => {
+    const detalhes = await abrirPessoaB();
+
+    fireEvent.click(await within(detalhes).findByRole("button", { name: "Reenviar o Termo" }));
+
+    await waitFor(() =>
+      expect(chamadas.some((c) => c.url === "/api/nsp/membros/part-b/termo/reenviar" && c.init?.method === "POST")).toBe(
+        true
+      )
+    );
+  });
+
+  it("a liberação sem assinatura só sai com justificativa", async () => {
+    const detalhes = await abrirPessoaB();
+
+    fireEvent.click(await within(detalhes).findByRole("button", { name: "Liberar sem assinatura" }));
+    const confirmar = within(detalhes).getByRole("button", { name: "Confirmar liberação" });
+    expect((confirmar as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(within(detalhes).getByLabelText("Justificativa da liberação"), {
+      target: { value: "Assinatura eletrônica fora do ar" },
+    });
+    fireEvent.click(confirmar);
+
+    await waitFor(() => expect(chamadas.some((c) => c.url === "/api/nsp/membros/part-b/termo/liberar")).toBe(true));
+    const liberar = chamadas.find((c) => c.url === "/api/nsp/membros/part-b/termo/liberar")!;
+    expect(JSON.parse(String(liberar.init!.body))).toEqual({ justificativa: "Assinatura eletrônica fora do ar" });
+  });
+
+  it("a seção abre o documento enviado", async () => {
+    const detalhes = await abrirPessoaB();
+
+    const link = await within(detalhes).findByRole("link", { name: "Abrir o documento enviado" });
+    expect(link.getAttribute("href")).toBe(TERMO.documento_url);
+  });
+
+  it("membro com Termo assinado não tem os botões do Termo", async () => {
+    entrar(["membros", "gerir_nucleo"]);
+    await abrir();
+    fireEvent.click(screen.getByRole("button", { name: "Pessoa A" }));
+    const detalhes = await screen.findByRole("region", { name: "Detalhes de Pessoa A" });
+
+    expect(within(detalhes).queryByRole("button", { name: "Reenviar o Termo" })).toBeNull();
+    expect(within(detalhes).queryByRole("button", { name: "Liberar sem assinatura" })).toBeNull();
+  });
+
+  it("quem só lê não vê os botões do Termo", async () => {
+    entrar(["membros"]);
+    await abrir();
+    fireEvent.click(screen.getByRole("button", { name: "Pessoa B" }));
+    const detalhes = await screen.findByRole("region", { name: "Detalhes de Pessoa B" });
+
+    expect(within(detalhes).queryByRole("button", { name: "Reconsultar status da assinatura" })).toBeNull();
+    expect(within(detalhes).queryByRole("button", { name: "Liberar sem assinatura" })).toBeNull();
+  });
+
+  it("o aviso do cadastro sem Termo aparece na tela", async () => {
+    entrar(["membros", "gerir_nucleo"]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        chamadas.push({ url, init });
+        const corpo = (() => {
+          if (url === "/api/nsp/membros" && init?.method === "POST")
+            return { ...membro({ id: "part-novo" }), aviso_termo: "Publique o Regimento em Documentos para gerar o Termo de Adesão." };
+          if (url === "/api/nsp/membros") return LISTA;
+          if (url === "/api/nsp/membros/pessoas") return { pessoas: [{ id: "PN", nome: "Pessoa Nova" }] };
+          if (url === "/api/participantes/setores") return [];
+          return {};
+        })();
+        return new Response(JSON.stringify(corpo), { status: 200 });
+      })
+    );
+    await abrir();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cadastrar membro" }));
+    await screen.findByRole("option", { name: "Pessoa Nova" });
+    fireEvent.change(screen.getByLabelText("Pessoa"), { target: { value: "PN" } });
+    fireEvent.change(screen.getByLabelText("Fim da vigência"), { target: { value: "2027-11-14" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar cadastro" }));
+
+    expect(await screen.findByText("Publique o Regimento em Documentos para gerar o Termo de Adesão.")).toBeTruthy();
   });
 });

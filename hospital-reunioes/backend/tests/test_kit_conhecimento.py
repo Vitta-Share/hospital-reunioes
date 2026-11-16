@@ -786,3 +786,32 @@ class TestDocumentosDoNucleoNoKit:
         ainda_nao = _secao(texto, "O que ele ainda não faz")
         assert "Documentos" not in ainda_nao
         assert "documentos com versões" not in ainda_nao
+
+
+class TestTermoDeAdesaoNoKit:
+    """O Termo de Adesão (issue #1768): o Assistente responde "o membro assinou
+    e continua pendente, e agora?" e "por que o membro não vê as telas?"."""
+
+    @pytest.fixture
+    def texto(self) -> str:
+        return _texto("seguranca-do-paciente.md")
+
+    def test_no_ar_diz_que_o_cadastro_gera_e_manda_o_termo_com_o_regimento(self, texto):
+        no_ar = _secao(texto, "O que já está no ar")
+        for termo in ("ao cadastrar um membro", "Regimento vigente", "um signatário só", "fica Ativo sozinho"):
+            assert termo in no_ar, termo
+
+    def test_no_ar_diz_os_tres_botoes_da_presidencia_e_a_faixa(self, texto):
+        no_ar = _secao(texto, "O que já está no ar")
+        for termo in (
+            "Reconsultar status da assinatura",
+            "Reenviar o Termo",
+            "Liberar sem assinatura",
+            "justificativa",
+            "Assine o Termo de Adesão para liberar este acesso",
+        ):
+            assert termo in no_ar, termo
+
+    def test_o_cadastro_sem_termo_saiu_do_que_ainda_nao_faz(self, texto):
+        """Mutante: deixar a frase antiga, que dizia que o cadastro não gera o Termo."""
+        assert "o cadastro ainda não gera o Termo" not in _secao(texto, "O que ele ainda não faz")

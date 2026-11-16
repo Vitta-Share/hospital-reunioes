@@ -28,8 +28,20 @@ export interface Membro {
   vigencia_inicio: string;
   vigencia_fim: string;
   encerrada_em: string | null;
+  termo_gerado_em?: string | null;
+  termo_enviado_em?: string | null;
   termo_assinado_em: string | null;
   estado: EstadoDoMembro;
+  /** Só na resposta do cadastro e do reenvio: por que o Termo não saiu (issue #1768). */
+  aviso_termo?: string | null;
+}
+
+/** O último envio do Termo de Adesão de um membro (issue #1768). */
+export interface EnvioDoTermo {
+  situacao: "gerado" | "enviado" | "assinado" | "cancelado" | null;
+  erro: string | null;
+  enviado_em: string | null;
+  documento_url: string | null;
 }
 
 export interface LinhaDaTrilha {
@@ -37,6 +49,7 @@ export interface LinhaDaTrilha {
   campo: string | null;
   valor_anterior: string | null;
   valor_novo: string | null;
+  motivo?: string | null;
   autor: string | null;
   created_at: string;
 }
@@ -88,7 +101,14 @@ export const LABEL_ACAO: Record<string, string> = {
   renovacao: "Renovação",
   mudanca_de_papel: "Mudança de papel",
   encerramento: "Encerramento",
+  termo_enviado: "Termo enviado para assinatura",
+  termo_reenviado: "Termo reenviado",
+  termo_assinado: "Termo assinado",
+  liberacao_manual: "Liberação sem assinatura",
 };
+
+/** As ações da trilha que são do Termo: a tela não mostra o "de, para" delas. */
+export const ACOES_DO_TERMO = new Set(["termo_enviado", "termo_reenviado", "termo_assinado", "liberacao_manual"]);
 
 /** "2027-06-30" vira "30/06/2027", sem passar por fuso. */
 export function formatarDia(iso: string | null): string {
