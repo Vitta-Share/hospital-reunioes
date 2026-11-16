@@ -86,3 +86,22 @@ def test_o_papel_de_quem_entra_na_ouvidoria(caso, participante, linhas, papel, s
 
     assert resultado.papel == papel, caso
     assert set(resultado.setores) == setores, caso
+
+
+class TestKitDeConhecimento:
+    """CA: o texto do Produto Ouvidoria no kit de conhecimento diz o
+    comportamento novo (issue #1884)."""
+
+    @pytest.fixture
+    def texto(self) -> str:
+        from app.services.conhecimento import CONHECIMENTO_DIR
+
+        return (CONHECIMENTO_DIR / "ouvidoria.md").read_text(encoding="utf-8")
+
+    def test_diz_que_o_responsavel_ve_so_o_setor_dele(self, texto):
+        assert "vê na Ouvidoria só os casos já encaminhados ao setor dele" in texto
+        assert "sem o relato e sem o nome de quem manifestou" in texto
+
+    def test_diz_que_quem_nao_tem_papel_nao_ve_o_menu(self, texto):
+        assert "o facilitador que não responde por setor, não vê a Ouvidoria no menu" in texto
+        assert "A equipe de Reuniões (facilitador" not in texto
