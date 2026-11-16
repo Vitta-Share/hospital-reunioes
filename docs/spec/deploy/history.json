@@ -2,6 +2,61 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-16T00:29:38-03:00",
+      "sha": "199d5fe82b1c2e06eb6e065d94e3e47d2687b886",
+      "app_version": "0.296.0",
+      "subject": "Onda nsp-fase1-onda4: Termo de Adesão do Núcleo, gerar, enviar para assinatura e ativar o membro; Calendário anual, pauta montada pelo sistema e convocação em um clique; Presença, quórum e reunião não",
+      "raw_subject": "chore(deploy): registro da onda nsp-fase1-onda4 (#1791 #1790 #1789)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1764
+      ],
+      "result": "healthy",
+      "duration_seconds": 2286,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "151_nsp_termo_de_adesao.sql",
+        "151_nsp_termo_de_adesao.sql",
+        "152_nsp_pauta_e_convocacao.sql",
+        "151_nsp_termo_de_adesao.sql",
+        "152_nsp_pauta_e_convocacao.sql",
+        "153_nsp_presenca_e_quorum.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp-fase1-onda4: PR #1791 (issue #1768), PR #1790 (issue #1773), PR #1789 (issue #1774), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 10,
+        "build_s": {
+          "backend": 17,
+          "frontend": 149
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-15T23:05:27-03:00",
       "sha": "35172a277f2884e4a08aa9def0c0844398d0803b",
       "app_version": "0.295.0",
