@@ -22,6 +22,8 @@ on:
       - '.claude/skills/ask-pedro/**'
       - '.claude/skills/onda-enxuta/**'
       - '.claude/skills/pegar-issue/**'
+      - '.claude/skills/apresentar-prd/**'
+      - 'docs/comunicacao/planos/**'
       - '.github/workflows/ferramentas.yml'
       - '.github/workflows/ci.yml'
       - '.github/workflows/pos-merge.yml'
@@ -53,6 +55,10 @@ on:
       # O dono do PRD (issue #904): o teste em tools/ roda o script da skill e
       # lê o SKILL.md dela; um PR que mexa só na skill também acorda o job.
       - '.claude/skills/pegar-issue/**'
+      # A Apresentação do PRD (issue #1891): o teste em tools/ roda o script da
+      # skill e a função de validar da pasta dos planos no Node.
+      - '.claude/skills/apresentar-prd/**'
+      - 'docs/comunicacao/planos/**'
       - '.github/workflows/ferramentas.yml'
       # O ruleset da main exige os jobs do ci.yml pelo nome (issue #910): o
       # teste em tools/ que amarra os dois roda quando qualquer um muda.

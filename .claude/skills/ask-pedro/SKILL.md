@@ -54,6 +54,8 @@ O diretor faz a metade de negócio do grill no app (ADR 0075). No card aberto de
 - Esforço grande demais para caber num grilling de uma sessão (névoa multi-sessão) → `/wayfinder`: mapa de tickets de decisão no GitHub (label `wayfinder:map`), um ticket por sessão, até a rota clarear; o handoff no fim é `/to-prd` + `/to-issues`. A porta da frente do planejamento continua sendo `/grill-with-docs` (ADRs 0027 e 0049).
 - Melhorar arquitetura → `/improve-codebase-architecture` (relatório HTML); sanity-check de design → `/prototype`. Vocabulário de módulos em `codebase-design`; glossário e ADRs em `domain-modeling`; RLS, índice e migration pelo checklist da Supabase em `supabase-postgres-best-practices` (skill de referência, cópia fiel do upstream, só travessão trocado).
 
+- PRD fatiado que o diretor precisa validar antes do trabalho → `/apresentar-prd <PRD>`: a Apresentação do PRD, o plano em etapas com o botão Validar, publicada em `https://planos-hsm.vercel.app/<PRD>`; o Validar grava a label `validado:diretor` e um comentário no PRD. Republicar tira a label. O texto do e-mail (link com o código) fica fora do repositório, e o rascunho no Gmail só sai com o Pedro. Fonte em `docs/comunicacao/planos/` (o segredo fica só no Mac e na Vercel).
+
 ## Pós-entrega
 
 - `/divulgar <N>`: a entrega pro diretor numa página de divulgação publicada na Vercel, uma explicada leve no que mudou, com o link gravado na issue. Não faz vídeo (o estúdio saiu em 14/11/2026). A fonte fica numa pasta por PRD em `docs/comunicacao/<contexto>/` (ADR 0045).

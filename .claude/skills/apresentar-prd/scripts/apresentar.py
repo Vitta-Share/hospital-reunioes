@@ -40,7 +40,16 @@ TECNICAS = (
     "backend", "frontend", "commit", "branch", "merge", "token", "env", "SQL",
     "Supabase", "Coolify", "prompt",
 )  # fmt: skip
-CAMPOS_DA_PARTE = ("id", "etapa", "titulo", "muda", "vale", "saber", "pronto", "depende")
+CAMPOS_DA_PARTE = (
+    "id",
+    "etapa",
+    "titulo",
+    "muda",
+    "vale",
+    "saber",
+    "pronto",
+    "depende",
+)
 MESES = (
     "janeiro", "fevereiro", "março", "abril", "maio", "junho",
     "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
@@ -138,7 +147,9 @@ def montar(dados: dict, hoje: dt.date | None = None) -> str:
     pagina = {k: v for k, v in dados.items() if k not in ("prd", "etapas", "partes")}
     erros = problemas("\n".join(_textos(pagina) + _textos(plano)))
     if erros:
-        raise ValueError("a página não pode ir ao diretor: " + ", ".join(sorted(set(erros))))
+        raise ValueError(
+            "a página não pode ir ao diretor: " + ", ".join(sorted(set(erros)))
+        )
 
     html = (PLANOS / "modelo.html").read_text(encoding="utf-8")
     trocas = {
@@ -162,11 +173,13 @@ def montar(dados: dict, hoje: dt.date | None = None) -> str:
     if sobra:
         raise ValueError(f"marcador sem valor no modelo: {sobra}")
     # O que o modelo escreve fora dos dados também passa pela mesma régua.
-    visivel = re.sub(r"<(script|style)\b.*?</\1>", "", html, flags=re.S)
+    visivel = re.sub(r"<(script|style)\b.*?</\1>", "", html, flags=re.DOTALL)
     visivel = re.sub(r"<[^>]+>", " ", visivel)
     erros = problemas(visivel)
     if erros:
-        raise ValueError("o modelo tem texto que o diretor não pode ler: " + ", ".join(erros))
+        raise ValueError(
+            "o modelo tem texto que o diretor não pode ler: " + ", ".join(erros)
+        )
     return html
 
 
@@ -188,7 +201,7 @@ def _bloco_diretor(corpo: str) -> dict:
     return {
         "muda": _campo(bloco, "O que muda"),
         "vale": _campo(bloco, "Por que vale"),
-        "saber": re.findall(r"^- (.+)$", saber.group(1), re.M) if saber else [],
+        "saber": re.findall(r"^- (.+)$", saber.group(1), re.MULTILINE) if saber else [],
     }
 
 
@@ -196,7 +209,11 @@ def _criterios(corpo: str) -> list[str]:
     m = re.search(r"(?s)## Critérios de aceite\n(.*?)(\n## |\Z)", corpo)
     if not m:
         return []
-    return [re.sub(r"^- \[.\] ", "", x) for x in m.group(1).strip().splitlines() if x.startswith("- [")]
+    return [
+        re.sub(r"^- \[.\] ", "", x)
+        for x in m.group(1).strip().splitlines()
+        if x.startswith("- [")
+    ]
 
 
 def plano(fatias: list[dict]) -> dict:
@@ -206,10 +223,14 @@ def plano(fatias: list[dict]) -> dict:
     A Parte guarda `issue` só para o agente escrever o texto; a página não leva o número.
     """
     humana_fechada = {
-        f["numero"] for f in fatias if f["estado"] == "closed" and "ready-for-human" in f["labels"]
+        f["numero"]
+        for f in fatias
+        if f["estado"] == "closed" and "ready-for-human" in f["labels"]
     }
     no_plano = {f["numero"]: f for f in fatias if f["numero"] not in humana_fechada}
-    deps = {n: [d for d in f["bloqueada_por"] if d in no_plano] for n, f in no_plano.items()}
+    deps = {
+        n: [d for d in f["bloqueada_por"] if d in no_plano] for n, f in no_plano.items()
+    }
     nivel: dict[int, int] = {}
 
     def etapa(n: int, caminho: tuple = ()) -> int:
@@ -273,7 +294,8 @@ def coletar(prd: int) -> dict:
                     c["body"]
                     for pagina in coments
                     for c in pagina
-                    if c.get("author_association") in {"OWNER", "MEMBER", "COLLABORATOR"}
+                    if c.get("author_association")
+                    in {"OWNER", "MEMBER", "COLLABORATOR"}
                 ],
             }
         )
@@ -297,7 +319,9 @@ def _mac() -> Path:
 def codigo(prd: int) -> str:
     """O mesmo código que `site/api/validar.js` confere: HMAC-SHA256 do número, 20 hex."""
     segredo = (_mac() / "segredo").read_text(encoding="utf-8").strip()
-    return hmac.new(segredo.encode(), str(prd).encode(), hashlib.sha256).hexdigest()[:20]
+    return hmac.new(segredo.encode(), str(prd).encode(), hashlib.sha256).hexdigest()[
+        :20
+    ]
 
 
 def link(prd: int) -> str:
@@ -329,10 +353,17 @@ def email(prd: int) -> Path:
 def tirar_selo(prd: int) -> bool:
     """Tira a label validado:diretor do PRD: o selo vale só para a versão que o diretor viu."""
     base = f"repos/{REPO}/issues/{prd}/labels"
-    out = subprocess.run(["gh", "api", base, "--jq", ".[].name"], capture_output=True, text=True, check=True)
+    out = subprocess.run(
+        ["gh", "api", base, "--jq", ".[].name"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
     if SELO not in out.stdout.split():
         return False
-    subprocess.run(["gh", "api", "-X", "DELETE", f"{base}/{SELO}"], capture_output=True, check=True)
+    subprocess.run(
+        ["gh", "api", "-X", "DELETE", f"{base}/{SELO}"], capture_output=True, check=True
+    )
     return True
 
 
@@ -344,7 +375,9 @@ def montar_site(destino: Path) -> list[int]:
     prds = sorted(int(p.parent.name) for p in PLANOS.glob("*/dados.json"))
     for prd in prds:
         (destino / str(prd)).mkdir(exist_ok=True)
-        (destino / str(prd) / "index.html").write_text(montar(dados_do_prd(prd)), encoding="utf-8")
+        (destino / str(prd) / "index.html").write_text(
+            montar(dados_do_prd(prd)), encoding="utf-8"
+        )
     shutil.copytree(_mac() / "site" / ".vercel", destino / ".vercel")
     return prds
 
@@ -358,12 +391,18 @@ def publicar(prd: int) -> str:
         # Fora do repositório: de dentro, a Vercel recusa o autor do git (TEAM_ACCESS_REQUIRED).
         destino = Path(tmp) / "site"
         montar_site(destino)
-        subprocess.run(["npx", "vercel@latest", "deploy", "--prod", "--yes"], cwd=destino, check=True)
+        subprocess.run(
+            ["npx", "vercel@latest", "deploy", "--prod", "--yes"],
+            cwd=destino,
+            check=True,
+        )
     return f"{SITE}/{prd}"
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     sub = ap.add_subparsers(dest="cmd", required=True)
     for cmd in ("coletar", "montar", "publicar", "email"):
         p = sub.add_parser(cmd)

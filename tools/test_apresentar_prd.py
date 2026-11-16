@@ -48,7 +48,9 @@ handler({ method: 'POST', body: JSON.parse(corpo) }, res);
 
 def _hmac(prd: int) -> str:
     """O código do link pela regra da issue: HMAC-SHA256 do número, 20 primeiros hex."""
-    return hmac.new(SEGREDO.encode(), str(prd).encode(), hashlib.sha256).hexdigest()[:20]
+    return hmac.new(SEGREDO.encode(), str(prd).encode(), hashlib.sha256).hexdigest()[
+        :20
+    ]
 
 
 def _validar(corpo: dict) -> dict:
@@ -80,7 +82,9 @@ def test_validar_com_codigo_certo_grava_label_e_comentario_com_marcador():
     assert r["resposta"]["ok"] is True
     label, comentario = r["chamadas"]
     assert label["method"] == "POST"
-    assert label["url"].endswith("/repos/pedrorezendefig/hospital-reunioes/issues/1757/labels")
+    assert label["url"].endswith(
+        "/repos/pedrorezendefig/hospital-reunioes/issues/1757/labels"
+    )
     assert label["body"] == {"labels": ["validado:diretor"]}
     assert comentario["method"] == "POST"
     assert comentario["url"].endswith("/issues/1757/comments")
@@ -144,7 +148,16 @@ def test_pagina_do_1757_tem_a_estrutura_da_referencia():
     assert len(dados["etapas"]) == 7
     assert len(dados["partes"]) == 20
     # Só o que a página usa vai embutido: nada de número de issue escondido.
-    assert set(dados["partes"][0]) == {"id", "etapa", "titulo", "muda", "vale", "saber", "pronto", "depende"}
+    assert set(dados["partes"][0]) == {
+        "id",
+        "etapa",
+        "titulo",
+        "muda",
+        "vale",
+        "saber",
+        "pronto",
+        "depende",
+    }
 
 
 def test_rodape_traz_a_versao_do_app():
@@ -190,14 +203,18 @@ def mac(tmp_path, monkeypatch):
     pasta = tmp_path / "planos-hsm"
     (pasta / "site" / ".vercel").mkdir(parents=True)
     (pasta / "segredo").write_text(SEGREDO + "\n", encoding="utf-8")
-    (pasta / "site" / ".vercel" / "project.json").write_text('{"projectName":"planos-hsm"}', encoding="utf-8")
+    (pasta / "site" / ".vercel" / "project.json").write_text(
+        '{"projectName":"planos-hsm"}', encoding="utf-8"
+    )
     monkeypatch.setenv("PLANOS_HSM_DIR", str(pasta))
     return pasta
 
 
 def test_rascunho_do_email_leva_o_link_com_o_codigo_que_a_validacao_aceita(mac):
     arquivo = _modulo().email(1757)
-    assert RAIZ not in arquivo.parents, "o texto do e-mail traz o código e não pode cair no repositório"
+    assert RAIZ not in arquivo.parents, (
+        "o texto do e-mail traz o código e não pode cair no repositório"
+    )
     texto = arquivo.read_text(encoding="utf-8")
     m = re.search(r"https://planos-hsm\.vercel\.app/1757\?c=([0-9a-f]+)", texto)
     assert m, texto
@@ -234,13 +251,22 @@ def bin_falso(tmp_path):
     )
     for f in pasta.iterdir():
         f.chmod(0o755)
-    return {"path": f"{pasta}{os.pathsep}{os.environ['PATH']}", "log": log, "tem_label": tem_label}
+    return {
+        "path": f"{pasta}{os.pathsep}{os.environ['PATH']}",
+        "log": log,
+        "tem_label": tem_label,
+    }
 
 
 def _publicar(bin_falso, mac):
     env = {**os.environ, "PATH": bin_falso["path"], "PLANOS_HSM_DIR": str(mac)}
     r = subprocess.run(
-        ["python3", str(SCRIPT), "publicar", "1757"], capture_output=True, text=True, env=env, cwd=RAIZ
+        ["python3", str(SCRIPT), "publicar", "1757"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=RAIZ,
     )
     assert r.returncode == 0, r.stderr
     return r, bin_falso["log"].read_text(encoding="utf-8").splitlines()
@@ -250,7 +276,9 @@ def test_republicar_tira_a_label_validado_antes_do_deploy(bin_falso, mac):
     bin_falso["tem_label"].touch()
     r, log = _publicar(bin_falso, mac)
     tira = next(i for i, x in enumerate(log) if x.startswith("gh api -X DELETE"))
-    assert log[tira].endswith("repos/pedrorezendefig/hospital-reunioes/issues/1757/labels/validado:diretor")
+    assert log[tira].endswith(
+        "repos/pedrorezendefig/hospital-reunioes/issues/1757/labels/validado:diretor"
+    )
     sobe = next(i for i, x in enumerate(log) if x.startswith("npx"))
     assert tira < sobe
     assert "deploy --prod --yes" in log[sobe]
@@ -269,8 +297,12 @@ def test_publicar_leva_a_pagina_a_funcao_e_o_vinculo_sem_a_fonte(bin_falso, mac)
         "HPSimplified_Rg.ttf",
         ".vercel/project.json",
     } <= arquivos
-    assert not any(a.endswith(("dados.json", "modelo.html", "segredo")) for a in arquivos)
-    assert not any(x.startswith("gh api -X DELETE") for x in log), "sem a label, não há o que tirar"
+    assert not any(
+        a.endswith(("dados.json", "modelo.html", "segredo")) for a in arquivos
+    )
+    assert not any(x.startswith("gh api -X DELETE") for x in log), (
+        "sem a label, não há o que tirar"
+    )
 
 
 # --- Coleta: etapas pela ordem dos bloqueios ---------------------------------
