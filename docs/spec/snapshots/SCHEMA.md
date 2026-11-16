@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-13T16:47+0000 -->
+<!-- last_update: 2026-11-16T00:03+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -62,6 +62,7 @@ erDiagram
     cm_tabela_preco ||--o{ cm_operadora_tabela : "tabela_id"
     cm_tabela_preco ||--o{ cm_tabela_preco_item : "tabela_id"
     cm_validacao_tema ||--o{ cm_validacao_tema_linha : "tema_id"
+    colegiados ||--o{ participacoes : "colegiado_id"
     ouvidoria_pontos ||--o{ ouvidoria_avaliacoes : "ponto_id"
     participantes ||--o{ audit_log : "actor_id"
     participantes ||--o{ bulk_jobs : "actor_id"
@@ -95,6 +96,7 @@ erDiagram
     participantes ||--o{ ouvidoria_pontos : "criado_por"
     participantes ||--o{ ouvidoria_prorrogacoes : "decidida_por"
     participantes ||--o{ ouvidoria_tentativas_contato : "autor_id"
+    participantes ||--o{ participacoes : "participante_id"
     participantes ||--o{ pendencias : "co_responsavel_id"
     participantes ||--o{ pendencias : "responsavel_id"
     participantes ||--o{ pops : "criado_por"
@@ -150,7 +152,7 @@ erDiagram
         TEXT setor
         user_role role
         BOOLEAN ativo
-        _ mais_colunas "+11"
+        _ mais_colunas "+15"
     }
     reunioes {
         VARCHAR id_reuniao PK
@@ -1005,6 +1007,24 @@ erDiagram
         DATE dia PK
         INTEGER chamadas
     }
+    colegiados {
+        UUID id PK
+        TEXT slug
+        TEXT nome
+        UUID setor_id FK
+        TIMESTAMPTZ created_at
+    }
+    participacoes {
+        UUID id PK
+        UUID colegiado_id FK
+        VARCHAR participante_id FK
+        TEXT papel
+        DATE vigencia_inicio
+        DATE vigencia_fim
+        TIMESTAMPTZ termo_assinado_em
+        TIMESTAMPTZ created_at
+        _ mais_colunas "+1"
+    }
 ```
 
 ## Indexes principais
@@ -1167,6 +1187,8 @@ erDiagram
 | `ouvidoria_avaliacoes` | `idx_ouvidoria_avaliacoes_para_revisar` | `criada_em` | `144_ouvidoria_motivo_do_arquivo_da_revisao.sql` |
 | `ouvidoria_avaliacoes` | `idx_ouvidoria_avaliacoes_criada_em` | `criada_em, id` | `144_ouvidoria_motivo_do_arquivo_da_revisao.sql` |
 | `ouvidoria_convite_google_auditoria` | `idx_ouvidoria_convite_google_auditoria_em` | `alterado_em DESC` | `142_ouvidoria_convite_google_no_qr.sql` |
+| `participacoes` | `idx_participacoes_participante` | `participante_id, colegiado_id` | `146_nsp_fundacao.sql` |
+| `participacoes` | `idx_participacoes_colegiado_vigencia` | `colegiado_id, vigencia_inicio, vigencia_fim` | `146_nsp_fundacao.sql` |
 
 ---
-**Resumo:** 92 tabelas · 132 relacionamentos FK detectados.
+**Resumo:** 94 tabelas · 134 relacionamentos FK detectados.

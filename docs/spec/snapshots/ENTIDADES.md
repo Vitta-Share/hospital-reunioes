@@ -1,12 +1,12 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-13T16:47+0000 -->
+<!-- last_update: 2026-11-16T00:03+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## participantes
 
-> Origem: `001_create_participantes.sql` (alterada em: 014_add_externo_co_responsavel.sql, 017_add_super_admin.sql, 028_add_taxonomy_fks.sql, 036_add_access_profile.sql, 045_pops_fundacao_acesso.sql, 064_ouvidoria_manifestacao.sql, 103_tecnologia_vinculo.sql, 116_contas_medicas_fundacao.sql)
+> Origem: `001_create_participantes.sql` (alterada em: 014_add_externo_co_responsavel.sql, 017_add_super_admin.sql, 028_add_taxonomy_fks.sql, 036_add_access_profile.sql, 045_pops_fundacao_acesso.sql, 064_ouvidoria_manifestacao.sql, 103_tecnologia_vinculo.sql, 116_contas_medicas_fundacao.sql, 146_nsp_fundacao.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -29,6 +29,10 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `perfil_ouvidoria` | `TEXT` | — | — | — |
 | `github_login` | `TEXT` | — | — | — |
 | `perfil_contas_medicas` | `TEXT` | — | — | — |
+| `perfil_nsp` | `TEXT` | — | — | — |
+| `conselho_profissional` | `TEXT` | — | — | — |
+| `registro_profissional` | `TEXT` | — | — | — |
+| `registro_uf` | `TEXT` | — | — | — |
 
 **Indexes:**
 - `idx_participantes_email` em `(email)` (de `001_create_participantes.sql`)
@@ -1893,6 +1897,38 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `dia` | `DATE` | PK | — | — |
 | `chamadas` | `INTEGER` | NOT NULL | `0` | — |
 
+## colegiados
+
+> Origem: `146_nsp_fundacao.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `slug` | `TEXT` | UNIQUE, NOT NULL | — | — |
+| `nome` | `TEXT` | NOT NULL | — | — |
+| `setor_id` | `UUID` | — | — | `setores.id` |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+## participacoes
+
+> Origem: `146_nsp_fundacao.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `colegiado_id` | `UUID` | NOT NULL | — | `colegiados.id` |
+| `participante_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `papel` | `TEXT` | NOT NULL | — | — |
+| `vigencia_inicio` | `DATE` | NOT NULL | — | — |
+| `vigencia_fim` | `DATE` | NOT NULL | — | — |
+| `termo_assinado_em` | `TIMESTAMPTZ` | — | — | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_participacoes_participante` em `(participante_id, colegiado_id)` (de `146_nsp_fundacao.sql`)
+- `idx_participacoes_colegiado_vigencia` em `(colegiado_id, vigencia_inicio, vigencia_fim)` (de `146_nsp_fundacao.sql`)
+
 ---
 
-**Resumo:** 92 tabelas vivas.
+**Resumo:** 94 tabelas vivas.
