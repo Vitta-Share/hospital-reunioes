@@ -46,10 +46,10 @@ class Liberacao(BaseModel):
         return valor
 
 
-def _pendente(participacao: dict) -> None:
-    """Sem assinatura, ou com um Termo novo gerado depois dela (issue #1769)."""
+def _pendente(supabase, participacao: dict) -> None:
+    """Sem assinatura, ou com um Termo novo pedido depois dela (issue #1769)."""
     _aberta(participacao)
-    if not termo.novo_termo_pendente(participacao):
+    if not termo.novo_termo_pendente(participacao, termo.revisao_material_em(supabase), hoje_em_sao_paulo()):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_JA_ASSINADO)
 
 
@@ -91,7 +91,7 @@ async def reenviar_termo(
     """Cancela o envio anterior e gera outro documento, com outro identificador."""
     nucleo_id = _nucleo_id(supabase)
     participacao = _participacao(supabase, nucleo_id, participacao_id)
-    _pendente(participacao)
+    _pendente(supabase, participacao)
     try:
         envio = await run_in_threadpool(termo.reenviar_termo, supabase, participacao, autor_id=me["id"])
     except termo.TermoNaoGeradoError as erro:
@@ -112,7 +112,7 @@ async def liberar_sem_assinatura(
     gravada na trilha com o autor e a data."""
     nucleo_id = _nucleo_id(supabase)
     participacao = _participacao(supabase, nucleo_id, participacao_id)
-    _pendente(participacao)
+    _pendente(supabase, participacao)
     termo.liberar(supabase, participacao, autor_id=me["id"], justificativa=body.justificativa)
     return _responder(supabase, participacao_id, nucleo_id)
 

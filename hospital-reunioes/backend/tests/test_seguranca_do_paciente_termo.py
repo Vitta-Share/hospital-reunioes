@@ -367,7 +367,8 @@ REGIMENTO = {
     "natureza_revisao": "material",
     "vigente": True,
     "publicado_por": "P2",
-    "publicado_em": "2026-09-01T12:00:00+00:00",
+    # Antes da assinatura de teste: quem assinou levou este Regimento no Termo.
+    "publicado_em": "2025-12-01T12:00:00+00:00",
 }
 
 NOVO = {
@@ -1018,6 +1019,42 @@ class TestNovoTermoPorRevisaoDoRegimento:
         assert resposta.status_code == 201, resposta.text
         signatarios = sorted(c[2] for c in assinatura.chamadas if c[0] == "add_signer")
         assert signatarios == ["Pessoa de Teste P2", "Pessoa de Teste P4"]
+        # Quem falhou fica com o reenvio na ficha, depois de corrigir o e-mail.
+        p3["email"] = "p3@hsm.test"
+        reenvio = cenario.api.post(f"{ROTA}/part-P3/termo/reenviar")
+        assert reenvio.status_code == 200, reenvio.text
+        assert [e["situacao"] for e in cenario.envios("P3")] == ["enviado"]
+        assert "reúne-se quinzenalmente" in _texto_do_pdf(assinatura.documentos[-1])
+
+    def test_falha_antes_de_gerar_qualquer_termo_deixa_o_reenvio_para_todos(self, assinatura, monkeypatch):
+        """A leitura dos membros estoura depois da publicação. Mutante: a
+        pendência da revisão material depender do documento gerado."""
+        from app.services.seguranca_do_paciente import termo
+
+        def _estoura(*_a, **_kw):
+            raise httpx.ReadTimeout("o banco não respondeu")
+
+        monkeypatch.setattr(termo, "ler_tudo", _estoura)
+        cenario = _Cenario(PRESIDENCIA, _um_de_cada_estado())
+
+        resposta = _publicar_regimento(cenario, "material")
+
+        assert resposta.status_code == 201, resposta.text
+        assert cenario.tabela("nsp_termos_envios") == []
+        pendentes = {m["participante_id"]: m["termo_pendente"] for m in cenario.api.get(ROTA).json()["membros"]}
+        assert pendentes == {"P2": True, "P3": True, "P4": True, "P1": False, "P6": True, "P5": False}
+        reenvio = cenario.api.post(f"{ROTA}/part-P4/termo/reenviar")
+        assert reenvio.status_code == 200, reenvio.text
+        assert cenario.api.post(f"{ROTA}/part-P1/termo/reenviar").status_code == 409
+
+    def test_quem_assina_depois_da_revisao_material_nao_tem_termo_pendente(self):
+        """A revisão material saiu entre a assinatura de P3 e a de P2."""
+        cenario = _Cenario(PRESIDENCIA)
+        cenario.tabela("nsp_documentos")[0]["publicado_em"] = "2026-03-01T12:00:00+00:00"
+        cenario.participacao("P2")["termo_assinado_em"] = "2026-03-02T09:00:00+00:00"
+
+        assert cenario.api.post(f"{ROTA}/part-P2/termo/reenviar").status_code == 409
+        assert cenario.api.post(f"{ROTA}/part-P3/termo/reenviar").status_code == 200
 
 
 class TestCadaTermoNosDocumentos:
@@ -1087,6 +1124,61 @@ class TestNovoTermoPendenteNaFicha:
 
         [envio] = cenario.envios("P3")
         assert cenario.participacao("P3")["termo_assinado_em"] == envio["assinado_em"]
+        assert len(cenario.trilha("termo_assinado")) == 1
+
+    def test_renovacao_sem_email_deixa_o_reenvio_para_depois_de_corrigir_o_cadastro(self, assinatura):
+        """O Termo nem chega a ser gerado (a pessoa não tem e-mail). Mutante:
+        o Termo novo só contar como pendente depois do documento gerado."""
+        cenario = _Cenario(PRESIDENCIA)
+        p3 = next(p for p in cenario.tabela("participantes") if p["id"] == "P3")
+        p3["email"] = None
+
+        renovacao = cenario.api.post(f"{ROTA}/part-P3/renovar", json={"vigencia_fim": _iso(700)})
+
+        assert "e-mail" in renovacao.json()["aviso_termo"]
+        assert renovacao.json()["termo_pendente"] is True
+        assert cenario.envios("P3") == []
+        p3["email"] = "p3@hsm.test"
+        resposta = cenario.api.post(f"{ROTA}/part-P3/termo/reenviar")
+        assert resposta.status_code == 200, resposta.text
+        assert [e["situacao"] for e in cenario.envios("P3")] == ["enviado"]
+        assert _dia_br(700) in _texto_do_pdf(assinatura.documentos[0])
+
+    def test_mudanca_de_papel_com_o_pdf_falhando_deixa_o_reenvio(self, assinatura, monkeypatch):
+        """O WeasyPrint estoura antes do carimbo do documento gerado."""
+        from app.services.seguranca_do_paciente import termo
+
+        def _estoura(_dados):
+            raise TimeoutError("o PDF não saiu")
+
+        pdf_de_verdade = termo.gerar_pdf_do_termo
+        monkeypatch.setattr(termo, "gerar_pdf_do_termo", _estoura)
+        cenario = _Cenario(PRESIDENCIA)
+
+        edicao = cenario.api.patch(f"{ROTA}/part-P3", json={"papel": "suplente"})
+
+        assert "Reenviar" in edicao.json()["aviso_termo"]
+        assert edicao.json()["termo_pendente"] is True
+        monkeypatch.setattr(termo, "gerar_pdf_do_termo", pdf_de_verdade)
+        resposta = cenario.api.post(f"{ROTA}/part-P3/termo/reenviar")
+        assert resposta.status_code == 200, resposta.text
+        assert "Suplente da Presidência" in _texto_do_pdf(assinatura.documentos[-1])
+
+    def test_reconsultar_o_termo_antigo_nao_carimba_o_novo_que_nao_saiu(self, assinatura):
+        """O último envio é o Termo antigo, já assinado; o novo nem foi gerado.
+        Mutante: o conserto do carimbo aceitar o envio que já estava carimbado."""
+        cenario = _Cenario(PRESIDENCIA)
+        cenario.cadastrar()
+        cenario.retorno_da_assinatura("doc-env-1", "sign")
+        part = cenario.participacao("P4")["id"]
+        next(p for p in cenario.tabela("participantes") if p["id"] == "P4")["email"] = None
+        cenario.api.post(f"{ROTA}/{part}/renovar", json={"vigencia_fim": _iso(700)})
+        assinatura.status = "closed"
+
+        resposta = cenario.api.post(f"{ROTA}/{part}/termo/reconsultar")
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["termo_pendente"] is True
         assert len(cenario.trilha("termo_assinado")) == 1
 
     def test_membro_ativo_sem_termo_novo_continua_sem_reenvio(self):

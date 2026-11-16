@@ -66,15 +66,48 @@ def _dia(valor: Any) -> str:
     return dia.strftime("%d/%m/%Y")
 
 
-def novo_termo_pendente(participacao: dict) -> bool:
-    """O membro tem um Termo à espera da assinatura: nunca assinou, ou o
-    último documento foi gerado depois da última assinatura (renovação,
-    mudança de papel, revisão material do Regimento; issue #1769)."""
+def _depois(instante: Any, de: Any) -> bool:
+    return bool(instante) and datetime.fromisoformat(str(instante)) > datetime.fromisoformat(str(de))
+
+
+def novo_termo_pendente(participacao: dict, revisao_material_em: Any = None, hoje: date | None = None) -> bool:
+    """O membro tem um Termo à espera da assinatura (issue #1769): nunca
+    assinou; ou a renovação ou a mudança de papel pediu Termo novo depois da
+    última assinatura (`termo_gerado_em`, carimbado junto com a mudança, antes
+    de o documento sair); ou, em Ativo, A vencer e Em carência, assinou antes
+    da última revisão material do Regimento (`revisao_material_em`). Assim a
+    falha na geração não tira a pendência, e a ficha tem o reenvio."""
     assinado = participacao.get("termo_assinado_em")
     if not assinado:
         return True
-    gerado = participacao.get("termo_gerado_em")
-    return bool(gerado) and datetime.fromisoformat(str(gerado)) > datetime.fromisoformat(str(assinado))
+    if _depois(participacao.get("termo_gerado_em"), assinado):
+        return True
+    return (
+        _depois(revisao_material_em, assinado)
+        and estado_do_membro(participacao, hoje or permissao.hoje_em_sao_paulo()) in ESTADOS_DA_REVISAO_MATERIAL
+    )
+
+
+def marca_do_novo_termo(participacao: dict) -> dict:
+    """O carimbo que a renovação e a mudança de papel gravam junto com a
+    mudança: deixa o Termo novo pendente antes de qualquer passo que pode
+    falhar. Quem nunca assinou já está pendente, e o carimbo mudaria o estado."""
+    return {"termo_gerado_em": _agora()} if participacao.get("termo_assinado_em") else {}
+
+
+def revisao_material_em(supabase) -> str | None:
+    """Quando saiu a última revisão material do Regimento (a vigente ou não)."""
+    linhas = (
+        supabase.table("nsp_documentos")
+        .select("publicado_em")
+        .eq("tipo", "regimento")
+        .eq("natureza_revisao", "material")
+        .order("publicado_em", desc=True)
+        .limit(1)
+        .execute()
+        .data
+    ) or []
+    return linhas[0].get("publicado_em") if linhas else None
 
 
 def _bucket() -> str:
@@ -389,6 +422,9 @@ def _completar_carimbo(supabase, envio: dict) -> None:
     if not novo_termo_pendente(participacao):
         return
     anterior = participacao.get("termo_assinado_em")
+    # O Termo antigo, já carimbado, não fecha o novo que ainda não saiu.
+    if anterior and envio.get("assinado_em") and not _depois(envio["assinado_em"], anterior):
+        return
     consulta = (
         supabase.table("participacoes")
         .update({"termo_assinado_em": envio.get("assinado_em") or _agora()})
@@ -460,24 +496,30 @@ def termos_da_revisao_material(supabase, *, autor_id: str) -> None:
     """Novo Termo, com o Regimento que acabou de ser publicado, para cada
     membro em Ativo, A vencer e Em carência (issue #1769). Roda depois da
     resposta da publicação: falha num membro vai para o log e não impede os
-    outros; a ficha de quem falhou tem o reenvio."""
-    nucleo_id = permissao.id_do_nucleo(supabase)
-    if not nucleo_id:
+    outros. A pendência vem da data da revisão (`novo_termo_pendente`), não
+    do documento: a ficha de quem falhou tem o reenvio, mesmo se tudo falhar
+    antes do primeiro membro."""
+    try:
+        nucleo_id = permissao.id_do_nucleo(supabase)
+        if not nucleo_id:
+            return
+        hoje = permissao.hoje_em_sao_paulo()
+        participacoes = ler_tudo(
+            lambda: (
+                supabase.table("participacoes")
+                .select(
+                    "id, participante_id, papel, area, vigencia_inicio, vigencia_fim, encerrada_em, "
+                    "termo_gerado_em, termo_enviado_em, termo_assinado_em"
+                )
+                .eq("colegiado_id", nucleo_id)
+                .is_("encerrada_em", "null")
+                .order("id")
+            ),
+            rotulo="participações do Núcleo",
+        )
+    except Exception:  # noqa: BLE001 (depois da resposta: o log e o reenvio da ficha)
+        logger.exception("Termos da revisão do Regimento não gerados: a leitura dos membros falhou")
         return
-    hoje = permissao.hoje_em_sao_paulo()
-    participacoes = ler_tudo(
-        lambda: (
-            supabase.table("participacoes")
-            .select(
-                "id, participante_id, papel, area, vigencia_inicio, vigencia_fim, encerrada_em, "
-                "termo_gerado_em, termo_enviado_em, termo_assinado_em"
-            )
-            .eq("colegiado_id", nucleo_id)
-            .is_("encerrada_em", "null")
-            .order("id")
-        ),
-        rotulo="participações do Núcleo",
-    )
     for participacao in participacoes:
         if estado_do_membro(participacao, hoje) not in ESTADOS_DA_REVISAO_MATERIAL:
             continue

@@ -139,7 +139,7 @@ def _pessoas(supabase, ids: list[str]) -> dict[str, dict]:
     return {linha["id"]: linha for linha in linhas}
 
 
-def _linha(participacao: dict, pessoa: dict | None, hoje: date) -> dict[str, Any]:
+def _linha(participacao: dict, pessoa: dict | None, hoje: date, revisao_material_em: str | None) -> dict[str, Any]:
     """O que a tela mostra de um membro. Sem e-mail nem telefone."""
     pessoa = pessoa or {}
     return {
@@ -156,6 +156,7 @@ def _linha(participacao: dict, pessoa: dict | None, hoje: date) -> dict[str, Any
         "termo_enviado_em": participacao.get("termo_enviado_em"),
         "termo_assinado_em": participacao.get("termo_assinado_em"),
         "estado": estado_do_membro(participacao, hoje),
+        "termo_pendente": termo.novo_termo_pendente(participacao, revisao_material_em, hoje),
     }
 
 
@@ -165,7 +166,8 @@ _ORDEM_DO_PAPEL = {papel: i for i, papel in enumerate(PAPEIS_DO_NUCLEO)}
 def _linhas(supabase, participacoes: list[dict]) -> list[dict]:
     hoje = hoje_em_sao_paulo()
     pessoas = _pessoas(supabase, [p["participante_id"] for p in participacoes])
-    linhas = [_linha(p, pessoas.get(p["participante_id"]), hoje) for p in participacoes]
+    revisao = termo.revisao_material_em(supabase)
+    linhas = [_linha(p, pessoas.get(p["participante_id"]), hoje, revisao) for p in participacoes]
     return sorted(
         linhas,
         key=lambda linha: (
@@ -431,8 +433,11 @@ async def editar_membro(
     inicio = date.fromisoformat(_texto(da_participacao.get("vigencia_inicio", atual["vigencia_inicio"]))[:10])
     fim = date.fromisoformat(_texto(da_participacao.get("vigencia_fim", atual["vigencia_fim"]))[:10])
     _vigencia_valida(inicio, fim)
+    muda_o_papel = any(campo == "papel" for campo, _, _ in mudancas)
     if mudancas:
-        supabase.table("participacoes").update({campo: _texto(novo) for campo, _, novo in mudancas}).eq(
+        # O Termo novo fica pendente junto com a mudança (issue #1769).
+        marca = termo.marca_do_novo_termo(atual) if muda_o_papel else {}
+        supabase.table("participacoes").update({**{campo: _texto(novo) for campo, _, novo in mudancas}, **marca}).eq(
             "id", participacao_id
         ).execute()
         _gravar_trilha(
@@ -450,7 +455,7 @@ async def editar_membro(
             _atualizar_registro(supabase, atual["participante_id"], pessoa, registro),
         )
     aviso = None
-    if any(campo == "papel" for campo, _, _ in mudancas):
+    if muda_o_papel:
         editada = _participacao(supabase, nucleo_id, participacao_id)
         aviso = await run_in_threadpool(_gerar_termo, supabase, editada, me["id"])
     return {**_responder(supabase, participacao_id, nucleo_id), "aviso_termo": aviso}
@@ -475,9 +480,9 @@ async def renovar_membro(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="A renovação tem de levar o fim da vigência para depois do fim atual",
         )
-    supabase.table("participacoes").update({"vigencia_fim": body.vigencia_fim.isoformat()}).eq(
-        "id", participacao_id
-    ).execute()
+    supabase.table("participacoes").update(
+        {"vigencia_fim": body.vigencia_fim.isoformat(), **termo.marca_do_novo_termo(atual)}
+    ).eq("id", participacao_id).execute()
     _gravar_trilha(
         supabase, participacao_id, me["id"], "renovacao", [("vigencia_fim", atual["vigencia_fim"], body.vigencia_fim)]
     )
