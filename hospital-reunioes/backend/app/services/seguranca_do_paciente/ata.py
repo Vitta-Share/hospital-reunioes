@@ -493,8 +493,9 @@ def pendencia_prazo(prazo: str) -> str | None:
 
 def validar_ata_do_nucleo(supabase, reuniao: dict, me: dict, agora: datetime) -> int:
     """A ata validada: cada deliberação vira pendência (a que já existe, presa
-    à reunião), e a reunião fica aprovada. A assinatura dos presentes chega
-    com a issue #1776. Devolve quantas pendências nasceram."""
+    à reunião), e a reunião fica aprovada. Daí ela vai para a assinatura dos
+    presentes (`assinatura_da_ata`, issue #1776). Devolve quantas pendências
+    nasceram."""
     from app.services.pendencia_service import liberar_pendencias
 
     ata = dict(reuniao["json_ata"])

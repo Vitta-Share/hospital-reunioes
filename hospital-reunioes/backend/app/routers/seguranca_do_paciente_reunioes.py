@@ -25,14 +25,16 @@ from typing import Any, Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from postgrest.exceptions import APIError
 from pydantic import BaseModel, Field, field_validator
+from starlette.concurrency import run_in_threadpool
 from supabase import Client
 
 from app.dependencies import RECUSA_DO_NSP, get_supabase_client, require_recurso_nsp, selecionar_participantes
 from app.limiter import limiter
 from app.routers.reunioes import _generate_reuniao_id
+from app.services.seguranca_do_paciente import assinatura_da_ata, convocacao, pauta
 from app.services.seguranca_do_paciente import ata as ata_do_nucleo
-from app.services.seguranca_do_paciente import convocacao, pauta
 from app.services.seguranca_do_paciente.membros import vigente_em
 from app.services.seguranca_do_paciente.permissao import id_do_nucleo
 from app.services.seguranca_do_paciente.quorum import apurar_quorum, conta_para_quorum
@@ -672,6 +674,11 @@ async def ler_ata_do_nucleo(
         "status_ata": reuniao["status_ata"],
         "ata": ata if ata.get("modelo") == ata_do_nucleo.MODELO_DA_ATA else None,
         "pode_conduzir": ata_do_nucleo.conduz_a_ata(supabase, me, me["recursos_nsp"], reuniao),
+        # A ata encerrada nos Documentos (issue #1776): o PDF assinado sai pela
+        # rota abaixo, com o id do documento.
+        "documento_id": (assinatura_da_ata.documento_da_ata(supabase, id_reuniao) or {}).get("id")
+        if reuniao["status_ata"] == "ASSINADA"
+        else None,
     }
 
 
@@ -712,5 +719,84 @@ async def validar_ata(
     faltas = ata_do_nucleo.faltas_para_validar(ata)
     if faltas:
         raise HTTPException(status_code=422, detail="Complete antes de validar: " + "; ".join(faltas) + ".")
-    total = ata_do_nucleo.validar_ata_do_nucleo(supabase, reuniao, me, _agora())
-    return {"id_reuniao": id_reuniao, "status": "APROVADA", "total_pendencias": total}
+    agora = _agora()
+    total = ata_do_nucleo.validar_ata_do_nucleo(supabase, reuniao, me, agora)
+    # A ata validada vai para a assinatura dos presentes (issue #1776). Falha
+    # deixa a ata aprovada, com o aviso, e o job diário tenta de novo.
+    envio = await run_in_threadpool(assinatura_da_ata.enviar_para_assinatura, supabase, id_reuniao, agora) or {}
+    return {
+        "id_reuniao": id_reuniao,
+        "status": "AGUARDANDO_ASSINATURA" if envio.get("envelope_id") else "APROVADA",
+        "total_pendencias": total,
+        "aviso": envio.get("erro"),
+    }
+
+
+@router.post("/{id_reuniao}/ata/reenviar")
+@limiter.limit("10/minute")
+async def reenviar_ata(
+    request: Request,
+    id_reuniao: str,
+    me: dict = Depends(require_recurso_nsp("reunioes")),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """A ata com o envelope cancelado (recusa ou cancelamento no painel) vai
+    de novo para todos os presentes, e o prazo de 5 dias úteis recomeça
+    (issue #1776). Quem reenvia é quem conduz a ata."""
+    reuniao = _ata_do_nucleo_ou_404(supabase, id_reuniao)
+    _so_quem_conduz(supabase, me, reuniao)
+    try:
+        envio = await run_in_threadpool(assinatura_da_ata.reenviar_para_assinatura, supabase, id_reuniao, _agora())
+    except Exception as erro:
+        sem_email = str(erro) == assinatura_da_ata.SEM_EMAIL
+        logger.warning("Ata do Núcleo %s não reenviada para assinatura: %s", id_reuniao, erro)
+        raise HTTPException(
+            status_code=422 if sem_email else 503,
+            detail=assinatura_da_ata.SEM_EMAIL_NO_REENVIO if sem_email else assinatura_da_ata.FALHA_DO_REENVIO,
+        ) from erro
+    if not envio:
+        raise HTTPException(status_code=409, detail="A assinatura desta ata não foi cancelada.")
+    logger.info("Ata do Núcleo %s reenviada por %s", id_reuniao, me["id"])
+    return {"id_reuniao": id_reuniao, "status": "AGUARDANDO_ASSINATURA"}
+
+
+# ---------------------------------------------------------------------------
+# A ata assinada (issue #1776)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/atas/{documento_id}/arquivo-assinado")
+@limiter.limit("60/minute")
+async def arquivo_da_ata_assinada(
+    request: Request,
+    documento_id: str,
+    _: dict = Depends(require_recurso_nsp("reunioes")),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """O link do PDF da ata assinada, válido por 10 minutos. Só o documento
+    de tipo ata sai por aqui; a rota genérica dos
+    Documentos não entrega a ata. Quem pede tem que abrir as atas do Núcleo
+    (`reunioes`), e o super admin sem Acesso pleno não abre."""
+    try:
+        linhas = (
+            supabase.table("nsp_documentos")
+            .select("id, tipo, arquivo_assinado_path")
+            .eq("id", documento_id)
+            .limit(1)
+            .execute()
+            .data
+        ) or []
+    except APIError as erro:
+        # Id que não é UUID (22P02) é documento que não existe.
+        if getattr(erro, "code", None) != "22P02":
+            raise
+        linhas = []
+    documento = linhas[0] if linhas else {}
+    if documento.get("tipo") != "ata" or not documento.get("arquivo_assinado_path"):
+        raise HTTPException(status_code=404, detail="Ata assinada não encontrada.")
+    url = assinatura_da_ata.link_do_arquivo(supabase, documento["arquivo_assinado_path"])
+    if not url:
+        raise HTTPException(
+            status_code=503, detail="A ata assinada está indisponível agora. Tente de novo em instantes."
+        )
+    return {"url": url}

@@ -41,7 +41,11 @@ vi.mock("@/lib/supabase/client", () => ({
 }));
 
 // O card de signatários tem fetch e polling próprios, fora do que se prova aqui.
-vi.mock("@/components/reunioes/SignatariosCard", () => ({ SignatariosCard: () => null }));
+vi.mock("@/components/reunioes/SignatariosCard", () => ({
+  SignatariosCard: () => <div data-testid="cartao-signatarios" />,
+}));
+// A ata do Núcleo tem a própria tela, testada no componente dela.
+vi.mock("@/components/seguranca-do-paciente/AtaDoNucleo", () => ({ AtaDoNucleo: () => null }));
 
 const FACILITADOR = { id: "P_FACIL", nome_completo: "Facilitador", email: "f@hsm.com", access_profile: "regular" };
 const SECRETARIA = { id: "P_SECRE", nome_completo: "Secretária", email: "s@hsm.com", access_profile: "secretaria" };
@@ -234,5 +238,48 @@ describe("Ata Guiada na reunião do Núcleo", () => {
     montar();
     await screen.findByText("Anexar Transcrição e Processar com IA");
     expect(screen.queryByRole("button", { name: "Iniciar Ata Guiada" })).toBeNull();
+  });
+});
+
+// A ata do Núcleo tem envelope próprio (issue #1776): o cartão de signatários
+// e o banner de aprovada sem assinatura são da reunião comum.
+describe("assinatura na reunião do Núcleo", () => {
+  function servir(status_ata: string, do_nucleo: boolean) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url === "/api/reunioes/REU_TESTE") {
+          const corpo = { ...reuniao(status_ata, { modelo: do_nucleo ? "nsp_dez_blocos" : undefined }), do_nucleo };
+          return { ok: true, status: 200, json: async () => corpo } as unknown as Response;
+        }
+        return { ok: true, status: 200, json: async () => [] } as unknown as Response;
+      }),
+    );
+  }
+
+  it("a reunião comum aguardando assinatura mostra o cartão de signatários", async () => {
+    servir("AGUARDANDO_ASSINATURA", false);
+    montar();
+    expect(await screen.findByTestId("cartao-signatarios")).toBeTruthy();
+  });
+
+  it("a reunião do Núcleo aguardando assinatura não mostra o cartão de signatários", async () => {
+    servir("AGUARDANDO_ASSINATURA", true);
+    montar();
+    await esperarCarregar();
+    expect(screen.queryByTestId("cartao-signatarios")).toBeNull();
+  });
+
+  it("a reunião comum aprovada mostra o banner de aprovada sem assinatura", async () => {
+    servir("APROVADA", false);
+    montar();
+    expect(await screen.findByText("Ata Aprovada")).toBeTruthy();
+  });
+
+  it("a ata do Núcleo validada não aparece como aprovada sem assinatura", async () => {
+    servir("APROVADA", true);
+    montar();
+    await esperarCarregar();
+    expect(screen.queryByText("Ata Aprovada")).toBeNull();
   });
 });

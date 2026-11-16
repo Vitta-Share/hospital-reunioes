@@ -135,3 +135,107 @@ describe("a ata do Núcleo", () => {
     expect(await screen.findByRole("heading", { name: "Ata resumida do Núcleo" })).toBeTruthy();
   });
 });
+
+// A assinatura dos presentes e o encerramento (issue #1776).
+describe("a ata do Núcleo depois da validação", () => {
+  const VALIDACAO = { por: "PRES1", em: "2026-11-18T15:00:00-03:00" };
+
+  it("enviada, diz que espera a assinatura dos presentes e quando encerra", async () => {
+    fetchMock.mockImplementation(async () =>
+      responder(
+        leitura(
+          { status_ata: "AGUARDANDO_ASSINATURA" },
+          { validacao: VALIDACAO, assinatura: { enviada_em: "2026-11-18T15:00:00-03:00", erro: null } },
+        ),
+      ),
+    );
+    render(<AtaDoNucleo idReuniao={ID} />);
+
+    expect(await screen.findByText(/Enviada em 18\/11\/2026 para a assinatura dos presentes/)).toBeTruthy();
+    expect(screen.getByText(/encerra sozinha 5 dias úteis depois do envio/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Validar a ata/ })).toBeNull();
+  });
+
+  it("validada e não enviada, mostra o aviso da assinatura eletrônica", async () => {
+    const erro = "A assinatura eletrônica não respondeu. O aplicativo tenta de novo amanhã.";
+    fetchMock.mockImplementation(async () =>
+      responder(leitura({ status_ata: "APROVADA" }, { validacao: VALIDACAO, assinatura: { erro } })),
+    );
+    render(<AtaDoNucleo idReuniao={ID} />);
+
+    expect((await screen.findByRole("alert")).textContent).toContain(erro);
+  });
+
+  it("encerrada, baixa a ata assinada pela rota do Núcleo", async () => {
+    const abrir = vi.fn();
+    vi.stubGlobal("open", abrir);
+    const arquivo = "/api/nsp/reunioes/atas/doc-ata-7/arquivo-assinado";
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === arquivo) return responder({ url: "https://storage.test/ata.pdf" });
+      return responder({
+        ...leitura(
+          { status_ata: "ASSINADA" },
+          { validacao: VALIDACAO, encerramento: { em: "2026-11-26", assinaram: [], nao_assinaram: [] } },
+        ),
+        documento_id: "doc-ata-7",
+      });
+    });
+    render(<AtaDoNucleo idReuniao={ID} />);
+
+    expect(await screen.findByText(/Encerrada em 26\/11\/2026/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Baixar a ata assinada/ }));
+
+    await waitFor(() => expect(abrir).toHaveBeenCalledWith("https://storage.test/ata.pdf", "_blank", "noopener"));
+    expect(chamadas("GET", arquivo)).toHaveLength(1);
+  });
+
+  // Envelope cancelado: recusa de um presente ou cancelamento no painel.
+  const CANCELADA = "A assinatura eletrônica foi cancelada. A Presidência pode reenviar para todos os presentes.";
+  const ASSINATURA_CANCELADA = { enviada_em: "2026-11-18T15:00:00-03:00", cancelada_em: "2026-11-19", erro: CANCELADA };
+
+  it("cancelada, avisa, não promete encerrar e a Presidência reenvia", async () => {
+    let cancelada = true;
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === `${ROTA}/reenviar` && init?.method === "POST") {
+        cancelada = false;
+        return responder({ id_reuniao: ID, status: "AGUARDANDO_ASSINATURA" });
+      }
+      return responder(
+        leitura(
+          { status_ata: "AGUARDANDO_ASSINATURA" },
+          {
+            validacao: VALIDACAO,
+            assinatura: cancelada
+              ? ASSINATURA_CANCELADA
+              : { enviada_em: "2026-11-24T10:00:00-03:00", erro: null },
+          },
+        ),
+      );
+    });
+    render(<AtaDoNucleo idReuniao={ID} />);
+
+    expect((await screen.findByRole("alert")).textContent).toContain(CANCELADA);
+    expect(screen.queryByText(/encerra sozinha/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Reenviar para assinatura/ }));
+
+    await waitFor(() => expect(chamadas("POST", `${ROTA}/reenviar`)).toHaveLength(1));
+    expect(await screen.findByText(/Enviada em 24\/11\/2026 para a assinatura dos presentes/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Reenviar para assinatura/ })).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("cancelada, o membro comum vê o aviso e não reenvia", async () => {
+    fetchMock.mockImplementation(async () =>
+      responder(
+        leitura(
+          { status_ata: "AGUARDANDO_ASSINATURA", pode_conduzir: false },
+          { validacao: VALIDACAO, assinatura: ASSINATURA_CANCELADA },
+        ),
+      ),
+    );
+    render(<AtaDoNucleo idReuniao={ID} />);
+
+    expect((await screen.findByRole("alert")).textContent).toContain(CANCELADA);
+    expect(screen.queryByRole("button", { name: /Reenviar para assinatura/ })).toBeNull();
+  });
+});

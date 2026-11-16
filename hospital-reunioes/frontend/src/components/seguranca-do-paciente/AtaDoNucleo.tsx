@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, BadgeCheck, Pen, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, BadgeCheck, Download, Pen, Plus, Send, Trash2 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
 
@@ -27,6 +27,9 @@ export interface AtaDoNucleoJson {
   trechos_a_conferir: string[];
   aviso: string | null;
   validacao?: { por: string; em: string } | null;
+  // A assinatura dos presentes e o encerramento (issue #1776).
+  assinatura?: { enviada_em?: string; erro?: string | null; cancelada_em?: string | null } | null;
+  encerramento?: { em: string; assinaram: string[]; nao_assinaram: string[] } | null;
 }
 
 export interface LeituraDaAta {
@@ -34,12 +37,19 @@ export interface LeituraDaAta {
   status_ata: string;
   ata: AtaDoNucleoJson | null;
   pode_conduzir: boolean;
+  documento_id?: string | null;
 }
 
 // Os blocos que a Presidência reescreve; os outros vêm do sistema.
 const BLOCOS_DE_TEXTO = ["plano_de_acao", "alertas_sanitarios", "proxima_reuniao"];
 
 const CARTAO = "bg-white rounded-2xl border border-border shadow-premium";
+
+// AAAA-MM-DD (ou o instante ISO) em DD/MM/AAAA, sem passar por fuso.
+function dia(valor: string): string {
+  const [ano, mes, d] = valor.slice(0, 10).split("-");
+  return `${d}/${mes}/${ano}`;
+}
 
 async function token(): Promise<string | null> {
   const {
@@ -65,6 +75,9 @@ async function detalhe(res: Response, padrao: string): Promise<string> {
  * conduz a ata (Presidência, suplente em exercício, Acesso pleno) revisa os
  * blocos do agente e as deliberações e valida; cada deliberação vira
  * pendência. Quem decide quem conduz é o servidor.
+ *
+ * Validada, a ata vai para a assinatura dos presentes e encerra sozinha 5 dias
+ * úteis depois (issue #1776); a encerrada se baixa pela rota do Núcleo.
  */
 export function AtaDoNucleo({ idReuniao, onMudou }: { idReuniao: string; onMudou?: () => void }) {
   const rota = `/api/nsp/reunioes/${idReuniao}/ata`;
@@ -143,6 +156,34 @@ export function AtaDoNucleo({ idReuniao, onMudou }: { idReuniao: string; onMudou
     onMudou?.();
   }
 
+  async function reenviar() {
+    setSalvando(true);
+    setErro(null);
+    const tk = await token();
+    const res = await fetch(`${rota}/reenviar`, { method: "POST", headers: { Authorization: `Bearer ${tk}` } });
+    setSalvando(false);
+    if (!res.ok) {
+      setErro(await detalhe(res, "Não consegui reenviar a ata para assinatura."));
+      return;
+    }
+    await carregar();
+    onMudou?.();
+  }
+
+  async function baixar(documentoId: string) {
+    setErro(null);
+    const tk = await token();
+    const res = await fetch(`/api/nsp/reunioes/atas/${documentoId}/arquivo-assinado`, {
+      headers: { Authorization: `Bearer ${tk}` },
+    });
+    if (!res.ok) {
+      setErro(await detalhe(res, "Não consegui abrir a ata assinada."));
+      return;
+    }
+    const { url } = await res.json();
+    window.open(url, "_blank", "noopener");
+  }
+
   function mudarDeliberacao(i: number, campo: keyof Deliberacao, valor: string) {
     setDeliberacoes((atual) => atual.map((d, j) => (j === i ? { ...d, [campo]: valor } : d)));
   }
@@ -156,6 +197,9 @@ export function AtaDoNucleo({ idReuniao, onMudou }: { idReuniao: string; onMudou
   }
   const emValidacao = leitura.status_ata === "AGUARDANDO_VALIDACAO";
   const conduz = leitura.pode_conduzir && emValidacao;
+  // Envelope cancelado (recusa ou cancelamento no painel): a ata não encerra
+  // sozinha e quem conduz reenvia para todos os presentes.
+  const cancelada = leitura.status_ata === "AGUARDANDO_ASSINATURA" && Boolean(ata.assinatura?.cancelada_em);
 
   return (
     <section aria-label="Ata do Núcleo" className="space-y-4">
@@ -175,6 +219,53 @@ export function AtaDoNucleo({ idReuniao, onMudou }: { idReuniao: string; onMudou
         <div role="alert" className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200">
           <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" aria-hidden />
           <p className="text-sm text-amber-800">{ata.aviso}</p>
+        </div>
+      )}
+
+      {(leitura.status_ata === "APROVADA" || cancelada) && ata.assinatura?.erro && (
+        <div role="alert" className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200">
+          <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" aria-hidden />
+          <p className="text-sm text-amber-800">{ata.assinatura.erro}</p>
+        </div>
+      )}
+
+      {cancelada && leitura.pode_conduzir && (
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={reenviar}
+            disabled={salvando}
+            className="inline-flex items-center gap-2 rounded-xl bg-[#282760] text-white text-sm font-semibold px-4 py-2.5 disabled:opacity-60"
+          >
+            <Send className="w-4 h-4" aria-hidden />
+            Reenviar para assinatura
+          </button>
+          <p className="text-sm text-slate-600">
+            Vai para todos os presentes, e o prazo de 5 dias úteis recomeça do reenvio.
+          </p>
+        </div>
+      )}
+
+      {leitura.status_ata === "AGUARDANDO_ASSINATURA" && !cancelada && ata.assinatura?.enviada_em && (
+        <p className="text-sm text-slate-600">
+          Enviada em {dia(ata.assinatura.enviada_em)} para a assinatura dos presentes. A ata encerra sozinha 5 dias
+          úteis depois do envio, com as assinaturas que tiver.
+        </p>
+      )}
+
+      {leitura.status_ata === "ASSINADA" && ata.encerramento && (
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-sm text-slate-600">Encerrada em {dia(ata.encerramento.em)}.</p>
+          {leitura.documento_id && (
+            <button
+              type="button"
+              onClick={() => baixar(leitura.documento_id as string)}
+              className="inline-flex items-center gap-2 rounded-xl border border-border text-sm font-semibold px-4 py-2.5"
+            >
+              <Download className="w-4 h-4" aria-hidden />
+              Baixar a ata assinada
+            </button>
+          )}
         </div>
       )}
 

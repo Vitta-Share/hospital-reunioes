@@ -59,6 +59,14 @@ Jobs:
      Termo de Adesão gerado e sem assinatura (3, 7 e 14 dias), fim da vigência (60 e
      30 dias antes) e fim da carência sem renovação (issue #1770). Cada aviso é
      gravado antes de sair e nunca se repete para o mesmo marco. Sem IA.
+ 16. encerrar_atas_do_nucleo: 05:50 diário, encerra a ata do Núcleo 5 dias úteis depois
+     do envio para assinatura (com os feriados cadastrados), com as assinaturas obtidas,
+     grava quem não assinou e guarda o PDF assinado nos Documentos do Núcleo; também
+     tenta de novo o envio que falhou na validação (issue #1776). Idempotente: a ata
+     encerrada não encerra de novo e o documento é um por reunião. Sem IA.
+ 17. apagar_transcricoes_do_nucleo: 04:15 diário, apaga a transcrição importada da
+     reunião do Núcleo 30 dias corridos depois da ata assinada (issue #1776). Só reunião
+     do Núcleo. Idempotente: a apagada ganha carimbo e sai da varredura. Sem IA.
 
 Nenhum job dispara IA por conta própria (ADR 0082): a recomendação da Validação
 e o segundo agente de Contas médicas rodam só pelo botão da tela. A fila de
@@ -494,6 +502,35 @@ def avisar_termo_e_vigencia_nsp() -> None:
         )
 
 
+def encerrar_atas_do_nucleo() -> None:
+    """O encerramento das atas do Núcleo (issue #1776). O prazo, o registro de
+    quem não assinou e a guarda nos Documentos vivem no serviço; aqui, só o
+    relógio."""
+    from app.services.seguranca_do_paciente import assinatura_da_ata
+
+    try:
+        resultado = assinatura_da_ata.encerrar_atas(_supabase(), _hoje_em_sao_paulo())
+    except Exception as e:
+        logger.error(f"[Cron] Erro em encerrar_atas_do_nucleo: {type(e).__name__}")
+        return
+    if resultado and any(resultado.values()):
+        logger.info(f"[Cron] Atas do Núcleo: {resultado}")
+
+
+def apagar_transcricoes_do_nucleo() -> None:
+    """A transcrição da reunião do Núcleo, 30 dias depois da ata assinada
+    (issue #1776). A regra vive no serviço; aqui, só o relógio."""
+    from app.services.seguranca_do_paciente import assinatura_da_ata
+
+    try:
+        apagadas = assinatura_da_ata.apagar_transcricoes(_supabase(), _hoje_em_sao_paulo())
+    except Exception as e:
+        logger.error(f"[Cron] Erro em apagar_transcricoes_do_nucleo: {type(e).__name__}")
+        return
+    if apagadas:
+        logger.info(f"[Cron] Transcrições do Núcleo apagadas: {apagadas}")
+
+
 def _registrar_entrega(competencia: str, entrega, rotulo: str = "Relatório quinzenal") -> None:
     """Escreve no log o que aconteceu com uma tentativa de entrega.
 
@@ -725,6 +762,26 @@ def start_scheduler() -> None:
         id="avisos_termo_e_vigencia_nsp",
         replace_existing=True,
     )
+    # 05:50, depois do reconciliar_clicksign e antes do marcar_atrasadas. Dia
+    # perdido num deploy sai no seguinte (o prazo continua vencido) e nunca
+    # duas vezes (a ata encerrada e o documento por reunião).
+    scheduler.add_job(
+        encerrar_atas_do_nucleo,
+        "cron",
+        hour=5,
+        minute=50,
+        id="encerramento_atas_nsp",
+        replace_existing=True,
+    )
+    # 04:15, de madrugada, como as outras retenções. A apagada ganha carimbo.
+    scheduler.add_job(
+        apagar_transcricoes_do_nucleo,
+        "cron",
+        hour=4,
+        minute=15,
+        id="transcricoes_nsp",
+        replace_existing=True,
+    )
     # Todo dia às 07h, no fuso do scheduler (America/Sao_Paulo). A quinzena
     # fecha nos dias 1 e 16, e é neles que o email sai; os outros dias existem
     # para a edição não se perder quando o container estiver fora do ar na hora
@@ -756,7 +813,8 @@ def start_scheduler() -> None:
         "retencao_contas_medicas (04:30), fila_contas_medicas (a cada 10s), contratos_contas_medicas (07:15), "
         "relatorio_quinzenal_ouvidoria (07:00 diário, email nos dias 1 e 16), "
         "reconciliacao_tecnologia (de hora em hora), nota_do_google (06:45, uma leitura por semana), "
-        "agenda_regulatoria_nsp (05:45), avisos_termo_e_vigencia_nsp (08:00)"
+        "agenda_regulatoria_nsp (05:45), avisos_termo_e_vigencia_nsp (08:00), "
+        "encerramento_atas_nsp (05:50), transcricoes_nsp (04:15)"
     )
 
 

@@ -332,6 +332,31 @@ def cancel_envelope(envelope_id: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# 7.2 Finalizar o Envelope (encerramento da ata do Núcleo, issue #1776)
+# ---------------------------------------------------------------------------
+def close_envelope(envelope_id: str) -> bool:
+    """Finaliza o Envelope (status "closed") com as assinaturas que ele já tem.
+
+    Usado no encerramento da ata do Núcleo, 5 dias úteis depois do envio: quem
+    não assinou até ali fica de fora, e o documento assinado fica pronto para
+    download. Falha devolve False (quem chama tenta de novo no dia seguinte).
+    """
+    payload = {"data": {"id": envelope_id, "type": "envelopes", "attributes": {"status": "closed"}}}
+    try:
+        with httpx.Client(timeout=30) as client:
+            resp = client.patch(_url(f"/envelopes/{envelope_id}"), json=payload, headers=_headers())
+            resp.raise_for_status()
+            logger.info(f"[ClickSign] Envelope {envelope_id} finalizado")
+            return True
+    except httpx.HTTPStatusError as e:
+        logger.error(f"[ClickSign v3] Erro ao finalizar envelope: {e.response.text[:200]}")
+        return False
+    except Exception as e:
+        logger.error(f"[ClickSign v3] Erro inesperado ao finalizar envelope: {e}")
+        return False
+
+
+# ---------------------------------------------------------------------------
 # 8. Baixar PDF assinado
 # ---------------------------------------------------------------------------
 def get_signed_document(envelope_id: str) -> bytes | None:
