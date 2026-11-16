@@ -215,6 +215,71 @@ def _feriados_da_reuniao(supabase, reuniao: dict) -> frozenset:
     return pauta.feriados_entre(supabase, dia - timedelta(days=60), dia)
 
 
+class ItemDaPauta(BaseModel):
+    texto: str = Field(..., min_length=1, max_length=1000)
+    id_acao: str | None = Field(None, max_length=10)
+
+
+class BlocoDaPauta(BaseModel):
+    chave: str | None = Field(None, max_length=40)
+    titulo: str = Field(..., min_length=1, max_length=200)
+    sem_dados: bool = False
+    itens: list[ItemDaPauta] = Field(default_factory=list, max_length=100)
+
+
+class PautaRequest(BaseModel):
+    blocos: list[BlocoDaPauta] = Field(..., max_length=30)
+
+
+def _disponivel_em(supabase, reuniao: dict) -> date | None:
+    data_reuniao = date.fromisoformat(str(reuniao["data"])[:10])
+    return pauta.data_da_pauta(reuniao["tipo"], data_reuniao, _feriados_da_reuniao(supabase, reuniao))
+
+
+@router.put("/{id_reuniao}/pauta")
+@limiter.limit("30/minute")
+async def editar_pauta(
+    request: Request,
+    id_reuniao: str,
+    req: PautaRequest,
+    me: dict = Depends(require_recurso_nsp("gerir_nucleo")),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """A Presidência ajusta a pauta montada: muda texto, tira, inclui item ou
+    bloco. Vale enquanto a reunião está programada."""
+    reuniao = _reuniao_do_nucleo(supabase, id_reuniao)
+    if reuniao.get("status_ata") != "PROGRAMADA":
+        raise HTTPException(status_code=409, detail="A reunião já aconteceu: a pauta não muda mais.")
+    agora = _agora()
+    disponivel_em = _disponivel_em(supabase, reuniao)
+    if disponivel_em and agora.date() < disponivel_em:
+        raise HTTPException(
+            status_code=409,
+            detail=f"A pauta desta reunião aparece em {disponivel_em.strftime('%d/%m/%Y')}.",
+        )
+    atual = pauta.garantir_pauta(supabase, reuniao, agora)
+    # Só a pendência que a montagem trouxe fica presa ao item: o id vindo da
+    # tela não abre a situação de outra pendência.
+    citadas = {i.get("id_acao") for b in atual.get("blocos", []) for i in b.get("itens", []) if i.get("id_acao")}
+    blocos = [
+        {
+            "chave": bloco.chave,
+            "titulo": bloco.titulo.strip(),
+            "sem_dados": bloco.sem_dados and not bloco.itens,
+            "itens": [
+                {"texto": item.texto.strip(), **({"id_acao": item.id_acao} if item.id_acao in citadas else {})}
+                for item in bloco.itens
+            ],
+        }
+        for bloco in req.blocos
+    ]
+    supabase.table(pauta.TABELA_PAUTAS).update(
+        {"blocos": blocos, "editada_em": agora.isoformat(), "editada_por": me["id"]}
+    ).eq("id_reuniao", id_reuniao).execute()
+    logger.info("Pauta da reunião do Núcleo %s editada por %s", id_reuniao, me["id"])
+    return {"id_reuniao": id_reuniao, "blocos": pauta.com_situacao_atual(supabase, blocos)}
+
+
 @router.get("/{id_reuniao}/pauta")
 @limiter.limit("60/minute")
 async def ver_pauta(
@@ -228,9 +293,8 @@ async def ver_pauta(
     antes, a resposta diz quando ela aparece."""
     reuniao = _reuniao_do_nucleo(supabase, id_reuniao)
     agora = _agora()
-    data_reuniao = date.fromisoformat(str(reuniao["data"])[:10])
-    disponivel_em = pauta.data_da_pauta(reuniao["tipo"], data_reuniao, _feriados_da_reuniao(supabase, reuniao))
-    disponivel = disponivel_em is None or agora.date() >= disponivel_em
+    disponivel_em = _disponivel_em(supabase, reuniao)
+    disponivel =disponivel_em is None or agora.date() >= disponivel_em
     gravada = pauta.garantir_pauta(supabase, reuniao, agora) if disponivel else None
     return {
         "id_reuniao": reuniao["id_reuniao"],

@@ -520,3 +520,94 @@ class TestDiaDaPauta:
         resposta = _cliente(PRESIDENTE, banco).get(f"{ROTA}/RD_COMUM/pauta")
 
         assert resposta.status_code == 404
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. A Presidência edita a pauta antes de convocar
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _com_pendencia_anterior() -> _Banco:
+    return _banco(
+        reunioes=[
+            _reuniao("RD_ANTERIOR", HOJE - timedelta(days=30), status_ata="ASSINADA"),
+            _reuniao("RD_PROXIMA", HOJE + timedelta(days=1)),
+        ],
+        pendencias=[_pendencia("PA1", "RD_ANTERIOR", "PENDENTE"), _pendencia("PX9", "RD_OUTRA", "ATRASADO")],
+    )
+
+
+def _editada(corpo: dict) -> dict:
+    """A pauta como a tela devolve: o bloco das pendências com um item a mais
+    e um bloco novo da Presidência."""
+    blocos = [dict(b) for b in corpo["blocos"]]
+    blocos[0] = {**blocos[0], "itens": [*blocos[0]["itens"], {"texto": "Ponto incluído pela Presidência"}]}
+    blocos.append({"titulo": "Outros assuntos", "itens": [{"texto": "Escala de férias"}]})
+    return {"blocos": blocos}
+
+
+class TestEdicaoDaPauta:
+    def test_a_presidencia_edita_a_pauta_e_a_edicao_fica(self):
+        banco = _com_pendencia_anterior()
+        cliente = _cliente(PRESIDENTE, banco)
+        corpo = _pauta(banco, "RD_PROXIMA")
+        assert corpo["pode_editar"] is True
+
+        resposta = cliente.put(f"{ROTA}/RD_PROXIMA/pauta", json=_editada(corpo))
+
+        assert resposta.status_code == 200, resposta.text
+        relida = _pauta(banco, "RD_PROXIMA")
+        textos = [i["texto"] for b in relida["blocos"] for i in b["itens"]]
+        assert "Ponto incluído pela Presidência" in textos
+        assert "Escala de férias" in textos
+        assert relida["editada_em"]
+        assert banco.tabelas["nsp_pautas"][0]["editada_por"] == "P1"
+
+    def test_a_pendencia_continua_com_a_situacao_de_hoje_depois_da_edicao(self):
+        banco = _com_pendencia_anterior()
+        _cliente(PRESIDENTE, banco).put(f"{ROTA}/RD_PROXIMA/pauta", json=_editada(_pauta(banco, "RD_PROXIMA")))
+        banco.tabelas["pendencias"][0]["status"] = "EM_PROGRESSO"
+
+        itens = _bloco(_pauta(banco, "RD_PROXIMA"), "pendencias")["itens"]
+
+        assert ("PA1", "Em andamento") in [(i.get("id_acao"), i.get("situacao")) for i in itens]
+
+    def test_a_edicao_nao_pendura_pendencia_que_a_pauta_nao_trazia(self):
+        """Senão a pauta viraria uma janela para a situação de qualquer pendência."""
+        banco = _com_pendencia_anterior()
+        corpo = _editada(_pauta(banco, "RD_PROXIMA"))
+        corpo["blocos"][-1]["itens"].append({"texto": "Pendência de fora", "id_acao": "PX9"})
+
+        _cliente(PRESIDENTE, banco).put(f"{ROTA}/RD_PROXIMA/pauta", json=corpo)
+
+        itens = [i for b in _pauta(banco, "RD_PROXIMA")["blocos"] for i in b["itens"]]
+        assert "Atrasada" not in [i.get("situacao") for i in itens]
+
+    def test_membro_le_a_pauta_e_nao_edita(self):
+        banco = _com_pendencia_anterior()
+        corpo = _pauta(banco, "RD_PROXIMA", MEMBRO)
+        assert corpo["pode_editar"] is False
+
+        _assert_recusado(_cliente(MEMBRO, banco).put(f"{ROTA}/RD_PROXIMA/pauta", json=_editada(corpo)))
+        assert banco.tabelas["nsp_pautas"][0].get("editada_em") is None
+
+    def test_antes_de_a_pauta_aparecer_nao_ha_o_que_editar(self, relogio):
+        relogio(date(2027, 3, 5))
+        banco = _banco(reunioes=[_reuniao("RD_MAR", date(2027, 3, 15))])
+
+        resposta = _cliente(PRESIDENTE, banco).put(
+            f"{ROTA}/RD_MAR/pauta", json={"blocos": [{"titulo": "Outros", "itens": []}]}
+        )
+
+        assert resposta.status_code == 409
+        assert "08/03/2027" in resposta.json()["detail"]
+        assert banco.tabelas["nsp_pautas"] == []
+
+    def test_reuniao_que_ja_aconteceu_nao_muda_a_pauta(self):
+        banco = _com_pendencia_anterior()
+        corpo = _pauta(banco, "RD_PROXIMA")
+        banco.tabelas["reunioes"][1]["status_ata"] = "PROCESSANDO"
+
+        resposta = _cliente(PRESIDENTE, banco).put(f"{ROTA}/RD_PROXIMA/pauta", json=_editada(corpo))
+
+        assert resposta.status_code == 409
