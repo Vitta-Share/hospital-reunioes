@@ -42,6 +42,11 @@ vi.mock("@/hooks/useCurrentParticipante", () => ({
   }),
 }));
 
+// A agenda tem conteúdo e teste próprios (`AgendaRegulatoria.test.tsx`).
+vi.mock("@/components/seguranca-do-paciente/AgendaRegulatoria", () => ({
+  AgendaRegulatoria: () => <p>Conteúdo da agenda</p>,
+}));
+
 // A lista dos membros chama a API (issue #1766) e tem teste próprio, ao lado
 // do componente. Aqui só importa que a tela Membros a mostra.
 vi.mock("@/components/seguranca-do-paciente/MembrosDoNucleo", () => ({
@@ -152,10 +157,16 @@ describe("as telas do módulo", () => {
     expect(screen.getByText(orientacao).tagName).toBe("P");
   });
 
-  // Início, Membros, Documentos e Reuniões já têm conteúdo (issues #1766, #1767 e #1772).
+  // Início, Membros, Documentos, Reuniões e Agenda regulatória já têm conteúdo
+  // (issues #1766, #1767, #1772 e #1779).
   it.each(
     TELAS.filter(
-      (t) => t.nome !== "Início" && t.nome !== "Membros" && t.nome !== "Documentos" && t.nome !== "Reuniões"
+      (t) =>
+        t.nome !== "Início" &&
+        t.nome !== "Membros" &&
+        t.nome !== "Documentos" &&
+        t.nome !== "Reuniões" &&
+        t.nome !== "Agenda regulatória"
     )
   )(
     "$nome mostra o estado vazio enquanto a fatia dela não chega",
@@ -191,6 +202,14 @@ describe("as telas do módulo", () => {
     render(<MembrosPage />);
 
     expect(screen.getByText("Lista dos membros")).toBeTruthy();
+    expect(screen.queryByText("Nada por aqui ainda.")).toBeNull();
+  });
+
+  it("a Agenda regulatória mostra a agenda, e não o estado vazio", () => {
+    entrar(TODOS);
+    render(<AgendaPage />);
+
+    expect(screen.getByText("Conteúdo da agenda")).toBeTruthy();
     expect(screen.queryByText("Nada por aqui ainda.")).toBeNull();
   });
 
