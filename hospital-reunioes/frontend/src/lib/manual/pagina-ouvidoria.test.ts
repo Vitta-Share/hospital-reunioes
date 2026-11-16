@@ -87,12 +87,20 @@ describe("a página de Ouvidoria do manual", () => {
     ["Encaminhar ao setor"],
     ["Cobrar a resposta do setor"],
     ["Encerrar com o manifestante"],
+    ["Responder um caso do seu setor pelo app"],
   ])("a tarefa %s tem passos numerados e pelo menos um print", (tarefa) => {
     const secao = secoes(OUVIDORIA!.corpo).find((s) => s.titulo === tarefa);
     expect(secao, `a página não tem a tarefa "${tarefa}"`).toBeDefined();
     const passos = secao!.texto.match(/^\d+\. /gm) ?? [];
     expect(passos.slice(0, 2)).toEqual(["1. ", "2. "]);
     expect(imagensCitadas(secao!.texto).length).toBeGreaterThan(0);
+  });
+
+  it("a tarefa de responder pelo app mostra a lista do responsável e a Tela do responsável (issue #1888)", () => {
+    const secao = secoes(OUVIDORIA!.corpo).find((s) => s.titulo === "Responder um caso do seu setor pelo app");
+    expect(imagensCitadas(secao?.texto ?? "")).toEqual(
+      expect.arrayContaining(["linha-responder.png", "tela-do-responsavel.png"])
+    );
   });
 
   it("o fluxograma lê sem erro e vai do registro ao encerramento", () => {

@@ -62,6 +62,24 @@ Todo caso novo fica no grupo **Em classificação** até a Ouvidoria conferir e 
 
 ![A janela Validar e acionar preenchida](validar-e-acionar.png)
 
+## Responder um caso do seu setor pelo app
+
+Esta tarefa é de quem responde por um setor: o titular, o substituto ou o gestor que a Ouvidoria cadastrou com o seu e-mail. Com o login no app, você acha os casos do seu setor sem depender do e-mail.
+
+1. Entre no app com o seu e-mail e a sua senha.
+2. No menu da esquerda, clique em **Ouvidoria**. A lista mostra só os casos do seu setor: no alto, **A responder**, do prazo mais curto ao mais longo; embaixo, **Respondidos pelo setor**, só para consulta.
+3. Ache o caso em **A responder** e clique em **Responder** na linha dele.
+
+![Um caso do setor em A responder, com o botão Responder](linha-responder.png)
+
+4. Leia o caso. É a mesma tela do link do e-mail, com a gravidade, o prazo e o que a Ouvidoria pede que o setor apure.
+5. Em **O que foi feito**, conte o que o setor fez para corrigir. Se tiver foto ou documento, clique em **Anexar arquivos**.
+6. Clique em **Responder à Ouvidoria**. A Ouvidoria confere a resposta e encerra o caso com quem manifestou.
+
+![A Tela do responsável aberta pelo app, com O que foi feito preenchido](tela-do-responsavel.png)
+
+Cada caso recebe uma resposta só. Respondeu pelo app, o link do e-mail desse caso deixa de valer. Se você já respondeu pelo link, o botão **Responder** some da lista. Na mesma tela dá para pedir mais prazo ou devolver à Ouvidoria o caso que não é do seu setor.
+
 ## Cobrar a resposta do setor
 
 A data de cada caso fica vermelha quando o prazo da área venceu, com o tempo de atraso ao lado.

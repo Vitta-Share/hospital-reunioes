@@ -6,7 +6,8 @@
 #   bash scripts/manual/ouvidoria/roteiro.sh
 #   BASE=http://localhost:3010 bash scripts/manual/ouvidoria/roteiro.sh
 #
-# O roteiro semeia antes (semear.py), entra como a ouvidora de exemplo e fotografa
+# O roteiro semeia antes (semear.py), entra como a ouvidora de exemplo (e, no fim,
+# como o responsável do setor de exemplo, issue #1888) e fotografa
 # só o pedaço da tela que o passo mostra: a linha do caso de exemplo ou a janela
 # aberta. A lista inteira não entra, porque o banco local tem casos de outros
 # trabalhos. Nenhum botão de confirmar é clicado: preencher a janela basta para
@@ -46,11 +47,18 @@ janela() { echo "getByRole('dialog', { name: '$1' }).locator('> div').first()"; 
 python3 "$AQUI/semear.py"
 mkdir -p "$SAIDA"
 
-pw open "$BASE/login"
-pw resize 1440 900
-pw fill "#email" "$(seed "['ouvidora']['email']")"
-pw fill "#password" "$(seed "['ouvidora']['senha']")" --submit
-pw run-code "async page => { await page.waitForURL(u => !u.pathname.startsWith('/login')) }"
+# Entra no app como uma pessoa do seed ("ouvidora" ou "responsavel"), num
+# navegador novo para a sessão de quem entrou antes não vazar para o print.
+ABERTO=""
+entrar() {
+  if [ -n "$ABERTO" ]; then pw close; fi
+  pw open "$BASE/login"
+  ABERTO=1
+  pw resize 1440 900
+  pw fill "#email" "$(seed "['$1']['email']")"
+  pw fill "#password" "$(seed "['$1']['senha']")" --submit
+  pw run-code "async page => { await page.waitForURL(u => !u.pathname.startsWith('/login')) }"
+}
 
 abrir_a_fila() {
   pw goto "$BASE/ouvidoria"
@@ -67,6 +75,8 @@ print_janela() {
 }
 
 echo "prints em $SAIDA:"
+
+entrar ouvidora
 
 # Registrar uma manifestação: o topo da fila, com o botão, e a janela preenchida.
 abrir_a_fila
@@ -108,5 +118,21 @@ ENCERRAR="getByRole('dialog', { name: 'Encerrar' })"
 pw click "$ENCERRAR.getByRole('button', { name: '$(seed "['encerramento']['desfecho']")', exact: true })"
 pw fill "$ENCERRAR.getByRole('textbox')" "$(seed "['encerramento']['texto']")"
 print_janela "Encerrar" "encerrar.png"
+
+# Responder um caso do seu setor pelo app (issue #1888, ADR 0099): o
+# responsável do setor de exemplo entra, acha o caso em A responder e abre a
+# Tela do responsável. O botão Responder à Ouvidoria não é clicado: enviar
+# gastaria o caso do seed e o link do e-mail dele.
+entrar responsavel
+pw goto "$BASE/ouvidoria"
+A_RESPONDER="$(seed "['casos']['com_a_area']['assunto']")"
+pw run-code "async page => { await page.$(linha "$A_RESPONDER").getByRole('link', { name: 'Responder' }).waitFor() }"
+print "$(linha "$A_RESPONDER")" "linha-responder.png"
+pw click "$(linha "$A_RESPONDER").getByRole('link', { name: 'Responder' })"
+pw run-code "async page => { await page.getByLabel('O que foi feito', { exact: true }).waitFor() }"
+pw fill "getByLabel('O que foi feito', { exact: true })" "$(seed "['resposta_pelo_app']['texto']")"
+pw resize 1440 2200
+pw run-code "async page => { await page.evaluate(() => document.activeElement && document.activeElement.blur()); await page.waitForTimeout(400) }"
+print "locator('main > div').first()" "tela-do-responsavel.png"
 
 pw close
