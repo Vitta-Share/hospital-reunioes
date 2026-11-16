@@ -62,6 +62,11 @@ class _Consulta:
         self._eq[coluna] = valor
         return self
 
+    def ilike(self, *_a):
+        """O `/me` procura o e-mail no cadastro de responsáveis da Ouvidoria
+        (issue #1884); aqui ninguém responde por setor."""
+        return self
+
     def limit(self, *_a, **_kw):
         return self
 

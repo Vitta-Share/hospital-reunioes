@@ -33,6 +33,11 @@ export const PERFIL_POP_LABELS: Record<PerfilPop, string> = {
 // inclusive de manifestação sigilosa; ninguém mais lê, super admin incluído.
 export type PerfilOuvidoria = "ouvidor" | "diretoria_executiva";
 
+// O papel de quem está logado na Ouvidoria (ADR 0099), calculado no servidor
+// pelo perfil de acesso, pelo Perfil da Ouvidoria e pelo cadastro de
+// responsáveis. `nenhum` não vê a Ouvidoria.
+export type PapelOuvidoria = "perfil_ouvidoria" | "indice_geral" | "responsavel" | "nenhum";
+
 export const PERFIL_OUVIDORIA_LABELS: Record<PerfilOuvidoria, string> = {
   ouvidor: "Ouvidor",
   diretoria_executiva: "Diretoria Executiva",

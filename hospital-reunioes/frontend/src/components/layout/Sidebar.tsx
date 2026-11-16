@@ -34,6 +34,7 @@ import {
 import {
   isSecretaria,
   temAcessoContasMedicas,
+  temPapelNaOuvidoria,
   temAcessoReunioes,
   temAcessoSegurancaDoPaciente,
   temPerfilPop,
@@ -368,11 +369,11 @@ export function itensDoMenu(participante: CurrentParticipante | null): NavItem[]
   const popsOnly = showPops && participante != null && !temAcessoReunioes(participante);
 
   const popsItem: NavItem = { href: "/pops", label: "POPs", icon: BookOpenCheck };
-  const ouvidoriaItem: NavItem = {
-    href: HREF_DA_OUVIDORIA,
-    label: "Ouvidoria",
-    icon: Megaphone,
-  };
+  // A Ouvidoria só para quem tem papel nela (issue #1884, ADR 0099): o
+  // Perfil da Ouvidoria, a Secretária, o Super admin e o responsável do setor.
+  const ouvidoriaItens: NavItem[] = temPapelNaOuvidoria(participante)
+    ? [{ href: HREF_DA_OUVIDORIA, label: "Ouvidoria", icon: Megaphone }]
+    : [];
   // Contas médicas (ADR 0070): eixo próprio, entra em toda montagem do menu
   // para quem tem perfil no módulo ou é super admin.
   const contasMedicasItens: NavItem[] = temAcessoContasMedicas(participante)
@@ -441,13 +442,13 @@ export function itensDoMenu(participante: CurrentParticipante | null): NavItem[]
   };
 
   return popsOnly
-    ? [popsItem, ...contasMedicasItens, ...segurancaDoPacienteItens]
+    ? [popsItem, ...ouvidoriaItens, ...contasMedicasItens, ...segurancaDoPacienteItens]
     : isSec
     ? [
         { href: "/secretaria", label: "Início", icon: Home },
         { href: "/secretaria/nova", label: "Nova reunião", icon: CalendarPlus },
         { href: "/reunioes/calendario", label: "Calendário", icon: CalendarDays },
-        ouvidoriaItem,
+        ...ouvidoriaItens,
         ...(showPops ? [popsItem] : []),
         ...contasMedicasItens,
         ...segurancaDoPacienteItens,
@@ -457,7 +458,7 @@ export function itensDoMenu(participante: CurrentParticipante | null): NavItem[]
       ]
     : [
         reunioesMetasGroup,
-        ouvidoriaItem,
+        ...ouvidoriaItens,
         ...(showPops ? [popsItem] : []),
         ...contasMedicasItens,
         ...segurancaDoPacienteItens,

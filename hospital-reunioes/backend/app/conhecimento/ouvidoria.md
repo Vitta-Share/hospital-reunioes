@@ -2,7 +2,7 @@
 
 O módulo da Ouvidoria é onde vive o caso de ouvidoria do hospital, do primeiro relato ao encerramento: quem falou, o que falou, quem ficou responsável, quanto tempo a área tem para responder e o que foi respondido.
 
-Quem trabalha nele é o ouvidor e a diretoria executiva, cada um com o seu acesso próprio. Nem quem administra o aplicativo abre o relato de um caso: administrar o sistema não dá direito a ler o que a pessoa contou. A equipe de Reuniões (facilitador, secretária e quem administra o aplicativo) vê a fila dos casos não sigilosos, com protocolo, prazo, estado e o resumo, e não abre o caso nem age sobre ele; caso sigiloso e caso ainda sem tipo não aparecem nessa fila. Todo acesso a um caso fica registrado.
+Quem trabalha nele é o ouvidor e a diretoria executiva, cada um com o seu acesso próprio. Nem quem administra o aplicativo abre o relato de um caso: administrar o sistema não dá direito a ler o que a pessoa contou. A secretária e quem administra o aplicativo veem a fila dos casos não sigilosos, com protocolo, prazo e estado, sem o relato, e não abrem o caso nem agem sobre ele; caso sigiloso e caso ainda sem tipo não aparecem nessa fila. O responsável do setor (titular, substituto ou gestor) entra com o próprio login e vê na Ouvidoria só os casos já encaminhados ao setor dele, inclusive o sigiloso, sempre sem o relato e sem o nome de quem manifestou; por enquanto ele responde pelo link do e-mail. Quem não é nenhum desses, como o médico ou o facilitador que não responde por setor, não vê a Ouvidoria no menu. Todo acesso a um caso fica registrado.
 
 ## Por onde um caso chega
 

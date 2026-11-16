@@ -103,6 +103,9 @@ export default function OuvidoriaPage() {
 
   const { participante } = useCurrentParticipante();
   const podeAbrirDossie = Boolean(participante?.perfil_ouvidoria);
+  // O responsável do setor vê só os casos acionados para o setor dele (issue
+  // #1884, ADR 0099), e a lista vazia dele quer dizer outra coisa.
+  const doSetor = participante?.papel_ouvidoria === "responsavel";
 
   // Recarrega a fila depois de registrar: o caso novo precisa aparecer sem o
   // ouvidor ter que atualizar a página na mão.
@@ -615,7 +618,7 @@ export default function OuvidoriaPage() {
           </div>
         ) : semAcesso ? (
           <div className="text-center py-16">
-            <p className="text-slate-500 font-medium">Acesso restrito à equipe de Reuniões</p>
+            <p className="text-slate-500 font-medium">Acesso restrito a quem tem papel na Ouvidoria</p>
           </div>
         ) : erroCarga ? (
           <div className="text-center py-16">
@@ -635,6 +638,13 @@ export default function OuvidoriaPage() {
                 <p className="text-slate-500 font-medium">Nenhuma manifestação arquivada</p>
                 <p className="text-slate-400 text-sm mt-1">
                   Os casos encerrados que a ouvidoria guardar aparecem aqui.
+                </p>
+              </>
+            ) : doSetor ? (
+              <>
+                <p className="text-slate-500 font-medium">Nenhum caso para o seu setor</p>
+                <p className="text-slate-400 text-sm mt-1">
+                  Quando a Ouvidoria acionar o seu setor, o caso aparece aqui.
                 </p>
               </>
             ) : (

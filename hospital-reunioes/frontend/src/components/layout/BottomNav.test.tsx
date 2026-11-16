@@ -144,6 +144,22 @@ describe("BottomNav por perfil", () => {
     expect(rotulos()).toEqual(["Início", "Reuniões", "Pendências", "Perfil"]);
   });
 
+  it("o responsável do setor vê o item Ouvidoria (issue #1884, ADR 0099)", () => {
+    sessao.participante = participante({ papel_ouvidoria: "responsavel" });
+
+    render(<BottomNav />);
+
+    expect(rotulos()).toContain("Ouvidoria");
+  });
+
+  it("quem não tem papel na Ouvidoria não vê o item (issue #1884)", () => {
+    sessao.participante = participante({ papel_ouvidoria: "nenhum" });
+
+    render(<BottomNav />);
+
+    expect(rotulos()).not.toContain("Ouvidoria");
+  });
+
   it("o item leva à fila da Ouvidoria", () => {
     sessao.participante = participante({ perfil_ouvidoria: "ouvidor" });
 

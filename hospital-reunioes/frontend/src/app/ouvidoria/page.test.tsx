@@ -20,7 +20,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import OuvidoriaPage from "./page";
 
-const sessao = vi.hoisted(() => ({ perfilOuvidoria: null as string | null }));
+const sessao = vi.hoisted(() => ({
+  perfilOuvidoria: null as string | null,
+  papelOuvidoria: undefined as string | undefined,
+}));
 
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
@@ -37,6 +40,7 @@ vi.mock("@/hooks/useCurrentParticipante", () => ({
       nome_completo: "Marta Ouvidora",
       email: "marta@hsm",
       perfil_ouvidoria: sessao.perfilOuvidoria,
+      papel_ouvidoria: sessao.papelOuvidoria,
     },
     loading: false,
   }),
@@ -126,6 +130,27 @@ describe("a fila vazia diz por que está vazia (issue #1629, regra T7)", () => {
         "As manifestações chegam pelo QR, pelo formulário do site, pela Ana e pelo registro da Ouvidoria. A primeira aparece aqui assim que chegar."
       )
     ).toBeTruthy();
+  });
+});
+
+describe("a fila vazia do responsável do setor (issue #1884, ADR 0099)", () => {
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    sessao.papelOuvidoria = undefined;
+  });
+
+  it("sem caso acionado, diz que não há caso para o setor dele", async () => {
+    sessao.perfilOuvidoria = null;
+    sessao.papelOuvidoria = "responsavel";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ protocolos: [] }) }) as Response)
+    );
+    render(<OuvidoriaPage />);
+
+    expect(await screen.findByText("Nenhum caso para o seu setor")).toBeTruthy();
+    expect(screen.queryByText("Nenhuma manifestação registrada")).toBeNull();
   });
 });
 
