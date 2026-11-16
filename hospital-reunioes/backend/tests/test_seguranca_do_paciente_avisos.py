@@ -212,7 +212,8 @@ def _banco(participacoes: list[dict], envios: list[dict] | None = None, pessoas:
         {
             "participantes": [dict(p) for p in (pessoas or [PRESIDENTE, MEMBRO, DIRETOR])],
             "colegiados": [dict(NUCLEO)],
-            "participacoes": [_participacao("P1", "presidencia")] + [dict(p) for p in participacoes],
+            "participacoes": [_participacao("P1", "presidencia", vigencia_fim=(DIA + timedelta(days=800)).isoformat())]
+            + [dict(p) for p in participacoes],
             "nsp_termos_envios": [dict(e) for e in (envios or [])],
             "nsp_avisos": [],
         }
@@ -236,3 +237,158 @@ class TestMarcos:
         avisos.avisar(banco, DIA)
 
         assert _para(emails) == ["p2@hsm.test"]
+        assert emails[0]["assunto"].startswith("Assine o Termo de Adesão")
+
+    @pytest.mark.parametrize(
+        ("dias", "assunto"),
+        [
+            (0, "gerado em"),
+            (7, "pendente desde"),
+        ],
+    )
+    def test_documento_gerado_e_sete_dias_avisam_so_o_membro(self, emails, dias, assunto):
+        participacao, envio = _sem_assinatura("P2", DIA - timedelta(days=dias))
+        banco = _banco([participacao], [envio])
+
+        avisos.avisar(banco, DIA)
+
+        assert _para(emails) == ["p2@hsm.test"]
+        assert assunto in emails[0]["assunto"]
+
+    def test_quatorze_dias_sem_assinatura_avisam_o_membro_e_a_presidencia(self, emails):
+        participacao, envio = _sem_assinatura("P2", DIA - timedelta(days=14))
+        banco = _banco([participacao], [envio])
+
+        avisos.avisar(banco, DIA)
+
+        assert _para(emails) == ["p1@hsm.test", "p2@hsm.test"]
+        para_presidencia = next(e for e in emails if e["para"] == "p1@hsm.test")
+        assert para_presidencia["assunto"].startswith("Cobre a assinatura do Termo de Adesão de Pessoa de Teste P2")
+
+    def test_dois_dias_depois_do_documento_gerado_nada_novo_sai(self, emails):
+        participacao, envio = _sem_assinatura("P2", DIA - timedelta(days=2))
+        banco = _banco([participacao], [envio])
+        avisos.avisar(banco, DIA - timedelta(days=2))
+        emails.clear()
+
+        avisos.avisar(banco, DIA)
+
+        assert emails == []
+
+    def test_o_job_parado_uns_dias_manda_so_o_marco_mais_adiantado(self, emails):
+        participacao, envio = _sem_assinatura("P2", DIA - timedelta(days=8))
+        banco = _banco([participacao], [envio])
+
+        avisos.avisar(banco, DIA)
+
+        assert len(emails) == 1
+        assert [a["marco"] for a in banco.tabelas["nsp_avisos"]] == ["assinatura_7"]
+
+    @pytest.mark.parametrize("faltam", [60, 30])
+    def test_sessenta_e_trinta_dias_do_fim_avisam_o_membro_e_a_presidencia(self, emails, faltam):
+        banco = _banco([_participacao("P2", vigencia_fim=(DIA + timedelta(days=faltam)).isoformat())])
+
+        avisos.avisar(banco, DIA)
+
+        assert _para(emails) == ["p1@hsm.test", "p2@hsm.test"]
+        fim = (DIA + timedelta(days=faltam)).strftime("%d/%m/%Y")
+        assert all(fim in e["assunto"] for e in emails)
+
+    def test_sessenta_e_um_dias_do_fim_ainda_nao_avisam(self, emails):
+        banco = _banco([_participacao("P2", vigencia_fim=(DIA + timedelta(days=61)).isoformat())])
+
+        avisos.avisar(banco, DIA)
+
+        assert emails == []
+
+    def test_o_aviso_de_trinta_dias_vem_depois_do_de_sessenta(self, emails):
+        fim = DIA + timedelta(days=30)
+        banco = _banco([_participacao("P2", vigencia_fim=fim.isoformat())])
+        avisos.avisar(banco, fim - timedelta(days=60))
+
+        avisos.avisar(banco, DIA)
+
+        marcos = sorted({a["marco"] for a in banco.tabelas["nsp_avisos"]})
+        assert marcos == ["vigencia_30", "vigencia_60"]
+        assert len(emails) == 4
+
+    def test_fim_da_carencia_sem_renovacao_avisa_a_presidencia_e_a_diretoria_executiva(self, emails):
+        fim = DIA - timedelta(days=31)
+        banco = _banco([_participacao("P2", vigencia_fim=fim.isoformat())])
+
+        avisos.avisar(banco, DIA)
+
+        assert _para(emails) == ["p1@hsm.test", "p9@hsm.test"]
+        fim_da_carencia = (fim + timedelta(days=30)).strftime("%d/%m/%Y")
+        assert all(fim_da_carencia in e["assunto"] for e in emails)
+
+    def test_o_ultimo_dia_da_carencia_ainda_nao_avisa(self, emails):
+        banco = _banco([_participacao("P2", vigencia_fim=(DIA - timedelta(days=30)).isoformat())])
+
+        avisos.avisar(banco, DIA)
+
+        assert emails == []
+
+    def test_participacao_encerrada_nao_recebe_aviso(self, emails):
+        fim = DIA + timedelta(days=30)
+        banco = _banco([_participacao("P2", vigencia_fim=fim.isoformat(), encerrada_em=fim.isoformat())])
+
+        avisos.avisar(banco, DIA)
+
+        assert emails == []
+
+    def test_a_presidencia_que_e_o_proprio_membro_recebe_um_aviso_so(self, emails):
+        banco = _banco([])
+        banco.tabelas["participacoes"][0]["vigencia_fim"] = (DIA + timedelta(days=30)).isoformat()
+
+        avisos.avisar(banco, DIA)
+
+        assert _para(emails) == ["p1@hsm.test"]
+        assert emails[0]["assunto"].startswith("Renove a sua participação")
+
+    def test_rodar_duas_vezes_no_mesmo_dia_nao_envia_de_novo(self, emails):
+        participacao, envio = _sem_assinatura("P2", DIA - timedelta(days=14))
+        banco = _banco([participacao], [envio])
+
+        avisos.avisar(banco, DIA)
+        primeira = len(emails)
+        segunda = avisos.avisar(banco, DIA)
+
+        assert primeira == 2
+        assert len(emails) == primeira
+        assert segunda == {"enviados": 0, "falhas": 0}
+
+    def test_cada_aviso_nasce_registrado_e_nominal(self, emails):
+        participacao, envio = _sem_assinatura("P2", DIA - timedelta(days=14))
+        banco = _banco([participacao], [envio])
+
+        avisos.avisar(banco, DIA)
+
+        registros = banco.tabelas["nsp_avisos"]
+        assert sorted(a["destinatario_id"] for a in registros) == ["P1", "P2"]
+        assert {a["situacao"] for a in registros} == {"enviado"}
+
+    def test_a_renovacao_recomeca_os_avisos_da_vigencia(self, emails):
+        banco = _banco([_participacao("P2", vigencia_fim=(DIA + timedelta(days=30)).isoformat())])
+        avisos.avisar(banco, DIA)
+        banco.tabelas["participacoes"][1]["vigencia_fim"] = (DIA + timedelta(days=395)).isoformat()
+        emails.clear()
+
+        avisos.avisar(banco, DIA + timedelta(days=365))
+
+        assert _para(emails) == ["p1@hsm.test", "p2@hsm.test"]
+
+    def test_o_reenvio_do_termo_recomeca_a_contagem(self, emails):
+        participacao, envio = _sem_assinatura("P2", DIA - timedelta(days=3))
+        banco = _banco([participacao], [envio])
+        avisos.avisar(banco, DIA)
+        banco.tabelas["nsp_termos_envios"][0]["situacao"] = "cancelado"
+        banco.tabelas["nsp_termos_envios"].append(
+            {**envio, "id": "envio-novo", "created_at": f"{(DIA + timedelta(days=1)).isoformat()}T15:00:00+00:00"}
+        )
+        emails.clear()
+
+        avisos.avisar(banco, DIA + timedelta(days=4))
+
+        assert _para(emails) == ["p2@hsm.test"]
+        assert (DIA + timedelta(days=1)).strftime("%d/%m/%Y") in emails[0]["assunto"]
