@@ -16,6 +16,15 @@ A fundação do módulo:
 - o cadastro de pessoas com conselho profissional, número de registro e UF;
 - o Acesso pleno ao NSP, marcado no cadastro da pessoa pela área administrativa.
 
+A tela Núcleo, Documentos:
+
+- guarda o ato de designação, o Regimento, o Plano de Segurança do Paciente, o Termo, as atas e outros documentos do Núcleo, cada um com as suas versões;
+- cada tipo tem uma única versão vigente, marcada na tela. As versões anteriores ficam na lista, embaixo da vigente, e continuam abrindo;
+- o texto do Regimento fica guardado no aplicativo e é lido na própria tela, assim como o do Plano quando ele foi publicado com texto. Membro com o Termo assinado, Presidência e Acesso pleno leem;
+- quem publica uma versão nova é a Presidência ou o Acesso pleno. A versão publicada passa a ser a vigente e a anterior vai para a lista;
+- ao publicar uma revisão do Regimento, a Presidência escolhe se ela é material (muda o conteúdo) ou só de redação, e a escolha fica gravada e aparece na tela;
+- publicar ainda não manda nada para assinatura nem gera Termo novo: isso chega nas entregas de assinatura.
+
 ## Quem vê
 
 O item Segurança do Paciente aparece para quem tem participação vigente no Núcleo, para quem tem o Acesso pleno ao NSP e para a Diretoria. Os demais não veem o item.
@@ -33,7 +42,7 @@ Participação vencida, ou que ainda não começou, não dá acesso.
 
 ## O que ele ainda não faz
 
-Nesta primeira entrega as telas de Membros, Documentos, Capacitações, Agenda regulatória e Reuniões estão vazias: o cadastro de membros com o Termo, os documentos com versões, as capacitações, a agenda e as reuniões do Núcleo chegam nas próximas entregas da primeira fase. A notificação de incidente e a triagem são da segunda fase.
+Nesta primeira entrega as telas de Membros, Capacitações, Agenda regulatória e Reuniões estão vazias: o cadastro de membros com o Termo, as capacitações, a agenda e as reuniões do Núcleo chegam nas próximas entregas da primeira fase. A assinatura de um documento publicado também chega depois. A notificação de incidente e a triagem são da segunda fase.
 
 ## O que já foi decidido
 
@@ -45,9 +54,14 @@ Nesta primeira entrega as telas de Membros, Documentos, Capacitações, Agenda r
 - Os dados dos membros não entram no aplicativo por carga automática: a composição é cadastrada pela tela, depois da entrega.
 - Auditorias de adesão, Gestão de riscos e Comissões ficam no menu com o selo "Em breve", desabilitados, para quem usa já saber o que vem.
 - Os títulos das telas do módulo ficam em caixa alta, na identidade do hospital.
+- Nenhum documento do Núcleo é apagado nem editado: a correção é uma versão nova, e a anterior fica na lista com quem publicou e quando.
+- O texto do Regimento entra pela tela, nunca por carga automática.
+- Revisão só de redação do Regimento não pede nova assinatura do Termo de Adesão; revisão material pede, quando as entregas de assinatura chegarem.
 
 ## O que costuma virar Demanda
 
 - Uma pessoa do Núcleo que não vê o item no menu: costuma ser participação com a vigência vencida ou ainda não cadastrada.
 - Um diretor que pede para ver um caso: depende da fase e da faixa do caso, e o Acesso pleno é só do Diretor Executivo.
 - Pedido para o super admin ler uma ata ou um caso do Núcleo: não é atendido, por decisão da Diretoria.
+- Pedido para apagar um documento publicado errado: não existe; a Presidência publica uma versão nova corrigida, que passa a ser a vigente.
+- Um membro que não abre a tela Documentos: costuma ser o Termo de Adesão ainda não assinado.

@@ -112,6 +112,9 @@ PARAMS_SEM_SEGREDO = {
     # abre a rota passa pelo `require_super_admin`, e o id sozinho nao da
     # acesso a nada, como o `produto_id` ao lado.
     "demanda_id",
+    # UUID de uma versão de documento do Núcleo (issue #1767). Não é
+    # credencial: a rota exige `require_recurso_nsp("documentos")`.
+    "documento_id",
     # UUID do e-mail recebido da Triagem de e-mail (issue #648). Nao e
     # credencial: a rota exige `require_perfil_ouvidoria`, e o id sozinho nao
     # abre porta nenhuma, como o `manifestacao_id`.

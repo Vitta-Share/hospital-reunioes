@@ -762,3 +762,27 @@ def test_seguranca_do_paciente_diz_o_que_ja_foi_decidido_sobre_o_acesso():
     decidido = _secao(_texto("seguranca-do-paciente.md"), SECAO_DECIDIDO)
     for termo in ("super admin", "Acesso pleno", "Termo de Adesão", "Em breve"):
         assert termo in decidido, termo
+
+
+class TestDocumentosDoNucleoNoKit:
+    """A tela Documentos do Núcleo (issue #1767): o Assistente responde "qual
+    Regimento está valendo?" e "dá para apagar um documento?" pelo kit."""
+
+    @pytest.fixture
+    def texto(self) -> str:
+        return _texto("seguranca-do-paciente.md")
+
+    def test_no_ar_diz_que_os_documentos_tem_versoes_e_uma_vigente(self, texto):
+        no_ar = _secao(texto, "O que já está no ar")
+        for termo in ("Documentos", "versão vigente", "versões anteriores", "material", "de redação"):
+            assert termo in no_ar, termo
+
+    def test_decidido_diz_que_documento_nao_se_apaga(self, texto):
+        decidido = _secao(texto, SECAO_DECIDIDO)
+        assert "Nenhum documento do Núcleo é apagado" in decidido
+
+    def test_documentos_saiu_do_que_ainda_nao_faz(self, texto):
+        """Mutante: deixar a frase antiga, que dizia a tela de Documentos vazia."""
+        ainda_nao = _secao(texto, "O que ele ainda não faz")
+        assert "Documentos" not in ainda_nao
+        assert "documentos com versões" not in ainda_nao
