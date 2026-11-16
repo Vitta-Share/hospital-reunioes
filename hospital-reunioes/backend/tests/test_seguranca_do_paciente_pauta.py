@@ -774,3 +774,108 @@ class TestAntecedencia:
         assert resposta.status_code == 422
         assert "hora" in resposta.json()["detail"]
         assert _emails == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# O super admin sem papel no Núcleo não passa em rota nova nenhuma
+# ═══════════════════════════════════════════════════════════════════════════
+
+ROTAS_NOVAS = [
+    ("post", f"{ROTA}/calendario", {"ano": ANO, "dia": 10, "hora_inicio": "14:00"}),
+    ("get", f"{ROTA}/RD_LONGE/pauta", None),
+    ("put", f"{ROTA}/RD_LONGE/pauta", {"blocos": [{"titulo": "Outros", "itens": [{"texto": "Item"}]}]}),
+    ("post", f"{ROTA}/RD_LONGE/convocacao", None),
+]
+
+
+class TestSuperAdmin:
+    @pytest.mark.parametrize(("metodo", "caminho", "corpo"), ROTAS_NOVAS, ids=[f"{m} {c}" for m, c, _ in ROTAS_NOVAS])
+    def test_super_admin_sem_papel_e_recusado_e_nada_muda(self, metodo, caminho, corpo, _emails):
+        banco = _nucleo_completo(_reuniao("RD_LONGE", HOJE + timedelta(days=1)))
+        cliente = _cliente(SUPER_ADMIN, banco)
+
+        resposta = getattr(cliente, metodo)(caminho, **({"json": corpo} if corpo is not None else {}))
+
+        _assert_recusado(resposta)
+        assert [r["id_reuniao"] for r in banco.tabelas["reunioes"]] == ["RD_LONGE"]
+        assert banco.tabelas["nsp_pautas"] == []
+        assert banco.tabelas["nsp_convocados"] == []
+        assert _emails == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. A montagem da pauta não chama IA
+# ═══════════════════════════════════════════════════════════════════════════
+
+# O que denuncia IA no código: os módulos do app que falam com provedor de
+# modelo e os SDKs.
+_MARCAS_DE_IA = ("ai_processor", "anthropic", "openai", "openrouter", "claude", "llm")
+
+
+def _marcas(codigo: str) -> list[str]:
+    return [marca for marca in _MARCAS_DE_IA if marca in codigo.lower()]
+
+
+class TestSemIa:
+    def test_o_detector_reconhece_um_modulo_que_chama_ia(self):
+        """Piso do detector: o módulo de IA do app tem marca."""
+        from app.services import ai_processor
+
+        assert _marcas(inspect.getsource(ai_processor))
+
+    def test_o_servico_da_pauta_nao_fala_com_ia(self):
+        assert _marcas(inspect.getsource(pauta)) == []
+
+    def test_a_rota_da_pauta_nao_fala_com_ia(self):
+        assert _marcas(inspect.getsource(nsp_reunioes_router)) == []
+
+    def test_a_pauta_monta_com_o_provedor_de_ia_fora_do_ar(self, monkeypatch):
+        """Mesmo que alguém ligue a IA no caminho, a montagem não pode
+        depender dela: o cliente da Anthropic explode se for criado."""
+        import anthropic
+
+        def _explode(*_a, **_kw):
+            raise AssertionError("a montagem da pauta chamou IA")
+
+        monkeypatch.setattr(anthropic, "Anthropic", _explode)
+        monkeypatch.setattr(anthropic, "AsyncAnthropic", _explode)
+        banco = _com_pendencia_anterior()
+
+        corpo = _pauta(banco, "RD_PROXIMA")
+
+        assert _bloco(corpo, "pendencias")["itens"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 7. O Kit de conhecimento diz o comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _secao_do_kit(titulo: str) -> str:
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = (CONHECIMENTO_DIR / "seguranca-do-paciente.md").read_text(encoding="utf-8")
+    partes = texto.split(f"## {titulo}\n", 1)
+    assert len(partes) == 2, f"a seção {titulo!r} sumiu do kit"
+    return " ".join(partes[1].split("\n## ", 1)[0].split())
+
+
+class TestKitDeConhecimento:
+    def test_o_calendario_a_pauta_e_a_convocacao_estao_no_que_ja_esta_no_ar(self):
+        secao = _secao_do_kit("O que já está no ar")
+        assert "calendário do ano" in secao
+        assert "doze reuniões ordinárias" in secao
+        assert "5 dias úteis antes" in secao
+        assert "sem dados nesta fase" in secao
+        assert "Ativo, A vencer ou Em carência" in secao
+        assert "24 horas" in secao
+
+    def test_a_pauta_e_o_convite_sairam_do_que_ele_ainda_nao_faz(self):
+        secao = _secao_do_kit("O que ele ainda não faz").lower()
+        assert "a pauta montada pelo sistema" not in secao
+        assert "convite" not in secao
+
+    def test_a_decisao_da_pauta_sem_ia_esta_registrada(self):
+        assert "A pauta é montada pelo aplicativo, sem inteligência artificial." in _secao_do_kit(
+            "O que já foi decidido"
+        )
