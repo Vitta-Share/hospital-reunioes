@@ -815,3 +815,37 @@ class TestReuniaoRapida:
 
         assert resposta.status_code == 422, resposta.text
         assert _tamanhos(banco) == antes
+
+    @pytest.mark.parametrize(
+        "texto",
+        [
+            pytest.param("Uma.\nDuas.\nTrês.\nQuatro.", id="quatro_linhas"),
+            pytest.param("Uma.\r\nDuas.\r\nTrês.\r\nQuatro.", id="quatro_linhas_do_windows"),
+            pytest.param("Uma.\n\n\nQuatro.", id="linhas_em_branco_contam"),
+        ],
+    )
+    def test_o_texto_nao_aceita_mais_de_tres_linhas(self, texto):
+        """Mutante: trocar o teto de três linhas por quatro."""
+        banco = _banco()
+
+        resposta = _cliente(PRESIDENCIA, banco).post(ROTA_RAPIDA, json=_rapida(texto=texto))
+
+        assert resposta.status_code == 422, resposta.text
+        assert "três linhas" in resposta.text
+        assert banco.tabelas.get("nsp_reunioes_rapidas", []) == []
+
+    def test_tres_linhas_entram_e_a_quebra_do_fim_nao_conta(self):
+        banco = _banco()
+
+        resposta = _cliente(PRESIDENCIA, banco).post(ROTA_RAPIDA, json=_rapida(texto="Uma.\r\nDuas.\r\nTrês.\r\n"))
+
+        assert resposta.status_code == 201, resposta.text
+        assert banco.tabelas["nsp_reunioes_rapidas"][0]["texto"] == "Uma.\nDuas.\nTrês."
+
+    def test_participante_que_nao_existe_e_recusado(self):
+        banco = _banco()
+
+        resposta = _cliente(PRESIDENCIA, banco).post(ROTA_RAPIDA, json=_rapida(participantes=["MEMB1", "NINGUEM"]))
+
+        assert resposta.status_code == 422, resposta.text
+        assert banco.tabelas.get("nsp_reunioes_rapidas", []) == []

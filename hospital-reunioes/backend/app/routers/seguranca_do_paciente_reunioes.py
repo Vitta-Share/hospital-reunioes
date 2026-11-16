@@ -30,7 +30,7 @@ from app.services.seguranca_do_paciente import convocacao, pauta
 from app.services.seguranca_do_paciente.membros import vigente_em
 from app.services.seguranca_do_paciente.permissao import id_do_nucleo
 from app.services.seguranca_do_paciente.quorum import apurar_quorum, conta_para_quorum
-from app.services.seguranca_do_paciente.reunioes import TETO_DO_TEXTO, TipoReuniaoNsp
+from app.services.seguranca_do_paciente.reunioes import TETO_DO_TEXTO, TipoReuniaoNsp, texto_da_reuniao_rapida
 
 router = APIRouter(prefix="/nsp/reunioes", tags=["seguranca-do-paciente"])
 logger = logging.getLogger(__name__)
@@ -61,6 +61,11 @@ class ReuniaoRapidaRequest(BaseModel):
     setor: str = Field(..., min_length=1, max_length=120)
     participantes: list[str] = Field(..., min_length=1, max_length=50)
     texto: str = Field(..., min_length=1, max_length=TETO_DO_TEXTO)
+
+    @field_validator("texto")
+    @classmethod
+    def _tres_linhas(cls, texto: str) -> str:
+        return texto_da_reuniao_rapida(texto)
 
 
 def _nucleo_ou_503(supabase) -> str:
@@ -571,11 +576,15 @@ async def registrar_reuniao_rapida(
     e até três linhas. Fica fora da tabela de reuniões de propósito: sem
     transcrição, ata, assinatura nem quórum."""
     nucleo_id = _nucleo_ou_503(supabase)
+    participantes = list(dict.fromkeys(req.participantes))
+    existem = supabase.table("participantes").select("id").in_("id", participantes).execute().data or []
+    if len(existem) != len(participantes):
+        raise HTTPException(status_code=422, detail="Algum participante não está no cadastro de pessoas.")
     linha = {
         "colegiado_id": nucleo_id,
         "data": req.data.isoformat(),
         "setor": req.setor.strip(),
-        "participantes": req.participantes,
+        "participantes": participantes,
         "texto": req.texto,
         "criada_por": me["id"],
     }

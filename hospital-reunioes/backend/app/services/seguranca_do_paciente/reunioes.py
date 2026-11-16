@@ -35,6 +35,17 @@ class TipoReuniaoNsp(StrEnum):
 TETO_DE_LINHAS = 3
 TETO_DO_TEXTO = 500
 
+
+def texto_da_reuniao_rapida(texto: str) -> str:
+    """O texto como fica gravado: quebra de linha única, sem espaço nas
+    pontas. Mais de três linhas é recusado; a linha em branco conta."""
+    limpo = texto.replace("\r\n", "\n").replace("\r", "\n").strip()
+    if not limpo:
+        raise ValueError("Escreva o que foi conversado")
+    if len(limpo.split("\n")) > TETO_DE_LINHAS:
+        raise ValueError("O texto da reunião rápida tem no máximo três linhas")
+    return limpo
+
 # Coluna (42703) ou tabela (42P01) que o banco ainda não tem.
 _AINDA_SEM_MIGRATION = ("42703", "42P01")
 
