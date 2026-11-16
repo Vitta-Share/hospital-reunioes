@@ -148,6 +148,23 @@ def _inserir_pendencias(supabase, id_reuniao: str, itens: list[dict]) -> list[di
     return []
 
 
+def criar_pendencia_sem_reuniao(supabase, item: dict) -> dict:
+    """A Pendência que não nasce de Ata: o lembrete da Agenda regulatória do
+    Núcleo (issue #1779). Mesma numeração `A###` e o mesmo retry. Sem Reunião,
+    ela é conteúdo do Núcleo: aparece na tela da Agenda regulatória, e as rotas
+    de Pendências não a mostram (`e_lembrete_do_nucleo`)."""
+    return _inserir_pendencias(supabase, None, [item])[0]
+
+
+def e_lembrete_do_nucleo(pendencia: dict) -> bool:
+    """A Pendência sem Reunião é o lembrete da Agenda regulatória do Núcleo:
+    fora de Ata, só ele nasce (migration 052 fechou a outra porta). Leva o
+    evento e a data, conteúdo que o super admin sem papel no Núcleo não lê
+    (ADR 0095, decisão 4), então as rotas de Pendências não o mostram a
+    ninguém; quem o vê e o fecha é a Presidência, pela Agenda regulatória."""
+    return pendencia.get("id_reuniao") is None
+
+
 def liberar_pendencias(
     supabase,
     id_reuniao: str,

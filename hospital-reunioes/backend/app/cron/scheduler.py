@@ -50,6 +50,11 @@ Jobs:
      pela Places API e grava no diário de Nota externa (issue #1619, ADR 0089). Busca
      uma vez por semana: o dia em que já há leitura automática da semana não chama
      nada. Sem GOOGLE_PLACES_API_KEY, não chama nada e registra a falta no log. Sem IA.
+ 14. lembrar_agenda_regulatoria: 05:45 diário, cria a Pendência de lembrete da
+     Presidência do Núcleo para cada evento da Agenda regulatória cuja data entrou na
+     antecedência (issue #1779). Antes do marcar_atrasadas, para o lembrete de data
+     já vencida virar ATRASADO no mesmo dia. Idempotente: a ocorrência lembrada
+     (evento, data) não nasce de novo. Sem IA e sem email.
 
 Nenhum job dispara IA por conta própria (ADR 0082): a recomendação da Validação
 e o segundo agente de Contas médicas rodam só pelo botão da tela. A fila de
@@ -453,6 +458,20 @@ def buscar_nota_do_google() -> None:
         logger.info(f"[Cron] Nota do Google lida: {linha['nota']} com {linha['total_avaliacoes']} avaliações.")
 
 
+def lembrar_agenda_regulatoria() -> None:
+    """Os lembretes da Agenda regulatória do Núcleo (issue #1779). A regra e a
+    guarda de um lembrete por ocorrência vivem no serviço; aqui, só o relógio."""
+    from app.services.seguranca_do_paciente import agenda
+
+    try:
+        criados = agenda.lembrar(_supabase(), _hoje_em_sao_paulo())
+    except Exception as e:
+        logger.error(f"[Cron] Erro em lembrar_agenda_regulatoria: {type(e).__name__}")
+        return
+    if criados:
+        logger.info(f"[Cron] Agenda regulatória: {criados} lembrete(s) como Pendência da Presidência.")
+
+
 def _registrar_entrega(competencia: str, entrega, rotulo: str = "Relatório quinzenal") -> None:
     """Escreve no log o que aconteceu com uma tentativa de entrega.
 
@@ -662,6 +681,17 @@ def start_scheduler() -> None:
         id="nota_do_google",
         replace_existing=True,
     )
+    # 05:45, antes do marcar_atrasadas: o lembrete de data já vencida nasce e
+    # vira ATRASADO no mesmo dia. Disparo perdido num deploy sai no dia seguinte
+    # (a data continua na antecedência) e nunca duas vezes (a ocorrência).
+    scheduler.add_job(
+        lembrar_agenda_regulatoria,
+        "cron",
+        hour=5,
+        minute=45,
+        id="agenda_regulatoria_nsp",
+        replace_existing=True,
+    )
     # Todo dia às 07h, no fuso do scheduler (America/Sao_Paulo). A quinzena
     # fecha nos dias 1 e 16, e é neles que o email sai; os outros dias existem
     # para a edição não se perder quando o container estiver fora do ar na hora
@@ -692,7 +722,8 @@ def start_scheduler() -> None:
         "retencao_ouvidoria (04:00), "
         "retencao_contas_medicas (04:30), fila_contas_medicas (a cada 10s), contratos_contas_medicas (07:15), "
         "relatorio_quinzenal_ouvidoria (07:00 diário, email nos dias 1 e 16), "
-        "reconciliacao_tecnologia (de hora em hora), nota_do_google (06:45, uma leitura por semana)"
+        "reconciliacao_tecnologia (de hora em hora), nota_do_google (06:45, uma leitura por semana), "
+        "agenda_regulatoria_nsp (05:45)"
     )
 
 

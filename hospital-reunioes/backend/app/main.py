@@ -43,6 +43,7 @@ from app.routers import (
     perfil,
     reunioes,
     seguranca_do_paciente,
+    seguranca_do_paciente_agenda,
     seguranca_do_paciente_documentos,
     seguranca_do_paciente_membros,
     seguranca_do_paciente_reunioes,
@@ -159,6 +160,7 @@ app.include_router(contas_medicas_conversa.router, prefix=settings.api_prefix)
 # Segurança do Paciente (PRD #1764, ADR 0095): rotas sob /nsp, um router por
 # área; o super admin não passa por cima do conteúdo.
 app.include_router(seguranca_do_paciente.router, prefix=settings.api_prefix)
+app.include_router(seguranca_do_paciente_agenda.router, prefix=settings.api_prefix)
 app.include_router(seguranca_do_paciente_documentos.router, prefix=settings.api_prefix)
 app.include_router(seguranca_do_paciente_membros.router, prefix=settings.api_prefix)
 app.include_router(seguranca_do_paciente_reunioes.router, prefix=settings.api_prefix)

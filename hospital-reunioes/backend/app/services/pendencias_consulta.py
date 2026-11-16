@@ -45,8 +45,14 @@ def consultar_pendencias(
     """As pendências visíveis com os filtros, por prazo (as sem prazo no fim),
     cortadas em `limit` a partir de `offset`. Devolve as linhas e o total antes
     do corte."""
+    # A Pendência sem Reunião é o lembrete da Agenda regulatória do Núcleo:
+    # nenhuma lista de Pendências o mostra (`e_lembrete_do_nucleo`).
     query = sem_reunioes_ocultas(
-        supabase.table("pendencias").select("*", count="exact").is_("deleted_at", "null"), list(ocultas)
+        supabase.table("pendencias")
+        .select("*", count="exact")
+        .is_("deleted_at", "null")
+        .not_.is_("id_reuniao", "null"),
+        list(ocultas),
     )
 
     # Resolve filtro de facilitador cedo (afeta a aplicação de visibilidade)

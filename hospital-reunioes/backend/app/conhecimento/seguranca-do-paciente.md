@@ -32,6 +32,13 @@ As reuniões do Núcleo:
 - a Presidência cria a reunião ali mesmo, à mão, num dos quatro tipos do Núcleo: ordinária mensal, análise de evento, apresentação à Diretoria e reunião rápida de segurança. Depois disso a reunião segue o caminho de sempre: transcrição, revisão e ata;
 - a reunião do Núcleo some de todo o resto do aplicativo para quem não é do Núcleo: da lista de reuniões, do calendário geral, das pendências, dos números do painel, do sino e do que o Claude da diretoria consulta. Isso vale também para o super admin.
 
+A Agenda regulatória do Núcleo:
+
+- a lista única das obrigações que se repetem (notificação externa do mês, fechamento mensal, reunião ordinária, avaliações nacionais, avaliação da cultura de segurança, revisão do PSP e do Regimento, vencimento de vigência dos membros, recalibração do agente), cada uma com periodicidade, próxima data, link e quantos dias antes lembrar. A lista nasce com os eventos da especificação e com as datas em branco, para a Presidência marcar;
+- a Presidência inclui, edita e desativa os eventos. Quem está no Núcleo, mesmo sem o Termo assinado, e a Diretoria só leem;
+- quando a próxima data entra na antecedência, o aplicativo cria uma pendência para a Presidência, uma só por data. O lembrete não sai por e-mail: aparece no cartão do evento, na tela Agenda regulatória, com o número da pendência e o prazo. Ele não entra na tela Pendências, porque é assunto do Núcleo. Se a Presidência muda a data antes de registrar o resultado, o lembrete da data antiga é cancelado e um novo nasce para a data nova;
+- depois de cumprir, a Presidência registra o resultado e a data em que fez. O resultado fica no histórico do evento, o lembrete é concluído e a próxima data é calculada pela periodicidade (mensal, anual ou a cada dois anos). Evento avulso fica sem próxima data até alguém marcar.
+
 ## Quem vê
 
 O item Segurança do Paciente aparece para quem tem participação vigente no Núcleo, para quem tem o Acesso pleno ao NSP e para a Diretoria. Os demais não veem o item.
@@ -63,7 +70,7 @@ Membro nunca é apagado. Encerrar termina a vigência no dia escolhido e a parti
 
 ## O que ele ainda não faz
 
-As telas de Capacitações e Agenda regulatória ainda estão vazias: as capacitações e a agenda chegam nas próximas entregas da primeira fase. Em Membros, o cadastro ainda não gera o Termo de Adesão nem manda para assinatura, então todo membro novo fica em Cadastrado até a entrega do Termo. Renovar a vigência ou mudar o papel também não pede Termo novo por enquanto. A assinatura de um documento publicado também chega depois. Nas reuniões, a pauta montada pelo sistema, o convite aos membros e a ata própria do Núcleo também chegam depois: por enquanto a Presidência cria a reunião à mão e a ata segue o modelo das outras reuniões. A notificação de incidente e a triagem são da segunda fase.
+A tela de Capacitações ainda está vazia: as capacitações chegam nas próximas entregas da primeira fase. Em Membros, o cadastro ainda não gera o Termo de Adesão nem manda para assinatura, então todo membro novo fica em Cadastrado até a entrega do Termo. Renovar a vigência ou mudar o papel também não pede Termo novo por enquanto. A assinatura de um documento publicado também chega depois. Nas reuniões, a pauta montada pelo sistema, o convite aos membros e a ata própria do Núcleo também chegam depois: por enquanto a Presidência cria a reunião à mão e a ata segue o modelo das outras reuniões. A notificação de incidente e a triagem são da segunda fase.
 
 ## O que já foi decidido
 
@@ -80,6 +87,7 @@ As telas de Capacitações e Agenda regulatória ainda estão vazias: as capacit
 - Nenhum documento do Núcleo é apagado nem editado: a correção é uma versão nova, e a anterior fica na lista com quem publicou e quando.
 - O texto do Regimento entra pela tela, nunca por carga automática.
 - Revisão só de redação do Regimento não pede nova assinatura do Termo de Adesão; revisão material pede, quando as entregas de assinatura chegarem.
+- O lembrete de cada obrigação é uma pendência da Presidência no aplicativo, e não um e-mail, criada por uma rotina diária que não usa inteligência artificial.
 
 ## O que costuma virar Demanda
 
@@ -90,3 +98,4 @@ As telas de Capacitações e Agenda regulatória ainda estão vazias: as capacit
 - Pedido para apagar um documento publicado errado: não existe; a Presidência publica uma versão nova corrigida, que passa a ser a vigente.
 - Um membro que não abre a tela Documentos: costuma ser o Termo de Adesão ainda não assinado.
 - Uma reunião do Núcleo que alguém de fora diz não achar na lista de reuniões: é o sigilo funcionando, e a reunião está no módulo Segurança do Paciente.
+- Um lembrete da agenda que não apareceu: costuma ser evento sem próxima data, evento desativado ou o Núcleo sem Presidência vigente.
