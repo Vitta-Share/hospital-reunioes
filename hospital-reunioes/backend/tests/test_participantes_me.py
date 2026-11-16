@@ -77,10 +77,15 @@ class _ParticipantesQuery:
 @dataclass
 class _SupabaseMock:
     participantes: list = field(default_factory=list)
+    responsaveis: list = field(default_factory=list)
 
     def table(self, name: str):
         if name == "participantes":
             return _ParticipantesQuery(self.participantes)
+        if name == "ouvidoria_setor_responsaveis":
+            # O `/me` diz o papel na Ouvidoria pelo cadastro de responsáveis
+            # (issue #1884, ADR 0099).
+            return _ParticipantesQuery(self.responsaveis)
         if name == "colegiados":
             # O `/me` pergunta pelo Núcleo para o menu de Segurança do Paciente
             # (issue #1765); sem Núcleo, ninguém tem Participação.
@@ -210,3 +215,35 @@ class TestGetMe:
         client = TestClient(app)
         r = client.get("/api/participantes/me")
         assert r.status_code == 401
+
+
+class TestPapelNaOuvidoria:
+    """O papel na Ouvidoria chega ao front pelo `/me` (issue #1884, ADR 0099):
+    é com ele que o menu e a rota decidem mostrar a Ouvidoria."""
+
+    def _me(self, responsaveis: list) -> dict:
+        row = _participante_row()
+        row["access_profile"] = "regular"
+        app, sb, client = _make_app(
+            [row],
+            current_user={"id": "auth-1", "email": "alice@ex.com", "metadata": {}},
+        )
+        sb.responsaveis = responsaveis
+        r = client.get("/api/participantes/me")
+        assert r.status_code == 200
+        return r.json()
+
+    def test_titular_vigente_vem_como_responsavel(self):
+        titular = {
+            "id": "R1",
+            "setor": "UTI",
+            "papel": "titular",
+            "email": "Alice@Ex.com",
+            "vigencia_inicio": "2026-01-01",
+            "vigencia_fim": None,
+        }
+
+        assert self._me([titular])["papel_ouvidoria"] == "responsavel"
+
+    def test_quem_nao_responde_por_setor_vem_sem_papel(self):
+        assert self._me([])["papel_ouvidoria"] == "nenhum"

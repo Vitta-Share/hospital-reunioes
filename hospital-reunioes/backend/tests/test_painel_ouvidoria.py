@@ -78,6 +78,10 @@ class _Query:
         self._filters[col] = value
         return self
 
+    def ilike(self, *_a):
+        """O papel na Ouvidoria procura o e-mail no cadastro (issue #1884)."""
+        return self
+
     def is_(self, col, value):
         """O `is null` do PostgREST, que a lista da Ouvidoria usa para filtrar o
         Arquivo (issue #592). Vira igualdade a `None`, que é como estes fakes

@@ -34,9 +34,12 @@ cabe, e as três que ficam abertas dizem no próprio corpo por que ficaram:
   "esqueci minha senha" entregava a conta dele a qualquer pessoa logada.
 """
 
+import datetime as dt
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from httpx import HTTPError
+from postgrest.exceptions import APIError
 from pydantic import BaseModel, ValidationError
 
 from app.dependencies import (
@@ -51,8 +54,10 @@ from app.dependencies import (
     require_role,
 )
 from app.models.schemas import FacilitadorOption, ParticipanteCreate, ParticipanteResponse
+from app.services import ouvidoria_papel
 from app.services.auth_provisioning import definir_login_liberado
 from app.services.cargo_mapping import list_cargos
+from app.services.ouvidoria_prazos import FUSO as FUSO_HOSPITAL
 
 logger = logging.getLogger(__name__)
 
@@ -283,7 +288,25 @@ async def get_me(
             status_code=404,
             detail="Participante nao encontrado para o usuario autenticado",
         )
-    return {**me, "recursos_nsp": sorted(recursos_nsp_da_pessoa(supabase, me))}
+    return {
+        **me,
+        "recursos_nsp": sorted(recursos_nsp_da_pessoa(supabase, me)),
+        "papel_ouvidoria": _papel_ouvidoria(supabase, me),
+    }
+
+
+def _papel_ouvidoria(supabase, me: dict) -> str | None:
+    """O papel na Ouvidoria (ADR 0099), para o menu e a rota decidirem.
+
+    Cadastro de responsáveis que não pôde ser lido vira `None`, e não
+    `nenhum` nem 500: o `/me` monta o app inteiro, e o servidor da fila decide
+    de novo na hora de devolver caso."""
+    hoje = dt.datetime.now(FUSO_HOSPITAL).date()
+    try:
+        return ouvidoria_papel.papel_de(supabase, me, hoje).papel
+    except (APIError, HTTPError, OSError):
+        logger.warning("Falha ao ler o cadastro de responsáveis para o papel na Ouvidoria", exc_info=True)
+        return None
 
 
 @router.get("/{participante_id}", response_model=ParticipanteResponse)

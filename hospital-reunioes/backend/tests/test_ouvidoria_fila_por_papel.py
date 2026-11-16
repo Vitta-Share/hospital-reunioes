@@ -108,6 +108,11 @@ class _Query:
         alvo = None if valor in ("null", None) else valor
         return self._filtrar(lambda r: r.get(col) == alvo)
 
+    def ilike(self, col, padrao):
+        """O `ilike` sem curinga que o papel usa para achar o e-mail."""
+        alvo = padrao.replace("\\_", "_").replace("\\%", "%").lower()
+        return self._filtrar(lambda r: (r.get(col) or "").lower() == alvo)
+
     def in_(self, col, valores):
         valores = list(valores)
         return self._filtrar(lambda r: r.get(col) in valores)

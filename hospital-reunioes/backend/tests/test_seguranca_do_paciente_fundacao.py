@@ -62,6 +62,11 @@ class _Consulta:
         self._filtros.append(lambda linha: linha.get(coluna) == valor)
         return self
 
+    def ilike(self, *_a):
+        """O `/me` procura o e-mail no cadastro de responsáveis da Ouvidoria
+        (issue #1884); aqui ninguém responde por setor."""
+        return self
+
     def lte(self, coluna, valor):
         self._filtros.append(lambda linha: str(linha.get(coluna)) <= str(valor))
         return self

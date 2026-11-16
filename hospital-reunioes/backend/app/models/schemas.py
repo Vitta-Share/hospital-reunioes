@@ -118,6 +118,10 @@ class ParticipanteResponse(BaseModel):
     # O que a pessoa alcança no módulo Segurança do Paciente. Só o `/me`
     # preenche: é com isto que o menu decide mostrar o item.
     recursos_nsp: list[str] = []
+    # O papel na Ouvidoria (ADR 0099). Só o `/me` preenche: o menu mostra o
+    # item e a rota abre para quem não é `nenhum`. Nulo quando o cadastro de
+    # responsáveis não pôde ser lido.
+    papel_ouvidoria: Literal["perfil_ouvidoria", "indice_geral", "responsavel", "nenhum"] | None = None
     data_cadastro: date | None = None
 
 

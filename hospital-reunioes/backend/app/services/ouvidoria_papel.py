@@ -19,7 +19,6 @@ from datetime import date
 
 from app.dependencies import is_secretaria, is_super_admin
 from app.services.ouvidoria_responsaveis import PAPEIS, esta_vigente
-from app.services.paginacao import ler_tudo
 
 PERFIL_OUVIDORIA = "perfil_ouvidoria"
 INDICE_GERAL = "indice_geral"
@@ -77,18 +76,21 @@ def papel_na_ouvidoria(participante: dict | None, responsaveis: list[dict], dia:
 def papel_de(supabase, participante: dict | None, dia: date) -> PapelNaOuvidoria:
     """O papel com o cadastro lido do banco, e só quando ele decide algo.
 
-    O cadastro é lido inteiro e o casamento do e-mail fica na função pura: um
-    `ilike` no banco trataria `_` do e-mail como curinga e não tiraria espaço
-    digitado na ponta. Leitura que falha sobe: virar `nenhum` esconderia a
-    Ouvidoria de quem responde por um setor por causa de um timeout."""
+    O banco devolve só as linhas do e-mail da pessoa (`ilike`, sem diferenciar
+    maiúsculas, com `%` e `_` escapados para não virarem curinga); a vigência e
+    o casamento final ficam na função pura. Leitura que falha sobe: virar
+    `nenhum` esconderia a Ouvidoria de quem responde por um setor por causa de
+    um timeout."""
     linhas: list[dict] = []
-    if precisa_do_cadastro(participante):
-        linhas = ler_tudo(
-            lambda: (
-                supabase.table("ouvidoria_setor_responsaveis")
-                .select("id, setor, papel, email, vigencia_inicio, vigencia_fim")
-                .order("id")
-            ),
-            rotulo="responsáveis por setor",
+    email = _normalizar((participante or {}).get("email"))
+    if email and precisa_do_cadastro(participante):
+        padrao = email.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        linhas = (
+            supabase.table("ouvidoria_setor_responsaveis")
+            .select("setor, papel, email, vigencia_inicio, vigencia_fim")
+            .ilike("email", padrao)
+            .execute()
+            .data
+            or []
         )
     return papel_na_ouvidoria(participante, linhas, dia)
