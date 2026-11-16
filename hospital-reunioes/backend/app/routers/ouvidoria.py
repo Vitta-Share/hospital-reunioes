@@ -475,10 +475,23 @@ async def listar_protocolos(
     # público são as primeiras letras do que a pessoa escreveu. O caso aberto
     # chega a quem está fora da Ouvidoria, e o resumo não vai junto.
     campos = _CAMPOS_INDICE_TUPLA if da_ouvidoria else _CAMPOS_INDICE_FORA_DA_OUVIDORIA
+    # O botão RESPONDER (issue #1886, ADR 0099, decisões 4 e 5): o caso que
+    # aguarda a área num setor em que quem pede é responsável vigente, também
+    # para a Secretária e o Super admin que respondem por um setor. O Perfil
+    # da Ouvidoria age pelo Dossiê, e para ele o botão não existe.
+    if setores is not None:
+        meus_setores = setores
+    elif papel.papel == ouvidoria_papel.INDICE_GERAL:
+        meus_setores = _setores_de_quem_pede(supabase, me)
+    else:
+        meus_setores = frozenset()
     return {
         "protocolos": [
             {campo: row.get(campo) for campo in campos}
             | prazo
+            | {
+                "pode_responder": row.get("status") == "aguardando_area" and row.get("setor") in meus_setores,
+            }
             | {
                 # Caso arquivado nunca acende o ponto (issue #592, ADR 0047):
                 # o arquivo não pode parecer trabalho pendente. Na lista sem o
@@ -493,6 +506,16 @@ async def listar_protocolos(
         ],
         "degradado": degradado + degradado_da_trilha,
     }
+
+
+def _setores_de_quem_pede(supabase, me: dict) -> frozenset[str]:
+    """Os setores em que quem tem papel maior também responde. Leitura que
+    falha some com o botão e não com a fila: quem responde ainda tem o link."""
+    try:
+        return ouvidoria_papel.setores_de(supabase, me, agora_utc().astimezone(FUSO_HOSPITAL).date())
+    except (APIError, HTTPError):
+        logger.warning("Falha ao ler o cadastro de responsáveis para o botão Responder")
+        return frozenset()
 
 
 # Os estados de quem já saiu da classificação: o caso foi acionado para a área

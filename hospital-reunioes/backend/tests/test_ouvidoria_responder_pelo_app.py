@@ -104,3 +104,36 @@ class TestUmaRespostaPorCaso:
         link = client.get(f"/api/ouvidoria-setor/{token}")
         assert link.status_code == 410
         assert link.json()["detail"] == JA_USADO
+
+
+def _como(monkeypatch, quem: dict) -> None:
+    """Quem está logado também na fila da Ouvidoria."""
+
+    async def _logado(_user, _sb, fields=None):
+        return quem
+
+    monkeypatch.setattr(ouvidoria_router, "get_participante_for_user", _logado)
+
+
+def _linha_da_fila(client) -> dict | None:
+    r = client.get("/api/ouvidoria/protocolos")
+    assert r.status_code == 200, r.text
+    return next((p for p in r.json()["protocolos"] if p["id"] == "uuid-7"), None)
+
+
+class TestRespondidoPeloLink:
+    def test_responder_pelo_link_tira_o_caso_de_a_responder_e_o_botao_some(
+        self, monkeypatch, _nunca_envia_email_de_verdade
+    ):
+        client, _ = _no_app(monkeypatch)
+        token = _token_do_email(_nunca_envia_email_de_verdade)
+        _como(monkeypatch, CARLOS)
+        assert _linha_da_fila(client)["pode_responder"] is True
+
+        pelo_link = client.post(f"/api/ouvidoria-setor/{token}/responder", data={"resposta": RESPOSTA})
+        assert pelo_link.status_code == 200, pelo_link.text
+
+        linha = _linha_da_fila(client)
+        assert linha["status"] == "respondido"
+        assert linha["pode_responder"] is False
+        assert _responder(client).status_code == 410
