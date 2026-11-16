@@ -174,7 +174,9 @@ def consumir_os_vivos(supabase, manifestacao_id: str, agora: dt.datetime) -> boo
 
     Devolve se esta ação ganhou a vez. Caso sem link vivo (o email ainda não
     saiu, ou o acionamento não teve destinatário) não tem o que disputar, e a
-    guarda de estado do serviço segue sendo a régua. Havia link vivo e o UPDATE
+    guarda de estado do serviço segue sendo a régua. O email retido pela janela
+    comercial não emite link depois: o `nova_demanda` está entre os gatilhos que
+    o `despachar` descarta fora de `aguardando_area`. Havia link vivo e o UPDATE
     não pegou nenhum: outra resposta (pelo link ou pelo app) levou a vez entre
     a leitura e a escrita.
 

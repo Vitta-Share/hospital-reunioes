@@ -11,6 +11,7 @@ PostgREST de `test_ouvidoria_portal_setor`. O Resend nunca é chamado de verdade
 
 from __future__ import annotations
 
+import datetime as dt
 import os
 import sys
 
@@ -35,6 +36,11 @@ from test_ouvidoria_portal_setor import (  # noqa: E402
     _responsavel,
     _token_do_email,
 )
+
+# Terça, 23h de Brasília: o caso não crítico validado agora fica com o email do
+# acionamento retido até o expediente seguinte, que abre na quarta às 8h.
+FORA_DO_EXPEDIENTE = dt.datetime(2026, 8, 26, 2, 0, tzinfo=dt.UTC)
+MANHA_SEGUINTE = dt.datetime(2026, 8, 26, 13, 0, tzinfo=dt.UTC)
 
 # O titular do cadastro padrão do fake (`_responsavel()`), agora com login.
 CARLOS = {
@@ -69,10 +75,15 @@ def _nunca_envia_email_de_verdade(monkeypatch):
     return enviados
 
 
-def _no_app(monkeypatch, quem: dict = CARLOS, responsaveis: list[dict] | None = None):
+def _no_app(
+    monkeypatch,
+    quem: dict = CARLOS,
+    responsaveis: list[dict] | None = None,
+    agora: dt.datetime = DENTRO_DO_EXPEDIENTE,
+):
     """O caso uuid-7 acionado na Recepção pelo ouvidor, e o app com a porta do
     login, onde `quem` está logado."""
-    client, sb = _client(monkeypatch, participante=OUVIDOR)
+    client, sb = _client(monkeypatch, participante=OUVIDOR, agora=agora)
     if responsaveis is not None:
         sb.tabelas["ouvidoria_setor_responsaveis"].extend(responsaveis)
     _acionar(client)
@@ -82,7 +93,7 @@ def _no_app(monkeypatch, quem: dict = CARLOS, responsaveis: list[dict] | None = 
         return quem
 
     monkeypatch.setattr(responder_router, "get_participante_for_user", _logado)
-    monkeypatch.setattr(responder_router, "agora_utc", lambda: DENTRO_DO_EXPEDIENTE)
+    monkeypatch.setattr(responder_router, "agora_utc", lambda: agora)
     return client, sb
 
 
@@ -106,6 +117,35 @@ class TestUmaRespostaPorCaso:
         link = client.get(f"/api/ouvidoria-setor/{token}")
         assert link.status_code == 410
         assert link.json()["detail"] == JA_USADO
+
+
+class TestAntesDoEmailDoAcionamento:
+    """O caso aparece em "A responder" antes de o email do acionamento sair,
+    quando ele foi validado fora do expediente. Agir pelo app nessa janela não
+    tem link para consumir, e o email retido não pode sair depois pedindo
+    resposta de um caso que andou, com um link novo que abre o relato."""
+
+    @pytest.mark.parametrize("acao", ["responder", "devolver"])
+    def test_o_email_retido_nao_sai_nem_emite_link_depois_da_acao_pelo_app(
+        self, monkeypatch, _nunca_envia_email_de_verdade, acao
+    ):
+        client, sb = _no_app(monkeypatch, agora=FORA_DO_EXPEDIENTE)
+        _com_a_ouvidoria_para_avisar(sb)
+        [acionamento] = [n for n in sb.tabelas["ouvidoria_notificacoes"] if n["gatilho"] == "nova_demanda"]
+        assert acionamento["status"] == "agendada", "o email do acionamento devia estar retido"
+        assert sb.tabelas["ouvidoria_setor_tokens"] == []
+
+        if acao == "responder":
+            r = _responder(client)
+        else:
+            r = client.post("/api/ouvidoria/responder/uuid-7/devolver", json={"motivo": MOTIVO})
+        assert r.status_code == 200, r.text
+
+        ouvidoria_notificacoes.despachar_pendentes(sb, MANHA_SEGUINTE, frozenset())
+
+        assert [e for e in _nunca_envia_email_de_verdade if e["destinatario"] == "carlos@hsm.br"] == []
+        assert sb.tabelas["ouvidoria_setor_tokens"] == [], "nasceu um link para um caso que já andou"
+        assert acionamento["status"] == "falha"
 
 
 def _como(monkeypatch, quem: dict) -> None:
@@ -316,5 +356,8 @@ def test_o_kit_de_conhecimento_diz_que_o_responsavel_responde_pelo_app():
         texto = f.read()
 
     assert "por enquanto ele responde pelo link do e-mail" not in texto
+    # O botão Responder abre os mesmos blocos do link, relato e nome inclusive:
+    # o kit não pode dizer em outro parágrafo que o responsável nunca os lê.
+    assert "sempre sem o relato e sem o nome de quem manifestou" not in texto
     for termo in ("botão Responder", "A responder", "Respondidos pelo setor", "uma resposta só"):
         assert termo in texto, termo
