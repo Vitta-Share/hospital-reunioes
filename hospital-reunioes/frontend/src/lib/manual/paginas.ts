@@ -40,6 +40,7 @@ export const MODULOS_DO_MANUAL: readonly { id: string; destinos: readonly string
   { id: "pops", destinos: ["/pops"] },
   { id: "ouvidoria", destinos: ["/ouvidoria"] },
   { id: "contas-medicas", destinos: ["/contas-medicas"] },
+  { id: "seguranca-do-paciente", destinos: ["/seguranca-do-paciente"] },
   { id: "central-de-comando", destinos: ["/admin/central-de-comando/visao-geral"] },
   { id: "dados-do-atendimento", destinos: ["/admin/dados-atendimento"] },
   { id: "tecnologia", destinos: ["/admin/tecnologia"] },
