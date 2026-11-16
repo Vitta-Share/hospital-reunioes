@@ -39,12 +39,13 @@ def _reset_rate_limiter():
     limiter._storage.reset()
 
 
-def _cadastro(monkeypatch, *responsaveis: dict) -> dict[str, bool]:
+def _cadastro(monkeypatch, *responsaveis: dict, outros: tuple[dict, ...] = ()) -> dict[str, bool]:
     """O `tem_login` de cada linha que a rota devolve, por id."""
     supabase = _SupabaseFake(responsaveis=list(responsaveis))
     supabase.tabelas["participantes"].append(
         {"id": "P40", "nome_completo": "Dra. Helena", "email": "helena@hsm.br", "ativo": True}
     )
+    supabase.tabelas["participantes"].extend(outros)
     client, _ = _client(monkeypatch, OUVIDOR, supabase)
     resposta = client.get("/api/ouvidoria/responsaveis")
     assert resposta.status_code == 200, resposta.text
@@ -91,6 +92,27 @@ class TestOMesmoCasamentoDoPapel:
 
         assert papel.papel == RESPONSAVEL
         assert papel.setores == frozenset({"Recepcao"})
+
+
+class TestDesligadoNaoTemLogin:
+    """Revisão do PR #1893: o desligado é barrado no portão da fila
+    (`barrar_desligado`) antes do papel, então não vê os casos do setor. A
+    linha dele não pode dizer "tem login"."""
+
+    def test_participante_desligado_aparece_sem_login(self, monkeypatch):
+        desligado = {"id": "P41", "nome_completo": "Dr. Saiu", "email": "saiu@hsm.br", "ativo": False}
+
+        linhas = _cadastro(monkeypatch, _responsavel(id="r-saiu", email="saiu@hsm.br"), outros=(desligado,))
+
+        assert linhas == {"r-saiu": False}
+
+    def test_participante_com_ativo_nulo_continua_com_login(self, monkeypatch):
+        """`ativo` NULL é linha antiga, não desligamento (`foi_desligado`)."""
+        antigo = {"id": "P42", "nome_completo": "Dr. Antigo", "email": "antigo@hsm.br", "ativo": None}
+
+        linhas = _cadastro(monkeypatch, _responsavel(id="r-antigo", email="antigo@hsm.br"), outros=(antigo,))
+
+        assert linhas == {"r-antigo": True}
 
 
 class TestKitDeConhecimento:

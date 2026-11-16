@@ -3662,10 +3662,11 @@ async def listar_responsaveis(
         # Quem tem login no app (ADR 0099, decisão 1, issue #1887): o e-mail
         # da linha casa com o de um participante, pelo mesmo casamento que
         # decide o papel na Ouvidoria. Lido inteiro e casado em Python porque
-        # o banco não normaliza o e-mail gravado.
+        # o banco não normaliza o e-mail gravado. `ativo` vem junto para o
+        # desligado ficar de fora: o portão da fila o barra antes do papel.
         com_login = ouvidoria_papel.emails_com_login(
             ler_tudo(
-                lambda: supabase.table("participantes").select("id, email").order("id"),
+                lambda: supabase.table("participantes").select("id, email, ativo").order("id"),
                 rotulo="e-mails dos participantes",
             )
         )
