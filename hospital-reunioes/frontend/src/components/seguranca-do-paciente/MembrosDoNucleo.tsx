@@ -5,6 +5,7 @@ import { AlertCircle, ChevronDown, Loader2, Plus } from "lucide-react";
 
 import { useCurrentParticipante } from "@/hooks/useCurrentParticipante";
 import {
+  ACOES_DO_TERMO,
   COR_ESTADO,
   LABEL_ACAO,
   LABEL_CAMPO,
@@ -12,10 +13,12 @@ import {
   LABEL_PAPEL,
   PAPEIS,
   chamarNsp,
+  diaDoCarimbo,
   formatarDia,
   hojeLocal,
   registroDoMembro,
   situacaoDoTermo,
+  type EnvioDoTermo,
   type LinhaDaTrilha,
   type Membro,
   type Papel,
@@ -49,6 +52,7 @@ export function MembrosDoNucleo() {
   const [erro, setErro] = useState<string | null>(null);
   const [aberto, setAberto] = useState<string | null>(null);
   const [cadastrando, setCadastrando] = useState(false);
+  const [avisoDoTermo, setAvisoDoTermo] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     try {
@@ -76,12 +80,20 @@ export function MembrosDoNucleo() {
         </div>
       )}
 
+      {avisoDoTermo && (
+        <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" aria-hidden />
+          {avisoDoTermo}
+        </div>
+      )}
+
       {gere && (
         <div>
           {cadastrando ? (
             <FormularioDeCadastro
               aoCancelar={() => setCadastrando(false)}
-              aoSalvar={async () => {
+              aoSalvar={async (aviso) => {
+                setAvisoDoTermo(aviso);
                 setCadastrando(false);
                 await carregar();
               }}
@@ -324,7 +336,13 @@ function textoOuNulo(valor: string): string | null {
   return limpo ? limpo : null;
 }
 
-function FormularioDeCadastro({ aoCancelar, aoSalvar }: { aoCancelar: () => void; aoSalvar: () => Promise<void> }) {
+function FormularioDeCadastro({
+  aoCancelar,
+  aoSalvar,
+}: {
+  aoCancelar: () => void;
+  aoSalvar: (avisoDoTermo: string | null) => Promise<void>;
+}) {
   const setores = useSetores();
   const [pessoas, setPessoas] = useState<{ id: string; nome: string }[]>([]);
   const [pessoa, setPessoa] = useState("");
@@ -352,7 +370,7 @@ function FormularioDeCadastro({ aoCancelar, aoSalvar }: { aoCancelar: () => void
     setSalvando(true);
     setErro(null);
     try {
-      await chamarNsp("/api/nsp/membros", {
+      const novo = await chamarNsp<Membro>("/api/nsp/membros", {
         method: "POST",
         body: {
           participante_id: pessoa,
@@ -365,7 +383,7 @@ function FormularioDeCadastro({ aoCancelar, aoSalvar }: { aoCancelar: () => void
           vigencia_fim: rascunho.vigencia_fim,
         },
       });
-      await aoSalvar();
+      await aoSalvar(novo.aviso_termo ?? null);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não foi possível cadastrar.");
     } finally {
@@ -441,11 +459,12 @@ function DetalhesDoMembro({
       .catch(() => setTrilha([]));
   }, [membro.id]);
 
-  async function enviar(caminho: string, method: string, body: unknown) {
+  async function enviar(caminho: string, method: string, body?: unknown) {
     setOcupado(true);
     setErro(null);
     try {
-      await chamarNsp(caminho, { method, body });
+      const corpo = await chamarNsp<Partial<Membro>>(caminho, { method, body });
+      if (corpo?.aviso_termo) setErro(corpo.aviso_termo);
       await aoMudar();
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não foi possível concluir.");
@@ -468,6 +487,10 @@ function DetalhesDoMembro({
   return (
     <section aria-label={`Detalhes de ${nome}`} className="pt-3 space-y-4">
       {erro && <p className="text-sm text-red-700">{erro}</p>}
+
+      {gere && !membro.termo_assinado_em && (
+        <TermoDoMembro membro={membro} ocupado={ocupado} enviar={enviar} />
+      )}
 
       {gere && (
         <>
@@ -557,15 +580,112 @@ function DetalhesDoMembro({
               <li key={`${t.created_at}-${i}`}>
                 {new Date(t.created_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })},{" "}
                 {t.autor ?? "autor desconhecido"}: {LABEL_ACAO[t.acao] ?? t.acao}
-                {t.campo ? ` (${LABEL_CAMPO[t.campo] ?? t.campo})` : ""}
-                {t.valor_anterior || t.valor_novo
-                  ? `, de ${t.valor_anterior ?? "vazio"} para ${t.valor_novo ?? "vazio"}`
-                  : ""}
+                {ACOES_DO_TERMO.has(t.acao) ? (
+                  t.motivo ? `, justificativa: ${t.motivo}` : ""
+                ) : (
+                  <>
+                    {t.campo ? ` (${LABEL_CAMPO[t.campo] ?? t.campo})` : ""}
+                    {t.valor_anterior || t.valor_novo
+                      ? `, de ${t.valor_anterior ?? "vazio"} para ${t.valor_novo ?? "vazio"}`
+                      : ""}
+                  </>
+                )}
               </li>
             ))}
           </ul>
         )}
       </div>
     </section>
+  );
+}
+
+/**
+ * O Termo de Adesão de quem ainda não assinou (issue #1768): o documento
+ * enviado, o erro do último envio e os três caminhos da Presidência quando a
+ * assinatura eletrônica falha. O servidor recusa de novo quem não gere o Núcleo.
+ */
+function TermoDoMembro({
+  membro,
+  ocupado,
+  enviar,
+}: {
+  membro: Membro;
+  ocupado: boolean;
+  enviar: (caminho: string, method: string, body?: unknown) => Promise<void>;
+}) {
+  const [envio, setEnvio] = useState<EnvioDoTermo | null>(null);
+  const [liberando, setLiberando] = useState(false);
+  const [justificativa, setJustificativa] = useState("");
+  const base = `/api/nsp/membros/${membro.id}/termo`;
+
+  useEffect(() => {
+    chamarNsp<EnvioDoTermo>(base)
+      .then(setEnvio)
+      .catch(() => setEnvio(null));
+  }, [base, membro.estado, membro.termo_enviado_em]);
+
+  return (
+    <div className="rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3 space-y-3">
+      <div>
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-amber-800">Termo de Adesão</h3>
+        <p className="text-sm text-slate-700 mt-1">
+          {envio?.situacao === "enviado"
+            ? `Enviado para assinatura em ${envio.enviado_em ? diaDoCarimbo(envio.enviado_em) : "data não registrada"}.`
+            : envio?.erro ?? "O Termo ainda não foi enviado para assinatura."}
+        </p>
+        {envio?.documento_url && (
+          <a
+            href={envio.documento_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm font-semibold text-primary hover:underline"
+          >
+            Abrir o documento enviado
+          </a>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className={BOTAO_LEVE} disabled={ocupado} onClick={() => enviar(`${base}/reconsultar`, "POST")}>
+          Reconsultar status da assinatura
+        </button>
+        <button type="button" className={BOTAO_LEVE} disabled={ocupado} onClick={() => enviar(`${base}/reenviar`, "POST")}>
+          Reenviar o Termo
+        </button>
+        {!liberando && (
+          <button type="button" className={BOTAO_LEVE} disabled={ocupado} onClick={() => setLiberando(true)}>
+            Liberar sem assinatura
+          </button>
+        )}
+      </div>
+      {liberando && (
+        <div className="space-y-2">
+          <label className={ROTULO} htmlFor={`nsp-liberar-${membro.id}`}>
+            Justificativa da liberação
+          </label>
+          <textarea
+            id={`nsp-liberar-${membro.id}`}
+            className={CAMPO}
+            rows={2}
+            maxLength={1000}
+            value={justificativa}
+            onChange={(e) => setJustificativa(e.target.value)}
+          />
+          <p className="text-xs text-slate-500">A justificativa fica no histórico, com quem liberou e quando.</p>
+          <div className="flex flex-wrap justify-end gap-2">
+            <button type="button" className={BOTAO_LEVE} onClick={() => setLiberando(false)}>
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className={BOTAO_LEVE}
+              disabled={!justificativa.trim() || ocupado}
+              onClick={() => enviar(`${base}/liberar`, "POST", { justificativa: justificativa.trim() })}
+            >
+              Confirmar liberação
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

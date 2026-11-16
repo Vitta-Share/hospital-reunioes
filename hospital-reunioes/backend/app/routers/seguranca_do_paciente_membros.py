@@ -243,7 +243,7 @@ async def trilha_do_membro(
     _participacao(supabase, _nucleo_id(supabase), participacao_id)
     linhas = (
         supabase.table("participacoes_trilha")
-        .select("acao, campo, valor_anterior, valor_novo, autor_id, created_at")
+        .select("acao, campo, valor_anterior, valor_novo, motivo, autor_id, created_at")
         .eq("participacao_id", participacao_id)
         .order("created_at", desc=True)
         .execute()
@@ -257,6 +257,7 @@ async def trilha_do_membro(
                 "campo": linha["campo"],
                 "valor_anterior": linha["valor_anterior"],
                 "valor_novo": linha["valor_novo"],
+                "motivo": linha.get("motivo"),
                 "autor": (autores.get(linha["autor_id"]) or {}).get("nome_completo"),
                 "created_at": linha["created_at"],
             }
