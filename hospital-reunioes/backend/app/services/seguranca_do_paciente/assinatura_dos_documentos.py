@@ -473,9 +473,7 @@ def tratar_retorno_da_versao(
                 return
         _concluir(supabase, envio, ao_vigorar_revisao_material=ao_vigorar_revisao_material)
     elif evento in EVENTOS_DE_TODOS_ASSINARAM:
-        _concluir(
-            supabase, envio, todos_assinaram=True, ao_vigorar_revisao_material=ao_vigorar_revisao_material
-        )
+        _concluir(supabase, envio, todos_assinaram=True, ao_vigorar_revisao_material=ao_vigorar_revisao_material)
     elif evento == EVENTO_DOCUMENTO_PRONTO and situacao == "assinado":
         _concluir(supabase, envio, ao_vigorar_revisao_material=ao_vigorar_revisao_material)
     else:
