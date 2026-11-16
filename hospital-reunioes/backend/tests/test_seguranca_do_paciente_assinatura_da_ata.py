@@ -26,7 +26,7 @@ from __future__ import annotations
 import copy
 import os
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -57,7 +57,6 @@ from test_seguranca_do_paciente_reunioes import (  # noqa: E402
     SUPER_ADMIN_PLENO,
     _assert_recusado,
     _cliente,
-    _reuniao,
 )
 
 from app.config import settings  # noqa: E402
@@ -65,6 +64,8 @@ from app.services import clicksign_service, storage  # noqa: E402
 from app.services.seguranca_do_paciente import assinatura_da_ata  # noqa: E402
 
 FERIADO = date(2026, 11, 20)
+# O PDF de verdade, guardado antes do dublê do fixture.
+_GERAR_PDF = assinatura_da_ata.gerar_pdf_da_ata
 DIA_DA_ATA = DIA_DA_REUNIAO.strftime("%d/%m/%Y")
 
 
@@ -142,7 +143,9 @@ class _Assinatura:
 
 
 @pytest.fixture(autouse=True)
-def assinatura(monkeypatch, _ia) -> _Assinatura:
+def assinatura(monkeypatch, request) -> _Assinatura:
+    # Depois do dublê da IA do teste da ata, que também derruba a assinatura.
+    request.getfixturevalue("_ia")
     dubla = _Assinatura()
     for nome in (
         "create_envelope",
@@ -183,7 +186,9 @@ def arquivos(monkeypatch) -> _Storage:
     dublado = _Storage()
     monkeypatch.setattr(storage, "upload_private", dublado.upload_private)
     monkeypatch.setattr(storage, "signed_url", dublado.signed_url)
-    monkeypatch.setattr(assinatura_da_ata, "_remover_do_storage", lambda supabase, bucket, c: dublado.remover(bucket, c))
+    monkeypatch.setattr(
+        assinatura_da_ata, "_remover_do_storage", lambda supabase, bucket, caminhos: dublado.remover(bucket, caminhos)
+    )
     return dublado
 
 
@@ -499,9 +504,10 @@ class TestLimpezaDaTranscricao:
 
         assert _transcricoes_de(arquivos, R_ATA) == []
         assert _reuniao_gravada(banco)["url_transcricao"] is None
-        assert _ata_gravada(banco)["encerramento"]["transcricao_apagada_em"] == (
-            QUINTA_SEGUINTE + timedelta(days=30)
-        ).isoformat()
+        assert (
+            _ata_gravada(banco)["encerramento"]["transcricao_apagada_em"]
+            == (QUINTA_SEGUINTE + timedelta(days=30)).isoformat()
+        )
         # A reunião comum, assinada há mais de 30 dias, não é tocada.
         assert _transcricoes_de(arquivos, R_COMUM) == [f"{R_COMUM}/transcricao.docx", f"{R_COMUM}/transcricao.txt"]
         assert _reuniao_gravada(banco, R_COMUM)["url_transcricao"].endswith("transcricao.docx")
@@ -553,3 +559,107 @@ class TestJobsDeNovo:
         assert banco.tabelas == primeira
         assert assinatura.nomes().count("close_envelope") == 1
         assert len([d for d in banco.tabelas["nsp_documentos"] if d.get("reuniao_id") == R_ATA]) == 1
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Os jobs não chamam IA e estão no relógio
+# ═══════════════════════════════════════════════════════════════════════════
+
+_MARCAS_DE_IA = ("ai_processor", "anthropic", "openai", "openrouter")
+
+
+def _marcas(codigo: str) -> list[str]:
+    return [marca for marca in _MARCAS_DE_IA if marca in codigo.lower()]
+
+
+class TestSemIa:
+    def test_os_jobs_rodam_sem_chamar_a_ia(self, assinatura, arquivos, request):
+        ia = request.getfixturevalue("_ia")
+        banco = _enviada(assinatura, "pres1@hsm.test")
+        minutas_pedidas = len(ia.chamadas)
+
+        assinatura_da_ata.encerrar_atas(banco, QUINTA_SEGUINTE)
+        assinatura_da_ata.apagar_transcricoes(banco, QUINTA_SEGUINTE + timedelta(days=30))
+
+        assert _status(banco) == "ASSINADA"
+        assert len(ia.chamadas) == minutas_pedidas
+
+    def test_o_servico_dos_jobs_nao_fala_com_ia(self):
+        import inspect
+
+        assert _marcas(inspect.getsource(assinatura_da_ata)) == []
+
+    def test_os_dois_jobs_estao_no_scheduler_e_so_chamam_o_servico(self, monkeypatch):
+        import inspect
+
+        from app.cron import scheduler
+
+        assert 'encerrar_atas_do_nucleo,\n        "cron"' in inspect.getsource(scheduler.start_scheduler)
+        assert 'apagar_transcricoes_do_nucleo,\n        "cron"' in inspect.getsource(scheduler.start_scheduler)
+        chamadas: list[tuple] = []
+        monkeypatch.setattr(scheduler, "_supabase", lambda: "banco")
+        monkeypatch.setattr(scheduler, "_hoje_em_sao_paulo", lambda: QUINTA_SEGUINTE)
+        monkeypatch.setattr(assinatura_da_ata, "encerrar_atas", lambda b, hoje: chamadas.append(("encerrar", hoje)))
+        monkeypatch.setattr(assinatura_da_ata, "apagar_transcricoes", lambda b, hoje: chamadas.append(("apagar", hoje)))
+
+        scheduler.encerrar_atas_do_nucleo()
+        scheduler.apagar_transcricoes_do_nucleo()
+
+        assert chamadas == [("encerrar", QUINTA_SEGUINTE), ("apagar", QUINTA_SEGUINTE)]
+
+    def test_o_job_que_falha_nao_derruba_o_scheduler(self, monkeypatch):
+        from app.cron import scheduler
+
+        def _explode(*_a):
+            raise RuntimeError("banco fora do ar")
+
+        monkeypatch.setattr(scheduler, "_supabase", lambda: "banco")
+        monkeypatch.setattr(assinatura_da_ata, "encerrar_atas", _explode)
+        monkeypatch.setattr(assinatura_da_ata, "apagar_transcricoes", _explode)
+
+        scheduler.encerrar_atas_do_nucleo()
+        scheduler.apagar_transcricoes_do_nucleo()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# O PDF que vai para assinatura
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestPdf:
+    def test_o_pdf_da_ata_tem_os_dez_blocos_e_nao_tem_travessao(self):
+        from app.services.pdf_generator import env
+
+        banco = _validada()
+        reuniao = _reuniao_gravada(banco)
+
+        html = env.get_template("nsp_ata_do_nucleo.html").render(reuniao=reuniao, ata=reuniao["json_ata"])
+
+        for bloco in reuniao["json_ata"]["blocos"]:
+            assert bloco["titulo"] in html
+        assert "Revisar a sinalização dos leitos de risco de queda" in html
+        assert "—" not in html
+        assert "–" not in html
+        assert _GERAR_PDF(reuniao, reuniao["json_ata"]).startswith(b"%PDF")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. O kit de conhecimento diz o comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestKitDeConhecimento:
+    def test_o_kit_de_conhecimento_diz_o_comportamento_novo(self):
+        caminho = os.path.join(os.path.dirname(__file__), "..", "app", "conhecimento", "seguranca-do-paciente.md")
+        with open(caminho, encoding="utf-8") as arquivo:
+            texto = " ".join(arquivo.read().split())
+
+        assert "a ata validada vai por e-mail para a assinatura eletrônica de quem estava presente, e só deles" in texto
+        assert "5 dias úteis depois do envio, contando os feriados cadastrados" in texto
+        assert "quem estava presente e não assinou fica registrado no bloco Assinaturas" in texto
+        assert "entra em Documentos como ata, com o número seguinte" in texto
+        assert "Baixar a ata assinada" in texto
+        assert "a transcrição importada é apagada 30 dias corridos depois da ata assinada" in texto
+        assert "A assinatura dos presentes chega numa próxima entrega" not in texto
+        assert "—" not in texto
+        assert "–" not in texto

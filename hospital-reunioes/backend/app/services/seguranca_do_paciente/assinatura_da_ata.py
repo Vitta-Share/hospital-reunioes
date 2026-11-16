@@ -51,7 +51,7 @@ FALHA_DO_ENVIO = "A assinatura eletrônica não respondeu. O aplicativo tenta de
 SEM_EMAIL = "Nenhum presente tem e-mail no cadastro. Corrija o cadastro: o aplicativo tenta de novo amanhã."
 
 
-class _EnvioFalhou(Exception):
+class _EnvioFalhouError(Exception):
     pass
 
 
@@ -115,10 +115,10 @@ def _criar_envelope(id_reuniao: str, pdf: bytes, signatarios: list[dict]) -> tup
     falha derruba o envio inteiro: a ata não sai sem um dos presentes."""
     envelope_id = clicksign_service.create_envelope(f"Ata do Núcleo - {id_reuniao}")
     if not envelope_id:
-        raise _EnvioFalhou(FALHA_DO_ENVIO)
+        raise _EnvioFalhouError(FALHA_DO_ENVIO)
     documento_key = clicksign_service.add_document(envelope_id, pdf, f"Ata_do_Nucleo_{id_reuniao}.pdf")
     if not documento_key:
-        raise _EnvioFalhou(FALHA_DO_ENVIO)
+        raise _EnvioFalhouError(FALHA_DO_ENVIO)
     for pessoa in signatarios:
         signatario_id = clicksign_service.add_signer(envelope_id, nome=pessoa["nome"], email=pessoa["email"])
         if not (
@@ -126,9 +126,9 @@ def _criar_envelope(id_reuniao: str, pdf: bytes, signatarios: list[dict]) -> tup
             and clicksign_service.create_qualification_requirement(envelope_id, documento_key, signatario_id)
             and clicksign_service.create_auth_requirement(envelope_id, documento_key, signatario_id)
         ):
-            raise _EnvioFalhou(FALHA_DO_ENVIO)
+            raise _EnvioFalhouError(FALHA_DO_ENVIO)
     if not clicksign_service.activate_envelope(envelope_id):
-        raise _EnvioFalhou(FALHA_DO_ENVIO)
+        raise _EnvioFalhouError(FALHA_DO_ENVIO)
     # A própria assinatura eletrônica também avisa; falhar aqui não derruba um
     # envelope já ativo (como nas Reuniões e no Termo).
     clicksign_service.notify_signers(envelope_id)
@@ -154,11 +154,11 @@ def enviar_para_assinatura(supabase, id_reuniao: str, agora: datetime) -> dict[s
     com_email = [p for p in lista if p["email"]]
     try:
         if not com_email:
-            raise _EnvioFalhou(SEM_EMAIL)
+            raise _EnvioFalhouError(SEM_EMAIL)
         pdf = gerar_pdf_da_ata(reuniao, json_ata)
         envelope_id, documento_key = _criar_envelope(id_reuniao, pdf, com_email)
     except Exception as erro:  # a ata validada não volta atrás: o job tenta de novo
-        mensagem = str(erro) if isinstance(erro, _EnvioFalhou) else FALHA_DO_ENVIO
+        mensagem = str(erro) if isinstance(erro, _EnvioFalhouError) else FALHA_DO_ENVIO
         logger.warning("Ata do Núcleo %s validada e não enviada para assinatura: %s", id_reuniao, erro)
         json_ata["assinatura"] = {"erro": mensagem, "tentativa_em": agora.isoformat()}
         supabase.table("reunioes").update({"json_ata": json_ata}).eq("id_reuniao", id_reuniao).execute()

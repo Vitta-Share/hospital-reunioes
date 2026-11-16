@@ -33,8 +33,8 @@ from supabase import Client
 from app.dependencies import RECUSA_DO_NSP, get_supabase_client, require_recurso_nsp, selecionar_participantes
 from app.limiter import limiter
 from app.routers.reunioes import _generate_reuniao_id
-from app.services.seguranca_do_paciente import ata as ata_do_nucleo
 from app.services.seguranca_do_paciente import assinatura_da_ata, convocacao, pauta
+from app.services.seguranca_do_paciente import ata as ata_do_nucleo
 from app.services.seguranca_do_paciente.membros import vigente_em
 from app.services.seguranca_do_paciente.permissao import id_do_nucleo
 from app.services.seguranca_do_paciente.quorum import apurar_quorum, conta_para_quorum
@@ -768,5 +768,7 @@ async def arquivo_da_ata_assinada(
         raise HTTPException(status_code=404, detail="Ata assinada não encontrada.")
     url = assinatura_da_ata.link_do_arquivo(supabase, documento["arquivo_assinado_path"])
     if not url:
-        raise HTTPException(status_code=503, detail="A ata assinada está indisponível agora. Tente de novo em instantes.")
+        raise HTTPException(
+            status_code=503, detail="A ata assinada está indisponível agora. Tente de novo em instantes."
+        )
     return {"url": url}
