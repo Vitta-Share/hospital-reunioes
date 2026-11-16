@@ -304,3 +304,17 @@ class TestRedirecionado:
         _como(monkeypatch, CARLOS)
         assert _linha_da_fila(client) is None
         assert client.get("/api/ouvidoria/responder/uuid-7").status_code == 403
+
+
+KIT = os.path.join(os.path.dirname(__file__), "..", "app", "conhecimento", "ouvidoria.md")
+
+
+def test_o_kit_de_conhecimento_diz_que_o_responsavel_responde_pelo_app():
+    """O Assistente responde pelo kit: o texto do Produto Ouvidoria precisa
+    contar o botão Responder e a resposta única por caso."""
+    with open(KIT, encoding="utf-8") as f:
+        texto = f.read()
+
+    assert "por enquanto ele responde pelo link do e-mail" not in texto
+    for termo in ("botão Responder", "A responder", "Respondidos pelo setor", "uma resposta só"):
+        assert termo in texto, termo
