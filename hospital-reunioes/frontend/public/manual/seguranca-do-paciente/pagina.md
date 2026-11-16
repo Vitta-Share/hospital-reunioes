@@ -129,8 +129,9 @@ passo espera 3,2: Aguardando assinatura | Avisos aos 3, 7 e 14 dias. A Presidên
 passo ativo 4,1: Ativo | Abre as atas, os documentos e as capacitações, e conta para o quórum.
 fim encerrado 4,2: Encerrado | A participação vai para o histórico e continua na composição dos dias em que valia.
 passo avencer 5,1: A vencer | Avisos 60 e 30 dias antes do fim da vigência.
+passo termonovo 5,2: Termo novo | Vai por e-mail para a pessoa assinar. Quem já tinha assinado continua no estado em que estava, sem os avisos de 3, 7 e 14 dias.
 decisao renovou 6,1: Renovou?
-passo carencia 6,2: Em carência | Até 30 dias depois do fim, ainda conta para o quórum.
+passo carencia 6,2: Em carência | Até 30 dias depois do fim, ainda conta para o quórum e ainda dá para renovar.
 fim vencido 7,2: Vencido | A carência acabou sem renovação. A Presidência e a Diretoria Executiva são avisadas.
 cadastro -> termo
 termo -> assinou
@@ -138,13 +139,15 @@ assinou -> ativo: sim
 assinou -> espera: não
 espera -> termo: reenviado
 espera -> ativo: liberado com justificativa
-ativo -> termo: mudou o papel ou revisão material do Regimento
+ativo -> termonovo: mudou o papel ou revisão material do Regimento
+termonovo -> ativo: segue valendo, sem esperar a assinatura
 ativo -> encerrado: encerrar participação
 ativo -> avencer
 avencer -> renovou
-renovou -> termo: renovou
+renovou -> termonovo: renovou
 renovou -> carencia: não
-carencia -> vencido
+carencia -> termonovo: renovou na carência
+carencia -> vencido: a carência acabou
 ```
 
 ## O ciclo da reunião

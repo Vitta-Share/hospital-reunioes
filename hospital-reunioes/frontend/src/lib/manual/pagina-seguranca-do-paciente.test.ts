@@ -147,26 +147,54 @@ describe("o fluxograma do ciclo do membro", () => {
     expect(inicioDe(fluxoDa(TITULO)).rotulo).toMatch(/Cadastrar/);
   });
 
-  it("só se chega a Ativo pela assinatura do Termo ou pela liberação com justificativa", () => {
+  it("do cadastro só se chega a Ativo pela assinatura do Termo ou pela liberação com justificativa", () => {
     const f = fluxoDa(TITULO);
+    const inicio = inicioDe(f);
     const ativo = passoPorRotulo(f, /^Ativo$/);
-    const chegadas = f.ligacoes.filter((l) => l.para === ativo.id);
-    expect(chegadas.length).toBeGreaterThan(0);
-    for (const l of chegadas) {
-      const origem = f.passos.find((p) => p.id === l.de)!;
-      const pelaAssinatura = origem.forma === "decisao" && /assinou/i.test(origem.rotulo) && l.rotulo === "sim";
-      const pelaLiberacao = /justificativa/.test(l.rotulo);
-      expect(pelaAssinatura || pelaLiberacao, `${l.de} -> ${l.para} chega a Ativo sem assinatura nem liberação`).toBe(true);
-    }
+    expect(alcancaveis(f, inicio.id).has(ativo.id)).toBe(true);
+    const semAssinaturaNemLiberacao: Fluxo = {
+      ...f,
+      ligacoes: f.ligacoes.filter((l) => {
+        const origem = f.passos.find((p) => p.id === l.de)!;
+        const pelaAssinatura = origem.forma === "decisao" && /assinou/i.test(origem.rotulo) && l.rotulo === "sim";
+        const pelaLiberacao = /justificativa/.test(l.rotulo);
+        return !(pelaAssinatura || pelaLiberacao);
+      }),
+    };
+    expect(alcancaveis(semAssinaturaNemLiberacao, inicio.id).has(ativo.id)).toBe(false);
   });
 
   it("renovar, mudar o papel ou a revisão material do Regimento mandam um Termo novo", () => {
     const f = fluxoDa(TITULO);
-    const termo = passoPorRotulo(f, /^Termo enviado$/);
-    const voltas = f.ligacoes.filter((l) => l.para === termo.id).map((l) => l.rotulo).join(" ");
+    const termoNovo = passoPorRotulo(f, /^Termo novo$/);
+    const voltas = f.ligacoes.filter((l) => l.para === termoNovo.id).map((l) => l.rotulo).join(" ");
     expect(voltas).toMatch(/renov/i);
     expect(voltas).toMatch(/papel/);
     expect(voltas).toMatch(/revisão material/);
+  });
+
+  it("o Termo novo de quem já assinou não leva a Aguardando assinatura nem aos avisos de 3, 7 e 14 dias", () => {
+    const f = fluxoDa(TITULO);
+    const ativo = passoPorRotulo(f, /^Ativo$/);
+    const termo = passoPorRotulo(f, /^Termo enviado$/);
+    const espera = passoPorRotulo(f, /^Aguardando assinatura$/);
+    const termoNovo = passoPorRotulo(f, /^Termo novo$/);
+    const depoisDeAtivo = alcancaveis(f, ativo.id);
+    expect(depoisDeAtivo.has(termoNovo.id)).toBe(true);
+    expect(depoisDeAtivo.has(termo.id), "quem já assinou volta ao Termo da primeira assinatura").toBe(false);
+    expect(depoisDeAtivo.has(espera.id), "quem já assinou volta a Aguardando assinatura").toBe(false);
+    expect(termoNovo.detalhe).toMatch(/continua no estado em que estava/);
+  });
+
+  it("Em carência ainda dá para renovar, e a renovação não leva a Vencido", () => {
+    const f = fluxoDa(TITULO);
+    const carencia = passoPorRotulo(f, /^Em carência$/);
+    const vencido = passoPorRotulo(f, /^Vencido$/);
+    const renovacoes = f.ligacoes.filter((l) => l.de === carencia.id && /renov/i.test(l.rotulo));
+    expect(renovacoes.length, "Em carência não tem saída por renovação").toBeGreaterThan(0);
+    for (const l of renovacoes) {
+      expect(l.para, `${l.de} -> ${l.para} renova direto para Vencido`).not.toBe(vencido.id);
+    }
   });
 
   it("sem renovação, o membro passa pela carência antes de vencer, e o Encerrado se alcança do cadastro", () => {
