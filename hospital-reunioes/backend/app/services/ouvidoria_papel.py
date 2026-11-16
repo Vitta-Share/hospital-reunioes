@@ -49,6 +49,23 @@ def precisa_do_cadastro(participante: dict | None) -> bool:
     )
 
 
+def setores_vigentes(participante: dict | None, responsaveis: list[dict], dia: date) -> frozenset[str]:
+    """Os setores em que `participante` é titular, substituto ou gestor
+    vigente em `dia`, qualquer que seja o papel maior dele.
+
+    É o recorte da porta do login (issue #1886, ADR 0099, decisão 5): o
+    responsável que também é Secretária ou Super admin vê o índice geral e
+    responde pelos casos do setor dele."""
+    email = _normalizar((participante or {}).get("email"))
+    if not email:
+        return frozenset()
+    return frozenset(
+        r["setor"]
+        for r in responsaveis
+        if _normalizar(r.get("email")) == email and r.get("papel") in PAPEIS and r.get("setor") and esta_vigente(r, dia)
+    )
+
+
 def papel_na_ouvidoria(participante: dict | None, responsaveis: list[dict], dia: date) -> PapelNaOuvidoria:
     """O papel de `participante` na Ouvidoria em `dia`.
 
@@ -60,16 +77,7 @@ def papel_na_ouvidoria(participante: dict | None, responsaveis: list[dict], dia:
         return PapelNaOuvidoria(PERFIL_OUVIDORIA)
     if is_secretaria(participante) or is_super_admin(participante):
         return PapelNaOuvidoria(INDICE_GERAL)
-    email = _normalizar(participante.get("email"))
-    setores = frozenset(
-        r["setor"]
-        for r in responsaveis
-        if email
-        and _normalizar(r.get("email")) == email
-        and r.get("papel") in PAPEIS
-        and r.get("setor")
-        and esta_vigente(r, dia)
-    )
+    setores = setores_vigentes(participante, responsaveis, dia)
     return PapelNaOuvidoria(RESPONSAVEL, setores) if setores else PapelNaOuvidoria(NENHUM)
 
 
@@ -81,16 +89,29 @@ def papel_de(supabase, participante: dict | None, dia: date) -> PapelNaOuvidoria
     o casamento final ficam na função pura. Leitura que falha sobe: virar
     `nenhum` esconderia a Ouvidoria de quem responde por um setor por causa de
     um timeout."""
-    linhas: list[dict] = []
-    email = _normalizar((participante or {}).get("email"))
-    if email and precisa_do_cadastro(participante):
-        padrao = email.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        linhas = (
-            supabase.table("ouvidoria_setor_responsaveis")
-            .select("setor, papel, email, vigencia_inicio, vigencia_fim")
-            .ilike("email", padrao)
-            .execute()
-            .data
-            or []
-        )
+    linhas = _cadastro_do_email(supabase, participante) if precisa_do_cadastro(participante) else []
     return papel_na_ouvidoria(participante, linhas, dia)
+
+
+def setores_de(supabase, participante: dict | None, dia: date) -> frozenset[str]:
+    """`setores_vigentes` com o cadastro lido do banco. Leitura que falha sobe,
+    como em `papel_de`."""
+    return setores_vigentes(participante, _cadastro_do_email(supabase, participante), dia)
+
+
+def _cadastro_do_email(supabase, participante: dict | None) -> list[dict]:
+    """As linhas do cadastro de responsáveis com o e-mail da pessoa (`ilike`,
+    sem diferenciar maiúsculas, com `%` e `_` escapados para não virarem
+    curinga)."""
+    email = _normalizar((participante or {}).get("email"))
+    if not email:
+        return []
+    padrao = email.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return (
+        supabase.table("ouvidoria_setor_responsaveis")
+        .select("setor, papel, email, vigencia_inicio, vigencia_fim")
+        .ilike("email", padrao)
+        .execute()
+        .data
+        or []
+    )

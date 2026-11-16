@@ -15,11 +15,13 @@ de antes desta fatia.
 from __future__ import annotations
 
 LINK_DE_EMAIL = "link de e-mail"
+# O login do app (issue #1886, ADR 0099, decisão 4).
+APP = "app"
 
 # As portas que a última linha pode nomear. Só uma porta conhecida é tirada:
 # texto livre antigo que por acaso termine numa linha "Porta: ..." continua
 # inteiro.
-PORTAS = (LINK_DE_EMAIL,)
+PORTAS = (LINK_DE_EMAIL, APP)
 
 _ROTULO = "Porta: "
 
