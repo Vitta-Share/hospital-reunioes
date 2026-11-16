@@ -20,6 +20,7 @@ from supabase import Client
 from app.dependencies import get_supabase_client, require_recurso_nsp
 from app.limiter import limiter
 from app.routers.reunioes import _generate_reuniao_id
+from app.services.seguranca_do_paciente import pauta
 from app.services.seguranca_do_paciente.permissao import id_do_nucleo
 from app.services.seguranca_do_paciente.reunioes import TipoReuniaoNsp
 
@@ -77,6 +78,72 @@ async def listar_reunioes_do_nucleo(
         "pode_abrir": "reunioes" in me["recursos_nsp"],
         "pode_criar": "gerir_nucleo" in me["recursos_nsp"],
     }
+
+
+class CalendarioRequest(BaseModel):
+    ano: int = Field(..., ge=2020, le=2100)
+    # Até 28: todo mês tem o dia.
+    dia: int = Field(..., ge=1, le=28)
+    hora_inicio: time
+    hora_fim: time | None = None
+
+
+_MESES = (
+    "janeiro",
+    "fevereiro",
+    "março",
+    "abril",
+    "maio",
+    "junho",
+    "julho",
+    "agosto",
+    "setembro",
+    "outubro",
+    "novembro",
+    "dezembro",
+)
+
+
+@router.post("/calendario", status_code=201)
+@limiter.limit("10/minute")
+async def gerar_calendario_anual(
+    request: Request,
+    req: CalendarioRequest,
+    me: dict = Depends(require_recurso_nsp("gerir_nucleo")),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """As doze ordinárias do ano, uma por mês, programadas. Mês que já tem
+    ordinária (não cancelada) fica como está: pedir de novo não duplica."""
+    nucleo_id = _nucleo_ou_503(supabase)
+    ja_existiam = sorted({int(str(r["data"])[5:7]) for r in pauta.ordinarias_do_ano(supabase, nucleo_id, req.ano)})
+    criadas = []
+    for dia in pauta.datas_do_calendario(
+        req.ano, req.dia, pauta.feriados_entre(supabase, date(req.ano, 1, 1), date(req.ano, 12, 31))
+    ):
+        if dia.month in ja_existiam:
+            continue
+        id_reuniao = _generate_reuniao_id(dia)
+        supabase.table("reunioes").insert(
+            {
+                "id_reuniao": id_reuniao,
+                "titulo": f"Reunião ordinária de {_MESES[dia.month - 1]} de {dia.year}",
+                "data": dia.isoformat(),
+                "hora_inicio": req.hora_inicio.isoformat(),
+                "hora_fim": req.hora_fim.isoformat() if req.hora_fim else None,
+                "tipo": pauta.ORDINARIA,
+                "status_ata": "PROGRAMADA",
+                "fonte": "MOCK",
+                "facilitador_id": me["id"],
+                "criada_por": me["id"],
+                "colegiado_id": nucleo_id,
+            }
+        ).execute()
+        supabase.table("reuniao_participantes").insert(
+            [{"id_reuniao": id_reuniao, "participante_id": me["id"]}]
+        ).execute()
+        criadas.append({"id_reuniao": id_reuniao, "data": dia.isoformat()})
+    logger.info("Calendário %s do Núcleo: %d ordinária(s) criada(s) por %s", req.ano, len(criadas), me["id"])
+    return {"ano": req.ano, "criadas": criadas, "ja_existiam": ja_existiam}
 
 
 @router.post("", status_code=201)
