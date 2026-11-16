@@ -114,10 +114,12 @@ def reuniao_do_nucleo(supabase, id_reuniao: str) -> dict | None:
 
 def _presenca(supabase, id_reuniao: str) -> dict[str, str]:
     linhas = ler_tudo(
-        lambda: supabase.table("reuniao_presencas")
-        .select("participante_id, situacao")
-        .eq("id_reuniao", id_reuniao)
-        .order("participante_id"),
+        lambda: (
+            supabase.table("reuniao_presencas")
+            .select("participante_id, situacao")
+            .eq("id_reuniao", id_reuniao)
+            .order("participante_id")
+        ),
         rotulo="presença da reunião do Núcleo",
     )
     return {linha["participante_id"]: linha["situacao"] for linha in linhas}
@@ -125,10 +127,12 @@ def _presenca(supabase, id_reuniao: str) -> dict[str, str]:
 
 def _participacoes(supabase, colegiado_id: str) -> list[dict]:
     return ler_tudo(
-        lambda: supabase.table("participacoes")
-        .select("id, participante_id, papel, vigencia_inicio, vigencia_fim, encerrada_em, termo_assinado_em")
-        .eq("colegiado_id", colegiado_id)
-        .order("id"),
+        lambda: (
+            supabase.table("participacoes")
+            .select("id, participante_id, papel, vigencia_inicio, vigencia_fim, encerrada_em, termo_assinado_em")
+            .eq("colegiado_id", colegiado_id)
+            .order("id")
+        ),
         rotulo="participações do Núcleo",
     )
 
@@ -345,7 +349,9 @@ def e_resumida(reuniao: dict) -> bool:
     return reuniao.get("tipo") == TipoReuniaoNsp.APRESENTACAO_A_DIRETORIA.value
 
 
-def _mensagem(reuniao: dict, do_sistema: dict[str, list[str]], transcricao: str, *, resumida: bool, refazer: bool) -> str:
+def _mensagem(
+    reuniao: dict, do_sistema: dict[str, list[str]], transcricao: str, *, resumida: bool, refazer: bool
+) -> str:
     partes = [
         f"Reunião do Núcleo: {reuniao.get('tipo')}, {reuniao.get('titulo') or 'sem título'}.",
         f"Data da reunião: {_dia(reuniao).isoformat()}.",

@@ -59,6 +59,7 @@ import {
   type ResolucaoEstado,
 } from "@/components/participantes/ParticipanteCombobox";
 import { ResponsavelInlineCombobox } from "@/components/reunioes/ResponsavelInlineCombobox";
+import { AtaDoNucleo } from "@/components/seguranca-do-paciente/AtaDoNucleo";
 
 // ──────────────────────────────────────────
 // Types
@@ -126,6 +127,7 @@ interface JsonAta {
   lacunas_identificadas?: string[];
   error?: string;
   _mock?: boolean;
+  modelo?: string;
 }
 
 interface Reuniao {
@@ -1214,6 +1216,9 @@ export default function ReuniaoDetailPage() {
   // Transcrição (Solicitar Correção baixa a Transcrição; Enviar para assinatura cria
   // Envelope a partir do PDF — ambos inexistentes aqui) e mostra um badge do método.
   const isGuiada = reuniao.metodo_geracao === "GUIADA";
+  // A ata do Núcleo (issue #1775) tem dez blocos e validação própria: a tela
+  // dela substitui as seções e as ações da ata comum.
+  const ataDoNucleo = ata?.modelo === "nsp_dez_blocos";
 
   // ══════════════════════════════════════════
   // PROGRAMADA MODE
@@ -1922,7 +1927,7 @@ export default function ReuniaoDetailPage() {
       )}
 
       {/* Ações de Validação */}
-      {reuniao.status_ata === "AGUARDANDO_VALIDACAO" && !hideAtaSections && (
+      {reuniao.status_ata === "AGUARDANDO_VALIDACAO" && !hideAtaSections && !ataDoNucleo && (
         <div className="bg-white rounded-2xl border border-primary/30 shadow-premium p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center">
@@ -2073,7 +2078,11 @@ export default function ReuniaoDetailPage() {
         </div>
       )}
 
-      {ata && !ata.error && reuniao.status_ata !== "PROCESSANDO" && !hideAtaSections && (
+      {ataDoNucleo && reuniao.status_ata !== "PROCESSANDO" && !hideAtaSections && (
+        <AtaDoNucleo idReuniao={reuniao.id_reuniao} onMudou={loadReuniao} />
+      )}
+
+      {ata && !ata.error && reuniao.status_ata !== "PROCESSANDO" && !hideAtaSections && !ataDoNucleo && (
         <>
           <AtaEnxutaView
             secoes="resumo"
