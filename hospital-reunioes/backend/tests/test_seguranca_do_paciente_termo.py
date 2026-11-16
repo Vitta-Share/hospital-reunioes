@@ -913,6 +913,113 @@ class TestNovoTermoPorMudancaDePapel:
         assert cenario.envios("P3") == []
 
 
+# Um membro em cada estado: P2 Ativo, P3 A vencer, P4 Em carência, P1 Vencido,
+# P6 Aguardando assinatura e P5 Encerrado.
+def _um_de_cada_estado() -> list[dict]:
+    return [
+        _participacao("P2", papel="presidencia"),
+        _participacao("P3", vigencia_fim=_iso(30)),
+        _participacao("P4", vigencia_fim=_iso(-10)),
+        _participacao("P1", vigencia_inicio=_iso(-400), vigencia_fim=_iso(-40)),
+        _participacao("P6", termo=False, termo_gerado_em=ASSINADO, termo_enviado_em=ASSINADO),
+        _participacao("P5", encerrada_em=_iso(-5), vigencia_fim=_iso(-5)),
+    ]
+
+
+TEXTO_DA_REVISAO = "Art. 1º O Núcleo reúne-se quinzenalmente, na revisão material."
+
+
+def _publicar_regimento(cenario: _Cenario, natureza: str):
+    return cenario.api.post(
+        "/api/nsp/documentos",
+        json={
+            "tipo": "regimento",
+            "titulo": "Regimento Interno do Núcleo, revisão 3",
+            "texto": TEXTO_DA_REVISAO,
+            "natureza_revisao": natureza,
+        },
+    )
+
+
+class TestNovoTermoPorRevisaoDoRegimento:
+    def test_os_estados_do_cenario_sao_os_que_o_teste_diz(self):
+        """O detector: sem isto, um cenário errado passaria por filtro certo."""
+        cenario = _Cenario(PRESIDENCIA, _um_de_cada_estado())
+
+        estados = {pid: cenario.estado(pid) for pid in ("P2", "P3", "P4", "P1", "P6", "P5")}
+
+        assert estados == {
+            "P2": "ativo",
+            "P3": "a_vencer",
+            "P4": "em_carencia",
+            "P1": "vencido",
+            "P6": "aguardando_assinatura",
+            "P5": "encerrado",
+        }
+
+    def test_revisao_material_gera_novo_termo_para_ativo_a_vencer_e_em_carencia(self, assinatura):
+        """Mutante: incluir o Vencido entre os que assinam a revisão."""
+        cenario = _Cenario(PRESIDENCIA, _um_de_cada_estado())
+
+        resposta = _publicar_regimento(cenario, "material")
+
+        assert resposta.status_code == 201, resposta.text
+        signatarios = sorted(c[2] for c in assinatura.chamadas if c[0] == "add_signer")
+        assert signatarios == ["Pessoa de Teste P2", "Pessoa de Teste P3", "Pessoa de Teste P4"]
+        nova = next(d for d in cenario.tabela("nsp_documentos") if d["tipo"] == "regimento" and d["vigente"])
+        for pid in ("P2", "P3", "P4"):
+            [envio] = cenario.envios(pid)
+            assert envio["situacao"] == "enviado"
+            assert envio["regimento_id"] == nova["id"]
+        for pid in ("P1", "P6", "P5"):
+            assert cenario.envios(pid) == []
+        assert all("reúne-se quinzenalmente" in _texto_do_pdf(pdf) for pdf in assinatura.documentos)
+        assert len(cenario.trilha("termo_enviado")) == 3
+
+    def test_revisao_material_mantem_os_membros_no_estado_ate_assinarem(self):
+        cenario = _Cenario(PRESIDENCIA, _um_de_cada_estado())
+
+        _publicar_regimento(cenario, "material")
+
+        assert cenario.estado("P2") == "ativo"
+        assert cenario.estado("P3") == "a_vencer"
+        assert cenario.estado("P4") == "em_carencia"
+
+    def test_revisao_de_redacao_nao_gera_documento_nem_envio(self, assinatura):
+        """Mutante: a revisão de redação também gerar o Termo."""
+        cenario = _Cenario(PRESIDENCIA, _um_de_cada_estado())
+
+        resposta = _publicar_regimento(cenario, "redacao")
+
+        assert resposta.status_code == 201, resposta.text
+        assert "create_envelope" not in assinatura.nomes()
+        assert assinatura.chamadas == []
+        assert cenario.tabela("nsp_termos_envios") == []
+        assert cenario.trilha("termo_enviado") == []
+
+    def test_publicar_outro_tipo_nao_gera_termo(self, assinatura):
+        cenario = _Cenario(PRESIDENCIA, _um_de_cada_estado())
+
+        resposta = cenario.api.post(
+            "/api/nsp/documentos",
+            json={"tipo": "plano_seguranca_paciente", "titulo": "Plano", "natureza_revisao": "material"},
+        )
+
+        assert resposta.status_code == 201, resposta.text
+        assert assinatura.chamadas == []
+
+    def test_falha_num_membro_nao_impede_os_outros(self, assinatura):
+        cenario = _Cenario(PRESIDENCIA, _um_de_cada_estado())
+        p3 = next(p for p in cenario.tabela("participantes") if p["id"] == "P3")
+        p3["email"] = None
+
+        resposta = _publicar_regimento(cenario, "material")
+
+        assert resposta.status_code == 201, resposta.text
+        signatarios = sorted(c[2] for c in assinatura.chamadas if c[0] == "add_signer")
+        assert signatarios == ["Pessoa de Teste P2", "Pessoa de Teste P4"]
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # 8. Nenhum teste chama a assinatura eletrônica de verdade
 # ═══════════════════════════════════════════════════════════════════════════

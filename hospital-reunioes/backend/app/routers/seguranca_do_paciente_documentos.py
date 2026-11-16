@@ -9,8 +9,9 @@ Não existe rota de exclusão nem de edição: a correção é uma versão nova,
 trilha (quem publicou, quando, as versões anteriores) fica toda na lista.
 
 Ler é do recurso `documentos` (membro com Termo válido, Presidência, Acesso
-pleno); publicar é do `gerir_nucleo` (Presidência, Acesso pleno). Nesta fatia
-a publicação ainda não dispara assinatura nem novo Termo.
+pleno); publicar é do `gerir_nucleo` (Presidência, Acesso pleno). A revisão
+material do Regimento gera novo Termo para os membros em Ativo, A vencer e Em
+carência, depois da resposta; a de redação só troca a vigente (issue #1769).
 """
 
 from __future__ import annotations
@@ -19,13 +20,14 @@ import logging
 from typing import Literal
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from postgrest.exceptions import APIError
 from pydantic import BaseModel, Field, model_validator
 from supabase import Client
 
 from app.dependencies import get_supabase_client, require_recurso_nsp
 from app.limiter import limiter
+from app.services.seguranca_do_paciente import termo
 
 logger = logging.getLogger(__name__)
 
@@ -144,6 +146,7 @@ async def ler_documento(
 async def publicar_documento(
     request: Request,
     corpo: PublicarDocumento,
+    tarefas: BackgroundTasks,
     me: dict = Depends(require_recurso_nsp("gerir_nucleo")),
     supabase: Client = Depends(get_supabase_client),
 ) -> dict:
@@ -167,4 +170,6 @@ async def publicar_documento(
         logger.warning("Publicação de documento do Núcleo falhou: %s", erro)
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=_INDISPONIVEL) from erro
     linha = novo[0] if isinstance(novo, list) else novo
+    if corpo.tipo == "regimento" and corpo.natureza_revisao == "material":
+        tarefas.add_task(termo.termos_da_revisao_material, supabase, autor_id=me["id"])
     return _para_a_tela(linha, {me["id"]: me.get("nome_completo")})

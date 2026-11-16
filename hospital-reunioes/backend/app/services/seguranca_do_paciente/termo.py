@@ -29,6 +29,9 @@ from postgrest.exceptions import APIError
 
 from app.config import settings
 from app.services import clicksign_service, storage
+from app.services.paginacao import ler_tudo
+from app.services.seguranca_do_paciente import permissao
+from app.services.seguranca_do_paciente.membros import estado_do_membro
 from app.utils.text_sanitizer import sanitizar_estrutura
 
 logger = logging.getLogger(__name__)
@@ -433,6 +436,44 @@ def novo_termo(supabase, participacao: dict, *, autor_id: str, acao: str = "term
             "id", envio["id"]
         ).execute()
     return gerar_e_enviar_termo(supabase, participacao, autor_id=autor_id, acao=acao)
+
+
+# Quem assina de novo quando o Regimento muda de conteúdo (anexo E da
+# especificação): os membros que contam para quórum.
+ESTADOS_DA_REVISAO_MATERIAL = frozenset({"ativo", "a_vencer", "em_carencia"})
+
+
+def termos_da_revisao_material(supabase, *, autor_id: str) -> None:
+    """Novo Termo, com o Regimento que acabou de ser publicado, para cada
+    membro em Ativo, A vencer e Em carência (issue #1769). Roda depois da
+    resposta da publicação: falha num membro vai para o log e não impede os
+    outros; a ficha de quem falhou tem o reenvio."""
+    nucleo_id = permissao.id_do_nucleo(supabase)
+    if not nucleo_id:
+        return
+    hoje = permissao.hoje_em_sao_paulo()
+    participacoes = ler_tudo(
+        lambda: (
+            supabase.table("participacoes")
+            .select(
+                "id, participante_id, papel, area, vigencia_inicio, vigencia_fim, encerrada_em, "
+                "termo_gerado_em, termo_enviado_em, termo_assinado_em"
+            )
+            .eq("colegiado_id", nucleo_id)
+            .is_("encerrada_em", "null")
+            .order("id")
+        ),
+        rotulo="participações do Núcleo",
+    )
+    for participacao in participacoes:
+        if estado_do_membro(participacao, hoje) not in ESTADOS_DA_REVISAO_MATERIAL:
+            continue
+        try:
+            novo_termo(supabase, participacao, autor_id=autor_id)
+        except TermoNaoGeradoError as erro:
+            logger.warning("Termo da revisão do Regimento não gerado para %s: %s", participacao["id"], erro)
+        except Exception:  # noqa: BLE001 (um membro não segura os outros)
+            logger.exception("Termo da revisão do Regimento falhou para %s", participacao["id"])
 
 
 def reenviar_termo(supabase, participacao: dict, *, autor_id: str) -> dict:
