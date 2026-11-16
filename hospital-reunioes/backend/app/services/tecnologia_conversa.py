@@ -17,11 +17,13 @@ para o GitHub.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Any
 
 from app.dependencies import selecionar_participantes
 from app.services import tecnologia_avisos, tecnologia_email
 from app.services.notificacao_service import criar_notificacao_tecnologia
+from app.services.paginacao import ler_tudo
 from app.services.tecnologia import TABELA_CONVERSA_DA_DEMANDA, e_desenvolvedor, quem_avisar
 from app.services.tecnologia_vinculo import normalizar_github_login
 
@@ -108,3 +110,37 @@ def escrever(
             supabase, destinatario_id=destinatario, aviso=aviso, autor_nome=nome, demanda=demanda
         )
     return linha
+
+
+def ler(supabase, demanda_id: str, *, depois: datetime | None = None) -> list[dict[str, Any]]:
+    """As mensagens da Demanda que chegaram depois de `depois` (todas, sem ele),
+    na ordem em que chegaram, com o nome do autor, a data e o texto (issue
+    #1806, ADR 0096, decisao 6). Só lê: nada aqui grava nem muda a Etapa.
+
+    A conversa cresce sem teto, então a leitura é paginada pelo `ler_tudo`,
+    em ordem total (data e id)."""
+
+    def consulta():
+        q = (
+            supabase.table(TABELA_CONVERSA_DA_DEMANDA)
+            .select("id, autor_id, texto, criado_em")
+            .eq("demanda_id", demanda_id)
+        )
+        if depois is not None:
+            q = q.gt("criado_em", depois.isoformat())
+        return q.order("criado_em").order("id")
+
+    linhas = ler_tudo(consulta, rotulo="mensagens da Conversa da Demanda")
+    ids = sorted({str(linha["autor_id"]) for linha in linhas if linha.get("autor_id")})
+    nomes: dict[str, str] = {}
+    if ids:
+        result = selecionar_participantes(supabase, "id, nome_completo", lambda q: q.in_("id", ids))
+        nomes = {str(p["id"]): p.get("nome_completo") or "" for p in result.data or []}
+    return [
+        {
+            "autor": nomes.get(str(linha.get("autor_id"))),
+            "criado_em": linha.get("criado_em"),
+            "texto": linha.get("texto") or "",
+        }
+        for linha in linhas
+    ]
