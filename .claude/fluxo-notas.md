@@ -10,6 +10,22 @@ Vocabulário do domínio: Reunião, Ata, Pendência, Facilitador, Colaborador, E
 
 **PRD entregue:** quando a subida desta onda fecha a última sub-issue aberta de um PRD (health ok e nenhuma filha aberta em `gh api repos/{owner}/{repo}/issues/<PRD>/sub_issues`), chame a Skill tool com `mensagem-prd` e o número do PRD antes do relatório do passo 6. Cole a mensagem no relatório e grave o evento `pronto-para-voce` com "PRD #<PRD> em produção, mensagem para o diretor pronta no comentário do PRD". Vale também quando o prompt pede auditoria do PRD: a mensagem sai depois dela.
 
+**Baixa que espera decisão do diretor** (vale no lugar da regra do pacote, ADR 0096, decisões 5 e 6). A mensagem ao diretor tem o conteúdo de sempre (o que ele escolheu no planejamento, o que aconteceu, as opções e a recomendação), abre com "E aí" e passa pelo `humanizer`. Ela é rascunho: vai no comentário da baixa e no relatório, e nada sai sem o "aprovo" de quem roda a sessão. Depois do "aprovo", grave o texto aprovado num arquivo do scratchpad e rode:
+
+```bash
+python3 .claude/skills/pegar-issue/scripts/conversa.py enviar <N> <arquivo>
+```
+
+O script sobe da fatia até a raiz e escreve na Conversa da Demanda, no perfil de quem roda (o login do `gh`). Saída 0: a issue passa a esperar o diretor, `gh issue edit <N> --remove-label ready-for-human --add-label needs-info`. Saída 3 (a raiz não tem Demanda no app): o script imprime a mensagem, que segue pelo WhatsApp com o `mensagem_a_enviar.py`, como antes, e a issue fica em `ready-for-human`. Saída 1: repasse o motivo e rode de novo quando ele sumir; nunca mande pelos dois canais.
+
+**Retomada da baixa.** A resposta se lê com:
+
+```bash
+python3 .claude/skills/pegar-issue/scripts/conversa.py ler <N>
+```
+
+Ela aparece só no terminal: a fala do diretor não entra em issue, PR, commit, arquivo nem prompt de agente, nem citada nem resumida. Com ela, escreva a decisão com as suas palavras (a opção escolhida e o que muda na fatia) e mostre a quem roda; quando ele confirma, comente na issue `<!-- automacao -->` e `## Decisão` com esse texto e rode `gh issue edit <N> --remove-label needs-info --add-label ready-for-agent`. Com PR aberto, o `onda-corretor` (motivo `revisao`) recebe a decisão escrita pelo agente no lugar do comentário do revisor. "Sem resposta ainda": a issue segue em `needs-info`.
+
 ## onda-implementador
 
 - **Anexos da Demanda:** se o corpo da issue diz "Anexos" (os prints da Demanda, que vivem só no app), rode no seu worktree `python3 .claude/skills/pegar-issue/scripts/anexos.py <N>` e leia com a Read tool cada caminho que ele imprimir; saída 1 não bloqueia: siga sem as imagens e ponha o motivo em `atritos`.
@@ -59,7 +75,7 @@ Backend = `pytest` (TestClient e endpoints reais); frontend segue o padrão já 
 **Issue born from a Demanda (aba Tecnologia).** An issue whose body carries `<!-- demanda-vitta id="..." -->` was created by the app's **Criar o card** (ADR 0077). Treat it differently in three places:
 
 - **Refino first.** A Demanda without the Refino mark (`<!-- refino -->` or `<!-- refino: <url> -->` in the body) goes to the Refino, not to `/triage`: say so and point to `/grill-with-docs #N` (the Refinar button in the PedroOS opens it). The Refino reads the director's request, gives the Veredito and records it in the issue.
-- **Context.** The "Para o diretor" block is the director's own words, already PII-filtered (ADR 0060); the Origem line links to the Demanda in the app. Say upfront "veio da Demanda, responsável @login" so the maintainer knows who owns it on the app side. A question only the director can answer goes into the "Perguntas para o diretor" list of the Refino, which Pedro sends by WhatsApp; never by GitHub comment (comments don't reach the app).
+- **Context.** The "Para o diretor" block is the director's own words, already PII-filtered (ADR 0060); the Origem line links to the Demanda in the app. Say upfront "veio da Demanda, responsável @login" so the maintainer knows who owns it on the app side. A question only the director can answer goes into the "Perguntas para o diretor" list of the Refino, which goes out through the Demanda conversation (`conversa.py enviar`, note of `grill-with-docs`); never by GitHub comment (comments don't reach the app).
 - **Assignee.** The issue is born assigned to the Demanda's responsável. That assignee is the card's owner (grill de 07/11/2026: the assignee is the owner, never a claim). **Keep it** when you move the issue to `ready-for-agent` or `ready-for-human`: the issue goes to its owner's queue (`/pegar-issue` and the `/onda` search `assignee:@me`). To hand it to someone else, swap the assignee.
 
 The port (A/B/C) is still the triage's call: the button only opens the door.
@@ -144,7 +160,13 @@ O script reconhece a **Demanda** pelo marcador do diretor: a melhoria (o card qu
    ```
 
    O script escreve a seção do Refino e a lista de perguntas antes da Origem, troca a linha "O que muda" do bloco do diretor pelo Veredito, grava a marca de Refino (o PedroOS troca o Refinar pela indicação Refinada) e deixa o resto do corpo byte a byte. Refinar de novo, depois da resposta do diretor, troca o Refino anterior.
-4. Com pergunta aberta, mostre a mensagem que o script imprime num bloco de código, para o Pedro colar no WhatsApp do diretor. Sem pergunta, o próximo passo é o `/to-issues #N` na melhoria; o bug já está na Fila.
+4. Com pergunta aberta, mostre a mensagem que o script imprime num bloco de código e espere o "aprovo" de quem roda a sessão (ADR 0096, decisão 7). Aprovada, grave o texto num arquivo do scratchpad e envie pela Conversa da Demanda, no lugar do WhatsApp:
+
+   ```bash
+   python3 .claude/skills/pegar-issue/scripts/conversa.py enviar <N> <arquivo>
+   ```
+
+   A resposta do diretor se lê com `python3 .claude/skills/pegar-issue/scripts/conversa.py ler <N>`, só no terminal: o Refino seguinte grava o que o Pedro decidir com ela, sem a fala do diretor. Saída 3 (a issue não tem Demanda no app): o script imprime a mensagem, e o Pedro cola no WhatsApp do diretor, como antes. Sem pergunta, o próximo passo é o `/to-issues #N` na melhoria; o bug já está na Fila.
 
 ## express
 

@@ -264,3 +264,65 @@ def test_ler_sem_pergunta_do_terminal_nesta_maquina_avisa_e_nao_mostra_a_convers
     assert "enviar" in feito.stderr
     assert RESPOSTA not in feito.stdout
     assert not any(p["caminho"].endswith("/conversa") for p in pedidos)
+
+
+# ------------------------------------------------- quem chama: as notas do Hospital
+
+ENVIAR = "python3 .claude/skills/pegar-issue/scripts/conversa.py enviar <N> <arquivo>"
+LER = "python3 .claude/skills/pegar-issue/scripts/conversa.py ler <N>"
+
+
+def notas(skill: str) -> str:
+    return subprocess.run(
+        [sys.executable, str(RAIZ / ".claude" / "skills" / "onda-enxuta" / "scripts" / "fluxo.py"), "notas", skill],
+        capture_output=True,
+        text=True,
+        check=True,
+        cwd=RAIZ,
+    ).stdout
+
+
+def trecho(texto: str, inicio: str, fim: str) -> str:
+    """O pedaço entre dois marcadores: a regra tem que estar no lugar dela, e
+    não solta em outro canto das notas."""
+    assert inicio in texto, inicio
+    resto = texto[texto.index(inicio) :]
+    return resto[: resto.index(fim)] if fim in resto else resto
+
+
+def test_o_comando_que_as_notas_citam_e_o_script_de_verdade():
+    assert (RAIZ / ENVIAR.split()[1]).resolve() == SCRIPT
+
+
+def test_a_onda_deixa_o_rascunho_na_baixa_e_so_envia_depois_do_aprovo():
+    regra = trecho(notas("onda-enxuta"), "**Baixa que espera decisão do diretor", "**Retomada da baixa")
+
+    assert "rascunho" in regra and "comentário da baixa" in regra
+    assert regra.index('"aprovo"') < regra.index(ENVIAR)
+    # Com Demanda, a issue espera o diretor em needs-info; sem ela, o WhatsApp de sempre.
+    depois_do_envio = regra[regra.index(ENVIAR) :]
+    assert "--remove-label ready-for-human --add-label needs-info" in depois_do_envio
+    assert "Saída 3" in depois_do_envio and "mensagem_a_enviar.py" in depois_do_envio
+
+
+def test_a_retomada_le_so_no_terminal_e_volta_com_a_decisao_escrita_pelo_agente():
+    regra = trecho(notas("onda-enxuta"), "**Retomada da baixa", "\n#")
+
+    assert LER in regra
+    assert "só no terminal" in regra
+    assert "--remove-label needs-info --add-label ready-for-agent" in regra
+    assert "decisão escrita pelo agente" in regra and "onda-corretor" in regra
+    # A confirmação de quem roda vem antes da volta para a Fila.
+    assert regra.index("confirma") < regra.index("--add-label ready-for-agent")
+
+
+def test_o_refino_manda_as_perguntas_pela_conversa_da_demanda_quando_ha_demanda():
+    fechamento = trecho(notas("grill-with-docs"), "**Fechamento.**", "\n#")
+    passo = fechamento[fechamento.index("4. Com pergunta aberta") :]
+
+    assert ENVIAR in passo and LER in passo
+    assert passo.index('"aprovo"') < passo.index(ENVIAR)
+    # O WhatsApp sobra só para a issue sem Demanda: a única frase que manda colar lá é a da saída 3.
+    assert passo.count("cola no WhatsApp") == 1 and "colar no WhatsApp" not in passo
+    colar = passo.index("cola no WhatsApp")
+    assert "Saída 3" in passo[colar - 150 : colar]
