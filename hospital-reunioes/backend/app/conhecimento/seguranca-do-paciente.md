@@ -36,7 +36,7 @@ A Agenda regulatória do Núcleo:
 
 - a lista única das obrigações que se repetem (notificação externa do mês, fechamento mensal, reunião ordinária, avaliações nacionais, avaliação da cultura de segurança, revisão do PSP e do Regimento, vencimento de vigência dos membros, recalibração do agente), cada uma com periodicidade, próxima data, link e quantos dias antes lembrar. A lista nasce com os eventos da especificação e com as datas em branco, para a Presidência marcar;
 - a Presidência inclui, edita e desativa os eventos. Quem está no Núcleo, mesmo sem o Termo assinado, e a Diretoria só leem;
-- quando a próxima data entra na antecedência, o aplicativo cria uma pendência para a Presidência, uma só por data. O lembrete não sai por e-mail: aparece nas pendências da Presidência dentro do aplicativo;
+- quando a próxima data entra na antecedência, o aplicativo cria uma pendência para a Presidência, uma só por data. O lembrete não sai por e-mail: aparece no cartão do evento, na tela Agenda regulatória, com o número da pendência e o prazo. Ele não entra na tela Pendências, porque é assunto do Núcleo. Se a Presidência muda a data antes de registrar o resultado, o lembrete da data antiga é cancelado e um novo nasce para a data nova;
 - depois de cumprir, a Presidência registra o resultado e a data em que fez. O resultado fica no histórico do evento, o lembrete é concluído e a próxima data é calculada pela periodicidade (mensal, anual ou a cada dois anos). Evento avulso fica sem próxima data até alguém marcar.
 
 ## Quem vê

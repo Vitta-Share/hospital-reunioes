@@ -47,6 +47,10 @@ class _GenericQuery:
         self._filters[col] = value
         return self
 
+    @property
+    def not_(self):
+        return self
+
     def __getattr__(self, _name):
         return lambda *_a, **_kw: self
 

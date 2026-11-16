@@ -15,6 +15,13 @@ export interface ResultadoRegistrado {
   registrado_em: string | null;
 }
 
+/** A Pendência de lembrete que o job criou e ainda não foi fechada. */
+export interface LembreteAberto {
+  id_acao: string;
+  prazo: string | null;
+  status: string;
+}
+
 export interface EventoDaAgenda {
   id: string;
   evento: string;
@@ -26,6 +33,8 @@ export interface EventoDaAgenda {
   ativo: boolean;
   /** Os resultados registrados, o mais novo primeiro. */
   historico: ResultadoRegistrado[];
+  /** O lembrete aberto da próxima data, se o job já o criou. */
+  lembrete?: LembreteAberto | null;
 }
 
 const LABEL_PERIODICIDADE: Record<Periodicidade, string> = {
@@ -289,8 +298,9 @@ type Aberto = { id: string; modo: "editar" | "resultado" } | null;
 /**
  * A Agenda regulatória do Núcleo (issue #1779): as obrigações recorrentes,
  * com a próxima data, o link e o último resultado. A Presidência inclui,
- * edita, desativa e registra o resultado; o lembrete chega a ela como
- * Pendência, criada pelo servidor. Quem pode editar é o servidor que diz.
+ * edita, desativa e registra o resultado. O lembrete é uma Pendência que o
+ * servidor cria e que aparece aqui, no cartão do evento, até o resultado ser
+ * registrado. Quem pode editar é o servidor que diz.
  */
 export function AgendaRegulatoria() {
   const [itens, setItens] = useState<EventoDaAgenda[]>([]);
@@ -451,6 +461,20 @@ export function AgendaRegulatoria() {
                   )}
                 </div>
               </dl>
+
+              {evento.lembrete && (
+                <p
+                  role="status"
+                  className={`mt-3 rounded-lg px-3 py-2 text-sm ${
+                    evento.lembrete.status === "ATRASADO" ? "bg-red-50 text-red-800" : "bg-amber-50 text-amber-900"
+                  }`}
+                >
+                  {evento.lembrete.status === "ATRASADO" ? "Lembrete atrasado" : "Lembrete aberto"}: pendência{" "}
+                  {evento.lembrete.id_acao}
+                  {evento.lembrete.prazo ? `, prazo ${dataBr(evento.lembrete.prazo)}` : ""}. Registre o resultado para
+                  fechar.
+                </p>
+              )}
 
               {evento.link && (
                 <a

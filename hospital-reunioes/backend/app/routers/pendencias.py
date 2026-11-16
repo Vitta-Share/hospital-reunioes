@@ -21,6 +21,7 @@ from app.models.admin_schemas import ForceEditPendenciaRequest, ReasonRequest
 from app.models.schemas import PendenciaResponse, PendenciaStats, PendenciaUpdate
 from app.services import audit
 from app.services.notificacao_service import criar_notificacao_responsavel
+from app.services.pendencia_service import e_lembrete_do_nucleo
 from app.services.pendencias_consulta import consultar_pendencias, sem_reunioes_ocultas
 from app.utils.query_params import parse_csv_param
 
@@ -104,7 +105,8 @@ async def get_pendencias_stats(
     query = sem_reunioes_ocultas(
         supabase.table("pendencias")
         .select("status, responsavel_id, prazo, id_reuniao, co_responsavel_id")
-        .is_("deleted_at", "null"),
+        .is_("deleted_at", "null")
+        .not_.is_("id_reuniao", "null"),
         visibilidade.ocultas,
     )
 
@@ -221,7 +223,13 @@ async def list_minhas_pendencias(
         return []
 
     participante_id = participante["id"]
-    query = supabase.table("pendencias").select("*").eq("responsavel_id", participante_id).is_("deleted_at", "null")
+    query = (
+        supabase.table("pendencias")
+        .select("*")
+        .eq("responsavel_id", participante_id)
+        .is_("deleted_at", "null")
+        .not_.is_("id_reuniao", "null")
+    )
 
     if status:
         query = query.eq("status", status)
@@ -291,7 +299,7 @@ async def get_pendencia(
         raise HTTPException(status_code=403, detail="Secretária não tem acesso a pendências")
 
     result = supabase.table("pendencias").select("*").eq("id_acao", id_acao).is_("deleted_at", "null").execute()
-    if not result.data:
+    if not result.data or e_lembrete_do_nucleo(result.data[0]):
         raise HTTPException(status_code=404, detail="Pendência não encontrada")
 
     pendencia = result.data[0]
@@ -332,7 +340,7 @@ async def update_pendencia_status(
         .eq("id_acao", id_acao)
         .execute()
     )
-    if not existing.data:
+    if not existing.data or e_lembrete_do_nucleo(existing.data[0]):
         raise HTTPException(status_code=404, detail="Pendência não encontrada")
 
     pendencia = existing.data[0]
@@ -492,7 +500,7 @@ async def force_deletar_pendencia(
         .eq("id_acao", id_acao)
         .execute()
     )
-    if not existing.data:
+    if not existing.data or e_lembrete_do_nucleo(existing.data[0]):
         raise HTTPException(status_code=404, detail="Pendência não encontrada")
 
     pendencia = existing.data[0]
@@ -545,7 +553,7 @@ async def force_editar_pendencia(
         .eq("id_acao", id_acao)
         .execute()
     )
-    if not existing.data:
+    if not existing.data or e_lembrete_do_nucleo(existing.data[0]):
         raise HTTPException(status_code=404, detail="Pendência não encontrada")
 
     pendencia = existing.data[0]

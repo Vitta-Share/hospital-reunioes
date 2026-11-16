@@ -103,6 +103,21 @@ describe("o que a pessoa vê", () => {
     expect(cultura.getByText("Sem data marcada")).toBeTruthy();
   });
 
+  it("o lembrete aberto aparece no cartão do evento, com a pendência e o prazo", async () => {
+    LISTA[0].lembrete = { id_acao: "A123", prazo: "2026-12-21", status: "ATRASADO" };
+    try {
+      render(<AgendaRegulatoria />);
+
+      const notificacao = within(await cartao("Notificação externa do mês"));
+      expect(notificacao.getByRole("status").textContent).toBe(
+        "Lembrete atrasado: pendência A123, prazo 21/12/2026. Registre o resultado para fechar."
+      );
+      expect(within(await cartao("Avaliação da cultura de segurança")).queryByRole("status")).toBeNull();
+    } finally {
+      LISTA[0].lembrete = null;
+    }
+  });
+
   it("o evento desativado aparece marcado", async () => {
     render(<AgendaRegulatoria />);
 

@@ -128,6 +128,15 @@ class _Resultado:
 _CONDICAO_DO_OR = re.compile(r"(\w+)\.(eq|in)\.(\([^)]*\)|[^,]+)")
 
 
+class _Nao:
+    def __init__(self, consulta: _Consulta):
+        self._consulta = consulta
+
+    def is_(self, coluna: str, valor: str) -> _Consulta:
+        assert valor == "null"
+        return self._consulta._filtra(lambda r: r.get(coluna) is not None)
+
+
 class _Consulta:
     """O pedaço do cliente do PostgREST que as duas portas usam. Leitura filtra
     as linhas da tabela; escrita fica anotada no banco e não muda nada."""
@@ -154,6 +163,11 @@ class _Consulta:
     def is_(self, coluna: str, valor: str) -> _Consulta:
         assert valor == "null"
         return self._filtra(lambda r: r.get(coluna) is None)
+
+    @property
+    def not_(self) -> _Nao:
+        """`not_.is_(coluna, "null")`: a lista de Pendências tira a sem Reunião (#1779)."""
+        return _Nao(self)
 
     def in_(self, coluna: str, valores) -> _Consulta:
         conjunto = set(valores)

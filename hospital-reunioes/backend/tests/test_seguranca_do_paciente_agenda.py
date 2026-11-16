@@ -38,6 +38,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from app.cron import scheduler  # noqa: E402
 from app.dependencies import get_current_user, get_supabase_client  # noqa: E402
 from app.limiter import limiter  # noqa: E402
+from app.routers import comentarios as comentarios_router  # noqa: E402
+from app.routers import pendencias as pendencias_router  # noqa: E402
 from app.routers import seguranca_do_paciente_agenda as agenda_router  # noqa: E402
 from app.services.seguranca_do_paciente import agenda  # noqa: E402
 from app.services.seguranca_do_paciente.permissao import hoje_em_sao_paulo  # noqa: E402
@@ -90,6 +92,22 @@ class _Consulta:
         self._acao, self._valores = "update", valores
         return self
 
+    def delete(self):
+        self._acao = "delete"
+        return self
+
+    @property
+    def not_(self):
+        consulta = self
+
+        class _Nao:
+            def is_(self, coluna, valor):
+                assert valor == "null"
+                consulta._filtros.append(lambda linha: linha.get(coluna) is not None)
+                return consulta
+
+        return _Nao()
+
     def eq(self, coluna, valor):
         self._filtros.append(lambda linha: linha.get(coluna) == valor)
         return self
@@ -119,6 +137,10 @@ class _Consulta:
         self._teto = n
         return self
 
+    def range(self, inicio, fim):
+        self._teto = fim + 1
+        return self
+
     def execute(self):
         self._banco.escritas.append((self._acao, self._nome)) if self._acao != "select" else None
         if self._acao == "insert":
@@ -128,11 +150,15 @@ class _Consulta:
             for linha in casam:
                 linha.update(self._valores)
             return SimpleNamespace(data=[dict(linha) for linha in casam])
+        if self._acao == "delete":
+            self._linhas[:] = [linha for linha in self._linhas if linha not in casam]
+            return SimpleNamespace(data=[dict(linha) for linha in casam])
         casam = [dict(linha) for linha in casam]
         if self._ordem:
             coluna, desc = self._ordem
             casam.sort(key=lambda linha: (linha.get(coluna) is None, str(linha.get(coluna))), reverse=desc)
-        return SimpleNamespace(data=casam[: self._teto] if self._teto is not None else casam)
+        total = len(casam)
+        return SimpleNamespace(data=casam[: self._teto] if self._teto is not None else casam, count=total)
 
     def _inserir(self) -> list[dict]:
         novas = self._valores if isinstance(self._valores, list) else [self._valores]
@@ -420,6 +446,176 @@ class TestLembrete:
         agenda.lembrar(banco, DIA)
 
         assert {tabela for _acao, tabela in banco.escritas} == {"pendencias", "nsp_agenda_ocorrencias"}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2b. O lembrete é conteúdo do Núcleo: a Presidência o vê na Agenda, e as
+#     rotas de Pendências não o mostram a ninguém (decisão 4)
+# ═══════════════════════════════════════════════════════════════════════════
+
+RECUSA_DA_PENDENCIA = {"detail": "Pendência não encontrada"}
+SUPER = _pessoa("P9", **SUPER_ADMIN)
+
+
+def _cenario_com_lembrete() -> tuple[_Banco, str]:
+    """O lembrete do job e, de piso, uma Pendência de Reunião que as rotas de
+    Pendências mostram ao super admin."""
+    banco = _banco(
+        [PRESIDENTE, MEMBRO, SUPER],
+        [_participacao("P1", "presidencia"), _participacao("P2", "membro")],
+        [_item(id="item-fixo", proxima_data=(DIA + timedelta(days=5)).isoformat())],
+    )
+    agenda.lembrar(banco, DIA)
+    [lembrete] = banco.tabelas["pendencias"]
+    banco.tabelas["pendencias"].append(
+        {
+            "id_acao": "A900",
+            "id_reuniao": "R-1",
+            "descricao_acao": "Ação de reunião",
+            "responsavel_id": "P2",
+            "status": "PENDENTE",
+            "prazo": DIA.isoformat(),
+        }
+    )
+    banco.escritas.clear()
+    return banco, lembrete["id_acao"]
+
+
+def _cliente_das_pendencias(pessoa: dict[str, Any], banco: _Banco) -> TestClient:
+    app = FastAPI()
+    app.state.limiter = limiter
+    app.include_router(pendencias_router.router, prefix="/api")
+    app.include_router(comentarios_router.router, prefix="/api")
+
+    async def _usuario() -> dict[str, Any]:
+        return {"id": pessoa["auth_user_id"], "email": pessoa["email"], "metadata": {}}
+
+    app.dependency_overrides[get_current_user] = _usuario
+    app.dependency_overrides[get_supabase_client] = lambda: banco
+    return TestClient(app)
+
+
+class TestLembreteNaAgenda:
+    def test_a_presidencia_ve_o_lembrete_aberto_na_agenda(self):
+        """Mutante: `listar` sem o lembrete aberto."""
+        banco, id_acao = _cenario_com_lembrete()
+
+        resposta = _cliente(PRESIDENTE, banco).get(ROTA)
+
+        assert resposta.status_code == 200, resposta.text
+        [item] = resposta.json()["itens"]
+        lembrete = item["lembrete"]
+        assert (lembrete["id_acao"], lembrete["prazo"], lembrete["status"]) == (id_acao, "2026-11-21", "PENDENTE")
+
+    def test_o_resultado_tira_o_lembrete_da_agenda(self):
+        banco, _ = _cenario_com_lembrete()
+        cliente = _cliente(PRESIDENTE, banco)
+
+        cliente.post(f"{ROTA}/item-fixo/resultado", json={"resultado": "Reunião feita"})
+
+        assert cliente.get(ROTA).json()["itens"][0]["lembrete"] is None
+
+
+class TestLembreteForaDasPendencias:
+    def test_a_lista_de_pendencias_nao_mostra_o_lembrete_ao_super_admin(self):
+        """Mutante: tirar o filtro da Pendência sem Reunião em `consultar_pendencias`."""
+        banco, _ = _cenario_com_lembrete()
+
+        resposta = _cliente_das_pendencias(SUPER, banco).get("/api/pendencias")
+
+        assert resposta.status_code == 200, resposta.text
+        assert [p["id_acao"] for p in resposta.json()] == ["A900"]
+        assert resposta.headers["X-Total-Count"] == "1"
+
+    def test_os_contadores_do_dashboard_nao_contam_o_lembrete(self):
+        """Mutante: tirar o filtro da Pendência sem Reunião em `/pendencias/stats`."""
+        banco, _ = _cenario_com_lembrete()
+
+        resposta = _cliente_das_pendencias(SUPER, banco).get("/api/pendencias/stats")
+
+        assert resposta.status_code == 200, resposta.text
+        assert (resposta.json()["total"], resposta.json()["pendente"]) == (1, 1)
+
+    def test_minhas_pendencias_nao_traz_o_lembrete(self):
+        """Mutante: tirar o filtro da Pendência sem Reunião em `/pendencias/minhas`."""
+        banco, _ = _cenario_com_lembrete()
+        banco.tabelas["participantes"][0]["access_profile"] = "facilitador"
+        banco.tabelas["pendencias"][1]["responsavel_id"] = "P1"
+
+        resposta = _cliente_das_pendencias(PRESIDENTE, banco).get("/api/pendencias/minhas")
+
+        assert resposta.status_code == 200, resposta.text
+        assert [p["id_acao"] for p in resposta.json()] == ["A900"]
+
+    def test_piso_o_super_admin_abre_a_pendencia_de_reuniao(self):
+        """Sem este piso, o 404 de baixo podia ser do dublê e não da regra."""
+        banco, _ = _cenario_com_lembrete()
+
+        resposta = _cliente_das_pendencias(SUPER, banco).get("/api/pendencias/A900")
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["descricao_acao"] == "Ação de reunião"
+
+    @pytest.mark.parametrize(
+        ("metodo", "sufixo", "corpo"),
+        [
+            ("GET", "", None),
+            ("PATCH", "", {"status": "CONCLUIDO"}),
+            ("PATCH", "/force", {"responsavel_id": "P9", "reason": "Reatribuir"}),
+            ("DELETE", "/force", {"reason": "Apagar"}),
+            ("GET", "/comentarios", None),
+            ("POST", "/comentarios", {"conteudo": "Comentário"}),
+        ],
+    )
+    def test_o_super_admin_nao_alcanca_o_lembrete_por_id(self, metodo, sufixo, corpo):
+        """Mutante: `e_lembrete_do_nucleo` devolvendo sempre False."""
+        banco, id_acao = _cenario_com_lembrete()
+
+        resposta = _cliente_das_pendencias(SUPER, banco).request(
+            metodo, f"/api/pendencias/{id_acao}{sufixo}", **({"json": corpo} if corpo else {})
+        )
+
+        assert resposta.status_code == 404, resposta.text
+        assert resposta.json() == RECUSA_DA_PENDENCIA
+        assert banco.escritas == []
+        lembrete = next(p for p in banco.tabelas["pendencias"] if p["id_acao"] == id_acao)
+        assert (lembrete["status"], lembrete["responsavel_id"]) == ("PENDENTE", "P1")
+
+
+class TestDataMudada:
+    def test_mudar_a_data_encerra_o_lembrete_da_data_antiga(self):
+        """Mutante: o PATCH da agenda sem `encerrar_lembrete`."""
+        banco, antigo = _cenario_com_lembrete()
+        cliente = _cliente(PRESIDENTE, banco)
+
+        resposta = cliente.patch(f"{ROTA}/item-fixo", json={"proxima_data": (DIA + timedelta(days=20)).isoformat()})
+        assert resposta.status_code == 200, resposta.text
+        assert agenda.lembrar(banco, DIA + timedelta(days=15)) == 1
+        cliente.post(f"{ROTA}/item-fixo/resultado", json={"resultado": "Reunião feita"})
+
+        status = {p["id_acao"]: p["status"] for p in banco.tabelas["pendencias"] if p["id_acao"] != "A900"}
+        assert status[antigo] == "CANCELADO"
+        assert sorted(status.values()) == ["CANCELADO", "CONCLUIDO"]
+
+    def test_voltar_para_a_data_antiga_lembra_de_novo(self):
+        banco, _ = _cenario_com_lembrete()
+        cliente = _cliente(PRESIDENTE, banco)
+        antiga = (DIA + timedelta(days=5)).isoformat()
+
+        cliente.patch(f"{ROTA}/item-fixo", json={"proxima_data": (DIA + timedelta(days=20)).isoformat()})
+        cliente.patch(f"{ROTA}/item-fixo", json={"proxima_data": antiga})
+
+        assert agenda.lembrar(banco, DIA) == 1
+
+    def test_editar_sem_mudar_a_data_mantem_o_lembrete(self):
+        banco, id_acao = _cenario_com_lembrete()
+
+        _cliente(PRESIDENTE, banco).patch(
+            f"{ROTA}/item-fixo", json={"proxima_data": (DIA + timedelta(days=5)).isoformat(), "link": None}
+        )
+
+        lembrete = next(p for p in banco.tabelas["pendencias"] if p["id_acao"] == id_acao)
+        assert lembrete["status"] == "PENDENTE"
 
 
 # ═══════════════════════════════════════════════════════════════════════════

@@ -102,13 +102,20 @@ async def editar_evento(
             raise HTTPException(status_code=422, detail="Diga qual é o evento.")
     if "regra" in campos:
         campos["regra"] = _limpo(campos["regra"])
-    existe = supabase.table(agenda.TABELA).select("id").eq("id", item_id).limit(1).execute().data
+    existe = supabase.table(agenda.TABELA).select("id, proxima_data").eq("id", item_id).limit(1).execute().data
     if not existe:
         raise HTTPException(status_code=404, detail="Evento não encontrado")
     if not campos:
         return existe[0]
     campos["updated_at"] = datetime.now().astimezone()
-    return supabase.table(agenda.TABELA).update(_gravavel(campos)).eq("id", item_id).execute().data[0]
+    gravavel = _gravavel(campos)
+    atualizado = supabase.table(agenda.TABELA).update(gravavel).eq("id", item_id).execute().data[0]
+    # A data mudou antes do resultado: o lembrete da data antiga se encerra,
+    # senão vira ATRASADO e nada o fecha.
+    data_antiga = existe[0].get("proxima_data")
+    if "proxima_data" in gravavel and data_antiga and str(data_antiga)[:10] != gravavel["proxima_data"]:
+        agenda.encerrar_lembrete(supabase, item_id, data_antiga)
+    return atualizado
 
 
 @router.post("/{item_id}/resultado")

@@ -201,15 +201,66 @@ def registrar_resultado(
     return atualizado[0]
 
 
+def encerrar_lembrete(supabase, item_id: str, data_prevista: str) -> None:
+    """A data do evento mudou antes do resultado: o lembrete da data antiga
+    não tem mais o que cobrar. A Pendência dele vira CANCELADO e a ocorrência
+    sem resultado sai, para a data antiga voltar a lembrar se for marcada de
+    novo. Ocorrência com resultado é histórico e fica."""
+    ocorrencias = (
+        supabase.table(TABELA_OCORRENCIAS)
+        .select("id, pendencia_id, resultado")
+        .eq("item_id", item_id)
+        .eq("data_prevista", str(data_prevista)[:10])
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+    if not ocorrencias or ocorrencias[0].get("resultado"):
+        return
+    ocorrencia = ocorrencias[0]
+    if ocorrencia.get("pendencia_id"):
+        supabase.table("pendencias").update({"status": "CANCELADO"}).eq("id_acao", ocorrencia["pendencia_id"]).in_(
+            "status", list(_STATUS_ABERTOS)
+        ).execute()
+    supabase.table(TABELA_OCORRENCIAS).delete().eq("id", ocorrencia["id"]).execute()
+
+
+def _lembretes_abertos(supabase, ocorrencias: list[dict]) -> dict[str, dict]:
+    """O lembrete aberto de cada evento (a Pendência da ocorrência ainda sem
+    resultado), como a Presidência o vê na tela: código, prazo e situação. As
+    rotas de Pendências não mostram o lembrete (é conteúdo do Núcleo)."""
+    por_pendencia = {
+        linha["pendencia_id"]: linha["item_id"]
+        for linha in ocorrencias
+        if linha.get("pendencia_id") and not linha.get("resultado")
+    }
+    if not por_pendencia:
+        return {}
+    pendencias = (
+        supabase.table("pendencias")
+        .select("id_acao, prazo, status")
+        .in_("id_acao", list(por_pendencia))
+        .in_("status", list(_STATUS_ABERTOS))
+        .is_("deleted_at", "null")
+        .execute()
+        .data
+        or []
+    )
+    return {por_pendencia[p["id_acao"]]: p for p in pendencias}
+
+
 def listar(supabase) -> list[dict[str, Any]]:
     """Os eventos, ativos primeiro e pela próxima data, cada um com o
-    histórico dos resultados registrados (o mais novo primeiro)."""
+    histórico dos resultados registrados (o mais novo primeiro) e o lembrete
+    aberto, se houver."""
     itens = supabase.table(TABELA).select("*").execute().data or []
     historico: dict[str, list[dict]] = {}
+    lembretes: dict[str, dict] = {}
     if itens:
         ocorrencias = (
             supabase.table(TABELA_OCORRENCIAS)
-            .select("item_id, data_prevista, resultado, realizada_em, registrado_por, registrado_em")
+            .select("item_id, data_prevista, pendencia_id, resultado, realizada_em, registrado_por, registrado_em")
             .in_("item_id", [item["id"] for item in itens])
             .order("data_prevista", desc=True)
             .execute()
@@ -218,7 +269,10 @@ def listar(supabase) -> list[dict[str, Any]]:
         )
         for linha in ocorrencias:
             if linha.get("resultado"):
-                historico.setdefault(linha["item_id"], []).append(linha)
+                historico.setdefault(linha["item_id"], []).append(
+                    {chave: valor for chave, valor in linha.items() if chave != "pendencia_id"}
+                )
+        lembretes = _lembretes_abertos(supabase, ocorrencias)
     itens.sort(
         key=lambda item: (
             not item.get("ativo"),
@@ -227,4 +281,6 @@ def listar(supabase) -> list[dict[str, Any]]:
             item.get("evento") or "",
         )
     )
-    return [{**item, "historico": historico.get(item["id"], [])} for item in itens]
+    return [
+        {**item, "historico": historico.get(item["id"], []), "lembrete": lembretes.get(item["id"])} for item in itens
+    ]

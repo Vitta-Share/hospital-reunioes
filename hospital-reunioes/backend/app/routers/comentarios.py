@@ -23,6 +23,7 @@ from app.services.notificacao_service import (
     criar_notificacao_comentario,
     criar_notificacao_mencao,
 )
+from app.services.pendencia_service import e_lembrete_do_nucleo
 
 router = APIRouter(
     prefix="/pendencias",
@@ -70,7 +71,7 @@ async def _carregar_pendencia_visivel(
 ) -> dict:
     """Carrega a Pendência e aplica o gate de visibilidade binária (404 se invisível)."""
     pend = supabase.table("pendencias").select(fields).eq("id_acao", id_acao).execute()
-    if not pend.data:
+    if not pend.data or e_lembrete_do_nucleo(pend.data[0]):
         raise HTTPException(status_code=404, detail="Pendência não encontrada")
 
     pendencia = pend.data[0]
