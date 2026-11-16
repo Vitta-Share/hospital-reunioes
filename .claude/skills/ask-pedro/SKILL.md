@@ -56,7 +56,7 @@ O diretor faz a metade de negócio do grill no app (ADR 0075). No card aberto de
 
 ## Pós-entrega
 
-- `/divulgar <N>`: a entrega pro diretor numa página de divulgação publicada na Vercel, uma explicada leve no que mudou, com o link gravado na issue. Não faz vídeo (o estúdio saiu em 14/11/2026). A fonte fica numa pasta por PRD em `docs/comunicacao/<contexto>/` (ADR 0045).
+- `/divulgar <N>`: a entrega pro diretor: um vídeo curto das telas reais, feito pelo Estúdio de Vídeos no Estilo Nova Feature (só no Mac do Pedro; fora dele, só a página), e a página de divulgação publicada na Vercel com o vídeo embutido, com o link gravado na issue. O MP4 vai para `~/Videos/Hospital/`, nunca para o repositório. A fonte fica numa pasta por PRD em `docs/comunicacao/<contexto>/` (ADR 0045).
 - `/mensagem-prd <PRD>`: a mensagem informal de WhatsApp que o Pedro manda ao diretor quando o PRD sobe: o que subiu e o que ele já consegue fazer no app, em tópicos e sem jargão, só o que já está em produção, com o link da página do `/divulgar` quando existir. A `/onda-enxuta` que fecha a última filha do PRD roda sozinha depois da subida e avisa no celular; à mão, para PRD fechado fora da onda. Sai em bloco para copiar e fica registrada como comentário no PRD. O envio é do Pedro.
 - `/snapshot`: mapa factual da app (roda sozinho numa Action no push da `main`, depois do registro da subida, ADR 0068).
 - `/atualizar-app`: rebuild local docker-compose (não toca produção).
