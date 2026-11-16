@@ -307,6 +307,31 @@ def notify_signers(envelope_id: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# 7.1 Cancelar o Envelope (reenvio do Termo do Núcleo, issue #1768)
+# ---------------------------------------------------------------------------
+def cancel_envelope(envelope_id: str) -> bool:
+    """Cancela o Envelope (status "canceled"): o link antigo deixa de valer.
+
+    Usado no reenvio do Termo de Adesão do Núcleo, que invalida o envio
+    anterior antes de criar outro. Falha devolve False (quem chama segue: o
+    envio antigo já fica cancelado no banco, e o retorno dele é ignorado).
+    """
+    payload = {"data": {"id": envelope_id, "type": "envelopes", "attributes": {"status": "canceled"}}}
+    try:
+        with httpx.Client(timeout=30) as client:
+            resp = client.patch(_url(f"/envelopes/{envelope_id}"), json=payload, headers=_headers())
+            resp.raise_for_status()
+            logger.info(f"[ClickSign] Envelope {envelope_id} cancelado")
+            return True
+    except httpx.HTTPStatusError as e:
+        logger.error(f"[ClickSign v3] Erro ao cancelar envelope: {e.response.text[:200]}")
+        return False
+    except Exception as e:
+        logger.error(f"[ClickSign v3] Erro inesperado ao cancelar envelope: {e}")
+        return False
+
+
+# ---------------------------------------------------------------------------
 # 8. Baixar PDF assinado
 # ---------------------------------------------------------------------------
 def get_signed_document(envelope_id: str) -> bytes | None:

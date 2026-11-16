@@ -53,7 +53,8 @@ def test_a_trilha_aceita_a_liberacao_manual_com_motivo():
 
 def test_o_termo_assinado_entra_nos_documentos_uma_vez_por_envio():
     assert re.search(
-        r"ALTER TABLE nsp_documentos\s+ADD COLUMN IF NOT EXISTS termo_envio_id UUID UNIQUE REFERENCES nsp_termos_envios",
+        r"ALTER TABLE nsp_documentos\s+ADD COLUMN IF NOT EXISTS termo_envio_id UUID UNIQUE "
+        r"REFERENCES nsp_termos_envios",
         _sql(),
     )
 

@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     supabase_storage_bucket_anexos_ouvidoria: str = "anexos-ouvidoria"
     # Bucket privado do Anexo da Demanda (migration 115, ADR 0069).
     supabase_storage_bucket_anexos_tecnologia: str = "anexos-tecnologia"
+    # Bucket privado dos arquivos do Núcleo de Segurança do Paciente
+    # (migration 151): o Termo de Adesão gerado e o assinado.
+    supabase_storage_bucket_nsp_documentos: str = "nsp-documentos"
 
     # IA de texto (issue #1302): API da Anthropic, um fornecedor e um modelo
     # para o app inteiro (Atas, POP, Ouvidoria, Assistente de Tecnologia e

@@ -89,6 +89,18 @@ async def webhook_clicksign(
         _processar_versao_pop(supabase, versao_q.data[0], event_name)
         return {"received": True}
 
+    # Terceiro destino (issue #1768): o envelope do Termo de Adesão do Núcleo.
+    termo_q = supabase.table("nsp_termos_envios").select("*").eq("documento_key", envelope_key).execute()
+    if termo_q.data:
+        from app.services.seguranca_do_paciente import termo
+
+        try:
+            termo.processar_evento(supabase, termo_q.data[0], event_name)
+        except Exception as e:
+            logger.error(f"[ClickSign webhook] Falha no Termo do Núcleo: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Falha ao registrar o Termo; a ClickSign deve reenviar.")
+        return {"received": True}
+
     logger.warning(f"[ClickSign webhook] envelope_key '{envelope_key}' não encontrado no banco.")
     return {"message": "Documento não encontrado."}
 

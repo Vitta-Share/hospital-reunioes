@@ -9,23 +9,30 @@ composição de qualquer data passada. Toda mudança grava a trilha (autor,
 campo, valor anterior e novo). Não existe rota DELETE, e o banco recusa apagar
 Participação (migration 150).
 
-O estado do membro sai da função pura de `membros`; nesta fatia ele para em
-Cadastrado, porque o Termo e a assinatura chegam na fatia do Termo.
+O estado do membro sai da função pura de `membros`. Cadastrar gera o Termo de
+Adesão e o envia para assinatura (issue #1768, serviço `termo`); sem Regimento
+vigente ou com a assinatura eletrônica fora, o cadastro fica de pé e a resposta
+traz o aviso em `aviso_termo`.
 """
 
 from __future__ import annotations
 
+import logging
 from datetime import date
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field, field_validator
+from starlette.concurrency import run_in_threadpool
 from supabase import Client
 
 from app.dependencies import get_supabase_client, require_recurso_nsp, selecionar_participantes
 from app.limiter import limiter
+from app.services.seguranca_do_paciente import termo
 from app.services.seguranca_do_paciente.membros import estado_do_membro, vigente_em
 from app.services.seguranca_do_paciente.permissao import PAPEIS_DO_NUCLEO, hoje_em_sao_paulo, id_do_nucleo
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/nsp/membros", tags=["seguranca-do-paciente"])
 
@@ -37,7 +44,8 @@ CAMPOS_DO_REGISTRO = ("conselho_profissional", "registro_profissional", "registr
 CAMPOS_DA_PARTICIPACAO = ("papel", "area", "vigencia_inicio", "vigencia_fim")
 
 _COLUNAS_DA_PARTICIPACAO = (
-    "id, participante_id, papel, area, vigencia_inicio, vigencia_fim, encerrada_em, termo_assinado_em"
+    "id, participante_id, papel, area, vigencia_inicio, vigencia_fim, encerrada_em, "
+    "termo_gerado_em, termo_enviado_em, termo_assinado_em"
 )
 
 
@@ -143,6 +151,8 @@ def _linha(participacao: dict, pessoa: dict | None, hoje: date) -> dict[str, Any
         "vigencia_inicio": participacao["vigencia_inicio"],
         "vigencia_fim": participacao["vigencia_fim"],
         "encerrada_em": participacao.get("encerrada_em"),
+        "termo_gerado_em": participacao.get("termo_gerado_em"),
+        "termo_enviado_em": participacao.get("termo_enviado_em"),
         "termo_assinado_em": participacao.get("termo_assinado_em"),
         "estado": estado_do_membro(participacao, hoje),
     }
@@ -380,7 +390,20 @@ async def cadastrar_membro(
     _gravar_trilha(
         supabase, nova["id"], me["id"], "edicao", _atualizar_registro(supabase, body.participante_id, pessoa, registro)
     )
-    return _responder(supabase, nova["id"], nucleo_id)
+    aviso = await run_in_threadpool(_gerar_termo, supabase, nova, me["id"])
+    return {**_responder(supabase, nova["id"], nucleo_id), "aviso_termo": aviso}
+
+
+def _gerar_termo(supabase, participacao: dict, autor_id: str) -> str | None:
+    """Gera e envia o Termo do membro recém-cadastrado. O cadastro já está
+    gravado: falha aqui vira aviso na resposta, e a ficha tem o reenvio."""
+    try:
+        return termo.gerar_e_enviar(supabase, participacao, autor_id=autor_id).get("erro")
+    except termo.TermoNaoGeradoError as erro:
+        return str(erro)
+    except Exception:  # noqa: BLE001 — o cadastro não se desfaz por falha do Termo
+        logger.exception("Termo de Adesão da Participação %s não gerado", participacao.get("id"))
+        return "O Termo de Adesão não foi gerado agora. Use Reenviar o Termo na ficha do membro."
 
 
 @router.patch("/{participacao_id}")

@@ -177,6 +177,8 @@ def _sb(versao: dict | None = None, reunioes: list[dict] | None = None) -> _Supa
             "pops_setores": [{"id": "s-cti", "nome": "Coordenação do CTI", "sigla": "CTI"}],
             "participantes": [_pessoa("P1"), _pessoa("P2"), _pessoa("P3"), _pessoa("P6")],
             "audit_log": [],
+            # O terceiro destino do webhook (issue #1768): o Termo do Núcleo.
+            "nsp_termos_envios": [],
         }
     )
 

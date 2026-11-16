@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Termo de Adesão e Compromisso, {{ membro.nome }}</title>
+    <style>
+        {% if font_path %}
+        @font-face {
+            font-family: "HP Simplified";
+            src: url("{{ font_path }}") format("truetype");
+            font-weight: 400;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: "HP Simplified";
+            src: url("{{ font_path }}") format("truetype");
+            font-weight: 700;
+            font-style: normal;
+        }
+        {% endif %}
+
+        @page {
+            size: A4;
+            margin: 2cm 1.8cm 1.8cm 1.8cm;
+            @bottom-right {
+                content: "Página " counter(page) " de " counter(pages);
+                font-family: "HP Simplified", sans-serif;
+                font-size: 8.5pt;
+                color: #64748B;
+            }
+            @bottom-left {
+                content: "Termo de Adesão · Documento {{ documento.identificador }}";
+                font-family: "HP Simplified", sans-serif;
+                font-size: 8pt;
+                color: #64748B;
+            }
+        }
+
+        body {
+            font-family: "HP Simplified", sans-serif;
+            font-synthesis: weight style;
+            color: #1E293B;
+            line-height: 1.55;
+            margin: 0;
+            font-size: 10.5pt;
+        }
+
+        .header { display: table; width: 100%; border-bottom: 1px solid #E2E8F0; padding-bottom: 16px; margin-bottom: 14px; }
+        .header-logo { display: table-cell; vertical-align: middle; width: 110px; }
+        .header-logo img { max-width: 96px; height: auto; }
+        .header-title { display: table-cell; vertical-align: middle; padding-left: 12px; }
+        .header-title h1 { color: #2B2E7E; margin: 0 0 4px 0; font-size: 18pt; text-transform: uppercase; line-height: 1.15; }
+        .header-title p { margin: 0; font-size: 10.5pt; font-weight: 700; }
+        .header-title .instituicao { color: #64748B; font-size: 9pt; font-weight: 400; }
+
+        h2 { color: #2B2E7E; font-size: 11.5pt; text-transform: uppercase; margin: 18px 0 6px 0; break-after: avoid; }
+        p { margin: 0 0 6px 0; text-align: justify; }
+
+        table.identificacao { width: 100%; border-collapse: collapse; margin: 4px 0 8px 0; }
+        table.identificacao th, table.identificacao td { border: 1px solid #E2E8F0; padding: 5px 8px; text-align: left; vertical-align: top; }
+        table.identificacao th { background: #F8FAFC; width: 34%; font-weight: 700; }
+
+        .assinatura { border: 1px solid #E2E8F0; border-radius: 6px; padding: 10px 12px; margin-top: 10px; }
+
+        .regimento { break-before: page; }
+        .regimento .texto { white-space: pre-wrap; text-align: left; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        {% if logo_path %}<div class="header-logo"><img src="{{ logo_path }}" alt="Hospital São Matheus"></div>{% endif %}
+        <div class="header-title">
+            <h1>Termo de Adesão e Compromisso</h1>
+            <p>Membro do Núcleo de Segurança do Paciente</p>
+            <p class="instituicao">Hospital São Matheus, AMA Assistência Médica</p>
+        </div>
+    </div>
+
+    <h2>1. Identificação do membro</h2>
+    <table class="identificacao">
+        <tr><th>Nome</th><td>{{ membro.nome }}</td></tr>
+        <tr><th>Cargo no Hospital</th><td>{{ membro.cargo }}</td></tr>
+        <tr><th>Setor</th><td>{{ membro.setor }}</td></tr>
+        <tr><th>Registro profissional</th><td>{{ membro.registro }}</td></tr>
+        <tr><th>Papel no Núcleo</th><td>{{ membro.papel }}</td></tr>
+        <tr><th>Vigência</th><td>de {{ membro.vigencia_inicio }} a {{ membro.vigencia_fim }}</td></tr>
+        <tr><th>Ato de designação</th><td>{{ designacao }}</td></tr>
+        <tr><th>Regimento Interno aplicável</th><td>versão {{ regimento.versao }}, aprovada em {{ regimento.data_aprovacao }}</td></tr>
+    </table>
+
+    <h2>2. Da adesão</h2>
+    <p>Declaro que fui designado membro do Núcleo de Segurança do Paciente do Hospital São Matheus, na condição e pelo período acima indicados, e que <strong>aceito a designação</strong>.</p>
+    <p>Declaro que <strong>li integralmente o Regimento Interno do Núcleo</strong>, versão {{ regimento.versao }}, anexo a este Termo e dele parte integrante, e que <strong>conheço e acato</strong> as competências, os princípios, os prazos e as obrigações nele estabelecidos.</p>
+
+    <h2>3. Do compromisso de confidencialidade</h2>
+    <p>Comprometo-me a:</p>
+    <p><strong>3.1</strong> Manter sigilo absoluto sobre toda informação a que tiver acesso em razão da função, incluindo notificações, investigações, dados de pacientes, dados de profissionais, deliberações e documentos do Núcleo.</p>
+    <p><strong>3.2</strong> Não reproduzir, transmitir, fotografar, gravar ou compartilhar, por qualquer meio, informação do Núcleo com pessoa não autorizada, dentro ou fora do Hospital.</p>
+    <p><strong>3.3</strong> Utilizar a informação exclusivamente para a finalidade de segurança do paciente, observada a Lei nº 13.709/2018 e limitado ao mínimo necessário.</p>
+    <p><strong>3.4</strong> Manter o sigilo durante a vigência da designação <strong>e após o seu término, por prazo indeterminado</strong>.</p>
+    <p><strong>3.5</strong> Comunicar imediatamente à Presidência do Núcleo qualquer acesso indevido, perda, vazamento ou suspeita de comprometimento de informação.</p>
+
+    <h2>4. Do compromisso com a cultura de segurança</h2>
+    <p>Comprometo-me a:</p>
+    <p><strong>4.1</strong> Tratar toda notificação como oportunidade de aprendizado, e não como instrumento de responsabilização individual.</p>
+    <p><strong>4.2</strong> Analisar e registrar as falhas como falhas de processo, abstendo-me de identificar nominalmente pacientes e profissionais em reuniões, transcrições, atas e relatórios, salvo quando estritamente necessário ao esclarecimento dos fatos e em registro de acesso restrito.</p>
+    <p><strong>4.3</strong> Não praticar, incentivar ou tolerar qualquer forma de retaliação contra quem notifique de boa-fé, e comunicar à Presidência do Núcleo eventual retaliação de que tenha conhecimento.</p>
+    <p><strong>4.4</strong> Cumprir os prazos de investigação e de plano de ação que me forem atribuídos, ou comunicar tempestivamente a impossibilidade de fazê-lo.</p>
+    <p><strong>4.5</strong> Não utilizar a identidade de quem notifica, quando a ela tiver acesso, para qualquer finalidade de gestão de pessoal, avaliação de desempenho ou medida disciplinar, nem revelá-la ao setor envolvido ou à chefia de quem notificou.</p>
+
+    <h2>5. Da ciência quanto à gravação das reuniões</h2>
+    <p>Declaro estar ciente e de acordo que:</p>
+    <p><strong>5.1</strong> As reuniões do Núcleo podem ser <strong>gravadas em áudio</strong>, com a finalidade exclusiva de elaboração da ata.</p>
+    <p><strong>5.2</strong> O áudio e a transcrição são insumos de trabalho, <strong>não integram o acervo documental</strong> do Núcleo e <strong>são eliminados em até 30 dias corridos</strong> após a assinatura da ata correspondente.</p>
+    <p><strong>5.3</strong> A ata é o único registro oficial da reunião, e seu conteúdo é validado por pessoa antes da assinatura.</p>
+
+    <h2>6. Do impedimento</h2>
+    <p>Comprometo-me a <strong>declarar impedimento</strong> e a <strong>abster-me de participar da análise, da deliberação e do voto</strong> sempre que:</p>
+    <p><strong>6.1</strong> Eu tenha participado diretamente da assistência ao caso sob análise;</p>
+    <p><strong>6.2</strong> O caso envolva profissional a mim subordinado diretamente, quanto à avaliação de conduta individual;</p>
+    <p><strong>6.3</strong> Eu tenha interesse pessoal, familiar ou econômico no desfecho do caso.</p>
+    <p><strong>Parágrafo único.</strong> A declaração de impedimento não afasta o dever de prestar esclarecimentos ao Núcleo sobre os fatos de que tenha conhecimento.</p>
+
+    <h2>7. Da vigência e da renovação</h2>
+    <p><strong>7.1</strong> Este Termo vigora pelo período de designação indicado no item 1.</p>
+    <p><strong>7.2</strong> A renovação da designação exige nova assinatura deste Termo.</p>
+    <p><strong>7.3</strong> A revisão material do Regimento Interno, assim classificada no ato de sua aprovação, exige nova assinatura deste Termo por todos os membros.</p>
+    <p><strong>7.4</strong> O encerramento da vigência não extingue as obrigações de confidencialidade assumidas no item 3.</p>
+
+    <h2>8. Da assinatura</h2>
+    <p>Assino este Termo eletronicamente, por meio da plataforma de assinatura eletrônica contratada pelo Hospital São Matheus, sendo a assinatura eletrônica reconhecida como manifestação válida de vontade, nos termos da Lei nº 14.063/2020.</p>
+    <div class="assinatura">
+        <p><strong>Signatário:</strong> {{ membro.nome }}, {{ membro.registro }}</p>
+        <p><strong>Data e hora:</strong> registradas pela plataforma de assinatura eletrônica</p>
+        <p><strong>Documento:</strong> {{ documento.identificador }}</p>
+    </div>
+
+    <div class="regimento">
+        <h2>Anexo único. Regimento Interno do Núcleo de Segurança do Paciente</h2>
+        <p><strong>{{ regimento.titulo }}</strong>, versão {{ regimento.versao }}, aprovada em {{ regimento.data_aprovacao }}.</p>
+        <p class="texto">{{ regimento.texto }}</p>
+    </div>
+</body>
+</html>
