@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-16T14:26:55-03:00",
+      "sha": "f981675f97992e454c4375a5ba1a1e0b4e2d00e5",
+      "app_version": "0.302.0",
+      "subject": "PR #1801, issue #1776: Assinatura da ata pelos presentes, encerramento em 5 dias úteis e limpeza da transcrição",
+      "raw_subject": "chore(deploy): registro do PR avulso (#1801)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1764
+      ],
+      "result": "healthy",
+      "duration_seconds": 292,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "160_nsp_ata_assinada.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "PR avulso: PR #1801, issue #1776. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 23,
+          "frontend": 259
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-16T12:17:29-03:00",
       "sha": "5efd99764c66ec1dd83ac6f75226d2c6f51d458c",
       "app_version": "0.301.0",
