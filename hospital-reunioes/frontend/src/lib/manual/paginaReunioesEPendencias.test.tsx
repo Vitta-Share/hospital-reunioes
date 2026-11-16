@@ -103,6 +103,23 @@ describe("as tarefas da página", () => {
   });
 });
 
+describe("as reuniões do Núcleo de Segurança do Paciente (issue #1781)", () => {
+  const listaDeReunioes = secoes(PAGINA.corpo).find((s) => s.titulo === "Ver as reuniões do mês")!;
+
+  it("a seção da lista de reuniões diz que as do Núcleo ficam no módulo Segurança do Paciente", () => {
+    const linha = listaDeReunioes.texto.split("\n").find((l) => /Núcleo de Segurança do Paciente/.test(l)) ?? "";
+
+    expect(linha).toMatch(/módulo \*\*Segurança do Paciente\*\*/);
+    expect(linha).toMatch(/\*\*Reuniões\*\*/);
+  });
+
+  it("a página não tem travessão nem meia-risca", () => {
+    const comTraco = PAGINA.corpo.split("\n").filter((l) => /[–—]/.test(l));
+
+    expect(comTraco).toEqual([]);
+  });
+});
+
 describe("o fluxograma da página", () => {
   const fonte = FONTE_DO_FLUXOGRAMA.exec(PAGINA.corpo)?.[1] ?? "";
 
