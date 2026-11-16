@@ -179,3 +179,175 @@ def test_montar_recusa_travessao_numero_de_issue_e_palavra_tecnica(onde, texto):
         dados["partes"][3]["muda"] = texto
     with pytest.raises(ValueError):
         _modulo().montar(dados)
+
+
+# --- O e-mail: o link com o código que a função de validar aceita ------------
+
+
+@pytest.fixture
+def mac(tmp_path, monkeypatch):
+    """A pasta do Mac do Pedro (~/.config/planos-hsm) num diretório de teste."""
+    pasta = tmp_path / "planos-hsm"
+    (pasta / "site" / ".vercel").mkdir(parents=True)
+    (pasta / "segredo").write_text(SEGREDO + "\n", encoding="utf-8")
+    (pasta / "site" / ".vercel" / "project.json").write_text('{"projectName":"planos-hsm"}', encoding="utf-8")
+    monkeypatch.setenv("PLANOS_HSM_DIR", str(pasta))
+    return pasta
+
+
+def test_rascunho_do_email_leva_o_link_com_o_codigo_que_a_validacao_aceita(mac):
+    arquivo = _modulo().email(1757)
+    assert RAIZ not in arquivo.parents, "o texto do e-mail traz o código e não pode cair no repositório"
+    texto = arquivo.read_text(encoding="utf-8")
+    m = re.search(r"https://planos-hsm\.vercel\.app/1757\?c=([0-9a-f]+)", texto)
+    assert m, texto
+    assert m.group(1) == _hmac(1757)
+    r = _validar({"prd": 1757, "c": m.group(1)})
+    assert r["status"] == 200
+    assert "—" not in texto and "–" not in texto
+
+
+# --- Publicar: tira o selo antes, deploy de uma cópia fora do repo -----------
+
+
+@pytest.fixture
+def bin_falso(tmp_path):
+    """`gh` e `npx` que só anotam; o gh diz que o PRD tem a label se o arquivo existir."""
+    pasta = tmp_path / "bin"
+    pasta.mkdir()
+    log = tmp_path / "log.txt"
+    tem_label = tmp_path / "tem-label"
+    (pasta / "gh").write_text(
+        "#!/bin/sh\n"
+        f'echo "gh $*" >> "{log}"\n'
+        'case "$*" in\n'
+        f'  *"/labels --jq"*) [ -f "{tem_label}" ] && echo "validado:diretor"; echo "type:feature" ;;\n'
+        "esac\n",
+        encoding="utf-8",
+    )
+    (pasta / "npx").write_text(
+        "#!/bin/sh\n"
+        f'echo "npx $*" >> "{log}"\n'
+        f'(cd "$PWD" && find . -type f | sort | sed "s/^/arquivo /") >> "{log}"\n'
+        'echo "https://planos-hsm-abc123.vercel.app"\n',
+        encoding="utf-8",
+    )
+    for f in pasta.iterdir():
+        f.chmod(0o755)
+    return {"path": f"{pasta}{os.pathsep}{os.environ['PATH']}", "log": log, "tem_label": tem_label}
+
+
+def _publicar(bin_falso, mac):
+    env = {**os.environ, "PATH": bin_falso["path"], "PLANOS_HSM_DIR": str(mac)}
+    r = subprocess.run(
+        ["python3", str(SCRIPT), "publicar", "1757"], capture_output=True, text=True, env=env, cwd=RAIZ
+    )
+    assert r.returncode == 0, r.stderr
+    return r, bin_falso["log"].read_text(encoding="utf-8").splitlines()
+
+
+def test_republicar_tira_a_label_validado_antes_do_deploy(bin_falso, mac):
+    bin_falso["tem_label"].touch()
+    r, log = _publicar(bin_falso, mac)
+    tira = next(i for i, x in enumerate(log) if x.startswith("gh api -X DELETE"))
+    assert log[tira].endswith("repos/pedrorezendefig/hospital-reunioes/issues/1757/labels/validado:diretor")
+    sobe = next(i for i, x in enumerate(log) if x.startswith("npx"))
+    assert tira < sobe
+    assert "deploy --prod --yes" in log[sobe]
+    assert "https://planos-hsm.vercel.app/1757" in r.stdout
+
+
+def test_publicar_leva_a_pagina_a_funcao_e_o_vinculo_sem_a_fonte(bin_falso, mac):
+    _r, log = _publicar(bin_falso, mac)
+    arquivos = {x.removeprefix("arquivo ./") for x in log if x.startswith("arquivo ")}
+    assert {
+        "1757/index.html",
+        "api/validar.js",
+        "index.html",
+        "vercel.json",
+        "logo-hsm.png",
+        "HPSimplified_Rg.ttf",
+        ".vercel/project.json",
+    } <= arquivos
+    assert not any(a.endswith(("dados.json", "modelo.html", "segredo")) for a in arquivos)
+    assert not any(x.startswith("gh api -X DELETE") for x in log), "sem a label, não há o que tirar"
+
+
+# --- Coleta: etapas pela ordem dos bloqueios ---------------------------------
+
+
+def _fatia(n, estado="open", labels=("ready-for-agent",), bloqueada_por=(), corpo=""):
+    return {
+        "numero": n,
+        "titulo": f"Fatia {n}",
+        "estado": estado,
+        "labels": list(labels),
+        "corpo": corpo,
+        "bloqueada_por": list(bloqueada_por),
+        "comentarios": [],
+    }
+
+
+CORPO = """## 👔 Para o diretor
+
+**O que muda:** O calendário fica em ordem.
+
+**Por que vale:** Acha a reunião mais rápido.
+
+**O que você precisa saber:**
+- A mais cedo vem primeiro.
+- O título aparece no mouse.
+
+---
+
+## Critérios de aceite
+
+- [ ] Reuniões às 14h, 8h e 10h aparecem 8h, 10h e 14h.
+- [x] O título longo aparece no mouse.
+"""
+
+
+def test_coleta_numera_as_partes_pela_ordem_dos_bloqueios_e_tira_a_humana_fechada():
+    fatias = [
+        _fatia(10, estado="closed", labels=["ready-for-human"]),
+        _fatia(14, bloqueada_por=[11, 12]),
+        _fatia(12, bloqueada_por=[11]),
+        _fatia(11, bloqueada_por=[10], corpo=CORPO),
+        _fatia(13),
+    ]
+    plano = _modulo().plano(fatias)
+    assert [(p["id"], p["issue"], p["etapa"]) for p in plano["partes"]] == [
+        (1, 11, 1),
+        (2, 13, 1),
+        (3, 12, 2),
+        (4, 14, 3),
+    ]
+    assert [p["depende"] for p in plano["partes"]] == [[], [], [1], [1, 3]]
+    assert [d["issue"] for d in plano["decididas"]] == [10]
+    um = plano["partes"][0]
+    assert um["muda"] == "O calendário fica em ordem."
+    assert um["vale"] == "Acha a reunião mais rápido."
+    assert um["saber"] == ["A mais cedo vem primeiro.", "O título aparece no mouse."]
+    assert um["criterios"] == [
+        "Reuniões às 14h, 8h e 10h aparecem 8h, 10h e 14h.",
+        "O título longo aparece no mouse.",
+    ]
+
+
+# --- A fonte no repositório público, sem o segredo ---------------------------
+
+
+def test_fonte_dos_planos_fica_no_repo_sem_o_segredo():
+    pastas = (PLANOS, SCRIPT.parent.parent)
+    arquivos = [f for p in pastas for f in p.rglob("*") if f.is_file()]
+    nomes = {f.name for f in arquivos}
+    assert {"modelo.html", "validar.js", "vercel.json", "dados.json"} <= nomes
+    assert not {"segredo", "link-1757.txt"} & nomes
+    assert not any(".vercel" in f.parts for f in arquivos)
+    for f in arquivos:
+        if f.suffix in {".html", ".js", ".json", ".py", ".md", ".txt", ""}:
+            texto = f.read_text(encoding="utf-8")
+            # Segredo e código do link são hex longos; nada disso mora na fonte.
+            assert not re.search(r"(?<![0-9a-f])[0-9a-f]{20,}(?![0-9a-f])", texto), f
+    validar = VALIDAR.read_text(encoding="utf-8")
+    assert "process.env.SEGREDO" in validar
