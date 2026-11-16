@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T03:27+0000 -->
+<!-- last_update: 2026-11-16T04:12+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -501,6 +501,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | GET | `/nsp/reunioes` | As reuniões do Núcleo, por data, sem as canceladas, e o que a pessoa | ✅ |
 | POST | `/nsp/reunioes` | A Presidência cria a reunião à mão, programada, e fica como | ✅ |
 | POST | `/nsp/reunioes/calendario` | As doze ordinárias do ano, uma por mês, programadas. Mês que já tem | ✅ |
+| POST | `/nsp/reunioes/rapidas` | A reunião rápida de segurança (issue #1777): data, setor, participantes | ✅ |
 | POST | `/nsp/reunioes/{id_reuniao}/convocacao` | Um clique: e-mail nominal a quem conta para quórum, com data e hora | ✅ |
 | POST | `/nsp/reunioes/{id_reuniao}/nao-instalada` | Sem quórum, a reunião fica como não instalada e nasce a reagendada, | ✅ |
 | GET | `/nsp/reunioes/{id_reuniao}/pauta` | A pauta da reunião. Da data da pauta em diante ela é montada pelo | ✅ |
@@ -620,4 +621,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 354 endpoints em 52 routers · 93% exigem auth.
+**Totais:** 355 endpoints em 52 routers · 93% exigem auth.

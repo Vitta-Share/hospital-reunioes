@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T03:27+0000 -->
+<!-- last_update: 2026-11-16T04:12+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2092,6 +2092,24 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_reuniao_presencas_participante` em `(participante_id)` (de `153_nsp_presenca_e_quorum.sql`)
 - `idx_reuniao_presencas_registrada_por` em `(registrada_por)` (de `153_nsp_presenca_e_quorum.sql`)
 
+## nsp_reunioes_rapidas
+
+> Origem: `154_nsp_reunioes_rapidas.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `colegiado_id` | `UUID` | NOT NULL | — | `colegiados.id` |
+| `data` | `DATE` | NOT NULL | — | — |
+| `setor` | `TEXT` | NOT NULL | — | — |
+| `participantes` | `VARCHAR(10)[]` | NOT NULL | — | — |
+| `texto` | `TEXT` | NOT NULL | — | — |
+| `criada_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_reunioes_rapidas_colegiado_data` em `(colegiado_id, data)` (de `154_nsp_reunioes_rapidas.sql`)
+
 ---
 
-**Resumo:** 102 tabelas vivas.
+**Resumo:** 103 tabelas vivas.

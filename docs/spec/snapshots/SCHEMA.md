@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-16T03:27+0000 -->
+<!-- last_update: 2026-11-16T04:12+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -62,6 +62,7 @@ erDiagram
     cm_tabela_preco ||--o{ cm_operadora_tabela : "tabela_id"
     cm_tabela_preco ||--o{ cm_tabela_preco_item : "tabela_id"
     cm_validacao_tema ||--o{ cm_validacao_tema_linha : "tema_id"
+    colegiados ||--o{ nsp_reunioes_rapidas : "colegiado_id"
     colegiados ||--o{ participacoes : "colegiado_id"
     colegiados ||--o{ reunioes : "colegiado_id"
     nsp_agenda_regulatoria ||--o{ nsp_agenda_ocorrencias : "item_id"
@@ -99,6 +100,7 @@ erDiagram
     participantes ||--o{ nsp_convocados : "participante_id"
     participantes ||--o{ nsp_documentos : "publicado_por"
     participantes ||--o{ nsp_pautas : "editada_por"
+    participantes ||--o{ nsp_reunioes_rapidas : "criada_por"
     participantes ||--o{ ouvidoria_acessos : "ator_id"
     participantes ||--o{ ouvidoria_anexos : "enviado_por"
     participantes ||--o{ ouvidoria_avaliacoes : "revisada_por"
@@ -1123,6 +1125,16 @@ erDiagram
         VARCHAR registrada_por FK
         TIMESTAMPTZ created_at
     }
+    nsp_reunioes_rapidas {
+        UUID id PK
+        UUID colegiado_id FK
+        DATE data
+        TEXT setor
+        VARCHAR participantes
+        TEXT texto
+        VARCHAR criada_por FK
+        TIMESTAMPTZ created_at
+    }
 ```
 
 ## Indexes principais
@@ -1303,6 +1315,7 @@ erDiagram
 | `nsp_convocados` | `idx_nsp_convocados_participante` | `participante_id` | `152_nsp_pauta_e_convocacao.sql` |
 | `reuniao_presencas` | `idx_reuniao_presencas_participante` | `participante_id` | `153_nsp_presenca_e_quorum.sql` |
 | `reuniao_presencas` | `idx_reuniao_presencas_registrada_por` | `registrada_por` | `153_nsp_presenca_e_quorum.sql` |
+| `nsp_reunioes_rapidas` | `idx_nsp_reunioes_rapidas_colegiado_data` | `colegiado_id, data` | `154_nsp_reunioes_rapidas.sql` |
 
 ---
-**Resumo:** 102 tabelas · 153 relacionamentos FK detectados.
+**Resumo:** 103 tabelas · 155 relacionamentos FK detectados.
