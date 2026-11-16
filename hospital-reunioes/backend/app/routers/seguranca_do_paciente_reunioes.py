@@ -6,6 +6,10 @@ na mesma tabela das outras, com `colegiado_id` do Núcleo, e daí em diante segu
 o caminho de sempre (transcrição, ata, assinatura) pela tela da reunião, que o
 sigilo do Núcleo guarda (`barrar_reuniao_do_nucleo`).
 
+A reunião rápida de segurança (issue #1777) é a exceção: não tem ata, e nasce
+em `nsp_reunioes_rapidas` (migration 154), fora do pipeline, pelo registro de
+três linhas. Na lista do módulo ela aparece ao lado das outras, com o tipo.
+
 Quem vê o calendário é quem tem `calendario` (o membro sem Termo inclusive);
 quem cria é quem tem `gerir_nucleo` (a Presidência e o Acesso pleno).
 
@@ -18,9 +22,10 @@ cria a reagendada, ligada à original (`reagendada_de`, migration 153).
 import logging
 from datetime import date, datetime, time, timedelta
 from typing import Any, Literal
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from supabase import Client
 
 from app.dependencies import get_supabase_client, require_recurso_nsp, selecionar_participantes
@@ -30,7 +35,12 @@ from app.services.seguranca_do_paciente import convocacao, pauta
 from app.services.seguranca_do_paciente.membros import vigente_em
 from app.services.seguranca_do_paciente.permissao import id_do_nucleo
 from app.services.seguranca_do_paciente.quorum import apurar_quorum, conta_para_quorum
-from app.services.seguranca_do_paciente.reunioes import TipoReuniaoNsp
+from app.services.seguranca_do_paciente.reunioes import (
+    TETO_DO_TEXTO,
+    TipoReuniaoNsp,
+    reunioes_rapidas,
+    texto_da_reuniao_rapida,
+)
 
 router = APIRouter(prefix="/nsp/reunioes", tags=["seguranca-do-paciente"])
 logger = logging.getLogger(__name__)
@@ -47,6 +57,32 @@ class ReuniaoDoNucleoRequest(BaseModel):
     hora_fim: time | None = None
     tipo: TipoReuniaoNsp
     objetivo: str | None = Field(None, max_length=500)
+
+    @field_validator("tipo")
+    @classmethod
+    def _tipo_com_ata(cls, tipo: TipoReuniaoNsp) -> TipoReuniaoNsp:
+        if tipo == TipoReuniaoNsp.REUNIAO_RAPIDA:
+            raise ValueError("A reunião rápida de segurança não tem ata: registre pelo formulário de três linhas")
+        return tipo
+
+
+class ReuniaoRapidaRequest(BaseModel):
+    data: date
+    setor: str = Field(..., min_length=1, max_length=120)
+    participantes: list[str] = Field(..., min_length=1, max_length=50)
+    texto: str = Field(..., min_length=1, max_length=TETO_DO_TEXTO)
+
+    @field_validator("setor")
+    @classmethod
+    def _setor(cls, setor: str) -> str:
+        if not setor.strip():
+            raise ValueError("Diga o setor")
+        return setor.strip()
+
+    @field_validator("texto")
+    @classmethod
+    def _tres_linhas(cls, texto: str) -> str:
+        return texto_da_reuniao_rapida(texto)
 
 
 def _nucleo_ou_503(supabase) -> str:
@@ -80,10 +116,16 @@ async def listar_reunioes_do_nucleo(
         if nucleo_id
         else []
     )
+    pode_abrir = "reunioes" in me["recursos_nsp"]
+    if nucleo_id:
+        linhas = sorted(
+            [*linhas, *reunioes_rapidas(supabase, nucleo_id, com_conteudo=pode_abrir)],
+            key=lambda r: r["data"],
+        )
     return {
         "reunioes": linhas,
         "tipos": [t.value for t in TipoReuniaoNsp],
-        "pode_abrir": "reunioes" in me["recursos_nsp"],
+        "pode_abrir": pode_abrir,
         "pode_criar": "gerir_nucleo" in me["recursos_nsp"],
     }
 
@@ -543,3 +585,33 @@ async def registrar_nao_instalada(
         "status": "NAO_INSTALADA",
         "reagendada": {"id_reuniao": novo_id, "data": req.data.isoformat()},
     }
+
+
+@router.post("/rapidas", status_code=201)
+@limiter.limit("30/minute")
+async def registrar_reuniao_rapida(
+    request: Request,
+    req: ReuniaoRapidaRequest,
+    me: dict = Depends(require_recurso_nsp("gerir_nucleo")),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """A reunião rápida de segurança (issue #1777): data, setor, participantes
+    e até três linhas. Fica fora da tabela de reuniões de propósito: sem
+    transcrição, ata, assinatura nem quórum."""
+    nucleo_id = _nucleo_ou_503(supabase)
+    participantes = list(dict.fromkeys(req.participantes))
+    existem = supabase.table("participantes").select("id").in_("id", participantes).execute().data or []
+    if len(existem) != len(participantes):
+        raise HTTPException(status_code=422, detail="Algum participante não está no cadastro de pessoas.")
+    linha = {
+        "id": str(uuid4()),
+        "colegiado_id": nucleo_id,
+        "data": req.data.isoformat(),
+        "setor": req.setor,
+        "participantes": participantes,
+        "texto": req.texto,
+        "criada_por": me["id"],
+    }
+    supabase.table("nsp_reunioes_rapidas").insert(linha).execute()
+    logger.info("Reunião rápida do Núcleo %s registrada por %s", linha["id"], me["id"])
+    return {"id": linha["id"], "tipo": TipoReuniaoNsp.REUNIAO_RAPIDA.value}

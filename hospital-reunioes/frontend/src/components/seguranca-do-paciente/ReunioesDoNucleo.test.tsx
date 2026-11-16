@@ -233,3 +233,88 @@ describe("presença e reunião não instalada (issue #1774)", () => {
     expect(screen.queryByRole("button", { name: "Presença" })).toBeNull();
   });
 });
+
+/** Issue #1777: a reunião rápida de segurança, um registro de três linhas, sem ata. */
+const RAPIDA = "Reunião rápida de segurança";
+const PESSOAS = [
+  { id: "P1", nome: "Pessoa de Teste Um" },
+  { id: "P2", nome: "Pessoa de Teste Dois" },
+];
+
+function rotear(cal: object) {
+  fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+    if (url === "/api/nsp/membros/pessoas") return responder({ pessoas: PESSOAS });
+    if (url === "/api/participantes/setores") return responder(["Setor de Teste"]);
+    if (init?.method === "POST") return responder({ id: "rr-1", tipo: RAPIDA }, 201);
+    return responder(cal);
+  });
+}
+
+async function abrirRapida() {
+  rotear(calendario({ pode_abrir: true, pode_criar: true }));
+  render(<ReunioesDoNucleo />);
+  fireEvent.click(await screen.findByRole("button", { name: "Nova reunião" }));
+  const form = screen.getByRole("form", { name: "Nova reunião do Núcleo" });
+  fireEvent.change(within(form).getByLabelText("Tipo"), { target: { value: RAPIDA } });
+  return form;
+}
+
+describe("a reunião rápida de segurança", () => {
+  it("pede data, setor, participantes e o texto, sem título nem hora, e grava pelo registro rápido", async () => {
+    const form = await abrirRapida();
+
+    expect(within(form).queryByLabelText("Título")).toBeNull();
+    expect(within(form).queryByLabelText("Hora")).toBeNull();
+    fireEvent.change(within(form).getByLabelText("Data"), { target: { value: "2026-11-14" } });
+    fireEvent.change(within(form).getByLabelText("Setor"), { target: { value: "Setor de Teste" } });
+    const escolher = (await within(form).findByRole("option", { name: "Pessoa de Teste Dois" })).closest("select")!;
+    fireEvent.change(escolher, { target: { value: "P2" } });
+    expect(within(form).getByText("Pessoa de Teste Dois")).toBeTruthy();
+    fireEvent.change(within(form).getByLabelText("O que foi conversado"), {
+      target: { value: "Piso molhado.\nSinalização reposta." },
+    });
+    fireEvent.submit(form);
+
+    await waitFor(() => expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(true));
+    const [rota, init] = fetchMock.mock.calls.find(([, i]) => i?.method === "POST")!;
+    expect(rota).toBe("/api/nsp/reunioes/rapidas");
+    expect(JSON.parse(init.body)).toEqual({
+      data: "2026-11-14",
+      setor: "Setor de Teste",
+      participantes: ["P2"],
+      texto: "Piso molhado.\nSinalização reposta.",
+    });
+  });
+
+  it("o texto não passa de três linhas", async () => {
+    const form = await abrirRapida();
+    const texto = within(form).getByLabelText("O que foi conversado") as HTMLTextAreaElement;
+
+    fireEvent.change(texto, { target: { value: "Uma.\nDuas.\nTrês.\nQuatro." } });
+
+    expect(texto.value).toBe("Uma.\nDuas.\nTrês.");
+  });
+
+  it("na lista, a rápida tem o tipo marcado, mostra o texto e não leva a uma ata", async () => {
+    const rapida = {
+      id_reuniao: "rr-1",
+      data: "2026-11-14",
+      hora_inicio: null,
+      tipo: RAPIDA,
+      titulo: "Setor de Teste",
+      status_ata: null,
+      rapida: true,
+      texto: "Piso molhado.\nSinalização reposta.",
+      participantes: ["Pessoa de Teste Um"],
+    };
+    rotear(calendario({ pode_abrir: true, pode_criar: false, reunioes: [rapida] }));
+    render(<ReunioesDoNucleo />);
+
+    const mes = await screen.findByRole("region", { name: "novembro de 2026" });
+    expect(within(mes).getByText(RAPIDA)).toBeTruthy();
+    expect(within(mes).getByText("Setor de Teste")).toBeTruthy();
+    expect(within(mes).getByText(/Piso molhado\./)).toBeTruthy();
+    expect(within(mes).getByText("Participaram: Pessoa de Teste Um")).toBeTruthy();
+    expect(within(mes).queryByRole("link")).toBeNull();
+  });
+});
