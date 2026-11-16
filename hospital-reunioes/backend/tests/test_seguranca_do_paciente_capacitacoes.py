@@ -636,3 +636,31 @@ class TestTemasMinimos:
 
         _assert_recusado(getattr(_cliente(MEMBRO, banco), metodo)(rota, json=corpo))
         assert banco.escritas == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. O texto do Produto no Kit de conhecimento diz o comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _secao_do_kit(titulo: str) -> str:
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = (CONHECIMENTO_DIR / "seguranca-do-paciente.md").read_text(encoding="utf-8")
+    partes = texto.split(f"## {titulo}\n", 1)
+    assert len(partes) == 2, f"a seção {titulo!r} sumiu do kit"
+    return partes[1].split("\n## ", 1)[0]
+
+
+class TestKitDeConhecimento:
+    def test_as_capacitacoes_estao_no_que_ja_esta_no_ar(self):
+        """Mutante: deixar o kit dizendo que a tela de Capacitações está vazia."""
+        secao = _secao_do_kit("O que já está no ar")
+        for termo in ("Capacitações", "Confirmar minha presença", "temas mínimos", "presença confirmada"):
+            assert termo in secao, termo
+
+    def test_a_tela_vazia_saiu_do_que_ele_ainda_nao_faz(self):
+        assert "Capacitações ainda está vazia" not in _secao_do_kit("O que ele ainda não faz")
+
+    def test_o_que_costuma_virar_demanda_explica_o_tema_nao_coberto(self):
+        assert "não confirmou" in _secao_do_kit("O que costuma virar Demanda")

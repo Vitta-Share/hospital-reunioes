@@ -10,7 +10,7 @@ Toda Demanda sobre o item Segurança do Paciente do menu, sobre quem vê o quê 
 
 A fundação do módulo:
 
-- o item **Segurança do Paciente** no menu lateral, com a página inicial do módulo, as Reuniões e o grupo Núcleo (Membros, Documentos, Capacitações e Agenda regulatória). Cada tela abre com uma linha dizendo o que fazer ali; as telas ainda sem conteúdo dizem que ele chega nas próximas entregas;
+- o item **Segurança do Paciente** no menu lateral, com a página inicial do módulo, as Reuniões e o grupo Núcleo (Membros, Documentos, Capacitações e Agenda regulatória). Cada tela abre com uma linha dizendo o que fazer ali;
 - os itens Auditorias de adesão, Gestão de riscos e Comissões, que aparecem no menu desabilitados, com o selo "Em breve" e uma explicação do que vão fazer;
 - o Núcleo criado como o primeiro colegiado do hospital, ainda sem nenhum membro: a composição é cadastrada pela tela;
 - a tela **Membros**, com uma linha por membro (papel, área, conselho e registro, vigência, estado e situação do Termo). A Presidência e o Acesso pleno cadastram, editam, renovam a vigência, mudam o papel e encerram a participação. Os demais que abrem a tela só leem;
@@ -53,6 +53,14 @@ A Agenda regulatória do Núcleo:
 - quando a próxima data entra na antecedência, o aplicativo cria uma pendência para a Presidência, uma só por data. O lembrete não sai por e-mail: aparece no cartão do evento, na tela Agenda regulatória, com o número da pendência e o prazo. Ele não entra na tela Pendências, porque é assunto do Núcleo. Se a Presidência muda a data antes de registrar o resultado, o lembrete da data antiga é cancelado e um novo nasce para a data nova;
 - depois de cumprir, a Presidência registra o resultado e a data em que fez. O resultado fica no histórico do evento, o lembrete é concluído e a próxima data é calculada pela periodicidade (mensal, anual ou a cada dois anos). Evento avulso fica sem próxima data até alguém marcar.
 
+A tela Núcleo, Capacitações:
+
+- mostra cada capacitação com título, data, carga horária, instrutor, público (membros do Núcleo ou profissionais), os temas tratados e a lista de participantes, com quem já confirmou a presença e quando;
+- a Presidência e o Acesso pleno registram a capacitação pelo botão Registrar capacitação, escolhendo os temas tratados e os participantes. Os demais que abrem a tela só leem;
+- quem está na lista de uma capacitação vê o botão **Confirmar minha presença** no cartão dela e confirma com um toque. O aplicativo grava a data e a hora. Ninguém confirma pelo outro, nem a Presidência;
+- a seção Temas mínimos por membro mostra, para cada membro com participação vigente, quantos temas mínimos já cobriu e quais. Conta só a capacitação com presença confirmada: estar na lista sem confirmar não cobre o tema;
+- a lista de temas mínimos fica no fim da tela. A Presidência e o Acesso pleno incluem, renomeiam e desativam os temas. A lista nasce vazia, à espera dos temas que a Diretoria vai mandar. Tema desativado sai da cobertura e da escolha no cadastro, mas continua aparecendo nas capacitações antigas.
+
 ## Quem vê
 
 O item Segurança do Paciente aparece para quem tem participação vigente no Núcleo, para quem tem o Acesso pleno ao NSP e para a Diretoria. Os demais não veem o item.
@@ -84,7 +92,7 @@ Membro nunca é apagado. Encerrar termina a vigência no dia escolhido e a parti
 
 ## O que ele ainda não faz
 
-A tela de Capacitações ainda está vazia: as capacitações chegam nas próximas entregas da primeira fase. Renovar a vigência, mudar o papel ou publicar uma revisão material do Regimento ainda não gera Termo novo, e os avisos de Termo sem assinatura (3, 7 e 14 dias) chegam depois. A assinatura de um documento publicado também chega depois. Nas reuniões, a presença, o quórum e a ata própria do Núcleo também chegam depois: por enquanto a ata segue o modelo das outras reuniões, e a pauta ainda não traz indicadores, casos, planos vencidos nem alertas, que dependem das próximas fases. A notificação de incidente e a triagem são da segunda fase. As notificações criadas a partir da reunião rápida chegam na segunda fase.
+Nas Capacitações, o profissional de fora do Núcleo que está na lista ainda não abre o módulo, então não confirma a presença por enquanto; a capacitação registrada também não se edita depois de salva. Renovar a vigência, mudar o papel ou publicar uma revisão material do Regimento ainda não gera Termo novo, e os avisos de Termo sem assinatura (3, 7 e 14 dias) chegam depois. A assinatura de um documento publicado também chega depois. Nas reuniões, a ata própria do Núcleo também chega depois: por enquanto a ata segue o modelo das outras reuniões, e a pauta ainda não traz indicadores, casos, planos vencidos nem alertas, que dependem das próximas fases. A notificação de incidente e a triagem são da segunda fase. As notificações criadas a partir da reunião rápida chegam na segunda fase.
 
 ## O que já foi decidido
 
@@ -120,3 +128,5 @@ A tela de Capacitações ainda está vazia: as capacitações chegam nas próxim
 - Um lembrete da agenda que não apareceu: costuma ser evento sem próxima data, evento desativado ou o Núcleo sem Presidência vigente.
 - Um membro que diz não ter recebido a convocação: costuma ser Termo não assinado, vigência vencida ou cadastro sem e-mail.
 - A Presidência que não consegue convocar a ordinária: passou do 5º dia útil antes da reunião, e o aplicativo diz qual era o último dia.
+- Um membro que fez a capacitação e o tema não aparece como coberto: costuma ser que ele não confirmou a presença, ou que o tema foi desativado na lista.
+- Pedido para a Presidência confirmar a presença de alguém: não existe; cada participante confirma a própria.
