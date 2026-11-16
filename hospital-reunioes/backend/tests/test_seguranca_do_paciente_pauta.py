@@ -239,8 +239,9 @@ def _participacao(pid: str, papel: str = "membro", *, inicio: date | None = None
         "colegiado_id": NUCLEO["id"],
         "participante_id": pid,
         "papel": papel,
-        "vigencia_inicio": (inicio or HOJE - timedelta(days=200)).isoformat(),
-        "vigencia_fim": (fim or HOJE + timedelta(days=300)).isoformat(),
+        # Por padrão, vigente de antes de todo dia fixo daqui até depois de hoje.
+        "vigencia_inicio": (inicio or min(HOJE, date(2025, 1, 1))).isoformat(),
+        "vigencia_fim": (fim or max(HOJE, date(2027, 12, 31)) + timedelta(days=300)).isoformat(),
         "encerrada_em": None,
         "termo_assinado_em": "2026-01-10T12:00:00+00:00",
         **campos,
@@ -611,3 +612,165 @@ class TestEdicaoDaPauta:
         resposta = _cliente(PRESIDENTE, banco).put(f"{ROTA}/RD_PROXIMA/pauta", json=_editada(corpo))
 
         assert resposta.status_code == 409
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. A convocação vai só para quem conta para quórum e grava os convocados
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Uma pessoa por estado do membro. Ativo, A vencer e Em carência contam para
+# quórum; os outros não.
+ESTADOS = {
+    "P1": dict(papel="presidencia"),
+    "P2": dict(),
+    "AV": dict(fim=HOJE + timedelta(days=20)),
+    "CA": dict(fim=HOJE - timedelta(days=10)),
+    "VE": dict(fim=HOJE - timedelta(days=40)),
+    "SEM": dict(termo_assinado_em=None),
+    "ENC": dict(encerrada_em=(HOJE - timedelta(days=1)).isoformat()),
+    "FUT": dict(inicio=HOJE + timedelta(days=10)),
+}
+CONTAM_PARA_QUORUM = {"P1", "P2", "AV", "CA"}
+
+
+def _nucleo_completo(*reunioes: dict) -> _Banco:
+    return _banco(
+        participantes=[_pessoa(pid) for pid in ESTADOS] + [dict(SUPER_ADMIN)],
+        participacoes=[
+            _participacao(pid, campos.pop("papel", "membro"), **campos)
+            for pid, campos in ((p, dict(c)) for p, c in ESTADOS.items())
+        ],
+        reunioes=list(reunioes),
+    )
+
+
+def _convocar(banco: _Banco, rid: str, pessoa: dict | None = None):
+    return _cliente(pessoa or PRESIDENTE, banco).post(f"{ROTA}/{rid}/convocacao")
+
+
+class TestConvocacao:
+    def test_a_convocacao_vai_so_para_quem_conta_para_quorum(self, _emails):
+        banco = _nucleo_completo(_reuniao("RD_LONGE", HOJE + timedelta(days=30)))
+
+        resposta = _convocar(banco, "RD_LONGE")
+
+        assert resposta.status_code == 201, resposta.text
+        assert {e["para"] for e in _emails} == {f"{pid.lower()}@hsm.test" for pid in CONTAM_PARA_QUORUM}
+
+    def test_a_convocacao_grava_quem_foi_convocado(self):
+        banco = _nucleo_completo(_reuniao("RD_LONGE", HOJE + timedelta(days=30)))
+
+        _convocar(banco, "RD_LONGE")
+
+        gravados = {(c["participante_id"], c["estado"]) for c in banco.tabelas["nsp_convocados"]}
+        assert gravados == {("P1", "ativo"), ("P2", "ativo"), ("AV", "a_vencer"), ("CA", "em_carencia")}
+        assert {c["id_reuniao"] for c in banco.tabelas["nsp_convocados"]} == {"RD_LONGE"}
+        assert all(c["email_enviado"] for c in banco.tabelas["nsp_convocados"])
+        convocacao_na_pauta = _pauta(banco, "RD_LONGE")["convocacao"]
+        assert {c["nome"] for c in convocacao_na_pauta["convocados"]} == {
+            f"Pessoa de Teste {pid}" for pid in CONTAM_PARA_QUORUM
+        }
+
+    def test_o_email_e_nominal_com_data_e_hora_absolutas(self, relogio, _emails):
+        relogio(date(2027, 3, 1))
+        banco = _banco(reunioes=[_reuniao("RD_MAR", date(2027, 3, 15), hora="09:00:00")])
+
+        _convocar(banco, "RD_MAR")
+
+        para_p2 = next(e for e in _emails if e["para"] == "p2@hsm.test")
+        assert "Pessoa de Teste P2" in para_p2["texto"]
+        assert "segunda-feira, 15/03/2027, às 09:00" in para_p2["texto"]
+        assert "segunda-feira, 15/03/2027, às 09:00" in para_p2["html"]
+        assert "Pessoa de Teste P1" not in para_p2["texto"]
+
+    def test_convocar_de_novo_nao_manda_outro_email(self, _emails):
+        banco = _nucleo_completo(_reuniao("RD_LONGE", HOJE + timedelta(days=30)))
+        _convocar(banco, "RD_LONGE")
+        antes = len(_emails)
+
+        de_novo = _convocar(banco, "RD_LONGE")
+
+        assert de_novo.status_code == 409
+        assert "já foi convocada" in de_novo.json()["detail"]
+        assert len(_emails) == antes
+        assert len(banco.tabelas["nsp_convocados"]) == len(CONTAM_PARA_QUORUM)
+
+    def test_so_a_presidencia_convoca(self, _emails):
+        banco = _nucleo_completo(_reuniao("RD_LONGE", HOJE + timedelta(days=30)))
+
+        _assert_recusado(_convocar(banco, "RD_LONGE", _pessoa("P2")))
+        assert _emails == []
+        assert banco.tabelas["nsp_convocados"] == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. Fora da antecedência mínima do tipo, a convocação é recusada
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _instante(dia: date, hora: int, minuto: int = 0) -> datetime:
+    return datetime.combine(dia, time(hora, minuto), tzinfo=FUSO)
+
+
+class TestAntecedencia:
+    def test_ordinaria_convocada_no_quinto_dia_util_antes_passa(self):
+        assert pauta.recusa_da_convocacao(ORDINARIA, date(2027, 3, 15), time(9), _instante(date(2027, 3, 8), 17), frozenset()) is None
+
+    def test_ordinaria_convocada_depois_do_quinto_dia_util_e_recusada(self):
+        recusa = pauta.recusa_da_convocacao(
+            ORDINARIA, date(2027, 3, 15), time(9), _instante(date(2027, 3, 9), 8), frozenset()
+        )
+
+        assert "5 dias úteis" in recusa
+        assert "08/03/2027" in recusa
+
+    def test_o_feriado_encurta_a_janela_da_ordinaria(self):
+        recusa = pauta.recusa_da_convocacao(
+            ORDINARIA, date(2027, 3, 15), time(9), _instante(date(2027, 3, 8), 10), frozenset({date(2027, 3, 10)})
+        )
+
+        assert "05/03/2027" in recusa
+
+    def test_extraordinaria_com_24_horas_passa_e_com_menos_e_recusada(self):
+        reuniao = date(2027, 3, 9)
+        analise = "Análise de evento"
+
+        assert pauta.recusa_da_convocacao(analise, reuniao, time(10), _instante(date(2027, 3, 8), 10), frozenset()) is None
+        recusa = pauta.recusa_da_convocacao(analise, reuniao, time(9, 59), _instante(date(2027, 3, 8), 10), frozenset())
+        assert "24 horas" in recusa
+
+    def test_a_rota_recusa_a_ordinaria_em_cima_da_hora_com_mensagem(self, _emails):
+        banco = _nucleo_completo(_reuniao("RD_PERTO", HOJE + timedelta(days=2)))
+
+        resposta = _convocar(banco, "RD_PERTO")
+
+        assert resposta.status_code == 422
+        assert "5 dias úteis de antecedência" in resposta.json()["detail"]
+        assert _emails == []
+        assert banco.tabelas["nsp_convocados"] == []
+
+    def test_a_rota_recusa_a_extraordinaria_em_menos_de_24_horas(self, relogio, _emails):
+        relogio(date(2027, 3, 8), time(10))
+        banco = _banco(reunioes=[_reuniao("RD_EXTRA", date(2027, 3, 9), tipo="Análise de evento", hora="09:00:00")])
+
+        resposta = _convocar(banco, "RD_EXTRA")
+
+        assert resposta.status_code == 422
+        assert "24 horas" in resposta.json()["detail"]
+        assert _emails == []
+
+    def test_a_rota_convoca_a_extraordinaria_com_24_horas(self, relogio, _emails):
+        relogio(date(2027, 3, 8), time(10))
+        banco = _banco(reunioes=[_reuniao("RD_EXTRA", date(2027, 3, 9), tipo="Análise de evento", hora="10:00:00")])
+
+        assert _convocar(banco, "RD_EXTRA").status_code == 201
+        assert {e["para"] for e in _emails} == {"p1@hsm.test", "p2@hsm.test"}
+
+    def test_reuniao_sem_hora_nao_e_convocada(self, _emails):
+        banco = _nucleo_completo(_reuniao("RD_SEM_HORA", HOJE + timedelta(days=30), hora=None))
+
+        resposta = _convocar(banco, "RD_SEM_HORA")
+
+        assert resposta.status_code == 422
+        assert "hora" in resposta.json()["detail"]
+        assert _emails == []

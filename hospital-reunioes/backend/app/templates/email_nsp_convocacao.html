@@ -1,0 +1,46 @@
+{% extends "email_base.html" %}
+
+{% block title %}Convocação do Núcleo de Segurança do Paciente, Hospital São Matheus{% endblock %}
+
+{% block header_subtitle %}Núcleo de Segurança do Paciente{% endblock %}
+
+{% block body %}
+  <p style="color:#475569;font-size:15px;margin:0 0 16px;">
+    Olá, <strong style="color:#1e293b;">{{ nome }}</strong>.
+  </p>
+
+  <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 20px;">
+    Você está convocado para a reunião do Núcleo de Segurança do Paciente.
+  </p>
+
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+    <tr>
+      <td style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:20px 24px;">
+        <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;margin:0 0 6px;">
+          {{ tipo }}
+        </p>
+        <p style="font-size:16px;font-weight:600;color:#1e293b;line-height:1.5;margin:0 0 8px;">
+          {{ titulo }}
+        </p>
+        <p style="font-size:14px;color:#334155;margin:0;">
+          {{ quando }} (horário de Brasília)
+        </p>
+      </td>
+    </tr>
+  </table>
+
+  <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 24px;">
+    A pauta está no app, em Segurança do Paciente, Reuniões.
+  </p>
+
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td align="center">
+        <a href="{{ link }}"
+           style="display:inline-block;background:linear-gradient(135deg,#2B2E7E,#2558A0);color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;padding:13px 36px;border-radius:10px;">
+          Ver a reunião
+        </a>
+      </td>
+    </tr>
+  </table>
+{% endblock %}

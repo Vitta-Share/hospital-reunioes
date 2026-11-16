@@ -20,7 +20,7 @@ from supabase import Client
 from app.dependencies import get_supabase_client, require_recurso_nsp
 from app.limiter import limiter
 from app.routers.reunioes import _generate_reuniao_id
-from app.services.seguranca_do_paciente import pauta
+from app.services.seguranca_do_paciente import convocacao, pauta
 from app.services.seguranca_do_paciente.permissao import id_do_nucleo
 from app.services.seguranca_do_paciente.reunioes import TipoReuniaoNsp
 
@@ -296,6 +296,8 @@ async def ver_pauta(
     disponivel_em = _disponivel_em(supabase, reuniao)
     disponivel =disponivel_em is None or agora.date() >= disponivel_em
     gravada = pauta.garantir_pauta(supabase, reuniao, agora) if disponivel else None
+    gerir = "gerir_nucleo" in me["recursos_nsp"]
+    lista = convocacao.convocados(supabase, id_reuniao)
     return {
         "id_reuniao": reuniao["id_reuniao"],
         "titulo": reuniao.get("titulo"),
@@ -306,7 +308,48 @@ async def ver_pauta(
         "disponivel_em": disponivel_em.isoformat() if disponivel_em else None,
         "blocos": pauta.com_situacao_atual(supabase, gravada["blocos"]) if gravada else [],
         "editada_em": gravada.get("editada_em") if gravada else None,
-        "pode_editar": disponivel
-        and "gerir_nucleo" in me["recursos_nsp"]
-        and reuniao.get("status_ata") == "PROGRAMADA",
+        "pode_editar": disponivel and gerir and reuniao.get("status_ata") == "PROGRAMADA",
+        "convocacao": {"convocada_em": lista[0].get("convocado_em"), "convocados": lista} if lista else None,
+        "pode_convocar": gerir and not lista and reuniao.get("status_ata") == "PROGRAMADA",
+        # O que a tela diz antes do clique, quando o prazo já passou.
+        "recusa_da_convocacao": None if lista else _recusa(supabase, reuniao, agora),
     }
+
+
+def _recusa(supabase, reuniao: dict, agora: datetime) -> str | None:
+    hora = time.fromisoformat(str(reuniao["hora_inicio"])[:8]) if reuniao.get("hora_inicio") else None
+    data_reuniao = date.fromisoformat(str(reuniao["data"])[:10])
+    return pauta.recusa_da_convocacao(
+        reuniao["tipo"], data_reuniao, hora, agora, _feriados_da_reuniao(supabase, reuniao)
+    )
+
+
+@router.post("/{id_reuniao}/convocacao", status_code=201)
+@limiter.limit("10/minute")
+async def convocar(
+    request: Request,
+    id_reuniao: str,
+    me: dict = Depends(require_recurso_nsp("gerir_nucleo")),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """Um clique: e-mail nominal a quem conta para quórum, com data e hora
+    absolutas, e a lista de convocados gravada. Fora da antecedência mínima do
+    tipo, recusa com a mensagem."""
+    reuniao = _reuniao_do_nucleo(supabase, id_reuniao)
+    if reuniao.get("status_ata") != "PROGRAMADA":
+        raise HTTPException(status_code=409, detail="A reunião já aconteceu: não há o que convocar.")
+    agora = _agora()
+    recusa = _recusa(supabase, reuniao, agora)
+    if recusa:
+        raise HTTPException(status_code=422, detail=recusa)
+    try:
+        lista = convocacao.convocar(
+            supabase, reuniao, nucleo_id=reuniao["colegiado_id"], autor_id=me["id"], agora=agora
+        )
+    except convocacao.JaConvocadaError as erro:
+        quando = f" em {erro.convocada_em[8:10]}/{erro.convocada_em[5:7]}/{erro.convocada_em[:4]}" if erro.convocada_em else ""
+        raise HTTPException(status_code=409, detail=f"Esta reunião já foi convocada{quando}.") from erro
+    except convocacao.NinguemParaConvocarError as erro:
+        raise HTTPException(status_code=409, detail="Nenhum membro conta para quórum hoje.") from erro
+    logger.info("Reunião do Núcleo %s convocada por %s: %d pessoa(s)", id_reuniao, me["id"], len(lista))
+    return {"id_reuniao": id_reuniao, "convocada_em": agora.isoformat(), "convocados": lista}
