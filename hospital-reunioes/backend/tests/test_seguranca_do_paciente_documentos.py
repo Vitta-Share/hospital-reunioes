@@ -19,7 +19,8 @@ from __future__ import annotations
 import os
 import re
 import sys
-from datetime import date, timedelta
+import uuid
+from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -27,18 +28,22 @@ from typing import Any
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from postgrest.exceptions import APIError
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.dependencies import get_current_user, get_supabase_client  # noqa: E402
 from app.limiter import limiter  # noqa: E402
 from app.routers import seguranca_do_paciente_documentos as documentos_router  # noqa: E402
+from app.services.seguranca_do_paciente.permissao import hoje_em_sao_paulo  # noqa: E402
 
 ROTA = "/api/nsp/documentos"
 
 RECUSA_DO_CONTEUDO = {"detail": "Conteúdo restrito ao Núcleo de Segurança do Paciente"}
 
-HOJE = date.today()
+# O mesmo dia que o gate usa: em UTC (o runner do CI), entre 21h e 24h de
+# Brasília, `date.today()` já é amanhã e a Participação vencida ontem passaria.
+HOJE = hoje_em_sao_paulo()
 NUCLEO = {"id": "col-nsp", "slug": "nsp", "nome": "Núcleo de Segurança do Paciente", "setor_id": None}
 
 MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "147_nsp_documentos.sql"
@@ -56,9 +61,23 @@ def _reset_rate_limiter():
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+def _e_uuid(valor) -> bool:
+    try:
+        uuid.UUID(str(valor))
+    except ValueError:
+        return False
+    return True
+
+
 class _Consulta:
-    def __init__(self, linhas: list[dict]):
+    """`id_uuid`: a coluna `id` da tabela é UUID, como a da `nsp_documentos`.
+    Filtrar por texto que não é UUID faz o PostgREST recusar com 22P02, e o
+    dublê faz o mesmo, senão o teste do 404 passa onde o banco daria erro."""
+
+    def __init__(self, linhas: list[dict], *, id_uuid: bool = False):
         self._linhas = linhas
+        self._id_uuid = id_uuid
+        self._id_invalido = False
         self._filtros: list = []
         self._teto: int | None = None
         self._ordem: list[tuple[str, bool]] = []
@@ -67,6 +86,8 @@ class _Consulta:
         return self
 
     def eq(self, coluna, valor):
+        if self._id_uuid and coluna == "id" and not _e_uuid(valor):
+            self._id_invalido = True
         self._filtros.append(lambda linha: linha.get(coluna) == valor)
         return self
 
@@ -92,6 +113,8 @@ class _Consulta:
         return self
 
     def execute(self):
+        if self._id_invalido:
+            raise APIError({"code": "22P02", "message": "invalid input syntax for type uuid"})
         casam = [dict(linha) for linha in self._linhas if all(f(linha) for f in self._filtros)]
         for coluna, desc in reversed(self._ordem):
             casam.sort(key=lambda linha: linha.get(coluna), reverse=desc)
@@ -118,7 +141,7 @@ class _Banco:
         self.chamadas_rpc: list[tuple[str, dict]] = []
 
     def table(self, nome: str):
-        return _Consulta(self.tabelas.setdefault(nome, []))
+        return _Consulta(self.tabelas.setdefault(nome, []), id_uuid=nome == "nsp_documentos")
 
     def rpc(self, nome: str, params: dict):
         self.chamadas_rpc.append((nome, params))
@@ -128,7 +151,7 @@ class _Banco:
         for anterior in do_tipo:
             anterior["vigente"] = False
         novo = {
-            "id": f"doc-{len(documentos) + 1}",
+            "id": str(uuid.uuid4()),
             "tipo": params["p_tipo"],
             "versao": max((d["versao"] for d in do_tipo), default=0) + 1,
             "titulo": params["p_titulo"],
@@ -338,7 +361,7 @@ class TestRegimento:
 # ═══════════════════════════════════════════════════════════════════════════
 
 REGIMENTO_VIGENTE = {
-    "id": "doc-reg-1",
+    "id": "5d1f3c2a-0000-4000-8000-000000000001",
     "tipo": "regimento",
     "versao": 1,
     "titulo": "Regimento Interno do Núcleo",
@@ -351,7 +374,7 @@ REGIMENTO_VIGENTE = {
 }
 PLANO_VIGENTE = {
     **REGIMENTO_VIGENTE,
-    "id": "doc-plano-1",
+    "id": "5d1f3c2a-0000-4000-8000-000000000002",
     "tipo": "plano_seguranca_paciente",
     "titulo": "Plano de Segurança do Paciente",
     "texto": "Texto de teste do Plano.",
@@ -404,7 +427,22 @@ class TestQuemLe:
     def test_documento_inexistente_e_404(self):
         cliente = _cliente(_pessoa(), MEMBRO, DOCUMENTOS_VIGENTES)
 
-        assert cliente.get(f"{ROTA}/doc-nenhum").status_code == 404
+        resposta = cliente.get(f"{ROTA}/5d1f3c2a-0000-4000-8000-0000000000ff")
+
+        assert resposta.status_code == 404, resposta.text
+
+    def test_id_que_nao_e_uuid_e_404_e_nao_indisponivel(self, caplog):
+        """Link velho ou URL digitada: o PostgREST recusa o filtro com 22P02.
+        Mutante: tirar o tratamento do 22P02 da rota. Ela devolveria 503
+        "indisponíveis agora", com warning no log, para um documento que só
+        não existe."""
+        cliente = _cliente(_pessoa(), MEMBRO, DOCUMENTOS_VIGENTES)
+
+        resposta = cliente.get(f"{ROTA}/doc-nenhum")
+
+        assert resposta.status_code == 404, resposta.text
+        assert resposta.json() == {"detail": "Documento não encontrado."}
+        assert "ilegível" not in caplog.text
 
 
 class TestQuemPublica:

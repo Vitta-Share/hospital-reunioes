@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import os
 import sys
-from datetime import date, timedelta
+from datetime import timedelta
 from types import SimpleNamespace
 from typing import Any
 
@@ -27,6 +27,7 @@ from app.dependencies import get_current_user, get_supabase_client  # noqa: E402
 from app.limiter import limiter  # noqa: E402
 from app.routers import participantes as participantes_router  # noqa: E402
 from app.routers import seguranca_do_paciente as nsp_router  # noqa: E402
+from app.services.seguranca_do_paciente.permissao import hoje_em_sao_paulo  # noqa: E402
 
 ROTA_INICIO = "/api/nsp/inicio"
 ROTA_CONFIGURACAO = "/api/nsp/configuracao"
@@ -34,7 +35,9 @@ ROTA_ME = "/api/participantes/me"
 
 RECUSA_DO_CONTEUDO = {"detail": "Conteúdo restrito ao Núcleo de Segurança do Paciente"}
 
-HOJE = date.today()
+# O mesmo dia que o gate usa: em UTC (o runner do CI), entre 21h e 24h de
+# Brasília, `date.today()` já é amanhã e a Participação vencida ontem passaria.
+HOJE = hoje_em_sao_paulo()
 NUCLEO = {"id": "col-nsp", "slug": "nsp", "nome": "Núcleo de Segurança do Paciente", "setor_id": None}
 OUTRO_COLEGIADO = {"id": "col-etica", "slug": "etica", "nome": "Comissão de Ética", "setor_id": None}
 

@@ -124,7 +124,14 @@ async def ler_documento(
             or []
         )
         nomes = _nomes(supabase, {linhas[0]["publicado_por"]} if linhas and linhas[0].get("publicado_por") else set())
-    except (APIError, httpx.HTTPError) as erro:
+    except APIError as erro:
+        # Id que não é UUID (22P02), de link velho ou URL digitada, é documento
+        # que não existe; o resto é o banco.
+        if getattr(erro, "code", None) == "22P02":
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Documento não encontrado.") from erro
+        logger.warning("Documento do Núcleo ilegível: %s", erro)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=_INDISPONIVEL) from erro
+    except httpx.HTTPError as erro:
         logger.warning("Documento do Núcleo ilegível: %s", erro)
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=_INDISPONIVEL) from erro
     if not linhas:
