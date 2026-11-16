@@ -117,6 +117,10 @@ class _SupabaseMock:
         self.rows = rows
 
     def table(self, name: str):
+        # O cadastro de responsáveis decide o papel de quem não é da Ouvidoria
+        # nem do índice geral (issue #1884): aqui ninguém responde por setor.
+        if name == "ouvidoria_setor_responsaveis":
+            return _Query([])
         assert name == "ouvidoria_protocolos", f"Tabela inesperada: {name}"
         return _Query(self.rows)
 
@@ -147,7 +151,9 @@ def _make_client(monkeypatch, participante: dict | None, rows: list[dict] | None
 
 
 class TestListaDoPainel:
-    @pytest.mark.parametrize("papel", [FACILITADOR, SECRETARIA, SUPER_ADMIN])
+    # O facilitador sem setor saiu daqui na issue #1884 (ADR 0099): sem papel na
+    # Ouvidoria ele recebe 403, no teste logo abaixo.
+    @pytest.mark.parametrize("papel", [SECRETARIA, SUPER_ADMIN])
     def test_facilitador_e_secretaria_veem_lista_com_prazo_e_status(self, monkeypatch, papel):
         client = _make_client(monkeypatch, papel)
 
@@ -172,7 +178,7 @@ class TestListaDoPainel:
         assert r.status_code == 200
         assert [p["numero"] for p in r.json()["protocolos"]] == [8, 5, 3]
 
-    @pytest.mark.parametrize("sem_acesso", [POPS_SEM_REUNIOES, None])
+    @pytest.mark.parametrize("sem_acesso", [POPS_SEM_REUNIOES, FACILITADOR, None])
     def test_quem_nao_e_da_equipe_de_reunioes_recebe_403(self, monkeypatch, sem_acesso):
         client = _make_client(monkeypatch, sem_acesso)
 
@@ -303,7 +309,7 @@ class TestSemCriacaoNemDadoPessoal:
                 assert name == "ouvidoria_protocolos"
                 return _QueryEspiona(self.rows)
 
-        client = _make_client(monkeypatch, FACILITADOR)
+        client = _make_client(monkeypatch, SECRETARIA)
         client.app.dependency_overrides[get_supabase_client] = lambda: _SupabaseEspiao([_protocolo_row()])
 
         client.get("/api/ouvidoria/protocolos")

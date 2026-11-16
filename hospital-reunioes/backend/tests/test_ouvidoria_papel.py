@@ -55,7 +55,13 @@ CADASTRO = [
         ("substituto", MEDICO, [_linha("Recepção", "substituto")], RESPONSAVEL, {"Recepção"}),
         ("gestor", SEM_REUNIOES, [_linha("Recepção", "gestor")], RESPONSAVEL, {"Recepção"}),
         ("vigência encerrada ontem", MEDICO, [_linha("Recepção", "titular", fim=ONTEM)], NENHUM, set()),
-        ("vigência que acaba hoje", MEDICO, [_linha("Recepção", "titular", fim="2026-11-16")], RESPONSAVEL, {"Recepção"}),
+        (
+            "vigência que acaba hoje",
+            MEDICO,
+            [_linha("Recepção", "titular", fim="2026-11-16")],
+            RESPONSAVEL,
+            {"Recepção"},
+        ),
         (
             "e-mail com maiúscula e espaço",
             MEDICO,

@@ -406,7 +406,9 @@ class TestSigiloReforcado:
             ),
         ]
 
-    @pytest.mark.parametrize("papel", [SECRETARIA, FACILITADOR, SUPER_ADMIN])
+    # O facilitador sem setor saiu daqui na issue #1884 (ADR 0099): ele deixou
+    # de ver a fila, e o 403 dele mora em test_ouvidoria_fila_por_papel.py.
+    @pytest.mark.parametrize("papel", [SECRETARIA, SUPER_ADMIN])
     def test_sigilosa_nao_aparece_no_indice_de_quem_esta_fora_da_ouvidoria(self, monkeypatch, papel):
         client, _ = _client(monkeypatch, papel, self._com_sigilosa())
 

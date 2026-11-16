@@ -40,7 +40,6 @@ from app.dependencies import (
     get_current_user,
     get_participante_for_user,
     get_supabase_client,
-    tem_acesso_reunioes,
 )
 from app.limiter import limiter
 from app.routers.ana import _CAMPOS_PROTOCOLO_TUPLA
@@ -60,6 +59,7 @@ from app.services import (
     ouvidoria_notificacoes,
     ouvidoria_novidade,
     ouvidoria_nucleo,
+    ouvidoria_papel,
     ouvidoria_pontos,
     ouvidoria_prorrogacao,
     ouvidoria_redirecionamento,
@@ -153,19 +153,24 @@ async def require_acesso_painel(
     current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase_client),
 ) -> dict:
-    """Gate do painel: quem tem papel no contexto Reuniões (facilitador,
-    secretária, super admin) mais quem tem papel na Ouvidoria. O ouvidor pode
-    não participar de Reuniões nenhuma e ainda assim é o dono desta tela.
+    """Gate da fila: quem tem papel na Ouvidoria (ADR 0099, decisões 1 a 3).
 
-    Devolve o participante: a listagem decide o que mostrar pelo perfil."""
+    O Perfil da Ouvidoria, a Secretária e o Super admin passam como antes; o
+    titular, o substituto e o gestor vigentes de algum setor passam para ver
+    os casos do setor. Quem não é nenhum desses recebe 403, mesmo tendo papel
+    nas Reuniões.
+
+    Devolve o participante com o papel em `papel_na_ouvidoria`, como o gate
+    de Contas médicas devolve as permissões: a listagem recorta por ele."""
     me = await get_participante_for_user(current_user, supabase)
     barrar_desligado(me)
-    if not me or not (tem_acesso_reunioes(me) or tem_perfil_ouvidoria(me)):
+    papel = ouvidoria_papel.papel_de(supabase, me, agora_utc().astimezone(FUSO_HOSPITAL).date())
+    if papel.papel == ouvidoria_papel.NENHUM:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acesso restrito à equipe de Reuniões",
+            detail="Acesso restrito a quem tem papel na Ouvidoria",
         )
-    return me
+    return {**me, "papel_na_ouvidoria": papel}
 
 
 # Índice do painel: os campos da API da Ana mais o prazo do motor novo. Fica
@@ -189,8 +194,8 @@ _CAMPOS_INDICE_TUPLA = _CAMPOS_PROTOCOLO_TUPLA + (
     # tela de validação abre a partir do índice e precisa mostrar a marca de
     # sigilo no estado real. Sem a coluna aqui, ela abria desligada num caso
     # protegido e a validação retirava o sigilo sem ninguém desmarcar nada.
-    # Não vaza: a linha sigilosa não chega a quem está fora da Ouvidoria, então
-    # para esse público o campo é sempre falso.
+    # Não vaza: a linha sigilosa só chega fora da Ouvidoria ao responsável do
+    # setor dela (ADR 0099), e chega sem relato e sem identificação.
     "sigilo_reforcado",
     "gravidade",
     "prazo_area_em",
@@ -438,7 +443,11 @@ async def listar_protocolos(
 
     Pedir qualquer recorte que não seja `nao` exige o Perfil da Ouvidoria. O
     gate desta rota é o largo (a equipe de Reuniões inteira lê o índice), mas o
-    arquivo é ato da Ouvidoria, e ler o que ela guardou é a outra metade dele."""
+    arquivo é ato da Ouvidoria, e ler o que ela guardou é a outra metade dele.
+
+    O responsável do setor recebe só os casos acionados para os setores em que
+    está vigente (ADR 0099, decisão 2), pelo mesmo índice de quem está fora da
+    Ouvidoria."""
     if arquivados != "nao" and not tem_perfil_ouvidoria(me):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -447,7 +456,9 @@ async def listar_protocolos(
 
     # Pelo relógio do módulo, como o resto do painel: rótulo de prazo e
     # indicador de cumprimento saem da MESMA leitura do relógio em toda rota.
-    casos, degradado = ler_fila(supabase, me, arquivados, agora_utc())
+    papel = me["papel_na_ouvidoria"]
+    setores = papel.setores if papel.papel == ouvidoria_papel.RESPONSAVEL else None
+    casos, degradado = ler_fila(supabase, me, arquivados, agora_utc(), setores=setores)
     # O marcador de novidade (issue #484, RN-66). Só é derivado para quem tem o
     # Perfil da Ouvidoria: o ponto diz "a Ouvidoria ainda não viu", o que não
     # significa nada para a secretária, e agregar a trilha para ela seria uma
@@ -484,13 +495,29 @@ async def listar_protocolos(
     }
 
 
+# Os estados de quem já saiu da classificação: o caso foi acionado para a área
+# e a partir daí é do setor (ADR 0099, decisão 2). `novo` e `em_classificacao`
+# ficam com a Ouvidoria, inclusive o caso devolvido ou redirecionado.
+ESTADOS_ACIONADOS = frozenset({"aguardando_area", "aguardando_manifestante", "respondido", "encerrado"})
+
+
 def ler_fila(
-    supabase, me: dict, arquivados: Literal["nao", "sim", "todos"], agora: dt.datetime
+    supabase,
+    me: dict,
+    arquivados: Literal["nao", "sim", "todos"],
+    agora: dt.datetime,
+    *,
+    setores: frozenset[str] | None = None,
 ) -> tuple[list[tuple[dict, dict]], list[str]]:
     """Os casos da fila que `me` vê, cada um com o prazo projetado, e o que não
     pôde ser lido (casos e calendário). É o código da fila na tela e da
     ferramenta da fila no Conector (issue #1611, ADR 0085, decisão 3): um
-    segundo cálculo de prazo faria o Claude discordar da tela. Só lê."""
+    segundo cálculo de prazo faria o Claude discordar da tela. Só lê.
+
+    `setores` é o recorte do Responsável do setor (ADR 0099, decisão 2): só os
+    casos acionados para esses setores, já fora da classificação. O sigiloso
+    do setor entra, porque a Tela do responsável também o recebe; quem lista
+    tira dele o relato e a identificação pela projeção do índice."""
 
     def consulta():
         # A resposta segue fechada em _CAMPOS_INDICE, campo a campo, e o select
@@ -504,6 +531,10 @@ def ler_fila(
             query = query.not_.is_("arquivada_em", "null")
         elif arquivados == "nao":
             query = query.is_("arquivada_em", "null")
+        # O recorte do responsável, na query: caso de outro setor nem sai do
+        # banco. A sigilosa do setor fica, como na Tela do responsável.
+        if setores is not None:
+            return query.in_("setor", sorted(setores)).in_("status", sorted(ESTADOS_ACIONADOS))
         # Sigilo reforçado (RN-40): o resumo de uma denúncia já identifica quem
         # relatou, então a sigilosa não entra nem no índice de quem está fora da
         # Ouvidoria, super admin incluído. O filtro vive na query (a linha nem sai
@@ -525,7 +556,7 @@ def ler_fila(
     # tela diz que a lista não está inteira.
     linhas, casos_completos = ler_paginado(consulta, rotulo=ouvidoria_novidade.LEITURA_DOS_CASOS)
     degradado_dos_casos = [] if casos_completos else [ouvidoria_novidade.LEITURA_DOS_CASOS]
-    if not tem_perfil_ouvidoria(me):
+    if setores is None and not tem_perfil_ouvidoria(me):
         linhas = [row for row in linhas if not row.get("sigilo_reforcado")]
 
     # O rótulo é calculado no servidor, uma vez por carga, com o mesmo motor
