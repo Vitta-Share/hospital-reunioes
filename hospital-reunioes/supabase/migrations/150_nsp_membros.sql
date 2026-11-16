@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 149: Segurança do Paciente, os membros do Núcleo
+-- Migration 150: Segurança do Paciente, os membros do Núcleo
 -- (issue #1766, PRD #1764, ADR 0095, decisões 3 e 12)
 -- =====================================================
 -- O que entra:
@@ -94,4 +94,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (149) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (150) ON CONFLICT (numero) DO NOTHING;

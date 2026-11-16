@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 import sys
 import uuid
-from datetime import date, timedelta
+from datetime import timedelta
 from types import SimpleNamespace
 from typing import Any
 
@@ -27,11 +27,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from app.dependencies import get_current_user, get_supabase_client  # noqa: E402
 from app.limiter import limiter  # noqa: E402
 from app.routers import seguranca_do_paciente_membros as membros_router  # noqa: E402
+from app.services.seguranca_do_paciente import permissao  # noqa: E402
 
 ROTA = "/api/nsp/membros"
 RECUSA_DO_CONTEUDO = {"detail": "Conteúdo restrito ao Núcleo de Segurança do Paciente"}
 
-HOJE = date.today()
+# O dia de São Paulo, o mesmo que o código usa: das 21h à meia-noite o
+# relógio da máquina (UTC no CI) já está no dia seguinte.
+HOJE = permissao.hoje_em_sao_paulo()
 NUCLEO = {"id": "col-nsp", "slug": "nsp", "nome": "Núcleo de Segurança do Paciente", "setor_id": None}
 ASSINADO = "2026-01-10T12:00:00+00:00"
 
@@ -41,6 +44,12 @@ def _reset_rate_limiter():
     limiter._storage.reset()
     yield
     limiter._storage.reset()
+
+
+@pytest.fixture(autouse=True)
+def _dia_fixo(monkeypatch):
+    monkeypatch.setattr(membros_router, "hoje_em_sao_paulo", lambda: HOJE)
+    monkeypatch.setattr(permissao, "hoje_em_sao_paulo", lambda: HOJE)
 
 
 def _iso(delta: int) -> str:

@@ -1,4 +1,4 @@
-"""A migration 149: os membros do Núcleo (issue #1766, ADR 0095).
+"""A migration 150: os membros do Núcleo (issue #1766, ADR 0095).
 
 Lida como texto, do arquivo que o humano cola no Studio. O que se confere: a
 Participação ganha área e encerramento, a trilha nasce com RLS e sem política,
@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "149_nsp_membros.sql"
+MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "150_nsp_membros.sql"
 
 
 def _sql() -> str:
@@ -58,9 +58,9 @@ def test_nenhuma_pessoa_na_migration():
     assert re.search(r"[\w.+-]+@[\w-]+\.[\w.]+", MIGRATION.read_text(encoding="utf-8")) is None
 
 
-def test_o_recibo_e_o_149():
+def test_o_recibo_e_o_150():
     assert (
         _sql()
         .rstrip()
-        .endswith("INSERT INTO migracoes_aplicadas (numero) VALUES (149) ON CONFLICT (numero) DO NOTHING;")
+        .endswith("INSERT INTO migracoes_aplicadas (numero) VALUES (150) ON CONFLICT (numero) DO NOTHING;")
     )

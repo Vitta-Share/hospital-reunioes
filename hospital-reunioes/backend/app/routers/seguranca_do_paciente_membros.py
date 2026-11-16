@@ -7,7 +7,7 @@ editam, renovam e encerram (`gerir_nucleo`); quem tem o recurso `membros` lê.
 Nada se apaga: encerrar termina a vigência no dia e a linha fica, para a
 composição de qualquer data passada. Toda mudança grava a trilha (autor,
 campo, valor anterior e novo). Não existe rota DELETE, e o banco recusa apagar
-Participação (migration 149).
+Participação (migration 150).
 
 O estado do membro sai da função pura de `membros`; nesta fatia ele para em
 Cadastrado, porque o Termo e a assinatura chegam na fatia do Termo.
