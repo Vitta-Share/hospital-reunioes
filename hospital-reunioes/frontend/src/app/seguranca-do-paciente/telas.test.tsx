@@ -42,6 +42,12 @@ vi.mock("@/hooks/useCurrentParticipante", () => ({
   }),
 }));
 
+// A lista dos membros chama a API (issue #1766) e tem teste próprio, ao lado
+// do componente. Aqui só importa que a tela Membros a mostra.
+vi.mock("@/components/seguranca-do-paciente/MembrosDoNucleo", () => ({
+  MembrosDoNucleo: () => <p>Lista dos membros</p>,
+}));
+
 // As telas Documentos (issue #1767) e Reuniões (issue #1772) já têm conteúdo e
 // pedem a lista ao servidor; aqui só importa a moldura, e as listas voltam vazias.
 vi.mock("@/lib/supabase/client", () => ({
@@ -146,9 +152,11 @@ describe("as telas do módulo", () => {
     expect(screen.getByText(orientacao).tagName).toBe("P");
   });
 
-  // Início, Documentos e Reuniões já têm conteúdo (issues #1767 e #1772).
+  // Início, Membros, Documentos e Reuniões já têm conteúdo (issues #1766, #1767 e #1772).
   it.each(
-    TELAS.filter((t) => t.nome !== "Início" && t.nome !== "Documentos" && t.nome !== "Reuniões")
+    TELAS.filter(
+      (t) => t.nome !== "Início" && t.nome !== "Membros" && t.nome !== "Documentos" && t.nome !== "Reuniões"
+    )
   )(
     "$nome mostra o estado vazio enquanto a fatia dela não chega",
     ({ Pagina }) => {
@@ -178,6 +186,14 @@ describe("as telas do módulo", () => {
     expect(screen.queryByRole("button", { name: "Publicar versão nova" }) !== null).toBe(ve);
   });
 
+  it("Membros mostra a lista dos membros, e não o estado vazio", () => {
+    entrar(TODOS);
+    render(<MembrosPage />);
+
+    expect(screen.getByText("Lista dos membros")).toBeTruthy();
+    expect(screen.queryByText("Nada por aqui ainda.")).toBeNull();
+  });
+
   it("o Início explica como funciona o Núcleo em seis passos curtos", () => {
     entrar(TODOS);
     render(<InicioPage />);
@@ -201,6 +217,7 @@ describe("quem não tem o recurso da tela", () => {
 
     expect(screen.getByText("Esta tela ainda não está liberada para você.")).toBeTruthy();
     expect(screen.queryByText("Nada por aqui ainda.")).toBeNull();
+    expect(screen.queryByText("Lista dos membros")).toBeNull();
   });
 
   it.each([

@@ -13,6 +13,7 @@ A fundação do módulo:
 - o item **Segurança do Paciente** no menu lateral, com a página inicial do módulo, as Reuniões e o grupo Núcleo (Membros, Documentos, Capacitações e Agenda regulatória). Cada tela abre com uma linha dizendo o que fazer ali; as telas ainda sem conteúdo dizem que ele chega nas próximas entregas;
 - os itens Auditorias de adesão, Gestão de riscos e Comissões, que aparecem no menu desabilitados, com o selo "Em breve" e uma explicação do que vão fazer;
 - o Núcleo criado como o primeiro colegiado do hospital, ainda sem nenhum membro: a composição é cadastrada pela tela;
+- a tela **Membros**, com uma linha por membro (papel, área, conselho e registro, vigência, estado e situação do Termo). A Presidência e o Acesso pleno cadastram, editam, renovam a vigência, mudam o papel e encerram a participação. Os demais que abrem a tela só leem;
 - o cadastro de pessoas com conselho profissional, número de registro e UF;
 - o Acesso pleno ao NSP, marcado no cadastro da pessoa pela área administrativa.
 
@@ -46,9 +47,23 @@ Dentro do módulo, cada pessoa vê conforme o papel:
 
 Participação vencida, ou que ainda não começou, não dá acesso.
 
+## Membros e estados
+
+O estado de cada membro é calculado pelas datas e pela assinatura, e ninguém o edita à mão:
+
+- **Cadastrado**: a participação existe e o Termo ainda não foi gerado;
+- **Documento gerado** e **Aguardando assinatura**: o Termo saiu e espera a assinatura;
+- **Ativo**: Termo assinado e vigência em dia;
+- **A vencer**: faltam 60 dias ou menos para o fim da vigência;
+- **Em carência**: até 30 dias depois do fim da vigência, para dar tempo de renovar;
+- **Vencido**: passou a carência;
+- **Encerrado**: a Presidência encerrou a participação.
+
+Membro nunca é apagado. Encerrar termina a vigência no dia escolhido e a participação vai para o histórico, recolhido no fim da tela. Escolhendo uma data, a tela mostra quem compunha o Núcleo naquele dia, inclusive quem já saiu. Toda mudança (cadastro, edição, renovação, mudança de papel, encerramento) fica registrada com quem fez, quando, o valor anterior e o novo, e aparece na seção de cada membro. Uma pessoa tem uma participação aberta por vez: para voltar depois de encerrada, ela é cadastrada de novo.
+
 ## O que ele ainda não faz
 
-As telas de Membros, Capacitações e Agenda regulatória ainda estão vazias: o cadastro de membros com o Termo, as capacitações e a agenda chegam nas próximas entregas da primeira fase. A assinatura de um documento publicado também chega depois. Nas reuniões, a pauta montada pelo sistema, o convite aos membros e a ata própria do Núcleo também chegam depois: por enquanto a Presidência cria a reunião à mão e a ata segue o modelo das outras reuniões. A notificação de incidente e a triagem são da segunda fase.
+As telas de Capacitações e Agenda regulatória ainda estão vazias: as capacitações e a agenda chegam nas próximas entregas da primeira fase. Em Membros, o cadastro ainda não gera o Termo de Adesão nem manda para assinatura, então todo membro novo fica em Cadastrado até a entrega do Termo. Renovar a vigência ou mudar o papel também não pede Termo novo por enquanto. A assinatura de um documento publicado também chega depois. Nas reuniões, a pauta montada pelo sistema, o convite aos membros e a ata própria do Núcleo também chegam depois: por enquanto a Presidência cria a reunião à mão e a ata segue o modelo das outras reuniões. A notificação de incidente e a triagem são da segunda fase.
 
 ## O que já foi decidido
 
@@ -69,6 +84,7 @@ As telas de Membros, Capacitações e Agenda regulatória ainda estão vazias: o
 ## O que costuma virar Demanda
 
 - Uma pessoa do Núcleo que não vê o item no menu: costuma ser participação com a vigência vencida ou ainda não cadastrada.
+- Pedido para apagar um membro cadastrado por engano: não existe exclusão. A Presidência encerra a participação, que fica no histórico.
 - Um diretor que pede para ver um caso: depende da fase e da faixa do caso, e o Acesso pleno é só do Diretor Executivo.
 - Pedido para o super admin ler uma ata ou um caso do Núcleo: não é atendido, por decisão da Diretoria.
 - Pedido para apagar um documento publicado errado: não existe; a Presidência publica uma versão nova corrigida, que passa a ser a vigente.

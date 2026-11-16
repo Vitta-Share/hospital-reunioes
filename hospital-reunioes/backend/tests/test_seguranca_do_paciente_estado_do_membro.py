@@ -88,3 +88,29 @@ class TestEncerrado:
 
     def test_encerrada_sem_assinatura_tambem(self):
         assert estado_do_membro(_participacao(encerrada_em="2026-08-01"), INICIO) == "encerrado"
+
+
+class TestKitDeConhecimento:
+    """O texto do Produto Segurança do Paciente diz o comportamento novo."""
+
+    KIT = os.path.join(os.path.dirname(__file__), "..", "app", "conhecimento", "seguranca-do-paciente.md")
+
+    def test_o_kit_explica_cada_estado_e_que_membro_nao_se_apaga(self):
+        """Mutante: tirar a seção dos membros do kit."""
+        with open(self.KIT, encoding="utf-8") as arquivo:
+            texto = arquivo.read()
+        assert "## Membros e estados" in texto
+        rotulos = (
+            "Cadastrado",
+            "Documento gerado",
+            "Aguardando assinatura",
+            "Ativo",
+            "A vencer",
+            "Em carência",
+            "Vencido",
+            "Encerrado",
+        )
+        secao = texto.split("## Membros e estados", 1)[1].split("\n## ", 1)[0]
+        assert [r for r in rotulos if f"**{r}**" not in secao] == []
+        assert "Membro nunca é apagado" in secao
+        assert "quem compunha o Núcleo naquele dia" in secao
