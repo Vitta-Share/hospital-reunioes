@@ -171,7 +171,8 @@ describe("o quórum e a reunião não instalada", () => {
   });
 
   it("com quórum, não oferece o reagendamento", async () => {
-    fetchMock.mockImplementation(async () => responder(apuracao({ quorum: COM_QUORUM })));
+    const registrada = apuracao().pessoas.map((p) => ({ ...p, situacao: "presente" as const }));
+    fetchMock.mockImplementation(async () => responder(apuracao({ quorum: COM_QUORUM, pessoas: registrada })));
     render(<PresencaDaReuniao idReuniao={ID} />);
 
     expect(await screen.findByText("Reunião instalada: 3 presentes de 5, mínimo de 3.")).toBeTruthy();
