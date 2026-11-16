@@ -49,11 +49,13 @@ HOJE = permissao.hoje_em_sao_paulo()
 NUCLEO = {"id": "col-nsp", "slug": "nsp", "nome": "Núcleo de Segurança do Paciente", "setor_id": None}
 ASSINADO = "2026-01-10T12:00:00+00:00"
 
+TRAVESSAO, MEIA_RISCA = chr(0x2014), chr(0x2013)
+
 # O Regimento de teste traz travessão e meia-risca de propósito: o PDF não pode
 # sair com nenhum dos dois.
 TEXTO_DO_REGIMENTO = (
-    "Art. 1º O Núcleo de Segurança do Paciente — instância consultiva — reúne-se mensalmente.\n"
-    "Art. 2º O prazo de análise é de 10–15 dias corridos."
+    f"Art. 1º O Núcleo de Segurança do Paciente {TRAVESSAO} instância consultiva {TRAVESSAO} reúne-se mensalmente.\n"
+    f"Art. 2º O prazo de análise é de 10{MEIA_RISCA}15 dias corridos."
 )
 
 
@@ -720,7 +722,7 @@ class TestPdfDoTermo:
         texto = _texto_do_pdf(assinatura.documentos[0])
 
         assert "CRF nº 000444/RJ" in texto
-        assert re.search("[–—]", texto) is None
+        assert TRAVESSAO not in texto and MEIA_RISCA not in texto
         assert "Núcleo de Segurança do Paciente, instância consultiva, reúne-se" in texto
 
 

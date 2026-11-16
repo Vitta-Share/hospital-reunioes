@@ -402,7 +402,7 @@ def _gerar_termo(supabase, participacao: dict, autor_id: str) -> str | None:
         return termo.gerar_e_enviar(supabase, participacao, autor_id=autor_id).get("erro")
     except termo.TermoNaoGeradoError as erro:
         return str(erro)
-    except Exception:  # noqa: BLE001 — o cadastro não se desfaz por falha do Termo
+    except Exception:  # noqa: BLE001 (o cadastro não se desfaz por falha do Termo)
         logger.exception("Termo de Adesão da Participação %s não gerado", participacao.get("id"))
         return "O Termo de Adesão não foi gerado agora. Use Reenviar o Termo na ficha do membro."
 

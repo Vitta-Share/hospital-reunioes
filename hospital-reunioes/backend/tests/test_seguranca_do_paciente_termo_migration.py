@@ -72,7 +72,8 @@ def test_nenhuma_pessoa_na_migration():
 
 
 def test_sem_travessao_no_arquivo():
-    assert re.search("[–—]", MIGRATION.read_text(encoding="utf-8")) is None
+    texto = MIGRATION.read_text(encoding="utf-8")
+    assert chr(0x2013) not in texto and chr(0x2014) not in texto
 
 
 def test_o_recibo_e_o_151():
