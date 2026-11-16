@@ -45,6 +45,8 @@ sem -> pendencias
 
 ![O Calendário de Reuniões no mês](calendario.png)
 
+> As reuniões do Núcleo de Segurança do Paciente ficam no módulo **Segurança do Paciente**, em **Reuniões**. No Calendário elas só aparecem para quem tem acesso ao Núcleo.
+
 ## Marcar uma reunião
 
 1. No **Calendário**, clique em **Agendar reunião**, no alto à direita. Se preferir, clique direto no dia da reunião: a janela já abre com a data.
