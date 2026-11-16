@@ -6,6 +6,10 @@ na mesma tabela das outras, com `colegiado_id` do Núcleo, e daí em diante segu
 o caminho de sempre (transcrição, ata, assinatura) pela tela da reunião, que o
 sigilo do Núcleo guarda (`barrar_reuniao_do_nucleo`).
 
+A reunião rápida de segurança (issue #1777) é a exceção: não tem ata, e nasce
+em `nsp_reunioes_rapidas` (migration 154), fora do pipeline, pelo registro de
+três linhas. Na lista do módulo ela aparece ao lado das outras, com o tipo.
+
 Quem vê o calendário é quem tem `calendario` (o membro sem Termo inclusive);
 quem cria é quem tem `gerir_nucleo` (a Presidência e o Acesso pleno).
 
@@ -67,6 +71,13 @@ class ReuniaoRapidaRequest(BaseModel):
     setor: str = Field(..., min_length=1, max_length=120)
     participantes: list[str] = Field(..., min_length=1, max_length=50)
     texto: str = Field(..., min_length=1, max_length=TETO_DO_TEXTO)
+
+    @field_validator("setor")
+    @classmethod
+    def _setor(cls, setor: str) -> str:
+        if not setor.strip():
+            raise ValueError("Diga o setor")
+        return setor.strip()
 
     @field_validator("texto")
     @classmethod
@@ -596,7 +607,7 @@ async def registrar_reuniao_rapida(
         "id": str(uuid4()),
         "colegiado_id": nucleo_id,
         "data": req.data.isoformat(),
-        "setor": req.setor.strip(),
+        "setor": req.setor,
         "participantes": participantes,
         "texto": req.texto,
         "criada_por": me["id"],
