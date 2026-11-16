@@ -1362,7 +1362,7 @@ class TestComentariosApontamParaAMigrationCerta:
     O teste existe porque a próxima renumeração faz de novo."""
 
     ARQUIVOS = (
-        "app/routers/ouvidoria_setor.py",
+        "app/services/ouvidoria_tela_do_responsavel.py",
         "app/services/ouvidoria_prorrogacao.py",
     )
     INDICE = "idx_ouvidoria_prorrogacoes_unica"

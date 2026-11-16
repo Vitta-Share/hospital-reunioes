@@ -1930,3 +1930,158 @@ class TestPacienteNoReenvio:
             assert EXTRATO in pedaco
             assert PACIENTE not in pedaco
             assert REFERENCIA not in pedaco
+
+
+# =====================================================================
+# As ações da Tela do responsável num serviço só (issue #1885, ADR 0099)
+# =====================================================================
+
+JUSTIFICATIVA_DO_PRAZO = "A auditoria interna so devolve o laudo na semana que vem."
+MOTIVO_DA_DEVOLUCAO = "Nao e da recepcao, quem agenda e o Centro Medico."
+
+
+class TestTelaDoResponsavelNumServicoSo:
+    """Abrir, responder, pedir prorrogação e devolver à Ouvidoria passam pelo
+    mesmo serviço, que recebe o caso e o ator e não conhece token. A porta do
+    link só resolve o caso e o ator e chama o serviço, e a trilha guarda por
+    qual porta a ação veio (ADR 0099, decisão 4)."""
+
+    @pytest.mark.parametrize(
+        ("acao", "metodo", "sufixo", "corpo"),
+        [
+            ("abrir", "get", "", {}),
+            ("responder", "post", "/responder", {"data": {"resposta": RESPOSTA_DA_AREA}}),
+            (
+                "pedir_prorrogacao",
+                "post",
+                "/prorrogacao",
+                {"json": {"justificativa": JUSTIFICATIVA_DO_PRAZO, "dias_uteis": 2}},
+            ),
+            ("devolver_a_ouvidoria", "post", "/devolver", {"json": {"motivo": MOTIVO_DA_DEVOLUCAO}}),
+        ],
+    )
+    def test_cada_acao_do_link_chama_o_servico_com_caso_e_ator_sem_token(
+        self, monkeypatch, _nunca_envia_email_de_verdade, acao, metodo, sufixo, corpo
+    ):
+        import inspect
+
+        from app.services import ouvidoria_tela_do_responsavel
+
+        assert "token" not in inspect.signature(getattr(ouvidoria_tela_do_responsavel, acao)).parameters
+        client, _ = _client(monkeypatch)
+        _acionar(client)
+        token = _token_do_email(_nunca_envia_email_de_verdade)
+        chamadas: list[dict] = []
+
+        async def _espiao(*args, **kwargs):
+            chamadas.append({"args": args, "kwargs": kwargs})
+            return {"ok": True}
+
+        monkeypatch.setattr(ouvidoria_tela_do_responsavel, acao, _espiao)
+
+        resposta = getattr(client, metodo)(f"/api/ouvidoria-setor/{token}{sufixo}", **corpo)
+
+        assert resposta.status_code in (200, 201), resposta.text
+        assert len(chamadas) == 1, f"a rota de {acao} não passou pelo serviço"
+        recebido = chamadas[0]["kwargs"]
+        assert recebido["caso"]["id"] == "uuid-7"
+        assert recebido["ator"].nome == "Carlos Titular"
+        assert recebido["ator"].porta == "link de e-mail"
+        assert token not in repr(chamadas[0]), "o token chegou ao serviço"
+
+    def test_a_resposta_pelo_link_fica_na_trilha_com_o_ator_e_a_porta(self, monkeypatch, _nunca_envia_email_de_verdade):
+        client, sb = _client(monkeypatch)
+        _acionar(client)
+        token = _token_do_email(_nunca_envia_email_de_verdade)
+
+        resposta = client.post(f"/api/ouvidoria-setor/{token}/responder", data={"resposta": RESPOSTA_DA_AREA})
+
+        assert resposta.status_code == 200, resposta.text
+        movimento = sb.tabelas["ouvidoria_movimentos"][-1]
+        assert movimento["estado_novo"] == "respondido"
+        assert movimento["autor_nome"] == "Carlos Titular"
+        assert movimento["observacao"] == (
+            f"Resposta da área pelo portal do setor: {RESPOSTA_DA_AREA}\nPorta: link de e-mail"
+        )
+
+    def test_a_devolucao_pelo_link_fica_na_trilha_com_o_ator_e_a_porta(
+        self, monkeypatch, _nunca_envia_email_de_verdade
+    ):
+        client, sb = _client(monkeypatch)
+        _acionar(client)
+        token = _token_do_email(_nunca_envia_email_de_verdade)
+
+        resposta = client.post(f"/api/ouvidoria-setor/{token}/devolver", json={"motivo": MOTIVO_DA_DEVOLUCAO})
+
+        assert resposta.status_code == 200, resposta.text
+        movimento = sb.tabelas["ouvidoria_movimentos"][-1]
+        assert movimento["estado_novo"] == "em_classificacao"
+        assert movimento["autor_nome"] == "Carlos Titular"
+        assert movimento["observacao"] == (
+            f"Devolvido pela área Recepcao: {MOTIVO_DA_DEVOLUCAO}\nPorta: link de e-mail"
+        )
+
+    def test_o_pedido_de_prorrogacao_pelo_link_fica_na_trilha_com_o_ator_e_a_porta(
+        self, monkeypatch, _nunca_envia_email_de_verdade
+    ):
+        client, sb = _client(monkeypatch)
+        _acionar(client)
+        token = _token_do_email(_nunca_envia_email_de_verdade)
+
+        resposta = client.post(
+            f"/api/ouvidoria-setor/{token}/prorrogacao",
+            json={"justificativa": JUSTIFICATIVA_DO_PRAZO, "dias_uteis": 2},
+        )
+
+        assert resposta.status_code == 201, resposta.text
+        movimento = sb.tabelas["ouvidoria_movimentos"][-1]
+        assert movimento["autor_nome"] == "Carlos Titular"
+        assert movimento["observacao"] == (
+            "Prorrogação solicitada pelo setor: 2 dia(s) útil(eis). "
+            f"Justificativa: {JUSTIFICATIVA_DO_PRAZO}\nPorta: link de e-mail"
+        )
+
+    def test_a_linha_do_tempo_mostra_a_porta_a_parte_e_o_texto_de_sempre(
+        self, monkeypatch, _nunca_envia_email_de_verdade
+    ):
+        """A porta é dado próprio do evento: o texto que o ouvidor lê (e que o
+        Dossiê desmonta para o bloco da devolução) continua o de antes."""
+        client, _ = _client(monkeypatch)
+        _acionar(client)
+        token = _token_do_email(_nunca_envia_email_de_verdade)
+        assert (
+            client.post(
+                f"/api/ouvidoria-setor/{token}/prorrogacao",
+                json={"justificativa": JUSTIFICATIVA_DO_PRAZO, "dias_uteis": 2},
+            ).status_code
+            == 201
+        )
+        assert (
+            client.post(f"/api/ouvidoria-setor/{token}/devolver", json={"motivo": MOTIVO_DA_DEVOLUCAO}).status_code
+            == 200
+        )
+
+        resposta = client.get("/api/ouvidoria/manifestacoes/uuid-7/movimentos")
+
+        assert resposta.status_code == 200, resposta.text
+        eventos = resposta.json()["movimentos"]
+        devolucao = next(e for e in eventos if (e["texto"] or "").startswith("Devolvido pela área"))
+        assert devolucao["texto"] == f"Devolvido pela área Recepcao: {MOTIVO_DA_DEVOLUCAO}"
+        assert devolucao["porta"] == "link de e-mail"
+        pedido = next(e for e in eventos if e["descricao"].startswith("Prorrogação solicitada"))
+        assert pedido["texto"] is None
+        assert pedido["porta"] == "link de e-mail"
+        assert all(e["porta"] is None for e in eventos if e not in (devolucao, pedido))
+
+    def test_cada_abertura_do_link_grava_um_registro_de_acesso(self, monkeypatch, _nunca_envia_email_de_verdade):
+        client, sb = _client(monkeypatch)
+        _acionar(client)
+        token = _token_do_email(_nunca_envia_email_de_verdade)
+
+        for _ in range(2):
+            assert client.get(f"/api/ouvidoria-setor/{token}").status_code == 200
+
+        aberturas = [a for a in sb.tabelas["ouvidoria_acessos"] if a["acao"] == "portal_setor_abrir"]
+        assert len(aberturas) == 2
+        assert {a["manifestacao_id"] for a in aberturas} == {"uuid-7"}
+        assert {a["ator_nome"] for a in aberturas} == {"Carlos Titular (portal do setor)"}

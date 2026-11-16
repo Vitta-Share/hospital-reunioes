@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from app.services import ouvidoria_respostas
+from app.services import ouvidoria_porta, ouvidoria_respostas
 from app.services.ouvidoria_estados import e_devolucao, e_pausa, e_reabertura, e_retomada
 from app.services.ouvidoria_prazos import FUSO, minutos_uteis_entre
 from app.services.ouvidoria_retencao import e_movimento_de_apagamento
@@ -178,7 +178,11 @@ def _evento(movimento: dict) -> dict:
     decorrido (que depende do movimento anterior e entra depois)."""
     anterior = movimento.get("estado_anterior")
     novo = movimento.get("estado_novo") or ""
-    observacao = (movimento.get("observacao") or "").strip()
+    # A porta por onde a Tela do responsável agiu (issue #1885) viaja na última
+    # linha da observação, e sai dela antes de tudo: ela não é descrição nem
+    # texto de ninguém, e vai para o evento num campo próprio.
+    observacao, porta = ouvidoria_porta.separar((movimento.get("observacao") or "").strip())
+    observacao = observacao or ""
     rotulo = _rotulo(anterior, novo)
 
     if rotulo is None:
@@ -216,6 +220,7 @@ def _evento(movimento: dict) -> dict:
         "marco_rotulo": ROTULO_DO_MARCO.get(marco) if marco else None,
         "descricao": descricao,
         "texto": texto,
+        "porta": porta,
         "desde_marco": None,
         "desde_marco_rotulo": None,
         "minutos_uteis": None,

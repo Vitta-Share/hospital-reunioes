@@ -224,7 +224,7 @@ class TestDevolverPeloLinkDoEmail:
         movimento = sb.tabelas["ouvidoria_movimentos"][-1]
         assert movimento["estado_anterior"] == "aguardando_area"
         assert movimento["estado_novo"] == "em_classificacao"
-        assert movimento["observacao"] == f"Devolvido pela área Recepcao: {MOTIVO}"
+        assert movimento["observacao"] == f"Devolvido pela área Recepcao: {MOTIVO}\nPorta: link de e-mail"
         # Autor é quem clicou no link, sem id: o responsável do setor não tem
         # login, como na resposta da área.
         assert movimento["autor_nome"] == "Carlos Titular"

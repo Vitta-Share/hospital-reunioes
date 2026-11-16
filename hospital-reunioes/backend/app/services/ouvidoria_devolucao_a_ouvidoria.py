@@ -14,6 +14,7 @@ para o ouvidor saber para onde mandar.
 
 from __future__ import annotations
 
+from app.services import ouvidoria_porta
 from app.utils.text_sanitizer import sanitizar_travessao, sem_invisiveis
 
 # O rótulo que abre a observação do movimento, e o que a fatia do Dossiê vai
@@ -84,7 +85,11 @@ def setor_e_motivo(observacao: str | None) -> tuple[str | None, str]:
     agenda é o Centro Médico"), e partir no último entregaria meia frase. Texto
     que não começa pelo prefixo volta inteiro como motivo, sem setor inventado:
     linha antiga ou `detalhe` escrito por outro caminho não pode virar um nome
-    de área no email de quem despacha o caso."""
+    de área no email de quem despacha o caso.
+
+    A porta da última linha (issue #1885) sai antes: ela diz por onde a
+    devolução veio, e não faz parte do motivo."""
+    observacao, _porta = ouvidoria_porta.separar(observacao)
     texto = (observacao or "").strip()
     if not texto.startswith(f"{_PREFIXO} "):
         return None, texto
