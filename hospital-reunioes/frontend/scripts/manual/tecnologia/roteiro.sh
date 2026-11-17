@@ -85,6 +85,9 @@ print_tela "quadro.png"
 pw run-code "async page => { await page.getByRole('button', { name: /Painel de Contas médicas por convênio/ }).click() }"
 esperar "Henrique, as duas primeiras partes já estão no ar. A próxima traz o filtro de período."
 print_tela "pedido-no-painel.png"
+# As partes do mesmo pedido, agrupadas por Onda, com o número e o Espera a (issue #1903).
+pw run-code "async page => { await page.getByRole('region', { name: 'Documento do card', exact: true }).getByText('Onda 3', { exact: true }).scrollIntoViewIfNeeded(); await page.waitForTimeout(400) }"
+print "$(bloco "Documento do card")" "partes-por-onda.png"
 pw run-code "async page => { await page.getByRole('button', { name: 'Fechar o pedido' }).click() }"
 
 # Filtrar por Projeto: o campo Projeto em Ana.

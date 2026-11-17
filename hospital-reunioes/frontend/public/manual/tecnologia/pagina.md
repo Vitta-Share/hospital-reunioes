@@ -39,13 +39,17 @@ Se a conversa parar no meio, ela fica guardada como Registrada. Clique no pedido
 
 3. Em cada card, veja o número da Demanda, o título, o selo **Bug** ou **Melhoria**, o Projeto, as iniciais de quem cuida, a versão quando ele já está Em produção e, quando o pedido tem partes, quantas já foram entregues.
 4. Clique num card. Ele abre num painel à direita, com o documento do pedido: o que ele muda para você, as partes e as datas.
-5. Para falar com a Vitta sobre aquele pedido, clique em **Conversar**, no alto do painel, e escreva na Conversa da Demanda. Para chamar alguém, escreva @ e escolha o nome.
+5. Em **Partes**, veja em que ordem o pedido entra. As partes vêm agrupadas por Onda: a **Onda 1** tem as que não dependem de outra parte do pedido, e cada Onda seguinte entra depois das que ela espera. Cada parte traz o seu número, como **#304**, para você citar aquela parte quando falar com a Vitta. Se a parte ainda espera outra terminar, aparece embaixo dela a linha **Espera a #304**. Quando a outra é de um pedido diferente, a linha diz **Espera a #288, de outro pedido**. A linha some sozinha quando a outra parte termina.
+
+   ![As partes de um pedido agrupadas por Onda, com o número e o Espera a](partes-por-onda.png)
+
+6. Para falar com a Vitta sobre aquele pedido, clique em **Conversar**, no alto do painel, e escreva na Conversa da Demanda. Para chamar alguém, escreva @ e escolha o nome.
 
    ![Um pedido aberto no painel ao lado do Quadro](pedido-no-painel.png)
 
-6. Quando a Vitta precisa de uma decisão sua sobre o pedido, a pergunta aparece nessa mesma Conversa da Demanda, como as outras mensagens da Vitta, e você recebe o aviso no sino e por e-mail. Clique no aviso do sino ou no link do e-mail para abrir o pedido na aba Tecnologia.
-7. Clique em **Conversar**, leia a pergunta e responda ali mesmo, na Conversa da Demanda.
-8. Para fechar o painel, clique no X ou aperte Esc. O botão **Ampliar** abre o pedido na tela toda, e o **Voltar ao quadro** traz as colunas de volta.
+7. Quando a Vitta precisa de uma decisão sua sobre o pedido, a pergunta aparece nessa mesma Conversa da Demanda, como as outras mensagens da Vitta, e você recebe o aviso no sino e por e-mail. Clique no aviso do sino ou no link do e-mail para abrir o pedido na aba Tecnologia.
+8. Clique em **Conversar**, leia a pergunta e responda ali mesmo, na Conversa da Demanda.
+9. Para fechar o painel, clique no X ou aperte Esc. O botão **Ampliar** abre o pedido na tela toda, e o **Voltar ao quadro** traz as colunas de volta.
 
 A coluna Entregue mostra o que foi entregue nos últimos 30 dias. Os pedidos que não serão feitos ficam fora das colunas: para vê-los, ligue **Mostrar as que não serão feitas**, na barra de filtros.
 

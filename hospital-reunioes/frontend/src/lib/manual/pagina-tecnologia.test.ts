@@ -143,6 +143,30 @@ describe("a pergunta da Vitta na tarefa de conversar com ela (issue #1807, ADR 0
   });
 });
 
+describe("as partes do pedido na tarefa de abrir o card (issue #1903, ADR 0100)", () => {
+  const TAREFA = "Acompanhar o pedido no Quadro";
+
+  function passoDasPartes(): string {
+    const passo = passosDa(TAREFA).find((p) => /\*\*Partes\*\*/.test(p));
+    expect(passo, "nenhum passo explica a seção Partes do card").toBeDefined();
+    return passo!;
+  }
+
+  it("um passo numerado explica as partes agrupadas por Onda, o número de cada uma e o Espera a", () => {
+    const passo = passoDasPartes();
+    expect(passo).toMatch(/\bOnda 1\b/);
+    expect(passo).toMatch(/Onda/);
+    expect(passo).toMatch(/número/);
+    expect(passo).toMatch(/#\d+/);
+    expect(passo).toMatch(/\*\*Espera a #\d+\*\*/);
+    expect(passo).toMatch(/\*\*Espera a #\d+, de outro pedido\*\*/);
+  });
+
+  it("o passo das partes traz o print delas", () => {
+    expect(imagensCitadas(passoDasPartes())).toContain("partes-por-onda.png");
+  });
+});
+
 describe("o fluxograma do caminho de um pedido", () => {
   function fluxo(): Fluxo {
     const blocos = fluxogramasCitados(TECNOLOGIA!.corpo);
