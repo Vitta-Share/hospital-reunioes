@@ -2,6 +2,51 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-16T22:52:23-03:00",
+      "sha": "cf07f534ad5825031fc6580adfc411ee198163b5",
+      "app_version": "0.306.1",
+      "subject": "Onda onda-partes-onda2: Manual explica as partes por Onda, o número e o Espera a",
+      "raw_subject": "chore(deploy): registro da onda onda-partes-onda2 (#1906)",
+      "scope": [
+        "frontend"
+      ],
+      "prds": [
+        1901
+      ],
+      "result": "healthy",
+      "duration_seconds": 192,
+      "services_touched": [
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta onda-partes-onda2: PR #1906 (issue #1903), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 2,
+        "build_s": {
+          "frontend": 174
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-16T22:38:21-03:00",
       "sha": "27910b4d972ea5cea739704cf7c6529a8a87293d",
       "app_version": "0.306.0",
