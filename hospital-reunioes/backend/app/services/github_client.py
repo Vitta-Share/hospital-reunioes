@@ -467,6 +467,24 @@ def ler_sub_issues(numero: int, *, projeto: str) -> list[dict[str, Any]]:
     return dados if isinstance(dados, list) else []
 
 
+def ler_bloqueadoras(numero: int, *, projeto: str) -> list[dict[str, Any]]:
+    """As issues que bloqueiam esta (dependencia nativa, `blocked_by`), abertas
+    e fechadas (issue #1902, ADR 0100, decisao 2): o numero, o estado e o
+    endereco, que diz se ela e do mesmo repositorio.
+
+    Levanta como o `_chamar`: quem chama mantem o que ja sabia quando a leitura
+    falha, inclusive o 404 de repositorio sem a API de dependencias.
+    """
+    dados = _chamar("GET", f"/issues/{numero}/dependencies/blocked_by?per_page={_POR_PAGINA}", projeto=projeto)
+    if not isinstance(dados, list):
+        raise GithubIndisponivelError("GitHub respondeu as dependencias fora do formato")
+    return [
+        {"numero": issue["number"], "estado": issue.get("state"), "url": issue.get("html_url")}
+        for issue in dados
+        if isinstance(issue, dict) and isinstance(issue.get("number"), int)
+    ]
+
+
 def criar_issue(
     *, projeto: str, titulo: str, corpo: str, labels: list[str], assignees: list[str] | None = None
 ) -> dict[str, Any]:

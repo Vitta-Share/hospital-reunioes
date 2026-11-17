@@ -31,6 +31,7 @@ from app.services.ouvidoria_pseudonimizacao import (
     MARCADOR_TELEFONE,
     pseudonimizar,
 )
+from app.services.tecnologia_ondas import ondas_das_partes
 from app.utils.text_sanitizer import sanitizar_travessao
 
 # ─── 1. A Etapa ──────────────────────────────────────────────────────────────
@@ -363,7 +364,13 @@ def partes_para_o_diretor(foto: dict[str, Any] | None) -> list[dict[str, Any]]:
     Parte sem bloco entra com texto nulo em vez de sumir da lista: o diretor
     precisa saber que a parte existe e em que pe ela esta, mesmo antes de
     alguem escrever o que ela muda.
+
+    Desde a issue #1902 (ADR 0100) cada parte guarda tambem a Onda e as
+    bloqueadoras que a sincronizacao leu (numero, estado e se e da mesma
+    Demanda). O numero passa a sair para todos; o titulo continua de fora.
     """
+    partes = _partes(foto)
+    ondas = ondas_das_partes(partes)
     return [
         {
             "numero": parte.get("numero"),
@@ -372,8 +379,10 @@ def partes_para_o_diretor(foto: dict[str, Any] | None) -> list[dict[str, Any]]:
             # Quando a parte fechou (issue #1552): o GitHub so a da com a issue
             # fechada, e a reaberta volta a nulo.
             "fechada_em": parte.get("fechada_em") or None,
+            "onda": onda,
+            "bloqueadoras": list(parte.get("bloqueadoras") or []),
         }
-        for parte in _partes(foto)
+        for parte, onda in zip(partes, ondas, strict=True)
     ]
 
 

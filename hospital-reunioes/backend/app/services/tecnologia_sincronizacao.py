@@ -304,6 +304,66 @@ def _versao_que_segura(demanda: dict[str, Any]) -> str | None:
     return demanda.get("versao_em_producao") or None
 
 
+def _com_as_bloqueadoras(foto: dict[str, Any], anterior: Any, *, projeto: str) -> None:
+    """Poe em cada parte da foto as issues que a bloqueiam (issue #1902, ADR
+    0100, decisoes 2 e 5): o numero, o estado e se ela e parte da mesma
+    Demanda.
+
+    So le enquanto a raiz esta aberta: fechada, a sequencia ja nao muda e a
+    cota do GitHub fica para quem precisa. Fechada, ou com a leitura de uma
+    parte falhando, vale o que a foto anterior guardava daquela parte, e a
+    sincronizacao segue.
+
+    A chave so entra quando ha bloqueadora, como a `fechada_em`: a foto da
+    parte sem dependencia continua identica a de antes desta fatia.
+
+    Copiada da foto anterior, a bloqueadora da mesma Demanda toma o estado da
+    parte na foto atual, que
+    `ler_sub_issues` rele em toda sincronizacao (revisao do PR #1905): o evento
+    de uma parte nao ressincroniza a raiz, e a foto anterior pode dizer "aberta"
+    de uma parte que fechou antes da raiz. Copiada assim, ninguem a corrigiria.
+    """
+    partes = [p for p in (foto.get("partes") or []) if isinstance(p, dict)]
+    partes_antes = (anterior or {}).get("partes") if isinstance(anterior, dict) else None
+    antes = {
+        p.get("numero"): p["bloqueadoras"]
+        for p in (partes_antes or [])
+        if isinstance(p, dict) and p.get("bloqueadoras")
+    }
+    da_demanda = {p.get("url") for p in partes if p.get("url")}
+    estado_da_parte = {p["numero"]: p.get("estado") for p in partes if isinstance(p.get("numero"), int)}
+    raiz_aberta = foto.get("estado") == "open"
+    for parte in partes:
+        lidas = None
+        if raiz_aberta and isinstance(parte.get("numero"), int):
+            try:
+                lidas = github_client.ler_bloqueadoras(parte["numero"], projeto=projeto)
+            except (
+                github_client.GithubIndisponivelError,
+                github_client.IssueNaoEncontradaError,
+                github_client.GithubNaoConfiguradoError,
+            ):
+                logger.warning(
+                    "[tecnologia] Falha ao ler o que bloqueia a parte #%s; fica o que a foto anterior guardava.",
+                    parte.get("numero"),
+                    exc_info=True,
+                )
+        if lidas is not None:
+            bloqueadoras = [
+                {"numero": b["numero"], "estado": b.get("estado"), "da_demanda": b.get("url") in da_demanda}
+                for b in lidas
+            ]
+        else:
+            bloqueadoras = [
+                {**b, "estado": estado_da_parte[b.get("numero")]}
+                if isinstance(b, dict) and b.get("da_demanda") and b.get("numero") in estado_da_parte
+                else b
+                for b in (antes.get(parte.get("numero")) or [])
+            ]
+        if bloqueadoras:
+            parte["bloqueadoras"] = bloqueadoras
+
+
 def _reler(supabase, demanda_id: str) -> dict[str, Any] | None:
     result = supabase.table(TABELA_DEMANDAS).select("*").eq("id", demanda_id).execute()
     linhas = result.data or []
@@ -362,6 +422,7 @@ def sincronizar_demanda(
 
     dados = github_client.ler_issue(numero, projeto=projeto)
     foto_do_github = github_client.montar_foto(dados, github_client.ler_sub_issues(numero, projeto=projeto))
+    _com_as_bloqueadoras(foto_do_github, demanda.get("github_foto"), projeto=projeto)
     # O Responsavel e derivado do dono da issue, como a Etapa das labels
     # (issue #1534): entra no cache e na comparacao do cache igual.
     responsavel_id = responsavel_da_foto(supabase, foto_do_github)

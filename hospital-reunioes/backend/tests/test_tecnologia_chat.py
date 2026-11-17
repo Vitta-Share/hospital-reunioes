@@ -846,9 +846,11 @@ class TestListaDasConversas:
 
         assert item["o_que_muda"] == "Agora o aviso chega por e-mail."
         assert item["tem_vinculo"] is True
-        # O numero e o endereco da issue nao saem por campo nenhum.
+        # O endereco da issue nao sai por campo nenhum. O numero sai so no
+        # `raiz_numero`, sem link (issue #1902, ADR 0100, decisao 1).
         assert "github.com" not in json.dumps(item)
-        assert "900" not in json.dumps(item)
+        assert item["raiz_numero"] == 900
+        assert "900" not in json.dumps({k: v for k, v in item.items() if k != "raiz_numero"})
 
 
 # ═══════════════════════════════════════════════════════════════════════════

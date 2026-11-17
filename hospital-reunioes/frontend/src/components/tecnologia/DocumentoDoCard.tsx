@@ -9,10 +9,12 @@
  * de cada parte, lido do GitHub e guardado no cache da Demanda. Ninguém o
  * digita no app, e o app só o separa em seções, sem reescrever.
  *
- * Nada aqui é técnico para o diretor: título de fatia, número, link e nome de
- * label não aparecem (ADR 0054, decisão 9). O número e o link da issue
- * aparecem só para o Desenvolvedor, porque só para ele o servidor os manda.
- * O Número da Demanda ("Demanda 42", issue #1585) é de todos e abre o topo.
+ * Nada aqui é técnico para o diretor: título de fatia, link e nome de label
+ * não aparecem (ADR 0054, decisão 9). O número da raiz e o de cada parte são
+ * de todos, sem link, e as partes vêm agrupadas por Onda, com o "Espera a #N"
+ * de cada bloqueadora aberta (issue #1902, ADR 0100). O link da issue aparece
+ * só para o Desenvolvedor, porque só para ele o servidor o manda. O Número da
+ * Demanda ("Demanda 42", issue #1585) é de todos e abre o topo.
  *
  * O texto é desenhado como TEXTO, com um Markdown simples de negrito e lista.
  * Nada vira HTML nem link: ele vem de fora do app, e um `dangerouslySetInnerHTML`
@@ -27,6 +29,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   BlocoDoTextoSimples,
   blocosDoTextoSimples,
+  BloqueadoraDaParte,
   Demanda,
   diaDoHospital,
   diaEHoraDoHospital,
@@ -132,14 +135,49 @@ function SeloDaSituacao({ situacao }: { situacao: EtapaDemanda | null }) {
   );
 }
 
+/** O nome da Onda como a tela o escreve (issue #1902, ADR 0100, decisão 3). */
+export function nomeDaOnda(onda: number): string {
+  return `Onda ${onda}`;
+}
+
+/** A linha de uma bloqueadora aberta (ADR 0100, decisão 2). */
+export function esperaA(bloqueadora: BloqueadoraDaParte): string {
+  return bloqueadora.de_outro_pedido
+    ? `Espera a #${bloqueadora.numero}, de outro pedido`
+    : `Espera a #${bloqueadora.numero}`;
+}
+
+/**
+ * As partes em grupos por Onda, da 1 em diante, cada grupo na ordem em que as
+ * partes vieram. A linha de antes da issue #1902 não tem Onda e fica na 1.
+ */
+function partesPorOnda(partes: ParteDaEntrega[]): [number, ParteDaEntrega[]][] {
+  const grupos = new Map<number, ParteDaEntrega[]>();
+  for (const parte of partes) {
+    const onda = parte.onda ?? 1;
+    grupos.set(onda, [...(grupos.get(onda) ?? []), parte]);
+  }
+  return [...grupos.entries()].sort(([a], [b]) => a - b);
+}
+
 function Parte({ parte }: { parte: ParteDaEntrega }) {
   const fechou = diaDoHospital(parte.fechada_em);
+  const bloqueadoras = parte.bloqueadoras ?? [];
   return (
     <li className="flex items-start gap-2">
       <SeloDaSituacao situacao={parte.situacao} />
+      {/* O número sem link (ADR 0100, decisão 1): o diretor cita a parte, mas não entra no GitHub. */}
+      {parte.numero ? (
+        <span className="shrink-0 text-xs font-semibold text-text pt-0.5">#{parte.numero}</span>
+      ) : null}
       {fechou && <span className="shrink-0 text-xs text-text-secondary pt-0.5">em {fechou}</span>}
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 space-y-1">
         <TextoSimples texto={parte.o_que_muda} />
+        {bloqueadoras.map((b) => (
+          <p key={b.numero} className="text-xs text-amber-800">
+            {esperaA(b)}
+          </p>
+        ))}
       </div>
     </li>
   );
@@ -161,12 +199,23 @@ function LinkDaIssue({ demanda }: { demanda: Demanda }) {
 }
 
 /**
+ * O número da raiz ao lado do Número da Demanda: o link para o Desenvolvedor
+ * e, para quem não tem o link, só o número (issue #1902, ADR 0100, decisão 1).
+ */
+function NumeroDaRaiz({ demanda }: { demanda: Demanda }) {
+  const link = <LinkDaIssue demanda={demanda} />;
+  if (demanda.issue_numero && demanda.issue_url?.startsWith("https://github.com/")) return link;
+  if (!demanda.raiz_numero) return null;
+  return <span className="text-xs font-semibold text-text">#{demanda.raiz_numero}</span>;
+}
+
+/**
  * O topo do Documento (issue #1585): o Número da Demanda para todos e, ao
- * lado, o `#<issue>` que só o Desenvolvedor recebe.
+ * lado, o `#<issue>`: link para o Desenvolvedor, número para os demais.
  */
 function Topo({ demanda }: { demanda: Demanda }) {
   const nome = nomeDoNumero(demanda);
-  const issue = <LinkDaIssue demanda={demanda} />;
+  const issue = <NumeroDaRaiz demanda={demanda} />;
   if (!nome) return issue;
   return (
     <div className="flex items-center gap-2">
@@ -359,14 +408,20 @@ export function DocumentoDoCard({ demanda }: { demanda: Demanda }) {
       {partes.length > 0 && (
         <>
           <Titulo>{TITULO_PARTES}</Titulo>
-          <ul className="space-y-2 text-sm text-text">
-            {partes.map((parte, i) => (
-              // Pela posição: o número da parte é justamente o que não vem para
-              // quem não é da Vitta, e a lista é redesenhada inteira a cada
-              // sincronização.
-              <Parte key={i} parte={parte} />
+          <div className="space-y-3">
+            {partesPorOnda(partes).map(([onda, daOnda]) => (
+              <div key={onda} className="space-y-1">
+                <h4 className="text-xs font-semibold text-text">{nomeDaOnda(onda)}</h4>
+                <ul className="space-y-2 text-sm text-text">
+                  {daOnda.map((parte, i) => (
+                    // Pela posição: as Entregas mandam a parte sem número, e a
+                    // lista é redesenhada inteira a cada sincronização.
+                    <Parte key={i} parte={parte} />
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
         </>
       )}
 

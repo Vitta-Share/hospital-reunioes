@@ -163,7 +163,9 @@ class TestListaDoDesenvolvedor:
         assert item["id"] == "d-outro"
         assert item["tem_vinculo"] is True
         assert "github.com" not in json.dumps(item)
-        assert "912" not in json.dumps(item)
+        # O numero sai so no `raiz_numero`, sem link (issue #1902, ADR 0100).
+        assert item["raiz_numero"] == 912
+        assert "912" not in json.dumps({k: v for k, v in item.items() if k != "raiz_numero"})
 
     def test_o_diretor_ve_o_numero_da_demanda_na_lista_sem_o_numero_da_issue(self, monkeypatch):
         """O Número da Demanda (issue #1585) é de todo mundo que vê a Demanda;

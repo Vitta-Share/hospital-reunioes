@@ -11,21 +11,35 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
+class BloqueadoraDaParte(BaseModel):
+    """Uma issue aberta que trava a parte (issue #1902, ADR 0100, decisao 2): o
+    "Espera a #N" da tela, com o "de outro pedido" quando ela nao e parte da
+    mesma Demanda."""
+
+    numero: int
+    de_outro_pedido: bool = False
+
+
 class ParteDaEntrega(BaseModel):
     """Uma parte da entrega como o diretor a le (issue #676, ADR 0054, decisao 7).
 
     O que aquela parte muda para ele, em que pe ela esta e quando fechou. O
-    titulo e o numero da fatia NAO entram, porque sao tecnicos.
+    titulo da fatia NAO entra, porque e tecnico. O numero entra desde a issue
+    #1902 (ADR 0100, decisao 1), sem link, com a Onda e as bloqueadoras abertas.
 
     `situacao` e opcional porque uma linha gravada antes desta fatia nao a tem: a
     tela desenha o texto sem selo em vez de derrubar a conversa inteira.
     """
 
+    numero: int | None = None
     o_que_muda: str | None = None
     situacao: str | None = None
     # Quando a parte fechou, lida na sincronizacao (issue #1552). Nula na
     # parte aberta e na linha gravada antes desta fatia.
     fechada_em: str | None = None
+    # A Onda (ADR 0100, decisao 3). Nula na linha gravada antes da issue #1902.
+    onda: int | None = None
+    bloqueadoras: list[BloqueadoraDaParte] = []
 
 
 class DemandaResponse(BaseModel):
@@ -68,6 +82,9 @@ class DemandaResponse(BaseModel):
     # Se quem esta logado e o autor (ADR 0083): a Demanda de outro autor abre
     # so para leitura.
     minha: bool = True
+    # O numero da issue-raiz, sem link, para todos que veem a Demanda (issue
+    # #1902, ADR 0100, decisao 1). As Entregas nao o mandam (PRD #1689).
+    raiz_numero: int | None = None
     # So para o Desenvolvedor (ADR 0083, decisao 3): quem pediu, e o numero e o
     # endereco da issue. Para o diretor saem nulos (ADR 0054, decisao 9).
     autor: str | None = None

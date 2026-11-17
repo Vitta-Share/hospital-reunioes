@@ -102,7 +102,18 @@ class TestAsDatasDoDocumento:
             ENTREGOU,
             SUBIU,
         )
-        assert item["partes"] == [{"o_que_muda": "O selo aparece.", "situacao": ETAPA_ENTREGUE, "fechada_em": ENTREGOU}]
+        # O número, a Onda e as bloqueadoras entram com a issue #1902; a linha
+        # gravada antes dela vem sem Onda.
+        assert item["partes"] == [
+            {
+                "numero": 678,
+                "o_que_muda": "O selo aparece.",
+                "situacao": ETAPA_ENTREGUE,
+                "fechada_em": ENTREGOU,
+                "onda": None,
+                "bloqueadoras": [],
+            }
+        ]
 
     def test_a_data_de_uma_subida_anterior_nao_aparece_com_o_card_reaberto(self, monkeypatch):
         """A issue reaberta para um ajuste tira o card de Em produção, e a coluna

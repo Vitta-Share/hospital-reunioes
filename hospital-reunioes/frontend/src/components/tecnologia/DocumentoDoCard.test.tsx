@@ -188,11 +188,12 @@ describe("O Documento do card", () => {
     ]);
   });
 
-  it("o diretor não vê título de parte, número de issue nem link", () => {
+  it("o diretor não vê título de parte nem link", () => {
     montar(VINCULADA);
 
     // O par de presença está nos testes acima: os textos das partes ESTÃO na
-    // tela. O que se cobra aqui é que nada técnico veio junto.
+    // tela. O que se cobra aqui é que nada técnico veio junto. O número da
+    // parte, quando vem, é de todos (issue #1902), e está nos testes abaixo.
     expect(within(documento()).queryAllByRole("link")).toHaveLength(0);
     expect(documento().textContent).not.toContain("#");
   });
@@ -224,6 +225,80 @@ describe("O Documento do card", () => {
     expect(within(topo).getByText("Demanda 42")).toBeTruthy();
     expect(within(topo).getByRole("link", { name: "#912" })).toBeTruthy();
     expect(documento().textContent).not.toContain("#42");
+  });
+
+  it("o diretor vê o número do pedido inteiro ao lado do Número da Demanda, sem link (issue #1902)", () => {
+    montar({ ...VINCULADA, numero: 42, raiz_numero: 1901 });
+
+    const topo = documento().firstElementChild as HTMLElement;
+    expect(within(topo).getByText("Demanda 42")).toBeTruthy();
+    expect(within(topo).getByText("#1901")).toBeTruthy();
+    expect(within(documento()).queryAllByRole("link")).toHaveLength(0);
+  });
+
+  it("o Desenvolvedor vê o número da raiz uma vez só, como link (issue #1902)", () => {
+    montar({
+      ...VINCULADA,
+      numero: 42,
+      raiz_numero: 912,
+      issue_numero: 912,
+      issue_url: "https://github.com/pedrorezendefig/hospital-reunioes/issues/912",
+    });
+
+    const topo = documento().firstElementChild as HTMLElement;
+    expect(within(topo).getByRole("link", { name: "#912" })).toBeTruthy();
+    expect(within(topo).getAllByText("#912")).toHaveLength(1);
+  });
+
+  it("com uma parte só, ela aparece sob Onda 1, com o número dela sem link (issue #1902)", () => {
+    montar({ ...VINCULADA, partes: [{ numero: 1886, o_que_muda: "O selo aparece.", situacao: "planejada", onda: 1 }] });
+
+    const partes = secao(TITULO_PARTES);
+    expect(within(partes).getAllByRole("heading").map((h) => h.textContent)).toEqual(["Onda 1"]);
+    const [item] = within(partes).getAllByRole("listitem");
+    expect(within(item).getByText("#1886")).toBeTruthy();
+    expect(within(partes).queryAllByRole("link")).toHaveLength(0);
+  });
+
+  it("agrupa as partes por Onda e diz o que cada uma espera (issue #1902)", () => {
+    montar({
+      ...VINCULADA,
+      partes: [
+        { numero: 1884, o_que_muda: "A base.", situacao: "entregue", onda: 1, bloqueadoras: [] },
+        {
+          numero: 1886,
+          o_que_muda: "A tela.",
+          situacao: "planejada",
+          onda: 2,
+          bloqueadoras: [
+            { numero: 1885, de_outro_pedido: false },
+            { numero: 1830, de_outro_pedido: true },
+          ],
+        },
+        { numero: 1885, o_que_muda: "O aviso.", situacao: "em_desenvolvimento", onda: 1, bloqueadoras: [] },
+      ],
+    });
+
+    const partes = secao(TITULO_PARTES);
+    const ondas = within(partes).getAllByRole("heading");
+    expect(ondas.map((h) => h.textContent)).toEqual(["Onda 1", "Onda 2"]);
+    const daOnda = (h: HTMLElement) =>
+      within(h.nextElementSibling as HTMLElement)
+        .getAllByRole("listitem")
+        .map((item) => within(item).getByText(/^#\d+$/).textContent);
+    expect(daOnda(ondas[0])).toEqual(["#1884", "#1885"]);
+    expect(daOnda(ondas[1])).toEqual(["#1886"]);
+
+    const [tela] = within(ondas[1].nextElementSibling as HTMLElement).getAllByRole("listitem");
+    expect(within(tela).getByText("Espera a #1885")).toBeTruthy();
+    expect(within(tela).getByText("Espera a #1830, de outro pedido")).toBeTruthy();
+    expect(within(ondas[0].nextElementSibling as HTMLElement).queryByText(/Espera a/)).toBeNull();
+  });
+
+  it("com a linha de antes, sem Onda, as partes ficam sob Onda 1 (issue #1902)", () => {
+    montar(VINCULADA);
+
+    expect(within(secao(TITULO_PARTES)).getAllByRole("heading").map((h) => h.textContent)).toEqual(["Onda 1"]);
   });
 
   it("com o link, a Demonstração vem num cartão próprio com o link para assistir (issue #1559)", () => {

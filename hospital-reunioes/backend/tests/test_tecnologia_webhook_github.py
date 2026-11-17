@@ -325,11 +325,22 @@ class _GithubFalso:
     """O GitHub como o teste o quer: uma issue por numero, e o registro de quem
     foi lido (para provar que o evento ignorado nao chega a ler nada)."""
 
-    def __init__(self, issues: dict[int, dict], *, sub_issues: dict[int, list[dict]] | None = None, erro=None):
+    def __init__(
+        self,
+        issues: dict[int, dict],
+        *,
+        sub_issues: dict[int, list[dict]] | None = None,
+        erro=None,
+        bloqueadoras: dict[int, list[dict] | Exception] | None = None,
+    ):
         self.issues = issues
         self.sub_issues = sub_issues or {}
         self.erro = erro
+        # As bloqueadoras de cada parte (issue #1902), ou a excecao que a
+        # leitura daquela parte levanta. Parte sem entrada nao tem bloqueio.
+        self.bloqueadoras = bloqueadoras or {}
         self.leituras: list[int] = []
+        self.leituras_das_bloqueadoras: list[int] = []
 
     def ler_issue(self, numero: int, *, projeto: str) -> dict:
         self.leituras.append(numero)
@@ -341,6 +352,13 @@ class _GithubFalso:
 
     def ler_sub_issues(self, numero: int, *, projeto: str) -> list[dict]:
         return self.sub_issues.get(numero, [])
+
+    def ler_bloqueadoras(self, numero: int, *, projeto: str) -> list[dict]:
+        self.leituras_das_bloqueadoras.append(numero)
+        lidas = self.bloqueadoras.get(numero, [])
+        if isinstance(lidas, Exception):
+            raise lidas
+        return lidas
 
 
 def _foto_guardada(gh: _GithubFalso, numero: int) -> dict:
@@ -411,6 +429,7 @@ def _montar(
     if monkeypatch is not None:
         monkeypatch.setattr(github_client, "ler_issue", gh.ler_issue)
         monkeypatch.setattr(github_client, "ler_sub_issues", gh.ler_sub_issues)
+        monkeypatch.setattr(github_client, "ler_bloqueadoras", gh.ler_bloqueadoras)
 
     app.dependency_overrides[get_supabase_client] = lambda: sb
     # `raise_server_exceptions=False` para o 500 chegar como RESPOSTA, e nao como

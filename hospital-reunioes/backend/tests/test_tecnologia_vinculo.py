@@ -789,12 +789,21 @@ class TestPartesParaODiretor:
         )
 
         assert partes_para_o_diretor(foto) == [
-            {"numero": 674, "o_que_muda": "O selo aparece no card.", "situacao": ETAPA_ENTREGUE, "fechada_em": None},
+            {
+                "numero": 674,
+                "o_que_muda": "O selo aparece no card.",
+                "situacao": ETAPA_ENTREGUE,
+                "fechada_em": None,
+                "onda": 1,
+                "bloqueadoras": [],
+            },
             {
                 "numero": 675,
                 "o_que_muda": "A seção mostra o que muda.",
                 "situacao": ETAPA_EM_DESENVOLVIMENTO,
                 "fechada_em": None,
+                "onda": 1,
+                "bloqueadoras": [],
             },
         ]
 
@@ -804,7 +813,14 @@ class TestPartesParaODiretor:
         foto = _foto(partes=(_parte(675),))
 
         assert partes_para_o_diretor(foto) == [
-            {"numero": 675, "o_que_muda": None, "situacao": ETAPA_PLANEJADA, "fechada_em": None}
+            {
+                "numero": 675,
+                "o_que_muda": None,
+                "situacao": ETAPA_PLANEJADA,
+                "fechada_em": None,
+                "onda": 1,
+                "bloqueadoras": [],
+            }
         ]
 
     @pytest.mark.parametrize("foto", (None, _foto()))
@@ -1090,6 +1106,10 @@ class _GithubFalso:
     def ler_sub_issues(self, numero: int, *, projeto: str) -> list[dict]:
         return self.sub_issues.get(numero, [])
 
+    def ler_bloqueadoras(self, numero: int, *, projeto: str) -> list[dict]:
+        """Nenhuma parte e bloqueada aqui (issue #1902)."""
+        return []
+
     def criar_issue(
         self, *, projeto: str, titulo: str, corpo: str, labels: list[str], assignees: list[str] | None = None
     ) -> dict:
@@ -1167,6 +1187,7 @@ def _montar(
     if monkeypatch is not None:
         monkeypatch.setattr(github_client, "ler_issue", gh.ler_issue)
         monkeypatch.setattr(github_client, "ler_sub_issues", gh.ler_sub_issues)
+        monkeypatch.setattr(github_client, "ler_bloqueadoras", gh.ler_bloqueadoras)
         monkeypatch.setattr(github_client, "criar_issue", gh.criar_issue)
         # O "Criar o card" manda email ao Responsavel (issue #1635): o envio fica
         # no modo mock, e o SMTP do `.env` desta maquina nao entra na conversa.
