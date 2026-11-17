@@ -1,6 +1,7 @@
 ---
 status: accepted
 amends: 0032
+amended_by: 0101
 ---
 
 # Convênios por especialidade sai do app: cobertura vem da agenda online e o Espelho da Global Health entra no lugar

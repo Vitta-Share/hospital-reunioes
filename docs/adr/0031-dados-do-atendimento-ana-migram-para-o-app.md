@@ -1,6 +1,6 @@
 ---
 status: accepted
-amended_by: 0032
+amended_by: 0032, 0101
 ---
 
 # Dados do atendimento da Ana migram para o app: módulo admin, painel de ouvidoria e API de serviço
