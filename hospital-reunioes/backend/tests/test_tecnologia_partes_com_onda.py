@@ -35,7 +35,20 @@ from test_tecnologia_webhook_github import (  # noqa: E402
 )
 
 from app.services import github_client, tecnologia_sincronizacao  # noqa: E402
+from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
 from app.services.tecnologia_ondas import ondas_das_partes  # noqa: E402
+
+
+class TestOKitDizAsPartesComOnda:
+    def test_o_kit_da_tecnologia_diz_a_onda_o_numero_e_o_espera_a(self):
+        """O kit é a língua em que o Assistente fala com o diretor: sem o
+        comportamento novo escrito, ele diria que as partes não têm número."""
+        texto = (CONHECIMENTO_DIR / "tecnologia.md").read_text(encoding="utf-8")
+        secao = texto.split("## A Etapa", 1)[1].split("\n## ", 1)[0]
+
+        for trecho in ("**Onda 1**", "**Espera a #", "de outro pedido", "número do pedido inteiro"):
+            assert trecho in secao, trecho
+        assert "sem número nem link do card" not in texto
 
 
 def _parte(numero: int, *bloqueadoras: int | tuple[int, bool]) -> dict:
