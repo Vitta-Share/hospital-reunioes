@@ -3,9 +3,8 @@ import { requireSuperAdminNaCentral } from "@/lib/central-de-comando/guard";
 /**
  * O gate da seção Central de Comando, no servidor (ADR 0058, decisão 1).
  *
- * O layout do /admin já checou login e papel nas Reuniões, e deixa passar
- * secretária e facilitador (o Dados do Atendimento é deles). Este checa Super
- * admin, antes de qualquer tela da seção existir: quem digita o endereço sem
+ * O layout do /admin já checou login e Super admin (ADR 0101). Este checa de
+ * novo, antes de qualquer tela da seção existir: quem digita o endereço sem
  * ser Super admin volta para o início. O `AppShell` vem do layout do /admin.
  *
  * Este gate roda na entrada da seção, não a cada tela: na navegação entre as

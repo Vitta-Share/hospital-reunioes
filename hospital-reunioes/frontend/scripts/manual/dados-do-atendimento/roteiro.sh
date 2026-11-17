@@ -24,8 +24,8 @@ BASE="${BASE:-http://localhost:3000}"
 BANCO="${BANCO:-supabase_db_hospital-reunioes}"
 SESSAO="manual-dados-do-atendimento"
 
-# A pessoa que entra nos prints, secretária (quem edita as tabelas). Senha só
-# do banco local.
+# A pessoa que entra nos prints, Super admin (quem vê e edita as tabelas, ADR
+# 0101). Senha só do banco local.
 SENHA="ManualDadosAtendimento2026!"
 EMAIL="renata.duarte@exemplo.local"
 
@@ -76,17 +76,17 @@ docker exec -i "$BANCO" psql -q -U postgres -v ON_ERROR_STOP=1 <<'SQL'
 begin;
 
 insert into participantes (id, nome_completo, email, cargo, area, setor, ativo, access_profile, auth_user_id)
-select p.id, p.nome, p.email, p.cargo, 'Administrativo', 'Recepção', true, 'secretaria',
+select p.id, p.nome, p.email, p.cargo, 'Administrativo', 'Diretoria', true, 'super_admin',
        (select u.id from auth.users u where u.email = p.email)
 from (values
-  ('P17260', 'Renata Duarte', 'renata.duarte@exemplo.local', 'Secretária da Diretoria')
+  ('P17260', 'Renata Duarte', 'renata.duarte@exemplo.local', 'Diretora Administrativa')
 ) as p(id, nome, email, cargo)
 on conflict (id) do update set
   nome_completo = excluded.nome_completo,
   email = excluded.email,
   cargo = excluded.cargo,
   ativo = true,
-  access_profile = 'secretaria',
+  access_profile = 'super_admin',
   auth_user_id = excluded.auth_user_id;
 
 insert into consultas_particulares (especialidade, valor_rs, descricao_servico, diferencial_1, diferencial_2, alta_demanda, ativo, ultima_atualizacao)

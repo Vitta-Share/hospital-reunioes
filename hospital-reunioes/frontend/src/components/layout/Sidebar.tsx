@@ -33,6 +33,7 @@ import {
 } from "@/hooks/useCurrentParticipante";
 import {
   isSecretaria,
+  isSuperAdmin,
   temAcessoContasMedicas,
   temPapelNaOuvidoria,
   temAcessoReunioes,
@@ -357,11 +358,9 @@ export function Sidebar({
  * tem o módulo aqui, e por isso lê esta mesma lista em vez de refazer a conta.
  */
 export function itensDoMenu(participante: CurrentParticipante | null): NavItem[] {
-  // Todo papel de Reuniões entra no /admin: super admin vê tudo, secretária
-  // edita e facilitador lê o Dados do Atendimento (ADR 0031). A raiz /admin
-  // redireciona por papel; a sidebar de lá esconde o que não é do papel.
-  const showAdmin =
-    participante != null && temAcessoReunioes(participante);
+  // O Admin é só do Super admin (ADR 0101): Dados do Atendimento era o único
+  // módulo de lá aberto à secretária e ao facilitador, e fechou.
+  const showAdmin = isSuperAdmin(participante);
   const isSec = isSecretaria(participante);
   // Contextos ortogonais (ADR 0007): quem só tem perfil POP não vê
   // Reuniões/Pendências; quem não tem perfil POP não vê /pops.

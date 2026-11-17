@@ -137,24 +137,22 @@ describe.each([
     ]);
   });
 
-  it("secretária não vê a seção, e continua vendo o que é dela", () => {
+  it("secretária não vê a seção", () => {
     sessao.participante = pessoa("secretaria");
 
     render(<AdminSidebar variant={variant} />);
 
     const menu = screen.getByRole("navigation");
-    expect(within(menu).getByRole("link", { name: "Dados do Atendimento" })).toBeTruthy();
     expect(within(menu).queryByText("Central de Comando")).toBeNull();
     expect(within(menu).queryByRole("link", { name: "Visão Geral" })).toBeNull();
   });
 
-  it("facilitador não vê a seção, e continua vendo o que é dele", () => {
+  it("facilitador não vê a seção", () => {
     sessao.participante = pessoa("regular");
 
     render(<AdminSidebar variant={variant} />);
 
     const menu = screen.getByRole("navigation");
-    expect(within(menu).getByRole("link", { name: "Dados do Atendimento" })).toBeTruthy();
     expect(within(menu).queryByText("Central de Comando")).toBeNull();
     expect(within(menu).queryByRole("link", { name: "Instagram" })).toBeNull();
   });
@@ -180,14 +178,13 @@ describe.each([
   it.each([
     ["secretária", "secretaria" as const],
     ["facilitador", "regular" as const],
-  ])("em produção a %s não vê a seção, e continua vendo o que é dela", (_quem, perfil) => {
+  ])("em produção a %s não vê a seção", (_quem, perfil) => {
     vi.stubEnv("NEXT_PUBLIC_ENVIRONMENT", "production");
     sessao.participante = pessoa(perfil);
 
     render(<AdminSidebar variant={variant} />);
 
     const menu = screen.getByRole("navigation");
-    expect(within(menu).getByRole("link", { name: "Dados do Atendimento" })).toBeTruthy();
     expect(within(menu).queryByText("Central de Comando")).toBeNull();
   });
 
@@ -221,27 +218,21 @@ describe.each([
     ).toBe("/admin/tecnologia");
   });
 
-  it("secretária não vê Tecnologia, e continua vendo o que é dela", () => {
+  it("secretária não vê Tecnologia", () => {
     sessao.participante = pessoa("secretaria");
 
     render(<AdminSidebar variant={variant} />);
 
     const menu = screen.getByRole("navigation");
-    expect(
-      within(menu).getByRole("link", { name: "Dados do Atendimento" }),
-    ).toBeTruthy();
     expect(within(menu).queryByRole("link", { name: "Tecnologia" })).toBeNull();
   });
 
-  it("facilitador não vê Tecnologia, e continua vendo o que é dele", () => {
+  it("facilitador não vê Tecnologia", () => {
     sessao.participante = pessoa("regular");
 
     render(<AdminSidebar variant={variant} />);
 
     const menu = screen.getByRole("navigation");
-    expect(
-      within(menu).getByRole("link", { name: "Dados do Atendimento" }),
-    ).toBeTruthy();
     expect(within(menu).queryByRole("link", { name: "Tecnologia" })).toBeNull();
   });
 });
@@ -273,12 +264,17 @@ describe.each([
   ["desktop", "desktop" as const],
   ["gaveta do celular", "drawer" as const],
 ])("Menu do Admin com o Manual na %s", (_rotulo, variant) => {
-  it("quem não é super admin vê só o próprio módulo, e o Manual no rodapé", () => {
-    sessao.participante = pessoa("secretaria");
+  // Só o Super admin tem módulo no Admin (issue #1907, ADR 0101): Dados do
+  // Atendimento era o único aberto à secretária e ao facilitador, e fechou.
+  it.each([
+    ["a secretária", "secretaria" as const],
+    ["o facilitador", "regular" as const],
+  ])("%s não vê módulo nenhum, nem Dados do Atendimento, e o Manual segue no rodapé", (_quem, perfil) => {
+    sessao.participante = pessoa(perfil);
 
     const { container } = render(<AdminSidebar variant={variant} />);
 
-    expect(linksDoMenu()).toEqual(["Dados do Atendimento"]);
+    expect(within(screen.getByRole("navigation")).queryAllByRole("link")).toEqual([]);
     const manual = screen.getByRole("link", { name: "Manual" });
     expect(manual.getAttribute("href")).toBe("/manual");
     expect(screen.getByRole("navigation").contains(manual)).toBe(false);

@@ -3,7 +3,7 @@ modulo: dados-do-atendimento
 titulo: Dados do Atendimento
 ---
 
-Aqui ficam as tabelas que a Ana consulta para responder os pacientes: o preço das consultas particulares, os exames com o preparo de cada um e a estimativa das cirurgias. A secretária e o Super admin editam. O facilitador só consulta, e para ele os botões de editar não aparecem.
+Aqui ficam as tabelas que a Ana consulta para responder os pacientes: o preço das consultas particulares, os exames com o preparo de cada um e a estimativa das cirurgias. Só o Super admin vê e edita esta tela.
 
 O que muda numa tabela vale na hora: a próxima resposta da Ana já sai com o dado novo.
 

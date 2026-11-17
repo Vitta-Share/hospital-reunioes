@@ -1,4 +1,4 @@
-"""Router /admin/espelho-global-health: Espelho da Global Health (ADR 0038).
+"""Router /admin/espelho-global-health: Espelho da Global Health (ADR 0038, ADR 0101).
 
 Janela somente leitura sobre a agenda online da Global Health, na tela Dados
 do Atendimento. O navegador fala com o app; o app fala com a Global Health.
@@ -7,8 +7,8 @@ O token da integração nunca sai do backend.
 Caminho paralelo às tabelas curadas: nada é gravado (espelho, não cópia),
 nenhum endpoint escreve, e a resposta é sempre a da chamada de agora.
 
-Autorização: a mesma leitura da tela (qualquer participante de Reuniões
-autenticado). Rate limit no padrão dos routers admin.
+Autorização: a mesma da tela, só o super admin (ADR 0101). Rate limit no
+padrão dos routers admin.
 
 Honestidade da resposta, o contrato que a tela consome:
 - 200 com `data` cheio: a Global Health respondeu.
@@ -24,7 +24,7 @@ from datetime import date
 import anyio.to_thread
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
-from app.dependencies import require_participante_reunioes
+from app.dependencies import require_super_admin
 from app.limiter import limiter
 from app.services import global_health_service as global_health
 
@@ -90,7 +90,7 @@ async def _chamar(funcao, *args):
 async def listar_especialidades(
     request: Request,
     pesquisa: str | None = Query(None, max_length=100),
-    _me: dict = Depends(require_participante_reunioes),
+    _me: dict = Depends(require_super_admin),
 ):
     """Elo 1: especialidades publicadas na agenda, ao vivo.
 
@@ -119,7 +119,7 @@ def _resposta(itens: list[dict], motivo_vazio: str) -> dict:
 async def listar_convenios(
     request: Request,
     especialidade_id: int,
-    _me: dict = Depends(require_participante_reunioes),
+    _me: dict = Depends(require_super_admin),
 ):
     """Elo 2a: convênios aceitos na especialidade escolhida.
 
@@ -136,7 +136,7 @@ async def listar_convenios(
 async def listar_profissionais(
     request: Request,
     especialidade_id: int,
-    _me: dict = Depends(require_participante_reunioes),
+    _me: dict = Depends(require_super_admin),
 ):
     """Elo 2b: profissionais disponíveis na especialidade escolhida."""
     itens = await _chamar(global_health.listar_profissionais, especialidade_id)
@@ -149,7 +149,7 @@ async def listar_planos(
     request: Request,
     especialidade_id: int,
     convenio_id: int,
-    _me: dict = Depends(require_participante_reunioes),
+    _me: dict = Depends(require_super_admin),
 ):
     """Elo 3: planos do convênio, dentro da especialidade escolhida.
 
@@ -169,7 +169,7 @@ async def listar_horarios_livres(
     plano_id: int,
     profissional_id: int | None = Query(None),
     data_inicial: date | None = Query(None),
-    _me: dict = Depends(require_participante_reunioes),
+    _me: dict = Depends(require_super_admin),
 ):
     """Elo 4: os horários livres da combinação escolhida na tela.
 

@@ -57,11 +57,14 @@ describe("a página de Dados do Atendimento", () => {
     expect(PAGINA?.titulo).toBe("Dados do Atendimento");
   });
 
-  it("aparece para quem acessa Dados do Atendimento e some para quem não acessa", () => {
+  // Só o Super admin abre a tela (issue #1907, ADR 0101), e a página do manual
+  // segue o menu dele.
+  it("aparece para o Super admin e some para quem não acessa Dados do Atendimento", () => {
     const pastas = (p: CurrentParticipante) => paginasVisiveis(PAGINAS, p).map((x) => x.pasta);
 
-    expect(pastas(pessoa({ access_profile: "secretaria" }))).toContain("dados-do-atendimento");
-    expect(pastas(pessoa({ access_profile: "regular" }))).toContain("dados-do-atendimento");
+    expect(pastas(pessoa({ access_profile: "super_admin" }))).toContain("dados-do-atendimento");
+    expect(pastas(pessoa({ access_profile: "secretaria" }))).not.toContain("dados-do-atendimento");
+    expect(pastas(pessoa({ access_profile: "regular" }))).not.toContain("dados-do-atendimento");
     expect(pastas(pessoa({ access_profile: null, perfil_pop: "coordenador" }))).not.toContain(
       "dados-do-atendimento"
     );

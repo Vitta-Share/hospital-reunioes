@@ -7,10 +7,10 @@ import { createClient } from "../supabase/server";
 /**
  * Gate server-side da seção Central de Comando (ADR 0058, decisão 1).
  *
- * Secretária e facilitador entram em `/admin` (o Dados do Atendimento é
- * deles), e o layout da área admin deixa. A sidebar só esconde a seção, e
- * esconder não é proteger: sem este gate, quem digitasse o endereço de uma
- * tela da Central receberia a página e o navegador decidiria o que mostrar.
+ * O layout da área admin já barra quem não é Super admin (ADR 0101), e a
+ * sidebar esconde a seção. Este gate repete a checagem na entrada da seção:
+ * esconder não é proteger, e sem ele quem digitasse o endereço de uma tela da
+ * Central dependeria só do layout de cima.
  * Aqui a decisão é do servidor, antes de a página existir, e quem não é Super
  * admin volta para o início.
  *

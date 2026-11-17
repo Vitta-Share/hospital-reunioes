@@ -85,6 +85,49 @@ describe("Sidebar na gaveta do celular", () => {
 });
 
 /**
+ * O item Admin é só do Super admin (issue #1907, ADR 0101). O relato do
+ * diretor: um médico sem super admin clicou em Admin e caiu em Dados do
+ * Atendimento. Sem o item, não há caminho pelo menu.
+ */
+describe.each([
+  ["computador", "desktop" as const],
+  ["gaveta do celular", "drawer" as const],
+])("Sidebar com o item Admin no %s", (_rotulo, variant) => {
+  it.each([
+    ["o facilitador", "regular" as const],
+    ["a secretária", "secretaria" as const],
+  ])("%s não vê o item Admin", (_quem, access_profile) => {
+    sessao.participante = {
+      id: "p1",
+      nome_completo: "Fulana de Tal",
+      email: "fulana@hsm",
+      access_profile,
+    };
+
+    render(<Sidebar variant={variant} />);
+
+    const menu = screen.getByRole("navigation");
+    expect(within(menu).queryByRole("link", { name: "Admin" })).toBeNull();
+  });
+
+  it("o super admin vê o item Admin", () => {
+    sessao.participante = {
+      id: "p1",
+      nome_completo: "Fulana de Tal",
+      email: "fulana@hsm",
+      access_profile: "super_admin",
+    };
+
+    render(<Sidebar variant={variant} />);
+
+    const menu = screen.getByRole("navigation");
+    expect(
+      within(menu).getByRole("link", { name: "Admin" }).getAttribute("href")
+    ).toBe("/admin");
+  });
+});
+
+/**
  * O distintivo de novidades no item Ouvidoria do menu (issue #487, PRD #470,
  * RN-69).
  *
@@ -199,12 +242,12 @@ describe.each([
     [
       "padrão",
       { access_profile: "regular", perfil_ouvidoria: "ouvidor" },
-      ["Dashboard", "Calendário", "Ouvidoria", "Admin"],
+      ["Dashboard", "Calendário", "Ouvidoria"],
     ],
     [
       "Secretária",
       { access_profile: "secretaria" },
-      ["Início", "Nova reunião", "Calendário", "Ouvidoria", "Admin"],
+      ["Início", "Nova reunião", "Calendário", "Ouvidoria"],
     ],
     [
       "só POPs",
