@@ -34,6 +34,7 @@ Só `status: accepted` vale como decisão; `superseded` é histórico (CLAUDE.md
 | [0095](0095-modulo-do-nucleo-de-seguranca-do-paciente-fundacao.md) | accepted | O módulo do Núcleo de Segurança do Paciente: fundação, fases e exceções de IA (emenda 0082) |
 | [0096](0096-mensagem-pelo-terminal-na-conversa-da-demanda.md) | accepted | Mensagem pelo terminal: a sessão do desenvolvedor escreve e lê na Conversa da Demanda, pela ponte de automação (emenda 0069 e 0083) |
 | [0097](0097-canal-de-conduta-fundacao.md) | accepted | Canal de Conduta: fundação, sigilo do conteúdo e exceções de IA (emenda 0082, 0088 e 0095) |
+| [0101](0101-dados-do-atendimento-e-espelho-so-para-super-admin.md) | accepted | Dados do Atendimento e o Espelho da Global Health ficam só com o Super admin (emenda 0031 e 0038) |
 
 ## Contas médicas
 
