@@ -89,6 +89,11 @@ export type Demanda = {
    * endereço da issue. Para o diretor o servidor manda nulo.
    */
   autor?: string | null;
+  /**
+   * O número da issue-raiz, sem link, para todos que veem a Demanda (issue
+   * #1902, ADR 0100, decisão 1). O link continua só do Desenvolvedor.
+   */
+  raiz_numero?: number | null;
   issue_numero?: number | null;
   issue_url?: string | null;
   /** Quem cuida do card (ADR 0083, decisão 5), para todos. Nulo enquanto o card não nasceu. */
@@ -190,12 +195,28 @@ export const CLASSIFICACAO_CLASSE: Record<Classificacao, string> = {
   melhoria: "bg-violet-50 text-violet-700",
 };
 
+/** Uma issue aberta que trava a parte (issue #1902, ADR 0100, decisão 2). */
+export type BloqueadoraDaParte = {
+  numero: number;
+  /** A bloqueadora não é parte deste pedido: a tela diz "de outro pedido". */
+  de_outro_pedido: boolean;
+};
+
 /** Uma parte da entrega: o que ela muda, em que pé está e quando fechou. */
 export type ParteDaEntrega = {
   o_que_muda: string | null;
   situacao: EtapaDemanda | null;
   /** Quando a parte fechou (issue #1552). Nula na parte aberta. */
   fechada_em?: string | null;
+  /**
+   * O número da parte, sem link, para todos (issue #1902, ADR 0100, decisão
+   * 1). As Entregas o mandam nulo.
+   */
+  numero?: number | null;
+  /** A Onda da parte (ADR 0100, decisão 3). Nula na linha de antes: vale a 1. */
+  onda?: number | null;
+  /** As bloqueadoras ainda abertas: o "Espera a #N" da tela. */
+  bloqueadoras?: BloqueadoraDaParte[];
 };
 
 /**
