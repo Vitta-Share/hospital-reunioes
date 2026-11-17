@@ -1,10 +1,10 @@
-"""Testes do módulo Dados do Atendimento na área admin (issue #291, ADR 0031).
+"""Testes do módulo Dados do Atendimento na área admin (issue #291, ADR 0031; issue #1907, ADR 0101).
 
 Cobre (critérios de aceite):
-- Secretária edita um preço e o endpoint da API da Ana devolve o valor novo
+- Super admin edita um preço e o endpoint da API da Ana devolve o valor novo
   na chamada seguinte (leitura direta, sem cache).
-- Facilitador vê as tabelas mas tem a edição recusada; anônimo é recusado
-  em tudo.
+- Facilitador e secretária não leem nem editam as tabelas (ADR 0101); anônimo
+  é recusado em tudo.
 - Criar, editar e desativar linha funcionam nas três tabelas; linha
   desativada some da resposta da API da Ana.
 - Cada tabela expõe a data da última atualização.
@@ -192,7 +192,7 @@ def _consulta_row(especialidade: str = "Cardiologia", valor: float = 380.0) -> d
 
 def _make_app(
     tabelas: dict[str, list] | None = None,
-    logado_como: dict | None = FACILITADOR,
+    logado_como: dict | None = SUPER_ADMIN,
 ) -> tuple[_SupabaseMock, TestClient]:
     """App com os routers admin (dados do atendimento) e ana sobre o mesmo mock.
 
@@ -235,15 +235,24 @@ def _make_app(
 # ─── Testes ───────────────────────────────────────────────────────────────────
 
 
+# Quem tem papel nas Reuniões e não é Super admin: desde a ADR 0101 nenhum dos
+# dois lê nem edita Dados do Atendimento.
+NAO_SUPER_ADMIN = [
+    pytest.param(FACILITADOR, id="facilitador"),
+    pytest.param(SECRETARIA, id="secretaria"),
+]
+SLUGS = ["consultas-particulares", "exames", "cirurgias-estimativas"]
+
+
 class TestLeitura:
-    def test_facilitador_ve_consultas_particulares(self):
+    def test_super_admin_ve_consultas_particulares(self):
         _, client = _make_app(
             tabelas={
                 "consultas_particulares": [_consulta_row()],
                 "exames": [],
                 "cirurgias_estimativas": [],
             },
-            logado_como=FACILITADOR,
+            logado_como=SUPER_ADMIN,
         )
         res = client.get(
             "/api/admin/dados-atendimento/consultas-particulares",
@@ -255,9 +264,22 @@ class TestLeitura:
         assert body["data"][0]["especialidade"] == "Cardiologia"
         assert body["data"][0]["valor_rs"] == 380.0
 
+    @pytest.mark.parametrize("slug", SLUGS)
+    @pytest.mark.parametrize("pessoa", NAO_SUPER_ADMIN)
+    def test_quem_nao_e_super_admin_nao_le_as_tabelas(self, pessoa, slug):
+        """O relato da #1907: o médico abria a tela e via os valores (ADR 0101)."""
+        _, client = _make_app(logado_como=pessoa)
+        res = client.get(
+            f"/api/admin/dados-atendimento/{slug}",
+            headers={"Authorization": "Bearer token-fake"},
+        )
+        assert res.status_code == 403
+        assert "data" not in res.json()
+
 
 class TestRecusas:
-    def test_facilitador_tem_edicao_recusada(self):
+    @pytest.mark.parametrize("pessoa", NAO_SUPER_ADMIN)
+    def test_quem_nao_e_super_admin_tem_edicao_recusada(self, pessoa):
         row = _consulta_row()
         sb, client = _make_app(
             tabelas={
@@ -265,7 +287,7 @@ class TestRecusas:
                 "exames": [],
                 "cirurgias_estimativas": [],
             },
-            logado_como=FACILITADOR,
+            logado_como=pessoa,
         )
         headers = {"Authorization": "Bearer token-fake"}
         res = client.patch(
@@ -312,7 +334,7 @@ class TestRecusas:
 
 
 class TestReflexoImediatoNaAna:
-    def test_secretaria_edita_preco_e_ana_devolve_valor_novo(self, monkeypatch):
+    def test_super_admin_edita_preco_e_ana_devolve_valor_novo(self, monkeypatch):
         from app.config import settings
 
         monkeypatch.setattr(settings, "ana_api_key", CHAVE_ANA)
@@ -323,7 +345,7 @@ class TestReflexoImediatoNaAna:
                 "exames": [],
                 "cirurgias_estimativas": [],
             },
-            logado_como=SECRETARIA,
+            logado_como=SUPER_ADMIN,
         )
         res = client.patch(
             f"/api/admin/dados-atendimento/consultas-particulares/{row['id']}",
@@ -382,7 +404,7 @@ class TestCrudTresTabelas:
         from app.config import settings
 
         monkeypatch.setattr(settings, "ana_api_key", CHAVE_ANA)
-        sb, client = _make_app(logado_como=SECRETARIA)
+        sb, client = _make_app(logado_como=SUPER_ADMIN)
         headers = {"Authorization": "Bearer token-fake"}
         headers_ana = {"X-API-Key": CHAVE_ANA}
         base = f"/api/admin/dados-atendimento/{slug}"
@@ -424,7 +446,7 @@ class TestUltimaAtualizacao:
                 "exames": [],
                 "cirurgias_estimativas": [],
             },
-            logado_como=SECRETARIA,
+            logado_como=SUPER_ADMIN,
         )
         headers = {"Authorization": "Bearer token-fake"}
         base = "/api/admin/dados-atendimento/consultas-particulares"
@@ -459,7 +481,7 @@ class TestUltimaAtualizacao:
 
 class TestValidacao:
     def test_campo_obrigatorio_vazio_e_recusado(self):
-        _, client = _make_app(logado_como=SECRETARIA)
+        _, client = _make_app(logado_como=SUPER_ADMIN)
         res = client.post(
             "/api/admin/dados-atendimento/consultas-particulares",
             json={"especialidade": "   ", "valor_rs": 350.0, "descricao_servico": "Consulta."},
@@ -470,7 +492,7 @@ class TestValidacao:
     def test_campo_obrigatorio_so_com_travessao_e_recusado(self):
         # Travessão sanitizado vira "," (truthy): o oráculo de vazio precisa
         # ser \w, o mesmo do ana.py, senão a especialidade "," passa.
-        _, client = _make_app(logado_como=SECRETARIA)
+        _, client = _make_app(logado_como=SUPER_ADMIN)
         res = client.post(
             "/api/admin/dados-atendimento/consultas-particulares",
             json={"especialidade": "—", "valor_rs": 350.0, "descricao_servico": "Consulta."},
@@ -479,7 +501,7 @@ class TestValidacao:
         assert res.status_code == 422
 
     def test_valor_negativo_e_recusado(self):
-        _, client = _make_app(logado_como=SECRETARIA)
+        _, client = _make_app(logado_como=SUPER_ADMIN)
         res = client.post(
             "/api/admin/dados-atendimento/consultas-particulares",
             json={"especialidade": "Urologia", "valor_rs": -350.0, "descricao_servico": "Consulta."},
@@ -488,7 +510,7 @@ class TestValidacao:
         assert res.status_code == 422
 
     def test_travessao_e_sanitizado_na_escrita(self):
-        sb, client = _make_app(logado_como=SECRETARIA)
+        sb, client = _make_app(logado_como=SUPER_ADMIN)
         res = client.post(
             "/api/admin/dados-atendimento/consultas-particulares",
             json={
@@ -508,7 +530,7 @@ class TestConveniosPodados:
     mais, nem para o admin nem para a Ana."""
 
     def test_rotas_admin_de_convenio_devolvem_404(self):
-        _, client = _make_app(logado_como=SECRETARIA)
+        _, client = _make_app(logado_como=SUPER_ADMIN)
         headers = {"Authorization": "Bearer token-fake"}
         base = "/api/admin/dados-atendimento/convenios-especialidade"
 
@@ -534,7 +556,7 @@ class TestConveniosPodados:
         from app.config import settings
 
         monkeypatch.setattr(settings, "ana_api_key", CHAVE_ANA)
-        _, client = _make_app(logado_como=SECRETARIA)
+        _, client = _make_app(logado_como=SUPER_ADMIN)
 
         assert client.get("/api/ana/convenios-especialidade").status_code == 404
         assert client.get("/api/ana/convenios-especialidade", headers={"X-API-Key": CHAVE_ANA}).status_code == 404
@@ -544,7 +566,7 @@ class TestConveniosPodados:
         from app.config import settings
 
         monkeypatch.setattr(settings, "ana_api_key", CHAVE_ANA)
-        _, client = _make_app(logado_como=SECRETARIA)
+        _, client = _make_app(logado_como=SUPER_ADMIN)
         headers = {"Authorization": "Bearer token-fake"}
 
         for slug in ("consultas-particulares", "exames", "cirurgias-estimativas"):

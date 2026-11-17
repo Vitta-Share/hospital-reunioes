@@ -24,23 +24,18 @@ import {
 } from "lucide-react";
 
 type Item = { href: string; label: string; icon: LucideIcon };
-// somenteSuperAdmin: secoes que a sidebar esconde de secretaria/facilitador
-// (o backend segue sendo o gate real, com 403 nas rotas de super admin).
 type Section = {
   label: string;
   items: Item[];
-  somenteSuperAdmin?: boolean;
 };
 
 const SECTIONS: Section[] = [
   {
     label: "Pessoas",
-    somenteSuperAdmin: true,
     items: [{ href: "/admin/usuarios", label: "Usuários", icon: Users }],
   },
   {
     label: "Taxonomia",
-    somenteSuperAdmin: true,
     items: [
       { href: "/admin/setores", label: "Setores", icon: Building2 },
       { href: "/admin/cargos", label: "Cargos", icon: BadgeCheck },
@@ -66,7 +61,6 @@ const SECTIONS: Section[] = [
     // a Visao Geral tem caminho proprio, e nao a raiz da secao, porque o item
     // ativo e decidido por prefixo e a raiz acenderia em todas as telas.
     label: "Central de Comando",
-    somenteSuperAdmin: true,
     items: [
       {
         href: "/admin/central-de-comando/visao-geral",
@@ -92,18 +86,17 @@ const SECTIONS: Section[] = [
   },
   {
     label: "Tecnologia",
-    somenteSuperAdmin: true,
     items: [{ href: "/admin/tecnologia", label: "Tecnologia", icon: Cpu }],
   },
 ];
 
 /**
  * As seções do menu do Admin que a pessoa vê: o corte de acesso do menu, que o
- * manual também lê (issue #1718, ADR 0094, decisão 2).
+ * manual também lê (issue #1718, ADR 0094, decisão 2). O Admin inteiro é só do
+ * Super admin (ADR 0101); o backend segue sendo o gate real, com 403.
  */
 export function secoesDoMenuAdmin(participante: AuthUser | null): Section[] {
-  const superAdmin = isSuperAdmin(participante);
-  return SECTIONS.filter((s) => superAdmin || !s.somenteSuperAdmin);
+  return isSuperAdmin(participante) ? SECTIONS : [];
 }
 
 interface AdminSidebarProps {

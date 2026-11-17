@@ -155,6 +155,18 @@ FACILITADOR = {
     "data_cadastro": "2026-01-01",
 }
 
+# Quem vê o Espelho desde a ADR 0101: só o Super admin.
+SUPER_ADMIN = {
+    **FACILITADOR,
+    "id": "p-admin",
+    "auth_user_id": "auth-admin",
+    "email": "admin@ex.com",
+    "nome_completo": "Pessoa Super Admin",
+    "role": "diretor",
+    "is_super_admin": True,
+    "access_profile": "super_admin",
+}
+
 # Login válido sem papel nas Reuniões: o caso do Coordenador de POPs, que
 # ganhou acesso pelo provisionamento do módulo de POPs (`access_profile` NULL
 # explícito, docstring de `tem_acesso_reunioes`). Autentica, mas não pode ver
@@ -205,12 +217,12 @@ class _SupabaseMock:
         raise AssertionError(f"O Espelho não fala com o banco (tabela {name})")
 
 
-def _make_app(logado: bool = True, participante: dict = FACILITADOR) -> TestClient:
+def _make_app(logado: bool = True, participante: dict = SUPER_ADMIN) -> TestClient:
     """App com o router do Espelho e o participante que o banco vai devolver.
 
     `logado=False` deixa a dependency real de auth valer: requisição sem
     Bearer token recebe 401. `participante` decide o veredito do gate de
-    papel (`require_participante_reunioes`) para quem está autenticado.
+    papel (`require_super_admin`) para quem está autenticado.
     """
     from app.routers.admin import espelho_global_health as espelho_router
 
@@ -476,7 +488,7 @@ class TestAuth:
 
         O anônimo acima é barrado pelo HTTPBearer, antes do gate de papel.
         Aqui o Bearer é válido e o participante existe: quem recusa é o
-        `require_participante_reunioes`. Sem este teste, trocar a dependency
+        `require_super_admin`. Sem este teste, trocar a dependency
         por `get_current_user` abriria a agenda da Global Health para
         qualquer autenticado com a suíte verde.
         """
@@ -1186,3 +1198,38 @@ class TestOsQuatroVaziosSaoDistintos:
             _mock_gh(monkeypatch, _responde(corpo))
             motivos.add(_make_app().get(rota, headers=AUTH).json()["motivo_vazio"])
         assert len(motivos) == 4
+
+
+# ─── Só o Super admin vê o Espelho (issue #1907, ADR 0101) ───────────────────
+
+SECRETARIA = {
+    **FACILITADOR,
+    "id": "p-sec",
+    "auth_user_id": "auth-sec",
+    "email": "sec@ex.com",
+    "nome_completo": "Pessoa Secretária",
+    "role": "secretaria",
+    "access_profile": "secretaria",
+}
+
+ROTAS_DO_ESPELHO = [ROTA, ROTA_CONVENIOS, ROTA_PROFISSIONAIS, ROTA_PLANOS, ROTA_HORARIOS]
+
+
+class TestSoSuperAdminVeOEspelho:
+    @pytest.mark.parametrize("rota", ROTAS_DO_ESPELHO)
+    @pytest.mark.parametrize(
+        "pessoa",
+        [pytest.param(FACILITADOR, id="facilitador"), pytest.param(SECRETARIA, id="secretaria")],
+    )
+    def test_quem_nao_e_super_admin_leva_403_e_a_gh_nao_e_chamada(self, monkeypatch, pessoa, rota):
+        """Papel nas Reuniões deixou de bastar: o Espelho fecha junto com a tela."""
+        chamadas = _mock_gh(monkeypatch, _responde(_pagina([_CARDIO])))
+        res = _make_app(participante=pessoa).get(rota, headers=AUTH)
+        assert res.status_code == 403
+        assert chamadas == []
+
+    def test_super_admin_ve_as_especialidades(self, monkeypatch):
+        _mock_gh(monkeypatch, _responde(_pagina([_CARDIO])))
+        res = _make_app(participante=SUPER_ADMIN).get(ROTA, headers=AUTH)
+        assert res.status_code == 200
+        assert res.json()["data"] == [{"id": 1843, "nome": "Consulta Cardiologica", "bloqueado": False}]

@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentParticipante } from "@/hooks/useCurrentParticipante";
-import { isSecretaria, isSuperAdmin } from "@/lib/auth";
+import { isSuperAdmin } from "@/lib/auth";
 import { useToast } from "@/components/ui/Toast";
 import { Select } from "@/components/ui/Select";
 import { DataTable, type Column } from "@/components/admin/DataTable";
@@ -66,7 +66,7 @@ export function DadosAtendimentoModule() {
 
   // Mesmos helpers do backend (access_profile primeiro, flag legada como
   // fallback): frontend e backend concordam sobre quem edita.
-  const podeEditar = isSuperAdmin(participante) || isSecretaria(participante);
+  const podeEditar = isSuperAdmin(participante);
 
   // Incrementado após cada escrita para recarregar a listagem.
   const [reloadKey, setReloadKey] = useState(0);

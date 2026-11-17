@@ -1,13 +1,12 @@
-"""Router /admin/dados-atendimento — módulo Dados do Atendimento (ADR 0031).
+"""Router /admin/dados-atendimento — módulo Dados do Atendimento (ADR 0031, ADR 0101).
 
 CRUD das três tabelas de valores que alimentam a Ana (consultas
 particulares, exames, estimativas de cirurgias). A tabela de convênios por
 especialidade saiu no ADR 0038: cobertura vem da agenda online da Global
 Health, fonte única.
 
-Autorização por papel (padrão do backend, regras em Python):
-- Leitura: qualquer papel do contexto Reuniões (facilitador consulta).
-- Escrita: super admin ou secretária.
+Autorização (padrão do backend, regras em Python): só o super admin lê e
+escreve (ADR 0101). Facilitador e secretária recebem 403.
 
 A edição reflete imediatamente nos endpoints da API da Ana: leitura direta
 do banco, sem cache. Não há DELETE: desativar (PATCH ativo=false) preserva o
@@ -32,8 +31,7 @@ from supabase import Client
 
 from app.dependencies import (
     get_supabase_client,
-    require_participante_reunioes,
-    require_super_admin_ou_secretaria,
+    require_super_admin,
 )
 from app.services import audit
 from app.utils.text_sanitizer import sanitizar_travessao
@@ -200,7 +198,7 @@ def _register_rotas(config: _TabelaValores) -> None:
 
     @router.get(f"/{config.slug}", name=f"list_{table}")
     async def _list(
-        _me: dict = Depends(require_participante_reunioes),
+        _me: dict = Depends(require_super_admin),
         supabase: Client = Depends(get_supabase_client),
     ):
         """Lista todas as linhas (ativas e desativadas) e a data da última
@@ -221,7 +219,7 @@ def _register_rotas(config: _TabelaValores) -> None:
     async def _create(
         payload: CreateModel,
         request: Request,
-        actor: dict = Depends(require_super_admin_ou_secretaria),
+        actor: dict = Depends(require_super_admin),
         supabase: Client = Depends(get_supabase_client),
     ):
         valores = _normalizar_texto(config, payload.model_dump())
@@ -253,7 +251,7 @@ def _register_rotas(config: _TabelaValores) -> None:
         item_id: str,
         payload: UpdateModel,
         request: Request,
-        actor: dict = Depends(require_super_admin_ou_secretaria),
+        actor: dict = Depends(require_super_admin),
         supabase: Client = Depends(get_supabase_client),
     ):
         existing = _fetch_by_id(supabase, table, config.select_campos, item_id)

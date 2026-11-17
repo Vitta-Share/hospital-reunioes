@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useCurrentParticipante } from "@/hooks/useCurrentParticipante";
-import { papelNaOuvidoria, temAcessoReunioes } from "@/lib/auth";
+import { isSuperAdmin, papelNaOuvidoria } from "@/lib/auth";
 import { DistintivoDeNovidades } from "@/components/layout/DistintivoDeNovidades";
 import type { ContagemDeNovidades } from "@/lib/ouvidoria/novidades";
 
@@ -76,9 +76,8 @@ export function BottomNav({
 }: BottomNavProps) {
   const pathname = usePathname();
   const { participante } = useCurrentParticipante();
-  // Todo papel de Reuniões entra no /admin (ADR 0031): a raiz redireciona
-  // por papel e o backend segue 403ando o que não é do papel.
-  const showAdmin = participante != null && temAcessoReunioes(participante);
+  // O Admin é só do Super admin (ADR 0101).
+  const showAdmin = isSuperAdmin(participante);
   // Quem é da Ouvidoria alcança a fila pelo celular (issue #478, PRD #468), e
   // o responsável do setor também (issue #1884, ADR 0099): a fila dele não tem
   // outro atalho aqui embaixo. A Secretária e o Super admin seguem com o Admin

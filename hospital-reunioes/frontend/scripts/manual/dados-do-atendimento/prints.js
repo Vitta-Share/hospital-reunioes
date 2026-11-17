@@ -93,7 +93,7 @@ async (page) => {
     await page.getByRole("dialog").waitFor({ state: "hidden" });
   };
 
-  // Entrar com a pessoa de exemplo (Renata Duarte, secretária).
+  // Entrar com a pessoa de exemplo (Renata Duarte, Super admin).
   await page.goto(`${base}/login`);
   await page.getByPlaceholder("seu@email.com").fill("__EMAIL__");
   await page.getByPlaceholder("••••••••").fill("__SENHA__");

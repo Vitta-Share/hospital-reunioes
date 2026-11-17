@@ -106,7 +106,6 @@ GATES = [
     (deps.require_participante_reunioes, {}),
     (deps.require_super_admin, {}),
     (deps.require_secretaria, {"access_profile": "secretaria", "is_super_admin": False}),
-    (deps.require_super_admin_ou_secretaria, {}),
     (deps.require_perfil_pop("superadmin", "gestor_qualidade"), {}),
     (deps.require_super_admin_ou_perfil_pop("superadmin"), {}),
     (ouvidoria_router.require_acesso_painel, {}),
@@ -120,7 +119,6 @@ IDS = [
     "require_participante_reunioes",
     "require_super_admin",
     "require_secretaria",
-    "require_super_admin_ou_secretaria",
     "require_perfil_pop",
     "require_super_admin_ou_perfil_pop",
     "require_acesso_painel",
@@ -328,7 +326,7 @@ def test_escrita_acontece_para_a_mesma_pessoa_ativa():
 
 
 def test_leitura_em_dados_do_atendimento_nao_acontece_para_desligada():
-    """Gate de LEITURA (`require_participante_reunioes`) na mesma rota real."""
+    """Gate de LEITURA (`require_super_admin`, ADR 0101) na mesma rota real."""
     consultas = [_consulta_row()]
     client = _app_dados_atendimento(consultas, DESLIGADA)
 

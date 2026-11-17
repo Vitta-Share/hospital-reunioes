@@ -144,6 +144,19 @@ describe("BottomNav por perfil", () => {
     expect(rotulos()).toEqual(["Início", "Reuniões", "Pendências", "Perfil"]);
   });
 
+  // O Admin é só do Super admin (issue #1907, ADR 0101): o item levava o
+  // facilitador e a secretária a Dados do Atendimento.
+  it.each([
+    ["o facilitador", "regular" as const],
+    ["a secretária", "secretaria" as const],
+  ])("%s não vê o item Admin", (_quem, access_profile) => {
+    sessao.participante = participante({ access_profile });
+
+    render(<BottomNav />);
+
+    expect(rotulos()).toEqual(["Início", "Reuniões", "Pendências", "Perfil"]);
+  });
+
   it("o responsável do setor vê o item Ouvidoria (issue #1884, ADR 0099)", () => {
     sessao.participante = participante({ papel_ouvidoria: "responsavel" });
 

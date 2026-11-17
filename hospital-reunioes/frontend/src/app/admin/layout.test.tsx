@@ -94,5 +94,37 @@ describe("o admin com sessão", () => {
 
     expect(screen.getByText(SEGREDO)).not.toBeNull();
     expect(replace).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * O Admin é só do Super admin (issue #1907, ADR 0101). O menu deixa de mostrar
+ * o item, mas esconder não é proteger: quem digita o endereço de Dados do
+ * Atendimento tem que voltar para o início antes de a página existir.
+ */
+describe("o admin de quem não é super admin", () => {
+  it.each([
+    ["o facilitador", { access_profile: "regular", is_super_admin: false }],
+    ["a secretária", { access_profile: "secretaria", is_super_admin: false }],
+  ])("%s volta para o início, mesmo digitando o endereço da tela", async (_quem, me) => {
+    getUser.mockResolvedValue({
+      data: { user: { email: "pessoa@hsm.test", user_metadata: { nome: "Ana" } } },
+    });
+    getSession.mockResolvedValue({ data: { session: { access_token: "t" } } });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, json: async () => me }))
+    );
+    // No Next o `redirect` interrompe a renderização lançando; o mock repete
+    // isso para o teste provar que o conteúdo não chega a ser montado.
+    redirect.mockImplementation((destino: string) => {
+      throw new Error(`redirect:${destino}`);
+    });
+    window.history.replaceState({}, "", "/admin/dados-atendimento");
+
+    await expect(AdminLayout({ children: <p>{SEGREDO}</p> })).rejects.toThrow(
+      "redirect:/dashboard"
+    );
   });
 });
