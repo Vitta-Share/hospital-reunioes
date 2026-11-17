@@ -2,6 +2,52 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-17T12:11:23-03:00",
+      "sha": "abf82554d7808f857bac9224160f9b9d2509aef8",
+      "app_version": "0.306.2",
+      "subject": "PR #1909, issue #1907: Dados do Atendimento e Espelho da Global Health só para Super admin",
+      "raw_subject": "chore(deploy): registro do PR avulso (#1909)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [],
+      "result": "healthy",
+      "duration_seconds": 326,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "PR avulso: PR #1909, issue #1907. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 51,
+          "frontend": 298
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-16T22:52:23-03:00",
       "sha": "cf07f534ad5825031fc6580adfc411ee198163b5",
       "app_version": "0.306.1",
