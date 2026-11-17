@@ -41,14 +41,18 @@ def demanda(d: dict) -> dict:
     registrada = d["etapa"] == "registrada"
     entregue = d.get("entregue_ha")
     entregues, total = d.get("partes", [None, None])
-    textos = d.get("partes_texto", [])
+    # Cada parte com o número, a Onda e o que ainda a trava (issue #1903, ADR 0100).
     partes = [
         {
-            "o_que_muda": texto,
+            "o_que_muda": p["o_que_muda"],
             "situacao": "em_producao" if i < entregues else ("em_desenvolvimento" if i == entregues else "planejada"),
             "fechada_em": instante(10 - 3 * i) if i < entregues else None,
+            "numero": p["numero"],
+            "onda": p["onda"],
+            "bloqueadoras": [{"numero": n, "de_outro_pedido": False} for n in p.get("espera", [])]
+            + [{"numero": n, "de_outro_pedido": True} for n in p.get("espera_de_outro_pedido", [])],
         }
-        for i, texto in enumerate(textos)
+        for i, p in enumerate(d.get("partes_da_entrega", []))
     ]
     return {
         "id": d["id"],
@@ -72,6 +76,7 @@ def demanda(d: dict) -> dict:
         "demonstracao_url": d.get("demonstracao"),
         "demonstracao_em": instante(entregue) if d.get("demonstracao") else None,
         "autor": None,
+        "raiz_numero": d.get("raiz_numero"),
         "issue_numero": None,
         "issue_url": None,
         "envio_falhou": False,

@@ -54,13 +54,13 @@
       "id": "exemplo-47", "numero": 47, "dias": 12, "hora": "10:00",
       "titulo": "Painel de Contas médicas por convênio",
       "classificacao": "melhoria", "etapa": "em_desenvolvimento", "projeto": "hospital", "origem": "diretor",
-      "responsavel": "Clara Nogueira", "partes": [2, 5],
-      "partes_texto": [
-        "O painel separa as guias por convênio.",
-        "Cada convênio mostra as guias enviadas, pagas e glosadas.",
-        "O filtro de período vale para todos os convênios.",
-        "Os convênios sem guia no mês aparecem com zero.",
-        "As guias antigas entram na conta."
+      "responsavel": "Clara Nogueira", "partes": [2, 5], "raiz_numero": 301,
+      "partes_da_entrega": [
+        { "numero": 302, "onda": 1, "o_que_muda": "O painel separa as guias por convênio." },
+        { "numero": 303, "onda": 2, "o_que_muda": "Cada convênio mostra as guias enviadas, pagas e glosadas." },
+        { "numero": 304, "onda": 2, "o_que_muda": "O filtro de período vale para todos os convênios." },
+        { "numero": 305, "onda": 3, "o_que_muda": "Os convênios sem guia no mês aparecem com zero.", "espera": [304] },
+        { "numero": 306, "onda": 3, "o_que_muda": "As guias antigas entram na conta.", "espera_de_outro_pedido": [288] }
       ],
       "o_que_muda": "**O que muda:** O painel de Contas médicas passa a separar as guias por convênio, para você ver onde a cobrança emperra.\n\n**O que você precisa saber:**\n- Cada convênio ganha uma linha com as guias enviadas, pagas e glosadas.\n- O filtro de período vale para todos os convênios de uma vez.\n- As guias antigas entram na conta desde o primeiro dia."
     },

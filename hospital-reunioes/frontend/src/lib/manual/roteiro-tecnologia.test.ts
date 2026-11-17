@@ -128,6 +128,26 @@ describe("a tabela de respostas da aba Tecnologia", () => {
     }
   });
 
+  it("o pedido do painel tem partes numeradas em mais de uma Onda, uma esperando outra do pedido e uma de outro pedido (issue #1903)", () => {
+    const painel = lista.find((d) => d.id === SEED.abrir.painel)!;
+    const partes = painel.partes ?? [];
+    expect(painel.raiz_numero).toEqual(expect.any(Number));
+    expect(partes.every((p) => typeof p.numero === "number")).toBe(true);
+    expect(new Set(partes.map((p) => p.onda)).size).toBeGreaterThanOrEqual(2);
+    const bloqueadoras = partes.flatMap((p) => p.bloqueadoras ?? []);
+    const numeros = new Set(partes.map((p) => p.numero));
+    // A do mesmo pedido é uma parte que ainda não entrou; a de outro pedido não é parte dele.
+    const doPedido = bloqueadoras.filter((b) => !b.de_outro_pedido);
+    expect(doPedido.length).toBeGreaterThan(0);
+    for (const b of doPedido) {
+      const espera = partes.find((p) => p.numero === b.numero);
+      expect(espera?.situacao, `#${b.numero} trava, mas já entrou`).not.toBe("em_producao");
+    }
+    const deFora = bloqueadoras.filter((b) => b.de_outro_pedido);
+    expect(deFora.length).toBeGreaterThan(0);
+    expect(deFora.every((b) => !numeros.has(b.numero))).toBe(true);
+  });
+
   it("as conversas que o roteiro fotografa estão no ponto do print: a pergunta da melhoria e o resumo do bug", () => {
     const melhoria = T[`chat/${SEED.abrir.melhoria}`] as { estado: string; planejamento: boolean; mensagens: { recomendada?: string }[] };
     expect(melhoria.estado).toBe("em_andamento");
