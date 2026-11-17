@@ -16,6 +16,9 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from test_tecnologia_chat import CHAT, _cenario  # noqa: E402
+from test_tecnologia_vinculo import DIRETOR  # noqa: E402
+from test_tecnologia_vinculo import _demanda as _demanda_do_diretor  # noqa: E402
 from test_tecnologia_webhook_github import (  # noqa: E402
     _corpo,
     _demandas,
@@ -31,7 +34,7 @@ from test_tecnologia_webhook_github import (  # noqa: E402
     _sem_pr_aberto,  # noqa: F401  (autouse)
 )
 
-from app.services import github_client  # noqa: E402
+from app.services import github_client, tecnologia_sincronizacao  # noqa: E402
 from app.services.tecnologia_ondas import ondas_das_partes  # noqa: E402
 
 
@@ -170,6 +173,52 @@ class TestAFotoGuardaAsBloqueadoras:
         [demanda] = _demandas(sb)
         assert gh.leituras_das_bloqueadoras == []
         assert _partes_da_foto(demanda)[679] == [{"numero": 678, "estado": "closed", "da_demanda": True}]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# A API do Documento do card
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _foto_com_partes() -> dict:
+    """A foto como a sincronizacao a deixa: a raiz aberta e tres partes, a 679
+    esperando a 678 (ja fechada) e a 680 esperando a 679 e um pedido de fora."""
+    gh = _GithubFalso(
+        {673: _issue(673)},
+        sub_issues={673: [_issue(678, estado="closed", motivo="completed"), _issue(679), _issue(680)]},
+    )
+    foto = github_client.montar_foto(gh.issues[673], gh.sub_issues[673])
+    foto["partes"][1]["bloqueadoras"] = [{"numero": 678, "estado": "closed", "da_demanda": True}]
+    foto["partes"][2]["bloqueadoras"] = [
+        {"numero": 679, "estado": "open", "da_demanda": True},
+        {"numero": 1830, "estado": "open", "da_demanda": False},
+    ]
+    return foto
+
+
+class TestAApiDoDocumento:
+    def test_quem_nao_tem_github_login_recebe_numeros_onda_e_bloqueadoras_abertas_sem_link(self, monkeypatch):
+        cache = tecnologia_sincronizacao.mudanca_da_foto(_foto_com_partes())
+        client, _, _ = _cenario(
+            monkeypatch,
+            logado=DIRETOR,
+            participantes=[DIRETOR],
+            demandas=[_demanda_do_diretor("d-1", autor_id=DIRETOR["id"], github_issue_numero=673, **cache)],
+        )
+
+        [item] = client.get(CHAT).json()
+
+        assert item["raiz_numero"] == 673
+        assert (item["issue_numero"], item["issue_url"]) == (None, None)
+        assert [(p["numero"], p["onda"], p["bloqueadoras"]) for p in item["partes"]] == [
+            (678, 1, []),
+            # A 678 ja fechou: conta para a Onda, mas nao aparece como espera.
+            (679, 2, []),
+            (680, 3, [{"numero": 679, "de_outro_pedido": False}, {"numero": 1830, "de_outro_pedido": True}]),
+        ]
+        textos = [str(v) for p in item["partes"] for v in p.values()]
+        assert not [t for t in textos if "github.com" in t or "Tecnologia: webhook" in t]
+        assert all("labels" not in p and "titulo" not in p and "url" not in p for p in item["partes"])
 
 
 class TestOClienteLeAsBloqueadoras:

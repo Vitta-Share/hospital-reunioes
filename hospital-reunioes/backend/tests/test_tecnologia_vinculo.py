@@ -789,12 +789,21 @@ class TestPartesParaODiretor:
         )
 
         assert partes_para_o_diretor(foto) == [
-            {"numero": 674, "o_que_muda": "O selo aparece no card.", "situacao": ETAPA_ENTREGUE, "fechada_em": None},
+            {
+                "numero": 674,
+                "o_que_muda": "O selo aparece no card.",
+                "situacao": ETAPA_ENTREGUE,
+                "fechada_em": None,
+                "onda": 1,
+                "bloqueadoras": [],
+            },
             {
                 "numero": 675,
                 "o_que_muda": "A seção mostra o que muda.",
                 "situacao": ETAPA_EM_DESENVOLVIMENTO,
                 "fechada_em": None,
+                "onda": 1,
+                "bloqueadoras": [],
             },
         ]
 
@@ -804,7 +813,14 @@ class TestPartesParaODiretor:
         foto = _foto(partes=(_parte(675),))
 
         assert partes_para_o_diretor(foto) == [
-            {"numero": 675, "o_que_muda": None, "situacao": ETAPA_PLANEJADA, "fechada_em": None}
+            {
+                "numero": 675,
+                "o_que_muda": None,
+                "situacao": ETAPA_PLANEJADA,
+                "fechada_em": None,
+                "onda": 1,
+                "bloqueadoras": [],
+            }
         ]
 
     @pytest.mark.parametrize("foto", (None, _foto()))

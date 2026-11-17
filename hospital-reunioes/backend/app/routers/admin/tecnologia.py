@@ -221,6 +221,9 @@ def _para_a_lista(supabase: Client, demandas: list[dict], *, ator: dict) -> list
             "classificacao": chat_tecnologia.CLASSIFICACAO_DO_TIPO.get(str(d.get("tipo") or "")),
             "minha": d.get("autor_id") == ator["id"],
             "autor": nomes.get(str(d.get("autor_id"))) if desenvolvedor else None,
+            # O numero da raiz, sem link, para todos (issue #1902, ADR 0100,
+            # decisao 1). O link continua so do Desenvolvedor.
+            "raiz_numero": d.get("github_issue_numero"),
             "issue_numero": d.get("github_issue_numero") if desenvolvedor else None,
             "issue_url": _url_da_issue(d) if desenvolvedor else None,
             "responsavel": _nome_do_responsavel(d, nomes),
@@ -303,16 +306,27 @@ def _url_da_issue(demanda: dict) -> str | None:
 
 def _partes_visiveis(demanda: dict) -> list[dict]:
     """As partes da entrega como o diretor as le (issue #676): o texto, a
-    situacao e a data do fechamento (issue #1552), sem o numero da fatia, que
-    e interno."""
+    situacao e a data do fechamento (issue #1552).
+
+    Desde a issue #1902 (ADR 0100, decisoes 1 a 3), para todos que veem a
+    Demanda: o numero da parte, a Onda e as bloqueadoras ainda abertas, cada
+    uma dizendo se e de outro pedido. Titulo, link e labels da fatia nao saem.
+    """
     partes = demanda.get("partes")
     if not isinstance(partes, list):
         return []
     return [
         {
+            "numero": parte.get("numero"),
             "o_que_muda": parte.get("o_que_muda"),
             "situacao": parte.get("situacao"),
             "fechada_em": parte.get("fechada_em"),
+            "onda": parte.get("onda"),
+            "bloqueadoras": [
+                {"numero": b.get("numero"), "de_outro_pedido": not b.get("da_demanda")}
+                for b in (parte.get("bloqueadoras") or [])
+                if isinstance(b, dict) and b.get("estado") == "open"
+            ],
         }
         for parte in partes
         if isinstance(parte, dict)
@@ -810,7 +824,16 @@ _SO_DO_DESENVOLVEDOR_NAS_ENTREGAS = {
     "envio_motivo": None,
     "designacao_falhou": False,
     "autor": None,
+    # O numero da raiz, que o Documento do card mostra a todos (issue #1902):
+    # as Entregas continuam sem numero de issue nenhum.
+    "raiz_numero": None,
 }
+
+
+def _partes_sem_numero(entrega: dict) -> list[dict]:
+    """As partes como as Entregas as mandam (issue #1902): sem o numero da
+    parte e sem as bloqueadoras, que sao numeros de issue (PRD #1689)."""
+    return [{**parte, "numero": None, "bloqueadoras": []} for parte in entrega.get("partes") or []]
 
 
 @router.get("/entregas", response_model=EntregasResponse)
@@ -863,7 +886,7 @@ async def listar_as_entregas(
     grupos = tecnologia_entregas.lista_por_semana(visiveis, agora=agora, filtros=filtros, corte=corte)
     seguinte = tecnologia_entregas.proximo_corte(visiveis, agora=agora, filtros=filtros, corte=corte)
     na_lista = {
-        entrega["id"]: {**entrega, **_SO_DO_DESENVOLVEDOR_NAS_ENTREGAS}
+        entrega["id"]: {**entrega, **_SO_DO_DESENVOLVEDOR_NAS_ENTREGAS, "partes": _partes_sem_numero(entrega)}
         for entrega in _para_a_lista(supabase, [d for _, demandas in grupos for d in demandas], ator=ator)
     }
     return {

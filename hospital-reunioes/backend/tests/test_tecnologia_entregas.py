@@ -87,6 +87,18 @@ def _demandas() -> list[dict]:
             origem="vitta",
             autor_id=PEDRO["id"],
             responsavel_id=RIB["id"],
+            # O Documento do card mostra o numero da parte e o que a trava
+            # (issue #1902), mas as Entregas nao mandam numero a ninguem.
+            partes=[
+                {
+                    "numero": 905,
+                    "o_que_muda": "O aviso chega.",
+                    "situacao": "entregue",
+                    "fechada_em": "2026-11-05T20:00:00Z",
+                    "onda": 2,
+                    "bloqueadoras": [{"numero": 906, "estado": "open", "da_demanda": False}],
+                }
+            ],
         ),
         _entregue(
             "e-domingo",
