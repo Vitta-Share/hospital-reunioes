@@ -9,9 +9,30 @@ veem a Demanda; e o kit diz o comportamento novo.
 
 from __future__ import annotations
 
+import os
+import sys
+
 import pytest
 
-from app.services.tecnologia_ondas import ondas_das_partes
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+from test_tecnologia_webhook_github import (  # noqa: E402
+    _corpo,
+    _demandas,
+    _entregar,
+    _GithubFalso,
+    _issue,
+    _ja_sincronizada,
+    _montar,
+    _pr_do_app,  # noqa: F401  (autouse)
+    _reset_rate_limiter,  # noqa: F401  (autouse)
+    _segredo_configurado,  # noqa: F401  (autouse)
+    _sem_github_de_verdade,  # noqa: F401  (autouse)
+    _sem_pr_aberto,  # noqa: F401  (autouse)
+)
+
+from app.services import github_client  # noqa: E402
+from app.services.tecnologia_ondas import ondas_das_partes  # noqa: E402
 
 
 def _parte(numero: int, *bloqueadoras: int | tuple[int, bool]) -> dict:
@@ -69,3 +90,102 @@ class TestAOndaDeCadaParte:
         ]
 
         assert ondas_das_partes(partes) == [1, 2]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# A foto guarda as bloqueadoras de cada parte
+# ═══════════════════════════════════════════════════════════════════════════
+
+REPO_URL = "https://github.com/pedrorezendefig/hospital-reunioes/issues"
+
+
+def _bloqueadora(numero: int, estado: str = "open", *, url: str | None = None) -> dict:
+    """A bloqueadora como o cliente do GitHub a devolve."""
+    return {"numero": numero, "estado": estado, "url": url or f"{REPO_URL}/{numero}"}
+
+
+def _partes_da_foto(demanda: dict) -> dict[int, list[dict] | None]:
+    return {p["numero"]: p.get("bloqueadoras") for p in demanda["github_foto"]["partes"]}
+
+
+class TestAFotoGuardaAsBloqueadoras:
+    def test_cada_parte_guarda_numero_estado_e_se_a_bloqueadora_e_da_mesma_demanda(self, monkeypatch):
+        gh = _GithubFalso(
+            {673: _issue(673)},
+            sub_issues={673: [_issue(678), _issue(679), _issue(680)]},
+            bloqueadoras={
+                679: [_bloqueadora(678, "closed")],
+                680: [_bloqueadora(679), _bloqueadora(1830, url="https://github.com/outro/repo/issues/1830")],
+            },
+        )
+        cliente, sb, _ = _montar(demandas=[_ja_sincronizada(gh, 673)], github=gh, monkeypatch=monkeypatch)
+
+        _entregar(cliente, _corpo())
+
+        [demanda] = _demandas(sb)
+        assert _partes_da_foto(demanda) == {
+            678: None,
+            679: [{"numero": 678, "estado": "closed", "da_demanda": True}],
+            680: [
+                {"numero": 679, "estado": "open", "da_demanda": True},
+                {"numero": 1830, "estado": "open", "da_demanda": False},
+            ],
+        }
+
+    def test_a_falha_na_leitura_mantem_as_da_foto_anterior_e_nao_derruba_a_sincronizacao(self, monkeypatch):
+        antes = _GithubFalso(
+            {673: _issue(673)},
+            sub_issues={673: [_issue(678), _issue(679)]},
+            bloqueadoras={679: [_bloqueadora(678)]},
+        )
+        guardada = _ja_sincronizada(antes, 673)
+        guardada["github_foto"]["partes"][1]["bloqueadoras"] = [{"numero": 678, "estado": "open", "da_demanda": True}]
+        # Agora a raiz ganhou uma label e a leitura das dependencias da 679 falha.
+        gh = _GithubFalso(
+            {673: _issue(673, labels=("ready-for-agent",))},
+            sub_issues={673: [_issue(678), _issue(679)]},
+            bloqueadoras={679: github_client.GithubIndisponivelError("GitHub respondeu 502")},
+        )
+        cliente, sb, _ = _montar(demandas=[guardada], github=gh, monkeypatch=monkeypatch)
+
+        resposta = _entregar(cliente, _corpo())
+
+        assert resposta.status_code == 200
+        [demanda] = _demandas(sb)
+        assert demanda["github_foto"]["labels"] == ["ready-for-agent"]
+        assert _partes_da_foto(demanda)[679] == [{"numero": 678, "estado": "open", "da_demanda": True}]
+
+    def test_com_a_raiz_fechada_as_dependencias_nao_sao_lidas_e_ficam_as_da_foto_anterior(self, monkeypatch):
+        antes = _GithubFalso({673: _issue(673)}, sub_issues={673: [_issue(678), _issue(679)]})
+        guardada = _ja_sincronizada(antes, 673)
+        guardada["github_foto"]["partes"][1]["bloqueadoras"] = [{"numero": 678, "estado": "closed", "da_demanda": True}]
+        gh = _GithubFalso(
+            {673: _issue(673, estado="closed", motivo="completed")},
+            sub_issues={673: [_issue(678, estado="closed", motivo="completed"), _issue(679, estado="closed")]},
+        )
+        cliente, sb, _ = _montar(demandas=[guardada], github=gh, monkeypatch=monkeypatch)
+
+        _entregar(cliente, _corpo(acao="closed"))
+
+        [demanda] = _demandas(sb)
+        assert gh.leituras_das_bloqueadoras == []
+        assert _partes_da_foto(demanda)[679] == [{"numero": 678, "estado": "closed", "da_demanda": True}]
+
+
+class TestOClienteLeAsBloqueadoras:
+    def test_le_o_blocked_by_da_parte_com_numero_estado_e_endereco(self, monkeypatch):
+        chamadas = []
+
+        def _chamar(metodo, caminho, *, projeto, **kw):
+            chamadas.append((metodo, caminho, projeto))
+            return [
+                {"number": 1884, "state": "closed", "html_url": f"{REPO_URL}/1884", "title": "Tecnico"},
+                {"id": 7, "title": "sem numero"},
+            ]
+
+        monkeypatch.setattr(github_client, "_chamar", _chamar)
+
+        lidas = github_client.ler_bloqueadoras(1886, projeto="hospital")
+
+        assert chamadas == [("GET", "/issues/1886/dependencies/blocked_by?per_page=100", "hospital")]
+        assert lidas == [{"numero": 1884, "estado": "closed", "url": f"{REPO_URL}/1884"}]
