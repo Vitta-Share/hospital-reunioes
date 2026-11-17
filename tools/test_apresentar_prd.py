@@ -30,11 +30,16 @@ SEGREDO = "segredo-de-teste-que-nao-vale-nada"
 
 # Roda o handler da Vercel com req e res de mentira e um fetch que só anota.
 HARNESS = r"""
-const [validar, corpo] = process.argv.slice(1);
+const [validar, corpo, respostas] = process.argv.slice(1);
+const fixas = JSON.parse(respostas || '{}');
 const chamadas = [];
 global.fetch = async (url, opt) => {
   chamadas.push({ url, method: opt.method, body: opt.body ? JSON.parse(opt.body) : null });
-  return { ok: true, status: 200 };
+  const chave = opt.method + ' ' + url.replace(/^.*\/repos\/[^/]+\/[^/]+/, '').replace(/\?.*$/, '');
+  let r = fixas[chave];
+  if (r === undefined) r = opt.method === 'GET' ? [] : chave === 'POST /issues' ? { id: 999, number: 1999 } : {};
+  const status = r && r.__falha ? r.__falha : 200;
+  return { ok: status < 400, status, json: async () => r };
 };
 const handler = require(validar);
 const res = {
@@ -53,12 +58,19 @@ def _hmac(prd: int) -> str:
     ]
 
 
-def _validar(corpo: dict) -> dict:
+def _validar(corpo: dict, respostas: dict | None = None) -> dict:
     if not shutil.which("node"):
         pytest.fail("o teste da função de validar precisa do node no PATH")
     env = {**os.environ, "SEGREDO": SEGREDO, "GITHUB_TOKEN": "token-falso"}
     out = subprocess.run(
-        ["node", "-e", HARNESS, str(VALIDAR), json.dumps(corpo)],
+        [
+            "node",
+            "-e",
+            HARNESS,
+            str(VALIDAR),
+            json.dumps(corpo),
+            json.dumps(respostas or {}),
+        ],
         capture_output=True,
         text=True,
         env=env,
@@ -80,7 +92,7 @@ def test_validar_com_codigo_certo_grava_label_e_comentario_com_marcador():
     r = _validar({"prd": 1757, "c": _hmac(1757), "observacao": "Pode seguir."})
     assert r["status"] == 200
     assert r["resposta"]["ok"] is True
-    label, comentario = r["chamadas"]
+    label, comentario = r["chamadas"][0], r["chamadas"][-1]
     assert label["method"] == "POST"
     assert label["url"].endswith(
         "/repos/pedrorezendefig/hospital-reunioes/issues/1757/labels"
@@ -94,6 +106,90 @@ def test_validar_com_codigo_certo_grava_label_e_comentario_com_marcador():
     )
     assert marcador, comentario["body"]["body"]
     assert "Pode seguir." in comentario["body"]["body"]
+
+
+def _sub(n, labels=("ready-for-agent",), estado="open"):
+    return {
+        "number": n,
+        "id": 10_000 + n,
+        "state": estado,
+        "labels": [{"name": l} for l in labels],
+    }
+
+
+# O PRD 1757 de mentira: 1860 livre, 1861 presa a uma aberta, 1862 presa só a
+# uma fechada, 1863 em andamento, 1859 humana e 1858 fechada.
+SUB_ISSUES = {
+    "GET /issues/1757/sub_issues": [
+        _sub(1858, estado="closed"),
+        _sub(1859, labels=("ready-for-human",)),
+        _sub(1860),
+        _sub(1861),
+        _sub(1862),
+        _sub(1863, labels=("ready-for-agent", "in-progress")),
+    ],
+    "GET /issues/1861/dependencies/blocked_by": [{"number": 1860, "state": "open"}],
+    "GET /issues/1862/dependencies/blocked_by": [{"number": 1858, "state": "closed"}],
+}
+
+
+def _chamadas(r, metodo, fim):
+    return [
+        c
+        for c in r["chamadas"]
+        if c["method"] == metodo and c["url"].split("?")[0].endswith(fim)
+    ]
+
+
+def test_validar_sem_observacao_nao_abre_ajuste():
+    r = _validar({"prd": 1757, "c": _hmac(1757), "observacao": "  "}, SUB_ISSUES)
+    assert r["status"] == 200
+    assert [c["method"] for c in r["chamadas"]] == ["POST", "POST"]
+    assert "Sem observação." in r["chamadas"][-1]["body"]["body"]
+
+
+def test_observacao_abre_ajuste_do_plano_que_bloqueia_so_as_fatias_iniciais():
+    r = _validar(
+        {"prd": 1757, "c": _hmac(1757), "observacao": "Rever o painel."}, SUB_ISSUES
+    )
+    assert r["status"] == 200 and r["resposta"]["ok"] is True
+
+    [card] = _chamadas(r, "POST", "/repos/pedrorezendefig/hospital-reunioes/issues")
+    assert card["body"]["labels"] == ["ready-for-human"]
+    assert card["body"]["assignees"] == ["pedrorezendefig"]
+    assert card["body"]["title"].startswith("Ajuste do plano")
+    corpo = card["body"]["body"]
+    assert corpo.startswith("<!-- ajuste-do-plano: 1757 -->")
+    assert "> Rever o painel." in corpo
+    assert "#1863" in corpo  # em andamento: listada, não bloqueada
+
+    [sub] = _chamadas(r, "POST", "/issues/1757/sub_issues")
+    assert sub["body"] == {"sub_issue_id": 999}
+
+    bloqueios = [
+        c["url"].split("/issues/")[1].split("/")[0]
+        for c in r["chamadas"]
+        if c["method"] == "POST" and c["url"].endswith("/dependencies/blocked_by")
+    ]
+    assert sorted(bloqueios) == ["1860", "1862"]
+    assert all(
+        c["body"] == {"issue_id": 999}
+        for c in _chamadas(r, "POST", "/dependencies/blocked_by")
+    )
+
+    [comentario] = _chamadas(r, "POST", "/issues/1757/comments")
+    assert "Ajuste do plano #1999" in comentario["body"]["body"]
+
+
+def test_falha_no_ajuste_nao_perde_a_validacao_e_avisa_no_comentario():
+    respostas = {**SUB_ISSUES, "POST /issues": {"__falha": 403}}
+    r = _validar(
+        {"prd": 1757, "c": _hmac(1757), "observacao": "Rever o painel."}, respostas
+    )
+    assert r["status"] == 200 and r["resposta"]["ok"] is True
+    [comentario] = _chamadas(r, "POST", "/issues/1757/comments")
+    assert "abra o Ajuste do plano à mão" in comentario["body"]["body"]
+    assert _chamadas(r, "POST", "/dependencies/blocked_by") == []
 
 
 def test_codigo_de_um_prd_nao_vale_para_outro():

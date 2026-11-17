@@ -5,7 +5,7 @@ description: 'Apresentação do PRD para o diretor validar o plano antes do trab
 
 # Apresentar o PRD
 
-Antes de um PRD grande começar, o diretor recebe por e-mail um link para a **Apresentação do PRD**: o plano inteiro, Parte por Parte, na ordem das etapas, em linguagem de uso, e um botão Validar com campo de observação. A validação grava no PRD a label `validado:diretor` e um comentário com o marcador `<!-- validacao-diretor: <ISO> -->`.
+Antes de um PRD grande começar, o diretor recebe por e-mail um link para a **Apresentação do PRD**: o plano inteiro, Parte por Parte, na ordem das etapas, em linguagem de uso, e um botão Validar com campo de observação. A validação grava no PRD a label `validado:diretor` e um comentário com o marcador `<!-- validacao-diretor: <ISO> -->`. Se ele escreve uma observação, a função abre antes o **Ajuste do plano** (marcador `<!-- ajuste-do-plano: <PRD> -->`): uma sub-issue `ready-for-human` do Pedro que bloqueia, pela dependência nativa, as Fatias iniciais (abertas, `ready-for-agent`, sem `in-progress` e sem bloqueio aberto). O comentário da validação traz o número do Ajuste, ou avisa para abrir à mão se a criação falhou.
 
 **O que isto NÃO é:** a página de divulgação (a `/divulgar` explica o que já subiu; esta mostra o que vai ser feito). Não tem número de issue, nem palavra técnica, nem "como vamos implementar".
 
@@ -23,7 +23,8 @@ No repositório (público), em `docs/comunicacao/planos/`:
 
 Fora do repositório, no Mac do Pedro, em `~/.config/planos-hsm/` (ou `$PLANOS_HSM_DIR`):
 
-- `segredo`: a chave do código do link. O mesmo valor está na variável `SEGREDO` do projeto `planos-hsm` na Vercel, ao lado do `GITHUB_TOKEN` que a função usa. **Nunca** entra no repositório, em comentário nem em transcript.
+- `segredo`: a chave do código do link. O mesmo valor está na variável `SEGREDO` do projeto `planos-hsm` na Vercel, ao lado do `GITHUB_TOKEN` que a função usa. **Nunca** entra no repositório, em comentário nem em transcript. Perdeu o arquivo? Gere outro (`openssl rand -hex 32 > ~/.config/planos-hsm/segredo`), troque a `SEGREDO` na tela da Vercel e reenvie o link dos PRDs ainda sem validação: o código dos links antigos deixa de valer.
+- Mudou só a função `api/validar.js`? Suba sem o `publicar`, que tira o selo: monte o site com `montar_site` numa pasta temporária e rode `npx vercel@latest deploy --prod --yes` nela.
 - `site/.vercel/`: o vínculo com o projeto da Vercel, copiado para cada deploy.
 - `email-<PRD>.txt`: o texto do e-mail com o link e o código, gravado pelo passo 6.
 
