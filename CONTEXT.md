@@ -474,7 +474,7 @@ O card de uma melhoria: o PRD inteiro escrito pelo [Planejamento da Demanda] na 
 _Evitar_: o app gravando `CONTEXT.md` ou ADR; PRD novo criado pelo terminal para um pedido que já tem Demanda (quebra o par Demanda x issue; o caminho é a [Revisão com o código de hoje]); número de issue dentro do bloco "Para o diretor".
 
 **Vínculo com o desenvolvimento**:
-A ligação de uma Demanda com **uma** issue-raiz do GitHub do [Projeto] dela (o PRD do diretor ou a issue do bug), identificada pelo projeto e pelo número da issue (ADR 0093), criada pelo clique "Criar o card" ou, na [Origem] Vitta, quando a issue-raiz nasce no terminal (ADR 0084). As fatias são sub-issues dessa raiz e nunca se vinculam uma a uma. O diretor vê a Etapa e O que muda, nunca número nem link.
+A ligação de uma Demanda com **uma** issue-raiz do GitHub do [Projeto] dela (o PRD do diretor ou a issue do bug), identificada pelo projeto e pelo número da issue (ADR 0093), criada pelo clique "Criar o card" ou, na [Origem] Vitta, quando a issue-raiz nasce no terminal (ADR 0084). As fatias são sub-issues dessa raiz e nunca se vinculam uma a uma. Todo mundo que vê a Demanda vê a Etapa, O que muda e o número da raiz e de cada parte (ADR 0100); o link, as labels e o título técnico ficam só para o [Desenvolvedor].
 _Evitar_: vincular fatia em vez da raiz; Demanda com mais de uma issue; vínculo digitado por número (aposentado).
 
 **Desenvolvedor**:
@@ -521,8 +521,12 @@ De qual sistema do hospital a Demanda é (ADR 0093): **Aplicativo do Hospital**,
 _Evitar_: "Produto" (é o módulo do kit de conhecimento) ou "Sistema"; criar card da Ana pelo Assistente; Demanda da Ana Em produção; levar conteúdo do repositório da Ana para o deste app, que é público.
 
 **Documento do card**:
-O que abre quando se clica numa Demanda (ADR 0084): seções fixas, Em uma frase, [O que muda] (até cinco tópicos), Partes (com Etapa e datas), [Demonstração] e Datas (criado, entregue, em produção). Durante o [Planejamento da Demanda] se monta ao vivo ao lado do chat, no molde da ata viva da Ata Guiada; depois do card é lido do bloco "Para o diretor" da issue, que tem formato fixo e limite de tamanho tanto no [PRD do diretor] quanto no `/to-prd` do terminal. Nunca digitado no app.
+O que abre quando se clica numa Demanda (ADR 0084): seções fixas, Em uma frase, [O que muda] (até cinco tópicos), Partes (agrupadas por [Onda], cada uma com o número, a Etapa, as datas e o que a trava), [Demonstração] e Datas (criado, entregue, em produção). Durante o [Planejamento da Demanda] se monta ao vivo ao lado do chat, no molde da ata viva da Ata Guiada; depois do card é lido do bloco "Para o diretor" da issue, que tem formato fixo e limite de tamanho tanto no [PRD do diretor] quanto no `/to-prd` do terminal. Nunca digitado no app.
 _Evitar_: texto corrido; documento editável à mão; seção sem limite.
+
+**Onda**:
+No [Documento do card], o grupo de partes de uma Demanda que entram juntas (ADR 0100). Calculada pelas dependências entre as partes: a Onda 1 não espera nenhuma outra parte da Demanda, e cada parte fica uma Onda depois da maior Onda das que ela espera, contando os bloqueios já resolvidos, para a sequência não mudar quando uma parte fecha. Enquanto uma bloqueadora está aberta, a parte diz "Espera a #1884" (ou "de outro pedido", quando a bloqueadora é de outra Demanda). No fluxo de desenvolvimento é o mesmo lote que uma sessão da onda pega.
+_Evitar_: Onda digitada ou lida do texto "Ondas previstas" do PRD; confundir com [Etapa], que é onde a Demanda está.
 
 **Revisão com o código de hoje**:
 O botão "Revisar com o código de hoje" num card Em análise ou Planejada, enquanto nenhuma parte está em desenvolvimento (ADR 0084). Retoma a mesma conversa e a mesma issue: o agente relê a issue (com o que mudou por fora), o código, as ADRs e o que subiu desde a data do card, e abre o **Retrato de hoje** em três blocos, Já existe, Mudou desde o card e Continua em aberto. Cada item de Já existe diz a versão em que entrou e passa pelo "isso atende?" do diretor antes de sair do card. Pergunta só pelas lacunas, sem teto. "Atualizar o card" regrava o PRD na mesma issue com um comentário do que mudou; partes não começadas fecham como "não planejada" e o card volta para Em análise. Clicam o autor e o [Desenvolvedor], com estimativa de custo e confirmação (ADR 0082).
