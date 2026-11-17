@@ -316,6 +316,12 @@ def _com_as_bloqueadoras(foto: dict[str, Any], anterior: Any, *, projeto: str) -
 
     A chave so entra quando ha bloqueadora, como a `fechada_em`: a foto da
     parte sem dependencia continua identica a de antes desta fatia.
+
+    Copiada da foto anterior, a bloqueadora da mesma Demanda toma o estado da
+    parte na foto atual, que
+    `ler_sub_issues` rele em toda sincronizacao (revisao do PR #1905): o evento
+    de uma parte nao ressincroniza a raiz, e a foto anterior pode dizer "aberta"
+    de uma parte que fechou antes da raiz. Copiada assim, ninguem a corrigiria.
     """
     partes = [p for p in (foto.get("partes") or []) if isinstance(p, dict)]
     partes_antes = (anterior or {}).get("partes") if isinstance(anterior, dict) else None
@@ -325,6 +331,7 @@ def _com_as_bloqueadoras(foto: dict[str, Any], anterior: Any, *, projeto: str) -
         if isinstance(p, dict) and p.get("bloqueadoras")
     }
     da_demanda = {p.get("url") for p in partes if p.get("url")}
+    estado_da_parte = {p["numero"]: p.get("estado") for p in partes if isinstance(p.get("numero"), int)}
     raiz_aberta = foto.get("estado") == "open"
     for parte in partes:
         lidas = None
@@ -347,7 +354,12 @@ def _com_as_bloqueadoras(foto: dict[str, Any], anterior: Any, *, projeto: str) -
                 for b in lidas
             ]
         else:
-            bloqueadoras = antes.get(parte.get("numero")) or []
+            bloqueadoras = [
+                {**b, "estado": estado_da_parte[b.get("numero")]}
+                if isinstance(b, dict) and b.get("da_demanda") and b.get("numero") in estado_da_parte
+                else b
+                for b in (antes.get(parte.get("numero")) or [])
+            ]
         if bloqueadoras:
             parte["bloqueadoras"] = bloqueadoras
 

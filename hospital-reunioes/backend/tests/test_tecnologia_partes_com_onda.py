@@ -187,6 +187,31 @@ class TestAFotoGuardaAsBloqueadoras:
         assert gh.leituras_das_bloqueadoras == []
         assert _partes_da_foto(demanda)[679] == [{"numero": 678, "estado": "closed", "da_demanda": True}]
 
+    def test_com_a_raiz_fechada_a_bloqueadora_da_mesma_demanda_toma_o_estado_da_parte_na_foto_atual(self, monkeypatch):
+        # A ultima leitura com a raiz aberta foi antes de a 678 fechar: a foto
+        # guardada diz que ela segue aberta. O evento da parte nao ressincroniza
+        # a raiz, e a raiz fechou em seguida (revisao do PR #1905).
+        antes = _GithubFalso({673: _issue(673)}, sub_issues={673: [_issue(678), _issue(679)]})
+        guardada = _ja_sincronizada(antes, 673)
+        guardada["github_foto"]["partes"][1]["bloqueadoras"] = [
+            {"numero": 678, "estado": "open", "da_demanda": True},
+            {"numero": 1830, "estado": "open", "da_demanda": False},
+        ]
+        gh = _GithubFalso(
+            {673: _issue(673, estado="closed", motivo="completed")},
+            sub_issues={673: [_issue(678, estado="closed", motivo="completed"), _issue(679, estado="closed")]},
+        )
+        cliente, sb, _ = _montar(demandas=[guardada], github=gh, monkeypatch=monkeypatch)
+
+        _entregar(cliente, _corpo(acao="closed"))
+
+        [demanda] = _demandas(sb)
+        assert gh.leituras_das_bloqueadoras == []
+        assert _partes_da_foto(demanda)[679] == [
+            {"numero": 678, "estado": "closed", "da_demanda": True},
+            {"numero": 1830, "estado": "open", "da_demanda": False},
+        ]
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # A API do Documento do card
