@@ -60,6 +60,7 @@ Só `status: accepted` vale como decisão; `superseded` é histórico (CLAUDE.md
 | [0084](0084-tecnologia-entregas-documento-do-card-revisao-apagar-e-demonstracao.md) | accepted | Tecnologia: Entregas, documento do card, revisão com o código de hoje, apagar e demonstração (emenda 0050, 0054, 0077 e 0083) |
 | [0060](0060-texto-que-sai-para-a-issue-publica-passa-pela-peneira-de-dado-pessoal.md) | accepted | Texto que sai para a issue pública passa pela peneira de dado pessoal (emenda 0054) |
 | [0069](0069-anexo-da-demanda-fica-no-app-e-em-producao-devolve-ao-diretor.md) | accepted | Anexo da Demanda fica no app e quem desenvolve busca; Em produção é a Etapa que devolve ao diretor (emenda 0054) |
+| [0100](0100-partes-do-card-com-numero-o-que-trava-e-onda.md) | accepted | As Partes do Documento do card mostram o número, o que trava cada uma e a Onda (emenda 0054 e 0084) |
 
 ## Central de Comando (números do ecossistema digital)
 
