@@ -13,7 +13,9 @@ Pela ROTA de verdade, com o Supabase em memória de `test_tecnologia_vinculo`.
 from __future__ import annotations
 
 import os
+import re
 import sys
+from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
@@ -264,3 +266,45 @@ class TestForaDoEspelho:
 
         assert recusa is not None
         assert recusa[0] == 409
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# A migration 163
+# ═══════════════════════════════════════════════════════════════════════════
+
+MIGRATION_163 = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "163_tecnologia_projeto_novo.sql"
+
+
+@pytest.fixture
+def sql() -> str:
+    """O SQL que o Studio roda, sem os comentarios. A prova de que ele roda (as
+    Demandas de hoje intactas, o PedroOS aceito, o nome fora do formato
+    recusado, rodar duas vezes) foi feita num Postgres descartavel e esta no
+    corpo do PR."""
+    return re.sub(r"--[^\n]*", "", MIGRATION_163.read_text(encoding="utf-8"))
+
+
+class TestAMigracao163:
+    def test_o_check_aceita_projeto_novo_no_mesmo_formato_da_ponte(self, sql):
+        """A restricao deixa de ser a lista Hospital e Ana e passa a ser o
+        formato que a rota da ponte aceita: as duas pontas sao a mesma regra."""
+        velho = sql.index("DROP CONSTRAINT IF EXISTS tecnologia_demandas_projeto_check")
+        achado = re.search(r"ADD CONSTRAINT tecnologia_demandas_projeto_check\s+CHECK \(projeto ~ '([^']*)'\)", sql)
+        assert achado and velho < achado.start()
+        assert achado.group(1) == github_client.FORMATO_DO_PROJETO
+        for projeto in ("hospital", "ana", "os"):
+            assert re.fullmatch(achado.group(1), projeto)
+
+    def test_as_demandas_que_ja_existem_nao_mudam(self, sql):
+        antes_do_recibo = sql.split("INSERT INTO migracoes_aplicadas", 1)[0]
+        assert "tecnologia_demandas" in antes_do_recibo, "o caso perdeu o sentido: a migration nao mexe na Demanda"
+        assert not re.search(r"\bUPDATE\b|\bDELETE\b|SET DEFAULT|DROP COLUMN", antes_do_recibo, re.IGNORECASE)
+
+    def test_o_nome_do_projeto_e_o_link_do_prd_sao_colunas_opcionais(self, sql):
+        assert "ADD COLUMN IF NOT EXISTS projeto_nome TEXT;" in sql
+        assert "ADD COLUMN IF NOT EXISTS raiz_url TEXT;" in sql
+        assert re.search(r"CHECK \(raiz_url IS NULL OR raiz_url LIKE 'https://%'\)", sql)
+
+    def test_a_migration_grava_o_recibo_163_por_ultimo(self, sql):
+        instrucoes = [i.strip() for i in sql.split(";") if i.strip()]
+        assert instrucoes[-1] == "INSERT INTO migracoes_aplicadas (numero) VALUES (163) ON CONFLICT (numero) DO NOTHING"
