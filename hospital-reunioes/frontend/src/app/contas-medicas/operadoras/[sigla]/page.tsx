@@ -26,7 +26,6 @@ import { AlertCircle, ArrowLeft, Download, Loader2, RefreshCw, Sparkles } from "
 
 import { ConversaDaOperadora, type LoteAplicado } from "@/components/contas-medicas/ConversaDaOperadora";
 import { Ditar, juntarDitado } from "@/components/contas-medicas/Ditar";
-import { type ProvaDaRegra, ProvaDaRegraNaTela } from "@/components/contas-medicas/ProvaDaRegra";
 import { TabelasDePreco } from "@/components/contas-medicas/TabelasDePreco";
 import { Select } from "@/components/ui/Select";
 import {
@@ -783,10 +782,8 @@ function PropostaDaRegra({
   const [comParametro, setComParametro] = useState(Boolean(proposta.parametro));
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  const [prova, setProva] = useState<{ corpo: string; resultado: ProvaDaRegra } | null>(null);
-  const [provando, setProvando] = useState(false);
   const parametro = proposta.parametro;
-  // O corpo que a prova e o Validar mandam: a prova de uma regra que mudou depois não vale.
+  // O corpo que o Validar manda.
   const corpo = JSON.stringify({
     secao,
     texto: texto.trim(),
@@ -794,29 +791,6 @@ function PropostaDaRegra({
     origem: origem.trim() || null,
     parametro: parametro && comParametro ? { chave: parametro.chave, valor: parametro.depois } : null,
   });
-  const provaAtual = prova && prova.corpo === corpo ? prova.resultado : null;
-
-  async function provar() {
-    if (!token || !texto.trim()) return;
-    setProvando(true);
-    setErro(null);
-    try {
-      const res = await fetch(`/api/contas-medicas/operadoras/${encodeURIComponent(sigla)}/regras/prova`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: corpo,
-      });
-      if (!res.ok) {
-        setErro(await detalheDoErro(res, `Não foi possível provar a regra (HTTP ${res.status}).`));
-        return;
-      }
-      setProva({ corpo, resultado: await res.json() });
-    } catch {
-      setErro("Não foi possível provar a regra.");
-    } finally {
-      setProvando(false);
-    }
-  }
 
   async function validar(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -913,10 +887,8 @@ function PropostaDaRegra({
           <span className="normal-case">{valorLegivel(parametro.depois)}</span>
         </label>
       )}
-      {provaAtual && <ProvaDaRegraNaTela prova={provaAtual} />}
       <p className="text-xs text-slate-500">
-        Nada vale antes de validar. Validar cria uma versão nova da memória, com o seu nome e a data. A prova refaz a
-        análise nas últimas contas concluídas da operadora sem mexer nelas.
+        Nada vale antes de validar. Validar cria uma versão nova da memória, com o seu nome e a data.
       </p>
       {erro && (
         <p role="alert" className="flex items-start gap-2 text-sm text-red-700">
@@ -924,10 +896,6 @@ function PropostaDaRegra({
         </p>
       )}
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={provar} disabled={!texto.trim() || provando} className={BOTAO_SECUNDARIO}>
-          {provando && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}
-          Provar nas últimas contas
-        </button>
         <button type="submit" disabled={!texto.trim() || salvando} className={BOTAO}>
           {salvando && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}
           Validar regra

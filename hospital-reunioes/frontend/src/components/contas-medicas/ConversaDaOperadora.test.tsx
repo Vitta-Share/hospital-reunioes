@@ -7,7 +7,7 @@
  *
  * A tela não decide nada: quem monta o lote, aplica o "ok" numa versão só e
  * refaz o item corrigido é o servidor. O que se trava aqui é o que quem decide
- * vê (as falas, o lote com o motivo, os conflitos e a prova de cada item) e o
+ * vê (as falas, o lote com o motivo e os conflitos de cada item) e o
  * que cada clique manda (a mensagem, o "ok" e o "corrige o item N").
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -23,37 +23,6 @@ const DIA_03 = "Transferência de setor antes das 12h não gera diária extra no
 const DIA_01_ANTES = "A diária vence às 10h e é sempre integral.";
 const DIA_01_DEPOIS = "A diária vence às 12h e é sempre integral.";
 
-function prova(campos: Record<string, unknown> = {}) {
-  return {
-    contas: 10,
-    mudaria: true,
-    feitas_que_sumiriam: 1,
-    aviso: null,
-    por_conta: [
-      {
-        conta_id: "c12",
-        numero_atendimento: "31012",
-        numero_conta: "N12",
-        mudaria: true,
-        entrariam: [],
-        sairiam: [
-          {
-            acao: "INCLUIR",
-            data: "2026-10-12",
-            codigo: "M012",
-            descricao: "Seringa de limpeza pronta",
-            quantidade_devida: 2,
-            regra_codigo: "ALFA-DIA-01",
-            feito: true,
-          },
-        ],
-        mudariam: [],
-      },
-    ],
-    ...campos,
-  };
-}
-
 const LOTE = {
   id: "lote-1",
   itens: [
@@ -66,8 +35,6 @@ const LOTE = {
       conflitos: [
         { codigo: "ALFA-DIA-02", texto: "Transferência antes das 10h: gera ou não diária extra.", resolucao: "SUBSTITUIR" },
       ],
-      pede_prova: true,
-      prova: prova(),
     },
     {
       numero: 2,
@@ -76,8 +43,6 @@ const LOTE = {
       proposta: { secao: "DIA", texto: DIA_01_DEPOIS, tipo: "CONTRATUAL", origem: "PRÁTICA", texto_anterior: DIA_01_ANTES },
       motivo: "A diária passa a vencer ao meio-dia.",
       conflitos: [],
-      pede_prova: true,
-      prova: prova({ mudaria: false, feitas_que_sumiriam: 0, aviso: "A regra não mudaria nada nas 10 últimas contas concluídas.", por_conta: [] }),
     },
     {
       numero: 3,
@@ -86,8 +51,6 @@ const LOTE = {
       proposta: { chave: "diaria.hora_vencimento", antes: "10:00", depois: "12:00" },
       motivo: "O cabeçalho acompanha o vencimento novo.",
       conflitos: [],
-      pede_prova: false,
-      prova: null,
     },
   ],
 };
@@ -111,8 +74,6 @@ const LOTE_DO_CONTRATO = {
       proposta: { secao: "TAX", texto: "Taxa de sala paga por porte anestésico.", tipo: "CONTRATUAL", origem: "ADITIVO", contrato_diz: CLAUSULA_7 },
       motivo: "A taxa de sala passa a ser conferida pelo porte.",
       conflitos: [],
-      pede_prova: true,
-      prova: prova(),
     },
     {
       numero: 2,
@@ -121,8 +82,6 @@ const LOTE_DO_CONTRATO = {
       proposta: { secao: "PRI", texto: BRASINDICE, tipo: "CONTRATUAL", origem: "CONTRATO", texto_anterior: BRASINDICE, contrato_diz: CLAUSULA_9 },
       motivo: "O contrato sustenta a regra ALFA-PRI-03, para o recurso de glosa.",
       conflitos: [],
-      pede_prova: false,
-      prova: null,
     },
     {
       numero: 3,
@@ -136,8 +95,6 @@ const LOTE_DO_CONTRATO = {
       },
       motivo: "As datas do contrato, para o aviso de reajuste.",
       conflitos: [],
-      pede_prova: false,
-      prova: null,
     },
   ],
 };
@@ -204,7 +161,7 @@ function enviados(): string[] {
 }
 
 describe("o lote do Auditor", () => {
-  it("o texto vira o lote, com a proposta, o motivo, os conflitos e a prova de cada item", async () => {
+  it("o texto vira o lote, com a proposta, o motivo e os conflitos de cada item, sem prova", async () => {
     const conversa = await abrir();
     expect(chamadas[0]).toMatchObject({ url: ROTA, metodo: "GET" });
 
@@ -217,18 +174,16 @@ describe("o lote do Auditor", () => {
     expect(nova.textContent).toContain(DIA_03);
     expect(nova.textContent).toContain("A transferência antes do meio-dia deixa de gerar diária extra.");
     expect(nova.textContent).toContain("Conflita com ALFA-DIA-02, propõe substituir");
-    const provaDaNova = within(nova).getByRole("region", { name: "Prova da regra" });
-    expect(within(provaDaNova).getByRole("alert").textContent).toContain("1 linha já feita pela faturista sumiria.");
 
     const alterada = within(lote).getByRole("article", { name: "Item 2" });
     expect(alterada.textContent).toContain("Regra alterada ALFA-DIA-01");
     expect(alterada.textContent).toContain(`Antes: ${DIA_01_ANTES}`);
     expect(alterada.textContent).toContain(`Depois: ${DIA_01_DEPOIS}`);
-    expect(alterada.textContent).toContain("A regra não mudaria nada nas 10 últimas contas concluídas.");
 
     const parametro = within(lote).getByRole("article", { name: "Item 3" });
     expect(parametro.textContent).toContain("diaria.hora_vencimento: de 10:00 para 12:00");
-    expect(within(parametro).queryByRole("region", { name: "Prova da regra" })).toBeNull();
+    // A prova nas últimas contas saiu (issue #1920): nenhum item fala dela.
+    expect(lote.textContent).not.toMatch(/\bprova/i);
   });
 
   it("a conversa guardada aparece ao abrir, com a fala ligada à versão que gerou", async () => {
@@ -265,18 +220,14 @@ describe("o lote do Auditor", () => {
     expect(within(conversa).queryByRole("region", { name: "Lote do Auditor" })).toBeNull();
   });
 
-  it("com um item de regra sem prova o ok fica travado até a correção provar de novo", async () => {
-    respostaDoEnvio = () => ({
-      status: 200,
-      corpo: { mensagens: FALAS, lote: { ...LOTE, itens: [{ ...LOTE.itens[0], prova: null }, LOTE.itens[1], LOTE.itens[2]] }, aplicado: null },
-    });
+  it("o ok vem liberado com item de regra, sem esperar prova (issue #1920)", async () => {
     const conversa = await abrir();
     const lote = await mandar(conversa, PEDIDO);
 
     const ok = within(lote).getByRole("button", { name: "Ok, aplicar o lote" }) as HTMLButtonElement;
 
-    expect(ok.disabled).toBe(true);
-    expect(lote.textContent).toContain("O ok fica travado enquanto o item 1 estiver sem prova.");
+    expect(ok.disabled).toBe(false);
+    expect(lote.textContent).not.toContain("O ok fica travado");
   });
 
   it("Corrigir o item 2 manda corrige o item 2 com o que mudar e mostra o item refeito", async () => {
@@ -324,7 +275,6 @@ describe("revisar as Regras pendentes (issue #1494)", () => {
     proposta: { decisao, secao: "PRI", texto: depois, tipo: "CONTRATUAL", origem: "CONTRATO", texto_anterior: antes },
     motivo: `Motivo de ${codigo}.`,
     conflitos: [],
-    prova: prova({ mudaria: false, feitas_que_sumiriam: 0, por_conta: [] }),
   });
   const LOTE_DAS_PENDENTES = {
     id: "lote-2",
@@ -371,13 +321,11 @@ describe("o contrato na conversa", () => {
     const nova = within(lote).getByRole("article", { name: "Item 1" });
     expect(nova.textContent).toContain(`O contrato diz: ${CLAUSULA_7}`);
 
-    // A Regra que existe ganha só o trecho: o texto fica, e o item vai sem prova.
+    // A Regra que existe ganha só o trecho: o texto fica.
     const diz = within(lote).getByRole("article", { name: "Item 2" });
     expect(diz.textContent).toContain(`Regra mantida: ${BRASINDICE}`);
     expect(diz.textContent).toContain(`O contrato diz: ${CLAUSULA_9}`);
-    expect(diz.textContent).toContain("Não muda a análise, por isso vem sem prova.");
     expect(diz.textContent).not.toContain("Antes:");
-    expect(diz.textContent).not.toContain("A prova não rodou agora.");
 
     const datas = within(lote).getByRole("article", { name: "Item 3" });
     expect(datas.textContent).toContain(

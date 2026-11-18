@@ -3,9 +3,8 @@
 /**
  * Um cartão da fila de Validação (issue #1142, PRD #1129).
  *
- * Desde a issue #1491 o cartão traz a recomendação do Auditor (a decisão, o
- * motivo e, na regra pendente, a Prova da regra); os botões continuam sendo a
- * correção de quem discorda.
+ * Desde a issue #1491 o cartão traz a recomendação do Auditor (a decisão e o
+ * motivo); os botões continuam sendo a correção de quem discorda.
  *
  * O tema com a operadora, quantas contas, desde quando e o R$ em jogo, e os
  * botões do tipo dele. "Validar regra" e "Editar a regra" abrem o texto da
@@ -21,7 +20,6 @@ import { reais } from "@/lib/contas-medicas/guia";
 import { dataBr, plural } from "@/lib/contas-medicas/operadoras";
 import {
   type Decisao,
-  type ProvaDoTema,
   ROTULO_DA_DECISAO,
   ROTULO_DO_TIPO,
   type Tema,
@@ -43,36 +41,6 @@ const COR_DO_TIPO: Record<Tema["tipo"], string> = {
 };
 
 type Aberto = "regra" | "resposta" | null;
-
-function Prova({ prova }: { prova: ProvaDoTema }) {
-  if (!prova.mudaria) {
-    return (
-      <p className="text-xs text-slate-500">
-        A regra não mudaria nada nas {plural(prova.contas, "conta concluída", "contas concluídas")} da prova.
-      </p>
-    );
-  }
-  return (
-    <div className="text-xs text-slate-600 space-y-0.5">
-      <p className="font-semibold text-slate-700">
-        Prova da regra em {plural(prova.contas, "conta concluída", "contas concluídas")}
-      </p>
-      <ul>
-        {prova.por_conta.map((conta, i) => (
-          <li key={i}>
-            Conta {conta.numero_conta ?? "sem número"}: {plural(conta.entrariam, "entraria", "entrariam")},{" "}
-            {plural(conta.sairiam, "sairia", "sairiam")}, {plural(conta.mudariam, "mudaria", "mudariam")}
-          </li>
-        ))}
-      </ul>
-      {prova.feitas_que_sumiriam > 0 && (
-        <p className="text-[#92400E]">
-          {plural(prova.feitas_que_sumiriam, "linha já feita sumiria", "linhas já feitas sumiriam")}
-        </p>
-      )}
-    </div>
-  );
-}
 
 /** A recomendação do Auditor (issue #1491): o que ele decidiria e por quê. */
 function Recomendacao({ tema }: { tema: Tema }) {
@@ -99,7 +67,6 @@ function Recomendacao({ tema }: { tema: Tema }) {
           {recomendacao.texto}
         </blockquote>
       )}
-      {recomendacao.prova && <Prova prova={recomendacao.prova} />}
       <p className="text-xs text-slate-500">Discorda? Decida este cartão pelos botões antes de aprovar o lote.</p>
     </section>
   );
