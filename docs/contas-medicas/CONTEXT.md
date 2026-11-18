@@ -56,11 +56,8 @@ Linha da Memória com identificador (`ASSIM-DIA-01`), seção (PRI, PRC, DIA, PA
 Regra sem validação da diretoria ou da gestão de contas médicas. Nunca gera ordem para a faturista: gera a ação Validar. Regra que a diretoria ou a gestão ensina ou importa nasce Vigente; Pendente fica para a Regra técnica HSM copiada e para a Regra proposta por quem não decide (faturista, coordenadora, sugestão da IA).
 
 **Auditor**:
-O agente com quem a gestão e a diretoria conversam sobre uma Operadora ou uma Conta. Recebe texto, tabela e contrato e sempre devolve **propostas** (Regra nova ou alterada, Tabela de preço, parâmetro, card para a Tecnologia) em lote, já decididas e provadas; quem decide responde "ok" ou "corrige o item N". Também chega com a Validação já decidida, para aprovação em lote. Há duas conversas: a da Operadora (ensinar) e a da Conta (aberta do Guia, para explicar um erro). A conversa não é memória: o que pesa na análise é só o que foi confirmado e virou Regra; a conversa fica como histórico da versão que gerou.
+O agente com quem a gestão e a diretoria conversam sobre uma Operadora ou uma Conta. Recebe texto, tabela e contrato e sempre devolve **propostas** (Regra nova ou alterada, Tabela de preço, parâmetro, card para a Tecnologia) em lote, já decididas; quem decide responde "ok" ou "corrige o item N". Também chega com a Validação já decidida, para aprovação em lote. Há duas conversas: a da Operadora (ensinar) e a da Conta (aberta do Guia, para explicar um erro). A conversa não é memória: o que pesa na análise é só o que foi confirmado e virou Regra; a conversa fica como histórico da versão que gerou.
 _Evitar_: Sandra ou outro nome de pessoa; "o chat" como se fosse a Memória.
-
-**Prova da regra**:
-Antes do Confirmar, o Auditor refaz o Passo B nas Contas concluídas recentes da Operadora com a Regra proposta, sem mexer nelas, e mostra o que o Guia teria dito de diferente. Serve para ver se a Regra pega onde se espera e se não muda o que não devia.
 
 **Diretriz geral HSM**:
 Decisão do hospital sobre como ler o prontuário e montar a conta (identificar pelo Atendimento, prescrição plena, "se necessário" sempre incluído, regras de diária e de acomodação contratada). Entra Vigente em toda Operadora nova, copiada com o identificador dela.
@@ -144,7 +141,7 @@ Apontamento de omissão no Guia: alguém que conferiu a Conta diz o item e a pá
 _Evitar_: tratar como Não procede, que é o contrário (a Linha existe e não devia).
 
 **Validação**:
-Fila da diretoria e da gestão de contas médicas: Regras pendentes agrupadas por Regra, Bloqueados agrupados por código, observações do time. Decidir uma Regra gera versão nova da Memória e devolve as Linhas afetadas; Conta já concluída volta à faturista em Retorno só com essas Linhas. A recomendação do Auditor em cada tema, com a Prova da regra no de Regra pendente, só sai quando alguém clica em "Pedir recomendação ao Auditor" (ADR 0082); nenhuma rotina automática a pede.
+Fila da diretoria e da gestão de contas médicas: Regras pendentes agrupadas por Regra, Bloqueados agrupados por código, observações do time. Decidir uma Regra gera versão nova da Memória e devolve as Linhas afetadas; Conta já concluída volta à faturista em Retorno só com essas Linhas. A recomendação do Auditor em cada tema, sem refazer Contas (ADR 0102), só sai quando alguém clica em "Pedir recomendação ao Auditor" (ADR 0082); nenhuma rotina automática a pede.
 
 **Conferência da coordenação**:
 Segunda checagem que só a coordenadora de faturamento vê: cenários cadastrados pela gestão (procedimento que dispara → insumos a conferir) geram **lembretes** por Conta. A faturista não sabe que existem; o Guia, a nota e a produção dela não mudam.
