@@ -23,6 +23,7 @@ from app.dependencies import get_supabase_client, require_tecnologia_automacao_a
 from app.limiter import limiter
 from app.models.tecnologia_schemas import LIMITE_DA_MENSAGEM
 from app.services import tecnologia_anexos, tecnologia_conversa
+from app.services.paginacao import ler_tudo
 from app.services.tecnologia import TABELA_DEMANDAS
 
 # O detail nunca ecoa o login: a resposta nao confirma quem esta no cadastro.
@@ -55,6 +56,26 @@ def anexos_da_demanda(demanda_id: UUID, supabase=Depends(get_supabase_client)) -
     PostgREST. Demanda sem anexo, ou que não existe, devolve a lista vazia.
     """
     return {"anexos": tecnologia_anexos.para_quem_desenvolve(supabase, str(demanda_id))}
+
+
+@router.get("/destinatarios")
+def destinatarios(supabase=Depends(get_supabase_client)) -> dict:
+    """Quem pode ser Destinatario de uma mensagem na Conversa da Demanda
+    (issue #1966, PRD #1964): os participantes ativos, so id e nome, em ordem
+    de nome. O PedroOS usa a lista para escolher o Canal (app ou WhatsApp).
+
+    O select pede so as colunas que saem: e-mail, telefone e o resto do
+    cadastro nunca chegam aqui. `ativo` nulo conta como ativo (o default da
+    coluna e TRUE), como em toda leitura de participante; por isso o filtro e
+    feito aqui, e nao com `.eq`, que descartaria o nulo. O cadastro e lido
+    inteiro, em paginas, para o teto do PostgREST nao cortar ninguem."""
+    linhas = ler_tudo(
+        lambda: supabase.table("participantes").select("id, nome_completo, ativo").order("id"),
+        rotulo="participantes que podem ser Destinatario",
+    )
+    ativos = [p for p in linhas if p.get("ativo") is not False]
+    ativos.sort(key=lambda p: (p.get("nome_completo") or "").casefold())
+    return {"destinatarios": [{"id": str(p["id"]), "nome": p.get("nome_completo") or ""} for p in ativos]}
 
 
 def _demanda_ou_404(supabase, **filtros) -> dict:
