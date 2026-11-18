@@ -78,10 +78,13 @@ class IssueNaoEncontradaError(RuntimeError):
 
 
 # O Projeto da Demanda (issue #1713, ADR 0093, decisoes 1 e 2): o Aplicativo
-# do Hospital ou a Ana. E a mesma lista do CHECK da migration 145.
+# do Hospital ou a Ana, os dois cujo repositorio o app le. Desde a issue #1967
+# (PRD #1964) a ponte cria Demanda de outro Projeto da Vitta, que o app nao le:
+# o CHECK da migration 163 aceita qualquer nome no FORMATO_DO_PROJETO.
 PROJETO_HOSPITAL = "hospital"
 PROJETO_ANA = "ana"
 PROJETOS: tuple[str, ...] = (PROJETO_HOSPITAL, PROJETO_ANA)
+FORMATO_DO_PROJETO = r"^[a-z0-9][a-z0-9-]{0,39}$"
 
 
 def repositorio_do_projeto(projeto: str) -> str:

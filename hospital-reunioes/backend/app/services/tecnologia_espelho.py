@@ -177,6 +177,70 @@ def criar(supabase, issue: dict[str, Any], *, projeto: str) -> dict[str, Any] | 
     return criada[0] if criada else None
 
 
+class DemandaDeProjetoNovoRecusadaError(ValueError):
+    """A ponte nao cria a Demanda; a mensagem e o motivo, em palavras."""
+
+
+MOTIVO_PROJETO_COM_REPOSITORIO = (
+    "Este Projeto tem o repositório lido pelo aplicativo: a Demanda dele nasce pelo espelho da issue."
+)
+MOTIVO_DEMANDA_APAGADA = "A Demanda deste PRD foi apagada no aplicativo."
+MOTIVO_SEM_PRODUTO = "O aplicativo não tem Produto ativo para a Demanda nova."
+
+
+def demanda_de_projeto_novo(
+    supabase, projeto: str, numero: int, *, nome_do_projeto: str, titulo: str, link: str
+) -> tuple[dict[str, Any], bool]:
+    """A Demanda do PRD de um Projeto que o app nao conhece (issue #1967, PRD
+    #1964), e se ela nasceu agora.
+
+    Nao e espelho: o app nao le o repositorio desse Projeto, e quem diz o nome,
+    o titulo e o link e a ponte. A Demanda nasce de Origem Vitta, em
+    Registrada, e nenhuma Etapa vem do GitHub (`sincronizar_demanda` e a
+    conferencia de hora em hora so leem os Projetos de `github_client.PROJETOS`).
+
+    A chave e a mesma do Vinculo, projeto mais numero: a que ja existe volta
+    como esta. A lapide do Apagar recusa, para a Demanda apagada nao voltar. Um
+    Projeto que o app le (Hospital e Ana) recusa, porque a Demanda dele nasce
+    pelo espelho, com as regras dele. A corrida de dois pedidos para no indice
+    unico, e quem perde le a que o outro gravou.
+    """
+    existente = demanda_vinculada(supabase, projeto, numero)
+    if existente is not None:
+        if existente.get("apagada_em"):
+            raise DemandaDeProjetoNovoRecusadaError(MOTIVO_DEMANDA_APAGADA)
+        return existente, False
+    if projeto in github_client.PROJETOS:
+        raise DemandaDeProjetoNovoRecusadaError(MOTIVO_PROJETO_COM_REPOSITORIO)
+    produto = _produto_padrao(supabase)
+    if produto is None:
+        raise DemandaDeProjetoNovoRecusadaError(MOTIVO_SEM_PRODUTO)
+    linha = {
+        "titulo": titulo,
+        "descricao": None,
+        "tipo": "novo",
+        "produto_id": produto["id"],
+        "estado": "nova",
+        "responsavel_id": None,
+        "autor_id": _autor_id(supabase, {}),
+        "prioridade": "normal",
+        "origem": ORIGEM_VITTA,
+        "projeto": projeto,
+        "projeto_nome": nome_do_projeto,
+        "raiz_url": link,
+        "github_issue_numero": numero,
+        "etapa": ETAPA_REGISTRADA,
+    }
+    try:
+        criada = supabase.table(TABELA_DEMANDAS).insert(linha).execute().data
+    except APIError:
+        vencedora = demanda_vinculada(supabase, projeto, numero)
+        if vencedora is None or vencedora.get("apagada_em"):
+            raise
+        return vencedora, False
+    return criada[0], True
+
+
 def conferir_raizes_da_ana(supabase) -> dict[str, int]:
     """A conferencia de hora em hora da Ana (issue #1714, ADR 0093, decisao 7).
 

@@ -175,11 +175,12 @@ class TestFiltroProjeto:
         assert _ids(corpo) == ["h-botao", "h-relatorio"]
         assert corpo["proximo_corte"] is None
 
-    def test_projeto_desconhecido_e_recusado(self, monkeypatch):
+    def test_projeto_fora_do_formato_e_recusado(self, monkeypatch):
         monkeypatch.setattr(tecnologia_router, "agora_utc", lambda: AGORA)
         client, _, _ = _cenario(monkeypatch, logado=PEDRO, participantes=[PEDRO], demandas=_demandas())
 
-        assert client.get(f"{ENTREGAS}?projeto=outro").status_code == 422
+        # Projeto novo (issue #1967) passa; o nome fora do formato, nao.
+        assert client.get(f"{ENTREGAS}?projeto=Outro%20projeto").status_code == 422
 
 
 class TestSeloDoProjeto:

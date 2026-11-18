@@ -36,8 +36,8 @@ import {
   linkDaDemonstracao,
   nomeDoNumero,
   partesDoCard,
-  PROJETO_CLASSE,
-  PROJETO_ROTULO,
+  classeDoProjeto,
+  rotuloDoProjeto,
 } from "./demandas";
 
 const COLUNA_VAZIA = "Nenhum pedido.";
@@ -160,9 +160,9 @@ function CardDoQuadro({
           )}
           {demanda.projeto && (
             <span
-              className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${PROJETO_CLASSE[demanda.projeto]}`}
+              className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${classeDoProjeto(demanda.projeto)}`}
             >
-              {PROJETO_ROTULO[demanda.projeto]}
+              {rotuloDoProjeto(demanda.projeto, demanda.projeto_nome)}
             </span>
           )}
           {versao && (

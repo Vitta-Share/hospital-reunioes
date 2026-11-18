@@ -2282,4 +2282,67 @@ describe("O filtro Projeto e o selo (issue #1715, ADR 0093, decisão 8)", () => 
     await waitFor(() => expect(chamadas.at(-1)?.url).toBe(`${LISTA}?projeto=ana`));
     await waitFor(() => expect(within(lista()).queryByText("Aviso quando a ata sair")).toBeNull());
   });
+
+  describe("o projeto novo da Vitta (issue #1967)", () => {
+    const PROJETOS = "/api/admin/tecnologia/projetos";
+    const DO_PEDRO_OS = demanda("p-3", "Perguntas do PedroOS no app", {
+      etapa: "registrada",
+      tem_vinculo: true,
+      origem: "vitta",
+      projeto: "os",
+      projeto_nome: "PedroOS",
+      raiz_url: "https://github.com/Vitta-Share/os/issues/915",
+    });
+
+    /** O servidor com a lista de projetos que a rota `/projetos` devolve. */
+    function comOPedroOS(url: string): Resposta {
+      if (url === PROJETOS)
+        return {
+          status: 200,
+          corpo: [
+            { valor: "hospital", nome: "Aplicativo do Hospital" },
+            { valor: "ana", nome: "Ana" },
+            { valor: "os", nome: "PedroOS" },
+          ],
+        };
+      if (url === LISTA) return { status: 200, corpo: [DO_APP, DA_ANA, DO_PEDRO_OS] };
+      if (url === `${LISTA}?projeto=os`) return { status: 200, corpo: [DO_PEDRO_OS] };
+      return servidor(url);
+    }
+
+    it("o filtro Projeto lista o projeto novo pelo nome e filtra por ele", async () => {
+      telaLarga();
+      const chamadas = montar(comOPedroOS);
+      await within(await screen.findByRole("region", { name: "Quadro" })).findByText("Aviso quando a ata sair");
+
+      await waitFor(() => expect(chamadas.map((c) => c.url)).toContain(PROJETOS));
+      escolher("Projeto", "PedroOS");
+
+      await waitFor(() => expect(chamadas.at(-1)?.url).toBe(`${LISTA}?projeto=os`));
+      await waitFor(() => expect(within(quadro()).queryByText("Aviso quando a ata sair")).toBeNull());
+      expect(within(quadro()).getByText("Perguntas do PedroOS no app")).toBeTruthy();
+    });
+
+    it("o card do projeto novo leva o selo com o nome dele", async () => {
+      telaLarga();
+      montar(comOPedroOS);
+      await screen.findByRole("region", { name: "Quadro" });
+
+      const doOS = await within(quadro()).findByRole("button", { name: /Perguntas do PedroOS no app/ });
+      expect(within(doOS).getByText("PedroOS")).toBeTruthy();
+    });
+
+    it("sem a lista do servidor, o filtro fica com os dois projetos de sempre", async () => {
+      telaLarga();
+      montar(servidor);
+      await screen.findByRole("region", { name: "Quadro" });
+
+      fireEvent.click(within(filtros()).getByRole("combobox", { name: "Projeto" }));
+      expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual([
+        "Todos",
+        "Aplicativo do Hospital",
+        "Ana",
+      ]);
+    });
+  });
 });

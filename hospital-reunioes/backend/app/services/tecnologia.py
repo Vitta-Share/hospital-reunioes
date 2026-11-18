@@ -159,8 +159,33 @@ def origem_da_demanda(demanda: dict[str, Any]) -> str:
 def projeto_da_demanda(demanda: dict[str, Any]) -> str:
     """O Projeto da Demanda (issue #1713, ADR 0093, decisao 2), que diz de qual
     repositorio e a issue dela. A linha de antes da coluna (migration 145) e do
-    Hospital, como o default que a migration da as Demandas de hoje."""
-    return PROJETO_ANA if demanda.get("projeto") == PROJETO_ANA else PROJETO_HOSPITAL
+    Hospital, como o default que a migration da as Demandas de hoje. Desde a
+    issue #1967 pode ser um Projeto que o app nao le (o PedroOS): quem fala com
+    o GitHub confere `github_client.PROJETOS` antes."""
+    return str(demanda.get("projeto") or "").strip() or PROJETO_HOSPITAL
+
+
+# O nome do Projeto como a tela o mostra (ADR 0093, decisao 8). O Projeto novo
+# (issue #1967) traz o nome dele na coluna `projeto_nome`, que a ponte grava.
+NOME_DO_PROJETO: dict[str, str] = {PROJETO_HOSPITAL: "Aplicativo do Hospital", PROJETO_ANA: "Ana"}
+
+
+def nome_do_projeto(demanda: dict[str, Any]) -> str:
+    """O nome do Projeto da Demanda: o fixo do Hospital e da Ana, o gravado
+    pela ponte no Projeto novo, ou o proprio valor na falta dos dois."""
+    projeto = projeto_da_demanda(demanda)
+    return NOME_DO_PROJETO.get(projeto) or str(demanda.get("projeto_nome") or "").strip() or projeto
+
+
+def projetos_do_filtro(demandas: Sequence[dict[str, Any]]) -> list[dict[str, str]]:
+    """As opcoes do filtro Projeto (issue #1967): o Hospital e a Ana, sempre,
+    e cada Projeto novo que tem Demanda, pelo nome. Quem chama passa as
+    Demandas sem a lapide."""
+    opcoes = {projeto: nome for projeto, nome in NOME_DO_PROJETO.items()}
+    novos = {projeto_da_demanda(d): nome_do_projeto(d) for d in demandas if projeto_da_demanda(d) not in opcoes}
+    for projeto in sorted(novos, key=lambda p: novos[p].casefold()):
+        opcoes[projeto] = novos[projeto]
+    return [{"valor": projeto, "nome": nome} for projeto, nome in opcoes.items()]
 
 
 def pode_ver(pessoa: dict[str, Any], demanda: dict[str, Any]) -> bool:
@@ -187,6 +212,7 @@ MOTIVO_APAGAR_SO_O_AUTOR = "Só quem começou esta conversa pode apagá-la."
 MOTIVO_APAGAR_SO_O_DESENVOLVEDOR = "Pedido que já virou card, só a Vitta apaga. Peça na Conversa da Demanda."
 MOTIVO_APAGAR_JA_COMECOU = "Este pedido já começou a ser feito e não pode mais ser apagado."
 MOTIVO_APAGAR_DA_ANA = "Os pedidos da Ana aparecem aqui só para acompanhar e não se apagam pelo aplicativo."
+MOTIVO_APAGAR_DE_PROJETO_NOVO = "Os pedidos deste projeto não se apagam pelo aplicativo. Peça na Conversa da Demanda."
 
 
 def recusa_de_apagar(pessoa: dict[str, Any], demanda: dict[str, Any]) -> tuple[int, str] | None:
@@ -204,6 +230,10 @@ def recusa_de_apagar(pessoa: dict[str, Any], demanda: dict[str, Any]) -> tuple[i
     """
     if projeto_da_demanda(demanda) == PROJETO_ANA:
         return 409, MOTIVO_APAGAR_DA_ANA
+    # O Apagar fecha a issue no repositorio do Hospital: no card de um Projeto
+    # que o app nao le (issue #1967), fecharia a issue de mesmo numero dele.
+    if projeto_da_demanda(demanda) != PROJETO_HOSPITAL:
+        return 409, MOTIVO_APAGAR_DE_PROJETO_NOVO
     if not demanda.get("github_issue_numero"):
         if demanda.get("autor_id") != pessoa.get("id") and not e_desenvolvedor(pessoa):
             return 403, MOTIVO_APAGAR_SO_O_AUTOR

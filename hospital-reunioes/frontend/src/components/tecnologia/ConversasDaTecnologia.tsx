@@ -95,6 +95,7 @@ import { useTelaLarga } from "@/hooks/useTelaLarga";
 import { ChatDaTecnologia, Fala } from "./ChatDaTecnologia";
 import { ConversaDaDemanda } from "./ConversaDaDemanda";
 import { CabecalhoDaDemanda, DocumentoDoCard } from "./DocumentoDoCard";
+import { useProjetosDoFiltro } from "./useProjetosDoFiltro";
 import { QuadroDaTecnologia } from "./QuadroDaTecnologia";
 import { SeloDeEtapa } from "./SeloDeEtapa";
 import {
@@ -131,10 +132,10 @@ import {
   ORIGEM_CLASSE,
   ORIGEM_ROTULO,
   partesDoCard,
+  classeDoProjeto,
   Projeto,
-  PROJETO_CLASSE,
-  PROJETO_ROTULO,
   rotuloDaEtapa,
+  rotuloDoProjeto,
   TEM_DEMONSTRACAO,
   temSelo,
   textoDaAbertura,
@@ -180,7 +181,6 @@ const FILTROS: { valor: Filtro; rotulo: string }[] = [
 const CLASSIFICACOES = Object.keys(CLASSIFICACAO_ROTULO) as Classificacao[];
 const ETAPAS = Object.keys(ETAPA_ROTULO) as EtapaDemanda[];
 const ORIGENS = Object.keys(ORIGEM_ROTULO) as Origem[];
-const PROJETOS = Object.keys(PROJETO_ROTULO) as Projeto[];
 /** As opções de cada campo da barra; o valor vazio é "sem filtro" (issue #1578). */
 const OPCOES_DE_TIPO = [
   { value: "", label: "Todos" },
@@ -193,11 +193,6 @@ const OPCOES_DE_ETAPA = [
 const OPCOES_DE_ORIGEM = [
   { value: "", label: "Todas" },
   ...ORIGENS.map((valor) => ({ value: valor, label: ORIGEM_ROTULO[valor] })),
-];
-/** O filtro Projeto (issue #1715, ADR 0093, decisão 8): abre em Todos. */
-const OPCOES_DE_PROJETO = [
-  { value: "", label: "Todos" },
-  ...PROJETOS.map((valor) => ({ value: valor, label: PROJETO_ROTULO[valor] })),
 ];
 const LIMPAR_FILTROS = "Limpar filtros";
 const SO_ENVIO_FALHOU = "Só envio falhou";
@@ -317,12 +312,12 @@ function OrigemNaLista({ demanda }: { demanda: Demanda }) {
   );
 }
 
-/** Aplicativo do Hospital ou Ana (issue #1715). Sem o campo, sem selo. */
+/** Aplicativo do Hospital, Ana ou um projeto novo da Vitta (issues #1715 e #1967). Sem o campo, sem selo. */
 function ProjetoNaLista({ demanda }: { demanda: Demanda }) {
   if (!demanda.projeto) return null;
   return (
-    <span className={`px-2 py-0.5 rounded text-xs font-medium ${PROJETO_CLASSE[demanda.projeto]}`}>
-      {PROJETO_ROTULO[demanda.projeto]}
+    <span className={`px-2 py-0.5 rounded text-xs font-medium ${classeDoProjeto(demanda.projeto)}`}>
+      {rotuloDoProjeto(demanda.projeto, demanda.projeto_nome)}
     </span>
   );
 }
@@ -929,6 +924,12 @@ export function ConversasDaTecnologia({
   /** A coluna Não será feita no Quadro: só a tela decide, o servidor já manda todas. */
   const [naoSeraFeita, setNaoSeraFeita] = useState(false);
   const [desenvolvedores, setDesenvolvedores] = useState<Desenvolvedor[]>([]);
+  /** O filtro Projeto (issue #1715, ADR 0093, decisão 8): abre em Todos e lista os projetos com Demanda (issue #1967). */
+  const projetos = useProjetosDoFiltro(token);
+  const opcoesDeProjeto = [
+    { value: "", label: "Todos" },
+    ...projetos.map((p) => ({ value: p.valor, label: p.nome })),
+  ];
   /** O último pedido da lista: a resposta de um pedido mais velho não sobrescreve a do novo. */
   const ultimoPedido = useRef(0);
   /** A Demanda que a tela pôs no endereço, ou já tratou dele: o mesmo id não abre de novo. */
@@ -1280,7 +1281,7 @@ export function ConversasDaTecnologia({
           <Select
             label="Projeto"
             value={projeto ?? ""}
-            options={OPCOES_DE_PROJETO}
+            options={opcoesDeProjeto}
             onChange={(valor) => setProjeto((valor || null) as Projeto | null)}
           />
           {desenvolvedor && desenvolvedores.length > 0 && (

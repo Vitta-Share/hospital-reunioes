@@ -48,6 +48,8 @@ ROTAS_DO_CHAT = {
     "/api/admin/tecnologia/chat/{demanda_id}/atualizar-card",
     # O seletor de modelo da Demanda (issue #1921).
     "/api/admin/tecnologia/chat/{demanda_id}/modelo",
+    # As opções do filtro Projeto, com os projetos novos da Vitta (issue #1967).
+    "/api/admin/tecnologia/projetos",
 }
 
 # O que fica de fora da aba e continua de pé (critério 2 da issue).

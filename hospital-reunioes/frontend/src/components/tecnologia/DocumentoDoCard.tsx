@@ -22,6 +22,8 @@
  *
  * Sem Vínculo não há documento: é o mesmo `temSelo` do card que decide, e não
  * uma segunda condição escrita aqui, que divergiria dele na primeira mudança.
+ * A exceção é o pedido de um projeto novo da Vitta (issue #1967), que não sai
+ * de Registrada e abre o documento com o nome do projeto e o link do plano.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -41,6 +43,7 @@ import {
   nomeDoNumero,
   ParteDaEntrega,
   PedacoForte,
+  rotuloDoProjeto,
   temSelo,
 } from "./demandas";
 
@@ -51,6 +54,8 @@ export const TITULO_PARTES = "Partes";
 export const TITULO_DATAS = "Datas";
 export const TITULO_DEMONSTRACAO = "Demonstração";
 export const ASSISTIR_A_DEMONSTRACAO = "Assistir à demonstração";
+export const TITULO_PLANO_DO_PROJETO = "Plano do projeto";
+export const ABRIR_O_PLANO = "Abrir o plano";
 export const VER_TUDO = "Ver tudo";
 export const COPIAR_LINK = "Copiar link";
 export const LINK_COPIADO = "Link copiado";
@@ -351,6 +356,30 @@ function Demonstracao({ demanda }: { demanda: Demanda }) {
 }
 
 /**
+ * O pedido de um projeto novo da Vitta (issue #1967): o nome do projeto e o
+ * link do plano, para todos que veem a Demanda. O app não lê o repositório
+ * desse projeto, e o link é o que a ponte gravou. Só com link `https`.
+ */
+function PlanoDoProjeto({ demanda }: { demanda: Demanda }) {
+  const url = demanda.raiz_url;
+  if (!url || !demanda.projeto) return null;
+  return (
+    <section
+      aria-label={TITULO_PLANO_DO_PROJETO}
+      className="px-3 py-2 rounded-lg bg-white border border-slate-200 space-y-1"
+    >
+      <Titulo>{TITULO_PLANO_DO_PROJETO}</Titulo>
+      <p className="text-sm text-text">{rotuloDoProjeto(demanda.projeto, demanda.projeto_nome)}</p>
+      {url.startsWith("https://") && (
+        <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-primary underline">
+          {ABRIR_O_PLANO}
+        </a>
+      )}
+    </section>
+  );
+}
+
+/**
  * Em uma frase e O que muda, lidos do bloco "Para o diretor". É a parte do
  * documento que o planejamento monta ao vivo ao lado do chat (issue #1553):
  * o mesmo componente nos dois lugares, para o rascunho e o card não divergirem.
@@ -385,7 +414,10 @@ export function FraseEOQueMuda({ texto, chave }: { texto: string | null | undefi
 }
 
 export function DocumentoDoCard({ demanda }: { demanda: Demanda }) {
-  if (!temSelo(demanda)) return null;
+  // O pedido de um projeto novo (issue #1967) fica Registrado para sempre: o
+  // app não lê o repositório dele. O documento abre só com o plano.
+  const soOPlano = !temSelo(demanda);
+  if (soOPlano && !demanda.raiz_url) return null;
 
   const partes = demanda.partes ?? [];
   const datas = [
@@ -401,7 +433,9 @@ export function DocumentoDoCard({ demanda }: { demanda: Demanda }) {
     >
       <CabecalhoDaDemanda demanda={demanda} />
 
-      <FraseEOQueMuda texto={demanda.o_que_muda} chave={demanda.id} />
+      <PlanoDoProjeto demanda={demanda} />
+
+      {!soOPlano && <FraseEOQueMuda texto={demanda.o_que_muda} chave={demanda.id} />}
 
       <Demonstracao demanda={demanda} />
 

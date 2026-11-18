@@ -22,7 +22,7 @@ import { useContagem } from "@/hooks/useContagem";
 import { useIntencaoDeHover } from "@/hooks/useIntencaoDeHover";
 import { useMovimentoReduzido } from "@/hooks/useMovimentoReduzido";
 
-import { type Projeto, PROJETO_CLASSE, PROJETO_ROTULO } from "./demandas";
+import { classeDoProjeto, type Projeto, rotuloDoProjeto } from "./demandas";
 
 export type Tamanho = "P" | "M" | "G";
 
@@ -145,11 +145,11 @@ type PropsDaBarra = {
 };
 
 /** O selo pequeno do Projeto, na prévia e na linha da entrega (issue #1716). Sem o campo, sem selo. */
-export function SeloDoProjeto({ projeto }: { projeto?: Projeto | null }) {
+export function SeloDoProjeto({ projeto, nome }: { projeto?: Projeto | null; nome?: string | null }) {
   if (!projeto) return null;
   return (
-    <span className={`shrink-0 px-1.5 py-0.5 rounded text-[11px] font-medium ${PROJETO_CLASSE[projeto]}`}>
-      {PROJETO_ROTULO[projeto]}
+    <span className={`shrink-0 px-1.5 py-0.5 rounded text-[11px] font-medium ${classeDoProjeto(projeto)}`}>
+      {rotuloDoProjeto(projeto, nome)}
     </span>
   );
 }

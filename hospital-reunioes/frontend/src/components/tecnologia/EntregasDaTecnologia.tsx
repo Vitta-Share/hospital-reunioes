@@ -64,8 +64,8 @@ import {
   Origem,
   ORIGEM_ROTULO,
   Projeto,
-  PROJETO_ROTULO,
 } from "./demandas";
+import { useProjetosDoFiltro } from "./useProjetosDoFiltro";
 
 const URL_DAS_ENTREGAS = `${BASE_TECNOLOGIA}/entregas`;
 const ENTREGAS_FALHOU = "Não foi possível carregar as entregas. Tente recarregar a página.";
@@ -98,7 +98,6 @@ const PARTES_DO_TAMANHO: Record<Tamanho, string> = {
 
 const CLASSIFICACOES = Object.keys(CLASSIFICACAO_ROTULO) as Classificacao[];
 const ORIGENS = Object.keys(ORIGEM_ROTULO) as Origem[];
-const PROJETOS = Object.keys(PROJETO_ROTULO) as Projeto[];
 
 type Filtros = {
   tipo: Classificacao | null;
@@ -200,7 +199,7 @@ function LinhaDaEntrega({
               {CLASSIFICACAO_ROTULO[classificacao]}
             </span>
           )}
-          <SeloDoProjeto projeto={entrega.projeto} />
+          <SeloDoProjeto projeto={entrega.projeto} nome={entrega.projeto_nome} />
           {entrega.versao && entrega.projeto !== "ana" && (
             <span className="normal-case px-1.5 py-0.5 rounded text-[11px] font-medium bg-emerald-100 text-emerald-800">
               {entrega.versao}
@@ -363,6 +362,9 @@ export function EntregasDaTecnologia({ token }: { token: string | null }) {
     if (semana) listaRef.current?.scrollIntoView?.({ behavior: parado ? "auto" : "smooth", block: "start" });
   }, [semana, parado]);
 
+  /** O filtro Projeto lista também os projetos novos da Vitta que têm Demanda (issue #1967). */
+  const projetos = useProjetosDoFiltro(token);
+
   const todos = dados ? [...dados.grupos, ...anteriores] : [];
   const grupos = semana ? todos.filter((g) => g.inicio === semana) : todos;
 
@@ -387,9 +389,9 @@ export function EntregasDaTecnologia({ token }: { token: string | null }) {
           <Chip ativo={projeto === null} onClick={() => setProjeto(null)}>
             Todos
           </Chip>
-          {PROJETOS.map((valor) => (
+          {projetos.map(({ valor, nome }) => (
             <Chip key={valor} ativo={projeto === valor} onClick={() => setProjeto(projeto === valor ? null : valor)}>
-              {PROJETO_ROTULO[valor]}
+              {nome}
             </Chip>
           ))}
         </GrupoDeChips>

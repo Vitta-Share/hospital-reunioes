@@ -107,8 +107,14 @@ class DemandaResponse(BaseModel):
     # chat, ou a Vitta, pela issue aberta no terminal. O selo da lista.
     origem: Literal["diretor", "vitta"] = "diretor"
     # O Projeto da Demanda (issue #1715, ADR 0093, decisao 8): o Aplicativo do
-    # Hospital ou a Ana. O selo do card no Quadro e na lista do celular.
-    projeto: Literal["hospital", "ana"] = "hospital"
+    # Hospital, a Ana ou, desde a issue #1967, um Projeto novo da Vitta. O selo
+    # do card no Quadro e na lista do celular leva o `projeto_nome`.
+    projeto: str = "hospital"
+    projeto_nome: str | None = None
+    # O link do PRD do Projeto novo (issue #1967), que a ponte gravou, para
+    # todos que veem a Demanda: o app nao le aquele repositorio. Nulo no
+    # Hospital e na Ana, cujo link segue so do Desenvolvedor (`issue_url`).
+    raiz_url: str | None = None
     # A Revisao com o codigo de hoje (issue #1557, ADR 0084, decisao 3):
     # `pode_revisar` mostra o botao, pela regra da rota; `em_revisao` abre a
     # conversa para responder em vez de so ler.
@@ -167,7 +173,7 @@ class EntregaDaSemanaResponse(BaseModel):
 
     titulo: str
     tamanho: Literal["P", "M", "G"]
-    projeto: Literal["hospital", "ana"] = "hospital"
+    projeto: str = "hospital"
 
 
 class SemanaDasEntregasResponse(BaseModel):

@@ -757,6 +757,32 @@ function comProjetos() {
 }
 
 describe("O filtro Projeto", () => {
+  it("lista o projeto novo da Vitta que a rota de projetos manda, e filtra por ele (issue #1967)", async () => {
+    montar((url) =>
+      url === "/api/admin/tecnologia/projetos"
+        ? [
+            { valor: "hospital", nome: "Aplicativo do Hospital" },
+            { valor: "ana", nome: "Ana" },
+            { valor: "os", nome: "PedroOS" },
+          ]
+        : resposta(),
+    );
+    await lista();
+
+    const projeto = screen.getByRole("group", { name: "Projeto" });
+    await waitFor(() =>
+      expect(within(projeto).getAllByRole("button").map((b) => b.textContent)).toEqual([
+        "Todos",
+        "Aplicativo do Hospital",
+        "Ana",
+        "PedroOS",
+      ]),
+    );
+    fireEvent.click(within(projeto).getByRole("button", { name: "PedroOS" }));
+
+    await waitFor(() => expect(ultimaConsulta()).toEqual({ projeto: "os" }));
+  });
+
   it("abre em Todos e tem Aplicativo do Hospital e Ana", async () => {
     montar();
     await lista();
