@@ -65,6 +65,7 @@ Só `status: accepted` vale como decisão; `superseded` é histórico (CLAUDE.md
 | [0069](0069-anexo-da-demanda-fica-no-app-e-em-producao-devolve-ao-diretor.md) | accepted | Anexo da Demanda fica no app e quem desenvolve busca; Em produção é a Etapa que devolve ao diretor (emenda 0054) |
 | [0100](0100-partes-do-card-com-numero-o-que-trava-e-onda.md) | accepted | As Partes do Documento do card mostram o número, o que trava cada uma e a Onda (emenda 0054 e 0084) |
 | [0103](0103-modelo-da-tecnologia-escolhido-por-demanda.md) | accepted | O diretor escolhe o modelo de cada Demanda da Tecnologia: Sonnet 5.5 ou Opus 5.5 (emenda 0075 e 0077) |
+| [0106](0106-pergunta-da-vitta-avisa-o-destinatario-com-o-assunto-em-qualquer-projeto.md) | accepted | Pergunta da Vitta na Conversa da Demanda: avisa o Destinatário com o Assunto, em qualquer Projeto (emenda 0093 e 0096) |
 
 ## Central de Comando (números do ecossistema digital)
 

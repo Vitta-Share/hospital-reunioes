@@ -64,6 +64,8 @@ Para chamar alguém, escreva @ e escolha o nome na lista que aparece, como nos c
 
 Quando o trabalho da Vitta para numa decisão que é sua, a pergunta chega na Conversa da Demanda no nome de quem cuida da entrega, normalmente o Pedro, e só depois que ele aprova o texto. Ela aparece como qualquer outra mensagem da Conversa, sem marca diferente, e você responde ali mesmo. O aviso dessa pergunta vai no sino e por e-mail: no seu pedido, avisa você; no card que a Vitta abriu, avisa a diretoria. Ninguém mais é avisado.
 
+Quando a pergunta é para uma pessoa só, a Vitta escolhe quem precisa responder, e o aviso vai só para essa pessoa, em qualquer pedido, mesmo num que ela não abriu. Se a pergunta espera uma resposta, o sino mostra "Pede sua resposta" e o assunto, por exemplo "confirmar horário da reunião de quinta". O e-mail chega com o assunto "<Nome> pede sua resposta: <assunto>", o nome do pedido e o link que abre o pedido com a conversa embaixo. Recado sem pergunta continua com o aviso de sempre.
+
 O que se escreve na Conversa fica só dentro do aplicativo e nunca vai para o material público do desenvolvimento.
 
 ## Os anexos da Demanda
@@ -199,6 +201,7 @@ Os prints do manual usam pessoas e dados inventados, nunca de paciente ou de fun
 - Cada pedido tem a Conversa da Demanda, entre quem pediu e a Vitta, separada da conversa com a IA e guardada só dentro do aplicativo.
 - Na Conversa da Demanda, quem é marcado pelo nome é avisado no sino e por e-mail, e sem marcação a mensagem de quem pediu avisa o Responsável e a da Vitta avisa quem pediu.
 - Quando a Vitta precisa de uma decisão do diretor num pedido, a pergunta vai pela Conversa da Demanda, no nome de quem cuida da entrega e só com o texto aprovado por ele, e avisa no sino e por e-mail quem abriu o pedido ou, no card da Vitta, a diretoria; sem pedido no aplicativo, segue pelo WhatsApp.
+- Quando a pergunta da Vitta tem uma pessoa escolhida para responder, o aviso vai só para ela, em qualquer pedido, e quando pede resposta o sino diz "Pede sua resposta" com o assunto, e o e-mail tem o assunto "<Nome> pede sua resposta: <assunto>".
 - No bug, a IA faz no máximo cinco perguntas, e o pedido só vai para a Vitta no clique em Criar o card.
 - O bug que sai do Criar o card vai direto para o desenvolvimento, sem ninguém da Vitta precisar assumir antes.
 - O card que não chega à Vitta fica marcado como Envio falhou e se resolve com Reenviar, pelo diretor ou pela Vitta; o sistema nunca reenvia sozinho.

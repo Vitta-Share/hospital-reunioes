@@ -28,6 +28,10 @@ from app.services.tecnologia import TABELA_DEMANDAS
 # O detail nunca ecoa o login: a resposta nao confirma quem esta no cadastro.
 MOTIVO_LOGIN_RECUSADO = "Este login do GitHub não é de um Desenvolvedor ativo no aplicativo."
 MOTIVO_DEMANDA_NAO_ENCONTRADA = "Demanda não encontrada."
+MOTIVO_DESTINATARIO_RECUSADO = "O Destinatário não é um participante ativo do aplicativo."
+MOTIVO_SEM_ASSUNTO = "A mensagem que pede resposta precisa do Assunto."
+# O Assunto vai na linha do sino e no assunto do e-mail: texto curto.
+LIMITE_DO_ASSUNTO = 120
 
 
 @limiter.limit("60/minute")
@@ -84,10 +88,17 @@ def demanda_da_issue(
 
 
 class MensagemPeloTerminalPayload(BaseModel):
-    """O texto aprovado na sessao e o login do GitHub de quem a roda."""
+    """O texto aprovado na sessao e o login do GitHub de quem a roda. Os tres
+    campos da ADR 0106 sao opcionais: sem eles, tudo segue como na ADR 0096."""
 
     texto: str = Field(min_length=1, max_length=LIMITE_DA_MENSAGEM)
     github_login: str = Field(min_length=1, max_length=100)
+    # ADR 0106: com Destinatario, o aviso vai so para ele, em qualquer Origem.
+    # O id de participante e VARCHAR(10) no formato "P001" (migration 001).
+    destinatario_id: str | None = Field(default=None, min_length=1, max_length=10)
+    # ADR 0106: com "pede resposta", o sino e o e-mail dizem isso e o Assunto.
+    assunto: str | None = Field(default=None, max_length=LIMITE_DO_ASSUNTO)
+    pede_resposta: bool = False
 
 
 @router.post("/demandas/{demanda_id}/conversa", status_code=status.HTTP_201_CREATED)
@@ -96,16 +107,30 @@ def escrever_pelo_terminal(
 ) -> dict:
     """A Mensagem pelo terminal (ADR 0096): grava no perfil do Desenvolvedor
     dono do login, com a origem `terminal`, e avisa pela regra dos avisos de
-    entrega. O id e UUID na assinatura: lixo no caminho vira 422, nao 500."""
+    entrega, ou so o Destinatario quando ele vem (ADR 0106). Destinatario que
+    nao e participante ativo, ou "pede resposta" sem Assunto, recusa antes de
+    gravar. O id e UUID na assinatura: lixo no caminho vira 422, nao 500."""
     autor = tecnologia_conversa.desenvolvedor_do_login(supabase, payload.github_login)
     if autor is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=MOTIVO_LOGIN_RECUSADO)
     texto = payload.texto.strip()
     if not texto:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="A mensagem está vazia.")
+    assunto = (payload.assunto or "").strip()
+    if payload.pede_resposta and not assunto:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=MOTIVO_SEM_ASSUNTO)
     demanda = _demanda_ou_404(supabase, id=str(demanda_id))
+    destinatario_id = payload.destinatario_id or None
+    if destinatario_id and not tecnologia_conversa.e_participante_ativo(supabase, destinatario_id):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=MOTIVO_DESTINATARIO_RECUSADO)
     linha = tecnologia_conversa.escrever(
-        supabase, demanda, autor=autor, texto=texto, origem=tecnologia_conversa.ORIGEM_TERMINAL
+        supabase,
+        demanda,
+        autor=autor,
+        texto=texto,
+        origem=tecnologia_conversa.ORIGEM_TERMINAL,
+        destinatario_id=destinatario_id,
+        pede_resposta_sobre=assunto if payload.pede_resposta else None,
     )
     return {"id": str(linha["id"]), "criado_em": linha.get("criado_em")}
 

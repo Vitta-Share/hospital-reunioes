@@ -8,7 +8,11 @@ as duas e a origem, guardada na linha (migration 161), e quem e avisado:
 - pela tela, a regra da conversa (`quem_avisar`): mencao, Responsavel ou autor;
 - pelo terminal, a regra dos avisos de entrega (`tecnologia_avisos`): no card
   da Vitta a diretoria, no card do diretor quem abriu a Demanda. O terminal
-  nao manda nome de ninguem (ADR 0096, decisao 4).
+  nao manda nome de ninguem (ADR 0096, decisao 4);
+- pelo terminal com Destinatario, so ele, em qualquer Origem (ADR 0106).
+
+Com "pede resposta" (ADR 0106), o sino diz "Pede sua resposta" com o Assunto
+e o e-mail tem o assunto "<Nome> pede sua resposta: <Assunto>".
 
 Sino e e-mail para cada um, como qualquer mensagem da conversa. Nada daqui vai
 para o GitHub.
@@ -51,9 +55,24 @@ def desenvolvedor_do_login(supabase, login: str | None) -> dict[str, Any] | None
     return next((p for p in result.data or [] if p.get("ativo") is not False and e_desenvolvedor(p)), None)
 
 
+def e_participante_ativo(supabase, participante_id: str) -> bool:
+    """O Destinatário da mensagem pela ponte (ADR 0106) existe e está ativo.
+    A ponte recusa antes de gravar: a mensagem nunca some num aviso sem dono."""
+    result = selecionar_participantes(supabase, "id, ativo", lambda q: q.eq("id", participante_id))
+    return any(p.get("ativo") is not False for p in result.data or [])
+
+
 def _destinatarios(
-    supabase, demanda: dict[str, Any], *, autor_id: str, origem: str, mencoes: Sequence[str]
+    supabase,
+    demanda: dict[str, Any],
+    *,
+    autor_id: str,
+    origem: str,
+    mencoes: Sequence[str],
+    destinatario_id: str | None = None,
 ) -> list[str]:
+    if destinatario_id is not None:
+        return [destinatario_id]
     if origem == ORIGEM_TERMINAL:
         return [d for d in tecnologia_avisos.destinatarios(supabase, demanda) if d != str(autor_id)]
     ja_escreveram = [
@@ -75,12 +94,16 @@ def escrever(
     texto: str,
     origem: str,
     mencoes: Sequence[str] = (),
+    destinatario_id: str | None = None,
+    pede_resposta_sobre: str | None = None,
 ) -> dict[str, Any]:
     """Grava a mensagem de `autor` na Demanda e avisa quem a regra da `origem`
     manda. Devolve a linha gravada. Quem e avisado se calcula antes de gravar:
     "quem ja escreveu" nao conta a propria mensagem."""
     autor_id = str(autor["id"])
-    destinatarios = _destinatarios(supabase, demanda, autor_id=autor_id, origem=origem, mencoes=mencoes)
+    destinatarios = _destinatarios(
+        supabase, demanda, autor_id=autor_id, origem=origem, mencoes=mencoes, destinatario_id=destinatario_id
+    )
     [linha] = (
         supabase.table(TABELA_CONVERSA_DA_DEMANDA)
         .insert(
@@ -97,17 +120,28 @@ def escrever(
     )
     nome = autor.get("nome_completo") or ""
     for destinatario in destinatarios:
-        aviso = f"{nome} mencionou você" if destinatario in mencoes else f"{nome} escreveu na Demanda"
+        if pede_resposta_sobre:
+            # ADR 0106: a pergunta que espera alguém diz isso e o Assunto.
+            aviso = f"{nome} pede sua resposta"
+            titulo_do_sino, linha_do_sino = "Pede sua resposta", pede_resposta_sobre
+        else:
+            aviso = f"{nome} mencionou você" if destinatario in mencoes else f"{nome} escreveu na Demanda"
+            titulo_do_sino, linha_do_sino = aviso, str(demanda.get("titulo") or "")[:80]
         criar_notificacao_tecnologia(
             supabase,
             destinatario_id=destinatario,
-            titulo=aviso,
-            mensagem=str(demanda.get("titulo") or "")[:80],
+            titulo=titulo_do_sino,
+            mensagem=linha_do_sino,
             demanda_id=str(demanda["id"]),
         )
         # O mesmo aviso, por e-mail (issue #1538): o diretor não fica com o app aberto.
         tecnologia_email.enviar_aviso_da_conversa(
-            supabase, destinatario_id=destinatario, aviso=aviso, autor_nome=nome, demanda=demanda
+            supabase,
+            destinatario_id=destinatario,
+            aviso=aviso,
+            autor_nome=nome,
+            demanda=demanda,
+            assunto=pede_resposta_sobre,
         )
     return linha
 
