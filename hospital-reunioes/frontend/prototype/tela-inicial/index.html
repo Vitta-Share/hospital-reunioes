@@ -1,0 +1,706 @@
+<title>Início, protótipo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!--
+  PROTÓTIPO DESCARTÁVEL (grill de 18/11/2026). Nunca vai para a main.
+  Pergunta: como fica a tela inicial pessoal para três pessoas diferentes?
+  Dados inventados: nenhum nome, caso ou número aqui é real.
+-->
+<style>
+/* Layout: uma régua do tempo. A coluna da esquerda de cada linha diz quando
+   (há quantos dias venceu, hoje, sexta); a página desce do mais atrasado para
+   o mais distante. A frase do topo muda de registro conforme a situação. */
+@font-face {
+  font-family: "HP Simplified";
+  src: url("../../public/fonts/HPSimplified_Rg.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+:root {
+  --branco: #ffffff;
+  --gelo: #eef2fa;
+  --gelo-forte: #dfe6f5;
+  --marinho: #2b2e7e;
+  --marinho-fundo: #1a1c4e;
+  --azul: #3b6fb6;
+  --tinta: #1e2440;
+  --tinta-2: #5b6485;
+  --linha: #dde3f0;
+  --atraso-tinta: #a3262e;
+  --atraso-fundo: #fcebec;
+  --ambar-tinta: #7a4b00;
+  --ambar-fundo: #fff1da;
+  --ok-tinta: #1f6b45;
+  --ok-fundo: #e4f5eb;
+  --fonte: "HP Simplified", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --t-13: 0.8125rem;
+  --t-15: 0.9375rem;
+  --t-17: 1.0625rem;
+  --t-21: 1.3125rem;
+  --t-28: 1.75rem;
+  --t-40: 2.5rem;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html { font-size: 16px; }
+body {
+  background: var(--gelo);
+  color: var(--tinta);
+  font-family: var(--fonte);
+  font-size: var(--t-15);
+  line-height: 1.45;
+  font-weight: 400;
+}
+h1, h2, h3, p, ul, ol { margin: 0; padding: 0; font-weight: 400; }
+ul, ol { list-style: none; }
+button { font: inherit; color: inherit; cursor: pointer; }
+/* ADR 0080: Texto curto em caixa alta (título, botão, rótulo, item de menu). */
+h1, h2, h3, button, th, .menu a, .etiqueta { text-transform: uppercase; letter-spacing: 0.03em; }
+:focus-visible { outline: 2px solid var(--azul); outline-offset: 2px; }
+
+.moldura {
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px 148px;
+}
+.janela {
+  max-width: 1280px; margin: 0 auto; background: var(--branco);
+  border: 1px solid var(--linha); border-radius: 8px; overflow: hidden;
+}
+/* A aba do navegador: o diretor quer o app como aba de início. */
+.aba-navegador {
+  display: flex; align-items: center; gap: 10px; padding: 8px 14px;
+  background: var(--gelo-forte); border-bottom: 1px solid var(--linha);
+  font-size: var(--t-13); color: var(--tinta-2);
+}
+.aba {
+  display: inline-flex; align-items: center; gap: 8px; background: var(--branco);
+  border-radius: 6px 6px 0 0; padding: 6px 12px; color: var(--tinta); margin-bottom: -9px;
+  border: 1px solid var(--linha); border-bottom-color: var(--branco);
+}
+.aba .conta {
+  min-width: 20px; text-align: center; border-radius: 999px; padding: 0 6px;
+  background: var(--atraso-tinta); color: var(--branco); font-size: 0.75rem; line-height: 1.5;
+}
+.aba .conta.zero { background: var(--ok-tinta); }
+.casca { display: grid; grid-template-columns: 220px minmax(0, 1fr); }
+.menu { border-right: 1px solid var(--linha); padding: 20px 12px; }
+.menu .marca { font-size: var(--t-15); color: var(--marinho); padding: 0 10px 18px; line-height: 1.25; }
+.menu .marca small { display: block; color: var(--tinta-2); font-size: var(--t-13); }
+.menu a {
+  display: block; padding: 9px 10px; border-radius: 4px; color: var(--tinta-2);
+  text-decoration: none; font-size: var(--t-13);
+}
+.menu a:hover { background: var(--gelo); color: var(--tinta); }
+.menu a[aria-current="page"] { background: var(--gelo); color: var(--marinho); }
+
+/* A abertura: a frase do tutor. */
+.abertura { padding: 28px 32px 24px; background: var(--branco); color: var(--tinta); transition: background 0.3s ease; }
+.abertura.com-atraso { background: var(--marinho-fundo); color: var(--branco); }
+.abertura .linha-topo { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; font-size: var(--t-13); opacity: 0.8; }
+.abertura h1 { font-size: var(--t-13); }
+.frase { font-size: var(--t-40); line-height: 1.12; max-width: 22ch; margin-top: 18px; text-wrap: balance; letter-spacing: -0.01em; }
+.frase-apoio { font-size: var(--t-17); margin-top: 10px; max-width: 52ch; opacity: 0.85; }
+.resumo { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+.resumo button {
+  border: 1px solid currentColor; background: transparent; border-radius: 4px;
+  padding: 8px 14px; font-size: var(--t-13); display: inline-flex; gap: 8px; align-items: baseline;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.resumo button b { font-weight: 400; font-size: var(--t-21); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.abertura.com-atraso .resumo button.vencidos { background: var(--branco); color: var(--atraso-tinta); border-color: var(--branco); }
+.resumo button:hover { background: var(--gelo); color: var(--marinho); border-color: var(--gelo); }
+
+.corpo { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 32px; padding: 28px 32px 40px; align-items: start; }
+.fila { min-width: 0; }
+.grupo + .grupo { margin-top: 30px; }
+.grupo > h2 {
+  font-size: var(--t-13); color: var(--tinta-2); display: flex; align-items: baseline; gap: 10px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--linha);
+}
+.grupo > h2 .n { font-variant-numeric: tabular-nums; color: var(--tinta); }
+.grupo.vencido > h2 { color: var(--atraso-tinta); border-bottom-color: var(--atraso-tinta); }
+.grupo.vencido > h2 .n { color: var(--atraso-tinta); }
+
+.item {
+  display: grid; grid-template-columns: 104px minmax(0, 1fr) auto; gap: 18px; align-items: center;
+  padding: 14px 10px; border-bottom: 1px solid var(--linha); border-radius: 4px;
+  transition: background 0.15s ease;
+}
+.item:hover, .item:focus-within { background: var(--gelo); }
+.quando { line-height: 1.1; }
+.quando .q1 { display: block; font-size: var(--t-28); font-variant-numeric: tabular-nums; }
+.quando .q2 { display: block; font-size: var(--t-13); color: var(--tinta-2); margin-top: 3px; }
+.item.vencido .quando .q1, .item.vencido .quando .q2 { color: var(--atraso-tinta); }
+.item.hoje .quando .q1 { color: var(--ambar-tinta); font-size: var(--t-21); }
+.item.semana .quando .q1 { font-size: var(--t-21); color: var(--tinta); }
+.oque { min-width: 0; }
+.oque .titulo { font-size: var(--t-17); line-height: 1.3; color: var(--tinta); }
+.oque .origem { font-size: var(--t-13); color: var(--tinta-2); margin-top: 3px; }
+.oque .contexto {
+  font-size: var(--t-13); color: var(--marinho); margin-top: 6px; padding-left: 10px;
+  border-left: 2px solid var(--gelo-forte);
+  max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.2s ease, opacity 0.2s ease;
+}
+.item:hover .contexto, .item:focus-within .contexto { max-height: 4em; opacity: 1; }
+@media (hover: none) { .oque .contexto { max-height: none; opacity: 1; } }
+.lado { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.area { font-size: 0.75rem; color: var(--tinta-2); background: var(--gelo); border-radius: 999px; padding: 2px 10px; white-space: nowrap; }
+.item:hover .area { background: var(--branco); }
+.acao {
+  border: 1px solid var(--marinho); color: var(--marinho); background: var(--branco);
+  border-radius: 4px; padding: 8px 14px; font-size: var(--t-13); white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+.item:hover .acao, .acao:hover, .acao:focus-visible { background: var(--marinho); color: var(--branco); }
+.acao:active { transform: translateY(1px); }
+.item.vencido .acao { background: var(--marinho); color: var(--branco); }
+.item.vencido:hover .acao { background: var(--marinho-fundo); }
+.item.feito { opacity: 0.55; }
+.item.feito .titulo { text-decoration: line-through; }
+.fonte { display: none; font-size: 0.6875rem; border-radius: 3px; padding: 1px 6px; margin-left: 8px; vertical-align: 2px; white-space: nowrap; }
+.mostra-fonte .fonte { display: inline-block; }
+.fonte.existe { background: var(--ok-fundo); color: var(--ok-tinta); }
+.fonte.prd { background: var(--ambar-fundo); color: var(--ambar-tinta); }
+.fonte.nsp { background: var(--gelo-forte); color: var(--marinho); }
+.fonte.novo { background: var(--atraso-fundo); color: var(--atraso-tinta); }
+
+/* Em dia: a tela não fica vazia, ela mostra o que foi entregue e o que vem. */
+.em-dia { background: var(--ok-fundo); color: var(--ok-tinta); border-radius: 8px; padding: 18px 20px; font-size: var(--t-17); }
+.em-dia small { display: block; font-size: var(--t-13); margin-top: 4px; color: var(--tinta-2); }
+
+.trilho { display: flex; flex-direction: column; gap: 18px; position: sticky; top: 16px; }
+.painel { background: var(--gelo); border-radius: 8px; padding: 16px 16px 12px; }
+.painel h3 { font-size: var(--t-13); color: var(--tinta-2); margin-bottom: 10px; }
+.compromisso { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 12px; padding: 8px 0; align-items: center; }
+.compromisso + .compromisso { border-top: 1px solid var(--gelo-forte); }
+.data-bloco { background: var(--branco); border-radius: 4px; text-align: center; padding: 5px 0; line-height: 1.1; }
+.data-bloco b { display: block; font-weight: 400; font-size: var(--t-21); color: var(--marinho); font-variant-numeric: tabular-nums; }
+.data-bloco span { font-size: 0.6875rem; color: var(--tinta-2); text-transform: uppercase; letter-spacing: 0.04em; }
+.compromisso p { font-size: var(--t-15); line-height: 1.3; }
+.compromisso small { font-size: var(--t-13); color: var(--tinta-2); }
+.rotina { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 8px 0; }
+.rotina + .rotina { border-top: 1px solid var(--gelo-forte); }
+.rotina p { font-size: var(--t-15); line-height: 1.3; min-width: 0; }
+.rotina small { display: block; font-size: var(--t-13); color: var(--tinta-2); }
+.rotina button { border: 1px solid var(--marinho); background: var(--branco); color: var(--marinho); border-radius: 4px; padding: 5px 10px; font-size: 0.75rem; white-space: nowrap; }
+.rotina button:hover { background: var(--marinho); color: var(--branco); }
+.rotina.ok button { border-color: transparent; background: var(--ok-fundo); color: var(--ok-tinta); }
+.progresso { height: 6px; background: var(--branco); border-radius: 999px; overflow: hidden; margin: 2px 0 8px; }
+.progresso i { display: block; height: 100%; background: var(--marinho); border-radius: 999px; transition: width 0.3s ease; }
+.fato { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; font-size: var(--t-15); }
+.fato + .fato { border-top: 1px solid var(--gelo-forte); }
+.fato b { font-weight: 400; color: var(--marinho); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Liderados (só o diretor). */
+.liderados { padding: 0 32px 40px; }
+.liderados h2 { font-size: var(--t-13); color: var(--tinta-2); padding-bottom: 8px; border-bottom: 1px solid var(--linha); display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.liderados .nota { text-transform: none; letter-spacing: 0; font-size: var(--t-13); color: var(--tinta-2); }
+.rolagem { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 720px; }
+th { text-align: left; font-weight: 400; font-size: 0.75rem; color: var(--tinta-2); padding: 12px 10px 8px; white-space: nowrap; }
+td { padding: 12px 10px; border-top: 1px solid var(--linha); font-size: var(--t-15); vertical-align: middle; font-variant-numeric: tabular-nums; }
+tbody tr.pessoa { cursor: pointer; transition: background 0.15s ease; }
+tbody tr.pessoa:hover, tbody tr.pessoa:focus-visible { background: var(--gelo); }
+td .cargo { display: block; font-size: var(--t-15); color: var(--tinta); }
+td .nome { display: block; font-size: var(--t-13); color: var(--tinta-2); }
+td.num-atraso { color: var(--atraso-tinta); font-size: var(--t-21); }
+td.num-atraso.zero { color: var(--tinta-2); font-size: var(--t-15); }
+.barra { display: flex; height: 10px; width: 150px; border-radius: 999px; overflow: hidden; background: var(--gelo); }
+.barra i { display: block; height: 100%; }
+.barra .no-prazo { background: var(--marinho); }
+.barra .fora { background: var(--atraso-tinta); opacity: 0.55; }
+.barra-legenda { font-size: var(--t-13); color: var(--tinta-2); margin-top: 4px; }
+.acesso { white-space: nowrap; }
+.acesso.sumido { color: var(--atraso-tinta); }
+tr.ficha td { background: var(--gelo); border-top: 0; padding: 4px 16px 16px; }
+.ficha h3 { font-size: 0.75rem; color: var(--tinta-2); margin: 10px 0 6px; }
+.ficha li { font-size: var(--t-15); padding: 6px 0; display: flex; gap: 14px; }
+.ficha li span:first-child { color: var(--atraso-tinta); white-space: nowrap; min-width: 9ch; }
+
+/* Movimento: um toggle do protótipo para decidir olhando. */
+@keyframes entra { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes pulso { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); } 50% { box-shadow: 0 0 0 7px rgba(255,255,255,0.28); } }
+@keyframes pisca { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.15; } }
+.mov-uma .grupo.vencido .item { animation: entra 0.35s ease-out both; animation-delay: calc(var(--i) * 70ms); }
+.mov-uma .abertura.com-atraso .resumo .vencidos { animation: pulso 0.9s ease-in-out 2; }
+.mov-pisca .item.vencido .quando, .mov-pisca .abertura.com-atraso .resumo .vencidos { animation: pisca 1s steps(1) infinite; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* A barra do protótipo. */
+.proto {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  background: var(--tinta); color: var(--branco);
+  padding: 10px max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+}
+.proto-linha { display: flex; gap: 18px; overflow-x: auto; align-items: flex-end; max-width: 1280px; margin: 0 auto; }
+.proto fieldset { border: 0; padding: 0; margin: 0; min-width: max-content; }
+.proto legend { font-size: 0.6875rem; opacity: 0.7; padding: 0 0 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+.proto .seg { display: flex; border: 1px solid rgba(255,255,255,0.35); border-radius: 4px; overflow: hidden; }
+.proto .seg button { background: transparent; border: 0; padding: 6px 10px; font-size: 0.75rem; color: var(--branco); white-space: nowrap; }
+.proto .seg button + button { border-left: 1px solid rgba(255,255,255,0.35); }
+.proto .seg button[aria-pressed="true"] { background: var(--branco); color: var(--tinta); }
+.proto-aviso { max-width: 1280px; margin: 8px auto 0; font-size: var(--t-13); min-height: 1.4em; opacity: 0.9; }
+
+@media (max-width: 1020px) {
+  .corpo { grid-template-columns: minmax(0, 1fr); }
+  .trilho { position: static; }
+}
+@media (max-width: 760px) {
+  .casca { grid-template-columns: minmax(0, 1fr); }
+  .menu { display: none; }
+  .abertura { padding: 22px 18px 20px; }
+  .frase { font-size: var(--t-28); }
+  .corpo { padding: 20px 14px 28px; }
+  .liderados { padding: 0 14px 28px; }
+  .item { grid-template-columns: 76px minmax(0, 1fr); gap: 12px; }
+  .lado { grid-column: 2; flex-direction: row; align-items: center; justify-content: space-between; }
+  .quando .q1 { font-size: var(--t-21); }
+}
+</style>
+
+<div class="moldura" id="raiz">
+  <div class="janela">
+    <div class="aba-navegador" aria-hidden="true">
+      <span class="aba"><span class="conta" id="aba-conta">0</span> Início, Hospital São Matheus</span>
+      <span>a aba que abre com o navegador</span>
+    </div>
+    <div class="casca">
+      <nav class="menu" aria-label="Menu do app" id="menu"></nav>
+      <main>
+        <section class="abertura" id="abertura" aria-live="polite"></section>
+        <div class="corpo">
+          <div class="fila" id="fila"></div>
+          <aside class="trilho" id="trilho" aria-label="Agenda e rotinas"></aside>
+        </div>
+        <section class="liderados" id="liderados" hidden></section>
+      </main>
+    </div>
+  </div>
+</div>
+
+<div class="proto" role="region" aria-label="Controles do protótipo">
+  <div class="proto-linha" id="controles"></div>
+  <p class="proto-aviso" id="aviso" aria-live="polite">Protótipo com dados inventados. Troque a pessoa e as opções aqui embaixo.</p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var FONTES = {
+    existe: ["existe", "Já existe no banco"],
+    prd: ["prd", "Depende do PRD #1757"],
+    nsp: ["nsp", "Depende das fases 2 a 4 do Núcleo"],
+    novo: ["novo", "Dado novo"]
+  };
+
+  /* quando: -n = venceu há n dias, 0 = hoje, n = daqui a n dias (18/11 é quarta). */
+  var PESSOAS = {
+    nsp: {
+      rotulo: "Coordenadora do NSP",
+      nome: "Aurora",
+      cargo: "Coordenadora do Núcleo de Segurança do Paciente",
+      menu: ["Início", "Reuniões e metas", "Ouvidoria", "POPs", "Segurança do Paciente"],
+      itens: [
+        { id: "a1", quando: -12, titulo: "Atualizar o plano de treinamento de identificação do paciente", origem: "Pendência da Reunião do Núcleo de 21/10. O prazo era 06/11.", contexto: "Sua última anotação, em 30/10: aguardando a escala da enfermagem.", area: "Reuniões", acao: "Atualizar", destino: "a Pendência, já aberta para a Anotação", fonte: "existe" },
+        { id: "a2", quando: -2, titulo: "Registrar o protocolo da notificação externa do caso de faixa B", origem: "Notificação externa à vigilância sanitária. O prazo legal venceu em 16/11.", contexto: "O texto para o sistema da ANVISA está pronto desde 14/11.", area: "Segurança do Paciente", acao: "Registrar protocolo", destino: "o caso no Núcleo, na parte da Notificação externa", fonte: "nsp" },
+        { id: "a3", quando: -3, titulo: "Marcar a ronda de pulseiras da Clínica Médica da semana passada", origem: "Rotina semanal. A semana de 09 a 15/11 ficou sem Verificação.", contexto: "Realizada é um clique. Não realizada pede Anotação.", area: "Rotinas", acao: "Marcar realizada", resolveAqui: true, fonte: "prd" },
+        { id: "a4", quando: 0, hora: "até 17h", titulo: "Confirmar a triagem de 3 notificações de incidente", origem: "O agente já sugeriu a faixa de cada uma. Uma é faixa B.", contexto: "A mais antiga chegou ontem, às 22h40, pelo QR da UTI.", area: "Segurança do Paciente", acao: "Abrir a triagem", destino: "a fila de Triagem do Núcleo", fonte: "nsp" },
+        { id: "a5", quando: 0, hora: "hoje", titulo: "Assinar a Ata da Reunião do Núcleo de 11/11", origem: "Enviada para assinatura na segunda. Faltam você e mais dois.", contexto: "Você tem um item nesta Ata e pode contestar antes de assinar.", area: "Reuniões", acao: "Assinar", destino: "a Ata, na tela de assinatura", fonte: "existe" },
+        { id: "a6", quando: 2, titulo: "Enviar o relatório trimestral à vigilância sanitária", origem: "Agenda regulatória do Núcleo.", contexto: "O rascunho do trimestre anterior está em Documentos.", area: "Segurança do Paciente", acao: "Abrir na agenda", destino: "a Agenda regulatória, neste compromisso", fonte: "existe" },
+        { id: "a7", quando: 2, titulo: "Renovar o Termo de Adesão de dois membros", origem: "As duas vigências acabam em 30/11.", contexto: "Sem Termo válido, o membro deixa de abrir caso e ata.", area: "Segurança do Paciente", acao: "Abrir Membros", destino: "Membros do Núcleo, filtrado em Termo a vencer", fonte: "existe" },
+        { id: "a8", quando: 5, titulo: "Definir a pauta da reunião ordinária de novembro", origem: "Pendência da Reunião do Núcleo de 11/11.", contexto: "A reunião é na terça, 24/11, às 14h.", area: "Reuniões", acao: "Atualizar", destino: "a Pendência", fonte: "existe" }
+      ],
+      compromissos: [
+        { dia: "24", mes: "nov", titulo: "Reunião ordinária do Núcleo", detalhe: "terça, 14h, sala da Diretoria" },
+        { dia: "27", mes: "nov", titulo: "Capacitação: higiene das mãos", detalhe: "sexta, 10h, auditório" }
+      ],
+      rotinas: [
+        { id: "r1", titulo: "Ronda de pulseiras, Clínica Médica", ciclo: "semanal", ok: false },
+        { id: "r2", titulo: "Conferir o carro de emergência do 3º andar", ciclo: "semanal", ok: true },
+        { id: "r3", titulo: "Revisar as notificações sem resposta", ciclo: "quinzenal, de 16 a 30/11", ok: false }
+      ],
+      fatos: { titulo: "Seu Núcleo", linhas: [["Notificações em triagem", "3"], ["Casos em investigação", "5"], ["Notificação externa em aberto", "1"], ["Membros com Termo válido", "9 de 11"]] },
+      entregues: ["Ata da reunião de outubro assinada por todos", "Plano de ação do caso de faixa C concluído", "Capacitação de identificação do paciente registrada"]
+    },
+    setor: {
+      rotulo: "Supervisora de setor",
+      nome: "Quitéria",
+      cargo: "Supervisora da Recepção",
+      menu: ["Início", "Reuniões e metas", "Ouvidoria", "POPs"],
+      itens: [
+        { id: "b1", quando: -9, titulo: "Treinar a equipe da noite no novo fluxo de cadastro", origem: "Pendência da Reunião de Atendimento de 28/10. O prazo era 09/11.", contexto: "O Facilitador reabriu em 12/11: falta a lista de presença.", area: "Reuniões", acao: "Atualizar", destino: "a Pendência, já aberta para a Anotação", fonte: "existe" },
+        { id: "b2", quando: -3, titulo: "Marcar a conferência de pulseiras na admissão da semana passada", origem: "Rotina semanal. A semana de 09 a 15/11 ficou sem Verificação.", contexto: "Realizada é um clique. Não realizada pede Anotação.", area: "Rotinas", acao: "Marcar realizada", resolveAqui: true, fonte: "prd" },
+        { id: "b3", quando: 0, hora: "até 18h", titulo: "Responder a manifestação da Ouvidoria sobre a espera na recepção", origem: "Acionada para a Recepção na segunda. O prazo do setor acaba hoje.", contexto: "Você é a titular do setor. A substituta também pode responder.", area: "Ouvidoria", acao: "Responder", destino: "a Tela do responsável, neste caso", fonte: "existe" },
+        { id: "b4", quando: 0, hora: "hoje", titulo: "Assinar a Ata da Reunião de Atendimento de 17/11", origem: "Enviada para assinatura ontem.", contexto: "Dois itens desta Ata são seus.", area: "Reuniões", acao: "Assinar", destino: "a Ata, na tela de assinatura", fonte: "existe" },
+        { id: "b5", quando: 2, titulo: "Enviar a escala de dezembro da Recepção", origem: "Pendência da Reunião de Atendimento de 17/11.", contexto: "Nasceu ontem, no envio da Ata para assinatura.", area: "Reuniões", acao: "Atualizar", destino: "a Pendência", fonte: "existe" },
+        { id: "b6", quando: 4, titulo: "Revisar o POP de cadastro de paciente", origem: "O POP está em revisão e a revisora é você.", contexto: "A elaboração terminou na sexta, 13/11.", area: "POPs", acao: "Abrir o POP", destino: "o POP, na revisão", fonte: "existe" }
+      ],
+      compromissos: [
+        { dia: "19", mes: "nov", titulo: "Reunião de Atendimento", detalhe: "quinta, 9h, sala 2" },
+        { dia: "25", mes: "nov", titulo: "Reunião de Gestão de Leitos", detalhe: "quarta, 15h, sala da Diretoria" }
+      ],
+      rotinas: [
+        { id: "r1", titulo: "Conferência de pulseiras na admissão", ciclo: "semanal", ok: false },
+        { id: "r2", titulo: "Checar os totens de senha", ciclo: "semanal", ok: true },
+        { id: "r3", titulo: "Ler as avaliações do QR da Recepção", ciclo: "semanal", ok: true },
+        { id: "r4", titulo: "Conferir o estoque de formulários", ciclo: "mensal", ok: false }
+      ],
+      fatos: null,
+      entregues: ["Manifestação sobre a fila do sábado respondida no prazo", "Pendência do cartaz de convênios concluída", "Três rotinas marcadas na semana passada"]
+    },
+    diretor: {
+      rotulo: "Diretor",
+      nome: "Benício",
+      cargo: "Diretor Executivo",
+      menu: ["Início", "Reuniões e metas", "Ouvidoria", "POPs", "Contas médicas", "Segurança do Paciente", "Admin"],
+      itens: [
+        { id: "c1", quando: -5, titulo: "Revisar e enviar para assinatura a Ata da Reunião de Diretoria de 10/11", origem: "Ata parada em validação. As Pendências dela ainda não nasceram.", contexto: "Sete ações esperam esta Ata para virar Pendência.", area: "Reuniões", acao: "Abrir a Ata", destino: "a Ata, na validação", fonte: "existe" },
+        { id: "c2", quando: 0, hora: "hoje", titulo: "Responder duas Contestações de item de Ata", origem: "Reunião de Gestão de Leitos de 12/11. As duas Pendências seguem cobradas.", contexto: "Ajustar ou recusar, com Anotação.", area: "Reuniões", acao: "Responder", destino: "as Contestações da Reunião", fonte: "prd" },
+        { id: "c3", quando: 0, hora: "hoje", titulo: "Validar o plano da Demanda sobre a escala da enfermagem", origem: "A Apresentação está pronta desde segunda.", contexto: "O trabalho só começa depois da sua validação.", area: "Tecnologia", acao: "Abrir o plano", destino: "a Demanda, na aba Tecnologia", fonte: "novo" },
+        { id: "c4", quando: 2, titulo: "Definir o orçamento de capacitação de 2027", origem: "Pendência sua, da Reunião de Diretoria de 03/11.", contexto: "Sua última anotação, em 10/11: aguardando o número do RH.", area: "Reuniões", acao: "Atualizar", destino: "a Pendência", fonte: "existe" },
+        { id: "c5", quando: 6, titulo: "Aprovar a revisão do Regimento do Núcleo", origem: "Documento do Núcleo de Segurança do Paciente.", contexto: "Revisão só de redação: não pede Termo novo.", area: "Segurança do Paciente", acao: "Abrir o documento", destino: "Documentos do Núcleo", fonte: "existe" }
+      ],
+      compromissos: [
+        { dia: "19", mes: "nov", titulo: "Reunião de Diretoria", detalhe: "quinta, 8h, sala da Diretoria" },
+        { dia: "24", mes: "nov", titulo: "Reunião ordinária do Núcleo", detalhe: "terça, 14h, sala da Diretoria" }
+      ],
+      rotinas: [
+        { id: "r1", titulo: "Ler o painel da Ouvidoria", ciclo: "semanal", ok: true },
+        { id: "r2", titulo: "Conversa com cada gerente", ciclo: "quinzenal, de 16 a 30/11", ok: false }
+      ],
+      fatos: null,
+      entregues: ["Ata da Reunião de Diretoria de 03/11 assinada por todos", "Quatro Pendências suas concluídas no prazo"],
+      liderados: [
+        { cargo: "Gerência de Enfermagem", nome: "Dalila", abertas: 11, atrasadas: 4, noPrazo: 9, fora: 6, rotinas: "2 de 5", acesso: "há 9 dias", sumido: true, vencidas: [["há 14 dias", "Dimensionar a equipe do 3º andar"], ["há 9 dias", "Plano de redução de quedas"], ["há 6 dias", "Escala do plantão de fim de ano"], ["há 2 dias", "Resposta ao relatório da comissão de curativos"]] },
+        { cargo: "Coordenação de Faturamento", nome: "Evaristo", abertas: 7, atrasadas: 2, noPrazo: 12, fora: 3, rotinas: "3 de 4", acesso: "ontem", sumido: false, vencidas: [["há 5 dias", "Reapresentar as glosas de outubro"], ["há 1 dia", "Conferir a tabela do convênio novo"]] },
+        { cargo: "Supervisão da Recepção", nome: "Quitéria", abertas: 5, atrasadas: 2, noPrazo: 14, fora: 2, rotinas: "2 de 4", acesso: "hoje", sumido: false, vencidas: [["há 9 dias", "Treinar a equipe da noite no novo fluxo de cadastro"], ["há 3 dias", "Verificação da conferência de pulseiras"]] },
+        { cargo: "Coordenação do Núcleo de Segurança do Paciente", nome: "Aurora", abertas: 8, atrasadas: 3, noPrazo: 16, fora: 4, rotinas: "1 de 3", acesso: "hoje", sumido: false, vencidas: [["há 12 dias", "Plano de treinamento de identificação do paciente"], ["há 3 dias", "Verificação da ronda de pulseiras"], ["há 2 dias", "Protocolo da notificação externa"]] },
+        { cargo: "Gerência Administrativa", nome: "Lázaro", abertas: 6, atrasadas: 0, noPrazo: 18, fora: 1, rotinas: "4 de 4", acesso: "hoje", sumido: false, vencidas: [] },
+        { cargo: "Coordenação da Farmácia", nome: "Mirtes", abertas: 3, atrasadas: 0, noPrazo: 7, fora: 0, rotinas: "0 de 3", acesso: "nunca entrou", sumido: true, vencidas: [] }
+      ]
+    }
+  };
+
+  var estado = { pessoa: "nsp", situacao: "atraso", ordem: "urgencia", movimento: "uma", fonte: false, feitos: {}, fichaAberta: null };
+
+  var CONTROLES = [
+    { chave: "pessoa", legenda: "Quem entrou", opcoes: [["nsp", "Coordenadora do NSP"], ["setor", "Supervisora de setor"], ["diretor", "Diretor"]] },
+    { chave: "situacao", legenda: "Situação", opcoes: [["atraso", "Com atraso"], ["emdia", "Em dia"]] },
+    { chave: "ordem", legenda: "Ordem", opcoes: [["urgencia", "Por urgência"], ["area", "Por área"]] },
+    { chave: "movimento", legenda: "Como chama atenção", opcoes: [["parado", "Parado"], ["uma", "Uma vez, ao abrir"], ["pisca", "Piscando"]] },
+    { chave: "fonte", legenda: "De onde vem o dado", opcoes: [[false, "Esconder"], [true, "Mostrar"]] }
+  ];
+
+  var EXTENSO = ["nenhum", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove", "dez"];
+  var DIAS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+
+  function el(tag, classe, texto) {
+    var e = document.createElement(tag);
+    if (classe) e.className = classe;
+    if (texto != null) e.textContent = texto;
+    return e;
+  }
+  function maiuscula(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+  function avisar(texto) { document.getElementById("aviso").textContent = texto; }
+
+  function itensDaPessoa() {
+    var p = PESSOAS[estado.pessoa];
+    return p.itens.filter(function (i) {
+      if (estado.feitos[estado.pessoa + i.id]) return false;
+      if (estado.situacao === "emdia") return i.quando > 0;
+      return true;
+    });
+  }
+
+  function quandoDoItem(i) {
+    if (i.quando < 0) return [String(-i.quando), -i.quando === 1 ? "dia de atraso" : "dias de atraso"];
+    if (i.quando === 0) return ["Hoje", i.hora && i.hora !== "hoje" ? i.hora : "vence hoje"];
+    var d = new Date(2026, 10, 18 + i.quando);
+    return [DIAS[d.getDay()], ("0" + d.getDate()).slice(-2) + "/" + (d.getMonth() + 1)];
+  }
+
+  function linhaDoItem(i, indice) {
+    var faixa = i.quando < 0 ? "vencido" : i.quando === 0 ? "hoje" : "semana";
+    var li = el("li", "item " + faixa);
+    li.style.setProperty("--i", indice);
+    var q = quandoDoItem(i);
+    var quando = el("div", "quando");
+    quando.appendChild(el("span", "q1", q[0]));
+    quando.appendChild(el("span", "q2", q[1]));
+    var oque = el("div", "oque");
+    var titulo = el("p", "titulo", i.titulo);
+    var f = FONTES[i.fonte];
+    titulo.appendChild(el("span", "fonte " + f[0], f[1]));
+    oque.appendChild(titulo);
+    oque.appendChild(el("p", "origem", i.origem));
+    oque.appendChild(el("p", "contexto", i.contexto));
+    var lado = el("div", "lado");
+    lado.appendChild(el("span", "area", i.area));
+    var botao = el("button", "acao", i.acao);
+    botao.type = "button";
+    botao.addEventListener("click", function () {
+      if (i.resolveAqui) {
+        estado.feitos[estado.pessoa + i.id] = true;
+        avisar("Verificação marcada como Realizada aqui mesmo, sem sair da tela. A frase e os números já mudaram.");
+        desenhar(false);
+      } else {
+        avisar("No app, este botão abre " + i.destino + ".");
+      }
+    });
+    lado.appendChild(botao);
+    li.appendChild(quando); li.appendChild(oque); li.appendChild(lado);
+    return li;
+  }
+
+  function grupo(titulo, itens, classe) {
+    var s = el("section", "grupo" + (classe ? " " + classe : ""));
+    var h = el("h2", null, titulo + " ");
+    h.appendChild(el("span", "n", String(itens.length)));
+    s.appendChild(h);
+    var ul = el("ul");
+    itens.forEach(function (i, n) { ul.appendChild(linhaDoItem(i, n)); });
+    s.appendChild(ul);
+    return s;
+  }
+
+  function desenharAbertura(p, itens) {
+    var vencidos = itens.filter(function (i) { return i.quando < 0; });
+    var hoje = itens.filter(function (i) { return i.quando === 0; });
+    var semana = itens.filter(function (i) { return i.quando > 0; });
+    var a = document.getElementById("abertura");
+    a.textContent = "";
+    a.className = "abertura" + (vencidos.length ? " com-atraso" : "");
+    var topo = el("div", "linha-topo");
+    topo.appendChild(el("h1", null, "Início"));
+    topo.appendChild(el("span", null, "quarta-feira, 18 de novembro de 2026"));
+    a.appendChild(topo);
+    var frase, apoio;
+    if (vencidos.length) {
+      var maior = Math.max.apply(null, vencidos.map(function (i) { return -i.quando; }));
+      frase = p.nome + ", " + (vencidos.length === 1 ? "um prazo seu venceu." : EXTENSO[vencidos.length] + " prazos seus venceram.");
+      apoio = (vencidos.length === 1 ? "Ele espera" : "O mais antigo espera") + " há " + maior + " dias. Comece por " + (vencidos.length === 1 ? "ele" : "eles") + (hoje.length ? ": hoje ainda " + (hoje.length === 1 ? "vence mais um." : "vencem mais " + EXTENSO[hoje.length] + ".") : ".");
+    } else if (hoje.length) {
+      frase = p.nome + ", nada atrasado.";
+      apoio = (hoje.length === 1 ? "Um prazo vence hoje." : maiuscula(EXTENSO[hoje.length]) + " prazos vencem hoje.");
+    } else {
+      frase = p.nome + ", você está em dia.";
+      apoio = semana.length ? "O próximo prazo é " + quandoDoItem(semana[0]).join(", ") + "." : "Nenhum prazo aberto no seu nome.";
+    }
+    a.appendChild(el("p", "frase", frase));
+    a.appendChild(el("p", "frase-apoio", apoio));
+    var resumo = el("div", "resumo");
+    [["vencidos", vencidos.length, vencidos.length === 1 ? "prazo vencido" : "prazos vencidos", "g-vencido"],
+     ["", hoje.length, hoje.length === 1 ? "vence hoje" : "vencem hoje", "g-hoje"],
+     ["", semana.length, "nos próximos 7 dias", "g-semana"]].forEach(function (r) {
+      var b = el("button", r[0]);
+      b.type = "button";
+      b.appendChild(el("b", null, String(r[1])));
+      b.appendChild(document.createTextNode(r[2]));
+      b.addEventListener("click", function () {
+        var alvo = document.getElementById(r[3]);
+        if (alvo) alvo.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      resumo.appendChild(b);
+    });
+    a.appendChild(resumo);
+    var conta = document.getElementById("aba-conta");
+    conta.textContent = String(vencidos.length);
+    conta.className = "conta" + (vencidos.length ? "" : " zero");
+  }
+
+  function desenharFila(p, itens) {
+    var fila = document.getElementById("fila");
+    fila.textContent = "";
+    if (estado.ordem === "area") {
+      var areas = [];
+      itens.forEach(function (i) { if (areas.indexOf(i.area) < 0) areas.push(i.area); });
+      areas.forEach(function (a) {
+        fila.appendChild(grupo(a, itens.filter(function (i) { return i.area === a; }), ""));
+      });
+    } else {
+      var faixas = [["Passou do prazo", function (i) { return i.quando < 0; }, "vencido", "g-vencido"],
+                    ["Hoje", function (i) { return i.quando === 0; }, "", "g-hoje"],
+                    ["Nos próximos 7 dias", function (i) { return i.quando > 0; }, "", "g-semana"]];
+      faixas.forEach(function (f) {
+        var doGrupo = itens.filter(f[1]).sort(function (x, y) { return x.quando - y.quando; });
+        if (!doGrupo.length) return;
+        var g = grupo(f[0], doGrupo, f[2]);
+        g.id = f[3];
+        fila.appendChild(g);
+      });
+    }
+    if (!itens.some(function (i) { return i.quando <= 0; })) {
+      var bom = el("div", "em-dia", "Nada vencido e nada para hoje.");
+      bom.appendChild(el("small", null, "Entregue nos últimos 7 dias:"));
+      var ul = el("ul");
+      p.entregues.forEach(function (t) {
+        var li = el("li", null, t);
+        li.style.cssText = "font-size:var(--t-15);color:var(--tinta);padding-top:6px";
+        ul.appendChild(li);
+      });
+      bom.appendChild(ul);
+      fila.insertBefore(bom, fila.firstChild);
+    }
+  }
+
+  function desenharTrilho(p) {
+    var t = document.getElementById("trilho");
+    t.textContent = "";
+    var ag = el("section", "painel");
+    ag.appendChild(el("h3", null, "Suas próximas reuniões"));
+    p.compromissos.forEach(function (c) {
+      var linha = el("div", "compromisso");
+      var bloco = el("div", "data-bloco");
+      bloco.appendChild(el("b", null, c.dia)); bloco.appendChild(el("span", null, c.mes));
+      var txt = el("div");
+      txt.appendChild(el("p", null, c.titulo)); txt.appendChild(el("small", null, c.detalhe));
+      linha.appendChild(bloco); linha.appendChild(txt);
+      ag.appendChild(linha);
+    });
+    t.appendChild(ag);
+
+    var rot = el("section", "painel");
+    var feitas = p.rotinas.filter(function (r) { return r.ok; }).length;
+    rot.appendChild(el("h3", null, "Rotinas deste ciclo, " + feitas + " de " + p.rotinas.length));
+    var prog = el("div", "progresso");
+    var barra = el("i"); barra.style.width = Math.round(100 * feitas / p.rotinas.length) + "%";
+    prog.appendChild(barra); rot.appendChild(prog);
+    p.rotinas.forEach(function (r) {
+      var linha = el("div", "rotina" + (r.ok ? " ok" : ""));
+      var txt = el("p", null, r.titulo);
+      txt.appendChild(el("small", null, r.ciclo));
+      var b = el("button", null, r.ok ? "Realizada" : "Marcar realizada");
+      b.type = "button";
+      b.addEventListener("click", function () {
+        r.ok = !r.ok;
+        avisar(r.ok ? "Realizada é um clique, aqui mesmo. Não realizada abriria a Anotação." : "Desmarcada (só no protótipo).");
+        desenharTrilho(p);
+      });
+      linha.appendChild(txt); linha.appendChild(b);
+      rot.appendChild(linha);
+    });
+    t.appendChild(rot);
+
+    if (p.fatos) {
+      var f = el("section", "painel");
+      f.appendChild(el("h3", null, p.fatos.titulo));
+      p.fatos.linhas.forEach(function (l) {
+        var linha = el("div", "fato");
+        linha.appendChild(el("span", null, l[0])); linha.appendChild(el("b", null, l[1]));
+        f.appendChild(linha);
+      });
+      t.appendChild(f);
+    }
+  }
+
+  function desenharLiderados(p) {
+    var s = document.getElementById("liderados");
+    s.textContent = "";
+    s.hidden = !p.liderados;
+    if (!p.liderados) return;
+    var h = el("h2", null, "Quem responde a você ");
+    h.appendChild(el("span", "nota", "Os últimos 30 dias. Clique numa linha para abrir a ficha da conversa."));
+    s.appendChild(h);
+    var rol = el("div", "rolagem");
+    var tabela = el("table");
+    var thead = el("thead"); var tr = el("tr");
+    ["Pessoa", "Vencidos", "Em aberto", "Entregas em 30 dias", "Rotinas do ciclo", "Último acesso"].forEach(function (c) { tr.appendChild(el("th", null, c)); });
+    thead.appendChild(tr); tabela.appendChild(thead);
+    var tbody = el("tbody");
+    p.liderados.slice().sort(function (a, b) { return b.atrasadas - a.atrasadas; }).forEach(function (l) {
+      var linha = el("tr", "pessoa");
+      linha.tabIndex = 0;
+      var td1 = el("td"); td1.appendChild(el("span", "cargo", l.cargo)); td1.appendChild(el("span", "nome", l.nome));
+      var td2 = el("td", "num-atraso" + (l.atrasadas ? "" : " zero"), l.atrasadas ? String(l.atrasadas) : "nenhum");
+      var td3 = el("td", null, String(l.abertas));
+      var td4 = el("td");
+      var barra = el("div", "barra");
+      var total = l.noPrazo + l.fora || 1;
+      var b1 = el("i", "no-prazo"); b1.style.width = (100 * l.noPrazo / total) + "%";
+      var b2 = el("i", "fora"); b2.style.width = (100 * l.fora / total) + "%";
+      barra.appendChild(b1); barra.appendChild(b2);
+      td4.appendChild(barra);
+      td4.appendChild(el("div", "barra-legenda", l.noPrazo + " no prazo, " + l.fora + " fora do prazo"));
+      var td5 = el("td", null, l.rotinas);
+      var td6 = el("td", "acesso" + (l.sumido ? " sumido" : ""), l.acesso);
+      td6.appendChild(el("span", "fonte novo", FONTES.novo[1]));
+      [td1, td2, td3, td4, td5, td6].forEach(function (td) { linha.appendChild(td); });
+      function alternar() {
+        estado.fichaAberta = estado.fichaAberta === l.cargo ? null : l.cargo;
+        desenharLiderados(p);
+      }
+      linha.addEventListener("click", alternar);
+      linha.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); alternar(); } });
+      tbody.appendChild(linha);
+      if (estado.fichaAberta === l.cargo) {
+        var fl = el("tr", "ficha"); var td = el("td"); td.colSpan = 6;
+        td.appendChild(el("h3", null, l.vencidas.length ? "O que venceu e não foi entregue" : "Nada vencido"));
+        var ul = el("ul");
+        l.vencidas.forEach(function (v) {
+          var li = el("li"); li.appendChild(el("span", null, v[0])); li.appendChild(el("span", null, v[1])); ul.appendChild(li);
+        });
+        td.appendChild(ul);
+        if (l.sumido) td.appendChild(el("p", "barra-legenda", "Último acesso: " + l.acesso + "."));
+        fl.appendChild(td); tbody.appendChild(fl);
+      }
+    });
+    tabela.appendChild(tbody); rol.appendChild(tabela); s.appendChild(rol);
+  }
+
+  function desenharMenu(p) {
+    var m = document.getElementById("menu");
+    m.textContent = "";
+    var marca = el("div", "marca", "Hospital São Matheus");
+    marca.appendChild(el("small", null, p.cargo));
+    m.appendChild(marca);
+    p.menu.forEach(function (rotulo, n) {
+      var a = el("a", null, rotulo);
+      a.href = "#";
+      if (n === 0) a.setAttribute("aria-current", "page");
+      a.addEventListener("click", function (e) { e.preventDefault(); });
+      m.appendChild(a);
+    });
+  }
+
+  function desenharControles() {
+    var c = document.getElementById("controles");
+    c.textContent = "";
+    CONTROLES.forEach(function (ctl) {
+      var fs = el("fieldset");
+      fs.appendChild(el("legend", null, ctl.legenda));
+      var seg = el("div", "seg");
+      ctl.opcoes.forEach(function (o) {
+        var b = el("button", null, o[1]);
+        b.type = "button";
+        b.setAttribute("aria-pressed", String(estado[ctl.chave] === o[0]));
+        b.addEventListener("click", function () {
+          estado[ctl.chave] = o[0];
+          if (ctl.chave === "pessoa" || ctl.chave === "situacao") { estado.feitos = {}; estado.fichaAberta = null; }
+          desenhar(true);
+        });
+        seg.appendChild(b);
+      });
+      fs.appendChild(seg);
+      c.appendChild(fs);
+    });
+  }
+
+  function desenhar(redesenharControles) {
+    var p = PESSOAS[estado.pessoa];
+    var itens = itensDaPessoa();
+    var raiz = document.getElementById("raiz");
+    raiz.className = "moldura mov-" + estado.movimento + (estado.fonte ? " mostra-fonte" : "");
+    desenharMenu(p);
+    desenharAbertura(p, itens);
+    desenharFila(p, itens);
+    desenharTrilho(p);
+    desenharLiderados(p);
+    if (redesenharControles) desenharControles();
+  }
+
+  desenhar(true);
+})();
+</script>
