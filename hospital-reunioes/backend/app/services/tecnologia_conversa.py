@@ -51,6 +51,13 @@ def desenvolvedor_do_login(supabase, login: str | None) -> dict[str, Any] | None
     return next((p for p in result.data or [] if p.get("ativo") is not False and e_desenvolvedor(p)), None)
 
 
+def e_participante_ativo(supabase, participante_id: str) -> bool:
+    """O Destinatário da mensagem pela ponte (ADR 0106) existe e está ativo.
+    A ponte recusa antes de gravar: a mensagem nunca some num aviso sem dono."""
+    result = selecionar_participantes(supabase, "id, ativo", lambda q: q.eq("id", participante_id))
+    return any(p.get("ativo") is not False for p in result.data or [])
+
+
 def _destinatarios(
     supabase,
     demanda: dict[str, Any],

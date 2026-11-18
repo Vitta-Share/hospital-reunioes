@@ -28,6 +28,7 @@ from app.services.tecnologia import TABELA_DEMANDAS
 # O detail nunca ecoa o login: a resposta nao confirma quem esta no cadastro.
 MOTIVO_LOGIN_RECUSADO = "Este login do GitHub não é de um Desenvolvedor ativo no aplicativo."
 MOTIVO_DEMANDA_NAO_ENCONTRADA = "Demanda não encontrada."
+MOTIVO_DESTINATARIO_RECUSADO = "O Destinatário não é um participante ativo do aplicativo."
 
 
 @limiter.limit("60/minute")
@@ -106,13 +107,16 @@ def escrever_pelo_terminal(
     if not texto:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="A mensagem está vazia.")
     demanda = _demanda_ou_404(supabase, id=str(demanda_id))
+    destinatario_id = str(payload.destinatario_id) if payload.destinatario_id else None
+    if destinatario_id and not tecnologia_conversa.e_participante_ativo(supabase, destinatario_id):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=MOTIVO_DESTINATARIO_RECUSADO)
     linha = tecnologia_conversa.escrever(
         supabase,
         demanda,
         autor=autor,
         texto=texto,
         origem=tecnologia_conversa.ORIGEM_TERMINAL,
-        destinatario_id=str(payload.destinatario_id) if payload.destinatario_id else None,
+        destinatario_id=destinatario_id,
     )
     return {"id": str(linha["id"]), "criado_em": linha.get("criado_em")}
 

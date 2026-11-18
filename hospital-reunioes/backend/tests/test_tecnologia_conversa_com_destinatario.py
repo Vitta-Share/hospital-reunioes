@@ -132,3 +132,34 @@ class TestODestinatario:
         assert resposta.status_code == 201, resposta.text
         assert _avisados(sb) == [GESTORA["id"]]
         assert [e["para"] for e in emails] == [GESTORA["email"]]
+
+    def test_sem_destinatario_o_aviso_segue_a_regra_de_hoje(self, emails):
+        """ADR 0096, decisão 4: no card da Vitta, a diretoria ativa."""
+        cliente, sb = _cliente(_demanda_da_vitta())
+
+        resposta = _escrever(cliente)
+
+        assert resposta.status_code == 201, resposta.text
+        assert _avisados(sb) == sorted([DIRETOR["id"], DIRETORA["id"]])
+        assert {n["titulo"] for n in sb.tabelas["notificacoes"]} == {"Pedro Rezende escreveu na Demanda"}
+        assert {e["assunto"] for e in emails} == {"Pedro Rezende escreveu na Demanda: O relatório some"}
+
+    @pytest.mark.parametrize("destinatario", [DESLIGADO["id"], NINGUEM], ids=["inativo", "inexistente"])
+    def test_destinatario_inativo_ou_inexistente_recusa_com_motivo_sem_gravar(self, destinatario, emails):
+        cliente, sb = _cliente()
+
+        resposta = _escrever(cliente, destinatario_id=destinatario)
+
+        assert resposta.status_code == 422
+        assert resposta.json() == {"detail": "O Destinatário não é um participante ativo do aplicativo."}
+        assert sb.tabelas["tecnologia_conversa_da_demanda"] == []
+        assert _avisados(sb) == []
+        assert emails == []
+
+    def test_destinatario_que_nao_e_uuid_responde_422_sem_gravar(self):
+        cliente, sb = _cliente()
+
+        resposta = _escrever(cliente, destinatario_id="nao-e-uuid")
+
+        assert resposta.status_code == 422
+        assert sb.tabelas["tecnologia_conversa_da_demanda"] == []
