@@ -2,6 +2,52 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-18T16:27:21-03:00",
+      "sha": "faae2263aef3ffb9328f4c911e1b38a334d0ebef",
+      "app_version": "0.307.0",
+      "subject": "Onda custo-ia: Retirar a Prova da regra",
+      "raw_subject": "chore(deploy): registro da onda custo-ia (#1924)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [],
+      "result": "healthy",
+      "duration_seconds": 333,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta custo-ia: PR #1924 (issue #1920), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 26,
+          "frontend": 300
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-17T12:11:23-03:00",
       "sha": "abf82554d7808f857bac9224160f9b9d2509aef8",
       "app_version": "0.306.2",
