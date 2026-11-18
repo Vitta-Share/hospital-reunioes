@@ -2,6 +2,51 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-18T20:58:56-03:00",
+      "sha": "c7e8dd0999fb742950a12b88aa4d3ff55fa8bec1",
+      "app_version": "0.311.1",
+      "subject": "Onda conversa-destinatario-1964-onda2: Tecnologia ensina a responder uma pergunta da Vitta e o pedido de projeto novo",
+      "raw_subject": "chore(deploy): registro da onda conversa-destinatario-1964-onda2 (#1977)",
+      "scope": [
+        "frontend"
+      ],
+      "prds": [
+        1964
+      ],
+      "result": "healthy",
+      "duration_seconds": 199,
+      "services_touched": [
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta conversa-destinatario-1964-onda2: PR #1977 (issue #1968), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "frontend": 180
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-18T20:32:48-03:00",
       "sha": "92f1ffe38e70a8933efe03b130834b6b4f84646f",
       "app_version": "0.311.0",
