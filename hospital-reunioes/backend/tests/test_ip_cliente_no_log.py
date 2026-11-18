@@ -425,6 +425,9 @@ SEM_ANONIMATO_A_PROTEGER = {
     # A resposta do diretor lida pela ponte (issue #1806, ADR 0096, decisão 6):
     # mesma chave de máquina, quem chega é a sessão do terminal.
     "GET /api/automacao/tecnologia/demandas/{demanda_id}/conversa",
+    # Os destinatários da Vitta (issue #1966, PRD #1964): mesma chave de
+    # máquina, quem chega é o PedroOS escolhendo o Canal, não um visitante.
+    "GET /api/automacao/tecnologia/destinatarios",
     # O conector MCP da Central (ADR 0058, decisões 3 e 4). O transporte exige o
     # token OAuth do WorkOS (Super admin), não o login do app, então o schema não
     # o marca com `security`; e o metadata é documento público de descoberta
