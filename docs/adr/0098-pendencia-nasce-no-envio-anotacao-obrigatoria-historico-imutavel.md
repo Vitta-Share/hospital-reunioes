@@ -1,6 +1,7 @@
 ---
 status: accepted
 amends: 0030, 0011
+amended_by: 0104
 ---
 
 # Pendência nasce no envio para assinatura, toda mudança pede anotação e o histórico não se apaga
