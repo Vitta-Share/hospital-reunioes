@@ -101,7 +101,7 @@ class Filtros:
     tipo: Literal["bug", "melhoria"] | None = None
     origem: Literal["diretor", "vitta"] | None = None
     responsavel: str | None = None
-    projeto: Literal["hospital", "ana"] | None = None
+    projeto: str | None = None
 
     def deixa(self, demanda: dict[str, Any]) -> bool:
         return (

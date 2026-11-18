@@ -165,6 +165,29 @@ def projeto_da_demanda(demanda: dict[str, Any]) -> str:
     return str(demanda.get("projeto") or "").strip() or PROJETO_HOSPITAL
 
 
+# O nome do Projeto como a tela o mostra (ADR 0093, decisao 8). O Projeto novo
+# (issue #1967) traz o nome dele na coluna `projeto_nome`, que a ponte grava.
+NOME_DO_PROJETO: dict[str, str] = {PROJETO_HOSPITAL: "Aplicativo do Hospital", PROJETO_ANA: "Ana"}
+
+
+def nome_do_projeto(demanda: dict[str, Any]) -> str:
+    """O nome do Projeto da Demanda: o fixo do Hospital e da Ana, o gravado
+    pela ponte no Projeto novo, ou o proprio valor na falta dos dois."""
+    projeto = projeto_da_demanda(demanda)
+    return NOME_DO_PROJETO.get(projeto) or str(demanda.get("projeto_nome") or "").strip() or projeto
+
+
+def projetos_do_filtro(demandas: Sequence[dict[str, Any]]) -> list[dict[str, str]]:
+    """As opcoes do filtro Projeto (issue #1967): o Hospital e a Ana, sempre,
+    e cada Projeto novo que tem Demanda, pelo nome. Quem chama passa as
+    Demandas sem a lapide."""
+    opcoes = {projeto: nome for projeto, nome in NOME_DO_PROJETO.items()}
+    novos = {projeto_da_demanda(d): nome_do_projeto(d) for d in demandas if projeto_da_demanda(d) not in opcoes}
+    for projeto in sorted(novos, key=lambda p: novos[p].casefold()):
+        opcoes[projeto] = novos[projeto]
+    return [{"valor": projeto, "nome": nome} for projeto, nome in opcoes.items()]
+
+
 def pode_ver(pessoa: dict[str, Any], demanda: dict[str, Any]) -> bool:
     """Quem ve uma Demanda: o autor, o Desenvolvedor, que ve todas (ADR 0083),
     e todo Super admin no card de Origem Vitta, aberto pelo terminal (ADR 0084,

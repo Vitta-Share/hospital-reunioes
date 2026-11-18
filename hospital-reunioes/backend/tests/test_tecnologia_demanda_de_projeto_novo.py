@@ -25,6 +25,11 @@ from slowapi.errors import RateLimitExceeded
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from test_tecnologia_chat import _cenario  # noqa: E402
+from test_tecnologia_entregas import AGORA  # noqa: E402
+from test_tecnologia_vinculo import BASE as BASE_DA_ABA  # noqa: E402
+from test_tecnologia_vinculo import DIRETOR as DIRETOR_DA_ABA  # noqa: E402
+from test_tecnologia_vinculo import PEDRO as PEDRO_DA_ABA  # noqa: E402
 from test_tecnologia_vinculo import _demanda, _pessoa, _SupabaseMock  # noqa: E402
 from test_tecnologia_webhook_github import _demanda as _demanda_do_webhook  # noqa: E402
 from test_tecnologia_webhook_github import _GithubFalso as _GithubDoWebhook  # noqa: E402
@@ -35,6 +40,7 @@ from app.config import settings  # noqa: E402
 from app.dependencies import get_supabase_client  # noqa: E402
 from app.limiter import limiter  # noqa: E402
 from app.routers import tecnologia_automacao  # noqa: E402
+from app.routers.admin import tecnologia as tecnologia_router  # noqa: E402
 from app.services import github_client, tecnologia, tecnologia_email, tecnologia_sincronizacao  # noqa: E402
 
 CHAVE = "chave-de-automacao-do-teste-1967"
@@ -308,3 +314,82 @@ class TestAMigracao163:
     def test_a_migration_grava_o_recibo_163_por_ultimo(self, sql):
         instrucoes = [i.strip() for i in sql.split(";") if i.strip()]
         assert instrucoes[-1] == "INSERT INTO migracoes_aplicadas (numero) VALUES (163) ON CONFLICT (numero) DO NOTHING"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# O filtro Projeto do Quadro e das Entregas
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _demandas_da_aba() -> list[dict]:
+    """Uma do Hospital, uma da Ana e a do PedroOS que a ponte criou, mais uma
+    lapide de outro Projeto novo, que nao conta como Projeto com Demanda."""
+    do_os = _a_demanda_criada_pela_ponte()
+    return [
+        {**do_os, "id": "d-os", "criado_em": "2026-11-18T10:00:00Z"},
+        _demanda("d-hospital", github_issue_numero=51, autor_id=DIRETOR_DA_ABA["id"], criado_em="2026-11-04T10:00:00Z"),
+        _demanda("d-ana", projeto="ana", origem="vitta", github_issue_numero=50, criado_em="2026-11-03T10:00:00Z"),
+        _demanda(
+            "d-apagada",
+            projeto="site",
+            projeto_nome="Site",
+            origem="vitta",
+            github_issue_numero=3,
+            apagada_em="2026-11-10T10:00:00Z",
+        ),
+    ]
+
+
+@pytest.fixture
+def aba(monkeypatch):
+    monkeypatch.setattr(tecnologia_router, "agora_utc", lambda: AGORA)
+
+    def pedir(rota: str, logado: dict | None = None):
+        client, _, _ = _cenario(
+            monkeypatch,
+            logado=logado or DIRETOR_DA_ABA,
+            participantes=[PEDRO_DA_ABA, DIRETOR_DA_ABA],
+            demandas=_demandas_da_aba(),
+        )
+        return client.get(rota)
+
+    return pedir
+
+
+class TestOFiltroProjeto:
+    def test_a_lista_de_projetos_do_filtro_traz_o_projeto_novo_pelo_nome(self, aba):
+        resposta = aba(f"{BASE_DA_ABA}/projetos")
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json() == [
+            {"valor": "hospital", "nome": "Aplicativo do Hospital"},
+            {"valor": "ana", "nome": "Ana"},
+            {"valor": "os", "nome": "PedroOS"},
+        ]
+
+    def test_o_quadro_filtra_pelo_projeto_novo(self, aba):
+        resposta = aba(f"{BASE_DA_ABA}/chat?projeto=os")
+
+        assert resposta.status_code == 200, resposta.text
+        assert [d["id"] for d in resposta.json()] == ["d-os"]
+
+    @pytest.mark.parametrize("logado", ["diretor", "desenvolvedor"])
+    def test_o_card_do_projeto_novo_mostra_o_nome_do_projeto_e_o_link_do_prd(self, aba, logado):
+        resposta = aba(f"{BASE_DA_ABA}/chat?filtro=todas", DIRETOR_DA_ABA if logado == "diretor" else PEDRO_DA_ABA)
+
+        cards = {d["id"]: d for d in resposta.json()}
+        assert (cards["d-os"]["projeto"], cards["d-os"]["projeto_nome"]) == ("os", "PedroOS")
+        assert cards["d-os"]["raiz_url"] == LINK_DO_PRD
+        assert (cards["d-hospital"]["projeto_nome"], cards["d-hospital"]["raiz_url"]) == (
+            "Aplicativo do Hospital",
+            None,
+        )
+
+    def test_as_entregas_aceitam_o_filtro_do_projeto_novo(self, aba):
+        resposta = aba(f"{BASE_DA_ABA}/entregas?projeto=os", PEDRO_DA_ABA)
+
+        assert resposta.status_code == 200, resposta.text
+
+    def test_projeto_fora_do_formato_e_recusado(self, aba):
+        assert aba(f"{BASE_DA_ABA}/chat?projeto=Outro%20projeto").status_code == 422
+        assert aba(f"{BASE_DA_ABA}/entregas?projeto=Outro%20projeto", PEDRO_DA_ABA).status_code == 422

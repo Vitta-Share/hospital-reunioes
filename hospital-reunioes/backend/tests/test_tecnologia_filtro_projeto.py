@@ -109,8 +109,10 @@ class TestFiltroProjeto:
     def test_o_projeto_combina_com_os_outros_filtros(self, lista, consulta, esperado):
         assert _ids(lista(PEDRO, consulta)) == esperado
 
-    def test_projeto_desconhecido_e_recusado(self, lista):
-        assert lista(DIRETOR, "projeto=outro").status_code == 422
+    def test_projeto_fora_do_formato_e_recusado(self, lista):
+        """Desde a issue #1967 o filtro aceita Projeto novo (o PedroOS); o
+        nome fora do formato da migration 163 segue recusado."""
+        assert lista(DIRETOR, "projeto=Outro%20projeto").status_code == 422
 
 
 class TestProjetoDeCadaDemanda:

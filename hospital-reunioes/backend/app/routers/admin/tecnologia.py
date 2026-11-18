@@ -87,7 +87,7 @@ import unicodedata
 from datetime import UTC, date, datetime
 from typing import Literal, NoReturn
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile, status
 from supabase import Client
 
 from app.config import settings
@@ -129,6 +129,7 @@ from app.services import (
     tecnologia_sincronizacao,
 )
 from app.services.conhecimento import carregar_kit
+from app.services.github_client import FORMATO_DO_PROJETO
 from app.services.mencoes import extrair_mencoes
 from app.services.notificacao_service import criar_notificacao_tecnologia
 from app.services.tecnologia import (
@@ -143,9 +144,11 @@ from app.services.tecnologia import (
     entregue_na_data,
     instante_do_banco,
     login_do_responsavel,
+    nome_do_projeto,
     origem_da_demanda,
     pode_ver,
     projeto_da_demanda,
+    projetos_do_filtro,
     recusa_de_apagar,
     recusa_de_revisar,
     responsavel_da_demanda,
@@ -236,6 +239,7 @@ def _para_a_lista(supabase: Client, demandas: list[dict], *, ator: dict) -> list
             "pode_apagar": recusa_de_apagar(ator, d) is None,
             "origem": origem_da_demanda(d),
             "projeto": projeto_da_demanda(d),
+            "projeto_nome": nome_do_projeto(d),
             **_revisao_na_lista(ator, d, conversas.get(str(d["id"]))),
         }
         for d in demandas
@@ -296,10 +300,13 @@ def _nomes(supabase: Client, ids: set) -> dict[str, str]:
 def _url_da_issue(demanda: dict) -> str | None:
     """O endereco da issue-raiz: o que a foto do GitHub guardou, ou o montado
     pelo numero quando a foto ainda nao veio, no repositorio do Projeto da
-    Demanda (issue #1713)."""
+    Demanda (issue #1713). O Projeto novo (issue #1967) nao tem repositorio
+    configurado: o endereco e o link do PRD que a ponte gravou."""
     numero = demanda.get("github_issue_numero")
     if not numero:
         return None
+    if demanda.get("raiz_url"):
+        return str(demanda["raiz_url"])
     foto = demanda.get("github_foto")
     if isinstance(foto, dict) and foto.get("url"):
         return str(foto["url"])
@@ -743,6 +750,18 @@ def _sem_acento(texto: str) -> str:
     return "".join(c for c in decomposto if unicodedata.category(c) != "Mn").casefold()
 
 
+@router.get("/projetos")
+async def listar_os_projetos(
+    _ator: dict = Depends(require_super_admin),
+    supabase: Client = Depends(get_supabase_client),
+) -> list[dict[str, str]]:
+    """As opcoes do filtro Projeto do Quadro e das Entregas (issue #1967): o
+    Aplicativo do Hospital e a Ana, sempre, e cada Projeto novo que tem
+    Demanda, pelo nome. A lapide do Apagar nao conta."""
+    result = supabase.table(TABELA_DEMANDAS).select("projeto, projeto_nome").is_("apagada_em", "null").execute()
+    return projetos_do_filtro(result.data or [])
+
+
 @router.get("/chat", response_model=list[DemandaResponse])
 async def listar_as_conversas(
     filtro: Literal["minhas", "todas", "para_mim"] = "minhas",
@@ -752,7 +771,7 @@ async def listar_as_conversas(
     responsavel: str | None = None,
     envio_falhou: bool = False,
     origem: Literal["diretor", "vitta"] | None = None,
-    projeto: Literal["hospital", "ana"] | None = None,
+    projeto: str | None = Query(default=None, pattern=FORMATO_DO_PROJETO),
     ator: dict = Depends(require_super_admin),
     supabase: Client = Depends(get_supabase_client),
 ):
@@ -830,8 +849,10 @@ _SO_DO_DESENVOLVEDOR_NAS_ENTREGAS = {
     "designacao_falhou": False,
     "autor": None,
     # O numero da raiz, que o Documento do card mostra a todos (issue #1902):
-    # as Entregas continuam sem numero de issue nenhum.
+    # as Entregas continuam sem numero de issue nenhum, nem o link do PRD do
+    # Projeto novo (issue #1967).
     "raiz_numero": None,
+    "raiz_url": None,
 }
 
 
@@ -846,7 +867,7 @@ async def listar_as_entregas(
     tipo: Literal["bug", "melhoria"] | None = None,
     origem: Literal["diretor", "vitta"] | None = None,
     responsavel: str | None = None,
-    projeto: Literal["hospital", "ana"] | None = None,
+    projeto: str | None = Query(default=None, pattern=FORMATO_DO_PROJETO),
     corte: date | None = None,
     ator: dict = Depends(require_super_admin),
     supabase: Client = Depends(get_supabase_client),
