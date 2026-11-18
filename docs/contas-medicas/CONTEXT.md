@@ -7,7 +7,7 @@ Confere a conta hospitalar de internação antes do envio à operadora: a faturi
 ## Atendimento, conta e prontuário
 
 **Atendimento**:
-Número da internação no MV. É a identificação principal de tudo no módulo: a faturista nunca digita, o sistema lê dos PDFs e pareia por ele. Um Atendimento tem um Prontuário e uma ou mais Contas.
+Número da internação no MV. É a identificação principal de tudo no módulo: a faturista nunca digita, o sistema lê dos PDFs e pareia por ele. Um Atendimento tem um Prontuário e uma ou mais Contas. Na tela aparece só o número, seguido do rótulo do paciente ("302775 Antônia F."), sem a palavra "Atendimento" na frente de cada um; a busca da tela de contas é por esse número.
 _Evitar_: internação (como identificador), número da conta (como identificador). **Homônimo**: "Dados do Atendimento" no contexto Reuniões é o módulo das tabelas que alimentam a Ana; não é este Atendimento.
 
 **Conta**:
@@ -121,8 +121,12 @@ Remoção, antes de qualquer envio à IA e de qualquer gravação em banco, do n
 ## Guia e trabalho da faturista
 
 **Guia**:
-Lista de Linhas que o módulo entrega para uma Conta, agrupada por dia e setor, com três números no topo: Nota de entrada, R$ a ajustar, Itens feitos. Funciona a 720 px, ao lado do MV. Vai direto para a faturista, sem validador humano antes.
+Lista de Linhas que o módulo entrega para uma Conta, agrupada por dia e setor, com três números no topo: Nota de entrada, R$ a ajustar, Itens feitos. É desenhado para um monitor inteiro, com o MV aberto no outro: a lista de todas as Linhas fica de um lado e o [Item da vez] do outro; em tela estreita a lista vai para cima do item. Vai direto para a faturista, sem validador humano antes.
 _Evitar_: parecer, relatório, auditoria.
+
+**Item da vez**:
+A Linha em que a faturista está, mostrada grande: o verbo, o nome do item, o código que copia com um clique, a quantidade, quando, o valor, o motivo e a Evidência, com Feito, Não procede e Bloqueado embaixo. O Feito continua manual, um item por vez: ela lança no MV e marca aqui.
+_Evitar_: marcar Feito em lote por agente.
 
 **Linha**:
 Uma ação sobre um item da Conta, com verbo na frente: **Incluir**, **Ajustar quantidade**, **Retirar**, **Corrigir preço** (só o código gera) ou **Validar**. Item diário repetido vira uma Linha só, com data e data fim. Toda Linha tem origem (código ou IA), Regra, Evidência, causa-raiz e confiança.
@@ -132,6 +136,21 @@ Aberta → **Feito** (conta para a produção), **Não procede** (com motivo: j�
 
 **Situação da Conta**:
 Aguardando arquivo → Na fila → Processando → A fazer (Guia pronto) → Em correção → Concluída ou Concluída com pendência; mais **Retorno** (a Validação decidiu uma Linha de Conta já concluída) e **Erro** (a análise não terminou, com motivo em uma frase, Código do erro e a ação que resolve: "Analisar de novo" ou "Enviar de novo").
+
+**Esteira**:
+As etapas por onde a Conta passa na tela de contas, cada uma com a sua contagem: Envios, Fila, Em análise, Concluídas e Arquivadas. É o que a faturista limpa a cada ciclo do mês.
+
+**Competência**:
+O mês a que a Conta pertence para o faturamento: o mês do fim do período da Conta. A Conta sem período cai no mês em que foi concluída. As Concluídas e as Arquivadas aparecem agrupadas por Competência (a confirmar com o diretor).
+_Evitar_: usar o mês do envio.
+
+**Arquivar**:
+Tirar da [Esteira] a Conta Concluída ou Concluída com pendência que já foi tratada no MV, uma a uma ou todas de uma [Competência]. A faturista arquiva as dela; quem tem "painel completo" arquiva qualquer uma. A Conta arquivada continua no Painel, aparece na busca e pode ser desarquivada; se a Validação devolver uma Linha dela (Retorno), ela volta sozinha para a Esteira.
+_Evitar_: tratar como Descartar, que apaga; arquivar Conta que ainda não foi lançada no MV.
+
+**Legenda**:
+A frase curta ao lado de um controle ou de uma etapa que diz o que ele faz, para quem chega usar o módulo sem assistir a nada. Vem ligada; cada pessoa pode desligar as dela. O que não cabe numa frase fica na dica que aparece ao passar o mouse.
+_Evitar_: tour, vídeo ou tela de ajuda separada como única explicação.
 
 **Causa-raiz**:
 Onde o problema nasce e quem corrige: **Dispensação** (farmácia e enfermagem), **Regra automática** (TI e consultoria MV), **Cadastro e preço** (credenciamento e cadastro), **Registro assistencial** (enfermagem e corpo clínico), **Lançamento manual** (faturamento). A IA propõe; o código sobrepõe nos casos óbvios (toda Linha de diária, de preço e Bloqueado).
@@ -183,7 +202,7 @@ Contas concluídas, R$ incluído (diferenças positivas das Linhas Feito), R$ re
 
 Eixo próprio `perfil_contas_medicas` em `participantes`, ortogonal aos eixos de Reuniões, POPs e Ouvidoria. O perfil é um conjunto inicial de **permissões** (enviar e corrigir contas, decidir na validação, incluir regra operacional, regra contratual e tabelas, contratos e avisos, painel completo, habilitar pessoas, conferência da coordenação); a tela de Habilitação liga e desliga cada uma por perfil. Quem não tem a permissão não vê o item no menu, e rota e API recusam (403).
 
-**Faturista**: envia e analisa Contas. A Fila é comum: a conta livre ganha dona quando uma faturista abre o Guia dela (puxa a conta), e a dona pode devolver à fila a conta Em correção. Vê a Fila, as que puxou ("Minhas"), os próprios envios e, no Painel, só a produção das contas que concluiu (ADR 0073).
+**Faturista**: envia e analisa Contas. A Fila é comum: a conta livre ganha dona quando uma faturista abre o Guia dela (puxa a conta), e a dona pode devolver à fila a conta Em correção. Vê a Esteira inteira, com o nome de quem está com cada conta, filtra por "Minhas", abre só as dela, arquiva as dela e, no Painel, vê só a produção das contas que concluiu (ADR 0073).
 **Apoio ao faturamento**: só envia Contas e acompanha os próprios envios até a conta ficar pronta; não analisa. Nome de tela a confirmar com o diretor (ADR 0073).
 **Coordenadora de faturamento**: faturista mais Painel completo e Conferência da coordenação.
 **Responsável por gestão de contas médicas**: tudo menos habilitar pessoas.
