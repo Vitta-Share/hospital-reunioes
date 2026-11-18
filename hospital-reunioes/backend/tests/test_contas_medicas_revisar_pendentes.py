@@ -2,7 +2,7 @@
 
 Na conversa da Operadora, "revisar pendentes" monta um lote com todas as
 Regras pendentes dela, cada uma com a decisão que o Auditor sugere (validar,
-alterar ou descartar) e a Prova da regra. O "ok" aplica o lote numa versão
+alterar ou descartar), sem refazer Contas (issue #1920). O "ok" aplica o lote numa versão
 nova da Memória e fecha os Temas de validação dessas Regras, com as Linhas
 afetadas seguindo o caminho de hoje da Validação.
 
@@ -13,17 +13,16 @@ provedor da IA dublado no transporte HTTP.
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 from typing import Any
 
 import httpx2
 import pytest
 from anthropic_apoio import cliente_por_transporte, mensagem, nome_do_schema, nomear_schemas
+from contas_concluidas_apoio import _linha_do_guia, _semear
 from test_contas_medicas_conversa_da_operadora import ROTA, _cliente, _proposta, _regras_vigentes, _vigente
 from test_contas_medicas_memoria_tela import _importar, _versoes
 from test_contas_medicas_operadoras import GESTAO
-from test_contas_medicas_prova_da_regra import _linha_do_guia, _semear
 
 from app.limiter import limiter
 from app.services.contas_medicas import ia
@@ -79,7 +78,7 @@ class _Provedor:
             resposta = self.revisao
         return httpx2.Response(200, json=mensagem(json.dumps(resposta)))
 
-    def da_prova(self) -> list[str]:
+    def contas_refeitas(self) -> list[str]:
         return [texto for formato, texto in self.pedidos if formato == "LinhasDaComparacao"]
 
 
@@ -94,7 +93,7 @@ def provedor(monkeypatch) -> _Provedor:
 @pytest.fixture
 def cenario(provedor):
     """A ALFA (pendentes DIA-02 e PRI-03) e a BETA (pendente INS-02), com as
-    Contas concluídas da ALFA para a prova."""
+    Contas concluídas da ALFA, que o lote não refaz."""
     cliente, banco = _cliente(GESTAO)
     _importar(cliente)
     _importar(cliente, "MEMORIA-BETA-v1.0.md")
@@ -130,8 +129,8 @@ class TestOLoteDasPendentes:
         assert alterada["motivo"] == "A prática da casa já não cobra a diária extra."
         validada = _item(corpo, 2)
         assert (validada["proposta"]["texto_anterior"], validada["proposta"]["texto"]) == (PRI_03, PRI_03)
-        # Cada item com a Prova da regra nas 10 últimas concluídas.
-        assert [i["prova"]["contas"] for i in corpo["lote"]["itens"]] == [10, 10]
+        # Nenhuma Conta concluída é refeita (#1920).
+        assert provedor.contas_refeitas() == []
         # O Auditor recebeu as pendentes da ALFA, e não a vigente nem a da BETA.
         (_, pedido), *_ = [p for p in provedor.pedidos if p[0] == "RevisaoDasPendentes"]
         pendentes = pedido.split("REGRAS PENDENTES\n", 1)[1]
@@ -145,15 +144,6 @@ class TestOLoteDasPendentes:
         ]
         (lote,) = banco.linhas("cm_lote")
         assert lote["fonte"] == "PENDENTES"
-
-    def test_a_prova_da_pendente_validada_traz_a_regra_vigente_e_a_descartada_sem_ela(self, cenario):
-        cliente, _banco, provedor = cenario
-
-        assert cliente.post(ROTA, json={"texto": "revisar pendentes"}).status_code == 200
-
-        da_alterada, da_descartada = provedor.da_prova()[0], provedor.da_prova()[10]
-        assert re.search(rf"\| ALFA-DIA-02 \| {re.escape(DIA_02_ALTERADA)} \|[^\n]*VIGENTE", da_alterada)
-        assert PRI_03 not in da_descartada
 
     def test_operadora_sem_pendente_ouve_do_auditor_e_nao_ganha_lote(self, cenario):
         cliente, banco, provedor = cenario
@@ -299,7 +289,6 @@ class TestCorrigeOItemN:
         cliente, banco, provedor = cenario
         assert cliente.post(ROTA, json={"texto": "revisar pendentes"}).status_code == 200
         antes = cliente.get(ROTA).json()["lote"]
-        provas_antes = len(provedor.da_prova())
         # O Auditor devolve outro código: o item 2 continua sendo a PRI-03.
         provedor.correcao = {
             "resposta": "Corrigi o item 2: a regra fica como está.",
@@ -322,10 +311,7 @@ class TestCorrigeOItemN:
         # O Auditor recebeu a decisão como estava e o que mudar nela.
         _, pedido = [p for p in provedor.pedidos if p[0] == "PendenteCorrigida"][-1]
         assert '"DESCARTAR"' in pedido and "não descarta, valida." in pedido
-        # Só o item corrigido prova de novo, agora com a regra na memória.
-        assert len(provedor.da_prova()) - provas_antes == 10
-        assert PRI_03 in provedor.da_prova()[-1]
-        assert refeito["prova"]["contas"] == 10
+        assert provedor.contas_refeitas() == []
 
         assert cliente.post(ROTA, json={"texto": "ok"}).status_code == 200
         regras = _regras_vigentes(banco)

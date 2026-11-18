@@ -1,7 +1,7 @@
 ---
 status: accepted
 amends: 0081
-amended_by: 0087, 0095, 0097
+amended_by: 0087, 0095, 0097, 0102
 ---
 
 # IA com custo só roda depois de uma ação humana; a Validação e o segundo agente de Contas médicas viram botão

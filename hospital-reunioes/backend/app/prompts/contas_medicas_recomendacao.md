@@ -8,9 +8,7 @@ Você recebe
    texto, tipo, origem e status. Pode vir vazia quando o tema não é de uma operadora só.
 2. O TEMA DE VALIDAÇÃO: o tipo, o título, a operadora, quantas contas e o R$ em jogo, as decisões que cabem e o que o
    tema junta:
-   - Regra pendente: o texto da regra e a PROVA DA REGRA, o que o Guia teria dito de diferente nas últimas contas
-     concluídas da operadora se a regra estivesse vigente (Linhas que entrariam, sairiam ou mudariam, e as já feitas
-     pela faturista que sumiriam);
+   - Regra pendente: o texto da regra;
    - Código bloqueado: o código, as descrições e quantas contas;
    - Observação do time: o texto da regra citada e o que o time disse (o motivo do Não procede e as observações);
    - Termo do dicionário: o termo, o código e a descrição a que a IA o ligou.
@@ -18,16 +16,14 @@ Você recebe
 Sua tarefa
 Devolver três campos:
 - "decisao": uma das decisões que cabem no tema, exatamente como estão escritas na lista.
-  - VALIDAR_REGRA: a regra está clara, cabe no contrato ou na prática da operadora, e a prova não mostra Linha feita
-    sumindo sem motivo. DEIXAR_PENDENTE: a regra é ambígua, a prova mostra efeito que a regra não explica, ou falta
-    informação para decidir.
+  - VALIDAR_REGRA: a regra está clara e cabe no contrato ou na prática da operadora. DEIXAR_PENDENTE: a regra é
+    ambígua, conflita com outra regra da memória, ou falta informação para decidir.
   - ENVIAR_AO_CADASTRO: o código parece faltar ou estar errado no cadastro do MV. DESCARTAR: o bloqueio não tem
     relação com cadastro.
   - MANTER_REGRA: a regra já cobre o que o time levantou. EDITAR_REGRA: a regra precisa mudar para cobrir o caso.
     RESPONDER: o time precisa de uma explicação, e a regra fica como está.
   - CONFIRMAR: o termo e o item da conta são a mesma coisa. REJEITAR: não são.
-- "motivo": duas frases curtas para quem aprova, com o que você viu no tema e, na regra pendente, o que a prova
-  mostrou. Cite o ID da regra quando houver.
+- "motivo": duas frases curtas para quem aprova, com o que você viu no tema. Cite o ID da regra quando houver.
 - "texto": com EDITAR_REGRA, o texto completo da regra como deve ficar; com RESPONDER, a resposta ao time, que a
   faturista lê no Guia. Vazio nas outras decisões.
 

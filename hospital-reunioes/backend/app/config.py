@@ -67,8 +67,8 @@ class Settings(BaseSettings):
     # mudar a variável e reiniciar, sem deploy de código.
     cm_ia_modelo_passo_a: str = "claude-sonnet-5-5"
     cm_ia_modelo_passo_b: str = "claude-sonnet-5-5"
-    # A recomendação da Validação pedida pelo botão (ADR 0082, issue #1523): a
-    # Prova da regra e o Auditor rodam neste modelo, não no do passo B.
+    # A recomendação da Validação pedida pelo botão (ADR 0082, issue #1523): o
+    # Auditor roda neste modelo, não no do passo B.
     cm_ia_modelo_validacao: str = "claude-sonnet-5-5"
     # Quantas contas a fila analisa ao mesmo tempo. A análise passa quase todo o
     # tempo esperando a IA; a extração do PDF, que pesa na memória, tem as

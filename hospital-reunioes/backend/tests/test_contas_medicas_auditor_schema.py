@@ -1,9 +1,10 @@
 """A migration 126: o schema do Auditor de Contas médicas (issue #1486, PRD #1484, ADR 0081).
 
-A única migration do PRD. As fatias da Prova da regra, do Faltou isto, da
-conversa da Operadora e da Validação decidida gravam nas tabelas que nascem
-aqui, então o que se confere é o contrato com elas: as tabelas e colunas, os
-valores dos CHECKs que elas vão gravar, o RLS default-deny em toda tabela nova
+A única migration do PRD. As fatias da prova de regra (que saiu do app na
+issue #1920, com a tabela parada no banco), do Faltou isto, da conversa da
+Operadora e da Validação decidida gravam nas tabelas que nascem aqui, então o
+que se confere é o contrato com elas: as tabelas e colunas, os valores dos
+CHECKs que elas vão gravar, o RLS default-deny em toda tabela nova
 e o recibo em `migracoes_aplicadas`.
 """
 

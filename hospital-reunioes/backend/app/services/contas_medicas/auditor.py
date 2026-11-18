@@ -5,27 +5,26 @@ operadora. Uma interface só, `conversar`: a mensagem de quem decide é
 
 - "ok": aplica o lote aberto numa versão nova da Memória, uma por lote, com
   as Regras vigentes no nome de quem deu o ok (decisões 1 e 5);
-- "corrige o item N ...": o Auditor refaz só o item N, e a prova dele;
+- "corrige o item N ...": o Auditor refaz só o item N;
 - "revisar pendentes": o lote com todas as Regras pendentes da Operadora,
-  cada uma com a decisão que o Auditor sugere (validar, alterar, descartar) e
-  a prova (issue #1494, decisão 6). O ok fecha os Temas de validação delas;
+  cada uma com a decisão que o Auditor sugere (validar, alterar, descartar)
+  (issue #1494, decisão 6). O ok fecha os Temas de validação delas;
 - qualquer outro texto: o Auditor devolve um lote novo de propostas tipadas
-  (Regra nova, Regra alterada, parâmetro), cada uma com o motivo, os conflitos
-  com as Regras da memória (decisão 8) e a Prova da regra (decisão 7). O lote
-  aberto antes dele fica descartado.
+  (Regra nova, Regra alterada, parâmetro), cada uma com o motivo e os
+  conflitos com as Regras da memória (decisão 8). O lote aberto antes dele
+  fica descartado.
 
 A pergunta vai ao Auditor antes de qualquer gravação: se ele não responder,
-nada fica pela metade. A prova roda depois que o lote está gravado; se ela
-falhar, o item fica sem prova e o ok fica recusado até a correção provar de
-novo (decisão 7).
+nada fica pela metade. O lote não refaz Contas antes do ok (issue #1920,
+ADR 0102).
 
 A conversa é histórico, nunca memória (decisão 3): o Auditor recebe só a
 mensagem desta vez, e nada daqui entra no prompt do Passo A nem do Passo B. A
 mensagem que gerou o lote aplicado e as falas do ok apontam para a versão da
 Memória que ele gerou.
 
-Por dentro, reaproveita a regra candidata e o parâmetro da regra nova, a Prova
-da regra e a gravação de versão da edição pela tela.
+Por dentro, reaproveita o parâmetro da regra nova e a gravação de versão da
+edição pela tela.
 """
 
 from __future__ import annotations
@@ -46,13 +45,11 @@ from app.services.contas_medicas.contratos import (
 )
 from app.services.contas_medicas.memoria import _CPF
 from app.services.contas_medicas.memoria_edicao import (
-    MudancaRecusadaError,
     RegraNaoEncontradaError,
     _gravar_versao,
     _regras_da_versao,
 )
 from app.services.contas_medicas.memoria_texto import gerar_texto_memoria
-from app.services.contas_medicas.prova_da_regra import provar_regra, resumo_da_prova
 from app.services.contas_medicas.regra_nova import (
     _chave_valida,
     _com_parametro,
@@ -271,36 +268,6 @@ def _so_o_contrato_diz(item: dict) -> bool:
     )
 
 
-def _pede_prova(item: dict) -> bool:
-    """A Prova da regra vale para o item que muda a análise (ADR 0081, decisão 7)."""
-    return item["tipo"] in TIPOS_DE_REGRA and not _so_o_contrato_diz(item)
-
-
-def _provar(supabase, sigla: str, item: dict, autor_id: str | None) -> None:
-    """A Prova da regra do item, ligada a ele. Falha da prova não desfaz o lote:
-    o item fica sem prova, e corrigir o item prova de novo."""
-    if not _pede_prova(item):
-        return
-    regra = item["proposta_json"]
-    try:
-        provar_regra(
-            supabase,
-            sigla,
-            secao=regra["secao"],
-            texto=regra["texto"],
-            tipo=regra["tipo"],
-            origem=regra["origem"],
-            parametro=None,
-            autor_id=autor_id,
-            codigo=item["regra_codigo"],
-            lote_item_id=item["id"],
-            sem=_em_conflito(item),
-            descartar=regra.get("decisao") == DESCARTAR,
-        )
-    except (ia.ErroDaIA, MudancaRecusadaError) as erro:
-        logger.warning("[ContasMedicas] Prova do item %s do lote sem resultado: %s", item["id"], type(erro).__name__)
-
-
 # ─── As três mensagens ──────────────────────────────────────────────────────
 
 
@@ -312,7 +279,7 @@ def _novo_lote(supabase, sigla: str, texto: str, autor_id: str | None) -> None:
     regras = {r["codigo"]: r for r in _regras_da_versao(supabase, vigente["id"])}
     itens = [i for i in (_item_do_auditor(p, vigente, regras) for p in resposta.propostas) if i is not None]
     do_auditor = sanitizar_estrutura(resposta.resposta).strip()
-    _gravar_lote(supabase, sigla, operadora_id, texto, itens, do_auditor, autor_id)
+    _gravar_lote(supabase, operadora_id, texto, itens, do_auditor, autor_id)
 
 
 def _lote_novo(
@@ -356,12 +323,11 @@ def _revisar_pendentes(supabase, sigla: str, texto: str, autor_id: str | None) -
         decisoes.setdefault(decisao.regra_codigo.strip(), decisao)
     itens = [_item_da_pendente(regra, decisoes.get(regra["codigo"])) for regra in pendentes]
     do_auditor = sanitizar_estrutura(resposta.resposta).strip()
-    _gravar_lote(supabase, sigla, operadora_id, texto, itens, do_auditor, autor_id, fonte=PENDENTES)
+    _gravar_lote(supabase, operadora_id, texto, itens, do_auditor, autor_id, fonte=PENDENTES)
 
 
 def _gravar_lote(
     supabase,
-    sigla: str,
     operadora_id: str,
     fala: str,
     itens: list[dict[str, Any]],
@@ -371,11 +337,10 @@ def _gravar_lote(
     fonte: str = "TEXTO",
     anexo: str | None = None,
 ) -> None:
-    """A fala de quem pediu, o lote no lugar do aberto (quando há item), a fala
-    do Auditor e a prova de cada item que muda a análise."""
+    """A fala de quem pediu, o lote no lugar do aberto (quando há item) e a fala
+    do Auditor."""
     conversa_id = _conversa_ou_nova(supabase, operadora_id, autor_id)
     pessoa = _falar(supabase, conversa_id, "PESSOA", fala, autor_id, anexo=anexo)
-    gravados: list[dict[str, Any]] = []
     if itens:
         # Um lote aberto por vez: o que estava aberto fica descartado.
         anterior = _lote_aberto(supabase, conversa_id)
@@ -383,20 +348,9 @@ def _gravar_lote(
             supabase.table("cm_lote").update({"estado": "DESCARTADO"}).eq("id", anterior["id"]).execute()
             supabase.table("cm_lote_item").update({"estado": "DESCARTADO"}).eq("lote_id", anterior["id"]).execute()
         lote = _lote_novo(supabase, operadora_id, conversa_id, pessoa["id"], fonte, autor_id)
-        gravados = (
-            supabase.table("cm_lote_item")
-            .insert(
-                [
-                    {**item, "lote_id": lote["id"], "numero": n, "estado": "PROPOSTO"}
-                    for n, item in enumerate(itens, start=1)
-                ]
-            )
-            .execute()
-            .data
-        )
+        novos = [{**item, "lote_id": lote["id"], "numero": n, "estado": "PROPOSTO"} for n, item in enumerate(itens, 1)]
+        supabase.table("cm_lote_item").insert(novos).execute()
     _falar(supabase, conversa_id, "AUDITOR", do_auditor)
-    for item in gravados:
-        _provar(supabase, sigla, item, autor_id)
 
 
 # ─── O Faltou isto por falta de regra (issue #1496) ──────────────────────────
@@ -452,11 +406,10 @@ def gravar_regra_do_faltou_isto(
     (ADR 0081, decisões 5 e 6). Devolve o item do lote, que o apontamento guarda.
 
     Quem decide (tem "Regra contratual e tabelas"): o item entra no lote aberto
-    da conversa da Operadora, sem descartar o que já estava lá, com a Prova da
-    regra; o "ok" ali grava a Regra vigente numa versão nova. Quem não decide
-    (faturista, coordenadora): a Regra entra pendente numa versão nova, num
-    lote já aplicado da conversa da Conta, e abre o Tema de validação; a prova
-    dela é a da recomendação do Auditor na Validação."""
+    da conversa da Operadora, sem descartar o que já estava lá; o "ok" ali
+    grava a Regra vigente numa versão nova. Quem não decide (faturista,
+    coordenadora): a Regra entra pendente numa versão nova, num lote já
+    aplicado da conversa da Conta, e abre o Tema de validação."""
     if not decide:
         return _regra_pendente(supabase, proposta, autor_id, conversa_da_conta)
     operadora_id, autor = proposta["operadora_id"], autor_id
@@ -473,7 +426,6 @@ def gravar_regra_do_faltou_isto(
         .data[0]
     )
     _falar(supabase, conversa_id, "AUDITOR", proposta["do_auditor"])
-    _provar(supabase, proposta["sigla"], gravado, autor)
     return gravado
 
 
@@ -636,7 +588,7 @@ def conversar_com_contrato(supabase, sigla: str, nome: str, conteudo: bytes, aut
         itens.append(datas)
     else:
         do_auditor = f"{do_auditor} {DATAS_NAO_LIDAS}".strip()
-    _gravar_lote(supabase, sigla, operadora_id, fala, itens, do_auditor, autor_id, fonte="CONTRATO", anexo=nome)
+    _gravar_lote(supabase, operadora_id, fala, itens, do_auditor, autor_id, fonte="CONTRATO", anexo=nome)
     return {**conversa_da_operadora(supabase, sigla), "aplicado": None}
 
 
@@ -686,18 +638,8 @@ def _corrigir(supabase, sigla: str, numero: int, pedido: str, texto: str, autor_
     if mesma_chave and antes.get("arquivo"):
         refeito["proposta_json"]["arquivo"] = antes["arquivo"]
     _falar(supabase, conversa["id"], "PESSOA", texto, autor_id)
-    gravado = (
-        supabase.table("cm_lote_item")
-        .update({**refeito, "atualizado_em": _agora()})
-        .eq("id", alvo["id"])
-        .execute()
-        .data[0]
-    )
-    # A prova do texto antigo se solta do item: se a nova falhar, ou se o item
-    # virar parâmetro, a tela mostra o item sem prova, e não a de outra regra.
-    supabase.table("cm_prova").update({"lote_item_id": None}).eq("lote_item_id", alvo["id"]).execute()
+    supabase.table("cm_lote_item").update({**refeito, "atualizado_em": _agora()}).eq("id", alvo["id"]).execute()
     _falar(supabase, conversa["id"], "AUDITOR", sanitizar_estrutura(resposta.resposta).strip())
-    _provar(supabase, sigla, gravado, autor_id)
 
 
 def _aplicar(supabase, sigla: str, texto: str, autor_id: str | None) -> dict[str, Any]:
@@ -708,14 +650,6 @@ def _aplicar(supabase, sigla: str, texto: str, autor_id: str | None) -> dict[str
     if lote is None:
         raise LoteRecusadoError("Não há lote aberto para aplicar.")
     itens = _itens(supabase, lote["id"])
-    # Prova antes do ok (ADR 0081, decisão 7): item de regra sem prova não se aplica.
-    provas = _provas(supabase, itens)
-    for item in itens:
-        if _pede_prova(item) and item["id"] not in provas:
-            raise LoteRecusadoError(
-                f"O item {item['numero']} está sem a prova da regra. "
-                "Peça a correção do item para provar de novo antes do ok."
-            )
     regras = _regras_da_versao(supabase, vigente["id"])
     por_codigo = {r["codigo"]: r for r in regras}
     agora = _agora()
@@ -887,29 +821,6 @@ def conversar(supabase, sigla: str, texto: str, autor_id: str | None) -> dict[st
 # ─── A leitura para a tela ──────────────────────────────────────────────────
 
 
-def _provas(supabase, itens: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    """A prova mais nova de cada item: a correção prova de novo."""
-    if not itens:
-        return {}
-    provas = (
-        supabase.table("cm_prova")
-        .select("lote_item_id, resultado_json, criado_em")
-        .in_("lote_item_id", [i["id"] for i in itens])
-        .order("criado_em")
-        .execute()
-        .data
-        or []
-    )
-    return {p["lote_item_id"]: p for p in provas}
-
-
-def _prova_na_tela(prova: dict[str, Any] | None) -> dict[str, Any] | None:
-    if prova is None:
-        return None
-    por_conta = prova.get("resultado_json") or []
-    return {**resumo_da_prova(por_conta), "por_conta": por_conta}
-
-
 def _nomes(supabase, ids: set[str]) -> dict[str, str]:
     if not ids:
         return {}
@@ -919,7 +830,7 @@ def _nomes(supabase, ids: set[str]) -> dict[str, str]:
 
 def conversa_da_operadora(supabase, sigla: str) -> dict[str, Any]:
     """As falas da conversa, cada uma com a versão da Memória que gerou, e o
-    lote aberto com os itens e a prova de cada um."""
+    lote aberto com os itens."""
     sigla, operadora_id, _vigente = _operadora_e_vigente(supabase, sigla)
     conversa = _conversa(supabase, operadora_id)
     if conversa is None:
@@ -958,7 +869,6 @@ def conversa_da_operadora(supabase, sigla: str) -> dict[str, Any]:
     if lote is None:
         return {"mensagens": mensagens, "lote": None}
     itens = _itens(supabase, lote["id"])
-    provas = _provas(supabase, itens)
     return {
         "mensagens": mensagens,
         "lote": {
@@ -971,8 +881,6 @@ def conversa_da_operadora(supabase, sigla: str) -> dict[str, Any]:
                     "proposta": i.get("proposta_json") or {},
                     "motivo": i.get("motivo"),
                     "conflitos": i.get("conflitos_json") or [],
-                    "pede_prova": _pede_prova(i),
-                    "prova": _prova_na_tela(provas.get(i["id"])),
                 }
                 for i in itens
             ],

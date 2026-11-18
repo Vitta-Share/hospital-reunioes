@@ -8,8 +8,8 @@ da Conta, e grava cada achado como Faltou isto de origem AGENTE, já com a
 classificação e a explicação. Nenhum job do agendador o chama.
 
 O serviço é chamado direto ou pela rota do Painel, com o dublê do banco da
-carga da operadora e as Contas concluídas da Prova da regra (12 da ALFA, uma
-da BETA, uma A fazer). O provedor da IA é dublado no transporte HTTP (o
+carga da operadora e as Contas concluídas de `contas_concluidas_apoio` (12 da
+ALFA, uma da BETA, uma A fazer). O provedor da IA é dublado no transporte HTTP (o
 adaptador roda inteiro) e responde pela Conta do pedido, pelo código do item
 dela.
 """
@@ -24,9 +24,9 @@ import httpx
 import httpx2
 import pytest
 from anthropic_apoio import cliente_por_transporte, erro, mensagem
+from contas_concluidas_apoio import KIT, _passos_do_check, _semear
 from test_contas_medicas_memoria_tela import _importar, _versao
 from test_contas_medicas_operadoras import FATURISTA, GESTAO
-from test_contas_medicas_prova_da_regra import KIT, _passos_do_check, _semear
 from test_contas_medicas_regra_nova import _cliente
 from test_contas_medicas_validacao_decidida import _leitura_quebrada
 

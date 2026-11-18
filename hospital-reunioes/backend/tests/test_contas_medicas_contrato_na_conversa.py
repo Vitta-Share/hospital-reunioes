@@ -2,8 +2,8 @@
 
 Quem tem "Regra contratual e tabelas" sobe o contrato (PDF ou imagem, como na
 aba Contratos) na conversa da Operadora. O Auditor devolve um lote: as Regras
-novas cláusula a cláusula, cada uma com a Prova da regra, e o "o contrato diz"
-das Regras que já existem, que não muda a análise e por isso vai sem prova.
+novas cláusula a cláusula e o "o contrato diz" das Regras que já existem, que
+não muda a análise. Nenhuma Conta concluída é refeita (issue #1920).
 As datas do contrato entram no mesmo lote, para o aviso de reajuste. O "ok"
 aplica tudo numa versão nova da Memória e confirma o contrato.
 
@@ -138,7 +138,7 @@ class TestOContratoViraLote:
             (3, "PARAMETRO", None),
         ]
 
-        # A cláusula vira Regra nova, com o trecho do contrato e a prova.
+        # A cláusula vira Regra nova, com o trecho do contrato.
         nova = _item(corpo, 1)
         assert nova["proposta"] == {
             "secao": "TAX",
@@ -147,14 +147,12 @@ class TestOContratoViraLote:
             "origem": "ADITIVO",
             "contrato_diz": CLAUSULA_7,
         }
-        assert (nova["pede_prova"], nova["prova"]["contas"]) == (True, 10)
 
         # A Regra que já existe ganha só o "o contrato diz": o texto não muda,
-        # a análise não muda, e o item vai sem prova.
+        # e a análise não muda.
         diz = _item(corpo, 2)
         assert diz["proposta"]["contrato_diz"] == CLAUSULA_9
         assert diz["proposta"]["texto"] == diz["proposta"]["texto_anterior"] == BRASINDICE
-        assert (diz["pede_prova"], diz["prova"]) == (False, None)
 
         # As datas do aviso de reajuste entram no mesmo lote.
         datas = _item(corpo, 3)
@@ -164,7 +162,6 @@ class TestOContratoViraLote:
             "ultimo_aditivo": {"numero": "13", "data": "2027-04-20", "inicio_vigencia": "2027-05-01"},
             "aviso_antecedencia_dias": 60,
         }
-        assert datas["pede_prova"] is False
 
         # O Auditor recebeu o texto do contrato e a memória.
         [(_, pedido)] = [p for p in provedor.pedidos if p[0] == "LoteDoContrato"]
@@ -177,8 +174,8 @@ class TestOContratoViraLote:
         ]
         # Nada vale antes do ok.
         assert _versoes(banco, "ALFA") == {"1.0": True}
-        # Uma prova, só da Regra nova.
-        assert len(provedor.da_prova()) == 10
+        # Nenhuma Conta concluída refeita.
+        assert provedor.contas_refeitas() == []
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -283,7 +280,6 @@ class TestOKit:
             "cláusula a cláusula",
             '"o contrato diz"',
             "recurso de glosa",
-            "sem prova",
             "aviso de reajuste",
             "aba Contratos",
         ):

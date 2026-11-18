@@ -27,20 +27,11 @@ export interface RegraDoTema {
   status: "VIGENTE" | "PENDENTE";
 }
 
-/** O resumo da Prova da regra que sustenta a recomendação (issue #1491). */
-export interface ProvaDoTema {
-  contas: number;
-  mudaria: boolean;
-  feitas_que_sumiriam: number;
-  por_conta: { numero_conta: string | null; entrariam: number; sairiam: number; mudariam: number }[];
-}
-
 /** A recomendação do Auditor: a decisão, o motivo e o texto que ela leva. */
 export interface Recomendacao {
   decisao: Decisao | "ENVIAR_AO_CADASTRO";
   motivo: string;
   texto: string | null;
-  prova: ProvaDoTema | null;
   /** O carimbo da recomendação: o lote o devolve para só aplicar a que a tela mostrou. */
   recomendado_em: string;
 }
@@ -182,7 +173,6 @@ export async function lerObservacao(token: string, tema: Tema): Promise<{ leitur
  * mostra antes do clique, e se um pedido já está rodando. */
 export interface PedidoAoAuditor {
   temas: number;
-  provas: number;
   custo_estimado_usd: number;
   em_andamento: boolean;
 }

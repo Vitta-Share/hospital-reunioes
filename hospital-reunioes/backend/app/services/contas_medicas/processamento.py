@@ -611,7 +611,7 @@ def _pipeline(supabase, conta: dict, cronometro: _Cronometro) -> None:
                 "digitalizadas": cronometro.digitalizadas,
                 # O que o cartão do envio mostra da conta pronta (#1419).
                 "contagens": {"itens": len(lida.itens), "eventos": passo_a.quantos_eventos(eventos)},
-                # As diárias pagas e as cirurgias dos tetos, para a Prova da regra (#1508).
+                # As diárias pagas e as cirurgias dos tetos (#1508). Ninguém mais lê desde a #1920.
                 "base_dos_tetos": base_dos_tetos(conferencia, prontuario),
                 # A marca do "Analisar assim mesmo" segue com o mesmo prontuário (#1401).
                 **({MARCA_ASSIM_MESMO: arquivo_do_prontuario["id"]} if assim_mesmo else {}),

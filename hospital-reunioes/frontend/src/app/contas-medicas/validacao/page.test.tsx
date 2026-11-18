@@ -95,7 +95,7 @@ type Pedido = { url: string; metodo: string; corpo: unknown };
 
 type Leitura = "ok" | "ia-fora" | "sem-rede";
 
-const SEM_PEDIDO: PedidoAoAuditor = { temas: 0, provas: 0, custo_estimado_usd: 0, em_andamento: false };
+const SEM_PEDIDO: PedidoAoAuditor = { temas: 0, custo_estimado_usd: 0, em_andamento: false };
 
 function servidor(
   fila: FilaDeValidacao = FILA,
@@ -323,7 +323,7 @@ describe("a fila de Validação", () => {
   });
 });
 
-// A fila decidida pelo Auditor (issue #1491): a regra com a prova, a
+// A fila decidida pelo Auditor (issue #1491): a regra com o motivo, a
 // observação com a resposta pronta; o bloqueado e o termo, sem recomendação.
 const DECIDIDA: FilaDeValidacao = {
   ...FILA,
@@ -335,12 +335,6 @@ const DECIDIDA: FilaDeValidacao = {
           decisao: "VALIDAR_REGRA",
           motivo: "A seringa pronta é cobrada à parte no contrato da ALFA.",
           texto: null,
-          prova: {
-            contas: 10,
-            mudaria: true,
-            feitas_que_sumiriam: 1,
-            por_conta: [{ numero_conta: "48803", entrariam: 2, sairiam: 1, mudariam: 0 }],
-          },
           recomendado_em: "2026-11-08T10:00:00+00:00",
         },
       };
@@ -352,7 +346,6 @@ const DECIDIDA: FilaDeValidacao = {
           decisao: "RESPONDER",
           motivo: "A regra já cobre o caso.",
           texto: "Na ALFA o Clexane vem no pacote: a regra segue como está.",
-          prova: null,
           recomendado_em: "2026-11-08T10:30:00+00:00",
         },
       };
@@ -393,37 +386,20 @@ const LOTE_OK: RespostaDoLote = {
 };
 
 describe("a fila decidida pelo Auditor (issue #1491)", () => {
-  it("cada cartão mostra a recomendação e o motivo, e a regra pendente mostra a prova", async () => {
+  it("cada cartão mostra a recomendação e o motivo, sem prova nas últimas contas (issue #1920)", async () => {
     servidor(DECIDIDA);
     abrir();
 
     const regra = await screen.findByRole("article", { name: "Regra ALFA-PRI-03" });
     expect(regra.textContent).toContain("O Auditor recomenda: Validar regra");
     expect(regra.textContent).toContain("A seringa pronta é cobrada à parte no contrato da ALFA.");
-    expect(regra.textContent).toContain("Prova da regra em 10 contas concluídas");
-    expect(regra.textContent).toContain("Conta 48803: 2 entrariam, 1 sairia, 0 mudariam");
-    expect(regra.textContent).toContain("1 linha já feita sumiria");
+    expect(regra.textContent).not.toMatch(/\bprova/i);
 
     const observacao = cartao("Observações sobre a regra ALFA-PRI-07");
     expect(observacao.textContent).toContain("O Auditor recomenda: Responder ao time");
     expect(observacao.textContent).toContain("Na ALFA o Clexane vem no pacote: a regra segue como está.");
 
     expect(cartao("Código 70000020 bloqueado").textContent).toContain("O Auditor ainda não recomendou");
-  });
-
-  it("a prova que não mudaria nada diz isso", async () => {
-    servidor({
-      ...DECIDIDA,
-      temas: DECIDIDA.temas.map((t) =>
-        t.id === "regra" && t.recomendacao
-          ? { ...t, recomendacao: { ...t.recomendacao, prova: { contas: 4, mudaria: false, feitas_que_sumiriam: 0, por_conta: [] } } }
-          : t,
-      ),
-    });
-    abrir();
-
-    const regra = await screen.findByRole("article", { name: "Regra ALFA-PRI-03" });
-    expect(regra.textContent).toContain("A regra não mudaria nada nas 4 contas concluídas da prova.");
   });
 
   it("Aprovar o lote manda a recomendação que cada cartão mostrava e relê a fila", async () => {
@@ -505,20 +481,20 @@ class GravadorFalso {
 
 describe("o pedido de recomendação ao Auditor (ADR 0082, issue #1523)", () => {
   const ROTA = "/api/contas-medicas/validacao/recomendacao";
-  const TRES = (): PedidoAoAuditor => ({ temas: 3, provas: 1, custo_estimado_usd: 0.42, em_andamento: false });
+  const TRES = (): PedidoAoAuditor => ({ temas: 3, custo_estimado_usd: 0.12, em_andamento: false });
 
   afterEach(() => {
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
 
-  it("mostra quantos cartões estão sem recomendação, as provas e o custo antes do clique", async () => {
+  it("mostra quantos cartões estão sem recomendação e o custo antes do clique, sem contar prova", async () => {
     const pedidos = servidor(FILA, 200, "ok", TRES());
     abrir();
 
     const pedido = await screen.findByRole("region", { name: "Pedido ao Auditor" });
-    expect(pedido.textContent).toContain("3 cartões estão sem recomendação do Auditor, 1 com Prova da regra");
-    expect(pedido.textContent).toContain("cerca de US$ 0,42");
+    expect(pedido.textContent).toContain("3 cartões estão sem recomendação do Auditor. Custo estimado: cerca de US$ 0,12.");
+    expect(pedido.textContent).not.toMatch(/\bprova/i);
     expect(pedidos.filter((p) => p.url === ROTA && p.metodo === "POST")).toHaveLength(0);
   });
 
@@ -530,7 +506,7 @@ describe("o pedido de recomendação ao Auditor (ADR 0082, issue #1523)", () => 
     fireEvent.click(await screen.findByRole("button", { name: "Pedir recomendação ao Auditor" }));
 
     expect(confirmar).toHaveBeenCalledWith(
-      "Pedir ao Auditor a recomendação de 3 cartões? Custo estimado: cerca de US$ 0,42.",
+      "Pedir ao Auditor a recomendação de 3 cartões? Custo estimado: cerca de US$ 0,12.",
     );
     await screen.findByText("O Auditor está recomendando a fila. A tela atualiza sozinha quando ele terminar.", {
       exact: false,
@@ -565,7 +541,7 @@ describe("o pedido de recomendação ao Auditor (ADR 0082, issue #1523)", () => 
     abrir();
     await screen.findByText("O Auditor está recomendando a fila.", { exact: false });
 
-    Object.assign(pedido, { temas: 0, provas: 0, em_andamento: false });
+    Object.assign(pedido, { temas: 0, em_andamento: false });
     await vi.advanceTimersByTimeAsync(PERGUNTA_A_CADA_MS);
 
     await waitFor(() => expect(pedidos.filter((p) => p.url === "/api/contas-medicas/validacao")).toHaveLength(2));

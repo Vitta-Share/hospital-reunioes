@@ -36,8 +36,9 @@ CAUSAS = ("DISPENSACAO", "REGRA_AUTOMATICA", "CADASTRO_PRECO", "REGISTRO_ASSISTE
 # Os níveis de evidência, na ordem do adendo v1.1 (item 4).
 NIVEIS = ("REGISTRADO", "PRESCRITO", "PRESCRITO_SN", "POR_REGRA")
 
-# Os passos do Auditor (ADR 0081): a conversa, a Prova da regra e o segundo
-# agente. Contam na semana da chamada, separados da análise das Contas.
+# Os passos do Auditor (ADR 0081): a conversa, a prova de regra e o segundo
+# agente. Contam na semana da chamada, separados da análise das Contas. A prova
+# saiu do app (issue #1920, ADR 0102); o passo PROVA fica para ler o histórico.
 PASSOS_DO_AUDITOR = ("CONVERSA", "PROVA", "REVISOR")
 
 # A classificação do Faltou isto pelo Auditor, e o que ele ainda não classificou.
@@ -239,7 +240,7 @@ def _semana_do_instante(instante: str) -> date:
 
 
 def _do_auditor_na_semana(supabase, segunda: date, operadora_id: str | None) -> dict[str, Decimal]:
-    """O custo das chamadas do Auditor (CONVERSA), da Prova da regra (PROVA) e
+    """O custo das chamadas do Auditor (CONVERSA), das provas de regra (PROVA) e
     do segundo agente (REVISOR) feitas na semana, por passo. Elas contam pela
     semana da chamada, não pela da Conta: a Prova não tem conta, e a conversa
     pode ser sobre uma Conta concluída semanas antes. A Operadora se acha pelo

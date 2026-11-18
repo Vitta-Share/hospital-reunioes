@@ -1,10 +1,9 @@
 """A fila de Validação chega decidida (issue #1491, PRD #1484, ADR 0081, decisão 13).
 
-O Auditor decide cada Tema aberto: a decisão que recomenda, o motivo e, no
-Tema de Regra pendente, a Prova da regra (a regra pendente refeita como
-vigente nas últimas Contas concluídas da operadora). A recomendação fica nas
-colunas da migration 126 em `cm_validacao_tema`; a decisão de quem aprova
-continua em `decisao`.
+O Auditor decide cada Tema aberto: a decisão que recomenda e o motivo, sem
+refazer Contas (issue #1920, ADR 0102). A recomendação fica nas colunas da
+migration 126 em `cm_validacao_tema`; a decisão de quem aprova continua em
+`decisao`.
 
 Quem decide na Validação aprova o lote de uma vez. Cada Tema aprovado passa
 pelo mesmo caminho do cartão (`validacao.decidir_tema`): versão nova da
@@ -13,14 +12,13 @@ pessoa corrigir antes, pelo cartão, já saiu da fila e o lote não mexe nele.
 
 A recomendação só sai quando alguém pede, pelo botão da tela (ADR 0082,
 issue #1523): o pedido mostra antes quantos Temas e quanto deve custar, e roda
-em segundo plano, porque a prova refaz até dez Contas e não cabe no tempo de
-uma requisição. Um pedido por vez. A Prova e o Auditor rodam no modelo da
-Validação (`CM_IA_MODELO_VALIDACAO`), não no do passo B.
+em segundo plano, porque um Tema por vez não cabe no tempo de uma requisição.
+Um pedido por vez. O Auditor roda no modelo da Validação
+(`CM_IA_MODELO_VALIDACAO`), não no do passo B.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 import threading
 from datetime import UTC, datetime
@@ -34,13 +32,11 @@ from app.services.contas_medicas.memoria_edicao import (
     SemPermissaoNaRegraError,
 )
 from app.services.contas_medicas.memoria_texto import gerar_texto_memoria
-from app.services.contas_medicas.prova_da_regra import _ultimas_concluidas, provar_pendente
 from app.services.contas_medicas.validacao import (
     ABERTO,
     DECISOES,
     EDITAR_REGRA,
     ENVIAR_AO_CADASTRO,
-    REGRA_PENDENTE,
     RESPONDER,
     DecisaoRecusadaError,
     TemaNaoEncontradoError,
@@ -64,11 +60,9 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-# O custo estimado que o botão mostra antes do clique, no Sonnet: a Prova por
-# Conta concluída que ela refaz e a recomendação por Tema. Medido em produção
-# em novembro de 2026 (Prova US$ 0,59 e Auditor US$ 0,08 por chamada no Opus,
-# que custa o dobro).
-CUSTO_POR_CONTA_DA_PROVA_USD = 0.30
+# O custo estimado que o botão mostra antes do clique, no Sonnet: a
+# recomendação por Tema. Medido em produção em novembro de 2026 (US$ 0,08 por
+# chamada no Opus, que custa o dobro).
 CUSTO_POR_RECOMENDACAO_USD = 0.04
 
 # Um pedido por vez: o segundo clique, enquanto o primeiro roda, não dispara
@@ -103,10 +97,6 @@ def _sem_recomendacao(supabase) -> list[dict[str, Any]]:
     )
 
 
-def _tem_prova(tema: dict[str, Any]) -> bool:
-    return tema["tipo"] == REGRA_PENDENTE and bool(tema.get("operadora_id")) and bool(tema.get("regra_codigo"))
-
-
 def reservar() -> bool:
     """Reserva o pedido; falso quando outro já está rodando."""
     return _em_andamento.acquire(blocking=False)
@@ -118,57 +108,17 @@ def liberar() -> None:
 
 def pedido_de_recomendacao(supabase) -> dict[str, Any]:
     """O que o botão mostra antes do clique: os Temas abertos sem
-    recomendação, quantos levam a Prova da regra, o custo estimado e se já há
-    um pedido rodando. Não chama a IA."""
+    recomendação, o custo estimado e se já há um pedido rodando. Não chama a
+    IA."""
     temas = _sem_recomendacao(supabase)
-    provas = [t for t in temas if _tem_prova(t)]
-    contas: dict[str, int] = {}
-    for tema in provas:
-        if tema["operadora_id"] not in contas:
-            contas[tema["operadora_id"]] = len(_ultimas_concluidas(supabase, tema["operadora_id"]))
-    custo = (
-        sum(contas[t["operadora_id"]] for t in provas) * CUSTO_POR_CONTA_DA_PROVA_USD
-        + len(temas) * CUSTO_POR_RECOMENDACAO_USD
-    )
     return {
         "temas": len(temas),
-        "provas": len(provas),
-        "custo_estimado_usd": round(custo, 2),
+        "custo_estimado_usd": round(len(temas) * CUSTO_POR_RECOMENDACAO_USD, 2),
         "em_andamento": _em_andamento.locked(),
     }
 
 
-def _linhas_da_prova(linhas: list[dict]) -> list[dict]:
-    return [
-        {c: linha.get(c) for c in ("acao", "data", "codigo", "descricao", "quantidade_devida", "feito") if c in linha}
-        for linha in linhas
-    ]
-
-
-def _texto_da_prova(prova: dict[str, Any]) -> str:
-    if prova.get("aviso"):
-        return prova["aviso"]
-    mudancas = [
-        {
-            "conta": c.get("numero_conta"),
-            "entrariam": _linhas_da_prova(c["entrariam"]),
-            "sairiam": _linhas_da_prova(c["sairiam"]),
-            "mudariam": [
-                {"antes": _linhas_da_prova([m["antes"]])[0], "depois": _linhas_da_prova([m["depois"]])[0]}
-                for m in c["mudariam"]
-            ],
-        }
-        for c in prova["por_conta"]
-        if c.get("mudaria")
-    ]
-    return (
-        f"Refeita em {prova['contas']} contas concluídas; "
-        f"{prova['feitas_que_sumiriam']} Linhas já feitas pela faturista sumiriam.\n"
-        + json.dumps(mudancas, ensure_ascii=False, default=str)
-    )
-
-
-def _texto_do_tema(cartao: dict[str, Any], prova: dict[str, Any] | None) -> str:
+def _texto_do_tema(cartao: dict[str, Any]) -> str:
     """O que o Auditor lê do Tema: o cartão da fila, sem dado de paciente."""
     partes = [
         f"Tipo: {_ROTULO_DO_TIPO[cartao['tipo']]}",
@@ -190,8 +140,6 @@ def _texto_do_tema(cartao: dict[str, Any], prova: dict[str, Any] | None) -> str:
     if cartao.get("observacoes"):
         partes.append("O QUE O TIME DISSE")
         partes += [f"- {fala}" for fala in cartao["observacoes"]]
-    if prova is not None:
-        partes.append(f"PROVA DA REGRA\n{_texto_da_prova(prova)}")
     return "\n".join(partes)
 
 
@@ -205,11 +153,8 @@ def _cabe(tema: dict[str, Any], resposta: ia.RecomendacaoDoTema) -> bool:
 
 def _recomendar(supabase, cartao: dict[str, Any], tema: dict[str, Any], modelo: str) -> bool:
     operadora_id = tema.get("operadora_id")
-    prova = None
-    if _tem_prova(tema):
-        prova = provar_pendente(supabase, operadora_id, tema["regra_codigo"], modelo=modelo)
     memoria = gerar_texto_memoria(supabase, operadora_id) if operadora_id else "(o tema não é de uma operadora só)"
-    resposta = ia.recomendar_tema(memoria, _texto_do_tema(cartao, prova), supabase=supabase, modelo=modelo)
+    resposta = ia.recomendar_tema(memoria, _texto_do_tema(cartao), supabase=supabase, modelo=modelo)
     cabe = _cabe(tema, resposta)
     if not cabe:
         # Fica sem recomendação, e marcado: a pessoa decide pelo cartão, e o
@@ -222,7 +167,6 @@ def _recomendar(supabase, cartao: dict[str, Any], tema: dict[str, Any], modelo: 
             "recomendacao_motivo": (
                 juntar_motivo(sanitizar_travessao(resposta.motivo), sanitizar_travessao(texto)) if cabe else None
             ),
-            "recomendacao_prova_id": prova["prova_id"] if prova and cabe else None,
             "recomendado_em": _agora(),
         }
     ).eq("id", tema["id"]).eq("estado", ABERTO).execute()
@@ -232,7 +176,7 @@ def _recomendar(supabase, cartao: dict[str, Any], tema: dict[str, Any], modelo: 
 def recomendar_abertos(supabase) -> int:
     """O Auditor decide todos os Temas abertos ainda sem recomendação, no
     modelo da Validação. Devolve quantos ganharam recomendação. O Tema que
-    falhar (IA fora, prova sem memória) fica para o próximo pedido."""
+    falhar (IA fora) fica para o próximo pedido."""
     modelo = settings.cm_ia_modelo_validacao
     cartoes = fila_de_validacao(supabase)["temas"]
     sem = {t["id"] for t in _sem_recomendacao(supabase)}

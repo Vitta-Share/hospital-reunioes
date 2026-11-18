@@ -4,8 +4,8 @@ Quando o Auditor classifica o Faltou isto como REGRA, ele mesmo propõe a Regra
 que faz o Guia apontar o item. Quem aponta decide o caminho:
 
 - quem tem "Regra contratual e tabelas" (gestão e as duas diretorias): a
-  proposta entra no lote aberto da conversa da Operadora, com a Prova da
-  regra, e o "ok" ali grava a Regra vigente numa versão nova da Memória;
+  proposta entra no lote aberto da conversa da Operadora, e o "ok" ali
+  grava a Regra vigente numa versão nova da Memória;
 - faturista ou coordenadora: a Regra entra pendente numa versão nova da
   Memória, e um Tema de validação abre para a diretoria decidir.
 
@@ -119,7 +119,7 @@ class TestDeQuemDecide:
         resposta = _apontar(banco, conta_id, quem)
 
         assert resposta.status_code == 200, resposta.text
-        # Antes do ok, a Memória não muda: o item espera no lote da conversa da Operadora, com a prova.
+        # Antes do ok, a Memória não muda: o item espera no lote da conversa da Operadora.
         assert _vigente(banco)["id"] == antes["id"]
         conversa = _com_a_conversa(banco, quem).get(CONVERSA).json()
         (item,) = conversa["lote"]["itens"]
@@ -128,7 +128,8 @@ class TestDeQuemDecide:
             REGRA_DO_EQUIPO,
             "INS",
         )
-        assert item["prova"] is not None
+        # Sem refazer Contas concluídas (#1920).
+        assert "prova" not in item
         assert {lote["fonte"] for lote in banco.tabelas["cm_lote"]} == {"FALTOU_ISTO"}
         assert [(m["autor"], m["texto"]) for m in conversa["mensagens"]] == [
             ("PESSOA", "Faltou isto no Guia, em 03/10: Equipo macrogotas."),
@@ -274,7 +275,6 @@ class TestOKit:
 
         for trecho in (
             "propõe a regra",
-            "Prova da regra",
             "conversa da Operadora",
             '"ok"',
             "nasce vigente",
