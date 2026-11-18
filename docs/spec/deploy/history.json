@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-18T20:32:48-03:00",
+      "sha": "92f1ffe38e70a8933efe03b130834b6b4f84646f",
+      "app_version": "0.311.0",
+      "subject": "Onda conversa-destinatario-1964-onda1: Mensagem pela ponte com Destinatário, Assunto e pede resposta; Ponte lista quem pode ser Destinatário, participantes ativos com id e nome; Ponte cria Demanda par",
+      "raw_subject": "chore(deploy): registro da onda conversa-destinatario-1964-onda1 (#1970 #1969 #1971)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1964
+      ],
+      "result": "healthy",
+      "duration_seconds": 2907,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "163_tecnologia_projeto_novo.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta conversa-destinatario-1964-onda1: PR #1970 (issue #1965), PR #1969 (issue #1966), PR #1971 (issue #1967), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 9,
+        "build_s": {
+          "backend": 19,
+          "frontend": 239
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-18T18:01:20-03:00",
       "sha": "20f1dc0926ac7a975673ded5ba8e3b22a73f8322",
       "app_version": "0.310.0",
