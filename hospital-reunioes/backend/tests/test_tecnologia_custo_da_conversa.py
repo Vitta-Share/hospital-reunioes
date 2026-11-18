@@ -161,7 +161,8 @@ class TestCustoEmCadaTurno:
             monkeypatch,
             lambda d: _chamada(d, custo=1.812, criado_em="2026-11-06T10:00:00Z"),
         )
-        monkeypatch.setattr(settings, "llm_model_planejamento", "claude-opus-5-5")
+        # A conversa no Opus pelo seletor (ADR 0103): o modelo e o da Demanda.
+        client.put(f"{CHAT}/{demanda_id}/modelo", json={"modelo": "claude-opus-5-5"})
         # 1000*4 + 500*20 + 20000*0,20 + 2000*5 = 28000 por milhão (Opus 5.5)
         _ia(monkeypatch, _turno(), usage=_uso(entrada=1000, saida=500, lidos=20000, escritos=2000))
 

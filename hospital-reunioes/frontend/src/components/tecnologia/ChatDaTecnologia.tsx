@@ -54,6 +54,7 @@ import {
   frasesDosPrints,
   LETRAS,
   LetraDaOpcao,
+  MODELOS_DA_DEMANDA,
   ResumoDaMelhoria,
   ResumoDoBug,
   RetratoDeHoje,
@@ -63,6 +64,7 @@ import {
   urlDaConversa,
   urlDoAtualizarOCard,
   urlDoCriarOCard,
+  urlDoModelo,
   urlDoNaoBateu,
   urlDoResumoDaMelhoria,
 } from "./chat";
@@ -681,6 +683,41 @@ function Fechamento({ texto, children }: { texto: string; children?: React.React
   );
 }
 
+/**
+ * O modelo da Demanda, Sonnet 5.5 ou Opus 5.5, numa peça só (issue #1921, ADR
+ * 0103), no molde do recorte da lista de conversas: um dos dois está sempre
+ * escolhido, e o clique no outro troca da próxima chamada em diante.
+ */
+function SeletorDoModelo({
+  modelo,
+  desabilitado,
+  onTrocar,
+}: {
+  modelo: string;
+  desabilitado: boolean;
+  onTrocar: (modelo: string) => void;
+}) {
+  return (
+    <div role="group" aria-label="Modelo" className="inline-flex shrink-0 items-center gap-1 p-1 rounded-xl bg-slate-100">
+      <span className="px-1.5 text-xs text-text-secondary">Modelo:</span>
+      {MODELOS_DA_DEMANDA.map(({ id, rotulo }) => (
+        <button
+          key={id}
+          type="button"
+          aria-pressed={modelo === id}
+          disabled={desabilitado}
+          onClick={() => modelo !== id && onTrocar(id)}
+          className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors motion-reduce:transition-none disabled:opacity-50 ${
+            modelo === id ? "bg-white text-primary shadow-sm" : "text-text-secondary hover:text-text-primary"
+          }`}
+        >
+          {rotulo}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 type PropsDoChat = {
   token: string | null;
   /** A conversa da lista a retomar; sem ela, o chat abre do zero. */
@@ -742,6 +779,36 @@ export function ChatDaTecnologia({ token, demandaId = null, onMudou }: PropsDoCh
       }
     },
     [token, onMudou],
+  );
+
+  /** A troca do modelo pelo seletor: não chama a IA, e a falha deixa o modelo como estava. */
+  const trocarOModelo = useCallback(
+    async (modelo: string) => {
+      if (!token || !conversa) return;
+      setErro(null);
+      try {
+        const resposta = await fetch(urlDoModelo(conversa.demanda_id), {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ modelo }),
+        });
+        if (!resposta.ok) {
+          setErro(await motivoDaRecusa(resposta));
+          return;
+        }
+        const corpo = (await resposta.json()) as { modelo?: unknown };
+        if (typeof corpo.modelo !== "string") {
+          setErro(CORPO_ILEGIVEL);
+          return;
+        }
+        const escolhido = corpo.modelo;
+        setConversa((atual) => (atual ? { ...atual, modelo: escolhido } : atual));
+      } catch (e) {
+        console.error("[admin/tecnologia] falha ao trocar o modelo", e);
+        setErro(FALHA_DE_CONEXAO);
+      }
+    },
+    [token, conversa],
   );
 
   /**
@@ -940,6 +1007,10 @@ export function ChatDaTecnologia({ token, demandaId = null, onMudou }: PropsDoCh
     setTexto("");
   }
 
+  const seletorDoModelo = conversa?.modelo ? (
+    <SeletorDoModelo modelo={conversa.modelo} desabilitado={ocupado} onTrocar={(m) => void trocarOModelo(m)} />
+  ) : null;
+
   const aviso = erro && (
     <p role="alert" className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm whitespace-pre-line">
       {erro}
@@ -967,17 +1038,22 @@ export function ChatDaTecnologia({ token, demandaId = null, onMudou }: PropsDoCh
 
   if (conversa?.estado === "enviado") {
     return (
-      <Fechamento texto={conversa.revisao ? ATUALIZADO : conversa.planejamento ? ENVIADO_DA_MELHORIA : ENVIADO}>
-        {/* Só leitura: o Responsável muda no GitHub e a tela acompanha (issue #1534, ADR 0083, decisão 6). */}
-        {conversa.responsavel && <p className="text-sm text-text-secondary">Responsável: {conversa.responsavel}</p>}
-        <button
-          type="button"
-          onClick={recomecar}
-          className="px-4 py-2 rounded-xl border border-border text-sm font-semibold text-text-primary hover:border-primary"
-        >
-          Começar outra conversa
-        </button>
-      </Fechamento>
+      <div className="space-y-4">
+        {aviso}
+        <Fechamento texto={conversa.revisao ? ATUALIZADO : conversa.planejamento ? ENVIADO_DA_MELHORIA : ENVIADO}>
+          {/* Só leitura: o Responsável muda no GitHub e a tela acompanha (issue #1534, ADR 0083, decisão 6). */}
+          {conversa.responsavel && <p className="text-sm text-text-secondary">Responsável: {conversa.responsavel}</p>}
+          <button
+            type="button"
+            onClick={recomecar}
+            className="px-4 py-2 rounded-xl border border-border text-sm font-semibold text-text-primary hover:border-primary"
+          >
+            Começar outra conversa
+          </button>
+          {/* O modelo que a Revisão com o código de hoje vai usar (ADR 0103). */}
+          {conversa.planejamento && seletorDoModelo}
+        </Fechamento>
+      </div>
     );
   }
 
@@ -1093,7 +1169,10 @@ export function ChatDaTecnologia({ token, demandaId = null, onMudou }: PropsDoCh
           aria-label="Continuar a conversa"
           className="w-full bg-white rounded-2xl border border-primary/30 shadow-premium px-5 py-3 space-y-2"
         >
-          <p className="text-xs text-text-secondary">{CONTINUAR_ESCREVENDO}</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-text-secondary">{CONTINUAR_ESCREVENDO}</p>
+            {seletorDoModelo}
+          </div>
           {campoLivre}
         </section>
       </div>
@@ -1133,6 +1212,7 @@ export function ChatDaTecnologia({ token, demandaId = null, onMudou }: PropsDoCh
         </span>
         <h2 className="text-sm font-bold text-slate-900">{TITULO_DO_CHAT}</h2>
         {conversa?.custo && <span className="text-xs text-text-secondary">{textoDoCusto(conversa.custo)}</span>}
+        {seletorDoModelo}
         {podeResumir && conversa && (
           <button
             type="button"

@@ -45,6 +45,20 @@ export function urlDaRevisao(demandaId: string): string {
   return `${urlDaConversa(demandaId)}/revisao`;
 }
 
+/**
+ * Os modelos que o diretor escolhe em cada Demanda (issue #1921, ADR 0103). A
+ * Demanda nova nasce no Sonnet 5.5; a troca vale da próxima chamada em diante.
+ */
+export const MODELOS_DA_DEMANDA = [
+  { id: "claude-sonnet-5-5", rotulo: "Sonnet 5.5" },
+  { id: "claude-opus-5-5", rotulo: "Opus 5.5" },
+] as const;
+
+/** O seletor do modelo da conversa: o PUT troca o modelo da Demanda. */
+export function urlDoModelo(demandaId: string): string {
+  return `${urlDaConversa(demandaId)}/modelo`;
+}
+
 /** A faixa em dólar do Retrato de hoje; nula quando o modelo está sem preço. */
 export type EstimativaDaRevisao = { modelo: string; minimo_usd: number | null; maximo_usd: number | null };
 
@@ -207,6 +221,8 @@ export type ConversaDoChat = {
    * ela, o resumo leva o Atualizar o card no lugar do Criar o card (issue #1558).
    */
   revisao?: RevisaoDaConversa | null;
+  /** O modelo da Demanda (issue #1921, ADR 0103), o que o seletor mostra. */
+  modelo?: string | null;
 };
 
 export type RevisaoDaConversa = {

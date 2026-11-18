@@ -323,23 +323,25 @@ class TestOPedidoAIA:
         _turno()
 
         enviado = cliente.chamadas[0]
-        assert settings.llm_model_planejamento == "claude-opus-5-5"
-        assert enviado["model"] == "claude-opus-5-5"
+        # Desde a ADR 0103 o padrao e o Sonnet 5.5; o Opus 5.5 e escolha do diretor.
+        assert settings.llm_model_planejamento == "claude-sonnet-5-5"
+        assert enviado["model"] == "claude-sonnet-5-5"
         assert "thinking" not in enviado
         assert "effort" not in json.dumps(enviado.get("output_config", {}))
 
     def test_a_variavel_troca_o_modelo(self, monkeypatch):
         cliente = _ia(monkeypatch, _pergunta())
-        monkeypatch.setattr(settings, "llm_model_planejamento", "claude-sonnet-5-5")
+        monkeypatch.setattr(settings, "llm_model_planejamento", "claude-opus-5-5")
 
         _turno()
 
-        assert cliente.chamadas[0]["model"] == "claude-sonnet-5-5"
+        assert cliente.chamadas[0]["model"] == "claude-opus-5-5"
 
 
 class TestOCustoDaChamada:
     def test_grava_modelo_tokens_custo_duracao_e_sucesso(self, monkeypatch):
         # Opus 5.5: US$ 4 entrada, US$ 20 saida, US$ 0,20 leitura e US$ 5 escrita de cache por milhao.
+        monkeypatch.setattr(settings, "llm_model_planejamento", "claude-opus-5-5")
         _ia(monkeypatch, _pergunta(), usage=_uso(entrada=1000, saida=500, lidos=20000, escritos=2000))
 
         chamada = _turno().chamada
@@ -486,6 +488,7 @@ class TestResumo:
         assert [bloco.get("cache_control") for bloco in enviado["system"]] == [None, {"type": "ephemeral"}]
 
     def test_o_custo_do_resumo_e_gravado_como_passo_resumo(self, monkeypatch):
+        monkeypatch.setattr(settings, "llm_model_planejamento", "claude-opus-5-5")
         _ia(monkeypatch, _resumo(), usage=_uso(entrada=1000, saida=500, lidos=20000, escritos=2000))
 
         chamada = _resumir(_conversa_com(1)).chamada

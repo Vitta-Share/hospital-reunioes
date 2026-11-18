@@ -56,15 +56,15 @@ RESERVA_DAS_LEITURAS = 4_000
 SAIDA_DO_RETRATO = 3_000
 
 
-def estimativa(*, caracteres: int, kit: str) -> dict:
+def estimativa(*, caracteres: int, kit: str, modelo: str | None = None) -> dict:
     """A faixa em dolar do Retrato de hoje, pelo tamanho da conversa e do PRD
-    (`caracteres`) e do kit, com o preco do modelo do planejamento.
+    (`caracteres`) e do kit, com o preco do modelo da Demanda (ADR 0103).
 
     O minimo e uma chamada so, sem consultar o codigo. O maximo e o teto de
     consultas do turno, cada rodada reenviando o pedido e o arquivo lido.
     Modelo sem preco na tabela devolve a faixa nula: a tela diz que nao estimou.
     """
-    modelo = settings.llm_model_planejamento
+    modelo = modelo or settings.llm_model_planejamento
     preco = planejamento_demanda.PRECO_POR_MILHAO.get(modelo)
     if preco is None:
         return {"modelo": nome_de_exibicao(modelo), "minimo_usd": None, "maximo_usd": None}
@@ -208,7 +208,9 @@ def pedido_do_retrato(
     )
 
 
-def retrato_de_hoje(*, demanda: dict, mensagens: list[dict], kit: str, **leituras) -> ResultadoDoRetrato:
+def retrato_de_hoje(
+    *, demanda: dict, mensagens: list[dict], kit: str, modelo: str | None = None, **leituras
+) -> ResultadoDoRetrato:
     """O primeiro turno da revisao. Sem estado: tudo chega por parametro, e
     `leituras` sao as de `pedido_do_retrato`. O modelo leva as ferramentas de
     leitura do codigo, como o turno da melhoria."""
@@ -222,6 +224,7 @@ def retrato_de_hoje(*, demanda: dict, mensagens: list[dict], kit: str, **leitura
         kit=kit,
         validar=_SaidaDoRetrato.model_validate,
         consultas=ferramentas_do_codigo.Consultas(),
+        modelo=modelo,
     )
     if saida is None:
         return ResultadoDoRetrato(mensagem=None, erro=MOTIVO_RETRATO_FALHOU, chamada=chamada)
