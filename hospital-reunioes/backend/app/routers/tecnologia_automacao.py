@@ -136,7 +136,7 @@ def demanda_de_projeto_novo(
         demanda, criada = tecnologia_espelho.demanda_de_projeto_novo(
             supabase, projeto, numero, nome_do_projeto=nome, titulo=titulo, link=payload.link
         )
-    except tecnologia_espelho.DemandaDeProjetoNovoRecusada as recusa:
+    except tecnologia_espelho.DemandaDeProjetoNovoRecusadaError as recusa:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(recusa)) from recusa
     response.status_code = status.HTTP_201_CREATED if criada else status.HTTP_200_OK
     return {"id": str(demanda["id"]), "criada": criada}

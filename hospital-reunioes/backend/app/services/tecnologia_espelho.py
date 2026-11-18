@@ -177,7 +177,7 @@ def criar(supabase, issue: dict[str, Any], *, projeto: str) -> dict[str, Any] | 
     return criada[0] if criada else None
 
 
-class DemandaDeProjetoNovoRecusada(ValueError):
+class DemandaDeProjetoNovoRecusadaError(ValueError):
     """A ponte nao cria a Demanda; a mensagem e o motivo, em palavras."""
 
 
@@ -208,13 +208,13 @@ def demanda_de_projeto_novo(
     existente = demanda_vinculada(supabase, projeto, numero)
     if existente is not None:
         if existente.get("apagada_em"):
-            raise DemandaDeProjetoNovoRecusada(MOTIVO_DEMANDA_APAGADA)
+            raise DemandaDeProjetoNovoRecusadaError(MOTIVO_DEMANDA_APAGADA)
         return existente, False
     if projeto in github_client.PROJETOS:
-        raise DemandaDeProjetoNovoRecusada(MOTIVO_PROJETO_COM_REPOSITORIO)
+        raise DemandaDeProjetoNovoRecusadaError(MOTIVO_PROJETO_COM_REPOSITORIO)
     produto = _produto_padrao(supabase)
     if produto is None:
-        raise DemandaDeProjetoNovoRecusada(MOTIVO_SEM_PRODUTO)
+        raise DemandaDeProjetoNovoRecusadaError(MOTIVO_SEM_PRODUTO)
     linha = {
         "titulo": titulo,
         "descricao": None,
