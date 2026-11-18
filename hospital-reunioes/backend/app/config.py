@@ -48,9 +48,10 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     llm_model: str = "claude-sonnet-5-5"
     # O Planejamento da Demanda (ADR 0075, decisão 7) roda num modelo próprio,
-    # pelo mesmo cliente e pela mesma chave: o grill de negócio com o diretor
-    # pede mais julgamento que o resto da IA de texto.
-    llm_model_planejamento: str = "claude-opus-5-5"
+    # pelo mesmo cliente e pela mesma chave. Desde a ADR 0103 este é só o
+    # modelo com que a Demanda nova nasce: o diretor troca entre Sonnet 5.5 e
+    # Opus 5.5 em cada uma, e a escolha mora na linha do planejamento.
+    llm_model_planejamento: str = "claude-sonnet-5-5"
     # O agente de triagem da Ouvidoria (ADR 0087): lê cada caso e cada
     # avaliação com comentário na chegada. Variável própria para trocar o
     # modelo sem mexer no resto da IA de texto.

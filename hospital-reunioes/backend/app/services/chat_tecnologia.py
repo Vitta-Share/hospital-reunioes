@@ -15,7 +15,7 @@ Mesma separacao do Planejamento da Demanda, e pelo mesmo motivo:
   `gravar_chamada`): a conversa mora na mesma tabela, uma por Demanda (ADR 0077,
   decisao 2), e a rota costura.
 
-O modelo e o do planejamento (`LLM_MODEL_PLANEJAMENTO`, decisao 9), pelo mesmo
+O modelo e o da Demanda (ADR 0077, decisao 9; ADR 0103), pelo mesmo
 `chamar_o_modelo`: o prefixo fixo em cache e o custo gravado por chamada.
 
 As regras que a IA nao decide moram aqui, em codigo: o teto de cinco perguntas,
@@ -476,6 +476,7 @@ def turno(
     escolha: str | None = None,
     titulo_atual: str | None = None,
     demanda_id: str | None = None,
+    modelo: str | None = None,
 ) -> ResultadoDoTurno:
     """Um turno do chat. Sem estado: tudo chega por parametro.
 
@@ -495,6 +496,7 @@ def turno(
         validar=_SaidaDoTurno.model_validate,
         prompt=PROMPT,
         consultas=consultas,
+        modelo=modelo,
     )
     if saida is None:
         return ResultadoDoTurno(
@@ -583,7 +585,12 @@ def demanda_da_melhoria(mensagens: list[dict], *, demanda_id: str | None, titulo
 
 
 def turno_da_melhoria(
-    *, mensagens: list[dict], kit: str, demanda_id: str | None = None, titulo: str | None = None
+    *,
+    mensagens: list[dict],
+    kit: str,
+    demanda_id: str | None = None,
+    titulo: str | None = None,
+    modelo: str | None = None,
 ) -> planejamento_demanda.ResultadoDoTurno:
     """Um turno do planejamento da melhoria dentro do chat. Sem estado.
 
@@ -598,11 +605,12 @@ def turno_da_melhoria(
         mensagens=planejamento,
         kit=kit,
         consultas=ferramentas_do_codigo.Consultas(),
+        modelo=modelo,
     )
 
 
 def resumo_da_melhoria(
-    *, mensagens: list[dict], kit: str, demanda_id: str, titulo: str | None
+    *, mensagens: list[dict], kit: str, demanda_id: str, titulo: str | None, modelo: str | None = None
 ) -> planejamento_demanda.ResultadoDoResumo:
     """O "Fechar e resumir" da melhoria: o resumo do Planejamento da Demanda,
     com o que ficou em aberto e a secao do glossario, sobre a parte da conversa
@@ -613,4 +621,5 @@ def resumo_da_melhoria(
         mensagens=planejamento,
         kit=kit,
         consultas=ferramentas_do_codigo.Consultas(),
+        modelo=modelo,
     )

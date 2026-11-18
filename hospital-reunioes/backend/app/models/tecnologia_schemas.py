@@ -399,6 +399,13 @@ class EstimativaDaRevisao(BaseModel):
     maximo_usd: float | None = None
 
 
+class ModeloDaDemanda(BaseModel):
+    """O modelo da Demanda, no seletor da conversa (issue #1921, ADR 0103).
+    So os dois da lista: outro valor e 422."""
+
+    modelo: Literal["claude-sonnet-5-5", "claude-opus-5-5"]
+
+
 class RevisarPayload(BaseModel):
     """O clique em Confirmar do dialogo: sem ele, a IA nao roda (ADR 0082)."""
 
@@ -521,6 +528,8 @@ class ChatResponse(BaseModel):
     responsavel: str | None = None
     # A Revisao com o codigo de hoje (issue #1557): nula fora dela.
     revisao: RevisaoDaConversa | None = None
+    # O modelo da Demanda (issue #1921, ADR 0103): o que o seletor mostra.
+    modelo: str | None = None
 
 
 class MensagemDaConversaPayload(BaseModel):

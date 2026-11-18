@@ -249,7 +249,8 @@ class TestSemConfirmacaoNenhumaIA:
 
         assert resposta.status_code == 200, resposta.text
         corpo = resposta.json()
-        assert corpo["modelo"] == "Opus 5.5"
+        # Sem modelo gravado, o padrao (ADR 0103).
+        assert corpo["modelo"] == "Sonnet 5.5"
         assert 0 < corpo["minimo_usd"] < corpo["maximo_usd"]
         assert cliente.chamadas == []
         assert _conversas(sb)[0]["estado"] == "enviado"

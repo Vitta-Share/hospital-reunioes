@@ -14,8 +14,9 @@ Duas metades, e a separacao e de proposito:
 
 O cliente do LLM vem por `ai_processor` pelo MODULO: e o
 que mantem o dublê dos testes (`ai_processor._get_llm`) valendo aqui. O modelo
-e outro (`LLM_MODEL_PLANEJAMENTO`, decisao 7), com o thinking e o effort
-padrao do modelo: nada de desligar o pensamento nem de escolher o esforco.
+e o da Demanda (`tecnologia_planejamentos.modelo`, ADR 0103), que nasce pelo
+`LLM_MODEL_PLANEJAMENTO`, com o thinking e o effort padrao do modelo: nada de
+desligar o pensamento nem de escolher o esforco.
 """
 
 from __future__ import annotations
@@ -220,6 +221,17 @@ PRECO_POR_MILHAO: dict[str, Preco] = {
     "claude-opus-5-5": Preco(entrada=4.00, saida=20.00, leitura_cache=0.20, escrita_cache=5.00),
     "claude-sonnet-5-5": Preco(entrada=2.00, saida=10.00, leitura_cache=0.20, escrita_cache=2.50),
 }
+
+
+# Os modelos que o diretor escolhe em cada Demanda (issue #1921, ADR 0103)
+# sao os dois da tabela acima; a lista fechada mora no payload do seletor
+# (`ModeloDaDemanda`), que recusa outro valor com 422.
+
+
+def modelo_da_linha(linha: dict | None) -> str:
+    """O modelo da Demanda: o gravado na linha do planejamento, ou o padrao
+    (`LLM_MODEL_PLANEJAMENTO`) quando a conversa ainda nao tem linha."""
+    return (linha or {}).get("modelo") or settings.llm_model_planejamento
 
 
 @dataclass(frozen=True)
@@ -517,6 +529,7 @@ def chamar_o_modelo(
     validar,
     prompt: str = PROMPT_DO_PLANEJAMENTO,
     consultas: ferramentas_do_codigo.Consultas | None = None,
+    modelo: str | None = None,
 ):
     """Uma chamada ao modelo do planejamento: o bloco fixo em cache, o pedido
     que varia, a saida validada e a linha de custo.
@@ -532,11 +545,13 @@ def chamar_o_modelo(
     Com `consultas` (issue #1385), o modelo leva as ferramentas de leitura do
     codigo, se a integracao do GitHub estiver configurada, e o turno faz as
     rodadas de consulta. A linha de custo soma todas elas.
+
+    `modelo` e o da Demanda (ADR 0103, `modelo_da_linha`); sem ele, o padrao.
     """
     if consultas is not None and not ferramentas_do_codigo.disponiveis():
         consultas = None
     client, _modelo_do_resto_do_app = ai_processor._get_llm()
-    modelo = settings.llm_model_planejamento
+    modelo = modelo or settings.llm_model_planejamento
     ai_processor._log_llm_call(f"{prompt.removesuffix('_system')}/{demanda.get('id')}", "anthropic", modelo)
     preco = PRECO_POR_MILHAO.get(modelo)
     if preco is None:
@@ -576,7 +591,12 @@ def chamar_o_modelo(
 
 
 def turno(
-    *, demanda: dict, mensagens: list[dict], kit: str, consultas: ferramentas_do_codigo.Consultas | None = None
+    *,
+    demanda: dict,
+    mensagens: list[dict],
+    kit: str,
+    consultas: ferramentas_do_codigo.Consultas | None = None,
+    modelo: str | None = None,
 ) -> ResultadoDoTurno:
     """Um turno do planejamento. Sem estado: tudo chega por parametro.
 
@@ -595,6 +615,7 @@ def turno(
         kit=kit,
         validar=_SaidaDoTurno.model_validate,
         consultas=consultas,
+        modelo=modelo,
     )
     if saida is None:
         return ResultadoDoTurno(mensagem=None, decisao=None, erro=MOTIVO_TURNO_FALHOU, chamada=chamada)
@@ -799,7 +820,12 @@ def _itens(lista: list[str]) -> list[str]:
 
 
 def resumir(
-    *, demanda: dict, mensagens: list[dict], kit: str, consultas: ferramentas_do_codigo.Consultas | None = None
+    *,
+    demanda: dict,
+    mensagens: list[dict],
+    kit: str,
+    consultas: ferramentas_do_codigo.Consultas | None = None,
+    modelo: str | None = None,
 ) -> ResultadoDoResumo:
     """O Fechar e resumir. Sem estado, como o turno, e com o mesmo bloco fixo:
     o cache do prefixo vale para o resumo tambem."""
@@ -814,6 +840,7 @@ def resumir(
         kit=kit,
         validar=_SaidaDoResumo.model_validate,
         consultas=consultas,
+        modelo=modelo,
     )
     if saida is None:
         return ResultadoDoResumo(resumo=None, erro=MOTIVO_TURNO_FALHOU, chamada=chamada)
@@ -873,6 +900,17 @@ def gravar(supabase, demanda_id: str, *, atual: dict | None, novo: dict) -> dict
         .eq("atualizado_em", atual.get("atualizado_em"))
         .execute()
     )
+    return (result.data or [None])[0]
+
+
+def trocar_o_modelo(supabase, demanda_id: str, modelo: str) -> dict | None:
+    """A troca do modelo pelo seletor da conversa (issue #1921, ADR 0103).
+
+    Sem mexer no `atualizado_em`, de proposito: o modelo nao e fala da
+    conversa, e o turno que estava no ar quando o diretor trocou grava
+    normalmente, sem o 409 da trava otimista do `gravar`.
+    """
+    result = supabase.table(TABELA_PLANEJAMENTOS).update({"modelo": modelo}).eq("demanda_id", demanda_id).execute()
     return (result.data or [None])[0]
 
 

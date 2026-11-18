@@ -37,6 +37,8 @@ O chat da aba (issues #1381, #1383 e #1384):
 - POST  /admin/tecnologia/chat                  o primeiro turno: a Demanda
                                                 nasce aqui.
 - GET   /admin/tecnologia/chat/{id}             a conversa guardada.
+- PUT   /admin/tecnologia/chat/{id}/modelo      o modelo da Demanda, Sonnet
+                                                5.5 ou Opus 5.5 (ADR 0103).
 - POST  /admin/tecnologia/chat/{id}             um turno: a fala do diretor
                                                 entra, a da IA volta.
 - POST  /admin/tecnologia/chat/{id}/nao-bateu   o que nao bateu no resumo.
@@ -106,6 +108,7 @@ from app.models.tecnologia_schemas import (
     EstimativaDaRevisao,
     MensagemDaConversaPayload,
     MensagemDaConversaResponse,
+    ModeloDaDemanda,
     QuemSouNaAbaResponse,
     RevisarPayload,
 )
@@ -484,6 +487,8 @@ def _chat_para_a_tela(
         "anexos_da_demanda": anexos_da_demanda or [],
         "responsavel": responsavel,
         "revisao": _revisao_da_conversa(linha),
+        # O modelo da Demanda, que o seletor da conversa mostra e troca (ADR 0103).
+        "modelo": planejamento_demanda.modelo_da_linha(linha),
     }
 
 
@@ -1085,6 +1090,7 @@ async def _turno_da_melhoria(
         kit=carregar_kit(),
         demanda_id=demanda_id,
         titulo=demanda.get("titulo"),
+        modelo=planejamento_demanda.modelo_da_linha(atual),
     )
     if resultado.chamada is not None:
         planejamento_demanda.gravar_chamada(supabase, resultado.chamada)
@@ -1139,6 +1145,26 @@ async def ler_o_chat(
     return _chat_para_a_tela(
         supabase, demanda_id, linha, anexos_da_demanda=anexos, responsavel=responsavel, numero=demanda.get("numero")
     )
+
+
+@router.put("/chat/{demanda_id}/modelo", response_model=ModeloDaDemanda)
+async def trocar_o_modelo_da_demanda(
+    demanda_id: str,
+    payload: ModeloDaDemanda,
+    ator: dict = Depends(require_super_admin),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """O seletor "Sonnet 5.5 | Opus 5.5" da conversa (issue #1921, ADR 0103).
+
+    Troca quem abre a conversa, com a mesma regra da leitura: a Demanda de
+    outro autor responde como inexistente. A troca vale da proxima chamada em
+    diante, e nao chama a IA. Modelo fora dos dois volta 422 no payload.
+    """
+    demanda, _linha = _chat_guardado(supabase, demanda_id)
+    if not pode_ver(ator, demanda):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=MOTIVO_CHAT_NAO_ENCONTRADO)
+    linha = planejamento_demanda.trocar_o_modelo(supabase, demanda_id, payload.modelo)
+    return {"modelo": planejamento_demanda.modelo_da_linha(linha)}
 
 
 # ─── A Conversa da Demanda (issue #1537, ADR 0083, decisao 8) ──────────────
@@ -1289,6 +1315,7 @@ async def responder_no_chat(
         produtos=_produtos_ativos(supabase),
         titulo_atual=demanda.get("titulo"),
         demanda_id=demanda_id,
+        modelo=planejamento_demanda.modelo_da_linha(atual),
     )
     if resultado.chamada is not None:
         planejamento_demanda.gravar_chamada(supabase, resultado.chamada)
@@ -1395,6 +1422,7 @@ async def fechar_e_resumir_a_melhoria(
         kit=carregar_kit(),
         demanda_id=demanda_id,
         titulo=demanda.get("titulo"),
+        modelo=planejamento_demanda.modelo_da_linha(atual),
     )
     if resultado.chamada is not None:
         planejamento_demanda.gravar_chamada(supabase, resultado.chamada)
@@ -1629,7 +1657,11 @@ async def estimar_a_revisao(
     Retrato de hoje, pelo tamanho da conversa e do PRD e pelo preço do modelo
     do planejamento. Só conta: nenhuma IA e nenhum GitHub."""
     demanda, linha = _revisao_permitida(supabase, demanda_id, ator)
-    return tecnologia_revisao.estimativa(caracteres=_tamanho_do_pedido(demanda, linha), kit=carregar_kit())
+    return tecnologia_revisao.estimativa(
+        caracteres=_tamanho_do_pedido(demanda, linha),
+        kit=carregar_kit(),
+        modelo=planejamento_demanda.modelo_da_linha(linha),
+    )
 
 
 @router.post("/chat/{demanda_id}/revisao", response_model=ChatResponse)
@@ -1674,6 +1706,7 @@ async def revisar_com_o_codigo_de_hoje(
         demanda=chat_tecnologia.demanda_da_melhoria(mensagens, demanda_id=demanda_id, titulo=demanda.get("titulo")),
         mensagens=planejamento,
         kit=carregar_kit(),
+        modelo=planejamento_demanda.modelo_da_linha(atual),
         corpo_da_issue=str(issue.get("body") or ""),
         comentarios=comentarios,
         subidas=tecnologia_revisao.subidas_desde(historico, data_do_card),
@@ -1700,6 +1733,7 @@ async def revisar_com_o_codigo_de_hoje(
             kit=carregar_kit(),
             demanda_id=demanda_id,
             titulo=demanda.get("titulo"),
+            modelo=planejamento_demanda.modelo_da_linha(atual),
         )
         if turno.chamada is not None:
             planejamento_demanda.gravar_chamada(supabase, turno.chamada)
