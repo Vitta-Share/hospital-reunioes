@@ -2,6 +2,51 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-18T18:01:20-03:00",
+      "sha": "20f1dc0926ac7a975673ded5ba8e3b22a73f8322",
+      "app_version": "0.310.0",
+      "subject": "PR #1930, issue #1782: Carrega os 17 temas mínimos de capacitação da ANVISA",
+      "raw_subject": "chore(deploy): registro do PR avulso (#1930)",
+      "scope": [
+        "backend"
+      ],
+      "prds": [],
+      "result": "healthy",
+      "duration_seconds": 1508,
+      "services_touched": [
+        "backend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "162_nsp_temas_minimos_da_anvisa.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "PR avulso: PR #1930, issue #1782. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 23
+        },
+        "health_s": 10
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-18T17:04:03-03:00",
       "sha": "559a62d502a26e2dbcaed54b25284b971fd84fe2",
       "app_version": "0.309.0",
