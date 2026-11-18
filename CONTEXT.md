@@ -289,7 +289,7 @@ O nome do local que o paciente vê na tela de nota e no cartaz ("Emergência adu
 _Evitar_: mostrar ao paciente o nome do setor da taxonomia ("Você leu o QR de Auditoria").
 
 **Código de acompanhamento**:
-O código mostrado uma vez ao manifestante anônimo, junto com o protocolo, para acompanhar o caso na [Página de acompanhamento]. Só o hash é guardado.
+O código mostrado uma vez ao manifestante anônimo, junto com o protocolo, para acompanhar o caso na [Página de acompanhamento]. Só o hash é guardado. A [Notificação de incidente] anônima ganha o mesmo código.
 _Evitar_: guardar o código em claro; mostrá-lo de novo depois da confirmação.
 
 **Página de acompanhamento**:
@@ -356,8 +356,12 @@ O papel de uma pessoa num [Colegiado], sempre com vigência (início e fim). Par
 _Evitar_: "membro" sem dizer de quê; apagar participação encerrada (o histórico responde quem compunha o Colegiado em qualquer data).
 
 **Presidência (do Núcleo)**:
-A pessoa que coordena o Núcleo e decide a triagem, a designação e as aprovações. "Presidência" e "coordenação" são a mesma pessoa; o suplente responde nas ausências.
+A pessoa que coordena o Núcleo e decide a triagem, a designação e as aprovações. "Presidência" e "coordenação" são a mesma pessoa; o [Suplente em exercício] responde nas ausências.
 _Evitar_: "coordenação" como papel separado; "secretário" (não existe: a secretaria é da Presidência, com a automação).
+
+**Suplente em exercício**:
+O suplente da Presidência dentro de um período de ausência registrado, com início e fim, pela Presidência ou pelo [Acesso pleno ao NSP]. Nesse período ele tem os poderes da Presidência, inclusive a triagem e a identidade de quem notificou. Fora dele, é membro. Na reunião, também é suplente em exercício quem conduz a ata na falta da Presidência.
+_Evitar_: suplente com poderes da Presidência sem período registrado; período sem fim.
 
 **Membro do Núcleo**:
 Quem tem [Participação] vigente no Núcleo e o [Termo de Adesão] assinado. Sem Termo válido, vê painel, calendário e agenda, e não abre caso, investigação nem ata.
@@ -382,6 +386,34 @@ _Evitar_: confundir com a [Triagem de e-mail] e com o [Agente de triagem] da Ouv
 **Faixa (A a E)**:
 A prioridade de um caso do Núcleo, da mais grave para a mais leve: A (óbito ou evento que nunca deveria ocorrer), B (dano grave), C (dano moderado), D (dano leve ou sem dano), E (quase erro ou circunstância de risco). Na dúvida entre duas, vale a mais alta.
 _Evitar_: "never event" e "near miss" fora de parênteses; rebaixar caso grave.
+
+**Pergunta de esclarecimento**:
+Uma das até duas perguntas que o agente faz a quem notificou, depois do registro, quando a resposta pode mudar a classificação. Nunca bloqueia o envio e pode ficar sem resposta.
+_Evitar_: perguntar antes de registrar; pergunta que não muda a classificação.
+
+**Registro rápido**:
+A [Notificação de incidente] lançada pela Presidência ou por um [Membro do Núcleo] a partir de busca ativa, ronda, reunião rápida de segurança ou auditoria, com relato, setor, data e origem numa tela só.
+_Evitar_: usar o registro rápido para notificação espontânea de outra pessoa.
+
+**Encaminhamento (do Núcleo)**:
+O envio de uma [Notificação de incidente] a outro canal (Ouvidoria, Canal de Conduta, Segurança do Trabalho, queixa técnica) ou o encerramento como fora de escopo, com destino e motivo de uma frase, depois da confirmação da Presidência. O protocolo do Núcleo é preservado. Um caso pode ter o Núcleo e outro destino ao mesmo tempo. Ao Canal de Conduta nenhum conteúdo é transferido.
+_Evitar_: "transferir" ao Canal de Conduta; encaminhar só pela sugestão do agente.
+
+**Prazo legal**:
+O prazo que a norma impõe ao hospital: 72 horas corridas para notificar óbito e evento que nunca deveria ocorrer, o 15º dia útil do mês seguinte para os demais incidentes e 60 dias corridos para a complementação. Ninguém o altera pela tela e o relógio dele nunca para.
+_Evitar_: editar ou pausar prazo legal; prazo interno mais frouxo que o legal.
+
+**Prazo interno**:
+Os demais prazos do Regimento (confirmação a quem notificou, comunicação à Direção, triagem, investigação, reunião de análise), editáveis pela Presidência e pelo [Acesso pleno ao NSP], com histórico. A mudança não retroage. Só o prazo da investigação aceita parar o relógio, com motivo.
+_Evitar_: confundir com o [Prazo legal]; mudança que alcança caso já classificado.
+
+**Período de sombra**:
+As primeiras semanas de operação, em que toda triagem é confirmada uma a uma e o app mede a concordância entre a sugestão do agente e a decisão da Presidência, eixo por eixo.
+_Evitar_: tratar a concordância como nota do agente sem olhar os erros para baixo.
+
+**Aprovação em lote**:
+A confirmação de várias triagens das faixas D e E num gesto só, que nasce desligada e só a Diretoria Executiva liga, na pendência "Recalibrar o agente do NSP", com concordância de 90% ou mais nas últimas 4 semanas. Faixas A, B e C nunca vão em lote.
+_Evitar_: lote ligado por padrão; lote com caso de faixa C ou mais grave.
 
 **Notificação externa**:
 A comunicação de um incidente à vigilância sanitária, com prazo legal. O app prepara o texto e guarda o protocolo; quem envia é a Presidência, no sistema da ANVISA.
