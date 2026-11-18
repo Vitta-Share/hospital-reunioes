@@ -661,11 +661,11 @@ O ato de subir para o app os PDFs da Conta e do Prontuário exportados do MV. Qu
 _Evitar_: tratar quem enviou como dono da conta; mandar a faturista resolver arquivo que falta.
 
 **Fila de contas**:
-A lista comum das contas com Guia pronto que ninguém pegou, em ordem de envio, nunca por valor. Toda faturista vê a mesma Fila; ao lado, "Minhas" mostra as que ela puxou e ainda não concluiu. Conta que espera arquivo, processa ou deu erro não entra na Fila (ADR 0073, que emendou a decisão 10 da ADR 0070).
-_Evitar_: fila por faturista; mostrar na Fila conta sem Guia.
+A lista comum das contas com Guia pronto que ninguém pegou, em ordem de envio, nunca por valor. Toda faturista vê a mesma Fila. Quem analisa vê também as contas em análise e as concluídas de todas, cada uma com o nome de quem está com ela, e filtra por "Minhas" (as que ela pegou); a conta de outra faturista aparece na lista e na busca, mas ela não abre. Conta que espera arquivo, processa ou deu erro não entra na Fila (ADR 0073, que emendou a decisão 10 da ADR 0070; a visão das contas das colegas é do grill de 18/11/2026).
+_Evitar_: fila por faturista; mostrar na Fila conta sem Guia; esconder da faturista com quem está a conta que ela procura.
 
 **Puxar a conta**:
-Abrir o Guia de uma conta livre da [Fila de contas]: nesse clique a conta passa a ser da faturista, e só um clique ganha. O "Concluir e abrir a próxima" puxa a primeira livre. A faturista pode **devolver à fila** a conta que puxou e não vai terminar, e a coordenação devolve a de qualquer uma; as marcações ficam.
+Abrir o Guia de uma conta livre da [Fila de contas]: nesse clique a conta passa a ser da faturista, e só um clique ganha. Na tela, o botão da conta livre diz "Pegar", para ninguém virar dona sem querer. O "Concluir e abrir a próxima" puxa a primeira livre. A faturista pode **devolver à fila** a conta que puxou e não vai terminar, e a coordenação devolve a de qualquer uma; as marcações ficam.
 _Evitar_: distribuir conta antes do trabalho; duas faturistas na mesma conta.
 
 **Faturista da conta**:
