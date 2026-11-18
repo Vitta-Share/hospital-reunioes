@@ -1,6 +1,7 @@
 ---
 status: accepted
 amends: 0054, 0084, 0090, 0092
+amended_by: 0106
 ---
 
 # Projeto na Tecnologia: Aplicativo do Hospital e Ana
