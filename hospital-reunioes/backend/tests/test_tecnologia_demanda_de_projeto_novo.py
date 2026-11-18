@@ -42,6 +42,7 @@ from app.limiter import limiter  # noqa: E402
 from app.routers import tecnologia_automacao  # noqa: E402
 from app.routers.admin import tecnologia as tecnologia_router  # noqa: E402
 from app.services import github_client, tecnologia, tecnologia_email, tecnologia_sincronizacao  # noqa: E402
+from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
 
 CHAVE = "chave-de-automacao-do-teste-1967"
 BASE = "/api/automacao/tecnologia"
@@ -393,3 +394,24 @@ class TestOFiltroProjeto:
     def test_projeto_fora_do_formato_e_recusado(self, aba):
         assert aba(f"{BASE_DA_ABA}/chat?projeto=Outro%20projeto").status_code == 422
         assert aba(f"{BASE_DA_ABA}/entregas?projeto=Outro%20projeto", PEDRO_DA_ABA).status_code == 422
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# O kit de conhecimento
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestOKit:
+    def test_o_kit_da_tecnologia_diz_que_o_projeto_novo_da_vitta_ganha_um_pedido_com_a_conversa(self):
+        """O Assistente fala pela lingua do Kit: sem isto, ele diria que a aba
+        so tem o Aplicativo do Hospital e a Ana."""
+        abertura = (CONHECIMENTO_DIR / "tecnologia.md").read_text(encoding="utf-8").split("\n## ", 1)[0]
+
+        for trecho in (
+            "projeto novo da Vitta",
+            "nome do projeto e o link do plano",
+            "O mesmo plano nunca abre dois pedidos",
+            "o filtro Projeto passa a listar",
+        ):
+            assert trecho in abertura, trecho
+        assert "junta os pedidos de dois Projetos" not in abertura
