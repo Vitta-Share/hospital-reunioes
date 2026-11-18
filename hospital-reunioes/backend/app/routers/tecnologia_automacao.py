@@ -16,13 +16,14 @@ e le a resposta do diretor na mesma conversa (decisao 6).
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response, status
 from pydantic import BaseModel, Field
 
 from app.dependencies import get_supabase_client, require_tecnologia_automacao_api_key
 from app.limiter import limiter
 from app.models.tecnologia_schemas import LIMITE_DA_MENSAGEM
-from app.services import tecnologia_anexos, tecnologia_conversa
+from app.services import tecnologia_anexos, tecnologia_conversa, tecnologia_espelho
+from app.services.github_client import FORMATO_DO_PROJETO
 from app.services.paginacao import ler_tudo
 from app.services.tecnologia import TABELA_DEMANDAS
 
@@ -106,6 +107,39 @@ def demanda_da_issue(
     WhatsApp (ADR 0096, decisao 5)."""
     demanda = _demanda_ou_404(supabase, projeto=projeto, github_issue_numero=numero)
     return {"id": str(demanda["id"])}
+
+
+class DemandaDeProjetoNovoPayload(BaseModel):
+    """O que o app nao tem como ler do repositorio de um Projeto novo: o nome
+    dele, o titulo e o link do PRD."""
+
+    nome_do_projeto: str = Field(min_length=1, max_length=80)
+    titulo: str = Field(min_length=1, max_length=300)
+    link: str = Field(max_length=500, pattern=r"^https://\S+$")
+
+
+@router.post("/projetos/{projeto}/issues/{numero}/demanda")
+def demanda_de_projeto_novo(
+    payload: DemandaDeProjetoNovoPayload,
+    response: Response,
+    projeto: str = Path(pattern=FORMATO_DO_PROJETO),
+    numero: int = Path(ge=1),
+    supabase=Depends(get_supabase_client),
+) -> dict:
+    """A Demanda do PRD de um Projeto novo (issue #1967, PRD #1964): 201 quando
+    nasce, 200 com a mesma quando ja existe. Projeto lido pelo app (Hospital e
+    Ana) e Demanda apagada sao 409, com o motivo."""
+    nome, titulo = payload.nome_do_projeto.strip(), payload.titulo.strip()
+    if not nome or not titulo:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Nome e título são obrigatórios.")
+    try:
+        demanda, criada = tecnologia_espelho.demanda_de_projeto_novo(
+            supabase, projeto, numero, nome_do_projeto=nome, titulo=titulo, link=payload.link
+        )
+    except tecnologia_espelho.DemandaDeProjetoNovoRecusada as recusa:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(recusa)) from recusa
+    response.status_code = status.HTTP_201_CREATED if criada else status.HTTP_200_OK
+    return {"id": str(demanda["id"]), "criada": criada}
 
 
 class MensagemPeloTerminalPayload(BaseModel):
