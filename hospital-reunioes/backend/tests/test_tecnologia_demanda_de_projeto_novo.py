@@ -24,12 +24,16 @@ from slowapi.errors import RateLimitExceeded
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from test_tecnologia_vinculo import _demanda, _pessoa, _SupabaseMock  # noqa: E402
+from test_tecnologia_webhook_github import _demanda as _demanda_do_webhook  # noqa: E402
+from test_tecnologia_webhook_github import _GithubFalso as _GithubDoWebhook  # noqa: E402
+from test_tecnologia_webhook_github import _issue  # noqa: E402
+from test_tecnologia_webhook_github import _SupabaseMock as _SupabaseDoWebhook  # noqa: E402
 
 from app.config import settings  # noqa: E402
 from app.dependencies import get_supabase_client  # noqa: E402
 from app.limiter import limiter  # noqa: E402
 from app.routers import tecnologia_automacao  # noqa: E402
-from app.services import tecnologia_email  # noqa: E402
+from app.services import github_client, tecnologia, tecnologia_email, tecnologia_sincronizacao  # noqa: E402
 
 CHAVE = "chave-de-automacao-do-teste-1967"
 BASE = "/api/automacao/tecnologia"
@@ -203,3 +207,60 @@ class TestAsRecusas:
 
         assert resposta.status_code == 401
         assert _demandas(sb) == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Fora do espelho e da conferência de hora em hora
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _a_demanda_criada_pela_ponte() -> dict:
+    """A linha que a ponte grava, lida de volta do duble."""
+    cliente, sb = _cliente()
+    _pedir_a_demanda(cliente)
+    [criada] = _demandas(sb)
+    return {**_demanda_do_webhook("x"), **criada, "estado": "nova"}
+
+
+class TestForaDoEspelho:
+    def test_a_conferencia_de_hora_em_hora_nao_le_o_github_pela_demanda_do_projeto_novo(self, monkeypatch):
+        """A #915 do Hospital e lida; a #915 do PedroOS nao e lida nem contada:
+        o app nao le aquele repositorio, e ler a do Hospital no lugar dela daria
+        a Etapa de outra issue."""
+        gh = _GithubDoWebhook({915: _issue(915, labels=("in-progress",))})
+        monkeypatch.setattr(github_client, "ler_issue", gh.ler_issue)
+        monkeypatch.setattr(github_client, "ler_sub_issues", gh.ler_sub_issues)
+        do_os = _a_demanda_criada_pela_ponte()
+        sb = _SupabaseDoWebhook(
+            {
+                "tecnologia_demandas": [_demanda_do_webhook("DH", github_issue_numero=915), do_os],
+                "tecnologia_conversas": [],
+            }
+        )
+
+        contagem = tecnologia_sincronizacao.reconciliar_vinculos(sb)
+
+        assert gh.leituras == [915]
+        assert contagem["lidas"] == 1
+        assert sb.tabelas["tecnologia_demandas"][1] == do_os
+
+    def test_atualizar_a_demanda_do_projeto_novo_nao_le_o_github(self, monkeypatch):
+        gh = _GithubDoWebhook({915: _issue(915, labels=("in-progress",))})
+        monkeypatch.setattr(github_client, "ler_issue", gh.ler_issue)
+        monkeypatch.setattr(github_client, "ler_sub_issues", gh.ler_sub_issues)
+        do_os = _a_demanda_criada_pela_ponte()
+        sb = _SupabaseDoWebhook({"tecnologia_demandas": [do_os], "tecnologia_conversas": []})
+
+        mudou = tecnologia_sincronizacao.sincronizar_demanda(sb, do_os)
+
+        assert mudou is False
+        assert gh.leituras == []
+        assert sb.tabelas["tecnologia_demandas"] == [do_os]
+
+    def test_o_apagar_recusa_a_demanda_do_projeto_novo(self):
+        """O Apagar fecha a issue no repositorio do Hospital: no card do PedroOS
+        ele fecharia a #915 do Hospital."""
+        recusa = tecnologia.recusa_de_apagar(PEDRO, _a_demanda_criada_pela_ponte())
+
+        assert recusa is not None
+        assert recusa[0] == 409

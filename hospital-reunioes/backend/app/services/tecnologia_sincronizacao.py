@@ -417,8 +417,11 @@ def sincronizar_demanda(
         return False
     numero = int(numero)
     # O repositorio de onde a issue e lida e o do Projeto da Demanda (issue
-    # #1713): o mesmo numero no outro repositorio e outra issue.
+    # #1713): o mesmo numero no outro repositorio e outra issue. O Projeto que
+    # o app nao le (issue #1967) nao tem Etapa vinda do GitHub.
     projeto = projeto_da_demanda(demanda)
+    if projeto not in github_client.PROJETOS:
+        return False
 
     dados = github_client.ler_issue(numero, projeto=projeto)
     foto_do_github = github_client.montar_foto(dados, github_client.ler_sub_issues(numero, projeto=projeto))
@@ -704,6 +707,9 @@ def reconciliar_vinculos(supabase) -> dict[str, int]:
         .select("*")
         .not_.is_("github_issue_numero", "null")
         .in_("estado", list(ESTADOS_DA_RECONCILIACAO))
+        # So os Projetos cujo repositorio o app le (issue #1967): a Demanda do
+        # PedroOS tem numero de issue, mas nenhuma Etapa vinda do GitHub.
+        .in_("projeto", list(github_client.PROJETOS))
         .execute()
     )
     demandas = result.data or []
