@@ -52,8 +52,16 @@ def desenvolvedor_do_login(supabase, login: str | None) -> dict[str, Any] | None
 
 
 def _destinatarios(
-    supabase, demanda: dict[str, Any], *, autor_id: str, origem: str, mencoes: Sequence[str]
+    supabase,
+    demanda: dict[str, Any],
+    *,
+    autor_id: str,
+    origem: str,
+    mencoes: Sequence[str],
+    destinatario_id: str | None = None,
 ) -> list[str]:
+    if destinatario_id is not None:
+        return [destinatario_id]
     if origem == ORIGEM_TERMINAL:
         return [d for d in tecnologia_avisos.destinatarios(supabase, demanda) if d != str(autor_id)]
     ja_escreveram = [
@@ -75,12 +83,15 @@ def escrever(
     texto: str,
     origem: str,
     mencoes: Sequence[str] = (),
+    destinatario_id: str | None = None,
 ) -> dict[str, Any]:
     """Grava a mensagem de `autor` na Demanda e avisa quem a regra da `origem`
     manda. Devolve a linha gravada. Quem e avisado se calcula antes de gravar:
     "quem ja escreveu" nao conta a propria mensagem."""
     autor_id = str(autor["id"])
-    destinatarios = _destinatarios(supabase, demanda, autor_id=autor_id, origem=origem, mencoes=mencoes)
+    destinatarios = _destinatarios(
+        supabase, demanda, autor_id=autor_id, origem=origem, mencoes=mencoes, destinatario_id=destinatario_id
+    )
     [linha] = (
         supabase.table(TABELA_CONVERSA_DA_DEMANDA)
         .insert(

@@ -88,6 +88,8 @@ class MensagemPeloTerminalPayload(BaseModel):
 
     texto: str = Field(min_length=1, max_length=LIMITE_DA_MENSAGEM)
     github_login: str = Field(min_length=1, max_length=100)
+    # ADR 0106: com Destinatario, o aviso vai so para ele, em qualquer Origem.
+    destinatario_id: UUID | None = None
 
 
 @router.post("/demandas/{demanda_id}/conversa", status_code=status.HTTP_201_CREATED)
@@ -105,7 +107,12 @@ def escrever_pelo_terminal(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="A mensagem está vazia.")
     demanda = _demanda_ou_404(supabase, id=str(demanda_id))
     linha = tecnologia_conversa.escrever(
-        supabase, demanda, autor=autor, texto=texto, origem=tecnologia_conversa.ORIGEM_TERMINAL
+        supabase,
+        demanda,
+        autor=autor,
+        texto=texto,
+        origem=tecnologia_conversa.ORIGEM_TERMINAL,
+        destinatario_id=str(payload.destinatario_id) if payload.destinatario_id else None,
     )
     return {"id": str(linha["id"]), "criado_em": linha.get("criado_em")}
 
