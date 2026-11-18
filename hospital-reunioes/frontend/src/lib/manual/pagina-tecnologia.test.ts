@@ -186,6 +186,16 @@ describe("o aviso Pede sua resposta e o pedido de projeto novo (issue #1968, PRD
     expect(trecho).toMatch(/\*\*Projeto\*\*/);
     expect(imagensCitadas(trecho)).toContain("projeto-novo.png");
   });
+
+  it("o filtro Projeto lista os projetos novos da Vitta que já têm pedido na aba, sem prender a pergunta a quem lê", () => {
+    // O Super admin vê todo pedido de Origem Vitta e /projetos lista todo projeto novo com pedido,
+    // não só os que têm pergunta para quem lê (revisão do PR #1977).
+    const { texto } = secao("Filtrar por Projeto");
+    const abertura = texto.split(/\n\s*\n/).find((p) => /projetos novos da Vitta/.test(p));
+    expect(abertura, "a tarefa não diz que a aba junta os projetos novos da Vitta").toBeDefined();
+    expect(abertura).toMatch(/projetos novos da Vitta que já têm pedido na aba/);
+    expect(abertura).not.toMatch(/pergunta para você/);
+  });
 });
 
 describe("as partes do pedido na tarefa de abrir o card (issue #1903, ADR 0100)", () => {

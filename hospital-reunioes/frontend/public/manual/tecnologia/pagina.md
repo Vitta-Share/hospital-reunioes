@@ -76,7 +76,7 @@ Quando a Vitta só dá um recado, sem pergunta, o sino mostra o aviso de sempre,
 
 ## Filtrar por Projeto
 
-A aba junta os pedidos do Aplicativo do Hospital, da Ana, a agente de atendimento, e dos projetos novos da Vitta que têm pergunta para você. Cada card traz um selo com o nome do Projeto.
+A aba junta os pedidos do Aplicativo do Hospital, da Ana, a agente de atendimento, e dos projetos novos da Vitta que já têm pedido na aba. Cada card traz um selo com o nome do Projeto.
 
 1. No Quadro, na barra de filtros, clique no campo **Projeto**.
 2. Escolha **Aplicativo do Hospital**, **Ana** ou o nome de um projeto novo da Vitta. O Quadro passa a mostrar só os pedidos daquele Projeto.
