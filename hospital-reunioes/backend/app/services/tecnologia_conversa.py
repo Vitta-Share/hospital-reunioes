@@ -8,7 +8,11 @@ as duas e a origem, guardada na linha (migration 161), e quem e avisado:
 - pela tela, a regra da conversa (`quem_avisar`): mencao, Responsavel ou autor;
 - pelo terminal, a regra dos avisos de entrega (`tecnologia_avisos`): no card
   da Vitta a diretoria, no card do diretor quem abriu a Demanda. O terminal
-  nao manda nome de ninguem (ADR 0096, decisao 4).
+  nao manda nome de ninguem (ADR 0096, decisao 4);
+- pelo terminal com Destinatario, so ele, em qualquer Origem (ADR 0106).
+
+Com "pede resposta" (ADR 0106), o sino diz "Pede sua resposta" com o Assunto
+e o e-mail tem o assunto "<Nome> pede sua resposta: <Assunto>".
 
 Sino e e-mail para cada um, como qualquer mensagem da conversa. Nada daqui vai
 para o GitHub.
@@ -91,6 +95,7 @@ def escrever(
     origem: str,
     mencoes: Sequence[str] = (),
     destinatario_id: str | None = None,
+    pede_resposta_sobre: str | None = None,
 ) -> dict[str, Any]:
     """Grava a mensagem de `autor` na Demanda e avisa quem a regra da `origem`
     manda. Devolve a linha gravada. Quem e avisado se calcula antes de gravar:
@@ -115,17 +120,28 @@ def escrever(
     )
     nome = autor.get("nome_completo") or ""
     for destinatario in destinatarios:
-        aviso = f"{nome} mencionou você" if destinatario in mencoes else f"{nome} escreveu na Demanda"
+        if pede_resposta_sobre:
+            # ADR 0106: a pergunta que espera alguém diz isso e o Assunto.
+            aviso = f"{nome} pede sua resposta"
+            titulo_do_sino, linha_do_sino = "Pede sua resposta", pede_resposta_sobre
+        else:
+            aviso = f"{nome} mencionou você" if destinatario in mencoes else f"{nome} escreveu na Demanda"
+            titulo_do_sino, linha_do_sino = aviso, str(demanda.get("titulo") or "")[:80]
         criar_notificacao_tecnologia(
             supabase,
             destinatario_id=destinatario,
-            titulo=aviso,
-            mensagem=str(demanda.get("titulo") or "")[:80],
+            titulo=titulo_do_sino,
+            mensagem=linha_do_sino,
             demanda_id=str(demanda["id"]),
         )
         # O mesmo aviso, por e-mail (issue #1538): o diretor não fica com o app aberto.
         tecnologia_email.enviar_aviso_da_conversa(
-            supabase, destinatario_id=destinatario, aviso=aviso, autor_nome=nome, demanda=demanda
+            supabase,
+            destinatario_id=destinatario,
+            aviso=aviso,
+            autor_nome=nome,
+            demanda=demanda,
+            assunto=pede_resposta_sobre,
         )
     return linha
 

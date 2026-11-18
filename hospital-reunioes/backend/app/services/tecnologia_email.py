@@ -28,9 +28,13 @@ def link_da_demanda(demanda_id: str) -> str:
     return f"{settings.frontend_url}/admin/tecnologia?demanda={quote(str(demanda_id), safe='')}"
 
 
-def enviar_aviso_da_conversa(supabase, *, destinatario_id: str, aviso: str, autor_nome: str, demanda: dict) -> bool:
+def enviar_aviso_da_conversa(
+    supabase, *, destinatario_id: str, aviso: str, autor_nome: str, demanda: dict, assunto: str | None = None
+) -> bool:
     """Um e-mail para `destinatario_id` com o `aviso` do sino ("Fulano mencionou
-    você" ou "Fulano escreveu na Demanda"). `False` quando não saiu."""
+    você" ou "Fulano escreveu na Demanda"). Com `assunto`, a mensagem pede
+    resposta (ADR 0106): o assunto do e-mail é o aviso com o Assunto, e o corpo
+    leva o Assunto ao lado do título. `False` quando não saiu."""
     try:
         from app.services.email_constants import get_logo_data_uri
 
@@ -49,11 +53,16 @@ def enviar_aviso_da_conversa(supabase, *, destinatario_id: str, aviso: str, auto
             aviso=aviso,
             autor_nome=autor_nome,
             titulo=titulo,
+            assunto=assunto,
             link=link,
             logo_base64=get_logo_data_uri(),
         )
-        texto = f"{aviso}.\n\nDemanda: {titulo}\nQuem escreveu: {autor_nome}\n\nPara ler e responder: {link}\n"
-        return _enviar_email(destinatario["email"], f"{aviso}: {titulo}", html, texto)
+        linha_do_assunto = f"Assunto: {assunto}\n" if assunto else ""
+        texto = (
+            f"{aviso}.\n\n{linha_do_assunto}Demanda: {titulo}\nQuem escreveu: {autor_nome}\n\n"
+            f"Para ler e responder: {link}\n"
+        )
+        return _enviar_email(destinatario["email"], f"{aviso}: {assunto or titulo}", html, texto)
     except Exception as e:  # noqa: BLE001 (e-mail nunca desfaz a mensagem nem o sino)
         logger.warning(f"[tecnologia_conversa] Falha no e-mail para {destinatario_id}: {e}")
         return False

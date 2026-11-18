@@ -163,3 +163,53 @@ class TestODestinatario:
 
         assert resposta.status_code == 422
         assert sb.tabelas["tecnologia_conversa_da_demanda"] == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# O texto do aviso com "pede resposta"
+# ═══════════════════════════════════════════════════════════════════════════
+
+ASSUNTO = "confirmar horário da reunião de quinta"
+
+
+class TestPedeResposta:
+    def test_com_pede_resposta_o_sino_e_o_email_dizem_pede_sua_resposta_com_o_assunto(self, emails):
+        cliente, sb = _cliente()
+
+        resposta = _escrever(cliente, destinatario_id=DIRETORA["id"], assunto=ASSUNTO, pede_resposta=True)
+
+        assert resposta.status_code == 201, resposta.text
+        [aviso] = sb.tabelas["notificacoes"]
+        assert (aviso["destinatario_id"], aviso["titulo"], aviso["mensagem"]) == (
+            DIRETORA["id"],
+            "Pede sua resposta",
+            ASSUNTO,
+        )
+        assert aviso["referencia_id"] == DEMANDA
+        [email] = emails
+        assert email["assunto"] == "Pedro Rezende pede sua resposta: confirmar horário da reunião de quinta"
+        link = f"https://app.hsm.test/admin/tecnologia?demanda={DEMANDA}"
+        for corpo in (email["html"], email["texto"]):
+            assert "O relatório some" in corpo
+            assert ASSUNTO in corpo
+            assert link in corpo
+
+    def test_sem_pede_resposta_o_assunto_nao_muda_o_texto_de_hoje(self, emails):
+        cliente, sb = _cliente()
+
+        resposta = _escrever(cliente, destinatario_id=DIRETORA["id"], assunto=ASSUNTO)
+
+        assert resposta.status_code == 201, resposta.text
+        [aviso] = sb.tabelas["notificacoes"]
+        assert (aviso["titulo"], aviso["mensagem"]) == ("Pedro Rezende escreveu na Demanda", "O relatório some")
+        assert [e["assunto"] for e in emails] == ["Pedro Rezende escreveu na Demanda: O relatório some"]
+
+    def test_pede_resposta_sem_assunto_recusa_com_motivo_sem_gravar(self, emails):
+        cliente, sb = _cliente()
+
+        resposta = _escrever(cliente, pede_resposta=True, assunto="   ")
+
+        assert resposta.status_code == 422
+        assert "Assunto" in resposta.text
+        assert sb.tabelas["tecnologia_conversa_da_demanda"] == []
+        assert emails == []
