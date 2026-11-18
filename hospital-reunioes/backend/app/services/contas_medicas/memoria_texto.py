@@ -149,9 +149,8 @@ def gerar_texto_memoria(supabase, operadora_id: str, versao_id: str | None = Non
 def montar_texto_memoria(
     sigla: str, nome: str, versao: str, parametros: dict[str, Any], regras: list[dict[str, Any]]
 ) -> str:
-    """O texto no formato do arquivo a partir das partes, sem ler o banco: é
-    como a Prova da regra (#1488) monta a Memória candidata, que não está
-    gravada. As regras saem por seção, na ordem em que vierem dentro dela."""
+    """O texto no formato do arquivo a partir das partes, sem ler o banco. As
+    regras saem por seção, na ordem em que vierem dentro dela."""
     por_secao: dict[str, list[dict[str, Any]]] = {}
     for regra in regras:
         por_secao.setdefault(SECOES.get(regra.get("secao") or "", SECAO_SEM_PREFIXO), []).append(regra)

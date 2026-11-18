@@ -1,8 +1,8 @@
 """As Contas concluídas da ALFA que os testes do Auditor e do Revisor semeiam.
 
 Doze Contas concluídas da ALFA, cada uma com o item, os eventos que a IA leu e
-o Guia, no dublê do banco da carga da operadora. Saiu do teste da Prova da
-regra quando ela foi retirada (issue #1920, ADR 0102).
+o Guia, no dublê do banco da carga da operadora. Saiu do teste da prova nas
+últimas Contas quando ela foi retirada (issue #1920, ADR 0102).
 """
 
 from __future__ import annotations

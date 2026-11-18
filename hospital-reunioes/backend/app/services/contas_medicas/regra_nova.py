@@ -161,7 +161,7 @@ def regra_candidata(
     """A regra conferida pela pessoa como ela entraria na memória, sem gravar
     nada: a operadora, a vigente, as regras dela, a regra nova com o código que
     ganharia e o cabeçalho com o parâmetro novo (None quando não muda). É o que
-    o Validar grava e o que a Prova da regra (#1488) refaz nas contas."""
+    o Validar grava."""
     sigla, operadora_id, vigente = _operadora_e_vigente(supabase, sigla)
     texto = texto.strip()
     if not texto:

@@ -44,7 +44,6 @@ __all__ = [
     "ProntuarioLido",
     "base_dos_tetos",
     "conferir",
-    "tetos_da_base",
 ]
 
 CENTAVO = Decimal("0.01")
@@ -1279,27 +1278,13 @@ def _tetos_das_diarias(
 
 def base_dos_tetos(conferencia: Conferencia, prontuario: ProntuarioLido) -> dict[str, Any]:
     """O que a análise usou para os tetos, para gravar com a conta: as diárias
-    pagas e a data de cada cirurgia (`None` na que veio sem). A Prova da regra
-    (#1508) refaz os tetos daqui, com a memória candidata."""
+    pagas e a data de cada cirurgia (`None` na que veio sem) (#1508)."""
     return {
         "diarias_pagas": list(conferencia.diarias_pagas),
         "cirurgias": [
             d.inicio.date().isoformat() if d.inicio else None for d in prontuario.conteudo.descricoes_cirurgicas
         ],
     }
-
-
-def tetos_da_base(parametros: Mapping[str, Any], base: Mapping[str, Any]) -> tuple[dict[str, Any], ...]:
-    """Os tetos da conta pela base gravada na análise (`base_dos_tetos`)."""
-    return _tetos_das_diarias(
-        parametros,
-        [
-            (date.fromisoformat(d["data"]), d["acomodacao"])
-            for d in base.get("diarias_pagas") or []
-            if d.get("do_paciente")
-        ],
-        [date.fromisoformat(dia) if dia else None for dia in base.get("cirurgias") or []],
-    )
 
 
 # ----------------------------------------------------------------------------------

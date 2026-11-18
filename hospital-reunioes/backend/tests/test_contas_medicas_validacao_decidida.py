@@ -1,14 +1,14 @@
 """A fila de Validação chega decidida pelo Auditor (issue #1491, PRD #1484, ADR 0081, decisão 13).
 
-Cada Tema aberto ganha a recomendação do Auditor: a decisão, o motivo e, no
-Tema de Regra pendente, a Prova da regra. Quem decide na Validação aprova o
+Cada Tema aberto ganha a recomendação do Auditor: a decisão e o motivo, sem
+refazer Contas (issue #1920, ADR 0102). Quem decide na Validação aprova o
 lote de uma vez; o Tema que ele corrigir antes segue a correção. A decisão
 aplicada segue o caminho de hoje: versão nova da Memória e Retorno da Conta
 concluída só com as Linhas decididas.
 
 Tudo pelas rotas de verdade, com o dublê do banco da Validação e o provedor da
 IA dublado no transporte HTTP: o Auditor responde pelo título do Tema que está
-no pedido, e o Passo B da prova não traz Linha nova.
+no pedido.
 """
 
 from __future__ import annotations
@@ -83,7 +83,7 @@ RECOMENDACOES = {
 
 class _Provedor:
     """A Anthropic do teste: o Auditor responde pelo título do Tema; o Passo B
-    da prova responde sem Linha nova. Guarda o texto de cada pedido."""
+    refeito numa Conta responde sem Linha nova. Guarda o texto de cada pedido."""
 
     def __init__(self):
         self.pedidos: list[str] = []
@@ -114,7 +114,7 @@ def provedor(monkeypatch) -> _Provedor:
 
 def _conta_concluida_com_eventos(banco: _Banco) -> None:
     """A C3 concluída, com o período, os itens e os eventos que a análise
-    guardou: é a conta que a Prova da regra refaz."""
+    guardou: o Auditor recomenda sem refazê-la (issue #1920)."""
     conta = banco.conta(C3)
     conta.update(
         {"concluida_em": "2026-10-06T18:00:00+00:00", "periodo_inicio": "2026-10-01", "periodo_fim": "2026-10-05"}
@@ -144,7 +144,6 @@ def _conta_concluida_com_eventos(banco: _Banco) -> None:
             "eventos_json": {"ia": {"movimentacoes": [], "prescricoes": [], "observacoes": ["seringa pronta"]}},
         }
     ]
-    banco.tabelas.setdefault("cm_prova", [])
 
 
 @contextmanager
@@ -221,7 +220,7 @@ def _aprovar(banco: _Banco, temas: list[str], quem: str = "gestao"):
 
 
 class TestARecomendacao:
-    def test_temas_abertos_recebem_decisao_e_motivo_e_a_regra_pendente_traz_a_prova(self, provedor):
+    def test_temas_abertos_recebem_decisao_e_motivo_sem_refazer_contas(self, provedor):
         banco = _cenario()
         temas = _tres_temas(banco)
         assert {t["recomendacao"] for t in temas.values()} == {None}
@@ -235,23 +234,14 @@ class TestARecomendacao:
             "VALIDAR_REGRA",
             "A seringa pronta é cobrada à parte no contrato da ALFA.",
         )
-        # A prova refez a única concluída da ALFA com a regra vigente, e diz o que mudaria.
-        assert regra["prova"]["contas"] == 1
-        assert regra["prova"]["mudaria"] is False
-        [prova] = banco.tabelas["cm_prova"]
-        assert (prova["regra_codigo"], prova["contas"]) == (REGRA_PENDENTE, 1)
-        assert _tema_no_banco(banco, temas["REGRA_PENDENTE"]["id"])["recomendacao_prova_id"] == prova["id"]
-        # O Auditor leu a prova antes de recomendar.
+        # O Auditor leu a regra pendente; nenhuma Conta concluída foi refeita (#1920).
         [pedido_da_regra] = [p for p in provedor.do_auditor() if f"Título: Regra {REGRA_PENDENTE}" in p]
-        assert "não mudaria nada" in pedido_da_regra
         assert TEXTO_PENDENTE in pedido_da_regra
+        assert len(provedor.pedidos) == 3
+        assert "prova" not in regra
 
         bloqueado = fila["BLOQUEADO"]["recomendacao"]
-        assert (bloqueado["decisao"], bloqueado["motivo"], bloqueado["prova"]) == (
-            "DESCARTAR",
-            "O cateter já tem código novo no MV.",
-            None,
-        )
+        assert (bloqueado["decisao"], bloqueado["motivo"]) == ("DESCARTAR", "O cateter já tem código novo no MV.")
         observacao = fila["OBSERVACAO"]["recomendacao"]
         assert (observacao["decisao"], observacao["motivo"], observacao["texto"]) == (
             "RESPONDER",
@@ -260,9 +250,8 @@ class TestARecomendacao:
         )
         # Nada foi decidido: quem aprova é a pessoa.
         assert {t["estado"] for t in banco.tabelas["cm_validacao_tema"]} == {"ABERTO"}
-        # O custo do Auditor e da prova entra na semana do Painel com o passo próprio.
-        passos = [c["passo"] for c in banco.tabelas["cm_chamada_ia"]]
-        assert passos.count("CONVERSA") == 3 and passos.count("PROVA") == 1
+        # O custo do Auditor entra na semana do Painel com o passo próprio, e só ele.
+        assert [c["passo"] for c in banco.tabelas["cm_chamada_ia"]] == ["CONVERSA"] * 3
 
     def test_tema_ja_recomendado_nao_pergunta_de_novo_e_observacao_nova_pede_recomendacao_nova(self, provedor):
         banco = _cenario()
@@ -487,7 +476,7 @@ def test_nenhum_job_do_agendador_pede_a_recomendacao():
 
 
 class TestOBotao:
-    def test_o_botao_mostra_os_temas_as_provas_e_o_custo_antes_do_clique(self, provedor):
+    def test_o_botao_mostra_os_temas_e_o_custo_antes_do_clique_sem_contar_prova(self, provedor):
         banco = _cenario()
         _tres_temas(banco)
 
@@ -495,9 +484,10 @@ class TestOBotao:
 
         assert pedido.status_code == 200, pedido.text
         corpo = pedido.json()
-        assert (corpo["temas"], corpo["provas"], corpo["em_andamento"]) == (3, 1, False)
-        # Uma prova numa conta concluída e três recomendações, no Sonnet.
-        assert corpo["custo_estimado_usd"] == pytest.approx(1 * 0.30 + 3 * 0.04)
+        assert (corpo["temas"], corpo["em_andamento"]) == (3, False)
+        assert "provas" not in corpo
+        # Três recomendações no Sonnet, e nenhuma Conta refeita (#1920).
+        assert corpo["custo_estimado_usd"] == pytest.approx(3 * 0.04)
         # Ver o pedido não chama a IA.
         assert provedor.pedidos == []
 
@@ -515,7 +505,7 @@ class TestOBotao:
         }
         assert _cliente(banco, "gestao").get(ROTA_DO_PEDIDO).json()["temas"] == 0
 
-    def test_a_prova_e_o_auditor_do_botao_rodam_no_modelo_da_validacao(self, provedor, monkeypatch):
+    def test_o_auditor_do_botao_roda_no_modelo_da_validacao(self, provedor, monkeypatch):
         from app.config import settings
 
         monkeypatch.setattr(settings, "cm_ia_modelo_passo_b", "claude-opus-5-5")
@@ -525,7 +515,7 @@ class TestOBotao:
 
         _cliente(banco, "gestao").post(ROTA_DO_PEDIDO)
 
-        assert len(provedor.modelos) == 4
+        assert len(provedor.modelos) == 3
         assert set(provedor.modelos) == {"claude-sonnet-5-5"}
         assert {c["modelo"] for c in banco.tabelas["cm_chamada_ia"]} == {"claude-sonnet-5-5"}
 
@@ -578,7 +568,7 @@ class TestOBotao:
 def test_a_migration_126_tem_as_colunas_da_recomendacao():
     """Piso do dublê: as colunas que o serviço grava existem na migration."""
     sql = MIGRATION_126.read_text(encoding="utf-8")
-    for coluna in ("recomendacao", "recomendacao_motivo", "recomendacao_prova_id", "recomendado_em"):
+    for coluna in ("recomendacao", "recomendacao_motivo", "recomendado_em"):
         assert f"ADD COLUMN IF NOT EXISTS {coluna} " in sql, coluna
 
 
@@ -588,7 +578,7 @@ def test_o_kit_diz_que_a_fila_chega_decidida_e_e_aprovada_em_lote():
     for trecho in (
         "recomendação do Auditor",
         "Aprovar o lote",
-        "Prova da regra",
+        "sem refazer contas",
         "corrigir",
     ):
         assert trecho in validacao, trecho

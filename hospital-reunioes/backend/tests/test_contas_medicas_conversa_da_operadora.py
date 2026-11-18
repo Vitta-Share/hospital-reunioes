@@ -6,7 +6,7 @@ alterada, parâmetro), cada uma com o motivo e os conflitos com as Regras que
 existem. O "ok" aplica o lote numa versão nova só da
 Memória; "corrige o item N" refaz só aquele item. A conversa fica guardada,
 ligada à versão que gerou, e nunca entra no prompt do Passo A nem do Passo B.
-Desde a issue #1920 (ADR 0102) o lote não refaz Contas: a Prova da regra saiu.
+Desde a issue #1920 (ADR 0102) o lote não refaz Contas concluídas.
 
 Tudo pela rota de verdade, com o dublê do banco da carga da operadora e o
 provedor da IA dublado no transporte HTTP (o adaptador roda inteiro). O
@@ -114,7 +114,7 @@ class _Provedor:
         texto = "\n".join(bloco["text"] for m in corpo["messages"] for bloco in m["content"])
         self.pedidos.append((formato, texto))
         if formato == "LinhasDaComparacao":
-            # O Passo B refeito numa Conta: a Prova da regra, que saiu (#1920).
+            # O Passo B refeito numa Conta concluída, que saiu do lote (#1920).
             return httpx2.Response(400, json={"type": "error", "error": {"type": "invalid_request_error"}})
         if formato == "ItemCorrigido":
             resposta = self.correcao
@@ -288,8 +288,8 @@ class TestOOk:
         assert DIA_02 not in _vigente(banco)["texto_md"]
 
     def test_o_ok_aplica_o_item_de_regra_sem_prova(self, cenario):
-        """Issue #1920 (ADR 0102): a Prova da regra saiu, e o ok não espera por
-        ela. O item de regra vira Regra vigente sem nenhuma Conta refeita."""
+        """Issue #1920 (ADR 0102): a prova nas últimas Contas saiu, e o ok não
+        espera por ela. O item de regra vira Regra vigente sem nenhuma Conta refeita."""
         cliente, banco, provedor = cenario
         provedor.lote = {**LOTE, "propostas": [LOTE["propostas"][0]]}
         assert cliente.post(ROTA, json={"texto": PEDIDO}).status_code == 200
@@ -483,6 +483,25 @@ class TestQuemConversa:
 
         assert len(caminhos) > 50
         assert {"get", "post"} <= set(caminhos["/api/contas-medicas/operadoras/{sigla}/conversa"])
+
+    def test_a_prova_nas_ultimas_contas_saiu_do_app(self):
+        """Issue #1920 (ADR 0102): nem a rota, nem o serviço que refazia o
+        Passo B nas últimas Contas concluídas, nem o passo da chamada de IA."""
+        import importlib.util
+        import inspect
+
+        from app.main import app
+
+        cache = app.openapi_schema
+        try:
+            caminhos = app.openapi()["paths"]
+        finally:
+            app.openapi_schema = cache
+
+        assert len(caminhos) > 50
+        assert not [c for c in caminhos if c.endswith("/regras/prova")]
+        assert importlib.util.find_spec("app.services.contas_medicas.prova_da_regra") is None
+        assert "passo" not in inspect.signature(ia.comparar_conta).parameters
 
 
 # ═══════════════════════════════════════════════════════════════════════════
