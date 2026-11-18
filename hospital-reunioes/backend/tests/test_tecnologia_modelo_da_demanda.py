@@ -127,15 +127,15 @@ class TestAProximaChamadaUsaOModeloEscolhido:
         assert _chamadas(sb)[-1]["modelo"] == OPUS
 
     def test_o_resumo_roda_no_modelo_escolhido(self, monkeypatch):
-        client, sb, _ = _montar(monkeypatch, modelo=OPUS)
-        client.put(MODELO, json={"modelo": SONNET})
+        client, sb, _ = _montar(monkeypatch, modelo=SONNET)
+        client.put(MODELO, json={"modelo": OPUS})
         cliente = _ia(monkeypatch, _resumo_do_modelo())
 
         resposta = client.post(f"{CHAT}/{DEMANDA}/resumo")
 
         assert resposta.status_code == 200, resposta.text
-        assert cliente.chamadas[0]["model"] == SONNET
-        assert _chamadas(sb)[-1]["modelo"] == SONNET
+        assert cliente.chamadas[0]["model"] == OPUS
+        assert _chamadas(sb)[-1]["modelo"] == OPUS
 
     def test_a_revisao_roda_no_modelo_escolhido(self, monkeypatch):
         client, sb, _ = _montar(monkeypatch, modelo=SONNET, mensagens=CONVERSA_ENVIADA, estado="enviado")

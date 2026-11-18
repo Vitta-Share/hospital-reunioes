@@ -1193,3 +1193,56 @@ describe("Os atalhos da pergunta", () => {
     expect(screen.queryByRole("button", { name: "Não sei agora, siga" })).toBeNull();
   });
 });
+
+describe("O modelo da Demanda (issue #1921, ADR 0103)", () => {
+  const seletor = () => screen.findByRole("group", { name: "Modelo" });
+
+  it("mostra o modelo atual e troca para o Opus com um clique", async () => {
+    const chamadas = montar([
+      { status: 201, corpo: conversa({ modelo: "claude-sonnet-5-5" }) },
+      { status: 200, corpo: { modelo: "claude-opus-5-5" } },
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "Bug" }));
+
+    const grupo = await seletor();
+    expect(within(grupo).getByRole("button", { name: "Sonnet 5.5" }).getAttribute("aria-pressed")).toBe("true");
+    expect(within(grupo).getByRole("button", { name: "Opus 5.5" }).getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(within(grupo).getByRole("button", { name: "Opus 5.5" }));
+
+    await waitFor(() =>
+      expect(within(grupo).getByRole("button", { name: "Opus 5.5" }).getAttribute("aria-pressed")).toBe("true"),
+    );
+    expect(chamadas[1]).toMatchObject({
+      url: "/api/admin/tecnologia/chat/d-1/modelo",
+      metodo: "PUT",
+      corpo: { modelo: "claude-opus-5-5" },
+    });
+  });
+
+  it("a troca que falha diz o motivo e o modelo fica como estava", async () => {
+    montar([
+      { status: 201, corpo: conversa({ modelo: "claude-sonnet-5-5" }) },
+      { status: 404, corpo: { detail: "Esta conversa não foi encontrada." } },
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "Bug" }));
+
+    const grupo = await seletor();
+    fireEvent.click(within(grupo).getByRole("button", { name: "Opus 5.5" }));
+
+    expect(await screen.findByText("Esta conversa não foi encontrada.")).toBeTruthy();
+    expect(within(grupo).getByRole("button", { name: "Sonnet 5.5" }).getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("no pedido já enviado o seletor continua, para escolher o modelo da Revisão", async () => {
+    montar([
+      {
+        status: 201,
+        corpo: melhoria({ estado: "enviado", resumo_da_melhoria: RESUMO_DA_MELHORIA, modelo: "claude-opus-5-5" }),
+      },
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "Melhoria" }));
+
+    const grupo = await seletor();
+    expect(within(grupo).getByRole("button", { name: "Opus 5.5" }).getAttribute("aria-pressed")).toBe("true");
+  });
+});
