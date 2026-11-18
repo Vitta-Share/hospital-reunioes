@@ -94,7 +94,8 @@ class MensagemPeloTerminalPayload(BaseModel):
     texto: str = Field(min_length=1, max_length=LIMITE_DA_MENSAGEM)
     github_login: str = Field(min_length=1, max_length=100)
     # ADR 0106: com Destinatario, o aviso vai so para ele, em qualquer Origem.
-    destinatario_id: UUID | None = None
+    # O id de participante e VARCHAR(10) no formato "P001" (migration 001).
+    destinatario_id: str | None = Field(default=None, min_length=1, max_length=10)
     # ADR 0106: com "pede resposta", o sino e o e-mail dizem isso e o Assunto.
     assunto: str | None = Field(default=None, max_length=LIMITE_DO_ASSUNTO)
     pede_resposta: bool = False
@@ -119,7 +120,7 @@ def escrever_pelo_terminal(
     if payload.pede_resposta and not assunto:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=MOTIVO_SEM_ASSUNTO)
     demanda = _demanda_ou_404(supabase, id=str(demanda_id))
-    destinatario_id = str(payload.destinatario_id) if payload.destinatario_id else None
+    destinatario_id = payload.destinatario_id or None
     if destinatario_id and not tecnologia_conversa.e_participante_ativo(supabase, destinatario_id):
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=MOTIVO_DESTINATARIO_RECUSADO)
     linha = tecnologia_conversa.escrever(

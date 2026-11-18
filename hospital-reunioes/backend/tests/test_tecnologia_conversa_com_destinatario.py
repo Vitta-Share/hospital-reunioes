@@ -36,15 +36,17 @@ CHAVE = "chave-de-automacao-do-teste-1965"
 DEMANDA = "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
 ESCREVER = f"/api/automacao/tecnologia/demandas/{DEMANDA}/conversa"
 
-# O id do participante é UUID no banco: o Destinatário chega como UUID.
-PEDRO = _pessoa("11111111-1111-4111-8111-111111111111", "Pedro Rezende", github_login="pedrorezendefig")
-LUCAS = _pessoa("22222222-2222-4222-8222-222222222222", "Lucas Sampaio", github_login="lucas-vitta")
-DIRETOR = _pessoa("33333333-3333-4333-8333-333333333333", "Diretor Geral")
-DIRETORA = _pessoa("44444444-4444-4444-8444-444444444444", "Diretora Clínica")
+# O id do participante é VARCHAR(10) no formato "P001" (migration 001,
+# `generate_participant_id`): o Destinatário chega nesse formato, como na
+# lista de Destinatários da #1966.
+PEDRO = _pessoa("P001", "Pedro Rezende", github_login="pedrorezendefig")
+LUCAS = _pessoa("P002", "Lucas Sampaio", github_login="lucas-vitta")
+DIRETOR = _pessoa("P003", "Diretor Geral")
+DIRETORA = _pessoa("P004", "Diretora Clínica")
 # Fora da diretoria e fora da regra das entregas: só o Destinatário o alcança.
-GESTORA = _pessoa("55555555-5555-4555-8555-555555555555", "Gestora da Recepção", access_profile="gestor")
-DESLIGADO = {**_pessoa("66666666-6666-4666-8666-666666666666", "Diretor Antigo"), "ativo": False}
-NINGUEM = "77777777-7777-4777-8777-777777777777"
+GESTORA = _pessoa("P012", "Gestora da Recepção", access_profile="gestor")
+DESLIGADO = {**_pessoa("P006", "Diretor Antigo"), "ativo": False}
+NINGUEM = "P999"
 
 CADASTRO = [PEDRO, LUCAS, DIRETOR, DIRETORA, GESTORA, DESLIGADO]
 
@@ -157,13 +159,18 @@ class TestODestinatario:
         assert _avisados(sb) == []
         assert emails == []
 
-    def test_destinatario_que_nao_e_uuid_responde_422_sem_gravar(self):
+    def test_destinatario_que_nao_cabe_na_coluna_responde_422_sem_gravar(self, emails):
+        """`notificacoes.destinatario_id` é VARCHAR(10): um id maior que isso
+        nunca é de participante e para no payload, antes de gravar."""
         cliente, sb = _cliente()
 
-        resposta = _escrever(cliente, destinatario_id="nao-e-uuid")
+        resposta = _escrever(cliente, destinatario_id="7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d")
 
         assert resposta.status_code == 422
+        [erro] = resposta.json()["detail"]
+        assert (erro["loc"][-1], erro["type"]) == ("destinatario_id", "string_too_long")
         assert sb.tabelas["tecnologia_conversa_da_demanda"] == []
+        assert emails == []
 
 
 # ═══════════════════════════════════════════════════════════════════════════
