@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-18T19:36+0000 -->
+<!-- last_update: 2026-11-18T23:22+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -619,6 +619,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | GET | `/automacao/tecnologia/demandas/{demanda_id}/anexos` | Nome, tipo e URL assinada de cada anexo não apagado da Demanda. | ✅ |
 | GET | `/automacao/tecnologia/demandas/{demanda_id}/conversa` | A resposta do diretor (ADR 0096, decisao 6): as mensagens da Conversa | ✅ |
 | POST | `/automacao/tecnologia/demandas/{demanda_id}/conversa` | A Mensagem pelo terminal (ADR 0096): grava no perfil do Desenvolvedor | ✅ |
+| GET | `/automacao/tecnologia/destinatarios` | Quem pode ser Destinatario de uma mensagem na Conversa da Demanda | ✅ |
 | GET | `/automacao/tecnologia/projetos/{projeto}/issues/{numero}/demanda` | O id da Demanda vinculada a esta issue-raiz (ADR 0093: projeto mais | ✅ |
 
 ## transcricao (`app/routers/transcricao.py`)
@@ -658,4 +659,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 377 endpoints em 55 routers · 93% exigem auth.
+**Totais:** 378 endpoints em 55 routers · 93% exigem auth.
