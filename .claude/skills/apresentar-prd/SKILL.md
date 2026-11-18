@@ -27,6 +27,7 @@ Fora do repositório, no Mac do Pedro, em `~/.config/planos-hsm/` (ou `$PLANOS_H
 - Mudou só a função `api/validar.js`? Suba sem o `publicar`, que tira o selo: monte o site com `montar_site` numa pasta temporária e rode `npx vercel@latest deploy --prod --yes` nela.
 - `site/.vercel/`: o vínculo com o projeto da Vercel, copiado para cada deploy.
 - `email-<PRD>.txt`: o texto do e-mail com o link e o código, gravado pelo passo 6.
+- `diretor`: o endereço de e-mail do diretor, numa linha. Fica fora porque o repositório é público.
 
 Logo e fonte vêm de `docs/comunicacao/_assets/` na hora do deploy.
 
@@ -46,7 +47,7 @@ Logo e fonte vêm de `docs/comunicacao/_assets/` na hora do deploy.
 4. **Montar.** `apresentar.py montar <PRD> --saida "$TMPDIR/planos"`. O script recusa travessão, meia-risca, número de issue (`#123`) e as palavras técnicas da `/divulgar` (migration, endpoint, API, PR, deploy, RLS, schema, backend, frontend, commit, branch, merge, token, env, SQL, Supabase, Coolify, prompt) em todo texto da página. Recusou: reescreva o trecho no `dados.json`, nunca afrouxe a lista.
 5. **Publicar.** `apresentar.py publicar <PRD>`. Ele tira a label `validado:diretor` do PRD antes de tudo, monta o site inteiro (todo `<N>/dados.json` da pasta, porque cada deploy troca o projeto todo) numa pasta temporária fora do repositório (de dentro, a Vercel recusa o autor do git) e roda `npx vercel@latest deploy --prod --yes`. O endereço é `https://planos-hsm.vercel.app/<PRD>`.
 6. **Conferir no `playwright-cli`**, em desktop (1280 px) e em 390 px: título, contadores, "O que você já decidiu", as etapas com as Partes, o hover (ou toque) que acende o que vem antes e o que vem depois, o painel do detalhe com "Pronto quando", o botão "Ver a ordem das etapas" e o Validar, que sem o código no link fica desligado com o aviso "Abra esta página pelo link do e-mail". **Nunca** abra o link com o código nem clique em Validar: isso carimba o PRD de verdade.
-7. **Rascunho do e-mail.** `apresentar.py email <PRD>` grava o texto (assunto, link com o código e o pedido para validar) em `~/.config/planos-hsm/email-<PRD>.txt` e imprime o caminho. Se a sessão tem acesso ao Gmail do Pedro, crie com ele um **rascunho** para o diretor com esse texto; nada é enviado sem o Pedro. Sem acesso ao Gmail, diga ao Pedro onde está o arquivo. O código não vai para issue, PR, commit nem resposta da sessão.
+7. **Enviar o e-mail.** `apresentar.py email <PRD>` grava o texto (assunto, link com o código e o pedido para validar) em `~/.config/planos-hsm/email-<PRD>.txt` e imprime o caminho. Com o Gmail do Pedro na sessão, **envie** o e-mail para o endereço de `~/.config/planos-hsm/diretor`, com o assunto da primeira linha e o resto como corpo, sem parar no rascunho (Pedro pediu em 18/11/2026). Sem o Gmail ou sem o arquivo `diretor`, diga ao Pedro onde está o texto. O código não vai para issue, PR, commit nem resposta da sessão.
 8. **Subir a fonte.** O `dados.json` novo ou mudado vai para a `main` pelo `/ship "<descrição>" --from-diff` (classe ferramenta, só merge).
 
 ## Checklist de saída
@@ -55,5 +56,5 @@ Logo e fonte vêm de `docs/comunicacao/_assets/` na hora do deploy.
 2. Texto pelo `humanizer`; nada de número de issue, travessão ou palavra técnica (o `montar` trava).
 3. Label `validado:diretor` tirada e página publicada em `https://planos-hsm.vercel.app/<PRD>`.
 4. Página conferida no `playwright-cli` em desktop e 390 px.
-5. Rascunho no Gmail (ou o caminho do arquivo dito ao Pedro), sem envio.
+5. E-mail enviado ao diretor pelo Gmail (ou o caminho do arquivo dito ao Pedro).
 6. `docs/comunicacao/planos/<PRD>/dados.json` subindo pelo `/ship`.
