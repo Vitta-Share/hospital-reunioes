@@ -31,10 +31,9 @@ from __future__ import annotations
 import json
 import logging
 
-import anthropic
-
 from app.config import settings
 from app.services import ai_processor
+from app.services.ia_chaves import ClienteDaAnthropic
 from app.services.ouvidoria_pseudonimizacao import pseudonimizar
 from app.services.prompt_loader import load_prompt
 from app.utils.text_sanitizer import sanitizar_travessao
@@ -56,12 +55,12 @@ TEMPO_LIMITE_S = 60.0
 TAMANHO_DO_ASSUNTO = 120
 
 
-def _cliente() -> anthropic.Anthropic | None:
+def _cliente() -> ClienteDaAnthropic | None:
     """O cliente da Anthropic, ou None sem chave (ambiente local e CI): sem
     chave o agente fica desligado e o caso entra como sempre entrou."""
     if not settings.anthropic_api_key:
         return None
-    return anthropic.Anthropic(api_key=settings.anthropic_api_key, max_retries=0, timeout=TEMPO_LIMITE_S)
+    return ClienteDaAnthropic(max_retries=0, timeout=TEMPO_LIMITE_S)
 
 
 def agendar_caso(tarefas, supabase, caso: dict) -> None:
