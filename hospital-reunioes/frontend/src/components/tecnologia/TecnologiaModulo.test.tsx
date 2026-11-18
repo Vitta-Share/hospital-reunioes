@@ -110,9 +110,14 @@ describe("A aba abre no chat, com Conversas e Entregas (issues #1386 e #1556)", 
   it("só pede ao servidor a lista das conversas e quem está logado: nada de Produtos, pessoas ou Vínculo", async () => {
     montar();
 
-    // `eu` diz se quem está logado é Desenvolvedor (issue #1531, ADR 0083).
-    await waitFor(() => expect(pedidos.length).toBe(2));
-    expect([...pedidos].sort()).toEqual(["/api/admin/tecnologia/chat", "/api/admin/tecnologia/eu"]);
+    // `eu` diz se quem está logado é Desenvolvedor (issue #1531, ADR 0083), e
+    // `projetos` dá as opções do filtro Projeto (issue #1967).
+    await waitFor(() => expect(pedidos.length).toBe(3));
+    expect([...pedidos].sort()).toEqual([
+      "/api/admin/tecnologia/chat",
+      "/api/admin/tecnologia/eu",
+      "/api/admin/tecnologia/projetos",
+    ]);
   });
 
   it("na tela larga a aba Conversas se chama Quadro e abre nas colunas (issue #1642, ADR 0090)", async () => {

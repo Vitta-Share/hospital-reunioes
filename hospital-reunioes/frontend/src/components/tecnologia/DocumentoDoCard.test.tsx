@@ -20,6 +20,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  ABRIR_O_PLANO,
   ASSISTIR_A_DEMONSTRACAO,
   COPIAR_LINK,
   DocumentoDoCard,
@@ -32,6 +33,7 @@ import {
   TITULO_EM_UMA_FRASE,
   TITULO_O_QUE_MUDA,
   TITULO_PARTES,
+  TITULO_PLANO_DO_PROJETO,
   VER_TUDO,
 } from "./DocumentoDoCard";
 import { Demanda, ETAPA_ROTULO, EtapaDemanda, ParteDaEntrega } from "./demandas";
@@ -397,5 +399,37 @@ describe("O Copiar link do Documento do card", () => {
         cleanup();
       }
     }
+  });
+});
+
+describe("O pedido de um projeto novo da Vitta (issue #1967)", () => {
+  const DO_PEDRO_OS = demanda({
+    etapa: "registrada",
+    tem_vinculo: true,
+    raiz_numero: 915,
+    projeto: "os",
+    projeto_nome: "PedroOS",
+    raiz_url: "https://github.com/Vitta-Share/os/issues/915",
+  });
+
+  it("mostra a todos o nome do projeto e o link do plano", () => {
+    montar(DO_PEDRO_OS);
+
+    const plano = within(documento()).getByRole("region", { name: TITULO_PLANO_DO_PROJETO });
+    expect(within(plano).getByText("PedroOS")).toBeTruthy();
+    const link = within(plano).getByRole("link", { name: ABRIR_O_PLANO });
+    expect(link.getAttribute("href")).toBe("https://github.com/Vitta-Share/os/issues/915");
+  });
+
+  it("o pedido do aplicativo não tem o cartão do plano", () => {
+    montar(VINCULADA);
+
+    expect(within(documento()).queryByRole("region", { name: TITULO_PLANO_DO_PROJETO })).toBeNull();
+  });
+
+  it("link que não é https não vira link", () => {
+    montar({ ...DO_PEDRO_OS, raiz_url: "javascript:alert(1)" });
+
+    expect(within(documento()).queryByRole("link", { name: ABRIR_O_PLANO })).toBeNull();
   });
 });

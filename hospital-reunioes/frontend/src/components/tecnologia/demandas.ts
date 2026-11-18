@@ -119,8 +119,12 @@ export type Demanda = {
   /**
    * O Projeto da Demanda (issue #1715, ADR 0093, decisão 8): o Aplicativo do
    * Hospital ou a Ana. O selo do card no Quadro e na lista. Sem o campo, sem selo.
+   * Desde a issue #1967, também um projeto novo da Vitta, com o nome em
+   * `projeto_nome` e o link do plano em `raiz_url`, para todos.
    */
   projeto?: Projeto | null;
+  projeto_nome?: string | null;
+  raiz_url?: string | null;
   /**
    * A Revisão com o código de hoje (issue #1557, ADR 0084, decisão 3):
    * `pode_revisar` mostra o botão, pela regra do servidor; `em_revisao` abre a
@@ -169,18 +173,62 @@ export const ORIGEM_CLASSE: Record<Origem, string> = {
   vitta: "bg-sky-50 text-sky-700",
 };
 
-export type Projeto = "hospital" | "ana";
+/** Os dois Projetos cujo repositório o app lê (ADR 0093, decisão 1). */
+export type ProjetoConhecido = "hospital" | "ana";
+
+/**
+ * O Projeto da Demanda: um dos dois conhecidos ou, desde a issue #1967, um
+ * projeto novo da Vitta que a ponte criou (o PedroOS, por exemplo).
+ */
+export type Projeto = string;
 
 /** O selo do Projeto no card e o nome no filtro (issue #1715, ADR 0093, decisões 1 e 8). */
-export const PROJETO_ROTULO: Record<Projeto, string> = {
+export const PROJETO_ROTULO: Record<ProjetoConhecido, string> = {
   hospital: "Aplicativo do Hospital",
   ana: "Ana",
 };
 
-export const PROJETO_CLASSE: Record<Projeto, string> = {
+export const PROJETO_CLASSE: Record<ProjetoConhecido, string> = {
   hospital: "bg-teal-50 text-teal-700",
   ana: "bg-amber-50 text-amber-800",
 };
+
+/** A cor do selo de um projeto novo da Vitta (issue #1967). */
+const CLASSE_DO_PROJETO_NOVO = "bg-slate-100 text-slate-700";
+
+function eConhecido(projeto: Projeto): projeto is ProjetoConhecido {
+  return Object.prototype.hasOwnProperty.call(PROJETO_ROTULO, projeto);
+}
+
+/** O nome do selo: o fixo dos dois conhecidos, o que o servidor mandou no projeto novo. */
+export function rotuloDoProjeto(projeto: Projeto, nome?: string | null): string {
+  if (eConhecido(projeto)) return PROJETO_ROTULO[projeto];
+  return nome?.trim() || projeto;
+}
+
+export function classeDoProjeto(projeto: Projeto): string {
+  return eConhecido(projeto) ? PROJETO_CLASSE[projeto] : CLASSE_DO_PROJETO_NOVO;
+}
+
+/** Uma opção do filtro Projeto, como a rota `/projetos` manda (issue #1967). */
+export type OpcaoDeProjeto = { valor: Projeto; nome: string };
+
+/** As opções de sempre, enquanto a lista do servidor não chega ou quando ela falha. */
+export const PROJETOS_FIXOS: OpcaoDeProjeto[] = (Object.keys(PROJETO_ROTULO) as ProjetoConhecido[]).map(
+  (valor) => ({ valor, nome: PROJETO_ROTULO[valor] }),
+);
+
+export const URL_DOS_PROJETOS = `${BASE_TECNOLOGIA}/projetos`;
+
+/** A lista do servidor, só com as opções bem formadas; nula quando não é uma lista. */
+export function projetosValidos(corpo: unknown): OpcaoDeProjeto[] | null {
+  if (!Array.isArray(corpo)) return null;
+  const lidos = corpo.filter(
+    (o): o is OpcaoDeProjeto =>
+      typeof o === "object" && o !== null && typeof o.valor === "string" && typeof o.nome === "string",
+  );
+  return lidos.length > 0 ? lidos : null;
+}
 
 export type Classificacao = "bug" | "melhoria";
 
