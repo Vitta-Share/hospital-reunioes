@@ -2,7 +2,7 @@
 status: superseded
 superseded_by: 0077
 amends: 0054, 0056
-amended_by: 0076
+amended_by: 0076, 0103
 ---
 
 # Planejamento da Demanda: o grill de negócio roda no app, e o "sim" do diretor cria o PRD do diretor
