@@ -33,7 +33,7 @@ from app.services.contas_medicas.faltou_isto import (
     fora_do_periodo,
 )
 from app.services.contas_medicas.memoria_texto import gerar_texto_memoria
-from app.services.contas_medicas.prova_da_regra import CONCLUIDAS
+from app.services.contas_medicas.validacao import CONCLUIDAS
 from app.services.paginacao import ler_tudo
 from app.utils.text_sanitizer import sanitizar_travessao
 

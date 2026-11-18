@@ -81,8 +81,8 @@ function PedidoDoAuditor({
       className={`${CARTAO} flex flex-wrap items-center justify-between gap-3`}
     >
       <p className="text-sm text-slate-600 max-w-xl">
-        {pedido.temas} {pedido.temas === 1 ? "cartão está" : "cartões estão"} sem recomendação do Auditor,{" "}
-        {pedido.provas} com Prova da regra. Custo estimado: cerca de {textoEmDolar(pedido.custo_estimado_usd)}.
+        {pedido.temas} {pedido.temas === 1 ? "cartão está" : "cartões estão"} sem recomendação do Auditor. Custo
+        estimado: cerca de {textoEmDolar(pedido.custo_estimado_usd)}.
       </p>
       <button type="button" disabled={ocupado} onClick={onPedir} className={BOTAO}>
         {ocupado ? (

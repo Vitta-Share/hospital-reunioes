@@ -4,8 +4,9 @@
  * A conversa da Operadora com o Auditor, na Memória da operadora (issue #1490, PRD #1484, ADR 0081).
  *
  * Quem tem "Regra contratual e tabelas" escreve a regra do jeito dele e o
- * Auditor devolve um lote de propostas já decididas, cada uma com o motivo,
- * os conflitos e a Prova da regra. "Ok, aplicar o lote" manda "ok", que grava
+ * Auditor devolve um lote de propostas já decididas, cada uma com o motivo e
+ * os conflitos (sem prova nas últimas contas desde a issue #1920). "Ok,
+ * aplicar o lote" manda "ok", que grava
  * o lote inteiro numa versão nova da memória; "Corrigir o item N" manda
  * "corrige o item N: ...", e o Auditor refaz só aquele item. O servidor decide
  * tudo; a tela desenha a conversa e o lote como ele manda.
@@ -23,7 +24,6 @@ import Link from "next/link";
 import { AlertCircle, FileText, ListChecks, Loader2, MessageSquare, Upload } from "lucide-react";
 
 import { Ditar, juntarDitado } from "@/components/contas-medicas/Ditar";
-import { type ProvaDaRegra, ProvaDaRegraNaTela } from "@/components/contas-medicas/ProvaDaRegra";
 import { detalheDoErro } from "@/lib/contas-medicas/operadoras";
 
 type ValorDoParametro = string | number | boolean | null | unknown[] | Record<string, unknown>;
@@ -65,9 +65,6 @@ interface ItemDoLote {
   proposta: PropostaDeRegra | PropostaDeParametro;
   motivo: string | null;
   conflitos: { codigo: string; texto: string; resolucao: "JUNTAR" | "SUBSTITUIR" }[];
-  /** O item muda a análise e precisa da Prova antes do ok. */
-  pede_prova: boolean;
-  prova: ProvaDaRegra | null;
 }
 
 interface Conversa {
@@ -200,7 +197,7 @@ export function ConversaDaOperadora({
         <div>
           <h2 className="text-base font-semibold text-slate-900">Falar com o auditor</h2>
           <p className="text-sm text-slate-500 mt-0.5">
-            Escreva a regra do seu jeito. O Auditor devolve as mudanças num lote, cada uma com a prova. Responda
+            Escreva a regra do seu jeito. O Auditor devolve as mudanças num lote, cada uma com o motivo. Responda
             &quot;ok&quot; para aplicar tudo ou corrija só o item que discordar. A conversa fica guardada, mas só o que
             você aplica muda a análise das contas. O contrato, em PDF ou imagem, vira as regras cláusula a cláusula.
           </p>
@@ -279,7 +276,7 @@ export function ConversaDaOperadora({
           </button>
           {ocupado && (
             <p aria-live="polite" className="text-xs text-slate-500">
-              O Auditor está lendo e provando as regras nas últimas contas. Pode levar alguns minutos.
+              O Auditor está lendo a memória e a sua mensagem. Pode levar alguns minutos.
             </p>
           )}
         </div>
@@ -297,8 +294,6 @@ function LoteDoAuditor({
   ocupado: boolean;
   aoMandar: (mensagem: string) => Promise<boolean>;
 }) {
-  // Prova antes do ok (ADR 0081, decisão 7): o servidor recusa o ok com item de regra sem prova.
-  const semProva = lote.itens.filter((item) => item.pede_prova && !item.prova).map((item) => item.numero);
   return (
     <section aria-label="Lote do Auditor" className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
       <h3 className="text-xs font-semibold text-slate-500 uppercase">
@@ -310,13 +305,7 @@ function LoteDoAuditor({
       <p className="text-xs text-slate-500">
         Nada vale antes do ok. O ok aplica o lote inteiro numa versão nova da memória, com o seu nome e a data.
       </p>
-      {semProva.length > 0 && (
-        <p className="text-xs text-amber-700">
-          O ok fica travado enquanto {semProva.length === 1 ? "o item" : "os itens"} {semProva.join(", ")}{" "}
-          {semProva.length === 1 ? "estiver" : "estiverem"} sem prova.
-        </p>
-      )}
-      <button type="button" disabled={ocupado || semProva.length > 0} onClick={() => aoMandar("ok")} className={BOTAO}>
+      <button type="button" disabled={ocupado} onClick={() => aoMandar("ok")} className={BOTAO}>
         Ok, aplicar o lote
       </button>
     </section>
@@ -371,13 +360,6 @@ function ItemDoLoteNaTela({
           {c.texto}
         </p>
       ))}
-      {item.prova && <ProvaDaRegraNaTela prova={item.prova} />}
-      {!item.prova && item.pede_prova && (
-        <p className="text-amber-700">A prova não rodou agora. Corrija o item para provar de novo.</p>
-      )}
-      {!item.pede_prova && item.tipo !== "PARAMETRO" && (
-        <p className="text-slate-500">Não muda a análise, por isso vem sem prova.</p>
-      )}
       {corrigindo ? (
         <form aria-label={`Corrigir o item ${item.numero}`} onSubmit={corrigir} className="space-y-2">
           <label className="flex flex-col gap-1.5 text-xs font-medium text-slate-500 uppercase">

@@ -980,9 +980,8 @@ class TestPipeline:
         assert guia["cabecalho"]["paciente_rotulo"] == "Antônia F."
 
     def test_a_conta_pronta_guarda_as_diarias_pagas_e_as_cirurgias_do_teto(self):
-        # A Prova da regra (#1508) refaz o teto por diária de uma conta
-        # concluída: as diárias pagas e as cirurgias que a análise usou ficam
-        # gravadas. O par sintético paga 4 diárias de CTI e tem uma cirurgia.
+        # As diárias pagas e as cirurgias que a análise usou para o teto por
+        # diária ficam gravadas com a conta (#1508). O par sintético paga 4 diárias de CTI e tem uma cirurgia.
         banco = _cenario()
         _enviar(banco, _conta(), _prontuario())
         _rodar_o_job(banco)

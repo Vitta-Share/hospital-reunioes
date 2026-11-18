@@ -808,17 +808,11 @@ def comparar_conta(
     supabase,
     conta_id: str | None,
     atendimento_id: str | None,
-    passo: Literal["B", "PROVA"] = "B",
-    modelo: str | None = None,
 ) -> LinhasDaComparacao:
     """O passo B: as linhas do Guia que a IA propõe. A memória vai em bloco de
-    cache: é o mesmo texto para todas as contas da operadora.
-
-    `passo="PROVA"` é o Passo B refeito pela Prova da regra (#1488): a mesma
-    chamada, gravada com o passo próprio. `modelo` troca o do passo B (a prova
-    pedida pela Validação roda no modelo dela, #1523)."""
+    cache: é o mesmo texto para todas as contas da operadora."""
     return _chamar_a_ia(
-        modelo=modelo or settings.cm_ia_modelo_passo_b,
+        modelo=settings.cm_ia_modelo_passo_b,
         instrucao=load_prompt("contas_medicas_passo_b"),
         blocos=[
             (f"MEMÓRIA DA OPERADORA\n{memoria}", True),
@@ -827,7 +821,7 @@ def comparar_conta(
             (f"CÁLCULOS\n{_json(calculos)}", False),
         ],
         saida=LinhasDaComparacao,
-        onde=_Onde(supabase, conta_id, atendimento_id, passo),
+        onde=_Onde(supabase, conta_id, atendimento_id, "B"),
     )
 
 

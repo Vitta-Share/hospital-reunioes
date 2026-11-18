@@ -450,9 +450,10 @@ class TestOsBlocos:
         assert _painel()["custo_ia"] == _custo(1.2, analise=1.2, medio=0.4, contas=3)
 
     def test_as_provas_da_regra_da_semana_entram_no_custo(self):
-        """A Prova da regra (#1488) grava cada chamada com o passo PROVA e sem a
-        conta. As da semana somam 0,30 + 0,05 no total; a da semana anterior
-        fica de fora, e a chamada da análise já está no custo da Conta."""
+        """A prova de regra (#1488, fora do app desde a #1920) gravou cada
+        chamada com o passo PROVA e sem a conta; o histórico segue no painel.
+        As da semana somam 0,30 + 0,05 no total; a da semana anterior fica de
+        fora, e a chamada da análise já está no custo da Conta."""
         banco = _cenario()
         banco.tabelas["cm_chamada_ia"] = [
             _chamada("PROVA", None, "at-1", 0.30, "2026-10-07T12:00:00+00:00"),
@@ -469,7 +470,7 @@ class TestOsBlocos:
         )
 
     def test_o_custo_da_semana_soma_e_separa_conversa_prova_e_revisor(self):
-        """O Auditor (CONVERSA), a Prova da regra (PROVA) e o segundo agente
+        """O Auditor (CONVERSA), a prova de regra (PROVA) e o segundo agente
         (REVISOR) entram no custo pela semana em que a chamada foi feita, cada
         um na própria parte. A conversa da Conta C1 grava a conta, e a soma da
         C1 (0,40) já a inclui: a análise fica 0,40 - 0,15 = 0,25, para a
