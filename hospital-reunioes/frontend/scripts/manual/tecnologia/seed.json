@@ -13,9 +13,17 @@
   "abrir": {
     "melhoria": "exemplo-58",
     "bug": "exemplo-59",
-    "painel": "exemplo-47"
+    "painel": "exemplo-47",
+    "projeto_novo": "exemplo-60"
   },
   "demandas": [
+    {
+      "id": "exemplo-60", "numero": 60, "dias": 0, "hora": "08:30",
+      "titulo": "Troca de plantão pelo aplicativo",
+      "classificacao": "melhoria", "etapa": "registrada", "projeto": "escala-de-plantoes", "origem": "vitta",
+      "projeto_nome": "Escala de Plantões",
+      "raiz_url": "https://planos.exemplo.local/escala-de-plantoes/12"
+    },
     {
       "id": "exemplo-58", "numero": 58, "dias": 0, "hora": "09:10",
       "titulo": "Avisar a Secretária quando a ata ficar pronta para assinar",
@@ -117,6 +125,14 @@
     { "autor": "Henrique Bastos", "texto": "Ótimo. Dá para incluir os convênios sem guia no mês, com zero?", "dias": 1, "minha": true },
     { "autor": "Clara Nogueira", "texto": "Dá, sim. Entra na mesma parte.", "dias": 0, "minha": false }
   ],
+  "pergunta_do_projeto_novo": {
+    "autor": "Clara Nogueira",
+    "assunto": "aprovação da troca de plantão",
+    "falas": [
+      { "autor": "Clara Nogueira", "texto": "Henrique, começamos o plano da troca de plantão pelo aplicativo. Ele fica aqui, no link do pedido.", "dias": 1, "minha": false },
+      { "autor": "Clara Nogueira", "texto": "A troca entre dois plantonistas precisa da aprovação da coordenação, ou vale assim que os dois confirmam?", "dias": 0, "minha": false }
+    ]
+  },
   "melhoria": {
     "falas": [
       { "autor": "ia", "texto": "Isso é um bug, algo que não funciona como deveria, ou uma melhoria?", "opcoes": ["Bug", "Melhoria"] },

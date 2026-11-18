@@ -21,6 +21,7 @@ const TECNOLOGIA = PAGINAS.find((p) => p.modulo === "tecnologia");
 const TAREFAS = [
   "Pedir um bug ou uma melhoria ao Assistente",
   "Acompanhar o pedido no Quadro",
+  "Responder uma pergunta da Vitta",
   "Filtrar por Projeto",
   "Ver as Entregas",
 ];
@@ -117,8 +118,8 @@ function passosDa(tarefa: string): string[] {
     .filter((bloco) => /^\d+\. /.test(bloco));
 }
 
-describe("a pergunta da Vitta na tarefa de conversar com ela (issue #1807, ADR 0096)", () => {
-  const TAREFA = "Acompanhar o pedido no Quadro";
+describe("a pergunta da Vitta na tarefa de responder a ela (issues #1807 e #1968, ADR 0096)", () => {
+  const TAREFA = "Responder uma pergunta da Vitta";
 
   it("um passo diz que a pergunta chega na Conversa da Demanda, com aviso no sino e por e-mail", () => {
     const chegada = passosDa(TAREFA).find((p) => /pergunta/i.test(p) && /decisão sua/.test(p));
@@ -128,18 +129,62 @@ describe("a pergunta da Vitta na tarefa de conversar com ela (issue #1807, ADR 0
     expect(chegada).toMatch(/aviso no sino e por e-mail/);
   });
 
-  it("o passo seguinte diz para responder ali mesmo, pelo Conversar", () => {
+  it("um passo depois diz para responder ali mesmo, pelo Conversar", () => {
     const passos = passosDa(TAREFA);
     const i = passos.findIndex((p) => /pergunta/i.test(p) && /decisão sua/.test(p));
     expect(i, "nenhum passo diz onde chega a pergunta da Vitta").toBeGreaterThanOrEqual(0);
-    const resposta = passos[i + 1] ?? "";
-    expect(resposta).toMatch(/\*\*Conversar\*\*/);
+    const resposta = passos.slice(i + 1).find((p) => /\*\*Conversar\*\*/.test(p)) ?? "";
     expect(resposta).toMatch(/responda ali mesmo/);
   });
 
   it("não traz travessão nem meia-risca, nem o nome de quem manda a pergunta", () => {
     expect(TECNOLOGIA!.corpo).not.toMatch(/[–—]/);
     expect(TECNOLOGIA!.corpo).not.toMatch(/\bPedro\b/);
+  });
+});
+
+describe("o aviso Pede sua resposta e o pedido de projeto novo (issue #1968, PRD #1964)", () => {
+  const TAREFA = "Responder uma pergunta da Vitta";
+
+  function passoDoAviso(): string {
+    const passo = passosDa(TAREFA).find((p) => /\*\*Pede sua resposta\*\*/.test(p));
+    expect(passo, "nenhum passo mostra o aviso Pede sua resposta").toBeDefined();
+    return passo!;
+  }
+
+  it("um passo mostra o aviso Pede sua resposta no sino, com o assunto, e só para quem responde", () => {
+    const passo = passoDoAviso();
+    expect(passo).toMatch(/sino/);
+    expect(passo).toMatch(/assunto/);
+    expect(passo).toMatch(/mesmo num pedido que você não abriu/);
+    expect(imagensCitadas(passo)).toContain("aviso-pede-resposta.png");
+  });
+
+  it("um passo diz o assunto do e-mail, com quem pergunta e sobre o quê", () => {
+    const passo = passosDa(TAREFA).find((p) => /e-mail/.test(p) && /pede sua resposta: /.test(p));
+    expect(passo, "nenhum passo diz o assunto do e-mail").toBeDefined();
+  });
+
+  it("o passo de responder traz o print da pergunta na Conversa da Demanda", () => {
+    const passo = passosDa(TAREFA).find((p) => /responda ali mesmo/.test(p));
+    expect(imagensCitadas(passo ?? "")).toContain("pergunta-na-conversa.png");
+  });
+
+  it("a tarefa Acompanhar o pedido no Quadro manda para a tarefa nova, sem repetir os passos", () => {
+    const passos = passosDa("Acompanhar o pedido no Quadro");
+    expect(passos.some((p) => /\*\*Responder uma pergunta da Vitta\*\*/.test(p))).toBe(true);
+    expect(passos.some((p) => /responda ali mesmo/.test(p))).toBe(false);
+  });
+
+  it("explica o pedido de projeto novo: Vitta, nome do projeto, Abrir o plano, filtro Projeto, com print", () => {
+    const { texto } = secao(TAREFA);
+    const trecho = texto.split(/\n\s*\n/).filter((p) => /projeto novo|ainda não aparecia/.test(p) || /projeto-novo\.png/.test(p)).join("\n");
+    expect(trecho, "a tarefa não explica o pedido de projeto novo").toMatch(/ainda não aparecia no aplicativo/);
+    expect(trecho).toMatch(/\*\*Vitta\*\*/);
+    expect(trecho).toMatch(/nome do projeto/);
+    expect(trecho).toMatch(/\*\*Abrir o plano\*\*/);
+    expect(trecho).toMatch(/\*\*Projeto\*\*/);
+    expect(imagensCitadas(trecho)).toContain("projeto-novo.png");
   });
 });
 

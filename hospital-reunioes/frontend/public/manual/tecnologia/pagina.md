@@ -47,24 +47,45 @@ Se a conversa parar no meio, ela fica guardada como Registrada. Clique no pedido
 
    ![Um pedido aberto no painel ao lado do Quadro](pedido-no-painel.png)
 
-7. Quando a Vitta precisa de uma decisão sua sobre o pedido, a pergunta aparece nessa mesma Conversa da Demanda, como as outras mensagens da Vitta, e você recebe o aviso no sino e por e-mail. Clique no aviso do sino ou no link do e-mail para abrir o pedido na aba Tecnologia.
-8. Clique em **Conversar**, leia a pergunta e responda ali mesmo, na Conversa da Demanda.
-9. Para fechar o painel, clique no X ou aperte Esc. O botão **Ampliar** abre o pedido na tela toda, e o **Voltar ao quadro** traz as colunas de volta.
+7. Quando a Vitta precisa de uma decisão sua sobre o pedido, a pergunta chega nessa mesma Conversa da Demanda. O passo a passo está em **Responder uma pergunta da Vitta**, logo abaixo.
+8. Para fechar o painel, clique no X ou aperte Esc. O botão **Ampliar** abre o pedido na tela toda, e o **Voltar ao quadro** traz as colunas de volta.
 
 A coluna Entregue mostra o que foi entregue nos últimos 30 dias. Os pedidos que não serão feitos ficam fora das colunas: para vê-los, ligue **Mostrar as que não serão feitas**, na barra de filtros.
 
+## Responder uma pergunta da Vitta
+
+Às vezes o trabalho da Vitta para numa decisão que é sua. A pergunta chega pelo pedido, no aplicativo, e você responde ali mesmo.
+
+1. Quando a Vitta precisa de uma decisão sua sobre um pedido, a pergunta chega na Conversa da Demanda daquele pedido, como as outras mensagens da Vitta, e você recebe o aviso no sino e por e-mail. Se a pergunta espera uma resposta sua, o aviso do sino diz **Pede sua resposta** e traz o assunto embaixo. Esse aviso vai só para você, mesmo num pedido que você não abriu.
+
+   ![O aviso Pede sua resposta no sino, com o assunto embaixo](aviso-pede-resposta.png)
+
+2. No e-mail, o assunto diz quem pergunta e sobre o quê, por exemplo "Clara Nogueira pede sua resposta: aprovação da troca de plantão". Dentro dele vêm o assunto, o nome do pedido e o link.
+3. Clique no aviso do sino ou no link do e-mail. O pedido abre na aba Tecnologia, no painel à direita.
+4. Clique em **Conversar**, no alto do painel, leia a pergunta e responda ali mesmo, na Conversa da Demanda.
+
+   ![A pergunta da Vitta na Conversa da Demanda, com a caixa da resposta embaixo](pergunta-na-conversa.png)
+
+5. Escreva a resposta na caixa e clique no botão de enviar, ao lado dela. A resposta fica na conversa, e a Vitta lê ali.
+
+Quando a Vitta só dá um recado, sem pergunta, o sino mostra o aviso de sempre, como **Clara Nogueira escreveu na Demanda**, e o e-mail segue o mesmo texto.
+
+Às vezes a pergunta vem de um projeto da Vitta que ainda não aparecia no aplicativo. Nesse caso, ela abre um pedido novo na aba, marcado como **Vitta** e com o nome do projeto no selo. No painel, a parte **Plano do projeto** mostra o nome do projeto e o botão **Abrir o plano**, que abre o plano em outra aba. O pedido fica em Registrada, porque o aplicativo não acompanha o trabalho desse projeto, e não se apaga pelo aplicativo. A pergunta seguinte do mesmo plano cai no mesmo pedido, nunca num segundo. Depois do primeiro pedido, o campo **Projeto** da barra de filtros passa a listar esse projeto.
+
+![O pedido de um projeto novo da Vitta, com o nome do projeto e o Abrir o plano](projeto-novo.png)
+
 ## Filtrar por Projeto
 
-A aba junta os pedidos de dois Projetos: o Aplicativo do Hospital e a Ana, a agente de atendimento. Cada card traz um selo com o nome do Projeto.
+A aba junta os pedidos do Aplicativo do Hospital, da Ana, a agente de atendimento, e dos projetos novos da Vitta que têm pergunta para você. Cada card traz um selo com o nome do Projeto.
 
 1. No Quadro, na barra de filtros, clique no campo **Projeto**.
-2. Escolha **Aplicativo do Hospital** ou **Ana**. O Quadro passa a mostrar só os pedidos daquele Projeto.
+2. Escolha **Aplicativo do Hospital**, **Ana** ou o nome de um projeto novo da Vitta. O Quadro passa a mostrar só os pedidos daquele Projeto.
 
    ![O Quadro com o filtro Projeto em Ana](filtro-projeto.png)
 
 3. Para voltar a ver tudo, escolha **Todos** no mesmo campo ou clique em **Limpar filtros**.
 
-O Projeto combina com os outros filtros da barra, o Tipo e a Origem, e com a busca pelo título. Os pedidos da Ana são só para acompanhar: o Assistente cria card apenas no Aplicativo do Hospital. Nas Entregas, o filtro Projeto é a fileira de botões **Todos**, **Aplicativo do Hospital** e **Ana**, no alto.
+O Projeto combina com os outros filtros da barra, o Tipo e a Origem, e com a busca pelo título. Os pedidos da Ana são só para acompanhar: o Assistente cria card apenas no Aplicativo do Hospital. Nas Entregas, o filtro Projeto é a fileira de botões **Todos**, **Aplicativo do Hospital**, **Ana** e um botão para cada projeto novo, no alto.
 
 ## Ver as Entregas
 

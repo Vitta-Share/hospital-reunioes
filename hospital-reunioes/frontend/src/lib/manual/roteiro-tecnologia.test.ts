@@ -39,6 +39,13 @@ function tabela(): Record<string, unknown> {
   return JSON.parse(rodada.stdout);
 }
 
+/** O sino que o roteiro serve no lugar do backend: a rota (depois de `/api/notificacoes`) e o corpo (issue #1968). */
+function sino(): Record<string, unknown> {
+  const rodada = spawnSync("python3", [join(PASTA, "respostas.py"), "--sino"], { encoding: "utf8" });
+  if (rodada.status !== 0) throw new Error(rodada.stderr);
+  return JSON.parse(rodada.stdout);
+}
+
 /** Todo texto de um valor JSON, folha por folha. */
 function folhas(valor: unknown): string[] {
   if (typeof valor === "string") return [valor];
@@ -160,6 +167,48 @@ describe("a tabela de respostas da aba Tecnologia", () => {
   });
 });
 
+describe("a pergunta da Vitta e o pedido de projeto novo na tabela (issue #1968, PRD #1964)", () => {
+  const T = tabela();
+  const lista = T["chat"] as Demanda[];
+  const novo = lista.find((d) => d.id === SEED.abrir.projeto_novo);
+
+  it("o pedido de projeto novo é da Vitta, com o nome do projeto e o link de exemplo do plano, Registrado e sem Apagar", () => {
+    expect(novo, "a lista não tem o pedido de projeto novo").toBeDefined();
+    expect(["hospital", "ana"]).not.toContain(novo!.projeto);
+    expect(novo!.origem).toBe("vitta");
+    expect(novo!.etapa).toBe("registrada");
+    expect(novo!.projeto_nome).toEqual(expect.any(String));
+    expect(novo!.raiz_url).toMatch(/^https:\/\/[\w.-]*exemplo\.local\//);
+    expect(novo!.pode_apagar).toBe(false);
+  });
+
+  it("a rota projetos lista o Aplicativo do Hospital, a Ana e o projeto novo, com o nome", () => {
+    const projetos = T["projetos"] as { valor: string; nome: string }[];
+    expect(projetos.map((p) => p.valor)).toEqual(["hospital", "ana", novo!.projeto]);
+    expect(projetos.at(-1)!.nome).toBe(novo!.projeto_nome);
+  });
+
+  it("o sino traz o aviso Pede sua resposta com o assunto, e ele abre o pedido cuja Conversa tem a pergunta da Vitta", () => {
+    const S = sino();
+    expect(S["/count"]).toEqual({ nao_lidas: expect.any(Number) });
+    const avisos = S["?limit=20"] as { tipo: string; titulo: string; mensagem: string; referencia_id: string; lida: boolean }[];
+    const aviso = avisos.find((a) => a.titulo === "Pede sua resposta");
+    expect(aviso, "o sino não tem o aviso Pede sua resposta").toBeDefined();
+    expect(aviso!.tipo).toBe("TECNOLOGIA");
+    expect(aviso!.lida).toBe(false);
+    expect(aviso!.mensagem.length).toBeGreaterThan(0);
+    expect(aviso!.referencia_id).toBe(novo!.id);
+    const conversa = T[`chat/${novo!.id}/conversa`] as { mensagens: { texto: string; minha: boolean }[] };
+    const ultima = conversa.mensagens.at(-1)!;
+    expect(ultima.minha).toBe(false);
+    expect(ultima.texto).toMatch(/\?$/);
+  });
+
+  it("o roteiro serve o sino no lugar do backend", () => {
+    expect(readFileSync(ROTEIRO, "utf8")).toMatch(/respostas\.py" --sino/);
+  });
+});
+
 describe("o seed e as respostas da página de Tecnologia", () => {
   it("o diretor de exemplo fica na faixa P17280 a P17289, longe das pessoas dos outros roteiros", () => {
     expect(SEED.admin.id).toMatch(/^P1728\d$/);
@@ -173,6 +222,10 @@ describe("o seed e as respostas da página de Tecnologia", () => {
 
   it("a tabela de respostas não traz e-mail, telefone, endereço nem nome de gente de verdade", () => {
     expect(folhas(tabela()).flatMap(dadoReal)).toEqual([]);
+  });
+
+  it("o sino de exemplo não traz e-mail, telefone, endereço nem nome de gente de verdade", () => {
+    expect(folhas(sino()).flatMap(dadoReal)).toEqual([]);
   });
 });
 
