@@ -2,6 +2,49 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-18T17:04:03-03:00",
+      "sha": "559a62d502a26e2dbcaed54b25284b971fd84fe2",
+      "app_version": "0.309.0",
+      "subject": "PR #1926, issue #1925: Chave de API reserva quando o crédito da principal acaba",
+      "raw_subject": "chore(deploy): registro do PR avulso (#1926)",
+      "scope": [
+        "backend"
+      ],
+      "prds": [],
+      "result": "healthy",
+      "duration_seconds": 72,
+      "services_touched": [
+        "backend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "PR avulso: PR #1926, issue #1925. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 29
+        },
+        "health_s": 20
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-18T16:40:54-03:00",
       "sha": "8cf2ded0bd3ee2bfcee8fe516e06471781f1c573",
       "app_version": "0.308.0",
