@@ -1,0 +1,799 @@
+{
+ "prd": 1786,
+ "contexto": "Canal de Conduta",
+ "titulo_aba": "Plano do Canal de Conduta",
+ "descricao": "O plano do Canal de Conduta para quem trabalha no hospital, em 11 etapas, para o diretor validar antes do trabalho começar.",
+ "selo": "Plano para validar · Canal de Conduta",
+ "titulo": "Um canal só de quem trabalha no hospital,",
+ "destaque": "com sigilo do relato até a medida.",
+ "resumo": "Este é o plano do Canal de Conduta que você pediu. São 42 partes, em 11 etapas, e nenhuma foi entregue ainda. O canal abre na etapa 10, com a primeira fase inteira pronta, e a etapa 11 é a segunda fase. Cinco partes são feitas por pessoas, fora do aplicativo, e uma delas é a sua aprovação das telas públicas. O conteúdo dos casos fica cifrado, o que protege cópias e consultas ao banco de dados, mas quem opera o servidor ainda alcança a chave: por isso o canal só abre com o aditivo de sigilo da Vitta assinado. Passe o mouse em cada parte para ver o que muda, do que ela depende e como vamos saber que ficou pronta. No fim da página, você valida o plano.",
+ "numeros": [
+  {
+   "valor": 42,
+   "rotulo": "partes"
+  },
+  {
+   "valor": 11,
+   "rotulo": "etapas, uma depois da outra"
+  },
+  {
+   "valor": 39,
+   "rotulo": "respostas suas do planejamento já incluídas"
+  }
+ ],
+ "decidido": {
+  "titulo": "O plano segue as suas escolhas",
+  "texto": "Estas decisões vieram do planejamento na aba Tecnologia. Onde você corrigiu uma resposta, vale a correção.",
+  "blocos": [
+   {
+    "titulo": "Quem lê e quem decide",
+    "numerado": false,
+    "itens": [
+     "Só o Comitê lê os casos. O Presidente e a diretoria executiva leem a conclusão e a ata.",
+     "O Presidente decide a medida, e a diretoria executiva registra a decisão no caso.",
+     "O afastamento cautelar é decidido pelo coordenador do Comitê. O DP e o Jurídico recebem só quem afastar e o motivo, e o parecer do Jurídico é consultivo.",
+     "Na Rota Especial, o grupo pede o afastamento à coordenação, e o parecer do Jurídico define.",
+     "Só quem tem o perfil de cadastro inclui membros e suplentes, a pedido do Comitê, e toda mudança avisa os membros.",
+     "Apuradores e o membro da CIPA entram com login e veem só o caso que receberam.",
+     "O Núcleo de Segurança do Paciente recebe só uma nota do Comitê, sem o relato."
+    ]
+   },
+   {
+    "titulo": "Como o canal funciona",
+    "numerado": false,
+    "itens": [
+     "Pode relatar quem trabalha no hospital, com qualquer vínculo.",
+     "A IA guarda o texto até 30 dias e não treina com ele, e a página diz isso.",
+     "Nada vai ao DP por e-mail: a página só mostra o contato do DP.",
+     "O colaborador que procura a Ouvidoria é orientado ao canal, e os casos de conduta já abertos lá terminam lá.",
+     "O ouvidor sinaliza ao Comitê o relato do paciente, sem o nome de quem manifestou.",
+     "Ata e relatório são assinados na mesma conta da ClickSign do hospital, e o hospital limita quem entra nela.",
+     "O canal só abre com a primeira fase inteira pronta, e a segunda fase vem depois, neste mesmo pedido."
+    ]
+   }
+  ]
+ },
+ "fora": {
+  "itens": [
+   "Registro de brindes",
+   "Ciência do Código no aplicativo",
+   "E-mail ao DP",
+   "Login para todos os colaboradores"
+  ],
+  "texto": "O registro de brindes e a ciência do Código ficam com o DP, fora do aplicativo. Nada sai ao DP por e-mail, e os colaboradores não ganham login."
+ },
+ "etapas": [
+  {
+   "nome": "A base",
+   "texto": "O protótipo das telas públicas, o cadastro de membros preparado e o sigilo dos casos. As outras etapas dependem desta."
+  },
+  {
+   "nome": "Sua aprovação e o Comitê",
+   "texto": "Você aprova as telas públicas, a chave do sigilo é criada, e o Comitê ganha membros, fila de casos, textos e o Código de Conduta."
+  },
+  {
+   "nome": "O relato e o dia a dia",
+   "texto": "O relato em passos, a página de proteção, a sugestão da IA, os impedimentos, os depoimentos, os avisos e as ligações com a Ouvidoria e o Núcleo."
+  },
+  {
+   "nome": "A apuração",
+   "texto": "Convite de apurador, termo de declaração, relatório, anexos sem dados de origem e a conversa com quem relatou."
+  },
+  {
+   "nome": "Rota Especial e voto",
+   "texto": "O grupo sem diretor, o voto dos três membros com a trava de prova e o aviso de assunto fora do canal."
+  },
+  {
+   "nome": "Ata e afastamento",
+   "texto": "A ata assinada a partir dos votos e o afastamento cautelar registrado no caso."
+  },
+  {
+   "nome": "A decisão da Direção",
+   "texto": "A conclusão e a ata chegam à Direção, a medida fica registrada, e o caso inteiro vira um pacote para o Comitê."
+  },
+  {
+   "nome": "Depois do caso",
+   "texto": "A guarda do papel, a verificação de retaliação e o Manual."
+  },
+  {
+   "nome": "O teste de fora",
+   "texto": "Uma pessoa que não construiu o canal testa o acesso e o anonimato."
+  },
+  {
+   "nome": "A abertura",
+   "texto": "Com o hospital pronto, o canal abre para quem trabalha nele."
+  },
+  {
+   "nome": "A segunda fase",
+   "texto": "Números para a Direção, resumo trimestral assinado, declaração de conflito e revisão das discordâncias com a IA."
+  }
+ ],
+ "partes": [
+  {
+   "id": 1,
+   "etapa": 1,
+   "titulo": "Protótipo das telas públicas",
+   "muda": "As telas públicas do Canal de Conduta ficam prontas para você ver e aprovar antes de serem construídas.",
+   "vale": "Você vê como o canal vai aparecer para quem relata e pede ajuste antes de qualquer tela ir para o ar.",
+   "saber": [
+    "São os passos do relato, o acompanhamento e a página \"Como este canal protege você\".",
+    "Nada ali grava nem envia: serve para navegar e avaliar.",
+    "A tela de entrada cita o propósito AGIR CERTO."
+   ],
+   "pronto": "Você abre o protótipo no celular, vai do início do relato até o protocolo e passa pela página de proteção, e nada ali grava de verdade.",
+   "depende": []
+  },
+  {
+   "id": 2,
+   "etapa": 1,
+   "titulo": "Cadastro de membros compartilhado",
+   "muda": "Nada muda na tela: o cadastro de membros e o termo do Núcleo de Segurança do Paciente são preparados para servir também ao Comitê de Conduta.",
+   "vale": "O Comitê usa o mesmo cadastro de membros do Núcleo, e o hospital não ganha um segundo cadastro para manter.",
+   "saber": [
+    "O Núcleo continua funcionando igual.",
+    "É preparação: nenhuma tela nova aparece."
+   ],
+   "pronto": "O Núcleo de Segurança do Paciente funciona como hoje, e um membro do Comitê nunca aparece na lista do Núcleo.",
+   "depende": []
+  },
+  {
+   "id": 3,
+   "etapa": 1,
+   "titulo": "A base do sigilo",
+   "muda": "O Canal de Conduta ganha a base de sigilo: caso guardado cifrado, acesso só de quem está designado e registro de cada leitura.",
+   "vale": "É o que sustenta a promessa de que só o Comitê lê, antes de existir qualquer tela.",
+   "saber": [
+    "O canal continua fechado: ninguém de fora enxerga nada ainda.",
+    "Super admin e equipe técnica não abrem conteúdo de caso pelo aplicativo.",
+    "Todo acesso a um caso fica registrado, e o registro não se apaga."
+   ],
+   "pronto": "Quem olha o banco de dados direto vê o relato cifrado, um super admin que tenta abrir um caso é recusado, e cada abertura de caso fica registrada sem poder ser apagada.",
+   "depende": []
+  },
+  {
+   "id": 4,
+   "etapa": 2,
+   "titulo": "Você aprova as telas públicas",
+   "muda": "Você navega pelo protótipo no celular e aprova o layout das telas públicas, ou pede ajuste.",
+   "vale": "Nenhuma tela pública é construída antes de você ver como ela fica.",
+   "saber": [
+    "Nada no protótipo grava ou envia.",
+    "Enquanto você não aprova, o lado público espera, e o lado do Comitê segue.",
+    "Cada ajuste pedido gera um protótipo novo para você ver de novo."
+   ],
+   "pronto": "Você responde \"aprovado\", ou pede ajuste e vê o protótipo de novo, e só então o relato e a página de proteção começam a ser construídos.",
+   "depende": [
+    1
+   ]
+  },
+  {
+   "id": 5,
+   "etapa": 2,
+   "titulo": "A chave do sigilo",
+   "muda": "A equipe técnica cria a chave que cifra os casos e a guarda em dois cofres de senha.",
+   "vale": "Sem essa chave o canal não grava nem lê caso nenhum, e perder a chave é perder os casos.",
+   "saber": [
+    "A chave fica fora do aplicativo e nunca aparece em tela.",
+    "Junto nasce a chave de abertura, desligada até a abertura do canal."
+   ],
+   "pronto": "A conferência do servidor mostra a chave configurada, ela está guardada em dois cofres de senha, e o canal continua fechado.",
+   "depende": [
+    3
+   ]
+  },
+  {
+   "id": 6,
+   "etapa": 2,
+   "titulo": "Membros do Comitê",
+   "muda": "O Comitê de Conduta passa a ter tela de membros, com cadeira, vigência e situação.",
+   "vale": "Fica claro quem compõe o Comitê e até quando, e toda mudança é vista por todos os membros.",
+   "saber": [
+    "Só a pessoa com o perfil de cadastro inclui ou retira membro e suplente.",
+    "Toda inclusão ou saída avisa os membros do Comitê.",
+    "A tela mostra a composição em qualquer data passada."
+   ],
+   "pronto": "A tela mostra quem compunha o Comitê numa data passada, e incluir um suplente avisa todos os membros.",
+   "depende": [
+    2,
+    3
+   ]
+  },
+  {
+   "id": 7,
+   "etapa": 2,
+   "titulo": "Fila de casos e prazos",
+   "muda": "O Comitê passa a receber cada caso numa fila, confirmar a triagem e seguir o rito com o prazo à vista.",
+   "vale": "Cada pessoa abre o aplicativo e vê só o que depende dela, do mais urgente ao menos urgente.",
+   "saber": [
+    "São quatro ritos, cada um com prazo contado do envio do relato.",
+    "O segundo leitor vê a mesma fila e pode contestar a triagem.",
+    "Assunto fora do canal recebe a orientação e é encerrado como Encaminhado."
+   ],
+   "pronto": "O membro abre MINHA VEZ e vê só o que depende dele, do mais urgente ao menos urgente, e um prazo vencido fica registrado sem poder ser apagado.",
+   "depende": [
+    3
+   ]
+  },
+  {
+   "id": 8,
+   "etapa": 2,
+   "titulo": "Textos do canal com versões",
+   "muda": "A coordenação passa a editar os contatos e os textos que o canal mostra, com histórico de versões.",
+   "vale": "O texto que cada pessoa leu ao relatar fica guardado por data, e isso pesa como prova.",
+   "saber": [
+    "Só a coordenação mexe nesses textos.",
+    "Nenhuma versão antiga se apaga.",
+    "O e-mail do DP não entra: a página só mostra o contato dele."
+   ],
+   "pronto": "A coordenação muda o contato do DP, e a versão anterior continua guardada, com autor e data.",
+   "depende": [
+    3
+   ]
+  },
+  {
+   "id": 9,
+   "etapa": 2,
+   "titulo": "Código de Conduta no aplicativo",
+   "muda": "A coordenação do Comitê passa a publicar e atualizar o Código de Conduta no aplicativo.",
+   "vale": "Cada punição cita o item do Código que valia na data do fato.",
+   "saber": [
+    "Só a coordenação publica.",
+    "As versões antigas ficam guardadas.",
+    "A página pública do canal aponta sempre para a versão vigente."
+   ],
+   "pronto": "A coordenação publica uma versão nova do Código, e, dada a data de um fato, o aplicativo diz qual versão valia.",
+   "depende": [
+    3
+   ]
+  },
+  {
+   "id": 10,
+   "etapa": 2,
+   "titulo": "Cuidados fora do aplicativo",
+   "muda": "Três cuidados ficam prontos fora do aplicativo: o registro do servidor deixa de guardar o endereço de quem relata, os casos ganham cópia de segurança cifrada, e fica escrito o que fazer se algo vazar.",
+   "vale": "O anonimato vale também fora do aplicativo, e o hospital sabe o que fazer num vazamento.",
+   "saber": [
+    "A cópia de segurança é restaurada uma vez num teste, para provar que funciona.",
+    "Você indica o encarregado de dados do hospital, que é avisado num vazamento.",
+    "O procedimento de vazamento fica com a Vitta, fora do aplicativo."
+   ],
+   "pronto": "Depois de um relato de teste, o registro do servidor não mostra o endereço de quem relatou, a cópia de segurança já foi restaurada num teste e o procedimento de vazamento está escrito.",
+   "depende": [
+    3
+   ]
+  },
+  {
+   "id": 11,
+   "etapa": 3,
+   "titulo": "Termo de sigilo pela ClickSign",
+   "muda": "Cada membro do Comitê assina o Termo de Confidencialidade e Posse pela ClickSign ao ser cadastrado.",
+   "vale": "Ninguém lê um caso sem ter assinado o compromisso de sigilo.",
+   "saber": [
+    "O termo chega no e-mail profissional do membro.",
+    "Sem termo assinado, o membro vê a tela inicial e o guia, e não abre caso.",
+    "A cópia do documento assinado fica guardada no aplicativo."
+   ],
+   "pronto": "Um membro novo recebe o termo no e-mail profissional, e até assinar ele lê o guia mas não abre caso.",
+   "depende": [
+    6
+   ]
+  },
+  {
+   "id": 12,
+   "etapa": 3,
+   "titulo": "Sugestão de triagem pela IA",
+   "muda": "Cada relato chega ao Comitê com uma sugestão de triagem feita por inteligência artificial, sempre marcada como sugestão.",
+   "vale": "O Comitê, que acumula outras funções, começa cada caso com o resumo e a classificação prontos para conferir.",
+   "saber": [
+    "A IA sugere, e uma pessoa confirma ou discorda.",
+    "A discordância fica gravada com o motivo.",
+    "Nenhum nome vai para a IA, e ela nunca tenta descobrir quem relatou."
+   ],
+   "pronto": "Cada caso novo chega com a sugestão marcada como sugestão, e nos 12 casos de teste do Anexo B a IA acerta o assunto e o sinal de Rota Especial em todos.",
+   "depende": [
+    7
+   ]
+  },
+  {
+   "id": 13,
+   "etapa": 3,
+   "titulo": "Impedimento, suplente e citado",
+   "muda": "Um membro pode se declarar impedido num caso, um suplente é convocado no lugar, e quem é citado nunca vê o caso.",
+   "vale": "Ninguém julga um caso em que é parte, chefe, parente ou interessado.",
+   "saber": [
+    "Qualquer membro do caso marca um citado, em qualquer etapa.",
+    "O suplente convocado vê só o caso da convocação.",
+    "Se um membro contesta a participação de outro, os demais decidem sem o contestado."
+   ],
+   "pronto": "O membro que se declara impedido perde o acesso ao caso na hora, e o membro marcado como citado fica impedido sem ninguém precisar decidir.",
+   "depende": [
+    6,
+    7
+   ]
+  },
+  {
+   "id": 14,
+   "etapa": 3,
+   "titulo": "Cartão do depoimento",
+   "muda": "Cada pessoa ouvida num caso ganha um cartão que guia o depoimento, da gravação até o termo assinado.",
+   "vale": "Quem conduz segue os passos na ordem e não esquece de guardar nem de apagar nada.",
+   "saber": [
+    "Cada arquivo tem o seu botão: transcrição, áudio e termo assinado.",
+    "O depoimento só conclui com os sete itens da lista marcados.",
+    "Uma correção entra como versão nova, e a anterior fica."
+   ],
+   "pronto": "Um áudio de 250 MB sobe e toca para o membro do caso, e o depoimento só conclui com os sete itens da lista marcados.",
+   "depende": [
+    7
+   ]
+  },
+  {
+   "id": 15,
+   "etapa": 3,
+   "titulo": "Avisos por e-mail sem conteúdo",
+   "muda": "Os membros do Comitê passam a receber um e-mail quando têm tarefa no canal e quando um prazo está perto de vencer.",
+   "vale": "Ninguém precisa abrir o aplicativo todo dia para saber se tem caso esperando.",
+   "saber": [
+    "O e-mail não diz nada do caso: só que há uma tarefa.",
+    "Rito completo e Rota Especial avisam na hora.",
+    "Quem relatou nunca recebe aviso por nenhum meio."
+   ],
+   "pronto": "O membro recebe o e-mail de tarefa nova sem protocolo, nome nem trecho do relato, e outro a cinco dias e a um dia do prazo.",
+   "depende": [
+    7
+   ]
+  },
+  {
+   "id": 16,
+   "etapa": 3,
+   "titulo": "Guia dos ritos",
+   "muda": "Os membros do Comitê ganham uma página que explica os quatro ritos e uma apresentação no primeiro acesso.",
+   "vale": "Um membro novo entende o que faz em cada etapa sem precisar de treinamento.",
+   "saber": [
+    "O guia abre de qualquer tela do Comitê.",
+    "No primeiro acesso aparecem cinco cartões apresentando o módulo."
+   ],
+   "pronto": "No primeiro acesso o membro vê cinco cartões de apresentação, e o guia dos quatro ritos abre de qualquer tela do Comitê.",
+   "depende": [
+    7
+   ]
+  },
+  {
+   "id": 17,
+   "etapa": 3,
+   "titulo": "Relato em seis passos",
+   "muda": "Quem trabalha no hospital passa a relatar uma conduta grave em seis passos, sem login, e recebe protocolo e código no fim.",
+   "vale": "A pessoa relata sem dizer quem é e ainda consegue acompanhar o caso depois.",
+   "saber": [
+    "O protocolo e o código aparecem uma vez só, e o hospital não consegue recuperá-los.",
+    "O canal não guarda IP nem identificador do aparelho.",
+    "A página avisa que usa inteligência artificial, que o texto fica guardado até 30 dias e que não é usado para treino."
+   ],
+   "pronto": "Num celular simples, o relato completo leva menos de cinco minutos e termina com protocolo e código, e depois dele nada no sistema guarda o endereço de quem relatou.",
+   "depende": [
+    3,
+    4,
+    8
+   ]
+  },
+  {
+   "id": 18,
+   "etapa": 3,
+   "titulo": "Como o canal protege você",
+   "muda": "O canal ganha a página \"Como este canal protege você\" e mostra para onde ir quando o assunto não é dele.",
+   "vale": "Quem chega com medo lê, em linguagem simples, quem lê o relato e quem não lê.",
+   "saber": [
+    "Assunto de salário, escala ou benefício mostra o contato do DP, sem abrir protocolo.",
+    "Paciente ou acompanhante é levado à Ouvidoria.",
+    "A página diz que a Direção só lê a conclusão e a ata, e que a IA guarda o texto até 30 dias, sem treinar."
+   ],
+   "pronto": "Quem escolhe um assunto de salário vê o contato do DP sem abrir protocolo, e o paciente é levado ao formulário da Ouvidoria.",
+   "depende": [
+    4,
+    8,
+    9
+   ]
+  },
+  {
+   "id": 19,
+   "etapa": 3,
+   "titulo": "A Ouvidoria sinaliza ao Comitê",
+   "muda": "O ouvidor passa a sinalizar ao Comitê de Conduta a manifestação de paciente que relata conduta grave de um profissional.",
+   "vale": "O Comitê recebe os fatos para apurar, e a manifestação do paciente segue o caminho dela na Ouvidoria.",
+   "saber": [
+    "O Comitê recebe o relato inteiro, sem o nome de quem manifestou.",
+    "A manifestação não é encerrada na Ouvidoria."
+   ],
+   "pronto": "O ouvidor sinaliza uma manifestação, o Comitê recebe o relato sem o nome de quem manifestou, e a manifestação segue aberta na Ouvidoria.",
+   "depende": [
+    7
+   ]
+  },
+  {
+   "id": 20,
+   "etapa": 3,
+   "titulo": "Nota ao Núcleo de Segurança",
+   "muda": "Quando um caso descreve um risco ao paciente, o Comitê manda ao Núcleo de Segurança do Paciente uma nota escrita por ele.",
+   "vale": "O Núcleo fica sabendo do risco sem ler o relato nem saber quem relatou.",
+   "saber": [
+    "O Núcleo recebe só a nota do Comitê.",
+    "O relato não sai do Canal."
+   ],
+   "pronto": "A Presidência do Núcleo lê a nota do Comitê na lista de Segurança do Paciente, sem protocolo, relato nem quem relatou.",
+   "depende": [
+    7
+   ]
+  },
+  {
+   "id": 21,
+   "etapa": 4,
+   "titulo": "Apurador e CIPA convidados",
+   "muda": "A coordenação ou o Grupo Especial libera, dentro do próprio caso, o acesso de um apurador ou do membro da CIPA.",
+   "vale": "Quem apura de fora do Comitê entra vendo só o caso que recebeu, sem passar pela administração do sistema.",
+   "saber": [
+    "O convidado assina um termo de confidencialidade antes de abrir o caso.",
+    "Ele não vê a lista de casos nem outro módulo.",
+    "Cada acesso dele fica registrado."
+   ],
+   "pronto": "O apurador convidado assina o termo e passa a ver só aquele caso, e cada acesso dele fica na trilha.",
+   "depende": [
+    7,
+    11
+   ]
+  },
+  {
+   "id": 22,
+   "etapa": 4,
+   "titulo": "Termo de declaração pronto",
+   "muda": "A transcrição de um depoimento vira um termo de declaração pronto para o depoente ler, corrigir e assinar.",
+   "vale": "Quem conduz deixa de redigir o termo à mão e só revisa.",
+   "saber": [
+    "O termo registra o que a pessoa disse, sem conclusão nem interpretação.",
+    "Quem conduziu revisa antes de imprimir, e o depoente corrige o que quiser.",
+    "Se a pessoa se recusa a assinar, dois membros registram a recusa."
+   ],
+   "pronto": "Com um clique, a transcrição vira o termo para imprimir, com os nomes certos e sem conclusão de quem apurou.",
+   "depende": [
+    11,
+    14
+   ]
+  },
+  {
+   "id": 23,
+   "etapa": 4,
+   "titulo": "Relatório e envio para voto",
+   "muda": "Ao fim da apuração, o Comitê recebe um relatório de uma página, revisa e envia o caso para voto.",
+   "vale": "Os três votantes leem o mesmo resumo de fatos, provas e versão do acusado.",
+   "saber": [
+    "A IA monta o rascunho e quem apurou revisa.",
+    "No rito completo, os apuradores assinam o relatório pela ClickSign.",
+    "O caso só vai a voto com todos os depoimentos concluídos."
+   ],
+   "pronto": "O relatório cabe numa página, e o envio para voto fica travado, com o motivo, enquanto houver depoimento em aberto.",
+   "depende": [
+    11,
+    14
+   ]
+  },
+  {
+   "id": 24,
+   "etapa": 4,
+   "titulo": "Anexos sem dados de origem",
+   "muda": "Quem relata pode anexar imagem, PDF e áudio, e os dados de origem do arquivo são apagados antes de gravar.",
+   "vale": "Uma foto tirada no celular não entrega quem relatou pelo que o arquivo carrega escondido.",
+   "saber": [
+    "A página avisa: \"Os dados de origem do arquivo são apagados automaticamente.\"",
+    "Formato que o canal não sabe limpar é recusado."
+   ],
+   "pronto": "Uma foto tirada no celular fica guardada sem a localização e sem os outros dados que o arquivo carregava.",
+   "depende": [
+    17
+   ]
+  },
+  {
+   "id": 25,
+   "etapa": 4,
+   "titulo": "Acompanhar e conversar com o Comitê",
+   "muda": "Quem relatou acompanha o caso com o protocolo e o código, lê as perguntas do Comitê e responde pela mesma página.",
+   "vale": "O Comitê consegue pedir mais informação a quem relatou sem saber quem é a pessoa.",
+   "saber": [
+    "A página mostra a situação do caso, sem nenhum dado interno.",
+    "É só por ali que o Comitê fala com quem relatou.",
+    "Pedido de complemento sem resposta em 15 dias permite arquivar, e o caso reabre se a informação chegar."
+   ],
+   "pronto": "Quem relatou entra com protocolo e código, lê a pergunta da coordenação e responde pela mesma página, sem dizer quem é.",
+   "depende": [
+    7,
+    17
+   ]
+  },
+  {
+   "id": 26,
+   "etapa": 4,
+   "titulo": "Saída Sou colaborador na Ouvidoria",
+   "muda": "O formulário da Ouvidoria passa a levar ao Canal de Conduta o colaborador que quer relatar uma conduta.",
+   "vale": "O relato de colaborador deixa de se misturar com as manifestações de pacientes.",
+   "saber": [
+    "A saída só aparece com o Canal de Conduta aberto.",
+    "Os casos de conduta que já estão na Ouvidoria terminam lá.",
+    "Quem veio do Canal por engano chega à Ouvidoria com o texto já escrito."
+   ],
+   "pronto": "Com o canal aberto, o formulário da Ouvidoria mostra \"Sou colaborador\" e leva ao canal. Com o canal fechado, a opção não aparece.",
+   "depende": [
+    17
+   ]
+  },
+  {
+   "id": 27,
+   "etapa": 5,
+   "titulo": "Rota Especial sem diretor",
+   "muda": "O relato que envolve a Direção, a Presidência ou a família proprietária passa a ser apurado por um grupo sem nenhum diretor.",
+   "vale": "Quem relata algo que envolve a Direção sabe que ela não lê o próprio caso.",
+   "saber": [
+    "Quem responde \"Sim\" na pergunta sobre a Direção vai direto ao Grupo Especial.",
+    "O \"Não sei\" e o alerta da IA passam pela fila comum, onde um membro confirma o desvio.",
+    "O grupo de um caso Especial aberto não muda até o fim."
+   ],
+   "pronto": "Um relato com \"Sim\" na pergunta sobre a Direção não aparece na fila comum nem para a coordenação, e só o Grupo Especial abre o caso.",
+   "depende": [
+    13,
+    21
+   ]
+  },
+  {
+   "id": 28,
+   "etapa": 5,
+   "titulo": "Voto e trava de prova",
+   "muda": "Os três membros votam no aplicativo, e o caso só conclui como procedente com a lista de prova completa.",
+   "vale": "Nenhuma punição sai de um caso sem prova além do relato e sem a defesa do acusado.",
+   "saber": [
+    "Cada voto fica oculto até os três votarem.",
+    "A medida recomendada sai de uma lista fechada.",
+    "A justificativa do voto é escrita pelo próprio membro, nunca pela IA."
+   ],
+   "pronto": "Nenhum membro vê o voto do outro antes de os três votarem, e o caso não conclui como procedente com item da lista de prova em aberto.",
+   "depende": [
+    23
+   ]
+  },
+  {
+   "id": 29,
+   "etapa": 5,
+   "titulo": "Aviso de assunto fora do canal",
+   "muda": "Na revisão, quem escreveu sobre um assunto que não é do canal vê para onde ir, e pode registrar mesmo assim.",
+   "vale": "A pessoa com um problema de contracheque resolve mais rápido no lugar certo, e o Comitê não gasta triagem com isso.",
+   "saber": [
+    "O relato nunca é bloqueado.",
+    "Se o texto fala de assédio, ameaça, fraude ou retaliação, o aviso não aparece.",
+    "A leitura acontece uma vez, ao abrir a revisão."
+   ],
+   "pronto": "Quem escreve sobre contracheque vê o contato do DP e pode registrar mesmo assim, e um relato de assédio nunca mostra o aviso.",
+   "depende": [
+    12,
+    17,
+    26
+   ]
+  },
+  {
+   "id": 30,
+   "etapa": 6,
+   "titulo": "Ata assinada pelos três",
+   "muda": "A ata de cada caso é gerada dos votos e assinada pelos três membros pela ClickSign.",
+   "vale": "A decisão do Comitê e o fundamento dela ficam num documento assinado, pronto para servir de prova.",
+   "saber": [
+    "No rito completo, a ata também usa a transcrição da reunião do Comitê.",
+    "Os votos vêm do aplicativo, nunca da transcrição.",
+    "Concluída a reunião, a transcrição é eliminada e fica só a ata assinada."
+   ],
+   "pronto": "A ata sai dos votos registrados no aplicativo, vai à ClickSign para os três votantes, e a transcrição da reunião é apagada quando a reunião é concluída.",
+   "depende": [
+    11,
+    28
+   ]
+  },
+  {
+   "id": 31,
+   "etapa": 6,
+   "titulo": "Afastamento cautelar",
+   "muda": "O coordenador do Comitê passa a registrar o afastamento cautelar no caso, com o parecer do Jurídico anexado.",
+   "vale": "O afastamento sai rápido e documentado, sem que o DP ou o Jurídico leiam o relato.",
+   "saber": [
+    "Quem decide é o Comitê, pelo coordenador. O parecer do Jurídico é consultivo.",
+    "O DP e o Jurídico recebem só quem afastar e o motivo.",
+    "Na Rota Especial, o grupo pede à coordenação, que vê só o pedido, e o parecer do Jurídico define."
+   ],
+   "pronto": "O coordenador registra o afastamento, o DP e o Jurídico recebem só quem afastar e o motivo, e o parecer do Jurídico fica anexado ao caso.",
+   "depende": [
+    27
+   ]
+  },
+  {
+   "id": 32,
+   "etapa": 7,
+   "titulo": "A decisão da medida no caso",
+   "muda": "A Direção passa a receber a conclusão e a ata de cada caso, e a decisão sobre a medida fica registrada no próprio caso.",
+   "vale": "A decisão do Presidente fica junto do caso, com data, e quem relatou recebe a resposta pela página de acompanhamento.",
+   "saber": [
+    "O Presidente entra só para ler, e cada leitura dele fica registrada.",
+    "A diretoria executiva registra a decisão do Presidente.",
+    "A resposta a quem relatou informa a conclusão, não a punição."
+   ],
+   "pronto": "O Presidente lê a conclusão e a ata sem registrar nada, a diretoria executiva registra a decisão, e quem relatou recebe a resposta sem nome nem medida.",
+   "depende": [
+    30
+   ]
+  },
+  {
+   "id": 33,
+   "etapa": 7,
+   "titulo": "Linha do tempo e Dossiê",
+   "muda": "Cada caso mostra, numa linha do tempo, tudo o que foi feito e assinado, e o Comitê baixa o caso inteiro num pacote.",
+   "vale": "Se o caso virar processo, o hospital entrega a prova completa e íntegra de uma vez.",
+   "saber": [
+    "Cada rito cria as gavetas dos documentos que exige.",
+    "Gaveta obrigatória vazia impede concluir o caso como procedente.",
+    "Todo download do pacote fica registrado, e só o Comitê baixa."
+   ],
+   "pronto": "O Comitê baixa o caso inteiro num pacote com índice, cada download fica registrado, e o Presidente não consegue baixar.",
+   "depende": [
+    30
+   ]
+  },
+  {
+   "id": 34,
+   "etapa": 8,
+   "titulo": "Guarda do papel e prazos",
+   "muda": "O encerramento de cada caso passa a guiar o arquivo do papel assinado e a contar o prazo de guarda.",
+   "vale": "O hospital sabe onde está o envelope de cada caso e elimina o que venceu sem depender da memória de alguém.",
+   "saber": [
+    "Caso encerrado é guardado por cinco anos. Caso encaminhado, por um ano.",
+    "Caso com processo judicial pode ser congelado, e congelado não se elimina.",
+    "A etiqueta do envelope não leva nome nem assunto."
+   ],
+   "pronto": "A etiqueta do envelope sai sem nome nem assunto, e o caso encerrado há mais de cinco anos é eliminado, menos o congelado.",
+   "depende": [
+    32
+   ]
+  },
+  {
+   "id": 35,
+   "etapa": 8,
+   "titulo": "Verificação de retaliação",
+   "muda": "Depois de encerrar um caso, a coordenação é lembrada de verificar se quem relatou sofreu alguma retaliação.",
+   "vale": "A promessa de proteger quem relata vira uma tarefa com data, e não depende de alguém lembrar.",
+   "saber": [
+    "São três verificações: em 30, 90 e 180 dias.",
+    "A resposta é de um clique, com campo de observação.",
+    "Vale para relato identificado ou quando a pessoa avisar pela página de acompanhamento."
+   ],
+   "pronto": "Aos 30, 90 e 180 dias do encerramento, a coordenação recebe a tarefa de verificar se houve retaliação e responde com um clique.",
+   "depende": [
+    32
+   ]
+  },
+  {
+   "id": 36,
+   "etapa": 8,
+   "titulo": "O Manual do Canal de Conduta",
+   "muda": "O Manual ganha a página do Canal de Conduta e a da Ouvidoria passa a explicar a saída para o canal.",
+   "vale": "Um membro do Comitê e o ouvidor acham no Manual o passo a passo do que mudou.",
+   "saber": [
+    "Os prints usam só dado fictício.",
+    "A página é para quem trata os casos, e a parte pública se explica sozinha."
+   ],
+   "pronto": "Cada tarefa do Comitê tem passos numerados e print com dado fictício, e a página da Ouvidoria explica a saída para o canal.",
+   "depende": [
+    19,
+    25,
+    26,
+    32
+   ]
+  },
+  {
+   "id": 37,
+   "etapa": 9,
+   "titulo": "Teste por quem não construiu",
+   "muda": "Uma pessoa que não construiu o canal testa, com contas de teste, quem consegue ver o quê e se o relato fica mesmo anônimo.",
+   "vale": "O sigilo é provado por alguém de fora do desenvolvimento, antes de qualquer colaborador usar o canal.",
+   "saber": [
+    "O teste só começa com toda a primeira fase pronta e o canal ainda fechado.",
+    "Cada item reprovado é corrigido e testado de novo.",
+    "O resultado fica registrado sem dado de caso."
+   ],
+   "pronto": "Quem testou devolve o roteiro com todos os itens aprovados. Um exemplo: o super admin tenta abrir um caso e o aplicativo recusa.",
+   "depende": [
+    15,
+    16,
+    18,
+    20,
+    22,
+    24,
+    29,
+    31,
+    33,
+    34,
+    35,
+    36
+   ]
+  },
+  {
+   "id": 38,
+   "etapa": 10,
+   "titulo": "A abertura do canal",
+   "muda": "Com a primeira fase pronta e testada, o canal abre para quem trabalha no hospital.",
+   "vale": "O canal entra no ar inteiro, como você decidiu, e nenhum caso é apurado por fora.",
+   "saber": [
+    "Antes de abrir, o hospital confirma seis pontos: o aditivo de sigilo assinado com a Vitta, o terceiro membro e o suplente cadastrados, o contato do DP, o local dos envelopes, o espaço do Comitê na plataforma de gravação e quem entra na conta da ClickSign.",
+    "Todos os membros do Comitê precisam ter assinado o termo de sigilo.",
+    "Um relato de teste confirma que tudo chega ao Comitê."
+   ],
+   "pronto": "A página do canal abre sem login, o relato de teste chega ao Comitê, e o formulário da Ouvidoria mostra a saída \"Sou colaborador\".",
+   "depende": [
+    5,
+    10,
+    37
+   ]
+  },
+  {
+   "id": 39,
+   "etapa": 11,
+   "titulo": "Números para a Direção",
+   "muda": "O Presidente e a diretoria executiva passam a ver os números do Canal de Conduta, sem nenhum dado de caso.",
+   "vale": "A Direção acompanha se o canal é usado e se os prazos são cumpridos, sem ler caso nenhum.",
+   "saber": [
+    "A tela só mostra totais.",
+    "Não há recorte por setor nem por categoria com menos de cinco casos.",
+    "Dos casos da Rota Especial aparece só a contagem."
+   ],
+   "pronto": "O Presidente vê os totais do período, sem link para caso nenhum, e nenhum recorte com menos de cinco casos aparece.",
+   "depende": [
+    38
+   ]
+  },
+  {
+   "id": 40,
+   "etapa": 11,
+   "titulo": "Resumo trimestral assinado",
+   "muda": "A cada trimestre, o aplicativo gera um resumo dos registros do canal e o envia para a coordenação assinar.",
+   "vale": "A assinatura com data de fora prova que os registros do trimestre não foram alterados depois.",
+   "saber": [
+    "O resumo é gerado e enviado sozinho.",
+    "Ele não traz dado de caso, só os códigos de integridade."
+   ],
+   "pronto": "No fim do trimestre, o resumo vai sozinho à ClickSign para a coordenação, sem protocolo, nome nem trecho de relato.",
+   "depende": [
+    38
+   ]
+  },
+  {
+   "id": 41,
+   "etapa": 11,
+   "titulo": "Declaração anual de conflito",
+   "muda": "Os membros e suplentes do Comitê passam a declarar, uma vez por ano, parentesco e conflito de interesse no aplicativo.",
+   "vale": "O aplicativo aponta um possível impedimento antes de o membro abrir o caso.",
+   "saber": [
+    "Vale só para membros e suplentes do Comitê.",
+    "A declaração serve para apontar impedimento, e a decisão continua com as pessoas."
+   ],
+   "pronto": "Quando um parente declarado é citado num caso, o aplicativo avisa o membro de um possível impedimento.",
+   "depende": [
+    38
+   ]
+  },
+  {
+   "id": 42,
+   "etapa": 11,
+   "titulo": "Discordâncias com a IA",
+   "muda": "A cada trimestre, a coordenação revisa onde o Comitê discordou da IA e manda à Vitta um resumo sem dado de caso.",
+   "vale": "A IA melhora com o uso sem que a Vitta leia nenhum caso.",
+   "saber": [
+    "A coordenação lê e edita antes de qualquer coisa sair.",
+    "O que vai para a Vitta não tem protocolo, nome nem trecho de relato."
+   ],
+   "pronto": "A coordenação vê as discordâncias do trimestre, edita o resumo e copia o texto para a Vitta, sem nenhum dado de caso.",
+   "depende": [
+    38
+   ]
+  }
+ ]
+}
