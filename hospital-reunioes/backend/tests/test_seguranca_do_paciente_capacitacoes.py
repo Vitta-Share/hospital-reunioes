@@ -783,6 +783,10 @@ class TestKitDeConhecimento:
         for termo in ("Capacitações", "Confirmar minha presença", "temas mínimos", "presença confirmada"):
             assert termo in secao, termo
 
+    def test_a_lista_de_temas_minimos_vem_com_os_17_da_anvisa(self):
+        """Mutante: devolver a frase de que a lista nasce vazia (issue #1782, migration 162)."""
+        assert "A lista vem com os 17 temas mínimos do caderno nº 6 da ANVISA." in _secao_do_kit("O que já está no ar")
+
     def test_a_tela_vazia_saiu_do_que_ele_ainda_nao_faz(self):
         assert "Capacitações ainda está vazia" not in _secao_do_kit("O que ele ainda não faz")
 
