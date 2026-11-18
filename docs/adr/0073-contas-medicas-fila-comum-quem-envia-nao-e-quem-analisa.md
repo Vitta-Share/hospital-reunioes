@@ -1,7 +1,7 @@
 ---
 status: accepted
 amends: 0070
-amended_by: 0104
+amended_by: 0105
 ---
 
 # Contas médicas: fila comum, e quem envia não é quem analisa

@@ -5,6 +5,8 @@ amends: 0073
 
 # Contas médicas: a faturista vê a Esteira inteira, e a conta concluída se arquiva por Competência
 
+> Nasceu como 0104 no PR #1928 e cedeu o número no mesmo dia: a ADR do Início (PR #1929) entrou na main um minuto antes com o mesmo número.
+
 Decisão do Pedro (18/11/2026, grilling) sobre o pedido do Diretor Executivo na reunião do mesmo dia. Emenda a decisão 3 da ADR 0073, e com ela o que restava da decisão 10 da ADR 0070 ("Faturista vê só as contas em que é `faturista_id`").
 
 ## Contexto
