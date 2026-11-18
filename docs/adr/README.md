@@ -46,7 +46,7 @@ Só `status: accepted` vale como decisão; `superseded` é histórico (CLAUDE.md
 | [0081](0081-contas-medicas-auditor-conversa-que-propoe-prova-e-faltou-isto.md) | accepted | Contas médicas: o Auditor é uma conversa que só propõe, toda regra passa por prova, e o "Faltou isto" entra no Guia |
 | [0082](0082-ia-com-custo-so-roda-depois-de-acao-humana.md) | accepted | IA com custo só roda depois de uma ação humana; a Validação e o segundo agente de Contas médicas viram botão |
 | [0102](0102-contas-medicas-prova-nas-ultimas-contas-sai-do-auditor.md) | accepted | Contas médicas: a prova nas últimas contas sai do Auditor (emenda 0081 e 0082) |
-| [0104](0104-contas-medicas-faturista-ve-a-esteira-inteira-e-arquiva-por-competencia.md) | accepted | Contas médicas: a faturista vê a Esteira inteira, e a conta concluída se arquiva por Competência (emenda 0073) |
+| [0105](0105-contas-medicas-faturista-ve-a-esteira-inteira-e-arquiva-por-competencia.md) | accepted | Contas médicas: a faturista vê a Esteira inteira, e a conta concluída se arquiva por Competência (emenda 0073) |
 | [0071](0071-humanizer-e-a-regua-do-texto-para-fora.md) | accepted | Humanizer é a régua de todo texto para fora; manual e Hospital OS reescritos por ela (emenda 0057) |
 
 ## Tecnologia (Demandas Vitta x Hospital)
