@@ -67,6 +67,28 @@ _Evitar_: concluída, fechada, validada.
 A sequência de chamadas LLM que transforma Transcrição em Ata (extrair fala → casar participantes → resumir → estruturar JSON → gerar Ata em português → PDF). A API da Anthropic é o provedor único da IA de texto, no Claude Sonnet 5.5 (issue #1302); sem chave configurada, em desenvolvimento, o Pipeline cai num mock.
 _Evitar_: processamento, job de IA.
 
+## Início (a tela de cada pessoa)
+
+**Início**:
+A primeira tela de quem entra no app, diferente para cada pessoa. Abre com uma frase sobre a situação dela (quantos prazos venceram e há quanto tempo o mais antigo espera), mostra a [Minha Fila] e, ao lado, as próximas Reuniões e as Rotinas do ciclo. Quem não tem nada vencido lê "Você está em dia", o próximo prazo e o que entregou nos últimos sete dias. A frase é escrita por regra, a partir dos números, sem IA. Cada pessoa vê ali os próprios números dos últimos 90 dias (entregas no prazo e fora). A Secretária não tem Início (ADR 0104).
+_Evitar_: dashboard, capa, home, painel pessoal.
+
+**Minha Fila**:
+A lista do Início com o que depende de quem está olhando, de todos os módulos numa ordem só, do prazo mais vencido para o mais distante: Pendências próprias, Atas a assinar, Contestações a responder, Rotinas a revisar, Verificações do ciclo, casos da Ouvidoria do setor e o que mais tiver a pessoa como responsável. Cada linha diz de onde veio e leva à tela onde aquilo se resolve; o que é um clique sem Anotação se resolve ali mesmo. Tem três grupos: Passou do prazo, Vence em até 48 horas e Próximos 7 dias. O painel de Reuniões não tem fila própria.
+_Evitar_: caixa de entrada, tarefas, uma fila por módulo.
+
+**Fila do papel**:
+A fila que é de um papel e não de uma pessoa: a do ouvidor, as contas sem dono, a triagem do Núcleo. No Início aparece como uma linha de resumo por fila, num bloco separado, e não entra na contagem da frase nem na [Minha Fila].
+_Evitar_: pôr o item da fila comum na Minha Fila de cada pessoa do papel.
+
+**Quem responde a você**:
+O bloco do Início de quem acompanha outras pessoas, com uma linha por pessoa: prazos vencidos agora, itens em aberto, entregas dos últimos 90 dias no prazo e fora, Rotinas do ciclo e último acesso. Clicar na linha abre o que venceu e não foi entregue. Até o organograma chegar, quem aparece segue o vínculo: o Super admin vê todas as pessoas com item, e o Facilitador vê os responsáveis das Reuniões dele.
+_Evitar_: liderados e equipe (enquanto não houver organograma), ranking (é outro bloco, no painel de Reuniões, com o hospital inteiro).
+
+**Registro de acesso**:
+A marca de que uma pessoa abriu o Início num dia. Uma por pessoa por dia, sem trilha de cliques, guardada por 90 dias. Só aparece em [Quem responde a você], para quem já vê os itens da pessoa.
+_Evitar_: log, monitoramento, rastreio; mostrar o acesso a quem não vê os itens da pessoa.
+
 ## Pendências
 
 > Os verbetes desta seção descrevem a regra da ADR 0098, que entra no código pelas ondas do PRD #1757. Até cada onda subir, o código segue a ADR 0030.
@@ -106,10 +128,6 @@ _Evitar_: checagem, conferência, validação.
 **Definições de processo do setor**:
 A lista das linhas do tipo Processo, por setor da Reunião, com o trecho da Ata copiado. Mora nas Reuniões, não nos POPs.
 _Evitar_: POP, rascunho de POP, norma.
-
-**Minha Fila**:
-O bloco do painel com o que depende de quem está olhando: Pendências próprias, Contestações a responder, Rotinas a revisar e Atas a assinar. Vazia, aparece em cinza com "Em dia".
-_Evitar_: caixa de entrada, tarefas.
 
 **E-mail de segunda**:
 O resumo semanal, toda segunda às 8h, um por pessoa: para o Facilitador, o que aconteceu nas Reuniões dele; para o responsável, as Pendências dele em aberto. Não sai quando não há nada para mostrar.
