@@ -2,10 +2,11 @@
 
 Quem tem "Regra contratual e tabelas" fala com o Auditor na Memória da
 operadora. O texto vira um lote de propostas tipadas (Regra nova, Regra
-alterada, parâmetro), cada uma com o motivo, os conflitos com as Regras que
-existem e a Prova da regra. O "ok" aplica o lote numa versão nova só da
+alterada, parâmetro), cada uma com o motivo e os conflitos com as Regras que
+existem. O "ok" aplica o lote numa versão nova só da
 Memória; "corrige o item N" refaz só aquele item. A conversa fica guardada,
 ligada à versão que gerou, e nunca entra no prompt do Passo A nem do Passo B.
+Desde a issue #1920 (ADR 0102) o lote não refaz Contas: a Prova da regra saiu.
 
 Tudo pela rota de verdade, com o dublê do banco da carga da operadora e o
 provedor da IA dublado no transporte HTTP (o adaptador roda inteiro). O
@@ -15,16 +16,15 @@ provedor responde pelo schema pedido.
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 from typing import Any
 
 import httpx2
 import pytest
 from anthropic_apoio import cliente_por_transporte, mensagem, nome_do_schema, nomear_schemas
+from contas_concluidas_apoio import _linha_do_guia, _semear
 from test_contas_medicas_memoria_tela import DIA_01_ANTES, DIA_01_DEPOIS, _importar, _versoes
 from test_contas_medicas_operadoras import FATURISTA, GESTAO
-from test_contas_medicas_prova_da_regra import _linha_do_guia, _semear
 from test_contas_medicas_regra_nova import _cliente as _cliente_da_memoria
 
 from app.limiter import limiter
@@ -72,7 +72,7 @@ def _proposta(**campos: Any) -> dict[str, Any]:
 
 
 LOTE = {
-    "resposta": "Entendi três mudanças. Confira a prova de cada regra e responda ok.",
+    "resposta": "Entendi três mudanças. Confira cada uma e responda ok.",
     "propostas": [
         # ALFA-DIA-99 não existe: a IA inventou, e o lote não repassa.
         _proposta(
@@ -99,38 +99,30 @@ LOTE = {
 
 
 class _Provedor:
-    """A Anthropic do teste: responde pelo schema pedido. O Passo B da prova
-    responde pela Conta do pedido (o código do item dela na tabela CONTA)."""
+    """A Anthropic do teste: responde pelo schema pedido. Guarda o formato e o
+    texto de cada pedido."""
 
     def __init__(self, nomes: dict[str, str]):
         self.nomes = nomes
         self.pedidos: list[tuple[str, str]] = []
-        # O modelo de cada pedido, com o formato: a prova vai no do passo B.
-        self.modelos: list[tuple[str, str]] = []
         self.lote: dict = LOTE
         self.correcao: dict | None = None
-        self.por_codigo: dict[str, list[dict]] = {}
-        # Ligado, o Passo B da prova não responde: a prova falha inteira.
-        self.prova_falha = False
 
     def __call__(self, request: httpx2.Request) -> httpx2.Response:
         corpo = json.loads(request.content)
         formato = nome_do_schema(self.nomes, corpo)
         texto = "\n".join(bloco["text"] for m in corpo["messages"] for bloco in m["content"])
         self.pedidos.append((formato, texto))
-        self.modelos.append((formato, corpo["model"]))
-        if formato == "LinhasDaComparacao" and self.prova_falha:
-            return httpx2.Response(400, json={"type": "error", "error": {"type": "invalid_request_error"}})
         if formato == "LinhasDaComparacao":
-            codigo = re.search(r"\bM\d{3}\b", texto.split("CONTA\n", 1)[1]).group(0)
-            resposta = {"linhas": self.por_codigo.get(codigo, []), "resumo": "Comparada."}
-        elif formato == "ItemCorrigido":
+            # O Passo B refeito numa Conta: a Prova da regra, que saiu (#1920).
+            return httpx2.Response(400, json={"type": "error", "error": {"type": "invalid_request_error"}})
+        if formato == "ItemCorrigido":
             resposta = self.correcao
         else:
             resposta = self.lote
         return httpx2.Response(200, json=mensagem(json.dumps(resposta)))
 
-    def da_prova(self) -> list[str]:
+    def contas_refeitas(self) -> list[str]:
         return [texto for formato, texto in self.pedidos if formato == "LinhasDaComparacao"]
 
 
@@ -144,7 +136,7 @@ def provedor(monkeypatch) -> _Provedor:
 
 @pytest.fixture
 def cenario(provedor):
-    """A ALFA com a memória 1.0 e doze Contas concluídas para a prova."""
+    """A ALFA com a memória 1.0 e doze Contas concluídas, que o lote não refaz."""
     cliente, banco = _cliente(GESTAO)
     _importar(cliente)
     _importar(cliente, "MEMORIA-BETA-v1.0.md")
@@ -157,14 +149,13 @@ def _item(corpo: dict, numero: int) -> dict:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 1. O texto vira um lote com a proposta, os conflitos e a prova
+# 1. O texto vira um lote com a proposta e os conflitos, sem refazer Contas
 # ═══════════════════════════════════════════════════════════════════════════
 
 
 class TestOTextoViraLote:
-    def test_enviar_um_texto_de_regra_devolve_o_lote_com_proposta_conflitos_e_prova(self, cenario):
+    def test_enviar_um_texto_de_regra_devolve_o_lote_com_proposta_e_conflitos_sem_refazer_contas(self, cenario):
         cliente, banco, provedor = cenario
-        # A regra nova tira uma Linha Feito da c12.
         banco.tabelas["cm_guia_linha"] = [_linha_do_guia("c12", "M012", "2026-10-12", 2.0, estado="FEITO")]
 
         resposta = cliente.post(ROTA, json={"texto": PEDIDO})
@@ -182,20 +173,13 @@ class TestOTextoViraLote:
         assert nova["motivo"] == LOTE["propostas"][0]["motivo"]
         # O texto da regra em conflito vem da memória, e o ID inventado fica de fora.
         assert nova["conflitos"] == [{"codigo": "ALFA-DIA-02", "texto": DIA_02, "resolucao": "SUBSTITUIR"}]
-        assert (nova["prova"]["contas"], nova["prova"]["mudaria"], nova["prova"]["feitas_que_sumiriam"]) == (
-            10,
-            True,
-            1,
-        )
 
         alterada = _item(corpo, 2)
         assert alterada["regra_codigo"] == "ALFA-DIA-01"
         assert (alterada["proposta"]["texto_anterior"], alterada["proposta"]["texto"]) == (DIA_01_ANTES, DIA_01_DEPOIS)
-        assert alterada["prova"]["contas"] == 10
 
         parametro = _item(corpo, 3)
         assert parametro["proposta"] == {"chave": "diaria.hora_vencimento", "antes": "10:00", "depois": "12:00"}
-        assert parametro["prova"] is None
 
         # As falas ficam na conversa; a Memória não muda antes do ok.
         assert [(m["autor"], m["texto"]) for m in corpo["mensagens"]] == [
@@ -203,43 +187,10 @@ class TestOTextoViraLote:
             ("AUDITOR", LOTE["resposta"]),
         ]
         assert _versoes(banco, "ALFA") == {"1.0": True}
-        # Uma chamada da conversa e dez da prova por regra.
-        assert sorted(c["passo"] for c in banco.linhas("cm_chamada_ia")) == ["CONVERSA"] + ["PROVA"] * 20
-
-    def test_a_prova_da_conversa_roda_no_modelo_do_passo_b_e_nao_no_da_validacao(self, cenario, monkeypatch):
-        """Issue #1523: só a recomendação da Validação vai para o modelo da
-        Validação; a Prova pedida na conversa segue no do passo B."""
-        from app.config import settings
-
-        cliente, banco, provedor = cenario
-        monkeypatch.setattr(settings, "cm_ia_modelo_passo_b", "claude-opus-5-5")
-        monkeypatch.setattr(settings, "cm_ia_modelo_validacao", "claude-sonnet-5-5")
-
-        assert cliente.post(ROTA, json={"texto": PEDIDO}).status_code == 200
-
-        da_prova = [modelo for formato, modelo in provedor.modelos if formato == "LinhasDaComparacao"]
-        assert da_prova == ["claude-opus-5-5"] * 20
-        assert {c["modelo"] for c in banco.linhas("cm_chamada_ia") if c["passo"] == "PROVA"} == {"claude-opus-5-5"}
-
-    def test_a_prova_da_regra_alterada_troca_o_texto_da_antiga_na_memoria_candidata(self, cenario):
-        cliente, _banco, provedor = cenario
-        provedor.lote = {**LOTE, "propostas": [LOTE["propostas"][1]]}
-
-        assert cliente.post(ROTA, json={"texto": PEDIDO}).status_code == 200
-
-        pedido = provedor.da_prova()[0]
-        assert f"| ALFA-DIA-01 | {DIA_01_DEPOIS} |" in pedido
-        assert DIA_01_ANTES not in pedido
-
-    def test_a_prova_do_item_com_conflito_roda_sem_a_regra_que_ele_substitui(self, cenario):
-        cliente, _banco, provedor = cenario
-        provedor.lote = {**LOTE, "propostas": [LOTE["propostas"][0]]}
-
-        assert cliente.post(ROTA, json={"texto": PEDIDO}).status_code == 200
-
-        pedido = provedor.da_prova()[0]
-        assert f"| ALFA-DIA-03 | {DIA_03} |" in pedido
-        assert DIA_02 not in pedido
+        # Só a chamada da conversa: nenhuma Conta concluída é refeita (#1920).
+        assert [c["passo"] for c in banco.linhas("cm_chamada_ia")] == ["CONVERSA"]
+        assert provedor.contas_refeitas() == []
+        assert {"pede_prova", "prova"}.isdisjoint(nova)
 
     def test_a_ia_recebe_a_memoria_e_so_a_mensagem_desta_vez(self, cenario):
         cliente, _banco, provedor = cenario
@@ -336,21 +287,22 @@ class TestOOk:
         assert (regras["ALFA-DIA-03"]["texto"], regras["ALFA-DIA-01"]["texto"]) == (DIA_03, DIA_01_DEPOIS)
         assert DIA_02 not in _vigente(banco)["texto_md"]
 
-    def test_ok_com_item_de_regra_sem_prova_e_recusado_e_nada_muda(self, cenario):
-        """Decisão 7: a prova vem antes do ok. A prova que falhou deixa o item
-        sem prova, e o lote só se aplica depois que a correção prova de novo."""
+    def test_o_ok_aplica_o_item_de_regra_sem_prova(self, cenario):
+        """Issue #1920 (ADR 0102): a Prova da regra saiu, e o ok não espera por
+        ela. O item de regra vira Regra vigente sem nenhuma Conta refeita."""
         cliente, banco, provedor = cenario
-        provedor.prova_falha = True
+        provedor.lote = {**LOTE, "propostas": [LOTE["propostas"][0]]}
         assert cliente.post(ROTA, json={"texto": PEDIDO}).status_code == 200
 
         resposta = cliente.post(ROTA, json={"texto": "ok"})
 
-        assert resposta.status_code == 422
-        assert resposta.json()["detail"] == (
-            "O item 1 está sem a prova da regra. Peça a correção do item para provar de novo antes do ok."
+        assert resposta.status_code == 200, resposta.text
+        assert _versoes(banco, "ALFA") == {"1.0": False, "1.1": True}
+        assert (_regras_vigentes(banco)["ALFA-DIA-03"]["texto"], _regras_vigentes(banco)["ALFA-DIA-03"]["status"]) == (
+            DIA_03,
+            "VIGENTE",
         )
-        assert _versoes(banco, "ALFA") == {"1.0": True}
-        assert cliente.get(ROTA).json()["lote"] is not None
+        assert provedor.contas_refeitas() == []
 
     def test_ok_sem_lote_aberto_e_recusado_e_nada_muda(self, cenario):
         cliente, banco, _provedor = cenario
@@ -374,7 +326,6 @@ class TestCorrigeOItemN:
         cliente, banco, provedor = cenario
         assert cliente.post(ROTA, json={"texto": PEDIDO}).status_code == 200
         antes = cliente.get(ROTA).json()["lote"]
-        provas_antes = len(provedor.da_prova())
         provedor.correcao = {
             "resposta": "Corrigi o item 1: vale só para a UTI.",
             "proposta": _proposta(texto=DIA_03_UTI),
@@ -390,8 +341,8 @@ class TestCorrigeOItemN:
         # O Auditor recebeu o item como estava e o que mudar nele.
         _, pedido = [p for p in provedor.pedidos if p[0] == "ItemCorrigido"][-1]
         assert DIA_03 in pedido and "só na UTI." in pedido
-        # Só o item corrigido prova de novo.
-        assert len(provedor.da_prova()) - provas_antes == 10
+        # A correção não refaz Contas.
+        assert provedor.contas_refeitas() == []
         assert [(m["autor"], m["texto"]) for m in resposta.json()["mensagens"]][-2:] == [
             ("PESSOA", "Corrige o item 1: só na UTI."),
             ("AUDITOR", "Corrigi o item 1: vale só para a UTI."),
@@ -400,28 +351,6 @@ class TestCorrigeOItemN:
         # O ok aplica o item corrigido.
         assert cliente.post(ROTA, json={"texto": "ok"}).status_code == 200
         assert _regras_vigentes(banco)["ALFA-DIA-03"]["texto"] == DIA_03_UTI
-
-    @pytest.mark.parametrize(
-        ("refeito", "falha"),
-        [
-            (_proposta(texto=DIA_03_UTI), True),
-            (_proposta(tipo="PARAMETRO", texto="", parametro="diaria.hora_vencimento", valor_json='"12:00"'), False),
-        ],
-        ids=["prova-nova-falha", "item-vira-parametro"],
-    )
-    def test_o_item_corrigido_nao_mostra_a_prova_do_texto_antigo(self, cenario, refeito, falha):
-        cliente, _banco, provedor = cenario
-        assert cliente.post(ROTA, json={"texto": PEDIDO}).status_code == 200
-        assert _item(cliente.get(ROTA).json(), 1)["prova"] is not None
-        provedor.correcao = {"resposta": "Corrigi o item 1.", "proposta": refeito}
-        provedor.prova_falha = falha
-
-        resposta = cliente.post(ROTA, json={"texto": "corrige o item 1: só na UTI."})
-
-        assert resposta.status_code == 200, resposta.text
-        assert _item(resposta.json(), 1)["prova"] is None
-        # O item que a correção não tocou segue com a prova dele.
-        assert _item(resposta.json(), 2)["prova"]["contas"] == 10
 
     def test_corrigir_item_que_o_lote_nao_tem_e_recusado_sem_chamar_o_auditor(self, cenario):
         cliente, _banco, provedor = cenario
