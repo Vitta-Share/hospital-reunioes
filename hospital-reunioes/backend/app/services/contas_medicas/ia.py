@@ -42,6 +42,7 @@ import httpx2
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, ValidationError, WithJsonSchema
 
 from app.config import settings
+from app.services.ia_chaves import ClienteDaAnthropic, cliente_da_anthropic
 from app.services.prompt_loader import load_prompt
 
 __all__ = [
@@ -559,11 +560,10 @@ def _schema_estrito(modelo: type[BaseModel]) -> dict[str, Any]:
 # ----------------------------------------------------------------------------------
 
 
-def _cliente() -> anthropic.Anthropic:
+def _cliente() -> ClienteDaAnthropic:
     if not settings.anthropic_api_key:
         raise ErroDaIA("ANTHROPIC_API_KEY vazia", causa="chave", tipo="ChaveVazia")
-    return anthropic.Anthropic(
-        api_key=settings.anthropic_api_key,
+    return cliente_da_anthropic(
         max_retries=0,  # as três tentativas são deste adaptador
         timeout=PRAZO_DA_TENTATIVA_S,
     )

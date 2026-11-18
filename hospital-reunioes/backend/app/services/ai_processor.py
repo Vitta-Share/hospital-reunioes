@@ -7,8 +7,6 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from functools import partial
 
-import anthropic
-
 from app.config import settings
 from app.services.ia_chaves import ClienteDaAnthropic, cliente_da_anthropic
 from app.services.prompt_loader import load_prompt, render_prompt

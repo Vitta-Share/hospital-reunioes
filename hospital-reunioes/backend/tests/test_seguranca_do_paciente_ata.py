@@ -53,7 +53,7 @@ from test_seguranca_do_paciente_reunioes import (  # noqa: E402
 )
 
 from app.limiter import limiter  # noqa: E402
-from app.services import ai_processor, clicksign_service, storage  # noqa: E402
+from app.services import ai_processor, clicksign_service, ia_chaves, storage  # noqa: E402
 
 R_ATA = "RD_NUCLEO_ATA"
 R_ANTERIOR = "RD_NUCLEO_ANT"
@@ -179,7 +179,7 @@ def _ia(monkeypatch) -> _IaDublada:
     dublada = _IaDublada()
     monkeypatch.setattr(ai_processor, "_llm_provider", lambda: "anthropic")
     monkeypatch.setattr(ai_processor, "_get_llm", lambda: (object(), "modelo-errado"))
-    monkeypatch.setattr(ai_processor.anthropic, "Anthropic", _estoura)
+    monkeypatch.setattr(ia_chaves.anthropic, "Anthropic", _estoura)
     monkeypatch.setattr(ai_processor, "_pedir_json", dublada)
     monkeypatch.setattr(ai_processor, "_pedir_texto", _estoura)
     monkeypatch.setattr(storage, "upload_file", lambda *a, **kw: "https://storage.test/transcricao.txt")
