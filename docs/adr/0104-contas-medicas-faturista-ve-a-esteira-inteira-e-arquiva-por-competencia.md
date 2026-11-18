@@ -40,7 +40,7 @@ Decisão do Pedro (18/11/2026, grilling) sobre o pedido do Diretor Executivo na 
 - A busca não cabe só no navegador: as Arquivadas não vêm na carga da tela, então a busca vai ao servidor.
 - Pede uma migration em `cm_conta` (quando e quem arquivou), que só acrescenta.
 - A aba Concluídas deixa de ter o teto das 100 mais recentes como única limpeza: quem limpa a Esteira é o arquivar.
-- Três pontos esperam a confirmação do diretor e, se ele mudar, esta ADR ganha emenda: o rótulo no lugar do nome inteiro (decisão 5), a Competência pelo fim do período (decisão 6) e a faturista arquivar as próprias contas (decisão 8).
+- Três pontos o Pedro decidiu sem esperar a confirmação do diretor (18/11/2026): o rótulo no lugar do nome inteiro (decisão 5), a Competência pelo fim do período (decisão 6) e a faturista arquivar as próprias contas (decisão 8). Se o diretor pedir outra coisa depois de usar, esta ADR ganha emenda.
 
 ## Alternativas descartadas
 

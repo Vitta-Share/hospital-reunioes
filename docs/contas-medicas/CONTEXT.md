@@ -141,7 +141,7 @@ Aguardando arquivo → Na fila → Processando → A fazer (Guia pronto) → Em 
 As etapas por onde a Conta passa na tela de contas, cada uma com a sua contagem: Envios, Fila, Em análise, Concluídas e Arquivadas. É o que a faturista limpa a cada ciclo do mês.
 
 **Competência**:
-O mês a que a Conta pertence para o faturamento: o mês do fim do período da Conta. A Conta sem período cai no mês em que foi concluída. As Concluídas e as Arquivadas aparecem agrupadas por Competência (a confirmar com o diretor).
+O mês a que a Conta pertence para o faturamento: o mês do fim do período da Conta. A Conta sem período cai no mês em que foi concluída. As Concluídas e as Arquivadas aparecem agrupadas por Competência.
 _Evitar_: usar o mês do envio.
 
 **Arquivar**:
