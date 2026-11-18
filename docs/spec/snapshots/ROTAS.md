@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-18T19:22+0000 -->
+<!-- last_update: 2026-11-18T19:36+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -602,6 +602,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/admin/tecnologia/chat/{demanda_id}/conversa` | Uma mensagem na Conversa da Demanda. Escreve quem ve a Demanda. Nada | ✅ |
 | POST | `/admin/tecnologia/chat/{demanda_id}/criar-card` | O "Criar o card" do resumo (ADR 0077, decisoes 6 e 7). | ✅ |
 | POST | `/admin/tecnologia/chat/{demanda_id}/designar-de-novo` | O "Designar de novo" da issue que nasceu sem o Responsavel (issue #1536, | ✅ |
+| PUT | `/admin/tecnologia/chat/{demanda_id}/modelo` | O seletor "Sonnet 5.5 \| Opus 5.5" da conversa (issue #1921, ADR 0103). | ✅ |
 | POST | `/admin/tecnologia/chat/{demanda_id}/nao-bateu` | O "Nao bateu" do resumo: o que nao bateu entra na conversa como fala do | ✅ |
 | POST | `/admin/tecnologia/chat/{demanda_id}/reenviar` | O "Reenviar" da Demanda em "Envio falhou" (issue #1535, ADR 0083, decisao 7). | ✅ |
 | POST | `/admin/tecnologia/chat/{demanda_id}/resumo` | O "Fechar e resumir" da melhoria (issue #1383): vale a qualquer altura do | ✅ |
@@ -657,4 +658,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 376 endpoints em 55 routers · 93% exigem auth.
+**Totais:** 377 endpoints em 55 routers · 93% exigem auth.
