@@ -70,7 +70,7 @@ A coluna Entregue mostra o que foi entregue nos últimos 30 dias. Os pedidos que
 
 Quando a Vitta só dá um recado, sem pergunta, o sino mostra o aviso de sempre, como **Clara Nogueira escreveu na Demanda**, e o e-mail segue o mesmo texto.
 
-Às vezes a pergunta vem de um projeto da Vitta que ainda não aparecia no aplicativo. Nesse caso, ela abre um pedido novo na aba, marcado como **Vitta** e com o nome do projeto no selo. No painel, a parte **Plano do projeto** mostra o nome do projeto e o botão **Abrir o plano**, que abre o plano em outra aba. O pedido fica em Registrada, porque o aplicativo não acompanha o trabalho desse projeto, e não se apaga pelo aplicativo. A pergunta seguinte do mesmo plano cai no mesmo pedido, nunca num segundo. Depois do primeiro pedido, o campo **Projeto** da barra de filtros passa a listar esse projeto.
+Às vezes a pergunta vem de um projeto da Vitta que ainda não aparecia no aplicativo. Nesse caso, ela abre um pedido novo na aba. No Quadro, o card traz o nome do projeto no selo. No painel, o pedido vem marcado como **Vitta**, e a parte **Plano do projeto** mostra o nome do projeto e o link **Abrir o plano**, que abre o plano em outra aba. O pedido fica em Registrada, porque o aplicativo não acompanha o trabalho desse projeto, e não se apaga pelo aplicativo. A pergunta seguinte do mesmo plano cai no mesmo pedido, nunca num segundo. Depois do primeiro pedido, o campo **Projeto** da barra de filtros passa a listar esse projeto.
 
 ![O pedido de um projeto novo da Vitta, com o nome do projeto e o Abrir o plano](projeto-novo.png)
 
