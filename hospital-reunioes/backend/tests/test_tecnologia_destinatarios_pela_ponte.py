@@ -85,3 +85,89 @@ class TestQuemPodeSerDestinatario:
                 {"id": "P2", "nome": "Lucas Sampaio"},
             ]
         }
+
+    def test_nenhum_dado_pessoal_sai_alem_de_id_e_nome(self):
+        cliente, _ = _cliente()
+
+        resposta = _listar(cliente)
+
+        corpo = resposta.text
+        for pessoa in (DIRETOR, LUCAS, ANA):
+            assert pessoa["email"] not in corpo
+            assert pessoa["telefone"] not in corpo
+            assert pessoa["auth_user_id"] not in corpo
+        assert {chave for d in resposta.json()["destinatarios"] for chave in d} == {"id", "nome"}
+
+    def test_cadastro_maior_que_uma_pagina_volta_inteiro(self):
+        total = paginacao.PAGINA + 3
+        cadastro = [_pessoa(f"Q{i:05d}", f"Pessoa {i:05d}") for i in range(total)]
+        cliente, _ = _cliente(cadastro=cadastro)
+
+        resposta = _listar(cliente)
+
+        nomes = [d["nome"] for d in resposta.json()["destinatarios"]]
+        assert len(nomes) == total
+        assert nomes[-1] == f"Pessoa {total - 1:05d}"
+
+
+class TestParticipanteInativo:
+    def test_participante_inativo_nao_aparece(self):
+        cliente, _ = _cliente()
+
+        resposta = _listar(cliente)
+
+        ids = [d["id"] for d in resposta.json()["destinatarios"]]
+        assert "P4" not in ids
+        assert "Carla Desligada" not in resposta.text
+
+    def test_ativo_sem_valor_conta_como_ativo_como_no_resto_do_app(self):
+        # A coluna nasce com default TRUE; linha antiga com nulo não é desligada.
+        sem_valor = {**_pessoa("P6", "Bruno Antigo"), "ativo": None}
+        cliente, _ = _cliente(cadastro=[sem_valor, DESLIGADA])
+
+        resposta = _listar(cliente)
+
+        assert resposta.json() == {"destinatarios": [{"id": "P6", "nome": "Bruno Antigo"}]}
+
+
+class TestAChave:
+    @pytest.mark.parametrize(
+        "cabecalhos", [{}, {"X-API-Key": ""}, {"X-API-Key": CHAVE + "x"}], ids=["ausente", "vazia", "errada"]
+    )
+    def test_chave_ausente_ou_errada_recusa_com_401_como_as_outras_rotas(self, cabecalhos):
+        cliente, _ = _cliente()
+
+        resposta = _listar(cliente, headers=cabecalhos)
+
+        assert resposta.status_code == 401
+        assert resposta.json() == {"detail": "API key inválida ou ausente"}
+        assert "Diretor Geral" not in resposta.text
+
+    def test_sem_chave_configurada_responde_503(self, monkeypatch):
+        monkeypatch.setattr(settings, "tecnologia_automacao_api_key", "")
+        cliente, _ = _cliente()
+
+        resposta = _listar(cliente)
+
+        assert resposta.status_code == 503
+        assert "TECNOLOGIA_AUTOMACAO_API_KEY" in resposta.json()["detail"]
+
+    def test_a_chave_errada_gasta_o_mesmo_teto_por_endereco(self):
+        cliente, _ = _cliente()
+
+        for _ in range(60):
+            assert _listar(cliente, headers={"X-API-Key": "errada"}).status_code == 401
+
+        assert _listar(cliente).status_code == 429
+
+
+class TestSoLe:
+    def test_listar_nao_grava_nada_no_banco(self):
+        cliente, sb = _cliente()
+        antes = {nome: [dict(linha) for linha in linhas] for nome, linhas in sb.tabelas.items()}
+
+        resposta = _listar(cliente)
+
+        assert resposta.status_code == 200
+        assert sb.escritas == []
+        assert sb.tabelas == antes
