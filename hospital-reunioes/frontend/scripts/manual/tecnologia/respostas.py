@@ -4,17 +4,20 @@
 
 Imprime, em JSON, a tabela que o `roteiro.sh` serve no lugar do backend: a
 chave é a rota depois de `/api/admin/tecnologia/`, com a consulta quando há
-(`chat?projeto=ana`), e o valor é o corpo da resposta. Tudo sai do `seed.json`,
+(`chat?projeto=ana`), e o valor é o corpo da resposta. Com `--sino`, imprime a
+tabela do sino (issue #1968), com a chave depois de `/api/notificacoes`. Tudo
+sai do `seed.json`,
 com as datas contadas a partir de hoje, no fuso do hospital: assim o Quadro
 abre com as colunas cheias e as Entregas caem nas últimas semanas, em qualquer
 dia que o roteiro rodar. Nada aqui é gente, pedido ou card de verdade.
 
-Uso: python3 scripts/manual/tecnologia/respostas.py
+Uso: python3 scripts/manual/tecnologia/respostas.py [--sino]
 """
 
 from __future__ import annotations
 
 import json
+import sys
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -24,6 +27,8 @@ SEED = json.loads((AQUI / "seed.json").read_text(encoding="utf-8"))
 FUSO = ZoneInfo("America/Sao_Paulo")
 HOJE = datetime.now(FUSO).date()
 SEMANAS_DO_GRAFICO = 12
+# Os dois Projetos cujo repositório o app lê; o resto é projeto novo da Vitta (issue #1967).
+PROJETOS_CONHECIDOS = {"hospital": "Aplicativo do Hospital", "ana": "Ana"}
 
 
 def instante(dias_atras: int, hora: str = "10:00") -> str:
@@ -39,6 +44,7 @@ def segunda(dia: date) -> date:
 def demanda(d: dict) -> dict:
     """A Demanda como a lista do chat a manda, vista pelo diretor que pediu."""
     registrada = d["etapa"] == "registrada"
+    projeto_novo = d["projeto"] not in PROJETOS_CONHECIDOS
     entregue = d.get("entregue_ha")
     entregues, total = d.get("partes", [None, None])
     # Cada parte com o número, a Onda e o que ainda a trava (issue #1903, ADR 0100).
@@ -62,6 +68,8 @@ def demanda(d: dict) -> dict:
         "etapa": d["etapa"],
         "classificacao": d["classificacao"],
         "projeto": d["projeto"],
+        "projeto_nome": d.get("projeto_nome"),
+        "raiz_url": d.get("raiz_url"),
         "origem": d["origem"],
         "minha": d["origem"] == "diretor",
         "tem_vinculo": not registrada,
@@ -82,7 +90,8 @@ def demanda(d: dict) -> dict:
         "envio_falhou": False,
         "designacao_falhou": False,
         "envio_motivo": None,
-        "pode_apagar": registrada,
+        # O pedido de projeto novo não se apaga pelo aplicativo (issue #1967).
+        "pode_apagar": registrada and not projeto_novo,
         "pode_revisar": False,
         "em_revisao": False,
     }
@@ -144,20 +153,28 @@ def conversas(lista: list[dict]) -> dict:
     tabela[f"chat/{abrir['bug']}"] = conversa(
         abrir["bug"], "resumido", bug["falas"], resumo=bug["resumo"], custo=bug["custo"]
     )
-    tabela[f"chat/{abrir['painel']}/conversa"] = {
+    tabela[f"chat/{abrir['painel']}/conversa"] = conversa_da_demanda(SEED["conversa_da_demanda"])
+    # A pergunta da Vitta que pede a resposta do diretor, no pedido do projeto novo (issue #1968).
+    tabela[f"chat/{abrir['projeto_novo']}/conversa"] = conversa_da_demanda(
+        SEED["pergunta_do_projeto_novo"]["falas"], prefixo="exemplo-pergunta"
+    )
+    return tabela
+
+
+def conversa_da_demanda(falas: list[dict], prefixo: str = "exemplo-mensagem") -> dict:
+    return {
         "mensagens": [
             {
-                "id": f"exemplo-mensagem-{i}",
+                "id": f"{prefixo}-{i}",
                 "autor": m["autor"],
                 "texto": m["texto"],
                 "criado_em": instante(m["dias"], f"{9 + i}:15"),
                 "minha": m["minha"],
             }
-            for i, m in enumerate(SEED["conversa_da_demanda"])
+            for i, m in enumerate(falas)
         ],
         "mencionaveis": [{"id": dev["id"], "nome": dev["nome"]} for dev in SEED["desenvolvedores"]],
     }
-    return tabela
 
 
 def entregas(lista: list[dict]) -> dict:
@@ -240,10 +257,45 @@ def tabela() -> dict:
         "chat": lista,
         "chat?projeto=ana": [d for d in lista if d["projeto"] == "ana"],
         "chat?projeto=hospital": [d for d in lista if d["projeto"] == "hospital"],
+        "projetos": [{"valor": v, "nome": n} for v, n in PROJETOS_CONHECIDOS.items()]
+        + [{"valor": d["projeto"], "nome": d["projeto_nome"]} for d in lista if d["projeto"] not in PROJETOS_CONHECIDOS],
         **conversas(lista),
         "entregas": entregas(lista),
     }
 
 
+def sino() -> dict:
+    """O sino do diretor (issue #1968): o aviso Pede sua resposta, com o Assunto,
+    que abre o pedido do projeto novo, e um aviso antigo, já lido."""
+    agora = datetime.now(FUSO).replace(microsecond=0)
+    pergunta = SEED["pergunta_do_projeto_novo"]
+    painel = next(d for d in SEED["demandas"] if d["id"] == SEED["abrir"]["painel"])
+    return {
+        "/count": {"nao_lidas": 1},
+        "?limit=20": [
+            {
+                "id": "exemplo-aviso-1",
+                "destinatario_id": SEED["admin"]["id"],
+                "tipo": "TECNOLOGIA",
+                "titulo": "Pede sua resposta",
+                "mensagem": pergunta["assunto"],
+                "referencia_id": SEED["abrir"]["projeto_novo"],
+                "lida": False,
+                "created_at": (agora - timedelta(minutes=5)).isoformat(),
+            },
+            {
+                "id": "exemplo-aviso-2",
+                "destinatario_id": SEED["admin"]["id"],
+                "tipo": "TECNOLOGIA",
+                "titulo": f"{SEED['conversa_da_demanda'][-1]['autor']} escreveu na Demanda",
+                "mensagem": painel["titulo"],
+                "referencia_id": painel["id"],
+                "lida": True,
+                "created_at": (agora - timedelta(hours=3)).isoformat(),
+            },
+        ],
+    }
+
+
 if __name__ == "__main__":
-    print(json.dumps(tabela(), ensure_ascii=False))
+    print(json.dumps(sino() if "--sino" in sys.argv[1:] else tabela(), ensure_ascii=False))

@@ -10,7 +10,9 @@
 # no lugar do backend em toda rota da aba Tecnologia com a tabela do
 # respostas.py. Rota fora da tabela recebe 404, e pedido que grava (mandar
 # fala, Criar o card) recebe 403: nenhuma conversa chega à IA, nenhum card
-# nasce no GitHub e nenhum pedido de verdade entra no print.
+# nasce no GitHub e nenhum pedido de verdade entra no print. O sino responde
+# do mesmo jeito, pelo `respostas.py --sino` (issue #1968): nenhum aviso de
+# verdade aparece, e marcar como lido não grava nada.
 
 set -euo pipefail
 
@@ -74,6 +76,19 @@ pw run-code "async page => {
     }
     return route.fulfill({ json: tabela[chave] });
   });
+  const sino = $(python3 "$AQUI/respostas.py" --sino);
+  await page.route(u => u.pathname.startsWith('/api/notificacoes'), route => {
+    const pedido = route.request();
+    if (pedido.method() !== 'GET') {
+      return route.fulfill({ status: 403, json: { detail: 'O roteiro do manual não grava nada.' } });
+    }
+    const url = new URL(pedido.url());
+    const chave = url.pathname.slice('/api/notificacoes'.length) + url.search;
+    if (!(chave in sino)) {
+      return route.fulfill({ status: 404, json: { detail: 'Sem aviso de exemplo para ' + chave } });
+    }
+    return route.fulfill({ json: sino[chave] });
+  });
 }"
 
 echo "prints em $SAIDA:"
@@ -88,6 +103,20 @@ print_tela "pedido-no-painel.png"
 # As partes do mesmo pedido, agrupadas por Onda, com o número e o Espera a (issue #1903).
 pw run-code "async page => { await page.getByRole('region', { name: 'Documento do card', exact: true }).getByText('Onda 3', { exact: true }).scrollIntoViewIfNeeded(); await page.waitForTimeout(400) }"
 print "$(bloco "Documento do card")" "partes-por-onda.png"
+pw run-code "async page => { await page.getByRole('button', { name: 'Fechar o pedido' }).click() }"
+
+# Responder uma pergunta da Vitta (issue #1968): o aviso Pede sua resposta no
+# sino, o clique que abre o pedido do projeto novo, o Plano do projeto e a
+# pergunta na Conversa da Demanda.
+pw run-code "async page => { await page.getByRole('button', { name: 'Notificações' }).click() }"
+esperar "Pede sua resposta"
+print "getByRole('heading', { name: 'Notificações', exact: true }).locator('xpath=../..')" "aviso-pede-resposta.png"
+pw run-code "async page => { await page.getByText('Pede sua resposta', { exact: true }).click() }"
+esperar "Plano do projeto"
+print "$(bloco "Documento do card")" "projeto-novo.png"
+pw run-code "async page => { await page.getByRole('complementary', { name: 'Pedido aberto' }).getByRole('button', { name: 'Conversar' }).click(); await page.waitForTimeout(600) }"
+esperar "A troca entre dois plantonistas precisa da aprovação da coordenação, ou vale assim que os dois confirmam?"
+print "getByRole('complementary', { name: 'Pedido aberto' })" "pergunta-na-conversa.png"
 pw run-code "async page => { await page.getByRole('button', { name: 'Fechar o pedido' }).click() }"
 
 # Filtrar por Projeto: o campo Projeto em Ana.
