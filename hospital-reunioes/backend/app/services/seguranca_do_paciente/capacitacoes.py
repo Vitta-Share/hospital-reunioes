@@ -2,7 +2,7 @@
 
 A leitura junta três tabelas (migration 155): as capacitações, quem participou
 de cada uma (com a hora em que a própria pessoa confirmou a presença) e a lista
-de temas mínimos, que é configuração da Presidência e nasce vazia.
+de temas mínimos, que é configuração da Presidência e vem com os 17 temas da ANVISA (migration 162).
 
 A cobertura por membro é a regra do critério 3 da issue: um tema mínimo está
 coberto para o membro quando ele CONFIRMOU presença numa capacitação que tratou
