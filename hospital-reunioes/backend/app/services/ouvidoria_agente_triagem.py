@@ -33,7 +33,7 @@ import logging
 
 from app.config import settings
 from app.services import ai_processor
-from app.services.ia_chaves import ClienteDaAnthropic, cliente_da_anthropic
+from app.services.ia_chaves import ClienteDaAnthropic
 from app.services.ouvidoria_pseudonimizacao import pseudonimizar
 from app.services.prompt_loader import load_prompt
 from app.utils.text_sanitizer import sanitizar_travessao
@@ -60,7 +60,7 @@ def _cliente() -> ClienteDaAnthropic | None:
     chave o agente fica desligado e o caso entra como sempre entrou."""
     if not settings.anthropic_api_key:
         return None
-    return cliente_da_anthropic(max_retries=0, timeout=TEMPO_LIMITE_S)
+    return ClienteDaAnthropic(max_retries=0, timeout=TEMPO_LIMITE_S)
 
 
 def agendar_caso(tarefas, supabase, caso: dict) -> None:

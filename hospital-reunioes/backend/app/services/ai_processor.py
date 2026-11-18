@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from functools import partial
 
 from app.config import settings
-from app.services.ia_chaves import ClienteDaAnthropic, cliente_da_anthropic
+from app.services.ia_chaves import ClienteDaAnthropic
 from app.services.prompt_loader import load_prompt, render_prompt
 from app.utils.text_sanitizer import sanitizar_estrutura, sanitizar_travessao
 
@@ -36,7 +36,7 @@ def _get_llm() -> tuple[ClienteDaAnthropic, str]:
     Caller deve checar _llm_provider() == 'mock' antes para evitar instanciar
     cliente sem chave.
     """
-    return cliente_da_anthropic(), settings.llm_model
+    return ClienteDaAnthropic(), settings.llm_model
 
 
 def _pedir_texto(client, model: str, *, system: str | None, conteudo, ata: bool = False) -> str:

@@ -111,7 +111,8 @@ class _StreamComReserva:
 
 class ClienteDaAnthropic:
     """O lugar do `anthropic.Anthropic(...)` no app. `opcoes` vão para o SDK
-    de cada chave (`max_retries`, `timeout`)."""
+    de cada chave (`max_retries`, `timeout`). Quem cria confere antes que
+    `ANTHROPIC_API_KEY` não está vazia."""
 
     def __init__(self, **opcoes: Any):
         self._opcoes = opcoes
@@ -144,9 +145,3 @@ class ClienteDaAnthropic:
                     _apelido(ordem[indice + 1][0]),
                 )
         raise AssertionError("sem chave da Anthropic")  # pragma: no cover, há sempre a principal
-
-
-def cliente_da_anthropic(**opcoes: Any) -> ClienteDaAnthropic:
-    """O cliente da Anthropic com as chaves reserva. Quem chama confere antes
-    que `ANTHROPIC_API_KEY` não está vazia."""
-    return ClienteDaAnthropic(**opcoes)
