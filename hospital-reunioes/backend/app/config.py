@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     # para o app inteiro (Atas, POP, Ouvidoria, Assistente de Tecnologia e
     # Contas médicas). Sem chave configurada, os chats caem no mock.
     anthropic_api_key: str = ""
+    # Chaves reserva (issue #1925), separadas por vírgula, na ordem em que
+    # entram quando o saldo da anterior acaba. Vazia = só a principal.
+    anthropic_api_keys_reserva: str = ""
     llm_model: str = "claude-sonnet-5-5"
     # O Planejamento da Demanda (ADR 0075, decisão 7) roda num modelo próprio,
     # pelo mesmo cliente e pela mesma chave. Desde a ADR 0103 este é só o

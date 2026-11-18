@@ -10,6 +10,7 @@ from functools import partial
 import anthropic
 
 from app.config import settings
+from app.services.ia_chaves import ClienteDaAnthropic, cliente_da_anthropic
 from app.services.prompt_loader import load_prompt, render_prompt
 from app.utils.text_sanitizer import sanitizar_estrutura, sanitizar_travessao
 
@@ -31,13 +32,13 @@ def _llm_provider() -> str:
     return "mock"
 
 
-def _get_llm() -> tuple[anthropic.Anthropic, str]:
+def _get_llm() -> tuple[ClienteDaAnthropic, str]:
     """Retorna (client, model) da API da Anthropic.
 
     Caller deve checar _llm_provider() == 'mock' antes para evitar instanciar
     cliente sem chave.
     """
-    return anthropic.Anthropic(api_key=settings.anthropic_api_key), settings.llm_model
+    return cliente_da_anthropic(), settings.llm_model
 
 
 def _pedir_texto(client, model: str, *, system: str | None, conteudo, ata: bool = False) -> str:
