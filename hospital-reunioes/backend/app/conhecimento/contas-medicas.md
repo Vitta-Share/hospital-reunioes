@@ -91,6 +91,12 @@ O envio que não vale mais pode ser descartado. No cartão da conta em **Erro**,
 
 A aba **Concluídas** guarda as contas que a faturista concluiu, as mais recentes primeiro, com a contagem de pendências de quem concluiu com pendência. Quem tem o Painel completo vê as contas de todas em cada aba, com o nome de quem está com cada uma; para essa pessoa, Minhas se chama Em análise, e Meus envios se chama Envios.
 
+## No Início
+
+O Início de cada pessoa também mostra Contas médicas. A faturista vê ali as contas que puxou e ainda não concluiu, em correção ou em retorno da Validação, e só as que estão no nome dela. A conta não tem prazo no módulo, então fica no grupo Sem prazo, no fim da lista, com há quantos dias foi puxada, e não conta como atraso na frase do topo. O botão "Abrir o Guia" leva direto ao Guia da conta. A coordenação não recebe no Início as contas das faturistas, só as que ela mesma puxou.
+
+Quem tem Analisar contas vê também, num bloco à parte chamado Fila do papel, uma linha com quantas contas estão sem dono na Fila, como "3 contas sem dono esperam na Fila.", e o botão "Abrir a fila". Essa linha não entra na frase do topo nem nos contadores. Quem não tem perfil de Contas médicas, ou só envia contas, não recebe nada do módulo no Início.
+
 ## A análise
 
 Assim que a conta e o prontuário do atendimento estão no sistema, a análise começa sozinha, em segundo plano: a faturista não precisa esperar na tela nem atualizar a página. O app lê a conta inteira e o prontuário, conta as diárias pelas movimentações, confere preço, prescrição, ficha anestésica e o que foi lançado sem registro, e monta o Guia. Ele analisa até quatro contas ao mesmo tempo e continua respondendo enquanto lê um prontuário grande; as outras esperam a vez na fila, na ordem de envio.
