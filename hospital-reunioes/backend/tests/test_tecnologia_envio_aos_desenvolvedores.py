@@ -36,7 +36,7 @@ from test_tecnologia_chat import (  # noqa: E402
 from test_tecnologia_vinculo import BASE, DIRETOR, PEDRO, _demanda, _GithubFalso, _issue, _pessoa  # noqa: E402
 
 from app.config import settings  # noqa: E402
-from app.services import github_client, tecnologia_email  # noqa: E402
+from app.services import github_client, tecnologia_email, tecnologia_envio_aos_desenvolvedores  # noqa: E402
 from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
 
 LUCAS = _pessoa("P4", "Lucas Sampaio", github_login="lucas-vitta")
@@ -516,6 +516,29 @@ class TestTravaAsFatiasIniciais:
 
         issue = "https://api.github.com/repos/pedrorezendefig/hospital-reunioes/issues/901"
         assert chamadas == [("POST", f"{issue}/dependencies/blocked_by", {"issue_id": ID_DO_AJUSTE})]
+
+    def test_raiz_com_mais_de_uma_pagina_de_fatias_trava_tambem_as_da_segunda_pagina(self, monkeypatch):
+        # A #1786 tem 43 sub-issues e o GitHub devolve 30 sem `per_page`
+        # (revisão do PR #2021): a fatia que só vem na segunda página também trava.
+        import httpx
+
+        fatias = [{"number": 2000 + i, "state": "open", "labels": [{"name": "ready-for-agent"}]} for i in range(105)]
+
+        def _rede(metodo, url, *, headers, json, timeout):
+            if "/sub_issues" in url:
+                pagina = int(url.split("page=")[-1]) if "page=" in url else 1
+                por_pagina = int(url.split("per_page=")[1].split("&")[0]) if "per_page=" in url else 30
+                corpo = fatias[(pagina - 1) * por_pagina : pagina * por_pagina]
+            else:
+                corpo = []
+            return httpx.Response(200, json=corpo, request=httpx.Request(metodo, url))
+
+        monkeypatch.setattr(github_client.httpx, "request", _rede)
+
+        iniciais, em_andamento = tecnologia_envio_aos_desenvolvedores.fatias_iniciais(1786, projeto="hospital")
+
+        assert iniciais == [f["number"] for f in fatias]
+        assert em_andamento == []
 
 
 # ═══════════════════════════════════════════════════════════════════════════

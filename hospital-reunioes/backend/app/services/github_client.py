@@ -462,12 +462,24 @@ def ler_sub_issues(numero: int, *, projeto: str) -> list[dict[str, Any]]:
     404 aqui NAO e "a issue nao existe" (ela acabou de ser lida): e a API de
     sub-issues indisponivel para este repositorio, e o certo e seguir sem
     partes em vez de recusar o Vinculo inteiro.
+
+    Pagina a pagina ate vir uma pagina curta (revisao do PR #2021): sem
+    `per_page` o GitHub devolve so as 30 primeiras, e a raiz com mais partes
+    perdia as do fim (a #1786 tem 43).
     """
-    try:
-        dados = _chamar("GET", f"/issues/{numero}/sub_issues", projeto=projeto)
-    except IssueNaoEncontradaError:
-        return []
-    return dados if isinstance(dados, list) else []
+    partes: list[dict[str, Any]] = []
+    pagina = 1
+    while True:
+        try:
+            dados = _chamar("GET", f"/issues/{numero}/sub_issues?per_page={_POR_PAGINA}&page={pagina}", projeto=projeto)
+        except IssueNaoEncontradaError:
+            return partes
+        if not isinstance(dados, list):
+            return partes
+        partes.extend(dados)
+        if len(dados) < _POR_PAGINA:
+            return partes
+        pagina += 1
 
 
 def ler_bloqueadoras(numero: int, *, projeto: str) -> list[dict[str, Any]]:
