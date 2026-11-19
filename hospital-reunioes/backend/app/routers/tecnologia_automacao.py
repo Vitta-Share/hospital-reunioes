@@ -11,6 +11,11 @@ Autenticação por chave de serviço própria (`X-API-Key` contra
 Desde a ADR 0096 a ponte tambem escreve na Conversa da Demanda: a Mensagem
 pelo terminal, no perfil do Desenvolvedor cujo login do GitHub vem no pedido,
 e le a resposta do diretor na mesma conversa (decisao 6).
+
+Desde a issue #2013 (ADR 0108, decisao 5) a ponte tem uma segunda porta, com
+chave propria (`PLANOS_HSM_API_KEY`): a funcao Validar da Apresentacao do PRD
+manda a observacao do diretor, o app guarda o original e devolve so a
+interpretacao, que e o que vai para o GitHub.
 """
 
 from datetime import datetime
@@ -19,11 +24,22 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response, status
 from pydantic import BaseModel, Field
 
-from app.dependencies import get_supabase_client, require_tecnologia_automacao_api_key
+from app.dependencies import (
+    get_supabase_client,
+    require_planos_hsm_api_key,
+    require_tecnologia_automacao_api_key,
+)
 from app.limiter import limiter
 from app.models.tecnologia_schemas import LIMITE_DA_MENSAGEM
-from app.services import tecnologia_anexos, tecnologia_conversa, tecnologia_espelho
-from app.services.github_client import FORMATO_DO_PROJETO
+from app.services import (
+    ai_processor,
+    tecnologia_anexos,
+    tecnologia_conversa,
+    tecnologia_envio_aos_desenvolvedores,
+    tecnologia_espelho,
+)
+from app.services.conhecimento import carregar_kit
+from app.services.github_client import FORMATO_DO_PROJETO, PROJETO_HOSPITAL
 from app.services.paginacao import ler_tudo
 from app.services.tecnologia import TABELA_DEMANDAS
 
@@ -202,3 +218,40 @@ def ler_pelo_terminal(
     assinatura: lixo vira 422, nao 500."""
     demanda = _demanda_ou_404(supabase, id=str(demanda_id))
     return {"mensagens": tecnologia_conversa.ler(supabase, str(demanda["id"]), depois=depois)}
+
+
+# ─── A observacao do Validar (issue #2013, ADR 0108, decisao 5) ──────────────
+
+# Chave propria, separada da ponte do terminal: quem chega aqui e a funcao
+# Validar da Vercel (projeto planos-hsm), nao a sessao de um Desenvolvedor.
+router_dos_planos = APIRouter(
+    prefix="/automacao/tecnologia",
+    tags=["automacao"],
+    dependencies=[Depends(_teto_por_endereco), Depends(require_planos_hsm_api_key)],
+)
+
+# O teto do campo da pagina (`validar.js` corta em 2000).
+LIMITE_DA_OBSERVACAO = 2000
+
+
+class ObservacaoDaValidacaoPayload(BaseModel):
+    """O PRD do Hospital validado e a observacao que o diretor escreveu."""
+
+    prd: int = Field(ge=1)
+    observacao: str = Field(min_length=1, max_length=LIMITE_DA_OBSERVACAO)
+
+
+@router_dos_planos.post("/validacoes", status_code=status.HTTP_201_CREATED)
+async def observacao_da_validacao(payload: ObservacaoDaValidacaoPayload, supabase=Depends(get_supabase_client)) -> dict:
+    """Guarda a observacao original junto da Demanda do PRD e devolve so os
+    topicos interpretados, que a funcao da Vercel poe no comentario e no
+    Ajuste. O modelo que falha devolve a lista vazia: o original ja ficou
+    guardado. PRD sem Demanda e 404, e nada fica guardado."""
+    observacao = payload.observacao.strip()
+    if not observacao:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="A observação está vazia.")
+    demanda = _demanda_ou_404(supabase, projeto=PROJETO_HOSPITAL, github_issue_numero=payload.prd)
+    topicos = await ai_processor.chamar_ia_fora_do_loop(
+        tecnologia_envio_aos_desenvolvedores.interpretar_a_validacao, supabase, demanda, observacao, kit=carregar_kit()
+    )
+    return {"guardada": True, "topicos": topicos}

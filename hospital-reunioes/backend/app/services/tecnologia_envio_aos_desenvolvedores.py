@@ -15,6 +15,10 @@ desenvolvedores". Duas operacoes, e so estas duas tocam o envio:
   fica no app (ADR 0083, decisao 8). A conversa ganha a linha do sistema
   "Enviado aos desenvolvedores em <data>, as <hora>" com os topicos.
 
+A observacao do Validar da Apresentacao do PRD (issue #2013) passa pela mesma
+interpretacao (`interpretar_a_validacao`): o texto original fica nesta tabela,
+com a origem `validacao`, e so os topicos voltam para a funcao da Vercel.
+
 A trava contra o duplo clique segue a porta de envio do card
 (`tecnologia_envio`): estado, motivo e instante, com o UPDATE condicionado ao
 instante lido. A trava das fatias (as dependencias) e da fatia seguinte.
@@ -48,6 +52,11 @@ TABELA_ENVIOS = "tecnologia_envios_aos_desenvolvedores"
 
 # A origem da linha do envio na Conversa (CHECK da migration 165).
 ORIGEM_SISTEMA = "sistema"
+
+# De onde veio o envio (CHECK da migration 166): a Conversa da Demanda ou a
+# observacao do Validar da Apresentacao do PRD (issue #2013).
+ORIGEM_CONVERSA = "conversa"
+ORIGEM_VALIDACAO = "validacao"
 
 PASSO_DO_CUSTO = "envio"
 PROMPT_DO_ENVIO = "envio_aos_desenvolvedores_system"
@@ -115,7 +124,11 @@ def _agora() -> str:
 
 
 def _envios(supabase, demanda_id: str) -> list[dict[str, Any]]:
-    return list(supabase.table(TABELA_ENVIOS).select("*").eq("demanda_id", demanda_id).execute().data or [])
+    """Os envios da Conversa. A observacao do Validar mora na mesma tabela
+    (issue #2013), mas nao e envio: nao marca de onde comeca o proximo, e o
+    Enviar nao a aceita."""
+    linhas = supabase.table(TABELA_ENVIOS).select("*").eq("demanda_id", demanda_id).execute().data or []
+    return [e for e in linhas if (e.get("origem") or ORIGEM_CONVERSA) == ORIGEM_CONVERSA]
 
 
 def _ultimo_enviado_ate(envios: list[dict[str, Any]]) -> datetime | None:
@@ -219,7 +232,11 @@ def interpretacao_limpa(saida: _SaidaDoEnvio, demanda: dict[str, Any]) -> dict[s
 
 
 def pedido_do_envio(
-    demanda: dict[str, Any], do_diretor: list[dict[str, Any]], do_desenvolvedor: dict[str, Any] | None
+    demanda: dict[str, Any],
+    do_diretor: list[dict[str, Any]],
+    do_desenvolvedor: dict[str, Any] | None,
+    *,
+    de_onde: str = "AS MENSAGENS DO DIRETOR DESDE O ÚLTIMO ENVIO",
 ) -> str:
     """O pedido ao modelo. Texto de gente entra recuado: nenhuma linha dele
     chega a coluna zero."""
@@ -244,10 +261,31 @@ def pedido_do_envio(
             "A ÚLTIMA MENSAGEM DE UM DESENVOLVEDOR (só contexto, não é pedido do diretor)",
             contexto,
             "",
-            "AS MENSAGENS DO DIRETOR DESDE O ÚLTIMO ENVIO",
+            de_onde,
             *[recuar_continuacao(f"- {linha.get('texto') or ''}") for linha in do_diretor],
         ]
     )
+
+
+def _interpretacao(supabase, demanda: dict[str, Any], conteudo: str, *, kit: str) -> dict[str, list] | None:
+    """A chamada ao modelo do Envio, com o custo gravado: os topicos e o que
+    muda em cada card, ou `None` quando o modelo falhou."""
+    if ai_processor._llm_provider() == "mock":
+        logger.warning("Modo MOCK ativo para o Envio aos desenvolvedores (sem chave LLM)")
+        return {"topicos": list(INTERPRETACAO_MOCK["topicos"]), "cards": []}
+    saida, chamada = planejamento_demanda.chamar_o_modelo(
+        demanda=demanda,
+        passo=PASSO_DO_CUSTO,
+        conteudo=conteudo,
+        kit=kit,
+        validar=_SaidaDoEnvio.model_validate,
+        prompt=PROMPT_DO_ENVIO,
+        modelo=planejamento_demanda.modelo_da_linha(planejamento_demanda.ler(supabase, str(demanda["id"]))),
+    )
+    planejamento_demanda.gravar_chamada(supabase, chamada)
+    if saida is None:
+        return None
+    return interpretacao_limpa(saida, demanda)
 
 
 def interpretar(supabase, demanda: dict[str, Any], *, kit: str) -> dict[str, Any] | None:
@@ -259,23 +297,9 @@ def interpretar(supabase, demanda: dict[str, Any], *, kit: str) -> dict[str, Any
     if not do_diretor:
         raise EnvioRecusadoError(MOTIVO_SEM_MENSAGEM_NOVA)
 
-    if ai_processor._llm_provider() == "mock":
-        logger.warning("Modo MOCK ativo para o Envio aos desenvolvedores (sem chave LLM)")
-        interpretacao = {"topicos": list(INTERPRETACAO_MOCK["topicos"]), "cards": []}
-    else:
-        saida, chamada = planejamento_demanda.chamar_o_modelo(
-            demanda=demanda,
-            passo=PASSO_DO_CUSTO,
-            conteudo=pedido_do_envio(demanda, do_diretor, do_desenvolvedor),
-            kit=kit,
-            validar=_SaidaDoEnvio.model_validate,
-            prompt=PROMPT_DO_ENVIO,
-            modelo=planejamento_demanda.modelo_da_linha(planejamento_demanda.ler(supabase, demanda_id)),
-        )
-        planejamento_demanda.gravar_chamada(supabase, chamada)
-        if saida is None:
-            return None
-        interpretacao = interpretacao_limpa(saida, demanda)
+    interpretacao = _interpretacao(supabase, demanda, pedido_do_envio(demanda, do_diretor, do_desenvolvedor), kit=kit)
+    if interpretacao is None:
+        return None
 
     [linha] = (
         supabase.table(TABELA_ENVIOS)
@@ -293,6 +317,46 @@ def interpretar(supabase, demanda: dict[str, Any], *, kit: str) -> dict[str, Any
         .data
     )
     return linha
+
+
+def interpretar_a_validacao(supabase, demanda: dict[str, Any], observacao: str, *, kit: str) -> list[str]:
+    """A observacao do Validar da Apresentacao do PRD (issue #2013, ADR 0108,
+    decisao 5). Guarda o texto original junto da Demanda, com a origem
+    `validacao`, ANTES de chamar o modelo: a observacao fica no app mesmo
+    quando a interpretacao falha. Devolve os topicos pela peneira do
+    repositorio publico, prontos para o comentario e o Ajuste do GitHub, ou a
+    lista vazia quando o modelo falhou."""
+    demanda_id = str(demanda["id"])
+    [linha] = (
+        supabase.table(TABELA_ENVIOS)
+        .insert(
+            {
+                "demanda_id": demanda_id,
+                "origem": ORIGEM_VALIDACAO,
+                "texto_original": observacao,
+                "topicos": [],
+                "cards": [],
+                "ate_mensagem_em": _agora(),
+                "estado": ESTADO_INTERPRETADO,
+                "estado_em": _agora(),
+            }
+        )
+        .execute()
+        .data
+    )
+    conteudo = pedido_do_envio(
+        demanda,
+        [{"texto": observacao}],
+        None,
+        de_onde="A OBSERVAÇÃO DO DIRETOR AO VALIDAR O PLANO NA APRESENTAÇÃO",
+    )
+    interpretacao = _interpretacao(supabase, demanda, conteudo, kit=kit)
+    if interpretacao is None:
+        return []
+    supabase.table(TABELA_ENVIOS).update({"topicos": interpretacao["topicos"], "cards": interpretacao["cards"]}).eq(
+        "id", linha["id"]
+    ).execute()
+    return [t for t in (texto_do_diretor(t) for t in interpretacao["topicos"]) if t]
 
 
 # ─── O enviar ────────────────────────────────────────────────────────────────
