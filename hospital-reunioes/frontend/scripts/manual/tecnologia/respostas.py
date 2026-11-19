@@ -5,13 +5,15 @@
 Imprime, em JSON, a tabela que o `roteiro.sh` serve no lugar do backend: a
 chave é a rota depois de `/api/admin/tecnologia/`, com a consulta quando há
 (`chat?projeto=ana`), e o valor é o corpo da resposta. Com `--sino`, imprime a
-tabela do sino (issue #1968), com a chave depois de `/api/notificacoes`. Tudo
-sai do `seed.json`,
+tabela do sino (issue #1968), com a chave depois de `/api/notificacoes`. Com
+`--envio`, imprime as respostas dos dois cliques do Envio aos desenvolvedores
+(issue #2015), interpretar e enviar, os únicos pedidos que não são GET a que o
+roteiro responde; o resto continua recusado. Tudo sai do `seed.json`,
 com as datas contadas a partir de hoje, no fuso do hospital: assim o Quadro
 abre com as colunas cheias e as Entregas caem nas últimas semanas, em qualquer
 dia que o roteiro rodar. Nada aqui é gente, pedido ou card de verdade.
 
-Uso: python3 scripts/manual/tecnologia/respostas.py [--sino]
+Uso: python3 scripts/manual/tecnologia/respostas.py [--sino | --envio]
 """
 
 from __future__ import annotations
@@ -83,6 +85,9 @@ def demanda(d: dict) -> dict:
         "em_producao_em": instante(entregue, "18:00") if d["etapa"] == "em_producao" else None,
         "demonstracao_url": d.get("demonstracao"),
         "demonstracao_em": instante(entregue) if d.get("demonstracao") else None,
+        # O atalho Ver o plano (issue #2010): só a página dos planos, com caminho de exemplo.
+        "apresentacao_url": d.get("apresentacao"),
+        "plano_validado": d.get("plano_validado", False),
         "autor": None,
         "raiz_numero": d.get("raiz_numero"),
         "issue_numero": None,
@@ -154,6 +159,14 @@ def conversas(lista: list[dict]) -> dict:
         abrir["bug"], "resumido", bug["falas"], resumo=bug["resumo"], custo=bug["custo"]
     )
     tabela[f"chat/{abrir['painel']}/conversa"] = conversa_da_demanda(SEED["conversa_da_demanda"])
+    # O pedido do Envio aos desenvolvedores (issue #2015): as últimas mensagens são do
+    # diretor, e o botão conta só essas.
+    falas_do_envio = SEED["envio"]["falas"]
+    novas = len(falas_do_envio) - max((i + 1 for i, f in enumerate(falas_do_envio) if not f["minha"]), default=0)
+    tabela[f"chat/{abrir['envio']}/conversa"] = {
+        **conversa_da_demanda(falas_do_envio, prefixo="exemplo-envio"),
+        "envio": {"mensagens_novas": novas},
+    }
     # A pergunta da Vitta que pede a resposta do diretor, no pedido do projeto novo (issue #1968).
     tabela[f"chat/{abrir['projeto_novo']}/conversa"] = conversa_da_demanda(
         SEED["pergunta_do_projeto_novo"]["falas"], prefixo="exemplo-pergunta"
@@ -297,5 +310,36 @@ def sino() -> dict:
     }
 
 
+def envio() -> dict:
+    """Os dois cliques do Envio aos desenvolvedores (issue #2015, ADR 0108): o
+    interpretar devolve o "Entendi assim:" do seed, e o enviar devolve a linha
+    do envio no formato do backend. Nada chega à IA nem ao GitHub. O envio sai
+    meia hora depois da última mensagem do seed, e não na hora do roteiro: rodado
+    de manhã, o print mostraria o envio antes das mensagens que ele resume."""
+    chave = f"chat/{SEED['abrir']['envio']}/conversa"
+    entendi = SEED["envio"]["entendi"]
+    ultima = conversa_da_demanda(SEED["envio"]["falas"])["mensagens"][-1]["criado_em"]
+    agora = datetime.fromisoformat(ultima) + timedelta(minutes=30)
+    linha = "\n".join(
+        [f"Enviado aos desenvolvedores em {agora:%d/%m/%Y}, às {agora:%H:%M}:", *[f"- {t}" for t in entendi["topicos"]]]
+    )
+    return {
+        f"{chave}/interpretar": {"id": "exemplo-envio-1", **entendi},
+        f"{chave}/enviar": {
+            "id": "exemplo-envio-linha",
+            "autor": None,
+            "texto": linha,
+            "criado_em": agora.isoformat(),
+            "minha": False,
+            "sistema": True,
+        },
+    }
+
+
 if __name__ == "__main__":
-    print(json.dumps(sino() if "--sino" in sys.argv[1:] else tabela(), ensure_ascii=False))
+    if "--sino" in sys.argv[1:]:
+        print(json.dumps(sino(), ensure_ascii=False))
+    elif "--envio" in sys.argv[1:]:
+        print(json.dumps(envio(), ensure_ascii=False))
+    else:
+        print(json.dumps(tabela(), ensure_ascii=False))
