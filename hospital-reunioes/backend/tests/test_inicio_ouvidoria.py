@@ -170,3 +170,104 @@ class TestCasoDoSetor:
         assert item.area == "Ouvidoria"
         assert item.destino == "/ouvidoria/responder/C1"
         assert item.acao == "Responder"
+
+    def test_substituto_ve_o_caso_do_setor(self, monkeypatch):
+        substituto = {**TITULAR, "id": "P_SUB", "email": "sergio@hsm.com.br"}
+        banco = _Banco(
+            ouvidoria_setor_responsaveis=[_responsavel("sergio@hsm.com.br", papel="substituto")],
+            ouvidoria_protocolos=[_caso("C2")],
+        )
+
+        assert [item.id for item in _da_ouvidoria(_rota(monkeypatch, substituto, banco))] == ["C2"]
+
+    def test_gestor_ve_o_caso_do_setor(self, monkeypatch):
+        gestor = {**TITULAR, "id": "P_GES", "email": "gilda@hsm.com.br"}
+        banco = _Banco(
+            ouvidoria_setor_responsaveis=[_responsavel("gilda@hsm.com.br", papel="gestor")],
+            ouvidoria_protocolos=[_caso("C3")],
+        )
+
+        assert [item.id for item in _da_ouvidoria(_rota(monkeypatch, gestor, banco))] == ["C3"]
+
+    def test_responsavel_de_outro_setor_nao_ve_o_caso(self, monkeypatch):
+        banco = _Banco(
+            ouvidoria_setor_responsaveis=[_responsavel("tania@hsm.com.br", setor="Recepção")],
+            ouvidoria_protocolos=[_caso("C4", setor="Recepção"), _caso("C5", setor="Farmácia")],
+        )
+
+        assert [item.id for item in _da_ouvidoria(_rota(monkeypatch, TITULAR, banco))] == ["C4"]
+
+    def test_quem_teve_a_vigencia_encerrada_deixa_de_ver(self, monkeypatch):
+        banco = _Banco(
+            ouvidoria_setor_responsaveis=[_responsavel("tania@hsm.com.br", vigencia_fim="2026-11-17")],
+            ouvidoria_protocolos=[_caso("C6")],
+        )
+
+        resposta = _rota(monkeypatch, TITULAR, banco)
+
+        assert _da_ouvidoria(resposta) == []
+        assert resposta.avisos == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. O item mostra o Assunto e nada de quem manifestou
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestSigiloDoItem:
+    def _item(self, monkeypatch, caso: dict):
+        banco = _Banco(ouvidoria_setor_responsaveis=[_responsavel("tania@hsm.com.br")], ouvidoria_protocolos=[caso])
+        [item] = _da_ouvidoria(_rota(monkeypatch, TITULAR, banco))
+        return item
+
+    def test_o_titulo_e_o_assunto_e_o_item_nao_leva_relato_resumo_nem_manifestante(self, monkeypatch):
+        item = self._item(monkeypatch, _caso("C10", assunto="Demora na recepção do pronto-socorro"))
+
+        assert item.titulo == "Demora na recepção do pronto-socorro"
+        texto = item.model_dump_json()
+        assert "Resumo literal" not in texto
+        assert "Relato integral" not in texto
+        assert "Maria Manifestante" not in texto
+
+    def test_caso_sem_assunto_mostra_o_protocolo(self, monkeypatch):
+        item = self._item(monkeypatch, _caso("C11", assunto=None))
+
+        assert item.titulo == "Manifestação OUV-2026-C11"
+
+    def test_caso_sigiloso_mostra_o_protocolo_e_nao_o_assunto(self, monkeypatch):
+        item = self._item(monkeypatch, _caso("C12", assunto="Denúncia sobre a chefia", sigilo_reforcado=True))
+
+        assert item.titulo == "Manifestação OUV-2026-C12"
+        assert "Denúncia" not in item.model_dump_json()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. O caso que já não espera a área sai da fila
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestSaiDaFila:
+    def _ids(self, monkeypatch, casos: list[dict], prorrogacoes: list[dict] | None = None) -> list[str]:
+        banco = _Banco(
+            ouvidoria_setor_responsaveis=[_responsavel("tania@hsm.com.br")],
+            ouvidoria_protocolos=casos,
+            ouvidoria_prorrogacoes=prorrogacoes or [],
+        )
+        return sorted(item.id for item in _da_ouvidoria(_rota(monkeypatch, TITULAR, banco)))
+
+    def test_caso_respondido_sai_da_fila(self, monkeypatch):
+        assert self._ids(monkeypatch, [_caso("C20"), _caso("C21", status="respondido")]) == ["C20"]
+
+    def test_caso_devolvido_a_ouvidoria_sai_da_fila(self, monkeypatch):
+        assert self._ids(monkeypatch, [_caso("C22"), _caso("C23", status="em_classificacao")]) == ["C22"]
+
+    def test_caso_com_prorrogacao_pedida_sai_da_fila(self, monkeypatch):
+        prorrogacoes = [
+            {"manifestacao_id": "C25", "status": "pendente"},
+            {"manifestacao_id": "C26", "status": "aprovada"},
+        ]
+
+        assert self._ids(monkeypatch, [_caso("C24"), _caso("C25"), _caso("C26")], prorrogacoes) == ["C24", "C26"]
+
+    def test_caso_ainda_nao_acionado_nao_entra(self, monkeypatch):
+        assert self._ids(monkeypatch, [_caso("C27"), _caso("C28", validada_em=None)]) == ["C27"]
