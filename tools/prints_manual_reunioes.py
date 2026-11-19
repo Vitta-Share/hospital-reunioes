@@ -84,6 +84,8 @@ PENDENCIAS = [
     ("PE1721B", "Conferir o estoque de antissépticos", "P17211", 3, "EM_PROGRESSO", "Planilha de estoque conferida"),
     ("PE1721C", "Calibrar as bombas de infusão do leito 4 ao 8", "P17213", -2, "ATRASADO", "Laudo de calibração"),
     ("PE1721D", "Ajustar a dieta dos pacientes em jejum prolongado", "P17214", -5, "CONCLUIDO", "Cardápio ajustado"),
+    # A da própria Facilitadora: o print do Início mostra a fila dela.
+    ("PE1721E", "Mandar a pauta da próxima reunião da UTI", "P17210", 4, "PENDENTE", "Pauta enviada aos participantes"),
 ]
 
 
@@ -456,6 +458,8 @@ const cartao = (titulo) =>
     .locator("xpath=ancestor::div[contains(@class,'rounded-2xl')][1]");
 const pronto = async (clip) => {
   await page.evaluate(() => document.activeElement && document.activeElement.blur());
+  // O selo do Next em modo de desenvolvimento não é do app.
+  await page.evaluate(() => document.querySelectorAll('nextjs-portal').forEach((e) => e.remove()));
   await page.waitForTimeout(400);
   return { texto: await page.evaluate(() => document.body.innerText), clip };
 };
