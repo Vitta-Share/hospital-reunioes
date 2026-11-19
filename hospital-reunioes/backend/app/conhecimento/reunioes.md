@@ -57,6 +57,12 @@ Além das pendências, a ata que falta assinar aparece no Início de cada signat
 
 Quem acompanha outras pessoas vê, abaixo da lista, o bloco Quem responde a você. Enquanto o organograma não chega, vale o vínculo: quem administra o aplicativo vê todas as pessoas com pendência aberta, e o facilitador vê os responsáveis das pendências das reuniões que conduziu, contando só as pendências dessas reuniões. Quem não é nenhum dos dois não vê o bloco. Cada linha mostra o nome, o cargo, os prazos vencidos agora, os itens em aberto e o último acesso ao Início ("hoje", "há tantos dias" ou "nunca entrou"), e quem tem mais prazos vencidos vem primeiro. Clicar na linha, ou apertar Enter nela, abre ali mesmo, só para leitura, o que venceu e não foi entregue, com há quantos dias. O último acesso de uma pessoa só aparece para quem vê alguma pendência dela, e as pendências do Núcleo ficam de fora para quem o Núcleo não deixa ver, inclusive quem administra o aplicativo. Se esse bloco não carregar, o resto do Início continua. No celular a tabela rola de lado dentro do próprio bloco.
 
+## O calendário
+
+No calendário de Reuniões, na visão do mês e na da semana, as reuniões de cada dia aparecem na ordem da hora de início, e a mais cedo vem primeiro. No mês, o dia mostra as três primeiras e um "mais" para abrir as outras. O título que não cabe no bloco aparece inteiro quando se passa o mouse sobre a reunião.
+
+Na tela da reunião, o botão Excluir, que só quem administra o aplicativo vê, é discreto, com borda e texto vermelhos, como o Desmarcar ao lado dele. Ele continua pedindo confirmação antes de apagar, e as regras de quando uma reunião pode ser apagada não mudaram.
+
 ## O que ele não faz
 
 - Não grava a reunião: o aplicativo não capta o que se fala na sala. O áudio que ele recebe é o ditado, quando o facilitador prefere falar a digitar na ata guiada: esse áudio sobe, é transcrito ali mesmo e descartado. Áudio nenhum fica guardado.
@@ -79,6 +85,8 @@ Quem acompanha outras pessoas vê, abaixo da lista, o bloco Quem responde a voc�
 - Os títulos e subtítulos do PDF da ata saem em caixa alta, inclusive os tópicos escritos pela inteligência artificial, e o resto do texto continua com maiúscula e minúscula.
 - As reuniões do Núcleo de Segurança do Paciente ficam no módulo Segurança do Paciente e não aparecem para quem não é do Núcleo, nem para quem administra o aplicativo.
 - Cada pessoa vê as pendências dela e as das reuniões que facilita, quem só participou da reunião não vê as dos outros, e quem administra o aplicativo vê todas, fora as do Núcleo.
+- No calendário, as reuniões de cada dia seguem a hora de início, da mais cedo para a mais tarde.
+- O botão Excluir da reunião fica discreto, para não ser o mais chamativo da tela.
 
 ## O que costuma virar Demanda
 
