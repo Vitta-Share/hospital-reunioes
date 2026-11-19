@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
+from fastapi import HTTPException
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -172,3 +173,154 @@ class TestQuemAparece:
         resposta = _rota(monkeypatch, SUPER, banco)
 
         assert sorted(_nomes(resposta)) == ["Ana Souza", "Bruno Reis"]
+
+    def test_facilitador_ve_so_os_responsaveis_das_pendencias_das_reunioes_dele(self, monkeypatch, nucleo):
+        banco = _banco(
+            _pendencia("A1", "P_ANA", id_reuniao="R1"),
+            _pendencia("A2", "P_ANA", id_reuniao="R2"),
+            _pendencia("B1", "P_BRUNO", id_reuniao="R1", co_responsavel_id="P_CAIO"),
+            _pendencia("C1", "P_CAIO", id_reuniao="R2"),
+        )
+
+        resposta = _rota(monkeypatch, FACILITADOR, banco)
+
+        assert sorted(_nomes(resposta)) == ["Ana Souza", "Bruno Reis", "Caio Melo"]
+        # De cada pessoa, só os itens das Reuniões que ele conduziu.
+        assert {p.id: p.em_aberto for p in resposta.pessoas} == {"P_ANA": 1, "P_BRUNO": 1, "P_CAIO": 1}
+
+    def test_quem_nao_e_super_admin_nem_facilitador_nao_recebe_o_bloco(self, monkeypatch, nucleo):
+        banco = _banco(_pendencia("A1", "P_ANA", id_reuniao="R1"))
+
+        assert _rota(monkeypatch, NINGUEM, banco) is None
+
+    def test_quem_nao_tem_perfil_das_reunioes_nao_recebe_o_bloco(self, monkeypatch, nucleo):
+        sem_perfil = {"id": "P_FAC", "nome_completo": "Fábio Lima", "access_profile": None}
+        banco = _banco(_pendencia("A1", "P_ANA", id_reuniao="R1"))
+
+        assert _rota(monkeypatch, sem_perfil, banco) is None
+
+    def test_a_secretaria_e_recusada(self, monkeypatch, nucleo):
+        with pytest.raises(HTTPException) as erro:
+            _rota(monkeypatch, SECRETARIA, _banco(_pendencia("A1", "P_ANA")))
+        assert erro.value.status_code == 403
+
+    def test_quem_pede_nao_aparece_na_propria_lista(self, monkeypatch, nucleo):
+        banco = _banco(_pendencia("F1", "P_FAC", id_reuniao="R1"), _pendencia("A1", "P_ANA", id_reuniao="R1"))
+
+        assert _nomes(_rota(monkeypatch, FACILITADOR, banco)) == ["Ana Souza"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. A linha de cada pessoa e a ordem
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestLinhaDaPessoa:
+    def test_a_linha_traz_nome_cargo_vencidos_em_aberto_e_ultimo_acesso_sem_role(self, monkeypatch, nucleo):
+        banco = _banco(
+            _vencida("A1", "P_ANA", 4),
+            _vencida("A2", "P_ANA", 1),
+            _pendencia("A3", "P_ANA"),
+            # Prazo de hoje ainda não venceu: só vence quando o dia acaba.
+            _pendencia("A4", "P_ANA", prazo=HOJE.isoformat()),
+            acessos=[("P_ANA", "2026-11-10"), ("P_ANA", "2026-11-15")],
+        )
+
+        resposta = _rota(monkeypatch, SUPER, banco)
+
+        ana = resposta.pessoas[0]
+        assert (ana.nome, ana.cargo, ana.vencidos, ana.em_aberto, ana.ultimo_acesso) == (
+            "Ana Souza",
+            "Enfermeira",
+            2,
+            4,
+            "há 3 dias",
+        )
+        corpo = json.dumps(resposta.model_dump(mode="json"))
+        assert "role" not in corpo
+        assert "gerente" not in corpo
+
+    @pytest.mark.parametrize(
+        ("acessos", "texto"),
+        [
+            ([("P_ANA", "2026-11-18")], "hoje"),
+            ([("P_ANA", "2026-11-17")], "há 1 dia"),
+            ([("P_ANA", "2026-11-08")], "há 10 dias"),
+            ([], "nunca entrou"),
+        ],
+    )
+    def test_o_ultimo_acesso_diz_hoje_ha_n_dias_ou_nunca_entrou(self, monkeypatch, nucleo, acessos, texto):
+        banco = _banco(_pendencia("A1", "P_ANA"), acessos=acessos)
+
+        assert _rota(monkeypatch, SUPER, banco).pessoas[0].ultimo_acesso == texto
+
+    def test_a_lista_vem_ordenada_por_prazos_vencidos(self, monkeypatch, nucleo):
+        banco = _banco(
+            # Ana: muito em aberto, um vencido. Bruno: três vencidos. Caio: nenhum.
+            _vencida("A1", "P_ANA", 2),
+            *[_pendencia(f"A{n}", "P_ANA") for n in range(2, 8)],
+            _vencida("B1", "P_BRUNO", 1),
+            _vencida("B2", "P_BRUNO", 1),
+            _vencida("B3", "P_BRUNO", 9),
+            _pendencia("C1", "P_CAIO"),
+        )
+
+        assert _nomes(_rota(monkeypatch, SUPER, banco)) == ["Bruno Reis", "Ana Souza", "Caio Melo"]
+
+    def test_o_que_venceu_e_nao_foi_entregue_vem_com_ha_quantos_dias(self, monkeypatch, nucleo):
+        banco = _banco(
+            _vencida("B1", "P_BRUNO", 2, descricao_acao="Trocar o filtro da farmácia"),
+            _vencida("B2", "P_BRUNO", 12, descricao_acao="Revisar o estoque"),
+            _pendencia("B3", "P_BRUNO", descricao_acao="Ainda no prazo"),
+        )
+
+        bruno = _rota(monkeypatch, SUPER, banco).pessoas[0]
+
+        assert [(i.titulo, i.dias_de_atraso, i.origem) for i in bruno.itens_vencidos] == [
+            ("Revisar o estoque", 12, "Reunião de Atendimento, de 28/10/2026."),
+            ("Trocar o filtro da farmácia", 2, "Reunião de Atendimento, de 28/10/2026."),
+        ]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. O sigilo do Núcleo e o último acesso
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestSigilo:
+    def test_super_admin_sem_acesso_ao_nucleo_nao_ve_itens_do_nucleo(self, monkeypatch, nucleo):
+        banco = _banco(
+            _pendencia("A1", "P_ANA", id_reuniao="R1"),
+            _pendencia("A2", "P_ANA", id_reuniao="RN"),
+            _pendencia("B1", "P_BRUNO", id_reuniao="RN"),
+            # O lembrete da Agenda regulatória, Pendência sem Reunião.
+            _pendencia("C1", "P_CAIO", id_reuniao=None),
+        )
+
+        resposta = _rota(monkeypatch, SUPER, banco)
+
+        assert _nomes(resposta) == ["Ana Souza"]
+        assert resposta.pessoas[0].em_aberto == 1
+
+    def test_super_admin_com_acesso_ao_nucleo_ve_os_itens_do_nucleo(self, monkeypatch, nucleo):
+        nucleo["ocultas"] = []
+        nucleo["recursos"] = frozenset({"reunioes", "agenda"})
+        banco = _banco(_pendencia("B1", "P_BRUNO", id_reuniao="RN"), _pendencia("C1", "P_CAIO", id_reuniao=None))
+
+        assert sorted(_nomes(_rota(monkeypatch, SUPER, banco))) == ["Bruno Reis", "Caio Melo"]
+
+    def test_o_ultimo_acesso_so_sai_de_quem_tem_item_visivel(self, monkeypatch, nucleo):
+        # Bruno só tem item do Núcleo, que o Super admin não alcança; Caio não
+        # tem item aberto nenhum. Os dois abriram o Início hoje.
+        banco = _banco(
+            _pendencia("A1", "P_ANA", id_reuniao="R1"),
+            _pendencia("B1", "P_BRUNO", id_reuniao="RN"),
+            acessos=[("P_ANA", "2026-11-18"), ("P_BRUNO", "2026-11-18"), ("P_CAIO", "2026-11-18")],
+        )
+
+        corpo = json.dumps(_rota(monkeypatch, SUPER, banco).model_dump(mode="json"))
+
+        assert "P_ANA" in corpo
+        assert "P_BRUNO" not in corpo
+        assert "P_CAIO" not in corpo
+        assert corpo.count("hoje") == 1

@@ -25,8 +25,8 @@ from pydantic import BaseModel
 
 from app.dependencies import is_super_admin, recursos_nsp_da_pessoa, reunioes_ocultas, tem_acesso_reunioes
 from app.services.inicio.fonte_pendencias import STATUS_ABERTOS
-from app.services.inicio.regras import FUSO, dias_de_atraso
 from app.services.inicio.registro_de_acesso import TABELA as TABELA_DO_REGISTRO
+from app.services.inicio.regras import FUSO, dias_de_atraso
 from app.services.paginacao import ler_tudo
 from app.services.pendencia_service import e_lembrete_do_nucleo
 
@@ -60,8 +60,9 @@ def _data(valor: Any) -> date | None:
 
 
 def texto_do_ultimo_acesso(dia: date | None, hoje: date) -> str:
-    """"hoje", "há N dias" ou "nunca entrou". O Registro guarda 90 dias, então
-    quem não abre o Início há mais tempo que isso também lê "nunca entrou"."""
+    """O texto do último acesso: "hoje", "há N dias" ou "nunca entrou". O
+    Registro guarda 90 dias, então quem não abre o Início há mais tempo que
+    isso também lê "nunca entrou"."""
     if dia is None:
         return "nunca entrou"
     dias = max((hoje - dia).days, 0)
