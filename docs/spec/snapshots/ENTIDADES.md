@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-18T23:29+0000 -->
+<!-- last_update: 2026-11-19T18:00+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -839,7 +839,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## tecnologia_demandas
 
-> Origem: `102_tecnologia_fundacao.sql` (alterada em: 103_tecnologia_vinculo.sql, 115_tecnologia_anexos_e_em_producao.sql, 128_tecnologia_envio_falhou.sql, 130_tecnologia_adr_0084.sql, 133_tecnologia_demonstracao.sql, 134_tecnologia_numero_da_demanda.sql, 145_tecnologia_projeto_da_demanda.sql, 163_tecnologia_projeto_novo.sql)
+> Origem: `102_tecnologia_fundacao.sql` (alterada em: 103_tecnologia_vinculo.sql, 115_tecnologia_anexos_e_em_producao.sql, 128_tecnologia_envio_falhou.sql, 130_tecnologia_adr_0084.sql, 133_tecnologia_demonstracao.sql, 134_tecnologia_numero_da_demanda.sql, 145_tecnologia_projeto_da_demanda.sql, 163_tecnologia_projeto_novo.sql, 164_tecnologia_atalho_do_plano.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -883,6 +883,8 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `projeto` | `TEXT` | NOT NULL | `'hospital'` | — |
 | `projeto_nome` | `TEXT` | — | — | — |
 | `raiz_url` | `TEXT` | — | — | — |
+| `apresentacao_url` | `TEXT` | — | — | — |
+| `plano_validado` | `BOOLEAN` | NOT NULL | `false` | — |
 
 **Indexes:**
 - `idx_tecnologia_demandas_estado` em `(estado)` (de `102_tecnologia_fundacao.sql`)
