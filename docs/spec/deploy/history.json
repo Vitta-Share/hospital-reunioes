@@ -2,6 +2,51 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-19T19:28:08-03:00",
+      "sha": "f5220b242c835c52d7fabadf00b63ee18637b8a1",
+      "app_version": "0.319.1",
+      "subject": "Onda sesta-1932-onda8: Página do Início, com as três tarefas, os prints do roteiro e o fluxograma",
+      "raw_subject": "chore(deploy): registro da onda sesta-1932-onda8 (#2037)",
+      "scope": [
+        "frontend"
+      ],
+      "prds": [
+        1932
+      ],
+      "result": "healthy",
+      "duration_seconds": 269,
+      "services_touched": [
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1932-onda8: PR #2037 (issue #1947), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "frontend": 228
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-19T18:44:03-03:00",
       "sha": "91b4ee21acafe6512d23d8477a5b9be96856c554",
       "app_version": "0.319.0",
