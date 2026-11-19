@@ -293,6 +293,91 @@ def test_estado_do_prd_validado_traz_data_hora_e_observacao():
     assert {c["method"] for c in r["chamadas"]} == {"GET"}
 
 
+def test_sem_a_label_o_plano_nao_esta_validado_mesmo_com_comentario_antigo():
+    r = _estado(
+        {"prd": "1757"},
+        {
+            "/issues/1757": _prd("PRD"),
+            "/issues/1757/comments": [VALIDACAO_COM_OBS],
+        },
+    )
+    assert r["status"] == 200
+    assert r["resposta"]["ok"] is True
+    assert r["resposta"]["validado"] is False
+    assert r["resposta"]["observacao"] is None
+
+
+def test_validado_sem_observacao_devolve_observacao_nula():
+    sem_obs = _comentario(
+        "<!-- validacao-diretor: 2026-11-19T13:05:00.000Z -->\n"
+        "O diretor validou este plano pela Apresentação do PRD em 19/11/2026, às 10:05.\n\n"
+        "Sem observação."
+    )
+    r = _estado(
+        {"prd": "1757"},
+        {
+            "/issues/1757": _prd("validado:diretor"),
+            "/issues/1757/comments": [VALIDACAO_ANTIGA, sem_obs],
+        },
+    )
+    assert r["resposta"] == {
+        "ok": True,
+        "validado": True,
+        "data": "19/11/2026",
+        "hora": "10:05",
+        "observacao": None,
+    }
+
+
+def test_comentario_de_fora_com_o_marcador_nao_vira_a_observacao():
+    falso = _comentario(
+        "<!-- validacao-diretor: 2026-11-20T13:00:00.000Z -->\n"
+        "Observação dele:\n\n> Texto de quem não é do repositório.",
+        associacao="NONE",
+    )
+    r = _estado(
+        {"prd": "1757"},
+        {
+            "/issues/1757": _prd("validado:diretor"),
+            "/issues/1757/comments": [VALIDACAO_COM_OBS, falso],
+        },
+    )
+    assert r["resposta"]["data"] == "19/11/2026"
+    assert r["resposta"]["observacao"] == "Rever o painel.\nE a cor do botão."
+
+
+@pytest.mark.parametrize(
+    ("query", "respostas"),
+    [
+        ({"prd": "abc"}, {}),
+        ({}, {}),
+        ({"prd": "1757"}, {"/issues/1757": {"__falha": 503}}),
+        ({"prd": "1757"}, {"/issues/1757": {"__rede": True}}),
+        ({"prd": "424242"}, {}),
+        (
+            {"prd": "1757"},
+            {
+                "/issues/1757": _prd("validado:diretor"),
+                "/issues/1757/comments": {"__falha": 500},
+            },
+        ),
+    ],
+    ids=[
+        "prd-nao-numero",
+        "sem-prd",
+        "github-503",
+        "github-fora",
+        "prd-inexistente",
+        "comentarios-falham",
+    ],
+)
+def test_github_fora_ou_prd_invalido_responde_erro_sem_quebrar(query, respostas):
+    r = _estado(query, respostas)
+    assert r["status"] >= 400
+    assert r["resposta"]["ok"] is False
+    assert r["resposta"]["erro"]
+
+
 # --- O script da skill -------------------------------------------------------
 
 SCRIPT = RAIZ / ".claude" / "skills" / "apresentar-prd" / "scripts" / "apresentar.py"
