@@ -18,7 +18,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel
 
-from app.services.inicio import fonte_ouvidoria, fonte_pendencias, fonte_reunioes
+from app.services.inicio import fonte_ouvidoria, fonte_pendencias, fonte_pops, fonte_reunioes
 from app.services.inicio.regras import (
     ATE_48_HORAS,
     FUSO,
@@ -47,6 +47,7 @@ FONTES: tuple[Fonte, ...] = (
     Fonte("pendencias", fonte_pendencias.ROTULO, fonte_pendencias.itens),
     Fonte("atas", fonte_reunioes.ROTULO, fonte_reunioes.itens),
     Fonte("ouvidoria", fonte_ouvidoria.ROTULO, fonte_ouvidoria.itens),
+    Fonte("pops", fonte_pops.ROTULO, fonte_pops.itens),
 )
 
 # A Fila do papel (ADR 0104, decisão 6): a fila sem responsável nomeado, uma
