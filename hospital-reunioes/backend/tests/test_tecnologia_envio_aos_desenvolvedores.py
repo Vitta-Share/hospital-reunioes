@@ -330,6 +330,22 @@ class TestEnviar:
         assert diretor.post(ENVIAR, json={"envio_id": segunda}).status_code == 422
         assert len(gh.criadas) == 1
 
+    def test_a_interpretacao_mais_antiga_nao_sai_depois_da_mais_nova(self, monkeypatch):
+        """Duas abas (ou dois diretores no card de Origem Vitta): A interpretou,
+        chegou mensagem nova, B interpretou e saiu. A ainda na tela não abre o
+        segundo Ajuste com mensagens que já foram."""
+        diretor, _, gh = _montar(monkeypatch)
+        _escrever(diretor, FALA_DO_DIRETOR)
+        antiga = _interpretado(monkeypatch, diretor)
+        _escrever(diretor, "E também o relatório mensal de horas extras precisa sair em PDF")
+        nova = _interpretado(monkeypatch, diretor)
+
+        assert diretor.post(ENVIAR, json={"envio_id": nova}).status_code == 200
+        velha = diretor.post(ENVIAR, json={"envio_id": antiga})
+
+        assert velha.status_code == 422
+        assert len(gh.criadas) == 1
+
     def test_a_falha_do_github_devolve_o_motivo_e_o_tente_de_novo_envia(self, monkeypatch):
         diretor, _, gh = _montar(monkeypatch)
         _escrever(diretor, FALA_DO_DIRETOR)

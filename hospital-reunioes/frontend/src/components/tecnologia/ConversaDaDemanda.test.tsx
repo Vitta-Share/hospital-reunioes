@@ -209,6 +209,32 @@ describe("O Envio aos desenvolvedores", () => {
     expect(chamadas.filter((c) => c.url === `${URL}/enviar`).map((c) => c.corpo)).toEqual([{ envio_id: "e-1" }]);
   });
 
+  it("a mensagem escrita com o Entendi assim aberto fica para o próximo envio e o botão segue ligado", async () => {
+    montarEnvio(
+      { mensagens_novas: 1 },
+      {
+        [`${URL}/interpretar`]: [{ ok: true, status: 200, corpo: ENTENDI }],
+        [`${URL}/enviar`]: [{ ok: true, status: 200, corpo: LINHA }],
+      },
+    );
+    await within(area()).findByText("O relatório sumiu de novo.");
+
+    fireEvent.click(botaoDoEnvio());
+    const painel = await within(area()).findByRole("group", {
+      name: "Entendi assim:",
+    });
+    fireEvent.change(within(area()).getByRole("textbox", { name: "Mensagem para a Conversa" }), {
+      target: { value: "Esqueci de dizer a ala." },
+    });
+    fireEvent.click(within(area()).getByRole("button", { name: "Enviar na Conversa" }));
+    await within(area()).findByText("Esqueci de dizer a ala.");
+
+    fireEvent.click(within(painel).getByRole("button", { name: "Enviar" }));
+
+    await within(area()).findByText(/Enviado aos desenvolvedores em 19\/11\/2026, às 14:32/);
+    expect((botaoDoEnvio() as HTMLButtonElement).disabled).toBe(false);
+  });
+
   it("o Corrigir fecha o painel, volta ao campo e não envia nada", async () => {
     const chamadas = montarEnvio(
       { mensagens_novas: 1 },

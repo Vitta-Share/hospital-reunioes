@@ -403,6 +403,12 @@ def enviar(supabase, demanda: dict[str, Any], *, ator: dict[str, Any], envio_id:
         raise EnvioRecusadoError(MOTIVO_JA_ENVIADO)
     if _em_andamento(envio):
         raise EnvioRecusadoError(MOTIVO_EM_ANDAMENTO)
+    # Um envio que ja saiu cobriu ate estas mensagens (a interpretacao e de
+    # antes dele: outra aba, ou outro diretor no card de Origem Vitta).
+    ja_saiu_ate = _ultimo_enviado_ate(envios)
+    deste = instante_do_banco(envio.get("ate_mensagem_em"))
+    if ja_saiu_ate is not None and (deste is None or deste <= ja_saiu_ate):
+        raise EnvioRecusadoError(MOTIVO_JA_ENVIADO)
     # Outra interpretacao das mesmas mensagens (outra aba) ja saiu ou esta saindo.
     for outro in envios:
         if outro is envio or not _mesmas_mensagens(outro, envio):

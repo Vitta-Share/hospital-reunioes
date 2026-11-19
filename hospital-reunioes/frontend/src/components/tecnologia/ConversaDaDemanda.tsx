@@ -35,7 +35,13 @@ type Mensagem = {
 type Mencionavel = { id: string; nome: string };
 /** O botão do envio: nulo quando ele não aparece (Desenvolvedor, ou pedido sem card). */
 type Envio = { mensagens_novas: number };
-type Entendi = { id: string; topicos: string[]; cards: { numero: number; muda: string }[] };
+type Entendi = {
+  id: string;
+  topicos: string[];
+  cards: { numero: number; muda: string }[];
+  /** Quantas mensagens novas a interpretação leu: o Enviar desconta só estas. */
+  cobertas?: number;
+};
 
 const CONVERSA_FALHOU = "Não foi possível carregar a Conversa da Demanda. Tente recarregar a página.";
 
@@ -97,6 +103,9 @@ export function ConversaDaDemanda({
   // A ação que falhou, para o "Tente de novo" repetir a mesma.
   const [falhou, setFalhou] = useState<{ motivo: string; repetir: () => void } | null>(null);
   const caixa = useRef<HTMLTextAreaElement>(null);
+  // O "Tente de novo" do interpretar repete uma função antiga: o contador vem daqui.
+  const envioAgora = useRef<Envio | null>(envio);
+  envioAgora.current = envio;
 
   useEffect(() => {
     if (!token) return;
@@ -180,6 +189,8 @@ export function ConversaDaDemanda({
     if (!token || ocupado) return;
     setOcupado(true);
     setFalhou(null);
+    // A mensagem escrita depois deste pedido fica fora da interpretação.
+    const cobertas = envioAgora.current?.mensagens_novas ?? 0;
     try {
       const resposta = await fetch(`${urlDaConversaDaDemanda(demandaId)}/interpretar`, {
         method: "POST",
@@ -190,7 +201,7 @@ export function ConversaDaDemanda({
         return;
       }
       const corpo: unknown = await resposta.json();
-      if (entendiValido(corpo)) setEntendi(corpo);
+      if (entendiValido(corpo)) setEntendi({ ...corpo, cobertas });
     } catch (e) {
       console.error("[admin/tecnologia] falha ao interpretar o envio", e);
       setFalhou({ motivo: FALHA_DE_CONEXAO, repetir: interpretar });
@@ -217,7 +228,10 @@ export function ConversaDaDemanda({
       const linha: unknown = await resposta.json();
       if (mensagemValida(linha)) setMensagens((atuais) => [...(atuais ?? []), linha]);
       setEntendi(null);
-      setEnvio({ mensagens_novas: 0 });
+      // A mensagem escrita com o "Entendi assim:" aberto não foi neste Ajuste: espera o próximo.
+      setEnvio((atual) => ({
+        mensagens_novas: Math.max(0, (atual?.mensagens_novas ?? 0) - (aprovado.cobertas ?? 0)),
+      }));
     } catch (e) {
       console.error("[admin/tecnologia] falha ao enviar aos desenvolvedores", e);
       setFalhou({ motivo: FALHA_DE_CONEXAO, repetir });
