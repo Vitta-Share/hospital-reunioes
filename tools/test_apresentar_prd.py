@@ -34,7 +34,15 @@ const [validar, corpo, respostas] = process.argv.slice(1);
 const fixas = JSON.parse(respostas || '{}');
 const chamadas = [];
 global.fetch = async (url, opt) => {
-  chamadas.push({ url, method: opt.method, body: opt.body ? JSON.parse(opt.body) : null });
+  chamadas.push({ url, method: opt.method, headers: opt.headers || {}, body: opt.body ? JSON.parse(opt.body) : null });
+  // O app (a ponte de automação) responde o que o teste fixar em "APP"; sem
+  // fixar, fica fora do ar (a rede falha).
+  if (!url.startsWith('https://api.github.com/')) {
+    const app = fixas.APP;
+    if (app === undefined || app.__rede) throw new TypeError('fetch failed');
+    const st = app.__falha || 201;
+    return { ok: st < 400, status: st, json: async () => app };
+  }
   const chave = opt.method + ' ' + url.replace(/^.*\/repos\/[^/]+\/[^/]+/, '').replace(/\?.*$/, '');
   let r = fixas[chave];
   if (r === undefined) r = opt.method === 'GET' ? [] : chave === 'POST /issues' ? { id: 999, number: 1999 } : {};
@@ -58,10 +66,15 @@ def _hmac(prd: int) -> str:
     ]
 
 
-def _validar(corpo: dict, respostas: dict | None = None) -> dict:
+def _validar(
+    corpo: dict, respostas: dict | None = None, *, chave_do_app: str | None = None
+) -> dict:
     if not shutil.which("node"):
         pytest.fail("o teste da função de validar precisa do node no PATH")
     env = {**os.environ, "SEGREDO": SEGREDO, "GITHUB_TOKEN": "token-falso"}
+    env.pop("APP_API_KEY", None)
+    if chave_do_app is not None:
+        env["APP_API_KEY"] = chave_do_app
     out = subprocess.run(
         [
             "node",
@@ -105,7 +118,6 @@ def test_validar_com_codigo_certo_grava_label_e_comentario_com_marcador():
         comentario["body"]["body"],
     )
     assert marcador, comentario["body"]["body"]
-    assert "Pode seguir." in comentario["body"]["body"]
 
 
 def _sub(n, labels=("ready-for-agent",), estado="open"):
@@ -160,7 +172,6 @@ def test_observacao_abre_ajuste_do_plano_que_bloqueia_so_as_fatias_iniciais():
     assert card["body"]["title"].startswith("Ajuste do plano")
     corpo = card["body"]["body"]
     assert corpo.startswith("<!-- ajuste-do-plano: 1757 -->")
-    assert "> Rever o painel." in corpo
     assert "#1863" in corpo  # em andamento: listada, não bloqueada
 
     [sub] = _chamadas(r, "POST", "/issues/1757/sub_issues")
@@ -190,6 +201,142 @@ def test_falha_no_ajuste_nao_perde_a_validacao_e_avisa_no_comentario():
     [comentario] = _chamadas(r, "POST", "/issues/1757/comments")
     assert "abra o Ajuste do plano à mão" in comentario["body"]["body"]
     assert _chamadas(r, "POST", "/dependencies/blocked_by") == []
+
+
+# --- A observação fica no app (issue #2013, ADR 0108, decisão 5) -------------
+
+CHAVE_DO_APP = "chave-do-app-de-teste"
+# A observação do diretor: nada dela pode chegar ao GitHub.
+OBSERVACAO = "Quero que a enfermeira Joana do terceiro andar veja o painel antes"
+TOPICOS = ["A enfermagem vê o painel antes da reunião.", "O painel abre na escala."]
+
+
+def _no_github(r) -> str:
+    """Tudo o que a função mandou ao GitHub (títulos e corpos), num texto só."""
+    return json.dumps(
+        [c["body"] for c in r["chamadas"] if c["url"].startswith("https://api.github.com/")],
+        ensure_ascii=False,
+    )
+
+
+def _sem_trecho_da_observacao(texto: str) -> None:
+    palavras = OBSERVACAO.split()
+    for i in range(len(palavras) - 3):
+        trecho = " ".join(palavras[i : i + 4])
+        assert trecho not in texto, f"o GitHub recebeu a fala do diretor: {trecho!r}"
+
+
+def test_com_o_app_no_ar_o_comentario_e_o_ajuste_levam_so_os_topicos():
+    r = _validar(
+        {"prd": 1757, "c": _hmac(1757), "observacao": OBSERVACAO},
+        {**SUB_ISSUES, "APP": {"guardada": True, "topicos": TOPICOS}},
+        chave_do_app=CHAVE_DO_APP,
+    )
+    assert r["status"] == 200 and r["resposta"]["ok"] is True
+
+    [app] = [c for c in r["chamadas"] if not c["url"].startswith("https://api.github.com/")]
+    assert app["url"] == "https://api.hospitalsaomatheus.cloud/api/automacao/tecnologia/validacoes"
+    assert app["method"] == "POST"
+    assert app["headers"]["X-API-Key"] == CHAVE_DO_APP
+    assert app["body"] == {"prd": 1757, "observacao": OBSERVACAO}
+
+    [comentario] = _chamadas(r, "POST", "/issues/1757/comments")
+    assert (
+        "Observação dele:\n\n> A enfermagem vê o painel antes da reunião.\n> O painel abre na escala.\n\n"
+        in comentario["body"]["body"]
+    )
+    [card] = _chamadas(r, "POST", "/repos/pedrorezendefig/hospital-reunioes/issues")
+    assert "- A enfermagem vê o painel antes da reunião." in card["body"]["body"]
+    assert "- O painel abre na escala." in card["body"]["body"]
+    _sem_trecho_da_observacao(_no_github(r))
+
+
+@pytest.mark.parametrize(
+    "app, chave, aviso",
+    [
+        # O app guardou, mas a interpretação falhou.
+        (
+            {"guardada": True, "topicos": []},
+            CHAVE_DO_APP,
+            "Observação guardada fora do GitHub; leia no app.",
+        ),
+        # O app fora do ar, com erro ou sem rede.
+        ({"__falha": 502}, CHAVE_DO_APP, "Observação recebida; leia no e-mail de aviso."),
+        ({"__rede": True}, CHAVE_DO_APP, "Observação recebida; leia no e-mail de aviso."),
+        # A variável não existe: o app nem é chamado.
+        (
+            {"guardada": True, "topicos": TOPICOS},
+            None,
+            "Observação recebida; leia no e-mail de aviso.",
+        ),
+    ],
+)
+def test_sem_o_app_a_validacao_entra_e_o_github_nao_recebe_a_observacao(app, chave, aviso):
+    r = _validar(
+        {"prd": 1757, "c": _hmac(1757), "observacao": OBSERVACAO},
+        {**SUB_ISSUES, "APP": app},
+        chave_do_app=chave,
+    )
+    assert r["status"] == 200 and r["resposta"]["ok"] is True
+    [label] = _chamadas(r, "POST", "/issues/1757/labels")
+    assert label["body"] == {"labels": ["validado:diretor"]}
+    [comentario] = _chamadas(r, "POST", "/issues/1757/comments")
+    assert f"Observação dele:\n\n> {aviso}" in comentario["body"]["body"]
+    # O Ajuste abre sem a citação nem os tópicos.
+    [card] = _chamadas(r, "POST", "/repos/pedrorezendefig/hospital-reunioes/issues")
+    assert "> " not in card["body"]["body"]
+    assert "A enfermagem vê o painel" not in card["body"]["body"]
+    _sem_trecho_da_observacao(_no_github(r))
+    if chave is None:
+        assert all(c["url"].startswith("https://api.github.com/") for c in r["chamadas"])
+
+
+def test_sem_observacao_o_app_nao_e_chamado_e_nada_muda():
+    r = _validar(
+        {"prd": 1757, "c": _hmac(1757), "observacao": "  "},
+        {**SUB_ISSUES, "APP": {"guardada": True, "topicos": TOPICOS}},
+        chave_do_app=CHAVE_DO_APP,
+    )
+    assert r["status"] == 200
+    assert [c["method"] for c in r["chamadas"]] == ["POST", "POST"]
+    assert all(c["url"].startswith("https://api.github.com/") for c in r["chamadas"])
+    assert r["chamadas"][-1]["body"]["body"].endswith("Sem observação.")
+
+
+def _como_o_pedroos_le(comentario: str) -> str | None:
+    """A leitura do aviso do PedroOS (`lerValidacao` em OS/app/server/avisos.js):
+    a citação depois da linha "Observação dele:", até a primeira linha sem `>`."""
+    partes = re.split(r"^Observação dele:\s*$", comentario, maxsplit=1, flags=re.M)
+    if len(partes) < 2:
+        return None
+    citacao = []
+    for linha in re.sub(r"^\s*\n", "", partes[1]).split("\n"):
+        if not linha.startswith(">"):
+            break
+        citacao.append(re.sub(r"^>\s?", "", linha).strip())
+    return " ".join(c for c in citacao if c) or None
+
+
+def test_o_comentario_continua_no_formato_que_o_pedroos_e_a_pagina_leem():
+    r = _validar(
+        {"prd": 1757, "c": _hmac(1757), "observacao": OBSERVACAO},
+        {**SUB_ISSUES, "APP": {"guardada": True, "topicos": TOPICOS}},
+        chave_do_app=CHAVE_DO_APP,
+    )
+    [comentario] = _chamadas(r, "POST", "/issues/1757/comments")
+    corpo = comentario["body"]["body"]
+    assert _como_o_pedroos_le(corpo) == " ".join(TOPICOS)
+    assert re.search(r"Ajuste do plano #1999", corpo)
+
+    # A página do plano lê o mesmo comentário pela função de estado.
+    estado = _estado(
+        {"prd": "1757"},
+        {
+            "/issues/1757": _prd("PRD", "validado:diretor"),
+            "/issues/1757/comments": [_comentario(corpo)],
+        },
+    )
+    assert estado["resposta"]["observacao"] == "\n".join(TOPICOS)
 
 
 def test_codigo_de_um_prd_nao_vale_para_outro():
