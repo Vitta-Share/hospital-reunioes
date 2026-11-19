@@ -2,7 +2,7 @@ import logging
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from starlette.requests import Request
+from postgrest.exceptions import APIError
 
 from app.dependencies import (
     RECUSA_DO_NSP,
@@ -13,15 +13,30 @@ from app.dependencies import (
     is_secretaria,
     is_super_admin,
     require_acesso_reunioes,
-    require_super_admin,
-    reunioes_ocultas,
 )
-from app.models.admin_schemas import ForceEditPendenciaRequest, ReasonRequest
-from app.models.schemas import PendenciaResponse, PendenciaStats, PendenciaUpdate
-from app.services import audit
-from app.services.notificacao_service import criar_notificacao_responsavel
+from app.models.schemas import (
+    AcaoPendenciaRequest,
+    HistoricoPendenciaResponse,
+    PendenciaResponse,
+    PendenciaStats,
+)
+from app.services.pendencia_ciclo import (
+    AcaoRecusada,
+    Comando,
+    Papel,
+    acoes_disponiveis,
+    decidir,
+    situacao,
+)
 from app.services.pendencia_service import e_lembrete_do_nucleo
-from app.services.pendencias_consulta import consultar_pendencias, no_recorte
+from app.services.pendencias_consulta import (
+    as_data,
+    consultar_pendencias,
+    filtrar_por_status,
+    hoje_em_brasilia,
+    ids_repactuados,
+    no_recorte,
+)
 from app.utils.query_params import parse_csv_param
 
 router = APIRouter(
@@ -100,7 +115,7 @@ async def get_pendencias_stats(
     recorte = await get_recorte_das_pendencias(current_user, supabase)
     query = no_recorte(
         supabase.table("pendencias")
-        .select("status, responsavel_id, prazo, id_reuniao, co_responsavel_id")
+        .select("id_acao, status, responsavel_id, prazo, id_reuniao, co_responsavel_id")
         .is_("deleted_at", "null")
         .not_.is_("id_reuniao", "null"),
         recorte,
@@ -166,9 +181,18 @@ async def get_pendencias_stats(
     result = query.execute()
     rows = result.data or []
 
+    # Atrasada e Repactuada são calculadas (ADR 0098, decisão 4): cada
+    # pendência conta uma vez, na situação que a tela mostra.
+    hoje = hoje_em_brasilia()
+    repactuados = ids_repactuados(supabase, [r["id_acao"] for r in rows if r.get("id_acao")])
     stats = PendenciaStats()
     for row in rows:
-        s = row.get("status", "")
+        s = situacao(
+            row.get("status", ""),
+            as_data(row.get("prazo")),
+            hoje,
+            repactuada=row.get("id_acao") in repactuados,
+        )
         if s == "PENDENTE":
             stats.pendente += 1
         elif s == "EM_PROGRESSO":
@@ -211,12 +235,12 @@ async def list_minhas_pendencias(
     )
 
     if status:
-        query = query.eq("status", status)
+        query = filtrar_por_status(query, supabase, status)
     if prazo_ate:
         query = query.lte("prazo", str(prazo_ate))
 
     result = query.order("prazo", desc=False, nullsfirst=False).range(offset, offset + limit - 1).execute()
-    return _enrich_externo_flag(supabase, result.data or [])
+    return _enrich_ciclo(supabase, _enrich_externo_flag(supabase, result.data or []))
 
 
 @router.get("", response_model=list[PendenciaResponse])
@@ -259,7 +283,7 @@ async def list_pendencias(
     )
     response.headers["X-Total-Count"] = str(total)
     enriched = _enrich_externo_flag(supabase, rows)
-    return _enrich_comentarios_count(supabase, enriched)
+    return _enrich_ciclo(supabase, _enrich_comentarios_count(supabase, enriched))
 
 
 @router.get("/{id_acao}", response_model=PendenciaResponse)
@@ -289,328 +313,134 @@ async def get_pendencia(
     if not recorte.ve(pendencia):
         raise HTTPException(status_code=404, detail="Pendência não encontrada")
 
-    return _enrich_externo_flag(supabase, [pendencia])[0]
+    return _enrich_ciclo(supabase, _enrich_externo_flag(supabase, [pendencia]))[0]
 
 
-@router.patch("/{id_acao}", response_model=PendenciaResponse)
-async def update_pendencia_status(
-    id_acao: str,
-    req: PendenciaUpdate,
-    current_user: dict = Depends(get_current_user),
-    supabase=Depends(get_supabase_client),
-):
-    """Atualiza campos de uma pendência. Quando concluída, incrementa acoes_concluidas na reunião."""
-    me_check = await get_participante_for_user(current_user, supabase)
-    if is_secretaria(me_check):
+# ─── Ciclo de vida (ADR 0098, decisões 4 e 5; issue #1862) ──────────────────
+# A única porta que muda estado e prazo da Pendência é `POST /{id}/acoes`,
+# sempre com anotação. A regra é a função pura de `pendencia_ciclo`; a
+# gravação é a função `registrar_acao_da_pendencia` do Postgres (migration
+# 169), que atualiza a Pendência e insere o evento no histórico juntos.
+
+_HTTP_DA_RECUSA = {"permissao": 403, "transicao": 409, "dados": 422}
+
+
+def _enrich_ciclo(supabase, rows: list[dict]) -> list[dict]:
+    """Atrasada, Repactuada e a situação que a tela mostra, calculadas."""
+    hoje = hoje_em_brasilia()
+    repactuados = ids_repactuados(supabase, [r["id_acao"] for r in rows if r.get("id_acao")])
+    for r in rows:
+        prazo = as_data(r.get("prazo"))
+        r["repactuada"] = r.get("id_acao") in repactuados
+        r["situacao"] = situacao(r.get("status", ""), prazo, hoje, repactuada=r["repactuada"])
+        r["atrasada"] = r["situacao"] == "ATRASADO"
+    return rows
+
+
+async def _pendencia_e_papeis(id_acao: str, current_user: dict, supabase) -> tuple[dict, dict | None, set[Papel]]:
+    """A Pendência que quem pede enxerga e os papéis dele nela. Mesmo portão
+    do GET: secretária 403, Núcleo oculto 403, fora da visibilidade 404."""
+    me = await get_participante_for_user(current_user, supabase)
+    if is_secretaria(me):
         raise HTTPException(status_code=403, detail="Secretária não tem acesso a pendências")
 
-    existing = (
-        supabase.table("pendencias")
-        .select("id_acao, id_reuniao, status, responsavel_id, co_responsavel_id, descricao_acao")
-        .eq("id_acao", id_acao)
-        .execute()
-    )
-    if not existing.data or e_lembrete_do_nucleo(existing.data[0]):
+    result = supabase.table("pendencias").select("*").eq("id_acao", id_acao).is_("deleted_at", "null").execute()
+    if not result.data or e_lembrete_do_nucleo(result.data[0]):
         raise HTTPException(status_code=404, detail="Pendência não encontrada")
-
-    pendencia = existing.data[0]
+    pendencia = result.data[0]
 
     # O sigilo do Núcleo (issue #1772), como no GET: antes de tudo e para todo perfil.
     recorte = await get_recorte_das_pendencias(current_user, supabase)
     if pendencia.get("id_reuniao") in recorte.ocultas:
         raise HTTPException(status_code=403, detail=RECUSA_DO_NSP)
 
-    # O recorte pelo vínculo (issue #1863): responsável, co-responsável,
-    # Facilitador da reunião ou Super admin. Fora dele, 404.
+    # O recorte pelo vínculo (issue #1863), como no GET: responsável,
+    # co-responsável, Facilitador da reunião ou Super admin. Fora dele, 404.
     if not recorte.ve(pendencia):
         raise HTTPException(status_code=404, detail="Pendência não encontrada")
 
-    # Validar co_responsavel_id se enviado
-    if req.co_responsavel_id is not None:
-        me = await get_participante_for_user(current_user, supabase, fields="id, role, is_super_admin")
-        if not me or not is_super_admin(me):
-            raise HTTPException(status_code=403, detail="Apenas super admins podem atribuir co-responsável")
-        # Verificar que responsável da pendência é externo
-        resp_id = pendencia.get("responsavel_id")
-        if resp_id:
-            resp = supabase.table("participantes").select("is_externo").eq("id", resp_id).execute()
-            if resp.data and not resp.data[0].get("is_externo"):
-                raise HTTPException(
-                    status_code=422,
-                    detail="Co-responsável só pode ser definido para pendências de participantes externos",
-                )
-        # Verificar que co-responsável é interno
-        co_resp = supabase.table("participantes").select("is_externo").eq("id", req.co_responsavel_id).execute()
-        if not co_resp.data:
-            raise HTTPException(status_code=422, detail="Co-responsável não encontrado")
-        if co_resp.data[0].get("is_externo"):
-            raise HTTPException(status_code=422, detail="Co-responsável deve ser um participante interno")
-
-    status_anterior = pendencia["status"]
-    responsavel_anterior = pendencia.get("responsavel_id")
-
-    # Extrair apenas campos enviados na requisição
-    update_data = req.model_dump(exclude_unset=True)
-    if not update_data:
-        result = supabase.table("pendencias").select("*").eq("id_acao", id_acao).execute()
-        return _enrich_externo_flag(supabase, result.data or [])[0]
-
-    # Denormalizar co_responsavel_nome quando co_responsavel_id é setado
-    if "co_responsavel_id" in update_data and update_data["co_responsavel_id"]:
-        co_resp_data = (
-            supabase.table("participantes").select("nome_completo").eq("id", update_data["co_responsavel_id"]).execute()
+    my_id = me.get("id") if me else None
+    papeis: set[Papel] = set()
+    if is_super_admin(me):
+        papeis.add(Papel.SUPER_ADMIN)
+    if my_id is not None:
+        if pendencia.get("responsavel_id") == my_id:
+            papeis.add(Papel.RESPONSAVEL)
+        if pendencia.get("co_responsavel_id") == my_id:
+            papeis.add(Papel.CO_RESPONSAVEL)
+        reuniao = (
+            supabase.table("reunioes").select("facilitador_id").eq("id_reuniao", pendencia["id_reuniao"]).execute()
         )
-        if co_resp_data.data:
-            update_data["co_responsavel_nome"] = co_resp_data.data[0]["nome_completo"]
-
-    # Quando responsavel_id muda, puxar nome+cargo canônicos do participante.
-    # `cargo` e `responsavel_nome` só são sobrescritos quando NÃO foram enviados
-    # no body — assim quem mandou explicitamente preserva override manual.
-    if "responsavel_id" in update_data and update_data["responsavel_id"]:
-        resp_data = (
-            supabase.table("participantes")
-            .select("nome_completo, cargo")
-            .eq("id", update_data["responsavel_id"])
-            .execute()
-        )
-        if resp_data.data:
-            canonical = resp_data.data[0]
-            if "responsavel_nome" not in update_data and canonical.get("nome_completo"):
-                update_data["responsavel_nome"] = canonical["nome_completo"]
-            if "cargo" not in update_data and canonical.get("cargo"):
-                update_data["cargo"] = canonical["cargo"]
-
-    if "status" in update_data and update_data["status"] is not None:
-        update_data["status"] = update_data["status"].value
-        if update_data["status"] == "REPACTUADA":
-            update_data["prazo"] = None
-
-    if "prazo" in update_data and update_data["prazo"] is not None:
-        update_data["prazo"] = str(update_data["prazo"])
-
-    # Atualizar pendência no banco
-    result = supabase.table("pendencias").update(update_data).eq("id_acao", id_acao).execute()
-
-    if not result.data:
-        raise HTTPException(status_code=500, detail="Erro ao atualizar pendência")
-
-    novo_status = result.data[0].get("status")
-    novo_responsavel_id = result.data[0].get("responsavel_id")
-
-    # Tratar contador de ações concluídas quando status muda.
-    if "status" in update_data and novo_status != status_anterior:
-        if pendencia.get("id_reuniao"):
-            if novo_status == "CONCLUIDO" and status_anterior != "CONCLUIDO":
-                _incrementar_acoes_concluidas(supabase, pendencia["id_reuniao"])
-            if status_anterior == "CONCLUIDO" and novo_status != "CONCLUIDO":
-                _decrementar_acoes_concluidas(supabase, pendencia["id_reuniao"])
-        logger.info(f"[Pendencias] {id_acao}: status alterado {status_anterior} → {novo_status}")
-
-    # Notificar novo responsável quando ele é atribuído (e mudou de pessoa)
-    if "responsavel_id" in update_data and novo_responsavel_id and novo_responsavel_id != responsavel_anterior:
-        p_user = (
-            supabase.table("participantes").select("nome_completo").eq("auth_user_id", current_user["id"]).execute()
-        )
-        atribuido_por = p_user.data[0]["nome_completo"] if p_user.data else current_user.get("email", "Sistema")
-
-        descricao = pendencia.get("descricao_acao") or result.data[0].get("descricao_acao", "")
-        criar_notificacao_responsavel(
-            supabase,
-            id_acao=id_acao,
-            descricao_acao=descricao,
-            responsavel_id=novo_responsavel_id,
-            atribuido_por=atribuido_por,
-        )
-
-    return _enrich_externo_flag(supabase, result.data or [])[0]
+        if reuniao.data and reuniao.data[0].get("facilitador_id") == my_id:
+            papeis.add(Papel.FACILITADOR)
+    return pendencia, me, papeis
 
 
-def _incrementar_acoes_concluidas(supabase, id_reuniao: str) -> None:
-    try:
-        supabase.rpc("incrementar_acoes_concluidas", {"p_id_reuniao": id_reuniao}).execute()
-    except Exception as e:
-        logger.error(f"[Pendencias] Erro ao incrementar acoes_concluidas para {id_reuniao}: {e}")
-
-
-def _decrementar_acoes_concluidas(supabase, id_reuniao: str) -> None:
-    try:
-        supabase.rpc("decrementar_acoes_concluidas", {"p_id_reuniao": id_reuniao}).execute()
-    except Exception as e:
-        logger.error(f"[Pendencias] Erro ao decrementar acoes_concluidas para {id_reuniao}: {e}")
-
-
-# ─── Acoes de super admin (force) ────────────────────────────────────────────
-
-
-def _barrar_pendencia_do_nucleo(supabase, actor: dict, pendencia: dict) -> None:
-    """O force não passa por cima do sigilo do Núcleo (ADR 0095, decisão 4):
-    o super admin sem Acesso pleno não apaga nem edita pendência de reunião do
-    Núcleo (issue #1772)."""
-    if pendencia.get("id_reuniao") in reunioes_ocultas(supabase, actor):
-        raise HTTPException(status_code=403, detail=RECUSA_DO_NSP)
-
-
-@router.delete("/{id_acao}/force")
-async def force_deletar_pendencia(
+@router.post("/{id_acao}/acoes", response_model=PendenciaResponse)
+async def agir_na_pendencia(
     id_acao: str,
-    body: ReasonRequest,
-    request: Request,
-    actor: dict = Depends(require_super_admin),
+    body: AcaoPendenciaRequest,
+    current_user: dict = Depends(get_current_user),
     supabase=Depends(get_supabase_client),
 ):
-    """Super admin only: deleta uma pendencia em qualquer status. Motivo obrigatorio."""
-    existing = (
-        supabase.table("pendencias")
-        .select("id_acao, id_reuniao, status, responsavel_id, descricao_acao")
-        .eq("id_acao", id_acao)
-        .execute()
-    )
-    if not existing.data or e_lembrete_do_nucleo(existing.data[0]):
-        raise HTTPException(status_code=404, detail="Pendência não encontrada")
+    """Iniciar, anotar, concluir, repactuar, cancelar ou reabrir, com anotação."""
+    pendencia, me, papeis = await _pendencia_e_papeis(id_acao, current_user, supabase)
+    prazo_atual = as_data(pendencia.get("prazo"))
+    try:
+        mudanca = decidir(
+            Comando(body.comando),
+            papeis,
+            status=pendencia["status"],
+            prazo=prazo_atual,
+            hoje=hoje_em_brasilia(),
+            anotacao=body.anotacao,
+            prazo_novo=body.prazo,
+        )
+    except AcaoRecusada as recusa:
+        raise HTTPException(status_code=_HTTP_DA_RECUSA[recusa.tipo], detail=recusa.motivo) from recusa
 
-    pendencia = existing.data[0]
-    _barrar_pendencia_do_nucleo(supabase, actor, pendencia)
-    status_before = pendencia.get("status")
+    prazo_novo = mudanca.prazo.isoformat() if mudanca.prazo and mudanca.prazo != prazo_atual else None
+    try:
+        supabase.rpc(
+            "registrar_acao_da_pendencia",
+            {
+                "p_id_acao": id_acao,
+                "p_comando": body.comando,
+                "p_anotacao": body.anotacao,
+                "p_autor_id": me.get("id") if me else None,
+                "p_autor_nome": (me or {}).get("nome_completo") or current_user.get("email") or "Sem nome",
+                "p_status_esperado": pendencia["status"],
+                "p_status_novo": mudanca.status,
+                "p_prazo_novo": prazo_novo,
+                "p_concluida": mudanca.concluida,
+                "p_conta_atraso": mudanca.conta_atraso,
+            },
+        ).execute()
+    except APIError as erro:
+        if erro.code == "PT409":
+            raise HTTPException(status_code=409, detail=erro.message) from erro
+        if erro.code == "PT404":
+            raise HTTPException(status_code=404, detail="Pendência não encontrada") from erro
+        raise
 
-    supabase.table("pendencias").delete().eq("id_acao", id_acao).execute()
-
-    # Se estava concluida, decrementa contador da reuniao
-    if status_before == "CONCLUIDO" and pendencia.get("id_reuniao"):
-        _decrementar_acoes_concluidas(supabase, pendencia["id_reuniao"])
-
-    audit.log_action(
-        supabase,
-        actor=actor,
-        action="DELETE_PENDENCIA",
-        target_type="pendencia",
-        target_id=id_acao,
-        metadata={
-            "status_before": status_before,
-            "id_reuniao": pendencia.get("id_reuniao"),
-            "responsavel_id": pendencia.get("responsavel_id"),
-            "descricao_acao": pendencia.get("descricao_acao"),
-        },
-        reason=body.reason,
-        request=request,
-    )
-
-    logger.info(
-        f"Pendencia {id_acao} FORCE-DELETADA (status_before={status_before}) por super admin {actor.get('email')}"
-    )
-    return {"message": "Pendência deletada com sucesso (force).", "id_acao": id_acao}
+    logger.info(f"[Pendencias] {id_acao}: {body.comando} ({pendencia['status']} -> {mudanca.status})")
+    atualizada = supabase.table("pendencias").select("*").eq("id_acao", id_acao).execute()
+    return _enrich_ciclo(supabase, _enrich_externo_flag(supabase, atualizada.data or []))[0]
 
 
-@router.patch("/{id_acao}/force", response_model=PendenciaResponse)
-async def force_editar_pendencia(
+@router.get("/{id_acao}/historico", response_model=HistoricoPendenciaResponse)
+async def historico_da_pendencia(
     id_acao: str,
-    body: ForceEditPendenciaRequest,
-    request: Request,
-    actor: dict = Depends(require_super_admin),
+    current_user: dict = Depends(get_current_user),
     supabase=Depends(get_supabase_client),
 ):
-    """Super admin only: edita qualquer campo da pendencia em qualquer status.
-
-    Motivo e OBRIGATORIO quando status ou responsavel_id sao alterados.
-    """
-    existing = (
-        supabase.table("pendencias")
-        .select("id_acao, id_reuniao, status, responsavel_id, co_responsavel_id, descricao_acao")
-        .eq("id_acao", id_acao)
-        .execute()
+    """O histórico em ordem e as ações que quem olha pode fazer agora."""
+    pendencia, _me, papeis = await _pendencia_e_papeis(id_acao, current_user, supabase)
+    eventos = (
+        supabase.table("pendencia_historico").select("*").eq("id_acao", id_acao).order("criado_em").execute().data or []
     )
-    if not existing.data or e_lembrete_do_nucleo(existing.data[0]):
-        raise HTTPException(status_code=404, detail="Pendência não encontrada")
-
-    pendencia = existing.data[0]
-    _barrar_pendencia_do_nucleo(supabase, actor, pendencia)
-
-    payload = body.model_dump(exclude_unset=True)
-    reason = payload.pop("reason", None)
-
-    if not payload:
-        raise HTTPException(status_code=422, detail="Nenhum campo enviado para atualizar")
-
-    # Motivo obrigatorio se mudar status ou responsavel
-    muda_status = "status" in payload and payload["status"] is not None
-    muda_responsavel = "responsavel_id" in payload and payload["responsavel_id"] != pendencia.get("responsavel_id")
-    if (muda_status or muda_responsavel) and not reason:
-        raise HTTPException(
-            status_code=422,
-            detail="Motivo (reason) é obrigatório ao alterar status ou responsável",
-        )
-
-    status_anterior = pendencia["status"]
-    responsavel_anterior = pendencia.get("responsavel_id")
-
-    # Normalizar valores
-    update_data: dict = {}
-    for key, value in payload.items():
-        if key == "status" and value is not None:
-            update_data[key] = value.value if hasattr(value, "value") else value
-            if update_data[key] == "REPACTUADA":
-                update_data["prazo"] = None
-        elif key == "prazo" and value is not None:
-            update_data[key] = str(value)
-        else:
-            update_data[key] = value
-
-    # Denormalizar co_responsavel_nome quando co_responsavel_id e setado
-    if "co_responsavel_id" in update_data and update_data["co_responsavel_id"]:
-        co_resp_data = (
-            supabase.table("participantes").select("nome_completo").eq("id", update_data["co_responsavel_id"]).execute()
-        )
-        if co_resp_data.data:
-            update_data["co_responsavel_nome"] = co_resp_data.data[0]["nome_completo"]
-
-    # Quando responsavel_id muda, puxar nome+cargo canônicos do participante.
-    # `cargo` e `responsavel_nome` só são sobrescritos quando NÃO foram enviados
-    # no body — assim quem mandou explicitamente preserva override manual.
-    if "responsavel_id" in update_data and update_data["responsavel_id"]:
-        resp_data = (
-            supabase.table("participantes")
-            .select("nome_completo, cargo")
-            .eq("id", update_data["responsavel_id"])
-            .execute()
-        )
-        if resp_data.data:
-            canonical = resp_data.data[0]
-            if "responsavel_nome" not in update_data and canonical.get("nome_completo"):
-                update_data["responsavel_nome"] = canonical["nome_completo"]
-            if "cargo" not in update_data and canonical.get("cargo"):
-                update_data["cargo"] = canonical["cargo"]
-
-    result = supabase.table("pendencias").update(update_data).eq("id_acao", id_acao).execute()
-    if not result.data:
-        raise HTTPException(status_code=500, detail="Erro ao atualizar pendência")
-
-    novo_status = result.data[0].get("status")
-    novo_responsavel_id = result.data[0].get("responsavel_id")
-
-    # Atualiza contador de acoes concluidas
-    if "status" in update_data and novo_status != status_anterior and pendencia.get("id_reuniao"):
-        if novo_status == "CONCLUIDO" and status_anterior != "CONCLUIDO":
-            _incrementar_acoes_concluidas(supabase, pendencia["id_reuniao"])
-        if status_anterior == "CONCLUIDO" and novo_status != "CONCLUIDO":
-            _decrementar_acoes_concluidas(supabase, pendencia["id_reuniao"])
-
-    audit.log_action(
-        supabase,
-        actor=actor,
-        action="EDIT_PENDENCIA_FORCE",
-        target_type="pendencia",
-        target_id=id_acao,
-        metadata={
-            "campos_mudados": list(update_data.keys()),
-            "status_before": status_anterior,
-            "status_after": novo_status,
-            "responsavel_before": responsavel_anterior,
-            "responsavel_after": novo_responsavel_id,
-        },
-        reason=reason,
-        request=request,
-    )
-
-    logger.info(
-        f"Pendencia {id_acao} FORCE-EDITADA (campos={list(update_data.keys())}) por super admin {actor.get('email')}"
-    )
-    return _enrich_externo_flag(supabase, result.data or [])[0]
+    eventos.sort(key=lambda e: (e.get("criado_em") or "", e.get("id") or 0))
+    return {
+        "eventos": eventos,
+        "acoes_permitidas": [c.value for c in acoes_disponiveis(papeis, pendencia["status"])],
+    }

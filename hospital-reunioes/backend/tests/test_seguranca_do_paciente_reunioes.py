@@ -225,6 +225,17 @@ class _Banco:
     def table(self, nome: str) -> _Consulta:
         return _Consulta(self, nome)
 
+    def rpc(self, nome: str, params: dict):
+        """A gravação da ação na Pendência (migration 169): aplica o estado."""
+        assert nome == "registrar_acao_da_pendencia"
+        for linha in self.tabelas["pendencias"]:
+            if linha["id_acao"] == params["p_id_acao"]:
+                linha["status"] = params["p_status_novo"]
+        self.tabelas.setdefault("pendencia_historico", []).append(
+            {"id_acao": params["p_id_acao"], "comando": params["p_comando"]}
+        )
+        return SimpleNamespace(execute=lambda: SimpleNamespace(data=[1], count=None))
+
 
 # ─── As pessoas e o cenário ──────────────────────────────────────────────────
 
@@ -490,9 +501,9 @@ ROTAS_DA_PENDENCIA_DO_NUCLEO = [
     pytest.param("POST", f"/api/pendencias/{P_NUCLEO}/comentarios", {"conteudo": "Oi"}, id="comentar"),
     pytest.param("DELETE", f"/api/pendencias/{P_NUCLEO}/comentarios/com-nucleo", None, id="apagar_comentario"),
     pytest.param("GET", f"/api/pendencias/{P_NUCLEO}/mencionaveis", None, id="mencionaveis"),
-    pytest.param("PATCH", f"/api/pendencias/{P_NUCLEO}", {"status": "CONCLUIDO"}, id="mudar_status"),
-    pytest.param("PATCH", f"/api/pendencias/{P_NUCLEO}/force", {"status": "CONCLUIDO", "reason": "x"}, id="force"),
-    pytest.param("DELETE", f"/api/pendencias/{P_NUCLEO}/force", {"reason": "x"}, id="force_del"),
+    # Desde a issue #1862 a única escrita é a rota de ações, com anotação.
+    pytest.param("POST", f"/api/pendencias/{P_NUCLEO}/acoes", {"comando": "cancelar", "anotacao": "x"}, id="acao"),
+    pytest.param("GET", f"/api/pendencias/{P_NUCLEO}/historico", None, id="historico"),
 ]
 
 
@@ -519,7 +530,9 @@ class TestRotasIrmasDaPendencia:
     def test_super_admin_com_acesso_pleno_muda_o_status(self):
         banco = _banco()
 
-        resposta = _cliente(SUPER_ADMIN_PLENO, banco).patch(f"/api/pendencias/{P_NUCLEO}", json={"status": "CANCELADO"})
+        resposta = _cliente(SUPER_ADMIN_PLENO, banco).post(
+            f"/api/pendencias/{P_NUCLEO}/acoes", json={"comando": "cancelar", "anotacao": "Duplicada"}
+        )
 
         assert resposta.status_code == 200, resposta.text
         assert resposta.json()["status"] == "CANCELADO"

@@ -3,8 +3,9 @@
 Só leitura, para quem tem `diretoria_executiva` (o gate mora no
 `conector_mcp`). A ferramenta é casca fina sobre a consulta da tela de
 Pendências (`services/pendencias_consulta.py`): a mesma visibilidade, o mesmo
-filtro de situação, responsável e prazo, a mesma ordem. Atrasada é o status
-`ATRASADO`, o que a tela mostra como atrasada; nada aqui recalcula prazo.
+filtro de situação, responsável e prazo, a mesma ordem. Atrasada é a
+pendência aberta com prazo vencido, a mesma conta da tela (`pendencia_ciclo`,
+issue #1862).
 
 O que a tela não mostra para a pessoa, a ferramenta também não mostra (ADR
 0085, decisão 1): o recorte é o vínculo dela (ADR 0098, decisão 7), e quem não abre a tela
@@ -18,7 +19,8 @@ from __future__ import annotations
 
 from datetime import date
 
-from app.services.pendencias_consulta import consultar_pendencias
+from app.services.pendencia_ciclo import situacao as situacao_da_pendencia
+from app.services.pendencias_consulta import as_data, consultar_pendencias, hoje_em_brasilia, ids_repactuados
 
 NOME = "get_pendencias"
 
@@ -54,10 +56,10 @@ def definicao() -> dict:
             "responsável, com prazo, que nasce da Ata. O diretor chama de meta a Pendência com prazo. "
             'Filtre por "situacao" (atrasada, pendente, em_progresso, concluida, cancelada, repactuada), '
             'por "responsavel" (parte do nome) e por prazo ("prazoDe" e "prazoAte", AAAA-MM-DD). Sem filtro, '
-            "vêm todas. Atrasada é a mesma marca da tela de Pendências: a pendência pendente cujo prazo "
+            "vêm todas. Atrasada é a mesma marca da tela de Pendências: a pendência aberta cujo prazo "
             'venceu. A lista vem por prazo, a mais antiga primeiro; "total" é quantas atendem ao filtro e '
             f'"haMais" verdadeiro quer dizer que só as {TETO} primeiras vieram: refine o filtro para ver o '
-            'resto. "repactuada" é a pendência com prazo apagado, à espera da data nova. Não invente '
+            'resto. "repactuada" é a pendência aberta que já teve o prazo trocado e não venceu. Não invente '
             "pendências que não estejam no payload."
         ),
         "inputSchema": {
@@ -108,7 +110,15 @@ def executar(argumentos: dict, participante: dict, supabase) -> dict:
         prazo_ate=prazo_ate,
         limit=TETO,
     )
-    return _payload(linhas, total)
+    return _payload(marcar_repactuadas(supabase, linhas), total)
+
+
+def marcar_repactuadas(supabase, linhas: list[dict]) -> list[dict]:
+    """Repactuada é calculada pelo histórico (issue #1862), como na tela."""
+    repactuados = ids_repactuados(supabase, [linha["id_acao"] for linha in linhas if linha.get("id_acao")])
+    for linha in linhas:
+        linha["repactuada"] = linha.get("id_acao") in repactuados
+    return linhas
 
 
 def _data(valor: object, campo: str) -> date | None:
@@ -148,15 +158,18 @@ def _payload(linhas: list[dict], total: int) -> dict:
 def serializar_pendencia(linha: dict) -> dict:
     """Uma pendência para o Claude, com a situação da tela. A ferramenta de
     Reuniões (#1610) serializa as pendências de cada Reunião por aqui."""
-    status = linha.get("status")
+    status = linha.get("status") or ""
+    mostrada = situacao_da_pendencia(
+        status, as_data(linha.get("prazo")), hoje_em_brasilia(), repactuada=bool(linha.get("repactuada"))
+    )
     return {
         "id": linha.get("id_acao"),
         "descricao": linha.get("descricao_acao"),
         "responsavel": linha.get("responsavel_nome"),
         "coResponsavel": linha.get("co_responsavel_nome"),
         "prazo": linha.get("prazo"),
-        "situacao": _SITUACAO_DO_STATUS.get(status, status),
-        "atrasada": status == "ATRASADO",
+        "situacao": _SITUACAO_DO_STATUS.get(mostrada, mostrada),
+        "atrasada": mostrada == "ATRASADO",
         "metaEntregavel": linha.get("meta_entregavel"),
         "reuniao": linha.get("id_reuniao"),
     }

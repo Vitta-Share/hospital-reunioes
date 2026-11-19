@@ -179,6 +179,10 @@ class _Consulta:
     def lte(self, coluna: str, valor: str) -> _Consulta:
         return self._filtra(lambda r: r.get(coluna) is not None and str(r[coluna]) <= valor)
 
+    def lt(self, coluna: str, valor: str) -> _Consulta:
+        """`lt("prazo", hoje)`: a atrasada é calculada pela data (#1862)."""
+        return self._filtra(lambda r: r.get(coluna) is not None and str(r[coluna]) < valor)
+
     def ilike(self, coluna: str, padrao: str) -> _Consulta:
         trecho = padrao.strip("%").lower()
         return self._filtra(lambda r: trecho in (r.get(coluna) or "").lower())
@@ -282,7 +286,7 @@ def chamar_pendencias(cliente, chave, quem, **argumentos):
 
 class TestGatePorFerramenta:
     def test_super_admin_sem_diretoria_ve_so_a_central_e_nao_chama_pendencias(self, chave_do_emissor):
-        banco = banco_com(SUPER_ADMIN, pendencias=[pendencia("A1", "ATRASADO")])
+        banco = banco_com(SUPER_ADMIN, pendencias=[pendencia("A1", "PENDENTE")])
         cliente = cliente_mcp(banco)
 
         assert nomes_no_tools_list(cliente, chave_do_emissor, SUPER_ADMIN) == FERRAMENTAS_DA_CENTRAL
@@ -318,7 +322,7 @@ class TestGatePorFerramenta:
 
     def test_retirar_a_diretoria_entre_duas_chamadas_corta_a_segunda(self, chave_do_emissor):
         diretora = diretoria("diretora", "regular")
-        banco = banco_com(diretora, pendencias=[pendencia("A1", "ATRASADO")])
+        banco = banco_com(diretora, pendencias=[pendencia("A1", "PENDENTE")])
         cliente = cliente_mcp(banco)
 
         primeira = chamar_pendencias(cliente, chave_do_emissor, diretora)
@@ -332,7 +336,7 @@ class TestGatePorFerramenta:
 
     def test_super_admin_que_perde_a_diretoria_perde_so_as_pendencias(self, chave_do_emissor):
         diretor = diretoria("diretor", "super_admin")
-        banco = banco_com(diretor, pendencias=[pendencia("A1", "ATRASADO")])
+        banco = banco_com(diretor, pendencias=[pendencia("A1", "PENDENTE")])
         cliente = cliente_mcp(banco)
         assert chamar_pendencias(cliente, chave_do_emissor, diretor).json()["result"]["isError"] is False
 
@@ -385,19 +389,19 @@ def banco_do_hospital(*quem: dict) -> BancoFalso:
         ANA,
         BRUNO,
         pendencias=[
-            pendencia("A1", "ATRASADO", prazo="2026-10-01"),
-            pendencia("A2", "PENDENTE", prazo="2026-12-01"),
+            pendencia("A1", "PENDENTE", prazo="2026-10-01"),
+            pendencia("A2", "PENDENTE", prazo="2099-12-01"),
             pendencia(
                 "A3",
-                "ATRASADO",
+                "EM_PROGRESSO",
                 prazo="2026-09-15",
                 responsavel_id="resp-bruno",
                 responsavel_nome="Bruno Lima",
                 id_reuniao="R2",
             ),
-            pendencia("A4", "ATRASADO", prazo="2026-09-01", deleted_at="2026-10-02T10:00:00Z"),
+            pendencia("A4", "PENDENTE", prazo="2026-09-01", deleted_at="2026-10-02T10:00:00Z"),
             pendencia("A5", "CONCLUIDO", prazo="2026-08-01", id_reuniao="R2"),
-            pendencia("A6", "ATRASADO", prazo="2026-10-20", id_reuniao="R3"),
+            pendencia("A6", "PENDENTE", prazo="2026-10-20", id_reuniao="R3"),
         ],
         reunioes=[
             {"id_reuniao": "R1", "facilitador_id": "diretora", "deleted_at": None},
@@ -471,11 +475,11 @@ class TestPendenciasAtrasadas:
 
     @pytest.mark.parametrize("quem", [DIRETOR_SUPER, DIRETORA], ids=["diretor-super-admin", "diretora-regular"])
     def test_a_atrasada_do_claude_e_a_atrasada_da_tela(self, chave_do_emissor, quem):
-        """A regra da tela: o front marca atrasada a pendência de status
-        ATRASADO, sobre a lista que a rota dá a esta pessoa."""
+        """A regra da tela: a rota marca `atrasada` na pendência aberta de prazo
+        vencido (issue #1862), sobre a lista que a rota dá a esta pessoa."""
         banco = banco_do_hospital(DIRETOR_SUPER, DIRETORA)
 
-        na_tela = [p["id_acao"] for p in tela_de_pendencias(banco, quem) if p["status"] == "ATRASADO"]
+        na_tela = [p["id_acao"] for p in tela_de_pendencias(banco, quem) if p["atrasada"]]
         no_claude = [
             p["id"] for p in pendencias_do_claude(banco, chave_do_emissor, quem, situacao="atrasada")["pendencias"]
         ]
@@ -547,7 +551,7 @@ class TestPendenciasAtrasadas:
 
 class TestListaLongaCortadaNoTeto:
     def test_volta_o_teto_com_o_total_e_o_aviso(self, chave_do_emissor):
-        muitas = [pendencia(f"B{i:03d}", "ATRASADO", prazo=f"2026-0{1 + i % 9}-1{i % 10}") for i in range(60)]
+        muitas = [pendencia(f"B{i:03d}", "EM_PROGRESSO", prazo=f"2026-0{1 + i % 9}-1{i % 10}") for i in range(60)]
         banco = banco_com(DIRETOR_SUPER, pendencias=muitas)
 
         payload = pendencias_do_claude(banco, chave_do_emissor, DIRETOR_SUPER, situacao="atrasada")

@@ -4,7 +4,7 @@ from datetime import date, datetime, time
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field, model_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 from app.services.seguranca_do_paciente.reunioes import TipoReuniaoNsp
 
@@ -37,12 +37,13 @@ class StatusAta(StrEnum):
 
 
 class StatusPendencia(StrEnum):
+    """Os quatro estados gravados (ADR 0098, decisão 4). Atrasada e
+    Repactuada são calculadas: veja `situacao` na resposta."""
+
     PENDENTE = "PENDENTE"
     EM_PROGRESSO = "EM_PROGRESSO"
     CONCLUIDO = "CONCLUIDO"
-    ATRASADO = "ATRASADO"
     CANCELADO = "CANCELADO"
-    REPACTUADA = "REPACTUADA"
 
 
 class TipoReuniao(StrEnum):
@@ -234,20 +235,51 @@ class PendenciaResponse(PendenciaBase):
     co_responsavel_id: str | None = None
     co_responsavel_nome: str | None = None
     status: StatusPendencia = StatusPendencia.PENDENTE
+    # Calculados (ADR 0098, decisão 4): aberta com prazo vencido, e há
+    # Repactuação no histórico. `situacao` é o que a tela mostra.
+    atrasada: bool = False
+    repactuada: bool = False
+    situacao: Literal["PENDENTE", "EM_PROGRESSO", "CONCLUIDO", "CANCELADO", "ATRASADO", "REPACTUADA"] = "PENDENTE"
+    concluida_em: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
 
-class PendenciaUpdate(BaseModel):
-    status: StatusPendencia | None = None
-    descricao_acao: str | None = Field(None, max_length=500)
-    responsavel_id: str | None = None
-    responsavel_nome: str | None = Field(None, max_length=500)
-    co_responsavel_id: str | None = None
-    co_responsavel_nome: str | None = None
+class AcaoPendenciaRequest(BaseModel):
+    """Uma ação na Pendência (ADR 0098, decisão 5). A anotação é obrigatória;
+    o prazo só vale em repactuar e reabrir."""
+
+    comando: Literal["iniciar", "anotar", "concluir", "repactuar", "cancelar", "reabrir"]
+    anotacao: str = Field(..., max_length=5000)
     prazo: date | None = None
-    cargo: str | None = Field(None, max_length=255)
-    meta_entregavel: str | None = Field(None, max_length=500)
+
+    @field_validator("anotacao")
+    @classmethod
+    def _anotacao_com_texto(cls, valor: str) -> str:
+        valor = valor.strip()
+        if not valor:
+            raise ValueError("Escreva a anotação: toda ação na pendência pede uma.")
+        return valor
+
+
+class EventoHistoricoPendencia(BaseModel):
+    id: int
+    comando: str
+    anotacao: str
+    autor_id: str | None = None
+    autor_nome: str
+    status_antes: str | None = None
+    status_depois: str | None = None
+    prazo_antes: date | None = None
+    prazo_depois: date | None = None
+    conta_atraso: bool = False
+    criado_em: datetime
+
+
+class HistoricoPendenciaResponse(BaseModel):
+    eventos: list[EventoHistoricoPendencia]
+    # Os comandos que quem pede pode dar agora (a tela mostra só esses botões).
+    acoes_permitidas: list[str]
 
 
 class PendenciaStats(BaseModel):

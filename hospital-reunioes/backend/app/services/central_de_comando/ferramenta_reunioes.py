@@ -115,6 +115,8 @@ def executar(argumentos: dict, participante: dict, supabase) -> dict:
     pendencias = {
         i: consultar_pendencias(supabase, recorte=recorte, id_reuniao=i, limit=TETO_DE_PENDENCIAS) for i in ids
     }
+    for linhas, _total in pendencias.values():
+        ferramenta_pendencias.marcar_repactuadas(supabase, linhas)
 
     ha_mais = total > len(reunioes)
     return {

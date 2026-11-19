@@ -534,7 +534,9 @@ class TestLembreteForaDasPendencias:
         resposta = _cliente_das_pendencias(SUPER, banco).get("/api/pendencias/stats")
 
         assert resposta.status_code == 200, resposta.text
-        assert (resposta.json()["total"], resposta.json()["pendente"]) == (1, 1)
+        # A A900 tem prazo no DIA, já passado: conta como atrasada (issue #1862).
+        numeros = resposta.json()
+        assert (numeros["total"], numeros["pendente"] + numeros["atrasado"]) == (1, 1)
 
     def test_minhas_pendencias_nao_traz_o_lembrete(self):
         """Mutante: tirar o filtro da Pendência sem Reunião em `/pendencias/minhas`."""
@@ -560,9 +562,8 @@ class TestLembreteForaDasPendencias:
         ("metodo", "sufixo", "corpo"),
         [
             ("GET", "", None),
-            ("PATCH", "", {"status": "CONCLUIDO"}),
-            ("PATCH", "/force", {"responsavel_id": "P9", "reason": "Reatribuir"}),
-            ("DELETE", "/force", {"reason": "Apagar"}),
+            ("POST", "/acoes", {"comando": "cancelar", "anotacao": "Fechar"}),
+            ("GET", "/historico", None),
             ("GET", "/comentarios", None),
             ("POST", "/comentarios", {"conteudo": "Comentário"}),
         ],

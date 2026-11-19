@@ -186,7 +186,7 @@ class TestRetencao:
         monkeypatch.setattr(cron, "_supabase", lambda: banco)
         monkeypatch.setattr(cron, "_hoje", lambda: date(2026, 11, 18))
 
-        cron.marcar_atrasadas()
+        cron.apagar_registro_de_acesso_antigo()
 
         # 18/11 menos 90 dias é 20/08: o dia 20/08 ainda está dentro.
         assert banco.registro_de_acesso == [
@@ -197,9 +197,9 @@ class TestRetencao:
     def test_a_retencao_mora_num_job_que_ja_existe(self):
         try:
             cron.start_scheduler()
-            job = cron.scheduler.get_job("marcar_atrasadas")
+            job = cron.scheduler.get_job("retencao_registro_de_acesso")
             assert job is not None
-            assert job.func is cron.marcar_atrasadas
+            assert job.func is cron.apagar_registro_de_acesso_antigo
         finally:
             cron.stop_scheduler()
 
