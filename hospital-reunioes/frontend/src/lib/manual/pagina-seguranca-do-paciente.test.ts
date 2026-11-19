@@ -126,6 +126,14 @@ describe("a página de Segurança do Paciente do manual", () => {
     expect(html.match(/<li[ >]/g) ?? []).toHaveLength(numeros.length);
   });
 
+  it("chama o primeiro item do submenu de Visão geral, o nome que a pessoa vê no menu (#1949)", () => {
+    const menu = PAGINA!.corpo.split("\n").find((linha) => linha.startsWith("Ele fica no menu da esquerda"));
+    expect(menu, "a página não diz onde o módulo fica no menu").toBeDefined();
+    const itens = Array.from(menu!.split(". Dentro de")[0].matchAll(/\*\*([^*]+)\*\*/g), (m) => m[1]);
+    expect(itens).toEqual(["Segurança do Paciente", "Visão geral", "Reuniões", "Núcleo"]);
+    expect(PAGINA!.corpo).not.toMatch(/\*\*Início\*\*/);
+  });
+
   it("não traz travessão nem meia-risca", () => {
     expect(PAGINA!.corpo).not.toMatch(/[\u2013\u2014]/);
   });
