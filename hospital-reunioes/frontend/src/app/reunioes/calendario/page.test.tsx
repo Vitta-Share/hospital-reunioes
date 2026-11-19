@@ -286,4 +286,29 @@ describe("Reuniões do dia", () => {
 
     expect(titulosNaOrdem(slot)).toEqual(["Reunião das dez e quinze", "Reunião das dez e quarenta"]);
   });
+
+  const LONGO = "Reunião de alinhamento da diretoria com as coordenações sobre o plano de contingência do inverno";
+
+  it("no mês, o título longo cortado no bloco aparece inteiro no balão do hover", async () => {
+    montarComEventos([evento("RL", "09:00:00", LONGO)]);
+    const dia = screen.getByTestId("dia-2026-11-12");
+    const bloco = await within(dia).findByText(LONGO);
+    expect(bloco.className).toContain("truncate");
+
+    fireEvent.mouseEnter(bloco.closest("a")!.parentElement!);
+
+    expect(within(screen.getByRole("tooltip")).getByText(LONGO)).toBeTruthy();
+  });
+
+  it("na semana, o título longo cortado no bloco aparece inteiro no balão do hover", async () => {
+    montarComEventos([evento("RL", "09:00:00", LONGO)]);
+    fireEvent.click(screen.getByRole("button", { name: /Semanal/ }));
+    const slot = await screen.findByTestId("slot-2026-11-12-09:00");
+    const bloco = await within(slot).findByText(LONGO);
+    expect(bloco.className).toContain("truncate");
+
+    fireEvent.mouseEnter(bloco.closest("a")!.parentElement!);
+
+    expect(within(screen.getByRole("tooltip")).getByText(LONGO)).toBeTruthy();
+  });
 });

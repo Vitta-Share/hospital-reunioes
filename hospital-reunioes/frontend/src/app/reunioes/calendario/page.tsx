@@ -670,7 +670,8 @@ function EventCard({
 
       {showTooltip && (
         <div
-          className={`absolute z-[60] w-64 bg-white rounded-xl shadow-2xl border border-slate-100 p-3 text-left animate-fade-in-up 
+          role="tooltip"
+          className={`absolute z-[60] w-64 bg-white rounded-xl shadow-2xl border border-slate-100 p-3 text-left animate-fade-in-up
             ${isLastCols ? "right-0" : "left-0"} 
             ${isLastRow ? "bottom-full mb-1" : "top-full mt-1"}
           `}
@@ -1006,7 +1007,7 @@ function WeekEventCard({
       )}
 
       {showTooltip && (
-        <div className="absolute z-[60] w-64 bg-white rounded-xl shadow-2xl border border-slate-100 p-3 text-left animate-fade-in-up left-full ml-2 top-0">
+        <div role="tooltip" className="absolute z-[60] w-64 bg-white rounded-xl shadow-2xl border border-slate-100 p-3 text-left animate-fade-in-up left-full ml-2 top-0">
           <p className="text-sm font-semibold text-slate-900 mb-0.5 leading-snug">
             {ev.titulo || ev.tipo || "Reunião Programada"}
           </p>
