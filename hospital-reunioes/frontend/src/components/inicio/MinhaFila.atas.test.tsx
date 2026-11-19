@@ -141,7 +141,7 @@ describe("o grupo Sem prazo", () => {
     expect(within(ata).getByText("1")).toBeTruthy();
     expect(within(ata).getByText("dia esperando")).toBeTruthy();
     expect(within(ata).getByText("Reunião de Enfermagem, de 09/11/2026.")).toBeTruthy();
-    expect(within(ata).getByRole("link", { name: "Assinar a Ata" }).getAttribute("href")).toBe("/reunioes/R2");
+    expect(within(ata).getByRole("link", { name: /^Assinar a Ata: / }).getAttribute("href")).toBe("/reunioes/R2");
   });
 
   it("a Ata parada até o terceiro dia mostra os dias de espera, sem atraso e sem vermelho", async () => {
@@ -152,7 +152,7 @@ describe("o grupo Sem prazo", () => {
     expect(within(parada).getByText("dias esperando")).toBeTruthy();
     expect(within(parada).queryByText(/atraso/)).toBeNull();
     expect(parada.innerHTML).not.toMatch(/text-red-/);
-    expect(within(parada).getByRole("link", { name: "Revisar a Ata" }).getAttribute("href")).toBe("/reunioes/R10");
+    expect(within(parada).getByRole("link", { name: /^Revisar a Ata: / }).getAttribute("href")).toBe("/reunioes/R10");
   });
 });
 
