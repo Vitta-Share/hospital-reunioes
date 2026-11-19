@@ -15,6 +15,7 @@ import os
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -324,3 +325,22 @@ class TestSigilo:
         assert "P_BRUNO" not in corpo
         assert "P_CAIO" not in corpo
         assert corpo.count("hoje") == 1
+
+
+class TestKitDeConhecimento:
+    def test_o_kit_de_conhecimento_explica_quem_responde_a_voce(self):
+        caminho = Path(quem_responde.__file__).parents[2] / "conhecimento" / "reunioes.md"
+        texto = " ".join(caminho.read_text(encoding="utf-8").split())
+
+        assert "Quem acompanha outras pessoas vê, abaixo da lista, o bloco Quem responde a você" in texto
+        assert "quem administra o aplicativo vê todas as pessoas com pendência aberta" in texto
+        assert "o facilitador vê os responsáveis das pendências das reuniões que conduziu" in texto
+        assert "Quem não é nenhum dos dois não vê o bloco" in texto
+        assert "o nome, o cargo, os prazos vencidos agora, os itens em aberto e o último acesso" in texto
+        assert '"hoje", "há tantos dias" ou "nunca entrou"' in texto
+        assert "quem tem mais prazos vencidos vem primeiro" in texto
+        assert "abre ali mesmo, só para leitura, o que venceu e não foi entregue" in texto
+        assert "O último acesso de uma pessoa só aparece para quem vê alguma pendência dela" in texto
+        assert "Se esse bloco não carregar, o resto do Início continua" in texto
+        assert chr(0x2014) not in texto
+        assert chr(0x2013) not in texto
