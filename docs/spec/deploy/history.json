@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-19T17:22:50-03:00",
+      "sha": "2e441c74058d5e4cbc833e2e736efe37b9f5ee4b",
+      "app_version": "0.316.0",
+      "subject": "Onda sesta-1932-onda3: POP na etapa da pessoa; Contas com o faturista e as contas sem dono no Início; O que o Núcleo espera da pessoa no Início (Fase 1)",
+      "raw_subject": "chore(deploy): registro da onda sesta-1932-onda3 (#2028 #2029 #2030)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1932
+      ],
+      "result": "healthy",
+      "duration_seconds": 782,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1932-onda3: PR #2028 (issue #1938), PR #2029 (issue #1940), PR #2030 (issue #1939), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 9,
+        "build_s": {
+          "backend": 222,
+          "frontend": 199
+        },
+        "health_s": 20
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-19T16:48:28-03:00",
       "sha": "165aea9daaf85c24e6c0cbf536af3b982adda5df",
       "app_version": "0.315.0",
