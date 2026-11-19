@@ -172,11 +172,13 @@ def _presencas_a_confirmar(supabase, me: dict) -> list[dict]:
 
 
 def itens(supabase, me: dict) -> list[dict]:
-    """Os itens da fonte, no formato comum do Início."""
+    """Os itens da fonte, no formato comum do Início. Cada um só entra para
+    quem alcança o recurso da tela que o mostra: o super admin, que só alcança
+    a configuração, não recebe nenhum."""
     recursos = recursos_nsp_da_pessoa(supabase, me)
-    if "ver_modulo" not in recursos:
-        return []
-    saida = _termo_pendente(supabase, me)
+    saida: list[dict] = []
+    if "ver_modulo" in recursos:
+        saida += _termo_pendente(supabase, me)
     if "documentos" in recursos:
         saida += _documentos_a_assinar(supabase, me)
     if "capacitacoes" in recursos:

@@ -15,6 +15,7 @@ import os
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -395,3 +396,23 @@ def test_super_admin_nao_recebe_item_do_nucleo_nem_sendo_signatario(monkeypatch)
     resposta = _rota(monkeypatch, SUPER_ADMIN, _banco_do_nucleo(**tabelas))
 
     assert resposta.itens == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. O kit de conhecimento do Produto Segurança do Paciente
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_o_kit_de_conhecimento_diz_o_que_o_nucleo_poe_no_inicio():
+    caminho = Path(fonte_nucleo.__file__).parents[2] / "conhecimento" / "seguranca-do-paciente.md"
+    texto = " ".join(caminho.read_text(encoding="utf-8").split())
+
+    assert "O Núcleo no Início:" in texto
+    assert "o Termo de Adesão que falta assinar" in texto
+    assert "a capacitação em que falta confirmar a presença, a partir do dia da capacitação" in texto
+    assert "ficam no grupo Sem prazo" in texto
+    assert "pelo botão **Confirmar presença**, sem abrir outra tela" in texto
+    assert "a linha sai e a frase e os números do topo se refazem" in texto
+    assert "o super admin sem o Acesso pleno também não vê nada do Núcleo no Início" in texto
+    assert chr(0x2014) not in texto
+    assert chr(0x2013) not in texto
