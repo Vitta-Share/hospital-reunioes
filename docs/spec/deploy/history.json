@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-19T15:46:00-03:00",
+      "sha": "240be8df5933b02899aace80783a1ffb47a71797",
+      "app_version": "0.313.0",
+      "subject": "Onda onda-envio-onda2: Ajuste do plano do Envio trava as fatias iniciais; Observação do Validar fica no app e vai interpretada para o GitHub; Tecnologia ensina o Ver o plano e o Envio aos desenvolvedo",
+      "raw_subject": "chore(deploy): registro da onda onda-envio-onda2 (#2021 #2022 #2023)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        2007
+      ],
+      "result": "healthy",
+      "duration_seconds": 617,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "166_tecnologia_observacao_da_validacao.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta onda-envio-onda2: PR #2021 (issue #2012), PR #2022 (issue #2013), PR #2023 (issue #2015), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 9,
+        "build_s": {
+          "backend": 22,
+          "frontend": 234
+        },
+        "health_s": 10
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-19T15:09:10-03:00",
       "sha": "a28f44aae2ed4052641ae92923076af570849a82",
       "app_version": "0.312.0",
