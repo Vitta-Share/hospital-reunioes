@@ -97,7 +97,7 @@ describe("o POP na etapa da pessoa", () => {
     expect(within(linha).getByText("2").textContent).toBe("2");
     expect(within(linha).getByText("dias esperando")).toBeTruthy();
     expect(within(linha).getByText("HSM_ENF-002, versão 1.0, em revisão.")).toBeTruthy();
-    expect(within(linha).getByRole("link", { name: "Revisar" }).getAttribute("href")).toBe("/pops/POP002/versao");
+    expect(within(linha).getByRole("link", { name: "Revisar: Higiene das mãos" }).getAttribute("href")).toBe("/pops/POP002/versao");
   });
 
   it("um dia só fica no singular", async () => {

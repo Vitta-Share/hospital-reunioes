@@ -83,7 +83,7 @@ def _entrou_na_etapa(supabase, versoes: list[dict]) -> dict[str, date]:
     return datas
 
 
-def itens(supabase, me: dict) -> list[dict]:
+def itens(supabase, me: dict, _agora: datetime | None = None) -> list[dict]:
     """Os itens da fonte, no formato comum do Início."""
     if me.get("perfil_pop") not in PERFIS_POP:
         return []
