@@ -18,7 +18,7 @@ from app.dependencies import (
     get_supabase_client,
     is_secretaria,
 )
-from app.services.inicio import Inicio, montar_inicio, registro_de_acesso
+from app.services.inicio import Inicio, montar_inicio, quem_responde, registro_de_acesso
 from app.services.inicio.regras import FUSO
 
 router = APIRouter(prefix="/inicio", tags=["inicio"])
@@ -42,3 +42,18 @@ async def get_inicio(
     if me:
         registro_de_acesso.marcar(supabase, me["id"], agora.astimezone(FUSO).date())
     return montar_inicio(supabase, me, agora)
+
+
+@router.get("/quem-responde", response_model=quem_responde.QuemRespondeAVoce | None)
+async def get_quem_responde(
+    current_user: dict = Depends(get_current_user),
+    supabase=Depends(get_supabase_client),
+) -> quem_responde.QuemRespondeAVoce | None:
+    """O bloco Quem responde a você (issue #1943), em pedido separado do resto
+    do Início: a falha dele não derruba a Minha Fila. `null` para quem não
+    acompanha ninguém, que não recebe o bloco."""
+    me = await get_participante_for_user(current_user, supabase)
+    barrar_desligado(me)
+    if is_secretaria(me):
+        raise HTTPException(status_code=403, detail="A Secretária não tem Início")
+    return quem_responde.montar(supabase, me, agora_em_brasilia())
