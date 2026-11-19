@@ -84,6 +84,8 @@ PENDENCIAS = [
     ("PE1721B", "Conferir o estoque de antissépticos", "P17211", 3, "EM_PROGRESSO", "Planilha de estoque conferida"),
     ("PE1721C", "Calibrar as bombas de infusão do leito 4 ao 8", "P17213", -2, "ATRASADO", "Laudo de calibração"),
     ("PE1721D", "Ajustar a dieta dos pacientes em jejum prolongado", "P17214", -5, "CONCLUIDO", "Cardápio ajustado"),
+    # A da própria Facilitadora: o print do Início mostra a fila dela.
+    ("PE1721E", "Mandar a pauta da próxima reunião da UTI", "P17210", 4, "PENDENTE", "Pauta enviada aos participantes"),
 ]
 
 
@@ -456,6 +458,8 @@ const cartao = (titulo) =>
     .locator("xpath=ancestor::div[contains(@class,'rounded-2xl')][1]");
 const pronto = async (clip) => {
   await page.evaluate(() => document.activeElement && document.activeElement.blur());
+  // O selo do Next em modo de desenvolvimento não é do app.
+  await page.evaluate(() => document.querySelectorAll('nextjs-portal').forEach((e) => e.remove()));
   await page.waitForTimeout(400);
   return { texto: await page.evaluate(() => document.body.innerText), clip };
 };
@@ -494,6 +498,26 @@ def entrar(base: str) -> None:
 # --------------------------------------------------------------------------
 # Os prints, um por imagem da página
 # --------------------------------------------------------------------------
+
+
+def inicio() -> str:
+    """A primeira tela depois do login (issue #1948).
+
+    Entra pelo endereço principal e espera o app levar ao Início: se o login
+    deixar de cair lá, o print não sai.
+    """
+    reuniao_programada()
+    return """
+    await abrir('/');
+    await page.waitForURL((u) => new URL(u).pathname === '/inicio', { timeout: 30000 });
+    await page.getByRole('heading', { name: 'Início' }).first().waitFor();
+    await page.waitForTimeout(1500);
+    await balao(page.getByRole('link', { name: 'Início', exact: true }).first(), 1);
+    // O grupo Reuniões e metas já começa aberto: o balão vai direto no Dashboard.
+    await balao(page.getByRole('link', { name: 'Dashboard', exact: true }).first(), 2);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    return await pronto({ x: 0, y: 0, width: 1440, height: 900 });
+    """
 
 
 def calendario() -> str:
@@ -628,6 +652,7 @@ def pendencias() -> str:
 # confere que esta lista é exatamente a das imagens citadas na página: print
 # novo na página sem função aqui fica vermelho.
 PRINTS = {
+    "inicio": inicio,
     "calendario": calendario,
     "agendar-reuniao": agendar_reuniao,
     "anexar-transcricao": anexar_transcricao,

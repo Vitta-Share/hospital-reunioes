@@ -18,6 +18,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { MarkdownDoManual } from "@/components/manual/MarkdownDoManual";
 import { lerFluxograma, type Fluxo } from "@/components/manual/fluxograma/fluxo";
+import { itensDoMenu } from "@/components/layout/Sidebar";
 import type { CurrentParticipante } from "@/hooks/useCurrentParticipante";
 import { carregarPaginasDoManual } from "./carregar";
 import { enderecoDaImagem, imagensCitadas, paginasVisiveis } from "./paginas";
@@ -117,6 +118,43 @@ describe("as reuniões do Núcleo de Segurança do Paciente (issue #1781)", () =
     const comTraco = PAGINA.corpo.split("\n").filter((l) => /[–—]/.test(l));
 
     expect(comTraco).toEqual([]);
+  });
+});
+
+describe("entrar no app pelo Início (issue #1948)", () => {
+  const entrar = secoes(PAGINA.corpo).find((s) => /^Entrar no app/.test(s.titulo));
+  // O menu de verdade do Facilitador: a página tem de nomear os itens que ele vê.
+  const menu = itensDoMenu(pessoa({ access_profile: "regular" }));
+  const passo = (n: number) => entrar?.texto.match(new RegExp(`^${n}\\. .*$`, "m"))?.[0] ?? "";
+
+  it("a tarefa de entrar no app existe, com passos numerados", () => {
+    expect(entrar).toBeDefined();
+    expect(passo(1)).not.toBe("");
+    expect(passo(2)).not.toBe("");
+  });
+
+  it("diz que o app abre no Início, o primeiro item do menu", () => {
+    expect(menu[0]).toMatchObject({ href: "/inicio", label: "Início" });
+    expect(passo(1)).toMatch(new RegExp(`abre no \\*\\*${menu[0].label}\\*\\*`));
+  });
+
+  it("leva ao painel de Reuniões pelo item do menu que abre o painel", () => {
+    const grupo = menu.find((i) => i.subItems?.some((s) => s.href === "/dashboard"))!;
+    const painel = grupo.subItems!.find((s) => s.href === "/dashboard")!;
+
+    expect(passo(2)).toMatch(new RegExp(`clique em \\*\\*${painel.label}\\*\\* \\(2\\)`));
+    // O grupo já começa aberto (Sidebar, estado inicial): clicar nele fecha o
+    // grupo e esconde o painel. A página nomeia o grupo, sem mandar clicar nele.
+    expect(passo(2)).toMatch(new RegExp(`\\*\\*${grupo.label}\\*\\*[^.]*já aparece aberto`));
+    expect(passo(2)).not.toMatch(new RegExp(`(abra|clique em) \\*\\*${grupo.label}\\*\\*`));
+    expect(entrar?.texto).not.toMatch(/\(3\)/);
+  });
+
+  it("o print da tarefa é a tela do Início, e ele existe", () => {
+    const prints = imagensCitadas(entrar?.texto ?? "");
+
+    expect(prints).toContain("inicio.png");
+    expect(existsSync(join(process.cwd(), "public", enderecoDaImagem(PAGINA.pasta, "inicio.png")))).toBe(true);
   });
 });
 

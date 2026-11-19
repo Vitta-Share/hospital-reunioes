@@ -34,6 +34,30 @@ def test_o_roteiro_refaz_todas_as_imagens_da_pagina():
     assert sorted(f"{nome}.png" for nome in roteiro.PRINTS) == sorted(citadas)
 
 
+def test_o_print_do_inicio_sai_da_tela_onde_o_endereco_principal_cai(monkeypatch):
+    # Issue #1948: o print prova que o app abre no Início. Ele entra pelo
+    # endereço principal e espera o app levar ao Início, sem abrir o Início
+    # direto.
+    monkeypatch.setattr(roteiro, "_rest", lambda *a, **k: [])
+
+    passos = roteiro.PRINTS["inicio"]()
+
+    assert "abrir('/')" in passos
+    assert "abrir('/inicio')" not in passos
+    assert re.search(r"waitForURL\(.*'/inicio'", passos)
+
+
+def test_o_print_do_inicio_nao_poe_balao_no_grupo_que_ja_comeca_aberto(monkeypatch):
+    # Revisão do PR #2035: o grupo "Reuniões e metas" já começa aberto, e
+    # clicar nele esconde o Dashboard. Os balões são Início (1) e Dashboard (2).
+    monkeypatch.setattr(roteiro, "_rest", lambda *a, **k: [])
+
+    passos = roteiro.PRINTS["inicio"]()
+    baloes = re.findall(r"await balao\(page\.getByRole\('(\w+)', \{ name: '([^']+)'.*?, (\d+)\);", passos)
+
+    assert baloes == [("link", "Início", "1"), ("link", "Dashboard", "2")]
+
+
 def test_o_roteiro_grava_os_prints_ao_lado_do_markdown():
     assert roteiro.PASTA_DA_PAGINA == PAGINA.parent
 
