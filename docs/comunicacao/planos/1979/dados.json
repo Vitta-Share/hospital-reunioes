@@ -1,0 +1,461 @@
+{
+ "prd": 1979,
+ "contexto": "Segurança do Paciente",
+ "titulo_aba": "Plano da Fase 2 do Núcleo",
+ "descricao": "O plano da Fase 2 do Núcleo de Segurança do Paciente, com a notificação de incidente, a triagem e os prazos, em 7 etapas, para o diretor validar antes do trabalho começar.",
+ "selo": "Plano para validar · Segurança do Paciente",
+ "titulo": "Qualquer profissional notifica um incidente em dois minutos,",
+ "destaque": "e o Núcleo recebe a classificação sugerida.",
+ "resumo": "Este é o plano da Fase 2 do Núcleo de Segurança do Paciente, tirado da especificação da Diretoria Executiva de 18/11. São 23 partes, em 7 etapas, e nenhuma foi entregue ainda. A Fase 1 continua como está. Logo abaixo estão dois pontos para você confirmar. Passe o mouse em cada parte para ver o que muda, do que ela depende e como vamos saber que ficou pronta. No fim da página, você valida o plano.",
+ "numeros": [
+  {
+   "valor": 23,
+   "rotulo": "partes"
+  },
+  {
+   "valor": 7,
+   "rotulo": "etapas, uma depois da outra"
+  },
+  {
+   "valor": 2,
+   "rotulo": "pontos para você confirmar"
+  }
+ ],
+ "decidido": {
+  "titulo": "O plano segue a especificação de 18/11",
+  "texto": "Abaixo, as regras que vieram da especificação e dois pontos que o planejamento decidiu sem esperar a sua resposta. Se quiser outra coisa em algum deles, escreva na observação ao validar: só a parte ligada a ele muda.",
+  "blocos": [
+   {
+    "titulo": "Da especificação",
+    "numerado": false,
+    "itens": [
+     "Quem notifica conta o que aconteceu e não classifica nada. Dá para notificar sem login e sem se identificar.",
+     "O agente só sugere. A Presidência confirma toda classificação: óbito e caso grave campo a campo, os demais num clique.",
+     "O nome de quem notificou aparece só para a Presidência e para o Diretor Executivo. O bloqueio vale no app; quem cuida do banco de dados ainda consegue ler.",
+     "O relato vai ao agente sem nome e sem contato de quem notificou, e os anexos não vão. O agente faz no máximo 100 leituras por dia.",
+     "Antes de ir ao ar, o agente passa pelos 144 casos de teste da Diretoria, e nenhum caso A ou B pode sair rebaixado.",
+     "Os prazos da norma não mudam pela tela. Os prazos internos ficam numa tabela com histórico, e a mudança não alcança caso já classificado.",
+     "Nenhuma notificação se apaga. Toda correção fica registrada com quem, quando, de e para."
+    ]
+   },
+   {
+    "titulo": "Valem se você não disser o contrário",
+    "numerado": true,
+    "itens": [
+     "Frequência na prioridade, olhando 12 meses no mesmo setor e no mesmo tipo de incidente: nenhuma ocorrência antes é remota, 1 é incomum, 2 ou 3 é ocasional, 4 ou mais é frequente. Dá para mudar depois na Configuração do módulo.",
+     "O e-mail que avisa o Núcleo de um caso da Ouvidoria passa a abrir o caso dentro do app, com login, e a página aberta sem login deixa de mostrar o relato."
+    ]
+   },
+   {
+    "titulo": "O que o hospital faz antes do uso real",
+    "numerado": false,
+    "itens": [
+     "Afixar o QR nas áreas assistenciais e aplicar o papel de parede.",
+     "Conferir o cadastro do hospital na ANVISA: Gestores de Segurança e o perfil de gestor no Notivisa e no VigiMed."
+    ]
+   }
+  ]
+ },
+ "fora": {
+  "itens": [
+   "Investigação, plano de ação e retorno a quem notificou",
+   "Texto para a vigilância, fechamento mensal, indicadores e relatório",
+   "Envio automático ao Notivisa e ao VigiMed",
+   "Ligação com o MV",
+   "Notificações anteriores ao módulo e casos que a Ouvidoria mandou ao Núcleo antes desta fase",
+   "Envio de conteúdo ao Canal de Conduta",
+   "Antivírus nos anexos"
+  ],
+  "texto": "A investigação e o plano de ação entram na Fase 3. A vigilância, os indicadores e o relatório entram na Fase 4. Até lá, o envio ao Notivisa e ao VigiMed continua sendo feito no site de cada um."
+ },
+ "etapas": [
+  {
+   "nome": "A base",
+   "texto": "O setor do cadastro nos casos da Ouvidoria, as duas contas novas de prazo, o registro de todo e-mail do Núcleo, o limite de envios e a sua resposta sobre a frequência. As outras etapas dependem desta."
+  },
+  {
+   "nome": "O formulário",
+   "texto": "Qualquer profissional notifica pelo celular, sem login, e recebe o protocolo para acompanhar."
+  },
+  {
+   "nome": "A notificação chega ao Núcleo",
+   "texto": "Os anexos, o alerta do caso grave, a sugestão do agente, os casos da Ouvidoria na mesma fila e o registro rápido feito pelo próprio Núcleo."
+  },
+  {
+   "nome": "A triagem",
+   "texto": "A tela em que a Presidência confirma ou ajusta, as perguntas de esclarecimento e a linha nova no manual da Ouvidoria."
+  },
+  {
+   "nome": "Prazos, encaminhamentos e acesso",
+   "texto": "Os prazos do Regimento ao confirmar, o envio a outro canal, o suplente em exercício, a leitura da Diretoria e a medida de quanto a Presidência concorda com o agente."
+  },
+  {
+   "nome": "O que vem depois de confirmar",
+   "texto": "A reunião de análise e os avisos sem outro clique, o \"Recebido\" dos setores, o que exige ação hoje e a confirmação em lote dos casos leves."
+  },
+  {
+   "nome": "O manual",
+   "texto": "Tudo o que mudou, explicado com passos e prints."
+  }
+ ],
+ "partes": [
+  {
+   "id": 1,
+   "etapa": 1,
+   "titulo": "Setor do cadastro na Ouvidoria",
+   "muda": "A manifestação da Ouvidoria passa a apontar para o setor do cadastro, e não só para o nome escrito.",
+   "vale": "O caso que a Ouvidoria manda ao Núcleo chega com o mesmo setor que o Núcleo usa nos números dele.",
+   "saber": [
+    "Nada muda na tela da Ouvidoria.",
+    "Os casos antigos ganham o setor pelo nome que já tinham."
+   ],
+   "pronto": "Um caso antigo da Ouvidoria com o setor escrito \"uti adulto\" passa a apontar para a UTI Adulto do cadastro. O caso cujo nome não bate com nenhum setor fica sem setor do cadastro e entra numa lista para conferir.",
+   "depende": []
+  },
+  {
+   "id": 2,
+   "etapa": 1,
+   "titulo": "Duas contas novas de prazo",
+   "muda": "O cálculo de prazos do app passa a contar dias corridos e o 15º dia útil do mês seguinte.",
+   "vale": "São as duas contas que os prazos do Regimento e da ANVISA pedem e que o app ainda não sabe fazer.",
+   "saber": [
+    "Nada muda nos prazos da Ouvidoria.",
+    "Os feriados cadastrados valem para as duas contas novas."
+   ],
+   "pronto": "Um incidente de 10 de dezembro ganha o prazo da ANVISA no 15º dia útil de janeiro, sem contar fim de semana nem feriado, e os prazos da Ouvidoria continuam iguais.",
+   "depende": []
+  },
+  {
+   "id": 3,
+   "etapa": 1,
+   "titulo": "Todo e-mail do Núcleo registrado",
+   "muda": "Todo e-mail do Núcleo passa a ficar registrado e é tentado de novo quando o envio falha.",
+   "vale": "Os alertas de caso grave não podem se perder porque o provedor de e-mail falhou uma vez.",
+   "saber": [
+    "Os avisos que o Núcleo já manda continuam saindo como hoje.",
+    "Depois da terceira falha, o e-mail fica marcado como falha e o admin técnico é avisado."
+   ],
+   "pronto": "Quando o provedor de e-mail falha, o app tenta de novo, esperando um pouco mais a cada vez. Na terceira falha, o e-mail fica marcado e o responsável técnico do app é avisado. O alerta urgente sai na hora, mesmo de madrugada.",
+   "depende": []
+  },
+  {
+   "id": 4,
+   "etapa": 1,
+   "titulo": "Limite de envios sem endereço",
+   "muda": "O app passa a limitar envios repetidos de um mesmo aparelho sem guardar o endereço de quem envia.",
+   "vale": "Quem notifica sem se identificar fica de fato anônimo, e o formulário não pode ser inundado.",
+   "saber": [
+    "Nenhuma tabela nem log guarda o IP.",
+    "O limite vale por pouco tempo, e a chave muda todo dia."
+   ],
+   "pronto": "Quem manda muitas notificações seguidas do mesmo aparelho é recusado por um tempo curto, e nenhum registro do app guarda o endereço de quem enviou.",
+   "depende": []
+  },
+  {
+   "id": 5,
+   "etapa": 1,
+   "titulo": "Frequência na prioridade",
+   "muda": "A Diretoria define quantas repetições do mesmo incidente no mesmo setor fazem ele contar como frequente na prioridade do Núcleo.",
+   "vale": "A prioridade de cada caso sai da gravidade e da frequência, e a especificação não trouxe os números da frequência.",
+   "saber": [
+    "Até a resposta chegar, o app usa a sugestão abaixo.",
+    "O número pode ser ajustado depois, pela tela de Configuração do módulo."
+   ],
+   "pronto": "Os números da Diretoria ficam registrados e são os que a Configuração do módulo usa. Se você validar sem mudar nada, vale a sugestão do alto da página.",
+   "depende": []
+  },
+  {
+   "id": 6,
+   "etapa": 2,
+   "titulo": "Notificar pelo celular, sem login",
+   "muda": "Qualquer profissional passa a notificar um incidente pelo celular, sem login, e recebe um protocolo para acompanhar.",
+   "vale": "É a porta de entrada do Núcleo: sem ela, o incidente só chega se alguém contar no corredor.",
+   "saber": [
+    "Quem não se identifica recebe um código, mostrado uma vez só.",
+    "O nome de quem notificou aparece só para a Presidência e o Diretor Executivo.",
+    "O atalho \"Notificar incidente\" fica no topo de todas as telas do app."
+   ],
+   "pronto": "No celular, pelo QR, a pessoa passa pelas quatro telas sem login e recebe um protocolo como NSP-2026-0001. Quem não se identificou vê o código uma vez só e, com ele, acompanha o estado em palavras simples.",
+   "depende": [
+    4
+   ]
+  },
+  {
+   "id": 7,
+   "etapa": 3,
+   "titulo": "Até três fotos ou arquivos",
+   "muda": "Quem notifica passa a poder anexar até três fotos ou arquivos.",
+   "vale": "Uma foto mostra o que o relato às vezes não consegue contar.",
+   "saber": [
+    "Os arquivos só abrem para quem tem acesso ao caso.",
+    "Nenhum anexo vai para a inteligência artificial."
+   ],
+   "pronto": "No celular, a pessoa anexa três fotos e a quarta é recusada com uma mensagem clara. Cada foto só abre para quem tem acesso ao caso.",
+   "depende": [
+    6
+   ]
+  },
+  {
+   "id": 8,
+   "etapa": 3,
+   "titulo": "Alerta na hora do caso grave",
+   "muda": "Quando alguém marca \"grave ou houve morte\", a Presidência, o suplente e a Diretoria recebem o alerta na hora.",
+   "vale": "O caso grave chega a quem decide antes de qualquer triagem, em qualquer dia e horário.",
+   "saber": [
+    "O e-mail traz protocolo, setor e link, nunca o relato.",
+    "Quem se identificou com e-mail recebe a confirmação de que a notificação chegou."
+   ],
+   "pronto": "Num domingo às 3h, alguém marca \"grave ou houve morte\". A Presidência, o suplente e a Diretoria recebem na hora o e-mail com protocolo, setor e link, sem o relato, antes de qualquer triagem.",
+   "depende": [
+    3,
+    6
+   ]
+  },
+  {
+   "id": 9,
+   "etapa": 3,
+   "titulo": "Agente sugere a classificação",
+   "muda": "Toda notificação passa a chegar ao Núcleo com a classificação sugerida pelo agente, pronta para conferir.",
+   "vale": "A coordenação confere em segundos o que antes precisaria classificar do zero pela norma.",
+   "saber": [
+    "O agente só sugere; quem decide é a Presidência.",
+    "Se o agente falhar, a notificação entra na fila marcada para classificar à mão, sem ficar retida.",
+    "Antes de publicar, o agente passa pelo teste com os 144 casos da Diretoria."
+   ],
+   "pronto": "Cada notificação chega à fila com a sugestão do agente, ou marcada para classificar à mão quando ele falha. No teste com os 144 casos da Diretoria, nenhum caso A ou B sai rebaixado.",
+   "depende": [
+    6
+   ]
+  },
+  {
+   "id": 10,
+   "etapa": 3,
+   "titulo": "Caso da Ouvidoria na mesma fila",
+   "muda": "O caso que o ouvidor manda ao Núcleo passa a entrar na mesma fila das notificações dos profissionais.",
+   "vale": "O relato do paciente chega ao Núcleo dentro do app, com login, e não mais por um link aberto.",
+   "saber": [
+    "Nada muda no trabalho do ouvidor.",
+    "O link do e-mail ao Núcleo passa a pedir login.",
+    "A Ouvidoria vê em uma palavra em que pé está o caso no Núcleo."
+   ],
+   "pronto": "O ouvidor confirma o envio ao Núcleo e o caso aparece na fila do Núcleo marcado \"Veio da Ouvidoria\", sem o nome de quem manifestou. Confirmar duas vezes não cria dois casos.",
+   "depende": [
+    1,
+    6
+   ]
+  },
+  {
+   "id": 11,
+   "etapa": 3,
+   "titulo": "Registro rápido pelo Núcleo",
+   "muda": "A Presidência e os membros passam a registrar numa tela só o incidente achado em busca ativa, ronda, reunião rápida ou auditoria.",
+   "vale": "O incidente que o próprio Núcleo encontra também entra no registro, com a origem certa.",
+   "saber": [
+    "São quatro campos: relato, setor, data e origem.",
+    "A notificação segue para a mesma triagem."
+   ],
+   "pronto": "Um membro com Termo registra no celular, numa tela só, o incidente achado na ronda, com relato, setor, data e origem, e o caso vai para a mesma triagem. Membro sem Termo não consegue registrar.",
+   "depende": [
+    6
+   ]
+  },
+  {
+   "id": 12,
+   "etapa": 4,
+   "titulo": "Perguntas depois do envio",
+   "muda": "Depois de enviar, quem notificou pode responder até duas perguntas curtas do agente, ou deixar para depois.",
+   "vale": "Uma resposta curta de quem estava no plantão pode mudar a classificação de um caso.",
+   "saber": [
+    "A notificação já está registrada antes de as perguntas aparecerem.",
+    "Dá para responder depois, na página de acompanhamento."
+   ],
+   "pronto": "Depois do protocolo aparecem até duas perguntas curtas. Quem escolhe \"Responder depois\" responde na página de acompanhamento, e, se a triagem ainda não foi confirmada, a resposta atualiza a sugestão do agente.",
+   "depende": [
+    9
+   ]
+  },
+  {
+   "id": 13,
+   "etapa": 4,
+   "titulo": "Tela de triagem",
+   "muda": "A Presidência passa a confirmar ou ajustar a classificação de cada notificação numa tela só, com o relato ao lado da sugestão.",
+   "vale": "Caso grave pede conferência campo a campo, e caso leve se confirma num clique.",
+   "saber": [
+    "Óbito, caso grave e evento que nunca deveria ocorrer se confirmam campo a campo.",
+    "Os demais casos se confirmam num clique.",
+    "Cada ajuste fica registrado, para medir onde o agente erra."
+   ],
+   "pronto": "Num caso grave, o botão Confirmar só libera depois de a Presidência marcar cada campo. Num caso leve, Confirmar é um clique. Cada ajuste fica gravado ao lado da sugestão original.",
+   "depende": [
+    9
+   ]
+  },
+  {
+   "id": 14,
+   "etapa": 4,
+   "titulo": "Manual da Ouvidoria atualizado",
+   "muda": "O manual da Ouvidoria passa a dizer que o caso mandado ao Núcleo vira uma notificação do Núcleo.",
+   "vale": "O ouvidor sabe o que acontece com o caso depois que ele confirma o envio.",
+   "saber": [
+    "Muda só uma linha da tarefa de mandar ao Núcleo.",
+    "O fluxograma não muda."
+   ],
+   "pronto": "No manual da Ouvidoria, a tarefa de mandar um caso ao Núcleo diz em uma linha que o caso vira uma notificação do Núcleo.",
+   "depende": [
+    10
+   ]
+  },
+  {
+   "id": 15,
+   "etapa": 5,
+   "titulo": "Prazos do caso e tabela",
+   "muda": "Ao confirmar a triagem, o caso passa a mostrar todos os prazos do Regimento, inclusive o da ANVISA.",
+   "vale": "O prazo legal de 72 horas aparece desde o primeiro dia, e ninguém perde prazo por conta de data feita à mão.",
+   "saber": [
+    "Os prazos legais não se alteram pela tela.",
+    "Os prazos internos se ajustam na Configuração, com histórico, e a mudança não alcança caso já classificado."
+   ],
+   "pronto": "Ao confirmar um óbito, o caso mostra o prazo de 72 horas com data e hora, e ninguém altera esse prazo pela tela. Mudar um prazo interno na tabela fica no histórico e não muda caso já classificado.",
+   "depende": [
+    2,
+    13
+   ]
+  },
+  {
+   "id": 16,
+   "etapa": 5,
+   "titulo": "Encaminhar a outro canal",
+   "muda": "A Presidência passa a encaminhar a outro canal o caso que não é do Núcleo, ou que é só em parte, sem perder o protocolo.",
+   "vale": "Reclamação de atendimento e assunto trabalhista chegam a quem trata, e o caso continua rastreável.",
+   "saber": [
+    "Um caso pode ficar com o Núcleo e ir também para a Ouvidoria.",
+    "Para o Canal de Conduta nada é transferido: a tela só orienta.",
+    "Fora de escopo encerra com uma orientação curta para quem notificou."
+   ],
+   "pronto": "Uma reclamação de atendimento vai à Ouvidoria com o mesmo protocolo e o motivo, e o ouvidor recebe o e-mail. Para o Canal de Conduta, a tela só orienta e nada sai do Núcleo.",
+   "depende": [
+    3,
+    13
+   ]
+  },
+  {
+   "id": 17,
+   "etapa": 5,
+   "titulo": "Suplente em exercício e Diretoria",
+   "muda": "O suplente passa a responder pela Presidência no período de ausência registrado, e a Diretoria passa a ler os casos graves.",
+   "vale": "O Núcleo não para quando a Presidência se ausenta, e a Diretoria acompanha o que é grave.",
+   "saber": [
+    "Fora do período, o suplente é membro e não vê o nome de quem notificou.",
+    "A Diretoria lê os casos A e B, sem editar e sem o nome de quem notificou."
+   ],
+   "pronto": "Com a ausência da Presidência registrada de 1º a 15, o suplente confirma triagens nesses dias e, no dia 16, já não consegue. A Diretoria lê os casos A e B, sem editar e sem o nome de quem notificou.",
+   "depende": [
+    13
+   ]
+  },
+  {
+   "id": 18,
+   "etapa": 5,
+   "titulo": "Concordância com o agente",
+   "muda": "O app passa a medir quanto a Presidência concorda com o agente e, aos 30 e aos 60 dias, pede à Diretoria Executiva que decida sobre ele.",
+   "vale": "A decisão de confiar mais ou menos no agente sai de números e não de impressão.",
+   "saber": [
+    "A pendência chega no app, sem e-mail.",
+    "A Diretoria conclui a pendência escolhendo manter, ajustar ou ligar a aprovação em lote."
+   ],
+   "pronto": "A Configuração mostra quanto a Presidência concorda com o agente em cada eixo da classificação. Aos 30 dias, chega no app a pendência para a Diretoria Executiva escolher entre manter, ajustar ou ligar a confirmação em lote.",
+   "depende": [
+    13
+   ]
+  },
+  {
+   "id": 19,
+   "etapa": 6,
+   "titulo": "Reunião de análise e avisos",
+   "muda": "Ao confirmar um caso grave, o app já agenda a reunião de análise e avisa a Diretoria, sem outro clique.",
+   "vale": "A coordenação não precisa lembrar de agendar nem de avisar, e o prazo do Regimento fica cumprido.",
+   "saber": [
+    "Nas faixas A e B a reunião de análise nasce programada na data-limite.",
+    "A lesão por pressão sem óbito entra na reunião ordinária seguinte, sem reunião extra.",
+    "Quem notificou e se identificou recebe o aviso de que o caso está em análise."
+   ],
+   "pronto": "Ao confirmar um caso A, a reunião de análise já aparece Programada na data-limite, com o protocolo na pauta, e a Diretoria é avisada. Confirmar de novo não cria outra reunião.",
+   "depende": [
+    3,
+    15
+   ]
+  },
+  {
+   "id": 20,
+   "etapa": 6,
+   "titulo": "Botão \"Recebido\" para os setores",
+   "muda": "O caso encaminhado à Segurança do Trabalho, à Farmácia ou à Engenharia Clínica chega por e-mail com o botão \"Recebido\".",
+   "vale": "O Núcleo fica sabendo que o setor viu, sem cobrar à mão.",
+   "saber": [
+    "O link funciona uma vez só.",
+    "Sem o clique, o e-mail é reenviado uma vez."
+   ],
+   "pronto": "A Farmácia recebe o e-mail do caso, clica em \"Recebido\" e o caso passa a mostrar a data e a hora do clique. Sem o clique no prazo, o e-mail é reenviado uma vez.",
+   "depende": [
+    16
+   ]
+  },
+  {
+   "id": 21,
+   "etapa": 6,
+   "titulo": "O que exige ação hoje",
+   "muda": "O início do módulo passa a mostrar primeiro o que precisa da Presidência hoje.",
+   "vale": "Caso grave aberto, triagem atrasada e prazo da ANVISA perto do fim aparecem antes de tudo.",
+   "saber": [
+    "Cada item leva direto à tela onde se resolve.",
+    "Quando faltam 24 horas para o prazo de 72 horas, chega um e-mail."
+   ],
+   "pronto": "Com um caso A aberto há 50 horas, o início do módulo mostra esse caso primeiro, e a Presidência recebe, uma vez só, o e-mail de que faltam menos de 24 horas para o prazo de 72 horas.",
+   "depende": [
+    8,
+    15
+   ]
+  },
+  {
+   "id": 22,
+   "etapa": 6,
+   "titulo": "Confirmação em lote dos leves",
+   "muda": "Depois de a Diretoria liberar, a Presidência passa a confirmar de uma vez várias triagens de casos leves.",
+   "vale": "Caso leve deixa de tomar tempo um por um quando o agente já provou que acerta.",
+   "saber": [
+    "Nasce desligada; só a Diretoria Executiva liga.",
+    "Só vale para as faixas D e E; casos mais graves nunca vão em lote."
+   ],
+   "pronto": "Com o lote ligado pela Diretoria Executiva, a Presidência confirma de uma vez dez casos D e E, cada um com os próprios prazos. Um caso C no meio faz o pedido inteiro ser recusado.",
+   "depende": [
+    18
+   ]
+  },
+  {
+   "id": 23,
+   "etapa": 7,
+   "titulo": "Manual do Núcleo",
+   "muda": "O manual dentro do app passa a ensinar a notificar, a acompanhar e a fazer a triagem.",
+   "vale": "Quem chega ao módulo aprende cada tarefa nova em passo a passo, com print.",
+   "saber": [
+    "Todos os prints usam dado fictício.",
+    "O fluxograma mostra o ciclo da notificação, do envio à classificação."
+   ],
+   "pronto": "O manual dentro do app ensina as oito tarefas novas, como notificar, acompanhar e fazer a triagem, com passos e prints de dados fictícios, e o fluxograma mostra o caminho da notificação.",
+   "depende": [
+    6,
+    7,
+    11,
+    12,
+    13,
+    15,
+    16,
+    17,
+    18,
+    20,
+    21,
+    22
+   ]
+  }
+ ]
+}
