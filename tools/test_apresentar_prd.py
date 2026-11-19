@@ -198,6 +198,101 @@ def test_codigo_de_um_prd_nao_vale_para_outro():
     assert r["chamadas"] == []
 
 
+# --- O estado da validação: a página lê do GitHub quando abre (ADR 0108) -----
+
+ESTADO = PLANOS / "site" / "api" / "estado.js"
+
+# Roda a função de estado com um GitHub falso: cada rota responde o que o teste fixar.
+HARNESS_ESTADO = r"""
+const [estado, query, respostas] = process.argv.slice(1);
+const fixas = JSON.parse(respostas || '{}');
+const chamadas = [];
+global.fetch = async (url, opt) => {
+  chamadas.push({ url, method: (opt && opt.method) || 'GET' });
+  const chave = url.replace(/^.*\/repos\/[^/]+\/[^/]+/, '').replace(/\?.*$/, '');
+  const r = fixas[chave];
+  if (r && r.__rede) throw new TypeError('fetch failed');
+  const status = r === undefined ? 404 : r && r.__falha ? r.__falha : 200;
+  return { ok: status < 400, status, json: async () => r };
+};
+const handler = require(estado);
+const res = {
+  code: 0,
+  status(c) { this.code = c; return this; },
+  json(j) { console.log(JSON.stringify({ status: this.code, resposta: j, chamadas })); return this; },
+};
+handler({ method: 'GET', query: JSON.parse(query) }, res);
+"""
+
+
+def _estado(query: dict, respostas: dict | None = None) -> dict:
+    if not shutil.which("node"):
+        pytest.fail("o teste da função de estado precisa do node no PATH")
+    env = {**os.environ, "GITHUB_TOKEN": "token-falso"}
+    env.pop("SEGREDO", None)
+    out = subprocess.run(
+        [
+            "node",
+            "-e",
+            HARNESS_ESTADO,
+            str(ESTADO),
+            json.dumps(query),
+            json.dumps(respostas or {}),
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=True,
+    )
+    return json.loads(out.stdout)
+
+
+def _prd(*labels):
+    return {"number": 1757, "labels": [{"name": l} for l in labels]}
+
+
+def _comentario(corpo, associacao="OWNER"):
+    return {"body": corpo, "author_association": associacao}
+
+
+# Comentários como o validar.js grava: 19/11/2026 às 10:05 em Brasília é 13:05 UTC.
+VALIDACAO_ANTIGA = _comentario(
+    "<!-- validacao-diretor: 2026-11-10T12:00:00.000Z -->\n"
+    "O diretor validou este plano pela Apresentação do PRD em 10/11/2026, às 09:00.\n\n"
+    "Observação dele:\n\n> Versão velha."
+)
+VALIDACAO_COM_OBS = _comentario(
+    "<!-- validacao-diretor: 2026-11-19T13:05:00.000Z -->\n"
+    "O diretor validou este plano pela Apresentação do PRD em 19/11/2026, às 10:05.\n\n"
+    "Observação dele:\n\n> Rever o painel.\n> E a cor do botão.\n\n"
+    "Abri o Ajuste do plano #1999, que segura as fatias iniciais até a observação ser revista."
+)
+
+
+def test_estado_do_prd_validado_traz_data_hora_e_observacao():
+    r = _estado(
+        {"prd": "1757"},
+        {
+            "/issues/1757": _prd("PRD", "validado:diretor"),
+            "/issues/1757/comments": [
+                VALIDACAO_ANTIGA,
+                _comentario("Outro comentário qualquer."),
+                VALIDACAO_COM_OBS,
+            ],
+        },
+    )
+    assert r["status"] == 200
+    assert r["resposta"] == {
+        "ok": True,
+        "validado": True,
+        "data": "19/11/2026",
+        "hora": "10:05",
+        "observacao": "Rever o painel.\nE a cor do botão.",
+    }
+    # Só leitura: a função de estado nunca grava no GitHub.
+    assert {c["method"] for c in r["chamadas"]} == {"GET"}
+
+
 # --- O script da skill -------------------------------------------------------
 
 SCRIPT = RAIZ / ".claude" / "skills" / "apresentar-prd" / "scripts" / "apresentar.py"
