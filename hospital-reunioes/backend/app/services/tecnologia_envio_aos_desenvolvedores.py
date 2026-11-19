@@ -120,9 +120,7 @@ def _envios(supabase, demanda_id: str) -> list[dict[str, Any]]:
 
 def _ultimo_enviado_ate(envios: list[dict[str, Any]]) -> datetime | None:
     """O instante da ultima mensagem coberta pelo ultimo envio que saiu."""
-    instantes = [
-        instante_do_banco(e.get("ate_mensagem_em")) for e in envios if e.get("estado") == ESTADO_ENVIADO
-    ]
+    instantes = [instante_do_banco(e.get("ate_mensagem_em")) for e in envios if e.get("estado") == ESTADO_ENVIADO]
     instantes = [i for i in instantes if i is not None]
     return max(instantes) if instantes else None
 
@@ -215,9 +213,7 @@ def interpretacao_limpa(saida: _SaidaDoEnvio, demanda: dict[str, Any]) -> dict[s
     return {
         "topicos": [t for t in (_limpo(t) for t in saida.topicos) if t][:LIMITE_DE_TOPICOS],
         "cards": [
-            {"numero": c.numero, "muda": _limpo(c.muda)}
-            for c in saida.cards
-            if c.numero in validos and _limpo(c.muda)
+            {"numero": c.numero, "muda": _limpo(c.muda)} for c in saida.cards if c.numero in validos and _limpo(c.muda)
         ],
     }
 
@@ -233,9 +229,7 @@ def pedido_do_envio(
         for p in partes
         if isinstance(p, dict) and isinstance(p.get("numero"), int)
     ] or ["(sem partes)"]
-    contexto = (
-        recuar_continuacao(f"    {do_desenvolvedor.get('texto') or ''}") if do_desenvolvedor else "(nenhuma)"
-    )
+    contexto = recuar_continuacao(f"    {do_desenvolvedor.get('texto') or ''}") if do_desenvolvedor else "(nenhuma)"
     return "\n".join(
         [
             "PEDIDO: ENVIO AOS DESENVOLVEDORES",
@@ -390,9 +384,9 @@ def texto_da_linha(*, data: str, hora: str, topicos: list[str]) -> str:
 
 
 def _gravar_a_falha(supabase, envio_id: str, motivo: str) -> None:
-    supabase.table(TABELA_ENVIOS).update(
-        {"estado": ESTADO_FALHOU, "motivo": motivo, "estado_em": _agora()}
-    ).eq("id", envio_id).execute()
+    supabase.table(TABELA_ENVIOS).update({"estado": ESTADO_FALHOU, "motivo": motivo, "estado_em": _agora()}).eq(
+        "id", envio_id
+    ).execute()
 
 
 def enviar(supabase, demanda: dict[str, Any], *, ator: dict[str, Any], envio_id: str) -> dict[str, Any]:
@@ -431,7 +425,12 @@ def enviar(supabase, demanda: dict[str, Any], *, ator: dict[str, Any], envio_id:
             projeto=projeto,
             titulo=titulo_do_ajuste(raiz),
             corpo=corpo_do_ajuste(
-                raiz=raiz, demanda_id=demanda_id, topicos=topicos, cards=list(envio.get("cards") or []), data=data, hora=hora
+                raiz=raiz,
+                demanda_id=demanda_id,
+                topicos=topicos,
+                cards=list(envio.get("cards") or []),
+                data=data,
+                hora=hora,
             ),
             labels=[LABEL_DO_AJUSTE],
             assignees=[dono] if dono else [],

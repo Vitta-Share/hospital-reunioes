@@ -58,7 +58,7 @@ Não chame de pendência, tarefa nem chamado. Pendência é outra coisa no aplic
 
 ## A Conversa da Demanda
 
-Cada pedido tem, além da conversa com a IA, a **Conversa da Demanda**: um espaço para você e as pessoas da Vitta que desenvolvem trocarem mensagens sobre aquele pedido. Serve para tirar uma dúvida e ser respondido ali mesmo. Ela fica separada da conversa com a IA, numa área própria embaixo dela, e a IA não lê nem responde ali.
+Cada pedido tem, além da conversa com a IA, a **Conversa da Demanda**: um espaço para você e as pessoas da Vitta que desenvolvem trocarem mensagens sobre aquele pedido. Serve para tirar uma dúvida e ser respondido ali mesmo. Ela fica separada da conversa com a IA, numa área própria embaixo dela. A IA não responde ali, e só lê a Conversa quando você aperta Enviar para os desenvolvedores.
 
 Escreve e lê na Conversa quem vê o pedido: você, que pediu, e o Desenvolvedor. Outra pessoa da diretoria não vê, nem abrindo pelo endereço. No card que a Vitta abriu, a Conversa fica aberta a toda a diretoria, como o próprio card.
 
@@ -68,7 +68,9 @@ Quando o trabalho da Vitta para numa decisão que é sua, a pergunta chega na Co
 
 Quando a pergunta é para uma pessoa só, a Vitta escolhe quem precisa responder, e o aviso vai só para essa pessoa, em qualquer pedido, mesmo num que ela não abriu. Se a pergunta espera uma resposta, o sino mostra "Pede sua resposta" e o assunto, por exemplo "confirmar horário da reunião de quinta". O e-mail chega com o assunto "<Nome> pede sua resposta: <assunto>", o nome do pedido e o link que abre o pedido com a conversa embaixo. Recado sem pergunta continua com o aviso de sempre.
 
-O que se escreve na Conversa fica só dentro do aplicativo e nunca vai para o material público do desenvolvimento.
+Quando o pedido já virou card, você escreve na Conversa quantas mensagens quiser e, no fim, aperta **Enviar para os desenvolvedores**. Antes de ir, o aplicativo mostra "Entendi assim:" com o que a IA entendeu das suas mensagens, em tópicos, e o que muda em cada card. Você escolhe **Enviar** ou **Corrigir**. O Corrigir volta para a caixa de mensagem: escreva o que faltou e aperte de novo, e o resumo seguinte já leva em conta o que você escreveu. Com o Enviar, o pedido vira uma tarefa no plano da Vitta, e a Conversa ganha a linha "Enviado aos desenvolvedores", com a data, a hora e os tópicos. O que você escrever depois dessa linha entra no próximo envio. O botão fica desligado enquanto não há mensagem sua nova desde o último envio, e só aparece para quem é do hospital. Se o envio falhar, a tela diz o motivo e mostra Tente de novo, sem perder nada do que você escreveu.
+
+O que se escreve na Conversa fica só dentro do aplicativo e nunca vai para o material público do desenvolvimento. No envio, os desenvolvedores recebem só o resumo que você aprovou.
 
 ## Os anexos da Demanda
 
@@ -201,6 +203,7 @@ Os prints do manual usam pessoas e dados inventados, nunca de paciente ou de fun
 - O Tamanho da entrega sai do número de partes do pedido (P até 1 parte, M de 2 a 5, G de 6 em diante), calculado pelo aplicativo e nunca estimado.
 - O pedido nasce da conversa do diretor ou de um card do aplicativo que a Vitta abre pelo desenvolvimento, que aparece na lista com o selo Vitta, sem conversa com a IA; os ajustes internos da Vitta não aparecem, e os pedidos da Vitta ao hospital continuam no WhatsApp.
 - Cada pedido tem a Conversa da Demanda, entre quem pediu e a Vitta, separada da conversa com a IA e guardada só dentro do aplicativo.
+- Na Conversa da Demanda, o diretor decide quando a resposta ou o pedido de mudança chega aos desenvolvedores, pelo botão Enviar para os desenvolvedores; o desenvolvimento recebe só o resumo aprovado no "Entendi assim:", e a fala dele fica no aplicativo.
 - Na Conversa da Demanda, quem é marcado pelo nome é avisado no sino e por e-mail, e sem marcação a mensagem de quem pediu avisa o Responsável e a da Vitta avisa quem pediu.
 - Quando a Vitta precisa de uma decisão do diretor num pedido, a pergunta vai pela Conversa da Demanda, no nome de quem cuida da entrega e só com o texto aprovado por ele, e avisa no sino e por e-mail quem abriu o pedido ou, no card da Vitta, a diretoria; sem pedido no aplicativo, segue pelo WhatsApp.
 - Quando a pergunta da Vitta tem uma pessoa escolhida para responder, o aviso vai só para ela, em qualquer pedido, e quando pede resposta o sino diz "Pede sua resposta" com o assunto, e o e-mail tem o assunto "<Nome> pede sua resposta: <assunto>".
