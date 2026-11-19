@@ -244,6 +244,9 @@ function AgendarModal({
   const [showDropdown, setShowDropdown] = useState(true);
   const [horaSelec, setHoraSelec] = useState(defaultTime ?? "");
   const [tipo, setTipo] = useState("");
+  // Obrigatório ao agendar (issue #1861): a lista vem dos setores ativos.
+  const [setor, setSetor] = useState("");
+  const [setores, setSetores] = useState<string[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const defaultDateStr = defaultDate
@@ -271,6 +274,18 @@ function AgendarModal({
   }, [fetchParticipantes]);
 
   useEffect(() => {
+    (async () => {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch("/api/participantes/setores", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) setSetores(await res.json());
+    })();
+  }, []);
+
+  useEffect(() => {
     const timer = setTimeout(() => fetchParticipantes(busca), 300);
     return () => clearTimeout(timer);
   }, [busca, fetchParticipantes]);
@@ -285,6 +300,10 @@ function AgendarModal({
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!setor) {
+      setError("Escolha o setor da reunião.");
+      return;
+    }
     setLoading(true);
     setError(null);
     const form = e.currentTarget;
@@ -308,6 +327,7 @@ function AgendarModal({
           data,
           hora_inicio: horaSelec || null,
           tipo: tipo || null,
+          setor,
           objetivo: objetivo || null,
           participante_ids: selecionados.map((p) => p.id),
         }),
@@ -386,6 +406,23 @@ function AgendarModal({
                 options={TIPOS.map((t) => ({ value: t, label: t }))}
               />
             </div>
+          </div>
+
+          {/* Setor */}
+          <div>
+            <label
+              htmlFor="agendar-reuniao-setor"
+              className="block text-sm font-medium text-slate-700 mb-1.5"
+            >
+              Setor
+            </label>
+            <Select
+              id="agendar-reuniao-setor"
+              value={setor}
+              onChange={setSetor}
+              placeholder="Selecione o setor"
+              options={setores.map((s) => ({ value: s, label: s }))}
+            />
           </div>
 
           {/* Horário */}

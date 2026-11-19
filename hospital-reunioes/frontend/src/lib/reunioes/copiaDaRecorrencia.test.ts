@@ -10,6 +10,7 @@ const ORIGINAL = {
   titulo: "Diretoria",
   tipo: "Diretoria",
   objetivo: "Metas do mês",
+  setor: "Faturamento",
   facilitador_id: "P_FACIL",
   participantes_programada: [{ id: "P_FACIL" }, { id: "P_ANA" }],
 };
@@ -30,11 +31,16 @@ describe("copiaDaRecorrencia", () => {
       hora_inicio: "09:00",
       tipo: "Diretoria",
       objetivo: "Metas do mês",
+      setor: "Faturamento",
       facilitador_id: "P_FACIL",
       participante_ids: ["P_FACIL", "P_ANA"],
       id_grupo_recorrencia: "grupo-1",
       nome_grupo_recorrencia: "Diretoria semanal",
     });
+  });
+
+  it("a cópia herda o setor da original, que o agendar exige (issue #1861)", () => {
+    expect(copiaDaRecorrencia(ORIGINAL, "2026-11-17", SERIE).setor).toBe("Faturamento");
   });
 
   it("sem facilitador na original, o campo não vai e o backend decide como antes", () => {

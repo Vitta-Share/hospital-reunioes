@@ -136,6 +136,8 @@ interface Reuniao {
   tipo: string | null;
   titulo: string | null;
   objetivo: string | null;
+  // A Recorrência leva o setor para as cópias (issue #1861).
+  setor?: string | null;
   status_ata: StatusAta;
   total_acoes: number;
   acoes_concluidas: number;
