@@ -1629,6 +1629,82 @@ describe("O Quadro na tela larga (issue #1642, ADR 0090)", () => {
     expect(within(entregue).queryByRole("link", { name: "Assistir à demonstração" })).toBeNull();
   });
 
+  it("o card com o plano publicado tem o botão Ver o plano, e o check só com o plano validado (issue #2010)", async () => {
+    telaLarga();
+    const aValidar = demanda("q-20", "Plano a validar", {
+      etapa: "planejada",
+      tem_vinculo: true,
+      apresentacao_url: "https://planos-hsm.vercel.app/2007/",
+      plano_validado: false,
+    });
+    const validado = demanda("q-21", "Plano validado", {
+      etapa: "em_desenvolvimento",
+      tem_vinculo: true,
+      apresentacao_url: "https://planos-hsm.vercel.app/1979/",
+      plano_validado: true,
+    });
+    const semPlano = demanda("q-22", "Pedido sem plano", { etapa: "em_analise", tem_vinculo: true });
+    const foraDaPagina = demanda("q-23", "Plano fora da página", {
+      etapa: "em_analise",
+      tem_vinculo: true,
+      apresentacao_url: "https://youtu.be/plano",
+    });
+    montar((url) =>
+      url === LISTA ? { status: 200, corpo: [aValidar, validado, semPlano, foraDaPagina] } : { status: 404, corpo: {} },
+    );
+    await screen.findByRole("region", { name: "Quadro" });
+
+    const plano = within(colunaDe("Planejada")).getByRole("link", { name: "Ver o plano" });
+    expect(plano.getAttribute("href")).toBe("https://planos-hsm.vercel.app/2007/");
+    expect(plano.getAttribute("title")).toBe("Ver o plano");
+    expect(plano.getAttribute("target")).toBe("_blank");
+    expect(plano.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(within(colunaDe("Planejada")).getByRole("button", { name: /Plano a validar/ }).contains(plano)).toBe(false);
+    expect(plano.querySelector("[data-plano-validado]")).toBeNull();
+
+    const comCheck = within(colunaDe("Em desenvolvimento")).getByRole("link", { name: "Ver o plano, já validado" });
+    expect(comCheck.getAttribute("href")).toBe("https://planos-hsm.vercel.app/1979/");
+    expect(comCheck.getAttribute("title")).toBe("Ver o plano");
+    expect(comCheck.querySelector("[data-plano-validado]")).not.toBeNull();
+
+    expect(within(colunaDe("Em análise")).queryByRole("link", { name: /Ver o plano/ })).toBeNull();
+  });
+
+  it("o card com vídeo e plano mostra os dois botões lado a lado, o vídeo no canto (issue #2010)", async () => {
+    telaLarga();
+    const comOsDois = demanda("q-24", "Vídeo e plano", {
+      etapa: "em_producao",
+      tem_vinculo: true,
+      demonstracao_url: "https://youtu.be/demo",
+      apresentacao_url: "https://planos-hsm.vercel.app/2007/",
+      classificacao: "melhoria",
+    });
+    const soOPlano = demanda("q-25", "Só o plano", {
+      etapa: "em_producao",
+      tem_vinculo: true,
+      apresentacao_url: "https://planos-hsm.vercel.app/1932/",
+      classificacao: "bug",
+    });
+    montar((url) => (url === LISTA ? { status: 200, corpo: [comOsDois, soOPlano] } : { status: 404, corpo: {} }));
+    await screen.findByRole("region", { name: "Quadro" });
+
+    const entregue = colunaDe("Entregue");
+    const card = within(entregue).getByRole("button", { name: /Vídeo e plano/ }).parentElement as HTMLElement;
+    const classes = (el: HTMLElement) => el.className.split(/\s+/);
+    const video = within(card).getByRole("link", { name: "Assistir à demonstração" });
+    const plano = within(card).getByRole("link", { name: "Ver o plano" });
+    // O vídeo no canto e o plano ao lado dele, na mesma linha de baixo.
+    expect(classes(video)).toEqual(expect.arrayContaining(["bottom-2.5", "right-2.5"]));
+    expect(classes(plano)).toEqual(expect.arrayContaining(["bottom-2.5", "right-12"]));
+    // Os selos do card abrem espaço para os dois botões.
+    expect(classes(within(card).getByText("Melhoria").parentElement as HTMLElement)).toContain("pr-20");
+
+    // Sozinho, o plano fica no canto, no lugar do vídeo.
+    const soPlano = within(entregue).getByRole("button", { name: /Só o plano/ }).parentElement as HTMLElement;
+    expect(classes(within(soPlano).getByRole("link", { name: "Ver o plano" }))).toContain("right-2.5");
+    expect(classes(within(soPlano).getByText("Bug").parentElement as HTMLElement)).toContain("pr-10");
+  });
+
   it("o botão do vídeo tem o brilho, e com prefers-reduced-motion o brilho some", async () => {
     telaLarga();
     const comVideo = demanda("q-12", "Vídeo no card", {

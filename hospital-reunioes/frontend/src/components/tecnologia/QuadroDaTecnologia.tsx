@@ -15,15 +15,15 @@
  *
  * O card é compacto (decisão 4): Número da Demanda, título, Bug ou Melhoria,
  * iniciais do Responsável, partes do PRD, a versão em Em produção, o selo
- * "Envio falhou", o selo do Projeto (issue #1715, ADR 0093, decisão 8) e o
- * botão do vídeo da Demonstração. Data, quem pediu e o
+ * "Envio falhou", o selo do Projeto (issue #1715, ADR 0093, decisão 8), o
+ * botão do vídeo da Demonstração e o Ver o plano (issue #2010). Data, quem pediu e o
  * "Conversar" ficam na Demanda aberta.
  */
 
-import { Play } from "lucide-react";
+import { Check, Play, Presentation } from "lucide-react";
 import { useId } from "react";
 
-import { ASSISTIR_A_DEMONSTRACAO } from "./DocumentoDoCard";
+import { ASSISTIR_A_DEMONSTRACAO, VER_O_PLANO } from "./DocumentoDoCard";
 
 import {
   CLASSIFICACAO_CLASSE,
@@ -34,6 +34,7 @@ import {
   ENVIO_FALHOU,
   iniciais,
   linkDaDemonstracao,
+  linkDoPlano,
   nomeDoNumero,
   partesDoCard,
   classeDoProjeto,
@@ -103,6 +104,36 @@ function VideoDaDemonstracao({ url }: { url: string }) {
 }
 
 /**
+ * A página do plano direto do card (issue #2010, ADR 0108, decisão 2): um
+ * botão quadrado no formato do botão da Demonstração, na cor da marca, com um
+ * check pequeno quando o diretor já validou. Sozinho, fica no canto; com o
+ * vídeo, ao lado dele. Só abre a página: validar segue pelo link do e-mail.
+ */
+function PaginaDoPlano({ url, validado, aoLadoDoVideo }: { url: string; validado: boolean; aoLadoDoVideo: boolean }) {
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={validado ? `${VER_O_PLANO}, já validado` : VER_O_PLANO}
+      title={VER_O_PLANO}
+      className={`absolute bottom-2.5 ${aoLadoDoVideo ? "right-12" : "right-2.5"} w-8 h-8 rounded-lg flex items-center justify-center bg-primary text-white shadow-md shadow-primary/30 transition duration-150 ease-out motion-reduce:transition-none hover:scale-110 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2`}
+    >
+      <Presentation aria-hidden="true" className="w-4 h-4" />
+      {validado && (
+        <span
+          data-plano-validado
+          aria-hidden="true"
+          className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-white flex items-center justify-center"
+        >
+          <Check className="w-2.5 h-2.5" strokeWidth={3} />
+        </span>
+      )}
+    </a>
+  );
+}
+
+/**
  * Um card do Quadro: um botão que abre a Demanda e, quando há vídeo, o botão
  * da Demonstração ao lado, que abre o vídeo direto. O `data-demanda` é por
  * onde o painel devolve o foco ao card quando fecha (issue #1643).
@@ -119,6 +150,9 @@ function CardDoQuadro({
   const classificacao = demanda.classificacao;
   const versao = demanda.etapa === "em_producao" ? demanda.versao : null;
   const demonstracao = linkDaDemonstracao(demanda);
+  const plano = linkDoPlano(demanda);
+  // Os selos abrem espaço para os botões do canto: um ou os dois.
+  const espacoDosBotoes = demonstracao && plano ? "min-h-6 pr-20" : demonstracao || plano ? "min-h-6 pr-10" : "";
   return (
     <div className="relative">
       <button
@@ -149,7 +183,7 @@ function CardDoQuadro({
         <PartesNoCardCompacto demanda={demanda} />
         <span
           id={idDosDetalhes}
-          className={`flex flex-wrap items-center gap-1 ${demonstracao ? "min-h-6 pr-10" : ""}`}
+          className={`flex flex-wrap items-center gap-1 ${espacoDosBotoes}`}
         >
           {classificacao && (
             <span
@@ -181,6 +215,7 @@ function CardDoQuadro({
         </span>
       </button>
       {demonstracao && <VideoDaDemonstracao url={demonstracao} />}
+      {plano && <PaginaDoPlano url={plano} validado={!!demanda.plano_validado} aoLadoDoVideo={!!demonstracao} />}
     </div>
   );
 }
