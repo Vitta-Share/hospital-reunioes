@@ -119,6 +119,8 @@ No topo do documento, ao lado de "Demanda 42", aparece o número do pedido intei
 
 Quando a Vitta grava um vídeo mostrando a entrega funcionando, o documento ganha também a seção **Demonstração**, num cartão próprio, com o link para assistir, e o pedido aparece na lista com o selo **Tem demonstração**. Sem vídeo, nem o selo nem a seção aparecem. Se a Vitta troca o vídeo, o link novo substitui o antigo; depois de chegar ao pedido, o vídeo não some sozinho.
 
+Quando a Vitta publica o plano de um pedido para você validar, o card do Quadro ganha o botão quadrado **Ver o plano**, com o ícone de apresentação, que abre a página do plano em outra aba. Depois que você valida, o botão ganha um check pequeno. Se o card também tem vídeo, o botão do vídeo fica no canto e o do plano ao lado. Ao abrir o pedido, o documento mostra o cartão **Plano**, com o link para a mesma página. Para validar, continue usando o link do e-mail: o botão do card só abre a página. Não chega aviso no sino nem e-mail quando o plano aparece no card.
+
 Quando o pedido entra em produção, e quando o vídeo de demonstração fica pronto, chega um aviso no sino e por e-mail. No seu pedido, o aviso vai para você; nos pedidos que a Vitta abriu, vai para a diretoria. O e-mail traz a frase e os tópicos do documento, e o link dele, como o clique no sino, abre o pedido. Cada coisa avisa uma vez só: o mesmo vídeo de novo não gera outro aviso.
 
 Esse texto vem do planejamento da Vitta, ou das suas decisões quando a melhoria foi planejada com a IA, e não se edita no aplicativo. Enquanto a Vitta não escreve o resumo, o documento mostra "Descrição em preparação".
@@ -224,6 +226,7 @@ Os prints do manual usam pessoas e dados inventados, nunca de paciente ou de fun
 - No documento do pedido, as partes aparecem agrupadas por Onda, com o número de cada uma e o "Espera a" enquanto outra parte, ou outro pedido, a trava; a Onda vem das dependências do desenvolvimento, e o Quadro, as Entregas e a lista do celular não mudam.
 - Um pedido de melhoria Em análise ou Planejada se revisa com o código de hoje, pelo autor ou pelo Desenvolvedor, com o custo mostrado antes e a confirmação, e o que já existe só sai do pedido com o sim de quem pediu; no fim, o Atualizar o card troca o pedido no mesmo card e o devolve a Em análise.
 - O vídeo de demonstração de uma entrega vem do desenvolvimento da Vitta, só por link seguro (https), e aparece no pedido com o selo Tem demonstração e a seção Demonstração.
+- O plano de um pedido aparece no card do Quadro com o botão Ver o plano e no documento com o cartão Plano, só quando a Vitta publicou a página do plano; o check no botão diz que o diretor já validou, e validar continua sendo pelo link do e-mail.
 - Quando o pedido entra em produção ou o vídeo de demonstração fica pronto, chega um aviso no sino e por e-mail, uma vez só: para quem pediu, no pedido do diretor, e para a diretoria, no pedido da Vitta.
 - Um pedido se apaga até Planejada, ou em Não será feita, com confirmação, pela mão de quem escreveu ou do Desenvolvedor a conversa que não virou card e só do Desenvolvedor o card criado, e no desenvolvimento o card fecha como não planejado e nunca é apagado.
 - O texto que sai da Demanda para o material público do desenvolvimento passa por uma peneira que esconde CPF, telefone, nome e outros dados pessoais.

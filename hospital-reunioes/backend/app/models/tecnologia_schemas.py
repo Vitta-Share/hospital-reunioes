@@ -124,6 +124,11 @@ class DemandaResponse(BaseModel):
     # marcador da issue-raiz e quando ele chegou. Nulo, sem selo nem secao.
     demonstracao_url: str | None = None
     demonstracao_em: str | None = None
+    # O atalho Ver o plano (issue #2010, ADR 0108, decisao 2): o link da
+    # Apresentacao do PRD, lido do marcador da issue-raiz, e se o diretor ja
+    # validou o plano (a label `validado:diretor`). Nulo, sem botao nem cartao.
+    apresentacao_url: str | None = None
+    plano_validado: bool = False
 
 
 class DesenvolvedorResponse(BaseModel):

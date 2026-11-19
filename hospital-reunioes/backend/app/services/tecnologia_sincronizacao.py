@@ -106,6 +106,9 @@ TENTATIVAS_DA_ESCRITA = 3
 # um estado novo que ficasse de fora sumiria da reconciliacao sem erro nenhum.
 ESTADOS_DA_RECONCILIACAO = ESTADOS_ABERTOS
 
+# A label que o Validar da Apresentacao do PRD grava na issue-raiz (ADR 0108).
+LABEL_PLANO_VALIDADO = "validado:diretor"
+
 
 def mudanca_da_foto(foto: dict[str, Any], *, versao_em_producao: str | None = None) -> dict[str, Any]:
     """O cache da Demanda para esta foto: Etapa, partes, "O que muda" e carimbo.
@@ -132,6 +135,9 @@ def mudanca_da_foto(foto: dict[str, Any], *, versao_em_producao: str | None = No
         # sincronizacao seguinte saber se algo mudou.
         "o_que_muda": o_que_muda_da_foto(foto),
         "partes": partes_para_o_diretor(foto),
+        # O check do atalho Ver o plano (issue #2010, ADR 0108, decisao 2):
+        # derivado da label da raiz, volta a falso quando a label sai.
+        "plano_validado": LABEL_PLANO_VALIDADO in (foto.get("labels") or []),
         "github_foto": foto,
         "github_sincronizado_em": datetime.now(UTC).isoformat(),
     }
