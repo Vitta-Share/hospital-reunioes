@@ -217,6 +217,25 @@ class TestFonteDePendencias:
 
         assert _ids(resposta) == ["A031"]
 
+    def test_sem_perfil_das_reunioes_nao_ve_a_pendencia_e_segue_com_o_lembrete(self, monkeypatch, nucleo):
+        """O portão das Reuniões (ADR 0007): `access_profile` NULL leva 403 no
+        módulo de Pendências, então o Início não mostra a Pendência de Reunião.
+        O lembrete segue pelo recurso `agenda` do Núcleo."""
+        nucleo["recursos"] = frozenset({"agenda", "ver_modulo"})
+        sem_reunioes = {"id": "P_NSP", "nome_completo": "Nina Prado", "access_profile": None}
+        banco = _Banco(
+            pendencias=[
+                _pendencia("A032", responsavel_id="P_NSP", id_reuniao="R1"),
+                _pendencia("A033", responsavel_id="P_NSP", id_reuniao=None),
+            ],
+            reunioes=[REUNIAO],
+        )
+
+        resposta = _rota(monkeypatch, sem_reunioes, banco)
+
+        assert _ids(resposta) == ["A033"]
+        assert resposta.itens[0].destino == "/seguranca-do-paciente/agenda"
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 2. A Secretária não recebe dado nenhum

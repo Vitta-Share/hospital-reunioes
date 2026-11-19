@@ -13,7 +13,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from app.dependencies import recursos_nsp_da_pessoa, reunioes_ocultas
+from app.dependencies import recursos_nsp_da_pessoa, reunioes_ocultas, tem_acesso_reunioes
 from app.services.pendencia_service import e_lembrete_do_nucleo
 
 ROTULO = "as Pendências"
@@ -67,8 +67,14 @@ def itens(supabase, me: dict) -> list[dict]:
     if not linhas:
         return []
 
-    ocultas = set(reunioes_ocultas(supabase, me))
-    das_reunioes = [linha for linha in linhas if not e_lembrete_do_nucleo(linha) and linha["id_reuniao"] not in ocultas]
+    # O portão das Reuniões (ADR 0007): sem `access_profile`, o módulo de
+    # Pendências recusa a pessoa, e o Início também. O lembrete não passa por ele.
+    das_reunioes: list[dict] = []
+    if tem_acesso_reunioes(me):
+        ocultas = set(reunioes_ocultas(supabase, me))
+        das_reunioes = [
+            linha for linha in linhas if not e_lembrete_do_nucleo(linha) and linha["id_reuniao"] not in ocultas
+        ]
     lembretes = [linha for linha in linhas if e_lembrete_do_nucleo(linha)]
     if lembretes and "agenda" not in recursos_nsp_da_pessoa(supabase, me):
         lembretes = []
