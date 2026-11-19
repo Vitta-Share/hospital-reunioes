@@ -76,6 +76,16 @@ describe("o roteiro dos prints da página de Segurança do Paciente", () => {
     expect([...doScript].sort()).toEqual([...citadas].sort());
   });
 
+  it("antes do primeiro print, confere que o submenu já chama o item de Visão geral (#1949)", () => {
+    const texto = readFileSync(ROTEIRO, "utf8");
+    const primeiroPrint = texto.search(/^\s*print(?:_\w+)?\s.*"[^"/]+\.png"\s*$/m);
+    expect(primeiroPrint).toBeGreaterThan(0);
+    // O app local atrasado ainda diz Início: o roteiro para em vez de fotografar o menu antigo.
+    expect(texto.slice(0, primeiroPrint)).toMatch(
+      /^\s*pw run-code .*getByRole\('navigation'\)\.getByRole\('link', \{ name: 'Visão geral', exact: true \}\)\.waitFor\(/m,
+    );
+  });
+
   it("recusa rodar contra um endereço que não é o app local", () => {
     const rodada = spawnSync("bash", [ROTEIRO], {
       env: { ...process.env, BASE: "https://app.hospitalsaomatheus.cloud", PATH: "/usr/bin:/bin" },

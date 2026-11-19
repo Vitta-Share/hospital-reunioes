@@ -5,7 +5,7 @@ titulo: Segurança do Paciente
 
 O módulo Segurança do Paciente é onde o Núcleo de Segurança do Paciente funciona dentro do aplicativo: quem faz parte dele, os documentos, as capacitações, a agenda regulatória e as reuniões.
 
-Ele fica no menu da esquerda, em **Segurança do Paciente**, com os itens **Início**, **Reuniões** e **Núcleo**. Dentro de **Núcleo** ficam **Membros**, **Documentos**, **Capacitações** e **Agenda regulatória**.
+Ele fica no menu da esquerda, em **Segurança do Paciente**, com os itens **Visão geral**, **Reuniões** e **Núcleo**. Dentro de **Núcleo** ficam **Membros**, **Documentos**, **Capacitações** e **Agenda regulatória**.
 
 A Presidência do Núcleo e quem tem Acesso pleno fazem tudo o que esta página descreve. O membro com o Termo de Adesão assinado abre as telas e as atas; cadastrar, publicar e validar ficam com a Presidência e com quem tem Acesso pleno. Quem ainda não assinou o Termo vê o calendário e a agenda; nas outras telas aparece a faixa **Assine o Termo de Adesão para liberar este acesso**, com o botão **Abrir o Termo de Adesão**.
 
