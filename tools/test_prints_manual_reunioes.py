@@ -47,6 +47,17 @@ def test_o_print_do_inicio_sai_da_tela_onde_o_endereco_principal_cai(monkeypatch
     assert re.search(r"waitForURL\(.*'/inicio'", passos)
 
 
+def test_o_print_do_inicio_nao_poe_balao_no_grupo_que_ja_comeca_aberto(monkeypatch):
+    # Revisão do PR #2035: o grupo "Reuniões e metas" já começa aberto, e
+    # clicar nele esconde o Dashboard. Os balões são Início (1) e Dashboard (2).
+    monkeypatch.setattr(roteiro, "_rest", lambda *a, **k: [])
+
+    passos = roteiro.PRINTS["inicio"]()
+    baloes = re.findall(r"await balao\(page\.getByRole\('(\w+)', \{ name: '([^']+)'.*?, (\d+)\);", passos)
+
+    assert baloes == [("link", "Início", "1"), ("link", "Dashboard", "2")]
+
+
 def test_o_roteiro_grava_os_prints_ao_lado_do_markdown():
     assert roteiro.PASTA_DA_PAGINA == PAGINA.parent
 

@@ -10,7 +10,7 @@ Os números nas imagens mostram onde clicar em cada passo.
 ## Entrar no app e chegar ao painel de Reuniões
 
 1. Entre com o seu e-mail e a sua senha. O app abre no **Início** (1), a sua tela, com o que você tem para entregar: as Pendências, as Atas para assinar e as próximas reuniões.
-2. Para ir ao painel de Reuniões, no menu da esquerda abra **Reuniões e metas** (2) e clique em **Dashboard** (3).
+2. Para ir ao painel de Reuniões, clique em **Dashboard** (2). Ele fica no grupo **Reuniões e metas** do menu da esquerda, que já aparece aberto.
 3. Para voltar ao Início de qualquer tela, clique em **Início**, no alto do menu, ou no logo do hospital.
 
 ![O Início, a primeira tela depois de entrar](inicio.png)

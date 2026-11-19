@@ -513,8 +513,8 @@ def inicio() -> str:
     await page.getByRole('heading', { name: 'Início' }).first().waitFor();
     await page.waitForTimeout(1500);
     await balao(page.getByRole('link', { name: 'Início', exact: true }).first(), 1);
-    await balao(page.getByRole('button', { name: 'Reuniões e metas' }).first(), 2);
-    await balao(page.getByRole('link', { name: 'Dashboard', exact: true }).first(), 3);
+    // O grupo Reuniões e metas já começa aberto: o balão vai direto no Dashboard.
+    await balao(page.getByRole('link', { name: 'Dashboard', exact: true }).first(), 2);
     await page.evaluate(() => window.scrollTo(0, 0));
     return await pronto({ x: 0, y: 0, width: 1440, height: 900 });
     """

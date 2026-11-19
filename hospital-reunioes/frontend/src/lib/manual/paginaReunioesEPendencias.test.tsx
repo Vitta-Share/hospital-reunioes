@@ -142,9 +142,12 @@ describe("entrar no app pelo Início (issue #1948)", () => {
     const grupo = menu.find((i) => i.subItems?.some((s) => s.href === "/dashboard"))!;
     const painel = grupo.subItems!.find((s) => s.href === "/dashboard")!;
 
-    expect(entrar?.texto).toMatch(
-      new RegExp(`abra \\*\\*${grupo.label}\\*\\*.*clique em \\*\\*${painel.label}\\*\\*`)
-    );
+    expect(passo(2)).toMatch(new RegExp(`clique em \\*\\*${painel.label}\\*\\* \\(2\\)`));
+    // O grupo já começa aberto (Sidebar, estado inicial): clicar nele fecha o
+    // grupo e esconde o painel. A página nomeia o grupo, sem mandar clicar nele.
+    expect(passo(2)).toMatch(new RegExp(`\\*\\*${grupo.label}\\*\\*[^.]*já aparece aberto`));
+    expect(passo(2)).not.toMatch(new RegExp(`(abra|clique em) \\*\\*${grupo.label}\\*\\*`));
+    expect(entrar?.texto).not.toMatch(/\(3\)/);
   });
 
   it("o print da tarefa é a tela do Início, e ele existe", () => {
