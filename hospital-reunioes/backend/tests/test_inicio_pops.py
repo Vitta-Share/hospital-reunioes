@@ -208,3 +208,39 @@ class TestSemPrazo:
         [item] = _pops(_rota(monkeypatch, REVISOR, banco))
 
         assert (item.grupo, item.chegou_em, item.dias_esperando) == ("sem_prazo", None, None)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. Só o designado da etapa atual vê; o publicado não aparece
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _um_pop_em_cada_estado() -> _Banco:
+    estados = ("A_ELABORAR", "EM_ELABORACAO", "EM_REVISAO", "EM_VALIDACAO", "EM_ASSINATURA", "PUBLICADO")
+    return _Banco(
+        pops=[_pop(f"POP10{n}") for n in range(len(estados))],
+        pops_versoes=[_versao(f"V10{n}", f"POP10{n}", estado) for n, estado in enumerate(estados)],
+    )
+
+
+class TestRecorte:
+    def test_cada_designado_ve_so_o_pop_que_esta_na_etapa_dele(self, monkeypatch):
+        banco = _um_pop_em_cada_estado()
+
+        assert [i.id for i in _pops(_rota(monkeypatch, ELABORADORA, banco))] == ["POP100", "POP101"]
+        assert [i.id for i in _pops(_rota(monkeypatch, REVISOR, banco))] == ["POP102"]
+        assert [i.id for i in _pops(_rota(monkeypatch, VALIDADORA, banco))] == ["POP103"]
+
+    def test_pessoa_de_outro_setor_nao_ve_pop_nenhum(self, monkeypatch):
+        assert _pops(_rota(monkeypatch, DE_OUTRO_SETOR, _um_pop_em_cada_estado())) == []
+
+    def test_gestor_de_qualidade_sem_designacao_nao_ve_o_pop_do_escopo(self, monkeypatch):
+        gestora = {"id": "P_GQ", "nome_completo": "Gina Alves", "perfil_pop": "gestor_qualidade"}
+
+        assert _pops(_rota(monkeypatch, gestora, _um_pop_em_cada_estado())) == []
+
+    def test_designado_sem_perfil_de_pops_nao_ve_o_pop(self, monkeypatch):
+        # Sem perfil de POPs, as telas do POP recusam a pessoa (ADR 0007).
+        sem_perfil = {**REVISOR, "perfil_pop": None}
+
+        assert _pops(_rota(monkeypatch, sem_perfil, _um_pop_em_cada_estado())) == []
