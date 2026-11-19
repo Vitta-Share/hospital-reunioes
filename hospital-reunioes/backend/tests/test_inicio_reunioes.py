@@ -296,22 +296,49 @@ class TestSigiloDoNucleo:
     def _banco(self) -> _Banco:
         return _Banco(
             reunioes=[
-                _reuniao("RN1", status_ata="AGUARDANDO_ASSINATURA"),
-                _reuniao("RN2", status_ata="AGUARDANDO_VALIDACAO", facilitador_id="P_AURORA"),
+                _reuniao("RN2", status_ata="AGUARDANDO_VALIDACAO", facilitador_id="P_AURORA", colegiado_id="C_NUCLEO"),
                 _reuniao("R20", status_ata="AGUARDANDO_ASSINATURA"),
             ],
-            reuniao_participantes=_na_reuniao("RN1", "P_AURORA") + _na_reuniao("R20", "P_AURORA"),
+            reuniao_participantes=_na_reuniao("R20", "P_AURORA"),
         )
 
     def test_ata_do_nucleo_fora_do_alcance_nao_aparece(self, monkeypatch, nucleo):
-        nucleo["ocultas"] = ["RN1", "RN2"]
+        nucleo["ocultas"] = ["RN2"]
 
         assert _atas(_rota(monkeypatch, AURORA, self._banco())) == [("ata_a_assinar", "R20", "sem_prazo")]
 
     def test_quem_o_nucleo_deixa_ver_ve_a_ata_do_nucleo(self, monkeypatch, nucleo):
         ids = sorted(id_reuniao for _tipo, id_reuniao, _grupo in _atas(_rota(monkeypatch, AURORA, self._banco())))
 
-        assert ids == ["R20", "RN1", "RN2"]
+        assert ids == ["R20", "RN2"]
+
+    def test_ata_do_nucleo_em_assinatura_nao_vira_ata_a_assinar(self, monkeypatch, nucleo):
+        """A Ata do Núcleo vai num envelope próprio (`json_ata.assinatura`) e
+        a assinatura dela não grava o Registro de Aceites: o Início não sabe
+        quem já assinou. A Presidência, única na `reuniao_participantes`, já
+        assinou e não pode ficar com a Ata na fila até o encerramento."""
+        banco = _Banco(
+            reunioes=[
+                _reuniao(
+                    "RN1",
+                    status_ata="AGUARDANDO_ASSINATURA",
+                    facilitador_id="P_AURORA",
+                    colegiado_id="C_NUCLEO",
+                    json_ata={
+                        "assinatura": {
+                            "envelope_id": "ENV1",
+                            "enviada_em": "2026-11-12T15:00:00+00:00",
+                            "signatarios": [
+                                {"participante_id": "P_AURORA", "nome": "Aurora Lima", "email": "aurora@exemplo.org"}
+                            ],
+                        }
+                    },
+                )
+            ],
+            reuniao_participantes=_na_reuniao("RN1", "P_AURORA"),
+        )
+
+        assert _atas(_rota(monkeypatch, AURORA, banco)) == []
 
     def test_sem_perfil_das_reunioes_nao_recebe_ata(self, monkeypatch, nucleo):
         sem_reunioes = {**AURORA, "access_profile": None}

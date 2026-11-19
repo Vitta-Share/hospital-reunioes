@@ -3,7 +3,10 @@
 A Ata a assinar é a Reunião em assinatura em que a pessoa é Signatária e
 ainda não deu ciência, pela ClickSign ou pelo Aceite interno: as duas gravam o
 Registro de Aceites (`reuniao_aceites`), e a Ata sai da fila assim que ele
-existe. A Ata parada é a que espera o Facilitador na validação. As duas entram
+existe. A Ata do Núcleo fica de fora da Ata a assinar: ela vai num envelope
+próprio (`json_ata.assinatura`), assinam só os presentes, e a assinatura dela
+não grava o Registro de Aceites, então o Início não sabe quem já assinou. A
+Ata parada é a que espera o Facilitador na validação. As duas entram
 em "Sem prazo", contando os dias desde o `updated_at` da Reunião, o mesmo
 marco do card de Atas paradas do painel; a Ata parada conta como vencida a
 partir do quarto dia (mais de 3 dias, a regra do card). O trilho traz as
@@ -27,7 +30,7 @@ ROTULO = "as Atas"
 # A Ata em validação para de esperar calada no quarto dia (o card do painel).
 DIAS_ATE_A_ATA_PARAR = 3
 
-_COLUNAS = "id_reuniao, titulo, data, status_ata, facilitador_id, updated_at"
+_COLUNAS = "id_reuniao, titulo, data, status_ata, facilitador_id, colegiado_id, updated_at"
 
 
 def _data(valor: Any) -> date | None:
@@ -80,7 +83,9 @@ def _atas_a_assinar(supabase, me: dict) -> list[dict]:
     ids = _em_que_participa(supabase, me)
     if not ids:
         return []
-    em_assinatura = _vivas(supabase, "AGUARDANDO_ASSINATURA", "id_reuniao", ids)
+    em_assinatura = [
+        r for r in _vivas(supabase, "AGUARDANDO_ASSINATURA", "id_reuniao", ids) if not r.get("colegiado_id")
+    ]
     if not em_assinatura:
         return []
     assinadas = _ja_deu_ciencia(supabase, [r["id_reuniao"] for r in em_assinatura], me)
