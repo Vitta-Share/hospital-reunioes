@@ -18,7 +18,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel
 
-from app.services.inicio import fonte_pendencias, fonte_reunioes
+from app.services.inicio import fonte_ouvidoria, fonte_pendencias, fonte_reunioes
 from app.services.inicio.regras import (
     ATE_48_HORAS,
     FUSO,
@@ -39,12 +39,14 @@ logger = logging.getLogger(__name__)
 class Fonte:
     nome: str
     rotulo: str
+    # (supabase, quem pede, agora) -> itens no formato comum, sem grupo.
     itens: Callable[..., list[dict]]
 
 
 FONTES: tuple[Fonte, ...] = (
     Fonte("pendencias", fonte_pendencias.ROTULO, fonte_pendencias.itens),
     Fonte("atas", fonte_reunioes.ROTULO, fonte_reunioes.itens),
+    Fonte("ouvidoria", fonte_ouvidoria.ROTULO, fonte_ouvidoria.itens),
 )
 
 
@@ -141,7 +143,7 @@ def montar_inicio(supabase, me: dict | None, agora: datetime, fontes: tuple[Font
     if me:
         for fonte in fontes:
             try:
-                brutos = fonte.itens(supabase, me)
+                brutos = fonte.itens(supabase, me, agora)
             except Exception:
                 avisos.append(_aviso(fonte.nome, fonte.rotulo, me))
                 continue
