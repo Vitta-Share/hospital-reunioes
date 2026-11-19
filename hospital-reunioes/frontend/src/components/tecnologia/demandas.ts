@@ -138,6 +138,13 @@ export type Demanda = {
    */
   demonstracao_url?: string | null;
   demonstracao_em?: string | null;
+  /**
+   * O atalho Ver o plano (issue #2010, ADR 0108, decisão 2): o link da
+   * Apresentação do PRD, lido do marcador da issue-raiz, e se o diretor já
+   * validou o plano. Sem link, sem botão nem cartão.
+   */
+  apresentacao_url?: string | null;
+  plano_validado?: boolean;
 };
 
 /**
@@ -158,6 +165,15 @@ export const ENVIO_FALHOU = "Envio falhou";
 export function linkDaDemonstracao(demanda: Demanda): string | null {
   const url = demanda.demonstracao_url;
   return url && url.startsWith("https://") ? url : null;
+}
+
+/** A única página que o atalho do plano abre: a dos planos do hospital. */
+const PAGINA_DOS_PLANOS = "https://planos-hsm.vercel.app/";
+
+/** O link do plano que a tela aceita desenhar: só a página dos planos (issue #2010). */
+export function linkDoPlano(demanda: Demanda): string | null {
+  const url = demanda.apresentacao_url;
+  return url && url.startsWith(PAGINA_DOS_PLANOS) ? url : null;
 }
 
 export type Origem = "diretor" | "vitta";

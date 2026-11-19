@@ -33,7 +33,9 @@ import {
   TITULO_EM_UMA_FRASE,
   TITULO_O_QUE_MUDA,
   TITULO_PARTES,
+  TITULO_PLANO,
   TITULO_PLANO_DO_PROJETO,
+  VER_O_PLANO,
   VER_TUDO,
 } from "./DocumentoDoCard";
 import { Demanda, ETAPA_ROTULO, EtapaDemanda, ParteDaEntrega } from "./demandas";
@@ -321,6 +323,25 @@ describe("O Documento do card", () => {
 
     montar({ ...VINCULADA, demonstracao_url: "javascript:alert(1)" });
     expect(within(documento()).queryByRole("region", { name: TITULO_DEMONSTRACAO })).toBeNull();
+  });
+
+  it("com o link do plano, o cartão Plano leva à página do plano em outra aba (issue #2010)", () => {
+    montar({ ...VINCULADA, apresentacao_url: "https://planos-hsm.vercel.app/2007/" });
+
+    const cartao = within(documento()).getByRole("region", { name: TITULO_PLANO });
+    const link = within(cartao).getByRole("link", { name: VER_O_PLANO });
+    expect(link.getAttribute("href")).toBe("https://planos-hsm.vercel.app/2007/");
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+  });
+
+  it("sem o link do plano, ou com um endereço fora da página dos planos, não há cartão Plano", () => {
+    montar(VINCULADA);
+    expect(within(documento()).queryByRole("region", { name: TITULO_PLANO })).toBeNull();
+    cleanup();
+
+    montar({ ...VINCULADA, apresentacao_url: "https://youtu.be/plano" });
+    expect(within(documento()).queryByRole("region", { name: TITULO_PLANO })).toBeNull();
   });
 
   it("some inteiro quando a Demanda não tem Vínculo", () => {

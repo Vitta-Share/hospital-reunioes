@@ -40,6 +40,7 @@ import {
   ETAPA_ROTULO,
   EtapaDemanda,
   linkDaDemonstracao,
+  linkDoPlano,
   nomeDoNumero,
   ParteDaEntrega,
   PedacoForte,
@@ -56,6 +57,8 @@ export const TITULO_DEMONSTRACAO = "Demonstração";
 export const ASSISTIR_A_DEMONSTRACAO = "Assistir à demonstração";
 export const TITULO_PLANO_DO_PROJETO = "Plano do projeto";
 export const ABRIR_O_PLANO = "Abrir o plano";
+export const TITULO_PLANO = "Plano";
+export const VER_O_PLANO = "Ver o plano";
 export const VER_TUDO = "Ver tudo";
 export const COPIAR_LINK = "Copiar link";
 export const LINK_COPIADO = "Link copiado";
@@ -356,6 +359,24 @@ function Demonstracao({ demanda }: { demanda: Demanda }) {
 }
 
 /**
+ * A página do plano do pedido, num cartão no padrão da Demonstração (issue
+ * #2010, ADR 0108, decisão 2). Só abre a página: validar segue pelo link do
+ * e-mail, que leva o código.
+ */
+function Plano({ demanda }: { demanda: Demanda }) {
+  const url = linkDoPlano(demanda);
+  if (!url) return null;
+  return (
+    <section aria-label={TITULO_PLANO} className="px-3 py-2 rounded-lg bg-white border border-primary/30 space-y-1">
+      <Titulo>{TITULO_PLANO}</Titulo>
+      <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-primary underline">
+        {VER_O_PLANO}
+      </a>
+    </section>
+  );
+}
+
+/**
  * O pedido de um projeto novo da Vitta (issue #1967): o nome do projeto e o
  * link do plano, para todos que veem a Demanda. O app não lê o repositório
  * desse projeto, e o link é o que a ponte gravou. Só com link `https`.
@@ -436,6 +457,8 @@ export function DocumentoDoCard({ demanda }: { demanda: Demanda }) {
       <PlanoDoProjeto demanda={demanda} />
 
       {!soOPlano && <FraseEOQueMuda texto={demanda.o_que_muda} chave={demanda.id} />}
+
+      <Plano demanda={demanda} />
 
       <Demonstracao demanda={demanda} />
 
