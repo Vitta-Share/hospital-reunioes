@@ -18,16 +18,18 @@ from datetime import date, datetime
 
 from pydantic import BaseModel
 
-from app.services.inicio import fonte_pendencias
+from app.services.inicio import fonte_pendencias, fonte_reunioes
 from app.services.inicio.regras import (
     ATE_48_HORAS,
     FUSO,
     GRUPOS,
     PASSOU_DO_PRAZO,
     PROXIMOS_7_DIAS,
+    SEM_PRAZO,
     dias_de_atraso,
+    dias_esperando,
     frase_do_inicio,
-    grupo_do_prazo,
+    grupo_do_item,
 )
 
 logger = logging.getLogger(__name__)
@@ -40,7 +42,10 @@ class Fonte:
     itens: Callable[..., list[dict]]
 
 
-FONTES: tuple[Fonte, ...] = (Fonte("pendencias", fonte_pendencias.ROTULO, fonte_pendencias.itens),)
+FONTES: tuple[Fonte, ...] = (
+    Fonte("pendencias", fonte_pendencias.ROTULO, fonte_pendencias.itens),
+    Fonte("atas", fonte_reunioes.ROTULO, fonte_reunioes.itens),
+)
 
 
 class AcaoDeUmClique(BaseModel):
@@ -62,8 +67,12 @@ class ItemDoInicio(BaseModel):
     # tela de toque. Fonte que não tem o que dizer deixa vazia.
     contexto: str | None = None
     acao_de_um_clique: AcaoDeUmClique | None = None
+    # O módulo de origem não dá prazo ao item: ele fica em Sem prazo, e só
+    # sai de lá se o `prazo` que a fonte calculou vencer.
+    sem_prazo_no_modulo: bool = False
     grupo: str | None = None
     dias_de_atraso: int | None = None
+    dias_esperando: int | None = None
 
 
 class Frase(BaseModel):
@@ -82,15 +91,27 @@ class AvisoDeFonte(BaseModel):
     mensagem: str
 
 
+class ItemDoTrilho(BaseModel):
+    tipo: str
+    id: str
+    titulo: str
+    data: date
+    hora: str | None = None
+    papel: str
+    destino: str
+
+
 class Inicio(BaseModel):
     hoje: date
     frase: Frase
     contadores: Contadores
     itens: list[ItemDoInicio]
     avisos: list[AvisoDeFonte]
-    # Previstos no contrato e vazios nesta fatia: as próximas Reuniões e as
-    # Rotinas do ciclo (o trilho) e a linha de resumo de cada Fila do papel.
-    trilho: list[dict] = []
+    # O trilho, ao lado da fila: as próximas Reuniões (e, quando existirem,
+    # as Rotinas do ciclo). Fora da fila e da contagem da frase.
+    trilho: list[ItemDoTrilho] = []
+    # Previsto no contrato e vazio nesta fatia: a linha de resumo de cada Fila
+    # do papel.
     filas_do_papel: list[dict] = []
 
 
@@ -100,37 +121,47 @@ def _primeiro_nome(me: dict | None) -> str | None:
 
 
 def _ordem(item: ItemDoInicio) -> tuple:
-    # O mais atrasado primeiro, o mais distante por último; sem prazo no fim.
-    return (item.prazo is None, item.prazo or date.max, item.id)
+    # O mais atrasado primeiro, o mais distante por último; no fim, o grupo
+    # Sem prazo, do que espera há mais tempo para o mais recente.
+    if item.grupo == SEM_PRAZO:
+        return (True, item.chegou_em or date.max, item.id)
+    return (False, item.prazo or date.max, item.id)
+
+
+def _aviso(nome: str, rotulo: str, me: dict) -> AvisoDeFonte:
+    logger.exception("[Início] A fonte %s falhou para %s", nome, me.get("id"))
+    return AvisoDeFonte(fonte=nome, mensagem=f"Não foi possível carregar {rotulo} agora. Tente de novo em instantes.")
 
 
 def montar_inicio(supabase, me: dict | None, agora: datetime, fontes: tuple[Fonte, ...] = FONTES) -> Inicio:
     itens: list[ItemDoInicio] = []
     avisos: list[AvisoDeFonte] = []
+    trilho: list[ItemDoTrilho] = []
+    hoje = agora.astimezone(FUSO).date()
     if me:
         for fonte in fontes:
             try:
                 brutos = fonte.itens(supabase, me)
             except Exception:
-                logger.exception("[Início] A fonte %s falhou para %s", fonte.nome, me.get("id"))
-                avisos.append(
-                    AvisoDeFonte(
-                        fonte=fonte.nome,
-                        mensagem=f"Não foi possível carregar {fonte.rotulo} agora. Tente de novo em instantes.",
-                    )
-                )
+                avisos.append(_aviso(fonte.nome, fonte.rotulo, me))
                 continue
             for bruto in brutos:
                 item = ItemDoInicio(**bruto)
-                item.grupo = grupo_do_prazo(item.prazo, agora)
+                item.grupo = grupo_do_item(item.prazo, item.sem_prazo_no_modulo, agora)
                 item.dias_de_atraso = dias_de_atraso(item.prazo, agora) if item.grupo == PASSOU_DO_PRAZO else None
+                item.dias_esperando = dias_esperando(item.chegou_em, agora) if item.grupo == SEM_PRAZO else None
                 itens.append(item)
+        try:
+            trilho = [ItemDoTrilho(**bruto) for bruto in fonte_reunioes.proximas(supabase, me, hoje)]
+        except Exception:
+            avisos.append(_aviso("trilho", fonte_reunioes.ROTULO_DO_TRILHO, me))
     itens.sort(key=_ordem)
 
     por_grupo = {grupo: [item for item in itens if item.grupo == grupo] for grupo in GRUPOS}
     vencidos = por_grupo[PASSOU_DO_PRAZO]
-    hoje = agora.astimezone(FUSO).date()
-    futuros = [item.prazo for item in itens if item.prazo is not None and item.prazo >= hoje]
+    futuros = [
+        item.prazo for item in itens if item.grupo != SEM_PRAZO and item.prazo is not None and item.prazo >= hoje
+    ]
     titulo, apoio = frase_do_inicio(
         nome=_primeiro_nome(me),
         vencidos=len(vencidos),
@@ -148,4 +179,5 @@ def montar_inicio(supabase, me: dict | None, agora: datetime, fontes: tuple[Font
         ),
         itens=itens,
         avisos=avisos,
+        trilho=trilho,
     )
