@@ -496,6 +496,26 @@ def entrar(base: str) -> None:
 # --------------------------------------------------------------------------
 
 
+def inicio() -> str:
+    """A primeira tela depois do login (issue #1948).
+
+    Entra pelo endereço principal e espera o app levar ao Início: se o login
+    deixar de cair lá, o print não sai.
+    """
+    reuniao_programada()
+    return """
+    await abrir('/');
+    await page.waitForURL((u) => new URL(u).pathname === '/inicio', { timeout: 30000 });
+    await page.getByRole('heading', { name: 'Início' }).first().waitFor();
+    await page.waitForTimeout(1500);
+    await balao(page.getByRole('link', { name: 'Início', exact: true }).first(), 1);
+    await balao(page.getByRole('button', { name: 'Reuniões e metas' }).first(), 2);
+    await balao(page.getByRole('link', { name: 'Dashboard', exact: true }).first(), 3);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    return await pronto({ x: 0, y: 0, width: 1440, height: 900 });
+    """
+
+
 def calendario() -> str:
     reuniao_programada()
     return f"""
@@ -628,6 +648,7 @@ def pendencias() -> str:
 # confere que esta lista é exatamente a das imagens citadas na página: print
 # novo na página sem função aqui fica vermelho.
 PRINTS = {
+    "inicio": inicio,
     "calendario": calendario,
     "agendar-reuniao": agendar_reuniao,
     "anexar-transcricao": anexar_transcricao,
