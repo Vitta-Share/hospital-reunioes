@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-19T16:48:28-03:00",
+      "sha": "165aea9daaf85c24e6c0cbf536af3b982adda5df",
+      "app_version": "0.315.0",
+      "subject": "Onda sesta-1932-onda2: Acabamento do Início conforme o protótipo; Atas a assinar, Atas paradas e próximas Reuniões; Caso da Ouvidoria do setor e a fila do ouvidor no Início",
+      "raw_subject": "chore(deploy): registro da onda sesta-1932-onda2 (#2026 #2027 #2025)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1932
+      ],
+      "result": "healthy",
+      "duration_seconds": 863,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1932-onda2: PR #2026 (issue #1935), PR #2027 (issue #1936), PR #2025 (issue #1937), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 9,
+        "build_s": {
+          "backend": 27,
+          "frontend": 231
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-19T15:52:54-03:00",
       "sha": "cef3482cdc1fdb232ce9e5cfbe3dcd1fe77e3363",
       "app_version": "0.314.0",
