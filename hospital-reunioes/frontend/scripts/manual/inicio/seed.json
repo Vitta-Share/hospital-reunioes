@@ -1,0 +1,130 @@
+{
+  "facilitadora": {
+    "id": "P19470",
+    "nome": "Helena Duarte",
+    "email": "helena.duarte@exemplo.local",
+    "senha": "ManualInicio1947!",
+    "cargo": "Coordenadora da Qualidade",
+    "setor": "Qualidade"
+  },
+  "pessoas": [
+    {
+      "id": "P19471",
+      "nome": "Otávio Lacerda",
+      "email": "otavio.lacerda@exemplo.local",
+      "cargo": "Supervisor de Hotelaria",
+      "setor": "Hotelaria",
+      "ultimo_acesso": -1
+    },
+    {
+      "id": "P19472",
+      "nome": "Marina Tavares",
+      "email": "marina.tavares@exemplo.local",
+      "cargo": "Enfermeira da Clínica Médica",
+      "setor": "Clínica Médica",
+      "ultimo_acesso": 0
+    },
+    {
+      "id": "P19473",
+      "nome": "Renato Pires",
+      "email": "renato.pires@exemplo.local",
+      "cargo": "Farmacêutico",
+      "setor": "Farmácia",
+      "ultimo_acesso": null
+    }
+  ],
+  "reunioes": {
+    "passada": {
+      "id": "MIN1947A",
+      "titulo": "Comissão de Qualidade e Segurança",
+      "data": -12,
+      "hora_inicio": "09:00:00",
+      "hora_fim": "10:00:00",
+      "facilitador": "P19470",
+      "status_ata": "ASSINADA"
+    },
+    "futura": {
+      "id": "MIN1947B",
+      "titulo": "Indicadores de Qualidade do mês",
+      "data": 2,
+      "hora_inicio": "14:00:00",
+      "hora_fim": "15:00:00",
+      "facilitador": "P19470",
+      "status_ata": "PROGRAMADA"
+    }
+  },
+  "pendencias": [
+    {
+      "id": "PI1947A",
+      "descricao": "Consolidar os indicadores de queda do trimestre",
+      "responsavel": "P19470",
+      "prazo": -3,
+      "aberta": -12,
+      "status": "PENDENTE",
+      "entregavel": "Painel de quedas atualizado"
+    },
+    {
+      "id": "PI1947B",
+      "descricao": "Enviar o relatório de não conformidades à Diretoria",
+      "responsavel": "P19470",
+      "prazo": 1,
+      "aberta": -12,
+      "status": "EM_PROGRESSO",
+      "entregavel": "Relatório enviado"
+    },
+    {
+      "id": "PI1947C",
+      "descricao": "Revisar o checklist de higienização dos leitos",
+      "responsavel": "P19470",
+      "prazo": 5,
+      "aberta": -12,
+      "status": "PENDENTE",
+      "entregavel": "Checklist revisado"
+    },
+    {
+      "id": "PI1947D",
+      "descricao": "Trocar as placas de sinalização do segundo andar",
+      "responsavel": "P19471",
+      "prazo": -4,
+      "aberta": -12,
+      "status": "PENDENTE",
+      "entregavel": "Placas novas instaladas"
+    },
+    {
+      "id": "PI1947E",
+      "descricao": "Conferir o enxoval da Maternidade",
+      "responsavel": "P19471",
+      "prazo": 6,
+      "aberta": -12,
+      "status": "EM_PROGRESSO",
+      "entregavel": "Inventário do enxoval"
+    },
+    {
+      "id": "PI1947F",
+      "descricao": "Treinar a equipe no protocolo de prevenção de quedas",
+      "responsavel": "P19472",
+      "prazo": 3,
+      "aberta": -12,
+      "status": "PENDENTE",
+      "entregavel": "Lista de presença do treinamento"
+    },
+    {
+      "id": "PI1947G",
+      "descricao": "Atualizar a lista de medicamentos de alta vigilância",
+      "responsavel": "P19473",
+      "prazo": -9,
+      "aberta": -12,
+      "status": "PENDENTE",
+      "entregavel": "Lista publicada na Farmácia"
+    },
+    {
+      "id": "PI1947H",
+      "descricao": "Etiquetar os eletrólitos concentrados da UTI",
+      "responsavel": "P19473",
+      "prazo": -2,
+      "aberta": -12,
+      "status": "EM_PROGRESSO",
+      "entregavel": "Eletrólitos etiquetados"
+    }
+  ]
+}
