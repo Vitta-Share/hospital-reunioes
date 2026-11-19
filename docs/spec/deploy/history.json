@@ -2,6 +2,57 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-19T15:09:10-03:00",
+      "sha": "a28f44aae2ed4052641ae92923076af570849a82",
+      "app_version": "0.312.0",
+      "subject": "Onda onda-envio-onda1: Publicar grava o link da Apresentação no PRD, e os cinco planos já publicados ganham o marcador; Página do plano lê o estado da validação do GitHub e mostra a observação; Atalho",
+      "raw_subject": "chore(deploy): registro da onda onda-envio-onda1 (#2017 #2018 #2019 #2020)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        2007
+      ],
+      "result": "healthy",
+      "duration_seconds": 5095,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "164_tecnologia_atalho_do_plano.sql",
+        "165_tecnologia_envio_aos_desenvolvedores.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta onda-envio-onda1: PR #2017 (issue #2009), PR #2018 (issue #2008), PR #2019 (issue #2010), PR #2020 (issue #2011), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 13,
+        "build_s": {
+          "backend": 154,
+          "frontend": 499
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-18T20:58:56-03:00",
       "sha": "c7e8dd0999fb742950a12b88aa4d3ff55fa8bec1",
       "app_version": "0.311.1",
