@@ -349,3 +349,20 @@ def test_historico_vem_em_ordem_com_as_acoes_que_quem_olha_pode_fazer(cliente):
     corpo = client.get("/api/pendencias/A001/historico").json()
     assert [e["anotacao"] for e in corpo["eventos"]] == ["primeira", "segunda"]
     assert corpo["acoes_permitidas"] == ["iniciar", "anotar", "concluir", "repactuar"]
+
+
+# ── O kit de conhecimento diz o comportamento novo ──────────────────────────
+
+
+def test_o_texto_de_reunioes_no_kit_diz_o_ciclo_novo_da_pendencia():
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = (CONHECIMENTO_DIR / "reunioes.md").read_text(encoding="utf-8")
+    assert "## Como a pendência anda" in texto
+    assert "Toda mudança pede uma anotação" in texto
+    assert "Atrasada não é um estado que alguém marca" in texto
+    assert "Repactuar antes do prazo vencer não conta como atraso; depois de vencer, conta" in texto
+    assert "Ninguém edita nem apaga uma linha do histórico" in texto
+    # O comportamento antigo saiu do texto.
+    assert "marcada como a repactuar" not in texto
+    assert "antes de o aplicativo marcá-la como atrasada" not in texto

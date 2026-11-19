@@ -8,58 +8,48 @@ import {
   CalendarDays,
   User,
   MessageSquare,
-  ChevronDown,
   Loader2,
   Trash2,
   AtSign,
   FileText,
   Briefcase
 } from "lucide-react";
-import { Pendencia, StatusPendencia, Comentario } from "@/types";
-import { PENDENCIA_STATUS_CONFIG, ALL_STATUSES } from "@/constants/pendencias";
-import { isSuperAdmin } from "@/lib/auth";
-import { DeleteButton } from "@/components/DeleteButton";
-import { Select } from "@/components/ui/Select";
+import { Pendencia, Comentario, ComandoPendencia } from "@/types";
+import { PENDENCIA_STATUS_CONFIG } from "@/constants/pendencias";
+import { AcoesDaPendencia } from "./AcoesDaPendencia";
 
 interface Props {
   pendencia: Pendencia;
   token: string | null;
-  participantes: { id: string; nome_completo: string; setor?: string; is_externo?: boolean }[];
   /** @deprecated mantido por compat — use currentUser.is_super_admin. */
   userRole?: string;
   currentUser?: { id?: string; email?: string; is_super_admin?: boolean } | null;
+  /** A ação que o arrasto no kanban sugeriu (issue #1862). */
+  acaoInicial?: ComandoPendencia | null;
   onClose: () => void;
-  onStatusUpdated?: (id_acao: string, newStatus: StatusPendencia) => void;
   onPendenciaUpdated?: (updated: Pendencia) => void;
-  onPendenciaDeleted?: (id_acao: string) => void;
+}
+
+// Estado, prazo e responsável só mudam pelas ações, com anotação (ADR 0098,
+// decisão 5; issue #1862): os campos aqui são de leitura.
+function dataBr(iso?: string | null): string {
+  if (!iso) return "Sem prazo";
+  const [ano, mes, dia] = iso.slice(0, 10).split("-");
+  return `${dia}/${mes}/${ano}`;
 }
 
 export function PendenciaDetailModal({
   pendencia,
   token,
-  participantes,
   userRole: _userRole = "coordenador",
-  currentUser,
+  acaoInicial,
   onClose,
-  onStatusUpdated,
   onPendenciaUpdated,
-  onPendenciaDeleted
 }: Props) {
   const [comentarios, setComentarios] = useState<Comentario[]>([]);
   const [loadingComentarios, setLoadingComentarios] = useState(true);
   const [novoComentario, setNovoComentario] = useState("");
   const [enviando, setEnviando] = useState(false);
-  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
-  const [statusLoading, setStatusLoading] = useState(false);
-  
-  // Track savings fields for UI feedback
-  const [savingFields, setSavingFields] = useState<Record<string, boolean>>({});
-
-  // Local state for edits
-  const [localTitle, setLocalTitle] = useState(pendencia.descricao_acao || "");
-  const [localMeta, setLocalMeta] = useState(pendencia.meta_entregavel || "");
-  const [localCargo, setLocalCargo] = useState(pendencia.cargo || "");
-  const [localPrazo, setLocalPrazo] = useState(pendencia.prazo || "");
 
   // Mention autocomplete — só quem enxerga a Pendência é mencionável (issue #270)
   const [showMentions, setShowMentions] = useState(false);
@@ -67,19 +57,7 @@ export function PendenciaDetailModal({
   const [mentionIndex, setMentionIndex] = useState(0);
   const [mencionaveis, setMencionaveis] = useState<{ id: string; nome_completo: string; setor?: string }[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const titleTextareaRef = useRef<HTMLTextAreaElement>(null);
   const commentsEndRef = useRef<HTMLDivElement>(null);
-
-  // Super admin
-  const canSuperAdmin = isSuperAdmin(currentUser);
-
-  // Sync state if props change (e.g., from websocket or parent)
-  useEffect(() => {
-    setLocalTitle(pendencia.descricao_acao || "");
-    setLocalMeta(pendencia.meta_entregavel || "");
-    setLocalCargo(pendencia.cargo || "");
-    setLocalPrazo(pendencia.prazo || "");
-  }, [pendencia]);
 
   // Fetch comments
   const fetchComentarios = useCallback(async () => {
@@ -126,95 +104,6 @@ export function PendenciaDetailModal({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
 
-  // Auto-resize title textarea
-  const adjustTitleHeight = useCallback(() => {
-    if (titleTextareaRef.current) {
-      titleTextareaRef.current.style.height = "auto";
-      titleTextareaRef.current.style.height = (titleTextareaRef.current.scrollHeight) + "px";
-    }
-  }, []);
-
-  useEffect(() => {
-    adjustTitleHeight();
-    // Atraso para garantir que o scrollHeight seja lido corretamente após a animação de entrada do modal
-    const timeoutId = setTimeout(adjustTitleHeight, 150);
-    return () => clearTimeout(timeoutId);
-  }, [localTitle, adjustTitleHeight]);
-
-  // Handle generic field update
-  async function handleUpdateField(field: keyof Pendencia, value: string | null) {
-    if (pendencia[field] === value) return; // No change
-    if (!token) return;
-
-    setSavingFields(prev => ({ ...prev, [field]: true }));
-    try {
-      const updatePayload: Record<string, string | null> = { [field]: value };
-      if (field === "status" && value === "REPACTUADA") {
-        updatePayload.prazo = null;
-      }
-      
-      if (field === "responsavel_id") {
-        const p = participantes.find(part => part.id === value);
-        updatePayload["responsavel_nome"] = p ? p.nome_completo : "";
-      }
-
-      // If updating co-responsavel, also set the name
-      if (field === "co_responsavel_id") {
-        const p = participantes.find(part => part.id === value);
-        updatePayload["co_responsavel_nome"] = p ? p.nome_completo : "";
-      }
-
-      const res = await fetch(`/api/pendencias/${pendencia.id_acao}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(updatePayload),
-      });
-
-      if (res.ok) {
-        const updatedFromApi = await res.json();
-        // Invoke parent update
-        if (onPendenciaUpdated) {
-          onPendenciaUpdated(updatedFromApi);
-        }
-        // If it was just status (handled below but just in case), trigger legacy
-        if (field === "status" && onStatusUpdated && value) {
-          onStatusUpdated(pendencia.id_acao, value as StatusPendencia);
-        }
-      } else {
-        // Revert local state on error
-        setLocalTitle(pendencia.descricao_acao || "");
-        setLocalMeta(pendencia.meta_entregavel || "");
-        setLocalCargo(pendencia.cargo || "");
-        setLocalPrazo(pendencia.prazo || "");
-        console.error("Falha ao atualizar o campo:", field);
-      }
-    } catch (e) {
-      console.error(`Erro ao atualizar campo ${field}:`, e);
-      // Revert local state
-      setLocalTitle(pendencia.descricao_acao || "");
-      setLocalMeta(pendencia.meta_entregavel || "");
-      setLocalCargo(pendencia.cargo || "");
-      setLocalPrazo(pendencia.prazo || "");
-    } finally {
-      setSavingFields(prev => ({ ...prev, [field]: false }));
-    }
-  }
-
-  // Handle status update (special case for dropdown)
-  async function handleStatusChange(novo: StatusPendencia) {
-    setStatusDropdownOpen(false);
-    if (novo === pendencia.status) return;
-    setStatusLoading(true);
-    try {
-      await handleUpdateField("status", novo);
-    } finally {
-      setStatusLoading(false);
-    }
-  }
-
   // Handle comment submission
   async function handleSubmitComentario() {
     if (!novoComentario.trim() || !token) return;
@@ -238,26 +127,6 @@ export function PendenciaDetailModal({
     } finally {
       setEnviando(false);
     }
-  }
-
-  // Super admin: force delete
-  async function handleForceDelete(reason?: string) {
-    if (!token) throw new Error("Sem token");
-    const reasonFinal = reason?.trim() || "Excluída via kanban por super admin";
-    const res = await fetch(`/api/pendencias/${pendencia.id_acao}/force`, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ reason: reasonFinal }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || "Erro ao excluir pendência (force)");
-    }
-    onPendenciaDeleted?.(pendencia.id_acao);
-    onClose();
   }
 
   // Handle comment delete
@@ -353,7 +222,7 @@ export function PendenciaDetailModal({
     );
   }
 
-  const statusCfg = PENDENCIA_STATUS_CONFIG[pendencia.status];
+  const statusCfg = PENDENCIA_STATUS_CONFIG[pendencia.situacao ?? pendencia.status];
   const StatusIcon = statusCfg.icon;
 
   const [mounted, setMounted] = useState(false);
@@ -370,68 +239,25 @@ export function PendenciaDetailModal({
 
       <div className="fixed inset-0 z-[210] flex items-center justify-center p-4 sm:p-6 pointer-events-none">
         <div className="bg-white pointer-events-auto rounded-2xl shadow-premium w-full max-w-5xl h-[90vh] sm:h-[85vh] flex flex-col md:flex-row overflow-hidden animate-scale-in">
-          
-          {/* PAINEL ESQUERDO: DETALHES EDITÁVEIS */}
+
+          {/* PAINEL ESQUERDO: DETALHES, AÇÕES E HISTÓRICO */}
           <div className="flex-1 flex flex-col relative bg-white overflow-y-auto custom-scrollbar">
-            
+
             <div className="sticky top-0 bg-slate-50 z-10 px-6 pt-6 pb-4 border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <span className="text-xs font-mono text-slate-500 bg-slate-200/50 px-2 py-1 rounded-md">
                   {pendencia.id_acao}
                 </span>
 
-                <div className="relative">
-                  <button
-                    onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${statusCfg.bg} ${statusCfg.color} hover:brightness-95 transition-all outline-none focus:ring-2 focus:ring-offset-1 focus:ring-${statusCfg.color.split("-")[1]}-400`}
-                  >
-                    {statusLoading ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <StatusIcon className="w-3.5 h-3.5" strokeWidth={2.5} />
-                    )}
-                    {statusCfg.label}
-                    <ChevronDown className="w-3.5 h-3.5 opacity-70" />
-                  </button>
-
-                  {statusDropdownOpen && (
-                    <>
-                      <div
-                        className="fixed inset-0 z-10"
-                        onClick={() => setStatusDropdownOpen(false)}
-                      />
-                      <div className="absolute left-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-20 overflow-hidden animate-slide-in-top">
-                        {ALL_STATUSES.map((s) => {
-                          const cfg = PENDENCIA_STATUS_CONFIG[s];
-                          const Icon = cfg.icon;
-                          return (
-                            <button
-                                key={s}
-                                onClick={() => handleStatusChange(s)}
-                                className={`flex items-center gap-2 w-full px-4 py-3 text-sm text-left transition-colors ${
-                                  s === pendencia.status ? "bg-slate-50 font-semibold" : "hover:bg-slate-50 font-medium"
-                                }`}
-                              >
-                              <Icon className={`w-4 h-4 ${cfg.color}`} strokeWidth={2} />
-                              <span className={cfg.color}>{cfg.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
-                </div>
+                <span
+                  className={`etiqueta inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${statusCfg.bg} ${statusCfg.color}`}
+                >
+                  <StatusIcon className="w-3.5 h-3.5" strokeWidth={2.5} />
+                  {statusCfg.label}
+                </span>
               </div>
 
               <div className="flex items-center gap-2">
-                {/* Super admin: force-delete pendência */}
-                <DeleteButton
-                  visible={canSuperAdmin}
-                  confirmTitle="Excluir pendência?"
-                  confirmDescription="Tem certeza? A pendência será removida permanentemente."
-                  onDelete={handleForceDelete}
-                  label="Excluir"
-                />
                 {/* Mobile close button only */}
                 <button
                   onClick={onClose}
@@ -443,127 +269,61 @@ export function PendenciaDetailModal({
             </div>
 
             <div className="p-6 md:p-8 space-y-8 flex-1">
-              
-              {/* Título / Descrição */}
-              <div className="relative group">
-                 {savingFields["descricao_acao"] && (
-                   <Loader2 className="w-4 h-4 animate-spin text-primary absolute right-2 top-2" />
-                 )}
-                 <textarea
-                   ref={titleTextareaRef}
-                   value={localTitle}
-                   onChange={(e) => setLocalTitle(e.target.value)}
-                   onBlur={(e) => handleUpdateField("descricao_acao", e.target.value)}
-                   placeholder="Descrição da Pendência (Clique para editar...)"
-                   className="w-full text-xl md:text-2xl font-bold text-slate-900 leading-snug bg-transparent border-transparent hover:bg-slate-50 focus:bg-white hover:border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 -ml-4 transition-all outline-none resize-none overflow-y-hidden"
-                   rows={1}
-                 />
-              </div>
 
-              {/* Metadata Grid com Inline Editing */}
+              {/* Título / Descrição */}
+              <h2 className="text-xl md:text-2xl font-bold text-slate-900 leading-snug normal-case">
+                {pendencia.descricao_acao}
+              </h2>
+
+              {/* Metadados (leitura) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                
+
                 {/* Responsável */}
-                <div className="p-4 rounded-xl bg-slate-50/70 border border-slate-100 group/item relative transition-colors focus-within:bg-white focus-within:border-primary/40 focus-within:shadow-sm">
-                   {savingFields["responsavel_id"] && (
-                     <Loader2 className="w-3 h-3 text-primary animate-spin absolute top-4 right-4" />
-                   )}
+                <div className="p-4 rounded-xl bg-slate-50/70 border border-slate-100">
                    <div className="flex items-center gap-1.5 mb-1.5">
                      <User className="w-3.5 h-3.5 text-slate-400" />
                      <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Responsável</span>
                    </div>
-                   <Select
-                      value={pendencia.responsavel_id || ""}
-                      onChange={(v) => handleUpdateField("responsavel_id", v)}
-                      placeholder="Nenhum"
-                      options={[
-                        { value: "", label: "Nenhum" },
-                        ...participantes.map(p => ({ value: p.id, label: p.nome_completo })),
-                      ]}
-                   />
+                   <span className="text-sm font-medium text-slate-800 normal-case">
+                     {pendencia.responsavel_nome || "Nenhum"}
+                   </span>
                 </div>
 
-                {/* Co-Responsável — visível quando responsável é externo */}
-                {(() => {
-                  const responsavelParticipante = participantes.find(p => p.id === pendencia.responsavel_id);
-                  const isResponsavelExterno = responsavelParticipante?.is_externo === true;
-                  const canEditCoResp = isResponsavelExterno && isSuperAdmin(currentUser);
-                  const hasCoResp = pendencia.co_responsavel_id || pendencia.co_responsavel_nome;
-
-                  if (!isResponsavelExterno && !hasCoResp) return null;
-
-                  return (
-                    <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 group/item relative transition-colors focus-within:bg-white focus-within:border-primary/40 focus-within:shadow-sm">
-                      {savingFields["co_responsavel_id"] && (
-                        <Loader2 className="w-3 h-3 text-primary animate-spin absolute top-4 right-4" />
-                      )}
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <User className="w-3.5 h-3.5 text-amber-500" />
-                        <span className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider">Co-Responsável</span>
-                        <span className="text-[10px] text-amber-400 ml-1">(externo)</span>
-                      </div>
-                      {canEditCoResp ? (
-                        <>
-                          <Select
-                            value={pendencia.co_responsavel_id || ""}
-                            onChange={(v) => handleUpdateField("co_responsavel_id", v)}
-                            placeholder="Nenhum"
-                            options={[
-                              { value: "", label: "Nenhum" },
-                              ...participantes.filter(p => !p.is_externo).map(p => ({ value: p.id, label: p.nome_completo })),
-                            ]}
-                          />
-                        </>
-                      ) : (
-                        <span className="text-sm font-medium text-slate-800">
-                          {pendencia.co_responsavel_nome || "Não definido"}
-                        </span>
-                      )}
+                {/* Co-Responsável */}
+                {(pendencia.co_responsavel_id || pendencia.co_responsavel_nome) && (
+                  <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <User className="w-3.5 h-3.5 text-amber-500" />
+                      <span className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider">Co-Responsável</span>
                     </div>
-                  );
-                })()}
+                    <span className="text-sm font-medium text-slate-800 normal-case">
+                      {pendencia.co_responsavel_nome || "Não definido"}
+                    </span>
+                  </div>
+                )}
 
                 {/* Prazo */}
-                <div className="p-4 rounded-xl bg-slate-50/70 border border-slate-100 group/item relative transition-colors focus-within:bg-white focus-within:border-primary/40 focus-within:shadow-sm">
-                   {savingFields["prazo"] && (
-                     <Loader2 className="w-3 h-3 text-primary animate-spin absolute top-4 right-4" />
-                   )}
+                <div className="p-4 rounded-xl bg-slate-50/70 border border-slate-100">
                    <div className="flex items-center gap-1.5 mb-1.5">
                      <CalendarDays className="w-3.5 h-3.5 text-slate-400" />
                      <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Prazo</span>
                    </div>
-                   <input
-                      type="date"
-                      value={pendencia.status === "REPACTUADA" ? "" : localPrazo}
-                      disabled={pendencia.status === "REPACTUADA"}
-                      onChange={(e) => setLocalPrazo(e.target.value)}
-                      onBlur={(e) => handleUpdateField("prazo", e.target.value)}
-                      className={`w-full bg-transparent text-sm font-medium outline-none cursor-text decoration-transparent ${
-                        pendencia.status === "REPACTUADA" ? "text-slate-400 cursor-not-allowed" : "text-slate-800"
-                      }`}
-                   />
+                   <span className={`text-sm font-medium ${pendencia.atrasada ? "text-red-600" : "text-slate-800"}`}>
+                     {dataBr(pendencia.prazo)}
+                     {pendencia.atrasada && " (atrasada)"}
+                   </span>
                 </div>
 
                 {/* Cargo */}
-                <div className="p-4 rounded-xl bg-slate-50/70 border border-slate-100 group/item relative transition-colors focus-within:bg-white focus-within:border-primary/40 focus-within:shadow-sm">
-                   {savingFields["cargo"] && (
-                     <Loader2 className="w-3 h-3 text-primary animate-spin absolute top-4 right-4" />
-                   )}
+                <div className="p-4 rounded-xl bg-slate-50/70 border border-slate-100">
                    <div className="flex items-center gap-1.5 mb-1.5">
                      <Briefcase className="w-3.5 h-3.5 text-slate-400" />
                      <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Cargo</span>
                    </div>
-                   <input
-                      type="text"
-                      placeholder="Não definido"
-                      value={localCargo}
-                      onChange={(e) => setLocalCargo(e.target.value)}
-                      onBlur={(e) => handleUpdateField("cargo", e.target.value)}
-                      className="w-full bg-transparent text-sm font-medium text-slate-800 outline-none"
-                   />
+                   <span className="text-sm font-medium text-slate-800 normal-case">{pendencia.cargo || "Não definido"}</span>
                 </div>
 
-                {/* Origem (Reunião — readonly link, mantendo a estética) */}
+                {/* Origem (Reunião) */}
                 <div className="p-4 rounded-xl bg-slate-50/70 border border-slate-100 relative">
                    <div className="flex items-center gap-1.5 mb-1.5">
                      <FileText className="w-3.5 h-3.5 text-slate-400" />
@@ -585,22 +345,21 @@ export function PendenciaDetailModal({
 
               </div>
 
-              {/* Meta Entregável - Área Livre */}
-              <div className="relative group/box mt-6">
-                <div className="flex justify-between items-center mb-2">
-                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Meta / Entregável Esperado</span>
-                   {savingFields["meta_entregavel"] && (
-                     <Loader2 className="w-3 h-3 text-primary animate-spin mr-1" />
-                   )}
+              {/* Meta Entregável */}
+              {pendencia.meta_entregavel && (
+                <div className="mt-6">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Meta / Entregável Esperado</span>
+                  <p className="mt-2 text-sm text-slate-700 whitespace-pre-wrap normal-case">{pendencia.meta_entregavel}</p>
                 </div>
-                <textarea
-                  value={localMeta}
-                  onChange={(e) => setLocalMeta(e.target.value)}
-                  onBlur={(e) => handleUpdateField("meta_entregavel", e.target.value)}
-                  placeholder="Descreva o que exatamente deve ser entregue para considerar concluído..."
-                  className="w-full min-h-[140px] text-sm text-slate-700 bg-white border border-slate-200 hover:border-slate-300 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 transition-colors outline-none resize-y"
-                />
-              </div>
+              )}
+
+              {/* Ações (sempre com anotação) e Histórico */}
+              <AcoesDaPendencia
+                idAcao={pendencia.id_acao}
+                token={token}
+                acaoInicial={acaoInicial}
+                onAtualizada={(atualizada) => onPendenciaUpdated?.(atualizada)}
+              />
 
             </div>
           </div>

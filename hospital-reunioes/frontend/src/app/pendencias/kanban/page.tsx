@@ -15,7 +15,7 @@ import {
   List,
   Filter,
 } from "lucide-react";
-import { Pendencia, StatusPendencia } from "@/types";
+import { ComandoPendencia, Pendencia, SituacaoPendencia } from "@/types";
 import { PendenciaDetailModal } from "@/components/pendencias/PendenciaDetailModal";
 import { useToast } from "@/components/ui/Toast";
 import { MultiSelect } from "@/components/ui/MultiSelect";
@@ -26,7 +26,7 @@ import { useFacilitadores } from "@/hooks/useFacilitadores";
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
-const COLUMN_ORDER: StatusPendencia[] = [
+const COLUMN_ORDER: SituacaoPendencia[] = [
   "PENDENTE",
   "EM_PROGRESSO",
   "ATRASADO",
@@ -146,9 +146,9 @@ function KanbanColumn({
   onOpenDetail,
   draggingId,
 }: {
-  status: StatusPendencia;
+  status: SituacaoPendencia;
   pendencias: Pendencia[];
-  onDrop: (id_acao: string, newStatus: StatusPendencia) => void;
+  onDrop: (id_acao: string, newStatus: SituacaoPendencia) => void;
   onOpenDetail: (p: Pendencia) => void;
   draggingId: string | null;
 }) {
@@ -242,6 +242,7 @@ function KanbanContent() {
   const { facilitadores } = useFacilitadores();
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [selectedPendencia, setSelectedPendencia] = useState<Pendencia | null>(null);
+  const [acaoInicial, setAcaoInicial] = useState<ComandoPendencia | null>(null);
   const [total, setTotal] = useState(0);
   const { toast } = useToast();
 
@@ -370,7 +371,7 @@ function KanbanContent() {
   });
 
   // Group by status
-  const columns: Record<StatusPendencia, Pendencia[]> = {
+  const columns: Record<SituacaoPendencia, Pendencia[]> = {
     PENDENTE: [],
     EM_PROGRESSO: [],
     ATRASADO: [],
@@ -380,64 +381,31 @@ function KanbanContent() {
   };
 
   pendenciasFiltradas.forEach((p) => {
-    if (columns[p.status]) columns[p.status].push(p);
+    const coluna = p.situacao ?? p.status;
+    if (columns[coluna]) columns[coluna].push(p);
   });
 
-  // Handle drag-and-drop status change
-  async function handleDrop(id_acao: string, newStatus: StatusPendencia) {
+  // Arrastar não muda nada sozinho: toda ação pede anotação (issue #1862).
+  // Soltar o card abre o detalhe com a ação da coluna de destino já escolhida.
+  function handleDrop(id_acao: string, destino: SituacaoPendencia) {
     const card = pendencias.find((p) => p.id_acao === id_acao);
-    if (!card || card.status === newStatus) return;
-
-    // Optimistic update
-    setPendencias((prev) =>
-      prev.map((p) => (p.id_acao === id_acao ? { ...p, status: newStatus, ...(newStatus === "REPACTUADA" ? { prazo: undefined } : {}) } : p))
-    );
-
-    try {
-      const payload: Record<string, string | null> = { status: newStatus };
-      if (newStatus === "REPACTUADA") {
-          payload.prazo = null;
-      }
-
-      const res = await fetch(`/api/pendencias/${id_acao}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        // Revert on failure
-        setPendencias((prev) =>
-          prev.map((p) =>
-            p.id_acao === id_acao ? { ...p, status: card.status } : p
-          )
-        );
-      }
-    } catch (e) {
-      console.error("Erro ao mover card:", e);
-      // Revert
-      setPendencias((prev) =>
-        prev.map((p) =>
-          p.id_acao === id_acao ? { ...p, status: card.status } : p
-        )
-      );
-    }
+    if (!card || (card.situacao ?? card.status) === destino) return;
+    const fechada = card.status === "CONCLUIDO" || card.status === "CANCELADO";
+    const acao: Record<SituacaoPendencia, ComandoPendencia | null> = {
+      PENDENTE: fechada ? "reabrir" : null,
+      EM_PROGRESSO: card.status === "PENDENTE" ? "iniciar" : null,
+      ATRASADO: null,
+      CONCLUIDO: "concluir",
+      CANCELADO: "cancelar",
+      REPACTUADA: "repactuar",
+    };
+    setAcaoInicial(acao[destino]);
+    setSelectedPendencia(card);
   }
 
   function handleOpenDetail(p: Pendencia) {
+    setAcaoInicial(null);
     setSelectedPendencia(p);
-  }
-
-  function handleModalStatusUpdated(id_acao: string, newStatus: StatusPendencia) {
-    setPendencias((prev) =>
-      prev.map((p) => (p.id_acao === id_acao ? { ...p, status: newStatus, ...(newStatus === "REPACTUADA" ? { prazo: undefined } : {}) } : p))
-    );
-    if (selectedPendencia?.id_acao === id_acao) {
-      setSelectedPendencia((prev) => prev ? { ...prev, status: newStatus, ...(newStatus === "REPACTUADA" ? { prazo: undefined } : {}) } : null);
-    }
   }
 
   function handlePendenciaUpdated(updatedObj: Pendencia) {
@@ -624,15 +592,11 @@ function KanbanContent() {
         <PendenciaDetailModal
           pendencia={selectedPendencia}
           token={token}
-          participantes={participantes}
           userRole={userRole}
           currentUser={currentUser}
+          acaoInicial={acaoInicial}
           onClose={() => setSelectedPendencia(null)}
-          onStatusUpdated={handleModalStatusUpdated}
           onPendenciaUpdated={handlePendenciaUpdated}
-          onPendenciaDeleted={(id) =>
-            setPendencias((prev) => prev.filter((p) => p.id_acao !== id))
-          }
         />
       )}
     </div>

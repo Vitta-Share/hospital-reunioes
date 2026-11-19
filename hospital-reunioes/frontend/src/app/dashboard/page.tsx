@@ -33,6 +33,7 @@ interface PendenciaRaw {
   id_acao: string;
   responsavel_id?: string;
   status: string;
+  situacao?: string;
   prazo?: string;
 }
 
@@ -336,11 +337,13 @@ export default function DashboardPage() {
         };
       }
 
-      if (p.status === "PENDENTE") map[setor].Pendente++;
-      else if (p.status === "EM_PROGRESSO") map[setor]["Em Progresso"]++;
-      else if (p.status === "CONCLUIDO") map[setor].Concluído++;
-      else if (p.status === "ATRASADO") map[setor].Atrasado++;
-      else if (p.status === "REPACTUADA") map[setor].Repactuada++;
+      // A situação vem calculada do backend (Atrasada e Repactuada, issue #1862).
+      const situacao = p.situacao ?? p.status;
+      if (situacao === "PENDENTE") map[setor].Pendente++;
+      else if (situacao === "EM_PROGRESSO") map[setor]["Em Progresso"]++;
+      else if (situacao === "CONCLUIDO") map[setor].Concluído++;
+      else if (situacao === "ATRASADO") map[setor].Atrasado++;
+      else if (situacao === "REPACTUADA") map[setor].Repactuada++;
     });
 
     return Object.values(map).sort(

@@ -6,7 +6,7 @@
  * Caixa alta no detalhe da Pendência (ADR 0080, issue #1454).
  *
  * A regra base do `globals.css` põe botão e etiqueta em caixa alta. O nome do
- * responsável aparece dentro do botão do seletor, e é dado do banco: ele leva
+ * responsável é dado do banco: ele leva
  * `normal-case` e sai como foi escrito.
  */
 
@@ -41,20 +41,15 @@ afterEach(() => {
 });
 
 describe("detalhe da Pendência", () => {
-  it("o nome do responsável aparece como foi escrito dentro do seletor", async () => {
+  it("o nome do responsável aparece como foi escrito", async () => {
+    // Desde a issue #1862 o responsável é leitura: muda só pelas ações.
     render(
       <ToastProvider>
-        <PendenciaDetailModal
-          pendencia={PENDENCIA}
-          token="tok"
-          participantes={[{ id: "P_1", nome_completo: "Maria da Silva" }]}
-          onClose={() => {}}
-        />
+        <PendenciaDetailModal pendencia={PENDENCIA} token="tok" onClose={() => {}} />
       </ToastProvider>,
     );
 
     const nome = await screen.findByText("Maria da Silva");
-    expect(nome.closest("button")).not.toBeNull();
     expect(apareceComoFoiEscrito(nome)).toBe(true);
   });
 

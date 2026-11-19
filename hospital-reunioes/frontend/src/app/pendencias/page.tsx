@@ -11,7 +11,6 @@ import {
   AlertTriangle,
   ListChecks,
   Loader2,
-  ChevronDown,
   ExternalLink,
   Search,
   CalendarDays,
@@ -21,7 +20,7 @@ import {
   User,
   Target,
 } from "lucide-react";
-import { Pendencia, StatusPendencia } from "@/types";
+import { Pendencia, SituacaoPendencia, StatusPendencia } from "@/types";
 import { MultiSelect } from "@/components/ui/MultiSelect";
 import { PENDENCIA_STATUS_CONFIG, ALL_STATUSES } from "@/constants/pendencias";
 import { StatusBadge } from "@/components/pendencias/StatusBadge";
@@ -34,14 +33,6 @@ import { useFacilitadores } from "@/hooks/useFacilitadores";
 
 function PrazoCell({ prazo, status, mounted }: { prazo?: string; status: StatusPendencia; mounted: boolean }) {
   if (!prazo || !mounted) {
-    if (status === "REPACTUADA") {
-        return (
-            <span className="inline-flex items-center gap-1 text-purple-600 text-sm font-semibold">
-                <AlertCircle className="w-3.5 h-3.5" />
-                A repactuar
-            </span>
-        );
-    }
     return <span className="text-slate-300 text-sm">{!prazo ? "A definir" : "Carregando..."}</span>;
   }
 
@@ -73,86 +64,6 @@ function PrazoCell({ prazo, status, mounted }: { prazo?: string; status: StatusP
   return <span className="text-slate-600 text-sm">{label}</span>;
 }
 
-// ─── Dropdown de mudança de status ────────────────────────────────────────────
-
-function StatusDropdown({
-  id_acao,
-  current,
-  token,
-  onUpdated,
-}: {
-  id_acao: string;
-  current: StatusPendencia;
-  token: string | null;
-  onUpdated: (id: string, status: StatusPendencia) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  async function changeStatus(novo: StatusPendencia) {
-    if (novo === current) return setOpen(false);
-    setLoading(true);
-    setOpen(false);
-    try {
-      const payload: Record<string, string | null> = { status: novo };
-      if (novo === "REPACTUADA") {
-        payload.prazo = null;
-      }
-      const res = await fetch(`/api/pendencias/${id_acao}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) onUpdated(id_acao, novo);
-    } catch (e) {
-      console.error("Erro ao atualizar status:", e);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (loading) return <Loader2 className="w-4 h-4 animate-spin text-slate-400" />;
-
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-1 text-slate-400 hover:text-slate-600 transition-colors"
-        aria-label="Alterar status"
-      >
-        <StatusBadge status={current} />
-        <ChevronDown className="w-3.5 h-3.5" />
-      </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-lg z-20 overflow-hidden">
-            {ALL_STATUSES.map((s) => {
-              const cfg = PENDENCIA_STATUS_CONFIG[s];
-              const Icon = cfg.icon;
-              return (
-                <button
-                  key={s}
-                  onClick={() => changeStatus(s)}
-                  className={`flex items-center gap-2 w-full px-3 py-2.5 text-sm text-left hover:bg-slate-50 transition-colors ${
-                    s === current ? "font-semibold bg-slate-50" : ""
-                  }`}
-                >
-                  <Icon className={`w-3.5 h-3.5 ${cfg.color}`} strokeWidth={2} />
-                  <span className={cfg.color}>{cfg.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 // ─── Linha da pendência (hover tooltip estilo calendário) ─────────────────────
 
 type ParticipanteOpt = { id: string; nome_completo: string; setor?: string; email?: string; is_super_admin?: boolean };
@@ -160,16 +71,12 @@ type ParticipanteOpt = { id: string; nome_completo: string; setor?: string; emai
 function PendenciaRow({
   p,
   participantes,
-  token,
   mounted,
-  onStatusUpdated,
   onOpenDetail,
 }: {
   p: Pendencia;
   participantes: ParticipanteOpt[];
-  token: string | null;
   mounted: boolean;
-  onStatusUpdated: (id_acao: string, novo: StatusPendencia) => void;
   onOpenDetail: (p: Pendencia) => void;
 }) {
   const [showTooltip, setShowTooltip] = useState(false);
@@ -280,12 +187,15 @@ function PendenciaRow({
           <PrazoCell prazo={p.prazo} status={p.status} mounted={mounted} />
         </td>
         <td className="px-5 py-4 whitespace-nowrap align-top">
-          <StatusDropdown
-            id_acao={p.id_acao}
-            current={p.status}
-            token={token}
-            onUpdated={onStatusUpdated}
-          />
+          {/* Mudar o estado pede anotação: abre o detalhe (issue #1862). */}
+          <button
+            type="button"
+            onClick={() => onOpenDetail(p)}
+            aria-label="Abrir as ações da pendência"
+            className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
+            <StatusBadge status={p.situacao ?? p.status} />
+          </button>
         </td>
         <td className="px-5 py-4 whitespace-nowrap align-top">
           <div className="flex items-center justify-end gap-2">
@@ -331,7 +241,7 @@ function PendenciaRow({
             <span className="text-[10px] font-mono text-slate-400 bg-slate-50 px-2 py-1 rounded-md tracking-wide">
               {p.id_acao}
             </span>
-            <StatusBadge status={p.status} />
+            <StatusBadge status={p.situacao ?? p.status} />
           </div>
 
           {/* Bloco Ação / Tarefa */}
@@ -443,8 +353,8 @@ function PendenciasContent() {
 
   const canSuperAdmin = isSuperAdmin(currentUser);
 
-  const [filtroStatus, setFiltroStatus] = useState<StatusPendencia[]>(
-    searchParams.get("status") ? searchParams.get("status")!.split(",").filter(Boolean) as StatusPendencia[] : []
+  const [filtroStatus, setFiltroStatus] = useState<SituacaoPendencia[]>(
+    searchParams.get("status") ? searchParams.get("status")!.split(",").filter(Boolean) as SituacaoPendencia[] : []
   );
   const [filtroResponsaveis, setFiltroResponsaveis] = useState<string[]>(
     searchParams.get("responsavel") ? searchParams.get("responsavel")!.split(",").filter(Boolean) : []
@@ -532,17 +442,6 @@ function PendenciasContent() {
     if (token) fetchPendencias();
   }, [filtroResponsaveis, filtroPrazoDe, filtroPrazoAte, filtroSetores, filtroFacilitadores, token, fetchPendencias]);
 
-  function handleStatusUpdated(id_acao: string, novoStatus: StatusPendencia) {
-    setPendencias((prev) =>
-      prev.map((p) => (p.id_acao === id_acao ? { ...p, status: novoStatus, ...(novoStatus === "REPACTUADA" ? { prazo: undefined } : {}) } : p))
-    );
-    setSelectedPendencia((prev) =>
-      prev && prev.id_acao === id_acao
-        ? { ...prev, status: novoStatus, ...(novoStatus === "REPACTUADA" ? { prazo: undefined } : {}) }
-        : prev
-    );
-  }
-
   function handlePendenciaUpdated(updated: Pendencia) {
     setPendencias((prev) =>
       prev.map((p) =>
@@ -558,11 +457,6 @@ function PendenciasContent() {
     );
   }
 
-  function handlePendenciaDeleted(id_acao: string) {
-    setPendencias((prev) => prev.filter((p) => p.id_acao !== id_acao));
-    setSelectedPendencia(null);
-  }
-
   // Filtragem extra no frontend para Setor(es)
   const pendenciasFiltradas = pendencias.filter(p => {
     if (filtroSetores.length === 0) return true;
@@ -570,17 +464,18 @@ function PendenciasContent() {
     return part?.setor !== undefined && filtroSetores.includes(part.setor);
   });
 
-  // Contadores para os badges baseados apenas no status das filtradas
+  // Contadores pela situação que a tela mostra (Atrasada e Repactuada são
+  // calculadas no backend, issue #1862).
   const contagemPorStatus = ALL_STATUSES.reduce((acc, s) => {
-    acc[s] = pendenciasFiltradas.filter((p) => p.status === s).length;
+    acc[s] = pendenciasFiltradas.filter((p) => (p.situacao ?? p.status) === s).length;
     return acc;
-  }, {} as Record<StatusPendencia, number>);
+  }, {} as Record<SituacaoPendencia, number>);
 
   // Aplicar filtro de status localmente para a tabela
   const pendenciasVisiveis = pendenciasFiltradas.filter(p => {
     if (filtroCriticas) {
-      if (p.status === "ATRASADO") return true;
-      if (p.status === "PENDENTE" && p.prazo) {
+      if (p.atrasada) return true;
+      if ((p.status === "PENDENTE" || p.status === "EM_PROGRESSO") && p.prazo) {
         const now = new Date();
         now.setHours(0, 0, 0, 0);
         const prazoDate = new Date(p.prazo + "T00:00:00");
@@ -589,7 +484,7 @@ function PendenciasContent() {
       }
       return false;
     }
-    return filtroStatus.length === 0 || filtroStatus.includes(p.status);
+    return filtroStatus.length === 0 || filtroStatus.includes(p.situacao ?? p.status);
   });
 
   return (
@@ -743,7 +638,7 @@ function PendenciasContent() {
           selected={filtroStatus}
           onChange={(v) => {
             setFiltroCriticas(false);
-            setFiltroStatus(v as StatusPendencia[]);
+            setFiltroStatus(v as SituacaoPendencia[]);
           }}
           placeholder={`Todos os status (${pendenciasFiltradas.length})`}
           allLabel={`Todos os status (${pendenciasFiltradas.length})`}
@@ -803,9 +698,7 @@ function PendenciasContent() {
                     key={p.id_acao}
                     p={p}
                     participantes={participantes}
-                    token={token}
                     mounted={mounted}
-                    onStatusUpdated={handleStatusUpdated}
                     onOpenDetail={setSelectedPendencia}
                   />
                 ))}
@@ -819,13 +712,10 @@ function PendenciasContent() {
         <PendenciaDetailModal
           pendencia={selectedPendencia}
           token={token}
-          participantes={participantes}
           userRole={userRole}
           currentUser={currentUser}
           onClose={() => setSelectedPendencia(null)}
-          onStatusUpdated={handleStatusUpdated}
           onPendenciaUpdated={handlePendenciaUpdated}
-          onPendenciaDeleted={handlePendenciaDeleted}
         />
       )}
     </div>

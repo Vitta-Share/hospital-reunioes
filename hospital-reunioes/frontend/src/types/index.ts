@@ -231,13 +231,33 @@ export type StatusAta =
   // Reunião do Núcleo sem quórum (issue #1774).
   | "NAO_INSTALADA";
 
-export type StatusPendencia =
-  | "PENDENTE"
-  | "EM_PROGRESSO"
-  | "CONCLUIDO"
-  | "ATRASADO"
-  | "CANCELADO"
-  | "REPACTUADA";
+// Os quatro estados gravados (ADR 0098, decisão 4).
+export type StatusPendencia = "PENDENTE" | "EM_PROGRESSO" | "CONCLUIDO" | "CANCELADO";
+
+// O que a tela mostra: o estado gravado, ou Atrasada e Repactuada, que o
+// backend calcula (aberta com prazo vencido; há Repactuação no histórico).
+export type SituacaoPendencia = StatusPendencia | "ATRASADO" | "REPACTUADA";
+
+// Os comandos da rota de ações (`POST /pendencias/{id}/acoes`), sempre com anotação.
+export type ComandoPendencia = "iniciar" | "anotar" | "concluir" | "repactuar" | "cancelar" | "reabrir";
+
+export interface EventoPendencia {
+  id: number;
+  comando: ComandoPendencia | "migracao";
+  anotacao: string;
+  autor_nome: string;
+  status_antes?: string | null;
+  status_depois?: string | null;
+  prazo_antes?: string | null;
+  prazo_depois?: string | null;
+  conta_atraso: boolean;
+  criado_em: string;
+}
+
+export interface HistoricoPendencia {
+  eventos: EventoPendencia[];
+  acoes_permitidas: ComandoPendencia[];
+}
 
 export type TipoReuniao =
   | "Diretoria"
@@ -317,6 +337,10 @@ export interface Pendencia {
   prazo?: string;
   meta_entregavel?: string;
   status: StatusPendencia;
+  situacao?: SituacaoPendencia;
+  atrasada?: boolean;
+  repactuada?: boolean;
+  concluida_em?: string | null;
   total_comentarios?: number;
   created_at?: string;
   updated_at?: string;
@@ -330,18 +354,6 @@ export interface PendenciaStats {
   cancelado: number;
   repactuada: number;
   total: number;
-}
-
-export interface PendenciaUpdate {
-  status?: StatusPendencia;
-  descricao_acao?: string;
-  responsavel_id?: string;
-  responsavel_nome?: string;
-  co_responsavel_id?: string;
-  co_responsavel_nome?: string;
-  prazo?: string;
-  cargo?: string;
-  meta_entregavel?: string;
 }
 
 // === Comentário ===

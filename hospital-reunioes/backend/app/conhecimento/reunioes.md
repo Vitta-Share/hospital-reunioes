@@ -16,7 +16,26 @@ Uma reunião tem no máximo uma ata, por um dos dois caminhos.
 
 Os nomes citados na reunião são casados com o cadastro de pessoas do hospital. Quem está no cadastro vira responsável de verdade e passa a ser cobrado; quem é de fora fica só como nome, sem cobrança. Quando o agente não tem certeza de quem é, ele pergunta.
 
-Cada ação combinada vira uma pendência, com responsável e prazo, e desde o primeiro segundo ela é cobrada de verdade: aparece no painel, vence e atrasa. Prazo estourado vira atrasado, e o caminho normal é repactuar: a mesma pendência fica sem prazo, marcada como a repactuar, até alguém marcar a data nova.
+Cada ação combinada vira uma pendência, com responsável e prazo, e desde o primeiro segundo ela é cobrada de verdade: aparece no painel, vence e atrasa.
+
+## Como a pendência anda
+
+A pendência tem quatro estados: pendente, em progresso, concluída e cancelada. Atrasada não é um estado que alguém marca: é a pendência aberta (pendente ou em progresso) cujo prazo já passou, e o aplicativo mostra isso na hora, sem esperar rotina nenhuma. Ela continua atrasada, com o prazo que venceu, até ser repactuada ou concluída. O prazo de um dia só vence quando esse dia acaba, no horário de Brasília.
+
+Toda mudança pede uma anotação, escrita por quem faz. As ações são iniciar, anotar, concluir, repactuar, cancelar e reabrir. Na tela da pendência, cada botão abre um campo de anotação, e nada é gravado com ele vazio. Repactuar e reabrir pedem também o prazo novo, que vale na hora.
+
+Quem pode o quê:
+
+- O responsável e o co-responsável iniciam, anotam, concluem e repactuam.
+- O facilitador da reunião repactua, cancela e reabre.
+- Quem administra o aplicativo faz tudo, menos nas reuniões do Núcleo de Segurança do Paciente, que seguem a regra do Núcleo.
+- Quem só participou da reunião não age na pendência dos outros.
+
+Concluir já termina, sem validação de ninguém, e o aplicativo guarda o dia em que o responsável marcou. Repactuar antes do prazo vencer não conta como atraso; depois de vencer, conta, e a repactuação fica marcada para o ranking. A reabertura feita com o prazo já vencido também fica marcada. A pendência que já teve o prazo trocado aparece como repactuada enquanto estiver aberta e no prazo.
+
+Cada ação vira uma linha no histórico da pendência, com quem fez, quando e a anotação, e a tela mostra esse histórico em ordem. Ninguém edita nem apaga uma linha do histórico, nem quem administra o aplicativo: o próprio banco de dados recusa. Também não existe mais o "excluir pendência": o caminho é cancelar, com anotação. Título, meta, cargo e responsável ficam só para leitura na tela.
+
+As pendências antigas que estavam atrasadas ou "a repactuar" (sem prazo) recuperaram o prazo que estava no quadro da ata. Onde o quadro não tinha o prazo, ficou valendo a data da última mudança, e o histórico dela mostra esse ajuste.
 
 ## Assinar ou finalizar sem assinar
 
@@ -49,7 +68,7 @@ No topo, uma frase escrita pelo próprio aplicativo, a partir dos números e sem
 
 Nada na tela pisca. O título da aba do navegador mostra o número de prazos vencidos, e só "Início" quando não há nenhum. Os prazos vencidos entram uma vez, quando a tela abre; para quem pediu ao sistema menos movimento, nada se move. Os três números do topo levam à parte correspondente da lista. Ao passar o mouse numa linha, ou chegar nela pelo teclado, a linha ganha um fundo suave, o botão fica preenchido e aparece uma linha com o andamento e o dia em que o item abriu; no celular essa linha fica sempre à vista. No celular a tela fica em uma coluna, e o Início é o primeiro item da barra de baixo. Com leitor de tela, a frase do topo é anunciada quando chega e cada botão diz o que abre.
 
-Embaixo vem a lista, do prazo mais vencido para o mais distante, em três partes: passou do prazo, vence em até 48 horas e próximos 7 dias. O prazo de um dia só vence quando esse dia acaba, no horário de Brasília. O atraso é contado pela data: uma pendência aberta com o prazo vencido está atrasada mesmo antes de o aplicativo marcá-la como atrasada.
+Embaixo vem a lista, do prazo mais vencido para o mais distante, em três partes: passou do prazo, vence em até 48 horas e próximos 7 dias. O prazo de um dia só vence quando esse dia acaba, no horário de Brasília. O atraso é contado pela data: a pendência aberta com o prazo vencido está atrasada.
 
 Nesta primeira versão a lista traz as pendências abertas em que a pessoa é responsável ou divide a responsabilidade, inclusive o lembrete da Agenda regulatória do Núcleo, que antes não aparecia na lista de ninguém. Cada linha mostra os dias de atraso ou a data, de onde a pendência veio e um botão: a pendência de reunião abre no quadro de pendências já destacada, e o lembrete do Núcleo abre a Agenda regulatória. Se uma parte da tela não carregar, ela mostra um aviso só daquela parte e o resto continua. O caso da Ouvidoria que espera a resposta do setor também aparece, para o titular, o substituto e o gestor do setor, e quem tem o perfil da Ouvidoria vê uma linha à parte com o tamanho da fila (o texto do módulo Ouvidoria explica). POPs, o Núcleo e Contas médicas entram no Início nas próximas etapas.
 
