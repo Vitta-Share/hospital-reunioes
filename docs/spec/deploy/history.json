@@ -2,6 +2,49 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-19T20:30:01-03:00",
+      "sha": "905bc7ccb57a0a84b61c12f9c139317b06b6acce",
+      "app_version": "0.319.2",
+      "subject": "PR #2039, sem issue: Chat do bug volta a responder quando a IA fala fora do JSON",
+      "raw_subject": "chore(deploy): registro do PR avulso (#2039)",
+      "scope": [
+        "backend"
+      ],
+      "prds": [],
+      "result": "healthy",
+      "duration_seconds": 60,
+      "services_touched": [
+        "backend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "PR avulso: PR #2039, sem issue. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 23
+        },
+        "health_s": 10
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-19T19:28:08-03:00",
       "sha": "f5220b242c835c52d7fabadf00b63ee18637b8a1",
       "app_version": "0.319.1",
