@@ -1,0 +1,103 @@
+{
+ "prd": 1913,
+ "contexto": "Ouvidoria",
+ "titulo_aba": "Plano da limpeza da Ouvidoria",
+ "descricao": "O plano para apagar as avaliações e os casos de teste da Ouvidoria, em 2 etapas, para o diretor validar antes do trabalho começar.",
+ "selo": "Plano para validar · Ouvidoria",
+ "titulo": "Os testes saem da Ouvidoria,",
+ "destaque": "uma vez e sem deixar rastro.",
+ "resumo": "Este é o plano do pedido que você fez em 17/11 na aba Tecnologia. São 2 partes, em 2 etapas, e nenhuma foi entregue ainda. Primeiro a Vitta prepara a limpeza e ensaia numa cópia de treino. Depois uma pessoa da Vitta faz a limpeza nos dados do hospital e manda para você a lista do que saiu. Passe o mouse em cada parte para ver o que muda, do que ela depende e como vamos saber que ficou pronta. No fim da página, você valida o plano.",
+ "numeros": [
+  {
+   "valor": 2,
+   "rotulo": "partes"
+  },
+  {
+   "valor": 2,
+   "rotulo": "etapas, uma depois da outra"
+  },
+  {
+   "valor": 8,
+   "rotulo": "respostas suas do planejamento já incluídas"
+  }
+ ],
+ "decidido": {
+  "titulo": "O plano segue as suas escolhas",
+  "texto": "Estas decisões vieram do planejamento na aba Tecnologia, em 17/11, e da leitura que a Vitta fez do pedido.",
+  "blocos": [
+   {
+    "titulo": "No planejamento",
+    "numerado": false,
+    "itens": [
+     "A limpeza é feita uma vez só, pela Vitta. A aba Avaliações continua sem botão de apagar.",
+     "Saem as cinco avaliações de teste dos últimos 30 dias. As mais antigas ficam.",
+     "Saem também todos os casos abertos nesses 30 dias, inclusive os anônimos.",
+     "Os casos somem por inteiro, com protocolo, trilha e histórico. É uma exceção à regra da Ouvidoria, que você aceitou.",
+     "Vale só o que entrou até a hora do pedido. O que chegar depois fica.",
+     "A Vitta manda na conversa do pedido quantas avaliações e quais protocolos saíram."
+    ]
+   },
+   {
+    "titulo": "Na leitura da Vitta",
+    "numerado": false,
+    "itens": [
+     "O período vai de 19/10/2026 à 0h até 17/11/2026 às 18h31, a hora do seu pedido.",
+     "Se a conferência não achar exatamente cinco avaliações, a limpeza para e a diferença vira pergunta para você.",
+     "Caso que não veio do QR nem do site, que tem e-mail recebido ou que já foi enviado a um setor ou ao Núcleo de Segurança do Paciente só sai depois da sua resposta.",
+     "Os protocolos apagados ficam como buracos na numeração, que não recomeça.",
+     "Não fica cópia do que saiu. A conferência mostra só protocolo, canal, datas e situação, sem relato nem nome."
+    ]
+   }
+  ]
+ },
+ "fora": {
+  "itens": [
+   "Botão de apagar avaliação",
+   "Avaliações com mais de 30 dias",
+   "O que entrou depois do pedido"
+  ],
+  "texto": "O aplicativo não muda. As avaliações mais antigas e tudo o que chegou depois de 17/11 às 18h31 ficam como estão."
+ },
+ "etapas": [
+  {
+   "nome": "O ensaio",
+   "texto": "A Vitta prepara a limpeza e ensaia numa cópia de treino, sem tocar em nada do hospital."
+  },
+  {
+   "nome": "A limpeza",
+   "texto": "A Vitta confere a lista, apaga os testes uma vez só e manda para você o que saiu."
+  }
+ ],
+ "partes": [
+  {
+   "id": 1,
+   "etapa": 1,
+   "titulo": "Limpeza pronta e ensaiada",
+   "muda": "Fica pronta e ensaiada, fora do aplicativo, a ferramenta que vai apagar as avaliações e os casos de teste da Ouvidoria.",
+   "vale": "A limpeza não tem volta, então ela é ensaiada antes numa cópia de treino, sem tocar em nada do hospital.",
+   "saber": [
+    "Nesta etapa nada é apagado do aplicativo.",
+    "A ferramenta para sozinha se não encontrar exatamente cinco avaliações.",
+    "Caso que não parece teste fica de fora até você responder."
+   ],
+   "pronto": "Na cópia de treino, a limpeza para sozinha quando acha seis avaliações em vez de cinco. Com cinco, o período fica zerado, nada de fora dele é tocado e a trilha volta a ficar protegida contra exclusão.",
+   "depende": []
+  },
+  {
+   "id": 2,
+   "etapa": 2,
+   "titulo": "Testes fora e lista enviada",
+   "muda": "As cinco avaliações de teste e os casos de teste saem da aba Avaliações, da fila e do Painel da Ouvidoria.",
+   "vale": "Os números da Ouvidoria voltam a mostrar só o que é de paciente, sem prazo correndo em caso falso.",
+   "saber": [
+    "A Vitta roda a limpeza uma vez, depois de conferir a lista do que vai sair.",
+    "Sai só o que entrou até a hora do seu pedido, em 17/11/2026 às 18h31.",
+    "Você recebe na conversa do pedido quantas avaliações e quais protocolos saíram."
+   ],
+   "pronto": "A aba Avaliações mostra zero de 19/10 até 17/11 às 18h31, os casos apagados somem da fila e do Painel, e você recebe na conversa do pedido quantas avaliações e quais protocolos saíram.",
+   "depende": [
+    1
+   ]
+  }
+ ]
+}
