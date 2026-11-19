@@ -222,3 +222,42 @@ describe("o middleware montado", () => {
     expect(paraOndeFoi(await pedir("/admin-publico/qualquer"))).toBeNull();
   });
 });
+
+/**
+ * O Início como porta de entrada (issue #1942, ADR 0104 decisão 1). A capa com
+ * dois botões saiu: a raiz do site decide sozinha, e quem já tem sessão e abre
+ * o login também vai para o Início, e não para o painel de Reuniões.
+ */
+describe("a porta de entrada do app", () => {
+  beforeEach(() => {
+    getUser.mockReset();
+  });
+
+  it("alcança a raiz do site, que é onde a capa morava", () => {
+    expect(interceptado("/")).toBe(true);
+  });
+
+  it("leva quem está logado da raiz do site ao Início", async () => {
+    getUser.mockResolvedValue({ data: { user: { id: "u1" } } });
+
+    expect(paraOndeFoi(await pedir("/"))).toBe("http://app.test/inicio");
+  });
+
+  it("leva quem não está logado da raiz do site ao login", async () => {
+    getUser.mockResolvedValue({ data: { user: null } });
+
+    expect(paraOndeFoi(await pedir("/"))).toBe("http://app.test/login");
+  });
+
+  it("leva ao Início quem já está logado e abre o login", async () => {
+    getUser.mockResolvedValue({ data: { user: { id: "u1" } } });
+
+    expect(paraOndeFoi(await pedir("/login"))).toBe("http://app.test/inicio");
+  });
+
+  it("deixa o painel de Reuniões abrir no endereço de hoje para quem tem sessão", async () => {
+    getUser.mockResolvedValue({ data: { user: { id: "u1" } } });
+
+    expect(paraOndeFoi(await pedir("/dashboard"))).toBeNull();
+  });
+});
