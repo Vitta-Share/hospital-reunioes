@@ -71,6 +71,12 @@ class _Consulta:
     def eq(self, coluna, valor):
         return self._filtro(lambda linha: linha.get(coluna) == valor)
 
+    def neq(self, coluna, valor):
+        return self._filtro(lambda linha: linha.get(coluna) is not None and linha.get(coluna) != valor)
+
+    def gte(self, coluna, valor):
+        return self._filtro(lambda linha: linha.get(coluna) is not None and str(linha.get(coluna)) >= str(valor))
+
     def in_(self, coluna, valores):
         valores = set(valores)
         return self._filtro(lambda linha: linha.get(coluna) in valores)
@@ -96,6 +102,9 @@ class _Banco:
     ouvidoria_setor_responsaveis: list = field(default_factory=list)
     ouvidoria_protocolos: list = field(default_factory=list)
     ouvidoria_prorrogacoes: list = field(default_factory=list)
+    # A fonte das Atas e o trilho (#1936) também leem o banco; vazios aqui.
+    reuniao_participantes: list = field(default_factory=list)
+    reuniao_aceites: list = field(default_factory=list)
 
     def table(self, nome):
         return _Consulta(getattr(self, nome))

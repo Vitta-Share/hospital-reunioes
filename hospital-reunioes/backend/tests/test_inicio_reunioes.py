@@ -69,6 +69,11 @@ class _Consulta:
         self._filtros.append(lambda linha: linha.get(coluna) is None)
         return self
 
+    def ilike(self, coluna, padrao):
+        alvo = padrao.replace("\\", "").lower()
+        self._filtros.append(lambda linha: (linha.get(coluna) or "").lower() == alvo)
+        return self
+
     def execute(self):
         return _Result([dict(linha) for linha in self._linhas if all(f(linha) for f in self._filtros)])
 
@@ -79,6 +84,10 @@ class _Banco:
     reunioes: list = field(default_factory=list)
     reuniao_participantes: list = field(default_factory=list)
     reuniao_aceites: list = field(default_factory=list)
+    # A fonte da Ouvidoria (#1937) também lê o banco; vazia aqui.
+    ouvidoria_setor_responsaveis: list = field(default_factory=list)
+    ouvidoria_protocolos: list = field(default_factory=list)
+    ouvidoria_prorrogacoes: list = field(default_factory=list)
 
     def table(self, nome):
         return _Consulta(getattr(self, nome))
