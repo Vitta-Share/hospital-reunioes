@@ -581,6 +581,17 @@ def comentar(numero: int, corpo: str, *, projeto: str) -> None:
         raise GithubIndisponivelError(f"A issue #{numero} nao foi encontrada para comentar") from exc
 
 
+def adicionar_sub_issue(raiz: int, sub_issue_id: int, *, projeto: str) -> None:
+    """Liga a issue de `sub_issue_id` (o `id` da API, nao o numero) como parte
+    da `raiz` (issue #2011): o Ajuste do plano nasce dentro da issue-raiz, como
+    o do Validar. Um 404 aqui nao e resposta (a raiz estava vinculada): vira
+    indisponibilidade."""
+    try:
+        _chamar("POST", f"/issues/{raiz}/sub_issues", projeto=projeto, json={"sub_issue_id": sub_issue_id})
+    except IssueNaoEncontradaError as exc:
+        raise GithubIndisponivelError(f"A issue #{raiz} nao foi encontrada para ligar a parte") from exc
+
+
 def regravar(numero: int, *, projeto: str, corpo: str, labels: list[str]) -> dict[str, Any]:
     """Regrava o corpo e as labels da issue num PATCH so (issue #1558, ADR
     0084, decisao 3): o PRD revisado e a volta para a triagem saem juntos, ou
