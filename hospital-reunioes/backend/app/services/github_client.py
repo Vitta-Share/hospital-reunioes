@@ -592,6 +592,22 @@ def adicionar_sub_issue(raiz: int, sub_issue_id: int, *, projeto: str) -> None:
         raise GithubIndisponivelError(f"A issue #{raiz} nao foi encontrada para ligar a parte") from exc
 
 
+def bloquear(numero: int, bloqueadora_id: int, *, projeto: str) -> None:
+    """A issue `numero` passa a ser bloqueada pela de `bloqueadora_id` (o `id`
+    da API, nao o numero), pela dependencia nativa (issue #2012): o Ajuste do
+    plano trava as fatias iniciais, como o do Validar. Um 404 aqui nao e
+    resposta (a fatia acabou de ser lida): vira indisponibilidade."""
+    try:
+        _chamar(
+            "POST",
+            f"/issues/{numero}/dependencies/blocked_by",
+            projeto=projeto,
+            json={"issue_id": bloqueadora_id},
+        )
+    except IssueNaoEncontradaError as exc:
+        raise GithubIndisponivelError(f"A issue #{numero} nao foi encontrada para bloquear") from exc
+
+
 def regravar(numero: int, *, projeto: str, corpo: str, labels: list[str]) -> dict[str, Any]:
     """Regrava o corpo e as labels da issue num PATCH so (issue #1558, ADR
     0084, decisao 3): o PRD revisado e a volta para a triagem saem juntos, ou

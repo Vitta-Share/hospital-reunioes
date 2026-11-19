@@ -70,9 +70,15 @@ class _GithubDoAjuste(_GithubFalso):
     """O GitHub do Validar: a issue nova ganha `id`, e a ligação de sub-issue
     fica registrada (raiz, id da filha)."""
 
-    def __init__(self, *a, **kw):
+    def __init__(self, *a, bloqueadoras: dict[int, list[dict]] | None = None, **kw):
         super().__init__(*a, **kw)
         self.sub_issues_ligadas: list[tuple[int, int]] = []
+        # As dependencias (issue #2012): quem ja bloqueia cada parte, os
+        # bloqueios pedidos (parte, id do Ajuste) e as falhas da API.
+        self.bloqueadoras = bloqueadoras or {}
+        self.bloqueios: list[tuple[int, int]] = []
+        self.erro_ao_ler_bloqueadoras = None
+        self.erro_ao_bloquear = None
 
     def criar_issue(self, **kw):
         dados = super().criar_issue(**kw)
@@ -81,6 +87,20 @@ class _GithubDoAjuste(_GithubFalso):
 
     def adicionar_sub_issue(self, raiz: int, sub_issue_id: int, *, projeto: str) -> None:
         self.sub_issues_ligadas.append((raiz, sub_issue_id))
+
+    def ler_bloqueadoras(self, numero: int, *, projeto: str) -> list[dict]:
+        if self.erro_ao_ler_bloqueadoras is not None:
+            raise self.erro_ao_ler_bloqueadoras
+        return self.bloqueadoras.get(numero, [])
+
+    def bloquear(self, numero: int, bloqueadora_id: int, *, projeto: str) -> None:
+        if self.erro_ao_bloquear is not None:
+            raise self.erro_ao_bloquear
+        self.bloqueios.append((numero, bloqueadora_id))
+
+    def regravar_corpo(self, numero: int, *, projeto: str, corpo: str) -> dict:
+        self.issues[numero] = {**self.issues[numero], "body": corpo}
+        return self.issues[numero]
 
 
 def _card(**campos) -> dict:
@@ -106,7 +126,8 @@ def _montar(monkeypatch, *, logado=DIRETOR, demanda: dict | None = None, sb=None
         supabase=sb,
         github=gh,
     )
-    monkeypatch.setattr(github_client, "adicionar_sub_issue", gh.adicionar_sub_issue, raising=False)
+    for nome in ("adicionar_sub_issue", "bloquear", "regravar_corpo"):
+        monkeypatch.setattr(github_client, nome, getattr(gh, nome), raising=False)
     return client, sb, gh
 
 
@@ -359,6 +380,61 @@ class TestEnviar:
         gh.erro_ao_criar = None
         assert diretor.post(ENVIAR, json={"envio_id": envio_id}).status_code == 200
         assert len(gh.criadas) == 1
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4b. O Ajuste trava as fatias iniciais (issue #2012, ADR 0108, decisão 4)
+# ═══════════════════════════════════════════════════════════════════════════
+
+# O id que o GitHub dá ao Ajuste #950 no falso (`_GithubDoAjuste.criar_issue`).
+ID_DO_AJUSTE = 70_950
+
+
+def _fatias(*fatias) -> dict[int, list[dict]]:
+    """As sub-issues da raiz #900: cada fatia é (número, estado, labels)."""
+    return {900: [_issue(n, estado=estado, labels=labels) for n, estado, labels in fatias]}
+
+
+def _enviado(monkeypatch, gh) -> str:
+    """Envia pela rota e devolve o corpo do Ajuste como ficou no GitHub."""
+    diretor, _, gh = _montar(monkeypatch, gh=gh)
+    _escrever(diretor, FALA_DO_DIRETOR)
+    envio_id = _interpretado(monkeypatch, diretor)
+    resposta = diretor.post(ENVIAR, json={"envio_id": envio_id})
+    assert resposta.status_code == 200, resposta.text
+    [ajuste] = gh.criadas
+    assert ajuste["titulo"].startswith("Ajuste do plano")
+    return gh.issues[950]["body"]
+
+
+def _secao(corpo: str, titulo: str) -> str:
+    return corpo.split(f"## {titulo}\n", 1)[1].split("\n## ", 1)[0]
+
+
+class TestTravaAsFatiasIniciais:
+    def test_so_a_fatia_aberta_pronta_livre_e_sem_bloqueio_ganha_o_bloqueio_do_ajuste(self, monkeypatch):
+        gh = _GithubDoAjuste(
+            {900: _issue(900)},
+            proximo_numero=950,
+            sub_issues=_fatias(
+                (901, "open", ("ready-for-agent",)),  # a fatia inicial
+                (902, "open", ("ready-for-agent",)),  # presa por bloqueio aberto
+                (903, "open", ("ready-for-agent",)),  # o bloqueio dela já fechou
+                (904, "closed", ("ready-for-agent",)),  # fechada
+                (905, "open", ("ready-for-human",)),  # do humano
+                (906, "open", ("needs-triage",)),  # ainda não pronta
+            ),
+            bloqueadoras={
+                902: [{"numero": 880, "estado": "open", "url": None}],
+                903: [{"numero": 881, "estado": "closed", "url": None}],
+            },
+        )
+
+        corpo = _enviado(monkeypatch, gh)
+
+        assert sorted(gh.bloqueios) == [(901, ID_DO_AJUSTE), (903, ID_DO_AJUSTE)]
+        travadas = _secao(corpo, "Fatias bloqueadas por este card")
+        assert re.findall(r"#(\d+)", travadas) == ["901", "903"]
 
 
 # ═══════════════════════════════════════════════════════════════════════════

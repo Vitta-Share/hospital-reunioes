@@ -17,13 +17,15 @@ desenvolvedores". Duas operacoes, e so estas duas tocam o envio:
 
 A trava contra o duplo clique segue a porta de envio do card
 (`tecnologia_envio`): estado, motivo e instante, com o UPDATE condicionado ao
-instante lido. A trava das fatias (as dependencias) e da fatia seguinte.
+instante lido. Depois de nascer, o Ajuste trava as fatias iniciais da raiz pelas dependencias,
+com a regra do Validar (issue #2012, ADR 0108, decisao 4).
 """
 
 from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime, timedelta
+from functools import partial
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -39,7 +41,13 @@ from app.services.tecnologia import (
     projeto_da_demanda,
     recuar_continuacao,
 )
-from app.services.tecnologia_vinculo import link_da_demanda, login_para_publicar, texto_do_diretor
+from app.services.tecnologia_vinculo import (
+    LABEL_EM_ANDAMENTO,
+    LABEL_PRONTA_PARA_AGENTE,
+    link_da_demanda,
+    login_para_publicar,
+    texto_do_diretor,
+)
 from app.utils.text_sanitizer import sanitizar_travessao
 
 logger = logging.getLogger(__name__)
@@ -332,16 +340,115 @@ def titulo_do_ajuste(raiz: int) -> str:
     return f"Ajuste do plano: pedido do diretor no card #{raiz}"
 
 
+# ─── A trava das fatias iniciais (issue #2012) ───────────────────────────────
+
+# A falta de resposta do GitHub em qualquer forma: a trava falhar nao desfaz o
+# Ajuste, so pede a trava a mao.
+_FALHAS_DO_GITHUB = (
+    github_client.GithubIndisponivelError,
+    github_client.IssueNaoEncontradaError,
+    github_client.GithubNaoConfiguradoError,
+)
+
+SEM_FATIA_LIVRE = "Nenhuma: o PRD não tinha fatia livre."
+
+
+def _labels(issue: dict[str, Any]) -> set[str]:
+    return {
+        str(label.get("name") if isinstance(label, dict) else label) for label in (issue.get("labels") or []) if label
+    }
+
+
+def fatias_iniciais(raiz: int, *, projeto: str) -> tuple[list[int], list[int]]:
+    """As partes da raiz que o Ajuste trava e as que ja comecaram, com a regra
+    do Validar (ADR 0108, decisao 4): trava a aberta, `ready-for-agent`, sem
+    `in-progress` e sem bloqueio aberto; a aberta com `in-progress` nao para,
+    so entra na lista para o Pedro conferir. Levanta como o `github_client`."""
+    abertas = [
+        parte
+        for parte in github_client.ler_sub_issues(raiz, projeto=projeto)
+        if isinstance(parte, dict) and parte.get("state") == "open" and isinstance(parte.get("number"), int)
+    ]
+    em_andamento = [parte["number"] for parte in abertas if LABEL_EM_ANDAMENTO in _labels(parte)]
+    prontas = [
+        parte["number"]
+        for parte in abertas
+        if LABEL_PRONTA_PARA_AGENTE in _labels(parte) and LABEL_EM_ANDAMENTO not in _labels(parte)
+    ]
+    iniciais = [
+        numero
+        for numero in prontas
+        if not any(b.get("estado") == "open" for b in github_client.ler_bloqueadoras(numero, projeto=projeto))
+    ]
+    return iniciais, em_andamento
+
+
+def travar(iniciais: list[int], ajuste_id: object, *, projeto: str) -> list[int]:
+    """Pede ao GitHub que cada fatia inicial fique bloqueada pelo Ajuste.
+    Devolve as que nao travaram."""
+    if not isinstance(ajuste_id, int):
+        return list(iniciais)
+    nao_travadas = []
+    for numero in iniciais:
+        try:
+            github_client.bloquear(numero, ajuste_id, projeto=projeto)
+        except _FALHAS_DO_GITHUB as exc:
+            logger.warning("[tecnologia] a fatia #%s nao foi travada pelo Ajuste: %s", numero, exc)
+            nao_travadas.append(numero)
+    return nao_travadas
+
+
+def aviso_para_travar_a_mao(raiz: int, nao_travadas: list[int] | None) -> str:
+    """A linha que manda travar a mao, como a do Validar. `None` e a leitura
+    das fatias que falhou: ninguem sabe quais eram."""
+    if nao_travadas is None:
+        return (
+            f"Não deu para ler as fatias do card #{raiz} no GitHub, e nenhuma foi travada. Trave à mão: "
+            "em cada fatia aberta, `ready-for-agent`, sem `in-progress` e sem bloqueio aberto, ponha este card "
+            'em "Blocked by".'
+        )
+    lista = ", ".join(f"#{n}" for n in nao_travadas)
+    return f'Não deu para travar pelo GitHub as fatias {lista}. Trave à mão: em cada uma, ponha este card em "Blocked by".'
+
+
 def corpo_do_ajuste(
-    *, raiz: int, demanda_id: str, topicos: list[str], cards: list[dict[str, Any]], data: str, hora: str
+    *,
+    raiz: int,
+    demanda_id: str,
+    topicos: list[str],
+    cards: list[dict[str, Any]],
+    data: str,
+    hora: str,
+    iniciais: list[int] | None = None,
+    em_andamento: list[int] | None = None,
+    aviso: str | None = None,
 ) -> str:
     """O corpo do Ajuste do plano: so a interpretacao aprovada, pela peneira do
     repositorio publico, e o passo a passo do Validar. A fala do diretor nao
-    entra (ADR 0108, decisao 5)."""
+    entra (ADR 0108, decisao 5). `iniciais` `None` e a leitura das fatias que
+    falhou: a secao fica so com o `aviso`."""
     linhas_dos_topicos = [f"- {texto_do_diretor(t)}" for t in topicos]
     linhas_dos_cards = [f"- #{c['numero']}: {texto_do_diretor(c['muda'])}" for c in cards] or [
         "- Nenhum card em particular: o pedido vale para o plano."
     ]
+    if iniciais is None:
+        linhas_das_travadas = []
+    else:
+        linhas_das_travadas = [f"- #{n}" for n in iniciais] or [SEM_FATIA_LIVRE]
+    if aviso:
+        linhas_das_travadas = [*linhas_das_travadas, *([""] if linhas_das_travadas else []), aviso]
+    secao_em_andamento = (
+        [
+            "## Já em andamento (não param)",
+            "",
+            "Confira se o pedido muda alguma destas:",
+            "",
+            *[f"- #{n}" for n in em_andamento],
+            "",
+        ]
+        if em_andamento
+        else []
+    )
     return "\n".join(
         [
             f"<!-- ajuste-do-plano: {raiz} -->",
@@ -350,8 +457,8 @@ def corpo_do_ajuste(
             "",
             f"O diretor mandou um pedido pela Conversa da Demanda do card #{raiz} em {data}, às {hora}, "
             "e aprovou o resumo abaixo. Antes de o trabalho seguir, o Pedro lê o resumo e decide se o plano "
-            "ou o conteúdo de algum card muda. O que o diretor escreveu fica no aplicativo: "
-            f"{link_da_demanda(demanda_id)}",
+            "ou o conteúdo de algum card muda. Enquanto este card estiver aberto, as fatias iniciais ficam "
+            f"bloqueadas. O que o diretor escreveu fica no aplicativo: {link_da_demanda(demanda_id)}",
             "",
             "## O que o diretor quer mudar",
             "",
@@ -361,6 +468,11 @@ def corpo_do_ajuste(
             "",
             *linhas_dos_cards,
             "",
+            "## Fatias bloqueadas por este card",
+            "",
+            *linhas_das_travadas,
+            "",
+            *secao_em_andamento,
             "## Passo a passo",
             "",
             "1. Abra o Claude Code na pasta do Hospital e rode `/grill-with-docs` com o número deste card.",
@@ -373,6 +485,7 @@ def corpo_do_ajuste(
             "## Como saber que acabou",
             "",
             "- Este card está fechado com o comentário do passo 5.",
+            '- As fatias bloqueadas voltam para a fila (`gh issue list --label ready-for-agent --search "-is:blocked"`).',
             "- Se a Apresentação foi publicada de novo, o PRD perdeu o selo `validado:diretor` e espera a nova "
             "validação.",
         ]
@@ -426,18 +539,31 @@ def enviar(supabase, demanda: dict[str, Any], *, ator: dict[str, Any], envio_id:
     data, hora = _data_e_hora(agora)
     topicos = list(envio.get("topicos") or [])
     dono = login_para_publicar(settings.github_login_dono)
+    # As fatias sao lidas ANTES de o Ajuste nascer, para o corpo ja dizer quais
+    # ele trava. A leitura que falhar nao segura o Ajuste: o corpo pede a mao.
+    iniciais: list[int] | None
+    try:
+        iniciais, em_andamento = fatias_iniciais(raiz, projeto=projeto)
+        aviso = None
+    except _FALHAS_DO_GITHUB as exc:
+        logger.warning("[tecnologia] as fatias da raiz #%s nao foram lidas para o Ajuste: %s", raiz, exc)
+        iniciais, em_andamento, aviso = None, [], aviso_para_travar_a_mao(raiz, None)
+    corpo = partial(
+        corpo_do_ajuste,
+        raiz=raiz,
+        demanda_id=demanda_id,
+        topicos=topicos,
+        cards=list(envio.get("cards") or []),
+        data=data,
+        hora=hora,
+        iniciais=iniciais,
+        em_andamento=em_andamento,
+    )
     try:
         dados = github_client.criar_issue(
             projeto=projeto,
             titulo=titulo_do_ajuste(raiz),
-            corpo=corpo_do_ajuste(
-                raiz=raiz,
-                demanda_id=demanda_id,
-                topicos=topicos,
-                cards=list(envio.get("cards") or []),
-                data=data,
-                hora=hora,
-            ),
+            corpo=corpo(aviso=aviso),
             labels=[LABEL_DO_AJUSTE],
             assignees=[dono] if dono else [],
         )
@@ -459,6 +585,14 @@ def enviar(supabase, demanda: dict[str, Any], *, ator: dict[str, Any], envio_id:
             github_client.adicionar_sub_issue(raiz, dados["id"], projeto=projeto)
         except github_client.GithubIndisponivelError as exc:
             logger.warning("[tecnologia] o Ajuste #%s nao foi ligado a raiz #%s: %s", numero, raiz, exc)
+    nao_travadas = travar(iniciais or [], dados.get("id"), projeto=projeto)
+    if nao_travadas:
+        try:
+            github_client.regravar_corpo(
+                numero, projeto=projeto, corpo=corpo(aviso=aviso_para_travar_a_mao(raiz, nao_travadas))
+            )
+        except _FALHAS_DO_GITHUB as exc:
+            logger.warning("[tecnologia] o Ajuste #%s ficou sem o aviso de travar a mao: %s", numero, exc)
 
     supabase.table(TABELA_ENVIOS).update(
         {
