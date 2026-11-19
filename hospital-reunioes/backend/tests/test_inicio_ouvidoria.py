@@ -15,6 +15,7 @@ import os
 import sys
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -39,6 +40,7 @@ class _Consulta:
         self._linhas = linhas
         self._filtros: list = []
         self._negar = False
+        self._recorte: tuple[int, int] | None = None
 
     @property
     def not_(self):
@@ -59,7 +61,8 @@ class _Consulta:
     def order(self, *_a, **_kw):
         return self
 
-    def range(self, *_a, **_kw):
+    def range(self, inicio, fim):
+        self._recorte = (inicio, fim + 1)
         return self
 
     def limit(self, *_a, **_kw):
@@ -82,7 +85,8 @@ class _Consulta:
         return self._filtro(lambda linha: (linha.get(coluna) or "").lower() == alvo)
 
     def execute(self):
-        return _Result([dict(linha) for linha in self._linhas if all(f(linha) for f in self._filtros)])
+        linhas = [dict(linha) for linha in self._linhas if all(f(linha) for f in self._filtros)]
+        return _Result(linhas[slice(*self._recorte)] if self._recorte else linhas)
 
 
 @dataclass
@@ -271,3 +275,113 @@ class TestSaiDaFila:
 
     def test_caso_ainda_nao_acionado_nao_entra(self, monkeypatch):
         assert self._ids(monkeypatch, [_caso("C27"), _caso("C28", validada_em=None)]) == ["C27"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. A Fila do papel: a linha de resumo da fila da Ouvidoria
+# ═══════════════════════════════════════════════════════════════════════════
+
+OUVIDOR = {
+    "id": "P_OUV",
+    "nome_completo": "Otávio Ouvidor",
+    "email": "ouvidor@hsm.com.br",
+    "access_profile": None,
+    "perfil_ouvidoria": "ouvidor",
+}
+SEM_PAPEL = {"id": "P_NADA", "nome_completo": "Nina Neutra", "email": "nina@hsm.com.br", "access_profile": "regular"}
+
+
+def _fila_do_hospital() -> list[dict]:
+    """Seis esperam e três estão vencidas."""
+    sem_prazo_da_area = {"prazo_area_em": None, "validada_em": None}
+    return [
+        _caso("C30", status="novo", prazo_resposta="2026-11-25", **sem_prazo_da_area),
+        _caso("C31", status="em_classificacao", prazo_resposta="2026-11-15", **sem_prazo_da_area),
+        _caso("C32", prazo_area_em="2026-11-17T20:00:00+00:00"),
+        _caso("C33", prazo_area_em="2026-11-19T20:00:00+00:00"),
+        # O elogio nunca vence (ADR 0088).
+        _caso("C34", tipo_manifestacao="elogio", prazo_resposta="2026-11-01", prazo_area_em=None),
+        _caso("C35", status="novo", sigilo_reforcado=True, prazo_resposta="2026-11-10", **sem_prazo_da_area),
+        # Fora da fila: respondido, parado esperando o manifestante e arquivado.
+        _caso("C36", status="respondido", prazo_area_em="2026-11-01T20:00:00+00:00"),
+        _caso("C37", status="aguardando_manifestante", prazo_area_em="2026-11-01T20:00:00+00:00"),
+        _caso("C38", status="novo", prazo_resposta="2026-11-01", arquivada_em="2026-11-02T10:00:00+00:00"),
+    ]
+
+
+class TestFilaDoPapel:
+    def test_ouvidor_ve_a_linha_da_fila_fora_da_frase_e_dos_contadores(self, monkeypatch):
+        banco = _Banco(ouvidoria_protocolos=_fila_do_hospital())
+
+        resposta = _rota(monkeypatch, OUVIDOR, banco)
+
+        [linha] = resposta.filas_do_papel
+        assert (linha.fila, linha.esperam, linha.vencidas, linha.destino) == ("ouvidoria", 6, 3, "/ouvidoria")
+        assert linha.resumo == "6 manifestações esperam, 3 vencidas."
+        assert resposta.itens == []
+        assert resposta.frase.titulo == "Otávio, você está em dia."
+        assert resposta.contadores.passou_do_prazo == 0
+
+    def test_diretoria_executiva_tambem_ve_a_linha(self, monkeypatch):
+        diretoria = {**OUVIDOR, "perfil_ouvidoria": "diretoria_executiva"}
+
+        resposta = _rota(monkeypatch, diretoria, _Banco(ouvidoria_protocolos=_fila_do_hospital()))
+
+        assert [linha.fila for linha in resposta.filas_do_papel] == ["ouvidoria"]
+
+    def test_resumo_no_singular(self, monkeypatch):
+        banco = _Banco(ouvidoria_protocolos=[_caso("C39", prazo_area_em="2026-11-17T20:00:00+00:00")])
+
+        [linha] = _rota(monkeypatch, OUVIDOR, banco).filas_do_papel
+
+        assert linha.resumo == "1 manifestação espera, 1 vencida."
+
+    def test_responsavel_do_setor_nao_ve_a_fila_do_papel(self, monkeypatch):
+        banco = _Banco(
+            ouvidoria_setor_responsaveis=[_responsavel("tania@hsm.com.br")],
+            ouvidoria_protocolos=_fila_do_hospital(),
+        )
+
+        assert _rota(monkeypatch, TITULAR, banco).filas_do_papel == []
+
+    def test_pessoa_sem_papel_na_ouvidoria_nao_ve_caso_nem_fila(self, monkeypatch):
+        banco = _Banco(ouvidoria_protocolos=[_caso("C40"), *_fila_do_hospital()])
+
+        resposta = _rota(monkeypatch, SEM_PAPEL, banco)
+
+        assert _da_ouvidoria(resposta) == []
+        assert resposta.filas_do_papel == []
+        assert resposta.avisos == []
+
+    def test_fila_que_falha_vira_aviso(self, monkeypatch):
+        class _BancoQuebrado(_Banco):
+            def table(self, nome):
+                if nome == "ouvidoria_protocolos":
+                    raise RuntimeError("timeout")
+                return super().table(nome)
+
+        resposta = _rota(monkeypatch, OUVIDOR, _BancoQuebrado())
+
+        assert resposta.filas_do_papel == []
+        assert [a.fonte for a in resposta.avisos] == ["fila_da_ouvidoria"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. O kit de conhecimento do Produto Ouvidoria diz o comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestKitDeConhecimento:
+    def test_o_texto_da_ouvidoria_explica_o_inicio(self):
+        caminho = Path(inicio_router.__file__).parents[1] / "conhecimento" / "ouvidoria.md"
+        texto = " ".join(caminho.read_text(encoding="utf-8").split())
+
+        assert "## O Início" in texto
+        assert "O titular, o substituto e o gestor vigentes de um setor veem no Início" in texto
+        assert "caso de outro setor não aparece, e quem teve a vigência encerrada deixa de ver" in texto
+        assert "nunca o relato, o resumo ou o nome de quem manifestou" in texto
+        assert "o caso sem assunto e o caso sigiloso aparecem pelo número do protocolo" in texto
+        assert "quando pede prorrogação e o pedido espera a decisão do ouvidor" in texto
+        assert "Essa linha não entra na frase do topo nem nos contadores de prazo" in texto
+        assert chr(0x2014) not in texto
+        assert chr(0x2013) not in texto

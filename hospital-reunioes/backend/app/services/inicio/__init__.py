@@ -49,6 +49,13 @@ FONTES: tuple[Fonte, ...] = (
     Fonte("ouvidoria", fonte_ouvidoria.ROTULO, fonte_ouvidoria.itens),
 )
 
+# A Fila do papel (ADR 0104, decisão 6): a fila sem responsável nomeado, uma
+# linha de resumo para quem a enxerga pelo perfil. Mesmo formato de fonte; cada
+# uma devolve as linhas de `FilaDoPapel` que cabem a quem pede.
+FILAS_DO_PAPEL: tuple[Fonte, ...] = (
+    Fonte("fila_da_ouvidoria", fonte_ouvidoria.ROTULO_DA_FILA, fonte_ouvidoria.fila_do_papel),
+)
+
 
 class AcaoDeUmClique(BaseModel):
     rotulo: str
@@ -103,6 +110,15 @@ class ItemDoTrilho(BaseModel):
     destino: str
 
 
+class FilaDoPapel(BaseModel):
+    fila: str
+    titulo: str
+    esperam: int
+    vencidas: int
+    resumo: str
+    destino: str
+
+
 class Inicio(BaseModel):
     hoje: date
     frase: Frase
@@ -112,9 +128,7 @@ class Inicio(BaseModel):
     # O trilho, ao lado da fila: as próximas Reuniões (e, quando existirem,
     # as Rotinas do ciclo). Fora da fila e da contagem da frase.
     trilho: list[ItemDoTrilho] = []
-    # Previsto no contrato e vazio nesta fatia: a linha de resumo de cada Fila
-    # do papel.
-    filas_do_papel: list[dict] = []
+    filas_do_papel: list[FilaDoPapel] = []
 
 
 def _primeiro_nome(me: dict | None) -> str | None:
@@ -135,19 +149,30 @@ def _aviso(nome: str, rotulo: str, me: dict) -> AvisoDeFonte:
     return AvisoDeFonte(fonte=nome, mensagem=f"Não foi possível carregar {rotulo} agora. Tente de novo em instantes.")
 
 
-def montar_inicio(supabase, me: dict | None, agora: datetime, fontes: tuple[Fonte, ...] = FONTES) -> Inicio:
+def _ler(fonte: Fonte, supabase, me: dict, agora: datetime, avisos: list[AvisoDeFonte]) -> list[dict]:
+    """O que a fonte devolve, ou nada e um aviso quando ela falha (decisão 4)."""
+    try:
+        return fonte.itens(supabase, me, agora)
+    except Exception:
+        avisos.append(_aviso(fonte.nome, fonte.rotulo, me))
+        return []
+
+
+def montar_inicio(
+    supabase,
+    me: dict | None,
+    agora: datetime,
+    fontes: tuple[Fonte, ...] = FONTES,
+    filas_do_papel: tuple[Fonte, ...] = FILAS_DO_PAPEL,
+) -> Inicio:
     itens: list[ItemDoInicio] = []
+    filas: list[FilaDoPapel] = []
     avisos: list[AvisoDeFonte] = []
     trilho: list[ItemDoTrilho] = []
     hoje = agora.astimezone(FUSO).date()
     if me:
         for fonte in fontes:
-            try:
-                brutos = fonte.itens(supabase, me, agora)
-            except Exception:
-                avisos.append(_aviso(fonte.nome, fonte.rotulo, me))
-                continue
-            for bruto in brutos:
+            for bruto in _ler(fonte, supabase, me, agora, avisos):
                 item = ItemDoInicio(**bruto)
                 item.grupo = grupo_do_item(item.prazo, item.sem_prazo_no_modulo, agora)
                 item.dias_de_atraso = dias_de_atraso(item.prazo, agora) if item.grupo == PASSOU_DO_PRAZO else None
@@ -157,6 +182,9 @@ def montar_inicio(supabase, me: dict | None, agora: datetime, fontes: tuple[Font
             trilho = [ItemDoTrilho(**bruto) for bruto in fonte_reunioes.proximas(supabase, me, hoje)]
         except Exception:
             avisos.append(_aviso("trilho", fonte_reunioes.ROTULO_DO_TRILHO, me))
+        # A Fila do papel fica fora da frase e dos contadores (decisão 6).
+        for fila in filas_do_papel:
+            filas.extend(FilaDoPapel(**bruto) for bruto in _ler(fila, supabase, me, agora, avisos))
     itens.sort(key=_ordem)
 
     por_grupo = {grupo: [item for item in itens if item.grupo == grupo] for grupo in GRUPOS}
@@ -182,4 +210,5 @@ def montar_inicio(supabase, me: dict | None, agora: datetime, fontes: tuple[Font
         itens=itens,
         avisos=avisos,
         trilho=trilho,
+        filas_do_papel=filas,
     )
