@@ -33,6 +33,7 @@ from app.routers import (
     contas_medicas_painel,
     contas_medicas_validacao,
     health,
+    inicio,
     notificacoes,
     ouvidoria,
     ouvidoria_publica,
@@ -133,6 +134,8 @@ app.include_router(participantes.router, prefix=settings.api_prefix)
 app.include_router(reunioes.router, prefix=settings.api_prefix)
 app.include_router(transcricao.router, prefix=settings.api_prefix)
 app.include_router(pendencias.router, prefix=settings.api_prefix)
+# O Início de cada pessoa (ADR 0104): a Minha Fila de todos os módulos.
+app.include_router(inicio.router, prefix=settings.api_prefix)
 app.include_router(webhooks.router, prefix=settings.api_prefix)
 app.include_router(aceite.router, prefix=settings.api_prefix)
 app.include_router(ana.router, prefix=settings.api_prefix)
