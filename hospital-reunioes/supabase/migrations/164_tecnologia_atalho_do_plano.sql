@@ -7,8 +7,8 @@
 -- label `validado:diretor`. Duas colunas novas na tabela que ja existe:
 --
 --   1. `apresentacao_url`: o link da Apresentacao do PRD. Nulo sem marcador.
---      So a pagina dos planos (https://planos-hsm.vercel.app/), a mesma
---      guarda do backend.
+--      So a pagina dos planos (https://planos-hsm.vercel.app/): quem guarda
+--      e a sincronizacao, e a migration so acrescenta as duas colunas.
 --
 --   2. `plano_validado`: se a issue-raiz tem a label `validado:diretor`.
 --      Default false, o que toda Demanda de hoje ja e para a tela.
@@ -25,11 +25,6 @@ BEGIN;
 
 ALTER TABLE tecnologia_demandas ADD COLUMN IF NOT EXISTS apresentacao_url TEXT;
 ALTER TABLE tecnologia_demandas ADD COLUMN IF NOT EXISTS plano_validado BOOLEAN NOT NULL DEFAULT false;
-
-ALTER TABLE tecnologia_demandas DROP CONSTRAINT IF EXISTS tecnologia_demandas_apresentacao_url_check;
-ALTER TABLE tecnologia_demandas
-  ADD CONSTRAINT tecnologia_demandas_apresentacao_url_check
-  CHECK (apresentacao_url IS NULL OR apresentacao_url LIKE 'https://planos-hsm.vercel.app/%');
 
 COMMENT ON COLUMN tecnologia_demandas.apresentacao_url IS
   'O link da Apresentacao do PRD, lido do marcador <!-- apresentacao: <url> --> da issue-raiz (ADR 0108, decisao 2). So https://planos-hsm.vercel.app/.';
