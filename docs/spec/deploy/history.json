@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-19T15:52:54-03:00",
+      "sha": "cef3482cdc1fdb232ce9e5cfbe3dcd1fe77e3363",
+      "app_version": "0.314.0",
+      "subject": "Onda sesta-1932-onda1: Início com a Minha Fila das Pendências",
+      "raw_subject": "chore(deploy): registro da onda sesta-1932-onda1 (#2024)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1932
+      ],
+      "result": "healthy",
+      "duration_seconds": 424,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1932-onda1: PR #2024 (issue #1934), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 24,
+          "frontend": 243
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-19T15:46:00-03:00",
       "sha": "240be8df5933b02899aace80783a1ffb47a71797",
       "app_version": "0.313.0",
