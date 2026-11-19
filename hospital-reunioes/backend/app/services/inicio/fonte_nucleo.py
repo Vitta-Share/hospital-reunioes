@@ -16,6 +16,7 @@ from datetime import date
 from typing import Any
 
 from app.dependencies import recursos_nsp_da_pessoa
+from app.services.seguranca_do_paciente.assinatura_dos_documentos import ROTULO_DO_TIPO
 from app.services.seguranca_do_paciente.permissao import hoje_em_sao_paulo, id_do_nucleo, participacoes_vigentes
 
 ROTULO = "o que o Núcleo espera de você"
@@ -65,9 +66,68 @@ def _termo_pendente(supabase, me: dict) -> list[dict]:
     ]
 
 
+def _documentos_a_assinar(supabase, me: dict) -> list[dict]:
+    """A versão enviada para assinatura em que a pessoa é signatária e ainda
+    não assinou. Envio cancelado (pelo reenvio ou por versão mais nova) ou
+    ainda não enviado não tem o que assinar."""
+    minhas = (
+        supabase.table("nsp_documentos_signatarios")
+        .select("envio_id")
+        .eq("participante_id", me["id"])
+        .is_("assinado_em", "null")
+        .execute()
+        .data
+    ) or []
+    if not minhas:
+        return []
+    envios = (
+        supabase.table("nsp_documentos_envios")
+        .select("id, documento_id, situacao, enviado_em")
+        .in_("id", sorted({linha["envio_id"] for linha in minhas}))
+        .eq("situacao", "enviado")
+        .execute()
+        .data
+    ) or []
+    if not envios:
+        return []
+    documentos = {
+        linha["id"]: linha
+        for linha in (
+            supabase.table("nsp_documentos")
+            .select("id, tipo, titulo, versao")
+            .in_("id", sorted({envio["documento_id"] for envio in envios}))
+            .execute()
+            .data
+        )
+        or []
+    }
+    saida: list[dict] = []
+    for envio in envios:
+        documento = documentos.get(envio["documento_id"], {})
+        nome = ROTULO_DO_TIPO.get(documento.get("tipo"), documento.get("titulo") or "documento do Núcleo")
+        versao = documento.get("versao")
+        saida.append(
+            {
+                "tipo": "documento_do_nucleo",
+                "id": envio["id"],
+                "titulo": f"Assinar o {nome}, versão {versao}" if versao else f"Assinar o {nome}",
+                "origem": "Documento do Núcleo esperando a sua assinatura. O link foi para o seu e-mail.",
+                "chegou_em": _data(envio.get("enviado_em")),
+                "sem_prazo_no_modulo": True,
+                "area": AREA,
+                "acao": "Abrir os Documentos",
+                "destino": "/seguranca-do-paciente/documentos",
+            }
+        )
+    return saida
+
+
 def itens(supabase, me: dict) -> list[dict]:
     """Os itens da fonte, no formato comum do Início."""
     recursos = recursos_nsp_da_pessoa(supabase, me)
     if "ver_modulo" not in recursos:
         return []
-    return _termo_pendente(supabase, me)
+    saida = _termo_pendente(supabase, me)
+    if "documentos" in recursos:
+        saida += _documentos_a_assinar(supabase, me)
+    return saida

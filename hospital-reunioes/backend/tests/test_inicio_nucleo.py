@@ -187,3 +187,61 @@ class TestTermoDeAdesao:
         assert termo.grupo == "sem_prazo"
         assert termo.dias_esperando == 8
         assert resposta.contadores.passou_do_prazo == 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. O documento do Núcleo esperando a assinatura da pessoa
+# ═══════════════════════════════════════════════════════════════════════════
+
+REGIMENTO = {"id": "D_REG", "tipo": "regimento", "titulo": "Regimento Interno do NSP", "versao": 3}
+
+
+def _documento_esperando(**signatario) -> dict:
+    """O Regimento v3 enviado para a Diretoria Executiva e a Presidência."""
+    base = {"id": "S_PRES", "envio_id": "E1", "participante_id": PRESIDENTE["id"], "assinado_em": None}
+    return {
+        "nsp_documentos": [REGIMENTO],
+        "nsp_documentos_envios": [
+            {"id": "E1", "documento_id": "D_REG", "situacao": "enviado", "enviado_em": "2026-11-16T12:00:00+00:00"}
+        ],
+        "nsp_documentos_signatarios": [
+            {**base, **signatario},
+            {"id": "S_PLENO", "envio_id": "E1", "participante_id": ACESSO_PLENO["id"], "assinado_em": None},
+        ],
+    }
+
+
+class TestDocumentoAAssinar:
+    def test_documento_esperando_a_assinatura_aparece_na_fila_de_quem_assina(self, monkeypatch):
+        banco = _banco_do_nucleo(**_documento_esperando())
+
+        resposta = _rota(monkeypatch, PRESIDENTE, banco)
+
+        itens = _do_nucleo(resposta)
+        assert [item.tipo for item in itens] == ["documento_do_nucleo"]
+        documento = itens[0]
+        assert documento.titulo == "Assinar o Regimento Interno, versão 3"
+        assert documento.origem == "Documento do Núcleo esperando a sua assinatura. O link foi para o seu e-mail."
+        assert documento.destino == "/seguranca-do-paciente/documentos"
+        assert documento.grupo == "sem_prazo"
+        assert documento.dias_esperando == 2
+
+    def test_o_documento_sai_da_fila_depois_da_assinatura(self, monkeypatch):
+        banco = _banco_do_nucleo(**_documento_esperando(assinado_em="2026-11-17T15:00:00+00:00"))
+
+        resposta = _rota(monkeypatch, PRESIDENTE, banco)
+
+        assert _do_nucleo(resposta) == []
+
+    def test_o_documento_de_envio_cancelado_nao_aparece(self, monkeypatch):
+        tabelas = _documento_esperando()
+        tabelas["nsp_documentos_envios"][0]["situacao"] = "cancelado"
+
+        resposta = _rota(monkeypatch, PRESIDENTE, _banco_do_nucleo(**tabelas))
+
+        assert _do_nucleo(resposta) == []
+
+    def test_quem_nao_assina_o_documento_nao_o_recebe(self, monkeypatch):
+        resposta = _rota(monkeypatch, MEMBRO_COM_TERMO, _banco_do_nucleo(**_documento_esperando()))
+
+        assert _do_nucleo(resposta) == []
