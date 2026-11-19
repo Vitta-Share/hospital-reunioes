@@ -436,6 +436,156 @@ def test_pagina_do_1757_tem_a_estrutura_da_referencia():
     }
 
 
+# Roda o script da página montada num DOM de mentira: cada id vira um elemento com o texto
+# inicial do HTML; o localStorage lança erro (navegador sem ele); o fetch responde o estado.
+HARNESS_PAGINA = r"""
+const [script, textos, search, estado, guardado] = process.argv.slice(1);
+const iniciais = JSON.parse(textos);
+const pedidos = [];
+function elemento(id) {
+  const cls = new Set();
+  return {
+    id, style: {}, dataset: {}, textContent: iniciais[id] || '', innerHTML: '', disabled: false, hidden: false, className: '',
+    classList: {
+      add: (...c) => c.forEach((x) => cls.add(x)),
+      remove: (...c) => c.forEach((x) => cls.delete(x)),
+      toggle: (c, f) => ((f === undefined ? !cls.has(c) : f) ? cls.add(c) : cls.delete(c)),
+      contains: (c) => cls.has(c),
+    },
+    classes: cls,
+    addEventListener() {}, appendChild() {}, scrollIntoView() {},
+    querySelector: () => elemento(), querySelectorAll: () => [],
+  };
+}
+const els = {};
+global.document = {
+  getElementById: (id) => els[id] || (els[id] = elemento(id)),
+  querySelector: () => null, querySelectorAll: () => [], createElement: () => elemento(), addEventListener() {},
+};
+global.window = global;
+global.matchMedia = () => ({ matches: true });
+global.innerWidth = 1280;
+global.requestAnimationFrame = () => {};
+global.location = { search };
+Object.defineProperty(global, 'localStorage', {
+  configurable: true,
+  get() {
+    if (guardado === '') throw new Error('navegador sem localStorage');
+    return { getItem: () => guardado, setItem() {} };
+  },
+});
+const resposta = JSON.parse(estado);
+global.fetch = async (url, opt) => {
+  pedidos.push({ url, method: (opt && opt.method) || 'GET' });
+  if (resposta.__rede) throw new TypeError('Failed to fetch');
+  const status = resposta.__status || 200;
+  return { ok: status < 400, status, json: async () => resposta };
+};
+eval(script);
+setTimeout(() => {
+  const ver = (id) => {
+    const e = document.getElementById(id);
+    return { texto: e.textContent, classes: [...e.classes], display: e.style.display || '', disabled: e.disabled };
+  };
+  const ids = ['estado', 'estado-t', 'form', 'feito', 'feito-t', 'feito-obs', 'resposta', 'validar-b'];
+  console.log(JSON.stringify({ pedidos, el: Object.fromEntries(ids.map((i) => [i, ver(i)])) }));
+}, 30);
+"""
+
+
+def _abrir_pagina(estado: dict, search: str = "", guardado: str = "") -> dict:
+    """Abre a página do 1757 num navegador sem localStorage (ou com `guardado` nele)."""
+    if not shutil.which("node"):
+        pytest.fail("o teste da página precisa do node no PATH")
+    html = _modulo().montar(_dados_1757())
+    [script] = re.findall(r"<script>\n(const DADOS = .*?)</script>", html, re.DOTALL)
+    textos = dict(re.findall(r'id="([\w-]+)"[^>]*>([^<]*)<', html))
+    out = subprocess.run(
+        [
+            "node",
+            "-e",
+            HARNESS_PAGINA,
+            script,
+            json.dumps(textos),
+            search,
+            json.dumps(estado),
+            guardado,
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return json.loads(out.stdout)
+
+
+def test_pagina_validada_mostra_o_cartao_com_data_hora_e_observacao_sem_localstorage():
+    p = _abrir_pagina(
+        {
+            "ok": True,
+            "validado": True,
+            "data": "19/11/2026",
+            "hora": "10:05",
+            "observacao": "Rever o painel.",
+        }
+    )
+    assert [x["url"] for x in p["pedidos"]] == ["/api/estado?prd=1757"]
+    el = p["el"]
+    assert el["form"]["display"] == "none"
+    assert "on" in el["feito"]["classes"]
+    assert el["feito-t"]["texto"] == "Plano validado em 19/11/2026, às 10:05."
+    assert el["feito-obs"]["texto"] == "Rever o painel."
+    assert el["estado-t"]["texto"] == "Plano validado"
+    assert "ok" in el["estado"]["classes"]
+    for x in el.values():
+        assert "—" not in x["texto"] and "–" not in x["texto"]
+
+
+def test_pagina_validada_sem_observacao_diz_sem_observacao():
+    p = _abrir_pagina(
+        {
+            "ok": True,
+            "validado": True,
+            "data": "19/11/2026",
+            "hora": "10:05",
+            "observacao": None,
+        }
+    )
+    assert p["el"]["feito-t"]["texto"] == "Plano validado em 19/11/2026, às 10:05."
+    assert p["el"]["feito-obs"]["texto"] == "Sem observação."
+
+
+def test_pagina_nao_validada_continua_com_o_formulario_e_o_aviso_sem_o_codigo():
+    p = _abrir_pagina(
+        {
+            "ok": True,
+            "validado": False,
+            "data": None,
+            "hora": None,
+            "observacao": None,
+        },
+        guardado="Plano validado em 10/11/2026, às 09:00. Obrigado.",
+    )
+    el = p["el"]
+    assert el["form"]["display"] == ""
+    assert "on" not in el["feito"]["classes"]
+    assert el["estado-t"]["texto"] == "Plano para validar"
+    assert el["resposta"]["texto"] == (
+        "Abra esta página pelo link do e-mail para validar."
+    )
+    assert el["validar-b"]["disabled"] is True
+
+
+def test_funcao_de_estado_falhou_a_pagina_segue_o_localstorage():
+    guardado = "Plano validado em 10/11/2026, às 09:00. Obrigado."
+    for falha in ({"__rede": True}, {"__status": 502, "ok": False}):
+        p = _abrir_pagina(falha, guardado=guardado)
+        assert p["el"]["feito-t"]["texto"] == guardado
+        assert p["el"]["estado-t"]["texto"] == "Plano validado"
+    p = _abrir_pagina({"__rede": True})
+    assert p["el"]["estado-t"]["texto"] == "Plano para validar"
+    assert p["el"]["form"]["display"] == ""
+
+
 def test_rodape_traz_a_versao_do_app():
     pacote = RAIZ / "hospital-reunioes" / "frontend" / "package.json"
     versao = json.loads(pacote.read_text(encoding="utf-8"))["version"]
@@ -594,6 +744,7 @@ def test_publicar_leva_a_pagina_a_funcao_e_o_vinculo_sem_a_fonte(bin_falso, mac)
     assert {
         "1757/index.html",
         "api/validar.js",
+        "api/estado.js",
         "index.html",
         "vercel.json",
         "logo-hsm.png",
