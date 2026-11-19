@@ -404,6 +404,19 @@ describe("Sidebar com o item Segurança do Paciente", () => {
     );
   });
 
+  it("chama a página do módulo de Visão geral, para não haver dois Início (issue #1942)", () => {
+    const menu = entrar({ access_profile: "regular", recursos_nsp: SEM_TERMO } as Partial<CurrentParticipante>);
+
+    const visaoGeral = within(menu)
+      .getAllByRole("link")
+      .find((link) => link.getAttribute("href") === "/seguranca-do-paciente");
+    expect(visaoGeral?.textContent?.trim()).toBe("Visão geral");
+    const inicios = within(menu)
+      .getAllByRole("link")
+      .filter((link) => link.textContent?.trim() === "Início");
+    expect(inicios.map((link) => link.getAttribute("href"))).toEqual(["/inicio"]);
+  });
+
   it.each([
     ["super admin sem Acesso pleno", { access_profile: "super_admin", recursos_nsp: ["configuracao"] }],
     ["quem só tem papel nas Reuniões", { access_profile: "regular", recursos_nsp: [] }],
@@ -554,12 +567,24 @@ describe("Sidebar com o item Início", () => {
     expect(hrefs[0]).toBe("/secretaria");
   });
 
-  it("o logo continua levando aonde levava (o destino do login não muda nesta etapa)", () => {
-    sessao.participante = { id: "p1", nome_completo: "Fulana", email: "f@hsm", access_profile: "regular" };
+  it.each([
+    ["o facilitador", { access_profile: "regular" as const }],
+    ["quem só tem POPs", { access_profile: null, perfil_pop: "coordenador" as const }],
+  ])("o logo leva %s ao Início (issue #1942)", (_quem, perfil) => {
+    sessao.participante = { id: "p1", nome_completo: "Fulana", email: "f@hsm", ...perfil };
 
     render(<Sidebar />);
 
     const logo = screen.getAllByRole("link").find((link) => !link.closest("nav"));
-    expect(logo?.getAttribute("href")).toBe("/dashboard");
+    expect(logo?.getAttribute("href")).toBe("/inicio");
+  });
+
+  it("o logo leva a Secretária à tela dela", () => {
+    sessao.participante = { id: "p1", nome_completo: "Selma", email: "s@hsm", access_profile: "secretaria" };
+
+    render(<Sidebar />);
+
+    const logo = screen.getAllByRole("link").find((link) => !link.closest("nav"));
+    expect(logo?.getAttribute("href")).toBe("/secretaria");
   });
 });
