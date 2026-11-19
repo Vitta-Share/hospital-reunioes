@@ -22,6 +22,7 @@ from typing import Any
 
 from app.dependencies import PERFIS_CONTAS_MEDICAS, is_super_admin, permissoes_contas_medicas
 from app.services.contas_medicas.fila import COM_A_FATURISTA, EM_CORRECAO, LIVRE
+from app.services.inicio.regras import FUSO
 
 ROTULO = "as contas médicas"
 ROTULO_DA_FILA = "a Fila de contas"
@@ -31,7 +32,14 @@ ANALISAR_CONTAS = "enviar_corrigir_contas"
 
 
 def _data(valor: Any) -> date | None:
-    return date.fromisoformat(str(valor)[:10]) if valor else None
+    """O dia de Brasília do `aberta_em` (TIMESTAMPTZ gravado em UTC): a conta
+    puxada às 22h30 de 12/11 chegou em 12/11, não em 13/11."""
+    if not valor:
+        return None
+    momento = valor if isinstance(valor, datetime) else datetime.fromisoformat(str(valor))
+    if momento.tzinfo is None:
+        return momento.date()
+    return momento.astimezone(FUSO).date()
 
 
 def _analisa_contas(supabase, me: dict) -> bool:

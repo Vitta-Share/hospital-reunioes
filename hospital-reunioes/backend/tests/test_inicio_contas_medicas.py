@@ -169,6 +169,15 @@ class TestFaturista:
         assert em_correcao.dias_esperando == 5
         assert em_correcao.prazo is None
 
+    def test_conta_puxada_a_noite_conta_o_dia_de_brasilia(self, monkeypatch):
+        # Puxada em 12/11 às 22h30 de Brasília, que em UTC já é 13/11.
+        banco = _banco([_conta("C003", "EM_CORRECAO", "P_FATIMA", aberta_em="2026-11-13T01:30:00+00:00")])
+
+        conta = next(item for item in _rota(monkeypatch, FATIMA, banco).itens if item.id == "C003")
+
+        assert conta.chegou_em.isoformat() == "2026-11-12"
+        assert conta.dias_esperando == 6
+
     def test_faturista_nao_ve_a_conta_de_outra_nem_a_concluida_nem_a_livre(self, monkeypatch):
         banco = _banco(
             [

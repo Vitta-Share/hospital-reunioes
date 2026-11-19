@@ -105,8 +105,9 @@ describe("a conta com a faturista (issue #1940)", () => {
     expect(grupos.indexOf("Sem prazo")).toBeGreaterThan(grupos.indexOf("Passou do prazo"));
     const semPrazo = screen.getByRole("region", { name: "Sem prazo" });
     const linha = within(semPrazo).getByText("Atendimento 123456, conta 9001").closest("li") as HTMLElement;
-    expect(linha.textContent).toContain("5");
-    expect(linha.textContent).toContain("dias esperando");
+    // O número tem elemento próprio, ao lado do rótulo: o 5 do título não conta.
+    const numero = within(linha).getByText("5");
+    expect(numero.nextElementSibling?.textContent).toBe("dias esperando");
     expect(within(linha).getByRole("link", { name: "Abrir o Guia" }).getAttribute("href")).toBe(
       "/contas-medicas/guia/C001"
     );
