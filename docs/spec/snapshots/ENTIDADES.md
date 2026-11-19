@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-19T18:40+0000 -->
+<!-- last_update: 2026-11-19T20:52+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2251,6 +2251,18 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_tecnologia_envios_aos_desenvolvedores_demanda` em `(demanda_id, ate_mensagem_em)` (de `165_tecnologia_envio_aos_desenvolvedores.sql`)
 - `uq_tecnologia_envios_aos_desenvolvedores_um_ajuste` em `(demanda_id, ate_mensagem_em)` (de `165_tecnologia_envio_aos_desenvolvedores.sql`)
 
+## registro_de_acesso
+
+> Origem: `167_registro_de_acesso.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `participante_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `dia` | `DATE` | NOT NULL | — | — |
+
+**Indexes:**
+- `idx_registro_de_acesso_dia` em `(dia)` (de `167_registro_de_acesso.sql`)
+
 ---
 
-**Resumo:** 110 tabelas vivas.
+**Resumo:** 111 tabelas vivas.

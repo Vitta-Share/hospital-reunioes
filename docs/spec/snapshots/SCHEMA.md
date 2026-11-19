@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-19T18:40+0000 -->
+<!-- last_update: 2026-11-19T20:52+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -129,6 +129,7 @@ erDiagram
     participantes ||--o{ pops_devolucoes : "autor_id"
     participantes ||--o{ pops_materiais_referencia : "criado_por"
     participantes ||--o{ pops_setores_participantes : "participante_id"
+    participantes ||--o{ registro_de_acesso : "participante_id"
     participantes ||--o{ reuniao_aceite_tokens : "participante_id"
     participantes ||--o{ reuniao_aceites : "participante_id"
     participantes ||--o{ reuniao_participantes : "participante_id"
@@ -1215,6 +1216,10 @@ erDiagram
         TEXT estado
         _ mais_colunas "+6"
     }
+    registro_de_acesso {
+        VARCHAR participante_id FK
+        DATE dia
+    }
 ```
 
 ## Indexes principais
@@ -1408,6 +1413,7 @@ erDiagram
 | `nsp_documentos_signatarios` | `idx_nsp_documentos_signatarios_participante` | `participante_id` | `159_nsp_assinatura_dos_documentos.sql` |
 | `tecnologia_envios_aos_desenvolvedores` | `idx_tecnologia_envios_aos_desenvolvedores_demanda` | `demanda_id, ate_mensagem_em` | `165_tecnologia_envio_aos_desenvolvedores.sql` |
 | `tecnologia_envios_aos_desenvolvedores` | `uq_tecnologia_envios_aos_desenvolvedores_um_ajuste` | `demanda_id, ate_mensagem_em` | `165_tecnologia_envio_aos_desenvolvedores.sql` |
+| `registro_de_acesso` | `idx_registro_de_acesso_dia` | `dia` | `167_registro_de_acesso.sql` |
 
 ---
-**Resumo:** 110 tabelas · 167 relacionamentos FK detectados.
+**Resumo:** 111 tabelas · 168 relacionamentos FK detectados.
