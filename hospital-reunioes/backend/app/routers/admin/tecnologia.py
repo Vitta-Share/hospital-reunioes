@@ -60,6 +60,13 @@ O chat da aba (issues #1381, #1383 e #1384):
                                                 Desenvolvedor, que fecha no
                                                 GitHub como nao planejado
                                                 (issue #1549, ADR 0084).
+- POST  /admin/tecnologia/chat/{id}/conversa/interpretar  o "Entendi assim:"
+                                                das mensagens do diretor desde
+                                                o ultimo envio (issue #2011,
+                                                ADR 0108).
+- POST  /admin/tecnologia/chat/{id}/conversa/enviar  o "Enviar": abre o
+                                                Ajuste do plano e escreve a
+                                                linha do envio na conversa.
 
 O print do chat (ADR 0056, decisao 4; ADR 0077, decisao 8):
 
