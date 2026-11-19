@@ -2,6 +2,51 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-19T18:16:42-03:00",
+      "sha": "5f8c6428bfa563c0fd83f1e5e16a177efa04f826",
+      "app_version": "0.318.1",
+      "subject": "Onda sesta-1932-onda6: Reuniões e Pendências ensina a entrar pelo Início e chegar ao painel; Segurança do Paciente com Visão geral no submenu",
+      "raw_subject": "chore(deploy): registro da onda sesta-1932-onda6 (#2035 #2034)",
+      "scope": [
+        "frontend"
+      ],
+      "prds": [
+        1932
+      ],
+      "result": "healthy",
+      "duration_seconds": 255,
+      "services_touched": [
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1932-onda6: PR #2035 (issue #1948), PR #2034 (issue #1949), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 6,
+        "build_s": {
+          "frontend": 199
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-19T17:55:52-03:00",
       "sha": "87090301f61c1b4687cba2ea90d72b4b7f283f77",
       "app_version": "0.318.0",
