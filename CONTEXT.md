@@ -598,6 +598,18 @@ _Evitar_: chamar de Painel (aposentado em 02/11/2026) ou de [Quadro]; contar por
 P, M ou G, pelo número de partes da Demanda: até 1 parte é P, de 2 a 5 é M, 6 ou mais é G (ADR 0092). Calculado, nunca estimado nem digitado. Todo bug é P.
 _Evitar_: story points; tamanho escolhido à mão; tamanho pelo tempo que a entrega levou.
 
+**Envio aos desenvolvedores**:
+O botão do diretor na [Conversa da Demanda] que entrega aos [Desenvolvedores] o que ele escreveu desde o último envio (ADR 0108). Ele escreve quantas mensagens quiser e aperta quando termina; o agente lê essas mensagens com o card e a última pergunta do Desenvolvedor, mostra "Entendi assim:" em tópicos, e só com o "Enviar" do diretor nasce o [Ajuste do plano] na issue-raiz. Só quem é do lado do hospital aperta. A conversa ganha a linha "Enviado aos desenvolvedores" com os tópicos aprovados, e o que vem depois começa um envio novo. Para o GitHub vai só a interpretação do agente, nunca a fala do diretor.
+_Evitar_: envio automático a cada mensagem; copiar as mensagens para a issue; "pescar" a resposta pelo terminal como único caminho.
+
+**Ajuste do plano**:
+A sub-issue `ready-for-human` do Pedro na issue-raiz de uma Demanda, que diz o que muda em cada card a partir do que o diretor pediu e trava as fatias iniciais ainda não começadas até o Pedro rever (ADR 0108). Nasce de dois lugares: o Validar da [Apresentação do PRD] com observação e o [Envio aos desenvolvedores]. O texto é a interpretação do agente, sem a fala do diretor e sem dado de paciente; o original fica no app.
+_Evitar_: citar a observação ou a mensagem do diretor na issue; abrir o Ajuste sem travar as fatias iniciais.
+
+**Apresentação do PRD**:
+A página na Vercel (`https://planos-hsm.vercel.app/<PRD>`) em que o diretor lê o plano de um PRD, Parte por Parte, antes do trabalho começar, e valida pelo link do e-mail, que leva o código de validação. A página mostra a qualquer pessoa o estado real lido do GitHub (validado, com a data e a observação, ou para validar), e a validação só vale para a versão que ele viu: republicar volta a pedir validação. O PRD guarda o marcador `<!-- apresentacao: <url> -->`, e o card no [Quadro] e no [Documento do card] ganha o atalho "Ver o plano", sem o código (ADR 0108).
+_Evitar_: estado guardado só no navegador de quem validou; o código de validação no app ou no GitHub; confundir com a [Demonstração], que mostra o que já foi entregue.
+
 **Demonstração**:
 O vídeo curto e a página na Vercel do que um card entregue mudou, feitos pelo `/divulgar` (ADR 0045; o vídeo sai do Estúdio de Vídeos do PedroOS e, sem ele, fica só a página) numa sessão aberta pelo botão "Gerar demonstração" do PedroOS, sempre por clique do Pedro (ADR 0084). A sessão grava na issue-raiz o marcador `<!-- demonstracao: <url> -->`, o webhook leva o link ao card e o card ganha o selo "Tem demonstração". Nem todo card tem. Quando fica pronta, o diretor recebe aviso por sino e e-mail, como recebe quando o card entra Em produção, com o resumo montado do [Documento do card], sem IA.
 _Evitar_: vídeo gerado pela Subida; link digitado no app; resumo do aviso escrito por IA.
