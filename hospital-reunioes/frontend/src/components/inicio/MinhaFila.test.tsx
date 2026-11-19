@@ -125,6 +125,14 @@ describe("a abertura", () => {
     expect(screen.getByTestId("abertura").className).toContain("bg-primary-dark");
   });
 
+  it("avisa, numa linha discreta, que o dia do acesso fica registrado (issue #1941)", async () => {
+    await abrir();
+
+    const aviso = screen.getByText("O dia em que você abre o Início fica registrado.");
+    expect(aviso.className).toContain("text-xs");
+    expect(aviso.className).toContain("text-text-secondary");
+  });
+
   it("sem prazo vencido, a abertura fica clara", async () => {
     await abrir({
       ...COM_ATRASO,

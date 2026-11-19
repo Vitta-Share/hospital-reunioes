@@ -407,6 +407,9 @@ export function MinhaFila() {
                 </ul>
               </section>
             )}
+
+            {/* O Registro de acesso (issue #1941, ADR 0104 decisão 10). */}
+            <p className="text-xs text-text-secondary">O dia em que você abre o Início fica registrado.</p>
           </div>
           <Trilho itens={inicio.trilho} hoje={inicio.hoje} />
         </div>

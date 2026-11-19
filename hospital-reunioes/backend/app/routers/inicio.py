@@ -18,7 +18,7 @@ from app.dependencies import (
     get_supabase_client,
     is_secretaria,
 )
-from app.services.inicio import Inicio, montar_inicio
+from app.services.inicio import Inicio, montar_inicio, registro_de_acesso
 from app.services.inicio.regras import FUSO
 
 router = APIRouter(prefix="/inicio", tags=["inicio"])
@@ -37,4 +37,8 @@ async def get_inicio(
     barrar_desligado(me)
     if is_secretaria(me):
         raise HTTPException(status_code=403, detail="A Secretária não tem Início")
-    return montar_inicio(supabase, me, agora_em_brasilia())
+    agora = agora_em_brasilia()
+    # O Registro de acesso (issue #1941): o dia em que a pessoa abriu o Início.
+    if me:
+        registro_de_acesso.marcar(supabase, me["id"], agora.astimezone(FUSO).date())
+    return montar_inicio(supabase, me, agora)
