@@ -1,0 +1,248 @@
+{
+ "prd": 1933,
+ "contexto": "Contas médicas",
+ "titulo_aba": "Plano da tela nova de Contas médicas",
+ "descricao": "O plano da tela nova de Contas médicas para as faturistas, em 5 etapas, para o diretor validar antes do trabalho começar.",
+ "selo": "Plano para validar · Contas médicas",
+ "titulo": "A tela das faturistas ocupa o monitor inteiro,",
+ "destaque": "com busca, Minhas e arquivar por mês.",
+ "resumo": "Este é o plano do que você pediu na reunião de 18/11 para a tela das faturistas. São 10 partes, em 5 etapas, e nenhuma foi entregue ainda. As regras de hoje continuam: o Feito segue manual, um item por vez, e o Painel mostra os mesmos números. Logo abaixo estão três pontos para você confirmar. Passe o mouse em cada parte para ver o que muda, do que ela depende e como vamos saber que ficou pronta. No fim da página, você valida o plano.",
+ "numeros": [
+  {
+   "valor": 10,
+   "rotulo": "partes"
+  },
+  {
+   "valor": 5,
+   "rotulo": "etapas, uma depois da outra"
+  },
+  {
+   "valor": 3,
+   "rotulo": "pontos para você confirmar"
+  }
+ ],
+ "decidido": {
+  "titulo": "O plano parte do seu pedido de 18/11",
+  "texto": "Abaixo, o que você pediu e três pontos que o planejamento decidiu sem esperar a sua resposta. Se quiser outra coisa em algum deles, escreva na observação ao validar: só a parte ligada a ele muda.",
+  "blocos": [
+   {
+    "titulo": "O que você pediu na reunião",
+    "numerado": false,
+    "itens": [
+     "Uma busca pelo número do atendimento que acha a conta em qualquer etapa e diz com quem ela está.",
+     "\"Todas\" e \"Minhas\" ao lado da busca.",
+     "Arquivar por mês as contas concluídas, para saírem da esteira, com o aviso de que arquivar quer dizer que a conta já foi tratada no MV.",
+     "O nome do paciente ao lado do número."
+    ]
+   },
+   {
+    "titulo": "Três pontos para você confirmar",
+    "numerado": true,
+    "itens": [
+     "Ao lado do número aparece o primeiro nome com a inicial do sobrenome, como \"Antônia F.\". O sistema não guarda o nome inteiro do paciente, e as contas antigas não teriam como ganhar o nome, porque o PDF é apagado em 7 dias.",
+     "O mês de cada conta é o mês do fim do período dela. A conta sem período fica no mês em que foi concluída.",
+     "Cada faturista arquiva as próprias contas. A coordenação e a gestão arquivam qualquer conta e o mês inteiro."
+    ]
+   }
+  ]
+ },
+ "fora": {
+  "itens": [
+   "Desenho novo de Validação, Coordenação, Contratos, Operadoras e Habilitação",
+   "Mudança nos números do Painel",
+   "Nome inteiro do paciente",
+   "Feito em lote",
+   "Ligação com o MV e com o Google Drive",
+   "Atalhos de teclado"
+  ],
+  "texto": "Validação, Coordenação, Contratos, Operadoras e Habilitação ganham só as abas agora. O desenho novo delas vem num próximo plano, depois das suas propostas para o Painel e a Validação."
+ },
+ "etapas": [
+  {
+   "nome": "A base",
+   "texto": "As abas no topo de todas as telas do módulo, a dica ao passar o mouse e as legendas. As outras etapas dependem desta."
+  },
+  {
+   "nome": "As três telas no desenho novo",
+   "texto": "A tela de contas com a esteira, a conta aberta no monitor inteiro e o Painel."
+  },
+  {
+   "nome": "Busca, Minhas e envios",
+   "texto": "A busca pelo número e pelo paciente, o filtro Todas e Minhas, o botão de enviar contas e, na conta aberta, o \"Só o que falta\" e o Auditor ao lado."
+  },
+  {
+   "nome": "Arquivar por mês",
+   "texto": "As concluídas agrupadas por mês, com arquivar uma a uma ou o mês inteiro, e desarquivar."
+  },
+  {
+   "nome": "O manual",
+   "texto": "Tudo o que mudou, explicado com passos e prints."
+  }
+ ],
+ "partes": [
+  {
+   "id": 1,
+   "etapa": 1,
+   "titulo": "Abas e legendas no módulo",
+   "muda": "As telas de Contas médicas passam a ficar em abas no topo, e o módulo ganha as legendas que explicam cada comando.",
+   "vale": "Quem trabalha no módulo vai de uma tela a outra sem voltar à tela de contas, e as telas novas já nascem com explicação.",
+   "saber": [
+    "Cada pessoa vê só as abas das telas que pode abrir.",
+    "Um interruptor \"Legendas\" liga e desliga as frases de explicação, e a escolha fica guardada no computador da pessoa.",
+    "Passar o mouse numa aba mostra para que a tela serve."
+   ],
+   "pronto": "Uma faturista vê só as abas que pode abrir, e quem desliga as Legendas encontra a tela sem as frases depois de recarregar a página.",
+   "depende": []
+  },
+  {
+   "id": 2,
+   "etapa": 2,
+   "titulo": "Lista por número e paciente",
+   "muda": "A tela de contas mostra cada conta com o número e o nome do paciente, e um contador de quantas contas há em cada etapa.",
+   "vale": "A faturista acha a conta pelo papel que tem na mão e vê de cara o tamanho do trabalho.",
+   "saber": [
+    "A palavra \"Atendimento\" sai de cada linha e fica só no título da coluna. O nome é o primeiro nome com a inicial do sobrenome.",
+    "No topo ficam os números de cada etapa: Envios, Fila, Em análise e Concluídas. As contas que ela deixou abertas aparecem primeiro, em \"Continue de onde parou\".",
+    "O botão da conta livre passa a dizer \"Pegar\", e vermelho fica só para erro."
+   ],
+   "pronto": "Cada linha mostra o número grande com \"Antônia F.\" ao lado, o topo mostra quantas contas há em cada etapa, e a faturista encontra primeiro as contas que deixou abertas.",
+   "depende": [
+    1
+   ]
+  },
+  {
+   "id": 3,
+   "etapa": 2,
+   "titulo": "Conta aberta no monitor inteiro",
+   "muda": "A conta aberta passa a ocupar o monitor inteiro, com a lista dos itens de um lado e o item da vez, grande, do outro.",
+   "vale": "A faturista lê o item de longe enquanto lança no MV e não se perde numa conta com muitos apontamentos.",
+   "saber": [
+    "Depois do Feito, a tela passa sozinha para o próximo item.",
+    "O código copia com um clique, e o motivo e a evidência aparecem sem clicar.",
+    "Feito, Não procede e Bloqueado têm cada um uma frase dizendo o que fazem."
+   ],
+   "pronto": "Numa conta com 40 itens, a lista fica de um lado e o item da vez do outro. A faturista marca Feito e o próximo item aberto aparece sozinho.",
+   "depende": [
+    1
+   ]
+  },
+  {
+   "id": 4,
+   "etapa": 2,
+   "titulo": "Painel no desenho novo",
+   "muda": "O Painel de Contas médicas ganha o desenho novo do módulo, com os mesmos números de hoje.",
+   "vale": "A leitura da semana fica mais rápida, e cada número explica o que mede.",
+   "saber": [
+    "Os números e os filtros são os mesmos.",
+    "Passar o mouse num número, numa barra ou num ponto do gráfico mostra o valor e o que ele quer dizer.",
+    "Arquivar uma conta não muda nada no Painel."
+   ],
+   "pronto": "Na mesma semana e com os mesmos filtros, o Painel mostra os números de antes, e passar o mouse em cada um diz o que ele mede.",
+   "depende": [
+    1
+   ]
+  },
+  {
+   "id": 5,
+   "etapa": 3,
+   "titulo": "Botão \"Enviar contas\"",
+   "muda": "A área de enviar contas deixa de ocupar o topo da tela de quem analisa e abre por um botão.",
+   "vale": "O topo da tela fica para a busca e para as contas, e quem envia continua enviando do mesmo jeito.",
+   "saber": [
+    "\"Enviar contas\" abre a área, e arrastar os PDFs para qualquer ponto da tela também vale.",
+    "Quem só envia continua vendo a área aberta.",
+    "Cada envio aparece com o número e, quando o prontuário já foi lido, o nome do paciente."
+   ],
+   "pronto": "A faturista abre a área de envio pelo botão, quem só envia encontra a área aberta como hoje, e soltar os PDFs em qualquer ponto da tela começa o envio.",
+   "depende": [
+    2
+   ]
+  },
+  {
+   "id": 6,
+   "etapa": 3,
+   "titulo": "Todas e Minhas",
+   "muda": "A faturista passa a ver com quem está cada conta e pode filtrar só as dela.",
+   "vale": "Ela para de procurar na Fila uma conta que a colega já pegou.",
+   "saber": [
+    "\"Todas\" e \"Minhas\" ficam no topo da tela, e a escolha fica guardada no computador dela.",
+    "As contas das colegas aparecem com o nome de quem pegou, mas só a dona abre.",
+    "A coordenação continua abrindo a conta de qualquer faturista."
+   ],
+   "pronto": "A faturista vê a conta que a colega pegou, com o nome da colega, e não consegue abrir. Em \"Minhas\", só aparecem as contas dela.",
+   "depende": [
+    2
+   ]
+  },
+  {
+   "id": 7,
+   "etapa": 3,
+   "titulo": "Busca por atendimento e paciente",
+   "muda": "Um campo no topo da tela acha qualquer conta pelo número do atendimento ou pelo nome do paciente.",
+   "vale": "Com cem contas na tela, a faturista chega à que procura sem rolar a lista.",
+   "saber": [
+    "A busca olha todas as etapas e diz onde a conta está e com quem.",
+    "Quando só uma conta bate, ela aparece grande no topo, com o botão para abrir.",
+    "O número da conta não entra na busca, só o do atendimento."
+   ],
+   "pronto": "A faturista digita 2775 no topo e a conta aparece grande, com a etapa e o nome de quem está com ela, mesmo que seja uma colega.",
+   "depende": [
+    2
+   ]
+  },
+  {
+   "id": 8,
+   "etapa": 3,
+   "titulo": "Só o que falta e o Auditor",
+   "muda": "Na conta aberta, a faturista esconde os itens já marcados e fala com o Auditor sem sair do item em que está.",
+   "vale": "A lista fica curta nas contas grandes, e a pergunta ao Auditor não tira o item da frente dela.",
+   "saber": [
+    "\"Só o que falta\" esconde da lista os itens já marcados.",
+    "\"Falar com o auditor\" abre ao lado da tela, e fecha sem perder a conversa."
+   ],
+   "pronto": "Com \"Só o que falta\" ligado, os itens marcados somem da lista. A conversa com o Auditor abre ao lado, e o item da vez continua na tela.",
+   "depende": [
+    3
+   ]
+  },
+  {
+   "id": 9,
+   "etapa": 4,
+   "titulo": "Arquivar por mês",
+   "muda": "A conta concluída pode ser arquivada, uma a uma ou o mês inteiro, para sair da esteira.",
+   "vale": "A equipe começa o ciclo do mês com a tela limpa, sem perder nada do que já fez.",
+   "saber": [
+    "A confirmação avisa que arquivar quer dizer que a conta já foi tratada no MV.",
+    "A faturista arquiva as contas dela. A coordenação e a gestão arquivam qualquer uma e o mês inteiro.",
+    "Dá para desarquivar, o Painel continua contando, e a conta que a Validação devolve volta sozinha para a esteira."
+   ],
+   "pronto": "Ao arquivar outubro, a confirmação diz quantas contas saem e quantas têm pendência. Depois, o Painel de outubro mostra os mesmos números, e a busca ainda acha cada conta arquivada.",
+   "depende": [
+    6,
+    7
+   ]
+  },
+  {
+   "id": 10,
+   "etapa": 5,
+   "titulo": "Manual com as telas novas",
+   "muda": "O manual de Contas médicas dentro do app passa a mostrar as telas novas.",
+   "vale": "Quem entra na equipe aprende no manual o mesmo que vê na tela.",
+   "saber": [
+    "Nascem três tarefas: achar uma conta, arquivar as contas do mês e ligar e desligar as legendas.",
+    "As tarefas de enviar, pegar e analisar a conta são reescritas com as telas novas.",
+    "Os prints usam dados fictícios."
+   ],
+   "pronto": "O manual dentro do app ensina a achar uma conta, arquivar as contas do mês e ligar e desligar as legendas, com passos e prints de dados fictícios.",
+   "depende": [
+    2,
+    3,
+    5,
+    6,
+    7,
+    8,
+    9
+   ]
+  }
+ ]
+}
