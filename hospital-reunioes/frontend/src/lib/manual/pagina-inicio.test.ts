@@ -69,3 +69,74 @@ describe("quem vê a página do Início no manual", () => {
     expect(lista[0]?.modulo).toBe("inicio");
   });
 });
+
+/** O texto do bloco ```fluxograma da página. */
+function blocoDoFluxograma(corpo: string): string {
+  const achado = /```fluxograma\n([\s\S]*?)```/.exec(corpo);
+  if (!achado) throw new Error("A página não tem o bloco fluxograma.");
+  return achado[1];
+}
+
+/** O caminho mais curto de um passo a outro, seguindo as ligações, ou null. */
+function caminho(fluxo: Fluxo, de: string, ate: string): string[] | null {
+  const veioDe = new Map<string, string | null>([[de, null]]);
+  const fila = [de];
+  while (fila.length) {
+    const atual = fila.shift()!;
+    if (atual === ate) {
+      const volta: string[] = [];
+      for (let p: string | null = atual; p !== null; p = veioDe.get(p) ?? null) volta.unshift(p);
+      return volta;
+    }
+    for (const l of fluxo.ligacoes) {
+      if (l.de === atual && !veioDe.has(l.para)) {
+        veioDe.set(l.para, atual);
+        fila.push(l.para);
+      }
+    }
+  }
+  return null;
+}
+
+describe("o fluxograma do Início", () => {
+  const leitura = lerFluxograma(blocoDoFluxograma(INICIO?.corpo ?? ""));
+  const fluxo = () => {
+    if (!leitura.ok) throw new Error(leitura.erros.join("\n"));
+    return leitura.fluxo;
+  };
+  const achar = (padrao: RegExp) => fluxo().passos.find((p) => padrao.test(p.rotulo));
+
+  it("começa em entrar no app", () => {
+    const [primeiro] = ordemDoFluxo(fluxo());
+    expect(primeiro.forma).toBe("inicio");
+    expect(primeiro.rotulo).toMatch(/^Entrar/);
+  });
+
+  it("vai de entrar a resolver na tela do módulo, passando por ler a frase e abrir o item, nesta ordem", () => {
+    const [entrar] = ordemDoFluxo(fluxo());
+    const frase = achar(/frase/i);
+    const abrir = achar(/^Abrir o item/);
+    const resolver = achar(/^Resolver na tela do módulo/);
+    expect(frase && abrir && resolver, "falta ler a frase, abrir o item ou resolver na tela do módulo").toBeTruthy();
+
+    const percurso = caminho(fluxo(), entrar.id, resolver!.id);
+    expect(percurso, "resolver na tela do módulo não se alcança a partir de entrar").not.toBeNull();
+    const posicao = (id: string) => percurso!.indexOf(id);
+    expect(posicao(frase!.id)).toBeGreaterThan(0);
+    expect(posicao(abrir!.id)).toBeGreaterThan(posicao(frase!.id));
+    expect(posicao(resolver!.id)).toBeGreaterThan(posicao(abrir!.id));
+  });
+});
+
+describe("as tarefas da página do Início", () => {
+  it.each([["Ver o que tenho para entregar"], ["Abrir um item da Minha Fila"], ["Acompanhar quem responde a você"]])(
+    "a tarefa %s tem passos numerados e pelo menos um print",
+    (tarefa) => {
+      const secao = secoes(INICIO!.corpo).find((s) => s.titulo === tarefa);
+      expect(secao, `a página não tem a tarefa "${tarefa}"`).toBeDefined();
+      const passos = secao!.texto.match(/^\d+\. /gm) ?? [];
+      expect(passos.slice(0, 2)).toEqual(["1. ", "2. "]);
+      expect(imagensCitadas(secao!.texto).length).toBeGreaterThan(0);
+    }
+  );
+});
