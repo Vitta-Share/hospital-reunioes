@@ -173,3 +173,143 @@ class TestAtaAAssinar:
         # Sem prazo não é vencido nem entra na frase.
         assert resposta.contadores.passou_do_prazo == 0
         assert resposta.frase.titulo == "Aurora, você está em dia."
+
+    def test_depois_da_ciencia_pela_clicksign_a_ata_sai(self, monkeypatch, nucleo):
+        """O webhook da ClickSign às vezes só casa o Signatário pelo email: o
+        aceite fica sem `participante_id`, e a Ata sai do mesmo jeito."""
+        banco = _Banco(
+            reunioes=[_reuniao("R3", status_ata="AGUARDANDO_ASSINATURA")],
+            reuniao_participantes=_na_reuniao("R3", "P_AURORA", "P_FACI"),
+            reuniao_aceites=[
+                {"id_reuniao": "R3", "participante_id": None, "email": "aurora@exemplo.org", "origem": "clicksign"}
+            ],
+        )
+
+        assert _atas(_rota(monkeypatch, AURORA, banco)) == []
+
+    def test_depois_do_aceite_interno_a_ata_sai(self, monkeypatch, nucleo):
+        banco = _Banco(
+            reunioes=[_reuniao("R4", status_ata="AGUARDANDO_ASSINATURA")],
+            reuniao_participantes=_na_reuniao("R4", "P_AURORA", "P_FACI"),
+            reuniao_aceites=[
+                {"id_reuniao": "R4", "participante_id": "P_AURORA", "email": None, "origem": "aceite_interno"},
+                {"id_reuniao": "R4", "participante_id": "P_FACI", "email": "fabio@exemplo.org", "origem": "clicksign"},
+            ],
+        )
+
+        assert _atas(_rota(monkeypatch, AURORA, banco)) == []
+
+    def test_aceite_de_outro_signatario_nao_tira_a_ata_dela(self, monkeypatch, nucleo):
+        banco = _Banco(
+            reunioes=[_reuniao("R5", status_ata="AGUARDANDO_ASSINATURA")],
+            reuniao_participantes=_na_reuniao("R5", "P_AURORA", "P_FACI"),
+            reuniao_aceites=[
+                {"id_reuniao": "R5", "participante_id": "P_FACI", "email": "fabio@exemplo.org", "origem": "clicksign"}
+            ],
+        )
+
+        assert _atas(_rota(monkeypatch, AURORA, banco)) == [("ata_a_assinar", "R5", "sem_prazo")]
+
+    def test_so_a_ata_em_assinatura_e_viva(self, monkeypatch, nucleo):
+        banco = _Banco(
+            reunioes=[
+                _reuniao("R6", status_ata="ASSINADA"),
+                _reuniao("R7", status_ata="APROVADA"),
+                _reuniao("R8", status_ata="AGUARDANDO_ASSINATURA", deleted_at="2026-11-15T00:00:00+00:00"),
+            ],
+            reuniao_participantes=(
+                _na_reuniao("R6", "P_AURORA") + _na_reuniao("R7", "P_AURORA") + _na_reuniao("R8", "P_AURORA")
+            ),
+        )
+
+        assert _atas(_rota(monkeypatch, AURORA, banco)) == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. A Ata parada, só para o Facilitador
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestAtaParada:
+    def _banco(self, dias_em_validacao: int) -> _Banco:
+        return _Banco(
+            reunioes=[
+                _reuniao(
+                    "R10",
+                    titulo="Reunião de Farmácia",
+                    data="2026-11-05",
+                    status_ata="AGUARDANDO_VALIDACAO",
+                    updated_at=_quando(dias_em_validacao),
+                )
+            ],
+            reuniao_participantes=_na_reuniao("R10", "P_AURORA", "P_FACI"),
+        )
+
+    def test_ate_o_terceiro_dia_a_ata_parada_fica_sem_prazo(self, monkeypatch, nucleo):
+        resposta = _rota(monkeypatch, FACILITADOR, self._banco(3))
+
+        assert _atas(resposta) == [("ata_parada", "R10", "sem_prazo")]
+        item = resposta.itens[0]
+        assert item.dias_esperando == 3
+        assert item.dias_de_atraso is None
+        assert item.titulo == "Ata em validação: Reunião de Farmácia"
+        assert item.origem == "Reunião de Farmácia, de 05/11/2026."
+        assert item.acao == "Revisar a Ata"
+        assert item.destino == "/reunioes/R10"
+        assert resposta.contadores.passou_do_prazo == 0
+        assert resposta.contadores.ate_48_horas == 0
+        assert resposta.frase.titulo == "Fabio, você está em dia."
+
+    def test_do_quarto_dia_em_diante_a_ata_parada_passou_do_prazo(self, monkeypatch, nucleo):
+        resposta = _rota(monkeypatch, FACILITADOR, self._banco(4))
+
+        assert _atas(resposta) == [("ata_parada", "R10", "passou_do_prazo")]
+        assert resposta.itens[0].dias_de_atraso == 1
+        assert resposta.itens[0].dias_esperando is None
+        assert resposta.contadores.passou_do_prazo == 1
+        assert resposta.frase.titulo == "Fabio, um prazo seu venceu."
+
+    def test_participante_que_ja_assinou_nao_ve_a_ata_parada_do_facilitador(self, monkeypatch, nucleo):
+        banco = self._banco(10)
+        banco.reuniao_aceites = [{"id_reuniao": "R10", "participante_id": "P_AURORA", "email": None}]
+
+        assert _atas(_rota(monkeypatch, AURORA, banco)) == []
+
+    def test_pessoa_de_fora_da_reuniao_nao_ve_nada(self, monkeypatch, nucleo):
+        banco = self._banco(10)
+        banco.reunioes.append(_reuniao("R11", status_ata="AGUARDANDO_ASSINATURA"))
+        banco.reuniao_participantes += _na_reuniao("R11", "P_AURORA", "P_FACI")
+
+        assert _atas(_rota(monkeypatch, DE_FORA, banco)) == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. O sigilo do Núcleo e o portão das Reuniões
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestSigiloDoNucleo:
+    def _banco(self) -> _Banco:
+        return _Banco(
+            reunioes=[
+                _reuniao("RN1", status_ata="AGUARDANDO_ASSINATURA"),
+                _reuniao("RN2", status_ata="AGUARDANDO_VALIDACAO", facilitador_id="P_AURORA"),
+                _reuniao("R20", status_ata="AGUARDANDO_ASSINATURA"),
+            ],
+            reuniao_participantes=_na_reuniao("RN1", "P_AURORA") + _na_reuniao("R20", "P_AURORA"),
+        )
+
+    def test_ata_do_nucleo_fora_do_alcance_nao_aparece(self, monkeypatch, nucleo):
+        nucleo["ocultas"] = ["RN1", "RN2"]
+
+        assert _atas(_rota(monkeypatch, AURORA, self._banco())) == [("ata_a_assinar", "R20", "sem_prazo")]
+
+    def test_quem_o_nucleo_deixa_ver_ve_a_ata_do_nucleo(self, monkeypatch, nucleo):
+        ids = sorted(id_reuniao for _tipo, id_reuniao, _grupo in _atas(_rota(monkeypatch, AURORA, self._banco())))
+
+        assert ids == ["R20", "RN1", "RN2"]
+
+    def test_sem_perfil_das_reunioes_nao_recebe_ata(self, monkeypatch, nucleo):
+        sem_reunioes = {**AURORA, "access_profile": None}
+
+        assert _atas(_rota(monkeypatch, sem_reunioes, self._banco())) == []
