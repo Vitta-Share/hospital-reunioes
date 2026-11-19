@@ -8,6 +8,13 @@
  * nome, no formato dos comentários de Pendência: "@" abre a lista de quem vê
  * a Demanda, que o servidor manda, e o clique escreve "@Nome Completo ". Quem
  * é avisado no sino é o servidor que decide.
+ *
+ * O Envio aos desenvolvedores (issue #2011, ADR 0108, decisões 3 a 5): quem
+ * não é Desenvolvedor vê o botão "Enviar para os desenvolvedores", desligado
+ * sem mensagem nova dele desde o último envio. O clique mostra o "Entendi
+ * assim:" que a IA leu das mensagens, com Enviar e Corrigir; o Enviar abre o
+ * Ajuste do plano e a conversa ganha a linha do envio. Quem decide se o botão
+ * aparece e quantas mensagens são novas é o servidor.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -16,13 +23,34 @@ import { Loader2, Send } from "lucide-react";
 import { LIMITE_DA_MENSAGEM } from "./assistente";
 import { BASE_TECNOLOGIA, FALHA_DE_CONEXAO, motivoDaRecusa } from "./demandas";
 
-type Mensagem = { id: string; autor: string | null; texto: string; criado_em: string | null; minha: boolean };
+type Mensagem = {
+  id: string;
+  autor: string | null;
+  texto: string;
+  criado_em: string | null;
+  minha: boolean;
+  /** A linha do Envio aos desenvolvedores, que não é bolha de ninguém. */
+  sistema?: boolean;
+};
 type Mencionavel = { id: string; nome: string };
+/** O botão do envio: nulo quando ele não aparece (Desenvolvedor, ou pedido sem card). */
+type Envio = { mensagens_novas: number };
+type Entendi = { id: string; topicos: string[]; cards: { numero: number; muda: string }[] };
 
 const CONVERSA_FALHOU = "Não foi possível carregar a Conversa da Demanda. Tente recarregar a página.";
 
 export function urlDaConversaDaDemanda(demandaId: string): string {
   return `${BASE_TECNOLOGIA}/chat/${encodeURIComponent(demandaId)}/conversa`;
+}
+
+function envioValido(item: unknown): item is Envio {
+  return typeof item === "object" && item !== null && typeof (item as Envio).mensagens_novas === "number";
+}
+
+function entendiValido(item: unknown): item is Entendi {
+  if (typeof item !== "object" || item === null) return false;
+  const e = item as Record<string, unknown>;
+  return typeof e.id === "string" && Array.isArray(e.topicos);
 }
 
 function mensagemValida(item: unknown): item is Mensagem {
@@ -63,6 +91,11 @@ export function ConversaDaDemanda({
   const [texto, setTexto] = useState("");
   const [busca, setBusca] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [envio, setEnvio] = useState<Envio | null>(null);
+  const [entendi, setEntendi] = useState<Entendi | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+  // A ação que falhou, para o "Tente de novo" repetir a mesma.
+  const [falhou, setFalhou] = useState<{ motivo: string; repetir: () => void } | null>(null);
   const caixa = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -78,10 +111,11 @@ export function ConversaDaDemanda({
           setErro(CONVERSA_FALHOU);
           return;
         }
-        const corpo = (await resposta.json()) as { mensagens?: unknown; mencionaveis?: unknown };
+        const corpo = (await resposta.json()) as { mensagens?: unknown; mencionaveis?: unknown; envio?: unknown };
         if (!viva) return;
         setMensagens(Array.isArray(corpo.mensagens) ? corpo.mensagens.filter(mensagemValida) : []);
         setMencionaveis(Array.isArray(corpo.mencionaveis) ? (corpo.mencionaveis as Mencionavel[]) : []);
+        setEnvio(envioValido(corpo.envio) ? corpo.envio : null);
       } catch (e) {
         console.error("[admin/tecnologia] falha ao abrir a Conversa da Demanda", e);
         if (viva) setErro(FALHA_DE_CONEXAO);
@@ -130,6 +164,8 @@ export function ConversaDaDemanda({
       }
       const nova: unknown = await resposta.json();
       if (mensagemValida(nova)) setMensagens((atuais) => [...(atuais ?? []), nova]);
+      // A mensagem de quem vê o botão é do lado do hospital: entra no próximo envio.
+      setEnvio((atual) => (atual ? { mensagens_novas: atual.mensagens_novas + 1 } : atual));
       setTexto("");
       setBusca(null);
     } catch (e) {
@@ -138,6 +174,62 @@ export function ConversaDaDemanda({
     } finally {
       setEnviando(false);
     }
+  }
+
+  async function interpretar() {
+    if (!token || ocupado) return;
+    setOcupado(true);
+    setFalhou(null);
+    try {
+      const resposta = await fetch(`${urlDaConversaDaDemanda(demandaId)}/interpretar`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!resposta.ok) {
+        setFalhou({ motivo: await motivoDaRecusa(resposta), repetir: interpretar });
+        return;
+      }
+      const corpo: unknown = await resposta.json();
+      if (entendiValido(corpo)) setEntendi(corpo);
+    } catch (e) {
+      console.error("[admin/tecnologia] falha ao interpretar o envio", e);
+      setFalhou({ motivo: FALHA_DE_CONEXAO, repetir: interpretar });
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  async function enviarAosDesenvolvedores(aprovado: Entendi) {
+    if (!token || ocupado) return;
+    const repetir = () => enviarAosDesenvolvedores(aprovado);
+    setOcupado(true);
+    setFalhou(null);
+    try {
+      const resposta = await fetch(`${urlDaConversaDaDemanda(demandaId)}/enviar`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ envio_id: aprovado.id }),
+      });
+      if (!resposta.ok) {
+        setFalhou({ motivo: await motivoDaRecusa(resposta), repetir });
+        return;
+      }
+      const linha: unknown = await resposta.json();
+      if (mensagemValida(linha)) setMensagens((atuais) => [...(atuais ?? []), linha]);
+      setEntendi(null);
+      setEnvio({ mensagens_novas: 0 });
+    } catch (e) {
+      console.error("[admin/tecnologia] falha ao enviar aos desenvolvedores", e);
+      setFalhou({ motivo: FALHA_DE_CONEXAO, repetir });
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  function corrigir() {
+    setEntendi(null);
+    setFalhou(null);
+    caixa.current?.focus();
   }
 
   const sugestoes = busca === null ? [] : mencionaveis.filter((p) => p.nome.toLowerCase().includes(busca));
@@ -150,7 +242,8 @@ export function ConversaDaDemanda({
       <div>
         <h2 className="text-sm font-bold text-slate-900">Conversa da Demanda</h2>
         <p className="normal-case text-xs text-text-secondary">
-          Para falar com quem cuida deste pedido. A IA não lê esta conversa, e nada daqui sai do aplicativo.
+          Para falar com quem cuida deste pedido. A IA só lê esta conversa no Enviar para os desenvolvedores, e o que
+          sai do aplicativo é só o resumo que você aprovar.
         </p>
       </div>
 
@@ -165,22 +258,86 @@ export function ConversaDaDemanda({
       )}
       {mensagens !== null && mensagens.length > 0 && (
         <ul className="space-y-3">
-          {mensagens.map((mensagem) => (
-            <li key={mensagem.id} className={`flex ${mensagem.minha ? "justify-end" : "justify-start"}`}>
-              <div
-                className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${
-                  mensagem.minha ? "bg-primary/5 border border-primary/20" : "bg-slate-50 border border-slate-200"
-                }`}
-              >
-                <p className="flex flex-wrap items-baseline gap-2 text-xs text-text-secondary">
-                  <span className="normal-case font-semibold text-slate-800">{mensagem.autor}</span>
-                  <span className="normal-case">{quando(mensagem.criado_em)}</span>
+          {mensagens.map((mensagem) =>
+            mensagem.sistema ? (
+              <li key={mensagem.id} className="flex justify-center">
+                <p className="normal-case max-w-[90%] whitespace-pre-wrap rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-800">
+                  {mensagem.texto}
                 </p>
-                <p className="normal-case whitespace-pre-wrap text-slate-800">{mensagem.texto}</p>
-              </div>
-            </li>
-          ))}
+              </li>
+            ) : (
+              <li key={mensagem.id} className={`flex ${mensagem.minha ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${
+                    mensagem.minha ? "bg-primary/5 border border-primary/20" : "bg-slate-50 border border-slate-200"
+                  }`}
+                >
+                  <p className="flex flex-wrap items-baseline gap-2 text-xs text-text-secondary">
+                    <span className="normal-case font-semibold text-slate-800">{mensagem.autor}</span>
+                    <span className="normal-case">{quando(mensagem.criado_em)}</span>
+                  </p>
+                  <p className="normal-case whitespace-pre-wrap text-slate-800">{mensagem.texto}</p>
+                </div>
+              </li>
+            ),
+          )}
         </ul>
+      )}
+
+      {entendi && (
+        <div
+          role="group"
+          aria-label="Entendi assim:"
+          className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 space-y-2"
+        >
+          <p className="text-sm font-semibold text-slate-900">Entendi assim:</p>
+          <ul className="list-disc pl-5 space-y-1">
+            {entendi.topicos.map((topico) => (
+              <li key={topico} className="normal-case text-sm text-slate-800">
+                {topico}
+              </li>
+            ))}
+          </ul>
+          {entendi.cards.length > 0 && (
+            <ul className="space-y-1">
+              {entendi.cards.map((card) => (
+                <li key={card.numero} className="normal-case text-xs text-text-secondary">
+                  Parte {card.numero}: {card.muda}
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => enviarAosDesenvolvedores(entendi)}
+              disabled={ocupado}
+              className="px-3 py-1.5 rounded-lg bg-primary text-white text-sm font-semibold disabled:opacity-40"
+            >
+              Enviar
+            </button>
+            <button
+              type="button"
+              onClick={corrigir}
+              disabled={ocupado}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-800 disabled:opacity-40"
+            >
+              Corrigir
+            </button>
+          </div>
+        </div>
+      )}
+
+      {falhou && (
+        <div
+          role="alert"
+          className="normal-case px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm space-y-2"
+        >
+          <p>{falhou.motivo}</p>
+          <button type="button" onClick={falhou.repetir} disabled={ocupado} className="font-semibold underline">
+            Tente de novo
+          </button>
+        </div>
       )}
 
       {erro && (
@@ -241,6 +398,18 @@ export function ConversaDaDemanda({
           </ul>
         )}
       </div>
+
+      {envio && (
+        <button
+          type="button"
+          onClick={interpretar}
+          disabled={envio.mensagens_novas === 0 || ocupado || entendi !== null}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-primary text-primary text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {ocupado && !entendi && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+          Enviar para os desenvolvedores
+        </button>
+      )}
     </section>
   );
 }
