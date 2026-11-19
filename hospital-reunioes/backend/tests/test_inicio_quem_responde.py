@@ -41,15 +41,22 @@ class _Result:
 
 
 class _Consulta:
-    def __init__(self, linhas: list[dict]):
+    """A consulta de mentira. `teto` imita o `max_rows` do PostgREST: corta
+    a resposta em silêncio, com HTTP 200. Recorte sem `order` é recusado,
+    porque o PostgREST não garante a ordem e a página seguinte pularia linha."""
+
+    def __init__(self, linhas: list[dict], teto: int | None = None):
         self._linhas = linhas
+        self._teto = teto
         self._filtros: list = []
+        self._ordem: list[str] = []
         self._recorte: tuple[int, int] | None = None
 
     def select(self, *_a, **_kw):
         return self
 
-    def order(self, *_a, **_kw):
+    def order(self, coluna, *_a, **_kw):
+        self._ordem.append(coluna)
         return self
 
     def range(self, inicio, fim):
@@ -72,8 +79,13 @@ class _Consulta:
 
     def execute(self):
         linhas = [dict(linha) for linha in self._linhas if all(f(linha) for f in self._filtros)]
+        if self._ordem:
+            linhas.sort(key=lambda linha: tuple(str(linha.get(c)) for c in self._ordem))
         if self._recorte:
+            assert self._ordem, "recorte sem order: a página seguinte pode repetir ou pular linha"
             linhas = linhas[self._recorte[0] : self._recorte[1] + 1]
+        if self._teto is not None:
+            linhas = linhas[: self._teto]
         return _Result(linhas)
 
 
@@ -83,9 +95,10 @@ class _Banco:
     reunioes: list = field(default_factory=list)
     participantes: list = field(default_factory=list)
     registro_de_acesso: list = field(default_factory=list)
+    teto: int | None = None
 
     def table(self, nome):
-        return _Consulta(getattr(self, nome))
+        return _Consulta(getattr(self, nome), self.teto)
 
 
 def _pendencia(id_acao: str, responsavel_id: str, **campos) -> dict:
@@ -254,6 +267,22 @@ class TestLinhaDaPessoa:
         banco = _banco(_pendencia("A1", "P_ANA"), acessos=acessos)
 
         assert _rota(monkeypatch, SUPER, banco).pessoas[0].ultimo_acesso == texto
+
+    def test_o_ultimo_acesso_sai_certo_quando_o_banco_corta_a_resposta_no_teto(self, monkeypatch, nucleo):
+        # Ana abriu o Início nos últimos 30 dias, hoje por último; Bruno só
+        # hoje. Com o banco cortando cada resposta em 5 linhas, uma leitura só
+        # perderia o dia de hoje da Ana e a única marca do Bruno.
+        acessos = [("P_ANA", (HOJE - timedelta(days=n)).isoformat()) for n in reversed(range(30))]
+        banco = _banco(
+            _pendencia("A1", "P_ANA"),
+            _pendencia("B1", "P_BRUNO"),
+            acessos=[*acessos, ("P_BRUNO", HOJE.isoformat())],
+        )
+        banco.teto = 5
+
+        resposta = _rota(monkeypatch, SUPER, banco)
+
+        assert {p.nome: p.ultimo_acesso for p in resposta.pessoas} == {"Ana Souza": "hoje", "Bruno Reis": "hoje"}
 
     def test_a_lista_vem_ordenada_por_prazos_vencidos(self, monkeypatch, nucleo):
         banco = _banco(

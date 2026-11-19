@@ -135,11 +135,23 @@ def _visiveis(supabase, me: dict) -> tuple[list[dict], dict[str, dict]] | None:
 
 
 def _ultimos_acessos(supabase, ids: list[str]) -> dict[str, date]:
+    """Até 90 marcas por pessoa: a lista do Super admin passa fácil do teto
+    de linhas do PostgREST, que corta em silêncio. Por isso lê em páginas,
+    ordenado pela chave da tabela."""
     if not ids:
         return {}
-    resultado = supabase.table(TABELA_DO_REGISTRO).select("participante_id, dia").in_("participante_id", ids).execute()
+
+    def consulta():
+        return (
+            supabase.table(TABELA_DO_REGISTRO)
+            .select("participante_id, dia")
+            .in_("participante_id", ids)
+            .order("participante_id")
+            .order("dia")
+        )
+
     ultimos: dict[str, date] = {}
-    for linha in resultado.data or []:
+    for linha in ler_tudo(consulta, rotulo="último acesso de Quem responde a você"):
         dia = _data(linha.get("dia"))
         if dia and (linha["participante_id"] not in ultimos or dia > ultimos[linha["participante_id"]]):
             ultimos[linha["participante_id"]] = dia
