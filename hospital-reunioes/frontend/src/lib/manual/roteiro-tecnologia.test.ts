@@ -18,7 +18,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { conversaValida } from "@/components/tecnologia/chat";
-import { colunasDoQuadro, type Demanda } from "@/components/tecnologia/demandas";
+import { colunasDoQuadro, linkDoPlano, type Demanda } from "@/components/tecnologia/demandas";
 import { carregarPaginasDoManual } from "./carregar";
 import { imagensCitadas } from "./paginas";
 
@@ -46,6 +46,13 @@ function sino(): Record<string, unknown> {
   return JSON.parse(rodada.stdout);
 }
 
+/** As respostas dos dois cliques do Envio aos desenvolvedores, os únicos que não são GET (issue #2015). */
+function envio(): Record<string, unknown> {
+  const rodada = spawnSync("python3", [join(PASTA, "respostas.py"), "--envio"], { encoding: "utf8" });
+  if (rodada.status !== 0) throw new Error(rodada.stderr);
+  return JSON.parse(rodada.stdout);
+}
+
 /** Todo texto de um valor JSON, folha por folha. */
 function folhas(valor: unknown): string[] {
   if (typeof valor === "string") return [valor];
@@ -63,7 +70,10 @@ const NOMES_REAIS = ["pedro rezende", "pedro rib", "lucas sampaio", "hospitalsao
 function dadoReal(texto: string): string[] {
   const dobrado = texto.toLocaleLowerCase("pt-BR");
   const emails = (dobrado.match(EMAIL) ?? []).filter((e) => !e.endsWith("@exemplo.local"));
-  const enderecos = (dobrado.match(ENDERECO) ?? []).filter((u) => !/^https:\/\/[\w.-]*exemplo\.local(\/|$)/.test(u));
+  // A página dos planos é a única que o Ver o plano abre (issue #2010): só com caminho de exemplo.
+  const enderecos = (dobrado.match(ENDERECO) ?? []).filter(
+    (u) => !/^https:\/\/[\w.-]*exemplo\.local(\/|$)/.test(u) && !/^https:\/\/planos-hsm\.vercel\.app\/exemplo-/.test(u),
+  );
   // Data e hora (2026-11-12, 2026-11-12T12:00:00-03:00) são do calendário, não de gente.
   const semDatas = texto.replace(/\b\d{4}-\d{2}-\d{2}(?:T[\d:.]+(?:Z|[+-]\d{2}:\d{2})?)?\b/g, "");
   const numeros = NUMERO_LONGO.test(semDatas) ? [texto] : [];
@@ -209,6 +219,66 @@ describe("a pergunta da Vitta e o pedido de projeto novo na tabela (issue #1968,
   });
 });
 
+describe("o Ver o plano e o Envio aos desenvolvedores na tabela (issue #2015, PRD #2007)", () => {
+  const T = tabela();
+  const lista = T["chat"] as Demanda[];
+  const E = envio();
+  const id = SEED.abrir.envio as string;
+  const conversa = () => T[`chat/${id}/conversa`] as {
+    mensagens: { texto: string; minha: boolean }[];
+    envio?: { mensagens_novas: number };
+  };
+
+  it("o Quadro tem um card com o plano já validado e outro com o plano por validar, os dois com link que a tela desenha", () => {
+    const comPlano = lista.filter((d) => linkDoPlano(d) !== null);
+    expect(comPlano.some((d) => d.plano_validado === true)).toBe(true);
+    expect(comPlano.some((d) => d.plano_validado === false)).toBe(true);
+  });
+
+  it("a Conversa do pedido do envio termina em mensagens do diretor, e o botão conta só essas", () => {
+    const { mensagens, envio: botao } = conversa();
+    const finais = mensagens.length - mensagens.findLastIndex((m) => !m.minha) - 1;
+    expect(finais).toBeGreaterThan(0);
+    expect(botao).toEqual({ mensagens_novas: finais });
+  });
+
+  it("o interpretar responde o Entendi assim, com tópicos e o que muda em cada parte do pedido", () => {
+    const entendi = E[`chat/${id}/conversa/interpretar`] as { id: string; topicos: string[]; cards: { numero: number; muda: string }[] };
+    expect(entendi.id).toEqual(expect.any(String));
+    expect(entendi.topicos.length).toBeGreaterThan(0);
+    const partes = (lista.find((d) => d.id === id)!.partes ?? []).map((p) => p.numero);
+    expect(entendi.cards.length).toBeGreaterThan(0);
+    for (const card of entendi.cards) expect(partes).toContain(card.numero);
+  });
+
+  it("os tópicos não copiam a fala do diretor (ADR 0083, decisão 8)", () => {
+    const entendi = E[`chat/${id}/conversa/interpretar`] as { topicos: string[] };
+    const falas = conversa().mensagens.filter((m) => m.minha).map((m) => m.texto.toLocaleLowerCase("pt-BR"));
+    for (const topico of entendi.topicos) {
+      expect(falas.some((f) => f.includes(topico.toLocaleLowerCase("pt-BR").replace(/\.$/, "")))).toBe(false);
+    }
+  });
+
+  it("o enviar responde a linha Enviado aos desenvolvedores, do sistema, com a data, a hora e os tópicos aprovados", () => {
+    const entendi = E[`chat/${id}/conversa/interpretar`] as { topicos: string[] };
+    const linha = E[`chat/${id}/conversa/enviar`] as { id: string; texto: string; sistema: boolean; minha: boolean };
+    expect(linha.sistema).toBe(true);
+    expect(linha.minha).toBe(false);
+    expect(linha.texto).toMatch(/^Enviado aos desenvolvedores em \d{2}\/\d{2}\/\d{4}, às \d{2}:\d{2}:\n/);
+    expect(linha.texto.split("\n").slice(1)).toEqual(entendi.topicos.map((t) => `- ${t}`));
+  });
+
+  it("o roteiro só responde um pedido que não é GET pela tabela do envio, e o resto continua recusado", () => {
+    const texto = readFileSync(ROTEIRO, "utf8");
+    expect(texto).toMatch(/respostas\.py" --envio/);
+    expect(Object.keys(E).sort()).toEqual([`chat/${id}/conversa/enviar`, `chat/${id}/conversa/interpretar`]);
+  });
+
+  it("as respostas do envio não trazem e-mail, telefone, endereço nem nome de gente de verdade", () => {
+    expect(folhas(E).flatMap(dadoReal)).toEqual([]);
+  });
+});
+
 describe("o seed e as respostas da página de Tecnologia", () => {
   it("o diretor de exemplo fica na faixa P17280 a P17289, longe das pessoas dos outros roteiros", () => {
     expect(SEED.admin.id).toMatch(/^P1728\d$/);
@@ -249,6 +319,8 @@ describe("os detectores do roteiro e do dado real", () => {
     }
     expect(dadoReal("HENRIQUE.BASTOS@EXEMPLO.LOCAL")).toEqual([]);
     expect(dadoReal("https://demonstracao.exemplo.local/selo")).toEqual([]);
+    expect(dadoReal("https://planos-hsm.vercel.app/exemplo-51/")).toEqual([]);
+    expect(dadoReal("https://planos-hsm.vercel.app/2007/")).not.toEqual([]);
     expect(dadoReal("2026-11-12T12:00:00-03:00")).toEqual([]);
   });
 });

@@ -10,7 +10,10 @@
 # no lugar do backend em toda rota da aba Tecnologia com a tabela do
 # respostas.py. Rota fora da tabela recebe 404, e pedido que grava (mandar
 # fala, Criar o card) recebe 403: nenhuma conversa chega à IA, nenhum card
-# nasce no GitHub e nenhum pedido de verdade entra no print. O sino responde
+# nasce no GitHub e nenhum pedido de verdade entra no print. Os dois cliques do
+# Envio aos desenvolvedores, interpretar e enviar, respondem pelo
+# `respostas.py --envio` (issue #2015), e também não chegam à IA nem ao
+# GitHub. O sino responde
 # do mesmo jeito, pelo `respostas.py --sino` (issue #1968): nenhum aviso de
 # verdade aparece, e marcar como lido não grava nada.
 
@@ -64,13 +67,15 @@ pw run-code "async page => { await page.waitForURL(u => !u.pathname.startsWith('
 # Toda rota da aba responde pela tabela, no lugar do backend.
 pw run-code "async page => {
   const tabela = $(python3 "$AQUI/respostas.py");
+  const envio = $(python3 "$AQUI/respostas.py" --envio);
   await page.route(u => u.pathname.includes('/api/admin/tecnologia/'), route => {
     const pedido = route.request();
-    if (pedido.method() !== 'GET') {
-      return route.fulfill({ status: 403, json: { detail: 'O roteiro do manual não grava nada.' } });
-    }
     const url = new URL(pedido.url());
     const chave = decodeURIComponent(url.pathname.split('/api/admin/tecnologia/')[1] + url.search);
+    if (pedido.method() !== 'GET') {
+      if (pedido.method() === 'POST' && chave in envio) return route.fulfill({ json: envio[chave] });
+      return route.fulfill({ status: 403, json: { detail: 'O roteiro do manual não grava nada.' } });
+    }
     if (!(chave in tabela)) {
       return route.fulfill({ status: 404, json: { detail: 'Sem resposta de exemplo para ' + chave } });
     }
@@ -97,6 +102,10 @@ echo "prints em $SAIDA:"
 pw goto "$TECNOLOGIA"
 esperar "Em desenvolvimento"
 print_tela "quadro.png"
+# O botão Ver o plano no card (issue #2015): o plano já validado, com o check.
+# O plano por validar, sem o check, fica no quadro.png, na coluna Planejada.
+pw run-code "async page => { await page.getByRole('link', { name: 'Ver o plano, já validado', exact: true }).waitFor() }"
+print "$(bloco "Em desenvolvimento")" "ver-o-plano.png"
 pw run-code "async page => { await page.getByRole('button', { name: /Painel de Contas médicas por convênio/ }).click() }"
 esperar "Henrique, as duas primeiras partes já estão no ar. A próxima traz o filtro de período."
 print_tela "pedido-no-painel.png"
@@ -117,6 +126,20 @@ print "$(bloco "Documento do card")" "projeto-novo.png"
 pw run-code "async page => { await page.getByRole('complementary', { name: 'Pedido aberto' }).getByRole('button', { name: 'Conversar' }).click(); await page.waitForTimeout(600) }"
 esperar "A troca entre dois plantonistas precisa da aprovação da coordenação, ou vale assim que os dois confirmam?"
 print "getByRole('complementary', { name: 'Pedido aberto' })" "pergunta-na-conversa.png"
+pw run-code "async page => { await page.getByRole('button', { name: 'Fechar o pedido' }).click() }"
+
+# Mandar o que você escreveu aos desenvolvedores (issue #2015): o Entendi assim
+# das mensagens do diretor e a linha Enviado aos desenvolvedores.
+pw run-code "async page => { await page.getByRole('button', { name: /Lembrete por e-mail do POP perto de vencer/ }).click() }"
+esperar "Plano"
+pw run-code "async page => { await page.getByRole('complementary', { name: 'Pedido aberto' }).getByRole('button', { name: 'Conversar' }).click(); await page.waitForTimeout(600) }"
+esperar "Enviar para os desenvolvedores"
+pw run-code "async page => { await page.getByRole('button', { name: 'Enviar para os desenvolvedores' }).click() }"
+esperar "Entendi assim:"
+pw run-code "async page => { await page.getByRole('region', { name: 'Conversa da Demanda' }).scrollIntoViewIfNeeded(); await page.waitForTimeout(400) }"
+print "$(bloco "Conversa da Demanda")" "entendi-assim.png"
+pw run-code "async page => { await page.getByRole('group', { name: 'Entendi assim:' }).getByRole('button', { name: 'Enviar', exact: true }).click(); await page.getByText(/^Enviado aos desenvolvedores em /).waitFor(); await page.waitForTimeout(600) }"
+print "$(bloco "Conversa da Demanda")" "enviado-aos-desenvolvedores.png"
 pw run-code "async page => { await page.getByRole('button', { name: 'Fechar o pedido' }).click() }"
 
 # Filtrar por Projeto: o campo Projeto em Ana.

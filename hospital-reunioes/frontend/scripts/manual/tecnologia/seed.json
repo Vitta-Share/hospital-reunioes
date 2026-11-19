@@ -14,7 +14,8 @@
     "melhoria": "exemplo-58",
     "bug": "exemplo-59",
     "painel": "exemplo-47",
-    "projeto_novo": "exemplo-60"
+    "projeto_novo": "exemplo-60",
+    "envio": "exemplo-51"
   },
   "demandas": [
     {
@@ -50,7 +51,13 @@
       "id": "exemplo-51", "numero": 51, "dias": 6, "hora": "08:45",
       "titulo": "Lembrete por e-mail do POP perto de vencer",
       "classificacao": "melhoria", "etapa": "planejada", "projeto": "hospital", "origem": "diretor",
-      "responsavel": "Rafael Moura", "partes": [0, 3]
+      "responsavel": "Rafael Moura", "partes": [0, 3], "raiz_numero": 310,
+      "apresentacao": "https://planos-hsm.vercel.app/exemplo-51/", "plano_validado": false,
+      "partes_da_entrega": [
+        { "numero": 311, "onda": 1, "o_que_muda": "O e-mail de lembrete sai antes de o POP vencer." },
+        { "numero": 312, "onda": 2, "o_que_muda": "O lembrete vai para o dono do POP." },
+        { "numero": 313, "onda": 2, "o_que_muda": "O POP perto de vencer ganha um selo na lista." }
+      ]
     },
     {
       "id": "exemplo-53", "numero": 53, "dias": 4, "hora": "16:30",
@@ -63,6 +70,7 @@
       "titulo": "Painel de Contas médicas por convênio",
       "classificacao": "melhoria", "etapa": "em_desenvolvimento", "projeto": "hospital", "origem": "diretor",
       "responsavel": "Clara Nogueira", "partes": [2, 5], "raiz_numero": 301,
+      "apresentacao": "https://planos-hsm.vercel.app/exemplo-47/", "plano_validado": true,
       "partes_da_entrega": [
         { "numero": 302, "onda": 1, "o_que_muda": "O painel separa as guias por convênio." },
         { "numero": 303, "onda": 2, "o_que_muda": "Cada convênio mostra as guias enviadas, pagas e glosadas." },
@@ -125,6 +133,23 @@
     { "autor": "Henrique Bastos", "texto": "Ótimo. Dá para incluir os convênios sem guia no mês, com zero?", "dias": 1, "minha": true },
     { "autor": "Clara Nogueira", "texto": "Dá, sim. Entra na mesma parte.", "dias": 0, "minha": false }
   ],
+  "envio": {
+    "falas": [
+      { "autor": "Rafael Moura", "texto": "Henrique, o plano do lembrete está no botão Ver o plano do card. Se quiser mudar algo, escreva aqui.", "dias": 1, "minha": false },
+      { "autor": "Henrique Bastos", "texto": "Li o plano. Sete dias é pouco, quero o aviso duas semanas antes.", "dias": 0, "minha": true },
+      { "autor": "Henrique Bastos", "texto": "E o gestor do setor precisa saber também, não só o dono do POP.", "dias": 0, "minha": true }
+    ],
+    "entendi": {
+      "topicos": [
+        "O lembrete sai 15 dias antes de o POP vencer, e não 7.",
+        "O gestor do setor do POP recebe o lembrete junto com o dono."
+      ],
+      "cards": [
+        { "numero": 311, "muda": "o prazo do lembrete passa de 7 para 15 dias." },
+        { "numero": 312, "muda": "o gestor do setor entra entre quem recebe o e-mail." }
+      ]
+    }
+  },
   "pergunta_do_projeto_novo": {
     "autor": "Clara Nogueira",
     "assunto": "aprovação da troca de plantão",

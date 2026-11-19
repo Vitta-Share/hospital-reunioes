@@ -40,7 +40,7 @@ Se a conversa parar no meio, ela fica guardada como Registrada. Clique no pedido
 3. Em cada card, veja o número da Demanda, o título, o selo **Bug** ou **Melhoria**, o Projeto, as iniciais de quem cuida, a versão quando ele já está Em produção e, quando o pedido tem partes, quantas já foram entregues.
 4. Quando o pedido já tem um plano publicado, o card mostra no canto o botão quadrado **Ver o plano**, com o ícone de apresentação. Clique nele para abrir a página do plano em outra aba. Um check verde no botão quer dizer que você já validou aquele plano. Ao abrir o card, o cartão **Plano** também leva à página. Para validar, continue usando o link do e-mail.
 
-   ![Os cards com o botão Ver o plano, um deles com o check de validado](ver-o-plano.png)
+   ![Um card com o botão Ver o plano e o check de plano validado](ver-o-plano.png)
 
 5. Clique num card. Ele abre num painel à direita, com o documento do pedido: o que ele muda para você, as partes e as datas.
 6. Em **Partes**, veja em que ordem o pedido entra. As partes vêm agrupadas por Onda: a **Onda 1** tem as que não dependem de outra parte do pedido, e cada Onda seguinte entra depois das que ela espera. Cada parte traz o seu número, como **#304**, para você citar aquela parte quando falar com a Vitta. Se a parte ainda espera outra terminar, aparece embaixo dela a linha **Espera a #304**. Quando a outra é de um pedido diferente, a linha diz **Espera a #288, de outro pedido**. A linha some sozinha quando a outra parte termina.
@@ -164,5 +164,4 @@ envio -> entendi
 entendi -> enviado: Enviar
 entendi -> corrigir: Corrigir
 corrigir -> envio
-enviado -> desenvolvimento: o trabalho segue
 ```

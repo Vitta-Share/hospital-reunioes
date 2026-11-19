@@ -264,7 +264,7 @@ describe("a tarefa de mandar o que você escreveu aos desenvolvedores (issue #20
       indice(/Escreva/),
       indice(/clique em \*\*Enviar para os desenvolvedores\*\*/),
       indice(/\*\*Entendi assim:\*\*/),
-      indice(/clique em \*\*Enviar\*\*.*\*\*Corrigir\*\*/s),
+      indice(/clique em \*\*Enviar\*\*[\s\S]*\*\*Corrigir\*\*/),
       indice(/\*\*Enviado aos desenvolvedores\*\*/),
     ];
     expect(ordem.every((i) => i >= 0), `faltam passos: ${ordem.join(", ")}`).toBe(true);
