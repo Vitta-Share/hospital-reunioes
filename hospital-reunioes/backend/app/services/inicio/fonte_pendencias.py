@@ -16,7 +16,7 @@ from typing import Any
 from app.dependencies import recursos_nsp_da_pessoa, reunioes_ocultas
 from app.services.pendencia_service import e_lembrete_do_nucleo
 
-ROTULO = "Pendências"
+ROTULO = "as Pendências"
 
 STATUS_ABERTOS = ("PENDENTE", "EM_PROGRESSO", "ATRASADO", "REPACTUADA")
 
