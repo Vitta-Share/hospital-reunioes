@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-18T23:29+0000 -->
+<!-- last_update: 2026-11-19T18:01+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -600,6 +600,8 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/admin/tecnologia/chat/{demanda_id}/atualizar-card` | O "Atualizar o card" no fim da revisão (ADR 0084, decisão 3). | ✅ |
 | GET | `/admin/tecnologia/chat/{demanda_id}/conversa` | A Conversa da Demanda, da mais antiga para a mais nova, e quem pode ser | ✅ |
 | POST | `/admin/tecnologia/chat/{demanda_id}/conversa` | Uma mensagem na Conversa da Demanda. Escreve quem ve a Demanda. Nada | ✅ |
+| POST | `/admin/tecnologia/chat/{demanda_id}/conversa/enviar` | O "Enviar" do "Entendi assim:": abre o Ajuste do plano e devolve a linha | ✅ |
+| POST | `/admin/tecnologia/chat/{demanda_id}/conversa/interpretar` | O "Entendi assim:" das mensagens do diretor desde o ultimo envio. A IA | ✅ |
 | POST | `/admin/tecnologia/chat/{demanda_id}/criar-card` | O "Criar o card" do resumo (ADR 0077, decisoes 6 e 7). | ✅ |
 | POST | `/admin/tecnologia/chat/{demanda_id}/designar-de-novo` | O "Designar de novo" da issue que nasceu sem o Responsavel (issue #1536, | ✅ |
 | PUT | `/admin/tecnologia/chat/{demanda_id}/modelo` | O seletor "Sonnet 5.5 \| Opus 5.5" da conversa (issue #1921, ADR 0103). | ✅ |
@@ -661,4 +663,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 380 endpoints em 55 routers · 93% exigem auth.
+**Totais:** 382 endpoints em 55 routers · 93% exigem auth.

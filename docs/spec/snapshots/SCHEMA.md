@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-19T18:00+0000 -->
+<!-- last_update: 2026-11-19T18:01+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -146,6 +146,7 @@ erDiagram
     participantes ||--o{ tecnologia_demandas : "concluida_por"
     participantes ||--o{ tecnologia_demandas : "responsavel_id"
     participantes ||--o{ tecnologia_demandas : "vinculado_por"
+    participantes ||--o{ tecnologia_envios_aos_desenvolvedores : "enviado_por"
     participantes ||--o{ tecnologia_planejamentos : "revisao_por"
     participantes ||--o{ tecnologia_produtos : "dono_id"
     participantes ||--o{ user_preferences : "participante_id"
@@ -170,6 +171,7 @@ erDiagram
     tecnologia_demandas ||--o{ tecnologia_chamadas_ia : "demanda_id"
     tecnologia_demandas ||--o{ tecnologia_conversa_da_demanda : "demanda_id"
     tecnologia_demandas ||--o{ tecnologia_conversas : "demanda_id"
+    tecnologia_demandas ||--o{ tecnologia_envios_aos_desenvolvedores : "demanda_id"
     tecnologia_demandas ||--o{ tecnologia_planejamentos : "demanda_id"
     tecnologia_produtos ||--o{ tecnologia_demandas : "produto_id"
     tipos_reuniao ||--o{ reunioes : "tipo_id"
@@ -1202,6 +1204,17 @@ erDiagram
         TIMESTAMPTZ assinado_em
         TIMESTAMPTZ created_at
     }
+    tecnologia_envios_aos_desenvolvedores {
+        UUID id PK
+        UUID demanda_id FK
+        VARCHAR enviado_por FK
+        JSONB topicos
+        JSONB cards
+        TIMESTAMPTZ ate_mensagem_em
+        INTEGER ajuste_numero
+        TEXT estado
+        _ mais_colunas "+4"
+    }
 ```
 
 ## Indexes principais
@@ -1393,6 +1406,8 @@ erDiagram
 | `nsp_documentos_envios` | `idx_nsp_documentos_envios_documento` | `documento_id, created_at DESC` | `159_nsp_assinatura_dos_documentos.sql` |
 | `nsp_documentos_envios` | `idx_nsp_documentos_envios_autor` | `autor_id` | `159_nsp_assinatura_dos_documentos.sql` |
 | `nsp_documentos_signatarios` | `idx_nsp_documentos_signatarios_participante` | `participante_id` | `159_nsp_assinatura_dos_documentos.sql` |
+| `tecnologia_envios_aos_desenvolvedores` | `idx_tecnologia_envios_aos_desenvolvedores_demanda` | `demanda_id, ate_mensagem_em` | `165_tecnologia_envio_aos_desenvolvedores.sql` |
+| `tecnologia_envios_aos_desenvolvedores` | `uq_tecnologia_envios_aos_desenvolvedores_um_ajuste` | `demanda_id, ate_mensagem_em` | `165_tecnologia_envio_aos_desenvolvedores.sql` |
 
 ---
-**Resumo:** 109 tabelas · 165 relacionamentos FK detectados.
+**Resumo:** 110 tabelas · 167 relacionamentos FK detectados.

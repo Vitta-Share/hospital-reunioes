@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-19T18:00+0000 -->
+<!-- last_update: 2026-11-19T18:01+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2226,6 +2226,29 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_nsp_documentos_signatarios_participante` em `(participante_id)` (de `159_nsp_assinatura_dos_documentos.sql`)
 
+## tecnologia_envios_aos_desenvolvedores
+
+> Origem: `165_tecnologia_envio_aos_desenvolvedores.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `demanda_id` | `UUID` | NOT NULL | — | `tecnologia_demandas.id` |
+| `enviado_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `topicos` | `JSONB` | NOT NULL | `'[]'::jsonb` | — |
+| `cards` | `JSONB` | NOT NULL | `'[]'::jsonb` | — |
+| `ate_mensagem_em` | `TIMESTAMPTZ` | NOT NULL | — | — |
+| `ajuste_numero` | `INTEGER` | — | — | — |
+| `estado` | `TEXT` | NOT NULL | `'interpretado'` | — |
+| `motivo` | `TEXT` | — | — | — |
+| `estado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `enviado_em` | `TIMESTAMPTZ` | — | — | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_tecnologia_envios_aos_desenvolvedores_demanda` em `(demanda_id, ate_mensagem_em)` (de `165_tecnologia_envio_aos_desenvolvedores.sql`)
+- `uq_tecnologia_envios_aos_desenvolvedores_um_ajuste` em `(demanda_id, ate_mensagem_em)` (de `165_tecnologia_envio_aos_desenvolvedores.sql`)
+
 ---
 
-**Resumo:** 109 tabelas vivas.
+**Resumo:** 110 tabelas vivas.

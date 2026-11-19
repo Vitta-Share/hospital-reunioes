@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-19T18:00+0000 -->
+<!-- last_update: 2026-11-19T18:01+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -162,6 +162,7 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 162 | `162_nsp_temas_minimos_da_anvisa.sql` | Os 17 temas mínimos de capacitação dos membros do Núcleo, do caderno nº 6 | 0 | 0 | 0 | 0 |
 | 163 | `163_tecnologia_projeto_novo.sql` | a Demanda de um Projeto novo | 0 | 2 | 0 | 0 |
 | 164 | `164_tecnologia_atalho_do_plano.sql` | o atalho Ver o plano no card | 0 | 2 | 0 | 0 |
+| 165 | `165_tecnologia_envio_aos_desenvolvedores.sql` | o Envio aos desenvolvedores pela Conversa da Demanda | 1 | 0 | 2 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 156 migrations.
+**Total:** 157 migrations.
