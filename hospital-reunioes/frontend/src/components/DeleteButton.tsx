@@ -66,8 +66,10 @@ export interface DeleteButtonProps {
    * - `solid` (default): fundo roxo solido.
    * - `outline`: borda roxa, texto roxo, fundo transparente.
    * - `ghost`: sem borda nem fundo, so texto roxo (pra usar em menus).
+   * - `danger-outline`: borda e texto vermelhos, fundo transparente; o estilo
+   *   secundario das outras exclusoes do app (o Desmarcar da Reuniao, #1860).
    */
-  buttonVariant?: "solid" | "outline" | "ghost";
+  buttonVariant?: "solid" | "outline" | "ghost" | "danger-outline";
 }
 
 export function DeleteButton({
@@ -105,7 +107,9 @@ export function DeleteButton({
       ? "bg-purple-600 text-white hover:bg-purple-700 border border-purple-600"
       : buttonVariant === "outline"
         ? "bg-transparent text-purple-700 hover:bg-purple-50 border border-purple-200"
-        : "bg-transparent text-purple-700 hover:bg-purple-50 border border-transparent";
+        : buttonVariant === "danger-outline"
+          ? "bg-transparent text-red-600 hover:bg-red-50 border border-red-200 hover:border-red-300"
+          : "bg-transparent text-purple-700 hover:bg-purple-50 border border-transparent";
 
   return (
     <>
