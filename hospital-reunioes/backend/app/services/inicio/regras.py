@@ -17,6 +17,9 @@ PASSOU_DO_PRAZO = "passou_do_prazo"
 ATE_48_HORAS = "ate_48_horas"
 PROXIMOS_7_DIAS = "proximos_7_dias"
 GRUPOS = (PASSOU_DO_PRAZO, ATE_48_HORAS, PROXIMOS_7_DIAS)
+# O item a que o módulo de origem não dá prazo (a Ata a assinar, a Ata parada até
+# o terceiro dia): fica no fim, com há quantos dias espera, e não é vencido.
+SEM_PRAZO = "sem_prazo"
 
 
 def _fim_do_dia(prazo: date) -> datetime:
@@ -37,6 +40,23 @@ def grupo_do_prazo(prazo: date | None, agora: datetime) -> str | None:
     if restante <= timedelta(days=7):
         return PROXIMOS_7_DIAS
     return None
+
+
+def grupo_do_item(prazo: date | None, sem_prazo_no_modulo: bool, agora: datetime) -> str | None:
+    """O grupo de um item. O que o módulo não dá prazo fica em Sem prazo, e só
+    sai de lá se o prazo que a fonte calculou vencer (a Ata parada, a partir do
+    quarto dia)."""
+    grupo = grupo_do_prazo(prazo, agora)
+    if sem_prazo_no_modulo and grupo != PASSOU_DO_PRAZO:
+        return SEM_PRAZO
+    return grupo
+
+
+def dias_esperando(chegou_em: date | None, agora: datetime) -> int | None:
+    """Há quantos dias, no calendário de Brasília, o item espera."""
+    if chegou_em is None:
+        return None
+    return max((agora.astimezone(FUSO).date() - chegou_em).days, 0)
 
 
 def dias_de_atraso(prazo: date | None, agora: datetime) -> int | None:

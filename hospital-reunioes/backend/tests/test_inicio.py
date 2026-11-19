@@ -486,7 +486,7 @@ class TestFonteQueFalha:
         resposta = _rota(monkeypatch, AURORA, _BancoQuebrado())
 
         assert resposta.itens == []
-        assert [a.fonte for a in resposta.avisos] == ["pendencias"]
+        assert "pendencias" in [a.fonte for a in resposta.avisos]
 
 
 # ═══════════════════════════════════════════════════════════════════════════

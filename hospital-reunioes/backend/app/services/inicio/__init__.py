@@ -18,16 +18,18 @@ from datetime import date, datetime
 
 from pydantic import BaseModel
 
-from app.services.inicio import fonte_pendencias
+from app.services.inicio import fonte_pendencias, fonte_reunioes
 from app.services.inicio.regras import (
     ATE_48_HORAS,
     FUSO,
     GRUPOS,
     PASSOU_DO_PRAZO,
     PROXIMOS_7_DIAS,
+    SEM_PRAZO,
     dias_de_atraso,
+    dias_esperando,
     frase_do_inicio,
-    grupo_do_prazo,
+    grupo_do_item,
 )
 
 logger = logging.getLogger(__name__)
@@ -40,7 +42,10 @@ class Fonte:
     itens: Callable[..., list[dict]]
 
 
-FONTES: tuple[Fonte, ...] = (Fonte("pendencias", fonte_pendencias.ROTULO, fonte_pendencias.itens),)
+FONTES: tuple[Fonte, ...] = (
+    Fonte("pendencias", fonte_pendencias.ROTULO, fonte_pendencias.itens),
+    Fonte("atas", fonte_reunioes.ROTULO, fonte_reunioes.itens),
+)
 
 
 class AcaoDeUmClique(BaseModel):
@@ -62,8 +67,12 @@ class ItemDoInicio(BaseModel):
     # tela de toque. Fonte que não tem o que dizer deixa vazia.
     contexto: str | None = None
     acao_de_um_clique: AcaoDeUmClique | None = None
+    # O módulo de origem não dá prazo ao item: ele fica em Sem prazo, e só
+    # sai de lá se o `prazo` que a fonte calculou vencer.
+    sem_prazo_no_modulo: bool = False
     grupo: str | None = None
     dias_de_atraso: int | None = None
+    dias_esperando: int | None = None
 
 
 class Frase(BaseModel):
@@ -100,8 +109,11 @@ def _primeiro_nome(me: dict | None) -> str | None:
 
 
 def _ordem(item: ItemDoInicio) -> tuple:
-    # O mais atrasado primeiro, o mais distante por último; sem prazo no fim.
-    return (item.prazo is None, item.prazo or date.max, item.id)
+    # O mais atrasado primeiro, o mais distante por último; no fim, o grupo
+    # Sem prazo, do que espera há mais tempo para o mais recente.
+    if item.grupo == SEM_PRAZO:
+        return (True, item.chegou_em or date.max, item.id)
+    return (False, item.prazo or date.max, item.id)
 
 
 def montar_inicio(supabase, me: dict | None, agora: datetime, fontes: tuple[Fonte, ...] = FONTES) -> Inicio:
@@ -122,15 +134,18 @@ def montar_inicio(supabase, me: dict | None, agora: datetime, fontes: tuple[Font
                 continue
             for bruto in brutos:
                 item = ItemDoInicio(**bruto)
-                item.grupo = grupo_do_prazo(item.prazo, agora)
+                item.grupo = grupo_do_item(item.prazo, item.sem_prazo_no_modulo, agora)
                 item.dias_de_atraso = dias_de_atraso(item.prazo, agora) if item.grupo == PASSOU_DO_PRAZO else None
+                item.dias_esperando = dias_esperando(item.chegou_em, agora) if item.grupo == SEM_PRAZO else None
                 itens.append(item)
     itens.sort(key=_ordem)
 
     por_grupo = {grupo: [item for item in itens if item.grupo == grupo] for grupo in GRUPOS}
     vencidos = por_grupo[PASSOU_DO_PRAZO]
     hoje = agora.astimezone(FUSO).date()
-    futuros = [item.prazo for item in itens if item.prazo is not None and item.prazo >= hoje]
+    futuros = [
+        item.prazo for item in itens if item.grupo != SEM_PRAZO and item.prazo is not None and item.prazo >= hoje
+    ]
     titulo, apoio = frase_do_inicio(
         nome=_primeiro_nome(me),
         vencidos=len(vencidos),
