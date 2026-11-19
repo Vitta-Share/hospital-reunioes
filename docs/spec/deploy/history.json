@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-19T17:47:35-03:00",
+      "sha": "1ce33efe00b97e3345f3b8ee70663010db67958b",
+      "app_version": "0.317.0",
+      "subject": "Onda sesta-1932-onda5: Login cai no Início e a capa sai",
+      "raw_subject": "chore(deploy): registro da onda sesta-1932-onda5 (#2033)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1932
+      ],
+      "result": "healthy",
+      "duration_seconds": 274,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1932-onda5: PR #2033 (issue #1942), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 20,
+          "frontend": 250
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-19T17:22:50-03:00",
       "sha": "2e441c74058d5e4cbc833e2e736efe37b9f5ee4b",
       "app_version": "0.316.0",
