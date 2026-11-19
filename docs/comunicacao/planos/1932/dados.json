@@ -1,0 +1,337 @@
+{
+ "prd": 1932,
+ "contexto": "Início",
+ "titulo_aba": "Plano do Início",
+ "descricao": "O plano da tela Início, a primeira tela de cada pessoa com o que ela tem para entregar, em 4 etapas, para o diretor validar antes do trabalho começar.",
+ "selo": "Plano para validar · Reunião de 18/11",
+ "titulo": "Quem entra no aplicativo",
+ "destaque": "vê primeiro o que tem para entregar.",
+ "resumo": "Este é o plano do que você pediu na reunião de 18/11. São 16 partes, em 4 etapas, e nenhuma foi entregue ainda. Passe o mouse em cada parte para ver o que muda, do que ela depende e como vamos saber que ficou pronta. No fim da página, você valida o plano.",
+ "numeros": [
+  {
+   "valor": 16,
+   "rotulo": "partes"
+  },
+  {
+   "valor": 4,
+   "rotulo": "etapas, uma depois da outra"
+  },
+  {
+   "valor": 5,
+   "rotulo": "módulos numa lista só"
+  }
+ ],
+ "decidido": {
+  "titulo": "O plano segue o que você pediu",
+  "texto": "Estas decisões vieram da nossa conversa de 18/11. As numeradas são sugestões do planejamento e valem se você não disser o contrário. Para mudar alguma, escreva no campo do fim da página.",
+  "blocos": [
+   {
+    "titulo": "Na conversa de 18/11",
+    "numerado": false,
+    "itens": [
+     "A cobrança sai do próprio aplicativo: a pessoa entra e a primeira tela diz o que ela tem que entregar.",
+     "Cada um vê só o que está no nome dele, de todos os módulos, numa lista só, do mais atrasado para o mais distante.",
+     "Nada pisca: o atraso aparece no tamanho, na cor e em dias, como \"12 dias de atraso\".",
+     "Você vê quem responde a você, o que cada um deixou vencer e quando abriu o aplicativo pela última vez.",
+     "A secretária continua caindo na tela de agendamento dela."
+    ]
+   },
+   {
+    "titulo": "Valem se você não disser o contrário",
+    "numerado": true,
+    "itens": [
+     "O alerta de 48 horas e a sua fila saem do painel de Reuniões e passam a abrir o aplicativo, no Início. O painel fica com os números, o gráfico e o ranking.",
+     "A frase do topo sai de uma regra fixa, sem IA.",
+     "O último acesso de uma pessoa só aparece para quem já vê os itens dela, e o próprio Início avisa que o dia do acesso fica registrado.",
+     "Os casos do Núcleo e o Notivisa entram quando as próximas fases do Núcleo forem ao ar.",
+     "Cada pessoa vê os próprios números de 90 dias. O ranking continua só no painel de Reuniões.",
+     "O que não tem prazo no módulo de origem, como a ata a assinar e o POP parado, fica num grupo \"Sem prazo\", no fim, e não conta como atraso.",
+     "A ata parada em validação conta como atrasada a partir do quarto dia.",
+     "O dia do acesso fica guardado por 90 dias."
+    ]
+   }
+  ]
+ },
+ "fora": {
+  "itens": [
+   "Visão pelo organograma",
+   "Gráfico, ranking e evolução das semanas",
+   "Página própria de cada pessoa",
+   "Aviso novo por e-mail ou no sino",
+   "Início da secretária"
+  ],
+  "texto": "A visão pelo organograma chega com o organograma. O gráfico, o ranking e a evolução das semanas continuam no painel de Reuniões, no plano das Pendências. O resto fica para depois."
+ },
+ "etapas": [
+  {
+   "nome": "A tela nasce",
+   "texto": "O Início aparece no menu com as pendências de cada pessoa. As outras partes entram nesta tela."
+  },
+  {
+   "nome": "Cada módulo na fila",
+   "texto": "Atas, Ouvidoria, POPs, Núcleo e Contas médicas entram na fila, com o acabamento do protótipo. Rotinas e contestações entram quando o plano das Pendências criar as duas."
+  },
+  {
+   "nome": "O login muda",
+   "texto": "Com a fila completa, todo mundo cai no Início ao entrar, e você passa a ver quem responde a você."
+  },
+  {
+   "nome": "Números e manual",
+   "texto": "Os números de 90 dias, que esperam o histórico novo das Pendências, e o manual com passos e prints."
+  }
+ ],
+ "partes": [
+  {
+   "id": 1,
+   "etapa": 1,
+   "titulo": "A tela com as pendências",
+   "muda": "Nasce a tela Início, que mostra a cada pessoa as pendências dela, da mais atrasada para a mais distante, com um botão que abre cada uma.",
+   "vale": "A pessoa entra e vê na hora o que está devendo, sem procurar.",
+   "saber": [
+    "No topo, uma frase diz quantos prazos venceram e há quantos dias o mais antigo espera.",
+    "A lista tem três partes: passou do prazo, vence em até 48 horas e próximos 7 dias.",
+    "Nesta etapa a tela já aparece no menu, mas o login ainda cai onde cai hoje."
+   ],
+   "pronto": "Uma pendência que vence em 47 horas aparece em \"Vence em até 48 horas\", uma de 49 horas aparece em \"Próximos 7 dias\", e o botão abre a pendência já destacada no quadro.",
+   "depende": []
+  },
+  {
+   "id": 2,
+   "etapa": 2,
+   "titulo": "O acabamento do protótipo",
+   "muda": "O Início ganha o acabamento que foi aprovado no protótipo: o destaque ao passar o mouse, o aviso na aba do navegador, a mensagem de quem está em dia e a versão de celular.",
+   "vale": "A tela chama atenção para o atraso sem piscar e funciona igual no computador e no celular.",
+   "saber": [
+    "Passar o mouse numa linha mostra o contexto do item e destaca o botão.",
+    "A aba do navegador mostra o número de prazos vencidos.",
+    "Quem não tem nada vencido lê \"Você está em dia\" e o próximo prazo."
+   ],
+   "pronto": "Com 3 prazos vencidos, a aba do navegador mostra o 3, e no celular a tela fica numa coluna só, sem arrastar para o lado.",
+   "depende": [
+    1
+   ]
+  },
+  {
+   "id": 3,
+   "etapa": 2,
+   "titulo": "Atas e próximas reuniões",
+   "muda": "O Início passa a mostrar a ata que falta a pessoa assinar, a ata que o facilitador deixou parada e as próximas reuniões dela.",
+   "vale": "Ninguém depende de achar o e-mail para assinar, e a ata parada aparece para quem tem que soltar.",
+   "saber": [
+    "A ata a assinar some da lista assim que a pessoa assina.",
+    "A ata em validação há mais de 3 dias aparece como atrasada para o facilitador.",
+    "As próximas reuniões ficam ao lado da lista, com dia e hora."
+   ],
+   "pronto": "A ata que falta assinar some da lista assim que a pessoa assina, e a ata parada há 4 dias aparece como atrasada para o facilitador.",
+   "depende": [
+    1
+   ]
+  },
+  {
+   "id": 4,
+   "etapa": 2,
+   "titulo": "O caso da Ouvidoria do setor",
+   "muda": "O responsável de um setor passa a ver no Início o caso da Ouvidoria que espera a resposta dele, com o prazo.",
+   "vale": "O caso deixa de depender do e-mail de acionamento para ser lembrado.",
+   "saber": [
+    "Só aparece o caso do setor da pessoa, nunca o de outro setor.",
+    "O botão abre a mesma tela de resposta de hoje.",
+    "Quem é da Ouvidoria vê uma linha com o tamanho da fila, sem que ela conte como atraso pessoal."
+   ],
+   "pronto": "O responsável vê o caso do setor dele com o prazo, sem o relato e sem o nome de quem se manifestou, e não vê caso de outro setor.",
+   "depende": [
+    1
+   ]
+  },
+  {
+   "id": 5,
+   "etapa": 2,
+   "titulo": "O POP parado com a pessoa",
+   "muda": "Quem elabora, revisa ou valida um POP passa a ver no Início o documento que está parado com ele.",
+   "vale": "O POP deixa de ficar esquecido na etapa de alguém.",
+   "saber": [
+    "Só aparece para a pessoa designada naquela etapa.",
+    "O botão abre o POP na etapa certa."
+   ],
+   "pronto": "O revisor vê o POP que está na revisão dele, e quem não foi designado para a etapa não vê nada.",
+   "depende": [
+    1
+   ]
+  },
+  {
+   "id": 6,
+   "etapa": 2,
+   "titulo": "O que o Núcleo espera",
+   "muda": "Quem é do Núcleo de Segurança do Paciente passa a ver no Início o termo e os documentos que falta assinar e a capacitação em que falta confirmar presença.",
+   "vale": "A coordenadora e os membros veem o que o Núcleo espera deles sem abrir o módulo.",
+   "saber": [
+    "Confirmar presença numa capacitação se resolve ali mesmo, com um clique.",
+    "Os casos e o Notivisa entram quando as próximas fases do Núcleo forem ao ar.",
+    "Quem não é do Núcleo não vê nada disso."
+   ],
+   "pronto": "O membro confirma presença numa capacitação sem sair do Início, a linha some e a frase do topo se recalcula.",
+   "depende": [
+    1
+   ]
+  },
+  {
+   "id": 7,
+   "etapa": 2,
+   "titulo": "As contas com o faturista",
+   "muda": "O faturista passa a ver no Início as contas que estão com ele.",
+   "vale": "Ele retoma de onde parou assim que entra.",
+   "saber": [
+    "Só aparecem as contas que estão no nome da pessoa.",
+    "As contas sem dono aparecem numa linha de resumo, sem contar como atraso de ninguém."
+   ],
+   "pronto": "O faturista vê as contas que estão com ele, e quem não tem perfil de Contas médicas não vê nenhuma.",
+   "depende": [
+    1
+   ]
+  },
+  {
+   "id": 8,
+   "etapa": 2,
+   "titulo": "O dia do acesso registrado",
+   "muda": "O aplicativo passa a guardar o dia em que cada pessoa abriu o Início.",
+   "vale": "Dá para distinguir quem atrasou de quem nem entrou no aplicativo.",
+   "saber": [
+    "Fica uma marca por pessoa por dia, sem registrar o que ela clicou.",
+    "A marca é guardada por 90 dias.",
+    "A tela avisa a pessoa de que o dia do acesso fica registrado."
+   ],
+   "pronto": "Abrir o Início duas vezes no mesmo dia guarda uma marca só, e a tela avisa que o dia do acesso fica registrado.",
+   "depende": [
+    1
+   ]
+  },
+  {
+   "id": 9,
+   "etapa": 2,
+   "titulo": "Rotinas em um clique",
+   "muda": "O Início passa a mostrar as rotinas do ciclo de cada pessoa, com o botão para marcar como realizada ali mesmo.",
+   "vale": "Fechar a rotina da semana vira um clique na primeira tela.",
+   "saber": [
+    "Realizada é um clique. Não realizada continua pedindo anotação, na tela da rotina.",
+    "A rotina que ficou sem marcar no ciclo anterior aparece como atrasada."
+   ],
+   "pronto": "O responsável marca a rotina como realizada sem sair do Início, e a rotina que ficou sem marca no ciclo anterior aparece como atrasada.",
+   "depende": [
+    1
+   ]
+  },
+  {
+   "id": 10,
+   "etapa": 2,
+   "titulo": "Contestações para o facilitador",
+   "muda": "O facilitador passa a ver no Início as contestações de item de ata que esperam a resposta dele.",
+   "vale": "A contestação não fica parada enquanto a pendência segue sendo cobrada.",
+   "saber": [
+    "Só o facilitador da reunião vê a contestação.",
+    "O botão leva para onde ele ajusta ou recusa."
+   ],
+   "pronto": "A contestação aparece só para o facilitador da reunião e sai da lista depois que ele ajusta ou recusa.",
+   "depende": [
+    1
+   ]
+  },
+  {
+   "id": 11,
+   "etapa": 3,
+   "titulo": "O login cai no Início",
+   "muda": "Depois de entrar com a senha, todo mundo passa a cair no Início, e a capa antiga do aplicativo sai.",
+   "vale": "O Início vira de fato a primeira tela, que é o hábito que você pediu.",
+   "saber": [
+    "A secretária continua caindo na tela de agendamento dela.",
+    "Quem só usa Ouvidoria, POPs, Núcleo ou Contas médicas deixa de cair no painel de Reuniões.",
+    "O painel de Reuniões continua no menu, no mesmo lugar."
+   ],
+   "pronto": "Quem só usa a Ouvidoria entra com a senha e cai no Início, a secretária cai na tela de agendamento, e o painel de Reuniões continua no menu.",
+   "depende": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ]
+  },
+  {
+   "id": 12,
+   "etapa": 3,
+   "titulo": "Quem responde a você",
+   "muda": "Você passa a ver, no seu Início, uma linha por pessoa que responde a você, com o que ela deixou vencer e quando abriu o aplicativo pela última vez.",
+   "vale": "Você leva dados para a conversa, em vez de cobrar no grupo.",
+   "saber": [
+    "Clicar na linha mostra o que venceu e não foi entregue.",
+    "Até o organograma chegar, vale a regra que você aprovou: você vê todos, e o facilitador vê quem responde pelas reuniões dele.",
+    "Quem não acompanha ninguém não vê esse bloco."
+   ],
+   "pronto": "Você vê uma linha por pessoa com os prazos vencidos e o último acesso, como \"há 5 dias\" ou \"nunca entrou\", e o facilitador vê só quem responde pelas reuniões dele.",
+   "depende": [
+    1,
+    8
+   ]
+  },
+  {
+   "id": 13,
+   "etapa": 4,
+   "titulo": "Os números de 90 dias",
+   "muda": "Cada pessoa passa a ver no Início os próprios números dos últimos 90 dias, e você vê os mesmos números de quem responde a você.",
+   "vale": "Ninguém é surpreendido na conversa por um número que nunca viu.",
+   "saber": [
+    "Os números são entregas no prazo e fora do prazo, nos últimos 90 dias.",
+    "Cada um vê só os próprios números; o ranking continua no painel de Reuniões.",
+    "Quem está em dia vê também o que entregou nos últimos 7 dias."
+   ],
+   "pronto": "Cada pessoa vê as próprias entregas no prazo e fora dos últimos 90 dias, e não vê as de outra pessoa.",
+   "depende": [
+    12
+   ]
+  },
+  {
+   "id": 14,
+   "etapa": 4,
+   "titulo": "A página do Início no manual",
+   "muda": "O manual dentro do aplicativo ganha a página do Início, com o passo a passo e as telas.",
+   "vale": "Quem nunca viu a tela aprende a usar sem treinamento.",
+   "saber": [
+    "A página ensina a ler a frase, abrir um item e acompanhar quem responde a você.",
+    "Todos os prints usam dados fictícios."
+   ],
+   "pronto": "As três tarefas do Início têm passos numerados e pelo menos um print cada, sem nenhum dado real.",
+   "depende": [
+    11,
+    12
+   ]
+  },
+  {
+   "id": 15,
+   "etapa": 4,
+   "titulo": "Manual de Reuniões atualizado",
+   "muda": "A página de Reuniões e Pendências do manual passa a dizer que o aplicativo abre no Início.",
+   "vale": "O manual não manda mais ninguém para uma tela que mudou de lugar.",
+   "saber": [
+    "Só muda a parte de como entrar; o resto da página continua igual."
+   ],
+   "pronto": "O passo de entrar no aplicativo mostra o Início como primeira tela e o caminho até o painel de Reuniões, com print.",
+   "depende": [
+    11
+   ]
+  },
+  {
+   "id": 16,
+   "etapa": 4,
+   "titulo": "Manual com \"Visão geral\"",
+   "muda": "A página de Segurança do Paciente do manual troca \"Início\" por \"Visão geral\", o nome novo do item no menu.",
+   "vale": "O manual usa o mesmo nome que a pessoa vê no menu.",
+   "saber": [
+    "Só muda o nome do item; o conteúdo da tela é o mesmo."
+   ],
+   "pronto": "Os passos e os prints de Segurança do Paciente mostram \"Visão geral\" no menu, onde antes estava \"Início\".",
+   "depende": [
+    11
+   ]
+  }
+ ]
+}
