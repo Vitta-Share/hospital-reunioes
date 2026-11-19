@@ -6,7 +6,11 @@ import Link from "next/link";
 import { useMovimentoReduzido } from "@/hooks/useMovimentoReduzido";
 import { createClient } from "@/lib/supabase/client";
 
+import { Trilho, type ItemDoTrilho } from "./Trilho";
+
 export type GrupoDoInicio = "passou_do_prazo" | "ate_48_horas" | "proximos_7_dias";
+/** O grupo do item a que o módulo de origem não dá prazo (issue #1936). */
+export type GrupoSemPrazo = "sem_prazo";
 
 /** Um item da Minha Fila, no formato comum de toda fonte (ADR 0104). */
 export interface ItemDoInicio {
@@ -21,8 +25,10 @@ export interface ItemDoInicio {
   destino: string;
   contexto?: string | null;
   acao_de_um_clique: { rotulo: string; endpoint: string } | null;
-  grupo: GrupoDoInicio | null;
+  grupo: GrupoDoInicio | GrupoSemPrazo | null;
   dias_de_atraso: number | null;
+  /** Só no grupo Sem prazo: há quantos dias o item espera. */
+  dias_esperando?: number | null;
 }
 
 export interface InicioDaPessoa {
@@ -31,14 +37,16 @@ export interface InicioDaPessoa {
   contadores: Record<GrupoDoInicio, number>;
   itens: ItemDoInicio[];
   avisos: { fonte: string; mensagem: string }[];
-  trilho: unknown[];
+  trilho: ItemDoTrilho[];
   filas_do_papel: unknown[];
 }
 
-const GRUPOS: { chave: GrupoDoInicio; titulo: string }[] = [
+const GRUPOS: { chave: GrupoDoInicio | GrupoSemPrazo; titulo: string }[] = [
   { chave: "passou_do_prazo", titulo: "Passou do prazo" },
   { chave: "ate_48_horas", titulo: "Vence em até 48 horas" },
   { chave: "proximos_7_dias", titulo: "Próximos 7 dias" },
+  // No fim: o que espera sem prazo não é vencido (PRD #1932).
+  { chave: "sem_prazo", titulo: "Sem prazo" },
 ];
 
 const DIAS_DA_SEMANA = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
@@ -70,6 +78,16 @@ function Quando({ item, hoje }: { item: ItemDoInicio; hoje: string }) {
         <span className="block text-3xl tabular-nums">{item.dias_de_atraso}</span>
         <span className="block text-xs mt-0.5">
           {item.dias_de_atraso === 1 ? "dia de atraso" : "dias de atraso"}
+        </span>
+      </div>
+    );
+  }
+  if (item.grupo === "sem_prazo" && item.dias_esperando != null) {
+    return (
+      <div className="leading-tight text-text">
+        <span className="block text-3xl tabular-nums">{item.dias_esperando}</span>
+        <span className="block text-xs mt-0.5 text-text-secondary">
+          {item.dias_esperando === 1 ? "dia esperando" : "dias esperando"}
         </span>
       </div>
     );
@@ -256,39 +274,42 @@ export function MinhaFila() {
       </section>
 
       {inicio && (
-        <div className="px-4 sm:px-8 py-7 space-y-8">
-          {inicio.avisos.map((aviso) => (
-            <p key={aviso.fonte} role="status" className="text-sm text-text-secondary">
-              {aviso.mensagem}
-            </p>
-          ))}
+        <div className="px-4 sm:px-8 py-7 grid gap-8 lg:grid-cols-[minmax(0,1fr)_240px]">
+          <div className="min-w-0 space-y-8">
+            {inicio.avisos.map((aviso) => (
+              <p key={aviso.fonte} role="status" className="text-sm text-text-secondary">
+                {aviso.mensagem}
+              </p>
+            ))}
 
-          {grupos.length === 0 ? (
-            <p className="text-base text-text">Nada vencido e nada para os próximos 7 dias.</p>
-          ) : (
-            grupos.map((grupo) => (
-              <section key={grupo.chave} id={`grupo-${grupo.chave}`} aria-label={grupo.titulo} className="scroll-mt-4">
-                <h2
-                  className={`flex items-baseline gap-2.5 pb-2 border-b border-border text-xs ${
-                    grupo.chave === "passou_do_prazo" ? VERMELHO : "text-text-secondary"
-                  }`}
-                >
-                  {grupo.titulo}
-                  <span className="tabular-nums">{grupo.itens.length}</span>
-                </h2>
-                <ul>
-                  {grupo.itens.map((item, indice) => (
-                    <Linha
-                      key={`${item.tipo}:${item.id}`}
-                      item={item}
-                      hoje={inicio.hoje}
-                      entrada={grupo.chave === "passou_do_prazo" && !movimentoReduzido ? indice : null}
-                    />
-                  ))}
-                </ul>
-              </section>
-            ))
-          )}
+            {grupos.length === 0 ? (
+              <p className="text-base text-text">Nada vencido e nada para os próximos 7 dias.</p>
+            ) : (
+              grupos.map((grupo) => (
+                <section key={grupo.chave} id={`grupo-${grupo.chave}`} aria-label={grupo.titulo} className="scroll-mt-4">
+                  <h2
+                    className={`flex items-baseline gap-2.5 pb-2 border-b border-border text-xs ${
+                      grupo.chave === "passou_do_prazo" ? VERMELHO : "text-text-secondary"
+                    }`}
+                  >
+                    {grupo.titulo}
+                    <span className="tabular-nums">{grupo.itens.length}</span>
+                  </h2>
+                  <ul>
+                    {grupo.itens.map((item, indice) => (
+                      <Linha
+                        key={`${item.tipo}:${item.id}`}
+                        item={item}
+                        hoje={inicio.hoje}
+                        entrada={grupo.chave === "passou_do_prazo" && !movimentoReduzido ? indice : null}
+                      />
+                    ))}
+                  </ul>
+                </section>
+              ))
+            )}
+          </div>
+          <Trilho itens={inicio.trilho} hoje={inicio.hoje} />
         </div>
       )}
     </div>
