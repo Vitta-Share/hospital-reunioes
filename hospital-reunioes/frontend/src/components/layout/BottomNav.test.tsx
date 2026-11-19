@@ -157,6 +157,19 @@ describe("BottomNav por perfil", () => {
     expect(rotulos()).toEqual(["Início", "Reuniões", "Pendências", "Perfil"]);
   });
 
+  it("Início é o primeiro item, leva ao Início e fica ativo nele (issue #1935, ADR 0104)", () => {
+    sessao.participante = participante();
+    rota.atual = "/inicio";
+
+    render(<BottomNav />);
+
+    const barra = screen.getByRole("navigation", { name: "Navegação principal" });
+    const primeiro = within(barra).getAllByRole("link")[0];
+    expect(primeiro.textContent?.trim()).toBe("Início");
+    expect(primeiro.getAttribute("href")).toBe("/inicio");
+    expect(primeiro.getAttribute("aria-current")).toBe("page");
+  });
+
   it("o responsável do setor vê o item Ouvidoria (issue #1884, ADR 0099)", () => {
     sessao.participante = participante({ papel_ouvidoria: "responsavel" });
 

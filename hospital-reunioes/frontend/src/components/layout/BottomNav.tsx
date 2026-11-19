@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
+  Home,
   FileText,
   Clock,
   User,
@@ -23,12 +23,13 @@ interface NavItem {
   match: (pathname: string) => boolean;
 }
 
+// O Início é o primeiro item, como no menu lateral (issue #1935, ADR 0104).
 const baseItems: NavItem[] = [
   {
-    href: "/dashboard",
+    href: "/inicio",
     label: "Início",
-    icon: LayoutDashboard,
-    match: (p) => p === "/dashboard",
+    icon: Home,
+    match: (p) => p === "/inicio",
   },
   {
     href: "/reunioes/calendario",

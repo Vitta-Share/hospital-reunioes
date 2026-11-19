@@ -494,6 +494,50 @@ class TestFonteQueFalha:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+class TestContextoDoItem:
+    """A linha de contexto que aparece no hover, no foco e sempre na tela de
+    toque (issue #1935): o andamento da Pendência e o dia em que ela abriu,
+    com o que a fonte já lê, sem consulta nova."""
+
+    @pytest.mark.parametrize(
+        ("status", "contexto"),
+        [
+            ("PENDENTE", "Ainda sem andamento. Aberta em 01/11/2026."),
+            ("EM_PROGRESSO", "Em andamento. Aberta em 01/11/2026."),
+            ("REPACTUADA", "Prazo repactuado. Aberta em 01/11/2026."),
+            ("ATRASADO", "Aberta em 01/11/2026."),
+        ],
+    )
+    def test_a_pendencia_diz_o_andamento_e_quando_abriu(self, monkeypatch, nucleo, status, contexto):
+        banco = _Banco(pendencias=[_pendencia("A090", responsavel_id="P_AURORA", status=status)], reunioes=[REUNIAO])
+
+        resposta = _rota(monkeypatch, AURORA, banco)
+
+        assert resposta.itens[0].contexto == contexto
+
+    def test_o_lembrete_da_agenda_diz_o_andamento_e_quando_abriu(self, monkeypatch, nucleo):
+        nucleo["recursos"] = frozenset({"agenda"})
+        banco = _Banco(
+            pendencias=[_pendencia("A091", responsavel_id="P_AURORA", id_reuniao=None, status="EM_PROGRESSO")]
+        )
+
+        resposta = _rota(monkeypatch, AURORA, banco)
+
+        assert resposta.itens[0].tipo == "lembrete_da_agenda"
+        assert resposta.itens[0].contexto == "Em andamento. Aberta em 01/11/2026."
+
+    def test_a_pendencia_aberta_na_noite_de_brasilia_conta_o_dia_de_brasilia(self, monkeypatch, nucleo):
+        # 01h30 em UTC do dia 2 é 22h30 do dia 1 em Brasília.
+        banco = _Banco(
+            pendencias=[_pendencia("A092", responsavel_id="P_AURORA", created_at="2026-11-02T01:30:00+00:00")],
+            reunioes=[REUNIAO],
+        )
+
+        resposta = _rota(monkeypatch, AURORA, banco)
+
+        assert resposta.itens[0].contexto == "Ainda sem andamento. Aberta em 01/11/2026."
+
+
 class TestKitDeConhecimento:
     def test_o_kit_de_conhecimento_explica_o_inicio(self):
         caminho = Path(inicio.__file__).parents[2] / "conhecimento" / "reunioes.md"
@@ -509,5 +553,14 @@ class TestKitDeConhecimento:
         assert "inclusive o lembrete da Agenda regulatória do Núcleo" in texto
         assert "a pendência de reunião abre no quadro de pendências já destacada" in texto
         assert "mostra um aviso só daquela parte e o resto continua" in texto
+        # O acabamento do protótipo (issue #1935).
+        assert "Nada na tela pisca" in texto
+        assert "O título da aba do navegador mostra o número de prazos vencidos" in texto
+        assert "para quem pediu ao sistema menos movimento, nada se move" in texto
+        assert "Os três números do topo levam à parte correspondente da lista" in texto
+        assert "aparece uma linha com o andamento e o dia em que o item abriu" in texto
+        assert "no celular essa linha fica sempre à vista" in texto
+        assert "o Início é o primeiro item da barra de baixo" in texto
+        assert "a frase do topo é anunciada quando chega e cada botão diz o que abre" in texto
         assert chr(0x2014) not in texto
         assert chr(0x2013) not in texto

@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
 
+import { useMovimentoReduzido } from "@/hooks/useMovimentoReduzido";
 import { createClient } from "@/lib/supabase/client";
 
 export type GrupoDoInicio = "passou_do_prazo" | "ate_48_horas" | "proximos_7_dias";
@@ -19,6 +19,7 @@ export interface ItemDoInicio {
   area: string;
   acao: string;
   destino: string;
+  contexto?: string | null;
   acao_de_um_clique: { rotulo: string; endpoint: string } | null;
   grupo: GrupoDoInicio | null;
   dias_de_atraso: number | null;
@@ -84,22 +85,47 @@ function Quando({ item, hoje }: { item: ItemDoInicio; hoje: string }) {
   );
 }
 
-function Linha({ item, hoje }: { item: ItemDoInicio; hoje: string }) {
+// O botão da linha: preenchido no vencido; nos outros, preenche no hover e no
+// foco da linha (issue #1935).
+const BOTAO_VENCIDO = "bg-primary text-white group-hover:bg-primary-dark group-focus-within:bg-primary-dark";
+const BOTAO_DOS_OUTROS =
+  "bg-white text-primary group-hover:bg-primary group-hover:text-white group-focus-within:bg-primary group-focus-within:text-white";
+
+/**
+ * Uma linha da fila. No hover e no foco do teclado ganha fundo suave, o botão
+ * preenche e a linha de contexto aparece; na tela de toque, que não tem hover,
+ * o contexto fica sempre à vista. A linha vencida entra uma vez, ao abrir, uma
+ * depois da outra (ADR 0104, decisão 8); com movimento reduzido, nada entra.
+ */
+function Linha({ item, hoje, entrada }: { item: ItemDoInicio; hoje: string; entrada: number | null }) {
   return (
-    <li className="grid grid-cols-[88px_minmax(0,1fr)] sm:grid-cols-[104px_minmax(0,1fr)_auto] gap-4 items-center py-3.5 px-2 border-b border-border">
+    <li
+      className={`group grid grid-cols-[88px_minmax(0,1fr)] sm:grid-cols-[104px_minmax(0,1fr)_auto] gap-4 items-center py-3.5 px-2 border-b border-border rounded-lg motion-safe:transition-colors hover:bg-slate-50 focus-within:bg-slate-50${
+        entrada === null ? "" : " animate-fade-in-up"
+      }`}
+      style={entrada === null ? undefined : { animationDelay: `${entrada * 70}ms` }}
+    >
       <Quando item={item} hoje={hoje} />
       <div className="min-w-0">
-        <p className="text-base text-text leading-snug">{item.titulo}</p>
-        <p className="text-xs text-text-secondary mt-1">{item.origem}</p>
+        <p className="text-base text-text leading-snug break-words">{item.titulo}</p>
+        <p className="text-xs text-text-secondary mt-1 break-words">{item.origem}</p>
+        {item.contexto && (
+          <p className="hidden group-hover:block group-focus-within:block [@media(hover:none)]:block text-xs text-primary mt-1.5 pl-2.5 border-l-2 border-border break-words">
+            {item.contexto}
+          </p>
+        )}
       </div>
-      <div className="col-start-2 sm:col-start-auto flex sm:flex-col items-center sm:items-end justify-between gap-2">
-        <span className="etiqueta text-[11px] text-text-secondary bg-slate-100 rounded-full px-2.5 py-0.5 whitespace-nowrap">
+      {/* No celular a coluna é estreita: a etiqueta e o botão descem de linha e
+          quebram o texto em vez de passar da borda do cartão (issue #1935). */}
+      <div className="col-start-2 sm:col-start-auto flex flex-wrap sm:flex-nowrap sm:flex-col items-center sm:items-end justify-between gap-2">
+        <span className="etiqueta text-[11px] text-slate-600 bg-slate-100 rounded-full px-2.5 py-0.5 max-w-full sm:whitespace-nowrap">
           {item.area}
         </span>
         <Link
           href={item.destino}
-          className={`uppercase tracking-wide text-xs whitespace-nowrap rounded-lg px-3.5 py-2 border border-primary ${
-            item.grupo === "passou_do_prazo" ? "bg-primary text-white" : "bg-white text-primary"
+          aria-label={`${item.acao}: ${item.titulo}`}
+          className={`uppercase tracking-wide text-xs text-center max-w-full sm:whitespace-nowrap rounded-lg px-3.5 py-2 border border-primary motion-safe:transition-colors ${
+            item.grupo === "passou_do_prazo" ? BOTAO_VENCIDO : BOTAO_DOS_OUTROS
           }`}
         >
           {item.acao}
@@ -109,14 +135,24 @@ function Linha({ item, hoje }: { item: ItemDoInicio; hoje: string }) {
   );
 }
 
+/** O título da aba: o número de prazos vencidos quando há, para a aba de
+ * início do navegador chamar atenção sem piscar (ADR 0104, decisão 8). */
+function tituloDaAba(vencidos: number): string {
+  return vencidos > 0 ? `(${vencidos}) Início` : "Início";
+}
+
 /**
  * O Início de quem está olhando (issue #1934, ADR 0104): a frase do topo, os
  * três contadores e a Minha Fila em três grupos, do prazo mais vencido para o
  * mais distante. Grupo, atraso e frase vêm prontos do servidor.
+ *
+ * A frase mora numa região anunciada que já existe enquanto a tela carrega:
+ * quando ela chega, o leitor de tela a lê (issue #1935).
  */
 export function MinhaFila() {
   const [inicio, setInicio] = useState<InicioDaPessoa | null>(null);
   const [falhou, setFalhou] = useState(false);
+  const movimentoReduzido = useMovimentoReduzido();
 
   useEffect(() => {
     let vivo = true;
@@ -140,6 +176,16 @@ export function MinhaFila() {
     };
   }, []);
 
+  const vencidos = inicio?.contadores.passou_do_prazo ?? null;
+  useEffect(() => {
+    if (vencidos === null) return;
+    const anterior = document.title;
+    document.title = tituloDaAba(vencidos);
+    return () => {
+      document.title = anterior;
+    };
+  }, [vencidos]);
+
   if (falhou) {
     return (
       <p role="alert" className="p-6 text-sm text-text-secondary">
@@ -147,79 +193,104 @@ export function MinhaFila() {
       </p>
     );
   }
-  if (!inicio) {
-    return (
-      <p className="p-6 flex items-center gap-2 text-sm text-text-secondary">
-        <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
-        Carregando o seu Início
-      </p>
-    );
-  }
 
-  const vencidos = inicio.contadores.passou_do_prazo;
-  const grupos = GRUPOS.map((g) => ({ ...g, itens: inicio.itens.filter((i) => i.grupo === g.chave) })).filter(
-    (g) => g.itens.length > 0
-  );
-  const contadores: [number, string][] = [
-    [vencidos, vencidos === 1 ? "prazo vencido" : "prazos vencidos"],
-    [inicio.contadores.ate_48_horas, inicio.contadores.ate_48_horas === 1 ? "vence em até 48 horas" : "vencem em até 48 horas"],
-    [inicio.contadores.proximos_7_dias, "nos próximos 7 dias"],
-  ];
+  const grupos = inicio
+    ? GRUPOS.map((g) => ({ ...g, itens: inicio.itens.filter((i) => i.grupo === g.chave) })).filter(
+        (g) => g.itens.length > 0
+      )
+    : [];
+  const contadores: [GrupoDoInicio, number, string][] = inicio
+    ? [
+        ["passou_do_prazo", inicio.contadores.passou_do_prazo, inicio.contadores.passou_do_prazo === 1 ? "prazo vencido" : "prazos vencidos"],
+        ["ate_48_horas", inicio.contadores.ate_48_horas, inicio.contadores.ate_48_horas === 1 ? "vence em até 48 horas" : "vencem em até 48 horas"],
+        ["proximos_7_dias", inicio.contadores.proximos_7_dias, "nos próximos 7 dias"],
+      ]
+    : [];
 
   return (
     <div className="bg-white rounded-2xl border border-border overflow-hidden">
       <section
         data-testid="abertura"
-        className={`px-6 sm:px-8 pt-7 pb-6 ${vencidos > 0 ? "bg-primary-dark text-white" : "bg-white text-text"}`}
+        className={`px-6 sm:px-8 pt-7 pb-6 ${vencidos ? "bg-primary-dark text-white" : "bg-white text-text"}`}
       >
-        <div className="flex flex-wrap justify-between gap-4 text-xs opacity-80">
-          <h1 className="text-xs">Início</h1>
-          <span>{dataPorExtenso(inicio.hoje)}</span>
+        {inicio && (
+          <div className="flex flex-wrap justify-between gap-4 text-xs opacity-80">
+            <h1 className="text-xs">Início</h1>
+            <span>{dataPorExtenso(inicio.hoje)}</span>
+          </div>
+        )}
+        <div aria-live="polite">
+          {inicio ? (
+            <>
+              <p className="mt-4 text-3xl sm:text-4xl leading-tight max-w-[22ch] break-words">{inicio.frase.titulo}</p>
+              <p className="mt-2.5 text-base max-w-[52ch] opacity-85">{inicio.frase.apoio}</p>
+            </>
+          ) : (
+            <p className="text-sm text-text-secondary">Carregando o seu Início</p>
+          )}
         </div>
-        <p className="mt-4 text-3xl sm:text-4xl leading-tight max-w-[22ch]">{inicio.frase.titulo}</p>
-        <p className="mt-2.5 text-base max-w-[52ch] opacity-85">{inicio.frase.apoio}</p>
-        <ul aria-label="Resumo dos prazos" className="mt-5 flex flex-wrap gap-2">
-          {contadores.map(([numero, rotulo]) => (
-            <li
-              key={rotulo}
-              className="inline-flex items-baseline gap-2 rounded-lg border border-current px-3.5 py-2 text-xs"
-            >
-              <b className="font-normal text-xl tabular-nums">{numero}</b>
-              <span className="etiqueta">{rotulo}</span>
-            </li>
-          ))}
-        </ul>
+        {inicio && (
+          <ul aria-label="Resumo dos prazos" className="mt-5 flex flex-wrap gap-2">
+            {contadores.map(([chave, numero, rotulo]) => {
+              const conteudo = (
+                <>
+                  <b className="font-normal text-xl tabular-nums">{numero}</b>
+                  <span className="etiqueta">{rotulo}</span>
+                </>
+              );
+              const caixa = "inline-flex items-baseline gap-2 rounded-lg border border-current px-3.5 py-2 text-xs";
+              return (
+                <li key={chave} className="flex">
+                  {numero > 0 ? (
+                    <a href={`#grupo-${chave}`} className={`${caixa} hover:underline underline-offset-4`}>
+                      {conteudo}
+                    </a>
+                  ) : (
+                    <span className={caixa}>{conteudo}</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </section>
 
-      <div className="px-4 sm:px-8 py-7 space-y-8">
-        {inicio.avisos.map((aviso) => (
-          <p key={aviso.fonte} role="status" className="text-sm text-text-secondary">
-            {aviso.mensagem}
-          </p>
-        ))}
+      {inicio && (
+        <div className="px-4 sm:px-8 py-7 space-y-8">
+          {inicio.avisos.map((aviso) => (
+            <p key={aviso.fonte} role="status" className="text-sm text-text-secondary">
+              {aviso.mensagem}
+            </p>
+          ))}
 
-        {grupos.length === 0 ? (
-          <p className="text-base text-text">Nada vencido e nada para os próximos 7 dias.</p>
-        ) : (
-          grupos.map((grupo) => (
-            <section key={grupo.chave} aria-label={grupo.titulo}>
-              <h2
-                className={`flex items-baseline gap-2.5 pb-2 border-b border-border text-xs ${
-                  grupo.chave === "passou_do_prazo" ? VERMELHO : "text-text-secondary"
-                }`}
-              >
-                {grupo.titulo}
-                <span className="tabular-nums">{grupo.itens.length}</span>
-              </h2>
-              <ul>
-                {grupo.itens.map((item) => (
-                  <Linha key={`${item.tipo}:${item.id}`} item={item} hoje={inicio.hoje} />
-                ))}
-              </ul>
-            </section>
-          ))
-        )}
-      </div>
+          {grupos.length === 0 ? (
+            <p className="text-base text-text">Nada vencido e nada para os próximos 7 dias.</p>
+          ) : (
+            grupos.map((grupo) => (
+              <section key={grupo.chave} id={`grupo-${grupo.chave}`} aria-label={grupo.titulo} className="scroll-mt-4">
+                <h2
+                  className={`flex items-baseline gap-2.5 pb-2 border-b border-border text-xs ${
+                    grupo.chave === "passou_do_prazo" ? VERMELHO : "text-text-secondary"
+                  }`}
+                >
+                  {grupo.titulo}
+                  <span className="tabular-nums">{grupo.itens.length}</span>
+                </h2>
+                <ul>
+                  {grupo.itens.map((item, indice) => (
+                    <Linha
+                      key={`${item.tipo}:${item.id}`}
+                      item={item}
+                      hoje={inicio.hoje}
+                      entrada={grupo.chave === "passou_do_prazo" && !movimentoReduzido ? indice : null}
+                    />
+                  ))}
+                </ul>
+              </section>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
