@@ -52,11 +52,12 @@ class _ModeloQueConsulta:
     """A Anthropic de mentira, com ferramentas: cada rodada é a lista de
     consultas que o modelo pede; depois delas, ou quando o pedido proíbe
     ferramenta (`tool_choice` none, como a API de verdade obedece), vem o
-    texto final."""
+    texto final. Com uma lista em `final`, cada resposta final usa a seguinte
+    (a ultima se repete)."""
 
-    def __init__(self, rodadas: list[list[tuple[str, dict]]], final: str, usos: list | None = None):
+    def __init__(self, rodadas: list[list[tuple[str, dict]]], final: str | list[str], usos: list | None = None):
         self.rodadas = rodadas
-        self.final = final
+        self.finais = [final] if isinstance(final, str) else list(final)
         self.usos = usos or []
         self.chamadas: list[dict] = []
         self.messages = SimpleNamespace(create=self._create)
@@ -67,8 +68,9 @@ class _ModeloQueConsulta:
         uso = self.usos[i] if i < len(self.usos) else _uso()
         proibiu = (kwargs.get("tool_choice") or {}).get("type") == "none"
         if proibiu or i >= len(self.rodadas):
+            final = self.finais.pop(0) if len(self.finais) > 1 else self.finais[0]
             return SimpleNamespace(
-                content=[SimpleNamespace(type="thinking", thinking=""), SimpleNamespace(type="text", text=self.final)],
+                content=[SimpleNamespace(type="thinking", thinking=""), SimpleNamespace(type="text", text=final)],
                 stop_reason="end_turn",
                 usage=uso,
             )
@@ -248,6 +250,58 @@ class TestOsTetos:
         [resultado] = _resultados(modelo.chamadas[1])
         assert resultado["content"].count("x") == 20_000
         assert "(arquivo cortado em 20000 caracteres)" in resultado["content"]
+
+
+class TestRespostaForaDoJson:
+    """Depois de ler o código, o modelo às vezes fala antes ou depois do JSON,
+    com chaves de código na fala (`/usuarios/{id}`), ou responde só em prosa.
+    Antes disso virava "A IA não conseguiu responder agora" (JSONDecodeError
+    em produção, 19/11/2026), e o diretor não saía do lugar."""
+
+    def test_a_fala_com_chaves_em_volta_do_json_nao_derruba_o_turno(self, monkeypatch):
+        client, _, _ = _cenario(monkeypatch)
+        _repositorio(monkeypatch, arquivos={"CONTEXT.md": "glossário"})
+        final = f"Vi no código a rota `/usuarios/{{id}}`.\n{_turno()}\nE o `{{}}` do handler não trata o erro."
+        modelo = _modelo(monkeypatch, [[("ler_arquivo", {"caminho": "CONTEXT.md"})]], final)
+
+        resposta = client.post(CHAT, json={"escolha": "bug"})
+
+        assert resposta.status_code == 201, resposta.text
+        assert resposta.json()["mensagens"][-1]["texto"] == "Onde isso aconteceu?"
+        assert len(modelo.chamadas) == 2
+
+    def test_a_resposta_so_em_prosa_ganha_um_pedido_do_json_sem_ferramenta(self, monkeypatch):
+        client, _, _ = _cenario(monkeypatch)
+        _repositorio(monkeypatch, arquivos={"CONTEXT.md": "glossário"})
+        modelo = _modelo(
+            monkeypatch,
+            [[("ler_arquivo", {"caminho": "CONTEXT.md"})]],
+            ["Encontrei o problema: o botão de excluir chama a rota errada.", _turno()],
+        )
+
+        resposta = client.post(CHAT, json={"escolha": "bug"})
+
+        assert resposta.status_code == 201, resposta.text
+        assert resposta.json()["mensagens"][-1]["texto"] == "Onde isso aconteceu?"
+        assert len(modelo.chamadas) == 3
+        pedido = modelo.chamadas[-1]
+        assert pedido["tool_choice"] == {"type": "none"}
+        assert pedido["messages"][-2]["role"] == "assistant"
+        assert "só com o objeto JSON" in pedido["messages"][-1]["content"]
+
+    def test_o_pedido_do_json_e_um_so(self, monkeypatch):
+        client, sb, _ = _cenario(monkeypatch)
+        _repositorio(monkeypatch, arquivos={"CONTEXT.md": "glossário"})
+        modelo = _modelo(monkeypatch, [[("ler_arquivo", {"caminho": "CONTEXT.md"})]], "Só prosa, sem JSON.")
+
+        resposta = client.post(CHAT, json={"texto": "O botão sumiu"})
+
+        assert resposta.status_code == 502
+        assert len(modelo.chamadas) == 3
+        # As três rodadas são cobradas e ficam numa linha só, sem sucesso.
+        [chamada] = _chamadas(sb)
+        assert chamada["sucesso"] is False
+        assert chamada["tokens_entrada"] == 300
 
 
 # ═══════════════════════════════════════════════════════════════════════════
