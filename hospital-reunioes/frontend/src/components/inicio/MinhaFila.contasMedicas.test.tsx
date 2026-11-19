@@ -108,7 +108,7 @@ describe("a conta com a faturista (issue #1940)", () => {
     // O número tem elemento próprio, ao lado do rótulo: o 5 do título não conta.
     const numero = within(linha).getByText("5");
     expect(numero.nextElementSibling?.textContent).toBe("dias esperando");
-    expect(within(linha).getByRole("link", { name: "Abrir o Guia" }).getAttribute("href")).toBe(
+    expect(within(linha).getByRole("link", { name: "Abrir o Guia: Atendimento 123456, conta 9001" }).getAttribute("href")).toBe(
       "/contas-medicas/guia/C001"
     );
   });
