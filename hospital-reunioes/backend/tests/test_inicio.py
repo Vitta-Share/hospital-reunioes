@@ -52,6 +52,14 @@ class _Consulta:
         self._filtros.append(lambda linha: linha.get(coluna) == valor)
         return self
 
+    def neq(self, coluna, valor):
+        self._filtros.append(lambda linha: linha.get(coluna) is not None and linha.get(coluna) != valor)
+        return self
+
+    def gte(self, coluna, valor):
+        self._filtros.append(lambda linha: linha.get(coluna) is not None and str(linha.get(coluna)) >= str(valor))
+        return self
+
     def in_(self, coluna, valores):
         valores = set(valores)
         self._filtros.append(lambda linha: linha.get(coluna) in valores)
@@ -70,6 +78,9 @@ class _Consulta:
 class _Banco:
     pendencias: list = field(default_factory=list)
     reunioes: list = field(default_factory=list)
+    # A fonte de Atas e o trilho (issue #1936) também leem estas.
+    reuniao_participantes: list = field(default_factory=list)
+    reuniao_aceites: list = field(default_factory=list)
 
     def table(self, nome):
         return _Consulta(getattr(self, nome))

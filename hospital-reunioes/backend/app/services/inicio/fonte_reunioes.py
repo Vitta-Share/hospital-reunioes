@@ -1,4 +1,4 @@
-"""A fonte de Atas do Início (issue #1936, ADR 0104, decisão 5).
+"""A fonte de Atas e o trilho de Reuniões do Início (issue #1936, ADR 0104).
 
 A Ata a assinar é a Reunião em assinatura em que a pessoa é Signatária e
 ainda não deu ciência, pela ClickSign ou pelo Aceite interno: as duas gravam o
@@ -6,7 +6,8 @@ Registro de Aceites (`reuniao_aceites`), e a Ata sai da fila assim que ele
 existe. A Ata parada é a que espera o Facilitador na validação. As duas entram
 em "Sem prazo", contando os dias desde o `updated_at` da Reunião, o mesmo
 marco do card de Atas paradas do painel; a Ata parada conta como vencida a
-partir do quarto dia (mais de 3 dias, a regra do card).
+partir do quarto dia (mais de 3 dias, a regra do card). O trilho traz as
+próximas Reuniões da pessoa, fora da fila e da contagem da frase.
 
 O sigilo do Núcleo é o da lista de Reuniões: Reunião do Núcleo que a pessoa
 não alcança não aparece (issue #1772). Quem não tem perfil das Reuniões (ADR
@@ -69,11 +70,14 @@ def _ja_deu_ciencia(supabase, ids: list[str], me: dict) -> set[str]:
     }
 
 
+def _em_que_participa(supabase, me: dict) -> list[str]:
+    """As Reuniões em que a pessoa é Participante, que são as que ela assina."""
+    vinculos = supabase.table("reuniao_participantes").select("id_reuniao").eq("participante_id", me["id"]).execute()
+    return sorted({linha["id_reuniao"] for linha in vinculos.data or []})
+
+
 def _atas_a_assinar(supabase, me: dict) -> list[dict]:
-    vinculos = (
-        supabase.table("reuniao_participantes").select("id_reuniao").eq("participante_id", me["id"]).execute()
-    )
-    ids = sorted({linha["id_reuniao"] for linha in vinculos.data or []})
+    ids = _em_que_participa(supabase, me)
     if not ids:
         return []
     em_assinatura = _vivas(supabase, "AGUARDANDO_ASSINATURA", "id_reuniao", ids)
@@ -130,3 +134,52 @@ def itens(supabase, me: dict) -> list[dict]:
             }
         )
     return saida
+
+
+ROTULO_DO_TRILHO = "as próximas Reuniões"
+
+# O trilho é um lembrete ao lado da fila, não a agenda inteira.
+PROXIMAS_NO_TRILHO = 5
+
+
+def _futuras(supabase, coluna: str, valor: Any, hoje: date) -> list[dict]:
+    consulta = (
+        supabase.table("reunioes")
+        .select("id_reuniao, titulo, data, hora_inicio, facilitador_id")
+        .gte("data", hoje.isoformat())
+        .neq("status_ata", "CANCELADA")
+        .is_("deleted_at", "null")
+    )
+    consulta = consulta.in_(coluna, valor) if isinstance(valor, list) else consulta.eq(coluna, valor)
+    return consulta.execute().data or []
+
+
+def proximas(supabase, me: dict, hoje: date) -> list[dict]:
+    """As próximas Reuniões em que a pessoa é Facilitadora ou Participante, de
+    hoje em diante, sem a cancelada e sem a do Núcleo que ela não alcança."""
+    if not tem_acesso_reunioes(me):
+        return []
+    ids = _em_que_participa(supabase, me)
+    reunioes = {r["id_reuniao"]: r for r in _futuras(supabase, "facilitador_id", me["id"], hoje)}
+    if ids:
+        for reuniao in _futuras(supabase, "id_reuniao", ids, hoje):
+            reunioes.setdefault(reuniao["id_reuniao"], reuniao)
+    if not reunioes:
+        return []
+    ocultas = set(reunioes_ocultas(supabase, me))
+    visiveis = sorted(
+        (r for r in reunioes.values() if r["id_reuniao"] not in ocultas),
+        key=lambda r: (str(r["data"])[:10], r.get("hora_inicio") or "99", r["id_reuniao"]),
+    )
+    return [
+        {
+            "tipo": "reuniao",
+            "id": reuniao["id_reuniao"],
+            "titulo": (reuniao.get("titulo") or "Reunião").strip(),
+            "data": _data(reuniao["data"]),
+            "hora": str(reuniao["hora_inicio"])[:5] if reuniao.get("hora_inicio") else None,
+            "papel": "facilitador" if reuniao.get("facilitador_id") == me["id"] else "participante",
+            "destino": f"/reunioes/{reuniao['id_reuniao']}",
+        }
+        for reuniao in visiveis[:PROXIMAS_NO_TRILHO]
+    ]

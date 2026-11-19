@@ -23,7 +23,6 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.routers import inicio as inicio_router  # noqa: E402
-from app.services import inicio  # noqa: E402
 from app.services.inicio import fonte_pendencias, fonte_reunioes  # noqa: E402
 
 BRT = ZoneInfo("America/Sao_Paulo")
@@ -110,7 +109,12 @@ def _quando(dias_atras: int) -> str:
 
 
 AURORA = {"id": "P_AURORA", "nome_completo": "Aurora Lima", "email": "aurora@exemplo.org", "access_profile": "regular"}
-FACILITADOR = {"id": "P_FACI", "nome_completo": "Fabio Castro", "email": "fabio@exemplo.org", "access_profile": "regular"}
+FACILITADOR = {
+    "id": "P_FACI",
+    "nome_completo": "Fabio Castro",
+    "email": "fabio@exemplo.org",
+    "access_profile": "regular",
+}
 DE_FORA = {"id": "P_FORA", "nome_completo": "Olga Reis", "email": "olga@exemplo.org", "access_profile": "regular"}
 
 
@@ -313,3 +317,103 @@ class TestSigiloDoNucleo:
         sem_reunioes = {**AURORA, "access_profile": None}
 
         assert _atas(_rota(monkeypatch, sem_reunioes, self._banco())) == []
+
+    def test_reuniao_do_nucleo_fora_do_alcance_nao_entra_no_trilho(self, monkeypatch, nucleo):
+        nucleo["ocultas"] = ["RN3"]
+        banco = _Banco(
+            reunioes=[_reuniao("RN3", data="2026-11-20"), _reuniao("R21", data="2026-11-21")],
+            reuniao_participantes=_na_reuniao("RN3", "P_AURORA") + _na_reuniao("R21", "P_AURORA"),
+        )
+
+        assert [r.id for r in _rota(monkeypatch, AURORA, banco).trilho] == ["R21"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. O trilho: as próximas Reuniões da pessoa
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestTrilho:
+    def _banco(self) -> _Banco:
+        return _Banco(
+            reunioes=[
+                _reuniao("R30", titulo="Reunião de Qualidade", data="2026-11-24", hora_inicio="14:00:00"),
+                _reuniao("R31", titulo="Reunião de Diretoria", data="2026-11-18", hora_inicio="16:30:00"),
+                _reuniao("R32", titulo="Reunião cancelada", data="2026-11-19", status_ata="CANCELADA"),
+                _reuniao("R33", titulo="Reunião passada", data="2026-11-17"),
+                _reuniao("R34", titulo="Reunião apagada", data="2026-11-20", deleted_at="2026-11-16T00:00:00+00:00"),
+                _reuniao("R35", titulo="Reunião que ela conduz", data="2026-11-19", facilitador_id="P_AURORA"),
+                _reuniao("R36", titulo="Reunião dos outros", data="2026-11-19"),
+            ],
+            reuniao_participantes=(
+                _na_reuniao("R30", "P_AURORA")
+                + _na_reuniao("R31", "P_AURORA")
+                + _na_reuniao("R32", "P_AURORA")
+                + _na_reuniao("R33", "P_AURORA")
+                + _na_reuniao("R34", "P_AURORA")
+                + _na_reuniao("R36", "P_FACI")
+            ),
+        )
+
+    def test_trilho_mostra_as_proximas_reunioes_com_data_hora_e_link(self, monkeypatch, nucleo):
+        trilho = _rota(monkeypatch, AURORA, self._banco()).trilho
+
+        assert [(r.id, r.data, r.hora, r.papel) for r in trilho] == [
+            ("R31", date(2026, 11, 18), "16:30", "participante"),
+            ("R35", date(2026, 11, 19), "09:00", "facilitador"),
+            ("R30", date(2026, 11, 24), "14:00", "participante"),
+        ]
+        assert trilho[2].titulo == "Reunião de Qualidade"
+        assert trilho[2].destino == "/reunioes/R30"
+
+    def test_trilho_nao_mostra_reuniao_cancelada(self, monkeypatch, nucleo):
+        ids = [r.id for r in _rota(monkeypatch, AURORA, self._banco()).trilho]
+
+        assert "R32" not in ids
+
+    def test_pessoa_de_fora_da_reuniao_tem_o_trilho_vazio(self, monkeypatch, nucleo):
+        banco = self._banco()
+        for reuniao in banco.reunioes:
+            reuniao["facilitador_id"] = "P_FACI"
+
+        assert _rota(monkeypatch, DE_FORA, banco).trilho == []
+
+    def test_trilho_que_falha_vira_aviso_e_a_fila_segue(self, monkeypatch, nucleo):
+        def _quebrado(*_a, **_kw):
+            raise RuntimeError("timeout")
+
+        monkeypatch.setattr(fonte_reunioes, "proximas", _quebrado)
+        banco = _Banco(
+            reunioes=[_reuniao("R40", status_ata="AGUARDANDO_ASSINATURA")],
+            reuniao_participantes=_na_reuniao("R40", "P_AURORA"),
+        )
+
+        resposta = _rota(monkeypatch, AURORA, banco)
+
+        assert resposta.trilho == []
+        assert _atas(resposta) == [("ata_a_assinar", "R40", "sem_prazo")]
+        assert [(a.fonte, a.mensagem) for a in resposta.avisos] == [
+            ("trilho", "Não foi possível carregar as próximas Reuniões agora. Tente de novo em instantes.")
+        ]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. O kit de conhecimento diz o comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestKitDeConhecimento:
+    def test_o_produto_reunioes_explica_atas_e_trilho_no_inicio(self):
+        caminho = Path(fonte_reunioes.__file__).parents[2] / "conhecimento" / "reunioes.md"
+        texto = " ".join(caminho.read_text(encoding="utf-8").split())
+
+        assert "a ata que falta assinar aparece no Início de cada signatário" in texto
+        assert "sai da lista assim que a pessoa assina ou dá o" in texto
+        assert "só para o facilitador" in texto
+        assert "a partir do quarto dia, como prazo vencido" in texto
+        assert "sem prazo" in texto
+        assert "as próximas reuniões da pessoa, como facilitador ou participante" in texto
+        assert "a reunião cancelada não aparece" in texto
+        assert "Atas a assinar, casos da Ouvidoria" not in texto
+        assert chr(0x2014) not in texto
+        assert chr(0x2013) not in texto
