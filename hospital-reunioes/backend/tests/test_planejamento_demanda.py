@@ -371,16 +371,17 @@ def _erro_do_provedor() -> anthropic.APIStatusError:
 
 class TestFalhaDoTurno:
     @pytest.mark.parametrize(
-        "texto",
+        ("texto", "rodadas"),
         [
-            pytest.param("isto n\u00e3o \u00e9 JSON", id="nao-e-json"),
-            pytest.param(_pergunta(opcao_b=None), id="pergunta-sem-a-opcao-b"),
-            pytest.param(_pergunta(recomendada="C"), id="recomendada-fora-de-A-e-B"),
-            pytest.param(json.dumps({"encerrou": False}), id="sem-contexto"),
+            # Sem JSON nenhum, o turno pede o JSON uma vez (rodada a mais).
+            pytest.param("isto n\u00e3o \u00e9 JSON", 2, id="nao-e-json"),
+            pytest.param(_pergunta(opcao_b=None), 1, id="pergunta-sem-a-opcao-b"),
+            pytest.param(_pergunta(recomendada="C"), 1, id="recomendada-fora-de-A-e-B"),
+            pytest.param(json.dumps({"encerrou": False}), 1, id="sem-contexto"),
         ],
     )
-    def test_saida_que_nao_valida_contra_o_esquema_vira_erro_claro(self, monkeypatch, texto):
-        _ia(monkeypatch, texto, usage=_uso(entrada=900, saida=300))
+    def test_saida_que_nao_valida_contra_o_esquema_vira_erro_claro(self, monkeypatch, texto, rodadas):
+        cliente = _ia(monkeypatch, texto, usage=_uso(entrada=900, saida=300))
 
         resultado = _turno(_conversa_com(1))
 
@@ -388,7 +389,8 @@ class TestFalhaDoTurno:
         assert resultado.erro == planejamento_demanda.MOTIVO_TURNO_FALHOU
         # A resposta fora do formato foi cobrada: a chamada fica, sem sucesso.
         assert resultado.chamada["sucesso"] is False
-        assert resultado.chamada["tokens_saida"] == 300
+        assert len(cliente.chamadas) == rodadas
+        assert resultado.chamada["tokens_saida"] == 300 * rodadas
 
     def test_erro_do_provedor_vira_erro_claro(self, monkeypatch):
         _ia(monkeypatch, _erro_do_provedor())

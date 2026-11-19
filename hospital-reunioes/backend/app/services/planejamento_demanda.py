@@ -439,9 +439,51 @@ def _custo(uso, preco: Preco | None) -> tuple[dict, float]:
 def _json_da_resposta(resposta):
     if resposta.stop_reason in ("refusal", "max_tokens"):
         raise ValueError(f"resposta da IA interrompida ({resposta.stop_reason})")
-    texto = "".join(bloco.text for bloco in resposta.content if bloco.type == "text")
-    inicio, fim = texto.find("{"), texto.rfind("}")
-    return json.loads(texto[inicio : fim + 1] if 0 <= inicio < fim else texto)
+    return _objeto_no_texto(_texto_da_resposta(resposta))
+
+
+def _texto_da_resposta(resposta) -> str:
+    return "".join(bloco.text for bloco in resposta.content if bloco.type == "text")
+
+
+def _objeto_no_texto(texto: str) -> dict:
+    """O maior objeto JSON do texto. Depois de ler o codigo, o modelo as vezes
+    fala antes ou depois do JSON, e a fala tem chaves (`/usuarios/{id}`): do
+    primeiro `{` ao ultimo `}` nao decodificava (JSONDecodeError em producao,
+    19/11/2026). Texto sem objeto nenhum segue em JSONDecodeError."""
+    decodificador = json.JSONDecoder()
+    melhor, tamanho, inicio = None, 0, texto.find("{")
+    while inicio >= 0:
+        try:
+            objeto, fim = decodificador.raw_decode(texto, inicio)
+        except json.JSONDecodeError:
+            fim = inicio + 1
+        else:
+            if isinstance(objeto, dict) and fim - inicio > tamanho:
+                melhor, tamanho = objeto, fim - inicio
+        inicio = texto.find("{", fim)
+    if melhor is None:
+        raise json.JSONDecodeError("resposta sem objeto JSON", texto, 0)
+    return melhor
+
+
+# O pedido de uma rodada a mais quando a resposta final veio sem JSON nenhum
+# (so prosa, ou so o raciocinio). Um so por turno.
+PEDIDO_DO_JSON = (
+    "Sua última resposta não veio no formato pedido. Responda agora só com o objeto JSON "
+    "do formato de resposta, sem nenhum texto fora dele."
+)
+
+
+def _veio_sem_json(resposta) -> bool:
+    try:
+        _json_da_resposta(resposta)
+    except json.JSONDecodeError:
+        return True
+    except ValueError:
+        # Recusa ou resposta cortada no teto: pedir de novo nao resolve.
+        return False
+    return False
 
 
 # Os textos do cartao da pergunta (issue #1592), com o nome que tem na resposta
@@ -500,9 +542,14 @@ def _conversar_com_o_modelo(client, *, modelo: str, system: list[dict], conteudo
     Ao bater o teto de consultas, a rodada seguinte vai com `tool_choice`
     none: o modelo responde com o que ja tem. Cada rodada deixa o seu uso em
     `usos`, mesmo a que falhar depois.
+
+    A resposta final sem JSON nenhum ganha uma rodada a mais, sem ferramenta,
+    pedindo so o JSON (`PEDIDO_DO_JSON`); se ela tambem vier sem, o turno falha
+    como antes.
     """
     mensagens: list[dict] = [{"role": "user", "content": conteudo}]
     extras: dict = {"tools": ferramentas_do_codigo.DEFINICOES} if consultas is not None else {}
+    pediu_o_json = False
     while True:
         resposta = client.messages.create(
             model=modelo, max_tokens=ai_processor.MAX_TOKENS, system=system, messages=mensagens, **extras
@@ -510,7 +557,20 @@ def _conversar_com_o_modelo(client, *, modelo: str, system: list[dict], conteudo
         usos.append(getattr(resposta, "usage", None))
         pedidos = [bloco for bloco in resposta.content if bloco.type == "tool_use"]
         if consultas is None or resposta.stop_reason != "tool_use" or not pedidos or "tool_choice" in extras:
-            return resposta
+            if pediu_o_json or pedidos or not _veio_sem_json(resposta):
+                return resposta
+            # Metadado so: o texto pode citar a conversa.
+            logger.warning(
+                "[Planejamento] resposta sem JSON (stop_reason=%s, %d caracteres de texto): pedindo de novo",
+                resposta.stop_reason,
+                len(_texto_da_resposta(resposta)),
+            )
+            pediu_o_json = True
+            anterior = [{"role": "assistant", "content": resposta.content}] if resposta.content else []
+            mensagens = [*mensagens, *anterior, {"role": "user", "content": PEDIDO_DO_JSON}]
+            if consultas is not None:
+                extras["tool_choice"] = {"type": "none"}
+            continue
         mensagens = [
             *mensagens,
             {"role": "assistant", "content": resposta.content},
