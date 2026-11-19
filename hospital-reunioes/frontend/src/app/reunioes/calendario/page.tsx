@@ -1165,16 +1165,18 @@ export default function CalendarioPage() {
     return eventos.filter((ev) => ev.facilitador_id && set.has(ev.facilitador_id));
   }, [eventos, filtroFacilitadores]);
 
-  // Mapa data → eventos
-  const eventosPorDia = eventosFiltrados.reduce<Record<string, EventoCalendario[]>>(
-    (acc, ev) => {
-      const key = ev.data;
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(ev);
-      return acc;
-    },
-    {}
-  );
+  // Mapa data → eventos, cada dia pela hora de início (issue #1860); sem hora vai por último
+  const eventosPorDia = [...eventosFiltrados]
+    .sort((a, b) => (a.hora_inicio ?? "99").localeCompare(b.hora_inicio ?? "99"))
+    .reduce<Record<string, EventoCalendario[]>>(
+      (acc, ev) => {
+        const key = ev.data;
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(ev);
+        return acc;
+      },
+      {}
+    );
 
   const grid = getMonthGrid(viewYear, viewMonth);
   const totalRows = grid.length / 7;
