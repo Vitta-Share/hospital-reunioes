@@ -12,11 +12,12 @@ alcança a configuração técnica e não recebe item nenhum daqui.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 from app.dependencies import recursos_nsp_da_pessoa
-from app.services.seguranca_do_paciente import capacitacoes
+from app.services.inicio.regras import FUSO
+from app.services.seguranca_do_paciente import capacitacoes, termo
 from app.services.seguranca_do_paciente.assinatura_dos_documentos import ROTULO_DO_TIPO
 from app.services.seguranca_do_paciente.permissao import hoje_em_sao_paulo, id_do_nucleo, participacoes_vigentes
 
@@ -29,17 +30,39 @@ def _data(valor: Any) -> date | None:
     return date.fromisoformat(str(valor)[:10]) if valor else None
 
 
+def _dia_em_brasilia(valor: Any) -> date | None:
+    """O dia de um `TIMESTAMPTZ`, que chega em UTC, contado em Brasília como o
+    resto do Início: o envio às 22h não chega no dia seguinte."""
+    if not valor:
+        return None
+    momento = datetime.fromisoformat(str(valor))
+    return momento.astimezone(FUSO).date() if momento.tzinfo else momento.date()
+
+
+def _depois(instante: Any, de: Any) -> bool:
+    return bool(instante) and datetime.fromisoformat(str(instante)) > datetime.fromisoformat(str(de))
+
+
 def _termo_pendente(supabase, me: dict) -> list[dict]:
-    """A mesma regra da faixa das telas bloqueadas (`/nsp/meu-termo`): há
-    Participação vigente e nenhuma delas tem o Termo assinado."""
+    """A mesma regra do "Termo pendente" da ficha do membro
+    (`termo.novo_termo_pendente`, issue #1769): quem nunca assinou e também
+    quem assinou antes da renovação, da mudança de papel ou da revisão
+    material do Regimento. Quem já assinou alguma vez tem o acesso liberado
+    e não vê a faixa das telas bloqueadas: o link dele foi pelo e-mail."""
     nucleo_id = id_do_nucleo(supabase)
     if not nucleo_id:
         return []
-    linhas = participacoes_vigentes(supabase, nucleo_id, hoje_em_sao_paulo()).eq("participante_id", me["id"]).execute()
+    hoje = hoje_em_sao_paulo()
+    linhas = participacoes_vigentes(supabase, nucleo_id, hoje).eq("participante_id", me["id"]).execute()
     linhas = linhas.data or []
-    if not linhas or any(linha.get("termo_assinado_em") for linha in linhas):
+    if not linhas:
         return []
-    participacao = linhas[0]
+    revisao = termo.revisao_material_em(supabase)
+    pendentes = [linha for linha in linhas if termo.novo_termo_pendente(linha, revisao, hoje)]
+    if not pendentes:
+        return []
+    participacao = pendentes[0]
+    assinado = participacao.get("termo_assinado_em")
     envios = (
         supabase.table("nsp_termos_envios")
         .select("situacao, enviado_em, created_at")
@@ -50,19 +73,33 @@ def _termo_pendente(supabase, me: dict) -> list[dict]:
         .data
     ) or []
     envio = envios[0] if envios else {}
+    enviado = envio.get("enviado_em") or envio.get("created_at")
+    if assinado and not _depois(enviado, assinado):
+        # O envio é o do Termo já assinado: o novo ainda não saiu (a geração
+        # falhou, ou a revisão material não gerou), e a espera conta do pedido.
+        pedidos = (participacao.get("termo_gerado_em"), revisao)
+        chegou_em = max((_dia_em_brasilia(p) for p in pedidos if _depois(p, assinado)), default=None)
+    else:
+        chegou_em = _dia_em_brasilia(enviado)
+    if not any(linha.get("termo_assinado_em") for linha in linhas):
+        # A tela de Documentos, fechada para quem não assinou, mostra a
+        # faixa com o botão que abre o documento pendente (issue #1768).
+        origem = "Núcleo de Segurança do Paciente. Sem o Termo, as telas do Núcleo ficam fechadas."
+        acao, destino = "Abrir o Termo de Adesão", "/seguranca-do-paciente/documentos"
+    else:
+        origem = "Termo de Adesão novo esperando a sua assinatura. O link foi para o seu e-mail."
+        acao, destino = "Abrir o Núcleo", "/seguranca-do-paciente"
     return [
         {
             "tipo": "termo_de_adesao",
             "id": participacao["id"],
             "titulo": "Assinar o Termo de Adesão ao Núcleo",
-            "origem": "Núcleo de Segurança do Paciente. Sem o Termo, as telas do Núcleo ficam fechadas.",
-            "chegou_em": _data(envio.get("enviado_em") or envio.get("created_at")),
+            "origem": origem,
+            "chegou_em": chegou_em,
             "sem_prazo_no_modulo": True,
             "area": AREA,
-            # A tela de Documentos, fechada para quem não assinou, mostra a
-            # faixa com o botão que abre o documento pendente (issue #1768).
-            "acao": "Abrir o Termo de Adesão",
-            "destino": "/seguranca-do-paciente/documentos",
+            "acao": acao,
+            "destino": destino,
         }
     ]
 
@@ -113,7 +150,7 @@ def _documentos_a_assinar(supabase, me: dict) -> list[dict]:
                 "id": envio["id"],
                 "titulo": f"Assinar o {nome}, versão {versao}" if versao else f"Assinar o {nome}",
                 "origem": "Documento do Núcleo esperando a sua assinatura. O link foi para o seu e-mail.",
-                "chegou_em": _data(envio.get("enviado_em")),
+                "chegou_em": _dia_em_brasilia(envio.get("enviado_em")),
                 "sem_prazo_no_modulo": True,
                 "area": AREA,
                 "acao": "Abrir os Documentos",

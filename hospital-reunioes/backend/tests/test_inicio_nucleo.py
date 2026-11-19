@@ -202,6 +202,84 @@ class TestTermoDeAdesao:
         assert termo.dias_esperando == 8
         assert resposta.contadores.passou_do_prazo == 0
 
+    def test_termo_novo_da_renovacao_aparece_para_quem_ja_tinha_assinado(self, monkeypatch):
+        """A renovação e a mudança de papel carimbam `termo_gerado_em` depois da
+        assinatura (issue #1769): a ficha mostra "Termo pendente" e o Início
+        também. O acesso segue liberado, sem a faixa, e o link foi pelo e-mail."""
+        banco = _banco_do_nucleo(
+            nsp_termos_envios=[
+                {
+                    "id": "T_NOVO",
+                    "participacao_id": "PA_COM",
+                    "situacao": "enviado",
+                    "enviado_em": "2026-11-15T13:00:00+00:00",
+                    "created_at": "2026-11-15T13:00:00+00:00",
+                }
+            ]
+        )
+        banco.participacoes[1]["termo_gerado_em"] = "2026-11-15T12:59:00+00:00"
+
+        resposta = _rota(monkeypatch, MEMBRO_COM_TERMO, banco)
+
+        [termo] = _do_nucleo(resposta)
+        assert termo.tipo == "termo_de_adesao"
+        assert termo.titulo == "Assinar o Termo de Adesão ao Núcleo"
+        assert termo.origem == "Termo de Adesão novo esperando a sua assinatura. O link foi para o seu e-mail."
+        # Sem a faixa (o acesso segue liberado), o botão leva ao Núcleo.
+        assert termo.destino == "/seguranca-do-paciente"
+        assert termo.grupo == "sem_prazo"
+        assert termo.dias_esperando == 3
+
+    def test_revisao_material_do_regimento_pede_o_termo_de_novo(self, monkeypatch):
+        """Quem assinou antes da última revisão material do Regimento tem Termo
+        novo pendente; sem envio novo, ele espera desde a revisão."""
+        banco = _banco_do_nucleo(
+            nsp_documentos=[
+                {
+                    "id": "D_REG4",
+                    "tipo": "regimento",
+                    "versao": 4,
+                    "natureza_revisao": "material",
+                    "publicado_em": "2026-11-11T01:00:00+00:00",
+                }
+            ]
+        )
+
+        resposta = _rota(monkeypatch, MEMBRO_COM_TERMO, banco)
+
+        [termo] = _do_nucleo(resposta)
+        assert termo.tipo == "termo_de_adesao"
+        assert termo.origem == "Termo de Adesão novo esperando a sua assinatura. O link foi para o seu e-mail."
+        # 01h UTC de 11/11 ainda é 10/11 em Brasília.
+        assert termo.dias_esperando == 8
+
+    def test_termo_assinado_depois_do_ultimo_pedido_nao_aparece(self, monkeypatch):
+        banco = _banco_do_nucleo()
+        banco.participacoes[1]["termo_gerado_em"] = "2026-09-01T12:00:00+00:00"
+
+        resposta = _rota(monkeypatch, MEMBRO_COM_TERMO, banco)
+
+        assert _do_nucleo(resposta) == []
+
+    def test_envio_a_noite_em_brasilia_conta_o_dia_de_brasilia(self, monkeypatch):
+        """`enviado_em` chega em UTC: o envio às 22h de 10/11 em Brasília é
+        01h de 11/11 em UTC, e espera desde 10/11, não desde 11/11."""
+        banco = _banco_do_nucleo(
+            nsp_termos_envios=[
+                {
+                    "id": "T1",
+                    "participacao_id": "PA_SEM",
+                    "situacao": "enviado",
+                    "enviado_em": "2026-11-11T01:00:00+00:00",
+                    "created_at": "2026-11-11T01:00:00+00:00",
+                }
+            ]
+        )
+
+        [termo] = _do_nucleo(_rota(monkeypatch, MEMBRO_SEM_TERMO, banco))
+
+        assert termo.dias_esperando == 8
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 2. O documento do Núcleo esperando a assinatura da pessoa
@@ -239,6 +317,15 @@ class TestDocumentoAAssinar:
         assert documento.destino == "/seguranca-do-paciente/documentos"
         assert documento.grupo == "sem_prazo"
         assert documento.dias_esperando == 2
+
+    def test_documento_enviado_a_noite_em_brasilia_conta_o_dia_de_brasilia(self, monkeypatch):
+        tabelas = _documento_esperando()
+        # 22h30 de 15/11 em Brasília.
+        tabelas["nsp_documentos_envios"][0]["enviado_em"] = "2026-11-16T01:30:00+00:00"
+
+        [documento] = _do_nucleo(_rota(monkeypatch, PRESIDENTE, _banco_do_nucleo(**tabelas)))
+
+        assert documento.dias_esperando == 3
 
     def test_o_documento_sai_da_fila_depois_da_assinatura(self, monkeypatch):
         banco = _banco_do_nucleo(**_documento_esperando(assinado_em="2026-11-17T15:00:00+00:00"))
