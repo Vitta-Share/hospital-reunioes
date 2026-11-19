@@ -43,6 +43,7 @@ HOJE = AGORA.date()
 @dataclass
 class _Result:
     data: list
+    count: int | None = None
 
 
 class _Consulta:
@@ -121,6 +122,9 @@ class _Banco:
     ouvidoria_setor_responsaveis: list = field(default_factory=list)
     ouvidoria_protocolos: list = field(default_factory=list)
     ouvidoria_prorrogacoes: list = field(default_factory=list)
+    # Contas médicas (#1940) também lê o banco para o Super admin; vazia aqui.
+    cm_conta: list = field(default_factory=list)
+    cm_atendimento: list = field(default_factory=list)
 
     def table(self, nome):
         return _Consulta(getattr(self, nome))
