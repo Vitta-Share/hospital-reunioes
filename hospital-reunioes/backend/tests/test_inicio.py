@@ -468,3 +468,27 @@ class TestFonteQueFalha:
 
         assert resposta.itens == []
         assert [a.fonte for a in resposta.avisos] == ["pendencias"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 10. O kit de conhecimento ganha o texto do Início
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestKitDeConhecimento:
+    def test_o_kit_de_conhecimento_explica_o_inicio(self):
+        caminho = Path(inicio.__file__).parents[2] / "conhecimento" / "reunioes.md"
+        texto = " ".join(caminho.read_text(encoding="utf-8").split())
+
+        assert "## O Início" in texto
+        assert "É o primeiro item do menu para todos, menos a Secretária" in texto
+        assert "o login ainda leva cada pessoa para onde levava antes" in texto
+        assert "a partir dos números e sem inteligência artificial" in texto
+        assert "passou do prazo, vence em até 48 horas e próximos 7 dias" in texto
+        assert "só vence quando esse dia acaba, no horário de Brasília" in texto
+        assert "O atraso é contado pela data" in texto
+        assert "inclusive o lembrete da Agenda regulatória do Núcleo" in texto
+        assert "a pendência de reunião abre no quadro de pendências já destacada" in texto
+        assert "mostra um aviso só daquela parte e o resto continua" in texto
+        assert chr(0x2014) not in texto
+        assert chr(0x2013) not in texto
