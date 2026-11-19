@@ -556,7 +556,11 @@ class TestKitDeConhecimento:
 
         assert "## O Início" in texto
         assert "É o primeiro item do menu para todos, menos a Secretária" in texto
-        assert "o login ainda leva cada pessoa para onde levava antes" in texto
+        # O login cai no Início (issue #1942, ADR 0104); a frase da transição saiu.
+        assert "o login ainda leva cada pessoa para onde levava antes" not in texto
+        assert "Depois de entrar com a senha, todo mundo cai no Início" in texto
+        assert "quem chegou ao login por um link" in texto
+        assert "A Secretária cai na tela de agendamento dela" in texto
         assert "a partir dos números e sem inteligência artificial" in texto
         assert "passou do prazo, vence em até 48 horas e próximos 7 dias" in texto
         assert "só vence quando esse dia acaba, no horário de Brasília" in texto
