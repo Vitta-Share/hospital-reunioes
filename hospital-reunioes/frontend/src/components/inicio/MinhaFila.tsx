@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 
 import { useMovimentoReduzido } from "@/hooks/useMovimentoReduzido";
@@ -113,6 +113,57 @@ function Quando({ item, hoje }: { item: ItemDoInicio; hoje: string }) {
   );
 }
 
+async function cabecalhoDeAcesso(): Promise<Record<string, string>> {
+  const {
+    data: { session },
+  } = await createClient().auth.getSession();
+  return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+}
+
+/**
+ * A ação de um clique (ADR 0104, decisão 3): chama a rota que o servidor
+ * mandou, sem sair do Início, e pede o Início de novo para a linha sair e a
+ * frase e os contadores virem refeitos (issue #1939).
+ */
+function BotaoDeUmClique({
+  acao,
+  className,
+  aoResolver,
+}: {
+  acao: { rotulo: string; endpoint: string };
+  className: string;
+  aoResolver: () => void;
+}) {
+  const [enviando, setEnviando] = useState(false);
+  const [falhou, setFalhou] = useState(false);
+
+  async function clicar() {
+    setEnviando(true);
+    setFalhou(false);
+    try {
+      const res = await fetch(acao.endpoint, { method: "POST", headers: await cabecalhoDeAcesso() });
+      if (!res.ok) throw new Error(String(res.status));
+      aoResolver();
+    } catch {
+      setFalhou(true);
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <>
+      <button type="button" onClick={clicar} disabled={enviando} className={className}>
+        {acao.rotulo}
+      </button>
+      {falhou && (
+        <p role="alert" className="text-xs text-text-secondary">
+          Não deu para confirmar agora. Tente de novo.
+        </p>
+      )}
+    </>
+  );
+}
+
 // O botão da linha: preenchido no vencido; nos outros, preenche no hover e no
 // foco da linha (issue #1935).
 const BOTAO_VENCIDO = "bg-primary text-white group-hover:bg-primary-dark group-focus-within:bg-primary-dark";
@@ -125,7 +176,20 @@ const BOTAO_DOS_OUTROS =
  * o contexto fica sempre à vista. A linha vencida entra uma vez, ao abrir, uma
  * depois da outra (ADR 0104, decisão 8); com movimento reduzido, nada entra.
  */
-function Linha({ item, hoje, entrada }: { item: ItemDoInicio; hoje: string; entrada: number | null }) {
+function Linha({
+  item,
+  hoje,
+  entrada,
+  aoResolver,
+}: {
+  item: ItemDoInicio;
+  hoje: string;
+  entrada: number | null;
+  aoResolver: () => void;
+}) {
+  const classeDoBotao = `uppercase tracking-wide text-xs text-center max-w-full sm:whitespace-nowrap rounded-lg px-3.5 py-2 border border-primary motion-safe:transition-colors ${
+    item.grupo === "passou_do_prazo" ? BOTAO_VENCIDO : BOTAO_DOS_OUTROS
+  }`;
   return (
     <li
       className={`group grid grid-cols-[88px_minmax(0,1fr)] sm:grid-cols-[104px_minmax(0,1fr)_auto] gap-4 items-center py-3.5 px-2 border-b border-border rounded-lg motion-safe:transition-colors hover:bg-slate-50 focus-within:bg-slate-50${
@@ -149,15 +213,13 @@ function Linha({ item, hoje, entrada }: { item: ItemDoInicio; hoje: string; entr
         <span className="etiqueta text-[11px] text-slate-600 bg-slate-100 rounded-full px-2.5 py-0.5 max-w-full sm:whitespace-nowrap">
           {item.area}
         </span>
-        <Link
-          href={item.destino}
-          aria-label={`${item.acao}: ${item.titulo}`}
-          className={`uppercase tracking-wide text-xs text-center max-w-full sm:whitespace-nowrap rounded-lg px-3.5 py-2 border border-primary motion-safe:transition-colors ${
-            item.grupo === "passou_do_prazo" ? BOTAO_VENCIDO : BOTAO_DOS_OUTROS
-          }`}
-        >
-          {item.acao}
-        </Link>
+        {item.acao_de_um_clique ? (
+          <BotaoDeUmClique acao={item.acao_de_um_clique} className={classeDoBotao} aoResolver={aoResolver} />
+        ) : (
+          <Link href={item.destino} aria-label={`${item.acao}: ${item.titulo}`} className={classeDoBotao}>
+            {item.acao}
+          </Link>
+        )}
       </div>
     </li>
   );
@@ -182,27 +244,26 @@ export function MinhaFila() {
   const [falhou, setFalhou] = useState(false);
   const movimentoReduzido = useMovimentoReduzido();
 
+  // Também roda depois de uma ação de um clique: o servidor refaz a fila, a
+  // frase e os contadores.
+  const carregar = useCallback(async (vivo: () => boolean = () => true) => {
+    try {
+      const res = await fetch("/api/inicio", { headers: await cabecalhoDeAcesso() });
+      if (!res.ok) throw new Error(String(res.status));
+      const corpo = (await res.json()) as InicioDaPessoa;
+      if (vivo()) setInicio(corpo);
+    } catch {
+      if (vivo()) setFalhou(true);
+    }
+  }, []);
+
   useEffect(() => {
     let vivo = true;
-    (async () => {
-      try {
-        const {
-          data: { session },
-        } = await createClient().auth.getSession();
-        const res = await fetch("/api/inicio", {
-          headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
-        });
-        if (!res.ok) throw new Error(String(res.status));
-        const corpo = (await res.json()) as InicioDaPessoa;
-        if (vivo) setInicio(corpo);
-      } catch {
-        if (vivo) setFalhou(true);
-      }
-    })();
+    carregar(() => vivo);
     return () => {
       vivo = false;
     };
-  }, []);
+  }, [carregar]);
 
   const vencidos = inicio?.contadores.passou_do_prazo ?? null;
   useEffect(() => {
@@ -312,6 +373,7 @@ export function MinhaFila() {
                         item={item}
                         hoje={inicio.hoje}
                         entrada={grupo.chave === "passou_do_prazo" && !movimentoReduzido ? indice : null}
+                        aoResolver={() => carregar()}
                       />
                     ))}
                   </ul>
