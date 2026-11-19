@@ -168,3 +168,99 @@ class TestFaturista:
         # A conta foi puxada em 13/11: espera há 5 dias.
         assert em_correcao.dias_esperando == 5
         assert em_correcao.prazo is None
+
+    def test_faturista_nao_ve_a_conta_de_outra_nem_a_concluida_nem_a_livre(self, monkeypatch):
+        banco = _banco(
+            [
+                _conta("C010", "EM_CORRECAO", "P_FATIMA"),
+                _conta("C011", "EM_CORRECAO", "P_OUTRA"),
+                _conta("C012", "CONCLUIDA", "P_FATIMA"),
+                _conta("C013", "A_FAZER"),
+            ]
+        )
+
+        assert _contas(_rota(monkeypatch, FATIMA, banco)) == [("C010", "sem_prazo")]
+
+    def test_a_conta_com_a_faturista_nao_entra_na_frase_nem_nos_contadores(self, monkeypatch):
+        banco = _banco([_conta("C020", "EM_CORRECAO", "P_FATIMA", aberta_em="2026-09-01T12:00:00+00:00")])
+
+        resposta = _rota(monkeypatch, FATIMA, banco)
+
+        assert resposta.contadores.passou_do_prazo == 0
+        assert resposta.frase.titulo == "Fátima, você está em dia."
+        assert resposta.frase.apoio == "Nenhum prazo aberto no seu nome."
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. A coordenadora e quem não é do módulo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestPorPapel:
+    def test_coordenadora_nao_recebe_a_conta_que_esta_com_a_faturista(self, monkeypatch):
+        banco = _banco([_conta("C030", "EM_CORRECAO", "P_FATIMA"), _conta("C031", "RETORNO", "P_CORA")])
+
+        assert _contas(_rota(monkeypatch, CORA, banco)) == [("C031", "sem_prazo")]
+
+    def test_pessoa_sem_perfil_de_contas_medicas_nao_recebe_nada_desta_fonte(self, monkeypatch):
+        banco = _banco([_conta("C040", "EM_CORRECAO", "P_AURORA"), _conta("C041", "A_FAZER")])
+
+        resposta = _rota(monkeypatch, AURORA, banco)
+
+        assert _contas(resposta) == []
+        assert resposta.filas_do_papel == []
+        assert not {"cm_conta", "cm_atendimento"} & set(banco.lidas)
+
+    def test_apoio_ao_faturamento_que_so_envia_nao_recebe_conta(self, monkeypatch):
+        apoio = {**FATIMA, "id": "P_APOIO", "perfil_contas_medicas": "apoio_faturamento"}
+        banco = _banco([_conta("C050", "EM_CORRECAO", "P_APOIO")])
+
+        assert _contas(_rota(monkeypatch, apoio, banco)) == []
+        assert _rota(monkeypatch, apoio, banco).filas_do_papel == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. As contas sem dono, na Fila do papel
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _fila_de_contas(resposta):
+    return next((fila for fila in resposta.filas_do_papel if fila.fila == "contas_medicas"), None)
+
+
+class TestFilaDoPapel:
+    def test_coordenadora_ve_quantas_contas_estao_sem_dono_com_o_link_da_fila(self, monkeypatch):
+        banco = _banco(
+            [
+                _conta("C060"),
+                _conta("C061"),
+                _conta("C062"),
+                _conta("C063", "EM_CORRECAO", "P_FATIMA"),
+                _conta("C064", "PROCESSANDO"),
+            ]
+        )
+
+        resposta = _rota(monkeypatch, CORA, banco)
+
+        fila = _fila_de_contas(resposta)
+        assert fila is not None
+        assert fila.titulo == "Fila de contas"
+        assert fila.esperam == 3
+        assert fila.vencidas == 0
+        assert fila.resumo == "3 contas sem dono esperam na Fila."
+        assert fila.destino == "/contas-medicas"
+
+    def test_faturista_tambem_ve_a_linha_e_ela_fica_fora_da_frase(self, monkeypatch):
+        banco = _banco([_conta("C070")])
+
+        resposta = _rota(monkeypatch, FATIMA, banco)
+
+        assert _fila_de_contas(resposta).resumo == "1 conta sem dono espera na Fila."
+        # A conta livre não vira item de ninguém nem entra na contagem da frase.
+        assert _contas(resposta) == []
+        assert resposta.frase.apoio == "Nenhum prazo aberto no seu nome."
+
+    def test_sem_conta_livre_a_linha_nao_aparece(self, monkeypatch):
+        banco = _banco([_conta("C080", "EM_CORRECAO", "P_FATIMA")])
+
+        assert _fila_de_contas(_rota(monkeypatch, FATIMA, banco)) is None

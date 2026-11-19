@@ -88,3 +88,24 @@ def itens(supabase, me: dict, _agora: datetime | None = None) -> list[dict]:
         }
         for conta in contas
     ]
+
+
+def fila_do_papel(supabase, me: dict, _agora: datetime | None = None) -> list[dict]:
+    """A linha da Fila de contas: quantas contas livres esperam alguém pegar.
+    A conta não tem prazo no módulo, então nenhuma conta como vencida."""
+    if not _analisa_contas(supabase, me):
+        return []
+    livres = supabase.table("cm_conta").select("id", count="exact").eq("situacao", LIVRE).limit(1).execute().count
+    if not livres:
+        return []
+    resumo = "1 conta sem dono espera na Fila." if livres == 1 else f"{livres} contas sem dono esperam na Fila."
+    return [
+        {
+            "fila": "contas_medicas",
+            "titulo": "Fila de contas",
+            "esperam": livres,
+            "vencidas": 0,
+            "resumo": resumo,
+            "destino": "/contas-medicas",
+        }
+    ]

@@ -62,6 +62,7 @@ FONTES: tuple[Fonte, ...] = (
 # uma devolve as linhas de `FilaDoPapel` que cabem a quem pede.
 FILAS_DO_PAPEL: tuple[Fonte, ...] = (
     Fonte("fila_da_ouvidoria", fonte_ouvidoria.ROTULO_DA_FILA, fonte_ouvidoria.fila_do_papel),
+    Fonte("fila_de_contas", fonte_contas_medicas.ROTULO_DA_FILA, fonte_contas_medicas.fila_do_papel),
 )
 
 
