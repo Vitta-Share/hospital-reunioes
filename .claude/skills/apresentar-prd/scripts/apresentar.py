@@ -4,7 +4,8 @@
 Uso, da raiz do repositório:
   apresentar.py coletar <PRD>                o PRD e as Fatias em JSON, com etapas e Partes numeradas
   apresentar.py montar <PRD> [--saida DIR]   a página de docs/comunicacao/planos/<PRD>/dados.json
-  apresentar.py publicar <PRD>               tira o selo validado:diretor e publica o site inteiro
+  apresentar.py publicar <PRD>               tira o selo validado:diretor, publica o site inteiro e marca o PRD
+  apresentar.py marcar <PRD>                 só grava no PRD o marcador com o endereço da página
   apresentar.py email <PRD>                  grava o texto do e-mail (link com o código) fora do repo
 
 O segredo do código fica em ~/.config/planos-hsm/segredo (ou $PLANOS_HSM_DIR), nunca no repositório.
@@ -382,6 +383,44 @@ def montar_site(destino: Path) -> list[int]:
     return prds
 
 
+def endereco(prd: int) -> str:
+    """O endereço da página, sem o código do link: é o que vai para o PRD e o card."""
+    return f"{SITE}/{prd}"
+
+
+def com_marcador(corpo: str, prd: int) -> str:
+    """O corpo com o marcador da Apresentação no fim, uma vez só, sem mudar outro byte."""
+    marcador = f"<!-- apresentacao: {endereco(prd)} -->"
+    if marcador in corpo:
+        return corpo
+    separador = "" if not corpo else "\n" if corpo.endswith("\n") else "\n\n"
+    return f"{corpo}{separador}{marcador}\n"
+
+
+def marcar(prd: int) -> str:
+    """Grava no PRD o marcador `<!-- apresentacao: <url> -->` (ADR 0108, decisão 2).
+
+    Só o marcador: sem deploy e sem tocar nas labels. Já marcado, não grava nada.
+    """
+    issue = f"repos/{REPO}/issues/{prd}"
+    corpo = _gh_json("api", issue).get("body") or ""
+    novo = com_marcador(corpo, prd)
+    if novo != corpo:
+        with tempfile.NamedTemporaryFile(
+            "w", suffix=".json", delete=False, encoding="utf-8"
+        ) as f:
+            json.dump({"body": novo}, f, ensure_ascii=False)
+        try:
+            subprocess.run(
+                ["gh", "api", "-X", "PATCH", issue, "--input", f.name],
+                capture_output=True,
+                check=True,
+            )
+        finally:
+            os.unlink(f.name)
+    return endereco(prd)
+
+
 def publicar(prd: int) -> str:
     if not (PLANOS / str(prd) / "dados.json").exists():
         raise SystemExit(f"falta docs/comunicacao/planos/{prd}/dados.json")
@@ -396,7 +435,8 @@ def publicar(prd: int) -> str:
             cwd=destino,
             check=True,
         )
-    return f"{SITE}/{prd}"
+    # Depois do deploy que deu certo: deploy falho sai antes, pelo check=True.
+    return marcar(prd)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -404,7 +444,7 @@ def main(argv: list[str] | None = None) -> int:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for cmd in ("coletar", "montar", "publicar", "email"):
+    for cmd in ("coletar", "montar", "publicar", "marcar", "email"):
         p = sub.add_parser(cmd)
         p.add_argument("prd", type=int)
         if cmd == "montar":
@@ -415,6 +455,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(coletar(args.prd), ensure_ascii=False, indent=1))
     elif args.cmd == "publicar":
         print(publicar(args.prd))
+    elif args.cmd == "marcar":
+        print(marcar(args.prd))
     elif args.cmd == "email":
         print(email(args.prd))
     elif args.cmd == "montar":
