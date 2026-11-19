@@ -20,6 +20,7 @@ from pydantic import BaseModel
 
 from app.services.inicio import (
     fonte_contas_medicas,
+    fonte_nucleo,
     fonte_ouvidoria,
     fonte_pendencias,
     fonte_pops,
@@ -55,6 +56,7 @@ FONTES: tuple[Fonte, ...] = (
     Fonte("ouvidoria", fonte_ouvidoria.ROTULO, fonte_ouvidoria.itens),
     Fonte("pops", fonte_pops.ROTULO, fonte_pops.itens),
     Fonte("contas_medicas", fonte_contas_medicas.ROTULO, fonte_contas_medicas.itens),
+    Fonte("nucleo", fonte_nucleo.ROTULO, fonte_nucleo.itens),
 )
 
 # A Fila do papel (ADR 0104, decisão 6): a fila sem responsável nomeado, uma

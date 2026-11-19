@@ -88,6 +88,15 @@ A tela Núcleo, Capacitações:
 - a seção Temas mínimos por membro mostra, para cada membro com participação vigente, quantos temas mínimos já cobriu e quais. Conta só a capacitação com presença confirmada: estar na lista sem confirmar não cobre o tema;
 - a lista de temas mínimos fica no fim da tela. A Presidência e o Acesso pleno incluem, renomeiam e desativam os temas. A lista vem com os 17 temas mínimos do caderno nº 6 da ANVISA. Tema desativado sai da cobertura e da escolha no cadastro, mas continua aparecendo nas capacitações antigas.
 
+O Núcleo no Início:
+
+- quem é do Núcleo vê no Início, a tela de cada pessoa, o que o Núcleo espera dela: o Termo de Adesão que falta assinar, o ato de designação, o Regimento ou o Plano que espera a assinatura dela e a capacitação em que falta confirmar a presença, a partir do dia da capacitação;
+- o item do Termo tem o botão Abrir o Termo de Adesão, que leva à tela Documentos, onde a faixa abre o documento pendente. O Termo sai do Início quando é assinado ou liberado sem assinatura, e o documento sai quando a pessoa assina;
+- esses itens não têm prazo no Núcleo: ficam no grupo Sem prazo, no fim da lista, com há quantos dias esperam, e não contam como prazo vencido;
+- a presença se confirma no próprio Início, pelo botão **Confirmar presença**, sem abrir outra tela: a linha sai e a frase e os números do topo se refazem;
+- cada item só aparece para quem abriria a tela dele no módulo. Quem está no Núcleo sem o Termo assinado vê só o Termo; quem é de fora do Núcleo não vê nada do Núcleo, nem estando na lista de uma capacitação; o super admin sem o Acesso pleno também não vê nada do Núcleo no Início;
+- os casos e a notificação ao Notivisa entram no Início quando as próximas fases do Núcleo forem ao ar.
+
 ## Quem vê
 
 O item Segurança do Paciente aparece para quem tem participação vigente no Núcleo, para quem tem o Acesso pleno ao NSP e para a Diretoria. Os demais não veem o item.

@@ -23,7 +23,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.routers import inicio as inicio_router  # noqa: E402
-from app.services.inicio import fonte_pendencias, fonte_reunioes  # noqa: E402
+from app.services.inicio import fonte_nucleo, fonte_pendencias, fonte_reunioes  # noqa: E402
 
 BRT = ZoneInfo("America/Sao_Paulo")
 # Quarta-feira, 18/11/2026, 10h em Brasília.
@@ -135,7 +135,8 @@ def nucleo(monkeypatch):
     estado = {"ocultas": [], "recursos": frozenset()}
     for modulo in (fonte_pendencias, fonte_reunioes):
         monkeypatch.setattr(modulo, "reunioes_ocultas", lambda _sb, _me: list(estado["ocultas"]))
-    monkeypatch.setattr(fonte_pendencias, "recursos_nsp_da_pessoa", lambda _sb, _me: estado["recursos"])
+    for modulo in (fonte_pendencias, fonte_nucleo):
+        monkeypatch.setattr(modulo, "recursos_nsp_da_pessoa", lambda _sb, _me: estado["recursos"])
     return estado
 
 
