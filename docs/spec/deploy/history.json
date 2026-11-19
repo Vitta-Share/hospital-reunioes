@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-19T18:44:03-03:00",
+      "sha": "91b4ee21acafe6512d23d8477a5b9be96856c554",
+      "app_version": "0.319.0",
+      "subject": "Onda sesta-1932-onda7: Quem responde a você, vencidos, em aberto e último acesso",
+      "raw_subject": "chore(deploy): registro da onda sesta-1932-onda7 (#2036)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1932
+      ],
+      "result": "healthy",
+      "duration_seconds": 370,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1932-onda7: PR #2036 (issue #1943), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 102,
+          "frontend": 333
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-19T18:16:42-03:00",
       "sha": "5f8c6428bfa563c0fd83f1e5e16a177efa04f826",
       "app_version": "0.318.1",
