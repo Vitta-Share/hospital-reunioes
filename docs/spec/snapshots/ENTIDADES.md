@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-19T18:01+0000 -->
+<!-- last_update: 2026-11-19T18:40+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2228,7 +2228,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## tecnologia_envios_aos_desenvolvedores
 
-> Origem: `165_tecnologia_envio_aos_desenvolvedores.sql`
+> Origem: `165_tecnologia_envio_aos_desenvolvedores.sql` (alterada em: 166_tecnologia_observacao_da_validacao.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2244,6 +2244,8 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `estado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
 | `enviado_em` | `TIMESTAMPTZ` | — | — | — |
 | `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `origem` | `TEXT` | NOT NULL | `'conversa'` | — |
+| `texto_original` | `TEXT` | — | — | — |
 
 **Indexes:**
 - `idx_tecnologia_envios_aos_desenvolvedores_demanda` em `(demanda_id, ate_mensagem_em)` (de `165_tecnologia_envio_aos_desenvolvedores.sql`)
