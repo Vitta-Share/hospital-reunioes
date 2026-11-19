@@ -1,10 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { destinoAposLogin } from "@/lib/login/destino";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard";
+  // O `next` vem da URL: só caminho do próprio site vale, o resto cai no Início.
+  const next = destinoAposLogin(searchParams.get("next"));
 
   // Em prod o Next roda atrás de Traefik. request.nextUrl.origin enxerga o bind
   // interno (http://0.0.0.0:3000), então o redirect quebra. Reconstrói a base

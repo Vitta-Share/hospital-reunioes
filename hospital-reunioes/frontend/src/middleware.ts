@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
-import { urlDeLoginPara } from "@/lib/login/destino";
+import { DESTINO_PADRAO, urlDeLoginPara } from "@/lib/login/destino";
 
 /**
  * A régua do arquivo: casa ÁREA, não prefixo de texto (issue #439).
@@ -98,9 +98,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(login, request.url));
   }
 
-  // Redireciona para /dashboard se já autenticado tentar acessar /login ou /signup
+  // A raiz do site não tem tela (a capa saiu, ADR 0104 decisão 1): quem tem
+  // sessão vai ao Início, quem não tem vai ao login.
+  if (pathname === "/") {
+    return NextResponse.redirect(new URL(user ? DESTINO_PADRAO : "/login", request.url));
+  }
+
+  // Quem já está autenticado e abre /login ou /signup vai ao Início.
   if ((pathname === "/login" || pathname === "/signup") && user) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return NextResponse.redirect(new URL(DESTINO_PADRAO, request.url));
   }
 
   return supabaseResponse;
@@ -108,6 +114,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/",
     "/dashboard/:path*",
     "/reunioes/:path*",
     "/pendencias/:path*",

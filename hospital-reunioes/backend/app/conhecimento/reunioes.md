@@ -39,7 +39,7 @@ Só quem é do Núcleo vê essas reuniões. Para quem é de fora, elas não apar
 
 ## O Início
 
-O Início é a tela de cada pessoa, com o que ela tem para entregar. É o primeiro item do menu para todos, menos a Secretária, que continua com a tela dela e não vê pendência. Por enquanto o login ainda leva cada pessoa para onde levava antes; a troca vem quando o Início estiver completo.
+O Início é a tela de cada pessoa, com o que ela tem para entregar. É o primeiro item do menu para todos, menos a Secretária, que continua com a tela dela e não vê pendência. Depois de entrar com a senha, todo mundo cai no Início, inclusive quem só usa Ouvidoria, POPs, o Núcleo ou Contas médicas; quem chegou ao login por um link (o de um caso da Ouvidoria, por exemplo) volta para esse link. A Secretária cai na tela de agendamento dela, e abrir o endereço do Início a leva de volta para lá. O logo do menu também leva ao Início. A antiga capa do aplicativo, com dois botões, não existe mais: o endereço principal leva ao Início quem já entrou e ao login quem não entrou. O painel de Reuniões continua no menu, no mesmo endereço.
 
 No topo, uma frase escrita pelo próprio aplicativo, a partir dos números e sem inteligência artificial, diz quantos prazos venceram e há quantos dias o mais antigo espera. Quem não tem nada vencido lê que está em dia e qual é o próximo prazo. Enquanto houver prazo vencido, o topo fica numa faixa azul-marinho escura, e o vermelho aparece só no texto.
 

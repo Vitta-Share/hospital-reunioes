@@ -111,7 +111,7 @@ describe("para onde o login manda", () => {
   it("manda para o padrão quando não há destino", () => {
     expect(destinoAposLogin(null)).toBe(DESTINO_PADRAO);
     expect(destinoAposLogin("")).toBe(DESTINO_PADRAO);
-    expect(DESTINO_PADRAO).toBe("/dashboard");
+    expect(DESTINO_PADRAO).toBe("/inicio");
   });
 
   it("manda para o padrão quando o destino sai daqui", () => {

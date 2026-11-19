@@ -116,8 +116,6 @@ export function Sidebar({
   const [preferenciaRecolhido, alternarRecolhido] = useMenuRecolhido();
   const recolhido = variant === "desktop" && preferenciaRecolhido;
   const isSec = isSecretaria(participante);
-  const popsOnly =
-    temPerfilPop(participante) && participante != null && !temAcessoReunioes(participante);
   const dentroDaSegurancaDoPaciente = pathname.startsWith(HREF_DA_SEGURANCA_DO_PACIENTE);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({
     "/reunioes-metas": true,
@@ -303,7 +301,7 @@ export function Sidebar({
       {!recolhido && (
         <div className="px-4 py-3 border-b border-border flex justify-center">
           <Link
-            href={popsOnly ? "/pops" : isSec ? "/secretaria" : "/dashboard"}
+            href={isSec ? "/secretaria" : "/inicio"}
             onClick={onNavigate}
             className="block hover:opacity-80 transition-opacity"
           >
@@ -388,7 +386,7 @@ export function itensDoMenu(participante: CurrentParticipante | null): NavItem[]
           label: "Segurança do Paciente",
           icon: HeartPulse,
           subItems: [
-            { href: HREF_DA_SEGURANCA_DO_PACIENTE, label: "Início", icon: Home },
+            { href: HREF_DA_SEGURANCA_DO_PACIENTE, label: "Visão geral", icon: Home },
             {
               href: `${HREF_DA_SEGURANCA_DO_PACIENTE}/reunioes`,
               label: "Reuniões",

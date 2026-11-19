@@ -15,8 +15,8 @@
  * recusa só ajudaria quem está testando o que passa).
  */
 
-/** Para onde o login manda quem não trouxe destino, ou trouxe destino que não vale. */
-export const DESTINO_PADRAO = "/dashboard";
+/** Para onde o login manda quem não trouxe destino, ou trouxe destino que não vale: o Início (ADR 0104, decisão 1). */
+export const DESTINO_PADRAO = "/inicio";
 
 /** O nome do parâmetro que carrega o destino na query string do login. */
 export const PARAM_DESTINO = "redirect";

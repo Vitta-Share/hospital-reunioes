@@ -4,7 +4,7 @@
  * A régua de o que é destino interno tem teste próprio em `lib/login/destino`.
  * O que só existe aqui é a ligação: o `login` ler o campo do formulário, passar
  * pela régua e mandar a pessoa para lá. Sem este arquivo, trocar a última linha
- * da action por `redirect("/dashboard")` fixo deixaria a suíte inteira verde e
+ * da action por `redirect("/inicio")` fixo deixaria a suíte inteira verde e
  * apagaria a funcionalidade em silêncio.
  *
  * O par perigoso também vive aqui: a action re-mede o valor mesmo tendo a tela
@@ -51,30 +51,30 @@ describe("para onde o login devolve a pessoa", () => {
     expect(redirect).toHaveBeenCalledWith("/ouvidoria/m/2026-0012");
   });
 
-  it("ignora destino de fora do site e cai no dashboard", async () => {
+  it("ignora destino de fora do site e cai no Início", async () => {
     await login(formulario("https://evil.com/roubo"));
-    expect(redirect).toHaveBeenCalledWith("/dashboard");
+    expect(redirect).toHaveBeenCalledWith("/inicio");
 
     redirect.mockReset();
     await login(formulario("//evil.com"));
-    expect(redirect).toHaveBeenCalledWith("/dashboard");
+    expect(redirect).toHaveBeenCalledWith("/inicio");
 
     redirect.mockReset();
     await login(formulario("/\\evil.com"));
-    expect(redirect).toHaveBeenCalledWith("/dashboard");
+    expect(redirect).toHaveBeenCalledWith("/inicio");
 
     // O achado do Gate 1.5: forma que a tela normalizaria para `//evil.com`.
     // A action é a régua que vale, e ela precisa recusar sozinha, sem depender
     // de a tela ter medido antes.
     redirect.mockReset();
     await login(formulario("/..//evil.com"));
-    expect(redirect).toHaveBeenCalledWith("/dashboard");
+    expect(redirect).toHaveBeenCalledWith("/inicio");
   });
 
-  it("sem destino no formulário, segue indo ao dashboard", async () => {
+  it("sem destino no formulário, cai no Início (ADR 0104)", async () => {
     await login(formulario());
 
-    expect(redirect).toHaveBeenCalledWith("/dashboard");
+    expect(redirect).toHaveBeenCalledWith("/inicio");
   });
 
   it("não devolve a lugar nenhum quando a autenticação falha", async () => {

@@ -26,11 +26,9 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { metadata, viewport } from "./layout";
-import Home from "./page";
 
 const IDENTIDADE_VELHA = /Gestão de Atas|gestão de reuniões|Hospital Reuniões/i;
 
@@ -71,17 +69,5 @@ describe("a identidade da aplicação", () => {
   it("não sobra menção à identidade velha em lugar nenhum", () => {
     expect(JSON.stringify(metadata)).not.toMatch(IDENTIDADE_VELHA);
     expect(JSON.stringify(manifesto)).not.toMatch(IDENTIDADE_VELHA);
-  });
-});
-
-describe("a porta de entrada", () => {
-  it("se apresenta como a plataforma, não como o módulo de reuniões", () => {
-    const texto = render(<Home />).container.textContent ?? "";
-
-    expect(texto).toContain("Hospital São Matheus · Plataforma de Gestão");
-    expect(texto).toContain(
-      "A plataforma de gestão do hospital: reuniões, POPs e Ouvidoria.",
-    );
-    expect(texto).not.toMatch(IDENTIDADE_VELHA);
   });
 });
