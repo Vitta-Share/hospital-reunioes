@@ -897,3 +897,25 @@ def test_reunioes_diz_quem_ve_cada_pendencia():
         assert termo in quem_ve, termo
     decididas = [d for d in _decisoes("reunioes.md") if "quem só participou" in d]
     assert len(decididas) == 1, decididas
+
+
+class TestSetorDaReuniaoNoKit:
+    """Issue #1861: o Assistente explica que toda reunião nova tem setor e onde
+    se acerta o setor que falta nas antigas e nos responsáveis."""
+
+    @pytest.fixture
+    def texto(self) -> str:
+        return _texto("reunioes.md")
+
+    def test_diz_que_agendar_exige_setor_e_onde_se_acerta_o_que_falta(self, texto):
+        setor = _secao(texto, "O setor da reunião")
+        for termo in (
+            "não deixa marcar a reunião sem ele",
+            "a Secretária inclusive",
+            "continuam valendo mesmo sem setor",
+            "Acertos de setor",
+            "responsáveis por pendência que estão sem setor",
+            "o item sai da lista",
+        ):
+            assert termo in setor, termo
+        assert "Toda reunião nova tem setor" in _secao(texto, "O que já foi decidido")
