@@ -58,6 +58,9 @@ class ItemDoInicio(BaseModel):
     area: str
     acao: str
     destino: str
+    # A linha de contexto (issue #1935): aparece no hover, no foco e sempre na
+    # tela de toque. Fonte que não tem o que dizer deixa vazia.
+    contexto: str | None = None
     acao_de_um_clique: AcaoDeUmClique | None = None
     grupo: str | None = None
     dias_de_atraso: int | None = None

@@ -60,6 +60,24 @@ def _origem_da_reuniao(reuniao: dict | None) -> str:
     return f"{titulo}, de {quando.strftime('%d/%m/%Y')}." if quando else f"{titulo}."
 
 
+_ANDAMENTO = {
+    "PENDENTE": "Ainda sem andamento. ",
+    "EM_PROGRESSO": "Em andamento. ",
+    "REPACTUADA": "Prazo repactuado. ",
+}
+
+
+def _contexto(linha: dict) -> str | None:
+    """A linha de contexto do Início (issue #1935): o andamento e o dia em que
+    a Pendência abriu, com o que a consulta já trouxe. O atraso não entra: a
+    coluna da data já o diz."""
+    aberta = _data(linha.get("created_at"))
+    andamento = _ANDAMENTO.get(linha.get("status") or "", "")
+    if not aberta:
+        return andamento.strip() or None
+    return f"{andamento}Aberta em {aberta.strftime('%d/%m/%Y')}."
+
+
 def itens(supabase, me: dict) -> list[dict]:
     """Os itens da fonte, no formato comum do Início, sem grupo: o grupo e o
     atraso são calculados por quem monta (`montar_inicio`)."""
@@ -96,6 +114,7 @@ def itens(supabase, me: dict) -> list[dict]:
                 "area": "Reuniões",
                 "acao": "Abrir a Pendência",
                 "destino": f"/pendencias/kanban?highlight={linha['id_acao']}",
+                "contexto": _contexto(linha),
             }
         )
     for linha in lembretes:
@@ -110,6 +129,7 @@ def itens(supabase, me: dict) -> list[dict]:
                 "area": "Segurança do Paciente",
                 "acao": "Abrir na agenda",
                 "destino": "/seguranca-do-paciente/agenda",
+                "contexto": _contexto(linha),
             }
         )
     return saida

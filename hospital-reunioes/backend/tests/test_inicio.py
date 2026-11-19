@@ -494,6 +494,39 @@ class TestFonteQueFalha:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+class TestContextoDoItem:
+    """A linha de contexto que aparece no hover, no foco e sempre na tela de
+    toque (issue #1935): o andamento da Pendência e o dia em que ela abriu,
+    com o que a fonte já lê, sem consulta nova."""
+
+    @pytest.mark.parametrize(
+        ("status", "contexto"),
+        [
+            ("PENDENTE", "Ainda sem andamento. Aberta em 01/11/2026."),
+            ("EM_PROGRESSO", "Em andamento. Aberta em 01/11/2026."),
+            ("REPACTUADA", "Prazo repactuado. Aberta em 01/11/2026."),
+            ("ATRASADO", "Aberta em 01/11/2026."),
+        ],
+    )
+    def test_a_pendencia_diz_o_andamento_e_quando_abriu(self, monkeypatch, nucleo, status, contexto):
+        banco = _Banco(pendencias=[_pendencia("A090", responsavel_id="P_AURORA", status=status)], reunioes=[REUNIAO])
+
+        resposta = _rota(monkeypatch, AURORA, banco)
+
+        assert resposta.itens[0].contexto == contexto
+
+    def test_o_lembrete_da_agenda_diz_o_andamento_e_quando_abriu(self, monkeypatch, nucleo):
+        nucleo["recursos"] = frozenset({"agenda"})
+        banco = _Banco(
+            pendencias=[_pendencia("A091", responsavel_id="P_AURORA", id_reuniao=None, status="EM_PROGRESSO")]
+        )
+
+        resposta = _rota(monkeypatch, AURORA, banco)
+
+        assert resposta.itens[0].tipo == "lembrete_da_agenda"
+        assert resposta.itens[0].contexto == "Em andamento. Aberta em 01/11/2026."
+
+
 class TestKitDeConhecimento:
     def test_o_kit_de_conhecimento_explica_o_inicio(self):
         caminho = Path(inicio.__file__).parents[2] / "conhecimento" / "reunioes.md"
