@@ -408,7 +408,9 @@ def aviso_para_travar_a_mao(raiz: int, nao_travadas: list[int] | None) -> str:
             'em "Blocked by".'
         )
     lista = ", ".join(f"#{n}" for n in nao_travadas)
-    return f'Não deu para travar pelo GitHub as fatias {lista}. Trave à mão: em cada uma, ponha este card em "Blocked by".'
+    return (
+        f'Não deu para travar pelo GitHub as fatias {lista}. Trave à mão: em cada uma, ponha este card em "Blocked by".'
+    )
 
 
 def corpo_do_ajuste(
@@ -485,7 +487,8 @@ def corpo_do_ajuste(
             "## Como saber que acabou",
             "",
             "- Este card está fechado com o comentário do passo 5.",
-            '- As fatias bloqueadas voltam para a fila (`gh issue list --label ready-for-agent --search "-is:blocked"`).',
+            "- As fatias bloqueadas voltam para a fila "
+            '(`gh issue list --label ready-for-agent --search "-is:blocked"`).',
             "- Se a Apresentação foi publicada de novo, o PRD perdeu o selo `validado:diretor` e espera a nova "
             "validação.",
         ]

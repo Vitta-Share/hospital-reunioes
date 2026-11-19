@@ -436,6 +436,87 @@ class TestTravaAsFatiasIniciais:
         travadas = _secao(corpo, "Fatias bloqueadas por este card")
         assert re.findall(r"#(\d+)", travadas) == ["901", "903"]
 
+    def test_a_fatia_em_andamento_entra_na_secao_ja_em_andamento_e_nao_e_travada(self, monkeypatch):
+        gh = _GithubDoAjuste(
+            {900: _issue(900)},
+            proximo_numero=950,
+            sub_issues=_fatias(
+                (901, "open", ("ready-for-agent",)),
+                (902, "open", ("ready-for-agent", "in-progress")),
+                # O claim troca o `ready-for-agent` pelo `in-progress`.
+                (903, "open", ("in-progress",)),
+            ),
+        )
+
+        corpo = _enviado(monkeypatch, gh)
+
+        assert gh.bloqueios == [(901, ID_DO_AJUSTE)]
+        andamento = _secao(corpo, "Já em andamento (não param)")
+        assert re.findall(r"#(\d+)", andamento) == ["902", "903"]
+        assert re.findall(r"#(\d+)", _secao(corpo, "Fatias bloqueadas por este card")) == ["901"]
+
+    def test_raiz_sem_fatia_livre_diz_nenhuma_e_nao_trava_nada(self, monkeypatch):
+        gh = _GithubDoAjuste(
+            {900: _issue(900)},
+            proximo_numero=950,
+            sub_issues=_fatias((901, "open", ("ready-for-agent",)), (902, "closed", ("ready-for-agent",))),
+            bloqueadoras={901: [{"numero": 880, "estado": "open", "url": None}]},
+        )
+
+        corpo = _enviado(monkeypatch, gh)
+
+        assert gh.bloqueios == []
+        assert _secao(corpo, "Fatias bloqueadas por este card").strip() == "Nenhuma: o PRD não tinha fatia livre."
+        assert "## Já em andamento" not in corpo
+
+    def test_a_falha_ao_travar_mantem_o_ajuste_e_o_corpo_pede_a_trava_a_mao(self, monkeypatch):
+        gh = _GithubDoAjuste(
+            {900: _issue(900)},
+            proximo_numero=950,
+            sub_issues=_fatias((901, "open", ("ready-for-agent",)), (902, "open", ("ready-for-agent",))),
+        )
+        gh.erro_ao_bloquear = github_client.GithubIndisponivelError("GitHub respondeu 502")
+
+        corpo = _enviado(monkeypatch, gh)
+
+        assert gh.bloqueios == []
+        assert gh.sub_issues_ligadas == [(900, ID_DO_AJUSTE)]
+        travadas = _secao(corpo, "Fatias bloqueadas por este card")
+        assert "Trave à mão" in travadas
+        assert "#901, #902" in travadas
+
+    def test_a_falha_ao_ler_as_dependencias_mantem_o_ajuste_e_pede_a_trava_a_mao(self, monkeypatch):
+        gh = _GithubDoAjuste(
+            {900: _issue(900)},
+            proximo_numero=950,
+            sub_issues=_fatias((901, "open", ("ready-for-agent",))),
+        )
+        gh.erro_ao_ler_bloqueadoras = github_client.GithubIndisponivelError("timeout")
+
+        corpo = _enviado(monkeypatch, gh)
+
+        assert gh.bloqueios == []
+        travadas = _secao(corpo, "Fatias bloqueadas por este card")
+        assert "Trave à mão" in travadas
+        # Sem a leitura ninguém sabe se havia fatia livre: o "Nenhuma" seria mentira.
+        assert "Nenhuma" not in travadas
+
+    def test_o_cliente_do_github_trava_pela_dependencia_nativa_com_o_id_do_ajuste(self, monkeypatch):
+        chamadas = []
+
+        def _rede(metodo, url, *, headers, json, timeout):
+            import httpx
+
+            chamadas.append((metodo, url, json))
+            return httpx.Response(201, json={"number": 901}, request=httpx.Request(metodo, url))
+
+        monkeypatch.setattr(github_client.httpx, "request", _rede)
+
+        github_client.bloquear(901, ID_DO_AJUSTE, projeto="hospital")
+
+        issue = "https://api.github.com/repos/pedrorezendefig/hospital-reunioes/issues/901"
+        assert chamadas == [("POST", f"{issue}/dependencies/blocked_by", {"issue_id": ID_DO_AJUSTE})]
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 5. A linha do envio na conversa e o próximo envio
