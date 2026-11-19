@@ -462,12 +462,24 @@ def ler_sub_issues(numero: int, *, projeto: str) -> list[dict[str, Any]]:
     404 aqui NAO e "a issue nao existe" (ela acabou de ser lida): e a API de
     sub-issues indisponivel para este repositorio, e o certo e seguir sem
     partes em vez de recusar o Vinculo inteiro.
+
+    Pagina a pagina ate vir uma pagina curta (revisao do PR #2021): sem
+    `per_page` o GitHub devolve so as 30 primeiras, e a raiz com mais partes
+    perdia as do fim (a #1786 tem 43).
     """
-    try:
-        dados = _chamar("GET", f"/issues/{numero}/sub_issues", projeto=projeto)
-    except IssueNaoEncontradaError:
-        return []
-    return dados if isinstance(dados, list) else []
+    partes: list[dict[str, Any]] = []
+    pagina = 1
+    while True:
+        try:
+            dados = _chamar("GET", f"/issues/{numero}/sub_issues?per_page={_POR_PAGINA}&page={pagina}", projeto=projeto)
+        except IssueNaoEncontradaError:
+            return partes
+        if not isinstance(dados, list):
+            return partes
+        partes.extend(dados)
+        if len(dados) < _POR_PAGINA:
+            return partes
+        pagina += 1
 
 
 def ler_bloqueadoras(numero: int, *, projeto: str) -> list[dict[str, Any]]:
@@ -590,6 +602,22 @@ def adicionar_sub_issue(raiz: int, sub_issue_id: int, *, projeto: str) -> None:
         _chamar("POST", f"/issues/{raiz}/sub_issues", projeto=projeto, json={"sub_issue_id": sub_issue_id})
     except IssueNaoEncontradaError as exc:
         raise GithubIndisponivelError(f"A issue #{raiz} nao foi encontrada para ligar a parte") from exc
+
+
+def bloquear(numero: int, bloqueadora_id: int, *, projeto: str) -> None:
+    """A issue `numero` passa a ser bloqueada pela de `bloqueadora_id` (o `id`
+    da API, nao o numero), pela dependencia nativa (issue #2012): o Ajuste do
+    plano trava as fatias iniciais, como o do Validar. Um 404 aqui nao e
+    resposta (a fatia acabou de ser lida): vira indisponibilidade."""
+    try:
+        _chamar(
+            "POST",
+            f"/issues/{numero}/dependencies/blocked_by",
+            projeto=projeto,
+            json={"issue_id": bloqueadora_id},
+        )
+    except IssueNaoEncontradaError as exc:
+        raise GithubIndisponivelError(f"A issue #{numero} nao foi encontrada para bloquear") from exc
 
 
 def regravar(numero: int, *, projeto: str, corpo: str, labels: list[str]) -> dict[str, Any]:
