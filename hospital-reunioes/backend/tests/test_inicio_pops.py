@@ -139,3 +139,72 @@ class TestPorPapel:
         assert item.area == "POPs"
         assert item.acao == "Elaborar"
         assert item.destino == "/pops/POP001/elaboracao"
+
+    def test_revisor_ve_o_pop_em_revisao_e_o_botao_abre_a_versao(self, monkeypatch):
+        banco = _Banco(
+            pops=[_pop("POP002")],
+            pops_versoes=[_versao("V2", "POP002", "EM_REVISAO")],
+            audit_log=[_transicao("V2", "POPS_APROVAR_VERSAO_FINAL", "EM_REVISAO", "2026-11-12T15:00:00+00:00")],
+        )
+
+        [item] = _pops(_rota(monkeypatch, REVISOR, banco))
+
+        assert (item.id, item.acao, item.destino) == ("POP002", "Revisar", "/pops/POP002/versao")
+
+    def test_validadora_ve_o_pop_em_validacao_e_o_botao_abre_a_versao(self, monkeypatch):
+        banco = _Banco(
+            pops=[_pop("POP003")],
+            pops_versoes=[_versao("V3", "POP003", "EM_VALIDACAO")],
+            audit_log=[_transicao("V3", "POPS_APROVAR_REVISAO", "EM_VALIDACAO", "2026-11-14T15:00:00+00:00")],
+        )
+
+        [item] = _pops(_rota(monkeypatch, VALIDADORA, banco))
+
+        assert (item.id, item.acao, item.destino) == ("POP003", "Validar", "/pops/POP003/versao")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. Sem prazo, com há quantos dias a Versão está na etapa
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestSemPrazo:
+    def test_o_pop_fica_em_sem_prazo_com_os_dias_desde_que_entrou_na_etapa(self, monkeypatch):
+        # Duas idas à revisão: vale a mais recente (16/11, às 23h de Brasília
+        # ainda é dia 16, mesmo já sendo 17 em UTC). Hoje é 18/11: 2 dias.
+        banco = _Banco(
+            pops=[_pop("POP002")],
+            pops_versoes=[_versao("V2", "POP002", "EM_REVISAO")],
+            audit_log=[
+                _transicao("V2", "POPS_APROVAR_VERSAO_FINAL", "EM_REVISAO", "2026-11-05T15:00:00+00:00"),
+                _transicao("V2", "POPS_DEVOLVER_REVISAO", "EM_ELABORACAO", "2026-11-09T15:00:00+00:00"),
+                _transicao("V2", "POPS_APROVAR_VERSAO_FINAL", "EM_REVISAO", "2026-11-17T02:00:00+00:00"),
+            ],
+        )
+
+        resposta = _rota(monkeypatch, REVISOR, banco)
+
+        [item] = _pops(resposta)
+        assert item.grupo == "sem_prazo"
+        assert item.prazo is None
+        assert item.chegou_em.isoformat() == "2026-11-16"
+        assert item.dias_esperando == 2
+        assert resposta.contadores.passou_do_prazo == 0
+        assert resposta.frase.titulo == "Rui, você está em dia."
+
+    def test_a_elaborar_conta_desde_a_criacao_da_versao(self, monkeypatch):
+        banco = _Banco(
+            pops=[_pop("POP004")],
+            pops_versoes=[_versao("V4", "POP004", "A_ELABORAR", created_at="2026-11-08T12:00:00+00:00")],
+        )
+
+        [item] = _pops(_rota(monkeypatch, ELABORADORA, banco))
+
+        assert (item.grupo, item.dias_esperando, item.acao) == ("sem_prazo", 10, "Elaborar")
+
+    def test_sem_a_data_da_etapa_o_pop_aparece_sem_a_contagem(self, monkeypatch):
+        banco = _Banco(pops=[_pop("POP002")], pops_versoes=[_versao("V2", "POP002", "EM_REVISAO")])
+
+        [item] = _pops(_rota(monkeypatch, REVISOR, banco))
+
+        assert (item.grupo, item.chegou_em, item.dias_esperando) == ("sem_prazo", None, None)
