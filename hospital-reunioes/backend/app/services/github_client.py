@@ -637,6 +637,14 @@ _MARCADOR_DA_DEMONSTRACAO = re.compile(r"<!--\s*demonstracao:\s*(\S+)\s*-->", re
 # O que nunca entra num link que a tela poe num `href`: aspas e sinais de tag.
 _FORA_DO_LINK = re.compile(r"[\"'<>\\]")
 
+# A chave do link da Apresentacao do PRD na foto (issue #2010, ADR 0108,
+# decisao 2), e o marcador que o `apresentar.py publicar` grava na raiz.
+FATO_APRESENTACAO = "apresentacao"
+_MARCADOR_DA_APRESENTACAO = re.compile(r"<!--\s*apresentacao:\s*(\S+)\s*-->", re.IGNORECASE)
+
+# A unica pagina que o atalho do card abre: a dos planos do hospital.
+PAGINA_DOS_PLANOS = "https://planos-hsm.vercel.app/"
+
 
 def demonstracao_do_corpo(corpo: str | None) -> str | None:
     """O link da Demonstracao que o corpo da issue carrega, ou `None`.
@@ -658,6 +666,23 @@ def demonstracao_do_corpo(corpo: str | None) -> str | None:
     partes = urlsplit(url)
     host = partes.hostname or ""
     if partes.scheme != "https" or "." not in host or not all(host.split(".")):
+        return None
+    return url
+
+
+def apresentacao_do_corpo(corpo: str | None) -> str | None:
+    """O link da Apresentacao do PRD que o corpo da issue carrega, ou `None`
+    (issue #2010).
+
+    So a pagina dos planos entra: o link vai para um botao no card do diretor,
+    e o corpo da issue e de fora do app. Vale o ultimo marcador do corpo, como
+    o da Demonstracao.
+    """
+    achados = _MARCADOR_DA_APRESENTACAO.findall(corpo or "")
+    if not achados:
+        return None
+    url = achados[-1]
+    if _FORA_DO_LINK.search(url) or not url.startswith(PAGINA_DOS_PLANOS):
         return None
     return url
 
@@ -689,6 +714,12 @@ def montar_foto(dados: dict[str, Any], partes: list[dict[str, Any]]) -> dict[str
     demonstracao = demonstracao_do_corpo(dados.get("body"))
     if demonstracao is not None:
         foto[FATO_DEMONSTRACAO] = demonstracao
+
+    # O link da Apresentacao do PRD, so da raiz (issue #2010). So entra com o
+    # marcador valido: a foto da issue sem ele continua identica.
+    apresentacao = apresentacao_do_corpo(dados.get("body"))
+    if apresentacao is not None:
+        foto[FATO_APRESENTACAO] = apresentacao
 
     # A data de criacao da raiz (issue #1702), gravada em toda leitura. So da
     # raiz: o pedido e o card, e a parte nao conta como pedido.

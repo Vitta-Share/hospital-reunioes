@@ -174,6 +174,19 @@ def demonstracao_nova(foto: dict[str, Any], demanda: dict[str, Any]) -> dict[str
     return {"demonstracao_url": url, "demonstracao_em": datetime.now(UTC).isoformat()}
 
 
+def apresentacao_nova(foto: dict[str, Any], demanda: dict[str, Any]) -> dict[str, Any]:
+    """O link da Apresentacao do PRD a gravar, ou nada (issue #2010, ADR 0108,
+    decisao 2).
+
+    Como o da Demonstracao: so o link novo, ou trocado, escreve, e a foto sem
+    o marcador nao apaga o link ja gravado.
+    """
+    url = foto.get(github_client.FATO_APRESENTACAO)
+    if not url or url == demanda.get("apresentacao_url"):
+        return {}
+    return {"apresentacao_url": url}
+
+
 def responsavel_da_foto(supabase, foto: dict[str, Any]) -> str | None:
     """O Responsavel que a foto diz: quem tem no cadastro o login do dono da
     issue (issue #1534, ADR 0083, decisao 6). `None` sem dono, ou com um dono
@@ -437,6 +450,7 @@ def sincronizar_demanda(
         )
         mudanca["responsavel_id"] = responsavel_id
         mudanca.update(demonstracao_nova(foto_do_github, demanda))
+        mudanca.update(apresentacao_nova(foto_do_github, demanda))
         if not cache_desatualizado(demanda, mudanca):
             return False
         etapa_antes = demanda.get("etapa") or ETAPA_REGISTRADA
