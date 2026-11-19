@@ -115,14 +115,16 @@ function Linha({ item, hoje, entrada }: { item: ItemDoInicio; hoje: string; entr
           </p>
         )}
       </div>
-      <div className="col-start-2 sm:col-start-auto flex sm:flex-col items-center sm:items-end justify-between gap-2">
-        <span className="etiqueta text-[11px] text-slate-600 bg-slate-100 rounded-full px-2.5 py-0.5 whitespace-nowrap">
+      {/* No celular a coluna é estreita: a etiqueta e o botão descem de linha e
+          quebram o texto em vez de passar da borda do cartão (issue #1935). */}
+      <div className="col-start-2 sm:col-start-auto flex flex-wrap sm:flex-nowrap sm:flex-col items-center sm:items-end justify-between gap-2">
+        <span className="etiqueta text-[11px] text-slate-600 bg-slate-100 rounded-full px-2.5 py-0.5 max-w-full sm:whitespace-nowrap">
           {item.area}
         </span>
         <Link
           href={item.destino}
           aria-label={`${item.acao}: ${item.titulo}`}
-          className={`uppercase tracking-wide text-xs whitespace-nowrap rounded-lg px-3.5 py-2 border border-primary motion-safe:transition-colors ${
+          className={`uppercase tracking-wide text-xs text-center max-w-full sm:whitespace-nowrap rounded-lg px-3.5 py-2 border border-primary motion-safe:transition-colors ${
             item.grupo === "passou_do_prazo" ? BOTAO_VENCIDO : BOTAO_DOS_OUTROS
           }`}
         >

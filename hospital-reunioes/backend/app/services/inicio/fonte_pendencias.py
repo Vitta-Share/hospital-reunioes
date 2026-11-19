@@ -10,10 +10,11 @@ alcança não aparece (issue #1772).
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 from app.dependencies import recursos_nsp_da_pessoa, reunioes_ocultas, tem_acesso_reunioes
+from app.services.inicio.regras import FUSO
 from app.services.pendencia_service import e_lembrete_do_nucleo
 
 ROTULO = "as Pendências"
@@ -25,6 +26,15 @@ _COLUNAS = "id_acao, descricao_acao, prazo, status, id_reuniao, responsavel_id, 
 
 def _data(valor: Any) -> date | None:
     return date.fromisoformat(str(valor)[:10]) if valor else None
+
+
+def _dia_em_brasilia(valor: Any) -> date | None:
+    """O dia de um `TIMESTAMPTZ`, que chega em UTC, contado em Brasília como o
+    resto do Início: a Pendência aberta às 22h não abre no dia seguinte."""
+    if not valor:
+        return None
+    momento = datetime.fromisoformat(str(valor))
+    return momento.astimezone(FUSO).date() if momento.tzinfo else momento.date()
 
 
 def _abertas_no_nome(supabase, pessoa_id: str) -> list[dict]:
@@ -71,7 +81,7 @@ def _contexto(linha: dict) -> str | None:
     """A linha de contexto do Início (issue #1935): o andamento e o dia em que
     a Pendência abriu, com o que a consulta já trouxe. O atraso não entra: a
     coluna da data já o diz."""
-    aberta = _data(linha.get("created_at"))
+    aberta = _dia_em_brasilia(linha.get("created_at"))
     andamento = _ANDAMENTO.get(linha.get("status") or "", "")
     if not aberta:
         return andamento.strip() or None

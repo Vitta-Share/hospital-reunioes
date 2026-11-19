@@ -526,6 +526,17 @@ class TestContextoDoItem:
         assert resposta.itens[0].tipo == "lembrete_da_agenda"
         assert resposta.itens[0].contexto == "Em andamento. Aberta em 01/11/2026."
 
+    def test_a_pendencia_aberta_na_noite_de_brasilia_conta_o_dia_de_brasilia(self, monkeypatch, nucleo):
+        # 01h30 em UTC do dia 2 é 22h30 do dia 1 em Brasília.
+        banco = _Banco(
+            pendencias=[_pendencia("A092", responsavel_id="P_AURORA", created_at="2026-11-02T01:30:00+00:00")],
+            reunioes=[REUNIAO],
+        )
+
+        resposta = _rota(monkeypatch, AURORA, banco)
+
+        assert resposta.itens[0].contexto == "Ainda sem andamento. Aberta em 01/11/2026."
+
 
 class TestKitDeConhecimento:
     def test_o_kit_de_conhecimento_explica_o_inicio(self):

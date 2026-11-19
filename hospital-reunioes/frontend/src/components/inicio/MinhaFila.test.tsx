@@ -373,6 +373,23 @@ describe("o acabamento do protótipo (issue #1935)", () => {
     expect(classes(within(vencida).getByText("Reunião de Atendimento, de 28/10/2026."))).toContain("break-words");
   });
 
+  it("no celular, a etiqueta e o botão descem de linha e quebram o texto em vez de passar da borda do cartão", async () => {
+    // O jsdom não mede: a medida no Chromium está no PR #2026. Aqui fica a
+    // causa do corte, sem prefixo de tela (o que vale no celular): a linha
+    // que não quebra e o texto que não quebra.
+    await abrir();
+    const botao = within(linha("Treinar a equipe da noite")).getByRole("link", {
+      name: "Abrir a Pendência: Treinar a equipe da noite",
+    });
+    const etiqueta = within(linha("Treinar a equipe da noite")).getByText("Reuniões");
+    expect(botao.parentElement).toBe(etiqueta.parentElement);
+    expect(classes(botao.parentElement!)).toContain("flex-wrap");
+    expect(classes(botao)).not.toContain("whitespace-nowrap");
+    expect(classes(etiqueta)).not.toContain("whitespace-nowrap");
+    expect(classes(botao)).toContain("max-w-full");
+    expect(classes(etiqueta)).toContain("max-w-full");
+  });
+
   it("leitor de tela: a frase fica numa região anunciada, que já existe enquanto carrega", async () => {
     let responder: (r: Response) => void = () => {};
     vi.stubGlobal(
