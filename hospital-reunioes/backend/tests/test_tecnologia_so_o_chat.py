@@ -40,6 +40,10 @@ ROTAS_DO_CHAT = {
     "/api/admin/tecnologia/desenvolvedores",
     # A Conversa da Demanda volta, só no app (issue #1537, ADR 0083, decisão 8).
     "/api/admin/tecnologia/chat/{demanda_id}/conversa",
+    # O Envio aos desenvolvedores (issue #2011, ADR 0108): o "Entendi assim:"
+    # e o "Enviar".
+    "/api/admin/tecnologia/chat/{demanda_id}/conversa/interpretar",
+    "/api/admin/tecnologia/chat/{demanda_id}/conversa/enviar",
     # A aba Entregas, só leitura (issue #1556, ADR 0084, decisão 8).
     "/api/admin/tecnologia/entregas",
     # A Revisão com o código de hoje (issue #1557): a estimativa e o confirmar.
