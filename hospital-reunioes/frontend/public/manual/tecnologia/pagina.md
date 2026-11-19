@@ -80,7 +80,7 @@ Quando a Vitta só dá um recado, sem pergunta, o sino mostra o aviso de sempre,
 
 ## Mandar o que você escreveu aos desenvolvedores
 
-Quando o pedido já virou card, a Conversa da Demanda guarda o que você escreve, e nada sai do aplicativo sozinho. Você escolhe a hora de mandar: escreve quantas mensagens quiser e, no fim, aperta um botão. Os desenvolvedores recebem só o resumo que você aprovou, e ele vira uma tarefa no plano do pedido.
+Quando o pedido já virou card, a Conversa da Demanda guarda o que você escreve. Quem cuida do pedido lê a conversa no aplicativo e recebe o aviso de cada mensagem sua no sino e por e-mail. O plano do pedido só muda quando você manda: escreve quantas mensagens quiser e, no fim, aperta um botão. Do aplicativo sai só o resumo que você aprovou, e ele vira uma tarefa no plano do pedido.
 
 1. No Quadro, clique no card do pedido e, no alto do painel, clique em **Conversar**.
 2. Escreva o que quer mudar ou responder na caixa embaixo da conversa e clique no botão de enviar, ao lado dela. Mande quantas mensagens quiser: cada uma fica guardada na conversa.
@@ -89,7 +89,7 @@ Quando o pedido já virou card, a Conversa da Demanda guarda o que você escreve
 
    ![O Entendi assim, com os tópicos e os botões Enviar e Corrigir](entendi-assim.png)
 
-5. Se o resumo estiver certo, clique em **Enviar**. Se faltou algo ou alguma coisa está errada, clique em **Corrigir**: a caixa de mensagem volta, você escreve o que faltou e clica de novo em Enviar para os desenvolvedores. O resumo seguinte já leva em conta o que você escreveu.
+5. Se o resumo estiver certo, clique em **Enviar**. Se faltou algo ou alguma coisa está errada, clique em **Corrigir**: o Entendi assim fecha e o cursor vai para a caixa de mensagem. Escreva o que faltou, clique no botão de enviar, ao lado da caixa, e clique de novo em Enviar para os desenvolvedores. O resumo seguinte já leva em conta o que você escreveu.
 6. Depois do Enviar, a conversa ganha a linha **Enviado aos desenvolvedores**, com a data, a hora e os tópicos que você aprovou. O que você escrever depois dessa linha entra no próximo envio.
 
    ![A linha Enviado aos desenvolvedores na Conversa da Demanda](enviado-aos-desenvolvedores.png)
@@ -143,8 +143,8 @@ passo desenvolvimento 7,3: Em desenvolvimento | A Vitta está fazendo. Num pedid
 fim entregue 7,4: Entregue | O trabalho terminou. Quando a entrega chega ao aplicativo, o card passa a Em produção, com a versão.
 passo envio 8,2: Enviar para os desenvolvedores | Com o card criado, você escreve na Conversa da Demanda quantas mensagens quiser e aperta o botão.
 decisao entendi 9,2: O Entendi assim bateu?
-passo corrigir 9,1: Corrigir | Você escreve o que faltou na Conversa e aperta o botão de novo.
-passo enviado 10,2: Enviado aos desenvolvedores | A Conversa ganha a linha com a data e os tópicos. Os desenvolvedores recebem só o resumo que você aprovou e ajustam o plano.
+passo corrigir 9,1: Corrigir | Você manda na Conversa uma mensagem com o que faltou e aperta o botão de novo.
+passo enviado 10,2: Enviado aos desenvolvedores | A Conversa ganha a linha com a data e os tópicos. Do aplicativo sai só o resumo que você aprovou, e os desenvolvedores ajustam o plano.
 conversa -> tipo
 tipo -> bug: bug
 tipo -> melhoria: melhoria

@@ -284,8 +284,16 @@ describe("a tarefa de mandar o que você escreveu aos desenvolvedores (issue #20
     );
   });
 
-  it("o Corrigir volta para a caixa, e o resumo seguinte leva em conta o que você escreveu", () => {
-    expect(passosDa(TAREFA)[indice(/\*\*Corrigir\*\*/)]).toMatch(/resumo seguinte já leva em conta o que você escreveu/);
+  it("o Corrigir leva à caixa: manda a mensagem pelo botão ao lado dela antes de Enviar para os desenvolvedores de novo", () => {
+    const passo = passosDa(TAREFA)[indice(/\*\*Corrigir\*\*/)];
+    const corrigir = passo.slice(passo.indexOf("**Corrigir**"));
+    const mandar = corrigir.search(/clique no botão de enviar, ao lado da caixa/);
+    const deNovo = corrigir.search(/de novo em Enviar para os desenvolvedores/);
+    expect(mandar).toBeGreaterThan(0);
+    expect(deNovo).toBeGreaterThan(mandar);
+    expect(corrigir).toMatch(/resumo seguinte já leva em conta o que você escreveu/);
+    // A caixa nunca sai da tela: o Corrigir só fecha o Entendi assim e põe o cursor nela.
+    expect(corrigir).not.toMatch(/caixa[^.]*volta/);
   });
 
   it("a linha Enviado traz a data, a hora e os tópicos, e o que vem depois entra no próximo envio", () => {
@@ -294,10 +302,12 @@ describe("a tarefa de mandar o que você escreveu aos desenvolvedores (issue #20
     expect(passo).toMatch(/entra no próximo envio/);
   });
 
-  it("diz que os desenvolvedores recebem só o resumo aprovado, nunca as suas mensagens (ADR 0083, decisão 8)", () => {
+  it("diz que quem cuida do pedido lê a conversa, e que do aplicativo sai só o resumo aprovado (ADR 0083, decisão 8; ADR 0108, decisão 5)", () => {
     const { texto } = secao(TAREFA);
-    expect(texto).toMatch(/recebem só o resumo que você aprovou/);
-    expect(texto).not.toMatch(/(suas mensagens|o que você escreveu) (vão|vai|chegam?) (para|aos)/);
+    expect(texto).toMatch(/Quem cuida do pedido lê a conversa no aplicativo/);
+    expect(texto).toMatch(/Do aplicativo sai só o resumo que você aprovou/);
+    // Só o GitHub recebe apenas o resumo: os desenvolvedores leem a conversa no app.
+    expect(texto).not.toMatch(/desenvolvedores recebem só/i);
   });
 
   it("o Entendi assim e a linha Enviado têm print, cada um no seu passo", () => {

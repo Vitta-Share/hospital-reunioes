@@ -225,7 +225,7 @@ describe("o Ver o plano e o Envio aos desenvolvedores na tabela (issue #2015, PR
   const E = envio();
   const id = SEED.abrir.envio as string;
   const conversa = () => T[`chat/${id}/conversa`] as {
-    mensagens: { texto: string; minha: boolean }[];
+    mensagens: { texto: string; minha: boolean; criado_em: string }[];
     envio?: { mensagens_novas: number };
   };
 
@@ -266,6 +266,16 @@ describe("o Ver o plano e o Envio aos desenvolvedores na tabela (issue #2015, PR
     expect(linha.minha).toBe(false);
     expect(linha.texto).toMatch(/^Enviado aos desenvolvedores em \d{2}\/\d{2}\/\d{4}, às \d{2}:\d{2}:\n/);
     expect(linha.texto.split("\n").slice(1)).toEqual(entendi.topicos.map((t) => `- ${t}`));
+  });
+
+  it("a linha Enviado vem logo depois das mensagens que ela resume, a qualquer hora que o roteiro rode", () => {
+    const linha = E[`chat/${id}/conversa/enviar`] as { texto: string; criado_em: string };
+    const ultima = Date.parse(conversa().mensagens.at(-1)!.criado_em);
+    const enviado = Date.parse(linha.criado_em);
+    expect(enviado).toBeGreaterThan(ultima);
+    expect(enviado - ultima).toBeLessThanOrEqual(60 * 60 * 1000);
+    const [, hora, minuto] = linha.criado_em.match(/T(\d{2}):(\d{2})/)!;
+    expect(linha.texto).toContain(`às ${hora}:${minuto}:`);
   });
 
   it("o roteiro só responde um pedido que não é GET pela tabela do envio, e o resto continua recusado", () => {

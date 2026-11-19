@@ -313,10 +313,13 @@ def sino() -> dict:
 def envio() -> dict:
     """Os dois cliques do Envio aos desenvolvedores (issue #2015, ADR 0108): o
     interpretar devolve o "Entendi assim:" do seed, e o enviar devolve a linha
-    do envio no formato do backend. Nada chega à IA nem ao GitHub."""
+    do envio no formato do backend. Nada chega à IA nem ao GitHub. O envio sai
+    meia hora depois da última mensagem do seed, e não na hora do roteiro: rodado
+    de manhã, o print mostraria o envio antes das mensagens que ele resume."""
     chave = f"chat/{SEED['abrir']['envio']}/conversa"
     entendi = SEED["envio"]["entendi"]
-    agora = datetime.now(FUSO).replace(second=0, microsecond=0)
+    ultima = conversa_da_demanda(SEED["envio"]["falas"])["mensagens"][-1]["criado_em"]
+    agora = datetime.fromisoformat(ultima) + timedelta(minutes=30)
     linha = "\n".join(
         [f"Enviado aos desenvolvedores em {agora:%d/%m/%Y}, às {agora:%H:%M}:", *[f"- {t}" for t in entendi["topicos"]]]
     )
