@@ -542,5 +542,14 @@ class TestKitDeConhecimento:
         assert "inclusive o lembrete da Agenda regulatória do Núcleo" in texto
         assert "a pendência de reunião abre no quadro de pendências já destacada" in texto
         assert "mostra um aviso só daquela parte e o resto continua" in texto
+        # O acabamento do protótipo (issue #1935).
+        assert "Nada na tela pisca" in texto
+        assert "O título da aba do navegador mostra o número de prazos vencidos" in texto
+        assert "para quem pediu ao sistema menos movimento, nada se move" in texto
+        assert "Os três números do topo levam à parte correspondente da lista" in texto
+        assert "aparece uma linha com o andamento e o dia em que o item abriu" in texto
+        assert "no celular essa linha fica sempre à vista" in texto
+        assert "o Início é o primeiro item da barra de baixo" in texto
+        assert "a frase do topo é anunciada quando chega e cada botão diz o que abre" in texto
         assert chr(0x2014) not in texto
         assert chr(0x2013) not in texto
