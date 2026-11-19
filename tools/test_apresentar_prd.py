@@ -323,24 +323,41 @@ def test_rascunho_do_email_leva_o_link_com_o_codigo_que_a_validacao_aceita(mac):
 # --- Publicar: tira o selo antes, deploy de uma cópia fora do repo -----------
 
 
+# O corpo do PRD 1757 de mentira, com o bloco do diretor e sem marcador.
+CORPO_DO_PRD = (
+    "## 👔 Para o diretor\n\n**O que muda:** As pendências ganham histórico.\n\n"
+    '---\n\n## O que construir\n\nTexto.\n\n<!-- demanda-vitta id="abc" -->\n'
+)
+
+
 @pytest.fixture
 def bin_falso(tmp_path):
-    """`gh` e `npx` que só anotam; o gh diz que o PRD tem a label se o arquivo existir."""
+    """`gh` e `npx` que só anotam; o gh diz que o PRD tem a label se o arquivo existir.
+
+    O gh guarda o PRD em `prd.json`: o GET da issue devolve o arquivo e o PATCH
+    com `--input` troca o arquivo. Com `npx-falha`, o deploy sai com erro.
+    """
     pasta = tmp_path / "bin"
     pasta.mkdir()
     log = tmp_path / "log.txt"
     tem_label = tmp_path / "tem-label"
+    prd = tmp_path / "prd.json"
+    prd.write_text(json.dumps({"number": 1757, "body": CORPO_DO_PRD}), encoding="utf-8")
+    npx_falha = tmp_path / "npx-falha"
     (pasta / "gh").write_text(
         "#!/bin/sh\n"
         f'echo "gh $*" >> "{log}"\n'
         'case "$*" in\n'
         f'  *"/labels --jq"*) [ -f "{tem_label}" ] && echo "validado:diretor"; echo "type:feature" ;;\n'
+        f'  "api -X PATCH "*) for a; do ultimo="$a"; done; cp "$ultimo" "{prd}" ;;\n'
+        f'  "api repos/pedrorezendefig/hospital-reunioes/issues/1757") cat "{prd}" ;;\n'
         "esac\n",
         encoding="utf-8",
     )
     (pasta / "npx").write_text(
         "#!/bin/sh\n"
         f'echo "npx $*" >> "{log}"\n'
+        f'[ -f "{npx_falha}" ] && exit 1\n'
         f'(cd "$PWD" && find . -type f | sort | sed "s/^/arquivo /") >> "{log}"\n'
         'echo "https://planos-hsm-abc123.vercel.app"\n',
         encoding="utf-8",
@@ -351,21 +368,31 @@ def bin_falso(tmp_path):
         "path": f"{pasta}{os.pathsep}{os.environ['PATH']}",
         "log": log,
         "tem_label": tem_label,
+        "prd": prd,
+        "npx_falha": npx_falha,
     }
 
 
-def _publicar(bin_falso, mac):
+def _rodar(bin_falso, mac, cmd="publicar"):
     env = {**os.environ, "PATH": bin_falso["path"], "PLANOS_HSM_DIR": str(mac)}
-    r = subprocess.run(
-        ["python3", str(SCRIPT), "publicar", "1757"],
+    return subprocess.run(
+        ["python3", str(SCRIPT), cmd, "1757"],
         check=False,
         capture_output=True,
         text=True,
         env=env,
         cwd=RAIZ,
     )
+
+
+def _publicar(bin_falso, mac, cmd="publicar"):
+    r = _rodar(bin_falso, mac, cmd)
     assert r.returncode == 0, r.stderr
     return r, bin_falso["log"].read_text(encoding="utf-8").splitlines()
+
+
+def _corpo(bin_falso) -> str:
+    return json.loads(bin_falso["prd"].read_text(encoding="utf-8"))["body"]
 
 
 def test_republicar_tira_a_label_validado_antes_do_deploy(bin_falso, mac):
@@ -399,6 +426,59 @@ def test_publicar_leva_a_pagina_a_funcao_e_o_vinculo_sem_a_fonte(bin_falso, mac)
     assert not any(x.startswith("gh api -X DELETE") for x in log), (
         "sem a label, não há o que tirar"
     )
+
+
+# --- O marcador da Apresentação no corpo do PRD (ADR 0108, decisão 2) --------
+
+MARCADOR_1757 = "<!-- apresentacao: https://planos-hsm.vercel.app/1757 -->"
+
+
+def test_publicar_grava_o_marcador_depois_do_deploy_e_republicar_nao_duplica(
+    bin_falso, mac
+):
+    _r, log = _publicar(bin_falso, mac)
+    sobe = next(i for i, x in enumerate(log) if x.startswith("npx"))
+    grava = next(i for i, x in enumerate(log) if x.startswith("gh api -X PATCH"))
+    assert sobe < grava
+    assert log[grava].startswith(
+        "gh api -X PATCH repos/pedrorezendefig/hospital-reunioes/issues/1757 --input"
+    )
+    # Só acrescenta o marcador no fim: nenhum outro byte do corpo muda.
+    assert _corpo(bin_falso) == CORPO_DO_PRD + "\n" + MARCADOR_1757 + "\n"
+
+    _publicar(bin_falso, mac)
+    assert _corpo(bin_falso).count("<!-- apresentacao:") == 1
+    assert _corpo(bin_falso) == CORPO_DO_PRD + "\n" + MARCADOR_1757 + "\n"
+
+
+def test_marcador_nunca_leva_o_codigo_do_link(bin_falso, mac):
+    _publicar(bin_falso, mac)
+    [linha] = [x for x in _corpo(bin_falso).splitlines() if "apresentacao:" in x]
+    assert "?c=" not in linha
+    assert _hmac(1757) not in _corpo(bin_falso)
+    assert linha == MARCADOR_1757
+
+
+def test_deploy_que_falhou_nao_grava_o_marcador(bin_falso, mac):
+    bin_falso["npx_falha"].touch()
+    r = _rodar(bin_falso, mac)
+    assert r.returncode != 0
+    log = bin_falso["log"].read_text(encoding="utf-8").splitlines()
+    assert any(x.startswith("npx") for x in log)
+    assert not any(x.startswith("gh api -X PATCH") for x in log)
+    assert _corpo(bin_falso) == CORPO_DO_PRD
+
+
+def test_marcar_grava_so_o_marcador_sem_deploy_e_sem_mexer_nas_labels(bin_falso, mac):
+    bin_falso["tem_label"].touch()
+    r, log = _publicar(bin_falso, mac, cmd="marcar")
+    assert _corpo(bin_falso) == CORPO_DO_PRD + "\n" + MARCADOR_1757 + "\n"
+    assert not any(x.startswith("npx") for x in log), "marcar não faz deploy"
+    assert not any("/labels" in x for x in log), "marcar não toca nas labels"
+    assert "https://planos-hsm.vercel.app/1757" in r.stdout
+
+    _publicar(bin_falso, mac, cmd="marcar")
+    assert _corpo(bin_falso).count("<!-- apresentacao:") == 1
 
 
 # --- Coleta: etapas pela ordem dos bloqueios ---------------------------------
