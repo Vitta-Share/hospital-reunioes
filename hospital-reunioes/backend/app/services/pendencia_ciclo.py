@@ -59,7 +59,7 @@ _PARTIDA: dict[Comando, frozenset[str]] = {
 _COM_PRAZO_NOVO = frozenset({Comando.REPACTUAR, Comando.REABRIR})
 
 
-class AcaoRecusada(Exception):
+class AcaoRecusada(Exception):  # noqa: N818, o nome do domínio
     """`tipo`: `permissao` (quem age não pode), `transicao` (não parte deste
     estado) ou `dados` (anotação vazia, prazo novo ausente ou no passado)."""
 
