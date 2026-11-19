@@ -16,6 +16,7 @@ from datetime import date
 from typing import Any
 
 from app.dependencies import recursos_nsp_da_pessoa
+from app.services.seguranca_do_paciente import capacitacoes
 from app.services.seguranca_do_paciente.assinatura_dos_documentos import ROTULO_DO_TIPO
 from app.services.seguranca_do_paciente.permissao import hoje_em_sao_paulo, id_do_nucleo, participacoes_vigentes
 
@@ -122,6 +123,54 @@ def _documentos_a_assinar(supabase, me: dict) -> list[dict]:
     return saida
 
 
+def _presencas_a_confirmar(supabase, me: dict) -> list[dict]:
+    """A capacitação em cuja lista a pessoa está e ainda não confirmou. Só a
+    partir do dia dela, como a rota de presença: antes, não há o que confirmar."""
+    minhas = (
+        supabase.table(capacitacoes.TABELA_PARTICIPANTES)
+        .select("capacitacao_id")
+        .eq("participante_id", me["id"])
+        .is_("presenca_confirmada_em", "null")
+        .execute()
+        .data
+    ) or []
+    if not minhas:
+        return []
+    linhas = (
+        supabase.table(capacitacoes.TABELA)
+        .select("id, titulo, data")
+        .in_("id", sorted({linha["capacitacao_id"] for linha in minhas}))
+        .lte("data", hoje_em_sao_paulo().isoformat())
+        .execute()
+        .data
+    ) or []
+    saida: list[dict] = []
+    for linha in linhas:
+        quando = _data(linha.get("data"))
+        saida.append(
+            {
+                "tipo": "capacitacao",
+                "id": linha["id"],
+                "titulo": f"Confirmar a presença na capacitação {(linha.get('titulo') or '').strip()}".strip(),
+                "origem": f"Capacitação do Núcleo de {quando.strftime('%d/%m/%Y')}."
+                if quando
+                else "Capacitação do Núcleo.",
+                "chegou_em": quando,
+                "sem_prazo_no_modulo": True,
+                "area": AREA,
+                "acao": "Abrir as Capacitações",
+                "destino": "/seguranca-do-paciente/capacitacoes",
+                # Um clique sem Anotação (ADR 0104, decisão 3): a presença se
+                # confirma no próprio Início, pela mesma rota da tela.
+                "acao_de_um_clique": {
+                    "rotulo": "Confirmar presença",
+                    "endpoint": f"/api/nsp/capacitacoes/{linha['id']}/presenca",
+                },
+            }
+        )
+    return saida
+
+
 def itens(supabase, me: dict) -> list[dict]:
     """Os itens da fonte, no formato comum do Início."""
     recursos = recursos_nsp_da_pessoa(supabase, me)
@@ -130,4 +179,6 @@ def itens(supabase, me: dict) -> list[dict]:
     saida = _termo_pendente(supabase, me)
     if "documentos" in recursos:
         saida += _documentos_a_assinar(supabase, me)
+    if "capacitacoes" in recursos:
+        saida += _presencas_a_confirmar(supabase, me)
     return saida

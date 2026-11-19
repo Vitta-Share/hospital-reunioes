@@ -14,14 +14,19 @@ import asyncio
 import os
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from app.dependencies import get_current_user, get_supabase_client  # noqa: E402
+from app.limiter import limiter  # noqa: E402
 from app.routers import inicio as inicio_router  # noqa: E402
+from app.routers import seguranca_do_paciente_capacitacoes as capacitacoes_router  # noqa: E402
 from app.services.inicio import fonte_nucleo  # noqa: E402
 from app.services.seguranca_do_paciente import permissao  # noqa: E402
 
@@ -73,11 +78,19 @@ class _Consulta:
     def order(self, *_a, **_kw):
         return self
 
+    def update(self, campos):
+        self._campos = campos
+        return self
+
     def limit(self, n):
         self._limite = n
         return self
 
     def execute(self):
+        if getattr(self, "_campos", None) is not None:
+            for linha in self._linhas:
+                if all(f(linha) for f in self._filtros):
+                    linha.update(self._campos)
         linhas = [dict(linha) for linha in self._linhas if all(f(linha) for f in self._filtros)]
         return _Result(linhas[: self._limite] if self._limite is not None else linhas)
 
@@ -245,3 +258,140 @@ class TestDocumentoAAssinar:
         resposta = _rota(monkeypatch, MEMBRO_COM_TERMO, _banco_do_nucleo(**_documento_esperando()))
 
         assert _do_nucleo(resposta) == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. A capacitação com presença a confirmar, resolvida no Início
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _capacitacao(cid: str, data: str, titulo: str = "Higiene das mãos") -> dict:
+    return {"id": cid, "titulo": titulo, "data": data}
+
+
+def _na_lista(cid: str, pessoa: dict, confirmada: str | None = None) -> dict:
+    return {
+        "id": f"{cid}-{pessoa['id']}",
+        "capacitacao_id": cid,
+        "participante_id": pessoa["id"],
+        "presenca_confirmada_em": confirmada,
+    }
+
+
+def _cliente(monkeypatch, me: dict, banco: _Banco) -> TestClient:
+    """O Início e a rota de presença de verdade, sobre o mesmo banco: o
+    clique do Início chama o endpoint que a fonte devolveu."""
+
+    async def _participante(_user, _sb, fields=None):
+        return me
+
+    monkeypatch.setattr(inicio_router, "get_participante_for_user", _participante)
+    monkeypatch.setattr(inicio_router, "agora_em_brasilia", lambda: AGORA)
+    monkeypatch.setattr(capacitacoes_router, "get_participante_for_user", _participante)
+    monkeypatch.setattr(capacitacoes_router, "hoje_em_sao_paulo", lambda: HOJE)
+    limiter._storage.reset()
+    app = FastAPI()
+    app.state.limiter = limiter
+    app.include_router(inicio_router.router, prefix="/api")
+    app.include_router(capacitacoes_router.router, prefix="/api")
+    app.dependency_overrides[get_current_user] = lambda: {"id": "u1", "email": "x@hsm", "metadata": {}}
+    app.dependency_overrides[get_supabase_client] = lambda: banco
+    return TestClient(app)
+
+
+class TestCapacitacaoComPresencaAConfirmar:
+    def test_a_capacitacao_aparece_com_o_botao_confirmar_presenca(self, monkeypatch):
+        banco = _banco_do_nucleo(
+            nsp_capacitacoes=[_capacitacao("CAP1", "2026-11-12")],
+            nsp_capacitacao_participantes=[_na_lista("CAP1", MEMBRO_COM_TERMO)],
+        )
+
+        resposta = _rota(monkeypatch, MEMBRO_COM_TERMO, banco)
+
+        itens = _do_nucleo(resposta)
+        assert [item.tipo for item in itens] == ["capacitacao"]
+        capacitacao = itens[0]
+        assert capacitacao.titulo == "Confirmar a presença na capacitação Higiene das mãos"
+        assert capacitacao.origem == "Capacitação do Núcleo de 12/11/2026."
+        assert capacitacao.destino == "/seguranca-do-paciente/capacitacoes"
+        assert capacitacao.acao_de_um_clique is not None
+        assert capacitacao.acao_de_um_clique.rotulo == "Confirmar presença"
+        assert capacitacao.acao_de_um_clique.endpoint == "/api/nsp/capacitacoes/CAP1/presenca"
+        assert capacitacao.grupo == "sem_prazo"
+        assert capacitacao.dias_esperando == 6
+
+    def test_capacitacao_futura_ou_ja_confirmada_nao_aparece(self, monkeypatch):
+        banco = _banco_do_nucleo(
+            nsp_capacitacoes=[_capacitacao("FUTURA", "2026-11-19"), _capacitacao("FEITA", "2026-11-02")],
+            nsp_capacitacao_participantes=[
+                _na_lista("FUTURA", MEMBRO_COM_TERMO),
+                _na_lista("FEITA", MEMBRO_COM_TERMO, confirmada="2026-11-02T18:00:00+00:00"),
+            ],
+        )
+
+        resposta = _rota(monkeypatch, MEMBRO_COM_TERMO, banco)
+
+        assert _do_nucleo(resposta) == []
+
+    def test_confirmar_presenca_resolve_sem_sair_do_inicio(self, monkeypatch):
+        banco = _banco_do_nucleo(
+            nsp_capacitacoes=[_capacitacao("CAP1", "2026-11-18")],
+            nsp_capacitacao_participantes=[_na_lista("CAP1", MEMBRO_COM_TERMO)],
+        )
+        cliente = _cliente(monkeypatch, MEMBRO_COM_TERMO, banco)
+
+        antes = cliente.get("/api/inicio").json()
+        [item] = [i for i in antes["itens"] if i["tipo"] == "capacitacao"]
+        clique = cliente.post(item["acao_de_um_clique"]["endpoint"])
+        depois = cliente.get("/api/inicio").json()
+
+        assert clique.status_code == 200, clique.text
+        assert [i for i in depois["itens"] if i["tipo"] == "capacitacao"] == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. Um teste por papel (ADR 0095): ninguém recebe o que o módulo não mostraria
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _banco_completo() -> _Banco:
+    """Um Termo pendente, o Regimento esperando a Presidência e o Acesso
+    pleno, e uma capacitação com todo mundo na lista, inclusive quem é de fora
+    do Núcleo e o super admin."""
+    pessoas = (PRESIDENTE, MEMBRO_COM_TERMO, MEMBRO_SEM_TERMO, ACESSO_PLENO, DE_FORA, SUPER_ADMIN)
+    return _banco_do_nucleo(
+        nsp_termos_envios=[
+            {"id": "T1", "participacao_id": "PA_SEM", "situacao": "enviado", "enviado_em": "2026-11-10T13:00:00+00:00"}
+        ],
+        **_documento_esperando(),
+        nsp_capacitacoes=[_capacitacao("CAP1", "2026-11-12")],
+        nsp_capacitacao_participantes=[_na_lista("CAP1", pessoa) for pessoa in pessoas],
+    )
+
+
+@pytest.mark.parametrize(
+    ("pessoa", "esperado"),
+    [
+        pytest.param(PRESIDENTE, ["documento_do_nucleo", "capacitacao"], id="presidencia"),
+        pytest.param(MEMBRO_COM_TERMO, ["capacitacao"], id="membro_com_termo"),
+        pytest.param(MEMBRO_SEM_TERMO, ["termo_de_adesao"], id="membro_sem_termo"),
+        pytest.param(ACESSO_PLENO, ["documento_do_nucleo", "capacitacao"], id="acesso_pleno"),
+        pytest.param(DE_FORA, [], id="de_fora_do_nucleo"),
+        pytest.param(SUPER_ADMIN, [], id="super_admin_sem_acesso_ao_nucleo"),
+    ],
+)
+def test_cada_papel_recebe_so_o_que_o_nucleo_espera_dele(monkeypatch, pessoa, esperado):
+    resposta = _rota(monkeypatch, pessoa, _banco_completo())
+
+    assert sorted(item.tipo for item in _do_nucleo(resposta)) == sorted(esperado)
+    assert resposta.avisos == []
+
+
+def test_super_admin_nao_recebe_item_do_nucleo_nem_sendo_signatario(monkeypatch):
+    """O super admin só alcança a configuração técnica (ADR 0095, decisão 4):
+    nem um envio que o nomeie por engano põe o Núcleo na fila dele."""
+    tabelas = _documento_esperando(participante_id=SUPER_ADMIN["id"])
+
+    resposta = _rota(monkeypatch, SUPER_ADMIN, _banco_do_nucleo(**tabelas))
+
+    assert resposta.itens == []
