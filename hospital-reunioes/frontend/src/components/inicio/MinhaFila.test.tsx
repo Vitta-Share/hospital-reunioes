@@ -195,6 +195,39 @@ describe("os grupos e as linhas", () => {
   });
 });
 
+describe("a Fila do papel (issue #1937)", () => {
+  const FILA_DA_OUVIDORIA = {
+    fila: "ouvidoria",
+    titulo: "Fila da Ouvidoria",
+    esperam: 6,
+    vencidas: 3,
+    resumo: "6 manifestações esperam, 3 vencidas.",
+    destino: "/ouvidoria",
+  };
+
+  it("mostra a linha de resumo num bloco à parte, com o link para a fila", async () => {
+    await abrir({ ...COM_ATRASO, filas_do_papel: [FILA_DA_OUVIDORIA] });
+
+    const bloco = screen.getByRole("region", { name: "Fila do papel" });
+    const [linhaDaFila] = within(bloco).getAllByRole("listitem");
+    expect(linhaDaFila.textContent).toContain("Fila da Ouvidoria");
+    expect(linhaDaFila.textContent).toContain("6 manifestações esperam, 3 vencidas.");
+    expect(within(linhaDaFila).getByRole("link", { name: "Abrir a fila" }).getAttribute("href")).toBe("/ouvidoria");
+  });
+
+  it("a linha não entra nos grupos da Minha Fila", async () => {
+    await abrir({ ...COM_ATRASO, filas_do_papel: [FILA_DA_OUVIDORIA] });
+
+    const vencidos = screen.getByRole("region", { name: "Passou do prazo" });
+    expect(within(vencidos).queryByText("Fila da Ouvidoria")).toBeNull();
+  });
+
+  it("sem fila do papel, o bloco não aparece", async () => {
+    await abrir();
+    expect(screen.queryByRole("region", { name: "Fila do papel" })).toBeNull();
+  });
+});
+
 describe("a fonte que falhou", () => {
   it("mostra o aviso daquela fonte e segue com o resto", async () => {
     await abrir({

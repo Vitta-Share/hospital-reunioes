@@ -459,10 +459,10 @@ class TestFrase:
 
 class TestFonteQueFalha:
     def test_fonte_que_lanca_erro_vira_aviso_e_as_outras_seguem(self):
-        def _quebrada(_sb, _me):
+        def _quebrada(_sb, _me, _agora):
             raise RuntimeError("PostgREST fora do ar")
 
-        def _boa(_sb, _me):
+        def _boa(_sb, _me, _agora):
             return [
                 {
                     "tipo": "pendencia",

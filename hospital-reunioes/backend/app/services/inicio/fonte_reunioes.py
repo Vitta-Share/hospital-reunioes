@@ -92,7 +92,7 @@ def _atas_a_assinar(supabase, me: dict) -> list[dict]:
     return [r for r in em_assinatura if r["id_reuniao"] not in assinadas]
 
 
-def itens(supabase, me: dict) -> list[dict]:
+def itens(supabase, me: dict, _agora: datetime | None = None) -> list[dict]:
     """Os itens da fonte, no formato comum do Início."""
     if not tem_acesso_reunioes(me):
         return []

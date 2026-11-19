@@ -88,7 +88,7 @@ def _contexto(linha: dict) -> str | None:
     return f"{andamento}Aberta em {aberta.strftime('%d/%m/%Y')}."
 
 
-def itens(supabase, me: dict) -> list[dict]:
+def itens(supabase, me: dict, _agora: datetime | None = None) -> list[dict]:
     """Os itens da fonte, no formato comum do Início, sem grupo: o grupo e o
     atraso são calculados por quem monta (`montar_inicio`)."""
     linhas = _abertas_no_nome(supabase, me["id"])

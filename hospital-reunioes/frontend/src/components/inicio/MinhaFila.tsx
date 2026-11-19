@@ -31,6 +31,16 @@ export interface ItemDoInicio {
   dias_esperando?: number | null;
 }
 
+/** A linha de resumo de uma fila sem responsável nomeado (ADR 0104, decisão 6). */
+export interface FilaDoPapel {
+  fila: string;
+  titulo: string;
+  esperam: number;
+  vencidas: number;
+  resumo: string;
+  destino: string;
+}
+
 export interface InicioDaPessoa {
   hoje: string;
   frase: { titulo: string; apoio: string };
@@ -38,7 +48,7 @@ export interface InicioDaPessoa {
   itens: ItemDoInicio[];
   avisos: { fonte: string; mensagem: string }[];
   trilho: ItemDoTrilho[];
-  filas_do_papel: unknown[];
+  filas_do_papel: FilaDoPapel[];
 }
 
 const GRUPOS: { chave: GrupoDoInicio | GrupoSemPrazo; titulo: string }[] = [
@@ -307,6 +317,33 @@ export function MinhaFila() {
                   </ul>
                 </section>
               ))
+            )}
+
+            {/* A Fila do papel fica à parte e fora da frase e dos contadores
+                (ADR 0104, decisão 6): a fila é do papel, não da pessoa. */}
+            {inicio.filas_do_papel.length > 0 && (
+              <section aria-label="Fila do papel">
+                <h2 className="pb-2 border-b border-border text-xs text-text-secondary">Fila do papel</h2>
+                <ul>
+                  {inicio.filas_do_papel.map((fila) => (
+                    <li
+                      key={fila.fila}
+                      className="flex flex-wrap items-center justify-between gap-3 py-3.5 px-2 border-b border-border"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-base text-text leading-snug">{fila.titulo}</p>
+                        <p className="text-xs text-text-secondary mt-1">{fila.resumo}</p>
+                      </div>
+                      <Link
+                        href={fila.destino}
+                        className="uppercase tracking-wide text-xs whitespace-nowrap rounded-lg px-3.5 py-2 border border-primary bg-white text-primary"
+                      >
+                        Abrir a fila
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             )}
           </div>
           <Trilho itens={inicio.trilho} hoje={inicio.hoje} />
