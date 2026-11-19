@@ -496,8 +496,9 @@ def _cliente_das_pendencias(pessoa: dict[str, Any], banco: _Banco) -> TestClient
 
 
 class TestLembreteNaAgenda:
-    def test_a_presidencia_ve_o_lembrete_aberto_na_agenda(self):
+    def test_a_presidencia_ve_o_lembrete_aberto_na_agenda(self, monkeypatch):
         """Mutante: `listar` sem o lembrete aberto."""
+        monkeypatch.setattr(agenda, "hoje_em_brasilia", lambda: DIA)
         banco, id_acao = _cenario_com_lembrete()
 
         resposta = _cliente(PRESIDENTE, banco).get(ROTA)
@@ -506,6 +507,15 @@ class TestLembreteNaAgenda:
         [item] = resposta.json()["itens"]
         lembrete = item["lembrete"]
         assert (lembrete["id_acao"], lembrete["prazo"], lembrete["status"]) == (id_acao, "2026-11-21", "PENDENTE")
+
+    def test_lembrete_de_prazo_vencido_aparece_atrasado_sem_job(self, monkeypatch):
+        """Issue #1862: nenhum job grava ATRASADO; a agenda calcula pela data."""
+        monkeypatch.setattr(agenda, "hoje_em_brasilia", lambda: date(2026, 11, 22))
+        banco, _ = _cenario_com_lembrete()
+
+        [item] = _cliente(PRESIDENTE, banco).get(ROTA).json()["itens"]
+
+        assert item["lembrete"]["status"] == "ATRASADO"
 
     def test_o_resultado_tira_o_lembrete_da_agenda(self):
         banco, _ = _cenario_com_lembrete()

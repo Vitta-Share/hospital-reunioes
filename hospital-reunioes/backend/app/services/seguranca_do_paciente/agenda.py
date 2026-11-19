@@ -22,7 +22,9 @@ from typing import Any
 import httpx
 from postgrest.exceptions import APIError
 
+from app.services.pendencia_ciclo import situacao
 from app.services.pendencia_service import criar_pendencia_sem_reuniao
+from app.services.pendencias_consulta import as_data, hoje_em_brasilia
 from app.services.seguranca_do_paciente.permissao import id_do_nucleo, participacoes_vigentes
 
 logger = logging.getLogger(__name__)
@@ -247,6 +249,11 @@ def _lembretes_abertos(supabase, ocorrencias: list[dict]) -> dict[str, dict]:
         .data
         or []
     )
+    # Atrasado é calculado pela data desde a issue #1862 (ADR 0098, decisão
+    # 4): nenhum job grava mais ATRASADO, então a situação sai daqui.
+    hoje = hoje_em_brasilia()
+    for p in pendencias:
+        p["status"] = situacao(p.get("status") or "", as_data(p.get("prazo")), hoje, repactuada=False)
     return {por_pendencia[p["id_acao"]]: p for p in pendencias}
 
 
