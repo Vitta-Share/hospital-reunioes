@@ -22,6 +22,7 @@ const TAREFAS = [
   "Pedir um bug ou uma melhoria ao Assistente",
   "Acompanhar o pedido no Quadro",
   "Responder uma pergunta da Vitta",
+  "Mandar o que você escreveu aos desenvolvedores",
   "Filtrar por Projeto",
   "Ver as Entregas",
 ];
@@ -222,6 +223,95 @@ describe("as partes do pedido na tarefa de abrir o card (issue #1903, ADR 0100)"
   });
 });
 
+describe("o atalho Ver o plano na tarefa de acompanhar o pedido (issue #2015, PRD #2007)", () => {
+  const TAREFA = "Acompanhar o pedido no Quadro";
+
+  function passoDoPlano(): string {
+    const passo = passosDa(TAREFA).find((p) => /\*\*Ver o plano\*\*/.test(p));
+    expect(passo, "nenhum passo mostra o botão Ver o plano do card").toBeDefined();
+    return passo!;
+  }
+
+  it("um passo numerado mostra o botão Ver o plano, que abre a página do plano em outra aba, com o check de validado", () => {
+    const passo = passoDoPlano();
+    expect(passo).toMatch(/página do plano/);
+    expect(passo).toMatch(/outra aba/);
+    expect(passo).toMatch(/check/);
+    expect(passo).toMatch(/já validou/);
+  });
+
+  it("o mesmo passo cita o cartão Plano do card aberto e manda validar pelo link do e-mail", () => {
+    const passo = passoDoPlano();
+    expect(passo).toMatch(/\*\*Plano\*\*/);
+    expect(passo).toMatch(/validar, continue usando o link do e-mail/);
+  });
+
+  it("o passo do Ver o plano traz o print dele", () => {
+    expect(imagensCitadas(passoDoPlano())).toContain("ver-o-plano.png");
+  });
+});
+
+describe("a tarefa de mandar o que você escreveu aos desenvolvedores (issue #2015, ADR 0108)", () => {
+  const TAREFA = "Mandar o que você escreveu aos desenvolvedores";
+
+  /** O índice do primeiro passo que casa com o padrão, ou -1. */
+  function indice(padrao: RegExp): number {
+    return passosDa(TAREFA).findIndex((p) => padrao.test(p));
+  }
+
+  it("os passos vão na ordem: escrever na Conversa, Enviar para os desenvolvedores, Entendi assim, Enviar ou Corrigir, a linha Enviado", () => {
+    const ordem = [
+      indice(/Escreva/),
+      indice(/clique em \*\*Enviar para os desenvolvedores\*\*/),
+      indice(/\*\*Entendi assim:\*\*/),
+      indice(/clique em \*\*Enviar\*\*.*\*\*Corrigir\*\*/s),
+      indice(/\*\*Enviado aos desenvolvedores\*\*/),
+    ];
+    expect(ordem.every((i) => i >= 0), `faltam passos: ${ordem.join(", ")}`).toBe(true);
+    expect(ordem).toEqual([...ordem].sort((a, b) => a - b));
+    expect(new Set(ordem).size).toBe(ordem.length);
+  });
+
+  it("o passo da escrita fica na Conversa da Demanda, com quantas mensagens quiser", () => {
+    const passos = passosDa(TAREFA);
+    expect(passos.some((p) => /\*\*Conversar\*\*/.test(p))).toBe(true);
+    expect(passos[indice(/Escreva/)]).toMatch(/quantas mensagens quiser/);
+  });
+
+  it("o botão fica desligado sem mensagem nova desde o último envio", () => {
+    expect(passosDa(TAREFA)[indice(/clique em \*\*Enviar para os desenvolvedores\*\*/)]).toMatch(
+      /desligado enquanto não há mensagem sua nova desde o último envio/,
+    );
+  });
+
+  it("o Corrigir volta para a caixa, e o resumo seguinte leva em conta o que você escreveu", () => {
+    expect(passosDa(TAREFA)[indice(/\*\*Corrigir\*\*/)]).toMatch(/resumo seguinte já leva em conta o que você escreveu/);
+  });
+
+  it("a linha Enviado traz a data, a hora e os tópicos, e o que vem depois entra no próximo envio", () => {
+    const passo = passosDa(TAREFA)[indice(/\*\*Enviado aos desenvolvedores\*\*/)];
+    expect(passo).toMatch(/data, a hora e os tópicos/);
+    expect(passo).toMatch(/entra no próximo envio/);
+  });
+
+  it("diz que os desenvolvedores recebem só o resumo aprovado, nunca as suas mensagens (ADR 0083, decisão 8)", () => {
+    const { texto } = secao(TAREFA);
+    expect(texto).toMatch(/recebem só o resumo que você aprovou/);
+    expect(texto).not.toMatch(/(suas mensagens|o que você escreveu) (vão|vai|chegam?) (para|aos)/);
+  });
+
+  it("o Entendi assim e a linha Enviado têm print, cada um no seu passo", () => {
+    expect(imagensCitadas(passosDa(TAREFA)[indice(/\*\*Entendi assim:\*\*/)])).toContain("entendi-assim.png");
+    expect(imagensCitadas(passosDa(TAREFA)[indice(/\*\*Enviado aos desenvolvedores\*\*/)])).toContain(
+      "enviado-aos-desenvolvedores.png",
+    );
+  });
+
+  it("a falha diz o motivo e o Tente de novo, sem perder o que você escreveu", () => {
+    expect(secao(TAREFA).texto).toMatch(/\*\*Tente de novo\*\*, sem perder nada do que você escreveu/);
+  });
+});
+
 describe("o fluxograma do caminho de um pedido", () => {
   function fluxo(): Fluxo {
     const blocos = fluxogramasCitados(TECNOLOGIA!.corpo);
@@ -274,5 +364,30 @@ describe("o fluxograma do caminho de um pedido", () => {
       expect(alcancaveis(f, etapas[i].id).has(etapas[i + 1].id), `${etapas[i].rotulo} não leva a ${etapas[i + 1].rotulo}`).toBe(true);
       expect(alcancaveis(f, etapas[i + 1].id).has(etapas[i].id), `${etapas[i + 1].rotulo} volta para ${etapas[i].rotulo}`).toBe(false);
     }
+  });
+
+  it("o passo do Envio aos desenvolvedores só se alcança depois do Criar o card (issue #2015)", () => {
+    const f = fluxo();
+    const inicio = f.passos.find((p) => p.forma === "inicio")!;
+    const criar = passoPorRotulo(f, /^Criar o card$/);
+    const envio = passoPorRotulo(f, /^Enviar para os desenvolvedores$/);
+    expect(alcancaveis(f, criar.id).has(envio.id)).toBe(true);
+    expect(alcancaveis(f, inicio.id, new Set([criar.id])).has(envio.id)).toBe(false);
+  });
+
+  it("o Entendi assim decide entre Enviar, que chega ao Enviado, e Corrigir, que volta ao botão (issue #2015)", () => {
+    const f = fluxo();
+    const envio = passoPorRotulo(f, /^Enviar para os desenvolvedores$/);
+    const entendi = passoPorRotulo(f, /Entendi assim/);
+    const enviado = passoPorRotulo(f, /^Enviado aos desenvolvedores$/);
+    expect(entendi.forma).toBe("decisao");
+    expect(f.ligacoes.some((l) => l.de === envio.id && l.para === entendi.id)).toBe(true);
+    const saidas = f.ligacoes.filter((l) => l.de === entendi.id);
+    expect(saidas.map((l) => l.rotulo).sort()).toEqual(["Corrigir", "Enviar"]);
+    const enviar = saidas.find((l) => l.rotulo === "Enviar")!;
+    const corrigir = saidas.find((l) => l.rotulo === "Corrigir")!;
+    expect(alcancaveis(f, enviar.para).has(enviado.id)).toBe(true);
+    expect(alcancaveis(f, corrigir.para, new Set([enviado.id])).has(envio.id)).toBe(true);
+    expect(enviado.detalhe).toMatch(/só o resumo que você aprovou/);
   });
 });

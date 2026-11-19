@@ -38,17 +38,21 @@ Se a conversa parar no meio, ela fica guardada como Registrada. Clique no pedido
    ![O Quadro com os pedidos em colunas](quadro.png)
 
 3. Em cada card, veja o número da Demanda, o título, o selo **Bug** ou **Melhoria**, o Projeto, as iniciais de quem cuida, a versão quando ele já está Em produção e, quando o pedido tem partes, quantas já foram entregues.
-4. Clique num card. Ele abre num painel à direita, com o documento do pedido: o que ele muda para você, as partes e as datas.
-5. Em **Partes**, veja em que ordem o pedido entra. As partes vêm agrupadas por Onda: a **Onda 1** tem as que não dependem de outra parte do pedido, e cada Onda seguinte entra depois das que ela espera. Cada parte traz o seu número, como **#304**, para você citar aquela parte quando falar com a Vitta. Se a parte ainda espera outra terminar, aparece embaixo dela a linha **Espera a #304**. Quando a outra é de um pedido diferente, a linha diz **Espera a #288, de outro pedido**. A linha some sozinha quando a outra parte termina.
+4. Quando o pedido já tem um plano publicado, o card mostra no canto o botão quadrado **Ver o plano**, com o ícone de apresentação. Clique nele para abrir a página do plano em outra aba. Um check verde no botão quer dizer que você já validou aquele plano. Ao abrir o card, o cartão **Plano** também leva à página. Para validar, continue usando o link do e-mail.
+
+   ![Os cards com o botão Ver o plano, um deles com o check de validado](ver-o-plano.png)
+
+5. Clique num card. Ele abre num painel à direita, com o documento do pedido: o que ele muda para você, as partes e as datas.
+6. Em **Partes**, veja em que ordem o pedido entra. As partes vêm agrupadas por Onda: a **Onda 1** tem as que não dependem de outra parte do pedido, e cada Onda seguinte entra depois das que ela espera. Cada parte traz o seu número, como **#304**, para você citar aquela parte quando falar com a Vitta. Se a parte ainda espera outra terminar, aparece embaixo dela a linha **Espera a #304**. Quando a outra é de um pedido diferente, a linha diz **Espera a #288, de outro pedido**. A linha some sozinha quando a outra parte termina.
 
    ![As partes de um pedido agrupadas por Onda, com o número e o Espera a](partes-por-onda.png)
 
-6. Para falar com a Vitta sobre aquele pedido, clique em **Conversar**, no alto do painel, e escreva na Conversa da Demanda. Para chamar alguém, escreva @ e escolha o nome.
+7. Para falar com a Vitta sobre aquele pedido, clique em **Conversar**, no alto do painel, e escreva na Conversa da Demanda. Para chamar alguém, escreva @ e escolha o nome. Para o que você escreveu virar uma tarefa no plano, veja **Mandar o que você escreveu aos desenvolvedores**, mais abaixo.
 
    ![Um pedido aberto no painel ao lado do Quadro](pedido-no-painel.png)
 
-7. Quando a Vitta precisa de uma decisão sua sobre o pedido, a pergunta chega nessa mesma Conversa da Demanda. O passo a passo está em **Responder uma pergunta da Vitta**, logo abaixo.
-8. Para fechar o painel, clique no X ou aperte Esc. O botão **Ampliar** abre o pedido na tela toda, e o **Voltar ao quadro** traz as colunas de volta.
+8. Quando a Vitta precisa de uma decisão sua sobre o pedido, a pergunta chega nessa mesma Conversa da Demanda. O passo a passo está em **Responder uma pergunta da Vitta**, logo abaixo.
+9. Para fechar o painel, clique no X ou aperte Esc. O botão **Ampliar** abre o pedido na tela toda, e o **Voltar ao quadro** traz as colunas de volta.
 
 A coluna Entregue mostra o que foi entregue nos últimos 30 dias. Os pedidos que não serão feitos ficam fora das colunas: para vê-los, ligue **Mostrar as que não serão feitas**, na barra de filtros.
 
@@ -73,6 +77,24 @@ Quando a Vitta só dá um recado, sem pergunta, o sino mostra o aviso de sempre,
 Às vezes a pergunta vem de um projeto da Vitta que ainda não aparecia no aplicativo. Nesse caso, ela abre um pedido novo na aba. No Quadro, o card traz o nome do projeto no selo. No painel, o pedido vem marcado como **Vitta**, e a parte **Plano do projeto** mostra o nome do projeto e o link **Abrir o plano**, que abre o plano em outra aba. O pedido fica em Registrada, porque o aplicativo não acompanha o trabalho desse projeto, e não se apaga pelo aplicativo. A pergunta seguinte do mesmo plano cai no mesmo pedido, nunca num segundo. Depois do primeiro pedido, o campo **Projeto** da barra de filtros passa a listar esse projeto.
 
 ![O pedido de um projeto novo da Vitta, com o nome do projeto e o Abrir o plano](projeto-novo.png)
+
+## Mandar o que você escreveu aos desenvolvedores
+
+Quando o pedido já virou card, a Conversa da Demanda guarda o que você escreve, e nada sai do aplicativo sozinho. Você escolhe a hora de mandar: escreve quantas mensagens quiser e, no fim, aperta um botão. Os desenvolvedores recebem só o resumo que você aprovou, e ele vira uma tarefa no plano do pedido.
+
+1. No Quadro, clique no card do pedido e, no alto do painel, clique em **Conversar**.
+2. Escreva o que quer mudar ou responder na caixa embaixo da conversa e clique no botão de enviar, ao lado dela. Mande quantas mensagens quiser: cada uma fica guardada na conversa.
+3. Quando terminar, clique em **Enviar para os desenvolvedores**, embaixo da caixa. O botão fica desligado enquanto não há mensagem sua nova desde o último envio, e só aparece para quem é do hospital.
+4. Leia o **Entendi assim:**, que aparece na conversa. Ele traz, em tópicos, o que a IA entendeu das suas mensagens e o que muda em cada parte do pedido, com o número da parte.
+
+   ![O Entendi assim, com os tópicos e os botões Enviar e Corrigir](entendi-assim.png)
+
+5. Se o resumo estiver certo, clique em **Enviar**. Se faltou algo ou alguma coisa está errada, clique em **Corrigir**: a caixa de mensagem volta, você escreve o que faltou e clica de novo em Enviar para os desenvolvedores. O resumo seguinte já leva em conta o que você escreveu.
+6. Depois do Enviar, a conversa ganha a linha **Enviado aos desenvolvedores**, com a data, a hora e os tópicos que você aprovou. O que você escrever depois dessa linha entra no próximo envio.
+
+   ![A linha Enviado aos desenvolvedores na Conversa da Demanda](enviado-aos-desenvolvedores.png)
+
+Se o envio falhar, a tela diz o motivo e mostra **Tente de novo**, sem perder nada do que você escreveu.
 
 ## Filtrar por Projeto
 
@@ -116,9 +138,13 @@ decisao bateu 5,1: O resumo bateu?
 passo naobateu 5,2: Não bateu | Você diz o que está errado, e a conversa continua até o resumo ficar certo.
 passo card 6,1: Criar o card | O pedido vai para a Vitta e aparece no Quadro.
 passo analise 7,1: Em análise | A Vitta lê a melhoria e decide como fazer. O bug pula esta Etapa e entra direto na fila.
-passo planejada 7,2: Planejada | O trabalho está dividido em partes e na fila.
+passo planejada 7,2: Planejada | O trabalho está dividido em partes e na fila. Quando o plano está publicado, o card mostra o botão Ver o plano.
 passo desenvolvimento 7,3: Em desenvolvimento | A Vitta está fazendo. Num pedido com partes, o card mostra quantas já foram entregues.
 fim entregue 7,4: Entregue | O trabalho terminou. Quando a entrega chega ao aplicativo, o card passa a Em produção, com a versão.
+passo envio 8,2: Enviar para os desenvolvedores | Com o card criado, você escreve na Conversa da Demanda quantas mensagens quiser e aperta o botão.
+decisao entendi 9,2: O Entendi assim bateu?
+passo corrigir 9,1: Corrigir | Você escreve o que faltou na Conversa e aperta o botão de novo.
+passo enviado 10,2: Enviado aos desenvolvedores | A Conversa ganha a linha com a data e os tópicos. Os desenvolvedores recebem só o resumo que você aprovou e ajustam o plano.
 conversa -> tipo
 tipo -> bug: bug
 tipo -> melhoria: melhoria
@@ -133,4 +159,10 @@ card -> planejada: bug
 analise -> planejada
 planejada -> desenvolvimento
 desenvolvimento -> entregue
+planejada -> envio: quer mudar algo
+envio -> entendi
+entendi -> enviado: Enviar
+entendi -> corrigir: Corrigir
+corrigir -> envio
+enviado -> desenvolvimento: o trabalho segue
 ```
