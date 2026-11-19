@@ -33,6 +33,9 @@ export interface PaginaDoManual {
  * módulo por itens diferentes.
  */
 export const MODULOS_DO_MANUAL: readonly { id: string; destinos: readonly string[] }[] = [
+  // O Início é de todo mundo menos a Secretária, que segue com a tela dela
+  // (ADR 0104, decisão 1): o `/inicio` não está no menu dela.
+  { id: "inicio", destinos: ["/inicio"] },
   {
     id: "reunioes-e-pendencias",
     destinos: ["/dashboard", "/secretaria", "/reunioes/calendario", "/pendencias"],

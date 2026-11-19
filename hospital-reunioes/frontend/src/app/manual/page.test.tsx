@@ -58,7 +58,7 @@ afterEach(() => {
 });
 
 describe("a rota /manual", () => {
-  it("com sessão, abre o manual com a página de Reuniões e Pendências", async () => {
+  it("com sessão, abre o manual na página do Início, a primeira da lista", async () => {
     getUser.mockResolvedValue({ data: { user: { email: "fulana@hsm", user_metadata: {} } } });
     sessao.participante = {
       id: "p1",
@@ -71,7 +71,7 @@ describe("a rota /manual", () => {
 
     expect(screen.getByRole("heading", { level: 1, name: "Manual" })).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Aplicativo do Hospital" })).toBeTruthy();
-    expect(screen.getByRole("heading", { level: 2, name: "Reuniões e Pendências" })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 2, name: "Início" })).toBeTruthy();
   });
 
   it("sem sessão, vai para o login e o manual não sai", async () => {
