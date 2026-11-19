@@ -242,7 +242,7 @@ describe.each([
     [
       "padrão",
       { access_profile: "regular", perfil_ouvidoria: "ouvidor" },
-      ["Dashboard", "Calendário", "Ouvidoria"],
+      ["Início", "Dashboard", "Calendário", "Ouvidoria"],
     ],
     [
       "Secretária",
@@ -252,7 +252,7 @@ describe.each([
     [
       "só POPs",
       { access_profile: null, perfil_pop: "leitor" },
-      ["POPs"],
+      ["Início", "POPs"],
     ],
   ] as const)(
     "no menu %s o Manual fica no rodapé, e o resto do menu é o da variante",
@@ -514,6 +514,52 @@ describe("Sidebar com o item Ouvidoria pelo papel", () => {
 
     render(<Sidebar />);
 
-    expect(links()).toEqual(["POPs", "Ouvidoria"]);
+    // O Início vem primeiro para todos menos a Secretária (issue #1934).
+    expect(links()).toEqual(["Início", "POPs", "Ouvidoria"]);
+  });
+});
+
+/**
+ * O Início é o primeiro item do menu de quem não é Secretária (issue #1934,
+ * ADR 0104, decisão 1). A Secretária continua com o Início dela, a tela da
+ * secretaria, e não ganha o Início novo.
+ */
+describe("Sidebar com o item Início", () => {
+  function primeiroLink(): HTMLElement {
+    return within(screen.getByRole("navigation")).getAllByRole("link")[0];
+  }
+
+  it.each([
+    ["o facilitador", { access_profile: "regular" as const }],
+    ["o super admin", { access_profile: "super_admin" as const }],
+    ["quem só tem POPs", { access_profile: null, perfil_pop: "coordenador" as const }],
+  ])("%s tem o Início como primeiro item", (_quem, perfil) => {
+    sessao.participante = { id: "p1", nome_completo: "Fulana", email: "f@hsm", ...perfil };
+
+    render(<Sidebar />);
+
+    expect(primeiroLink().textContent?.trim()).toBe("Início");
+    expect(primeiroLink().getAttribute("href")).toBe("/inicio");
+  });
+
+  it("a Secretária não ganha o Início novo", () => {
+    sessao.participante = { id: "p1", nome_completo: "Selma", email: "s@hsm", access_profile: "secretaria" };
+
+    render(<Sidebar />);
+
+    const hrefs = within(screen.getByRole("navigation"))
+      .getAllByRole("link")
+      .map((link) => link.getAttribute("href"));
+    expect(hrefs).not.toContain("/inicio");
+    expect(hrefs[0]).toBe("/secretaria");
+  });
+
+  it("o logo continua levando aonde levava (o destino do login não muda nesta etapa)", () => {
+    sessao.participante = { id: "p1", nome_completo: "Fulana", email: "f@hsm", access_profile: "regular" };
+
+    render(<Sidebar />);
+
+    const logo = screen.getAllByRole("link").find((link) => !link.closest("nav"));
+    expect(logo?.getAttribute("href")).toBe("/dashboard");
   });
 });

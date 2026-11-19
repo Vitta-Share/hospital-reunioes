@@ -37,6 +37,16 @@ As reuniões do Núcleo de Segurança do Paciente ficam no módulo Segurança do
 
 Só quem é do Núcleo vê essas reuniões. Para quem é de fora, elas não aparecem na lista de reuniões, no calendário, nas pendências, nos números do painel, no sino nem no que o Claude da diretoria consulta. Isso vale também para quem administra o aplicativo.
 
+## O Início
+
+O Início é a tela de cada pessoa, com o que ela tem para entregar. É o primeiro item do menu para todos, menos a Secretária, que continua com a tela dela e não vê pendência. Por enquanto o login ainda leva cada pessoa para onde levava antes; a troca vem quando o Início estiver completo.
+
+No topo, uma frase escrita pelo próprio aplicativo, a partir dos números e sem inteligência artificial, diz quantos prazos venceram e há quantos dias o mais antigo espera. Quem não tem nada vencido lê que está em dia e qual é o próximo prazo. Enquanto houver prazo vencido, o topo fica numa faixa azul-marinho escura, e o vermelho aparece só no texto.
+
+Embaixo vem a lista, do prazo mais vencido para o mais distante, em três partes: passou do prazo, vence em até 48 horas e próximos 7 dias. O prazo de um dia só vence quando esse dia acaba, no horário de Brasília. O atraso é contado pela data: uma pendência aberta com o prazo vencido está atrasada mesmo antes de o aplicativo marcá-la como atrasada.
+
+Nesta primeira versão a lista traz as pendências abertas em que a pessoa é responsável ou divide a responsabilidade, inclusive o lembrete da Agenda regulatória do Núcleo, que antes não aparecia na lista de ninguém. Cada linha mostra os dias de atraso ou a data, de onde a pendência veio e um botão: a pendência de reunião abre no quadro de pendências já destacada, e o lembrete do Núcleo abre a Agenda regulatória. Se uma parte da tela não carregar, ela mostra um aviso só daquela parte e o resto continua. Atas a assinar, casos da Ouvidoria, POPs, o Núcleo e Contas médicas entram no Início nas próximas etapas.
+
 ## O que ele não faz
 
 - Não grava a reunião: o aplicativo não capta o que se fala na sala. O áudio que ele recebe é o ditado, quando o facilitador prefere falar a digitar na ata guiada: esse áudio sobe, é transcrito ali mesmo e descartado. Áudio nenhum fica guardado.

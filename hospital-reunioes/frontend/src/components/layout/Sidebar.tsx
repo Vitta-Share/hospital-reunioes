@@ -440,8 +440,12 @@ export function itensDoMenu(participante: CurrentParticipante | null): NavItem[]
     ],
   };
 
+  // O Início (ADR 0104, decisão 1): primeiro item de todos menos a
+  // Secretária, que segue com a tela dela.
+  const inicioItem: NavItem = { href: "/inicio", label: "Início", icon: Home };
+
   return popsOnly
-    ? [popsItem, ...ouvidoriaItens, ...contasMedicasItens, ...segurancaDoPacienteItens]
+    ? [inicioItem, popsItem, ...ouvidoriaItens, ...contasMedicasItens, ...segurancaDoPacienteItens]
     : isSec
     ? [
         { href: "/secretaria", label: "Início", icon: Home },
@@ -456,6 +460,7 @@ export function itensDoMenu(participante: CurrentParticipante | null): NavItem[]
           : []),
       ]
     : [
+        inicioItem,
         reunioesMetasGroup,
         ...ouvidoriaItens,
         ...(showPops ? [popsItem] : []),
