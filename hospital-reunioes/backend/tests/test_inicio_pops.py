@@ -14,11 +14,13 @@ import os
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.routers import inicio as inicio_router  # noqa: E402
+from app.services import inicio  # noqa: E402
 
 BRT = ZoneInfo("America/Sao_Paulo")
 # Quarta-feira, 18/11/2026, 10h em Brasília.
@@ -244,3 +246,24 @@ class TestRecorte:
         sem_perfil = {**REVISOR, "perfil_pop": None}
 
         assert _pops(_rota(monkeypatch, sem_perfil, _um_pop_em_cada_estado())) == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. O kit de conhecimento diz o comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestKitDeConhecimento:
+    def test_o_texto_dos_pops_explica_o_pop_no_inicio(self):
+        caminho = Path(inicio.__file__).parents[2] / "conhecimento" / "pops.md"
+        texto = " ".join(caminho.read_text(encoding="utf-8").split())
+
+        assert "## O POP no Início" in texto
+        assert "aparece no Início de quem tem de agir nela" in texto
+        assert "quem elabora vê o POP a elaborar ou em elaboração" in texto
+        assert "O botão abre o POP na etapa" in texto
+        assert "no grupo sem prazo, no fim da lista, com há quantos dias a versão está na etapa" in texto
+        assert "não conta como atrasado" in texto
+        assert "O POP em assinatura ou publicado não aparece" in texto
+        assert chr(0x2014) not in texto
+        assert chr(0x2013) not in texto

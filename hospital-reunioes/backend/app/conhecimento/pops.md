@@ -24,6 +24,12 @@ Quem revisa ou quem valida pode devolver, com comentários, para quem elaborou. 
 
 Publicar exige assinatura digital das três pessoas do fluxo. O POP publicado entra na **Biblioteca**, organizado por setor, com o documento assinado para baixar e as datas de cada etapa do caminho que ele percorreu.
 
+## O POP no Início
+
+A versão que está parada numa etapa aparece no Início de quem tem de agir nela: quem elabora vê o POP a elaborar ou em elaboração, quem revisa vê o POP em revisão e quem valida vê o POP em validação. Ninguém mais vê esse item, nem o gestor de qualidade nem quem tem o setor no acesso: para eles, o POP continua na lista do módulo. A pessoa também precisa ter o acesso de POPs, porque sem ele as telas do POP não abrem. O botão abre o POP na etapa: a elaboração para quem elabora e a leitura da versão para quem revisa ou valida.
+
+O módulo não dá prazo para as etapas, então o POP entra no grupo sem prazo, no fim da lista, com há quantos dias a versão está na etapa, contados do dia em que ela chegou lá (numa devolução, conta de novo a partir da volta). Por isso ele não conta como atrasado nem entra na frase do topo. O POP em assinatura ou publicado não aparece, porque aí ninguém do fluxo tem o que fazer.
+
 ## O que ainda não está no aplicativo
 
 Três coisas já foram decididas e ainda não foram construídas. Quem procurar por elas hoje não vai achar tela nenhuma:
@@ -48,6 +54,7 @@ Três coisas já foram decididas e ainda não foram construídas. Quem procurar 
 - O fluxograma é a única seção que sempre existe, e quem o desenha é o próprio aplicativo, sem mandar o conteúdo do POP para serviço de fora.
 - Revisor e validador podem devolver o POP com comentários quantas vezes precisarem.
 - Publicar exige a assinatura digital das três pessoas do fluxo.
+- O POP parado numa etapa aparece no Início só de quem tem de agir nela, sem prazo, com os dias que espera.
 - Os títulos e subtítulos do PDF do POP saem em caixa alta, inclusive as seções que a inteligência artificial escreve a partir do modelo do hospital, e o resto do texto continua com maiúscula e minúscula.
 
 ## O que costuma virar Demanda
