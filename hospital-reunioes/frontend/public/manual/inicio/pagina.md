@@ -3,7 +3,7 @@ modulo: inicio
 titulo: Início
 ---
 
-O Início é a primeira tela depois de entrar no app. Ele junta, numa lista só, o que você tem para entregar em todos os módulos: Pendências, Atas, POPs, casos da Ouvidoria, contas e o que o Núcleo pede. O que venceu vem primeiro. Cada linha leva à tela onde o item se resolve.
+O Início é a primeira tela depois de entrar no app. Ele junta numa lista só o que você tem para entregar em todos os módulos (Pendências, Atas, POPs, casos da Ouvidoria, contas e o que o Núcleo pede), com o que venceu em primeiro lugar. Cada linha leva à tela onde o item se resolve.
 
 Os números nas imagens mostram onde olhar ou clicar em cada passo.
 
@@ -64,8 +64,8 @@ Alguns itens se resolvem sem sair do Início, como a presença numa capacitaçã
 Este bloco aparece embaixo da Minha Fila para quem acompanha outras pessoas. O Facilitador vê os responsáveis das Pendências das Reuniões que ele conduziu. O Super admin vê todas as pessoas com Pendência aberta.
 
 1. No Início, desça até **Quem responde a você**. Cada linha é uma pessoa, pelo nome e pelo cargo.
-2. Leia as colunas: **Vencidos agora**, em vermelho quando há, **Em aberto** e **Último acesso**, o dia em que a pessoa abriu o Início pela última vez ("hoje", "há 3 dias" ou "nunca entrou").
-3. Clique na linha da pessoa (1). Abre ali mesmo a lista do que venceu e não foi entregue (2), com a Reunião de onde veio e há quantos dias venceu.
+2. Leia as colunas. **Vencidos agora** fica em vermelho quando a pessoa tem prazo vencido. **Em aberto** conta tudo o que ela ainda não entregou. **Último acesso** é o dia em que ela abriu o Início pela última vez: "hoje", "há 3 dias" ou "nunca entrou".
+3. Clique na linha da pessoa (1). A lista do que venceu e não foi entregue abre ali mesmo (2), com a Reunião de onde cada item veio e há quantos dias venceu.
 4. Clique na linha de novo para fechar.
 
 ![Quem responde a você, com a lista de uma pessoa aberta](quem-responde.png)

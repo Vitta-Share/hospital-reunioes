@@ -49,7 +49,7 @@ function secoes(corpo: string): { titulo: string; texto: string }[] {
 describe("quem vê a página do Início no manual", () => {
   it.each([
     ["o Facilitador", pessoa({ access_profile: "regular" })],
-    ["quem só tem POPs", pessoa({ access_profile: null, perfil_pop: "elaborador" })],
+    ["quem só tem POPs", pessoa({ access_profile: null, perfil_pop: "coordenador" })],
     ["o Super admin", pessoa({ access_profile: "super_admin" })],
   ])("%s tem o Início no menu e vê a página", (_, quem) => {
     expect(temOInicioNoMenu(quem)).toBe(true);
