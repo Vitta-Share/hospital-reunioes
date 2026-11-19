@@ -2,7 +2,8 @@
 Cron Jobs — APScheduler BackgroundScheduler
 
 Jobs:
-  1. marcar_atrasadas: 06:00 diário — pendências com prazo vencido → ATRASADO
+  1. marcar_atrasadas: 06:00 diário — pendências com prazo vencido → ATRASADO. Depois,
+     apaga as marcas do Registro de acesso com mais de 90 dias (issue #1941). Sem IA.
   2. enviar_lembretes_24h: a cada 15 minutos — reuniões PROGRAMADAS cujo horário cai dentro
      das proximas 24 horas e que ainda nao receberam o lembrete.
   3. reconciliar_clicksign: 05:30 diário, reconcilia Reuniões em AGUARDANDO_ASSINATURA
@@ -111,6 +112,22 @@ def marcar_atrasadas() -> None:
             logger.info(f"[Cron] {atualizadas} pendências marcadas como ATRASADO.")
     except Exception as e:
         logger.error(f"[Cron] Erro em marcar_atrasadas: {e}", exc_info=True)
+
+    # A retenção do Registro de acesso (issue #1941): 90 dias. Independente da
+    # marcação de cima, que não pode deixá-la sem rodar. Sem IA.
+    from app.services.inicio import registro_de_acesso
+
+    try:
+        apagadas = registro_de_acesso.apagar_antigas(supabase, _hoje())
+    except Exception as e:
+        logger.error(f"[Cron] Erro ao apagar o Registro de acesso antigo: {type(e).__name__}")
+        return
+    if apagadas:
+        logger.info(f"[Cron] {apagadas} marca(s) do Registro de acesso apagada(s) por retenção.")
+
+
+def _hoje() -> date:
+    return datetime.now(tz=_TZ).date()
 
 
 def enviar_lembretes_24h() -> None:
