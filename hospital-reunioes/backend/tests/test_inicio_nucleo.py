@@ -58,6 +58,10 @@ class _Consulta:
         self._filtros.append(lambda linha: linha.get(coluna) == valor)
         return self
 
+    def neq(self, coluna, valor):
+        self._filtros.append(lambda linha: linha.get(coluna) is not None and linha.get(coluna) != valor)
+        return self
+
     def in_(self, coluna, valores):
         valores = set(valores)
         self._filtros.append(lambda linha: linha.get(coluna) in valores)
@@ -111,6 +115,12 @@ class _Banco:
     nsp_documentos_signatarios: list = field(default_factory=list)
     nsp_capacitacoes: list = field(default_factory=list)
     nsp_capacitacao_participantes: list = field(default_factory=list)
+    # As Atas, o trilho (#1936) e a Ouvidoria (#1937) também leem o banco; vazios aqui.
+    reuniao_participantes: list = field(default_factory=list)
+    reuniao_aceites: list = field(default_factory=list)
+    ouvidoria_setor_responsaveis: list = field(default_factory=list)
+    ouvidoria_protocolos: list = field(default_factory=list)
+    ouvidoria_prorrogacoes: list = field(default_factory=list)
 
     def table(self, nome):
         return _Consulta(getattr(self, nome))

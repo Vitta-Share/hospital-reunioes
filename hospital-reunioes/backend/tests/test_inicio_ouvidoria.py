@@ -105,6 +105,8 @@ class _Banco:
     # A fonte das Atas e o trilho (#1936) também leem o banco; vazios aqui.
     reuniao_participantes: list = field(default_factory=list)
     reuniao_aceites: list = field(default_factory=list)
+    # A fonte do Núcleo (#1939) também lê o banco; sem o Núcleo aqui.
+    colegiados: list = field(default_factory=list)
 
     def table(self, nome):
         return _Consulta(getattr(self, nome))

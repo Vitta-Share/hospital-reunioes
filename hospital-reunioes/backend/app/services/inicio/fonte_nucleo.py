@@ -208,7 +208,7 @@ def _presencas_a_confirmar(supabase, me: dict) -> list[dict]:
     return saida
 
 
-def itens(supabase, me: dict) -> list[dict]:
+def itens(supabase, me: dict, _agora: datetime | None = None) -> list[dict]:
     """Os itens da fonte, no formato comum do Início. Cada um só entra para
     quem alcança o recurso da tela que o mostra: o super admin, que só alcança
     a configuração, não recebe nenhum."""
