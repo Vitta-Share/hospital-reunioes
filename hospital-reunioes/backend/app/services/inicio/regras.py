@@ -43,7 +43,7 @@ def grupo_do_prazo(prazo: date | None, agora: datetime) -> str | None:
 
 
 def grupo_do_item(prazo: date | None, sem_prazo_no_modulo: bool, agora: datetime) -> str | None:
-    """O grupo de um item. O que o módulo não dá prazo fica em Sem prazo, e só
+    """O grupo de um item. O item a que o módulo não dá prazo fica em Sem prazo, e só
     sai de lá se o prazo que a fonte calculou vencer (a Ata parada, a partir do
     quarto dia)."""
     grupo = grupo_do_prazo(prazo, agora)
