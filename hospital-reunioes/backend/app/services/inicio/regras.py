@@ -18,7 +18,8 @@ ATE_48_HORAS = "ate_48_horas"
 PROXIMOS_7_DIAS = "proximos_7_dias"
 GRUPOS = (PASSOU_DO_PRAZO, ATE_48_HORAS, PROXIMOS_7_DIAS)
 # O item a que o módulo de origem não dá prazo (a Ata a assinar, a Ata parada até
-# o terceiro dia): fica no fim, com há quantos dias espera, e não é vencido.
+# o terceiro dia, a conta com a faturista): fica no fim, com há quantos dias
+# espera, e não é vencido.
 SEM_PRAZO = "sem_prazo"
 
 
