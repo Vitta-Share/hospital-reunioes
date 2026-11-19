@@ -250,6 +250,9 @@ class MensagemDaConversaResponse(BaseModel):
     texto: str
     criado_em: str | None = None
     minha: bool = False
+    # A linha do Envio aos desenvolvedores (issue #2011, ADR 0108): a tela a
+    # mostra como linha do sistema, e nao como bolha de alguem.
+    sistema: bool = False
 
 
 class MencionavelResponse(BaseModel):
@@ -260,9 +263,38 @@ class MencionavelResponse(BaseModel):
     nome: str
 
 
+class EnvioDaConversaResponse(BaseModel):
+    """O botao "Enviar para os desenvolvedores" (issue #2011): so para quem nao
+    e Desenvolvedor, em Demanda com issue. `mensagens_novas` e quantas
+    mensagens do diretor esperam o proximo envio; zero desliga o botao."""
+
+    mensagens_novas: int
+
+
 class ConversaDaDemandaResponse(BaseModel):
     mensagens: list[MensagemDaConversaResponse]
     mencionaveis: list[MencionavelResponse]
+    # Nulo = o botao nao aparece (Desenvolvedor, ou Demanda sem issue).
+    envio: EnvioDaConversaResponse | None = None
+
+
+class CardDoEnvioResponse(BaseModel):
+    numero: int
+    muda: str
+
+
+class InterpretacaoDoEnvioResponse(BaseModel):
+    """O "Entendi assim:" do Envio aos desenvolvedores (issue #2011)."""
+
+    id: str
+    topicos: list[str]
+    cards: list[CardDoEnvioResponse] = []
+
+
+class EnviarAosDesenvolvedoresPayload(BaseModel):
+    """Corpo do POST .../conversa/enviar: a interpretacao aprovada."""
+
+    envio_id: str = Field(min_length=1, max_length=64)
 
 
 # O teto de uma fala do chat. E do pydantic, e nao do router, porque aqui nao

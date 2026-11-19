@@ -60,6 +60,13 @@ O chat da aba (issues #1381, #1383 e #1384):
                                                 Desenvolvedor, que fecha no
                                                 GitHub como nao planejado
                                                 (issue #1549, ADR 0084).
+- POST  /admin/tecnologia/chat/{id}/conversa/interpretar  o "Entendi assim:"
+                                                das mensagens do diretor desde
+                                                o ultimo envio (issue #2011,
+                                                ADR 0108).
+- POST  /admin/tecnologia/chat/{id}/conversa/enviar  o "Enviar": abre o
+                                                Ajuste do plano e escreve a
+                                                linha do envio na conversa.
 
 O print do chat (ADR 0056, decisao 4; ADR 0077, decisao 8):
 
@@ -105,7 +112,9 @@ from app.models.tecnologia_schemas import (
     DemandaResponse,
     DesenvolvedorResponse,
     EntregasResponse,
+    EnviarAosDesenvolvedoresPayload,
     EstimativaDaRevisao,
+    InterpretacaoDoEnvioResponse,
     MensagemDaConversaPayload,
     MensagemDaConversaResponse,
     ModeloDaDemanda,
@@ -125,6 +134,7 @@ from app.services import (
     tecnologia_email,
     tecnologia_entregas,
     tecnologia_envio,
+    tecnologia_envio_aos_desenvolvedores,
     tecnologia_revisao,
     tecnologia_sincronizacao,
 )
@@ -1223,6 +1233,7 @@ def _mensagem_para_a_tela(linha: dict, *, nomes: dict[str, str], ator: dict) -> 
         "texto": linha.get("texto") or "",
         "criado_em": linha.get("criado_em"),
         "minha": linha.get("autor_id") == ator["id"],
+        "sistema": linha.get("origem") == tecnologia_envio_aos_desenvolvedores.ORIGEM_SISTEMA,
     }
 
 
@@ -1245,11 +1256,15 @@ async def ler_a_conversa_da_demanda(
         or []
     )
     nomes = _nomes(supabase, {linha.get("autor_id") for linha in linhas})
+    envio = None
+    if not e_desenvolvedor(ator) and demanda.get("github_issue_numero"):
+        envio = {"mensagens_novas": tecnologia_envio_aos_desenvolvedores.mensagens_novas(supabase, demanda_id)}
     return {
         "mensagens": [_mensagem_para_a_tela(linha, nomes=nomes, ator=ator) for linha in linhas],
         "mencionaveis": [
             {"id": str(p["id"]), "nome": p.get("nome_completo") or ""} for p in _mencionaveis(supabase, demanda)
         ],
+        "envio": envio,
     }
 
 
@@ -1276,6 +1291,74 @@ async def escrever_na_conversa_da_demanda(
     linha = tecnologia_conversa.escrever(
         supabase, demanda, autor=ator, texto=texto, origem=tecnologia_conversa.ORIGEM_APP, mencoes=mencoes
     )
+    nome = ator.get("nome_completo") or ""
+    return _mensagem_para_a_tela(linha, nomes={str(ator["id"]): nome}, ator=ator)
+
+
+# ─── O Envio aos desenvolvedores (issue #2011, ADR 0108, decisoes 3 a 5) ────
+
+
+def _demanda_do_envio(supabase: Client, demanda_id: str, ator: dict) -> dict:
+    """A Demanda que se envia, ou a recusa: 403 ao Desenvolvedor (o envio e do
+    lado do hospital), 404 a quem nao a ve e 422 sem issue vinculada."""
+    if e_desenvolvedor(ator):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=tecnologia_envio_aos_desenvolvedores.MOTIVO_SO_O_HOSPITAL
+        )
+    demanda = _demanda_visivel(supabase, demanda_id, ator)
+    if not demanda.get("github_issue_numero"):
+        _recusar(tecnologia_envio_aos_desenvolvedores.MOTIVO_SEM_CARD)
+    return demanda
+
+
+@router.post("/chat/{demanda_id}/conversa/interpretar", response_model=InterpretacaoDoEnvioResponse)
+@limiter.limit(LIMITE_DO_ASSISTENTE)
+async def interpretar_o_envio(
+    request: Request,
+    demanda_id: str,
+    ator: dict = Depends(require_super_admin),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """O "Entendi assim:" das mensagens do diretor desde o ultimo envio. A IA
+    so roda aqui, pelo clique (ADR 0108, decisao 3); o custo fica gravado."""
+    demanda = _demanda_do_envio(supabase, demanda_id, ator)
+    try:
+        envio = await ai_processor.chamar_ia_fora_do_loop(
+            tecnologia_envio_aos_desenvolvedores.interpretar, supabase, demanda, kit=carregar_kit()
+        )
+    except tecnologia_envio_aos_desenvolvedores.EnvioRecusadoError as exc:
+        _recusar(exc.motivo)
+    if envio is None:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=tecnologia_envio_aos_desenvolvedores.MOTIVO_INTERPRETACAO_FALHOU,
+        )
+    return {"id": str(envio["id"]), "topicos": envio.get("topicos") or [], "cards": envio.get("cards") or []}
+
+
+@router.post("/chat/{demanda_id}/conversa/enviar", response_model=MensagemDaConversaResponse)
+@limiter.shared_limit(LIMITE_DO_VINCULO, ESCOPO_DO_VINCULO)
+async def enviar_aos_desenvolvedores(
+    request: Request,
+    demanda_id: str,
+    payload: EnviarAosDesenvolvedoresPayload,
+    ator: dict = Depends(require_super_admin),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """O "Enviar" do "Entendi assim:": abre o Ajuste do plano e devolve a linha
+    do envio que entrou na conversa. Duplo clique e 422; falha do GitHub, 502
+    com o motivo (ou 503 sem a integracao), e a conversa fica como estava."""
+    demanda = _demanda_do_envio(supabase, demanda_id, ator)
+    try:
+        linha = tecnologia_envio_aos_desenvolvedores.enviar(supabase, demanda, ator=ator, envio_id=payload.envio_id)
+    except tecnologia_envio_aos_desenvolvedores.EnvioRecusadoError as exc:
+        _recusar(exc.motivo)
+    except tecnologia_envio_aos_desenvolvedores.EnvioFalhouError as exc:
+        if exc.integracao_desligada:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=MOTIVO_INTEGRACAO_DESLIGADA
+            ) from None
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=exc.motivo) from None
     nome = ator.get("nome_completo") or ""
     return _mensagem_para_a_tela(linha, nomes={str(ator["id"]): nome}, ator=ator)
 
