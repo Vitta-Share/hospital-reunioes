@@ -113,6 +113,9 @@ echo "prints em $SAIDA:"
 # Cadastrar um membro e acompanhar o Termo: a lista, o cadastro e a ficha com o Termo pendente.
 pw goto "$MODULO/membros"
 esperar "Juliana Prado"
+# O submenu chama a página do módulo de Visão geral (#1949). App local
+# atrasado, ainda com Início, para aqui em vez de fotografar o menu antigo.
+pw run-code "async page => { await page.getByRole('navigation').getByRole('link', { name: 'Visão geral', exact: true }).waitFor({ timeout: 5000 }) }"
 print_tela "membros.png"
 clicar "getByRole('button', { name: 'Cadastrar membro' })"
 pw run-code "async page => {
