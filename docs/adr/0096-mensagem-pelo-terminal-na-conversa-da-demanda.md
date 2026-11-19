@@ -1,7 +1,7 @@
 ---
 status: accepted
 amends: 0069, 0083
-amended_by: 0106
+amended_by: 0106, 0108
 ---
 
 # Mensagem pelo terminal: a sessão do desenvolvedor escreve e lê na Conversa da Demanda, pela ponte de automação
