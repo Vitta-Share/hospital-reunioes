@@ -22,6 +22,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+from app.services import limite_sem_ip
+
 # ---------------------------------------------------------------------------
 # ContextVars
 # ---------------------------------------------------------------------------
@@ -278,6 +280,10 @@ def _ip_do_cliente(request: Request) -> str:
     """
     cliente = request.client
     ip = cliente.host if cliente else ""
+    # Rota com limite de envios sem IP (issue #1986, ADR 0107 decisão 6): nada
+    # do endereço, nem a rede.
+    if limite_sem_ip.rota_sem_endereco(request.scope):
+        return ""
     if _e_canal_anonimo_da_ouvidoria(request.scope.get("path", "")):
         return _truncar_na_rede(ip)
     return ip

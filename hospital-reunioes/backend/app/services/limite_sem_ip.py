@@ -62,10 +62,28 @@ def chave_do_aparelho(request: Request) -> str:
     return "sem-ip:" + hmac.new(_sal.atual(), endereco, hashlib.sha256).hexdigest()
 
 
+# A marca que a rota limitada carrega e o log de requisições lê.
+_MARCA = "_limite_sem_ip"
+
+
 def limitar(limite: str):
-    """Limita a rota por aparelho, com a chave sem endereço."""
+    """Limita a rota por aparelho, com a chave sem endereço, e tira o endereço
+    da linha de log dela."""
 
     def decorar(funcao):
-        return limiter.limit(limite, key_func=chave_do_aparelho)(funcao)
+        envolvida = limiter.limit(limite, key_func=chave_do_aparelho)(funcao)
+        setattr(envolvida, _MARCA, True)
+        return envolvida
 
     return decorar
+
+
+def rota_sem_endereco(scope: dict) -> bool:
+    """A requisição caiu numa rota que usa o serviço?
+
+    Lê a rota que o roteador casou (`scope["endpoint"]`), e não o path: a rota
+    nova já nasce fora do log ao usar o serviço, sem lista para lembrar de
+    atualizar. Vale também para a recusa da validação (422), que acontece depois
+    de o roteador casar a rota e antes de o limitador rodar.
+    """
+    return getattr(scope.get("endpoint"), _MARCA, False) is True
