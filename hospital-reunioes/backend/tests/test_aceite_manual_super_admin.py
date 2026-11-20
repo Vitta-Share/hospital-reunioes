@@ -3,9 +3,10 @@
 Seam testado: POST /api/reunioes/{id}/signatarios/{participante_id}/aceite-manual.
 
 - Acao restrita a Super admin (403 para os demais), sem nenhum efeito no 403.
-- Aceite registrado com origem `super_admin`, Pendencias do signatario nascem
-  na hora e o rastro fica em `audit_log` (quem forcou, quando, em nome de quem).
-- Efeito idempotente: repetir nao duplica aceite, Pendencia nem audit.
+- Aceite registrado com origem `super_admin` (so ciencia: desde a ADR 0098 as
+  Pendencias nascem no envio) e o rastro fica em `audit_log` (quem forcou,
+  quando, em nome de quem).
+- Efeito idempotente: repetir nao duplica aceite nem audit.
 - O ultimo aceite manual necessario leva a Reuniao a ASSINADA com o selo,
   pelo mesmo desfecho terminal do Aceite interno.
 
@@ -263,7 +264,9 @@ def _bloquear_httpx(monkeypatch):
 
 
 class TestAceiteManualSuperAdmin:
-    def test_super_admin_registra_aceite_e_pendencias_do_signatario_nascem(self):
+    def test_super_admin_registra_ciencia_sem_criar_pendencia(self):
+        """As Pendencias nasceram no envio (issue #1867, ADR 0098): o aceite
+        manual so registra a ciencia da Ana."""
         sb = _sb()
         client = _client(sb, AUTH_SUPER)
 
@@ -275,12 +278,7 @@ class TestAceiteManualSuperAdmin:
         assert aceites[0]["participante_id"] == "P_ANA"
         assert aceites[0]["origem"] == "super_admin"
         assert aceites[0]["aceito_em"]
-
-        # Nascem so as Pendencias da Ana (posicao 0 do quadro)
-        pendencias = sb.tables["pendencias"]
-        assert [p["quadro_pos"] for p in pendencias] == [0]
-        assert pendencias[0]["responsavel_id"] == "P_ANA"
-        assert resp.json()["pendencias_criadas"] == 1
+        assert sb.tables["pendencias"] == []
 
     def test_403_para_quem_nao_e_super_admin_sem_nenhum_efeito(self):
         sb = _sb()
@@ -308,7 +306,7 @@ class TestAceiteManualSuperAdmin:
         assert audit[0]["metadata"]["participante_id"] == "P_ANA"
         assert audit[0]["metadata"]["participante_nome"] == "Ana Lima"
 
-    def test_repetir_nao_duplica_aceite_pendencia_nem_audit(self):
+    def test_repetir_nao_duplica_aceite_nem_audit(self):
         sb = _sb()
         client = _client(sb, AUTH_SUPER)
 
@@ -318,9 +316,7 @@ class TestAceiteManualSuperAdmin:
         assert resp.status_code == 200
         body = resp.json()
         assert body["ja_registrado"] is True
-        assert body["pendencias_criadas"] == 0
         assert len(sb.tables["reuniao_aceites"]) == 1
-        assert len(sb.tables["pendencias"]) == 1
         assert len(sb.tables["audit_log"]) == 1
 
     def test_ultimo_aceite_manual_leva_a_reuniao_a_assinada_com_selo(self):
@@ -370,16 +366,3 @@ class TestAceiteManualSuperAdmin:
         resp = _post_aceite_manual(client, "P_ANA", id_reuniao="R_NAO_EXISTE")
 
         assert resp.status_code == 404
-
-    def test_aceite_manual_do_facilitador_libera_acoes_de_fora_do_envelope(self):
-        quadro = _quadro() + [{"acao": "Sem dono definido", "responsavel": "", "responsavel_id": None, "prazo": None}]
-        sb = _sb(json_ata={"objetivo": "Alinhar compras", "quadro_atribuicoes": quadro})
-        client = _client(sb, AUTH_SUPER)
-
-        resp = _post_aceite_manual(client, "P_FAC")
-
-        assert resp.status_code == 200
-        # Nascem a acao do proprio Facilitador (pos 2) e a acao sem responsavel
-        # (pos 3, fora do Envelope); as de Ana e Bruno seguem aguardando aceite.
-        assert sorted(p["quadro_pos"] for p in sb.tables["pendencias"]) == [2, 3]
-        assert resp.json()["pendencias_criadas"] == 2

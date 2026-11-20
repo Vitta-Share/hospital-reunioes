@@ -755,9 +755,9 @@ async def registrar_aceite_manual(
     """Botão "Registrar aceite manualmente" do card de Signatários (issue #278).
 
     Super admin only, exclusivo do modo interno (ADR 0030): registra o aceite
-    em nome de um signatário pendente com origem `super_admin`, cria as
-    Pendências daquele responsável e deixa rastro em audit_log (quem forçou,
-    quando, em nome de quem). Idempotente: repetir não duplica nada.
+    em nome de um signatário pendente com origem `super_admin` (só ciência, ADR
+    0098) e deixa rastro em audit_log (quem forçou, quando, em nome de quem).
+    Idempotente: repetir não duplica nada.
     """
     from app.services import aceite_service
 
@@ -782,7 +782,6 @@ async def registrar_aceite_manual(
                 "participante_id": signatario["id"],
                 "participante_nome": signatario["nome"],
                 "participante_email": signatario["email"],
-                "pendencias_criadas": resultado["pendencias_criadas"],
                 "reuniao_assinada": resultado["reuniao_assinada"],
             },
             request=request,
@@ -799,7 +798,6 @@ async def registrar_aceite_manual(
             else f"Aceite registrado em nome de {signatario['nome'] or 'signatário'}."
         ),
         "ja_registrado": resultado["ja_registrado"],
-        "pendencias_criadas": resultado["pendencias_criadas"],
         "reuniao_assinada": resultado["reuniao_assinada"],
     }
 

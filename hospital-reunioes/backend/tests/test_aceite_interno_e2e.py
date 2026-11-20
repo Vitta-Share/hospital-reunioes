@@ -1,17 +1,18 @@
-"""Aceite interno ponta-a-ponta com desfecho terminal (issue #277, ADR 0030).
+"""Aceite interno ponta-a-ponta com desfecho terminal (issue #277, ADR 0030; issue #1867, ADR 0098).
 
-Seams testados:
+Desde a ADR 0098 as Pendencias nascem no envio da Ata e o Aceite interno e so
+ciencia. Seams testados:
 - POST /api/webhooks/clicksign: ao abrir o modo interno, cada signatario
-  pendente COM acoes recebe email com link publico tokenizado (token opaco,
-  uso unico); signatario sem acao nao recebe link; Facilitador pendente
-  recebe tambem notificacao in-app apontando para o aceite.
+  sem ciencia recebe email com link publico tokenizado (token opaco, uso
+  unico); Facilitador pendente recebe tambem notificacao in-app apontando
+  para o aceite.
 - GET /api/aceite/{token}: pagina publica ve a ata completa.
-- POST /api/aceite/{token}/aceitar: cria todas as Pendencias do signatario e
-  registra o aceite com origem `aceite_interno` e timestamp. Token reusado,
-  expirado ou invalido falha sem nenhum efeito.
-- Desfecho terminal (regra exclusiva do modo interno): quando toda acao do
-  quadro tem Pendencia nascida, a Reuniao vira ASSINADA com `data_assinatura`
-  e o selo de assinaturas mistas (contagem persistida).
+- POST /api/aceite/{token}/aceitar: registra a ciencia com origem
+  `aceite_interno` e timestamp, sem criar Pendencia. Token reusado, expirado
+  ou invalido falha sem nenhum efeito.
+- Desfecho terminal (regra exclusiva do modo interno): quando todo
+  signatario deu ciencia, a Reuniao vira ASSINADA com `data_assinatura` e o
+  selo de assinaturas mistas (contagem persistida).
 
 ClickSign e email SEMPRE mockados (o .env de teste carrega credenciais reais).
 """
@@ -315,9 +316,9 @@ def _abrir_modo_interno(sb: _SupabaseMock, client: TestClient) -> None:
 
 
 class TestAberturaDisparaLinks:
-    def test_signatario_pendente_com_acoes_recebe_email_com_link_tokenizado(self, emails):
-        """Ana ja assinou (aceite clicksign, Pendencia dela nascida); Bruno e
-        Fabio estao pendentes com acoes; Sonia esta pendente sem acao."""
+    def test_todo_signatario_sem_ciencia_recebe_email_com_link_tokenizado(self, emails):
+        """Ana ja assinou (aceite clicksign); Bruno, Fabio e Sonia (sem acao)
+        ainda nao deram ciencia: os tres recebem o link (ADR 0098)."""
         sb = _sb()
         sb.tables["reuniao_aceites"].append(_aceite_clicksign("P_ANA", "sk-ana", "ana@hsm.com"))
         sb.tables["pendencias"].append(_pendencia_nascida("A001", 0, "P_ANA"))
@@ -325,7 +326,7 @@ class TestAberturaDisparaLinks:
         _abrir_modo_interno(sb, _client(sb))
 
         destinos = sorted(e["para"] for e in emails)
-        assert destinos == ["bruno@hsm.com", "fabio@hsm.com"]
+        assert destinos == ["bruno@hsm.com", "fabio@hsm.com", "sonia@hsm.com"]
         for e in emails:
             assert f"{settings.frontend_url}/aceite/" in e["texto"]
 
@@ -337,7 +338,7 @@ class TestAberturaDisparaLinks:
         _abrir_modo_interno(sb, _client(sb))
 
         tokens = sb.tables["reuniao_aceite_tokens"]
-        assert {t["participante_id"] for t in tokens} == {"P_BRUNO", "P_FAC"}
+        assert {t["participante_id"] for t in tokens} == {"P_BRUNO", "P_FAC", "P_SEM"}
         for e in emails:
             token = _token_do_link(e["texto"].split(f"{settings.frontend_url}/aceite/")[1].split()[0])
             # token opaco NUNCA persistido em claro: so o hash vive no banco
@@ -425,19 +426,20 @@ class TestPaginaPublicaEAceite:
         assert body["signatario"]["nome"] == "Bruno Costa"
         assert body["ata"]["quadro_atribuicoes"] == _quadro()
 
-    def test_aceite_cria_pendencias_do_signatario_com_origem_e_timestamp(self, emails):
+    def test_aceite_registra_ciencia_sem_criar_pendencia(self, emails):
+        """Issue #1867: as Pendencias nasceram no envio; o "Li e aceito" do
+        Bruno com o Envelope morto so registra a ciencia dele."""
         sb = _sb()
         sb.tables["reuniao_aceites"].append(_aceite_clicksign("P_ANA", "sk-ana", "ana@hsm.com"))
-        sb.tables["pendencias"].append(_pendencia_nascida("A001", 0, "P_ANA"))
+        for pid, pos in (("P_ANA", 0), ("P_BRUNO", 1), ("P_FAC", 2)):
+            sb.tables["pendencias"].append(_pendencia_nascida(f"A00{pos + 1}", pos, pid))
         client, token = _fluxo_com_link_do_bruno(sb, emails)
+        antes = [dict(p) for p in sb.tables["pendencias"]]
 
         res = client.post(f"/api/aceite/{token}/aceitar")
 
         assert res.status_code == 200
-        assert res.json()["pendencias_criadas"] == 1
-        pendencias_bruno = [p for p in sb.tables["pendencias"] if p.get("responsavel_id") == "P_BRUNO"]
-        assert len(pendencias_bruno) == 1
-        assert pendencias_bruno[0]["quadro_pos"] == 1
+        assert sb.tables["pendencias"] == antes
 
         aceites = [a for a in sb.tables["reuniao_aceites"] if a.get("origem") == "aceite_interno"]
         assert len(aceites) == 1
@@ -445,7 +447,7 @@ class TestPaginaPublicaEAceite:
         assert aceites[0]["aceito_em"]
 
     def test_aceite_parcial_mantem_reuniao_aguardando_assinatura(self, emails):
-        """Falta a acao do Fabio: o aceite do Bruno nao fecha a Reuniao."""
+        """Faltam Fabio e Sonia: o aceite do Bruno nao fecha a Reuniao."""
         sb = _sb()
         sb.tables["reuniao_aceites"].append(_aceite_clicksign("P_ANA", "sk-ana", "ana@hsm.com"))
         sb.tables["pendencias"].append(_pendencia_nascida("A001", 0, "P_ANA"))
@@ -506,86 +508,58 @@ class TestTokenSemEfeito:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# CA5: desfecho terminal do modo interno (toda acao com Pendencia = ASSINADA)
+# CA5: desfecho terminal do modo interno (todos deram ciencia = ASSINADA)
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+def _tokens_por_email(emails: list[dict]) -> dict[str, str]:
+    tokens = {}
+    for e in emails:
+        link = e["texto"].split(f"{settings.frontend_url}/aceite/")[1].split()[0]
+        tokens[e["para"]] = _token_do_link(link)
+    return tokens
+
+
 class TestDesfechoTerminal:
-    def test_ultimo_aceite_necessario_leva_a_assinada_com_selo_misto(self, emails):
-        """Ana assinou (clicksign); Bruno e Fabio dao o Aceite interno. O
-        ultimo aceite fecha: ASSINADA + data_assinatura + contagem persistida
-        (selo de assinaturas mistas: 1 de 4 assinaram no ClickSign)."""
+    def test_reuniao_fecha_quando_todos_deram_ciencia_com_selo_misto(self, emails):
+        """Ana assinou (clicksign); Bruno, Fabio e Sonia dao o Aceite interno.
+        Só a última ciência fecha: ASSINADA + data_assinatura + contagem
+        persistida (selo de assinaturas mistas: 1 de 4 assinaram no ClickSign).
+        Sonia não tem ação e ainda assim conta (ADR 0098, decisão 2)."""
         sb = _sb()
         sb.tables["reuniao_aceites"].append(_aceite_clicksign("P_ANA", "sk-ana", "ana@hsm.com"))
-        sb.tables["pendencias"].append(_pendencia_nascida("A001", 0, "P_ANA"))
+        for pid, pos in (("P_ANA", 0), ("P_BRUNO", 1), ("P_FAC", 2)):
+            sb.tables["pendencias"].append(_pendencia_nascida(f"A00{pos + 1}", pos, pid))
         client = _client(sb)
         _abrir_modo_interno(sb, client)
-
-        tokens = {}
-        for e in emails:
-            link = e["texto"].split(f"{settings.frontend_url}/aceite/")[1].split()[0]
-            tokens[e["para"]] = _token_do_link(link)
+        tokens = _tokens_por_email(emails)
 
         res_bruno = client.post(f"/api/aceite/{tokens['bruno@hsm.com']}/aceitar")
-        assert res_bruno.json()["reuniao_assinada"] is False
-
         res_fabio = client.post(f"/api/aceite/{tokens['fabio@hsm.com']}/aceitar")
+        assert res_bruno.json()["reuniao_assinada"] is False
+        assert res_fabio.json()["reuniao_assinada"] is False
+        assert _reuniao(sb)["status_ata"] == "AGUARDANDO_ASSINATURA"
 
-        assert res_fabio.status_code == 200
-        assert res_fabio.json()["reuniao_assinada"] is True
+        res_sonia = client.post(f"/api/aceite/{tokens['sonia@hsm.com']}/aceitar")
+
+        assert res_sonia.status_code == 200
+        assert res_sonia.json()["reuniao_assinada"] is True
         reuniao = _reuniao(sb)
         assert reuniao["status_ata"] == "ASSINADA"
         assert reuniao["data_assinatura"]
         assert reuniao["signatarios_total"] == 4
         assert reuniao["signatarios_assinaram"] == 1
-
-    def test_aceite_do_facilitador_libera_acoes_sem_vinculo_e_de_nao_signatarios(self, emails):
-        """Espelho da regra do ClickSign (ADR 0030, decisão 1): o aceite do
-        Facilitador libera também as ações sem vínculo (responsável não
-        resolvido), senão o desfecho terminal nunca chega."""
-        quadro = [
-            {"acao": "Revisar protocolo", "responsavel": "Ana Lima", "responsavel_id": "P_ANA", "prazo": None},
-            {"acao": "Contratar externo", "responsavel": "Pessoa Externa", "prazo": None},
-            {"acao": "Atualizar POP", "responsavel": "Fabio Facilitador", "responsavel_id": "P_FAC", "prazo": None},
-        ]
-        sb = _sb(json_ata={"quadro_atribuicoes": quadro})
-        sb.tables["reuniao_aceites"].append(_aceite_clicksign("P_ANA", "sk-ana", "ana@hsm.com"))
-        sb.tables["pendencias"].append(_pendencia_nascida("A001", 0, "P_ANA"))
-        client = _client(sb)
-        _abrir_modo_interno(sb, client)
-
-        email_fabio = next(e for e in emails if e["para"] == "fabio@hsm.com")
-        token = _token_do_link(email_fabio["texto"].split(f"{settings.frontend_url}/aceite/")[1].split()[0])
-
-        res = client.post(f"/api/aceite/{token}/aceitar")
-
-        assert res.status_code == 200
-        assert res.json()["pendencias_criadas"] == 2  # a dele + a sem vínculo
-        assert res.json()["reuniao_assinada"] is True
-        assert _reuniao(sb)["status_ata"] == "ASSINADA"
-
-    def test_facilitador_pendente_recebe_link_quando_so_ha_acao_sem_vinculo(self, emails):
-        """Facilitador sem ação própria mas com ação sem vínculo aberta no
-        quadro precisa do link: só o aceite dele consegue liberá-la."""
-        quadro = [{"acao": "Contratar externo", "responsavel": "Pessoa Externa", "prazo": None}]
-        sb = _sb(json_ata={"quadro_atribuicoes": quadro})
-        _abrir_modo_interno(sb, _client(sb))
-
-        assert [e["para"] for e in emails] == ["fabio@hsm.com"]
-        assert {t["participante_id"] for t in sb.tables["reuniao_aceite_tokens"]} == {"P_FAC"}
+        assert len(sb.tables["pendencias"]) == 3
 
     def test_sign_atrasado_no_modo_interno_completa_o_desfecho(self, emails):
         """Um `sign` que chega depois do modo interno aberto ainda conta: se
-        era a última ação sem Pendência, a Reunião fecha (desfecho terminal)."""
+        era a última ciência que faltava, a Reunião fecha (desfecho terminal),
+        sem criar Pendência."""
         sb = _sb(modo_interno_desde="2026-08-14T12:00:00+00:00")
-        sb.tables["pendencias"].append(_pendencia_nascida("A001", 1, "P_BRUNO"))
-        sb.tables["pendencias"].append(_pendencia_nascida("A002", 2, "P_FAC"))
-        sb.tables["reuniao_aceites"].append(
-            {"id": "ac-b", "id_reuniao": "R1", "participante_id": "P_BRUNO", "origem": "aceite_interno"}
-        )
-        sb.tables["reuniao_aceites"].append(
-            {"id": "ac-f", "id_reuniao": "R1", "participante_id": "P_FAC", "origem": "aceite_interno"}
-        )
+        for pid in ("P_BRUNO", "P_FAC", "P_SEM"):
+            sb.tables["reuniao_aceites"].append(
+                {"id": f"ac-{pid}", "id_reuniao": "R1", "participante_id": pid, "origem": "aceite_interno"}
+            )
         payload = {
             "event": {
                 "name": "sign",
@@ -598,29 +572,7 @@ class TestDesfechoTerminal:
         res = _post_webhook(_client(sb), payload)
 
         assert res.status_code == 200
-        assert any(p.get("responsavel_id") == "P_ANA" for p in sb.tables["pendencias"])
-        assert _reuniao(sb)["status_ata"] == "ASSINADA"
-
-    def test_responsavel_reatribuido_com_aceite_previo_nasce_na_recoleta(self, emails):
-        """Ação reatribuída para quem JÁ firmou compromisso: a recoleta libera
-        direto, sem novo token nem email (o aceite dele já vale)."""
-        from app.services import aceite_service
-
-        quadro = [{"acao": "Comprar insumos", "responsavel": "Bruno Costa", "responsavel_id": "P_BRUNO", "prazo": None}]
-        sb = _sb(
-            json_ata={"quadro_atribuicoes": quadro},
-            modo_interno_desde="2026-08-14T12:00:00+00:00",
-        )
-        sb.tables["reuniao_aceites"].append(
-            {"id": "ac-b", "id_reuniao": "R1", "participante_id": "P_BRUNO", "origem": "aceite_interno"}
-        )
-
-        resultado = aceite_service.iniciar_coleta_interna(sb, "R1")
-
-        assert emails == []
-        assert sb.tables["reuniao_aceite_tokens"] == []
-        assert any(p.get("responsavel_id") == "P_BRUNO" for p in sb.tables["pendencias"])
-        assert resultado["desfecho_terminal"] is True
+        assert sb.tables["pendencias"] == []
         assert _reuniao(sb)["status_ata"] == "ASSINADA"
 
     def test_selo_ignora_aceite_clicksign_sem_correlacao(self, emails):
@@ -642,12 +594,10 @@ class TestDesfechoTerminal:
         client = _client(sb)
         _abrir_modo_interno(sb, client)
 
-        tokens = {}
-        for e in emails:
-            link = e["texto"].split(f"{settings.frontend_url}/aceite/")[1].split()[0]
-            tokens[e["para"]] = _token_do_link(link)
+        tokens = _tokens_por_email(emails)
         client.post(f"/api/aceite/{tokens['bruno@hsm.com']}/aceitar")
         client.post(f"/api/aceite/{tokens['fabio@hsm.com']}/aceitar")
+        client.post(f"/api/aceite/{tokens['sonia@hsm.com']}/aceitar")
 
         reuniao = _reuniao(sb)
         assert reuniao["status_ata"] == "ASSINADA"
@@ -666,18 +616,18 @@ class TestDesfechoTerminal:
         res = _post_webhook(_client(sb), _evento_refusal())
 
         assert res.status_code == 200
-        # Bruno e Ana (nao-facilitadores) perdem o token; o do Facilitador fica
+        # Ana, Bruno e Sonia (nao-facilitadores) perdem o token; o do Facilitador fica
         # porque a notificacao in-app dele ainda aponta pro aceite.
         assert {t["participante_id"] for t in sb.tables["reuniao_aceite_tokens"]} == {"P_FAC"}
 
-    def test_desfecho_imediato_quando_toda_acao_ja_tem_pendencia(self, emails):
-        """Envelope morre com todas as acoes ja nascidas (quem tinha acao
-        assinou; quem recusou nao tem acao): a Reuniao fecha direto, sem
-        emails de Aceite interno."""
+    def test_desfecho_imediato_quando_todos_ja_deram_ciencia(self, emails):
+        """Envelope morre com todos os signatarios ja com ciencia registrada:
+        a Reuniao fecha direto, sem emails de Aceite interno."""
         sb = _sb()
         for pid, pos in (("P_ANA", 0), ("P_BRUNO", 1), ("P_FAC", 2)):
-            sb.tables["reuniao_aceites"].append(_aceite_clicksign(pid, f"sk-{pid}", f"{pid.lower()}@hsm.com"))
             sb.tables["pendencias"].append(_pendencia_nascida(f"A00{pos + 1}", pos, pid))
+        for pid in ("P_ANA", "P_BRUNO", "P_FAC", "P_SEM"):
+            sb.tables["reuniao_aceites"].append(_aceite_clicksign(pid, f"sk-{pid}", f"{pid.lower()}@hsm.com"))
 
         res = _post_webhook(_client(sb), _evento_refusal())
 
