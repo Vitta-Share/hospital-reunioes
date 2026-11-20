@@ -461,15 +461,14 @@ def iniciar_coleta_interna(supabase, id_reuniao: str) -> dict:
     if not reuniao or reuniao.get("status_ata") != "AGUARDANDO_ASSINATURA" or not reuniao.get("modo_interno_desde"):
         return {"emails_enviados": 0, "desfecho_terminal": False}
 
+    # 1. Desfecho terminal: se todos já deram ciência, fecha sem emails.
+    if verificar_desfecho_modo_interno(supabase, id_reuniao):
+        return {"emails_enviados": 0, "desfecho_terminal": True}
+
     roster = _roster(supabase, id_reuniao)
     signatarios = _signatarios_envelope(roster)
     facilitador_id = reuniao.get("facilitador_id")
     com_ciencia = _com_ciencia(roster, _aceites(supabase, id_reuniao))
-
-    # 1. Desfecho terminal: todos já deram ciência.
-    if not signatarios - com_ciencia:
-        finalizou = verificar_desfecho_modo_interno(supabase, id_reuniao)
-        return {"emails_enviados": 0, "desfecho_terminal": finalizou}
 
     # 2. Links de Aceite interno para quem ainda não deu ciência.
     nomes = {
