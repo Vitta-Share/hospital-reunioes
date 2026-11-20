@@ -177,6 +177,7 @@ def test_observacao_abre_ajuste_do_plano_que_bloqueia_so_as_fatias_iniciais():
     assert "`/grill-with-docs --lote`" in corpo
     assert "segue todas as recomendações" in corpo
     assert '`/montar-ondas-enxutas` para o #1757 e termina em "Posso lançar?"' in corpo
+    assert "—" not in corpo and "–" not in corpo
 
     [sub] = _chamadas(r, "POST", "/issues/1757/sub_issues")
     assert sub["body"] == {"sub_issue_id": 999}
