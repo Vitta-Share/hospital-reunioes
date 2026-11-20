@@ -25,6 +25,7 @@ from zoneinfo import ZoneInfo
 import httpx
 from postgrest.exceptions import APIError
 
+from app.services import feriados as servico_de_feriados
 from app.services.pendencia_ciclo import situacao
 from app.services.pendencias_consulta import as_data, hoje_em_brasilia, ids_repactuados
 from app.services.seguranca_do_paciente.reunioes import TipoReuniaoNsp
@@ -147,21 +148,13 @@ def _data(valor: Any) -> date:
 def feriados_entre(supabase, inicio: date, fim: date) -> frozenset[date]:
     """Os feriados cadastrados no intervalo. Falha de leitura conta como
     nenhum feriado: a conta erra para o lado de convocar e mostrar a pauta um
-    pouco antes, e a tela não cai."""
+    pouco antes, e a tela não cai. A leitura é a do serviço comum de feriados
+    (issue #1984)."""
     try:
-        linhas = (
-            supabase.table("ouvidoria_feriados")
-            .select("data")
-            .gte("data", inicio.isoformat())
-            .lte("data", fim.isoformat())
-            .execute()
-            .data
-            or []
-        )
+        return servico_de_feriados.feriados_entre(supabase, inicio, fim)
     except (APIError, httpx.HTTPError) as erro:
         logger.warning("Feriados ilegíveis; o calendário do Núcleo conta sem eles: %s", erro)
         return frozenset()
-    return frozenset(_data(linha["data"]) for linha in linhas if linha.get("data"))
 
 
 def ordinarias_do_ano(supabase, nucleo_id: str, ano: int) -> list[dict]:

@@ -72,6 +72,7 @@ from app.services import (
     ouvidoria_trilha,
     storage,
 )
+from app.services.feriados import carregar_feriados, carregar_feriados_ou_degradado
 from app.services.ouvidoria_anexos import (
     AnexoGrandeDemaisError,
     AnexoRecusadoError,
@@ -255,11 +256,6 @@ _CAMPOS_INDICE_FORA_DA_OUVIDORIA = tuple(
 _CAMPOS_INDICE_LEITURA = ", ".join(_CAMPOS_INDICE_TUPLA + ("vista_pela_ouvidoria_em", "arquivada_em"))
 
 
-# O nome da leitura que falhou, do jeito que a resposta diz isso. É o mesmo
-# vocabulário do `degradado` das métricas (`ouvidoria_metricas.py`): a tela já
-# traduz "feriados" para o aviso de calendário, e um nome novo aqui obrigaria a
-# traduzir duas vezes a mesma falha.
-LEITURA_DOS_FERIADOS = "feriados"
 # A leitura do acuse ao manifestante (issue #493), no mesmo vocabulário. Ela
 # entra na lista pelo mesmo motivo do calendário: "não deu para olhar" e "ainda
 # está na fila" desenham a mesma linha na página do caso, e sem a marca o
@@ -268,92 +264,6 @@ LEITURA_DO_ACUSE = "acuse"
 # A leitura do aviso de encerramento (issue #494), pela mesma razão: "não deu
 # para olhar" e "ainda está na fila" desenham a mesma linha na página do caso.
 LEITURA_DO_AVISO = "aviso_encerramento"
-
-# As falhas que o fail-open do calendário cobre, uma a uma:
-#
-# - `HTTPError` do httpx é o transporte: timeout, conexão recusada, pool
-#   estourado, proxy fora. É a falha transitória mais provável de todas, e é a
-#   que `APIError` NÃO pega: `APIError` só nasce depois que a resposta HTTP
-#   chega, e nenhuma das exceções do httpx é subclasse de `OSError`. Sem esta
-#   linha o fail-open viraria fail-closed no primeiro blip de rede, que é o
-#   oposto do que a issue pediu. O mesmo raciocínio já está escrito na
-#   prorrogação, mais abaixo neste arquivo.
-# - `APIError` é o PostgREST respondendo e recusando (tabela fora, RLS, sintaxe).
-# - `OSError` é o socket embaixo de qualquer um dos dois.
-# - `ValueError` é a data malformada na coluna: dado ruim, não bug de código, e
-#   a promessa do fail-open é a tela abrir.
-#
-# `AttributeError` e `TypeError` ficam DE FORA de propósito: foi um
-# `except Exception` largo aqui que deixou quatro arquivos de teste passarem
-# verdes rodando com o calendário vazio, porque engoliu o `AttributeError` dos
-# próprios fakes. Erro de programação não é indisponibilidade de infraestrutura
-# (issue #449).
-FALHAS_DE_LEITURA_DO_CALENDARIO = (HTTPError, APIError, OSError, ValueError)
-
-
-def carregar_feriados_ou_degradado(supabase) -> tuple[frozenset[dt.date], list[str]]:
-    """Os feriados que o motor precisa (RN-22) e a lista do que não pôde ser
-    lido. Falha aqui não derruba o painel: sem a lista o motor conta feriado
-    como dia útil, o que erra para menos (cobra antes), e é melhor que a tela
-    não abrir.
-
-    O preço do fail-open é que o número sai errado, e ele não denuncia a si
-    mesmo: calendário que falhou dá exatamente a mesma conta de hospital sem
-    feriado cadastrado. Por isso a falha volta NOMEADA, no mesmo formato que as
-    métricas usam, para a resposta poder dizer "sem confirmação do calendário"
-    em vez de afirmar um prazo em dias úteis que ninguém confirmou.
-
-    Calendário INCOMPLETO entra na mesma marca que calendário não lido (issue
-    #448). Esta é a única leitura do módulo que tem onde carimbar e ainda usava
-    a porta que levanta: o teto derrubava com 500 a listagem, o Dossiê e a
-    página do setor, que antes abriam degradadas. Sai mais barato e é mais
-    honesto degradar, porque o `degradado` chega na TELA, o que é mais do que um
-    log chega."""
-    try:
-        # Em páginas, como a gêmea `_feriados` das métricas (issue #430): esta
-        # roda DENTRO da listagem que o mesmo PR paginou, e um calendário
-        # cortado no teto do PostgREST faria o rótulo de prazo de cada linha do
-        # índice sair errado com HTTP 200, que é o furo que a issue veio fechar.
-        #
-        # Por `ler_paginado`, e não `ler_tudo`, porque aqui existe o segundo
-        # valor de retorno para carregar a incompletude até a resposta.
-        linhas, completa = ler_paginado(
-            lambda: supabase.table("ouvidoria_feriados").select("data").order("data"),
-            rotulo=LEITURA_DOS_FERIADOS,
-        )
-        # A conversão entra no try junto da leitura: uma data malformada não
-        # pode derrubar o painel inteiro, que é o que a promessa acima diz.
-        feriados = frozenset(dt.date.fromisoformat(str(row["data"])) for row in linhas if row.get("data"))
-        # Os feriados que couberam vão junto da marca, em vez de virarem
-        # conjunto vazio: calendário parcial erra menos que calendário nenhum, e
-        # quem lê a resposta já foi avisado de que não dá para confiar nele.
-        return feriados, [] if completa else [LEITURA_DOS_FERIADOS]
-    except FALHAS_DE_LEITURA_DO_CALENDARIO:
-        # `exc_info` porque o warning sem ele dizia que faltou calendário e não
-        # dizia por quê: quem lê o log não tinha como separar banco fora de bug.
-        logger.warning("Falha ao carregar feriados: o calendário útil vai contar sem eles", exc_info=True)
-        return frozenset(), [LEITURA_DOS_FERIADOS]
-
-
-def carregar_feriados(supabase) -> frozenset[dt.date]:
-    """O calendário para quem não tem onde carimbar a falha.
-
-    A maior parte das chamadas está no caminho de escrita (abrir, pausar,
-    devolver, prorrogar) e nos jobs de cron, onde a resposta é o efeito do ato e
-    não um prazo afirmado na tela. Quem MOSTRA prazo em dias úteis usa
-    `carregar_feriados_ou_degradado` e leva a marca na resposta.
-
-    O fail-open destas chamadas segue igual para falha de infraestrutura, que é
-    o que elas precisam: o estreitamento do `except` mudou uma coisa só, erro de
-    programação passar a subir em vez de virar calendário vazio.
-
-    Calendário incompleto também segue fail-open aqui, e isso importa mais do
-    que parece: em `reenviar_notificacao` a leitura acontece DEPOIS de a cópia
-    já estar gravada, então abortar a requisição por causa do calendário
-    deixaria o efeito no banco e o ato sem resposta. Quem não tem onde carimbar
-    prefere o número aproximado ao meio-ato."""
-    feriados, _degradado = carregar_feriados_ou_degradado(supabase)
-    return feriados
 
 
 def _projetar_prazo(row: dict, agora: dt.datetime, feriados: frozenset[dt.date]) -> dict:
@@ -877,7 +787,7 @@ def carimbar_visto_da_ouvidoria(supabase, manifestacao_id: str, agora: dt.dateti
     o carimbo custa um ponto que continua aceso na fila; perder o Dossiê é o
     ouvidor sem o caso na tela.
 
-    As três falhas são as do fail-open do módulo (`FALHAS_DE_LEITURA_DO_CALENDARIO`):
+    As três falhas são as do fail-open do calendário (`FALHAS_DE_LEITURA_DO_CALENDARIO`, em `services/feriados.py`):
     `HTTPError` é o transporte, e é o que `APIError` NÃO pega; `APIError` é o
     PostgREST recusando; `OSError` é o socket embaixo dos dois. `ValueError`
     fica de fora porque aqui nada é convertido dentro do `try`: seria só

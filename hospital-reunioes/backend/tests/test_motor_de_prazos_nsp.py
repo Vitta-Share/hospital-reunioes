@@ -101,3 +101,101 @@ class TestDecimoQuintoDiaUtilDoMesSeguinte:
         vencimento = calcular_vencimento(ocorrido_em_utc, Prazo(15, DIA_UTIL_DO_MES_SEGUINTE), feriados)
 
         assert vencimento == _sp(2027, 1, 22, 17)
+
+
+class _ConsultaDeFeriados:
+    """O pedaço do PostgREST que a leitura por intervalo usa."""
+
+    def __init__(self, linhas: list[dict]):
+        self.linhas = linhas
+        self.filtros: list[tuple[str, str, str]] = []
+
+    def select(self, _colunas: str):
+        return self
+
+    def gte(self, coluna: str, valor: str):
+        self.filtros.append(("gte", coluna, valor))
+        return self
+
+    def lte(self, coluna: str, valor: str):
+        self.filtros.append(("lte", coluna, valor))
+        return self
+
+    def execute(self):
+        def _passa(linha: dict) -> bool:
+            return all(linha["data"] >= v if op == "gte" else linha["data"] <= v for op, _c, v in self.filtros)
+
+        dentro = [linha for linha in self.linhas if _passa(linha)]
+        return type("Resposta", (), {"data": dentro})()
+
+
+class _BancoDeFeriados:
+    def __init__(self, linhas: list[dict]):
+        self.linhas = linhas
+        self.tabelas_lidas: list[str] = []
+
+    def table(self, nome: str):
+        self.tabelas_lidas.append(nome)
+        return _ConsultaDeFeriados(self.linhas)
+
+
+class TestCarregadorDeFeriadosComum:
+    """O carregador de feriados saiu do router da Ouvidoria para um serviço
+    comum (ADR 0107, decisão 2). Ouvidoria e Núcleo leem pelo mesmo lugar."""
+
+    def test_a_ouvidoria_carrega_os_feriados_pelo_servico_comum(self):
+        """O router da Ouvidoria não tem cópia própria: os nomes que os jobs e
+        a tela do responsável importam de lá são os do serviço."""
+        from app.routers import ouvidoria as ouvidoria_router
+        from app.services import feriados
+
+        assert ouvidoria_router.carregar_feriados_ou_degradado is feriados.carregar_feriados_ou_degradado
+        assert ouvidoria_router.carregar_feriados is feriados.carregar_feriados
+
+    def test_o_servico_le_os_feriados_cadastrados_no_intervalo(self):
+        from app.services import feriados
+
+        banco = _BancoDeFeriados(
+            [{"data": "2026-11-02"}, {"data": "2026-11-20"}, {"data": "2026-12-25"}, {"data": "2027-01-01"}]
+        )
+
+        lidos = feriados.feriados_entre(banco, date(2026, 11, 1), date(2026, 12, 31))
+
+        assert lidos == frozenset({date(2026, 11, 2), date(2026, 11, 20), date(2026, 12, 25)})
+        assert banco.tabelas_lidas == ["ouvidoria_feriados"]
+
+    def test_a_pauta_do_nucleo_le_os_feriados_pelo_servico_comum(self, monkeypatch):
+        from app.services import feriados
+        from app.services.seguranca_do_paciente import pauta
+
+        do_servico = frozenset({date(2027, 3, 10)})
+        monkeypatch.setattr(feriados, "feriados_entre", lambda _sb, _inicio, _fim: do_servico)
+
+        assert pauta.feriados_entre(None, date(2027, 1, 1), date(2027, 12, 31)) == do_servico
+
+    def test_o_encerramento_da_ata_do_nucleo_le_os_feriados_pelo_servico_comum(self, monkeypatch):
+        from app.services import feriados
+        from app.services.seguranca_do_paciente import assinatura_da_ata
+
+        do_servico = frozenset({date(2026, 11, 20)})
+        monkeypatch.setattr(feriados, "feriados_entre", lambda _sb, _inicio, _fim: do_servico)
+
+        assert assinatura_da_ata._feriados(None, date(2026, 11, 18), date(2027, 1, 17)) == do_servico
+
+    def test_a_pauta_do_nucleo_segue_contando_sem_feriado_quando_a_leitura_falha(self, monkeypatch):
+        """A pauta é fail-open (erra para o lado de mostrar antes); o
+        encerramento da ata segue deixando a falha subir."""
+        import httpx
+        import pytest
+
+        from app.services import feriados
+        from app.services.seguranca_do_paciente import assinatura_da_ata, pauta
+
+        def _falha(_sb, _inicio, _fim):
+            raise httpx.ConnectTimeout("banco fora")
+
+        monkeypatch.setattr(feriados, "feriados_entre", _falha)
+
+        assert pauta.feriados_entre(None, date(2027, 1, 1), date(2027, 12, 31)) == frozenset()
+        with pytest.raises(httpx.HTTPError):
+            assinatura_da_ata._feriados(None, date(2026, 11, 18), date(2027, 1, 17))
