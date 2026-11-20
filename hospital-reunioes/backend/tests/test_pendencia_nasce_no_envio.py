@@ -273,3 +273,112 @@ def test_enviar_para_assinatura_cria_todas_as_pendencias_no_mesmo_ato(make_clien
         "Ligar para o fornecedor",
     }
     assert visto_pela_clicksign == {"status": "AGUARDANDO_ASSINATURA", "pendencias": 3}
+
+
+# ─── 2. Falha da ClickSign e o Reenviar ────────────────────────────────────────
+
+
+def test_falha_da_clicksign_deixa_aguardando_assinatura_com_o_reenviar(make_client, monkeypatch):
+    estado = _clicksign(monkeypatch, cria_envelope=False)
+    sb = _sb()
+
+    r = make_client(sb).post("/api/reunioes/R1/aprovar")
+
+    assert r.status_code == 200, r.text
+    reuniao = sb.reunioes[0]
+    assert reuniao["status_ata"] == "AGUARDANDO_ASSINATURA"
+    assert reuniao["falha_envio_assinatura"]["passo"] == "criar_envelope"
+    assert reuniao["envelope_key_clicksign"] is None
+    assert len(sb.pendencias) == 3
+    assert estado["envelopes"] == 0
+
+
+def test_reenviar_nao_duplica_pendencia_nem_envelope(make_client, monkeypatch):
+    _clicksign(monkeypatch, cria_envelope=False)
+    sb = _sb()
+    client = make_client(sb)
+    assert client.post("/api/reunioes/R1/aprovar").status_code == 200
+
+    estado = _clicksign(monkeypatch, cria_envelope=True)
+    reenvio = client.post("/api/reunioes/R1/aprovar")
+    de_novo = client.post("/api/reunioes/R1/aprovar")
+
+    assert reenvio.status_code == 200, reenvio.text
+    assert reenvio.json()["total_pendencias"] == 0
+    assert de_novo.status_code in (400, 409)
+    assert len(sb.pendencias) == 3
+    assert estado["envelopes"] == 1
+    reuniao = sb.reunioes[0]
+    assert reuniao["status_ata"] == "AGUARDANDO_ASSINATURA"
+    assert reuniao["envelope_id_clicksign"] == "env-1"
+    assert reuniao["falha_envio_assinatura"] is None
+
+
+def test_duplo_clique_no_enviar_dispara_a_clicksign_uma_vez(make_client, monkeypatch):
+    """O segundo clique chega com a ClickSign ainda rodando (sem Envelope e
+    sem falha): é recusado, e só um fluxo começa."""
+    from app.services import clicksign_service
+
+    fluxos: list[str] = []
+    monkeypatch.setattr(clicksign_service, "start_signature_flow", lambda _sb, id_reuniao, _r: fluxos.append(id_reuniao))
+    sb = _sb()
+    client = make_client(sb)
+
+    primeiro = client.post("/api/reunioes/R1/aprovar")
+    segundo = client.post("/api/reunioes/R1/aprovar")
+
+    assert primeiro.status_code == 200
+    assert segundo.status_code == 409
+    assert fluxos == ["R1"]
+    assert len(sb.pendencias) == 3
+
+
+def test_o_pdf_do_envelope_e_gerado_de_novo_a_partir_do_quadro_final(make_client, monkeypatch):
+    from app.services import clicksign_service
+
+    estado = _clicksign(monkeypatch)
+    documentos: list[bytes] = []
+    monkeypatch.setattr(clicksign_service, "add_document", lambda _env, pdf, _nome: documentos.append(pdf) or "doc")
+    sb = _sb()
+
+    assert make_client(sb).post("/api/reunioes/R1/aprovar").status_code == 200
+
+    assert documentos == [b"PDF_DO_QUADRO_FINAL"]
+    assert estado["pdf_do_quadro"] == ["Comprar insumos", "Revisar protocolo", "Ligar para o fornecedor"]
+
+
+# ─── 3. Depois do envio, a Ata não se refaz nem se corrige ─────────────────────
+
+
+@pytest.mark.parametrize("modo_interno_desde", [None, "2026-11-12T10:00:00+00:00"])
+def test_reprocessar_responde_erro_depois_do_envio(make_client, monkeypatch, modo_interno_desde):
+    from app.services import storage
+
+    monkeypatch.setattr(storage, "download_file", lambda *_a, **_kw: b"transcricao")
+    sb = _sb("AGUARDANDO_ASSINATURA", modo_interno_desde=modo_interno_desde)
+
+    r = make_client(sb).post("/api/reunioes/R1/reprocessar")
+
+    assert r.status_code in (400, 409)
+    assert sb.reunioes[0]["status_ata"] == "AGUARDANDO_ASSINATURA"
+
+
+def test_corrigir_responde_erro_depois_do_envio(make_client):
+    sb = _sb("AGUARDANDO_ASSINATURA")
+
+    r = make_client(sb).post("/api/reunioes/R1/corrigir", json={"texto": "Troque o prazo da compra"})
+
+    assert r.status_code == 400
+    assert sb.reunioes[0]["status_ata"] == "AGUARDANDO_ASSINATURA"
+
+
+@pytest.mark.parametrize("modo_interno_desde", [None, "2026-11-12T10:00:00+00:00"])
+def test_editar_o_quadro_responde_erro_depois_do_envio(make_client, modo_interno_desde):
+    """Nem com o Envelope morto (modo interno) o quadro muda: as ações já são
+    Pendências desde o envio."""
+    sb = _sb("AGUARDANDO_ASSINATURA", modo_interno_desde=modo_interno_desde)
+
+    r = make_client(sb).patch("/api/reunioes/R1/quadro-atribuicoes/2", json={"responsavel": "Outra Pessoa"})
+
+    assert r.status_code == 400
+    assert sb.reunioes[0]["json_ata"]["quadro_atribuicoes"][2]["responsavel"] == "Fulano de Fora"

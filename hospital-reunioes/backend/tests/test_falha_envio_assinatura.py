@@ -9,7 +9,9 @@ consultavel do erro.
 
 Contrato coberto aqui:
   1. Falha em CADA passo da coreografia grava `falha_envio_assinatura` na
-     Reuniao (dict com passo, detalhe e hora) e NAO transiciona o status.
+     Reuniao (dict com passo, detalhe e hora) e NAO volta o status: desde a
+     issue #1867 (ADR 0098) o /aprovar ja levou a Reuniao a
+     AGUARDANDO_ASSINATURA e criou as Pendencias antes da ClickSign.
   2. Sucesso continua transicionando para AGUARDANDO_ASSINATURA e LIMPA a
      falha registrada por uma tentativa anterior (reenvio manual).
   3. Fluxo sem falha: nenhum registro de falha e comportamento igual ao de hoje.
@@ -87,7 +89,8 @@ def _supabase_base(falha_previa: dict | None = None) -> _SupabaseMock:
         reunioes=[
             {
                 "id_reuniao": "R_TEST",
-                "status_ata": "AGUARDANDO_VALIDACAO",
+                "status_ata": "AGUARDANDO_ASSINATURA",
+                "json_ata": {"quadro_atribuicoes": [{"acao": "Comprar luvas"}]},
                 "envelope_key_clicksign": None,
                 "envelope_id_clicksign": None,
                 "falha_envio_assinatura": falha_previa,
@@ -98,9 +101,10 @@ def _supabase_base(falha_previa: dict | None = None) -> _SupabaseMock:
 
 def _patch_fluxo_feliz(monkeypatch):
     """Todos os passos da coreografia funcionando; testes quebram um por vez."""
-    from app.services import clicksign_service, storage
+    from app.services import clicksign_service, pdf_generator, storage
 
-    monkeypatch.setattr(storage, "download_file", lambda *_a, **_kw: b"PDF_BYTES")
+    monkeypatch.setattr(pdf_generator, "gerar_pdf_ata", lambda *_a, **_kw: b"PDF_BYTES")
+    monkeypatch.setattr(storage, "upload_file", lambda *_a, **_kw: "https://x/ata_preliminar.pdf")
     monkeypatch.setattr(clicksign_service, "create_envelope", lambda _name: "env-id")
     monkeypatch.setattr(clicksign_service, "add_document", lambda *_a, **_kw: "doc-id")
     monkeypatch.setattr(clicksign_service, "add_signer", lambda *_a, **_kw: "signer-id")
@@ -118,8 +122,8 @@ def _run(sb):
 
 
 def _assert_falha_registrada(reuniao: dict, passo: str):
-    assert reuniao["status_ata"] == "AGUARDANDO_VALIDACAO", (
-        f"Falha nao pode avancar o status; veio {reuniao['status_ata']}"
+    assert reuniao["status_ata"] == "AGUARDANDO_ASSINATURA", (
+        f"Falha nao pode voltar o status; veio {reuniao['status_ata']}"
     )
     falha = reuniao.get("falha_envio_assinatura")
     assert isinstance(falha, dict), f"Esperava registro consultavel da falha; veio {falha!r}"
@@ -133,14 +137,18 @@ def _assert_falha_registrada(reuniao: dict, passo: str):
 # ───────────────────────────────────────────────────────────────────────────
 
 
-def test_falha_baixar_pdf_registra_erro_e_nao_avanca(monkeypatch):
-    from app.services import storage
+def test_falha_gerar_pdf_registra_erro_e_nao_volta(monkeypatch):
+    from app.services import pdf_generator
 
     _patch_fluxo_feliz(monkeypatch)
-    monkeypatch.setattr(storage, "download_file", lambda *_a, **_kw: None)
+
+    def _boom(*_a, **_kw):
+        raise RuntimeError("WeasyPrint caiu")
+
+    monkeypatch.setattr(pdf_generator, "gerar_pdf_ata", _boom)
 
     reuniao = _run(_supabase_base())
-    _assert_falha_registrada(reuniao, "baixar_pdf")
+    _assert_falha_registrada(reuniao, "gerar_pdf")
 
 
 def test_falha_criar_envelope_registra_erro_e_nao_avanca(monkeypatch):
@@ -241,7 +249,8 @@ def test_excecao_pos_ativacao_registra_passo_finalizar(monkeypatch):
     clicksign_service.start_signature_flow(_SupabaseExplodeNoSucesso(), "R_TEST", {"id_reuniao": "R_TEST"})
     reuniao = sb.reunioes[0]
 
-    assert reuniao["status_ata"] == "AGUARDANDO_VALIDACAO"
+    assert reuniao["status_ata"] == "AGUARDANDO_ASSINATURA"
+    assert reuniao["envelope_key_clicksign"] is None
     falha = reuniao["falha_envio_assinatura"]
     assert isinstance(falha, dict)
     assert falha["passo"] == "finalizar"

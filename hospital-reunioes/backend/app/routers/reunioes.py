@@ -1540,6 +1540,9 @@ async def reprocessar_reuniao(
     reuniao = result.data[0]
     if reuniao.get("status_ata") == "ASSINADA":
         raise HTTPException(status_code=400, detail="Reunião já assinada não pode ser reprocessada")
+    if reuniao.get("status_ata") == "AGUARDANDO_ASSINATURA":
+        # ADR 0098, decisão 1: as Pendências nasceram no envio, do quadro desta Ata.
+        raise HTTPException(status_code=400, detail="A Ata já foi enviada para assinatura e não pode ser refeita.")
     _so_quem_conduz_a_ata_do_nucleo(supabase, me, id_reuniao)
     if reuniao.get("status_ata") not in ("ERRO", "AGUARDANDO_VALIDACAO") and ata_do_nucleo.reuniao_do_nucleo(
         supabase, id_reuniao
@@ -2027,8 +2030,8 @@ async def patch_quadro_atribuicao(
 ):
     """Edita um item do `json_ata.quadro_atribuicoes` antes da liberação de pendências.
 
-    Permitido em ATA com status AGUARDANDO_VALIDACAO e, no modo interno (ADR
-    0030), só para ações ainda sem Pendência. Substitui a edição implícita
+    Permitido só em ATA com status AGUARDANDO_VALIDACAO (ADR 0098: depois do
+    envio, toda ação já é Pendência). Substitui a edição implícita
     por chat pra o caso do responsável: quando `responsavel_participante_id` é
     informado, sobrescreve `responsavel`/`cargo` com os dados canônicos do participante
     (corrige o bug em que mudar o nome via chat deixava o cargo desatualizado) e grava
@@ -2049,7 +2052,7 @@ async def patch_quadro_atribuicao(
 
     result = (
         supabase.table("reunioes")
-        .select("status_ata, json_ata, modo_interno_desde")
+        .select("status_ata, json_ata")
         .eq("id_reuniao", id_reuniao)
         .execute()
     )
@@ -2057,11 +2060,9 @@ async def patch_quadro_atribuicao(
         raise HTTPException(status_code=404, detail="Reunião não encontrada")
 
     reuniao = result.data[0]
-    # Janela de edição: AGUARDANDO_VALIDACAO (regra original) ou o modo interno
-    # (ADR 0030, issue #276): AGUARDANDO_ASSINATURA com Envelope morto, onde só
-    # as ações ainda sem Pendência seguem editáveis.
-    modo_interno = reuniao["status_ata"] == "AGUARDANDO_ASSINATURA" and bool(reuniao.get("modo_interno_desde"))
-    if reuniao["status_ata"] != "AGUARDANDO_VALIDACAO" and not modo_interno:
+    # Janela de edição: só AGUARDANDO_VALIDACAO. Desde a ADR 0098 (decisão 1)
+    # toda ação vira Pendência no envio, então nem o modo interno edita mais.
+    if reuniao["status_ata"] != "AGUARDANDO_VALIDACAO":
         raise HTTPException(
             status_code=400,
             detail="Quadro de atribuições só pode ser editado quando a ATA aguarda validação",
@@ -2071,20 +2072,6 @@ async def patch_quadro_atribuicao(
     quadro = json_ata.get("quadro_atribuicoes") or []
     if index < 0 or index >= len(quadro):
         raise HTTPException(status_code=404, detail="Item do quadro de atribuições não encontrado")
-
-    if modo_interno:
-        # Ação com Pendência nascida fica travada: o compromisso já foi firmado
-        # por quem assinou e não pode mudar por baixo dele. Pendência legada sem
-        # quadro_pos (liberação total pré-incremental) trava o quadro inteiro.
-        # Sem filtro de soft-delete: o índice único de quadro_pos também não
-        # filtra, e linha viva ou não já representa compromisso firmado.
-        rows = supabase.table("pendencias").select("quadro_pos").eq("id_reuniao", id_reuniao).execute().data or []
-        posicoes = {r.get("quadro_pos") for r in rows}
-        if None in posicoes or index in posicoes:
-            raise HTTPException(
-                status_code=409,
-                detail="Esta ação já virou Pendência e está travada para edição no modo interno",
-            )
 
     item = dict(quadro[index])
 
@@ -2128,17 +2115,6 @@ async def patch_quadro_atribuicao(
         f"[Reunioes] Quadro de atribuições item {index} editado em {id_reuniao}: "
         f"responsavel='{item.get('responsavel')}' cargo='{item.get('cargo')}'"
     )
-
-    if modo_interno:
-        # Reatribuição no modo interno (issue #277): o novo responsável precisa
-        # do link de Aceite interno (ou, se já firmou compromisso, da liberação
-        # direta). A recoleta é idempotente; falha não bloqueia a edição.
-        from app.services import aceite_service
-
-        try:
-            aceite_service.iniciar_coleta_interna(supabase, id_reuniao)
-        except Exception as e:
-            logger.error(f"[Reunioes] Falha best-effort na recoleta de aceites de {id_reuniao}: {e}")
 
     return item
 

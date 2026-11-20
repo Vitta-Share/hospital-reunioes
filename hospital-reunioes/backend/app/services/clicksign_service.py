@@ -726,10 +726,46 @@ def _registrar_falha_envio(supabase, id_reuniao: str, passo: str, detalhe: str) 
         logger.error(f"[ClickSign v3] Erro ao registrar falha de envio ({passo}) para {id_reuniao}: {e}")
 
 
+def _gerar_pdf_do_quadro_final(supabase, id_reuniao: str) -> bytes | None:
+    """Gera o PDF da Ata pelo `json_ata` atual e regrava o preliminar, para a
+    tela mostrar o mesmo documento que vai ao Envelope. None = falhou. A
+    regravação é best-effort: o Envelope usa os bytes gerados aqui."""
+    from app.services import pdf_generator, storage
+
+    try:
+        linhas = (
+            supabase.table("reunioes")
+            .select("id_reuniao, data, tipo, objetivo, hora_inicio, hora_fim, json_ata")
+            .eq("id_reuniao", id_reuniao)
+            .execute()
+            .data
+            or []
+        )
+        if not linhas or not linhas[0].get("json_ata"):
+            logger.error(f"[ClickSign v3] Ata de {id_reuniao} sem json_ata para gerar o PDF")
+            return None
+        reuniao = linhas[0]
+        pdf_bytes = pdf_generator.gerar_pdf_ata(reuniao, reuniao["json_ata"])
+    except Exception as e:
+        logger.error(f"[ClickSign v3] Falha ao gerar o PDF de {id_reuniao}: {e}", exc_info=True)
+        return None
+    try:
+        storage.upload_file(
+            supabase,
+            bucket=settings.supabase_storage_bucket_pdfs,
+            path=f"{id_reuniao}/ata_preliminar.pdf",
+            content=pdf_bytes,
+            content_type="application/pdf",
+        )
+    except Exception as e:
+        logger.warning(f"[ClickSign v3] PDF de {id_reuniao} gerado, mas não regravado no Storage: {e}")
+    return pdf_bytes
+
+
 def start_signature_flow(supabase, id_reuniao: str, reuniao: dict) -> None:
     """
     Orquestra o fluxo completo de assinatura via ClickSign API v3:
-      1. Baixa o PDF do Storage
+      1. Gera o PDF de novo a partir do quadro final
       2. Cria o Envelope
       3. Adiciona o Documento ao Envelope
       4. Para cada participante:
@@ -740,23 +776,15 @@ def start_signature_flow(supabase, id_reuniao: str, reuniao: dict) -> None:
       6. Notifica todos os Signatários (1 chamada)
       7. Salva o envelope_id no banco e atualiza status
     """
-    from app.services import storage
-
     logger.info(f"[ClickSign] Iniciando fluxo de assinatura para reuniao {id_reuniao}")
 
     envelope_ativado = False
     try:
-        # 1. Baixar PDF do Storage
-        pdf_bytes = storage.download_file(
-            supabase,
-            settings.supabase_storage_bucket_pdfs,
-            f"{id_reuniao}/ata_preliminar.pdf",
-        )
+        # 1. Gerar o PDF de novo a partir do quadro final (ADR 0098, decisão 1):
+        # o Envelope leva a Ata com as mesmas ações que já viraram Pendência.
+        pdf_bytes = _gerar_pdf_do_quadro_final(supabase, id_reuniao)
         if not pdf_bytes:
-            logger.error(f"[ClickSign v3] PDF não encontrado no Storage para {id_reuniao}")
-            _registrar_falha_envio(
-                supabase, id_reuniao, "baixar_pdf", "PDF da ata preliminar não encontrado no Storage"
-            )
+            _registrar_falha_envio(supabase, id_reuniao, "gerar_pdf", "Não foi possível gerar o PDF da ata")
             return
 
         # 2. Criar Envelope

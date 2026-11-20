@@ -1,7 +1,7 @@
 """Modo interno nos endpoints de Reuniao (issue #276, ADR 0030).
 
-Seams: PATCH /reunioes/{id}/quadro-atribuicoes/{index} (edicao parcial: acao
-com Pendencia nascida fica travada; acao sem Pendencia segue editavel),
+Seams: PATCH /reunioes/{id}/quadro-atribuicoes/{index} (desde a issue #1867,
+fechado no modo interno: toda acao ja virou Pendencia no envio),
 POST /reunioes/{id}/signatarios/{signer_id}/lembrar (bloqueado: nenhuma acao
 via ClickSign no modo interno) e GET /reunioes/{id}/signatarios/status
 (variante do modo interno: lista local + Registro de Aceites, sem consultar a
@@ -215,47 +215,22 @@ def _aceite(pid, email, aceito_em="2026-08-10T10:00:00-03:00"):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# CA: acao com Pendencia travada; acao sem Pendencia segue editavel
+# CA: depois do envio o quadro nao muda, nem no modo interno
 # ═══════════════════════════════════════════════════════════════════════════
 
 
 class TestPatchQuadroNoModoInterno:
-    def test_acao_sem_pendencia_segue_editavel(self, make_client):
+    def test_nenhuma_acao_e_editavel_no_modo_interno(self, make_client):
+        """Desde a ADR 0098 (issue #1867) toda ação vira Pendência no envio:
+        o quadro não muda depois dele, nem com o Envelope morto."""
         sb = _sb(pendencias=[_pendencia(0)])
         client = make_client(sb)
 
         r = client.patch("/api/reunioes/R1/quadro-atribuicoes/1", json={"responsavel": "Novo Responsavel"})
 
-        assert r.status_code == 200
+        assert r.status_code == 400
         item = sb.reunioes[0]["json_ata"]["quadro_atribuicoes"][1]
-        assert item["responsavel"] == "Novo Responsavel"
-        assert item["editado_manualmente"] is True
-
-    def test_acao_com_pendencia_nascida_fica_travada(self, make_client):
-        sb = _sb(pendencias=[_pendencia(0)])
-        client = make_client(sb)
-
-        r = client.patch("/api/reunioes/R1/quadro-atribuicoes/0", json={"responsavel": "Outro Nome"})
-
-        assert r.status_code == 409
-        assert "travada" in r.json()["detail"].lower()
-        item = sb.reunioes[0]["json_ata"]["quadro_atribuicoes"][0]
-        assert item["responsavel"] == "Ana Lima"
-
-    def test_edicao_no_modo_interno_redispara_a_coleta(self, make_client, monkeypatch):
-        """Reatribuicao no modo interno re-dispara a coleta de aceites (issue
-        #277): o novo responsavel ganha link ou liberacao direta."""
-        from app.services import aceite_service
-
-        chamadas: list[str] = []
-        monkeypatch.setattr(aceite_service, "iniciar_coleta_interna", lambda _sb, rid: chamadas.append(rid))
-        sb = _sb(pendencias=[_pendencia(0)])
-        client = make_client(sb)
-
-        r = client.patch("/api/reunioes/R1/quadro-atribuicoes/1", json={"responsavel": "Novo Responsavel"})
-
-        assert r.status_code == 200
-        assert chamadas == ["R1"]
+        assert item["responsavel"] == "Bruno Costa"
 
     def test_edicao_em_validacao_nao_dispara_coleta(self, make_client, monkeypatch):
         from app.services import aceite_service
@@ -269,16 +244,6 @@ class TestPatchQuadroNoModoInterno:
 
         assert r.status_code == 200
         assert chamadas == []
-
-    def test_pendencia_legada_sem_quadro_pos_trava_tudo(self, make_client):
-        """Liberacao total pre-incremental (sem quadro_pos): nao da para saber
-        qual acao corresponde a qual Pendencia, entao todas ficam travadas."""
-        sb = _sb(pendencias=[_pendencia(None)])
-        client = make_client(sb)
-
-        r = client.patch("/api/reunioes/R1/quadro-atribuicoes/1", json={"responsavel": "Novo"})
-
-        assert r.status_code == 409
 
     def test_aguardando_assinatura_sem_modo_interno_continua_bloqueado(self, make_client):
         sb = _sb(modo_interno_desde=None)
