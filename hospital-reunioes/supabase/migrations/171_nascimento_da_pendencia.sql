@@ -37,9 +37,12 @@ BEGIN
   ) VALUES (
     NEW.id_acao,
     'nascimento',
+    -- Sem citar o envio: a Pendencia com Reuniao tambem nasce no Finalizar
+    -- sem assinatura e na validacao da Ata do Nucleo, e o Historico so aceita
+    -- insercao (a frase errada nao sai mais de la).
     CASE
       WHEN NEW.id_reuniao IS NOT NULL
-        THEN 'Nasceu do quadro da Ata da reuniao ' || NEW.id_reuniao || ', no envio para assinatura.'
+        THEN 'Nasceu do quadro da Ata da reuniao ' || NEW.id_reuniao || '.'
       ELSE 'Nasceu do lembrete da Agenda regulatoria.'
     END,
     NULL, 'Sistema',

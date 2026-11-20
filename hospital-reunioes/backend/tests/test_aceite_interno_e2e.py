@@ -36,7 +36,7 @@ from app.config import settings  # noqa: E402
 from app.dependencies import get_supabase_client  # noqa: E402
 from app.routers import aceite as aceite_router  # noqa: E402
 from app.routers import webhooks as webhooks_router  # noqa: E402
-from app.services import clicksign_service, reuniao_email_service, storage  # noqa: E402
+from app.services import clicksign_service, reconciliacao_service, reuniao_email_service, storage  # noqa: E402
 
 SECRET = "test-secret"
 DOC_KEY = "doc-key-r1"
@@ -636,3 +636,66 @@ class TestDesfechoTerminal:
         assert reuniao["status_ata"] == "ASSINADA"
         assert reuniao["data_assinatura"]
         assert emails == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Ata que já estava no modo interno antes da ADR 0098 (issue #1867)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class _TokensUnicos(list):
+    """`reuniao_aceite_tokens` com o índice único (Reunião, signatário) da
+    migration 060: o segundo token da mesma pessoa dá 23505."""
+
+    def append(self, row):
+        if any(r["id_reuniao"] == row["id_reuniao"] and r["participante_id"] == row["participante_id"] for r in self):
+            erro = Exception('23505 duplicate key value violates unique constraint "ux_reuniao_aceite_tokens"')
+            erro.code = "23505"
+            raise erro
+        super().append(row)
+
+
+class TestAtaJaNoModoInternoAntesDaMudanca:
+    def _ata_da_regra_antiga(self) -> _SupabaseMock:
+        """Modo interno aberto pela regra antiga: Ana assinou, Bruno e Fabio
+        (com ação) ganharam o link, Sonia (sem ação) foi pulada."""
+        sb = _sb(modo_interno_desde="2026-08-14T12:00:00+00:00")
+        sb.tables["reuniao_aceites"].append(_aceite_clicksign("P_ANA", "sk-ana", "ana@hsm.com"))
+        for pid, pos in (("P_ANA", 0), ("P_BRUNO", 1), ("P_FAC", 2)):
+            sb.tables["pendencias"].append(_pendencia_nascida(f"A00{pos + 1}", pos, pid))
+        sb.tables["reuniao_aceite_tokens"] = _TokensUnicos(
+            {"id": f"tok-{pid}", "id_reuniao": "R1", "participante_id": pid, "token_hash": f"hash-{pid}"}
+            for pid in ("P_BRUNO", "P_FAC")
+        )
+        return sb
+
+    def test_reconciliacao_manda_o_link_a_quem_a_regra_antiga_pulou(self, emails):
+        sb = self._ata_da_regra_antiga()
+
+        reconciliacao_service.reconciliar_pendentes(sb)
+
+        assert [e["para"] for e in emails] == ["sonia@hsm.com"]
+        assert {t["participante_id"] for t in sb.tables["reuniao_aceite_tokens"]} == {"P_BRUNO", "P_FAC", "P_SEM"}
+
+    def test_rodar_de_novo_nao_reenvia_o_link(self, emails):
+        sb = self._ata_da_regra_antiga()
+
+        reconciliacao_service.reconciliar_pendentes(sb)
+        reconciliacao_service.reconciliar_pendentes(sb)
+
+        assert [e["para"] for e in emails] == ["sonia@hsm.com"]
+
+    def test_com_o_link_novo_a_reuniao_fecha_pelo_aceite_interno(self, emails):
+        sb = self._ata_da_regra_antiga()
+        for pid in ("P_BRUNO", "P_FAC"):
+            sb.tables["reuniao_aceites"].append(
+                {**_aceite_clicksign(pid, f"sk-{pid}", f"{pid}@x"), "origem": "aceite_interno"}
+            )
+        client = _client(sb)
+
+        reconciliacao_service.reconciliar_pendentes(sb)
+        res = client.post(f"/api/aceite/{_tokens_por_email(emails)['sonia@hsm.com']}/aceitar")
+
+        assert res.status_code == 200
+        assert res.json()["reuniao_assinada"] is True
+        assert _reuniao(sb)["status_ata"] == "ASSINADA"

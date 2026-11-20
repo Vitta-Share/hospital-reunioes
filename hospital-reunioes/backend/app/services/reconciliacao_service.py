@@ -116,12 +116,48 @@ def criar_pendencias_que_faltam(supabase) -> int:
     return criadas
 
 
+def recoletar_modo_interno(supabase) -> int:
+    """Roda de novo a coleta de Aceites internos em toda Ata no modo interno.
+
+    Desde a ADR 0098 (decisão 2) o desfecho do modo interno pede a ciência de
+    todo Signatário, mas a Ata que já estava no modo interno teve os links
+    emitidos pela regra antiga, que pulava o Signatário sem ação. A coleta é
+    idempotente (um token por Reunião e Signatário): só quem nunca recebeu o
+    link, ou cujo email falhou, ganha um agora; se todos já deram ciência, o
+    desfecho fecha a Reunião. Falha em uma Ata não interrompe as demais.
+    Devolve quantos emails saíram."""
+    from app.services import aceite_service
+
+    atas = (
+        supabase.table("reunioes")
+        .select("id_reuniao, modo_interno_desde")
+        .eq("status_ata", "AGUARDANDO_ASSINATURA")
+        .is_("deleted_at", "null")
+        .execute()
+        .data
+        or []
+    )
+    enviados = 0
+    for ata in atas:
+        if not ata.get("modo_interno_desde"):
+            continue
+        try:
+            enviados += aceite_service.iniciar_coleta_interna(supabase, ata["id_reuniao"])["emails_enviados"]
+        except Exception as e:
+            logger.error(f"[Reconciliacao] Erro na coleta interna de {ata['id_reuniao']}: {e}", exc_info=True)
+    if enviados:
+        logger.info(f"[Reconciliacao] {enviados} link(s) de Aceite interno enviado(s).")
+    return enviados
+
+
 def reconciliar_pendentes(supabase) -> dict[str, int]:
-    """Cria as Pendências que faltam nas Atas em assinatura e depois varre as
-    Reuniões em AGUARDANDO_ASSINATURA com Envelope (fora do modo interno, cujo
-    Envelope já morreu) e reconcilia uma a uma com a ClickSign. Falha em uma
-    Reunião não interrompe as demais. Devolve contadores por desfecho."""
+    """Cria as Pendências que faltam nas Atas em assinatura, refaz a coleta
+    de Aceites internos das Atas no modo interno e depois varre as Reuniões em
+    AGUARDANDO_ASSINATURA com Envelope (fora do modo interno, cujo Envelope já
+    morreu) e reconcilia uma a uma com a ClickSign. Falha em uma Reunião não
+    interrompe as demais. Devolve contadores por desfecho."""
     pendencias_criadas = criar_pendencias_que_faltam(supabase)
+    links_aceite_interno = recoletar_modo_interno(supabase)
     res = (
         supabase.table("reunioes")
         .select(
@@ -140,6 +176,7 @@ def reconciliar_pendentes(supabase) -> dict[str, int]:
         DESFECHO_INDISPONIVEL: 0,
         "erro": 0,
         "pendencias_criadas": pendencias_criadas,
+        "links_aceite_interno": links_aceite_interno,
     }
     for reuniao in res.data or []:
         if not reuniao.get("envelope_key_clicksign"):

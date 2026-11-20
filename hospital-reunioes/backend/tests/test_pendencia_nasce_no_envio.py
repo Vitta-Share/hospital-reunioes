@@ -15,6 +15,7 @@ from __future__ import annotations
 import os
 import sys
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -114,6 +115,9 @@ class _TableQuery:
         if self._op == "update":
             for r in matched:
                 r.update(self._payload or {})
+                if "updated_at" in r:
+                    # O trigger da migration 002 grava now() em todo UPDATE.
+                    r["updated_at"] = datetime.now(UTC).isoformat()
         if self._op == "delete":
             for r in list(matched):
                 self._rows.remove(r)
@@ -333,6 +337,80 @@ def test_duplo_clique_no_enviar_dispara_a_clicksign_uma_vez(make_client, monkeyp
     assert len(sb.pendencias) == 3
 
 
+def _envio_parado_ha(minutos: int) -> _SupabaseMock:
+    """O processo morreu no meio da ClickSign (deploy ou restart) ou a falha
+    não foi gravada: AGUARDANDO_ASSINATURA, sem Envelope e sem falha."""
+    desde = (datetime.now(UTC) - timedelta(minutes=minutos)).isoformat()
+    return _sb("AGUARDANDO_ASSINATURA", updated_at=desde)
+
+
+@pytest.mark.parametrize(("minutos", "mostra"), [(31, True), (5, False)])
+def test_envio_que_parou_no_meio_mostra_o_reenviar_na_tela(make_client, minutos, mostra):
+    """Passados 30 minutos sem Envelope e sem falha, a tela recebe a falha de
+    envio que o processo não chegou a gravar e mostra o Reenviar; com o envio
+    ainda recente, nada muda (a ClickSign pode estar rodando)."""
+    sb = _envio_parado_ha(minutos)
+
+    r = make_client(sb).get("/api/reunioes/R1")
+
+    assert r.status_code == 200, r.text
+    falha = r.json()["falha_envio_assinatura"]
+    assert (falha or {}).get("passo") == ("finalizar" if mostra else None)
+    assert sb.reunioes[0]["falha_envio_assinatura"] is None
+
+
+def test_reenviar_do_envio_que_parou_no_meio_dispara_a_clicksign_uma_vez(make_client, monkeypatch):
+    from app.services import clicksign_service
+
+    fluxos: list[str] = []
+    monkeypatch.setattr(clicksign_service, "start_signature_flow", lambda _sb, rid, _r: fluxos.append(rid))
+    sb = _envio_parado_ha(31)
+    client = make_client(sb)
+
+    reenvio = client.post("/api/reunioes/R1/aprovar")
+    de_novo = client.post("/api/reunioes/R1/aprovar")
+
+    assert reenvio.status_code == 200, reenvio.text
+    assert de_novo.status_code == 409
+    assert fluxos == ["R1"]
+    assert len(sb.pendencias) == 3
+
+
+def test_dois_reenviar_simultaneos_do_envio_parado_disparam_a_clicksign_uma_vez(make_client, monkeypatch):
+    """Os dois cliques leem a linha antes de qualquer um gravar: o claim do
+    segundo acha o `updated_at` já mudado pelo primeiro e não cria Envelope."""
+    from app.services import clicksign_service
+
+    fluxos: list[str] = []
+    monkeypatch.setattr(clicksign_service, "start_signature_flow", lambda _sb, rid, _r: fluxos.append(rid))
+    sb = _envio_parado_ha(31)
+    original = reunioes_router._envio_interrompido
+
+    def _outro_clique_grava_no_meio(reuniao):
+        parado = original(reuniao)
+        sb.reunioes[0]["updated_at"] = datetime.now(UTC).isoformat()
+        return parado
+
+    monkeypatch.setattr(reunioes_router, "_envio_interrompido", _outro_clique_grava_no_meio)
+
+    r = make_client(sb).post("/api/reunioes/R1/aprovar")
+
+    assert r.status_code == 409
+    assert fluxos == []
+
+
+def test_envio_recente_sem_falha_nao_aceita_o_reenviar(make_client, monkeypatch):
+    from app.services import clicksign_service
+
+    fluxos: list[str] = []
+    monkeypatch.setattr(clicksign_service, "start_signature_flow", lambda _sb, rid, _r: fluxos.append(rid))
+
+    r = make_client(_envio_parado_ha(5)).post("/api/reunioes/R1/aprovar")
+
+    assert r.status_code == 409
+    assert fluxos == []
+
+
 def test_o_pdf_do_envelope_e_gerado_de_novo_a_partir_do_quadro_final(make_client, monkeypatch):
     from app.services import clicksign_service
 
@@ -399,9 +477,11 @@ def test_editar_o_quadro_responde_erro_depois_do_envio(make_client, modo_interno
 def test_reconciliacao_cria_as_pendencias_da_ata_em_assinatura_e_nao_duplica(monkeypatch, reuniao):
     """A carga das Atas que já estavam em assinatura antes da mudança, e a
     proteção contra o envio que falhou no meio (ADR 0098, decisão 3)."""
-    from app.services import clicksign_service, reconciliacao_service
+    from app.services import clicksign_service, reconciliacao_service, reuniao_email_service
 
     monkeypatch.setattr(clicksign_service, "get_envelope_status", lambda _env: "running")
+    # No modo interno a reconciliação também refaz a coleta de Aceites internos.
+    monkeypatch.setattr(reuniao_email_service, "_enviar_email", lambda *_a, **_kw: True)
     sb = _sb("AGUARDANDO_ASSINATURA", **reuniao)
 
     reconciliacao_service.reconciliar_pendentes(sb)

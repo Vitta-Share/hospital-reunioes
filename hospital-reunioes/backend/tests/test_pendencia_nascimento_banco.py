@@ -68,8 +68,11 @@ def test_pendencia_que_nasce_da_ata_ganha_o_evento_de_nascimento(banco):
         "A201|nascimento|Sistema|t|PENDENTE|2026-12-10",
         "A202|nascimento|Sistema|t|PENDENTE|",
     ]
+    # A frase vale para todo caminho que cria Pendência com Reunião: envio,
+    # Finalizar sem assinatura e validação da Ata do Núcleo. Por isso não cita
+    # o envio para assinatura (o Histórico só aceita inserção).
     anotacao = banco.ok("SELECT anotacao FROM pendencia_historico WHERE id_acao = 'A201';")
-    assert "R9" in anotacao
+    assert anotacao == "Nasceu do quadro da Ata da reuniao R9."
 
 
 def test_o_nascimento_e_um_so_mesmo_que_a_pendencia_mude_depois(banco):

@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import time
-from datetime import date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Response, UploadFile
 from pydantic import BaseModel
@@ -430,6 +430,10 @@ async def get_reuniao(
     reuniao["participantes_programada"] = participantes
     # A tela esconde a Ata Guiada na reunião do Núcleo, que a recusa (issue #1775).
     reuniao["do_nucleo"] = bool(reuniao.get("colegiado_id")) and reuniao["colegiado_id"] == id_do_nucleo(supabase)
+    # Envio que parou no meio: a tela recebe a falha para mostrar o Reenviar
+    # (não grava nada; o claim do /aprovar confere o mesmo prazo).
+    if not reuniao["do_nucleo"] and _envio_interrompido(reuniao):
+        reuniao["falha_envio_assinatura"] = _falha_do_envio_interrompido(reuniao)
 
     me = await get_participante_for_user(current_user, supabase)
     if is_secretaria(me):
@@ -1576,6 +1580,39 @@ async def reprocessar_reuniao(
     return {"id_reuniao": id_reuniao, "status": "PROCESSANDO", "message": "Reprocessamento iniciado"}
 
 
+# Envio que parou no meio (issue #1867): o claim já levou a Reunião a
+# AGUARDANDO_ASSINATURA, mas o processo morreu durante a ClickSign (deploy ou
+# restart) ou a falha não foi gravada. Sem Envelope e sem falha, nada mais muda
+# a linha. Passado este prazo, bem acima do pior caso das chamadas à ClickSign,
+# o envio conta como interrompido: a tela recebe a falha e o Reenviar aceita.
+_PRAZO_ENVIO_INTERROMPIDO = timedelta(minutes=30)
+
+
+def _envio_interrompido(reuniao: dict) -> bool:
+    if reuniao.get("status_ata") != "AGUARDANDO_ASSINATURA":
+        return False
+    if reuniao.get("envelope_key_clicksign") or reuniao.get("falha_envio_assinatura"):
+        return False
+    try:
+        desde = datetime.fromisoformat(str(reuniao.get("updated_at")))
+    except ValueError:
+        return False
+    if desde.tzinfo is None:
+        desde = desde.replace(tzinfo=UTC)
+    return datetime.now(UTC) - desde > _PRAZO_ENVIO_INTERROMPIDO
+
+
+def _falha_do_envio_interrompido(reuniao: dict) -> dict:
+    """A falha que o processo não chegou a gravar. O passo é `finalizar`
+    porque o Envelope pode ter sido ativado antes da queda: a tela avisa para
+    confirmar com os signatários antes de reenviar."""
+    return {
+        "passo": "finalizar",
+        "detalhe": "O envio parou no meio, sem gravar o Envelope nem a falha.",
+        "em": reuniao.get("updated_at"),
+    }
+
+
 @router.post("/{id_reuniao}/aprovar")
 @limiter.limit("10/minute")
 async def aprovar_reuniao(
@@ -1598,7 +1635,9 @@ async def aprovar_reuniao(
 
     result = (
         supabase.table("reunioes")
-        .select("status_ata, url_pdf_preliminar, tipo, objetivo, envelope_key_clicksign, falha_envio_assinatura")
+        .select(
+            "status_ata, url_pdf_preliminar, tipo, objetivo, envelope_key_clicksign, falha_envio_assinatura, updated_at"
+        )
         .eq("id_reuniao", id_reuniao)
         .execute()
     )
@@ -1619,7 +1658,11 @@ async def aprovar_reuniao(
             .eq("status_ata", "AGUARDANDO_VALIDACAO")
             .execute()
         )
-    elif status == "AGUARDANDO_ASSINATURA" and not reuniao.get("envelope_key_clicksign"):
+    elif (
+        status == "AGUARDANDO_ASSINATURA"
+        and reuniao.get("falha_envio_assinatura")
+        and not reuniao.get("envelope_key_clicksign")
+    ):
         # Reenviar: só depois de uma falha registrada e sem Envelope gravado.
         claim = (
             supabase.table("reunioes")
@@ -1630,6 +1673,23 @@ async def aprovar_reuniao(
             .not_.is_("falha_envio_assinatura", "null")
             .execute()
         )
+    elif _envio_interrompido(reuniao):
+        # Reenviar do envio que parou no meio. O `updated_at` lido é a versão:
+        # o próprio UPDATE do claim faz o trigger gravar now(), e o segundo
+        # clique não acha mais a linha.
+        claim = (
+            supabase.table("reunioes")
+            .update({"falha_envio_assinatura": None})
+            .eq("id_reuniao", id_reuniao)
+            .eq("status_ata", "AGUARDANDO_ASSINATURA")
+            .is_("envelope_key_clicksign", "null")
+            .is_("falha_envio_assinatura", "null")
+            .eq("updated_at", reuniao["updated_at"])
+            .execute()
+        )
+    elif status == "AGUARDANDO_ASSINATURA" and not reuniao.get("envelope_key_clicksign"):
+        # Envio recente sem falha: a ClickSign ainda pode estar rodando.
+        raise HTTPException(status_code=409, detail="O envio para assinatura já está em andamento.")
     else:
         raise HTTPException(status_code=400, detail="Reunião não está aguardando validação")
     if not claim.data:
