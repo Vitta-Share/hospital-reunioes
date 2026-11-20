@@ -8,6 +8,8 @@
  * Antes, os dois cards levavam ao calendário, onde o facilitador não via quais
  * atas o número contava. Agora cada card abre um modal no próprio dashboard com
  * exatamente as atas da contagem, cada uma com link para a página da reunião.
+ * Desde a issue #1868 o servidor conta e devolve as duas listas
+ * (`/api/pendencias/painel`); a regra da Ata parada é testada no backend.
  */
 
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -51,7 +53,7 @@ vi.mock("@/lib/supabase/client", () => ({
 const DIA = 24 * 60 * 60 * 1000;
 const haDias = (n: number) => new Date(Date.now() - n * DIA).toISOString();
 
-const REUNIOES = [
+const ATAS_PARADAS = [
   {
     id_reuniao: "parada-1",
     data: "2026-09-20",
@@ -60,14 +62,9 @@ const REUNIOES = [
     status_ata: "AGUARDANDO_VALIDACAO",
     updated_at: haDias(10),
   },
-  {
-    id_reuniao: "recente-1",
-    data: "2026-10-06",
-    tipo: "Diretoria",
-    objetivo: "Orçamento do trimestre",
-    status_ata: "AGUARDANDO_VALIDACAO",
-    updated_at: haDias(0),
-  },
+];
+
+const AGUARDAM_ASSINATURA = [
   {
     id_reuniao: "assinatura-1",
     data: "2026-09-30",
@@ -83,11 +80,22 @@ beforeEach(() => {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) => {
-      const corpo = url.startsWith("/api/reunioes")
-        ? REUNIOES
-        : url.startsWith("/api/pendencias/stats")
-          ? {}
-          : [];
+      const corpo = url.startsWith("/api/pendencias/painel")
+        ? {
+            cards: {
+              atas_paradas: 1,
+              aguardam_assinatura: 1,
+              atrasadas: 0,
+              vencem_em_3_dias: 0,
+              conformidade: 100,
+              ativas: 0,
+            },
+            situacoes: { pendente: 0, em_progresso: 0, concluido: 0, atrasado: 0, repactuada: 0, cancelado: 0 },
+            por_setor: [],
+            atas_paradas: ATAS_PARADAS,
+            aguardam_assinatura: AGUARDAM_ASSINATURA,
+          }
+        : [];
       return { ok: true, status: 200, json: async () => corpo } as unknown as Response;
     })
   );
@@ -116,7 +124,7 @@ async function abrirCard(id: string) {
 }
 
 describe("card Atas Paradas", () => {
-  it("abre o modal com só a ata parada, e não a recente", async () => {
+  it("abre o modal com a ata parada que o servidor contou", async () => {
     await abrirCard("atas-paradas");
 
     expect(linksDoModal("Atas Paradas")).toEqual(["/reunioes/parada-1"]);

@@ -265,6 +265,8 @@ def _banco_de_papeis() -> _Banco:
             _reuniao("R1", "P_FABIO", "AGUARDANDO_ASSINATURA"),
             _reuniao("R2", "P_OUTRO", "AGUARDANDO_ASSINATURA"),
             _reuniao("R3", "P_FABIO", "AGUARDANDO_VALIDACAO", updated_at=(AGORA - timedelta(days=10)).isoformat()),
+            # Em validação há 2 dias: ainda não está parada.
+            _reuniao("R4", "P_FABIO", "AGUARDANDO_VALIDACAO", updated_at=(AGORA - timedelta(days=2)).isoformat()),
         ],
         participantes=[{"id": "P_ANA", "setor": "UTI"}, {"id": "P_BRUNO", "setor": "Farmácia"}],
     )
