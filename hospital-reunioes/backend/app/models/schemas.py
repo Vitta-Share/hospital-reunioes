@@ -265,6 +265,15 @@ class AcaoPendenciaRequest(BaseModel):
         return valor
 
 
+class AnexoDoEvento(BaseModel):
+    """Foto ou PDF anexado na conclusão (issue #1865). Abre pelo link assinado."""
+
+    id: int
+    nome: str
+    tipo: str
+    tamanho_bytes: int
+
+
 class EventoHistoricoPendencia(BaseModel):
     id: int
     comando: str
@@ -277,12 +286,19 @@ class EventoHistoricoPendencia(BaseModel):
     prazo_depois: date | None = None
     conta_atraso: bool = False
     criado_em: datetime
+    anexo: AnexoDoEvento | None = None
 
 
 class HistoricoPendenciaResponse(BaseModel):
     eventos: list[EventoHistoricoPendencia]
     # Os comandos que quem pede pode dar agora (a tela mostra só esses botões).
     acoes_permitidas: list[str]
+    # Se quem olha abre os anexos: responsável, Facilitador ou Super admin (#1865).
+    pode_abrir_anexos: bool = False
+
+
+class LinkDoAnexoResponse(BaseModel):
+    url: str
 
 
 class PendenciaStats(BaseModel):

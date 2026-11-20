@@ -1,7 +1,7 @@
 import logging
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
 from postgrest.exceptions import APIError
 
 from app.dependencies import (
@@ -17,10 +17,11 @@ from app.dependencies import (
 from app.models.schemas import (
     AcaoPendenciaRequest,
     HistoricoPendenciaResponse,
+    LinkDoAnexoResponse,
     PendenciaResponse,
     PendenciaStats,
 )
-from app.services import painel_reunioes
+from app.services import painel_reunioes, pendencia_anexo
 from app.services.painel_reunioes import FiltrosDoPainel, PainelDeReunioes, montar_painel
 from app.services.pendencia_acao import agir
 from app.services.pendencia_ciclo import (
@@ -28,6 +29,7 @@ from app.services.pendencia_ciclo import (
     Comando,
     Papel,
     acoes_disponiveis,
+    decidir,
     situacao,
 )
 from app.services.pendencia_service import e_lembrete_do_nucleo
@@ -353,7 +355,8 @@ async def get_pendencia(
 # A única porta da API que muda estado e prazo da Pendência é `POST /{id}/acoes`,
 # sempre com anotação, pelo comando de ação de `pendencia_acao` (a regra pura
 # de `pendencia_ciclo` e a gravação de `registrar_acao_da_pendencia`, que
-# atualiza a Pendência e insere o evento no histórico juntos).
+# atualiza a Pendência e insere o evento no histórico juntos). A conclusão com
+# anexo (`POST /{id}/conclusao`, issue #1865) passa pela mesma regra.
 
 _HTTP_DA_RECUSA = {"permissao": 403, "transicao": 409, "dados": 422}
 
@@ -373,6 +376,18 @@ def _enrich_ciclo(supabase, rows: list[dict]) -> list[dict]:
 async def _pendencia_e_papeis(id_acao: str, current_user: dict, supabase) -> tuple[dict, dict | None, set[Papel]]:
     """A Pendência que quem pede enxerga e os papéis dele nela. Mesmo portão
     do GET: secretária 403, Núcleo oculto 403, fora do recorte 404."""
+    pendencia, me, recorte = await _pendencia_sem_recorte(id_acao, current_user, supabase)
+
+    # O recorte pelo vínculo (issue #1863), como no GET: responsável,
+    # co-responsável, Facilitador da reunião ou Super admin. Fora dele, 404.
+    if not recorte.ve(pendencia):
+        raise HTTPException(status_code=404, detail="Pendência não encontrada")
+    return pendencia, me, _papeis(pendencia, me, supabase)
+
+
+async def _pendencia_sem_recorte(id_acao: str, current_user: dict, supabase):
+    """A Pendência, o participante e o recorte: secretária 403, inexistente
+    404, Núcleo oculto 403. Quem chama decide o que fazer com o recorte."""
     me = await get_participante_for_user(current_user, supabase)
     if is_secretaria(me):
         raise HTTPException(status_code=403, detail="Secretária não tem acesso a pendências")
@@ -386,12 +401,11 @@ async def _pendencia_e_papeis(id_acao: str, current_user: dict, supabase) -> tup
     recorte = await get_recorte_das_pendencias(current_user, supabase)
     if pendencia.get("id_reuniao") in recorte.ocultas:
         raise HTTPException(status_code=403, detail=RECUSA_DO_NSP)
+    return pendencia, me, recorte
 
-    # O recorte pelo vínculo (issue #1863), como no GET: responsável,
-    # co-responsável, Facilitador da reunião ou Super admin. Fora dele, 404.
-    if not recorte.ve(pendencia):
-        raise HTTPException(status_code=404, detail="Pendência não encontrada")
 
+def _papeis(pendencia: dict, me: dict | None, supabase) -> set[Papel]:
+    """Os papéis de quem pede na Pendência, pelo vínculo."""
     my_id = me.get("id") if me else None
     papeis: set[Papel] = set()
     if is_super_admin(me):
@@ -406,7 +420,7 @@ async def _pendencia_e_papeis(id_acao: str, current_user: dict, supabase) -> tup
         )
         if reuniao.data and reuniao.data[0].get("facilitador_id") == my_id:
             papeis.add(Papel.FACILITADOR)
-    return pendencia, me, papeis
+    return papeis
 
 
 @router.post("/{id_acao}/acoes", response_model=PendenciaResponse)
@@ -440,8 +454,130 @@ async def agir_na_pendencia(
         raise
 
     logger.info(f"[Pendencias] {id_acao}: {body.comando} ({pendencia['status']} -> {mudanca.status})")
+    return _pendencia_atualizada(supabase, id_acao)
+
+
+def _decidir(comando: Comando, papeis: set[Papel], pendencia: dict, anotacao: str | None, prazo_novo=None):
+    try:
+        return decidir(
+            comando,
+            papeis,
+            status=pendencia["status"],
+            prazo=as_data(pendencia.get("prazo")),
+            hoje=hoje_em_brasilia(),
+            anotacao=anotacao,
+            prazo_novo=prazo_novo,
+        )
+    except AcaoRecusada as recusa:
+        raise HTTPException(status_code=_HTTP_DA_RECUSA[recusa.tipo], detail=recusa.motivo) from recusa
+
+
+def _parametros(id_acao: str, anotacao: str, me: dict | None, current_user: dict, pendencia: dict, mudanca) -> dict:
+    """Os parâmetros comuns às duas funções de gravação do Postgres."""
+    return {
+        "p_id_acao": id_acao,
+        "p_anotacao": anotacao,
+        "p_autor_id": me.get("id") if me else None,
+        "p_autor_nome": (me or {}).get("nome_completo") or current_user.get("email") or "Sem nome",
+        "p_status_esperado": pendencia["status"],
+        "p_status_novo": mudanca.status,
+        "p_concluida": mudanca.concluida,
+        "p_conta_atraso": mudanca.conta_atraso,
+    }
+
+
+def _gravar(supabase, funcao: str, params: dict) -> None:
+    try:
+        supabase.rpc(funcao, params).execute()
+    except APIError as erro:
+        if erro.code == "PT409":
+            raise HTTPException(status_code=409, detail=erro.message) from erro
+        if erro.code == "PT404":
+            raise HTTPException(status_code=404, detail="Pendência não encontrada") from erro
+        raise
+
+
+def _pendencia_atualizada(supabase, id_acao: str) -> dict:
     atualizada = supabase.table("pendencias").select("*").eq("id_acao", id_acao).execute()
     return _enrich_ciclo(supabase, _enrich_externo_flag(supabase, atualizada.data or []))[0]
+
+
+# ─── Anexo da conclusão (issue #1865) ───────────────────────────────────────
+# Concluir com a anotação obrigatória e, se vier, uma foto ou um PDF de até
+# 10 MB. Toda recusa (regra do ciclo, tipo, tamanho) vem antes do bucket; o
+# binário sobe antes da gravação e sai se a conclusão não entrar. A conclusão
+# e o anexo entram juntos pela `registrar_conclusao_com_anexo` (migration 170).
+
+
+@router.post("/{id_acao}/conclusao", response_model=PendenciaResponse)
+async def concluir_a_pendencia(
+    id_acao: str,
+    anotacao: str = Form("", max_length=5000),
+    arquivo: UploadFile | None = File(None),
+    current_user: dict = Depends(get_current_user),
+    supabase=Depends(get_supabase_client),
+):
+    """Concluir com anotação e, se quiser, uma foto ou um PDF."""
+    anotacao = anotacao.strip()
+    pendencia, me, papeis = await _pendencia_e_papeis(id_acao, current_user, supabase)
+    mudanca = _decidir(Comando.CONCLUIR, papeis, pendencia, anotacao)
+    params = _parametros(id_acao, anotacao, me, current_user, pendencia, mudanca)
+
+    if arquivo is None or not arquivo.filename:
+        _gravar(supabase, "registrar_acao_da_pendencia", {**params, "p_comando": "concluir", "p_prazo_novo": None})
+        return _pendencia_atualizada(supabase, id_acao)
+
+    conteudo = await arquivo.read(pendencia_anexo.LIMITE_BYTES + 1)
+    try:
+        extensao, content_type = pendencia_anexo.conferir(arquivo.filename, conteudo)
+        path = pendencia_anexo.guardar(
+            supabase, id_acao=id_acao, extensao=extensao, conteudo=conteudo, content_type=content_type
+        )
+    except pendencia_anexo.AnexoRecusado as recusa:
+        raise HTTPException(status_code=recusa.status_code, detail=recusa.motivo) from recusa
+
+    try:
+        _gravar(
+            supabase,
+            "registrar_conclusao_com_anexo",
+            {
+                **params,
+                "p_storage_path": path,
+                "p_nome_original": arquivo.filename,
+                "p_content_type": content_type,
+                "p_tamanho_bytes": len(conteudo),
+            },
+        )
+    except BaseException:
+        # Sem a linha, o binário é órfão que ninguém alcança: sai agora.
+        pendencia_anexo.descartar(supabase, path)
+        raise
+    logger.info(f"[Pendencias] {id_acao}: concluir com anexo ({pendencia['status']} -> {mudanca.status})")
+    return _pendencia_atualizada(supabase, id_acao)
+
+
+@router.get("/{id_acao}/anexos/{anexo_id}/link", response_model=LinkDoAnexoResponse)
+async def link_do_anexo(
+    id_acao: str,
+    anexo_id: int,
+    current_user: dict = Depends(get_current_user),
+    supabase=Depends(get_supabase_client),
+):
+    """Link assinado de poucos minutos, só para o responsável, o Facilitador da
+    Reunião e o Super admin. Quem está fora dos três recebe 403, inclusive quem
+    vê a Pendência por outro vínculo (co-responsável, membro do Núcleo)."""
+    pendencia, me, _recorte = await _pendencia_sem_recorte(id_acao, current_user, supabase)
+    if not pendencia_anexo.pode_abrir(_papeis(pendencia, me, supabase)):
+        raise HTTPException(status_code=403, detail=pendencia_anexo.RECUSA_DO_LINK)
+    linhas = (
+        supabase.table("pendencia_anexos").select("*").eq("id", anexo_id).eq("id_acao", id_acao).execute().data or []
+    )
+    if not linhas:
+        raise HTTPException(status_code=404, detail="Anexo não encontrado")
+    url = pendencia_anexo.link(supabase, linhas[0]["storage_path"])
+    if not url:
+        raise HTTPException(status_code=503, detail="Não foi possível abrir o anexo agora. Tente de novo em instantes.")
+    return {"url": url}
 
 
 @router.get("/{id_acao}/historico", response_model=HistoricoPendenciaResponse)
@@ -456,7 +592,19 @@ async def historico_da_pendencia(
         supabase.table("pendencia_historico").select("*").eq("id_acao", id_acao).order("criado_em").execute().data or []
     )
     eventos.sort(key=lambda e: (e.get("criado_em") or "", e.get("id") or 0))
+    anexos = supabase.table("pendencia_anexos").select("*").eq("id_acao", id_acao).execute().data or []
+    por_evento = {a["evento_id"]: a for a in anexos}
+    for evento in eventos:
+        anexo = por_evento.get(evento.get("id"))
+        if anexo:
+            evento["anexo"] = {
+                "id": anexo["id"],
+                "nome": anexo.get("nome_original") or "",
+                "tipo": anexo.get("content_type") or "",
+                "tamanho_bytes": anexo.get("tamanho_bytes") or 0,
+            }
     return {
         "eventos": eventos,
         "acoes_permitidas": [c.value for c in acoes_disponiveis(papeis, pendencia["status"])],
+        "pode_abrir_anexos": pendencia_anexo.pode_abrir(papeis),
     }

@@ -70,6 +70,7 @@ class _Banco:
     reunioes: list = field(default_factory=list)
     participantes: list = field(default_factory=list)
     pendencia_historico: list = field(default_factory=list)
+    pendencia_anexos: list = field(default_factory=list)
     chamadas: list = field(default_factory=list)
 
     def table(self, nome):
@@ -186,8 +187,12 @@ def test_a_unica_escrita_em_pendencia_pela_api_e_a_rota_de_acoes():
         for metodo in metodos
         if metodo.lower() not in ("get", "head", "options")
     )
-    # Comentário é conversa, não muda estado, prazo nem responsável.
-    assert [e for e in escritas if "/comentarios" not in e[0]] == [("/api/pendencias/{id_acao}/acoes", "POST")]
+    # Comentário é conversa, não muda estado, prazo nem responsável. A
+    # conclusão com anexo (issue #1865) passa pela mesma regra, com anotação.
+    assert [e for e in escritas if "/comentarios" not in e[0]] == [
+        ("/api/pendencias/{id_acao}/acoes", "POST"),
+        ("/api/pendencias/{id_acao}/conclusao", "POST"),
+    ]
 
 
 # Sem exceção: desde a issue #1866 os lembretes do Núcleo (Pendência sem
