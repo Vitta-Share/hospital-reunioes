@@ -875,3 +875,25 @@ class TestAssinaturaDosDocumentosNoKit:
         """Mutante: deixar a frase antiga, que dizia que a assinatura chega depois."""
         assert "assinatura de um documento publicado" not in _secao(texto, "O que ele ainda não faz")
         assert "isso chega nas entregas de assinatura" not in _secao(texto, "O que já está no ar")
+
+
+def test_reunioes_diz_quem_ve_cada_pendencia():
+    """Issue #1863: o diretor pergunta ao Assistente por que alguém deixou de
+    ver uma pendência da reunião de que participou, e a resposta (o vínculo)
+    tem que estar no kit.
+
+    Mutante: apagar a seção, ou deixar o participante vendo tudo."""
+    texto = _texto("reunioes.md")
+    quem_ve = _secao(texto, "Quem vê cada pendência")
+    for termo in (
+        "responsável",
+        "facilitador",
+        "Quem só participou de uma reunião não vê as pendências dos outros",
+        "Quem administra o aplicativo vê todas",
+        "Núcleo",
+        "Claude da diretoria",
+        "A Secretária não vê pendência nenhuma",
+    ):
+        assert termo in quem_ve, termo
+    decididas = [d for d in _decisoes("reunioes.md") if "quem só participou" in d]
+    assert len(decididas) == 1, decididas
