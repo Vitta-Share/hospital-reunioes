@@ -22,9 +22,10 @@ import os
 import re
 import sys
 import uuid
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 from types import SimpleNamespace
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 from postgrest.exceptions import APIError
@@ -33,6 +34,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.cron import scheduler  # noqa: E402
 from app.services.seguranca_do_paciente import avisos  # noqa: E402
+from app.services.seguranca_do_paciente import emails as avisos_emails  # noqa: E402
 
 DIA = date(2026, 11, 16)
 NUCLEO = {"id": "col-nsp", "slug": "nsp", "nome": "Núcleo de Segurança do Paciente", "setor_id": None}
@@ -147,7 +149,7 @@ def emails(monkeypatch):
         enviados.append({"para": destinatario, "assunto": assunto, "html": html_content, "texto": texto_fallback})
         return True
 
-    monkeypatch.setattr(avisos, "_enviar_email", _falso)
+    monkeypatch.setattr(avisos_emails, "_enviar_email", _falso)
     return enviados
 
 
@@ -304,7 +306,12 @@ class TestMarcos:
     def test_o_aviso_de_trinta_dias_vem_depois_do_de_sessenta(self, emails):
         fim = DIA + timedelta(days=30)
         banco = _banco([_participacao("P2", vigencia_fim=fim.isoformat())])
-        avisos.avisar(banco, fim - timedelta(days=60))
+        # O dia dos 60 cai num sábado: o aviso espera a segunda pela fila.
+        sabado = fim - timedelta(days=60)
+        avisos.avisar(banco, sabado)
+        assert len(emails) == 0
+        segunda = datetime.combine(sabado + timedelta(days=2), time(8), tzinfo=ZoneInfo("America/Sao_Paulo"))
+        avisos_emails.despachar_pendentes(banco, segunda)
 
         avisos.avisar(banco, DIA)
 
@@ -357,6 +364,36 @@ class TestMarcos:
         assert primeira == 2
         assert len(emails) == primeira
         assert segunda == {"enviados": 0, "falhas": 0}
+
+    def test_o_aviso_ja_enviado_antes_do_registro_unico_nao_se_repete(self, emails):
+        """A linha da Fase 1, sem a mensagem guardada, ainda segura o marco."""
+        participacao, envio = _sem_assinatura("P2", DIA - timedelta(days=3))
+        banco = _banco([participacao], [envio])
+        banco.tabelas["nsp_avisos"].append(
+            {
+                "id": "fase-1",
+                "participacao_id": participacao["id"],
+                "marco": "assinatura_3",
+                "referencia": envio["id"],
+                "destinatario_id": "P2",
+                "situacao": "enviado",
+            }
+        )
+
+        assert avisos.avisar(banco, DIA) == {"enviados": 0, "falhas": 0}
+        assert emails == []
+
+    def test_o_aviso_do_sabado_espera_a_segunda_e_sai_uma_vez(self, emails):
+        sabado = DIA - timedelta(days=2)
+        banco = _banco([_participacao("P2", vigencia_fim=(sabado + timedelta(days=30)).isoformat())])
+
+        avisos.avisar(banco, sabado)
+        assert emails == []
+        segunda = datetime.combine(DIA, time(8), tzinfo=ZoneInfo("America/Sao_Paulo"))
+        avisos_emails.despachar_pendentes(banco, segunda)
+        avisos.avisar(banco, DIA)
+
+        assert _para(emails) == ["p1@hsm.test", "p2@hsm.test"]
 
     def test_cada_aviso_nasce_registrado_e_nominal(self, emails):
         participacao, envio = _sem_assinatura("P2", DIA - timedelta(days=14))
@@ -513,7 +550,7 @@ class TestFalhaDeEnvio:
             enviados.append(destinatario)
             return True
 
-        monkeypatch.setattr(avisos, "_enviar_email", _explode_no_p2)
+        monkeypatch.setattr(avisos_emails, "_enviar_email", _explode_no_p2)
         banco = self._cenario()
 
         resultado = avisos.avisar(banco, DIA)
@@ -521,17 +558,20 @@ class TestFalhaDeEnvio:
         assert enviados == ["p3@hsm.test"]
         assert resultado == {"enviados": 1, "falhas": 1}
         situacao = {a["destinatario_id"]: a for a in banco.tabelas["nsp_avisos"]}
-        assert situacao["P2"]["situacao"] == "falhou"
+        # A falha do provedor volta à fila do registro (issue #1985).
+        assert situacao["P2"]["situacao"] == "pendente"
+        assert situacao["P2"]["tentativas"] == 1
         assert situacao["P2"]["erro"]
         assert situacao["P3"]["situacao"] == "enviado"
 
-    def test_o_provedor_que_recusa_fica_registrado(self, monkeypatch):
-        monkeypatch.setattr(avisos, "_enviar_email", lambda *_a, **_kw: False)
+    def test_o_provedor_que_recusa_fica_registrado_e_volta_a_fila(self, monkeypatch):
+        monkeypatch.setattr(avisos_emails, "_enviar_email", lambda *_a, **_kw: False)
         banco = self._cenario()
 
         avisos.avisar(banco, DIA)
 
-        assert {a["situacao"] for a in banco.tabelas["nsp_avisos"]} == {"falhou"}
+        assert {(a["situacao"], a["tentativas"]) for a in banco.tabelas["nsp_avisos"]} == {("pendente", 1)}
+        assert {a["erro"] for a in banco.tabelas["nsp_avisos"]} == {avisos_emails.FALHA_DO_ENVIO}
 
     def test_a_pessoa_sem_email_fica_registrada_e_os_outros_saem(self, emails):
         banco = self._cenario()
@@ -590,19 +630,25 @@ class TestSemIa:
         assert resultado == {"enviados": 2, "falhas": 0}
 
     def test_o_job_le_o_dia_em_sao_paulo_e_chama_o_servico(self, monkeypatch):
-        chamadas: list[date] = []
+        from app.routers import ouvidoria as ouvidoria_router
+
+        chamadas: list = []
+        feriados = frozenset({date(2026, 12, 25)})
         monkeypatch.setattr(scheduler, "_supabase", lambda: "banco")
         monkeypatch.setattr(scheduler, "_hoje_em_sao_paulo", lambda: DIA)
-        monkeypatch.setattr(avisos, "avisar", lambda _banco, hoje: chamadas.append(hoje) or {"enviados": 0})
+        monkeypatch.setattr(ouvidoria_router, "carregar_feriados", lambda _banco: feriados)
+        monkeypatch.setattr(
+            avisos, "avisar", lambda _banco, hoje, **kw: chamadas.append((hoje, kw["feriados"])) or {"enviados": 0}
+        )
 
         scheduler.avisar_termo_e_vigencia_nsp()
 
-        assert chamadas == [DIA]
+        assert chamadas == [(DIA, feriados)]
 
     def test_o_job_que_falha_nao_derruba_o_scheduler(self, monkeypatch):
         monkeypatch.setattr(scheduler, "_supabase", lambda: "banco")
 
-        def _explode(*_a):
+        def _explode(*_a, **_kw):
             raise RuntimeError("banco fora do ar")
 
         monkeypatch.setattr(avisos, "avisar", _explode)

@@ -495,10 +495,19 @@ def avisar_termo_e_vigencia_nsp() -> None:
     """Os avisos do Termo sem assinatura e do fim da vigência do Núcleo (issue
     #1770). Os marcos, os destinatários e a guarda de um aviso por marco vivem
     no serviço; aqui, só o relógio."""
+    from app.routers.ouvidoria import carregar_feriados
     from app.services.seguranca_do_paciente import avisos
 
     try:
-        resultado = avisos.avisar(_supabase(), _hoje_em_sao_paulo())
+        supabase = _supabase()
+        # O instante e os feriados decidem a janela comercial do registro de
+        # e-mail (issue #1985): no fim de semana e no feriado, o aviso espera.
+        resultado = avisos.avisar(
+            supabase,
+            _hoje_em_sao_paulo(),
+            agora=datetime.now(tz=ZoneInfo("UTC")),
+            feriados=carregar_feriados(supabase),
+        )
     except Exception as e:
         logger.error(f"[Cron] Erro em avisar_termo_e_vigencia_nsp: {type(e).__name__}")
         return

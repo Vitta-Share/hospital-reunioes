@@ -175,7 +175,11 @@ def _registrar(banco: _Banco, agora: datetime = SEGUNDA_10H, **campos) -> dict |
         assunto="Renove a sua participação no Núcleo de Segurança do Paciente: a vigência termina em 31/01/2027",
         texto="Olá, Pessoa de Teste P2.\n\nA sua participação termina em 31/01/2027.\n",
         modelo="email_nsp_aviso.html",
-        contexto={"nome": "Pessoa de Teste P2", "paragrafos": ["A sua participação termina em 31/01/2027."], "link": "x"},
+        contexto={
+            "nome": "Pessoa de Teste P2",
+            "paragrafos": ["A sua participação termina em 31/01/2027."],
+            "link": "x",
+        },
         agora=agora,
         feriados=frozenset(),
     )
@@ -215,7 +219,7 @@ class TestNasceComoRegistro:
         caixa.durante = lambda: vistos.extend(a["situacao"] for a in banco.tabelas["nsp_avisos"])
         registro = _registrar(banco)
 
-        assert emails.despachar_se_puder(banco, registro, SEGUNDA_10H) is True
+        assert emails.despachar_se_puder(banco, registro, SEGUNDA_10H) == "enviado"
 
         assert vistos == ["enviando"]
         assert _para(caixa) == ["p2@hsm.test"]
@@ -287,9 +291,9 @@ class TestRetentativa:
         caixa.falhas = 1
         banco = _banco()
 
-        saiu = emails.despachar_se_puder(banco, _registrar(banco), SEGUNDA_10H)
+        desfecho = emails.despachar_se_puder(banco, _registrar(banco), SEGUNDA_10H)
 
-        assert saiu is False
+        assert desfecho == "falhou"
         linha = _linha(banco)
         assert linha["situacao"] == "pendente"
         assert linha["tentativas"] == 1
@@ -380,7 +384,7 @@ class TestReivindicacao:
         registro = _registrar(banco)
         emails.despachar_se_puder(banco, registro, SEGUNDA_10H)
 
-        assert emails.despachar_se_puder(banco, registro, SEGUNDA_10H) is False
+        assert emails.despachar_se_puder(banco, registro, SEGUNDA_10H) is None
         assert _para(caixa) == ["p2@hsm.test"]
 
     def test_o_registro_antigo_sem_mensagem_nao_entra_na_fila(self, caixa):
@@ -403,14 +407,14 @@ class TestJanelaComercial:
     def test_o_urgente_sai_na_hora_no_sabado_a_noite(self, caixa):
         banco = _banco()
 
-        assert emails.despachar_se_puder(banco, _registrar(banco, SABADO_22H, urgente=True), SABADO_22H) is True
+        assert emails.despachar_se_puder(banco, _registrar(banco, SABADO_22H, urgente=True), SABADO_22H) == "enviado"
 
         assert _para(caixa) == ["p2@hsm.test"]
 
     def test_o_nao_urgente_do_sabado_a_noite_espera_a_segunda_as_8h(self, caixa):
         banco = _banco()
 
-        assert emails.despachar_se_puder(banco, _registrar(banco, SABADO_22H), SABADO_22H) is False
+        assert emails.despachar_se_puder(banco, _registrar(banco, SABADO_22H), SABADO_22H) is None
         assert _linha(banco)["enviar_a_partir_de"] == _iso(SEGUNDA_8H)
         assert emails.despachar_pendentes(banco, SEGUNDA_8H - timedelta(minutes=10)) == {"enviados": 0, "falhas": 0}
         assert caixa.saidas == []
@@ -427,7 +431,7 @@ class TestJanelaComercial:
     def test_o_nao_urgente_dentro_do_expediente_sai_na_hora(self, caixa):
         banco = _banco()
 
-        assert emails.despachar_se_puder(banco, _registrar(banco), SEGUNDA_10H) is True
+        assert emails.despachar_se_puder(banco, _registrar(banco), SEGUNDA_10H) == "enviado"
 
 
 # ═══════════════════════════════════════════════════════════════════════════

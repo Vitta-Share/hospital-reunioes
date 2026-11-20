@@ -142,13 +142,9 @@ def _alertar_admin_tecnico(supabase, registro: dict, erro: str | None) -> None:
     )
 
 
-def despachar(supabase, registro: dict, agora: datetime) -> bool:
-    """Tenta entregar um registro da fila. Devolve se saiu."""
-    return _despachar(supabase, registro, agora) == ENVIADO
-
-
-def _despachar(supabase, registro: dict, agora: datetime) -> str | None:
-    """ENVIADO, FALHOU (a tentativa não deu certo) ou None (outra rodada levou)."""
+def despachar(supabase, registro: dict, agora: datetime) -> str | None:
+    """Tenta entregar um registro da fila: ENVIADO, FALHOU (a tentativa não deu
+    certo) ou None (outra rodada já o levou)."""
     if not _reivindicar(supabase, registro["id"]):
         return None
     tentativas = (registro.get("tentativas") or 0) + 1
@@ -174,7 +170,11 @@ def _despachar(supabase, registro: dict, agora: datetime) -> str | None:
         return ENVIADO
 
     proxima = proxima_tentativa(agora, tentativas)
-    mudanca: dict[str, Any] = {"tentativas": tentativas, "erro": erro, "situacao": FALHOU if proxima is None else PENDENTE}
+    mudanca: dict[str, Any] = {
+        "tentativas": tentativas,
+        "erro": erro,
+        "situacao": FALHOU if proxima is None else PENDENTE,
+    }
     if proxima is not None:
         mudanca["enviar_a_partir_de"] = _utc(proxima)
     supabase.table(TABELA).update(mudanca).eq("id", registro["id"]).execute()
@@ -184,13 +184,14 @@ def _despachar(supabase, registro: dict, agora: datetime) -> str | None:
     return FALHOU
 
 
-def despachar_se_puder(supabase, registro: dict | None, agora: datetime) -> bool:
-    """Entrega já, quando a hora do registro chegou. Fora dela, o job leva."""
+def despachar_se_puder(supabase, registro: dict | None, agora: datetime) -> str | None:
+    """Entrega já, quando a hora do registro chegou: o desfecho de `despachar`.
+    Fora dela, None, e o job leva."""
     if not registro:
-        return False
+        return None
     quando = registro.get("enviar_a_partir_de")
     if quando and datetime.fromisoformat(str(quando)) > agora:
-        return False
+        return None
     return despachar(supabase, registro, agora)
 
 
@@ -209,7 +210,7 @@ def despachar_pendentes(supabase, agora: datetime) -> dict[str, int]:
     resultado = {"enviados": 0, "falhas": 0}
     for linha in linhas:
         try:
-            desfecho = _despachar(supabase, linha, agora)
+            desfecho = despachar(supabase, linha, agora)
         except Exception as falha:  # noqa: BLE001 (uma linha que falha não para as outras)
             logger.error("[E-mails NSP] Registro %s falhou no despacho: %s", linha.get("id"), type(falha).__name__)
             desfecho = FALHOU
