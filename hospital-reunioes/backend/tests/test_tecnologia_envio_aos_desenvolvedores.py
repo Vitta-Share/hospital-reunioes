@@ -287,7 +287,10 @@ class TestEnviar:
         # A interpretação aprovada e o que muda em cada card, com o número.
         assert "A enfermagem imprime a escala sem pedir ajuda." in ajuste["corpo"]
         assert "#901" in ajuste["corpo"]
-        assert "/grill-with-docs" in ajuste["corpo"]
+        # O agente resolve o card com as próprias recomendações; a única parada do Pedro é o "Posso lançar?".
+        assert "`/grill-with-docs --lote`" in ajuste["corpo"]
+        assert "segue todas as recomendações" in ajuste["corpo"]
+        assert '`/montar-ondas-enxutas` para o #900 e termina em "Posso lançar?"' in ajuste["corpo"]
 
     def test_o_corpo_do_ajuste_nao_contem_trecho_literal_da_fala_do_diretor(self, monkeypatch):
         diretor, _, gh = _montar(monkeypatch)
