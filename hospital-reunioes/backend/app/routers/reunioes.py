@@ -2048,12 +2048,7 @@ async def patch_quadro_atribuicao(
     if allowed_ids is not None and id_reuniao not in allowed_ids:
         raise HTTPException(status_code=404, detail="Reunião não encontrada")
 
-    result = (
-        supabase.table("reunioes")
-        .select("status_ata, json_ata")
-        .eq("id_reuniao", id_reuniao)
-        .execute()
-    )
+    result = supabase.table("reunioes").select("status_ata, json_ata").eq("id_reuniao", id_reuniao).execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Reunião não encontrada")
 

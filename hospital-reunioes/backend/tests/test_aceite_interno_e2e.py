@@ -431,8 +431,8 @@ class TestPaginaPublicaEAceite:
         Bruno com o Envelope morto so registra a ciencia dele."""
         sb = _sb()
         sb.tables["reuniao_aceites"].append(_aceite_clicksign("P_ANA", "sk-ana", "ana@hsm.com"))
-        for pid, pos in (("P_ANA", 0), ("P_BRUNO", 1), ("P_FAC", 2)):
-            sb.tables["pendencias"].append(_pendencia_nascida(f"A00{pos + 1}", pos, pid))
+        # Só a da Ana existe: se o aceite ainda criasse Pendência, a do Bruno nasceria aqui.
+        sb.tables["pendencias"].append(_pendencia_nascida("A001", 0, "P_ANA"))
         client, token = _fluxo_com_link_do_bruno(sb, emails)
         antes = [dict(p) for p in sb.tables["pendencias"]]
 

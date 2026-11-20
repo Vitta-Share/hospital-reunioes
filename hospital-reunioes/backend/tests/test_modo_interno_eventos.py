@@ -29,11 +29,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from app.config import settings  # noqa: E402
 from app.dependencies import get_supabase_client  # noqa: E402
 from app.routers import webhooks as webhooks_router  # noqa: E402
-from app.services import clicksign_service, storage  # noqa: E402
 
-# A coleta interna importa o email_service, cuja anotação `httpx.Client | None`
-# quebra no import com o Client bloqueado pela fixture: importa antes.
-from app.services import notificacao_service, reuniao_email_service  # noqa: E402
+# notificacao_service e reuniao_email_service: a coleta interna importa o
+# email_service, cuja anotação `httpx.Client | None` quebra no import com o
+# Client bloqueado pela fixture, então o import vem antes.
+from app.services import clicksign_service, notificacao_service, reuniao_email_service, storage  # noqa: E402
 
 SECRET = "test-secret"
 DOC_KEY = "doc-key-r1"

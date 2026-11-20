@@ -258,7 +258,7 @@ def test_start_signature_flow_envia_para_4_emails_corretos(monkeypatch):
     Depois da correção (4 rows em reuniao_participantes), start_signature_flow
     deve chamar add_signer EXATAMENTE 4 vezes com os emails dos 4 sobreviventes.
     """
-    from app.services import clicksign_service, storage
+    from app.services import clicksign_service, pdf_generator, storage
 
     # Estado pós-correção: só 4 vínculos sobreviveram (P001..P004)
     sb = _SupabaseMock(
@@ -278,12 +278,16 @@ def test_start_signature_flow_envia_para_4_emails_corretos(monkeypatch):
             {
                 "id_reuniao": "R_TEST",
                 "envelope_key_clicksign": None,
-                "status_ata": "AGUARDANDO_VALIDACAO",
+                # Desde a issue #1867 o envio já levou a Reunião a este estado.
+                "status_ata": "AGUARDANDO_ASSINATURA",
+                "json_ata": {"quadro_atribuicoes": []},
             }
         ],
     )
 
-    monkeypatch.setattr(storage, "download_file", lambda *_a, **_kw: b"PDF_BYTES")
+    # O PDF é gerado de novo a partir do quadro final (issue #1867).
+    monkeypatch.setattr(pdf_generator, "gerar_pdf_ata", lambda *_a, **_kw: b"PDF_BYTES")
+    monkeypatch.setattr(storage, "upload_file", lambda *_a, **_kw: "https://x/ata_preliminar.pdf")
 
     monkeypatch.setattr(clicksign_service, "create_envelope", lambda _name: "env-id")
     monkeypatch.setattr(clicksign_service, "add_document", lambda *_a, **_kw: "doc-id")

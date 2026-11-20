@@ -320,7 +320,7 @@ def test_duplo_clique_no_enviar_dispara_a_clicksign_uma_vez(make_client, monkeyp
     from app.services import clicksign_service
 
     fluxos: list[str] = []
-    monkeypatch.setattr(clicksign_service, "start_signature_flow", lambda _sb, id_reuniao, _r: fluxos.append(id_reuniao))
+    monkeypatch.setattr(clicksign_service, "start_signature_flow", lambda _sb, rid, _r: fluxos.append(rid))
     sb = _sb()
     client = make_client(sb)
 
