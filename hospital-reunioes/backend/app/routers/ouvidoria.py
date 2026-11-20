@@ -120,9 +120,9 @@ from app.services.ouvidoria_responsaveis import (
 from app.services.ouvidoria_taxonomia import (
     LIMITE_SETOR,
     ROTULO_TIPO,
+    SetorDoCadastro,
     SigiloTravadoError,
     TipoManifestacao,
-    SetorDoCadastro,
     casar_setor_do_cadastro,
     colunas_do_setor,
     nasce_sigilosa,

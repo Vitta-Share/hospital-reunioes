@@ -42,7 +42,6 @@ from app.services.ouvidoria_contato import email_utilizavel
 from app.services.ouvidoria_taxonomia import (
     CATEGORIA_PENDENTE,
     NATUREZAS_INFORMADAS,
-    SETOR_PENDENTE,
     SetorDoCadastro,
     casar_setor_do_cadastro,
     colunas_do_setor,
@@ -646,8 +645,9 @@ async def registrar_manifestacao_publica(
         "categoria": CATEGORIA_PENDENTE,
         # A área responsável é sempre do ouvidor, mesmo vindo do QR: o cartaz diz
         # de ONDE a pessoa leu, não CONTRA QUEM ela reclama. Quem lê o QR da
-        # Recepção para reclamar da Farmácia não apontou área nenhuma.
-        "setor": SETOR_PENDENTE,
+        # Recepção para reclamar da Farmácia não apontou área nenhuma. Por isso
+        # o id do setor também entra vazio (issue #1983).
+        **colunas_do_setor(None),
         "resumo": _resumir(manifestacao.relato),
         "relato_integral": manifestacao.relato,
         # A sugestão de quem manifestou, ao lado do relato e longe do tipo: o

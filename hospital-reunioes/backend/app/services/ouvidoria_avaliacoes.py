@@ -15,7 +15,7 @@ import logging
 from postgrest.exceptions import APIError
 
 from app.services import ouvidoria_pontos
-from app.services.ouvidoria_taxonomia import CATEGORIA_PENDENTE, SETOR_PENDENTE, nasce_sigilosa
+from app.services.ouvidoria_taxonomia import CATEGORIA_PENDENTE, colunas_do_setor, nasce_sigilosa
 from app.services.paginacao import ler_tudo
 from app.utils.text_sanitizer import sanitizar_travessao
 
@@ -415,7 +415,8 @@ def converter(supabase, avaliacao_id: str, me: dict, agora: dt.datetime, fuso: d
     t0 = _instante(avaliacao["criada_em"])
     linha = {
         "categoria": CATEGORIA_PENDENTE,
-        "setor": SETOR_PENDENTE,
+        # A área é do ouvidor, como no canal aberto: o cartaz é só a origem.
+        **colunas_do_setor(None),
         "resumo": _resumir(comentario),
         "relato_integral": comentario,
         "sigilo_reforcado": nasce_sigilosa(None),
