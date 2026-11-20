@@ -545,6 +545,9 @@ class TestSerieRecorrente:
         banco = _banco()
         for reuniao in banco.tabelas["reunioes"]:
             reuniao.update(id_grupo_recorrencia="SERIE1", status_ata="PROGRAMADA")
+        # Reunião com Pendência não se exclui (issue #1864): a série programada
+        # deste cenário ainda não tem Pendência.
+        banco.tabelas["pendencias"] = [p for p in banco.tabelas["pendencias"] if p["id_reuniao"] != R_COMUM]
 
         resposta = _cliente(SUPER_ADMIN, banco).delete("/api/reunioes/grupo/SERIE1")
 

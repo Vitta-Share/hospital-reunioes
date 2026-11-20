@@ -19,9 +19,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from test_seguranca_do_paciente_reunioes import _Banco, _cliente, _pessoa  # noqa: E402
 
-MIGRATION = (
-    Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "172_pendencia_nao_cai_com_a_reuniao.sql"
-)
+MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "172_pendencia_nao_cai_com_a_reuniao.sql"
 
 
 def _sql_sem_comentarios() -> str:
@@ -47,3 +45,87 @@ class TestFkDaPendencia:
             re.IGNORECASE | re.DOTALL,
         )
         assert "CASCADE" not in sql.upper()
+
+
+# ─── As rotas de exclusão ────────────────────────────────────────────────────
+
+SUPER_ADMIN = _pessoa("SA1", access_profile="super_admin", is_super_admin=True)
+REUNIAO = "RD_PROG_01"
+OUTRA = "RD_PROG_02"
+
+RECUSA = (
+    "Esta reunião não pode ser excluída porque já tem pendências, mesmo que canceladas. "
+    "As pendências e o histórico delas ficam guardados; para tirar uma pendência da cobrança, "
+    "cancele-a com uma anotação."
+)
+
+
+def _reuniao(rid: str) -> dict:
+    return {
+        "id_reuniao": rid,
+        "data": "2026-11-20",
+        "titulo": f"Reunião {rid}",
+        "status_ata": "PROGRAMADA",
+        "facilitador_id": "SA1",
+        "criada_por": "SA1",
+        "colegiado_id": None,
+        "id_grupo_recorrencia": "SERIE1",
+        "deleted_at": None,
+    }
+
+
+def _pendencia(pid: str, rid: str, status: str) -> dict:
+    return {"id_acao": pid, "id_reuniao": rid, "status": status, "deleted_at": None}
+
+
+def _banco(*pendencias: dict) -> _Banco:
+    return _Banco(
+        {
+            "participantes": [dict(SUPER_ADMIN)],
+            "reunioes": [_reuniao(REUNIAO), _reuniao(OUTRA)],
+            "pendencias": [dict(p) for p in pendencias],
+        }
+    )
+
+
+def _ids_das_reunioes(banco: _Banco) -> set[str]:
+    return {r["id_reuniao"] for r in banco.tabelas["reunioes"]}
+
+
+class TestExcluirReuniao:
+    def test_reuniao_com_pendencia_toda_cancelada_nao_se_exclui_e_a_tela_recebe_o_motivo(self):
+        banco = _banco(_pendencia("PEND_1", REUNIAO, "CANCELADO"), _pendencia("PEND_2", REUNIAO, "CANCELADO"))
+
+        resposta = _cliente(SUPER_ADMIN, banco).delete(f"/api/reunioes/{REUNIAO}")
+
+        assert resposta.status_code == 409, resposta.text
+        assert resposta.json() == {"detail": RECUSA}
+        assert _ids_das_reunioes(banco) == {REUNIAO, OUTRA}
+
+    def test_reuniao_sem_pendencia_continua_se_excluindo(self):
+        banco = _banco(_pendencia("PEND_1", OUTRA, "PENDENTE"))
+
+        resposta = _cliente(SUPER_ADMIN, banco).delete(f"/api/reunioes/{REUNIAO}")
+
+        assert resposta.status_code == 200, resposta.text
+        assert _ids_das_reunioes(banco) == {OUTRA}
+
+    def test_serie_com_uma_reuniao_com_pendencia_nao_se_exclui_e_nada_sai(self):
+        banco = _banco(_pendencia("PEND_1", OUTRA, "CANCELADO"))
+
+        resposta = _cliente(SUPER_ADMIN, banco).delete("/api/reunioes/grupo/SERIE1")
+
+        assert resposta.status_code == 409, resposta.text
+        assert resposta.json() == {
+            "detail": "A exclusão do grupo foi bloqueada: 1 reunião(ões) desta série já têm pendências, "
+            "mesmo que canceladas, e as pendências ficam guardadas."
+        }
+        assert _ids_das_reunioes(banco) == {REUNIAO, OUTRA}
+
+    def test_serie_sem_pendencia_continua_se_excluindo(self):
+        banco = _banco()
+
+        resposta = _cliente(SUPER_ADMIN, banco).delete("/api/reunioes/grupo/SERIE1")
+
+        assert resposta.status_code == 200, resposta.text
+        assert _ids_das_reunioes(banco) == set()
