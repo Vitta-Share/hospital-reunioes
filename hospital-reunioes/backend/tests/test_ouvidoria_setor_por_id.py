@@ -21,11 +21,11 @@ from test_ana_ouvidoria_protocolos import CHAVE_CORRETA, _BancoOuvidoriaFake, _m
 from test_ouvidoria_aba_avaliacoes import OUVIDOR as OUVIDOR_DAS_AVALIACOES  # noqa: E402
 from test_ouvidoria_aba_avaliacoes import _cliente as _client_avaliacoes  # noqa: E402
 from test_ouvidoria_aba_avaliacoes import _uma_marcada  # noqa: E402
+from test_ouvidoria_elogio_ciencia import _validar_o_elogio  # noqa: E402
 from test_ouvidoria_formulario_publico import CARTAZ, _BancoFake, _payload  # noqa: E402
 from test_ouvidoria_formulario_publico import _make_app as _make_app_publico  # noqa: E402
 from test_ouvidoria_registro_manual import REGISTRO  # noqa: E402
 from test_ouvidoria_registro_manual import _client as _client_registro  # noqa: E402
-from test_ouvidoria_elogio_ciencia import _validar_o_elogio  # noqa: E402
 from test_ouvidoria_revogacao_de_links import AREA_NOVA, _com_a_segunda_area, _devolver_e_reacionar  # noqa: E402
 from test_ouvidoria_validacao_acionamento import OUVIDOR, VALIDACAO  # noqa: E402
 from test_ouvidoria_validacao_acionamento import _client as _client_validacao  # noqa: E402
@@ -148,7 +148,9 @@ class TestAcionamento:
         caso = supabase.tabelas["ouvidoria_protocolos"][0]
         assert (caso["setor"], caso["setor_id"]) == ("Recepcao", "s1")
 
-    def test_o_reacionamento_em_outra_area_troca_o_id_junto_com_o_nome(self, monkeypatch, _nunca_envia_email_de_verdade):
+    def test_o_reacionamento_em_outra_area_troca_o_id_junto_com_o_nome(
+        self, monkeypatch, _nunca_envia_email_de_verdade
+    ):
         client, supabase = _com_a_segunda_area(monkeypatch, _nunca_envia_email_de_verdade)
 
         _devolver_e_reacionar(client, _nunca_envia_email_de_verdade)
