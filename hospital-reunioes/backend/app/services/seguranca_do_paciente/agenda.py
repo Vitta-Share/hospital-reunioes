@@ -22,7 +22,8 @@ from typing import Any
 import httpx
 from postgrest.exceptions import APIError
 
-from app.services.pendencia_ciclo import situacao
+from app.services.pendencia_acao import agir
+from app.services.pendencia_ciclo import ABERTOS, Comando, Papel, situacao
 from app.services.pendencia_service import criar_pendencia_sem_reuniao
 from app.services.pendencias_consulta import as_data, hoje_em_brasilia
 from app.services.seguranca_do_paciente.permissao import id_do_nucleo, participacoes_vigentes
@@ -41,6 +42,11 @@ ANTECEDENCIA_MAXIMA = 90
 # O lembrete, enquanto aberto, não volta a nascer; concluído ou cancelado, o
 # resultado já foi tratado.
 _STATUS_ABERTOS = ("PENDENTE", "EM_PROGRESSO", "ATRASADO", "REPACTUADA")
+
+# No lembrete, a Presidência é a responsável (ele nasce para ela) e quem conduz
+# o Núcleo (cancela o da data que mudou). Quem é Presidência quem decide é o
+# recurso `gerir_nucleo` da rota; o job age em nome dela.
+_PAPEIS_DA_PRESIDENCIA = frozenset({Papel.RESPONSAVEL, Papel.FACILITADOR})
 
 
 class EventoNaoEncontradoError(LookupError):
@@ -150,11 +156,49 @@ def lembrar(supabase, hoje: date) -> int:
     return criados
 
 
+def _agir_no_lembrete(
+    supabase, id_acao: str, comando: Comando, *, anotacao: str, autor_id: str | None, autor_nome: str | None
+) -> None:
+    """Conclui ou cancela o lembrete pelo comando de ação da Pendência, com a
+    anotação no histórico (ADR 0098; issue #1866). Lembrete já fechado não
+    tem o que mudar."""
+    linhas = (
+        supabase.table("pendencias")
+        .select("id_acao, status, prazo")
+        .eq("id_acao", id_acao)
+        .is_("deleted_at", "null")
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+    if not linhas or linhas[0].get("status") not in ABERTOS:
+        return
+    agir(
+        supabase,
+        linhas[0],
+        comando,
+        _PAPEIS_DA_PRESIDENCIA,
+        anotacao=anotacao,
+        autor_id=autor_id,
+        autor_nome=autor_nome or "Sistema",
+        hoje=hoje_em_brasilia(),
+    )
+
+
 def registrar_resultado(
-    supabase, item_id: str, *, resultado: str, realizada_em: date, autor_id: str | None, agora: datetime
+    supabase,
+    item_id: str,
+    *,
+    resultado: str,
+    realizada_em: date,
+    autor_id: str | None,
+    agora: datetime,
+    autor_nome: str | None = None,
 ) -> dict[str, Any]:
     """Guarda o resultado da ocorrência da próxima data, conclui o lembrete
-    dela e avança a próxima data. Devolve o evento atualizado."""
+    dela (o resultado é a anotação) e avança a próxima data. Devolve o evento
+    atualizado."""
     itens = supabase.table(TABELA).select("*").eq("id", item_id).limit(1).execute().data or []
     if not itens:
         raise EventoNaoEncontradoError(item_id)
@@ -188,9 +232,9 @@ def registrar_resultado(
 
     if pendencia_id:
         try:
-            supabase.table("pendencias").update({"status": "CONCLUIDO"}).eq("id_acao", pendencia_id).in_(
-                "status", list(_STATUS_ABERTOS)
-            ).execute()
+            _agir_no_lembrete(
+                supabase, pendencia_id, Comando.CONCLUIR, anotacao=resultado, autor_id=autor_id, autor_nome=autor_nome
+            )
         except (APIError, httpx.HTTPError) as erro:
             # O resultado já está guardado; o lembrete aberto a Presidência
             # conclui à mão.

@@ -137,6 +137,7 @@ async def registrar_resultado(
             resultado=resultado,
             realizada_em=corpo.realizada_em or hoje_em_sao_paulo(),
             autor_id=me.get("id"),
+            autor_nome=me.get("nome_completo"),
             agora=datetime.now().astimezone(),
         )
     except agenda.EventoNaoEncontradoError:
