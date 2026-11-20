@@ -129,3 +129,20 @@ class TestExcluirReuniao:
 
         assert resposta.status_code == 200, resposta.text
         assert _ids_das_reunioes(banco) == set()
+
+
+class TestForceDeExclusao:
+    def test_super_admin_nao_tem_mais_o_excluir_em_qualquer_status(self):
+        """O `DELETE /reunioes/{id}/force` apagava até Ata assinada, levando as
+        Pendências junto. Sem ele, só a exclusão comum (PROGRAMADA ou ERRO, sem
+        Pendência) existe; o `PATCH .../force` de edição continua, por isso a
+        resposta é 405 e não 404."""
+        banco = _banco()
+        banco.tabelas["reunioes"][0]["status_ata"] = "ASSINADA"
+
+        resposta = _cliente(SUPER_ADMIN, banco).request(
+            "DELETE", f"/api/reunioes/{REUNIAO}/force", json={"reason": "ata duplicada"}
+        )
+
+        assert resposta.status_code == 405, resposta.text
+        assert _ids_das_reunioes(banco) == {REUNIAO, OUTRA}
