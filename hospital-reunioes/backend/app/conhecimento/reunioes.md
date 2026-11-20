@@ -33,7 +33,7 @@ Quem pode o quê:
 
 Concluir já termina, sem validação de ninguém, e o aplicativo guarda o dia em que o responsável marcou. Repactuar antes do prazo vencer não conta como atraso; depois de vencer, conta, e a repactuação fica marcada para o ranking. A reabertura feita com o prazo já vencido também fica marcada. A pendência que já teve o prazo trocado aparece como repactuada enquanto estiver aberta e no prazo.
 
-Cada ação vira uma linha no histórico da pendência, com quem fez, quando e a anotação, e a tela mostra esse histórico em ordem. Ninguém edita nem apaga uma linha do histórico, nem quem administra o aplicativo: o próprio banco de dados recusa. Também não existe mais o "excluir pendência": o caminho é cancelar, com anotação. Título, meta, cargo e responsável ficam só para leitura na tela.
+O histórico da pendência começa com o nascimento dela. Cada ação vira uma linha no histórico, com quem fez, quando e a anotação, e a tela mostra esse histórico em ordem. Ninguém edita nem apaga uma linha do histórico, nem quem administra o aplicativo: o próprio banco de dados recusa. Também não existe mais o "excluir pendência": o caminho é cancelar, com anotação. Título, meta, cargo e responsável ficam só para leitura na tela.
 
 As pendências antigas que estavam atrasadas ou "a repactuar" (sem prazo) recuperaram o prazo que estava no quadro da ata. Onde o quadro não tinha o prazo, ficou valendo a data da última mudança, e o histórico dela mostra esse ajuste.
 
@@ -41,14 +41,18 @@ As pendências antigas que estavam atrasadas ou "a repactuar" (sem prazo) recupe
 
 Depois de revisar a ata, o facilitador escolhe um de dois caminhos, e os dois são definitivos:
 
-- **Enviar para assinatura.** A ata vira PDF e segue para assinatura digital, na ClickSign, que é quem manda o e-mail para cada pessoa assinar. As pendências vão nascendo conforme as pessoas assinam.
+- **Enviar para assinatura.** As pendências nascem todas no momento do envio, sem esperar ninguém assinar, e a cobrança começa no mesmo dia. A ata vira PDF, gerado de novo nessa hora com o quadro de ações final, e segue para assinatura digital, na ClickSign, que é quem manda o e-mail para cada pessoa assinar. Daí em diante, a assinatura vale como ciência da ata.
 - **Finalizar sem assinatura.** As pendências nascem na hora e a ata fica aprovada, sem passar pela assinatura.
 
 Não existe "assinar depois": escolhido o caminho, ele vale.
 
-Quando a assinatura não se completa (alguém recusa, ou o processo é cancelado), quem faltava e ficou com alguma ação recebe um e-mail com link, lê a ata inteira e clica em "li e aceito". Esse aceite vale como o "assinou" dele e faz nascer as pendências dele, mas não é assinatura digital: a formalidade continua sendo só do caminho da assinatura.
+Se o envio para a ClickSign falhar, a ata continua aguardando assinatura, as pendências continuam valendo, e na tela da reunião aparece o botão de reenviar. Reenviar não repete pendência nem cria um segundo envio para assinatura, e clicar duas vezes em enviar também não. Depois do envio, reprocessar e corrigir a ata ficam bloqueados, o quadro de ações inclusive: o que foi enviado é o que vale.
 
-A coleta de assinaturas também tem prazo: são 30 dias. Vencido o prazo, a ata é finalizada com as assinaturas que tiver, a tela mostra quantos de quantos assinaram, e as pendências que faltavam nascem nesse momento.
+Quando a assinatura não se completa (alguém recusa, ou o processo é cancelado), quem ainda não assinou recebe um e-mail com link, lê a ata inteira e clica em "li e aceito". Esse aceite vale como ciência, igual à assinatura, e não cria pendência, porque elas já existem desde o envio. A reunião fecha quando todos deram ciência; a recusa sozinha não fecha a ata como assinada. O aceite não é assinatura digital: a formalidade continua sendo só do caminho da assinatura.
+
+A coleta de assinaturas também tem prazo: são 30 dias. Vencido o prazo, a ata é finalizada com as assinaturas que tiver, e a tela mostra quantos de quantos assinaram.
+
+Todo dia, às 5h30, o aplicativo confere as atas que aguardam assinatura e cria as pendências que faltarem, sem repetir nenhuma. Foi assim que as atas que já estavam em assinatura antes dessa regra ganharam as pendências delas.
 
 ## Quem vê cada pendência
 
@@ -99,7 +103,7 @@ Na tela da reunião, o botão Excluir, que só quem administra o aplicativo vê,
 - Uma reunião tem no máximo uma ata, feita por transcrição ou pela ata guiada.
 - A ata guiada não gera PDF e não vai para assinatura.
 - Depois de revisar a ata, o facilitador escolhe entre enviar para assinatura e finalizar sem assinatura, e a escolha é definitiva.
-- No caminho da assinatura, a pendência de cada pessoa nasce quando ela assina, ou quando dá o "li e aceito" pelo link, sem esperar as outras.
+- No caminho da assinatura, todas as pendências nascem no envio da ata, e a assinatura e o "li e aceito" valem como ciência.
 - A coleta de assinaturas dura até 30 dias, e depois disso a ata fecha com as assinaturas que tiver.
 - A inteligência artificial pergunta quando não tem certeza de quem é o responsável, e quem liga a ação a uma pessoa do cadastro é o aplicativo.
 - Quem é de fora do cadastro fica na ata só como nome, sem cobrança.

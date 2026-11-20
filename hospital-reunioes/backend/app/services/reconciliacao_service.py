@@ -14,7 +14,10 @@ e aplica o mesmo fluxo do webhook, idempotente:
   reenvio; a Reunião permanece em AGUARDANDO_ASSINATURA com flag).
 - Envelope `running`/`draft`: nada a fazer.
 
-A primeira execução do job resolve o passivo de Atas já travadas hoje.
+Antes da consulta, o job cria as Pendências que faltam em toda Ata em
+AGUARDANDO_ASSINATURA (ADR 0098, decisão 3; issue #1867). A primeira execução
+resolve o passivo de Atas já travadas e faz a carga das que já estavam em
+assinatura antes de a Pendência nascer no envio.
 """
 
 import logging
@@ -79,10 +82,46 @@ def reconciliar_reuniao(supabase, reuniao: dict) -> str:
     return DESFECHO_SEM_MUDANCA
 
 
+def criar_pendencias_que_faltam(supabase) -> int:
+    """Cria as Pendências que faltam em toda Ata em AGUARDANDO_ASSINATURA
+    (ADR 0098, decisão 3), com ou sem Envelope, no modo interno ou não. A
+    criação é idempotente por ação do quadro: a primeira execução faz a carga
+    das Atas que já estavam em assinatura, e as seguintes cobrem o envio que
+    falhou no meio. A Ata do Núcleo fica de fora: as Pendências dela nascem na
+    validação, pelo fluxo próprio. Falha em uma Ata não interrompe as demais.
+    Devolve quantas Pendências nasceram."""
+    from app.services import pendencia_service
+    from app.services.seguranca_do_paciente.permissao import id_do_nucleo
+
+    atas = (
+        supabase.table("reunioes")
+        .select("id_reuniao, colegiado_id")
+        .eq("status_ata", "AGUARDANDO_ASSINATURA")
+        .is_("deleted_at", "null")
+        .execute()
+        .data
+        or []
+    )
+    nucleo = id_do_nucleo(supabase) if any(a.get("colegiado_id") for a in atas) else None
+    criadas = 0
+    for ata in atas:
+        if nucleo and ata.get("colegiado_id") == nucleo:
+            continue
+        try:
+            criadas += pendencia_service.liberar_pendencias(supabase, ata["id_reuniao"], origem="RECONCILIACAO")
+        except Exception as e:
+            logger.error(f"[Reconciliacao] Erro ao criar as Pendências de {ata['id_reuniao']}: {e}", exc_info=True)
+    if criadas:
+        logger.info(f"[Reconciliacao] {criadas} Pendência(s) criada(s) em Atas em assinatura.")
+    return criadas
+
+
 def reconciliar_pendentes(supabase) -> dict[str, int]:
-    """Varre as Reuniões em AGUARDANDO_ASSINATURA com Envelope (fora do modo
-    interno, cujo Envelope já morreu) e reconcilia uma a uma. Falha em uma
+    """Cria as Pendências que faltam nas Atas em assinatura e depois varre as
+    Reuniões em AGUARDANDO_ASSINATURA com Envelope (fora do modo interno, cujo
+    Envelope já morreu) e reconcilia uma a uma com a ClickSign. Falha em uma
     Reunião não interrompe as demais. Devolve contadores por desfecho."""
+    pendencias_criadas = criar_pendencias_que_faltam(supabase)
     res = (
         supabase.table("reunioes")
         .select(
@@ -100,6 +139,7 @@ def reconciliar_pendentes(supabase) -> dict[str, int]:
         DESFECHO_SEM_MUDANCA: 0,
         DESFECHO_INDISPONIVEL: 0,
         "erro": 0,
+        "pendencias_criadas": pendencias_criadas,
     }
     for reuniao in res.data or []:
         if not reuniao.get("envelope_key_clicksign"):

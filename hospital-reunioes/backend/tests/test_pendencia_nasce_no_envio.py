@@ -382,3 +382,56 @@ def test_editar_o_quadro_responde_erro_depois_do_envio(make_client, modo_interno
 
     assert r.status_code == 400
     assert sb.reunioes[0]["json_ata"]["quadro_atribuicoes"][2]["responsavel"] == "Fulano de Fora"
+
+
+# ─── 6. A reconciliação das 5h30 cria o que falta ─────────────────────────────
+
+
+@pytest.mark.parametrize(
+    "reuniao",
+    [
+        {"envelope_key_clicksign": "doc", "envelope_id_clicksign": "env"},
+        {"envelope_key_clicksign": None, "falha_envio_assinatura": {"passo": "criar_envelope"}},
+        {"envelope_key_clicksign": "doc", "envelope_id_clicksign": "env", "modo_interno_desde": "2026-11-12T10:00:00"},
+    ],
+    ids=["envelope-rodando", "clicksign-falhou", "modo-interno"],
+)
+def test_reconciliacao_cria_as_pendencias_da_ata_em_assinatura_e_nao_duplica(monkeypatch, reuniao):
+    """A carga das Atas que já estavam em assinatura antes da mudança, e a
+    proteção contra o envio que falhou no meio (ADR 0098, decisão 3)."""
+    from app.services import clicksign_service, reconciliacao_service
+
+    monkeypatch.setattr(clicksign_service, "get_envelope_status", lambda _env: "running")
+    sb = _sb("AGUARDANDO_ASSINATURA", **reuniao)
+
+    reconciliacao_service.reconciliar_pendentes(sb)
+    assert sorted(p["quadro_pos"] for p in sb.pendencias) == [0, 1, 2]
+
+    reconciliacao_service.reconciliar_pendentes(sb)
+    assert sorted(p["quadro_pos"] for p in sb.pendencias) == [0, 1, 2]
+    assert sb.reunioes[0]["status_ata"] == "AGUARDANDO_ASSINATURA"
+
+
+def test_o_texto_de_reunioes_no_kit_diz_que_a_pendencia_nasce_no_envio():
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = (CONHECIMENTO_DIR / "reunioes.md").read_text(encoding="utf-8")
+    assert "As pendências nascem todas no momento do envio" in texto
+    assert "a assinatura vale como ciência da ata" in texto
+    assert "aparece o botão de reenviar" in texto
+    assert "não cria pendência" in texto
+    assert "reprocessar e corrigir a ata ficam bloqueados" in texto
+    # O comportamento antigo saiu do texto.
+    assert "As pendências vão nascendo conforme as pessoas assinam" not in texto
+    assert "faz nascer as pendências dele" not in texto
+    assert "a pendência de cada pessoa nasce quando ela assina" not in texto
+
+
+def test_reconciliacao_nao_toca_ata_fora_de_assinatura(monkeypatch):
+    from app.services import reconciliacao_service
+
+    sb = _sb("AGUARDANDO_VALIDACAO")
+
+    reconciliacao_service.reconciliar_pendentes(sb)
+
+    assert sb.pendencias == []

@@ -184,7 +184,8 @@ def enviar_lembretes_24h() -> None:
 def reconciliar_clicksign() -> None:
     """Reconcilia com a ClickSign as Reuniões em AGUARDANDO_ASSINATURA com Envelope.
 
-    Documento fechado aplica o mesmo fluxo do webhook de fechamento; cancelado
+    Antes, cria as Pendências que faltam em toda Ata em assinatura (ADR 0098,
+    decisão 3). Documento fechado aplica o mesmo fluxo do webhook de fechamento; cancelado
     abre o modo interno (ADR 0030, issue #279). Idempotente: rodar de novo não
     duplica Pendência nem muda estado já resolvido.
     """
