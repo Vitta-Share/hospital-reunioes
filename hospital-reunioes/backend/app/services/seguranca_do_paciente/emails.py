@@ -13,6 +13,9 @@ As regras de tempo são as da Ouvidoria, pelas mesmas funções puras:
   crescente (`proxima_tentativa`). Na terceira falha a linha vira falhou e o
   admin técnico é avisado, por fora da fila.
 
+- **Reconferência:** o aviso do Termo e da vigência que esperou na fila só
+  sai se ainda é o marco do dia da Participação (`avisos.ainda_devidos`).
+
 O envio reivindica a linha antes de chamar o provedor (`pendente` para
 `enviando`, condicional): a rodada do job que cruza com outra não manda o
 mesmo e-mail duas vezes.
@@ -45,6 +48,7 @@ FALHOU = "falhou"
 
 SEM_EMAIL = "A pessoa não tem e-mail no cadastro."
 FALHA_DO_ENVIO = "O provedor de e-mail não aceitou o envio."
+MARCO_MUDOU = "A Participação mudou antes do envio; aviso não enviado."
 
 # Só os modelos do Núcleo: o nome vem do banco e vira um template carregado.
 _MODELO = re.compile(r"^email_nsp_[a-z_]+\.html$")
@@ -195,6 +199,31 @@ def despachar_se_puder(supabase, registro: dict | None, agora: datetime) -> str 
     return despachar(supabase, registro, agora)
 
 
+def _so_o_que_ainda_vale(supabase, linhas: list[dict], agora: datetime) -> list[dict]:
+    """O aviso do Termo e da vigência que esperou na fila reconfere a
+    Participação antes de sair, como a cobrança da Ouvidoria retida pela
+    janela: o que deixou de ser o marco do dia vira falhou, sem alerta."""
+    from app.services.seguranca_do_paciente import avisos  # avisos importa este módulo
+
+    dos_avisos = [
+        linha for linha in linhas if linha.get("participacao_id") and linha.get("marco") in avisos.DESTINATARIOS
+    ]
+    if not dos_avisos:
+        return linhas
+    valem = avisos.ainda_devidos(supabase, (linha["participacao_id"] for linha in dos_avisos), agora)
+    velhos = {
+        linha["id"]
+        for linha in dos_avisos
+        if (linha["participacao_id"], linha["marco"], linha["referencia"]) not in valem
+    }
+    for registro_id in velhos:
+        supabase.table(TABELA).update({"situacao": FALHOU, "erro": MARCO_MUDOU}).eq("id", registro_id).eq(
+            "situacao", PENDENTE
+        ).execute()
+        logger.info("[E-mails NSP] Registro %s não saiu: a Participação mudou antes do envio.", registro_id)
+    return [linha for linha in linhas if linha["id"] not in velhos]
+
+
 def despachar_pendentes(supabase, agora: datetime) -> dict[str, int]:
     """O job de 10 em 10 minutos: entrega o que já pode sair."""
     linhas = ler_tudo(
@@ -207,6 +236,7 @@ def despachar_pendentes(supabase, agora: datetime) -> dict[str, int]:
         ),
         rotulo="fila de e-mails do Núcleo",
     )
+    linhas = _so_o_que_ainda_vale(supabase, linhas, agora)
     resultado = {"enviados": 0, "falhas": 0}
     for linha in linhas:
         try:

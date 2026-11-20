@@ -141,8 +141,29 @@ def _pessoa(pid: str, **campos) -> dict[str, Any]:
 ADMIN = _pessoa("SA1", access_profile="super_admin")
 
 
+# A Participação do aviso da fila: a vigência termina em 01/12/2026, e de
+# sábado 14/11 a terça 17/11 o marco do dia é o de 30 dias (a fila reconfere).
+PARTICIPACAO = {
+    "id": "part-P2",
+    "participante_id": "P2",
+    "vigencia_inicio": "2026-01-01",
+    "vigencia_fim": "2026-12-01",
+    "encerrada_em": None,
+    "termo_gerado_em": "2026-01-02T12:00:00+00:00",
+    "termo_enviado_em": "2026-01-02T12:00:00+00:00",
+    "termo_assinado_em": "2026-01-03T12:00:00+00:00",
+}
+
+
 def _banco() -> _Banco:
-    return _Banco({"participantes": [_pessoa("P2"), dict(ADMIN)], "nsp_avisos": []})
+    return _Banco(
+        {
+            "participantes": [_pessoa("P2"), dict(ADMIN)],
+            "participacoes": [dict(PARTICIPACAO)],
+            "nsp_termos_envios": [],
+            "nsp_avisos": [],
+        }
+    )
 
 
 @pytest.fixture
@@ -169,15 +190,15 @@ def caixa(monkeypatch):
 def _registrar(banco: _Banco, agora: datetime = SEGUNDA_10H, **campos) -> dict | None:
     base = dict(
         marco="vigencia_30",
-        referencia="2027-01-31",
+        referencia="2026-12-01",
         destinatario_id="P2",
         participacao_id="part-P2",
-        assunto="Renove a sua participação no Núcleo de Segurança do Paciente: a vigência termina em 31/01/2027",
-        texto="Olá, Pessoa de Teste P2.\n\nA sua participação termina em 31/01/2027.\n",
+        assunto="Renove a sua participação no Núcleo de Segurança do Paciente: a vigência termina em 01/12/2026",
+        texto="Olá, Pessoa de Teste P2.\n\nA sua participação termina em 01/12/2026.\n",
         modelo="email_nsp_aviso.html",
         contexto={
             "nome": "Pessoa de Teste P2",
-            "paragrafos": ["A sua participação termina em 31/01/2027."],
+            "paragrafos": ["A sua participação termina em 01/12/2026."],
             "link": "x",
         },
         agora=agora,
@@ -339,7 +360,7 @@ class TestRetentativa:
         assert "Núcleo" in alerta["assunto"]
         assert linha["id"] in alerta["texto"]
         # Nada do conteúdo do e-mail que falhou vai ao admin.
-        assert "31/01/2027" not in alerta["texto"]
+        assert "01/12/2026" not in alerta["texto"]
 
     def test_o_registro_que_falhou_nao_volta_mais(self, caixa):
         caixa.falhas = 3

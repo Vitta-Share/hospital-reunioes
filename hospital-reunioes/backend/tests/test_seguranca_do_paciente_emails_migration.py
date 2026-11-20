@@ -64,6 +64,15 @@ def test_a_participacao_vira_opcional_mas_a_linha_tem_dono():
     )
 
 
+def test_a_leitura_dos_convocados_tem_indice():
+    """`convocacao.convocados` filtra por marco, referência e situação a cada
+    abertura da pauta; a chave única da 158 começa pela Participação."""
+    assert re.search(
+        r"CREATE INDEX IF NOT EXISTS \w+\s+ON nsp_avisos \(marco, referencia, situacao\);",
+        _sql(),
+    )
+
+
 def test_o_modelo_do_banco_e_o_mesmo_que_o_servico_aceita():
     assert "modelo ~ '^email_nsp_[a-z_]+\\.html$'" in _sql()
     assert emails._MODELO.pattern == r"^email_nsp_[a-z_]+\.html$"

@@ -462,6 +462,76 @@ class TestDepoisDaAssinatura:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# 2b. O aviso que esperou o dia útil reconfere a Participação antes de sair
+# ═══════════════════════════════════════════════════════════════════════════
+
+SEGUNDA_8H = datetime.combine(DIA, time(8), tzinfo=ZoneInfo("America/Sao_Paulo"))
+SABADO = DIA - timedelta(days=2)
+
+
+class TestOAvisoRetidoReconfere:
+    """O sábado grava o aviso para a segunda 8h; até lá a Participação pode
+    mudar. A fila confere de novo, como a da Ouvidoria, antes de mandar."""
+
+    @pytest.mark.parametrize("fila_primeiro", [True, False])
+    def test_o_marco_que_avancou_no_fim_de_semana_manda_so_o_do_dia(self, emails, fila_primeiro):
+        # Termo gerado na sexta, depois da rodada das 8h: o sábado é o dia 1.
+        participacao, envio = _sem_assinatura("P2", DIA - timedelta(days=3))
+        banco = _banco([participacao], [envio])
+        avisos.avisar(banco, SABADO)
+        assert emails == []
+
+        if fila_primeiro:
+            avisos_emails.despachar_pendentes(banco, SEGUNDA_8H)
+            avisos.avisar(banco, DIA)
+        else:
+            avisos.avisar(banco, DIA)
+            avisos_emails.despachar_pendentes(banco, SEGUNDA_8H + timedelta(minutes=10))
+
+        assert _para(emails) == ["p2@hsm.test"]
+        retido = next(a for a in banco.tabelas["nsp_avisos"] if a["marco"] == "documento_gerado")
+        assert retido["situacao"] == "falhou"
+        assert retido["erro"] == avisos_emails.MARCO_MUDOU
+
+    def test_o_termo_assinado_no_fim_de_semana_nao_recebe_o_aviso_retido(self, emails):
+        participacao, envio = _sem_assinatura("P2", DIA - timedelta(days=3))
+        banco = _banco([participacao], [envio])
+        avisos.avisar(banco, SABADO)
+        banco.tabelas["participacoes"][1]["termo_assinado_em"] = f"{SABADO.isoformat()}T18:00:00+00:00"
+        banco.tabelas["nsp_termos_envios"][0]["situacao"] = "assinado"
+
+        avisos_emails.despachar_pendentes(banco, SEGUNDA_8H)
+
+        assert emails == []
+
+    def test_a_vigencia_renovada_no_fim_de_semana_nao_recebe_o_aviso_retido(self, emails):
+        banco = _banco([_participacao("P2", vigencia_fim=(SABADO + timedelta(days=30)).isoformat())])
+        avisos.avisar(banco, SABADO)
+        banco.tabelas["participacoes"][1]["vigencia_fim"] = (SABADO + timedelta(days=395)).isoformat()
+
+        avisos_emails.despachar_pendentes(banco, SEGUNDA_8H)
+
+        assert emails == []
+
+    def test_a_participacao_encerrada_no_fim_de_semana_nao_recebe_o_aviso_retido(self, emails):
+        banco = _banco([_participacao("P2", vigencia_fim=(SABADO + timedelta(days=30)).isoformat())])
+        avisos.avisar(banco, SABADO)
+        banco.tabelas["participacoes"][1]["encerrada_em"] = f"{SABADO.isoformat()}T18:00:00+00:00"
+
+        avisos_emails.despachar_pendentes(banco, SEGUNDA_8H)
+
+        assert emails == []
+
+    def test_o_aviso_retido_que_ainda_vale_sai(self, emails):
+        """O detector não descarta tudo: o marco que continua o do dia sai."""
+        banco = _banco([_participacao("P2", vigencia_fim=(SABADO + timedelta(days=30)).isoformat())])
+        avisos.avisar(banco, SABADO)
+
+        assert avisos_emails.despachar_pendentes(banco, SEGUNDA_8H) == {"enviados": 2, "falhas": 0}
+        assert _para(emails) == ["p1@hsm.test", "p2@hsm.test"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # 3. Data absoluta, destinatário nominal e nenhum travessão
 # ═══════════════════════════════════════════════════════════════════════════
 

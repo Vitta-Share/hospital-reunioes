@@ -19,7 +19,8 @@ de mandar de novo. A referência é o envio do Termo nos marcos de assinatura (o
 reenvio recomeça a contagem) e o fim da vigência nos outros (a renovação
 recomeça os avisos). Fora da janela comercial o aviso espera a abertura do
 expediente, e a falha do provedor volta à fila com espera crescente: quem leva
-os dois é o job de 10 em 10 minutos do registro.
+os dois é o job de 10 em 10 minutos do registro, que antes de mandar reconfere
+a Participação (`ainda_devidos`).
 
 O e-mail diz a ação pedida no assunto, com data absoluta, e não traz nada do
 conteúdo do Núcleo: só o nome do membro e as datas da vigência ou do Termo.
@@ -208,6 +209,46 @@ def _pessoas(supabase, ids: Iterable[str]) -> dict[str, dict]:
     return pessoas
 
 
+_CAMPOS_DA_PARTICIPACAO = (
+    "id, participante_id, vigencia_inicio, vigencia_fim, encerrada_em, termo_gerado_em, "
+    "termo_enviado_em, termo_assinado_em"
+)
+
+
+def _envios_abertos(supabase, participacoes: list[dict]) -> dict[str, dict]:
+    """O envio que espera a assinatura (um aberto por Participação, pelo banco)."""
+    return {
+        e["participacao_id"]: e
+        for e in _em_lotes(
+            supabase,
+            "nsp_termos_envios",
+            "id, participacao_id, situacao, created_at",
+            "participacao_id",
+            (p["id"] for p in participacoes),
+            "envios do Termo",
+            lambda q: q.eq("situacao", "enviado"),
+        )
+    }
+
+
+def ainda_devidos(supabase, participacao_ids: Iterable[str], agora: datetime) -> set[tuple[str, str, str]]:
+    """(Participação, marco, referência) que ainda são o marco do dia em
+    `agora`. A fila do registro pergunta antes de mandar o aviso que esperou a
+    janela comercial ou a retentativa: o Termo assinado ou liberado, a vigência
+    renovada, a Participação encerrada ou o marco que avançou no intervalo
+    seguram o aviso velho, e de cada família sai só o marco do dia."""
+    hoje = agora.astimezone(_FUSO).date()
+    participacoes = _em_lotes(
+        supabase, "participacoes", _CAMPOS_DA_PARTICIPACAO, "id", participacao_ids, "Participações dos avisos retidos"
+    )
+    envios = _envios_abertos(supabase, participacoes)
+    return {
+        (p["id"], marco, referencia)
+        for p in participacoes
+        for marco, referencia, _ in marcos_do_dia(p, envios.get(p["id"]), hoje)
+    }
+
+
 def avisar(
     supabase, hoje: date, agora: datetime | None = None, feriados: frozenset[date] = frozenset()
 ) -> dict[str, int]:
@@ -221,29 +262,14 @@ def avisar(
     participacoes = ler_tudo(
         lambda: (
             supabase.table("participacoes")
-            .select(
-                "id, participante_id, vigencia_inicio, vigencia_fim, encerrada_em, termo_gerado_em, "
-                "termo_enviado_em, termo_assinado_em"
-            )
+            .select(_CAMPOS_DA_PARTICIPACAO)
             .eq("colegiado_id", nucleo_id)
             .is_("encerrada_em", "null")
             .order("id")
         ),
         rotulo="Participações do Núcleo",
     )
-    # O envio que espera a assinatura (um aberto por Participação, pelo banco).
-    envios = {
-        e["participacao_id"]: e
-        for e in _em_lotes(
-            supabase,
-            "nsp_termos_envios",
-            "id, participacao_id, situacao, created_at",
-            "participacao_id",
-            (p["id"] for p in participacoes),
-            "envios do Termo",
-            lambda q: q.eq("situacao", "enviado"),
-        )
-    }
+    envios = _envios_abertos(supabase, participacoes)
     devidos = [
         (p, marco, referencia, data)
         for p in participacoes

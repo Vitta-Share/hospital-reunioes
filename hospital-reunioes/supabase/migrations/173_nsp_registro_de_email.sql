@@ -66,6 +66,12 @@ CREATE INDEX IF NOT EXISTS idx_nsp_avisos_fila
   ON nsp_avisos (enviar_a_partir_de)
   WHERE situacao = 'pendente';
 
+-- Os convocados da pauta: a convocação enviada de cada reunião, lida a cada
+-- abertura (marco, referência e situação). Sem predicado parcial: o PostgREST
+-- manda a situação como parâmetro, e o plano genérico não casaria com ele.
+CREATE INDEX IF NOT EXISTS idx_nsp_avisos_marco_referencia
+  ON nsp_avisos (marco, referencia, situacao);
+
 COMMENT ON TABLE nsp_avisos IS
   'O registro único de e-mail do Núcleo: todo e-mail nasce aqui antes de sair, com retentativa e janela comercial. Issues #1770 e #1985.';
 COMMENT ON COLUMN nsp_avisos.caso_id IS
