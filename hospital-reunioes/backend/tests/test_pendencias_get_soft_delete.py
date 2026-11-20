@@ -68,6 +68,9 @@ class _Sb:
             return _FakeTable(self.pendencias)
         if name == "participantes":
             return _FakeTable(self.participantes)
+        if name == "pendencia_historico":
+            # A Repactuada é calculada pelo histórico (issue #1862); aqui, vazio.
+            return _FakeTable([])
         raise AssertionError(f"Tabela inesperada: {name}")
 
 

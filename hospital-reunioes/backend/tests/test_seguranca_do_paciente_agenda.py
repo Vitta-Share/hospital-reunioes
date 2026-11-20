@@ -496,8 +496,9 @@ def _cliente_das_pendencias(pessoa: dict[str, Any], banco: _Banco) -> TestClient
 
 
 class TestLembreteNaAgenda:
-    def test_a_presidencia_ve_o_lembrete_aberto_na_agenda(self):
+    def test_a_presidencia_ve_o_lembrete_aberto_na_agenda(self, monkeypatch):
         """Mutante: `listar` sem o lembrete aberto."""
+        monkeypatch.setattr(agenda, "hoje_em_brasilia", lambda: DIA)
         banco, id_acao = _cenario_com_lembrete()
 
         resposta = _cliente(PRESIDENTE, banco).get(ROTA)
@@ -506,6 +507,15 @@ class TestLembreteNaAgenda:
         [item] = resposta.json()["itens"]
         lembrete = item["lembrete"]
         assert (lembrete["id_acao"], lembrete["prazo"], lembrete["status"]) == (id_acao, "2026-11-21", "PENDENTE")
+
+    def test_lembrete_de_prazo_vencido_aparece_atrasado_sem_job(self, monkeypatch):
+        """Issue #1862: nenhum job grava ATRASADO; a agenda calcula pela data."""
+        monkeypatch.setattr(agenda, "hoje_em_brasilia", lambda: date(2026, 11, 22))
+        banco, _ = _cenario_com_lembrete()
+
+        [item] = _cliente(PRESIDENTE, banco).get(ROTA).json()["itens"]
+
+        assert item["lembrete"]["status"] == "ATRASADO"
 
     def test_o_resultado_tira_o_lembrete_da_agenda(self):
         banco, _ = _cenario_com_lembrete()
@@ -534,7 +544,9 @@ class TestLembreteForaDasPendencias:
         resposta = _cliente_das_pendencias(SUPER, banco).get("/api/pendencias/stats")
 
         assert resposta.status_code == 200, resposta.text
-        assert (resposta.json()["total"], resposta.json()["pendente"]) == (1, 1)
+        # A A900 tem prazo no DIA, já passado: conta como atrasada (issue #1862).
+        numeros = resposta.json()
+        assert (numeros["total"], numeros["pendente"] + numeros["atrasado"]) == (1, 1)
 
     def test_minhas_pendencias_nao_traz_o_lembrete(self):
         """Mutante: tirar o filtro da Pendência sem Reunião em `/pendencias/minhas`."""
@@ -560,9 +572,8 @@ class TestLembreteForaDasPendencias:
         ("metodo", "sufixo", "corpo"),
         [
             ("GET", "", None),
-            ("PATCH", "", {"status": "CONCLUIDO"}),
-            ("PATCH", "/force", {"responsavel_id": "P9", "reason": "Reatribuir"}),
-            ("DELETE", "/force", {"reason": "Apagar"}),
+            ("POST", "/acoes", {"comando": "cancelar", "anotacao": "Fechar"}),
+            ("GET", "/historico", None),
             ("GET", "/comentarios", None),
             ("POST", "/comentarios", {"conteudo": "Comentário"}),
         ],

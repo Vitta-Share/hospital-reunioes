@@ -1,10 +1,10 @@
 "use client";
 
 import { PENDENCIA_STATUS_CONFIG } from "@/constants/pendencias";
-import { StatusPendencia } from "@/types";
+import { SituacaoPendencia } from "@/types";
 
 interface StatusBadgeProps {
-  status: StatusPendencia;
+  status: SituacaoPendencia;
   className?: string;
 }
 

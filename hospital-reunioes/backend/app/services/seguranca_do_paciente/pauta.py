@@ -25,6 +25,8 @@ from zoneinfo import ZoneInfo
 import httpx
 from postgrest.exceptions import APIError
 
+from app.services.pendencia_ciclo import situacao
+from app.services.pendencias_consulta import as_data, hoje_em_brasilia, ids_repactuados
 from app.services.seguranca_do_paciente.reunioes import TipoReuniaoNsp
 
 logger = logging.getLogger(__name__)
@@ -296,15 +298,20 @@ def garantir_pauta(supabase, reuniao: dict, agora: datetime) -> dict:
 
 
 def com_situacao_atual(supabase, blocos: list[dict]) -> list[dict]:
-    """Os blocos com a situação de hoje de cada pendência citada."""
+    """Os blocos com a situação de hoje de cada pendência citada. Atrasada e
+    Repactuada são calculadas, como na tela de Pendências (issue #1862)."""
     ids = sorted({item["id_acao"] for bloco in blocos for item in bloco.get("itens", []) if item.get("id_acao")})
     status = {}
     if ids:
+        hoje = hoje_em_brasilia()
+        repactuados = ids_repactuados(supabase, ids)
         status = {
-            p["id_acao"]: p.get("status")
+            p["id_acao"]: situacao(
+                p.get("status") or "", as_data(p.get("prazo")), hoje, repactuada=p["id_acao"] in repactuados
+            )
             for p in (
                 supabase.table("pendencias")
-                .select("id_acao, status")
+                .select("id_acao, status, prazo")
                 .in_("id_acao", ids)
                 .is_("deleted_at", "null")
                 .execute()

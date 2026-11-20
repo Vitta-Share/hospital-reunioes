@@ -12,7 +12,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
-from app.models.schemas import StatusAta, StatusPendencia, TipoReuniao, UserRole
+from app.models.schemas import StatusAta, TipoReuniao, UserRole
 
 AccessProfile = Literal["regular", "secretaria", "super_admin"]
 
@@ -261,28 +261,6 @@ class TransferirFacilitadorRequest(BaseModel):
     """
 
     novo_facilitador_id: str = Field(..., min_length=1, max_length=10)
-
-
-# ─── Force Pendencia ─────────────────────────────────────────────────────────
-
-
-class ForceEditPendenciaRequest(BaseModel):
-    """Body do PATCH /pendencias/{id}/force — edicao irrestrita por super admin.
-
-    Motivo e obrigatorio apenas quando status ou responsavel_id sao alterados.
-    """
-
-    descricao_acao: str | None = Field(None, max_length=500)
-    status: StatusPendencia | None = None
-    responsavel_id: str | None = None
-    responsavel_nome: str | None = Field(None, max_length=500)
-    co_responsavel_id: str | None = None
-    co_responsavel_nome: str | None = None
-    prazo: date | None = None
-    cargo: str | None = Field(None, max_length=255)
-    setor: str | None = Field(None, max_length=255)
-    meta_entregavel: str | None = Field(None, max_length=500)
-    reason: str | None = Field(None, max_length=1000)
 
 
 # ─── Taxonomia (setores, cargos, tipos_reuniao) ──────────────────────────────

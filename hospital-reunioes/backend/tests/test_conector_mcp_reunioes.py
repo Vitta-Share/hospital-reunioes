@@ -390,13 +390,15 @@ def banco_do_hospital(*quem: dict) -> BancoFalso:
             vinculo("R3", "resp-ana", "Ana Souza", "Enfermeira"),
         ],
         pendencias=[
-            pendencia("A1", "ATRASADO", "R1", prazo="2026-10-10"),
-            pendencia("A2", "PENDENTE", "R1", prazo="2026-12-01"),
+            pendencia("A1", "PENDENTE", "R1", prazo="2026-10-10"),
+            pendencia("A2", "PENDENTE", "R1", prazo="2099-12-01"),
             pendencia("A3", "CONCLUIDO", "R1", prazo="2026-10-08"),
-            pendencia("A4", "REPACTUADA", "R2", prazo=None),
+            pendencia("A4", "PENDENTE", "R2", prazo="2099-11-30"),
             pendencia("A5", "EM_PROGRESSO", "R3"),
         ],
         comentarios_pendencias=[],
+        # A A4 foi repactuada: a tela e o Claude a mostram como repactuada (#1862).
+        pendencia_historico=[{"id_acao": "A4", "comando": "repactuar"}],
     )
 
 
@@ -425,7 +427,7 @@ class TestBuscaDeReunioes:
         assert [(p["id"], p["responsavel"], p["prazo"]) for p in r1["pendencias"]] == [
             ("A3", "Ana Souza", "2026-10-08"),
             ("A1", "Ana Souza", "2026-10-10"),
-            ("A2", "Ana Souza", "2026-12-01"),
+            ("A2", "Ana Souza", "2099-12-01"),
         ]
         assert payload["total"] == 2
         assert payload["haMais"] is False
@@ -572,7 +574,8 @@ class TestSituacaoDaPendencia:
         comparadas = 0
         for r in payload["reunioes"]:
             na_tela = {
-                p["id_acao"]: SITUACAO_NA_TELA[p["status"]] for p in tela_de_pendencias_da_reuniao(banco, quem, r["id"])
+                p["id_acao"]: SITUACAO_NA_TELA[p["situacao"]]
+                for p in tela_de_pendencias_da_reuniao(banco, quem, r["id"])
             }
             no_claude = {p["id"]: p["situacao"] for p in r["pendencias"]}
             assert no_claude == na_tela, r["id"]
@@ -587,6 +590,9 @@ class TestSituacaoDaPendencia:
             "A2": "pendente",
             "A3": "concluida",
         }
+        r2 = next(r for r in payload["reunioes"] if r["id"] == "R2")
+        esperadas_r2 = {"A4": "repactuada"} if quem is DIRETOR_SUPER else {}
+        assert {p["id"]: p["situacao"] for p in r2["pendencias"]} == esperadas_r2
 
 
 # ─── 4. Lista longa e só leitura ─────────────────────────────────────────────
@@ -613,8 +619,8 @@ class TestListaLongaCortadaNoTeto:
         cheia = [pendencia(f"C{i:03d}", "PENDENTE", "CHEIA", prazo="2026-01-01") for i in range(250)]
         tardias = [
             pendencia("T1", "PENDENTE", "TARDIA", prazo="2026-12-01"),
-            pendencia("T2", "ATRASADO", "TARDIA", prazo="2026-12-15"),
-            pendencia("T3", "REPACTUADA", "TARDIA", prazo=None),
+            pendencia("T2", "PENDENTE", "TARDIA", prazo="2026-12-15"),
+            pendencia("T3", "PENDENTE", "TARDIA", prazo=None),
         ]
         banco = BancoFalso(
             participantes=[DIRETOR_SUPER],

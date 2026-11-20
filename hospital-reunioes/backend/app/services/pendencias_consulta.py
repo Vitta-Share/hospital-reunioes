@@ -3,8 +3,10 @@
 É a consulta da tela de Pendências (`GET /pendencias`) e da ferramenta de
 pendências do Conector: as duas chamam esta função, e é por isso que a
 pendência que o Claude recebe como atrasada é a que a tela mostra como
-atrasada. Atrasada é o status `ATRASADO`, que o job `marcar_atrasadas` grava
-na pendência PENDENTE de prazo vencido; nenhuma das duas portas recalcula.
+atrasada. Desde a issue #1862 (ADR 0098, decisão 4) atrasada é calculada:
+pendência aberta com prazo vencido no fuso de Brasília, sem job nenhum. E
+repactuada é a que tem Repactuação no histórico. Os dois valem como filtro de
+`status` (`ATRASADO` e `REPACTUADA`), além dos quatro estados gravados.
 
 Quem chama resolve antes quem é e passa o recorte das Pendências dessa pessoa
 (`pendencias_recorte`, issue #1863): o vínculo de responsável, co-responsável
@@ -14,9 +16,77 @@ pessoa não alcança (`ocultas`, issue #1772).
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 from app.services.pendencias_recorte import RecorteDasPendencias
+
+FUSO = ZoneInfo("America/Sao_Paulo")
+ABERTOS = ["PENDENTE", "EM_PROGRESSO"]
+# Acima disso, ler todas as Repactuações sai mais barato que um `in` gigante.
+_LOTE_DO_IN = 200
+
+
+def hoje_em_brasilia() -> date:
+    return datetime.now(FUSO).date()
+
+
+def as_data(valor) -> date | None:
+    """O prazo como vem do PostgREST (texto ISO) ou já como `date`."""
+    if valor is None or isinstance(valor, date):
+        return valor
+    return date.fromisoformat(str(valor)[:10])
+
+
+def ids_repactuados(supabase, ids: list[str] | None) -> set[str]:
+    """As pendências (de `ids`, ou todas com `None`) que têm Repactuação no
+    histórico."""
+    if ids is not None and not ids:
+        return set()
+    if ids is not None and len(ids) <= _LOTE_DO_IN:
+        res = (
+            supabase.table("pendencia_historico")
+            .select("id_acao")
+            .eq("comando", "repactuar")
+            .in_("id_acao", ids)
+            .execute()
+        )
+        return {r["id_acao"] for r in res.data or []}
+    achados: set[str] = set()
+    inicio = 0
+    while True:
+        res = (
+            supabase.table("pendencia_historico")
+            .select("id_acao")
+            .eq("comando", "repactuar")
+            .order("id")
+            .range(inicio, inicio + 999)
+            .execute()
+        )
+        linhas = res.data or []
+        achados.update(r["id_acao"] for r in linhas)
+        if len(linhas) < 1000:
+            break
+        inicio += 1000
+    return achados if ids is None else achados & set(ids)
+
+
+def filtrar_por_status(query, supabase, status: str):
+    """O filtro de status aceita os quatro gravados e os dois calculados, nos
+    termos de `pendencia_ciclo.situacao()`: Atrasada vence Repactuada, que vence
+    o estado gravado da aberta."""
+    hoje = hoje_em_brasilia().isoformat()
+    if status == "ATRASADO":
+        return query.in_("status", ABERTOS).lt("prazo", hoje)
+    if status != "REPACTUADA" and status not in ABERTOS:
+        return query.eq("status", status)
+    # Aberta que não venceu: sem prazo, ou prazo de hoje em diante.
+    query = query.or_(f"prazo.is.null,prazo.gte.{hoje}")
+    repactuados = sorted(ids_repactuados(supabase, None))
+    if status == "REPACTUADA":
+        return query.in_("status", ABERTOS).in_("id_acao", repactuados or ["-"])
+    query = query.eq("status", status)
+    return query.not_.in_("id_acao", repactuados) if repactuados else query
 
 
 def sem_reunioes_ocultas(query, ocultas: list[str]):
@@ -118,7 +188,7 @@ def consultar_pendencias(
             query = query.in_("responsavel_id", responsaveis)
 
     if status:
-        query = query.eq("status", status)
+        query = filtrar_por_status(query, supabase, status)
     if id_reuniao:
         query = query.eq("id_reuniao", id_reuniao)
     if prazo_de:

@@ -12,12 +12,12 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { StatusPendencia } from "@/types";
+import type { SituacaoPendencia } from "@/types";
 import { StatusBadge } from "./StatusBadge";
 
 afterEach(cleanup);
 
-const ESPERADO: [StatusPendencia, string][] = [
+const ESPERADO: [SituacaoPendencia, string][] = [
   ["PENDENTE", "PENDENTE"],
   ["EM_PROGRESSO", "EM PROGRESSO"],
   ["CONCLUIDO", "CONCLUÍDO"],

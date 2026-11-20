@@ -1,4 +1,4 @@
-import { StatusPendencia } from "@/types";
+import { SituacaoPendencia } from "@/types";
 import {
   Clock,
   CheckCircle2,
@@ -29,7 +29,7 @@ import {
  *   - `icon`        → LucideIcon component
  */
 export const PENDENCIA_STATUS_CONFIG: Record<
-  StatusPendencia,
+  SituacaoPendencia,
   {
     label: string;
     /** Tailwind text-color class for badges (e.g. "text-[#D99B4B]") */
@@ -126,4 +126,4 @@ export const PENDENCIA_STATUS_CONFIG: Record<
   },
 };
 
-export const ALL_STATUSES = Object.keys(PENDENCIA_STATUS_CONFIG) as StatusPendencia[];
+export const ALL_STATUSES = Object.keys(PENDENCIA_STATUS_CONFIG) as SituacaoPendencia[];

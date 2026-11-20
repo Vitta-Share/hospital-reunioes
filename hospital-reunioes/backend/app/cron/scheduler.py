@@ -2,13 +2,13 @@
 Cron Jobs — APScheduler BackgroundScheduler
 
 Jobs:
-  1. marcar_atrasadas: 06:00 diário — pendências com prazo vencido → ATRASADO. Depois,
-     apaga as marcas do Registro de acesso com mais de 90 dias (issue #1941). Sem IA.
+  1. retencao_registro_de_acesso: 06:00 diário, apaga as marcas do Registro de acesso com mais
+     de 90 dias (issue #1941). Sem IA. Até a issue #1862 este horário também marcava
+     ATRASADO; atrasada agora é calculada (ADR 0098, decisão 4).
   2. enviar_lembretes_24h: a cada 15 minutos — reuniões PROGRAMADAS cujo horário cai dentro
      das proximas 24 horas e que ainda nao receberam o lembrete.
   3. reconciliar_clicksign: 05:30 diário, reconcilia Reuniões em AGUARDANDO_ASSINATURA
-     com a ClickSign (ADR 0030, issue #279). Roda antes de marcar_atrasadas para que
-     Pendências nascidas na reconciliação já entrem na checagem de atraso do dia.
+     com a ClickSign (ADR 0030, issue #279).
   4. despachar_notificacoes_ouvidoria: a cada 10 minutos, entrega as notificações da
      Ouvidoria que já podem sair (issue #325). É por aqui que a notificação retida
      pela janela comercial sai na abertura do expediente e que a falha do Resend
@@ -53,8 +53,7 @@ Jobs:
      nada. Sem GOOGLE_PLACES_API_KEY, não chama nada e registra a falta no log. Sem IA.
  14. lembrar_agenda_regulatoria: 05:45 diário, cria a Pendência de lembrete da
      Presidência do Núcleo para cada evento da Agenda regulatória cuja data entrou na
-     antecedência (issue #1779). Antes do marcar_atrasadas, para o lembrete de data
-     já vencida virar ATRASADO no mesmo dia. Idempotente: a ocorrência lembrada
+     antecedência (issue #1779). Idempotente: a ocorrência lembrada
      (evento, data) não nasce de novo. Sem IA e sem email.
  15. avisar_termo_e_vigencia_nsp: 08:00 diário, manda os avisos do Núcleo por e-mail:
      Termo de Adesão gerado e sem assinatura (3, 7 e 14 dias), fim da vigência (60 e
@@ -95,26 +94,13 @@ def _supabase():
     return get_supabase_client()
 
 
-def marcar_atrasadas() -> None:
-    """Marca como ATRASADO todas as pendências com prazo vencido ainda em PENDENTE."""
-    supabase = _supabase()
-    hoje = date.today().isoformat()
-    try:
-        result = (
-            supabase.table("pendencias")
-            .update({"status": "ATRASADO"})
-            .eq("status", "PENDENTE")
-            .lt("prazo", hoje)
-            .execute()
-        )
-        atualizadas = len(result.data or [])
-        if atualizadas:
-            logger.info(f"[Cron] {atualizadas} pendências marcadas como ATRASADO.")
-    except Exception as e:
-        logger.error(f"[Cron] Erro em marcar_atrasadas: {e}", exc_info=True)
+def apagar_registro_de_acesso_antigo() -> None:
+    """Apaga as marcas do Registro de acesso com mais de 90 dias (issue #1941).
 
-    # A retenção do Registro de acesso (issue #1941): 90 dias. Independente da
-    # marcação de cima, que não pode deixá-la sem rodar. Sem IA.
+    Era a segunda metade do job das 6h que marcava ATRASADO; a marcação saiu
+    com a issue #1862 (ADR 0098, decisão 4: atrasada é calculada) e a
+    retenção ficou com o horário. Sem IA."""
+    supabase = _supabase()
     from app.services.inicio import registro_de_acesso
 
     try:
@@ -645,7 +631,14 @@ def enviar_relatorio_mensal() -> None:
 
 def start_scheduler() -> None:
     """Inicia o BackgroundScheduler com os jobs configurados."""
-    scheduler.add_job(marcar_atrasadas, "cron", hour=6, minute=0, id="marcar_atrasadas", replace_existing=True)
+    scheduler.add_job(
+        apagar_registro_de_acesso_antigo,
+        "cron",
+        hour=6,
+        minute=0,
+        id="retencao_registro_de_acesso",
+        replace_existing=True,
+    )
     scheduler.add_job(
         enviar_lembretes_24h,
         "interval",
@@ -757,8 +750,7 @@ def start_scheduler() -> None:
         id="nota_do_google",
         replace_existing=True,
     )
-    # 05:45, antes do marcar_atrasadas: o lembrete de data já vencida nasce e
-    # vira ATRASADO no mesmo dia. Disparo perdido num deploy sai no dia seguinte
+    # 05:45. Disparo perdido num deploy sai no dia seguinte
     # (a data continua na antecedência) e nunca duas vezes (a ocorrência).
     scheduler.add_job(
         lembrar_agenda_regulatoria,
@@ -779,7 +771,7 @@ def start_scheduler() -> None:
         id="avisos_termo_e_vigencia_nsp",
         replace_existing=True,
     )
-    # 05:50, depois do reconciliar_clicksign e antes do marcar_atrasadas. Dia
+    # 05:50, depois do reconciliar_clicksign. Dia
     # perdido num deploy sai no seguinte (o prazo continua vencido) e nunca
     # duas vezes (a ata encerrada e o documento por reunião).
     scheduler.add_job(
@@ -822,7 +814,7 @@ def start_scheduler() -> None:
     )
     scheduler.start()
     logger.info(
-        "[Scheduler] APScheduler iniciado. Jobs: marcar_atrasadas (06:00), "
+        "[Scheduler] APScheduler iniciado. Jobs: retencao_registro_de_acesso (06:00), "
         "lembrete_24h_reunioes (a cada 15min), reconciliar_clicksign (05:30), "
         "notificacoes_ouvidoria (a cada 10min), cobranca_prazos_ouvidoria (a cada 10min), "
         "escalonamento_ouvidoria (a cada 10min), reenvio_elogios_ouvidoria (de hora em hora), "
