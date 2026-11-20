@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-19T20:52+0000 -->
+<!-- last_update: 2026-11-20T22:02+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -197,7 +197,7 @@ erDiagram
         TEXT tipo
         VARCHAR facilitador_id FK
         TEXT setor
-        _ mais_colunas "+31"
+        _ mais_colunas "+32"
     }
     reuniao_participantes {
         UUID id PK
@@ -1253,6 +1253,7 @@ erDiagram
 | `reunioes` | `idx_reunioes_tipo_id` | `tipo_id` | `038_fk_indexes.sql` |
 | `reunioes` | `idx_reunioes_colegiado` | `colegiado_id` | `148_nsp_reunioes_do_nucleo.sql` |
 | `reunioes` | `idx_reunioes_reagendada_de` | `reagendada_de` | `153_nsp_presenca_e_quorum.sql` |
+| `reunioes` | `idx_reunioes_setor_id` | `setor_id` | `168_reunioes_setor_obrigatorio.sql` |
 | `reuniao_participantes` | `idx_reuniao_part_reuniao` | `id_reuniao` | `002_create_reunioes.sql` |
 | `reuniao_participantes` | `idx_reuniao_part_participante` | `participante_id` | `002_create_reunioes.sql` |
 | `pendencias` | `idx_pendencias_reuniao` | `id_reuniao` | `003_create_pendencias.sql` |

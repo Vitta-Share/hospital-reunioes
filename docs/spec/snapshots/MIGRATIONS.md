@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-19T20:52+0000 -->
+<!-- last_update: 2026-11-20T22:02+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -165,6 +165,7 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 165 | `165_tecnologia_envio_aos_desenvolvedores.sql` | o Envio aos desenvolvedores pela Conversa da Demanda | 1 | 0 | 2 | 0 |
 | 166 | `166_tecnologia_observacao_da_validacao.sql` | a observacao do Validar fica no app | 0 | 2 | 0 | 0 |
 | 167 | `167_registro_de_acesso.sql` | o Registro de acesso | 1 | 0 | 1 | 0 |
+| 168 | `168_reunioes_setor_obrigatorio.sql` | o setor da Reunião aponta para a tabela de setores | 0 | 1 | 1 | 1 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 159 migrations.
+**Total:** 160 migrations.

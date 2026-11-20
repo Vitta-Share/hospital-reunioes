@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-20T00:51+0000 -->
+<!-- last_update: 2026-11-20T22:02+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -11,6 +11,14 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/aceite/meu-link` | Link de aceite do próprio signatário, para o sino do Facilitador. | ✅ |
 | GET | `/aceite/{token}` | Dados da página pública: a ata completa + quem está aceitando. | ❌ |
 | POST | `/aceite/{token}/aceitar` | Botão "Li e aceito": registra o aceite (origem `aceite_interno`), cria | ❌ |
+
+## admin (`app/routers/admin/acertos_de_setor.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| GET | `/admin/acertos-de-setor` | Listar sem setor | ✅ |
+| PATCH | `/admin/acertos-de-setor/responsaveis/{participante_id}` | Preencher setor do responsavel | ✅ |
+| PATCH | `/admin/acertos-de-setor/reunioes/{id_reuniao}` | Preencher setor da reuniao | ✅ |
 
 ## ana (`app/routers/ana.py`)
 
@@ -671,4 +679,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 385 endpoints em 56 routers · 94% exigem auth.
+**Totais:** 388 endpoints em 57 routers · 94% exigem auth.

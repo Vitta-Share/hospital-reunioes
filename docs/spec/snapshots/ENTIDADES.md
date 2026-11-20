@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-19T20:52+0000 -->
+<!-- last_update: 2026-11-20T22:02+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -50,7 +50,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## reunioes
 
-> Origem: `002_create_reunioes.sql` (alterada em: 016_importacao_ata_legada.sql, 020_historico_importacao.sql, 028_add_taxonomy_fks.sql, 030_add_soft_delete.sql, 032_drop_local_reuniao.sql, 035_add_lembrete_24h_reunioes.sql, 036_add_access_profile.sql, 039_add_envelope_id_clicksign.sql, 044_add_metodo_geracao_reunioes.sql, 056_add_falha_envio_assinatura.sql, 058_finalizacao_envelope_contagem.sql, 059_modo_interno_reuniao.sql, 148_nsp_reunioes_do_nucleo.sql, 153_nsp_presenca_e_quorum.sql)
+> Origem: `002_create_reunioes.sql` (alterada em: 016_importacao_ata_legada.sql, 020_historico_importacao.sql, 028_add_taxonomy_fks.sql, 030_add_soft_delete.sql, 032_drop_local_reuniao.sql, 035_add_lembrete_24h_reunioes.sql, 036_add_access_profile.sql, 039_add_envelope_id_clicksign.sql, 044_add_metodo_geracao_reunioes.sql, 056_add_falha_envio_assinatura.sql, 058_finalizacao_envelope_contagem.sql, 059_modo_interno_reuniao.sql, 148_nsp_reunioes_do_nucleo.sql, 153_nsp_presenca_e_quorum.sql, 168_reunioes_setor_obrigatorio.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -93,6 +93,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `modo_interno_desde` | `TIMESTAMPTZ` | — | — | — |
 | `colegiado_id` | `UUID` | — | — | `colegiados.id` |
 | `reagendada_de` | `VARCHAR(20)` | — | — | `reunioes.id_reuniao` |
+| `setor_id` | `UUID` | — | — | `setores.id` |
 
 **Indexes:**
 - `idx_reunioes_status` em `(status_ata)` (de `002_create_reunioes.sql`)
@@ -110,6 +111,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_reunioes_tipo_id` em `(tipo_id)` (de `038_fk_indexes.sql`)
 - `idx_reunioes_colegiado` em `(colegiado_id)` (de `148_nsp_reunioes_do_nucleo.sql`)
 - `idx_reunioes_reagendada_de` em `(reagendada_de)` (de `153_nsp_presenca_e_quorum.sql`)
+- `idx_reunioes_setor_id` em `(setor_id)` (de `168_reunioes_setor_obrigatorio.sql`)
 
 ## reuniao_participantes
 
