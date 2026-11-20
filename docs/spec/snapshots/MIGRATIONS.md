@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-20T22:02+0000 -->
+<!-- last_update: 2026-11-20T22:09+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -166,6 +166,7 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 166 | `166_tecnologia_observacao_da_validacao.sql` | a observacao do Validar fica no app | 0 | 2 | 0 | 0 |
 | 167 | `167_registro_de_acesso.sql` | o Registro de acesso | 1 | 0 | 1 | 0 |
 | 168 | `168_reunioes_setor_obrigatorio.sql` | o setor da Reunião aponta para a tabela de setores | 0 | 1 | 1 | 1 |
+| 169 | `169_ciclo_de_vida_da_pendencia.sql` | ciclo de vida da Pendencia (ADR 0098, decisoes 4 e 5; issue #1862) | 1 | 1 | 2 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 160 migrations.
+**Total:** 161 migrations.

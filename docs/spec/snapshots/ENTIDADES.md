@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-20T22:02+0000 -->
+<!-- last_update: 2026-11-20T22:09+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -130,7 +130,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## pendencias
 
-> Origem: `003_create_pendencias.sql` (alterada em: 014_add_externo_co_responsavel.sql, 030_add_soft_delete.sql, 042_add_id_nota_pendencias.sql, 052_descontinuar_notas.sql, 057_registro_aceites_incremental.sql)
+> Origem: `003_create_pendencias.sql` (alterada em: 014_add_externo_co_responsavel.sql, 030_add_soft_delete.sql, 042_add_id_nota_pendencias.sql, 052_descontinuar_notas.sql, 057_registro_aceites_incremental.sql, 169_ciclo_de_vida_da_pendencia.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -149,6 +149,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `co_responsavel_nome` | `TEXT` | — | — | — |
 | `deleted_at` | `TIMESTAMPTZ` | — | — | — |
 | `quadro_pos` | `INTEGER` | — | — | — |
+| `concluida_em` | `TIMESTAMPTZ` | — | — | — |
 
 **Indexes:**
 - `idx_pendencias_reuniao` em `(id_reuniao)` (de `003_create_pendencias.sql`)
@@ -2265,6 +2266,27 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_registro_de_acesso_dia` em `(dia)` (de `167_registro_de_acesso.sql`)
 
+## pendencia_historico
+
+> Origem: `169_ciclo_de_vida_da_pendencia.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `BIGINT` | PK | — | — |
+| `id_acao` | `VARCHAR(10)` | NOT NULL | — | `pendencias.id_acao` |
+| `comando` | `TEXT` | NOT NULL | — | — |
+| `anotacao` | `TEXT` | NOT NULL | — | — |
+| `autor_nome` | `TEXT` | NOT NULL | — | — |
+| `status_antes` | `TEXT` | — | — | — |
+| `status_depois` | `TEXT` | NOT NULL | — | — |
+| `prazo_antes` | `DATE` | — | — | — |
+| `prazo_depois` | `DATE` | — | — | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_pendencia_historico_acao` em `(id_acao, criado_em)` (de `169_ciclo_de_vida_da_pendencia.sql`)
+- `idx_pendencia_historico_repactuacao` em `(id_acao)` (de `169_ciclo_de_vida_da_pendencia.sql`)
+
 ---
 
-**Resumo:** 111 tabelas vivas.
+**Resumo:** 112 tabelas vivas.

@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-20T22:02+0000 -->
+<!-- last_update: 2026-11-20T22:09+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -154,6 +154,7 @@ erDiagram
     pendencias ||--o{ agendamentos_email : "id_acao"
     pendencias ||--o{ comentarios_pendencias : "id_acao"
     pendencias ||--o{ nsp_agenda_ocorrencias : "pendencia_id"
+    pendencias ||--o{ pendencia_historico : "id_acao"
     pops ||--o{ pops_versoes : "pop_id"
     pops_setores ||--o{ pops : "setor_id"
     pops_setores ||--o{ pops_setores_participantes : "setor_id"
@@ -214,7 +215,7 @@ erDiagram
         TEXT cargo
         DATE prazo
         TEXT meta_entregavel
-        _ mais_colunas "+7"
+        _ mais_colunas "+8"
     }
     agendamentos_email {
         UUID id PK
@@ -1220,6 +1221,17 @@ erDiagram
         VARCHAR participante_id FK
         DATE dia
     }
+    pendencia_historico {
+        BIGINT id PK
+        VARCHAR id_acao FK
+        TEXT comando
+        TEXT anotacao
+        TEXT autor_nome
+        TEXT status_antes
+        TEXT status_depois
+        DATE prazo_antes
+        _ mais_colunas "+2"
+    }
 ```
 
 ## Indexes principais
@@ -1415,6 +1427,8 @@ erDiagram
 | `tecnologia_envios_aos_desenvolvedores` | `idx_tecnologia_envios_aos_desenvolvedores_demanda` | `demanda_id, ate_mensagem_em` | `165_tecnologia_envio_aos_desenvolvedores.sql` |
 | `tecnologia_envios_aos_desenvolvedores` | `uq_tecnologia_envios_aos_desenvolvedores_um_ajuste` | `demanda_id, ate_mensagem_em` | `165_tecnologia_envio_aos_desenvolvedores.sql` |
 | `registro_de_acesso` | `idx_registro_de_acesso_dia` | `dia` | `167_registro_de_acesso.sql` |
+| `pendencia_historico` | `idx_pendencia_historico_acao` | `id_acao, criado_em` | `169_ciclo_de_vida_da_pendencia.sql` |
+| `pendencia_historico` | `idx_pendencia_historico_repactuacao` | `id_acao` | `169_ciclo_de_vida_da_pendencia.sql` |
 
 ---
-**Resumo:** 111 tabelas · 168 relacionamentos FK detectados.
+**Resumo:** 112 tabelas · 169 relacionamentos FK detectados.
