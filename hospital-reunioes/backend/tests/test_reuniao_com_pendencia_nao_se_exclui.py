@@ -146,3 +146,23 @@ class TestForceDeExclusao:
 
         assert resposta.status_code == 405, resposta.text
         assert _ids_das_reunioes(banco) == {REUNIAO, OUTRA}
+
+
+class TestKitDeConhecimento:
+    def test_o_produto_reunioes_diz_que_reuniao_com_pendencia_nao_se_exclui(self):
+        caminho = Path(__file__).resolve().parents[1] / "app" / "conhecimento" / "reunioes.md"
+        texto = " ".join(caminho.read_text(encoding="utf-8").split())
+
+        assert "Reunião que já teve pendência não pode ser excluída, mesmo que todas estejam canceladas" in texto
+        assert "segue com a ata e o histórico" in texto
+        assert "Reunião que nunca teve pendência continua podendo ser desmarcada" in texto
+        assert (
+            "o botão Excluir, que apagava a reunião em qualquer status e só quem administra o aplicativo via, saiu"
+            in texto
+        )
+        # O que o texto dizia antes e deixou de ser verdade.
+        assert "as regras de quando uma reunião pode ser apagada não mudaram" not in texto
+        assert "consegue apagar ou corrigir uma ata já finalizada" not in texto
+        assert "O botão Excluir da reunião fica discreto" not in texto
+        assert chr(0x2014) not in texto
+        assert chr(0x2013) not in texto

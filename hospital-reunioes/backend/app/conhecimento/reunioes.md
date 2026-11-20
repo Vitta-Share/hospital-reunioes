@@ -35,6 +35,8 @@ Concluir já termina, sem validação de ninguém, e o aplicativo guarda o dia e
 
 Cada ação vira uma linha no histórico da pendência, com quem fez, quando e a anotação, e a tela mostra esse histórico em ordem. Ninguém edita nem apaga uma linha do histórico, nem quem administra o aplicativo: o próprio banco de dados recusa. Também não existe mais o "excluir pendência": o caminho é cancelar, com anotação. Título, meta, cargo e responsável ficam só para leitura na tela.
 
+Excluir a reunião também não apaga as pendências dela. Reunião que já teve pendência não pode ser excluída, mesmo que todas estejam canceladas: ela segue com a ata e o histórico, e quem tenta desmarcar vê uma mensagem explicando por quê. O mesmo vale para desmarcar uma série recorrente em que alguma reunião já tem pendência. Reunião que nunca teve pendência continua podendo ser desmarcada, como antes.
+
 As pendências antigas que estavam atrasadas ou "a repactuar" (sem prazo) recuperaram o prazo que estava no quadro da ata. Onde o quadro não tinha o prazo, ficou valendo a data da última mudança, e o histórico dela mostra esse ajuste.
 
 ## Assinar ou finalizar sem assinar
@@ -86,13 +88,13 @@ Quem acompanha outras pessoas vê, abaixo da lista, o bloco Quem responde a voc�
 
 No calendário de Reuniões, na visão do mês e na da semana, as reuniões de cada dia aparecem na ordem da hora de início, e a mais cedo vem primeiro. No mês, o dia mostra as três primeiras e um "mais" para abrir as outras. O título que não cabe no bloco aparece inteiro quando se passa o mouse sobre a reunião.
 
-Na tela da reunião, o botão Excluir, que só quem administra o aplicativo vê, é discreto, com borda e texto vermelhos, como o Desmarcar ao lado dele. Ele continua pedindo confirmação antes de apagar, e as regras de quando uma reunião pode ser apagada não mudaram.
+Na tela da reunião, o botão Excluir, que apagava a reunião em qualquer status e só quem administra o aplicativo via, saiu. Fica o Desmarcar, que vale para a reunião programada ou parada no erro e sem pendência.
 
 ## O que ele não faz
 
 - Não grava a reunião: o aplicativo não capta o que se fala na sala. O áudio que ele recebe é o ditado, quando o facilitador prefere falar a digitar na ata guiada: esse áudio sobe, é transcrito ali mesmo e descartado. Áudio nenhum fica guardado.
 - Não gera PDF da ata guiada, e não a manda para assinatura.
-- Não desfaz uma ata finalizada pelo caminho normal: quem administra o aplicativo consegue apagar ou corrigir uma ata já finalizada, com motivo obrigatório e registro de quem fez, e isso é exceção pedida caso a caso, não botão de uso corrente.
+- Não desfaz uma ata finalizada pelo caminho normal: quem administra o aplicativo consegue corrigir uma ata já finalizada, com motivo obrigatório e registro de quem fez, e isso é exceção pedida caso a caso, não botão de uso corrente. Apagar a reunião, nem ele consegue.
 
 ## O que já foi decidido
 
@@ -111,7 +113,7 @@ Na tela da reunião, o botão Excluir, que só quem administra o aplicativo vê,
 - As reuniões do Núcleo de Segurança do Paciente ficam no módulo Segurança do Paciente e não aparecem para quem não é do Núcleo, nem para quem administra o aplicativo.
 - Cada pessoa vê as pendências dela e as das reuniões que facilita, quem só participou da reunião não vê as dos outros, e quem administra o aplicativo vê todas, fora as do Núcleo.
 - No calendário, as reuniões de cada dia seguem a hora de início, da mais cedo para a mais tarde.
-- O botão Excluir da reunião fica discreto, para não ser o mais chamativo da tela.
+- Nada apaga pendência: reunião que já teve pendência, mesmo toda cancelada, não se exclui.
 - Toda reunião nova tem setor, e quem administra o aplicativo preenche o setor que falta nas reuniões antigas e nos responsáveis.
 
 ## O que costuma virar Demanda
