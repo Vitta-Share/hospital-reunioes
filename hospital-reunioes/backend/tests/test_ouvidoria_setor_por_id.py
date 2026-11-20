@@ -17,12 +17,15 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.dirname(__file__))
 
+from test_ana_ouvidoria_protocolos import CHAVE_CORRETA, _BancoOuvidoriaFake, _make_app, _payload_valido  # noqa: E402
 from test_ouvidoria_registro_manual import REGISTRO  # noqa: E402
 from test_ouvidoria_registro_manual import _client as _client_registro  # noqa: E402
 from test_ouvidoria_validacao_acionamento import OUVIDOR  # noqa: E402
 
+from app.config import settings  # noqa: E402
 from app.limiter import limiter  # noqa: E402
 from app.services import ouvidoria_notificacoes  # noqa: E402
+from app.services.ouvidoria_taxonomia import SETOR_PENDENTE  # noqa: E402
 
 TAXONOMIA = [
     {"id": "s1", "nome": "Recepção", "ativo": True},
@@ -56,3 +59,24 @@ class TestRegistroManual:
         assert r.status_code == 201, r.text
         [caso] = supabase.tabelas["ouvidoria_protocolos"]
         assert (caso["setor"], caso["setor_id"]) == ("Farmácia", "s2")
+
+
+class TestAna:
+    def _registrar(self, monkeypatch, setor: str) -> dict:
+        monkeypatch.setattr(settings, "ana_api_key", CHAVE_CORRETA)
+        banco = _BancoOuvidoriaFake()
+        r = _make_app(banco).post(
+            "/api/ana/ouvidoria/protocolos", json=_payload_valido(setor=setor), headers={"X-API-Key": CHAVE_CORRETA}
+        )
+        assert r.status_code == 201, r.text
+        return banco.rows[0]
+
+    def test_a_area_que_a_ana_escreveu_entra_com_o_id_do_cadastro(self, monkeypatch):
+        caso = self._registrar(monkeypatch, "enfermagem")
+
+        assert (caso["setor"], caso["setor_id"]) == ("Enfermagem", "id-enfermagem")
+
+    def test_a_area_que_nao_casa_entra_pendente_e_sem_id(self, monkeypatch):
+        caso = self._registrar(monkeypatch, "Setor que a IA inventou")
+
+        assert (caso["setor"], caso["setor_id"]) == (SETOR_PENDENTE, None)

@@ -43,7 +43,9 @@ from app.services.ouvidoria_taxonomia import (
     CATEGORIA_PENDENTE,
     NATUREZAS_INFORMADAS,
     SETOR_PENDENTE,
-    casar_setor,
+    SetorDoCadastro,
+    casar_setor_do_cadastro,
+    colunas_do_setor,
     nasce_sigilosa,
 )
 from app.utils.text_sanitizer import sanitizar_travessao, texto_ou_nulo
@@ -142,6 +144,13 @@ def _setor_da_taxonomia(supabase, setor: str | None) -> str | None:
     canônico, ou None. É a lista fechada que impede o canal aberto de virar
     porta para texto arbitrário na área da manifestação, e é a taxonomia que já
     existe, sem cadastro paralelo."""
+    encontrado = _setor_do_cadastro(supabase, setor)
+    return encontrado.nome if encontrado else None
+
+
+def _setor_do_cadastro(supabase, setor: str | None) -> SetorDoCadastro | None:
+    """O `_setor_da_taxonomia` com o id da linha, para quem grava a área na
+    manifestação (issue #1983)."""
     procurado = _limpar(setor)
     if not procurado:
         return None
@@ -150,7 +159,7 @@ def _setor_da_taxonomia(supabase, setor: str | None) -> str | None:
     # sozinho casaria com o primeiro setor da lista. São poucas dezenas de
     # linhas; trazer todas e comparar é mais barato que a armadilha.
     try:
-        result = supabase.table("setores").select("nome").eq("ativo", True).order("nome").execute()
+        result = supabase.table("setores").select("id, nome").eq("ativo", True).order("nome").execute()
     except APIError as exc:
         logger.warning("Falha ao consultar setores do canal aberto (código %s)", exc.code)
         # Para o canal aberto, falha de leitura e setor inexistente dão no
@@ -163,7 +172,7 @@ def _setor_da_taxonomia(supabase, setor: str | None) -> str | None:
     # ignora caixa, acento e espaço repetido, e o exato ganha do aproximado.
     # Duas regras diferentes fariam a mesma grafia entrar aqui e ser recusada
     # na validação, ou o contrário.
-    return casar_setor(procurado, [linha.get("nome") or "" for linha in (result.data or [])])
+    return casar_setor_do_cadastro(procurado, result.data or [])
 
 
 def taxonomia_disponivel(supabase) -> bool:

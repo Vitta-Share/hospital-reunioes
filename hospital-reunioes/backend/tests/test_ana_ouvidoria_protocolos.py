@@ -150,7 +150,9 @@ class _QuerySetores:
         return self
 
     def execute(self):
-        return type("R", (), {"data": [{"nome": nome} for nome in sorted(self._nomes)]})()
+        # O id segue o nome para o teste do id gravado (issue #1983) ler sem
+        # tabela à parte.
+        return type("R", (), {"data": [{"id": f"id-{nome.lower()}", "nome": nome} for nome in sorted(self._nomes)]})()
 
 
 def _make_app(banco: _BancoOuvidoriaFake | None = None) -> TestClient:
@@ -625,6 +627,7 @@ class TestSugestaoNaoSobrescreveOuvidor:
         assert set(banco.inserts[0]) == {
             "categoria",
             "setor",
+            "setor_id",
             "resumo",
             "conversa_id",
             "relato_integral",
