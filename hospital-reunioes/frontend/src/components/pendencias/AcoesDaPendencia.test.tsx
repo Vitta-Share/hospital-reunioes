@@ -139,6 +139,116 @@ describe("toda ação pede anotação", () => {
   });
 });
 
+describe("anexo na conclusão (issue #1865)", () => {
+  function arquivo(nome: string, tipo: string, bytes = 2048): File {
+    const f = new File(["x"], nome, { type: tipo });
+    Object.defineProperty(f, "size", { value: bytes });
+    return f;
+  }
+
+  async function abrirConclusao() {
+    montar();
+    fireEvent.click(await screen.findByRole("button", { name: "Concluir" }));
+  }
+
+  it("a recomendação sobre fotos aparece junto do campo de anexo", async () => {
+    await abrirConclusao();
+
+    const campo = screen.getByLabelText("Anexo (opcional)");
+    const bloco = campo.closest("label");
+    expect(bloco?.textContent).toContain("Não anexe foto com paciente nem documento interno sensível");
+  });
+
+  it("o campo de anexo só aparece na conclusão", async () => {
+    montar();
+    fireEvent.click(await screen.findByRole("button", { name: "Anotar" }));
+    expect(screen.queryByLabelText("Anexo (opcional)")).toBeNull();
+  });
+
+  it("concluir com foto manda anotação e arquivo para a rota de conclusão", async () => {
+    await abrirConclusao();
+    fireEvent.change(screen.getByLabelText("Anotação (obrigatória)"), { target: { value: "Entregue" } });
+    const foto = arquivo("almoxarifado.jpg", "image/jpeg");
+    fireEvent.change(screen.getByLabelText("Anexo (opcional)"), { target: { files: [foto] } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+
+    await waitFor(() => expect(chamadas.some((c) => c.init?.method === "POST")).toBe(true));
+    const post = chamadas.find((c) => c.init?.method === "POST");
+    expect(post?.url).toBe("/api/pendencias/A001/conclusao");
+    const corpo = post?.init?.body as FormData;
+    expect(corpo.get("anotacao")).toBe("Entregue");
+    expect(corpo.get("arquivo")).toBe(foto);
+  });
+
+  it.each([
+    ["video.mp4", "video/mp4", 2048, "foto"],
+    ["foto.jpg", "image/jpeg", 10 * 1024 * 1024 + 1, "10 MB"],
+  ])("%s é recusado na tela com mensagem clara", async (nome, tipo, bytes, trecho) => {
+    await abrirConclusao();
+    fireEvent.change(screen.getByLabelText("Anotação (obrigatória)"), { target: { value: "Entregue" } });
+    fireEvent.change(screen.getByLabelText("Anexo (opcional)"), { target: { files: [arquivo(nome, tipo, bytes)] } });
+
+    expect(screen.getByRole("alert").textContent).toContain(trecho);
+    expect((screen.getByRole("button", { name: "Confirmar" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+describe("anexo no histórico (issue #1865)", () => {
+  const COM_ANEXO = (pode: boolean) => ({
+    eventos: [
+      {
+        id: 7,
+        comando: "concluir",
+        anotacao: "Entregue ao setor",
+        autor_nome: "Rita Souza",
+        criado_em: "2026-11-19T13:05:00+00:00",
+        conta_atraso: false,
+        anexo: { id: 3, nome: "nota fiscal.pdf", tipo: "application/pdf", tamanho_bytes: 4096 },
+      },
+    ],
+    acoes_permitidas: [],
+    pode_abrir_anexos: pode,
+  });
+
+  function servir(historico: unknown) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        chamadas.push({ url, init });
+        if (url.endsWith("/link")) {
+          return new Response(JSON.stringify({ url: "https://storage.exemplo/assinado" }), { status: 200 });
+        }
+        return new Response(JSON.stringify(historico), { status: 200 });
+      })
+    );
+  }
+
+  it("o anexo aparece no evento de conclusão e abre pelo link assinado", async () => {
+    servir(COM_ANEXO(true));
+    const aba = { opener: {}, location: { href: "" }, close: vi.fn() };
+    vi.stubGlobal("open", vi.fn(() => aba));
+    montar();
+
+    const lista = await screen.findByRole("list", { name: "Histórico da pendência" });
+    const [conclusao] = within(lista).getAllByRole("listitem");
+    expect(conclusao.textContent).toContain("nota fiscal.pdf");
+    fireEvent.click(within(conclusao).getByRole("button", { name: "Abrir anexo" }));
+
+    await waitFor(() => expect(aba.location.href).toBe("https://storage.exemplo/assinado"));
+    expect(chamadas.some((c) => c.url === "/api/pendencias/A001/anexos/3/link")).toBe(true);
+  });
+
+  it("quem não abre vê que há anexo, sem o botão", async () => {
+    servir(COM_ANEXO(false));
+    montar();
+
+    const lista = await screen.findByRole("list", { name: "Histórico da pendência" });
+    const [conclusao] = within(lista).getAllByRole("listitem");
+    expect(conclusao.textContent).toContain("nota fiscal.pdf");
+    expect(within(conclusao).queryByRole("button", { name: "Abrir anexo" })).toBeNull();
+  });
+});
+
 describe("arrasto no kanban", () => {
   it("arrastar para Repactuada abre o formulário uma vez só: depois de confirmar ele não volta preenchido", async () => {
     const onAtualizada = vi.fn();
