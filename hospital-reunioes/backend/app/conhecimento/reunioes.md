@@ -37,6 +37,8 @@ Cada ação vira uma linha no histórico da pendência, com quem fez, quando e a
 
 Excluir a reunião também não apaga as pendências dela. Reunião que já teve pendência não pode ser excluída, mesmo que todas estejam canceladas: ela segue com a ata e o histórico, e quem tenta desmarcar vê uma mensagem explicando por quê. O mesmo vale para desmarcar uma série recorrente em que alguma reunião já tem pendência. Reunião que nunca teve pendência continua podendo ser desmarcada, como antes.
 
+Os lembretes da Agenda regulatória do Núcleo de Segurança do Paciente também são pendências e têm o mesmo histórico. Quando o resultado do evento é registrado na Agenda, o lembrete é concluído e o resultado que a Presidência escreve vira a anotação. Se a data do evento muda antes do resultado, o lembrete da data antiga é cancelado, e a anotação diz a data de antes e a nova. Esses lembretes continuam aparecendo só na Agenda regulatória, para quem é do Núcleo.
+
 As pendências antigas que estavam atrasadas ou "a repactuar" (sem prazo) recuperaram o prazo que estava no quadro da ata. Onde o quadro não tinha o prazo, ficou valendo a data da última mudança, e o histórico dela mostra esse ajuste.
 
 ## Assinar ou finalizar sem assinar

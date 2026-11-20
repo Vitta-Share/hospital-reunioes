@@ -376,3 +376,13 @@ def test_o_texto_de_reunioes_no_kit_diz_o_ciclo_novo_da_pendencia():
     # O comportamento antigo saiu do texto.
     assert "marcada como a repactuar" not in texto
     assert "antes de o aplicativo marcá-la como atrasada" not in texto
+
+
+def test_o_texto_de_reunioes_no_kit_diz_que_o_lembrete_do_nucleo_tem_o_mesmo_historico():
+    """Issue #1866: o resultado registrado no lembrete é a anotação."""
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = (CONHECIMENTO_DIR / "reunioes.md").read_text(encoding="utf-8")
+    secao = texto.split("## Como a pendência anda\n", 1)[1].split("\n## ", 1)[0]
+    assert "lembretes da Agenda regulatória do Núcleo de Segurança do Paciente" in secao
+    assert "o resultado que a Presidência escreve vira a anotação" in secao
