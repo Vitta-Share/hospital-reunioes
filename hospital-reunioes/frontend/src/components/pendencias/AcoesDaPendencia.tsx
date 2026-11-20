@@ -23,6 +23,7 @@ const ROTULO_DO_BOTAO: Record<ComandoPendencia, string> = {
 };
 
 const ROTULO_DO_EVENTO: Record<EventoPendencia["comando"], string> = {
+  nascimento: "Nasceu",
   iniciar: "Iniciou",
   anotar: "Anotou",
   concluir: "Concluiu",

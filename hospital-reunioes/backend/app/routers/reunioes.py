@@ -1597,21 +1597,61 @@ async def aprovar_reuniao(
 
     result = (
         supabase.table("reunioes")
-        .select("status_ata, url_pdf_preliminar, tipo, objetivo")
+        .select("status_ata, url_pdf_preliminar, tipo, objetivo, envelope_key_clicksign, falha_envio_assinatura")
         .eq("id_reuniao", id_reuniao)
         .execute()
     )
     if not result.data:
         raise HTTPException(status_code=404, detail="Reunião não encontrada")
-    if result.data[0]["status_ata"] != "AGUARDANDO_VALIDACAO":
+    reuniao = result.data[0]
+
+    # ADR 0098, decisão 1: no clique, a Reunião vai para AGUARDANDO_ASSINATURA
+    # e nascem as Pendências; a ClickSign roda depois. O UPDATE condicionado é
+    # o claim: o duplo clique acha o estado já mudado (ou a falha já limpa, no
+    # Reenviar) e não cria um segundo Envelope.
+    status = reuniao["status_ata"]
+    if status == "AGUARDANDO_VALIDACAO":
+        claim = (
+            supabase.table("reunioes")
+            .update({"status_ata": "AGUARDANDO_ASSINATURA", "falha_envio_assinatura": None})
+            .eq("id_reuniao", id_reuniao)
+            .eq("status_ata", "AGUARDANDO_VALIDACAO")
+            .execute()
+        )
+    elif status == "AGUARDANDO_ASSINATURA" and not reuniao.get("envelope_key_clicksign"):
+        # Reenviar: só depois de uma falha registrada e sem Envelope gravado.
+        claim = (
+            supabase.table("reunioes")
+            .update({"falha_envio_assinatura": None})
+            .eq("id_reuniao", id_reuniao)
+            .eq("status_ata", "AGUARDANDO_ASSINATURA")
+            .is_("envelope_key_clicksign", "null")
+            .not_.is_("falha_envio_assinatura", "null")
+            .execute()
+        )
+    else:
         raise HTTPException(status_code=400, detail="Reunião não está aguardando validação")
+    if not claim.data:
+        raise HTTPException(status_code=409, detail="O envio para assinatura já está em andamento.")
 
-    # Dispara o fluxo ClickSign em background
     from app.services import clicksign_service
+    from app.services.pendencia_service import liberar_pendencias
 
-    background_tasks.add_task(clicksign_service.start_signature_flow, supabase, id_reuniao, result.data[0])
+    # Idempotente por ação do quadro: o Reenviar não duplica. Falha aqui não
+    # segura o envio; a reconciliação das 5h30 cria o que faltou (decisão 3).
+    total = 0
+    try:
+        total = liberar_pendencias(supabase, id_reuniao, origem="ENVIO_PARA_ASSINATURA")
+    except Exception as e:
+        logger.error(f"Falha ao criar as Pendências no envio de {id_reuniao}: {e}", exc_info=True)
 
-    return {"message": "Ata aprovada. Processo de assinatura digital iniciado."}
+    background_tasks.add_task(clicksign_service.start_signature_flow, supabase, id_reuniao, reuniao)
+
+    return {
+        "status": "AGUARDANDO_ASSINATURA",
+        "total_pendencias": total,
+        "message": "Ata enviada para assinatura. As pendências já foram criadas.",
+    }
 
 
 @router.post("/{id_reuniao}/aprovar-sem-assinatura")
