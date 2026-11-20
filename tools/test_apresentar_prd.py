@@ -173,6 +173,10 @@ def test_observacao_abre_ajuste_do_plano_que_bloqueia_so_as_fatias_iniciais():
     corpo = card["body"]["body"]
     assert corpo.startswith("<!-- ajuste-do-plano: 1757 -->")
     assert "#1863" in corpo  # em andamento: listada, não bloqueada
+    # O agente resolve o card com as próprias recomendações; a única parada do Pedro é o "Posso lançar?".
+    assert "`/grill-with-docs --lote`" in corpo
+    assert "segue todas as recomendações" in corpo
+    assert '`/montar-ondas-enxutas` para o #1757 e termina em "Posso lançar?"' in corpo
 
     [sub] = _chamadas(r, "POST", "/issues/1757/sub_issues")
     assert sub["body"] == {"sub_issue_id": 999}

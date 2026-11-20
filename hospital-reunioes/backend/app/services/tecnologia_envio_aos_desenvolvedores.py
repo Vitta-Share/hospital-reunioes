@@ -522,8 +522,9 @@ def corpo_do_ajuste(
             "## O que é este card",
             "",
             f"O diretor mandou um pedido pela Conversa da Demanda do card #{raiz} em {data}, às {hora}, "
-            "e aprovou o resumo abaixo. Antes de o trabalho seguir, o Pedro lê o resumo e decide se o plano "
-            "ou o conteúdo de algum card muda. Enquanto este card estiver aberto, as fatias iniciais ficam "
+            "e aprovou o resumo abaixo. Antes de o trabalho seguir, o agente revê o plano pelo resumo e segue "
+            "as próprias recomendações. O Pedro só aprova o lançamento das ondas. Enquanto este card estiver "
+            "aberto, as fatias iniciais ficam "
             f"bloqueadas. O que o diretor escreveu fica no aplicativo: {link_da_demanda(demanda_id)}",
             "",
             "## O que o diretor quer mudar",
@@ -541,18 +542,25 @@ def corpo_do_ajuste(
             *secao_em_andamento,
             "## Passo a passo",
             "",
-            "1. Abra o Claude Code na pasta do Hospital e rode `/grill-with-docs` com o número deste card.",
-            "2. Decida com o agente se o pedido muda o plano ou o conteúdo de algum card.",
-            "3. Se algum card muda, o agente reescreve o corpo dele.",
-            "4. Se a mudança altera alguma Parte que o diretor vê na Apresentação, rode "
-            f"`/apresentar-prd {raiz}` e mande o link de novo para ele validar.",
-            "5. Feche este card com um comentário de uma linha: o que mudou, ou por que não precisou mudar.",
+            'O agente resolve este card sozinho. A única parada do Pedro é o "Posso lançar?" do passo 5.',
+            "",
+            "1. Abra o Claude Code na pasta do Hospital e rode `/grill-with-docs --lote` com o número deste card. "
+            'O agente segue todas as recomendações dele, sem esperar o "ok".',
+            "2. O agente leva o ajuste ao corpo do PRD e dos cards que ele toca, e abre card novo quando o ajuste "
+            "pede trabalho que nenhum card cobre.",
+            "3. Se o ajuste muda alguma Parte da Apresentação além do que o diretor pediu, o agente roda "
+            f"`/apresentar-prd {raiz}` e o link vai de novo para ele validar. Se a mudança é só a que ele pediu, "
+            "a Apresentação fica como está.",
+            "4. O agente fecha este card com um comentário de uma linha: o que mudou, ou por que não precisou mudar.",
+            f'5. O agente roda `/montar-ondas-enxutas` para o #{raiz} e termina em "Posso lançar?". '
+            'As ondas só começam com o "pode" do Pedro.',
             "",
             "## Como saber que acabou",
             "",
-            "- Este card está fechado com o comentário do passo 5.",
+            "- Este card está fechado com o comentário do passo 4.",
             "- As fatias bloqueadas voltam para a fila "
             '(`gh issue list --label ready-for-agent --search "-is:blocked"`).',
+            f'- O "Posso lançar?" das ondas do #{raiz} está respondido.',
             "- Se a Apresentação foi publicada de novo, o PRD perdeu o selo `validado:diretor` e espera a nova "
             "validação.",
         ]

@@ -603,7 +603,7 @@ O botão do diretor na [Conversa da Demanda] que entrega aos [Desenvolvedores] o
 _Evitar_: envio automático a cada mensagem; copiar as mensagens para a issue; "pescar" a resposta pelo terminal como único caminho.
 
 **Ajuste do plano**:
-A sub-issue `ready-for-human` do Pedro na issue-raiz de uma Demanda, que diz o que muda em cada card a partir do que o diretor pediu e trava as fatias iniciais ainda não começadas até o Pedro rever (ADR 0108). Nasce de dois lugares: o Validar da [Apresentação do PRD] com observação e o [Envio aos desenvolvedores]. O texto é a interpretação do agente, sem a fala do diretor e sem dado de paciente; o original fica no app.
+A sub-issue `ready-for-human` do Pedro na issue-raiz de uma Demanda, que diz o que muda em cada card a partir do que o diretor pediu e trava as fatias iniciais ainda não começadas até o plano ser revisto (ADR 0108). Quem revê é o agente, num grill em lote que segue as próprias recomendações: ele ajusta o PRD e os cards, fecha o Ajuste e monta as ondas. A única parada do Pedro é o "Posso lançar?". Nasce de dois lugares: o Validar da [Apresentação do PRD] com observação e o [Envio aos desenvolvedores]. O texto é a interpretação do agente, sem a fala do diretor e sem dado de paciente; o original fica no app.
 _Evitar_: citar a observação ou a mensagem do diretor na issue; abrir o Ajuste sem travar as fatias iniciais.
 
 **Apresentação do PRD**:
