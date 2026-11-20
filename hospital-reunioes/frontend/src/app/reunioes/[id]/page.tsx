@@ -46,7 +46,6 @@ import { Section } from "@/components/ui/Section";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 import { SignatariosCard } from "@/components/reunioes/SignatariosCard";
 import TrocarFacilitadorModal from "@/components/reunioes/TrocarFacilitadorModal";
-import { DeleteButton } from "@/components/DeleteButton";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { isSecretaria, isSuperAdmin } from "@/lib/auth";
 import { copiaDaRecorrencia, falhaDaRecorrencia } from "@/lib/reunioes/copiaDaRecorrencia";
@@ -1059,27 +1058,6 @@ export default function ReuniaoDetailPage() {
     }
   };
 
-  // ── Super admin (Fase 04): force delete + force status ──
-  async function handleForceDelete(reason?: string) {
-    const token = await getToken();
-    const reasonFinal = reason?.trim() || "Excluída via super admin";
-    const res = await fetch(`/api/reunioes/${id}/force`, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ reason: reasonFinal }),
-    });
-    if (!res.ok) {
-      const b = await res.json().catch(() => ({}));
-      toast(b.detail || "Erro ao excluir", "error");
-      throw new Error(b.detail || "Erro");
-    }
-    toast("Reunião excluída (super admin).", "success");
-    window.location.href = backHref;
-  }
-
   async function handleAddParticipante(participante_id: string) {
     setAddingParticipante(true);
     const token = await getToken();
@@ -1297,19 +1275,6 @@ export default function ReuniaoDetailPage() {
               <p className="font-mono text-xs text-slate-400 mt-0.5">{reuniao.id_reuniao}</p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              {/* Super admin: Excluir em qualquer status */}
-              <DeleteButton
-                visible={canSuperAdmin}
-                confirmTitle="Excluir reunião em qualquer status?"
-                confirmDescription={
-                  reuniao.status_ata === "ASSINADA"
-                    ? "ATENÇÃO: esta ATA está ASSINADA digitalmente. Ao confirmar, o registro será removido permanentemente. Ação registrada no audit log."
-                    : "A reunião será removida permanentemente em qualquer status. Ação registrada no audit log."
-                }
-                onDelete={handleForceDelete}
-                label="Excluir"
-                buttonVariant="danger-outline"
-              />
               {/* Botão Desmarcar (regra normal) */}
               <button
                 onClick={handleDesmarcarAttempt}
@@ -1663,19 +1628,6 @@ export default function ReuniaoDetailPage() {
             <p className="font-mono text-xs text-slate-400 mt-0.5">{reuniao.id_reuniao}</p>
           </div>
           <div className="flex items-center gap-3">
-            {/* Super admin: Excluir em qualquer status (inclui ATA assinada) */}
-            <DeleteButton
-              visible={canSuperAdmin}
-              confirmTitle="Excluir reunião em qualquer status?"
-              confirmDescription={
-                reuniao.status_ata === "ASSINADA"
-                  ? "ATENÇÃO: esta ATA está ASSINADA digitalmente. Ao confirmar, o registro será removido permanentemente. Ação registrada no audit log."
-                  : "A reunião será removida permanentemente em qualquer status. Ação registrada no audit log."
-              }
-              onDelete={handleForceDelete}
-              label="Excluir"
-              buttonVariant="danger-outline"
-            />
             {/* Desmarcar só faz sentido em PROGRAMADA/ERRO (backend recusa nos demais).
                 Pra secretária, nessas status_ata ela não chega no STANDARD FLOW, então
                 o botão fica oculto aqui pra não confundir. */}
