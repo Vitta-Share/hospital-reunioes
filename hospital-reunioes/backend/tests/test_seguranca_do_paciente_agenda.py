@@ -644,6 +644,21 @@ class TestDataMudada:
         assert status[antigo] == "CANCELADO"
         assert sorted(status.values()) == ["CANCELADO", "CONCLUIDO"]
 
+    def test_o_cancelamento_pela_data_mudada_vai_para_o_historico_com_anotacao(self):
+        """Issue #1866: cancelar o lembrete da data antiga passa pelo comando de
+        ação, com quem mudou a data como autor."""
+        banco, antigo = _cenario_com_lembrete()
+
+        _cliente(PRESIDENTE, banco).patch(
+            f"{ROTA}/item-fixo", json={"proxima_data": (DIA + timedelta(days=20)).isoformat()}
+        )
+
+        [evento] = banco.tabelas["pendencia_historico"]
+        assert (evento["id_acao"], evento["comando"]) == (antigo, "cancelar")
+        assert (evento["autor_id"], evento["autor_nome"]) == ("P1", "Pessoa de Teste P1")
+        assert "21/11/2026" in evento["anotacao"]
+        assert "06/12/2026" in evento["anotacao"]
+
     def test_voltar_para_a_data_antiga_lembra_de_novo(self):
         banco, _ = _cenario_com_lembrete()
         cliente = _cliente(PRESIDENTE, banco)

@@ -247,11 +247,24 @@ def registrar_resultado(
     return atualizado[0]
 
 
-def encerrar_lembrete(supabase, item_id: str, data_prevista: str) -> None:
+def _dd_mm_aaaa(valor: str) -> str:
+    return date.fromisoformat(str(valor)[:10]).strftime("%d/%m/%Y")
+
+
+def encerrar_lembrete(
+    supabase,
+    item_id: str,
+    data_prevista: str,
+    *,
+    data_nova: str | None = None,
+    autor_id: str | None = None,
+    autor_nome: str | None = None,
+) -> None:
     """A data do evento mudou antes do resultado: o lembrete da data antiga
-    não tem mais o que cobrar. A Pendência dele vira CANCELADO e a ocorrência
-    sem resultado sai, para a data antiga voltar a lembrar se for marcada de
-    novo. Ocorrência com resultado é histórico e fica."""
+    não tem mais o que cobrar. A Pendência dele é cancelada pelo comando de
+    ação, com a troca de data na anotação, e a ocorrência sem resultado sai,
+    para a data antiga voltar a lembrar se for marcada de novo. Ocorrência com
+    resultado é histórico e fica."""
     ocorrencias = (
         supabase.table(TABELA_OCORRENCIAS)
         .select("id, pendencia_id, resultado")
@@ -266,9 +279,20 @@ def encerrar_lembrete(supabase, item_id: str, data_prevista: str) -> None:
         return
     ocorrencia = ocorrencias[0]
     if ocorrencia.get("pendencia_id"):
-        supabase.table("pendencias").update({"status": "CANCELADO"}).eq("id_acao", ocorrencia["pendencia_id"]).in_(
-            "status", list(_STATUS_ABERTOS)
-        ).execute()
+        antiga = _dd_mm_aaaa(data_prevista)
+        anotacao = (
+            f"A data do evento mudou de {antiga} para {_dd_mm_aaaa(data_nova)} antes do resultado."
+            if data_nova
+            else f"A data do evento, {antiga}, foi retirada antes do resultado."
+        )
+        _agir_no_lembrete(
+            supabase,
+            ocorrencia["pendencia_id"],
+            Comando.CANCELAR,
+            anotacao=anotacao,
+            autor_id=autor_id,
+            autor_nome=autor_nome,
+        )
     supabase.table(TABELA_OCORRENCIAS).delete().eq("id", ocorrencia["id"]).execute()
 
 
