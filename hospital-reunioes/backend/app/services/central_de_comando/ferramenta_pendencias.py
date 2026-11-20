@@ -7,7 +7,7 @@ filtro de situação, responsável e prazo, a mesma ordem. Atrasada é o status
 `ATRASADO`, o que a tela mostra como atrasada; nada aqui recalcula prazo.
 
 O que a tela não mostra para a pessoa, a ferramenta também não mostra (ADR
-0085, decisão 1): a visibilidade é a das Reuniões dela, e quem não abre a tela
+0085, decisão 1): o recorte é o vínculo dela (ADR 0098, decisão 7), e quem não abre a tela
 de Pendências (secretária, ou sem papel nas Reuniões) recebe a recusa.
 
 Lista longa volta cortada em `TETO`, com o total e o aviso de que há mais,
@@ -77,7 +77,7 @@ def executar(argumentos: dict, participante: dict, supabase) -> dict:
     """As pendências que a tela de Pendências mostra a esta pessoa, com o
     filtro pedido. Levanta `PedidoRecusadoError` para argumento inválido ou para
     quem não abre a tela."""
-    from app.dependencies import is_secretaria, tem_acesso_reunioes, visibilidade_das_reunioes
+    from app.dependencies import is_secretaria, recorte_das_pendencias_de, tem_acesso_reunioes
 
     if is_secretaria(participante) or not tem_acesso_reunioes(participante):
         raise PedidoRecusadoError("A tela de Pendências não está aberta para o seu acesso.")
@@ -97,13 +97,11 @@ def executar(argumentos: dict, participante: dict, supabase) -> dict:
         if not responsaveis:
             return _payload([], 0)
 
-    # A pendência de reunião do Núcleo só vem a quem o módulo libera (#1772).
-    visibilidade = visibilidade_das_reunioes(supabase, participante)
+    # O recorte da tela (issue #1863): o vínculo da pessoa, e a pendência de
+    # reunião do Núcleo só para quem o módulo libera (#1772).
     linhas, total = consultar_pendencias(
         supabase,
-        allowed_reuniao_ids=visibilidade.permitidas,
-        ocultas=visibilidade.ocultas,
-        my_participante_id=participante.get("id"),
+        recorte=recorte_das_pendencias_de(supabase, participante),
         status=SITUACOES.get(situacao) if situacao else None,
         responsaveis=responsaveis,
         prazo_de=prazo_de,

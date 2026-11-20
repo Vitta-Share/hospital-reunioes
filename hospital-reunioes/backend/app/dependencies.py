@@ -14,6 +14,7 @@ from supabase import Client, create_client
 
 from app.config import settings
 from app.middleware.request_context import set_user_id
+from app.services.pendencias_recorte import RecorteDasPendencias, recorte_das_pendencias
 from app.services.seguranca_do_paciente.permissao import RECURSOS_NSP, recursos_nsp, situacao_da_pessoa
 from app.services.seguranca_do_paciente.reunioes import reunioes_do_nucleo
 
@@ -362,6 +363,33 @@ async def get_visibilidade_das_reunioes(
 ) -> VisibilidadeDasReunioes:
     me = await get_participante_for_user(current_user, supabase)
     return visibilidade_das_reunioes(supabase, me, recurso)
+
+
+def recorte_das_pendencias_de(supabase, me: dict[str, Any] | None) -> RecorteDasPendencias:
+    """O recorte das Pendências de quem pede, pelo vínculo (issue #1863, ADR
+    0098, decisão 7): carrega as Reuniões que a pessoa facilita e o sigilo do
+    Núcleo, e a regra fica na função pura de `pendencias_recorte`. É a mesma
+    para a tela e para o Conector, que não tem sessão do app."""
+    if not me:
+        return recorte_das_pendencias(None, super_admin=False, facilitadas=[], do_nucleo=[], ocultas=[])
+    do_nucleo = reunioes_do_nucleo(supabase)
+    super_admin = is_super_admin(me)
+    facilitadas: list[str] = []
+    if not super_admin:
+        linhas = supabase.table("reunioes").select("id_reuniao").eq("facilitador_id", me["id"]).execute().data
+        facilitadas = [linha["id_reuniao"] for linha in (linhas or [])]
+    return recorte_das_pendencias(
+        me.get("id"),
+        super_admin=super_admin,
+        facilitadas=facilitadas,
+        do_nucleo=do_nucleo,
+        ocultas=_ocultas(supabase, me, "reunioes", do_nucleo),
+    )
+
+
+async def get_recorte_das_pendencias(current_user: dict, supabase) -> RecorteDasPendencias:
+    me = await get_participante_for_user(current_user, supabase)
+    return recorte_das_pendencias_de(supabase, me)
 
 
 async def barrar_reuniao_do_nucleo(

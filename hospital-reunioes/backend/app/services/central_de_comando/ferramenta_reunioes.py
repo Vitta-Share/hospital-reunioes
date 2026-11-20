@@ -79,7 +79,12 @@ def executar(argumentos: dict, participante: dict, supabase) -> dict:
     """As Reuniões que a tela mostra a esta pessoa, com a busca pedida.
     Levanta `PedidoRecusadoError` para argumento inválido ou para quem não vê
     a Ata na tela."""
-    from app.dependencies import is_secretaria, tem_acesso_reunioes, visibilidade_das_reunioes
+    from app.dependencies import (
+        is_secretaria,
+        recorte_das_pendencias_de,
+        tem_acesso_reunioes,
+        visibilidade_das_reunioes,
+    )
 
     if is_secretaria(participante) or not tem_acesso_reunioes(participante):
         raise PedidoRecusadoError("A Ata das Reuniões não está aberta para o seu acesso.")
@@ -102,14 +107,13 @@ def executar(argumentos: dict, participante: dict, supabase) -> dict:
     ids = [r["id_reuniao"] for r in reunioes]
     participantes = participantes_por_reuniao(supabase, ids)
     # As Pendências de cada Reunião desta página, pela consulta da tela de
-    # Pendências: a visibilidade é a das próprias Reuniões, já filtradas acima.
-    # Uma consulta por Reunião, para o teto valer por Reunião e o total de cada
-    # uma ser o de verdade.
+    # Pendências e com o mesmo recorte (issue #1863): quem só participou da
+    # Reunião vê a Reunião e só as Pendências dele nela. Uma consulta por
+    # Reunião, para o teto valer por Reunião e o total de cada uma ser o de
+    # verdade.
+    recorte = recorte_das_pendencias_de(supabase, participante)
     pendencias = {
-        i: consultar_pendencias(
-            supabase, allowed_reuniao_ids=[i], my_participante_id=None, id_reuniao=i, limit=TETO_DE_PENDENCIAS
-        )
-        for i in ids
+        i: consultar_pendencias(supabase, recorte=recorte, id_reuniao=i, limit=TETO_DE_PENDENCIAS) for i in ids
     }
 
     ha_mais = total > len(reunioes)

@@ -31,6 +31,10 @@ Quando a assinatura não se completa (alguém recusa, ou o processo é cancelado
 
 A coleta de assinaturas também tem prazo: são 30 dias. Vencido o prazo, a ata é finalizada com as assinaturas que tiver, a tela mostra quantos de quantos assinaram, e as pendências que faltavam nascem nesse momento.
 
+## Quem vê cada pendência
+
+Cada pessoa vê as pendências de que é responsável ou divide a responsabilidade, e todas as pendências das reuniões em que ela é o facilitador. Quem só participou de uma reunião não vê as pendências dos outros que saíram dela. Quem administra o aplicativo vê todas, menos as das reuniões do Núcleo de Segurança do Paciente, que seguem a regra do Núcleo. Isso vale para a lista e o quadro de pendências, os números do painel, a tela da pendência com os comentários e o que o Claude da diretoria consulta. Num comentário, só dá para mencionar quem vê a pendência. A Secretária não vê pendência nenhuma, como antes.
+
 ## As reuniões do Núcleo de Segurança do Paciente
 
 As reuniões do Núcleo de Segurança do Paciente ficam no módulo Segurança do Paciente, no item Reuniões, e não são marcadas pela tela de Reuniões. São de quatro tipos: ordinária mensal, análise de evento, apresentação à Diretoria e reunião rápida de segurança. Depois de criada, a reunião do Núcleo segue o mesmo caminho das outras até a ata. A reunião rápida de segurança é só um registro de três linhas, sem transcrição nem ata.
@@ -74,6 +78,7 @@ Quem acompanha outras pessoas vê, abaixo da lista, o bloco Quem responde a voc�
 - O papel interno de cada facilitador é uma etiqueta da administração, e a própria pessoa não vê o dela.
 - Os títulos e subtítulos do PDF da ata saem em caixa alta, inclusive os tópicos escritos pela inteligência artificial, e o resto do texto continua com maiúscula e minúscula.
 - As reuniões do Núcleo de Segurança do Paciente ficam no módulo Segurança do Paciente e não aparecem para quem não é do Núcleo, nem para quem administra o aplicativo.
+- Cada pessoa vê as pendências dela e as das reuniões que facilita, quem só participou da reunião não vê as dos outros, e quem administra o aplicativo vê todas, fora as do Núcleo.
 
 ## O que costuma virar Demanda
 

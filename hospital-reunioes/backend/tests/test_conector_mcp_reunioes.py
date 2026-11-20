@@ -304,6 +304,7 @@ def reuniao(
     status_ata: str = "APROVADA",
     json_ata: dict | None = None,
     deleted_at: str | None = None,
+    facilitador_id: str = "resp-ana",
 ) -> dict:
     return {
         "id_reuniao": id_reuniao,
@@ -315,7 +316,7 @@ def reuniao(
         "objetivo": objetivo,
         "status_ata": status_ata,
         "json_ata": json_ata,
-        "facilitador_id": "resp-ana",
+        "facilitador_id": facilitador_id,
         "deleted_at": deleted_at,
     }
 
@@ -359,7 +360,9 @@ ANA = pessoa("resp-ana", "regular") | {"nome_completo": "Ana Souza"}
 
 
 def banco_do_hospital(*quem: dict) -> BancoFalso:
-    """Três reuniões; a diretora participa de R1 e R2, não de R3."""
+    """Três reuniões; a diretora facilita a R1, só participa da R2 e não está
+    na R3. Desde a issue #1863 ela vê as Pendências da R1, que facilita, e não
+    as da R2, onde só participou."""
     return BancoFalso(
         participantes=[*quem, ANA],
         reunioes=[
@@ -368,6 +371,7 @@ def banco_do_hospital(*quem: dict) -> BancoFalso:
                 "2026-10-05",
                 "Comitê de Qualidade",
                 json_ata=ata("Revisão dos indicadores de infecção.", ("Infecção", "Treinar a equipe da UTI")),
+                facilitador_id="diretora",
             ),
             reuniao(
                 "R2",
@@ -574,7 +578,9 @@ class TestSituacaoDaPendencia:
             assert no_claude == na_tela, r["id"]
             comparadas += len(no_claude)
 
-        assert comparadas == (5 if quem is DIRETOR_SUPER else 4)
+        # A diretora regular vê a R2, onde só participou, sem a A4 de outra
+        # pessoa (issue #1863).
+        assert comparadas == (5 if quem is DIRETOR_SUPER else 3)
         r1 = next(r for r in payload["reunioes"] if r["id"] == "R1")
         assert {p["id"]: p["situacao"] for p in r1["pendencias"]} == {
             "A1": "atrasada",
