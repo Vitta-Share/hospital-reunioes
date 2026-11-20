@@ -56,3 +56,48 @@ class TestDiasCorridos:
 
         with pytest.raises(ValueError):
             minutos_do_prazo(Prazo(60, DIAS_CORRIDOS))
+
+
+class TestDecimoQuintoDiaUtilDoMesSeguinte:
+    """O 15º dia útil do mês que vem, pelo calendário útil e pelos feriados.
+    Dia útil é dia de expediente: vence no fechamento, às 17h."""
+
+    def test_sem_feriado_o_decimo_quinto_dia_util_de_novembro_e_o_dia_20(self):
+        from app.services.ouvidoria_prazos import DIA_UTIL_DO_MES_SEGUINTE, Prazo, calcular_vencimento
+
+        vencimento = calcular_vencimento(_sp(2026, 10, 10, 9), Prazo(15, DIA_UTIL_DO_MES_SEGUINTE), SEM_FERIADO)
+
+        assert vencimento == _sp(2026, 11, 20, 17)
+
+    def test_fim_de_semana_e_feriado_empurram_o_decimo_quinto_dia_util(self):
+        """Com Finados (02/11) e Consciência Negra (20/11) cadastrados, o 15º
+        dia útil de novembro de 2026 passa de sexta 20 para terça 24."""
+        from app.services.ouvidoria_prazos import DIA_UTIL_DO_MES_SEGUINTE, Prazo, calcular_vencimento
+
+        feriados = frozenset({date(2026, 11, 2), date(2026, 11, 20)})
+
+        vencimento = calcular_vencimento(_sp(2026, 10, 10, 9), Prazo(15, DIA_UTIL_DO_MES_SEGUINTE), feriados)
+
+        assert vencimento == _sp(2026, 11, 24, 17)
+
+    def test_ocorrido_em_dezembro_vence_em_janeiro_do_ano_seguinte(self):
+        """Com o feriado de 01/01/2027, o 15º dia útil de janeiro é sexta 22."""
+        from app.services.ouvidoria_prazos import DIA_UTIL_DO_MES_SEGUINTE, Prazo, calcular_vencimento
+
+        feriados = frozenset({date(2027, 1, 1)})
+
+        vencimento = calcular_vencimento(_sp(2026, 12, 15, 9), Prazo(15, DIA_UTIL_DO_MES_SEGUINTE), feriados)
+
+        assert vencimento == _sp(2027, 1, 22, 17)
+
+    def test_o_mes_do_ocorrido_e_o_de_sao_paulo_e_nao_o_do_utc(self):
+        """31/12 às 22h em São Paulo já é 01/01 em UTC. O mês seguinte é janeiro,
+        e não fevereiro."""
+        from app.services.ouvidoria_prazos import DIA_UTIL_DO_MES_SEGUINTE, Prazo, calcular_vencimento
+
+        feriados = frozenset({date(2027, 1, 1)})
+        ocorrido_em_utc = datetime(2027, 1, 1, 1, 0, tzinfo=UTC)
+
+        vencimento = calcular_vencimento(ocorrido_em_utc, Prazo(15, DIA_UTIL_DO_MES_SEGUINTE), feriados)
+
+        assert vencimento == _sp(2027, 1, 22, 17)

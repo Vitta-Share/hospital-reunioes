@@ -35,7 +35,13 @@ HORAS_CORRIDAS = "horas_corridas"
 # Dia de calendário (ADR 0107, decisão 2): os prazos legais do Núcleo (60 dias
 # corridos) não param em fim de semana nem em feriado. A Ouvidoria não usa.
 DIAS_CORRIDOS = "dias_corridos"
-UNIDADES = (DIAS_UTEIS, HORAS_UTEIS, HORAS_CORRIDAS, DIAS_CORRIDOS)
+# O enésimo dia útil do mês seguinte ao do fato (ADR 0107, decisão 2): é a
+# régua da notificação à ANVISA, `Prazo(15, DIA_UTIL_DO_MES_SEGUINTE)`. Usa o
+# calendário útil e os feriados, mas não depende da hora do fato, só do mês.
+DIA_UTIL_DO_MES_SEGUINTE = "dia_util_do_mes_seguinte"
+UNIDADES = (DIAS_UTEIS, HORAS_UTEIS, HORAS_CORRIDAS, DIAS_CORRIDOS, DIA_UTIL_DO_MES_SEGUINTE)
+# As unidades que não têm tradução para minutos de expediente.
+_SEM_MINUTOS_DE_EXPEDIENTE = (HORAS_CORRIDAS, DIAS_CORRIDOS, DIA_UTIL_DO_MES_SEGUINTE)
 
 # Teto da prorrogação, contado da entrada da manifestação (PRD #318).
 TETO_PRORROGACAO_DIAS_UTEIS = 30
@@ -153,6 +159,22 @@ def _vencimento_em_dias_corridos(inicio: datetime, dias: int) -> datetime:
     return datetime.combine(ultimo_dia, time(23, 59, 59), tzinfo=FUSO).astimezone(UTC)
 
 
+def _vencimento_no_dia_util_do_mes_seguinte(inicio: datetime, ordem: int, feriados: frozenset[date]) -> datetime:
+    """O fechamento do enésimo dia útil do mês seguinte ao do fato, em UTC.
+
+    O mês é o de São Paulo: o fato de 31/12 às 22h já é 01/01 em UTC, e o
+    vencimento dele cai em janeiro, não em fevereiro."""
+    if ordem < 1:
+        raise ValueError("Não existe dia útil de ordem zero: o motor não inventa prazo")
+    dia_do_fato = _em_sao_paulo(inicio).date()
+    if dia_do_fato.month == 12:
+        primeiro_do_mes_seguinte = date(dia_do_fato.year + 1, 1, 1)
+    else:
+        primeiro_do_mes_seguinte = date(dia_do_fato.year, dia_do_fato.month + 1, 1)
+    primeiro_dia_util = _proximo_dia_util(primeiro_do_mes_seguinte - timedelta(days=1), feriados)
+    return _vencimento_em_dias_uteis(primeiro_dia_util, ordem, feriados).astimezone(UTC)
+
+
 def calcular_vencimento(inicio: datetime, prazo: Prazo, feriados: frozenset[date]) -> datetime | None:
     """O vencimento do prazo, em UTC. None quando a gravidade não tem prazo."""
     if prazo.valor is None:
@@ -164,6 +186,8 @@ def calcular_vencimento(inicio: datetime, prazo: Prazo, feriados: frozenset[date
         return _vencimento_corrido(inicio, prazo.valor)
     if prazo.unidade == DIAS_CORRIDOS:
         return _vencimento_em_dias_corridos(inicio, prazo.valor)
+    if prazo.unidade == DIA_UTIL_DO_MES_SEGUINTE:
+        return _vencimento_no_dia_util_do_mes_seguinte(inicio, prazo.valor, feriados)
 
     abertura = inicio_da_contagem(inicio, feriados)
     if prazo.valor == 0:
@@ -190,13 +214,13 @@ def minutos_do_prazo(prazo: Prazo) -> int | None:
         return None
     if prazo.unidade not in UNIDADES:
         raise ValueError(f"Unidade de prazo desconhecida: {prazo.unidade}")
-    if prazo.unidade in (HORAS_CORRIDAS, DIAS_CORRIDOS):
+    if prazo.unidade in _SEM_MINUTOS_DE_EXPEDIENTE:
         # Não existe conversão honesta: 24 horas corridas valem 9 horas de
         # expediente numa sexta e nenhuma num feriado. Quem chama aqui está
         # dando meio prazo à área ou medindo espera, e essas contas são todas
         # em tempo ÚTIL. Devolver um número aproximado seria pior que recusar,
         # porque a régua errada não denuncia a si mesma.
-        raise ValueError("Prazo corrido não vira minutos de expediente")
+        raise ValueError(f"Prazo em {prazo.unidade} não vira minutos de expediente")
     por_unidade = MINUTOS_POR_DIA_UTIL if prazo.unidade == DIAS_UTEIS else 60
     return prazo.valor * por_unidade
 
