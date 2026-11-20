@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-20T19:05:41-03:00",
+      "sha": "25418bb66d298fa3d0f44aaf0b9dc8a0ce27e7ba",
+      "app_version": "0.321.0",
+      "subject": "Onda sesta-1757-onda1: Calendário em ordem de horário e Excluir reunião fora de destaque; Setor obrigatório na Reunião e tela de acertos de setor do Super admin",
+      "raw_subject": "chore(deploy): registro da onda sesta-1757-onda1 (#2038 #2040)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1757
+      ],
+      "result": "healthy",
+      "duration_seconds": 488,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "168_reunioes_setor_obrigatorio.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1757-onda1: PR #2038 (issue #1860), PR #2040 (issue #1861), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 6,
+        "build_s": {
+          "backend": 19,
+          "frontend": 184
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-19T21:52:50-03:00",
       "sha": "173d193502e8b264195f61ec933b8a0a56d9d559",
       "app_version": "0.320.0",
