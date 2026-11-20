@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-20T19:13:07-03:00",
+      "sha": "6564ea05f2c077d188168c77731d260375b0c4e8",
+      "app_version": "0.322.0",
+      "subject": "PR #2041, issue #1862: Ciclo de vida da Pendência com quatro estados, atraso calculado, ações com anotação e histórico imutável",
+      "raw_subject": "chore(deploy): registro do PR avulso (#2041)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1757
+      ],
+      "result": "healthy",
+      "duration_seconds": 613,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "169_ciclo_de_vida_da_pendencia.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "PR avulso: PR #2041, issue #1862. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 20,
+          "frontend": 205
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-20T19:05:41-03:00",
       "sha": "25418bb66d298fa3d0f44aaf0b9dc8a0ce27e7ba",
       "app_version": "0.321.0",
