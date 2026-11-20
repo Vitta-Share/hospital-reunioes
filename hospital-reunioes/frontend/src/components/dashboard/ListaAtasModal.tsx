@@ -35,14 +35,21 @@ interface Signatario {
  * Quem falta assinar e o Cobrar (issue #1868, decisão 36 do diretor no PRD
  * #1757): o Cobrar manda de novo o pedido de assinatura da ClickSign só para
  * quem ainda não assinou.
+ *
+ * A consulta à ClickSign sai só quando a pessoa pede, uma ata por vez: o
+ * Super admin pode cobrar todas as atas do hospital, e consultar cada linha
+ * ao abrir a lista mandaria N pedidos de uma vez ao backend (revisão do PR
+ * #2048).
  */
 function CobrarAssinatura({ idReuniao, token }: { idReuniao: string; token: string }) {
+  const [pedido, setPedido] = useState(false);
   const [faltam, setFaltam] = useState<string[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [resultado, setResultado] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!pedido) return;
     let vivo = true;
     fetch(`/api/reunioes/${idReuniao}/signatarios/status`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -59,7 +66,7 @@ function CobrarAssinatura({ idReuniao, token }: { idReuniao: string; token: stri
     return () => {
       vivo = false;
     };
-  }, [idReuniao, token]);
+  }, [pedido, idReuniao, token]);
 
   async function cobrar() {
     setEnviando(true);
@@ -85,6 +92,17 @@ function CobrarAssinatura({ idReuniao, token }: { idReuniao: string; token: stri
     }
   }
 
+  if (!pedido) {
+    return (
+      <button
+        type="button"
+        onClick={() => setPedido(true)}
+        className="mt-1 text-xs font-semibold text-primary hover:underline"
+      >
+        Ver quem falta assinar
+      </button>
+    );
+  }
   if (erro) return <p className="text-xs text-text-secondary mt-1">{erro}</p>;
   if (faltam === null) return <p className="text-xs text-text-secondary mt-1">Vendo quem falta assinar...</p>;
   if (faltam.length === 0) return <p className="text-xs text-text-secondary mt-1">Todo mundo já assinou.</p>;

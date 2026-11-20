@@ -91,14 +91,17 @@ function chamadas(): { url: string; metodo: string }[] {
   }));
 }
 
+let painelAtual: typeof PAINEL = PAINEL;
+
 beforeEach(() => {
+  painelAtual = PAINEL;
   roteador.push.mockClear();
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       let corpo: unknown = [];
-      if (url.startsWith("/api/pendencias/painel")) corpo = PAINEL;
-      else if (url === "/api/reunioes/R1/signatarios/status") corpo = STATUS_DOS_SIGNATARIOS;
+      if (url.startsWith("/api/pendencias/painel")) corpo = painelAtual;
+      else if (/^\/api\/reunioes\/R\d+\/signatarios\/status$/.test(url)) corpo = STATUS_DOS_SIGNATARIOS;
       else if (url === "/api/reunioes/R1/signatarios/cobrar" && init?.method === "POST")
         corpo = { cobrados: ["Bruno Reis"], falharam: [] };
       return { ok: true, status: 200, json: async () => corpo } as unknown as Response;
@@ -146,6 +149,7 @@ describe("painel de Reuniões", () => {
     fireEvent.click(card);
 
     const modal = screen.getByRole("dialog", { name: "Aguardam Assinatura" });
+    fireEvent.click(within(modal).getByRole("button", { name: /Ver quem falta assinar/ }));
     await within(modal).findByText(/Falta assinar: Bruno Reis/);
     expect(within(modal).queryByText(/Ana Lima/)).toBeNull();
 
@@ -153,5 +157,27 @@ describe("painel de Reuniões", () => {
 
     await within(modal).findByText(/Pedido reenviado para Bruno Reis/);
     expect(chamadas()).toContainEqual({ url: "/api/reunioes/R1/signatarios/cobrar", metodo: "POST" });
+  });
+
+  it("abrir a lista de muitas atas não consulta a ClickSign de nenhuma, só da que a pessoa pede", async () => {
+    const atas = ["R1", "R2", "R3"].map((id) => ({ ...PAINEL.aguardam_assinatura[0], id_reuniao: id }));
+    painelAtual = { ...PAINEL, cards: { ...PAINEL.cards, aguardam_assinatura: 3 }, aguardam_assinatura: atas };
+    render(<DashboardPage />);
+    const card = document.getElementById("aguardam-assinatura") as HTMLElement;
+    await waitFor(() => {
+      expect(within(card).getByText("3")).toBeTruthy();
+    });
+    fireEvent.click(card);
+
+    const modal = screen.getByRole("dialog", { name: "Aguardam Assinatura" });
+    const statusConsultados = () => chamadas().filter((c) => c.url.endsWith("/signatarios/status"));
+    await waitFor(() => {
+      expect(within(modal).getAllByRole("button", { name: /Ver quem falta assinar/ })).toHaveLength(3);
+    });
+    expect(statusConsultados()).toEqual([]);
+
+    fireEvent.click(within(modal).getAllByRole("button", { name: /Ver quem falta assinar/ })[1]);
+    await within(modal).findByText(/Falta assinar: Bruno Reis/);
+    expect(statusConsultados()).toEqual([{ url: "/api/reunioes/R2/signatarios/status", metodo: "GET" }]);
   });
 });
