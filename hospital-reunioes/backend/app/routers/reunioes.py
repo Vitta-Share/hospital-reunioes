@@ -867,6 +867,73 @@ async def lembrar_signatario(
     return {"sent": True, "signer_id": signer_id}
 
 
+@router.post("/{id_reuniao}/signatarios/cobrar")
+@limiter.limit("10/minute")
+async def cobrar_quem_falta_assinar(
+    request: Request,
+    id_reuniao: str,
+    current_user: dict = Depends(get_current_user),
+    supabase=Depends(get_supabase_client),
+):
+    """O Cobrar da lista de Atas que aguardam assinatura, no painel (issue
+    #1868, decisão 36 do diretor no PRD #1757): manda de novo o pedido de
+    assinatura da ClickSign só para quem ainda não assinou. Cobra o
+    Facilitador da Reunião e o Super admin."""
+    me = await get_participante_for_user(current_user, supabase)
+    if is_secretaria(me):
+        raise HTTPException(status_code=403, detail="Secretária não pode cobrar assinatura")
+
+    allowed = await get_allowed_reuniao_ids(current_user, supabase)
+    if allowed is not None and id_reuniao not in allowed:
+        raise HTTPException(status_code=404, detail="Reunião não encontrada")
+
+    result = (
+        supabase.table("reunioes")
+        .select(
+            "id_reuniao, status_ata, envelope_id_clicksign, envelope_key_clicksign, tipo, data, "
+            "facilitador_id, modo_interno_desde"
+        )
+        .eq("id_reuniao", id_reuniao)
+        .execute()
+    )
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Reunião não encontrada")
+    reuniao = result.data[0]
+
+    if not is_super_admin(me) and not (me and reuniao.get("facilitador_id") == me.get("id")):
+        raise HTTPException(status_code=403, detail="Só o facilitador da reunião cobra a assinatura")
+    if reuniao.get("status_ata") != "AGUARDANDO_ASSINATURA":
+        raise HTTPException(status_code=400, detail="Reunião não está aguardando assinatura")
+    if reuniao.get("modo_interno_desde"):
+        raise HTTPException(
+            status_code=400,
+            detail="Reunião no modo interno de aceites: o Envelope foi encerrado e não há ações via ClickSign",
+        )
+
+    envelope_id = reuniao.get("envelope_id_clicksign") or _try_recover_envelope_id(supabase, reuniao)
+    if not envelope_id:
+        raise HTTPException(status_code=400, detail="Reunião enviada antes da atualização, sem cobrança automática")
+
+    from app.services import clicksign_service
+
+    signers = clicksign_service.list_signers(envelope_id)
+    if signers is None:
+        raise HTTPException(status_code=503, detail="Não foi possível consultar a ClickSign agora. Tente de novo.")
+
+    message = _build_reminder_message(reuniao)
+    cobrados: list[str] = []
+    falharam: list[str] = []
+    for s in signers:
+        if s.get("status") == "signed" or not s.get("signer_id"):
+            continue
+        nome = s.get("nome") or s.get("email") or ""
+        if clicksign_service.remind_signer(envelope_id, s["signer_id"], message=message):
+            cobrados.append(nome)
+        else:
+            falharam.append(nome)
+    return {"cobrados": cobrados, "falharam": falharam}
+
+
 RECUSA_REUNIAO_COM_PENDENCIA = (
     "Esta reunião não pode ser excluída porque já tem pendências, mesmo que canceladas. "
     "As pendências e o histórico delas ficam guardados; para tirar uma pendência da cobrança, "
