@@ -147,10 +147,16 @@ def lembrar(supabase, hoje: date) -> int:
             if getattr(erro, "code", None) != "23505":
                 raise
             # Outra rodada lembrou a mesma ocorrência no meio: a Pendência
-            # desta sai, para o lembrete continuar sendo um só.
-            supabase.table("pendencias").update({"deleted_at": datetime.now().astimezone().isoformat()}).eq(
-                "id_acao", pendencia["id_acao"]
-            ).execute()
+            # desta é cancelada, para o lembrete continuar sendo um só. Nada
+            # apaga Pendência (ADR 0098, decisão 6).
+            _agir_no_lembrete(
+                supabase,
+                pendencia["id_acao"],
+                Comando.CANCELAR,
+                anotacao="Lembrete repetido: outra rodada já lembrou esta data do evento.",
+                autor_id=None,
+                autor_nome=None,
+            )
             continue
         criados += 1
     return criados

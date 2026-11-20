@@ -456,6 +456,34 @@ class TestLembrete:
         assert segunda == 0
         assert len(banco.tabelas["pendencias"]) == 1
 
+    def test_lembrete_repetido_pela_corrida_e_cancelado_com_anotacao_e_nao_apagado(self, monkeypatch):
+        """Issue #1866: outra rodada do job lembra a mesma data no meio. O
+        lembrete repetido é cancelado pelo comando de ação; nada apaga Pendência."""
+        banco = _cenario_da_presidencia([_item(id="item-fixo", proxima_data=(DIA + timedelta(days=5)).isoformat())])
+        criar = agenda.criar_pendencia_sem_reuniao
+
+        def _outra_rodada_no_meio(supabase, item):
+            pendencia = criar(supabase, item)
+            banco.tabelas["nsp_agenda_ocorrencias"].append(
+                {"id": "da-outra", "item_id": "item-fixo", "data_prevista": item["prazo"], "pendencia_id": "A-OUTRA"}
+            )
+            return pendencia
+
+        monkeypatch.setattr(agenda, "criar_pendencia_sem_reuniao", _outra_rodada_no_meio)
+
+        assert agenda.lembrar(banco, DIA) == 0
+
+        [repetido] = banco.tabelas["pendencias"]
+        assert repetido.get("deleted_at") is None
+        assert repetido["status"] == "CANCELADO"
+        [evento] = banco.tabelas["pendencia_historico"]
+        assert (evento["id_acao"], evento["comando"], evento["autor_nome"]) == (
+            repetido["id_acao"],
+            "cancelar",
+            "Sistema",
+        )
+        assert evento["anotacao"].strip()
+
     def test_data_longe_ainda_nao_lembra(self):
         """Mutante: ignorar a antecedência."""
         banco = _cenario_da_presidencia([_item(proxima_data=(DIA + timedelta(days=8)).isoformat())])

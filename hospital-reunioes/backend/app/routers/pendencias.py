@@ -20,6 +20,7 @@ from app.models.schemas import (
     PendenciaResponse,
     PendenciaStats,
 )
+from app.services.pendencia_acao import agir
 from app.services.pendencia_ciclo import (
     AcaoRecusada,
     Comando,
@@ -27,7 +28,6 @@ from app.services.pendencia_ciclo import (
     acoes_disponiveis,
     situacao,
 )
-from app.services.pendencia_acao import agir
 from app.services.pendencia_service import e_lembrete_do_nucleo
 from app.services.pendencias_consulta import (
     as_data,
