@@ -17,9 +17,10 @@ from datetime import date, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dependencies import VisibilidadeDasReunioes, get_current_user, get_supabase_client, require_acesso_reunioes
+from app.dependencies import get_current_user, get_supabase_client, require_acesso_reunioes
 from app.main import app
 from app.routers import pendencias as pendencias_router
+from app.services.pendencias_recorte import recorte_das_pendencias
 
 HOJE = date(2026, 11, 19)
 ONTEM = HOJE - timedelta(days=1)
@@ -142,16 +143,20 @@ def cliente(monkeypatch):
     async def _participante(_user, _sb, fields=None):
         return PESSOAS[estado["quem"]]
 
-    async def _participante_id(_user, _sb):
-        return PESSOAS[estado["quem"]]["id"]
-
-    async def _visibilidade(_user, _sb, recurso="reunioes"):
-        # Todos aqui veem a Reunião R1; quem age é decidido pela regra.
-        return VisibilidadeDasReunioes(permitidas=None if estado["quem"] == "admin" else ["R1"], ocultas=[])
+    async def _recorte(_user, _sb):
+        # O recorte pelo vínculo (issue #1863), com a função pura de verdade:
+        # o Fábio facilita a R1; o Otto só participou dela.
+        quem = estado["quem"]
+        return recorte_das_pendencias(
+            PESSOAS[quem]["id"],
+            super_admin=quem == "admin",
+            facilitadas=["R1"] if quem == "facil" else [],
+            do_nucleo=[],
+            ocultas=[],
+        )
 
     monkeypatch.setattr(pendencias_router, "get_participante_for_user", _participante)
-    monkeypatch.setattr(pendencias_router, "get_participante_id_for_user", _participante_id)
-    monkeypatch.setattr(pendencias_router, "get_visibilidade_das_reunioes", _visibilidade)
+    monkeypatch.setattr(pendencias_router, "get_recorte_das_pendencias", _recorte)
     monkeypatch.setattr(pendencias_router, "hoje_em_brasilia", lambda: HOJE)
 
     app.dependency_overrides[get_current_user] = lambda: {"id": "u1", "email": "x@x"}
@@ -252,7 +257,7 @@ def test_acao_sem_o_campo_anotacao_e_recusada(cliente):
         ("facil", "cancelar", 200),
         ("facil", "concluir", 403),
         ("resp", "cancelar", 403),
-        ("outro", "anotar", 403),
+        ("outro", "anotar", 404),
         ("admin", "cancelar", 200),
     ],
 )

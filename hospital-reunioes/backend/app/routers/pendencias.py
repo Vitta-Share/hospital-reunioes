@@ -339,7 +339,7 @@ def _enrich_ciclo(supabase, rows: list[dict]) -> list[dict]:
 
 async def _pendencia_e_papeis(id_acao: str, current_user: dict, supabase) -> tuple[dict, dict | None, set[Papel]]:
     """A Pendência que quem pede enxerga e os papéis dele nela. Mesmo portão
-    do GET: secretária 403, Núcleo oculto 403, fora da visibilidade 404."""
+    do GET: secretária 403, Núcleo oculto 403, fora do recorte 404."""
     me = await get_participante_for_user(current_user, supabase)
     if is_secretaria(me):
         raise HTTPException(status_code=403, detail="Secretária não tem acesso a pendências")

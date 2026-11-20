@@ -591,7 +591,8 @@ class TestSituacaoDaPendencia:
             "A3": "concluida",
         }
         r2 = next(r for r in payload["reunioes"] if r["id"] == "R2")
-        assert {p["id"]: p["situacao"] for p in r2["pendencias"]} == {"A4": "repactuada"}
+        esperadas_r2 = {"A4": "repactuada"} if quem is DIRETOR_SUPER else {}
+        assert {p["id"]: p["situacao"] for p in r2["pendencias"]} == esperadas_r2
 
 
 # ─── 4. Lista longa e só leitura ─────────────────────────────────────────────
