@@ -245,3 +245,94 @@ def test_painel_conta_todas_as_pendencias_mesmo_com_mais_de_mil_linhas(painel):
     assert corpo["situacoes"]["pendente"] == 400
     # 400 em dia de 1500 abertas.
     assert corpo["cards"]["conformidade"] == 27
+
+
+# ─── 2. O recorte de cada papel ──────────────────────────────────────────────
+
+
+def _banco_de_papeis() -> _Banco:
+    """Fábio facilita a R1 (em assinatura) e a R3 (parada); a R2, em
+    assinatura, é de outra pessoa. Ana é responsável na R1 e co-responsável
+    na R2; Bruno é responsável na R1 e na R2."""
+    return _Banco(
+        pendencias=[
+            _pendencia("A1", "P_ANA", id_reuniao="R1"),
+            _pendencia("A2", "P_BRUNO", id_reuniao="R1", prazo=ONTEM),
+            _pendencia("A3", "P_BRUNO", id_reuniao="R2", prazo=EM_DOIS_DIAS),
+            _pendencia("A4", "P_BRUNO", id_reuniao="R2", co="P_ANA", status="EM_PROGRESSO", prazo=ONTEM),
+        ],
+        reunioes=[
+            _reuniao("R1", "P_FABIO", "AGUARDANDO_ASSINATURA"),
+            _reuniao("R2", "P_OUTRO", "AGUARDANDO_ASSINATURA"),
+            _reuniao("R3", "P_FABIO", "AGUARDANDO_VALIDACAO", updated_at=(AGORA - timedelta(days=10)).isoformat()),
+        ],
+        participantes=[{"id": "P_ANA", "setor": "UTI"}, {"id": "P_BRUNO", "setor": "Farmácia"}],
+    )
+
+
+def test_responsavel_conta_so_as_pendencias_dele_e_nenhuma_ata(painel):
+    pedir, estado = painel
+    estado["banco"] = _banco_de_papeis()
+
+    corpo = pedir("ana").json()
+
+    # A1 (responsável, no prazo) e A4 (co-responsável, atrasada).
+    assert corpo["cards"]["ativas"] == 2
+    assert corpo["cards"]["atrasadas"] == 1
+    assert corpo["cards"]["aguardam_assinatura"] == 0
+    assert corpo["cards"]["atas_paradas"] == 0
+    assert corpo["aguardam_assinatura"] == []
+
+
+def test_facilitador_conta_as_reunioes_e_as_pendencias_dele(painel):
+    pedir, estado = painel
+    estado["banco"] = _banco_de_papeis()
+
+    corpo = pedir("fabio").json()
+
+    # A1 e A2, as Pendências da R1; nada da R2, que ele não facilita.
+    assert corpo["cards"]["ativas"] == 2
+    assert corpo["cards"]["atrasadas"] == 1
+    assert corpo["cards"]["vencem_em_3_dias"] == 0
+    assert [a["id_reuniao"] for a in corpo["aguardam_assinatura"]] == ["R1"]
+    assert corpo["cards"]["aguardam_assinatura"] == 1
+    assert [a["id_reuniao"] for a in corpo["atas_paradas"]] == ["R3"]
+    assert corpo["aguardam_assinatura"][0]["pode_cobrar"] is True
+
+
+def test_super_admin_conta_o_hospital_inteiro(painel):
+    pedir, estado = painel
+    estado["banco"] = _banco_de_papeis()
+
+    corpo = pedir("admin").json()
+
+    assert corpo["cards"]["ativas"] == 4
+    assert corpo["cards"]["atrasadas"] == 2
+    assert corpo["cards"]["vencem_em_3_dias"] == 1
+    assert corpo["cards"]["conformidade"] == 50
+    assert [a["id_reuniao"] for a in corpo["aguardam_assinatura"]] == ["R1", "R2"]
+    assert all(a["pode_cobrar"] for a in corpo["aguardam_assinatura"])
+    assert {s["setor"]: s["atrasado"] for s in corpo["por_setor"]} == {"UTI": 0, "Farmácia": 2}
+
+
+def test_filtro_de_responsavel_vale_dentro_do_recorte(painel):
+    pedir, estado = painel
+    estado["banco"] = _banco_de_papeis()
+
+    corpo = pedir("admin", responsavel_id="P_ANA").json()
+
+    assert corpo["cards"]["ativas"] == 1
+
+
+# ─── 3. A Secretária ─────────────────────────────────────────────────────────
+
+
+def test_secretaria_nao_recebe_dado_de_pendencia(painel):
+    pedir, estado = painel
+    estado["banco"] = _banco_de_papeis()
+
+    resposta = pedir("selma")
+
+    assert resposta.status_code == 403
+    assert "cards" not in resposta.json()
+    assert "situacoes" not in resposta.json()

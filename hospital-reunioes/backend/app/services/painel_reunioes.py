@@ -147,7 +147,9 @@ def calcular_painel(
     filtros: FiltrosDoPainel | None = None,
 ) -> PainelDeReunioes:
     """A conta do painel, sem banco: cada Pendência conta uma vez, na situação
-    que a lista mostra (ADR 0098, decisão 4)."""
+    que a lista mostra (ADR 0098, decisão 4). As `pendencias` chegam já no
+    recorte (a consulta aplica `no_recorte`); as `reunioes`, não, e o recorte
+    delas é feito aqui."""
     filtros = filtros or FiltrosDoPainel()
     situacoes = SituacoesDoPainel()
     setores: dict[str, SetorDoPainel] = {}
@@ -155,7 +157,7 @@ def calcular_painel(
     limite_do_vence_logo = hoje + timedelta(days=DIAS_DO_VENCE_LOGO)
 
     for p in pendencias:
-        if not recorte.ve(p) or not _passa_nos_filtros(p, filtros, setor_de):
+        if not _passa_nos_filtros(p, filtros, setor_de):
             continue
         status = p.get("status") or ""
         prazo = as_data(p.get("prazo"))
@@ -246,11 +248,13 @@ def montar_painel(
     reunioes: list[dict] = []
     if recorte.reunioes is None or recorte.reunioes:
         reunioes = ler_tudo(
-            lambda: supabase.table("reunioes")
-            .select("id_reuniao, data, tipo, objetivo, status_ata, updated_at, facilitador_id, setor")
-            .is_("deleted_at", "null")
-            .in_("status_ata", [*ESTADOS_PARADOS, AGUARDANDO_ASSINATURA])
-            .order("id_reuniao"),
+            lambda: (
+                supabase.table("reunioes")
+                .select("id_reuniao, data, tipo, objetivo, status_ata, updated_at, facilitador_id, setor")
+                .is_("deleted_at", "null")
+                .in_("status_ata", [*ESTADOS_PARADOS, AGUARDANDO_ASSINATURA])
+                .order("id_reuniao")
+            ),
             rotulo="reuniões do painel",
         )
 
