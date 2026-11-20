@@ -31,6 +31,7 @@ from typing import Any
 
 from app.config import settings
 from app.services import clicksign_service, storage
+from app.services import feriados as servico_de_feriados
 from app.services.paginacao import ler_tudo
 from app.services.seguranca_do_paciente import ata as ata_do_nucleo
 from app.services.seguranca_do_paciente import pauta, permissao
@@ -242,16 +243,8 @@ def prazo_do_encerramento(enviada_em: date, feriados: frozenset[date]) -> date:
 def _feriados(supabase, inicio: date, fim: date) -> frozenset[date]:
     """Os feriados cadastrados. Aqui a falha de leitura sobe: encerrar antes
     do prazo tiraria a assinatura de quem ainda tinha tempo, e o job tenta de
-    novo amanhã."""
-    linhas = (
-        supabase.table("ouvidoria_feriados")
-        .select("data")
-        .gte("data", inicio.isoformat())
-        .lte("data", fim.isoformat())
-        .execute()
-        .data
-    ) or []
-    return frozenset(date.fromisoformat(str(linha["data"])[:10]) for linha in linhas if linha.get("data"))
+    novo amanhã. A leitura é a do serviço comum de feriados (issue #1984)."""
+    return servico_de_feriados.feriados_entre(supabase, inicio, fim)
 
 
 def _atas_do_nucleo(supabase, situacoes: list[str]) -> list[dict]:

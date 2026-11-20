@@ -38,7 +38,7 @@ RPC_ULTIMO_MOVIMENTO = "ouvidoria_ultimo_movimento"
 LEITURA_DA_TRILHA = "movimentos"
 
 # As mesmas falhas que o fail-open do calendário cobre, e pelos mesmos motivos
-# (ver `FALHAS_DE_LEITURA_DO_CALENDARIO` em `routers/ouvidoria.py`):
+# (ver `FALHAS_DE_LEITURA_DO_CALENDARIO` em `services/feriados.py`):
 # `HTTPError` é o transporte, e é o que `APIError` NÃO pega, porque `APIError`
 # só nasce depois que a resposta HTTP chega; `APIError` é o PostgREST
 # respondendo e recusando; `OSError` é o socket embaixo dos dois; `ValueError`
