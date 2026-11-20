@@ -212,3 +212,103 @@ describe("Legenda de estados", () => {
     expect(within(legenda).getByText("Não instalada")).toBeTruthy();
   });
 });
+
+// Issue #1860: as Reuniões de um dia aparecem pela hora de início, em todas as
+// visões, e o título longo que o bloco corta aparece inteiro no balão do hover.
+describe("Reuniões do dia", () => {
+  beforeEach(() => {
+    perfil.participante = FACILITADOR;
+  });
+
+  function evento(id: string, hora_inicio: string, titulo: string) {
+    return {
+      id_reuniao: id,
+      data: "2026-11-12",
+      hora_inicio,
+      tipo: "Diretoria",
+      titulo,
+      objetivo: null,
+      status_ata: "PROGRAMADA",
+      facilitador_id: "P_FACIL",
+      participantes: [],
+    };
+  }
+
+  function montarComEventos(eventos: unknown[]) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, status: 200, json: async () => eventos }) as unknown as Response),
+    );
+    return render(
+      <ToastProvider>
+        <CalendarioPage />
+      </ToastProvider>,
+    );
+  }
+
+  // A API devolve na ordem que quiser; aqui, 14h antes de 8h e 10h.
+  const FORA_DE_ORDEM = [
+    evento("R14", "14:00:00", "Reunião das catorze"),
+    evento("R08", "08:00:00", "Reunião das oito"),
+    evento("R10", "10:00:00", "Reunião das dez"),
+  ];
+
+  function titulosNaOrdem(container: HTMLElement) {
+    return Array.from(container.querySelectorAll("a[href^='/reunioes/']")).map(
+      (a) => a.querySelector("span")?.textContent,
+    );
+  }
+
+  it("no mês, o dia mostra 8h, 10h e 14h, nessa ordem", async () => {
+    montarComEventos(FORA_DE_ORDEM);
+    const dia = screen.getByTestId("dia-2026-11-12");
+    await within(dia).findByText("Reunião das oito");
+
+    expect(titulosNaOrdem(dia)).toEqual(["Reunião das oito", "Reunião das dez", "Reunião das catorze"]);
+  });
+
+  it("no mês, o dia com mais de três reuniões mostra as três mais cedo", async () => {
+    montarComEventos([...FORA_DE_ORDEM, evento("R09", "09:30:00", "Reunião das nove")]);
+    const dia = screen.getByTestId("dia-2026-11-12");
+    await within(dia).findByText("Reunião das oito");
+
+    expect(titulosNaOrdem(dia)).toEqual(["Reunião das oito", "Reunião das nove", "Reunião das dez"]);
+  });
+
+  it("na semana, a mesma hora mostra a reunião mais cedo primeiro", async () => {
+    montarComEventos([
+      evento("R1045", "10:45:00", "Reunião das dez e quarenta"),
+      evento("R1015", "10:15:00", "Reunião das dez e quinze"),
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: /Semanal/ }));
+    const slot = await screen.findByTestId("slot-2026-11-12-10:00");
+    await within(slot).findByText("Reunião das dez e quinze");
+
+    expect(titulosNaOrdem(slot)).toEqual(["Reunião das dez e quinze", "Reunião das dez e quarenta"]);
+  });
+
+  const LONGO = "Reunião de alinhamento da diretoria com as coordenações sobre o plano de contingência do inverno";
+
+  it("no mês, o título longo cortado no bloco aparece inteiro no balão do hover", async () => {
+    montarComEventos([evento("RL", "09:00:00", LONGO)]);
+    const dia = screen.getByTestId("dia-2026-11-12");
+    const bloco = await within(dia).findByText(LONGO);
+    expect(bloco.className).toContain("truncate");
+
+    fireEvent.mouseEnter(bloco.closest("a")!.parentElement!);
+
+    expect(within(screen.getByRole("tooltip")).getByText(LONGO)).toBeTruthy();
+  });
+
+  it("na semana, o título longo cortado no bloco aparece inteiro no balão do hover", async () => {
+    montarComEventos([evento("RL", "09:00:00", LONGO)]);
+    fireEvent.click(screen.getByRole("button", { name: /Semanal/ }));
+    const slot = await screen.findByTestId("slot-2026-11-12-09:00");
+    const bloco = await within(slot).findByText(LONGO);
+    expect(bloco.className).toContain("truncate");
+
+    fireEvent.mouseEnter(bloco.closest("a")!.parentElement!);
+
+    expect(within(screen.getByRole("tooltip")).getByText(LONGO)).toBeTruthy();
+  });
+});

@@ -1306,6 +1306,7 @@ export default function ReuniaoDetailPage() {
                 }
                 onDelete={handleForceDelete}
                 label="Excluir"
+                buttonVariant="danger-outline"
               />
               {/* Botão Desmarcar (regra normal) */}
               <button
@@ -1671,6 +1672,7 @@ export default function ReuniaoDetailPage() {
               }
               onDelete={handleForceDelete}
               label="Excluir"
+              buttonVariant="danger-outline"
             />
             {/* Desmarcar só faz sentido em PROGRAMADA/ERRO (backend recusa nos demais).
                 Pra secretária, nessas status_ata ela não chega no STANDARD FLOW, então

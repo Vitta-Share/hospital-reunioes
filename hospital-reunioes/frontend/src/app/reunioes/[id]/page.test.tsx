@@ -211,6 +211,38 @@ describe("Gerar a ata de novo", () => {
   });
 });
 
+// Issue #1860: o Excluir do super admin no cabeçalho deixa de ser o botão sólido
+// de cor primária e fica no estilo secundário destrutivo do Desmarcar ao lado
+// (borda e texto vermelhos, fundo transparente). A confirmação não muda.
+describe("Excluir reunião no cabeçalho", () => {
+  const SUPER_ADMIN = { id: "P_ADMIN", nome_completo: "Admin", email: "a@hsm.com", access_profile: "super_admin" };
+
+  beforeEach(() => {
+    perfil.participante = SUPER_ADMIN;
+  });
+
+  it.each(["PROGRAMADA", "AGUARDANDO_VALIDACAO"])(
+    "na reunião %s o Excluir é secundário destrutivo e a confirmação continua igual",
+    async (status) => {
+      servir(status);
+      montar();
+      await esperarCarregar();
+
+      const excluir = screen.getByRole("button", { name: "Excluir" });
+      expect(excluir.className).not.toContain("bg-purple-600");
+      expect(excluir.className).toContain("border-red-200");
+      expect(excluir.className).toContain("text-red-600");
+
+      fireEvent.click(excluir);
+      const dialogo = await screen.findByRole("dialog");
+      expect(dialogo.textContent).toContain("Excluir reunião em qualquer status?");
+      expect(dialogo.textContent).toContain(
+        "A reunião será removida permanentemente em qualquer status. Ação registrada no audit log.",
+      );
+    },
+  );
+});
+
 // A Ata Guiada recusa a reunião do Núcleo (revisão do PR #1798, issue #1775):
 // o cartão que a abre não aparece nela, só na reunião comum.
 describe("Ata Guiada na reunião do Núcleo", () => {

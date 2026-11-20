@@ -670,7 +670,8 @@ function EventCard({
 
       {showTooltip && (
         <div
-          className={`absolute z-[60] w-64 bg-white rounded-xl shadow-2xl border border-slate-100 p-3 text-left animate-fade-in-up 
+          role="tooltip"
+          className={`absolute z-[60] w-64 bg-white rounded-xl shadow-2xl border border-slate-100 p-3 text-left animate-fade-in-up
             ${isLastCols ? "right-0" : "left-0"} 
             ${isLastRow ? "bottom-full mb-1" : "top-full mt-1"}
           `}
@@ -1006,7 +1007,7 @@ function WeekEventCard({
       )}
 
       {showTooltip && (
-        <div className="absolute z-[60] w-64 bg-white rounded-xl shadow-2xl border border-slate-100 p-3 text-left animate-fade-in-up left-full ml-2 top-0">
+        <div role="tooltip" className="absolute z-[60] w-64 bg-white rounded-xl shadow-2xl border border-slate-100 p-3 text-left animate-fade-in-up left-full ml-2 top-0">
           <p className="text-sm font-semibold text-slate-900 mb-0.5 leading-snug">
             {ev.titulo || ev.tipo || "Reunião Programada"}
           </p>
@@ -1165,16 +1166,18 @@ export default function CalendarioPage() {
     return eventos.filter((ev) => ev.facilitador_id && set.has(ev.facilitador_id));
   }, [eventos, filtroFacilitadores]);
 
-  // Mapa data → eventos
-  const eventosPorDia = eventosFiltrados.reduce<Record<string, EventoCalendario[]>>(
-    (acc, ev) => {
-      const key = ev.data;
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(ev);
-      return acc;
-    },
-    {}
-  );
+  // Mapa data → eventos, cada dia pela hora de início (issue #1860); sem hora vai por último
+  const eventosPorDia = [...eventosFiltrados]
+    .sort((a, b) => (a.hora_inicio ?? "99").localeCompare(b.hora_inicio ?? "99"))
+    .reduce<Record<string, EventoCalendario[]>>(
+      (acc, ev) => {
+        const key = ev.data;
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(ev);
+        return acc;
+      },
+      {}
+    );
 
   const grid = getMonthGrid(viewYear, viewMonth);
   const totalRows = grid.length / 7;
