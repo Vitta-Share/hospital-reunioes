@@ -72,12 +72,21 @@ def ids_repactuados(supabase, ids: list[str] | None) -> set[str]:
 
 
 def filtrar_por_status(query, supabase, status: str):
-    """O filtro de status aceita os quatro gravados e os dois calculados."""
+    """O filtro de status aceita os quatro gravados e os dois calculados, nos
+    termos de `pendencia_ciclo.situacao()`: Atrasada vence Repactuada, que vence
+    o estado gravado da aberta."""
+    hoje = hoje_em_brasilia().isoformat()
     if status == "ATRASADO":
-        return query.in_("status", ABERTOS).lt("prazo", hoje_em_brasilia().isoformat())
+        return query.in_("status", ABERTOS).lt("prazo", hoje)
+    if status != "REPACTUADA" and status not in ABERTOS:
+        return query.eq("status", status)
+    # Aberta que não venceu: sem prazo, ou prazo de hoje em diante.
+    query = query.or_(f"prazo.is.null,prazo.gte.{hoje}")
+    repactuados = sorted(ids_repactuados(supabase, None))
     if status == "REPACTUADA":
-        return query.in_("status", ABERTOS).in_("id_acao", sorted(ids_repactuados(supabase, None)) or ["-"])
-    return query.eq("status", status)
+        return query.in_("status", ABERTOS).in_("id_acao", repactuados or ["-"])
+    query = query.eq("status", status)
+    return query.not_.in_("id_acao", repactuados) if repactuados else query
 
 
 def sem_reunioes_ocultas(query, ocultas: list[str]):

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { History, Loader2 } from "lucide-react";
 
 import type { ComandoPendencia, EventoPendencia, HistoricoPendencia, Pendencia } from "@/types";
@@ -80,9 +80,16 @@ export function AcoesDaPendencia({ idAcao, token, acaoInicial, onAtualizada }: P
     carregar().catch(() => setHistorico({ eventos: [], acoes_permitidas: [] }));
   }, [carregar]);
 
+  // O arrasto sugere a ação uma vez: o histórico recarregado depois de uma
+  // ação não reabre o formulário (senão um clique grava a ação de novo).
+  const sugestaoAplicada = useRef<string | null>(null);
   useEffect(() => {
-    if (acaoInicial && historico?.acoes_permitidas.includes(acaoInicial)) setAcao(acaoInicial);
-  }, [acaoInicial, historico]);
+    if (!acaoInicial || !historico) return;
+    const chave = `${idAcao}:${acaoInicial}`;
+    if (sugestaoAplicada.current === chave) return;
+    sugestaoAplicada.current = chave;
+    if (historico.acoes_permitidas.includes(acaoInicial)) setAcao(acaoInicial);
+  }, [idAcao, acaoInicial, historico]);
 
   function abrir(comando: ComandoPendencia) {
     setAcao(comando);
@@ -116,6 +123,8 @@ export function AcoesDaPendencia({ idAcao, token, acaoInicial, onAtualizada }: P
       }
       onAtualizada(dados as Pendencia);
       setAcao(null);
+      setAnotacao("");
+      setPrazo("");
       await carregar();
     } catch {
       setErro("Sem conexão. Tente de novo.");

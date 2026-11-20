@@ -489,6 +489,32 @@ class TestDiaDaPauta:
 
         assert [(i["id_acao"], i["situacao"]) for i in itens] == [("PA1", "Concluída")]
 
+    def test_a_pendencia_vencida_aparece_atrasada_sem_job(self):
+        """Issue #1862, critério 5: nenhum job grava ATRASADO; a pauta (e a Ata,
+        que lê a mesma situação) calcula pela data e pelo histórico."""
+        banco = _banco(
+            reunioes=[
+                _reuniao("RD_ANTERIOR", HOJE - timedelta(days=30), status_ata="ASSINADA"),
+                _reuniao("RD_PROXIMA", HOJE + timedelta(days=1)),
+            ],
+            pendencias=[
+                _pendencia("PA1", "RD_ANTERIOR", "PENDENTE", prazo=(HOJE - timedelta(days=5)).isoformat()),
+                _pendencia("PA2", "RD_ANTERIOR", "EM_PROGRESSO", prazo=(HOJE - timedelta(days=1)).isoformat()),
+                _pendencia("PA3", "RD_ANTERIOR", "PENDENTE", prazo=(HOJE + timedelta(days=9)).isoformat()),
+                _pendencia("PA4", "RD_ANTERIOR", "PENDENTE"),
+            ],
+            pendencia_historico=[{"id": 1, "id_acao": "PA3", "comando": "repactuar"}],
+        )
+
+        itens = _bloco(_pauta(banco, "RD_PROXIMA"), "pendencias")["itens"]
+
+        assert {(i["id_acao"], i["situacao"]) for i in itens} == {
+            ("PA1", "Atrasada"),
+            ("PA2", "Atrasada"),
+            ("PA3", "Repactuada"),
+            ("PA4", "Pendente"),
+        }
+
     def test_a_pauta_traz_a_agenda_regulatoria_e_os_blocos_das_proximas_fases(self):
         banco = _banco(
             reunioes=[_reuniao("RD_PROXIMA", HOJE + timedelta(days=1))],

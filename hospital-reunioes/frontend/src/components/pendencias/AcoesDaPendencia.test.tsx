@@ -138,3 +138,25 @@ describe("toda ação pede anotação", () => {
     });
   });
 });
+
+describe("arrasto no kanban", () => {
+  it("arrastar para Repactuada abre o formulário uma vez só: depois de confirmar ele não volta preenchido", async () => {
+    const onAtualizada = vi.fn();
+    render(<AcoesDaPendencia idAcao="A001" token="tk" acaoInicial="repactuar" onAtualizada={onAtualizada} />);
+
+    fireEvent.change(await screen.findByLabelText("Anotação (obrigatória)"), { target: { value: "Fornecedor" } });
+    fireEvent.change(screen.getByLabelText("Prazo novo"), { target: { value: "2026-12-20" } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+
+    await waitFor(() => expect(onAtualizada).toHaveBeenCalled());
+    // O histórico recarregado depois da ação não reabre o formulário.
+    await waitFor(() => expect(chamadas.filter((c) => !c.init?.method).length).toBe(2));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Confirmar" })).toBeNull());
+    expect(screen.queryByLabelText("Anotação (obrigatória)")).toBeNull();
+
+    // Abrir de novo pelo botão começa em branco.
+    fireEvent.click(screen.getByRole("button", { name: "Repactuar" }));
+    expect((screen.getByLabelText("Anotação (obrigatória)") as HTMLTextAreaElement).value).toBe("");
+    expect(chamadas.filter((c) => c.init?.method === "POST")).toHaveLength(1);
+  });
+});

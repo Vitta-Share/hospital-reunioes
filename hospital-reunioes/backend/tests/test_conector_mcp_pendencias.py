@@ -125,7 +125,7 @@ class _Resultado:
         self.count = count
 
 
-_CONDICAO_DO_OR = re.compile(r"(\w+)\.(eq|in)\.(\([^)]*\)|[^,]+)")
+_CONDICAO_DO_OR = re.compile(r"(\w+)\.(eq|in|is|gte)\.(\([^)]*\)|[^,]+)")
 
 
 class _Nao:
@@ -135,6 +135,11 @@ class _Nao:
     def is_(self, coluna: str, valor: str) -> _Consulta:
         assert valor == "null"
         return self._consulta._filtra(lambda r: r.get(coluna) is not None)
+
+    def in_(self, coluna: str, valores) -> _Consulta:
+        """`not_.in_("id_acao", ...)`: a pendente sem as repactuadas (#1862)."""
+        conjunto = set(valores)
+        return self._consulta._filtra(lambda r: r.get(coluna) not in conjunto)
 
 
 class _Consulta:
@@ -193,6 +198,11 @@ class _Consulta:
             if op == "in":
                 conjunto = set(valor.strip("()").split(","))
                 condicoes.append(lambda r, c=coluna, s=conjunto: r.get(c) in s)
+            elif op == "is":
+                assert valor == "null"
+                condicoes.append(lambda r, c=coluna: r.get(c) is None)
+            elif op == "gte":
+                condicoes.append(lambda r, c=coluna, v=valor: r.get(c) is not None and str(r[c]) >= v)
             else:
                 condicoes.append(lambda r, c=coluna, v=valor: r.get(c) == v)
         return self._filtra(lambda r: any(cond(r) for cond in condicoes))
@@ -547,6 +557,53 @@ class TestPendenciasAtrasadas:
         resultado = resposta.json()["result"]
         assert resultado["isError"] is True
         assert "Ferramenta desconhecida" in resultado["content"][0]["text"]
+
+
+class TestFiltroBateComAEtiqueta:
+    """Issue #1862: o filtro de situação usa a mesma conta da etiqueta
+    (`situacao()`): Atrasada vence Repactuada, e Repactuada vence o estado
+    gravado. Pendente não traz vencida nem repactuada; repactuada não traz
+    vencida."""
+
+    @staticmethod
+    def banco() -> BancoFalso:
+        return banco_com(
+            DIRETOR_SUPER,
+            ANA,
+            pendencias=[
+                pendencia("P1", "PENDENTE", prazo="2099-01-10"),
+                pendencia("P2", "PENDENTE", prazo=None),
+                pendencia("P3", "PENDENTE", prazo="2026-10-01"),
+                pendencia("P4", "PENDENTE", prazo="2099-02-01"),
+                pendencia("P5", "PENDENTE", prazo="2026-10-05"),
+                pendencia("E1", "EM_PROGRESSO", prazo="2099-03-01"),
+                pendencia("E2", "EM_PROGRESSO", prazo="2026-09-01"),
+                pendencia("E3", "EM_PROGRESSO", prazo=None),
+            ],
+            pendencia_historico=[
+                {"id": 1, "id_acao": "P4", "comando": "repactuar"},
+                {"id": 2, "id_acao": "P5", "comando": "repactuar"},
+                {"id": 3, "id_acao": "E3", "comando": "repactuar"},
+            ],
+            reuniao_participantes=[],
+            comentarios_pendencias=[],
+        )
+
+    @pytest.mark.parametrize(
+        ("situacao", "esperadas"),
+        [
+            ("pendente", ["P1", "P2"]),
+            ("em_progresso", ["E1"]),
+            ("repactuada", ["P4", "E3"]),
+            ("atrasada", ["E2", "P3", "P5"]),
+        ],
+    )
+    def test_cada_filtro_traz_so_a_etiqueta_pedida(self, chave_do_emissor, situacao, esperadas):
+        payload = pendencias_do_claude(self.banco(), chave_do_emissor, DIRETOR_SUPER, situacao=situacao)
+
+        assert [p["id"] for p in payload["pendencias"]] == esperadas
+        assert {p["situacao"] for p in payload["pendencias"]} == {situacao}
+        assert payload["total"] == len(esperadas)
 
 
 class TestListaLongaCortadaNoTeto:
