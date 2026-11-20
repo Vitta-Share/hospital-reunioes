@@ -64,6 +64,7 @@ export default function NovaReuniaoSecretaria() {
 
   const [participantes, setParticipantes] = useState<ParticipanteOption[]>([]);
   const [facilitadores, setFacilitadores] = useState<ParticipanteOption[]>([]);
+  const [setores, setSetores] = useState<string[]>([]);
   const [loadingParticipantes, setLoadingParticipantes] = useState(true);
   const [loadingInitial, setLoadingInitial] = useState(Boolean(editId));
   const [submitting, setSubmitting] = useState(false);
@@ -78,6 +79,9 @@ export default function NovaReuniaoSecretaria() {
   );
   const [horaFim, setHoraFim] = useState("");
   const [tipo, setTipo] = useState<string>("");
+  // Obrigatório ao agendar (issue #1861). Na edição o campo não aparece: as
+  // reuniões antigas sem setor se acertam na tela do Super admin.
+  const [setor, setSetor] = useState<string>("");
   const [objetivo, setObjetivo] = useState("");
   const [facilitadorId, setFacilitadorId] = useState<string>("");
   const [participantesSelecionados, setParticipantesSelecionados] = useState<
@@ -102,19 +106,22 @@ export default function NovaReuniaoSecretaria() {
         : {};
 
       // Lista de participantes pra escolher quem vai estar na reunião.
-      const [resAll, resFacs] = await Promise.all([
+      const [resAll, resFacs, resSetores] = await Promise.all([
         fetch("/api/participantes?ativo=true&limit=200", { headers }),
         fetch(
           "/api/participantes?ativo=true&access_profile=super_admin&limit=200",
           { headers }
         ),
+        fetch("/api/participantes/setores", { headers }),
       ]);
 
       if (!resAll.ok) throw new Error("Erro ao buscar participantes");
       if (!resFacs.ok) throw new Error("Erro ao buscar facilitadores");
+      if (!resSetores.ok) throw new Error("Erro ao buscar setores");
 
       setParticipantes((await resAll.json()) as ParticipanteOption[]);
       setFacilitadores((await resFacs.json()) as ParticipanteOption[]);
+      setSetores((await resSetores.json()) as string[]);
     } catch (err) {
       showToast(
         err instanceof Error ? err.message : "Erro ao listar participantes",
@@ -205,6 +212,10 @@ export default function NovaReuniaoSecretaria() {
       );
       return;
     }
+    if (!editId && !setor) {
+      showToast("Escolha o setor da reunião.", "error");
+      return;
+    }
     setSubmitting(true);
     try {
       const supabase = createClient();
@@ -224,6 +235,7 @@ export default function NovaReuniaoSecretaria() {
       };
       if (!editId) {
         body.participante_ids = participantesSelecionados;
+        body.setor = setor;
       }
 
       const url = editId
@@ -414,6 +426,23 @@ export default function NovaReuniaoSecretaria() {
               options={TIPOS.map((t) => ({ value: t, label: t }))}
             />
           </div>
+          {!editId && (
+            <div>
+              <label
+                htmlFor="nova-reuniao-setor"
+                className="block text-sm font-medium text-slate-700 mb-1.5"
+              >
+                Setor <span className="text-rose-500">*</span>
+              </label>
+              <Select
+                id="nova-reuniao-setor"
+                value={setor}
+                onChange={setSetor}
+                placeholder="Selecione o setor"
+                options={setores.map((s) => ({ value: s, label: s }))}
+              />
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
               Facilitador <span className="text-rose-500">*</span>

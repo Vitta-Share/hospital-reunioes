@@ -20,6 +20,7 @@ import {
   HeartPulse,
   LayoutDashboard,
   LucideIcon,
+  MapPinned,
   Target,
 } from "lucide-react";
 
@@ -38,6 +39,8 @@ const SECTIONS: Section[] = [
     label: "Taxonomia",
     items: [
       { href: "/admin/setores", label: "Setores", icon: Building2 },
+      // Reuniões e responsáveis sem setor (issue #1861).
+      { href: "/admin/acertos-de-setor", label: "Acertos de setor", icon: MapPinned },
       { href: "/admin/cargos", label: "Cargos", icon: BadgeCheck },
       {
         href: "/admin/tipos-reuniao",

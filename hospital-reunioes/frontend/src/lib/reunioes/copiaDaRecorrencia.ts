@@ -7,6 +7,7 @@ interface ReuniaoOriginal {
   titulo: string | null;
   tipo: string | null;
   objetivo: string | null;
+  setor?: string | null;
   facilitador_id: string | null;
   participantes_programada?: Array<{ id: string }>;
 }
@@ -23,6 +24,7 @@ export interface CopiaDaRecorrencia {
   hora_inicio: string | null;
   tipo: string | null;
   objetivo: string | null;
+  setor: string | null;
   facilitador_id?: string;
   participante_ids: string[];
   id_grupo_recorrencia: string;
@@ -36,6 +38,9 @@ export function copiaDaRecorrencia(original: ReuniaoOriginal, data: string, seri
     hora_inicio: serie.horario || null,
     tipo: original.tipo ?? null,
     objetivo: original.objetivo || null,
+    // O agendar exige setor (issue #1861). A original antiga sem setor manda
+    // null, e o servidor devolve o motivo que a tela mostra.
+    setor: original.setor ?? null,
     ...(original.facilitador_id ? { facilitador_id: original.facilitador_id } : {}),
     participante_ids: (original.participantes_programada ?? []).map((p) => p.id),
     id_grupo_recorrencia: serie.idGrupo,

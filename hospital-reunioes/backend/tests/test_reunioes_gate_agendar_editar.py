@@ -213,7 +213,8 @@ class _Supabase:
     def __init__(self, participantes: list, roster: list[str]):
         self.tabelas: dict[str, list] = {
             "participantes": participantes,
-            "setores": [],
+            # O agendar exige setor ativo (issue #1861).
+            "setores": [{"id": "S_FAT", "nome": "Faturamento", "ativo": True}],
             "reunioes": [
                 {
                     "id_reuniao": REUNIAO,
@@ -260,7 +261,12 @@ def _reuniao(sb: _Supabase, id_reuniao: str = REUNIAO) -> dict | None:
 
 
 def _agendar(sb: _Supabase, ator: dict, participante_ids: list[str], **extra):
-    corpo = {"titulo": "Reuniao nova", "data": "2026-11-20", "participante_ids": participante_ids}
+    corpo = {
+        "titulo": "Reuniao nova",
+        "data": "2026-11-20",
+        "setor": "Faturamento",
+        "participante_ids": participante_ids,
+    }
     corpo.update(extra)
     return _app(sb, ator).post("/api/reunioes/agendar", json=corpo)
 

@@ -173,6 +173,8 @@ class _Supabase:
             "reuniao_participantes": [
                 {"id_reuniao": REUNIAO, "participante_id": FACILITADORA["id"]},
             ],
+            # O agendar exige setor ativo (issue #1861).
+            "setores": [{"id": "S_FAT", "nome": "Faturamento", "ativo": True}],
         }
 
     def table(self, nome: str):
@@ -199,7 +201,12 @@ def _cliente(sb: _Supabase, logado_como: dict) -> TestClient:
 
 
 def _agendar(sb: _Supabase, ator: dict, **extra):
-    corpo = {"titulo": "Reuniao nova", "data": "2026-11-20", "participante_ids": [CONVIDADO["id"]]}
+    corpo = {
+        "titulo": "Reuniao nova",
+        "data": "2026-11-20",
+        "setor": "Faturamento",
+        "participante_ids": [CONVIDADO["id"]],
+    }
     corpo.update(extra)
     return _cliente(sb, ator).post("/api/reunioes/agendar", json=corpo)
 

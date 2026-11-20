@@ -289,6 +289,7 @@ describe.each([
     expect(linksDoMenu()).toEqual([
       "Usuários",
       "Setores",
+      "Acertos de setor",
       "Cargos",
       "Tipos de Reunião",
       "Dados do Atendimento",

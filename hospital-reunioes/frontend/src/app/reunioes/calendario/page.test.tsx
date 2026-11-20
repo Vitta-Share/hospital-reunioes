@@ -312,3 +312,69 @@ describe("Reuniões do dia", () => {
     expect(within(screen.getByRole("tooltip")).getByText(LONGO)).toBeTruthy();
   });
 });
+
+// Issue #1861: o modal pede o setor, que o agendar passou a exigir.
+describe("O setor no modal de agendamento", () => {
+  type Chamada = { endereco: string; metodo: string; corpo: Record<string, unknown> | null };
+
+  beforeEach(() => {
+    perfil.participante = FACILITADOR;
+    // O jsdom não implementa `scrollIntoView`, que o `Select` da casa chama ao abrir.
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
+  async function abrirModal() {
+    const chamadas: Chamada[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (endereco: string, init?: RequestInit) => {
+        chamadas.push({
+          endereco,
+          metodo: init?.method ?? "GET",
+          corpo: init?.body ? JSON.parse(String(init.body)) : null,
+        });
+        const corpo = endereco === "/api/participantes/setores" ? ["Faturamento", "UTI Adulto"] : [];
+        return { ok: true, status: 200, json: async () => corpo } as unknown as Response;
+      }),
+    );
+    render(
+      <ToastProvider>
+        <CalendarioPage />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Agendar Reunião/ }));
+    await waitFor(() => expect(modalAberto()).toBe(true));
+    fireEvent.change(screen.getByPlaceholderText(/Reunião de Diretoria/), { target: { value: "Reunião da UTI" } });
+    return chamadas;
+  }
+
+  function enviar() {
+    const botao = screen
+      .getAllByRole("button", { name: /Agendar Reunião/ })
+      .find((b) => b.getAttribute("type") === "submit");
+    fireEvent.click(botao as HTMLElement);
+  }
+
+  const agendamentos = (chamadas: Chamada[]) =>
+    chamadas.filter((c) => c.endereco === "/api/reunioes/agendar" && c.metodo === "POST");
+
+  it("o setor escolhido vai no agendamento", async () => {
+    const chamadas = await abrirModal();
+
+    fireEvent.click(screen.getByLabelText(/^Setor/));
+    fireEvent.click(await screen.findByRole("option", { name: "UTI Adulto" }));
+    enviar();
+
+    await waitFor(() => expect(agendamentos(chamadas)).toHaveLength(1));
+    expect(agendamentos(chamadas)[0].corpo).toMatchObject({ setor: "UTI Adulto" });
+  });
+
+  it("sem setor, o modal recusa e não agenda", async () => {
+    const chamadas = await abrirModal();
+
+    enviar();
+
+    expect(await screen.findByText(/Escolha o setor da reunião/)).toBeTruthy();
+    expect(agendamentos(chamadas)).toHaveLength(0);
+  });
+});

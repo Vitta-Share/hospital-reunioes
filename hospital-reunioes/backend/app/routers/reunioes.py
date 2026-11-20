@@ -49,6 +49,7 @@ from app.services import audit, participantes_ata_service, reuniao_email_service
 from app.services.reunioes_consulta import consultar_reunioes, participantes_por_reuniao
 from app.services.seguranca_do_paciente import ata as ata_do_nucleo
 from app.services.seguranca_do_paciente.permissao import id_do_nucleo
+from app.services.setor_ativo import setor_ativo
 from app.services.teto_dos_chats import motivo_corpo_grande
 from app.utils.query_params import parse_csv_param
 
@@ -82,6 +83,7 @@ def _recusar_ata_do_nucleo(supabase, id_reuniao: str) -> None:
 
 _DETALHE_SECRETARIA_SEM_FACILITADOR = "Escolha o facilitador da reunião. A Secretária agenda, mas não conduz a ata."
 _DETALHE_SECRETARIA_COMO_FACILITADORA = "Secretária não pode ser facilitadora: a montagem da ata é do Facilitador."
+_DETALHE_SEM_SETOR = "Escolha o setor da reunião na lista de setores."
 
 
 class CorrecaoInternaRequest(BaseModel):
@@ -155,6 +157,12 @@ async def agendar_reuniao(
     # token órfão, então aqui a linha existe.
     criador_id = me["id"]
 
+    # Toda reunião nova tem setor (issue #1861): é por ele que o gráfico do
+    # painel separa as reuniões. As antigas sem setor seguem válidas.
+    setor = setor_ativo(supabase, req.setor)
+    if setor is None:
+        raise HTTPException(status_code=422, detail=_DETALHE_SEM_SETOR)
+
     # Secretária não monta ata (Ata Guiada e pendências a recusam), então o
     # fallback abaixo a faria facilitadora de uma reunião que ela não conduz
     # (issue #761). Para ela, dizer quem facilita é obrigatório.
@@ -204,6 +212,8 @@ async def agendar_reuniao(
         "hora_fim": str(req.hora_fim) if req.hora_fim else None,
         "tipo": req.tipo.value if req.tipo else None,
         "objetivo": req.objetivo,
+        "setor_id": setor["id"],
+        "setor": setor["nome"],
         "status_ata": "PROGRAMADA",
         "fonte": "MOCK",
         "facilitador_id": facilitador_id,

@@ -183,6 +183,9 @@ class AgendarReuniaoRequest(BaseModel):
     hora_fim: time | None = None
     tipo: TipoReuniao | None = None
     objetivo: str | None = Field(None, max_length=500)
+    # Obrigatório (issue #1861), mas recusado na rota e não aqui: o 422 do
+    # Pydantic vem em lista, e a Recorrência mostra só `detail` em texto.
+    setor: str | None = Field(None, max_length=255)
     facilitador_id: str | None = Field(None, min_length=1, max_length=10)
     participante_ids: list[str] = []
     id_grupo_recorrencia: str | None = None

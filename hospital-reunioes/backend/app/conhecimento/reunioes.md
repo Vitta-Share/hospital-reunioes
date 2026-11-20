@@ -35,6 +35,12 @@ A coleta de assinaturas também tem prazo: são 30 dias. Vencido o prazo, a ata 
 
 Cada pessoa vê as pendências de que é responsável ou divide a responsabilidade, e todas as pendências das reuniões em que ela é o facilitador. Quem só participou de uma reunião não vê as pendências dos outros que saíram dela. Quem administra o aplicativo vê todas, menos as das reuniões do Núcleo de Segurança do Paciente, que seguem a regra do Núcleo. Isso vale para a lista e o quadro de pendências, os números do painel, a tela da pendência com os comentários e o que o Claude da diretoria consulta. Num comentário, só dá para mencionar quem vê a pendência. A Secretária não vê pendência nenhuma, como antes.
 
+## O setor da reunião
+
+Toda reunião marcada tem setor. Quem agenda, a Secretária inclusive, escolhe o setor numa lista com os setores ativos do hospital, e o aplicativo não deixa marcar a reunião sem ele. A reunião repetida pela recorrência leva o setor da reunião de origem.
+
+As reuniões antigas, marcadas antes dessa regra, continuam valendo mesmo sem setor. Quem administra o aplicativo tem no Admin a tela Acertos de setor, que lista as reuniões e os responsáveis por pendência que estão sem setor e deixa escolher o setor de cada um. Preenchido o setor, o item sai da lista.
+
 ## As reuniões do Núcleo de Segurança do Paciente
 
 As reuniões do Núcleo de Segurança do Paciente ficam no módulo Segurança do Paciente, no item Reuniões, e não são marcadas pela tela de Reuniões. São de quatro tipos: ordinária mensal, análise de evento, apresentação à Diretoria e reunião rápida de segurança. Depois de criada, a reunião do Núcleo segue o mesmo caminho das outras até a ata. A reunião rápida de segurança é só um registro de três linhas, sem transcrição nem ata.
@@ -87,6 +93,7 @@ Na tela da reunião, o botão Excluir, que só quem administra o aplicativo vê,
 - Cada pessoa vê as pendências dela e as das reuniões que facilita, quem só participou da reunião não vê as dos outros, e quem administra o aplicativo vê todas, fora as do Núcleo.
 - No calendário, as reuniões de cada dia seguem a hora de início, da mais cedo para a mais tarde.
 - O botão Excluir da reunião fica discreto, para não ser o mais chamativo da tela.
+- Toda reunião nova tem setor, e quem administra o aplicativo preenche o setor que falta nas reuniões antigas e nos responsáveis.
 
 ## O que costuma virar Demanda
 

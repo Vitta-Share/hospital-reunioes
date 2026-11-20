@@ -10,7 +10,7 @@
  * valor inválido e não quebra o `?edit=`, que carrega a reunião do banco.
  */
 
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ToastProvider } from "@/components/ui/Toast";
@@ -134,5 +134,74 @@ describe("o nome do facilitador aparece como foi escrito (ADR 0080)", () => {
 
     const nome = await screen.findByText("Ana de Souza");
     expect(apareceComoFoiEscrito(nome)).toBe(true);
+  });
+});
+
+describe("o setor da reunião (issue #1861)", () => {
+  type Chamada = { endereco: string; metodo: string; corpo: unknown };
+
+  function montarAgendamento() {
+    // O jsdom não implementa `scrollIntoView`, que o `Select` da casa chama ao abrir.
+    Element.prototype.scrollIntoView = vi.fn();
+    url.params = new URLSearchParams("data=2026-11-20");
+    const chamadas: Chamada[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (endereco: string, init?: RequestInit) => {
+        chamadas.push({
+          endereco,
+          metodo: init?.method ?? "GET",
+          corpo: init?.body ? JSON.parse(String(init.body)) : null,
+        });
+        const corpo =
+          endereco === "/api/participantes/setores"
+            ? ["Faturamento", "UTI Adulto"]
+            : endereco.includes("access_profile=super_admin")
+              ? [{ id: "P_FACIL", nome_completo: "Ana de Souza", cargo: null }]
+              : endereco === "/api/reunioes/agendar"
+                ? { id_reuniao: "RD_NOVA" }
+                : [];
+        return { ok: true, status: 200, json: async () => corpo } as unknown as Response;
+      }),
+    );
+    render(
+      <ToastProvider>
+        <NovaReuniaoSecretaria />
+      </ToastProvider>,
+    );
+    return chamadas;
+  }
+
+  async function preencherTituloEFacilitador() {
+    fireEvent.change(screen.getByPlaceholderText(/Reunião de Diretoria/), {
+      target: { value: "Reunião da UTI" },
+    });
+    fireEvent.click(await screen.findByText("Selecione um facilitador"));
+    fireEvent.click(await screen.findByText("Ana de Souza"));
+  }
+
+  const agendamentos = (chamadas: Chamada[]) =>
+    chamadas.filter((c) => c.endereco === "/api/reunioes/agendar" && c.metodo === "POST");
+
+  it("a Secretária escolhe o setor e ele vai no agendamento", async () => {
+    const chamadas = montarAgendamento();
+    await preencherTituloEFacilitador();
+
+    fireEvent.click(screen.getByLabelText(/^Setor/));
+    fireEvent.click(await screen.findByRole("option", { name: "UTI Adulto" }));
+    fireEvent.click(screen.getByRole("button", { name: /Agendar reunião/ }));
+
+    await waitFor(() => expect(agendamentos(chamadas)).toHaveLength(1));
+    expect(agendamentos(chamadas)[0].corpo).toMatchObject({ setor: "UTI Adulto" });
+  });
+
+  it("sem setor, a tela recusa e não agenda", async () => {
+    const chamadas = montarAgendamento();
+    await preencherTituloEFacilitador();
+
+    fireEvent.click(screen.getByRole("button", { name: /Agendar reunião/ }));
+
+    expect(await screen.findByText(/Escolha o setor da reunião/)).toBeTruthy();
+    expect(agendamentos(chamadas)).toHaveLength(0);
   });
 });
