@@ -32,7 +32,10 @@ HORAS_UTEIS = "horas_uteis"
 # para sábado à noite, e não para a terça de manhã. Toda a régua útil deste
 # módulo (noite, fim de semana, feriado) fica de fora quando ela é a unidade.
 HORAS_CORRIDAS = "horas_corridas"
-UNIDADES = (DIAS_UTEIS, HORAS_UTEIS, HORAS_CORRIDAS)
+# Dia de calendário (ADR 0107, decisão 2): os prazos legais do Núcleo (60 dias
+# corridos) não param em fim de semana nem em feriado. A Ouvidoria não usa.
+DIAS_CORRIDOS = "dias_corridos"
+UNIDADES = (DIAS_UTEIS, HORAS_UTEIS, HORAS_CORRIDAS, DIAS_CORRIDOS)
 
 # Teto da prorrogação, contado da entrada da manifestação (PRD #318).
 TETO_PRORROGACAO_DIAS_UTEIS = 30
@@ -141,6 +144,15 @@ def _vencimento_corrido(inicio: datetime, horas: int) -> datetime:
     return (momento + timedelta(hours=horas)).astimezone(UTC)
 
 
+def _vencimento_em_dias_corridos(inicio: datetime, dias: int) -> datetime:
+    """O fim do enésimo dia de calendário depois do dia do fato, em UTC.
+
+    O dia do fato não conta, como na régua de dias úteis, e o prazo vale o dia
+    inteiro do vencimento: sem expediente, o dia só acaba à meia-noite."""
+    ultimo_dia = _em_sao_paulo(inicio).date() + timedelta(days=dias)
+    return datetime.combine(ultimo_dia, time(23, 59, 59), tzinfo=FUSO).astimezone(UTC)
+
+
 def calcular_vencimento(inicio: datetime, prazo: Prazo, feriados: frozenset[date]) -> datetime | None:
     """O vencimento do prazo, em UTC. None quando a gravidade não tem prazo."""
     if prazo.valor is None:
@@ -150,6 +162,8 @@ def calcular_vencimento(inicio: datetime, prazo: Prazo, feriados: frozenset[date
 
     if prazo.unidade == HORAS_CORRIDAS:
         return _vencimento_corrido(inicio, prazo.valor)
+    if prazo.unidade == DIAS_CORRIDOS:
+        return _vencimento_em_dias_corridos(inicio, prazo.valor)
 
     abertura = inicio_da_contagem(inicio, feriados)
     if prazo.valor == 0:
@@ -176,13 +190,13 @@ def minutos_do_prazo(prazo: Prazo) -> int | None:
         return None
     if prazo.unidade not in UNIDADES:
         raise ValueError(f"Unidade de prazo desconhecida: {prazo.unidade}")
-    if prazo.unidade == HORAS_CORRIDAS:
+    if prazo.unidade in (HORAS_CORRIDAS, DIAS_CORRIDOS):
         # Não existe conversão honesta: 24 horas corridas valem 9 horas de
         # expediente numa sexta e nenhuma num feriado. Quem chama aqui está
         # dando meio prazo à área ou medindo espera, e essas contas são todas
         # em tempo ÚTIL. Devolver um número aproximado seria pior que recusar,
         # porque a régua errada não denuncia a si mesma.
-        raise ValueError("Prazo em horas corridas não vira minutos de expediente")
+        raise ValueError("Prazo corrido não vira minutos de expediente")
     por_unidade = MINUTOS_POR_DIA_UTIL if prazo.unidade == DIAS_UTEIS else 60
     return prazo.valor * por_unidade
 
