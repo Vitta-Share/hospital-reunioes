@@ -12,8 +12,8 @@ from app.dependencies import (
     RECUSA_DO_NSP,
     get_current_user,
     get_participante_for_user,
+    get_recorte_das_pendencias,
     get_supabase_client,
-    get_visibilidade_das_reunioes,
     is_secretaria,
     require_acesso_reunioes,
 )
@@ -35,7 +35,9 @@ logger = logging.getLogger(__name__)
 
 
 def _participantes_mencionaveis(supabase, pendencia: dict) -> list[dict]:
-    """Participantes que enxergam a Pendência: roster da reunião + co-responsável + super admins.
+    """Participantes que enxergam a Pendência, pelo recorte das Pendências
+    (issue #1863): responsável, co-responsável, Facilitador da reunião e super
+    admins. Quem só participou da reunião não vê a Pendência e não é mencionado.
 
     Secretária fica de fora: os gates 403 a bloqueiam de pendências e comentários,
     então a menção geraria notificação morta.
@@ -45,15 +47,13 @@ def _participantes_mencionaveis(supabase, pendencia: dict) -> list[dict]:
     )
     participantes = result.data or []
 
-    roster = (
-        supabase.table("reuniao_participantes")
-        .select("participante_id")
-        .eq("id_reuniao", pendencia.get("id_reuniao"))
-        .execute()
-    )
-    visiveis = {row["participante_id"] for row in (roster.data or [])}
-    if pendencia.get("co_responsavel_id"):
-        visiveis.add(pendencia["co_responsavel_id"])
+    visiveis = {pendencia.get("responsavel_id"), pendencia.get("co_responsavel_id")}
+    if pendencia.get("id_reuniao"):
+        reuniao = (
+            supabase.table("reunioes").select("facilitador_id").eq("id_reuniao", pendencia["id_reuniao"]).execute()
+        )
+        visiveis.update(row.get("facilitador_id") for row in (reuniao.data or []))
+    visiveis.discard(None)
 
     return [
         p
@@ -65,29 +65,24 @@ def _participantes_mencionaveis(supabase, pendencia: dict) -> list[dict]:
 async def _carregar_pendencia_visivel(
     id_acao: str,
     current_user: dict,
-    me: dict | None,
     supabase,
-    fields: str = "id_acao, id_reuniao, co_responsavel_id",
+    fields: str = "id_acao, id_reuniao, responsavel_id, co_responsavel_id",
 ) -> dict:
-    """Carrega a Pendência e aplica o gate de visibilidade binária (404 se invisível)."""
+    """Carrega a Pendência e aplica o recorte das Pendências (404 se fora dele):
+    os comentários seguem quem vê a Pendência (issue #1863)."""
     pend = supabase.table("pendencias").select(fields).eq("id_acao", id_acao).execute()
     if not pend.data or e_lembrete_do_nucleo(pend.data[0]):
         raise HTTPException(status_code=404, detail="Pendência não encontrada")
 
     pendencia = pend.data[0]
-    # O sigilo do Núcleo (issue #1772), antes da lista e para todo perfil: o
-    # super admin sem Acesso pleno tem `permitidas` None e só as `ocultas` o
-    # barram, como no `GET /pendencias/{id_acao}`.
-    visibilidade = await get_visibilidade_das_reunioes(current_user, supabase)
-    if pendencia.get("id_reuniao") in visibilidade.ocultas:
+    # O sigilo do Núcleo (issue #1772), antes do recorte e para todo perfil: o
+    # super admin sem Acesso pleno só é barrado pelas `ocultas`, como no
+    # `GET /pendencias/{id_acao}`.
+    recorte = await get_recorte_das_pendencias(current_user, supabase)
+    if pendencia.get("id_reuniao") in recorte.ocultas:
         raise HTTPException(status_code=403, detail=RECUSA_DO_NSP)
-    allowed_ids = visibilidade.permitidas
-    if allowed_ids is not None:
-        # my_id None (token órfão) não pode casar com co_responsavel_id None e desarmar o gate
-        my_id = me["id"] if me else None
-        e_coresp = my_id is not None and pendencia.get("co_responsavel_id") == my_id
-        if pendencia.get("id_reuniao") not in allowed_ids and not e_coresp:
-            raise HTTPException(status_code=404, detail="Pendência não encontrada")
+    if not recorte.ve(pendencia):
+        raise HTTPException(status_code=404, detail="Pendência não encontrada")
     return pendencia
 
 
@@ -104,7 +99,7 @@ async def list_comentarios(
     if is_secretaria(me):
         raise HTTPException(status_code=403, detail="Secretária não tem acesso a comentários de pendências")
 
-    await _carregar_pendencia_visivel(id_acao, current_user, me, supabase)
+    await _carregar_pendencia_visivel(id_acao, current_user, supabase)
 
     result = (
         supabase.table("comentarios_pendencias")
@@ -129,7 +124,7 @@ async def listar_mencionaveis(
     if is_secretaria(me):
         raise HTTPException(status_code=403, detail="Secretária não tem acesso a comentários de pendências")
 
-    pendencia = await _carregar_pendencia_visivel(id_acao, current_user, me, supabase)
+    pendencia = await _carregar_pendencia_visivel(id_acao, current_user, supabase)
 
     return [
         {"id": p["id"], "nome_completo": p.get("nome_completo", ""), "setor": p.get("setor")}
@@ -153,7 +148,6 @@ async def create_comentario(
     pendencia = await _carregar_pendencia_visivel(
         id_acao,
         current_user,
-        me_user,
         supabase,
         fields="id_acao, descricao_acao, responsavel_id, id_reuniao, co_responsavel_id",
     )
@@ -219,7 +213,7 @@ async def delete_comentario(
         raise HTTPException(status_code=403, detail="Secretária não tem acesso a comentários de pendências")
 
     # Verifica visibilidade da pendência
-    await _carregar_pendencia_visivel(id_acao, current_user, me_user, supabase)
+    await _carregar_pendencia_visivel(id_acao, current_user, supabase)
 
     result = (
         supabase.table("comentarios_pendencias")

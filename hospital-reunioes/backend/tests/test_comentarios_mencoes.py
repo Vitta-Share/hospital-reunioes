@@ -2,7 +2,8 @@
 
 Cobre:
 - Automenção gera notificação MENCAO para o próprio autor.
-- Menção restrita a quem enxerga a Pendência (roster + co-responsável + super admin).
+- Menção restrita a quem enxerga a Pendência: desde a issue #1863, o recorte
+  das Pendências (responsável, co-responsável, Facilitador e super admin).
 """
 
 from __future__ import annotations
@@ -15,9 +16,9 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from app.dependencies import VisibilidadeDasReunioes  # noqa: E402
 from app.models.schemas import ComentarioCreate  # noqa: E402
 from app.routers import comentarios as comentarios_router  # noqa: E402
+from app.services.pendencias_recorte import recorte_das_pendencias  # noqa: E402
 
 # ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -60,6 +61,7 @@ class _Sb:
     pendencias: list = field(default_factory=list)
     participantes: list = field(default_factory=list)
     reuniao_participantes: list = field(default_factory=list)
+    reunioes: list = field(default_factory=list)
     comentarios: list = field(default_factory=list)
     notificacoes: list = field(default_factory=list)
 
@@ -70,6 +72,8 @@ class _Sb:
             return _FakeTable(self.participantes)
         if name == "reuniao_participantes":
             return _FakeTable(self.reuniao_participantes)
+        if name == "reunioes":
+            return _FakeTable(self.reunioes)
         if name == "comentarios_pendencias":
             return _FakeTable([], inserts_sink=self.comentarios)
         if name == "notificacoes":
@@ -94,20 +98,21 @@ def _sb_com_pendencia() -> _Sb:
         ],
         participantes=[dict(PEDRO)],
         reuniao_participantes=[{"id_reuniao": "RD_001", "participante_id": "P01"}],
+        reunioes=[{"id_reuniao": "RD_001", "facilitador_id": "P01"}],
     )
 
 
-def _patch_deps(monkeypatch, autor: dict, allowed: list[str] | None):
+def _patch_deps(monkeypatch, autor: dict, facilitadas: list[str]):
     async def _fake_participante(_user, _sb, fields=None):
         return dict(autor)
 
-    # Desde a issue #1772 a pendência lê a visibilidade inteira (a lista branca
-    # e as reuniões do Núcleo ocultas); aqui, nenhuma reunião do Núcleo.
-    async def _fake_visibilidade(_user, _sb, recurso="reunioes"):
-        return VisibilidadeDasReunioes(permitidas=allowed, ocultas=[])
+    # Desde a issue #1863 a pendência lê o recorte das Pendências (o vínculo e
+    # as reuniões do Núcleo ocultas); aqui, nenhuma reunião do Núcleo.
+    async def _fake_recorte(_user, _sb):
+        return recorte_das_pendencias(autor["id"], super_admin=False, facilitadas=facilitadas, do_nucleo=[], ocultas=[])
 
     monkeypatch.setattr(comentarios_router, "get_participante_for_user", _fake_participante)
-    monkeypatch.setattr(comentarios_router, "get_visibilidade_das_reunioes", _fake_visibilidade)
+    monkeypatch.setattr(comentarios_router, "get_recorte_das_pendencias", _fake_recorte)
 
 
 # ─── Testes ───────────────────────────────────────────────────────────────────
@@ -117,7 +122,7 @@ class TestAutomencao:
     @pytest.mark.asyncio
     async def test_automencao_notifica_o_proprio_autor(self, monkeypatch):
         sb = _sb_com_pendencia()
-        _patch_deps(monkeypatch, autor=PEDRO, allowed=None)
+        _patch_deps(monkeypatch, autor=PEDRO, facilitadas=["RD_001"])
 
         await comentarios_router.create_comentario(
             id_acao="A001",
@@ -143,13 +148,19 @@ class TestMencaoRestritaAQuemEnxerga:
             {"id": "Z01", "nome_completo": "Zé Fora", "is_super_admin": False},
             {"id": "D01", "nome_completo": "Diretor Geral", "is_super_admin": True},
         ]
-        sb.reuniao_participantes = [{"id_reuniao": "RD_001", "participante_id": "C01"}]
+        # Caroline facilita a reunião; o Zé só participou dela, e por isso não
+        # enxerga a Pendência do P99 (issue #1863).
+        sb.reuniao_participantes = [
+            {"id_reuniao": "RD_001", "participante_id": "C01"},
+            {"id_reuniao": "RD_001", "participante_id": "Z01"},
+        ]
+        sb.reunioes = [{"id_reuniao": "RD_001", "facilitador_id": "C01"}]
         return sb
 
     @pytest.mark.asyncio
     async def test_mencao_a_quem_nao_enxerga_a_pendencia_nao_notifica(self, monkeypatch):
         sb = self._sb_com_roster()
-        _patch_deps(monkeypatch, autor=CAROLINE, allowed=["RD_001"])
+        _patch_deps(monkeypatch, autor=CAROLINE, facilitadas=["RD_001"])
 
         await comentarios_router.create_comentario(
             id_acao="A001",
@@ -162,9 +173,9 @@ class TestMencaoRestritaAQuemEnxerga:
         assert sb.comentarios[0]["mencoes"] == []
 
     @pytest.mark.asyncio
-    async def test_super_admin_fora_do_roster_e_mencionavel(self, monkeypatch):
+    async def test_super_admin_sem_vinculo_e_mencionavel(self, monkeypatch):
         sb = self._sb_com_roster()
-        _patch_deps(monkeypatch, autor=CAROLINE, allowed=["RD_001"])
+        _patch_deps(monkeypatch, autor=CAROLINE, facilitadas=["RD_001"])
 
         await comentarios_router.create_comentario(
             id_acao="A001",
@@ -180,7 +191,7 @@ class TestMencaoRestritaAQuemEnxerga:
     @pytest.mark.asyncio
     async def test_endpoint_mencionaveis_lista_so_quem_enxerga(self, monkeypatch):
         sb = self._sb_com_roster()
-        _patch_deps(monkeypatch, autor=CAROLINE, allowed=["RD_001"])
+        _patch_deps(monkeypatch, autor=CAROLINE, facilitadas=["RD_001"])
 
         resultado = await comentarios_router.listar_mencionaveis(
             id_acao="A001",
@@ -195,17 +206,17 @@ class TestMencaoRestritaAQuemEnxerga:
 class TestTokenOrfao:
     @pytest.mark.asyncio
     async def test_token_orfao_recebe_404_em_pendencia_sem_corresponsavel(self, monkeypatch):
-        """Órfão (sem participante vinculado): allowed=[] e my_id=None não podem desarmar o gate."""
+        """Órfão (sem participante vinculado): o id None não pode casar com nada e desarmar o gate."""
         sb = _sb_com_pendencia()
 
         async def _sem_participante(_user, _sb, fields=None):
             return None
 
-        async def _visibilidade_vazia(_user, _sb, recurso="reunioes"):
-            return VisibilidadeDasReunioes(permitidas=[], ocultas=[])
+        async def _recorte_do_orfao(_user, _sb):
+            return recorte_das_pendencias(None, super_admin=False, facilitadas=[], do_nucleo=[], ocultas=[])
 
         monkeypatch.setattr(comentarios_router, "get_participante_for_user", _sem_participante)
-        monkeypatch.setattr(comentarios_router, "get_visibilidade_das_reunioes", _visibilidade_vazia)
+        monkeypatch.setattr(comentarios_router, "get_recorte_das_pendencias", _recorte_do_orfao)
 
         from fastapi import HTTPException
 

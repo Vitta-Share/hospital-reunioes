@@ -35,7 +35,7 @@ from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from central_de_comando_apoio import FACILITADOR, SUPER_ADMIN, pessoa  # noqa: E402
+from central_de_comando_apoio import FACILITADOR, SECRETARIA, SUPER_ADMIN, pessoa  # noqa: E402
 
 from app.config import settings  # noqa: E402
 from app.services.central_de_comando import conector_mcp  # noqa: E402
@@ -377,7 +377,9 @@ BRUNO = pessoa("resp-bruno", "regular") | {"nome_completo": "Bruno Lima"}
 
 
 def banco_do_hospital(*quem: dict) -> BancoFalso:
-    """Três reuniões; a diretora participa de R1 e R2, não de R3."""
+    """Três reuniões; a diretora facilita R1 e R2 e só participou da R3, cujo
+    facilitador é outro. Desde a issue #1863 o recorte é o vínculo: participar
+    da R3 não mostra a ela as Pendências da R3."""
     return banco_com(
         *quem,
         ANA,
@@ -397,17 +399,25 @@ def banco_do_hospital(*quem: dict) -> BancoFalso:
             pendencia("A5", "CONCLUIDO", prazo="2026-08-01", id_reuniao="R2"),
             pendencia("A6", "ATRASADO", prazo="2026-10-20", id_reuniao="R3"),
         ],
+        reunioes=[
+            {"id_reuniao": "R1", "facilitador_id": "diretora", "deleted_at": None},
+            {"id_reuniao": "R2", "facilitador_id": "diretora", "deleted_at": None},
+            {"id_reuniao": "R3", "facilitador_id": "outro-facilitador", "deleted_at": None},
+        ],
         reuniao_participantes=[
             {"id_reuniao": "R1", "participante_id": "diretora"},
             {"id_reuniao": "R2", "participante_id": "diretora"},
+            {"id_reuniao": "R3", "participante_id": "diretora"},
+            {"id_reuniao": "R1", "participante_id": "resp-bruno"},
+            {"id_reuniao": "R2", "participante_id": "resp-bruno"},
         ],
         comentarios_pendencias=[],
     )
 
 
-def tela_de_pendencias(banco: BancoFalso, quem: dict) -> list[dict]:
-    """O que a tela de Pendências recebe: o `GET /api/pendencias` de verdade,
-    sem o status, como o front pede (ele filtra o status na tela)."""
+def rota_de_pendencias(banco: BancoFalso, quem: dict, caminho: str = "", **params):
+    """A resposta de uma rota de verdade do router de Pendências, com `quem`
+    logado: a lista (que o quadro também usa), o detalhe e os números."""
     from app.dependencies import _participante_ctx, get_current_user, get_supabase_client
     from app.routers import pendencias as router_pendencias
 
@@ -420,9 +430,16 @@ def tela_de_pendencias(banco: BancoFalso, quem: dict) -> list[dict]:
         return {"id": quem["auth_user_id"], "email": quem["email"], "metadata": {}}
 
     app.dependency_overrides[get_current_user] = _usuario
-    resposta = TestClient(app).get("/api/pendencias", params={"limit": 500})
-    assert resposta.status_code == 200, resposta.text
+    resposta = TestClient(app).get(f"/api/pendencias{caminho}", params=params)
     _participante_ctx.set(None)
+    return resposta
+
+
+def tela_de_pendencias(banco: BancoFalso, quem: dict) -> list[dict]:
+    """O que a tela de Pendências recebe: o `GET /api/pendencias` de verdade,
+    sem o status, como o front pede (ele filtra o status na tela)."""
+    resposta = rota_de_pendencias(banco, quem, limit=500)
+    assert resposta.status_code == 200, resposta.text
     return resposta.json()
 
 
@@ -464,7 +481,7 @@ class TestPendenciasAtrasadas:
         ]
 
         assert no_claude == na_tela
-        # A diretora regular não está na R3: nem a tela nem o Claude mostram a A6.
+        # A diretora regular só participou da R3: nem a tela nem o Claude mostram a A6.
         assert no_claude == (["A3", "A1", "A6"] if quem is DIRETOR_SUPER else ["A3", "A1"])
 
     def test_filtra_por_responsavel_e_por_prazo(self, chave_do_emissor):
@@ -553,3 +570,62 @@ class TestSoLeitura:
                 assert resultado["isError"] is False
 
         assert banco.escritas == []
+
+
+# ─── 3. Quem vê o quê sai do vínculo (ADR 0098, decisão 7; issue #1863) ─────
+
+# Bruno é responsável só pela A3 (R2) e participou da R1 e da R2; a Ana é
+# responsável pela A1, A2, A5 e A6; a diretora regular facilita R1 e R2 e só
+# participou da R3. Bruno com a diretoria, para chamar o Conector.
+BRUNO_DA_DIRETORIA = BRUNO | {"perfil_ouvidoria": "diretoria_executiva"}
+
+
+def ids_na_lista(banco: BancoFalso, quem: dict) -> set[str]:
+    return {p["id_acao"] for p in tela_de_pendencias(banco, quem)}
+
+
+def ids_no_claude(banco: BancoFalso, chave, quem: dict) -> set[str]:
+    return {p["id"] for p in pendencias_do_claude(banco, chave, quem)["pendencias"]}
+
+
+def banco_do_bruno() -> BancoFalso:
+    banco = banco_do_hospital(DIRETORA, DIRETOR_SUPER)
+    outros = [p for p in banco.tabelas["participantes"] if p["id"] != BRUNO["id"]]
+    banco.tabelas["participantes"] = [*outros, BRUNO_DA_DIRETORIA]
+    return banco
+
+
+class TestRecortePeloVinculo:
+    def test_participante_sem_vinculo_nao_ve_a_pendencia_de_outra_pessoa(self, chave_do_emissor):
+        """Das Pendências da R1 e da R2 o Bruno só vê a dele: na lista (que o
+        quadro também lê), nos números, no detalhe e pelo Conector."""
+        banco = banco_do_bruno()
+
+        assert ids_na_lista(banco, BRUNO_DA_DIRETORIA) == {"A3"}
+        assert rota_de_pendencias(banco, BRUNO_DA_DIRETORIA, "/stats").json()["total"] == 1
+        assert rota_de_pendencias(banco, BRUNO_DA_DIRETORIA, "/A1").status_code == 404
+        assert rota_de_pendencias(banco, BRUNO_DA_DIRETORIA, "/A3").status_code == 200
+        assert ids_no_claude(banco, chave_do_emissor, BRUNO_DA_DIRETORIA) == {"A3"}
+
+    def test_facilitador_ve_todas_as_pendencias_das_reunioes_que_facilita(self, chave_do_emissor):
+        """A diretora vê a A3, que é do Bruno, porque facilita a R2; não vê a
+        A6 da R3, onde só participou."""
+        banco = banco_do_hospital(DIRETORA)
+
+        assert ids_na_lista(banco, DIRETORA) == {"A1", "A2", "A3", "A5"}
+        assert rota_de_pendencias(banco, DIRETORA, "/A3").status_code == 200
+        assert rota_de_pendencias(banco, DIRETORA, "/A6").status_code == 404
+        assert ids_no_claude(banco, chave_do_emissor, DIRETORA) == {"A1", "A2", "A3", "A5"}
+
+    def test_super_admin_ve_todas(self, chave_do_emissor):
+        banco = banco_do_hospital(DIRETOR_SUPER)
+
+        assert ids_na_lista(banco, DIRETOR_SUPER) == {"A1", "A2", "A3", "A5", "A6"}
+        assert rota_de_pendencias(banco, DIRETOR_SUPER, "/A6").status_code == 200
+        assert ids_no_claude(banco, chave_do_emissor, DIRETOR_SUPER) == {"A1", "A2", "A3", "A5", "A6"}
+
+    def test_secretaria_continua_recebendo_403_em_pendencia(self):
+        banco = banco_do_hospital(SECRETARIA)
+
+        for caminho in ("", "/stats", "/A1"):
+            assert rota_de_pendencias(banco, SECRETARIA, caminho).status_code == 403

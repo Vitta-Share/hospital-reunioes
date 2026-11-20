@@ -6,15 +6,17 @@ pendência que o Claude recebe como atrasada é a que a tela mostra como
 atrasada. Atrasada é o status `ATRASADO`, que o job `marcar_atrasadas` grava
 na pendência PENDENTE de prazo vencido; nenhuma das duas portas recalcula.
 
-Quem chama resolve antes quem é (a visibilidade das Reuniões) e passa:
-`allowed_reuniao_ids` (None é sem filtro, a visão de Super admin), o id do
-participante, para o OR de co-responsável, e as reuniões do Núcleo que a
+Quem chama resolve antes quem é e passa o recorte das Pendências dessa pessoa
+(`pendencias_recorte`, issue #1863): o vínculo de responsável, co-responsável
+e Facilitador, a visão inteira do Super admin, e as reuniões do Núcleo que a
 pessoa não alcança (`ocultas`, issue #1772).
 """
 
 from __future__ import annotations
 
 from datetime import date
+
+from app.services.pendencias_recorte import RecorteDasPendencias
 
 
 def sem_reunioes_ocultas(query, ocultas: list[str]):
@@ -26,11 +28,23 @@ def sem_reunioes_ocultas(query, ocultas: list[str]):
     return query.or_(f"id_reuniao.is.null,id_reuniao.not.in.({','.join(ocultas)})")
 
 
+def no_recorte(query, recorte: RecorteDasPendencias):
+    """Deixa na consulta só as pendências do recorte da pessoa (issue #1863).
+    None quer dizer que nada aparece, e quem chama devolve vazio sem ir ao
+    banco."""
+    query = sem_reunioes_ocultas(query, list(recorte.ocultas))
+    filtro = recorte.filtro()
+    if filtro is None:
+        return query
+    if not filtro:
+        return None
+    return query.or_(filtro)
+
+
 def consultar_pendencias(
     supabase,
     *,
-    allowed_reuniao_ids: list[str] | None,
-    my_participante_id: str | None,
+    recorte: RecorteDasPendencias,
     status: str | None = None,
     responsaveis: list[str] | None = None,
     id_reuniao: str | None = None,
@@ -38,7 +52,6 @@ def consultar_pendencias(
     prazo_ate: date | None = None,
     setores: list[str] | None = None,
     facilitadores: list[str] | None = None,
-    ocultas: list[str] = (),
     limit: int,
     offset: int = 0,
 ) -> tuple[list[dict], int]:
@@ -47,15 +60,17 @@ def consultar_pendencias(
     do corte."""
     # A Pendência sem Reunião é o lembrete da Agenda regulatória do Núcleo:
     # nenhuma lista de Pendências o mostra (`e_lembrete_do_nucleo`).
-    query = sem_reunioes_ocultas(
+    query = no_recorte(
         supabase.table("pendencias")
         .select("*", count="exact")
         .is_("deleted_at", "null")
         .not_.is_("id_reuniao", "null"),
-        list(ocultas),
+        recorte,
     )
+    if query is None:
+        return [], 0
 
-    # Resolve filtro de facilitador cedo (afeta a aplicação de visibilidade)
+    # Filtro de facilitador: as reuniões que cada facilitador pedido conduz.
     facilitator_meeting_ids: list[str] | None = None
     if facilitadores:
         rq = supabase.table("reunioes").select("id_reuniao").is_("deleted_at", "null")
@@ -69,30 +84,13 @@ def consultar_pendencias(
         if not facilitator_meeting_ids:
             return [], 0
 
-    # Visibilidade binária + filtro facilitador.
-    # Quando facilitador está presente, é mais restritivo: ignoramos o OR de co-responsável
-    # para que "filtrar pelo facilitador X" signifique exatamente "pendências das reuniões dele".
+    # O filtro de facilitador vale junto com o recorte: "as do facilitador X"
+    # é a parte do recorte que está nas reuniões dele.
     if facilitator_meeting_ids is not None:
-        if allowed_reuniao_ids is not None:
-            allowed_set = set(allowed_reuniao_ids)
-            facilitator_meeting_ids = [m for m in facilitator_meeting_ids if m in allowed_set]
-            if not facilitator_meeting_ids:
-                return [], 0
         query = query.in_("id_reuniao", facilitator_meeting_ids)
-    elif allowed_reuniao_ids is not None:
-        if not allowed_reuniao_ids and not my_participante_id:
-            return [], 0
-        elif my_participante_id:
-            # Visível: reuniões permitidas OU co-responsável.
-            condicoes = [f"co_responsavel_id.eq.{my_participante_id}"]
-            if allowed_reuniao_ids:
-                condicoes.insert(0, f"id_reuniao.in.({','.join(allowed_reuniao_ids)})")
-            query = query.or_(",".join(condicoes))
-        else:
-            query = query.in_("id_reuniao", allowed_reuniao_ids)
 
     # Filtro por setor (super user only)
-    if setores and allowed_reuniao_ids is None:
+    if setores and recorte.reunioes is None:
         has_sem_setor = "Sem Setor" in setores
         setores_real = [s for s in setores if s != "Sem Setor"]
         pq = supabase.table("participantes").select("id")

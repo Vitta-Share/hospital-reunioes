@@ -14,8 +14,8 @@ from fastapi import HTTPException
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from app.dependencies import VisibilidadeDasReunioes  # noqa: E402
 from app.routers import pendencias as pendencias_router  # noqa: E402
+from app.services.pendencias_recorte import recorte_das_pendencias  # noqa: E402
 
 
 @dataclass
@@ -71,17 +71,19 @@ class _Sb:
         raise AssertionError(f"Tabela inesperada: {name}")
 
 
-def _patch_deps(monkeypatch, allowed: list[str] | None):
+def _patch_deps(monkeypatch, participante_id: str | None, *, super_admin: bool):
     async def _fake_participante(_user, _sb, fields=None):
         return {"id": "P01", "nome_completo": "Pedro Rezende"}
 
-    # Desde a issue #1772 o detalhe lê a visibilidade inteira (a lista branca e
-    # as reuniões do Núcleo ocultas); aqui, nenhuma reunião do Núcleo.
-    async def _fake_visibilidade(_user, _sb, recurso="reunioes"):
-        return VisibilidadeDasReunioes(permitidas=allowed, ocultas=[])
+    # Desde a issue #1863 o detalhe lê o recorte das Pendências (o vínculo e as
+    # reuniões do Núcleo ocultas); aqui, nenhuma reunião do Núcleo.
+    async def _fake_recorte(_user, _sb):
+        return recorte_das_pendencias(
+            participante_id, super_admin=super_admin, facilitadas=[], do_nucleo=[], ocultas=[]
+        )
 
     monkeypatch.setattr(pendencias_router, "get_participante_for_user", _fake_participante)
-    monkeypatch.setattr(pendencias_router, "get_visibilidade_das_reunioes", _fake_visibilidade)
+    monkeypatch.setattr(pendencias_router, "get_recorte_das_pendencias", _fake_recorte)
 
 
 class TestGetPendenciaSoftDelete:
@@ -98,7 +100,7 @@ class TestGetPendenciaSoftDelete:
                 }
             ]
         )
-        _patch_deps(monkeypatch, allowed=None)
+        _patch_deps(monkeypatch, "P01", super_admin=True)
 
         with pytest.raises(HTTPException) as exc:
             await pendencias_router.get_pendencia(id_acao="A001", current_user={"id": "u1"}, supabase=sb)
@@ -118,14 +120,14 @@ class TestGetPendenciaSoftDelete:
             ],
             participantes=[{"id": "P99", "is_externo": False}],
         )
-        _patch_deps(monkeypatch, allowed=None)
+        _patch_deps(monkeypatch, "P01", super_admin=True)
 
         resultado = await pendencias_router.get_pendencia(id_acao="A002", current_user={"id": "u1"}, supabase=sb)
         assert resultado["id_acao"] == "A002"
 
     @pytest.mark.asyncio
     async def test_token_orfao_recebe_404_em_pendencia_sem_corresponsavel(self, monkeypatch):
-        """Órfão (allowed=[] e my_id=None) não pode enxergar Pendência sem co-responsável."""
+        """Órfão (sem participante) não pode enxergar Pendência sem co-responsável."""
         sb = _Sb(
             pendencias=[
                 {
@@ -137,12 +139,7 @@ class TestGetPendenciaSoftDelete:
                 }
             ]
         )
-        _patch_deps(monkeypatch, allowed=[])
-
-        async def _sem_participante_id(_user, _sb):
-            return None
-
-        monkeypatch.setattr(pendencias_router, "get_participante_id_for_user", _sem_participante_id)
+        _patch_deps(monkeypatch, None, super_admin=False)
 
         with pytest.raises(HTTPException) as exc:
             await pendencias_router.get_pendencia(id_acao="A003", current_user={"id": "orfao"}, supabase=sb)

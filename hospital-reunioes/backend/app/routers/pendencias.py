@@ -8,9 +8,8 @@ from app.dependencies import (
     RECUSA_DO_NSP,
     get_current_user,
     get_participante_for_user,
-    get_participante_id_for_user,
+    get_recorte_das_pendencias,
     get_supabase_client,
-    get_visibilidade_das_reunioes,
     is_secretaria,
     is_super_admin,
     require_acesso_reunioes,
@@ -22,7 +21,7 @@ from app.models.schemas import PendenciaResponse, PendenciaStats, PendenciaUpdat
 from app.services import audit
 from app.services.notificacao_service import criar_notificacao_responsavel
 from app.services.pendencia_service import e_lembrete_do_nucleo
-from app.services.pendencias_consulta import consultar_pendencias, sem_reunioes_ocultas
+from app.services.pendencias_consulta import consultar_pendencias, no_recorte
 from app.utils.query_params import parse_csv_param
 
 router = APIRouter(
@@ -96,21 +95,20 @@ async def get_pendencias_stats(
     if is_secretaria(me):
         raise HTTPException(status_code=403, detail="Secretária não tem acesso a pendências")
 
-    visibilidade = await get_visibilidade_das_reunioes(current_user, supabase)
-    allowed_reuniao_ids = visibilidade.permitidas
-    my_participante_id = await get_participante_id_for_user(current_user, supabase)
-
-    # O sigilo do Núcleo (issue #1772): os números do painel não contam
-    # pendência de reunião do Núcleo de quem não a alcança.
-    query = sem_reunioes_ocultas(
+    # O recorte pelo vínculo (issue #1863) e o sigilo do Núcleo (issue #1772):
+    # os números do painel contam só o que a lista mostra a esta pessoa.
+    recorte = await get_recorte_das_pendencias(current_user, supabase)
+    query = no_recorte(
         supabase.table("pendencias")
         .select("status, responsavel_id, prazo, id_reuniao, co_responsavel_id")
         .is_("deleted_at", "null")
         .not_.is_("id_reuniao", "null"),
-        visibilidade.ocultas,
+        recorte,
     )
+    if query is None:
+        return PendenciaStats()
 
-    # Resolve filtro de facilitador cedo (afeta a aplicação de visibilidade)
+    # Filtro de facilitador: as reuniões que cada facilitador pedido conduz.
     facilitadores = parse_csv_param(facilitador_id)
     facilitator_meeting_ids: list[str] | None = None
     if facilitadores:
@@ -125,32 +123,13 @@ async def get_pendencias_stats(
         if not facilitator_meeting_ids:
             return PendenciaStats()
 
-    # Visibilidade binária + filtro facilitador.
-    # Quando facilitador está presente, ele é mais restritivo que o OR de co-responsável:
-    # ignoramos co_responsavel_id pra que "filtrar pelo facilitador X" signifique
-    # exatamente "pendências das reuniões dele", sem vazar pendências externas.
+    # O filtro de facilitador vale junto com o recorte, como na lista.
     if facilitator_meeting_ids is not None:
-        if allowed_reuniao_ids is not None:
-            allowed_set = set(allowed_reuniao_ids)
-            facilitator_meeting_ids = [m for m in facilitator_meeting_ids if m in allowed_set]
-            if not facilitator_meeting_ids:
-                return PendenciaStats()
         query = query.in_("id_reuniao", facilitator_meeting_ids)
-    elif allowed_reuniao_ids is not None:
-        if not allowed_reuniao_ids and not my_participante_id:
-            return PendenciaStats()
-        elif my_participante_id:
-            # Visível: reuniões permitidas OU co-responsável.
-            condicoes = [f"co_responsavel_id.eq.{my_participante_id}"]
-            if allowed_reuniao_ids:
-                condicoes.insert(0, f"id_reuniao.in.({','.join(allowed_reuniao_ids)})")
-            query = query.or_(",".join(condicoes))
-        else:
-            query = query.in_("id_reuniao", allowed_reuniao_ids)
 
     # Filtro por setor (super user only — filtra por responsavel_id de participantes do setor)
     setores = parse_csv_param(setor)
-    if setores and allowed_reuniao_ids is None:
+    if setores and recorte.reunioes is None:
         has_sem_setor = "Sem Setor" in setores
         setores_real = [s for s in setores if s != "Sem Setor"]
         pq = supabase.table("participantes").select("id")
@@ -255,7 +234,8 @@ async def list_pendencias(
     current_user: dict = Depends(get_current_user),
     supabase=Depends(get_supabase_client),
 ):
-    """Lista pendências com visibilidade binária: super users veem tudo, demais veem por reunião.
+    """Lista as pendências do recorte de quem pede (issue #1863): as dele, as das
+    reuniões que ele facilita, e todas para o Super admin.
 
     Retorna header `X-Total-Count` com o total de itens (antes de limit/offset) para
     que a UI consiga sinalizar truncamento e/ou paginação.
@@ -264,14 +244,9 @@ async def list_pendencias(
     if is_secretaria(me):
         raise HTTPException(status_code=403, detail="Secretária não tem acesso a pendências")
 
-    visibilidade = await get_visibilidade_das_reunioes(current_user, supabase)
-    my_participante_id = await get_participante_id_for_user(current_user, supabase)
-
     rows, total = consultar_pendencias(
         supabase,
-        allowed_reuniao_ids=visibilidade.permitidas,
-        ocultas=visibilidade.ocultas,
-        my_participante_id=my_participante_id,
+        recorte=await get_recorte_das_pendencias(current_user, supabase),
         status=status,
         responsaveis=parse_csv_param(responsavel_id),
         id_reuniao=id_reuniao,
@@ -305,19 +280,14 @@ async def get_pendencia(
     pendencia = result.data[0]
 
     # O sigilo do Núcleo (issue #1772), antes de tudo e para todo perfil.
-    visibilidade = await get_visibilidade_das_reunioes(current_user, supabase)
-    if pendencia.get("id_reuniao") in visibilidade.ocultas:
+    recorte = await get_recorte_das_pendencias(current_user, supabase)
+    if pendencia.get("id_reuniao") in recorte.ocultas:
         raise HTTPException(status_code=403, detail=RECUSA_DO_NSP)
 
-    # Visibilidade binária: super users veem tudo, demais checam reunião + co-responsável.
-    allowed_reuniao_ids = visibilidade.permitidas
-    if allowed_reuniao_ids is not None:
-        my_id = await get_participante_id_for_user(current_user, supabase)
-        pendencia_reuniao = pendencia.get("id_reuniao")
-        # my_id None (token órfão) não pode casar com co_responsavel_id None e desarmar o gate
-        e_coresp = my_id is not None and pendencia.get("co_responsavel_id") == my_id
-        if pendencia_reuniao not in allowed_reuniao_ids and not e_coresp:
-            raise HTTPException(status_code=404, detail="Pendência não encontrada")
+    # O recorte pelo vínculo (issue #1863): responsável, co-responsável,
+    # Facilitador da reunião ou Super admin. Fora dele, 404.
+    if not recorte.ve(pendencia):
+        raise HTTPException(status_code=404, detail="Pendência não encontrada")
 
     return _enrich_externo_flag(supabase, [pendencia])[0]
 
@@ -346,19 +316,14 @@ async def update_pendencia_status(
     pendencia = existing.data[0]
 
     # O sigilo do Núcleo (issue #1772), como no GET: antes de tudo e para todo perfil.
-    visibilidade = await get_visibilidade_das_reunioes(current_user, supabase)
-    if pendencia.get("id_reuniao") in visibilidade.ocultas:
+    recorte = await get_recorte_das_pendencias(current_user, supabase)
+    if pendencia.get("id_reuniao") in recorte.ocultas:
         raise HTTPException(status_code=403, detail=RECUSA_DO_NSP)
 
-    # Visibilidade binária (reunião + co-responsável)
-    allowed_reuniao_ids = visibilidade.permitidas
-    if allowed_reuniao_ids is not None:
-        my_id = await get_participante_id_for_user(current_user, supabase)
-        pendencia_reuniao = pendencia.get("id_reuniao")
-        # my_id None (token órfão) não pode casar com co_responsavel_id None e desarmar o gate
-        e_coresp = my_id is not None and pendencia.get("co_responsavel_id") == my_id
-        if pendencia_reuniao not in allowed_reuniao_ids and not e_coresp:
-            raise HTTPException(status_code=404, detail="Pendência não encontrada")
+    # O recorte pelo vínculo (issue #1863): responsável, co-responsável,
+    # Facilitador da reunião ou Super admin. Fora dele, 404.
+    if not recorte.ve(pendencia):
+        raise HTTPException(status_code=404, detail="Pendência não encontrada")
 
     # Validar co_responsavel_id se enviado
     if req.co_responsavel_id is not None:
