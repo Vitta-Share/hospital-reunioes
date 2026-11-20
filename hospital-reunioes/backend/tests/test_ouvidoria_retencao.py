@@ -74,6 +74,7 @@ def _manifestacao(numero: int = 7, **overrides) -> dict:
         "tipo_manifestacao": "reclamacao",
         "categoria": "Demora no atendimento",
         "setor": "Recepcao",
+        "setor_id": "s1",
         "gravidade": "medio",
         "canal": "telefone",
         "desfecho": "procedente",
