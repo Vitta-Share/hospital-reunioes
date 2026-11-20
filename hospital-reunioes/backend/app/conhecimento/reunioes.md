@@ -90,6 +90,14 @@ Além das pendências, a ata que falta assinar aparece no Início de cada signat
 
 Quem acompanha outras pessoas vê, abaixo da lista, o bloco Quem responde a você. Enquanto o organograma não chega, vale o vínculo: quem administra o aplicativo vê todas as pessoas com pendência aberta, e o facilitador vê os responsáveis das pendências das reuniões que conduziu, contando só as pendências dessas reuniões. Quem não é nenhum dos dois não vê o bloco. Cada linha mostra o nome, o cargo, os prazos vencidos agora, os itens em aberto e o último acesso ao Início ("hoje", "há tantos dias" ou "nunca entrou"), e quem tem mais prazos vencidos vem primeiro. Clicar na linha, ou apertar Enter nela, abre ali mesmo, só para leitura, o que venceu e não foi entregue, com há quantos dias. O último acesso de uma pessoa só aparece para quem vê alguma pendência dela, e as pendências do Núcleo ficam de fora para quem o Núcleo não deixa ver, inclusive quem administra o aplicativo. Se esse bloco não carregar, o resto do Início continua. No celular a tabela rola de lado dentro do próprio bloco.
 
+## O painel de Reuniões
+
+O painel de Reuniões mostra, em cards, os números de quem está olhando, contados pelo servidor sobre todas as pendências e reuniões do hospital, sem corte de quantidade. Quem é responsável conta as pendências de que é responsável ou divide a responsabilidade. O facilitador conta também as reuniões que conduz e as pendências delas. Quem administra o aplicativo conta o hospital inteiro, menos as reuniões do Núcleo de Segurança do Paciente que o Núcleo não deixa ver. A Secretária não vê o painel e não recebe número de pendência.
+
+Os cards são a conformidade (a parte das pendências abertas que está no prazo), as que vencem em até 3 dias, as atas paradas há mais de 3 dias e as atas que aguardam assinatura. Os filtros de setor, responsável e prazo valem para os números das pendências e para os gráficos; nos cards de atas, vale só o de setor. Os dois cards de atas abrem a lista das atas que contaram. Na lista das que aguardam assinatura, o facilitador da reunião e quem administra o aplicativo veem quem ainda falta assinar e o botão Cobrar, que manda de novo o pedido de assinatura da ClickSign só para quem não assinou. Na ata que passou para a coleta interna de aceites, o Cobrar avisa que o envio na ClickSign já foi encerrado.
+
+O painel não tem alerta de prazo nem lista do que depende de cada um: isso fica no Início, e o painel tem um link para lá.
+
 ## O calendário
 
 No calendário de Reuniões, na visão do mês e na da semana, as reuniões de cada dia aparecem na ordem da hora de início, e a mais cedo vem primeiro. No mês, o dia mostra as três primeiras e um "mais" para abrir as outras. O título que não cabe no bloco aparece inteiro quando se passa o mouse sobre a reunião.

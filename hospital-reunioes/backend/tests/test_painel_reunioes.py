@@ -338,3 +338,17 @@ def test_secretaria_nao_recebe_dado_de_pendencia(painel):
     assert resposta.status_code == 403
     assert "cards" not in resposta.json()
     assert "situacoes" not in resposta.json()
+
+
+# ─── 4. O kit de conhecimento ────────────────────────────────────────────────
+
+
+def test_o_texto_de_reunioes_no_kit_diz_o_painel_novo():
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = (CONHECIMENTO_DIR / "reunioes.md").read_text(encoding="utf-8")
+    assert "## O painel de Reuniões" in texto
+    assert "sobre todas as pendências e reuniões do hospital, sem corte de quantidade" in texto
+    assert "O facilitador conta também as reuniões que conduz e as pendências delas" in texto
+    assert "manda de novo o pedido de assinatura da ClickSign só para quem não assinou" in texto
+    assert "O painel não tem alerta de prazo nem lista do que depende de cada um" in texto
