@@ -2,6 +2,51 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-19T21:52:50-03:00",
+      "sha": "173d193502e8b264195f61ec933b8a0a56d9d559",
+      "app_version": "0.320.0",
+      "subject": "Onda sesta-1757-onda2: Quem vê o quê nas Pendências sai do vínculo: responsável, Facilitador e Super admin",
+      "raw_subject": "chore(deploy): registro da onda sesta-1757-onda2 (#2042)",
+      "scope": [
+        "backend"
+      ],
+      "prds": [
+        1757
+      ],
+      "result": "healthy",
+      "duration_seconds": 126,
+      "services_touched": [
+        "backend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1757-onda2: PR #2042 (issue #1863), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 94
+        },
+        "health_s": 10
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-19T20:30:01-03:00",
       "sha": "905bc7ccb57a0a84b61c12f9c139317b06b6acce",
       "app_version": "0.319.2",
