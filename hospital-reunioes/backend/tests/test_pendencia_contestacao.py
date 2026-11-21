@@ -410,3 +410,23 @@ def test_contestacao_de_pendencia_fechada_nao_vai_para_a_fila(monkeypatch, ocult
 def test_contestacao_de_reuniao_do_nucleo_fora_do_alcance_nao_aparece(monkeypatch, ocultas):
     ocultas["ocultas"] = ["R50"]
     assert _contestacoes(_rota(monkeypatch, FACILITADOR, _cenario_da_fila(_CONTESTOU_HOJE))) == []
+
+
+# ── O kit de conhecimento diz o comportamento novo ──────────────────────────
+
+
+def test_o_texto_de_reunioes_no_kit_diz_como_funciona_a_contestacao():
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = " ".join((CONHECIMENTO_DIR / "reunioes.md").read_text(encoding="utf-8").split())
+    secao = texto.split("## Contestar um item da ata", 1)[1].split(" ## ", 1)[0]
+    assert "Só o responsável pelo item contesta, e só enquanto a ata está em assinatura" in secao
+    assert "contesta o item e assina a ata mesmo assim" in secao
+    assert "continua sendo cobrado, com o mesmo prazo, e conta atraso" in secao
+    assert "aparece na hora no Início do facilitador" in secao
+    assert "ajustar ou recusar, sempre com uma anotação" in secao
+    assert "a ata não volta para assinatura" in secao
+    # Quem administra o aplicativo faz tudo, menos contestar.
+    assert "faz tudo, menos contestar" in texto
+    assert chr(0x2014) not in secao
+    assert chr(0x2013) not in secao

@@ -28,9 +28,9 @@ Toda mudança pede uma anotação, escrita por quem faz. As ações são iniciar
 
 Quem pode o quê:
 
-- O responsável e o co-responsável iniciam, anotam, concluem e repactuam.
-- O facilitador da reunião repactua, cancela e reabre.
-- Quem administra o aplicativo faz tudo, menos nas reuniões do Núcleo de Segurança do Paciente, que seguem a regra do Núcleo.
+- O responsável e o co-responsável iniciam, anotam, concluem e repactuam. Só o responsável contesta.
+- O facilitador da reunião repactua, cancela e reabre, e responde à contestação, ajustando ou recusando.
+- Quem administra o aplicativo faz tudo, menos contestar, e menos nas reuniões do Núcleo de Segurança do Paciente, que seguem a regra do Núcleo.
 - Quem só participou da reunião não age na pendência dos outros.
 
 Concluir já termina, sem validação de ninguém, e o aplicativo guarda o dia em que o responsável marcou. Repactuar antes do prazo vencer não conta como atraso; depois de vencer, conta, e a repactuação fica marcada para o ranking. A reabertura feita com o prazo já vencido também fica marcada. A pendência que já teve o prazo trocado aparece como repactuada enquanto estiver aberta e no prazo.
@@ -54,6 +54,19 @@ A cada ciclo o responsável marca se fez ou não. Realizada é um clique; Não r
 Quem marca é o responsável, no aplicativo. Para quem não entra no aplicativo, o facilitador da reunião marca por ele. O facilitador também pode encerrar a rotina a qualquer momento, com uma anotação: o ciclo em curso e os seguintes deixam de ser cobrados, e os que já tinham terminado sem marcação continuam lá para marcar. Quem administra o aplicativo faz o mesmo que o facilitador, menos nas reuniões do Núcleo de Segurança do Paciente, que seguem a regra do Núcleo.
 
 A tela Rotinas, no menu de Reuniões, mostra as rotinas no nome da pessoa e as das reuniões que ela conduz, com os ciclos em aberto e as marcações feitas. A verificação do ciclo em aberto também aparece no Início do responsável, com o prazo no último dia do ciclo e o botão Realizada, que marca ali mesmo; o ciclo que fechou sem marcação aparece como prazo vencido.
+
+## Contestar um item da ata
+
+Quando um item da ata está errado (o prazo, o responsável ou o que foi combinado), o responsável por ele pode contestar. Só o responsável pelo item contesta, e só enquanto a ata está em assinatura. Na tela da pendência aparece o botão Contestar, que pede uma anotação explicando o que está errado. A contestação vale para aquele item: a pessoa contesta o item e assina a ata mesmo assim, porque a assinatura registra que ela leu o resto da ata.
+
+Contestar não é jeito de adiar. O item contestado continua sendo cobrado, com o mesmo prazo, e conta atraso se o prazo vencer, até o facilitador responder.
+
+A contestação aparece na hora no Início do facilitador da reunião, no grupo do que vence em até 48 horas, sem esperar a segunda-feira. Se ele não responde até o fim do dia seguinte, ela passa para o grupo do que já venceu. O facilitador, ou quem administra o aplicativo, abre a pendência e escolhe ajustar ou recusar, sempre com uma anotação:
+
+- **Ajustar** aceita a contestação, e a anotação diz o que foi corrigido. Se o erro era o prazo, ele informa também o prazo novo, que vale na hora e não conta como repactuação.
+- **Recusar** mantém a pendência como está, e a anotação explica por quê.
+
+O ajuste fica na pendência e no histórico, e a ata não volta para assinatura. Respondida a contestação, ela sai do Início do facilitador, e o responsável pode contestar de novo enquanto a ata estiver em assinatura.
 
 ## Assinar ou finalizar sem assinar
 
