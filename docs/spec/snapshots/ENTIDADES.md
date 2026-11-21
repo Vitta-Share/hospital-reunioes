@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T22:11+0000 -->
+<!-- last_update: 2026-11-21T22:24+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2414,6 +2414,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_conduta_casos_triagem_por` em `(triagem_por)` (de `185_conduta_triagem_e_ritos.sql`)
 - `idx_conduta_casos_conferida_por` em `(conferida_por)` (de `185_conduta_triagem_e_ritos.sql`)
 - `idx_conduta_casos_prorrogado_por` em `(prorrogado_por)` (de `185_conduta_triagem_e_ritos.sql`)
+- `idx_conduta_casos_abertos_prazo` em `(prazo_em)` (de `199_conduta_avisos_por_email.sql`)
 - `uq_conduta_casos_manifestacao` em `(manifestacao_id)` (de `202_conduta_sinalizacao_da_ouvidoria.sql`)
 
 ## conduta_atribuicoes
@@ -2738,6 +2739,25 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_email_de_segunda_semana` em `(semana)` (de `196_email_de_segunda.sql`)
 
+## conduta_avisos
+
+> Origem: `199_conduta_avisos_por_email.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `participante_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `motivo` | `TEXT` | NOT NULL | — | — |
+| `referencia` | `TEXT` | NOT NULL | — | — |
+| `na_hora` | `BOOLEAN` | NOT NULL | `false` | — |
+| `situacao` | `TEXT` | NOT NULL | `'pendente'` | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `enviado_em` | `TIMESTAMPTZ` | — | — | — |
+
+**Indexes:**
+- `idx_conduta_avisos_pendentes` em `(na_hora, criado_em)` (de `199_conduta_avisos_por_email.sql`)
+
 ## conduta_notas_nsp
 
 > Origem: `203_conduta_nota_ao_nucleo.sql`
@@ -2773,4 +2793,4 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ---
 
-**Resumo:** 137 tabelas vivas.
+**Resumo:** 138 tabelas vivas.
