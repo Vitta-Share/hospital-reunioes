@@ -164,6 +164,10 @@ export interface ItemDaFila {
   minha?: boolean;
   /** Na busca (issue #1956), se a pessoa pode abrir o Guia: falso, a linha fica sem botão. */
   pode_abrir?: boolean;
+  /** O mês da conta, "2026-10" (issue #1958, ADR 0105): o do fim do período ou, sem ele, o da conclusão. */
+  competencia?: string | null;
+  /** Quando a conta foi arquivada (issue #1958); nula na que não foi. */
+  arquivada_em?: string | null;
 }
 
 /** O número de cada etapa da Esteira (issue #1951); cada rota manda as dela. */
@@ -172,6 +176,8 @@ export interface ContagemDaEsteira {
   fila?: number;
   em_analise?: number;
   concluidas?: number;
+  /** As arquivadas (issue #1958): a lista delas só vem quando a etapa é aberta. */
+  arquivadas?: number;
 }
 
 /**

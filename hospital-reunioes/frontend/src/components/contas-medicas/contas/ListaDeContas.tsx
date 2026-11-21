@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Lock } from "lucide-react";
 
 import { Dica } from "@/components/ui/Dica";
+import { nomeDaCompetencia } from "@/lib/contas-medicas/arquivo";
 import { trechoAchado } from "@/lib/contas-medicas/busca";
 import { detalheDaConta, rotuloDaSituacao, type ItemDaFila } from "@/lib/contas-medicas/envio";
 import { dataCurta } from "@/lib/contas-medicas/guia";
@@ -134,10 +136,12 @@ function LinhaDaConta({
   conta,
   abreAlheias,
   marcar,
+  extra,
 }: {
   conta: ItemDaFila;
   abreAlheias: boolean;
   marcar?: string;
+  extra?: (conta: ItemDaFila) => ReactNode;
 }) {
   // O valor da conta fica fora da lista (issue #1419): a Fila nunca anda por valor.
   const andamento = [detalheDaConta({ ...conta, valor_apontado: null }), contagensDaConta(conta)]
@@ -159,11 +163,15 @@ function LinhaDaConta({
         >
           {rotuloDaSituacao(conta)}
         </span>
+        {conta.arquivada_em && (
+          <span className="text-xs text-slate-600">Arquivada, {nomeDaCompetencia(conta.competencia)}</span>
+        )}
         {andamento && <span className="text-xs text-slate-600">{andamento}</span>}
       </div>
       <span className="min-w-0 text-sm text-slate-600">{conta.com ? `com ${conta.com}` : ""}</span>
-      <div className="md:justify-self-end">
+      <div className="flex flex-col items-end gap-1 md:justify-self-end">
         <AcaoDaConta conta={conta} abreAlheias={abreAlheias} />
+        {extra?.(conta)}
       </div>
     </li>
   );
@@ -172,15 +180,18 @@ function LinhaDaConta({
 /**
  * `abreAlheias`: a pessoa tem o painel completo e abre a conta de qualquer faturista.
  * `marcar` é o texto da busca (issue #1956), marcado no número e no nome de cada linha.
+ * `extra` é a segunda ação da linha, embaixo da principal: "Arquivar" ou "Desarquivar" (issue #1958).
  */
 export function ListaDeContas({
   contas,
   abreAlheias,
   marcar,
+  extra,
 }: {
   contas: ItemDaFila[];
   abreAlheias: boolean;
   marcar?: string;
+  extra?: (conta: ItemDaFila) => ReactNode;
 }) {
   return (
     <div>
@@ -195,7 +206,7 @@ export function ListaDeContas({
       </div>
       <ul className="divide-y divide-border">
         {contas.map((conta) => (
-          <LinhaDaConta key={conta.id} conta={conta} abreAlheias={abreAlheias} marcar={marcar} />
+          <LinhaDaConta key={conta.id} conta={conta} abreAlheias={abreAlheias} marcar={marcar} extra={extra} />
         ))}
       </ul>
     </div>

@@ -93,7 +93,7 @@ const FILA: Fila = {
     }),
   ],
   // O número da Esteira vem do servidor: as Concluídas passam do teto da lista.
-  contagem: { envios: 4, fila: 2, em_analise: 2, concluidas: 130 },
+  contagem: { envios: 4, fila: 2, em_analise: 2, concluidas: 130, arquivadas: 7 },
 };
 
 const RESPOSTA_DO_ENVIO: RespostaDoEnvio = {
@@ -150,6 +150,7 @@ beforeEach(() => {
       if (url.endsWith("/analisar-de-novo")) return aoAnalisarDeNovo(url);
       if (url.endsWith("/analisar-assim-mesmo")) return aoAnalisarDeNovo(url);
       if (url.endsWith("/processamento")) return new Response(JSON.stringify(detalheDoServidor));
+      if (url === "/api/contas-medicas/arquivadas") return new Response(JSON.stringify({ todas, arquivadas: [] }));
       return new Response("{}", { status: 404 });
     }),
   );
@@ -179,12 +180,18 @@ function esteira(): HTMLElement {
 }
 
 describe("a Esteira (issue #1951)", () => {
-  it("mostra Envios, Fila, Em análise e Concluídas numa faixa só, cada uma com o número do servidor", async () => {
+  it("mostra Envios, Fila, Em análise, Concluídas e Arquivadas numa faixa só, cada uma com o número do servidor", async () => {
     render(<ContasMedicasPage />);
     await linhas();
 
     const etapas = within(esteira()).getAllByRole("tab");
-    expect(etapas.map((t) => t.textContent)).toEqual(["Envios 4", "Fila 2", "Em análise 2", "Concluídas 130"]);
+    expect(etapas.map((t) => t.textContent)).toEqual([
+      "Envios 4",
+      "Fila 2",
+      "Em análise 2",
+      "Concluídas 130",
+      "Arquivadas 7",
+    ]);
     expect(within(esteira()).getAllByRole("tablist")).toHaveLength(1);
   });
 
@@ -199,7 +206,9 @@ describe("a Esteira (issue #1951)", () => {
     etapa(/^Concluídas/);
 
     expect(marcada().map((t) => t.textContent)).toEqual(["Concluídas 130"]);
-    expect(within(esteira()).getByText("As contas que a faturista já concluiu.")).toBeTruthy();
+    expect(
+      within(esteira()).getByText("As contas que a faturista já concluiu e ainda não arquivou, por mês da conta."),
+    ).toBeTruthy();
     expect(within(esteira()).queryByText("As contas prontas que ninguém pegou, na ordem de envio.")).toBeNull();
     const [feita] = await linhas();
     expect(feita.textContent).toContain("31200");
@@ -233,14 +242,16 @@ describe("a Esteira (issue #1951)", () => {
       "Fila 0",
       "Em análise 0",
       "Concluídas 0",
+      "Arquivadas 0",
     ]);
     for (const [nome, frase] of [
       [/^Envios/, "Nenhum envio esperando o guia"],
       [/^Em análise/, "Nenhuma conta em análise"],
-      [/^Concluídas/, "Nenhuma conta concluída ainda"],
+      [/^Concluídas/, "Nenhuma conta concluída fora do arquivo"],
+      [/^Arquivadas/, "Nenhuma conta arquivada"],
     ] as const) {
       etapa(nome);
-      expect(lista.textContent).toContain(frase);
+      await waitFor(() => expect(lista.textContent).toContain(frase));
     }
   });
 });
@@ -582,6 +593,8 @@ describe("Todas e Minhas (issue #1955)", () => {
       "Fila 2",
       "Em análise 1",
       "Concluídas 40",
+      // Arquivadas não muda com o filtro (issue #1958).
+      "Arquivadas 0",
     ]);
     expect(numeros(await linhas())).toEqual(["31245", "31246"]);
     etapa(/^Em análise/);
@@ -1300,14 +1313,19 @@ describe("cada bloco pela permissão de /contas-medicas/me", () => {
     expect(chamadas.some((c) => c.url === "/api/contas-medicas/fila")).toBe(false);
   });
 
-  it("quem só analisa vê Fila, Em análise e Concluídas, sem o envio e sem Envios", async () => {
+  it("quem só analisa vê Fila, Em análise, Concluídas e Arquivadas, sem o envio e sem Envios", async () => {
     permissoes = [ANALISAR];
     render(<ContasMedicasPage />);
 
     await linhas();
 
     expect(screen.queryByRole("region", { name: "Envio de contas" })).toBeNull();
-    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Fila 2", "Em análise 2", "Concluídas 130"]);
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual([
+      "Fila 2",
+      "Em análise 2",
+      "Concluídas 130",
+      "Arquivadas 7",
+    ]);
     expect(chamadas.some((c) => c.url === "/api/contas-medicas/meus-envios")).toBe(false);
   });
 
@@ -1323,13 +1341,13 @@ describe("cada bloco pela permissão de /contas-medicas/me", () => {
     expect(screen.queryAllByRole("tab")).toHaveLength(0);
   });
 
-  it("quem tem as duas tem o botão do envio e as quatro abas (issue #1954)", async () => {
+  it("quem tem as duas tem o botão do envio e as cinco abas (issues #1954 e #1958)", async () => {
     render(<ContasMedicasPage />);
 
     await linhas();
 
     expect(screen.getByRole("button", { name: "Enviar contas" })).toBeTruthy();
-    expect(screen.getAllByRole("tab")).toHaveLength(4);
+    expect(screen.getAllByRole("tab")).toHaveLength(5);
   });
 });
 

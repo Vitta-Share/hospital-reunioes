@@ -31,6 +31,11 @@
  * tecla, a partir do segundo caractere. Com texto no campo, os resultados
  * ocupam o lugar da Esteira e da lista; limpar o campo devolve a etapa que
  * estava aberta.
+ *
+ * Desde a issue #1958 (ADR 0105) Concluídas vem agrupada por Competência,
+ * com "Arquivar" em cada conta e "Arquivar o mês" no cabeçalho do grupo, e a
+ * Esteira ganha a etapa Arquivadas, cuja lista só vem do servidor quando a
+ * etapa é aberta, com "Desarquivar".
  */
 
 import { type DragEvent, useCallback, useEffect, useRef, useState } from "react";
@@ -39,6 +44,7 @@ import { AlertCircle, Loader2, ReceiptText, Upload } from "lucide-react";
 import { BarraDeContas } from "@/components/contas-medicas/contas/BarraDeContas";
 import { CampoDaBusca, ResultadosDaBusca } from "@/components/contas-medicas/contas/BuscaDeContas";
 import { BarraDeTempos, CartaoDoEnvio } from "@/components/contas-medicas/contas/CartaoDoEnvio";
+import { ContasPorCompetencia } from "@/components/contas-medicas/contas/ContasPorCompetencia";
 import { ContinueDeOndeParou } from "@/components/contas-medicas/contas/ContinueDeOndeParou";
 import { Esteira } from "@/components/contas-medicas/contas/Esteira";
 import { FiltroTodasMinhas, useRecorte } from "@/components/contas-medicas/contas/FiltroTodasMinhas";
@@ -63,6 +69,16 @@ import {
   rotaDoDescarte,
   separarArquivos,
 } from "@/lib/contas-medicas/envio";
+import {
+  FALHA_DO_ARQUIVAR,
+  FALHA_DO_DESARQUIVAR,
+  ROTA_ARQUIVADAS,
+  postar,
+  resultadoDoMes,
+  rotaDoArquivar,
+  rotaDoArquivarOMes,
+  rotaDoDesarquivar,
+} from "@/lib/contas-medicas/arquivo";
 import {
   ESPERA_DA_BUSCA_MS,
   MINIMO_DA_BUSCA,
@@ -104,12 +120,12 @@ interface Pode {
 function etapasDe(pode: Pode): Etapa[] {
   const etapas: Etapa[] = [];
   if (pode.enviar) etapas.push("envios");
-  if (pode.analisar) etapas.push("fila", "em_analise", "concluidas");
+  if (pode.analisar) etapas.push("fila", "em_analise", "concluidas", "arquivadas");
   return etapas;
 }
 
-/** A lista da resposta do servidor que cada etapa mostra. */
-const LISTA_DA_ETAPA: Record<Etapa, "meus_envios" | "fila" | "minhas" | "concluidas"> = {
+/** A lista da resposta do servidor que cada etapa mostra; a das Arquivadas vem à parte. */
+const LISTA_DA_ETAPA: Record<Exclude<Etapa, "arquivadas">, "meus_envios" | "fila" | "minhas" | "concluidas"> = {
   envios: "meus_envios",
   fila: "fila",
   em_analise: "minhas",
@@ -189,6 +205,13 @@ export default function ContasMedicasPage() {
   const [busca, setBusca] = useState("");
   const [achadas, setAchadas] = useState<RespostaDaBusca | null>(null);
   const [erroDaBusca, setErroDaBusca] = useState(false);
+  /** A etapa Arquivadas (issue #1958): a lista só vem quando a etapa é aberta. */
+  const [arquivadas, setArquivadas] = useState<ItemDaFila[] | null>(null);
+  const [erroDasArquivadas, setErroDasArquivadas] = useState(false);
+  const [releituraDasArquivadas, setReleituraDasArquivadas] = useState(0);
+  /** O aviso do arquivar e a recusa do servidor, na própria lista. */
+  const [avisoDoArquivo, setAvisoDoArquivo] = useState<string | null>(null);
+  const [recusaDoArquivo, setRecusaDoArquivo] = useState<string | null>(null);
 
   /** Cada lista vem da rota da permissão dela; a que a pessoa não tem fica vazia. */
   const carregarFila = useCallback(async (tk: string, quem: Pode) => {
@@ -286,6 +309,23 @@ export default function ContasMedicasPage() {
     };
   }, [termo, token]);
 
+  /** A lista das Arquivadas vem do servidor ao abrir a etapa, e de novo depois de desarquivar. */
+  useEffect(() => {
+    if (etapa !== "arquivadas" || !token) return;
+    let valendo = true;
+    setErroDasArquivadas(false);
+    lerJson(ROTA_ARQUIVADAS, token)
+      .then((resposta) => {
+        if (valendo) setArquivadas(resposta.arquivadas ?? []);
+      })
+      .catch(() => {
+        if (valendo) setErroDasArquivadas(true);
+      });
+    return () => {
+      valendo = false;
+    };
+  }, [etapa, token, releituraDasArquivadas]);
+
   /** O aviso de que a conta foi para a Fila some sozinho depois de uns segundos. */
   useEffect(() => {
     if (prontas.length === 0) return;
@@ -344,12 +384,40 @@ export default function ContasMedicasPage() {
     return recusa;
   }
 
+  /** Arquivar uma conta, desarquivar ou o mês: o servidor responde e a lista se relê. */
+  async function arquivarAConta(conta: ItemDaFila, desfazer = false) {
+    if (!token || !pode) return;
+    setAvisoDoArquivo(null);
+    const { recusa } = await postar(
+      desfazer ? rotaDoDesarquivar(conta.id) : rotaDoArquivar(conta.id),
+      token,
+      desfazer ? FALHA_DO_DESARQUIVAR : FALHA_DO_ARQUIVAR,
+    );
+    setRecusaDoArquivo(recusa);
+    if (recusa === null) {
+      const numero = conta.numero_atendimento ?? "";
+      setAvisoDoArquivo(desfazer ? `${numero} voltou para Concluídas.` : `${numero} arquivada.`);
+    }
+    setReleituraDasArquivadas((n) => n + 1);
+    await carregarFila(token, pode);
+  }
+
+  async function arquivarOMes(mes: string) {
+    if (!token || !pode) return;
+    setAvisoDoArquivo(null);
+    const { recusa, corpo } = await postar(rotaDoArquivarOMes(mes), token, FALHA_DO_ARQUIVAR);
+    setRecusaDoArquivo(recusa);
+    if (recusa === null) setAvisoDoArquivo(resultadoDoMes(corpo as { arquivadas: number; com_pendencia: number }));
+    await carregarFila(token, pode);
+  }
+
   /** Em "Minhas", Em análise e Concluídas ficam só com as contas da pessoa; Fila e Envios não mudam. */
   const recortada = (qual: Etapa) => recorte === "minhas" && ETAPAS_DO_RECORTE.includes(qual);
   const listaDa = (qual: Etapa): ItemDaFila[] | undefined => {
-    const lista = fila?.[LISTA_DA_ETAPA[qual]];
+    const lista = qual === "arquivadas" ? (arquivadas ?? undefined) : fila?.[LISTA_DA_ETAPA[qual]];
     return lista && recortada(qual) ? lista.filter((conta) => conta.minha) : lista;
   };
+  const concluidasDoMes = (mes: string | null) => (fila?.concluidas ?? []).filter((c) => (c.competencia ?? null) === mes);
   const contas = listaDa(etapa);
   // A conta que ficou pronta sai dos envios, e o painel dela fecha junto.
   const contaDoPainel = painel ? envios.find((conta) => conta.id === painel) : undefined;
@@ -363,6 +431,7 @@ export default function ContasMedicasPage() {
     const doServidor = recortada(qual)
       ? fila.contagem_minhas?.[qual as "em_analise" | "concluidas"]
       : fila.contagem?.[qual];
+    if (qual === "arquivadas") return doServidor ?? arquivadas?.length ?? 0;
     return doServidor ?? listaDa(qual)?.length ?? 0;
   };
   /** As contas em análise da própria pessoa, para o "Continue de onde parou". */
@@ -503,6 +572,18 @@ export default function ContasMedicasPage() {
 
           {etapa === "fila" && <ContinueDeOndeParou contas={minhasEmAnalise} />}
 
+          {avisoDoArquivo && (etapa === "concluidas" || etapa === "arquivadas") && (
+            <p role="status" className="rounded-2xl border border-emerald-100 bg-emerald-50 px-5 py-3 text-sm font-medium text-emerald-800">
+              {avisoDoArquivo}
+            </p>
+          )}
+
+          {recusaDoArquivo && (etapa === "concluidas" || etapa === "arquivadas") && (
+            <p role="alert" className="flex items-center gap-2 text-sm text-red-700">
+              <AlertCircle className="w-4 h-4" aria-hidden="true" /> {recusaDoArquivo}
+            </p>
+          )}
+
           {recusaDoDescarte && (
             <p role="alert" className="flex items-center gap-2 text-sm text-red-700">
               <AlertCircle className="w-4 h-4" aria-hidden="true" /> {recusaDoDescarte}
@@ -511,7 +592,15 @@ export default function ContasMedicasPage() {
 
           <section aria-label="Lista de contas" className={CARTAO}>
             <div role="tabpanel">
-              {erroDaFila ? (
+              {etapa === "arquivadas" && erroDasArquivadas ? (
+                <p role="alert" className="flex items-center gap-2 p-6 text-sm text-red-700">
+                  <AlertCircle className="w-4 h-4" aria-hidden="true" /> Não consegui carregar as arquivadas.
+                </p>
+              ) : etapa === "arquivadas" && arquivadas === null ? (
+                <p className="flex items-center gap-2 p-6 text-sm text-slate-500">
+                  <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> Carregando as arquivadas
+                </p>
+              ) : erroDaFila ? (
                 <p role="alert" className="flex items-center gap-2 p-6 text-sm text-red-700">
                   <AlertCircle className="w-4 h-4" aria-hidden="true" /> {erroDaFila}
                 </p>
@@ -533,6 +622,16 @@ export default function ContasMedicasPage() {
                     />
                   ))}
                 </ul>
+              ) : contas && contas.length > 0 && (etapa === "concluidas" || etapa === "arquivadas") ? (
+                <ContasPorCompetencia
+                  etapa={etapa}
+                  contas={contas}
+                  todasDoMes={concluidasDoMes}
+                  todas={fila.todas}
+                  onArquivar={(conta) => arquivarAConta(conta)}
+                  onDesarquivar={(conta) => arquivarAConta(conta, true)}
+                  onArquivarOMes={arquivarOMes}
+                />
               ) : contas && contas.length > 0 ? (
                 <ListaDeContas contas={contas} abreAlheias={fila.todas} />
               ) : (
