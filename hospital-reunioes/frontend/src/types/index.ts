@@ -390,7 +390,8 @@ export type TipoNotificacao =
   | "RESPONSAVEL_ATRIBUIDO"
   | "ACEITE_INTERNO"
   | "CONTAS_MEDICAS"
-  | "TECNOLOGIA";
+  | "TECNOLOGIA"
+  | "CONDUTA";
 
 export interface Notificacao {
   id: string;

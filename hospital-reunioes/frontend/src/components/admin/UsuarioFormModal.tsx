@@ -92,6 +92,8 @@ export function UsuarioFormModal({
   const [registroUf, setRegistroUf] = useState(initial?.registro_uf ?? "");
   const initialAcessoPleno = initial?.perfil_nsp === "acesso_pleno";
   const [acessoPleno, setAcessoPleno] = useState(initialAcessoPleno);
+  const initialCadastroDoComite = initial?.perfil_conduta === "cadastro_de_membros";
+  const [cadastroDoComite, setCadastroDoComite] = useState(initialCadastroDoComite);
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
   const formId = useId();
@@ -150,6 +152,8 @@ export function UsuarioFormModal({
         if (registroUf !== (initial?.registro_uf ?? ""))
           payload.registro_uf = registroUf.trim().toUpperCase() || null;
         if (acessoPleno !== initialAcessoPleno) payload.perfil_nsp = acessoPleno ? "acesso_pleno" : null;
+        if (cadastroDoComite !== initialCadastroDoComite)
+          payload.perfil_conduta = cadastroDoComite ? "cadastro_de_membros" : null;
         if (reason.trim()) payload.reason = reason.trim();
       }
       const perfilPopChange: PerfilPopChange | undefined =
@@ -305,6 +309,26 @@ export function UsuarioFormModal({
               Vê e edita tudo no módulo do Núcleo, inclusive quem notificou. É
               do Diretor Executivo. Nem o Super Admin lê o Núcleo sem ele, e
               ninguém dá este acesso a si mesmo.
+            </p>
+          </fieldset>
+        )}
+
+        {mode === "edit" && (
+          <fieldset className="space-y-2">
+            <legend className="text-xs font-medium text-slate-500 uppercase">Canal de Conduta</legend>
+            <label className="inline-flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={cadastroDoComite}
+                onChange={(e) => setCadastroDoComite(e.target.checked)}
+                className="accent-primary"
+              />
+              Cadastro de membros do Comitê de Conduta
+            </label>
+            <p className="text-xs text-slate-500 leading-snug">
+              Inclui e encerra membros e suplentes do Comitê, a pedido dele. Não
+              abre caso. Nem o Super Admin cadastra sem ele. Dar ou tirar este
+              perfil avisa os membros do Comitê.
             </p>
           </fieldset>
         )}
