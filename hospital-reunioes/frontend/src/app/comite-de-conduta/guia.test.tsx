@@ -24,6 +24,7 @@ const redirect = vi.fn((destino: string) => {
 vi.mock("next/navigation", () => ({
   redirect: (destino: string) => redirect(destino),
   usePathname: () => "/comite-de-conduta",
+  useParams: () => ({ id: "c1" }),
 }));
 
 vi.mock("@/components/layout/AppShell", () => ({
@@ -43,7 +44,9 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 vi.mock("@/lib/supabase/client", () => ({
-  createClient: () => ({ auth: { updateUser } }),
+  createClient: () => ({
+    auth: { updateUser, getSession: async () => ({ data: { session: { access_token: "token-de-teste" } } }) },
+  }),
 }));
 
 import GuiaDoRitoLayout from "./guia/layout";
@@ -119,5 +122,24 @@ describe("o Guia do rito", () => {
     }
     expect(within(ritos[1]).getByText(/Os três membros/)).toBeTruthy();
     expect(within(ritos[3]).getByText(/CIPA/)).toBeTruthy();
+  });
+});
+
+/** Toda tela do Comitê, menos o próprio guia. */
+const TELAS = Object.entries(
+  import.meta.glob<{ default: () => React.ReactElement }>("./**/page.tsx", { eager: true })
+).filter(([caminho]) => !caminho.startsWith("./guia/"));
+
+describe("o guia abre de qualquer tela do Comitê", () => {
+  it("o detector acha as telas do Comitê (piso)", () => {
+    expect(TELAS.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it.each(TELAS)("%s leva ao Guia do rito", (_caminho, modulo) => {
+    const Tela = modulo.default;
+    render(<Tela />);
+
+    const link = screen.getByRole("link", { name: "Guia do rito" });
+    expect(link.getAttribute("href")).toBe("/comite-de-conduta/guia");
   });
 });
