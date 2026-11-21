@@ -210,7 +210,7 @@ def test_o_texto_de_reunioes_no_kit_diz_acao_rotina_e_processo():
 
     texto = (CONHECIMENTO_DIR / "reunioes.md").read_text(encoding="utf-8")
     assert "Ação, Rotina ou Processo" in texto
-    assert "só a Ação vira pendência" in texto
+    assert "No envio, só a Ação vira pendência" in texto
     assert "toda Rotina precisa de responsável e frequência" in texto
     assert "linha sem tipo vale como Ação" in texto
     # A frase antiga dizia que toda ação combinada vira pendência.
