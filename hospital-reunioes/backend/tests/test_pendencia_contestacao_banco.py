@@ -3,10 +3,10 @@
 Contestar, ajustar e recusar gravam evento no histórico pela mesma função das
 outras ações (`registrar_acao_da_pendencia`, migration 169). O CHECK de
 `pendencia_historico.comando` só aceitava os comandos de antes; a migration
-174 inclui os três, sem tirar nenhum.
+176 inclui os três, sem tirar nenhum.
 
 Usa o Postgres descartável de `test_pendencia_historico_banco.py`: aplica a
-169, a 171 e a 174 (esta duas vezes, para provar que rodar de novo é
+169, a 171 e a 176 (esta duas vezes, para provar que rodar de novo é
 inofensivo).
 """
 
@@ -29,7 +29,7 @@ from test_pendencia_historico_banco import (  # noqa: E402
 
 PASTA = Path(__file__).resolve().parents[2] / "supabase" / "migrations"
 MIGRATION_171 = PASTA / "171_nascimento_da_pendencia.sql"
-MIGRATION_174 = PASTA / "174_contestacao_do_item_da_ata.sql"
+MIGRATION_176 = PASTA / "176_contestacao_do_item_da_ata.sql"
 
 
 @pytest.fixture(scope="module")
@@ -52,7 +52,7 @@ def banco():
         pg.ok("INSERT INTO reunioes (id_reuniao, json_ata) VALUES ('R9', '{}');")
         pg.ok(MIGRATION.read_text(encoding="utf-8"))
         pg.ok(MIGRATION_171.read_text(encoding="utf-8"))
-        contestacao = MIGRATION_174.read_text(encoding="utf-8")
+        contestacao = MIGRATION_176.read_text(encoding="utf-8")
         pg.ok(contestacao)
         pg.ok(contestacao)  # rodar duas vezes é inofensivo
         yield pg

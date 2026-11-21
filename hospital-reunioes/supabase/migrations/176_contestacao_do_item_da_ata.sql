@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 174: Contestacao do item da Ata (PRD #1757; issue #1870)
+-- Migration 176: Contestacao do item da Ata (PRD #1757; issue #1870)
 -- =====================================================
 -- O responsavel contesta o item dele enquanto a Ata esta em assinatura, e o
 -- Facilitador (ou o Super admin) ajusta ou recusa, sempre com anotacao. Os
@@ -130,4 +130,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (174) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (176) ON CONFLICT (numero) DO NOTHING;
