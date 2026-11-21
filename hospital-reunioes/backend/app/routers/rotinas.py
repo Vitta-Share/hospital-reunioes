@@ -185,9 +185,7 @@ async def listar_rotinas(
 def _marcar(rotina: dict, inicio: date, resultado: str, anotacao: str | None, autor: dict, supabase) -> dict:
     try:
         return rotina_service.marcar(supabase, rotina, inicio, resultado, anotacao, **autor)
-    except VerificacaoRecusada as recusa:
-        raise HTTPException(status_code=422, detail=str(recusa)) from recusa
-    except rotina_service.CicloInexistente as recusa:
+    except (VerificacaoRecusada, rotina_service.CicloInexistente) as recusa:
         raise HTTPException(status_code=422, detail=str(recusa)) from recusa
     except rotina_service.JaMarcada as recusa:
         raise HTTPException(status_code=409, detail=str(recusa)) from recusa
@@ -201,7 +199,7 @@ async def marcar_realizada(
     supabase=Depends(get_supabase_client),
 ):
     """Realizada é um clique, sem anotação."""
-    rotina, me, _papeis_ = await _rotina_e_papeis(id_rotina, current_user, supabase)
+    rotina, me, _ = await _rotina_e_papeis(id_rotina, current_user, supabase)
     return _marcar(rotina, inicio, REALIZADA, None, _autor(me, current_user), supabase)
 
 
@@ -214,7 +212,7 @@ async def marcar_nao_realizada(
     supabase=Depends(get_supabase_client),
 ):
     """Não realizada pede anotação."""
-    rotina, me, _papeis_ = await _rotina_e_papeis(id_rotina, current_user, supabase)
+    rotina, me, _ = await _rotina_e_papeis(id_rotina, current_user, supabase)
     return _marcar(rotina, inicio, NAO_REALIZADA, body.anotacao, _autor(me, current_user), supabase)
 
 
