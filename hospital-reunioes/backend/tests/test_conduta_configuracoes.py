@@ -19,6 +19,8 @@ import pytest
 from conduta_apoio import Banco
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -94,6 +96,7 @@ def banco() -> Banco:
 def _cliente(banco: Banco, pessoa: dict | None = None) -> TestClient:
     app = FastAPI()
     app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
     app.include_router(conduta_comite.router, prefix="/api")
     app.include_router(conduta_publico.router, prefix="/api")
     if pessoa is not None:
@@ -181,6 +184,14 @@ def test_coordenacao_com_a_participacao_vencida_recebe_403(banco):
     assert (resposta.status_code, resposta.json()) == (403, RECUSA)
 
 
+@pytest.mark.parametrize("em_branco", ["   ", "\n", " \t\n "])
+def test_texto_em_branco_responde_422_e_nada_e_gravado(banco, em_branco):
+    resposta = _cliente(banco, COORDENACAO).post(f"{ROTA}/contato_dp", json={"texto": em_branco})
+
+    assert resposta.status_code == 422
+    assert banco.tabelas.get("conduta_configuracoes", []) == []
+
+
 def test_item_que_nao_existe_responde_404(banco):
     resposta = _cliente(banco, COORDENACAO).post(f"{ROTA}/qualquer_coisa", json={"texto": "x"})
 
@@ -228,6 +239,15 @@ def test_a_leitura_publica_nao_leva_o_que_e_do_comite_nem_o_autor(banco, canal_a
 
 def test_com_o_canal_fechado_a_leitura_publica_responde_404(banco):
     assert _cliente(banco).get(ROTA_PUBLICA).status_code == 404
+
+
+def test_a_leitura_publica_tem_limite_por_aparelho(banco, canal_aberto):
+    cliente = _cliente(banco)
+
+    respostas = [cliente.get(ROTA_PUBLICA) for _ in range(61)]
+
+    assert respostas[-2].status_code == 200
+    assert respostas[-1].status_code == 429
 
 
 # ═══════════════════════════════════════════════════════════════════════════

@@ -11,7 +11,7 @@ As listas levam só metadados: nenhum nome e nenhum trecho de relato.
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from supabase import Client
 
 from app.dependencies import get_supabase_client
@@ -168,6 +168,15 @@ async def enviar_orientacao(
 
 class NovaVersao(BaseModel):
     texto: str = Field(min_length=1, max_length=5000)
+
+    @field_validator("texto")
+    @classmethod
+    def _nao_em_branco(cls, texto: str) -> str:
+        # Só espaço cairia no CHECK da migration 180 (500); quebra de linha
+        # passaria por ele e viraria versão vigente em branco na tela pública.
+        if not texto.strip():
+            raise ValueError("O texto não pode ficar em branco")
+        return texto
 
 
 @router.get("/configuracoes")
