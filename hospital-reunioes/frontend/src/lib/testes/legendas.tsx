@@ -10,6 +10,9 @@ const CHAVE_DE_TESTE = "teste:legendas";
  * uma Legenda: some quando o interruptor desliga e volta quando liga.
  */
 export function comLegendas(ligadas: boolean, tela: ReactElement): ReactElement {
-  window.localStorage.setItem(CHAVE_DE_TESTE, ligadas ? "1" : "0");
-  return <LegendasProvider chave={CHAVE_DE_TESTE}>{tela}</LegendasProvider>;
+  return (
+    <LegendasProvider chave={CHAVE_DE_TESTE} ligadasIniciais={ligadas}>
+      {tela}
+    </LegendasProvider>
+  );
 }

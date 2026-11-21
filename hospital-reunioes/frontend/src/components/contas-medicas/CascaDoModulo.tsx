@@ -7,9 +7,6 @@ import type { ReactNode } from "react";
 import { Dica } from "@/components/ui/Dica";
 import { InterruptorDeLegendas, LegendasProvider } from "@/components/ui/Legenda";
 
-/** Onde fica guardado no navegador se as Legendas do módulo estão ligadas. */
-const CHAVE_DAS_LEGENDAS = "contas-medicas:legendas";
-
 interface Aba {
   rotulo: string;
   href: string;
@@ -77,9 +74,20 @@ function abaAtual(caminho: string): string {
 /**
  * A casca de Contas médicas (issue #1950): as abas fixas no topo, lidas uma
  * vez das permissões que o gate do layout já trouxe, e o interruptor
- * "Legendas", que vale para todas as telas do módulo.
+ * "Legendas", que vale para todas as telas do módulo. O layout lê no servidor
+ * o cookie da escolha e passa o nome e o valor dele.
  */
-export function CascaDoModulo({ permissoes, children }: { permissoes: string[]; children: ReactNode }) {
+export function CascaDoModulo({
+  permissoes,
+  chaveDasLegendas,
+  legendasLigadas,
+  children,
+}: {
+  permissoes: string[];
+  chaveDasLegendas: string;
+  legendasLigadas: boolean;
+  children: ReactNode;
+}) {
   const caminho = usePathname() ?? "/contas-medicas";
   const atual = abaAtual(caminho);
   const visiveis = ABAS.filter(
@@ -87,7 +95,7 @@ export function CascaDoModulo({ permissoes, children }: { permissoes: string[]; 
   );
 
   return (
-    <LegendasProvider chave={CHAVE_DAS_LEGENDAS}>
+    <LegendasProvider chave={chaveDasLegendas} ligadasIniciais={legendasLigadas}>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b border-border">
         <nav aria-label="Telas de Contas médicas">
           <ul className="-mb-px flex flex-wrap gap-x-1">

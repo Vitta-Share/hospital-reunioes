@@ -13,9 +13,11 @@
  * E mostra as abas do módulo (issue #1950): cada uma só para quem tem a
  * permissão que liberava o botão dela na tela de contas, com a da tela atual
  * marcada, e o interruptor "Legendas", que vale para o módulo inteiro e fica
- * guardado no navegador.
+ * guardado num cookie, lido pelo servidor para a escolha valer já no primeiro
+ * paint.
  */
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Legenda } from "@/components/ui/Legenda";
@@ -34,13 +36,34 @@ vi.mock("next/navigation", () => ({
   usePathname: () => rota.atual,
 }));
 
+// O servidor lê o mesmo cookie que o navegador grava: recarregar a página é
+// abrir o layout de novo com o que ficou no `document.cookie`.
+vi.mock("next/headers", () => ({
+  cookies: async () => ({
+    get: (nome: string) => {
+      const par = document.cookie
+        .split("; ")
+        .map((c) => c.split("="))
+        .find(([n]) => n === nome);
+      return par ? { name: nome, value: par[1] } : undefined;
+    },
+  }),
+}));
+
 vi.mock("@/components/layout/AppShell", () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
 import ContasMedicasLayout from "./layout";
 
-const CHAVE_DAS_LEGENDAS = "contas-medicas:legendas";
+const COOKIE_DAS_LEGENDAS = "contas-medicas-legendas";
+
+function cookieDasLegendas(): string | undefined {
+  return document.cookie
+    .split("; ")
+    .find((c) => c.startsWith(`${COOKIE_DAS_LEGENDAS}=`))
+    ?.split("=")[1];
+}
 
 /** Todas as permissões que liberam uma aba, para quem vê o módulo inteiro. */
 const TODAS = [
@@ -55,7 +78,7 @@ const TODAS = [
 beforeEach(() => {
   sessao.permissoes = [];
   rota.atual = "/contas-medicas";
-  window.localStorage.clear();
+  document.cookie = `${COOKIE_DAS_LEGENDAS}=; path=/; max-age=0`;
 });
 
 afterEach(() => {
@@ -222,7 +245,7 @@ describe("o interruptor Legendas", () => {
 
     expect(interruptor().getAttribute("aria-checked")).toBe("false");
     expect(screen.queryByText("Envie a conta e o prontuário do MV.")).toBeNull();
-    expect(window.localStorage.getItem(CHAVE_DAS_LEGENDAS)).toBe("0");
+    expect(cookieDasLegendas()).toBe("0");
   });
 
   it("a escolha sobrevive a recarregar a página", async () => {
@@ -236,22 +259,34 @@ describe("o interruptor Legendas", () => {
     expect(screen.queryByText("Envie a conta e o prontuário do MV.")).toBeNull();
   });
 
+  it("desligado e recarregado, o HTML do servidor (o primeiro paint) já vem sem Legenda e com o interruptor desligado", async () => {
+    document.cookie = `${COOKIE_DAS_LEGENDAS}=0; path=/`;
+
+    const html = renderToString(await ContasMedicasLayout({ children: COM_LEGENDA }));
+
+    expect(html).not.toContain("Envie a conta e o prontuário do MV.");
+    expect(html).toMatch(/role="switch" aria-checked="false"/);
+  });
+
+  it("sem escolha gravada, o HTML do servidor vem com as Legendas", async () => {
+    const html = renderToString(await ContasMedicasLayout({ children: COM_LEGENDA }));
+
+    expect(html).toContain("Envie a conta e o prontuário do MV.");
+    expect(html).toMatch(/role="switch" aria-checked="true"/);
+  });
+
   it("ligar de novo traz as Legendas de volta", async () => {
-    window.localStorage.setItem(CHAVE_DAS_LEGENDAS, "0");
+    document.cookie = `${COOKIE_DAS_LEGENDAS}=0; path=/`;
     await abrir(COM_LEGENDA);
 
     fireEvent.click(interruptor());
 
     expect(screen.getByText("Envie a conta e o prontuário do MV.")).toBeTruthy();
-    expect(window.localStorage.getItem(CHAVE_DAS_LEGENDAS)).toBe("1");
+    expect(cookieDasLegendas()).toBe("1");
   });
 
-  it("se o navegador não deixa ler nem gravar a preferência, as Legendas aparecem ligadas e nada quebra", async () => {
-    window.localStorage.setItem(CHAVE_DAS_LEGENDAS, "0");
-    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
-      throw new Error("bloqueado");
-    });
-    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+  it("se o navegador não deixa gravar a preferência, as Legendas começam ligadas e o interruptor ainda funciona", async () => {
+    vi.spyOn(Document.prototype, "cookie", "set").mockImplementation(() => {
       throw new Error("bloqueado");
     });
 

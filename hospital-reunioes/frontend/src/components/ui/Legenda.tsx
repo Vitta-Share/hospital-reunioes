@@ -1,17 +1,19 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 
 /**
  * A Legenda: a frase curta que explica a tela ou o comando (issue #1950).
  *
  * Um interruptor "Legendas" liga e desliga todas as Legendas debaixo do mesmo
- * `LegendasProvider`, e a escolha fica no navegador, na chave que o provedor
- * recebe. Sem provedor, a Legenda aparece.
+ * `LegendasProvider`, e a escolha fica num cookie, com o nome que o provedor
+ * recebe. Quem monta o provedor lê esse cookie no servidor e passa a escolha
+ * em `ligadasIniciais`: assim o HTML do servidor e o primeiro paint já vêm
+ * com as Legendas como a pessoa deixou, sem a tela pular na hidratação. Sem
+ * provedor, a Legenda aparece.
  *
- * O armazenamento pode faltar (navegação privada, bloqueio do navegador) e aí
- * lança erro: a leitura cai em Legendas ligadas e a gravação só deixa de
- * lembrar, sem quebrar a tela.
+ * O navegador pode recusar o cookie (bloqueio de cookies) e aí a gravação só
+ * deixa de lembrar, sem quebrar a tela.
  */
 
 interface EstadoDasLegendas {
@@ -21,14 +23,16 @@ interface EstadoDasLegendas {
 
 const LegendasContext = createContext<EstadoDasLegendas>({ ligadas: true, alternar: () => {} });
 
-export function LegendasProvider({ chave, children }: { chave: string; children: ReactNode }) {
-  // Começa ligada e só lê depois de montar: o servidor não tem o
-  // armazenamento, e ler no primeiro render desencontraria a hidratação.
-  const [ligadas, setLigadas] = useState(true);
-
-  useEffect(() => {
-    setLigadas(lerPreferencia(chave));
-  }, [chave]);
+export function LegendasProvider({
+  chave,
+  ligadasIniciais = true,
+  children,
+}: {
+  chave: string;
+  ligadasIniciais?: boolean;
+  children: ReactNode;
+}) {
+  const [ligadas, setLigadas] = useState(ligadasIniciais);
 
   const alternar = () => {
     const novo = !ligadas;
@@ -71,17 +75,12 @@ export function InterruptorDeLegendas() {
   );
 }
 
-function lerPreferencia(chave: string): boolean {
-  try {
-    return window.localStorage.getItem(chave) !== "0";
-  } catch {
-    return true;
-  }
-}
+/** Um ano: a escolha vale até a pessoa mudar de novo. */
+const UM_ANO_EM_SEGUNDOS = 60 * 60 * 24 * 365;
 
 function gravarPreferencia(chave: string, ligadas: boolean): void {
   try {
-    window.localStorage.setItem(chave, ligadas ? "1" : "0");
+    document.cookie = `${chave}=${ligadas ? "1" : "0"}; path=/; max-age=${UM_ANO_EM_SEGUNDOS}; samesite=lax`;
   } catch {
     // Sem armazenamento a escolha vale só para a página aberta.
   }
