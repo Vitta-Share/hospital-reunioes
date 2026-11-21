@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T15:04+0000 -->
+<!-- last_update: 2026-11-21T15:11+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -1532,6 +1532,7 @@ erDiagram
 | `nsp_avisos` | `idx_nsp_avisos_fila` | `enviar_a_partir_de` | `173_nsp_registro_de_email.sql` |
 | `nsp_avisos` | `idx_nsp_avisos_marco_referencia` | `marco, referencia, situacao` | `173_nsp_registro_de_email.sql` |
 | `nsp_avisos` | `idx_nsp_avisos_caso` | `caso_id` | `174_nsp_notificacao_de_incidente.sql` |
+| `nsp_avisos` | `uq_nsp_avisos_confirmacao` | `caso_id, marco, referencia` | `182_nsp_caso_grave_e_confirmacao.sql` |
 | `nsp_documentos_envios` | `uq_nsp_documentos_envios_documento_key` | `documento_key` | `159_nsp_assinatura_dos_documentos.sql` |
 | `nsp_documentos_envios` | `uq_nsp_documentos_envios_aberto` | `documento_id` | `159_nsp_assinatura_dos_documentos.sql` |
 | `nsp_documentos_envios` | `idx_nsp_documentos_envios_documento` | `documento_id, created_at DESC` | `159_nsp_assinatura_dos_documentos.sql` |

@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T15:04+0000 -->
+<!-- last_update: 2026-11-21T15:11+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2196,6 +2196,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_nsp_avisos_fila` em `(enviar_a_partir_de)` (de `173_nsp_registro_de_email.sql`)
 - `idx_nsp_avisos_marco_referencia` em `(marco, referencia, situacao)` (de `173_nsp_registro_de_email.sql`)
 - `idx_nsp_avisos_caso` em `(caso_id)` (de `174_nsp_notificacao_de_incidente.sql`)
+- `uq_nsp_avisos_confirmacao` em `(caso_id, marco, referencia)` (de `182_nsp_caso_grave_e_confirmacao.sql`)
 
 ## nsp_documentos_envios
 
