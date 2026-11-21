@@ -12,12 +12,15 @@ ela alcançou hoje:
 De cada família sai só o marco mais adiantado: o job que ficou fora do ar por
 uns dias não manda o de 3 e o de 7 juntos.
 
-Cada aviso é nominal (um e-mail por pessoa) e nasce como linha de
-`nsp_avisos` antes de sair. A chave (Participação, marco, referência,
-destinatário) do banco faz a segunda rodada bater na guarda em vez de mandar
-de novo. A referência é o envio do Termo nos marcos de assinatura (o reenvio
-recomeça a contagem) e o fim da vigência nos outros (a renovação recomeça os
-avisos). A falha de um envio fica gravada na linha e não para os demais.
+Cada aviso é nominal (um e-mail por pessoa) e nasce no registro de e-mail do
+Núcleo (`emails`, issue #1985) antes de sair. A chave (Participação, marco,
+referência, destinatário) do banco faz a segunda rodada bater na guarda em vez
+de mandar de novo. A referência é o envio do Termo nos marcos de assinatura (o
+reenvio recomeça a contagem) e o fim da vigência nos outros (a renovação
+recomeça os avisos). Fora da janela comercial o aviso espera a abertura do
+expediente, e a falha do provedor volta à fila com espera crescente: quem leva
+os dois é o job de 10 em 10 minutos do registro, que antes de mandar reconfere
+a Participação (`ainda_devidos`).
 
 O e-mail diz a ação pedida no assunto, com data absoluta, e não traz nada do
 conteúdo do Núcleo: só o nome do membro e as datas da vigência ou do Termo.
@@ -27,18 +30,15 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from postgrest.exceptions import APIError
-
 from app.config import settings
 from app.dependencies import selecionar_participantes
-from app.services.email_constants import get_logo_data_uri
-from app.services.email_service import _enviar_email, jinja_env
 from app.services.ouvidoria_notificacoes import ler_diretoria_executiva
 from app.services.paginacao import ler_tudo
+from app.services.seguranca_do_paciente import emails
 from app.services.seguranca_do_paciente.agenda import presidencia_vigente
 from app.services.seguranca_do_paciente.membros import DIAS_DE_CARENCIA, estado_do_membro
 from app.services.seguranca_do_paciente.permissao import id_do_nucleo
@@ -46,9 +46,12 @@ from app.utils.text_sanitizer import sanitizar_estrutura
 
 logger = logging.getLogger(__name__)
 
-TABELA = "nsp_avisos"
+TABELA = emails.TABELA
 LOTE_DE_IDS = 100
 _FUSO = ZoneInfo("America/Sao_Paulo")
+# A hora da rodada diária (o cron das 08:00), quando quem chama não diz o instante.
+_HORA_DA_RODADA = time(8, 0)
+MODELO = "email_nsp_aviso.html"
 
 MEMBRO = "membro"
 PRESIDENCIA = "presidencia"
@@ -68,9 +71,6 @@ DESTINATARIOS = {
     "vigencia_30": (MEMBRO, PRESIDENCIA),
     FIM_DA_CARENCIA: (PRESIDENCIA, DIRETORIA_EXECUTIVA),
 }
-
-_SEM_EMAIL = "A pessoa não tem e-mail no cadastro."
-_FALHA_DO_ENVIO = "O provedor de e-mail não aceitou o envio."
 
 
 def _data(valor: Any) -> date:
@@ -168,17 +168,15 @@ def _texto_do_aviso(marco: str, papel: str, membro: str, data: str) -> tuple[str
     )
 
 
-def montar_email(marco: str, papel: str, destinatario: str, membro: str, data: date) -> tuple[str, str, str]:
-    """(assunto, html, texto) do aviso. Tudo passa pelo sanitizador: os nomes
-    vêm de quem digitou, e o e-mail não sai com travessão."""
+def montar_mensagem(marco: str, papel: str, destinatario: str, membro: str, data: date) -> tuple[str, str, dict]:
+    """(assunto, texto, contexto do modelo) do aviso. Tudo passa pelo
+    sanitizador: os nomes vêm de quem digitou, e o e-mail não sai com
+    travessão. O HTML sai do `MODELO` na hora do envio."""
     assunto, paragrafos = _texto_do_aviso(marco, papel, membro, data.strftime("%d/%m/%Y"))
     link = f"{settings.frontend_url}/seguranca-do-paciente/membros"
     assunto, destinatario, paragrafos = sanitizar_estrutura([assunto, destinatario, paragrafos])
     texto = f"Olá, {destinatario}.\n\n" + "\n\n".join(paragrafos) + f"\n\nSegurança do Paciente, Membros: {link}\n"
-    html = jinja_env.get_template("email_nsp_aviso.html").render(
-        nome=destinatario, paragrafos=paragrafos, link=link, logo_base64=get_logo_data_uri()
-    )
-    return assunto, html, texto
+    return assunto, texto, {"nome": destinatario, "paragrafos": paragrafos, "link": link}
 
 
 # ---------------------------------------------------------------------------
@@ -211,58 +209,15 @@ def _pessoas(supabase, ids: Iterable[str]) -> dict[str, dict]:
     return pessoas
 
 
-def _gravar(supabase, linha: dict) -> dict | None:
-    """A linha do aviso, antes do envio. None quando outra rodada já a gravou."""
-    try:
-        return supabase.table(TABELA).insert({**linha, "situacao": "pendente"}).execute().data[0]
-    except APIError as erro:
-        if getattr(erro, "code", None) != "23505":
-            raise
-        return None
+_CAMPOS_DA_PARTICIPACAO = (
+    "id, participante_id, vigencia_inicio, vigencia_fim, encerrada_em, termo_gerado_em, "
+    "termo_enviado_em, termo_assinado_em"
+)
 
 
-def _enviar(supabase, aviso: dict, pessoa: dict, mensagem: tuple[str, str, str]) -> bool:
-    erro = None
-    if not (pessoa.get("email") or "").strip():
-        erro = _SEM_EMAIL
-    else:
-        try:
-            if not _enviar_email(pessoa["email"], *mensagem):
-                erro = _FALHA_DO_ENVIO
-        except Exception as falha:  # noqa: BLE001 (um aviso que falha não para os outros)
-            erro = f"Falha no envio: {type(falha).__name__}"
-    campos = (
-        {"situacao": "enviado", "enviado_em": datetime.now(tz=_FUSO).isoformat()}
-        if erro is None
-        else {"situacao": "falhou", "erro": erro}
-    )
-    supabase.table(TABELA).update(campos).eq("id", aviso["id"]).execute()
-    if erro:
-        logger.warning("[Avisos NSP] Aviso %s (%s) não saiu: %s", aviso["id"], aviso["marco"], erro)
-    return erro is None
-
-
-def avisar(supabase, hoje: date) -> dict[str, int]:
-    """O job diário. Devolve quantos avisos saíram e quantos falharam."""
-    resultado = {"enviados": 0, "falhas": 0}
-    nucleo_id = id_do_nucleo(supabase)
-    if not nucleo_id:
-        return resultado
-    participacoes = ler_tudo(
-        lambda: (
-            supabase.table("participacoes")
-            .select(
-                "id, participante_id, vigencia_inicio, vigencia_fim, encerrada_em, termo_gerado_em, "
-                "termo_enviado_em, termo_assinado_em"
-            )
-            .eq("colegiado_id", nucleo_id)
-            .is_("encerrada_em", "null")
-            .order("id")
-        ),
-        rotulo="Participações do Núcleo",
-    )
-    # O envio que espera a assinatura (um aberto por Participação, pelo banco).
-    envios = {
+def _envios_abertos(supabase, participacoes: list[dict]) -> dict[str, dict]:
+    """O envio que espera a assinatura (um aberto por Participação, pelo banco)."""
+    return {
         e["participacao_id"]: e
         for e in _em_lotes(
             supabase,
@@ -274,6 +229,47 @@ def avisar(supabase, hoje: date) -> dict[str, int]:
             lambda q: q.eq("situacao", "enviado"),
         )
     }
+
+
+def ainda_devidos(supabase, participacao_ids: Iterable[str], agora: datetime) -> set[tuple[str, str, str]]:
+    """(Participação, marco, referência) que ainda são o marco do dia em
+    `agora`. A fila do registro pergunta antes de mandar o aviso que esperou a
+    janela comercial ou a retentativa: o Termo assinado ou liberado, a vigência
+    renovada, a Participação encerrada ou o marco que avançou no intervalo
+    seguram o aviso velho, e de cada família sai só o marco do dia."""
+    hoje = agora.astimezone(_FUSO).date()
+    participacoes = _em_lotes(
+        supabase, "participacoes", _CAMPOS_DA_PARTICIPACAO, "id", participacao_ids, "Participações dos avisos retidos"
+    )
+    envios = _envios_abertos(supabase, participacoes)
+    return {
+        (p["id"], marco, referencia)
+        for p in participacoes
+        for marco, referencia, _ in marcos_do_dia(p, envios.get(p["id"]), hoje)
+    }
+
+
+def avisar(
+    supabase, hoje: date, agora: datetime | None = None, feriados: frozenset[date] = frozenset()
+) -> dict[str, int]:
+    """O job diário. Devolve quantos avisos saíram e quantos falharam agora; o
+    que espera a janela comercial sai pelo job do registro."""
+    agora = agora or datetime.combine(hoje, _HORA_DA_RODADA, tzinfo=_FUSO)
+    resultado = {"enviados": 0, "falhas": 0}
+    nucleo_id = id_do_nucleo(supabase)
+    if not nucleo_id:
+        return resultado
+    participacoes = ler_tudo(
+        lambda: (
+            supabase.table("participacoes")
+            .select(_CAMPOS_DA_PARTICIPACAO)
+            .eq("colegiado_id", nucleo_id)
+            .is_("encerrada_em", "null")
+            .order("id")
+        ),
+        rotulo="Participações do Núcleo",
+    )
+    envios = _envios_abertos(supabase, participacoes)
     devidos = [
         (p, marco, referencia, data)
         for p in participacoes
@@ -321,23 +317,32 @@ def avisar(supabase, hoje: date) -> dict[str, int]:
                     continue
                 vistos.add(pid)
                 try:
-                    aviso = _gravar(
+                    pessoa = pessoas.get(pid, {"id": pid})
+                    papel_da_mensagem = MEMBRO if pid == participacao["participante_id"] else papel
+                    assunto, texto, contexto = montar_mensagem(
+                        marco, papel_da_mensagem, pessoa.get("nome_completo") or "", membro, data
+                    )
+                    aviso = emails.registrar(
                         supabase,
-                        {
-                            "participacao_id": participacao["id"],
-                            "marco": marco,
-                            "referencia": referencia,
-                            "destinatario_id": pid,
-                        },
+                        participacao_id=participacao["id"],
+                        marco=marco,
+                        referencia=referencia,
+                        destinatario_id=pid,
+                        assunto=assunto,
+                        texto=texto,
+                        modelo=MODELO,
+                        contexto=contexto,
+                        agora=agora,
+                        feriados=feriados,
                     )
                     if aviso is None:
                         continue
-                    pessoa = pessoas.get(pid, {"id": pid})
-                    papel_da_mensagem = MEMBRO if pid == participacao["participante_id"] else papel
-                    mensagem = montar_email(marco, papel_da_mensagem, pessoa.get("nome_completo") or "", membro, data)
-                    saiu = _enviar(supabase, aviso, pessoa, mensagem)
+                    desfecho = emails.despachar_se_puder(supabase, aviso, agora)
                 except Exception as falha:  # noqa: BLE001 (um aviso que falha não para os outros)
                     logger.error("[Avisos NSP] Aviso %s para %s falhou: %s", marco, pid, type(falha).__name__)
-                    saiu = False
-                resultado["enviados" if saiu else "falhas"] += 1
+                    desfecho = emails.FALHOU
+                if desfecho == emails.ENVIADO:
+                    resultado["enviados"] += 1
+                elif desfecho == emails.FALHOU:
+                    resultado["falhas"] += 1
     return resultado

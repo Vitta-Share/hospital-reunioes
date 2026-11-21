@@ -7,6 +7,11 @@ a hora, o tipo e o link: o conteúdo do Núcleo fica na tela.
 
 A gravação vem antes do envio: a chave (reunião, pessoa) do banco faz o
 segundo clique bater na guarda, em vez de mandar o e-mail duas vezes.
+
+Cada e-mail nasce no registro de e-mail do Núcleo (`emails`, issue #1985) e
+sai na hora, como urgente: a antecedência mínima conta do clique, e esperar a
+janela comercial poderia furá-la. A falha do provedor volta à fila do registro,
+e o convocado aparece com o e-mail enviado quando a retentativa dá certo.
 """
 
 from __future__ import annotations
@@ -19,13 +24,14 @@ from postgrest.exceptions import APIError
 
 from app.config import settings
 from app.dependencies import selecionar_participantes
-from app.services.email_constants import get_logo_data_uri
-from app.services.email_service import _enviar_email, jinja_env
+from app.services.seguranca_do_paciente import emails
 from app.services.seguranca_do_paciente.membros import estado_do_membro
 
 logger = logging.getLogger(__name__)
 
 TABELA = "nsp_convocados"
+MARCO = "convocacao"
+MODELO = "email_nsp_convocacao.html"
 
 ESTADOS_DE_QUORUM = ("ativo", "a_vencer", "em_carencia")
 
@@ -60,7 +66,7 @@ def quem_convocar(supabase, nucleo_id: str, hoje: date) -> list[dict[str, Any]]:
     estado. Participação que ainda não começou fica de fora."""
     participacoes = (
         supabase.table("participacoes")
-        .select("participante_id, vigencia_inicio, vigencia_fim, encerrada_em, termo_assinado_em")
+        .select("id, participante_id, vigencia_inicio, vigencia_fim, encerrada_em, termo_assinado_em")
         .eq("colegiado_id", nucleo_id)
         .lte("vigencia_inicio", hoje.isoformat())
         .execute()
@@ -68,10 +74,12 @@ def quem_convocar(supabase, nucleo_id: str, hoje: date) -> list[dict[str, Any]]:
         or []
     )
     estados: dict[str, str] = {}
+    participacao_de: dict[str, str] = {}
     for p in participacoes:
         estado = estado_do_membro(p, hoje)
         if estado in ESTADOS_DE_QUORUM and p["participante_id"] not in estados:
             estados[p["participante_id"]] = estado
+            participacao_de[p["participante_id"]] = p["id"]
     if not estados:
         return []
     pessoas = (
@@ -84,6 +92,7 @@ def quem_convocar(supabase, nucleo_id: str, hoje: date) -> list[dict[str, Any]]:
             "nome": p.get("nome_completo"),
             "email": p.get("email"),
             "estado": estados[p["id"]],
+            "participacao_id": participacao_de[p["id"]],
         }
         for p in sorted(pessoas, key=lambda p: (p.get("nome_completo") or "").lower())
     ]
@@ -101,6 +110,24 @@ def convocados(supabase, id_reuniao: str) -> list[dict[str, Any]]:
     )
     if not linhas:
         return []
+    # O e-mail que saiu na retentativa do registro também conta como enviado.
+    enviados = {
+        r["destinatario_id"]
+        for r in (
+            supabase.table(emails.TABELA)
+            .select("destinatario_id")
+            .eq("marco", MARCO)
+            .eq("referencia", id_reuniao)
+            .eq("situacao", emails.ENVIADO)
+            .execute()
+            .data
+            or []
+        )
+    }
+    linhas = [
+        {**linha, "email_enviado": bool(linha.get("email_enviado")) or linha["participante_id"] in enviados}
+        for linha in linhas
+    ]
     nomes = {
         p["id"]: p.get("nome_completo")
         for p in (
@@ -116,7 +143,8 @@ def convocados(supabase, id_reuniao: str) -> list[dict[str, Any]]:
     )
 
 
-def _mensagem(pessoa: dict, reuniao: dict, dia: date, hora: time) -> tuple[str, str, str]:
+def _mensagem(pessoa: dict, reuniao: dict, dia: date, hora: time) -> tuple[str, str, dict]:
+    """(assunto, texto, contexto do modelo). O HTML sai do `MODELO` no envio."""
     momento = quando(dia, hora)
     link = f"{settings.frontend_url}/seguranca-do-paciente/reunioes"
     assunto = f"Convocação: {reuniao['tipo']} do Núcleo de Segurança do Paciente, {dia.strftime('%d/%m/%Y')}"
@@ -128,15 +156,14 @@ def _mensagem(pessoa: dict, reuniao: dict, dia: date, hora: time) -> tuple[str, 
         f"- Quando: {momento} (horário de Brasília)\n\n"
         f"A pauta está no app, em Segurança do Paciente, Reuniões: {link}\n"
     )
-    html = jinja_env.get_template("email_nsp_convocacao.html").render(
-        nome=pessoa["nome"],
-        titulo=reuniao.get("titulo") or reuniao["tipo"],
-        tipo=reuniao["tipo"],
-        quando=momento,
-        link=link,
-        logo_base64=get_logo_data_uri(),
-    )
-    return assunto, html, texto
+    contexto = {
+        "nome": pessoa["nome"],
+        "titulo": reuniao.get("titulo") or reuniao["tipo"],
+        "tipo": reuniao["tipo"],
+        "quando": momento,
+        "link": link,
+    }
+    return assunto, texto, contexto
 
 
 def convocar(supabase, reuniao: dict, *, nucleo_id: str, autor_id: str, agora: datetime) -> list[dict[str, Any]]:
@@ -173,10 +200,21 @@ def convocar(supabase, reuniao: dict, *, nucleo_id: str, autor_id: str, agora: d
     dia = date.fromisoformat(str(reuniao["data"])[:10])
     hora = time.fromisoformat(str(reuniao["hora_inicio"])[:8])
     for pessoa in pessoas:
-        enviado = False
-        if pessoa.get("email"):
-            assunto, html, texto = _mensagem(pessoa, reuniao, dia, hora)
-            enviado = bool(_enviar_email(pessoa["email"], assunto, html, texto))
+        assunto, texto, contexto = _mensagem(pessoa, reuniao, dia, hora)
+        registro = emails.registrar(
+            supabase,
+            participacao_id=pessoa["participacao_id"],
+            marco=MARCO,
+            referencia=reuniao["id_reuniao"],
+            destinatario_id=pessoa["participante_id"],
+            assunto=assunto,
+            texto=texto,
+            modelo=MODELO,
+            contexto=contexto,
+            agora=agora,
+            urgente=True,
+        )
+        enviado = emails.despachar_se_puder(supabase, registro, agora) == emails.ENVIADO
         pessoa["email_enviado"] = enviado
         if enviado:
             supabase.table(TABELA).update({"email_enviado": True}).eq("id_reuniao", reuniao["id_reuniao"]).eq(
@@ -186,4 +224,4 @@ def convocar(supabase, reuniao: dict, *, nucleo_id: str, autor_id: str, agora: d
             logger.warning(
                 "Convocação da reunião %s sem e-mail para %s", reuniao["id_reuniao"], pessoa["participante_id"]
             )
-    return [{k: v for k, v in p.items() if k != "email"} for p in pessoas]
+    return [{k: v for k, v in p.items() if k not in ("email", "participacao_id")} for p in pessoas]

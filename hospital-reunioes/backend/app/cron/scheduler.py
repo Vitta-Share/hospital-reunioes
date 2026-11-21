@@ -67,6 +67,10 @@ Jobs:
  17. apagar_transcricoes_do_nucleo: 04:15 diário, apaga a transcrição importada da
      reunião do Núcleo 30 dias corridos depois da ata assinada (issue #1776). Só reunião
      do Núcleo. Idempotente: a apagada ganha carimbo e sai da varredura. Sem IA.
+ 18. despachar_emails_nsp: a cada 10 minutos, entrega os e-mails do Núcleo que já
+     podem sair (issue #1985): o que esperou a janela comercial e o que falhou e
+     voltou com espera crescente. Reivindica cada registro antes de enviar, e o que
+     saiu fica marcado: nada sai duas vezes. Sem IA.
 
 Nenhum job dispara IA por conta própria (ADR 0082): a recomendação da Validação
 e o segundo agente de Contas médicas rodam só pelo botão da tela. A fila de
@@ -492,16 +496,42 @@ def avisar_termo_e_vigencia_nsp() -> None:
     """Os avisos do Termo sem assinatura e do fim da vigência do Núcleo (issue
     #1770). Os marcos, os destinatários e a guarda de um aviso por marco vivem
     no serviço; aqui, só o relógio."""
+    from app.routers.ouvidoria import carregar_feriados
     from app.services.seguranca_do_paciente import avisos
 
     try:
-        resultado = avisos.avisar(_supabase(), _hoje_em_sao_paulo())
+        supabase = _supabase()
+        # O instante e os feriados decidem a janela comercial do registro de
+        # e-mail (issue #1985): no fim de semana e no feriado, o aviso espera.
+        resultado = avisos.avisar(
+            supabase,
+            _hoje_em_sao_paulo(),
+            agora=datetime.now(tz=ZoneInfo("UTC")),
+            feriados=carregar_feriados(supabase),
+        )
     except Exception as e:
         logger.error(f"[Cron] Erro em avisar_termo_e_vigencia_nsp: {type(e).__name__}")
         return
     if resultado.get("enviados") or resultado.get("falhas"):
         logger.info(
             f"[Cron] Avisos do Núcleo: {resultado.get('enviados', 0)} enviado(s), "
+            f"{resultado.get('falhas', 0)} com falha."
+        )
+
+
+def despachar_emails_nsp() -> None:
+    """A fila de e-mails do Núcleo (issue #1985). A janela, a retentativa e a
+    reivindicação vivem no serviço; aqui, só o relógio."""
+    from app.services.seguranca_do_paciente import emails
+
+    try:
+        resultado = emails.despachar_pendentes(_supabase(), datetime.now(tz=ZoneInfo("UTC")))
+    except Exception as e:
+        logger.error(f"[Cron] Erro em despachar_emails_nsp: {type(e).__name__}")
+        return
+    if resultado.get("enviados") or resultado.get("falhas"):
+        logger.info(
+            f"[Cron] E-mails do Núcleo: {resultado.get('enviados', 0)} enviado(s), "
             f"{resultado.get('falhas', 0)} com falha."
         )
 
@@ -772,6 +802,13 @@ def start_scheduler() -> None:
         id="avisos_termo_e_vigencia_nsp",
         replace_existing=True,
     )
+    scheduler.add_job(
+        despachar_emails_nsp,
+        "interval",
+        minutes=10,
+        id="emails_nsp",
+        replace_existing=True,
+    )
     # 05:50, depois do reconciliar_clicksign. Dia
     # perdido num deploy sai no seguinte (o prazo continua vencido) e nunca
     # duas vezes (a ata encerrada e o documento por reunião).
@@ -823,7 +860,7 @@ def start_scheduler() -> None:
         "retencao_contas_medicas (04:30), fila_contas_medicas (a cada 10s), contratos_contas_medicas (07:15), "
         "relatorio_quinzenal_ouvidoria (07:00 diário, email nos dias 1 e 16), "
         "reconciliacao_tecnologia (de hora em hora), nota_do_google (06:45, uma leitura por semana), "
-        "agenda_regulatoria_nsp (05:45), avisos_termo_e_vigencia_nsp (08:00), "
+        "agenda_regulatoria_nsp (05:45), avisos_termo_e_vigencia_nsp (08:00), emails_nsp (a cada 10min), "
         "encerramento_atas_nsp (05:50), transcricoes_nsp (04:15)"
     )
 

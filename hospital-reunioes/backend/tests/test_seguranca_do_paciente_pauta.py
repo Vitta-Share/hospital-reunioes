@@ -43,7 +43,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from app.dependencies import get_current_user, get_supabase_client  # noqa: E402
 from app.limiter import limiter  # noqa: E402
 from app.routers import seguranca_do_paciente_reunioes as nsp_reunioes_router  # noqa: E402
-from app.services.seguranca_do_paciente import convocacao, pauta  # noqa: E402
+from app.services.seguranca_do_paciente import emails, pauta  # noqa: E402
 from app.services.seguranca_do_paciente.permissao import hoje_em_sao_paulo  # noqa: E402
 
 ROTA = "/api/nsp/reunioes"
@@ -57,6 +57,7 @@ ORDINARIA = "Ordinária mensal"
 _UNICAS = {
     "nsp_pautas": ("id_reuniao",),
     "nsp_convocados": ("id_reuniao", "participante_id"),
+    "nsp_avisos": ("participacao_id", "marco", "referencia", "destinatario_id"),
 }
 
 
@@ -76,7 +77,7 @@ def _emails(monkeypatch):
         enviados.append({"para": destinatario, "assunto": assunto, "html": html_content, "texto": texto_fallback})
         return True
 
-    monkeypatch.setattr(convocacao, "_enviar_email", _falso)
+    monkeypatch.setattr(emails, "_enviar_email", _falso)
     return enviados
 
 
@@ -720,6 +721,39 @@ class TestConvocacao:
         assert "já foi convocada" in de_novo.json()["detail"]
         assert len(_emails) == antes
         assert len(banco.tabelas["nsp_convocados"]) == len(CONTAM_PARA_QUORUM)
+
+    def test_cada_email_da_convocacao_nasce_no_registro_do_nucleo(self, _emails):
+        banco = _nucleo_completo(_reuniao("RD_LONGE", HOJE + timedelta(days=30)))
+
+        _convocar(banco, "RD_LONGE")
+
+        registros = banco.tabelas["nsp_avisos"]
+        assert {r["destinatario_id"] for r in registros} == CONTAM_PARA_QUORUM
+        assert {(r["marco"], r["referencia"], r["situacao"]) for r in registros} == {
+            ("convocacao", "RD_LONGE", "enviado")
+        }
+        assert len(_emails) == len(registros)
+
+    def test_a_convocacao_feita_a_noite_sai_na_hora(self, relogio, _emails):
+        """A antecedência conta do clique: a convocação não espera a janela."""
+        relogio(date(2027, 3, 6), time(22))
+        banco = _banco(reunioes=[_reuniao("RD_MAR", date(2027, 3, 22))])
+
+        assert _convocar(banco, "RD_MAR").status_code == 201
+
+        assert {e["para"] for e in _emails} == {"p1@hsm.test", "p2@hsm.test"}
+
+    def test_a_convocacao_que_falhou_e_saiu_na_retentativa_aparece_enviada(self, relogio, monkeypatch):
+        relogio(date(2027, 3, 1))
+        banco = _banco(reunioes=[_reuniao("RD_MAR", date(2027, 3, 15))])
+        monkeypatch.setattr(emails, "_enviar_email", lambda *_a, **_kw: False)
+        _convocar(banco, "RD_MAR")
+        assert not any(c["email_enviado"] for c in _pauta(banco, "RD_MAR")["convocacao"]["convocados"])
+
+        monkeypatch.setattr(emails, "_enviar_email", lambda *_a, **_kw: True)
+        emails.despachar_pendentes(banco, datetime(2027, 3, 1, 10, 5, tzinfo=FUSO))
+
+        assert all(c["email_enviado"] for c in _pauta(banco, "RD_MAR")["convocacao"]["convocados"])
 
     def test_so_a_presidencia_convoca(self, _emails):
         banco = _nucleo_completo(_reuniao("RD_LONGE", HOJE + timedelta(days=30)))
