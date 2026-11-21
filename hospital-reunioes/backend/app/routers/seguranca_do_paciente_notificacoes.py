@@ -417,7 +417,7 @@ async def responder_as_perguntas(
         )
         abertas, _ = esclarecimentos.pendentes(supabase, caso["id"])
     except esclarecimentos.PerguntaSemVagaError as erro:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=PERGUNTA_SEM_VAGA) from erro
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=PERGUNTA_SEM_VAGA) from erro
     except (APIError, httpx.HTTPError) as erro:
         logger.error("Falha ao gravar a resposta de esclarecimento: %s", type(erro).__name__)
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=FALHA_DAS_PERGUNTAS) from erro

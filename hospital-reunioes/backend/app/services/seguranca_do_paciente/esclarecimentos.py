@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from postgrest.exceptions import APIError
+
 # Os estados de antes da confirmação da triagem (migration 174): confirmar
 # leva o caso a Classificada ou a Em análise agregada (issue #1992).
 _ANTES_DA_CONFIRMACAO = ("recebida", "em_triagem")
@@ -72,12 +74,19 @@ def responder(supabase, caso: dict[str, Any], respostas: list[tuple[str, str]]) 
     perguntas = [pergunta for pergunta, _ in respostas]
     if not respostas or len(set(perguntas)) != len(perguntas) or any(p not in abertas for p in perguntas):
         raise PerguntaSemVagaError("pergunta sem resposta esperada")
-    supabase.table("nsp_esclarecimentos").insert(
-        [
-            {"notificacao_id": caso["id"], "triagem_id": ultima["id"], "pergunta": pergunta, "resposta": resposta}
-            for pergunta, resposta in respostas
-        ]
-    ).execute()
+    try:
+        supabase.table("nsp_esclarecimentos").insert(
+            [
+                {"notificacao_id": caso["id"], "triagem_id": ultima["id"], "pergunta": pergunta, "resposta": resposta}
+                for pergunta, resposta in respostas
+            ]
+        ).execute()
+    except APIError as erro:
+        # Dois envios da mesma resposta ao mesmo tempo: o segundo bate no
+        # índice único da migration 190.
+        if erro.code == "23505":
+            raise PerguntaSemVagaError("pergunta já respondida") from erro
+        raise
     return not triagem_confirmada(caso)
 
 
