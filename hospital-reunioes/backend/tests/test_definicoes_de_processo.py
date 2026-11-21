@@ -277,3 +277,21 @@ def test_quem_nao_ve_o_item_recebe_404_e_o_retirado_nao_sai_duas_vezes(cliente_d
 
     assert (fora.status_code, oculto.status_code, de_novo.status_code) == (404, 404, 409)
     assert sb.definicoes_processo[0]["status"] == "ATIVA"
+
+
+# ─── 4. O kit de conhecimento ────────────────────────────────────────────────
+
+
+def test_o_texto_de_reunioes_no_kit_diz_a_lista_de_definicoes_de_processo():
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = (CONHECIMENTO_DIR / "reunioes.md").read_text(encoding="utf-8")
+    secao = texto.split("## As definições de processo do setor", 1)[1].split("\n## ", 1)[0]
+    assert "entra na lista de definições de processo do setor da reunião, com o trecho da ata copiado" in secao
+    assert "cuidam da lista os facilitadores das reuniões do setor" in secao
+    assert "os outros setores não aparecem para ele" in secao
+    assert "Quem administra o aplicativo vê as listas de todos os setores" in secao
+    assert "A Secretária não vê a lista." in secao
+    assert "pede uma anotação" in secao
+    assert "Só tiram o facilitador da reunião de onde o item saiu e quem administra o aplicativo." in secao
+    assert "nem lembrete" in secao
