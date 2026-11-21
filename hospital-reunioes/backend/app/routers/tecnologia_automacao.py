@@ -50,6 +50,7 @@ MOTIVO_LOGIN_RECUSADO = "Este login do GitHub não é de um Desenvolvedor ativo 
 MOTIVO_DEMANDA_NAO_ENCONTRADA = "Demanda não encontrada."
 MOTIVO_DESTINATARIO_RECUSADO = "O Destinatário não é um participante ativo do aplicativo."
 MOTIVO_SEM_ASSUNTO = "A mensagem que pede resposta precisa do Assunto."
+MOTIVO_PERGUNTA_NAO_ENCONTRADA = "Pergunta não encontrada."
 # O Assunto vai na linha do sino e no assunto do e-mail: texto curto.
 LIMITE_DO_ASSUNTO = 120
 
@@ -263,6 +264,28 @@ def criar_a_pergunta(demanda_id: UUID, payload: PerguntaDaVittaPayload, supabase
     except tecnologia_perguntas.PerguntaRecusadaError as recusa:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(recusa)) from recusa
     return {"id": str(pergunta["id"]), "estado": pergunta["estado"], "criado_em": pergunta.get("criado_em")}
+
+
+@router.get("/perguntas/{pergunta_id}")
+def ler_a_pergunta(pergunta_id: UUID, supabase=Depends(get_supabase_client)) -> dict:
+    """O estado da Pergunta da Vitta e, quando houver, a resposta (o Checar
+    respostas do PedroOS). Pergunta que nao existe, ou de Demanda apagada, e
+    404. So le."""
+    pergunta = tecnologia_perguntas.buscar(supabase, str(pergunta_id))
+    if pergunta is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=MOTIVO_PERGUNTA_NAO_ENCONTRADA)
+    try:
+        _demanda_ou_404(supabase, id=str(pergunta["demanda_id"]))
+    except HTTPException as nao_achou:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=MOTIVO_PERGUNTA_NAO_ENCONTRADA) from nao_achou
+    return {
+        "id": str(pergunta["id"]),
+        "demanda_id": str(pergunta["demanda_id"]),
+        "estado": pergunta["estado"],
+        "assunto": pergunta.get("assunto"),
+        "criado_em": pergunta.get("criado_em"),
+        "resposta": tecnologia_perguntas.resposta(supabase, pergunta),
+    }
 
 
 @router.get("/demandas/{demanda_id}/conversa")

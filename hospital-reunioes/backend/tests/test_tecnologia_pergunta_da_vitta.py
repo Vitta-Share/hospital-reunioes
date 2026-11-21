@@ -172,3 +172,162 @@ class TestCriar:
         assert resposta.status_code == 201, resposta.text
         [pergunta] = sb.tabelas[TABELA]
         assert (pergunta["opcoes"], pergunta["recomendada"]) == ([], None)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# A recusa, com motivo e sem gravar nada
+# ═══════════════════════════════════════════════════════════════════════════
+
+MOTIVO_DESTINATARIO = "O Destinatário não é um participante ativo do aplicativo."
+
+
+class TestRecusa:
+    @pytest.mark.parametrize(
+        ("campos", "motivo"),
+        [
+            ({"destinatario_id": DESLIGADO["id"]}, MOTIVO_DESTINATARIO),
+            ({"destinatario_id": NINGUEM}, MOTIVO_DESTINATARIO),
+            ({"destinatario_id": None}, MOTIVO_DESTINATARIO),
+            ({"assunto": "   "}, "Falta o Assunto da Pergunta."),
+            ({"texto": ""}, "Falta o texto da Pergunta."),
+            ({"por_que_precisa": " "}, "Falta a linha do cartão: por que precisa da pessoa."),
+            ({"o_que_esta_parado": None}, "Falta a linha do cartão: o que está parado."),
+            ({"o_que_anda_depois": ""}, "Falta a linha do cartão: o que anda depois."),
+            ({"ganho": None}, "Falta a linha do cartão: o ganho."),
+            ({"opcoes": ["Só uma"], "recomendada": "A"}, "A Pergunta com opções precisa de duas a quatro, todas com texto."),
+            ({"recomendada": "C"}, "A recomendada precisa ser a letra de uma das opções."),
+        ],
+        ids=[
+            "destinatario-inativo",
+            "destinatario-inexistente",
+            "sem-destinatario",
+            "sem-assunto",
+            "sem-texto",
+            "sem-por-que-precisa",
+            "sem-o-que-esta-parado",
+            "sem-o-que-anda-depois",
+            "sem-ganho",
+            "uma-opcao-so",
+            "recomendada-fora-das-opcoes",
+        ],
+    )
+    def test_criar_incompleta_e_recusado_com_motivo_e_nada_e_gravado(self, campos, motivo, emails):
+        cliente, sb = _ponte()
+
+        resposta = _criar(cliente, **campos)
+
+        assert resposta.status_code == 422
+        assert resposta.json() == {"detail": motivo}
+        assert sb.tabelas[TABELA] == []
+        assert sb.tabelas[CONVERSA] == []
+        assert _avisados(sb) == []
+        assert emails == []
+
+    def test_login_que_nao_e_de_desenvolvedor_e_recusado_sem_gravar(self, emails):
+        cliente, sb = _ponte()
+
+        resposta = _criar(cliente, github_login="quem-nao-e")
+
+        assert resposta.status_code == 403
+        assert sb.tabelas[TABELA] == []
+        assert emails == []
+
+    def test_sem_a_chave_da_ponte_nada_entra(self):
+        cliente, sb = _ponte()
+
+        resposta = cliente.post(CRIAR, json=PERGUNTA, headers={"X-API-Key": "chave-errada"})
+
+        assert resposta.status_code == 401
+        assert sb.tabelas[TABELA] == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# O aviso
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestAviso:
+    def test_criar_avisa_so_o_destinatario_por_sino_e_email_com_pede_sua_resposta_e_o_assunto(self, emails):
+        """Card da Vitta: a regra das entregas avisaria a diretoria inteira.
+        A Pergunta avisa só a Diretora."""
+        cliente, sb = _ponte()
+
+        resposta = _criar(cliente)
+
+        assert resposta.status_code == 201, resposta.text
+        [aviso] = sb.tabelas["notificacoes"]
+        assert (aviso["destinatario_id"], aviso["titulo"], aviso["mensagem"]) == (
+            DIRETORA["id"],
+            "Pede sua resposta",
+            "quem assina a Ata pela diretoria",
+        )
+        [email] = emails
+        assert email["para"] == DIRETORA["email"]
+        assert email["assunto"] == "Pedro Rezende pede sua resposta: quem assina a Ata pela diretoria"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Ler pela ponte
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _ler(cliente: TestClient, pergunta_id: str):
+    return cliente.get(f"/api/automacao/tecnologia/perguntas/{pergunta_id}", headers={"X-API-Key": CHAVE})
+
+
+class TestLer:
+    def test_ler_a_pergunta_aberta_devolve_o_estado_e_nenhuma_resposta(self):
+        cliente, _ = _ponte()
+        pergunta_id = _criar(cliente).json()["id"]
+
+        resposta = _ler(cliente, pergunta_id)
+
+        assert resposta.status_code == 200, resposta.text
+        corpo = resposta.json()
+        assert (corpo["id"], corpo["demanda_id"], corpo["estado"]) == (pergunta_id, DEMANDA, "aberta")
+        assert corpo["assunto"] == "quem assina a Ata pela diretoria"
+        assert corpo["resposta"] is None
+
+    def test_ler_a_pergunta_respondida_devolve_a_opcao_o_texto_e_quem_respondeu(self):
+        """Responder vem na próxima Fatia: a resposta é gravada aqui direto na
+        linha, com as colunas da migration, e a leitura a devolve."""
+        cliente, sb = _ponte()
+        pergunta_id = _criar(cliente).json()["id"]
+        [linha] = sb.tabelas[TABELA]
+        linha.update(
+            {
+                "estado": "respondida",
+                "resposta_opcao": "B",
+                "resposta_texto": "E se ninguém presidiu, o diretor geral.",
+                "respondida_por": PEDRO["id"],
+                "respondida_em_nome_de": DIRETORA["id"],
+                "respondida_em": "2026-11-22T09:30:00Z",
+            }
+        )
+
+        corpo = _ler(cliente, pergunta_id).json()
+
+        assert corpo["estado"] == "respondida"
+        assert corpo["resposta"] == {
+            "opcao": "B",
+            "opcao_texto": "Quem presidiu a reunião",
+            "texto": "E se ninguém presidiu, o diretor geral.",
+            "respondida_em": "2026-11-22T09:30:00Z",
+            "respondida_por": "Pedro Rezende",
+            "em_nome_de": "Diretora Clínica",
+        }
+
+    def test_pergunta_que_nao_existe_e_404(self):
+        cliente, _ = _ponte()
+
+        resposta = _ler(cliente, "0b1c2d3e-4f5a-4b6c-8d7e-9f0a1b2c3d4e")
+
+        assert resposta.status_code == 404
+
+    def test_ler_sem_a_chave_e_401(self):
+        cliente, _ = _ponte()
+        pergunta_id = _criar(cliente).json()["id"]
+
+        resposta = cliente.get(f"/api/automacao/tecnologia/perguntas/{pergunta_id}")
+
+        assert resposta.status_code == 401

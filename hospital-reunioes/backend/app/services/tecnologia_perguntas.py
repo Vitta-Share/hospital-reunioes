@@ -23,7 +23,9 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from typing import Any
+from uuid import uuid4
 
+from app.dependencies import selecionar_participantes
 from app.services import tecnologia_conversa
 from app.services.tecnologia import TABELA_CONVERSA_DA_DEMANDA
 
@@ -120,6 +122,9 @@ def criar(
         supabase.table(TABELA_PERGUNTAS)
         .insert(
             {
+                # O id nasce aqui, como UUID: e com ele que a ponte le a
+                # Pergunta depois (o PedroOS o guarda, Vitta-Share/os#992).
+                "id": str(uuid4()),
                 "demanda_id": demanda["id"],
                 "mensagem_id": entrada["id"],
                 "autor_id": autor["id"],
@@ -146,3 +151,36 @@ def criar(
         }
     ).execute()
     return pergunta
+
+
+def buscar(supabase, pergunta_id: str) -> dict[str, Any] | None:
+    """A linha da Pergunta, ou `None`."""
+    linhas = supabase.table(TABELA_PERGUNTAS).select("*").eq("id", pergunta_id).execute().data or []
+    return linhas[0] if linhas else None
+
+
+def _nomes(supabase, ids: set[str]) -> dict[str, str]:
+    ids = {i for i in ids if i}
+    if not ids:
+        return {}
+    result = selecionar_participantes(supabase, "id, nome_completo", lambda q: q.in_("id", sorted(ids)))
+    return {str(p["id"]): p.get("nome_completo") or "" for p in result.data or []}
+
+
+def resposta(supabase, pergunta: dict[str, Any]) -> dict[str, Any] | None:
+    """A resposta da Pergunta, quando houver: a letra e o texto da opcao
+    escolhida, o texto livre, quando, quem registrou e em nome de quem."""
+    if not pergunta.get("respondida_em"):
+        return None
+    letra = pergunta.get("resposta_opcao")
+    opcao = next((o for o in pergunta.get("opcoes") or [] if o.get("letra") == letra), None)
+    por, em_nome_de = pergunta.get("respondida_por"), pergunta.get("respondida_em_nome_de")
+    nomes = _nomes(supabase, {str(por or ""), str(em_nome_de or "")})
+    return {
+        "opcao": letra,
+        "opcao_texto": opcao.get("texto") if opcao else None,
+        "texto": pergunta.get("resposta_texto"),
+        "respondida_em": pergunta.get("respondida_em"),
+        "respondida_por": nomes.get(str(por)) if por else None,
+        "em_nome_de": nomes.get(str(em_nome_de)) if em_nome_de else None,
+    }
