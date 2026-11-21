@@ -976,11 +976,39 @@ class TestFila:
         assert _ids(corpo, "fila") == [conta["id"]]
         assert conta["faturista_id"] is None
 
-    def test_minhas_sao_as_que_a_faturista_puxou_e_nao_concluiu(self):
+    @pytest.mark.parametrize("quem", ["faturista", "outra_faturista"])
+    def test_quem_analisa_ve_em_analise_e_concluidas_de_todas_com_quem_esta_cada_uma(self, quem):
+        """Issue #1955, ADR 0105 decisão 1: a faturista vê a Esteira inteira,
+        cada conta com o nome de quem está com ela. "Minhas" é filtro da tela."""
+        corpo = _cliente(quem, _fila_semeada()).get(ROTA_FILA).json()
+
+        assert [(c["id"], c["com"]) for c in corpo["minhas"]] == [
+            ("retorno", "Pessoa F1"),
+            ("da-f2-em-correcao", "Pessoa F2"),
+            ("em-correcao", "Pessoa F1"),
+        ]
+        assert [(c["id"], c["com"]) for c in corpo["concluidas"]] == [
+            ("concluida", "Pessoa F1"),
+            ("concluida-f2", "Pessoa F2"),
+        ]
+        # Ver não é abrir (decisão 2): sem o painel completo, a tela não abre as alheias.
+        assert corpo["todas"] is False
+
+    def test_cada_conta_da_faturista_diz_se_e_dela(self):
         corpo = _cliente("faturista", _fila_semeada()).get(ROTA_FILA).json()
 
-        assert _ids(corpo, "minhas") == ["retorno", "em-correcao"]
-        assert _ids(corpo, "concluidas") == ["concluida"]
+        assert [c["id"] for c in corpo["minhas"] if c["minha"]] == ["retorno", "em-correcao"]
+        assert [c["id"] for c in corpo["concluidas"] if c["minha"]] == ["concluida"]
+
+    def test_as_concluidas_da_pessoa_vem_mesmo_fora_das_mais_recentes_de_todas(self, monkeypatch):
+        """O teto da lista é das Concluídas de todas; em "Minhas" a pessoa ainda
+        vê as dela mais recentes."""
+        from app.services.contas_medicas import fila as fila_service
+
+        monkeypatch.setattr(fila_service, "TETO_DE_CONCLUIDAS", 1)
+        corpo = _cliente("outra_faturista", _fila_semeada()).get(ROTA_FILA).json()
+
+        assert _ids(corpo, "concluidas") == ["concluida", "concluida-f2"]
 
     def test_a_conta_que_nao_ficou_pronta_fica_com_quem_enviou_e_fora_da_fila(self):
         cliente = _cliente("faturista", _fila_semeada())
@@ -989,14 +1017,10 @@ class TestFila:
         assert _ids(cliente.get(ROTA_MEUS_ENVIOS).json(), "meus_envios") == ENVIOS_DE_F1
         assert not set(ENVIOS_DE_F1) & set(_ids(corpo, "fila"))
 
-    def test_a_outra_faturista_ve_os_envios_dela_e_nao_as_contas_da_primeira(self):
+    def test_a_outra_faturista_ve_os_envios_dela_e_nao_os_da_primeira(self):
         cliente = _cliente("outra_faturista", _fila_semeada())
-        corpo = cliente.get(ROTA_FILA).json()
 
         assert _ids(cliente.get(ROTA_MEUS_ENVIOS).json(), "meus_envios") == ["da-outra-envio"]
-        assert _ids(corpo, "minhas") == ["da-f2-em-correcao"]
-        assert _ids(corpo, "concluidas") == ["concluida-f2"]
-        assert corpo["todas"] is False
 
     def test_painel_completo_ve_todas_com_o_nome_de_quem_esta_com_cada_uma(self):
         cliente = _cliente("coordenadora", _fila_semeada())
@@ -1046,8 +1070,35 @@ class TestFila:
         da_primeira = cliente("faturista").get(ROTA_FILA).json()
         da_segunda = cliente("outra_faturista").get(ROTA_FILA).json()
         assert _ids(da_primeira, "fila") == ["livre-antiga"]
-        assert livre not in _ids(da_primeira, "minhas")
-        assert _ids(da_segunda, "minhas") == ["da-f2-em-correcao", livre]
+        pega = {c["id"]: c for c in da_primeira["minhas"]}[livre]
+        assert (pega["com"], pega["minha"]) == ("Pessoa F2", False)
+        assert [c["id"] for c in da_segunda["minhas"] if c["minha"]] == ["da-f2-em-correcao", livre]
+
+    def test_ver_nao_e_abrir_a_faturista_ve_a_conta_da_colega_e_o_guia_dela_segue_recusado(self):
+        """ADR 0105 decisão 2: a conta da colega aparece na lista com o nome
+        dela, e abrir o Guia dela continua 403, sem mudar a dona. A coordenação
+        abre a mesma conta sem virar dona."""
+        from app.routers import contas_medicas_guia as guia_router
+
+        banco = _fila_semeada()
+        da_colega = "aaaaaaaa-0000-0000-0000-000000000013"
+        for linha in banco.tabelas["cm_conta"]:
+            if linha["id"] == "da-f2-em-correcao":
+                linha["id"] = da_colega
+
+        def cliente(quem: str) -> TestClient:
+            c = _cliente(quem, banco)
+            c.app.include_router(guia_router.router, prefix="/api")
+            return c
+
+        lista = cliente("faturista").get(ROTA_FILA).json()["minhas"]
+        assert {c["id"]: c["com"] for c in lista}[da_colega] == "Pessoa F2"
+
+        rota_do_guia = f"/api/contas-medicas/contas/{da_colega}/guia"
+        assert cliente("faturista").get(rota_do_guia).status_code == 403
+        assert cliente("coordenadora").get(rota_do_guia).status_code == 200
+        conta = next(c for c in banco.tabelas["cm_conta"] if c["id"] == da_colega)
+        assert (conta["situacao"], conta["faturista_id"]) == ("EM_CORRECAO", "F2")
 
     def test_cada_conta_traz_o_que_a_situacao_dela_pede(self):
         cliente = _cliente("faturista", _fila_semeada())
@@ -1217,13 +1268,15 @@ class TestFila:
         assert rotulo["na-fila"] == "Sicrana Z."
         assert rotulo["livre-antiga"] is None
 
-    def test_a_rota_da_fila_devolve_a_contagem_de_cada_etapa_e_a_de_envios_a_dela(self):
-        """Issue #1951: a Esteira mostra a contagem de cada etapa. Quem vê o
-        quê não muda: a faturista conta as livres, as dela em análise e as
-        concluídas dela."""
+    def test_a_rota_da_fila_devolve_a_contagem_de_todas_a_dela_e_a_de_envios_a_dela(self):
+        """Issue #1951: a Esteira mostra a contagem de cada etapa. Issue #1955:
+        a contagem conta as de todas, e `contagem_minhas` dá o número de Em
+        análise e de Concluídas quando o filtro está em "Minhas"."""
         cliente = _cliente("faturista", _fila_semeada())
+        corpo = cliente.get(ROTA_FILA).json()
 
-        assert cliente.get(ROTA_FILA).json()["contagem"] == {"fila": 2, "em_analise": 2, "concluidas": 1}
+        assert corpo["contagem"] == {"fila": 2, "em_analise": 3, "concluidas": 2}
+        assert corpo["contagem_minhas"] == {"em_analise": 2, "concluidas": 1}
         assert cliente.get(ROTA_MEUS_ENVIOS).json()["contagem"] == {"envios": 5}
 
     def test_a_contagem_das_concluidas_passa_do_teto_da_lista(self, monkeypatch):

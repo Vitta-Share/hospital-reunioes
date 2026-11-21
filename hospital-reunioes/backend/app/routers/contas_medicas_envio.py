@@ -365,9 +365,12 @@ async def ver_fila(
     me: dict = Depends(_PODE_ANALISAR),
     supabase: Client = Depends(get_supabase_client),
 ) -> dict:
-    """A Fila, "Minhas" e as Concluídas da pessoa. Quem tem "painel completo"
-    vê as de todas, com quem está com cada uma."""
-    return _itens(supabase, fila_da_pessoa(supabase, me), ("fila", "minhas", "concluidas"))
+    """A Fila, as Em análise e as Concluídas de todas, com quem está com cada
+    uma (issue #1955, ADR 0105). Abrir a conta de outra faturista segue sendo
+    só de quem tem "painel completo", na rota do Guia."""
+    listas = fila_da_pessoa(supabase, me)
+    resposta = _itens(supabase, listas, ("fila", "minhas", "concluidas"))
+    return resposta | {"contagem_minhas": listas["contagem_minhas"]}
 
 
 @router.get("/meus-envios")

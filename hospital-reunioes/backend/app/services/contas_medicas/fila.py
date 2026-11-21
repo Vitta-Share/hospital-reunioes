@@ -24,54 +24,79 @@ CONCLUIDAS = ("CONCLUIDA", "CONCLUIDA_COM_PENDENCIA")
 TETO_DE_CONCLUIDAS = 100
 
 
-def _contas(supabase, me: dict, situacoes, *, da_pessoa: bool, recentes_primeiro: bool = False) -> list[dict]:
+def _contas(supabase, situacoes, *, de: str | None = None, recentes_primeiro: bool = False) -> list[dict]:
+    """As contas nas situações, em ordem de envio. Com `de`, só as em que a
+    pessoa é `faturista_id`; com `recentes_primeiro`, as mais recentes até o teto."""
     consulta = supabase.table("cm_conta").select("*").in_("situacao", list(situacoes))
-    if da_pessoa and not ve_todas(me):
-        consulta = consulta.eq("faturista_id", me.get("id"))
+    if de is not None:
+        consulta = consulta.eq("faturista_id", de)
     consulta = consulta.order("ordem_fila", desc=recentes_primeiro)
     if recentes_primeiro:
         consulta = consulta.limit(TETO_DE_CONCLUIDAS)
     return consulta.execute().data or []
 
 
-def _quantas_concluidas(supabase, me: dict) -> int:
-    """Todas as Concluídas que a pessoa vê, sem o teto da lista: é o número da
-    Esteira (issue #1951). Conta no banco: a leitura volta cortada no
-    `max_rows` do PostgREST, sem aviso."""
+def _concluidas(supabase, me: dict) -> list[dict]:
+    """As Concluídas mais recentes de todas e, junto, as mais recentes da
+    pessoa, para o filtro "Minhas" não ficar vazio quando as colegas
+    concluíram muitas depois dela (issue #1955)."""
+    de_todas = _contas(supabase, CONCLUIDAS, recentes_primeiro=True)
+    vistas = {c["id"] for c in de_todas}
+    dela = [c for c in _contas(supabase, CONCLUIDAS, de=me.get("id"), recentes_primeiro=True) if c["id"] not in vistas]
+    return sorted(de_todas + dela, key=lambda c: c.get("ordem_fila") or 0, reverse=True)
+
+
+def _quantas_concluidas(supabase, de: str | None = None) -> int:
+    """Todas as Concluídas, ou só as da pessoa com `de`, sem o teto da lista:
+    é o número da Esteira (issue #1951). Conta no banco: a leitura volta
+    cortada no `max_rows` do PostgREST, sem aviso."""
     consulta = supabase.table("cm_conta").select("id", count="exact").in_("situacao", list(CONCLUIDAS))
-    if not ve_todas(me):
-        consulta = consulta.eq("faturista_id", me.get("id"))
+    if de is not None:
+        consulta = consulta.eq("faturista_id", de)
     return consulta.limit(1).execute().count or 0
 
 
 def ve_todas(me: dict) -> bool:
-    """Quem tem "painel completo" vê as listas de todas as pessoas."""
+    """Quem tem "painel completo" vê os envios de todas e abre a conta de
+    qualquer faturista."""
     return "painel_completo" in me["permissoes_cm"]
 
 
 def fila_da_pessoa(supabase, me: dict) -> dict:
     """As listas de quem analisa, em ordem de envio (nunca por valor): a Fila
-    (as livres, a mesma para todas), "Minhas" (as que a pessoa puxou e não
-    concluiu) e as Concluídas dela, as mais recentes primeiro.
+    (as livres, a mesma para todas), "minhas" (as Em análise de todas as
+    faturistas, nome antigo da lista) e as Concluídas de todas, as mais
+    recentes primeiro (issue #1955, ADR 0105 decisão 1).
 
-    Quem tem "painel completo" vê todas, e cada conta vem com `com_quem`: o nome
-    da faturista que está com ela. Cada conta diz se é da própria pessoa
-    (`minha`), e a `contagem` dá o número de cada etapa da Esteira (issue #1951)."""
-    todas = ve_todas(me)
-    livres = _contas(supabase, me, (LIVRE,), da_pessoa=False)
-    minhas = _contas(supabase, me, COM_A_FATURISTA, da_pessoa=True)
-    concluidas = _contas(supabase, me, CONCLUIDAS, da_pessoa=True, recentes_primeiro=True)
+    Cada conta Em análise ou Concluída vem com `com_quem`, o nome da faturista
+    que está com ela, e diz se é da própria pessoa (`minha`): o filtro "Minhas"
+    da tela é sobre essa marca. `todas` diz se a pessoa abre as das outras
+    (decisão 2). A `contagem` dá o número de cada etapa da Esteira (issue
+    #1951), e a `contagem_minhas`, o de Em análise e Concluídas em "Minhas"."""
+    livres = _contas(supabase, (LIVRE,))
+    em_analise = _contas(supabase, COM_A_FATURISTA)
+    concluidas = _concluidas(supabase, me)
 
     for conta in livres:
         conta["com_quem"] = None
         conta["minha"] = False
-    for conta in minhas + concluidas:
-        conta["com_quem"] = conta.get("faturista_id") if todas else None
+    for conta in em_analise + concluidas:
+        conta["com_quem"] = conta.get("faturista_id")
         conta["minha"] = conta.get("faturista_id") == me.get("id")
-    if todas:
-        _trocar_id_por_nome(supabase, minhas + concluidas)
-    contagem = {"fila": len(livres), "em_analise": len(minhas), "concluidas": _quantas_concluidas(supabase, me)}
-    return {"todas": todas, "fila": livres, "minhas": minhas, "concluidas": concluidas, "contagem": contagem}
+    _trocar_id_por_nome(supabase, em_analise + concluidas)
+    contagem = {"fila": len(livres), "em_analise": len(em_analise), "concluidas": _quantas_concluidas(supabase)}
+    contagem_minhas = {
+        "em_analise": sum(1 for conta in em_analise if conta["minha"]),
+        "concluidas": _quantas_concluidas(supabase, me.get("id")),
+    }
+    return {
+        "todas": ve_todas(me),
+        "fila": livres,
+        "minhas": em_analise,
+        "concluidas": concluidas,
+        "contagem": contagem,
+        "contagem_minhas": contagem_minhas,
+    }
 
 
 def envios_da_pessoa(supabase, me: dict) -> dict:
@@ -79,7 +104,7 @@ def envios_da_pessoa(supabase, me: dict) -> dict:
     em ordem de envio. Quem tem "painel completo" vê as de todos, cada uma com
     o nome de quem enviou em `com_quem`."""
     todas = ve_todas(me)
-    nao_prontas = _contas(supabase, me, NAO_PRONTAS, da_pessoa=False)
+    nao_prontas = _contas(supabase, NAO_PRONTAS)
     enviou, ambiguas = _quem_enviou(supabase, nao_prontas)
     envios = nao_prontas if todas else [c for c in nao_prontas if enviou.get(c["id"]) == me.get("id")]
     for conta in envios:
