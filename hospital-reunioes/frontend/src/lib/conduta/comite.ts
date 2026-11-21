@@ -6,6 +6,7 @@
  * AGORA" chega pronta, com o motivo do botão bloqueado.
  */
 import { createClient } from "@/lib/supabase/client";
+import type { SugestaoDoAgente } from "@/lib/conduta/sugestao";
 
 export type Rito = "encaminhamento" | "rapido" | "completo";
 export type Escopo = "dentro" | "fora" | "misto";
@@ -67,6 +68,7 @@ export interface CasoAberto extends CasoDaLista {
   conferida_em: string | null;
   encerrado_em: string | null;
   desfecho: string | null;
+  sugestao_do_agente?: SugestaoDoAgente;
 }
 
 export const RITOS: { valor: Rito; rotulo: string; prazo: string }[] = [

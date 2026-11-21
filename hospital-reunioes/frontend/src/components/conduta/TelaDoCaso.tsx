@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, Check, Loader2 } from "lucide-react";
 
 import { OQueFazerAgora } from "@/components/conduta/OQueFazerAgora";
+import { SugestaoDoAgente } from "@/components/conduta/SugestaoDoAgente";
 import {
   CATEGORIAS,
   DESTINOS,
@@ -360,6 +361,8 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
           )}
         </section>
       )}
+
+      {caso.sugestao_do_agente && <SugestaoDoAgente casoId={casoId} sugestao={caso.sugestao_do_agente} aoResponder={carregar} />}
 
       <section aria-label="Relato original" className={`${CARTAO} px-4 py-4 space-y-1`}>
         <h2 className="text-base font-semibold text-slate-900">Relato original</h2>
