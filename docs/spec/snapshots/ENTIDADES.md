@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T22:24+0000 -->
+<!-- last_update: 2026-11-21T22:28+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2634,7 +2634,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## nsp_triagens
 
-> Origem: `188_nsp_agente_de_triagem.sql`
+> Origem: `188_nsp_agente_de_triagem.sql` (alterada em: 197_nsp_tela_de_triagem.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2667,11 +2667,17 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `modelo` | `TEXT` | — | — | — |
 | `tentativas` | `SMALLINT` | — | — | — |
 | `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `autor_id` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `divergencias` | `TEXT[]` | — | — | — |
+| `frequencia` | `TEXT` | — | — | — |
+| `prioridade` | `TEXT` | — | — | — |
 
 **Indexes:**
 - `idx_nsp_triagens_notificacao` em `(notificacao_id, versao DESC)` (de `188_nsp_agente_de_triagem.sql`)
 - `idx_nsp_triagens_categoria` em `(categoria)` (de `188_nsp_agente_de_triagem.sql`)
 - `idx_nsp_triagens_evento_item` em `(evento_item)` (de `188_nsp_agente_de_triagem.sql`)
+- `idx_nsp_triagens_autor` em `(autor_id)` (de `197_nsp_tela_de_triagem.sql`)
+- `uq_nsp_triagens_uma_decisao_por_notificacao` em `(notificacao_id)` (de `197_nsp_tela_de_triagem.sql`)
 
 ## nsp_agente_cota
 
@@ -2739,6 +2745,23 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_email_de_segunda_semana` em `(semana)` (de `196_email_de_segunda.sql`)
 
+## nsp_cortes_de_frequencia
+
+> Origem: `197_nsp_tela_de_triagem.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `BOOLEAN` | PK | `true` | — |
+| `janela_meses` | `SMALLINT` | NOT NULL | `12` | — |
+| `incomum_a_partir` | `SMALLINT` | NOT NULL | `1` | — |
+| `ocasional_a_partir` | `SMALLINT` | NOT NULL | `2` | — |
+| `frequente_a_partir` | `SMALLINT` | NOT NULL | `4` | — |
+| `atualizado_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `atualizado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_cortes_de_frequencia_atualizado_por` em `(atualizado_por)` (de `197_nsp_tela_de_triagem.sql`)
+
 ## conduta_avisos
 
 > Origem: `199_conduta_avisos_por_email.sql`
@@ -2793,4 +2816,4 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ---
 
-**Resumo:** 138 tabelas vivas.
+**Resumo:** 139 tabelas vivas.
