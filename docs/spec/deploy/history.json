@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-20T23:03:32-03:00",
+      "sha": "c7e89e7a40eb4d0a2b8306e07d9c993fdf3cacbe",
+      "app_version": "0.331.0",
+      "subject": "Onda sesta-1933-onda2: Tela de contas com Esteira e lista por número e paciente; Conta aberta em Mesa de trabalho, com o Item da vez; Painel no desenho novo, com os mesmos números",
+      "raw_subject": "chore(deploy): registro da onda sesta-1933-onda2 (#2066 #2065 #2063)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1933
+      ],
+      "result": "healthy",
+      "duration_seconds": 318,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1933-onda2: PR #2066 (issue #1951), PR #2065 (issue #1952), PR #2063 (issue #1953), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 9,
+        "build_s": {
+          "backend": 19,
+          "frontend": 249
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-20T22:13:42-03:00",
       "sha": "0cd26934b3c68bac322fa7dcecc22c7867820c9f",
       "app_version": "0.330.0",
