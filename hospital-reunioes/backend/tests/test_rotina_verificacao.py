@@ -438,3 +438,21 @@ def test_rotina_de_reuniao_do_nucleo_oculta_nao_aparece_na_fila(fila):
     fila.estado["ocultas"] = ["R1"]
 
     assert _verificacoes(fila(sb, ANA, "2026-11-25")) == []
+
+
+# ─── 4. O kit de conhecimento ────────────────────────────────────────────────
+
+
+def test_o_texto_de_reunioes_no_kit_diz_a_rotina_por_ciclo():
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = (CONHECIMENTO_DIR / "reunioes.md").read_text(encoding="utf-8")
+    assert "a quinzena vai do dia 1 ao 15 e do 16 ao fim do mês" in texto
+    assert "Ela começa no ciclo seguinte ao do envio, o primeiro inteiro" in texto
+    assert "Realizada é um clique; Não realizada pede uma anotação" in texto
+    assert "fica atrasado e ainda pode ser marcado depois" in texto
+    assert "o facilitador da reunião marca por ele" in texto
+    assert "encerrar a rotina a qualquer momento, com uma anotação" in texto
+    assert "também aparece no Início do responsável" in texto
+    # A frase antiga dizia que a Rotina só ficava guardada no quadro.
+    assert "A Rotina e o Processo ficam guardados no quadro da ata" not in texto
