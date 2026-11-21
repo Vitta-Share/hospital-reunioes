@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/client";
 
 const ROTA = "/api/comite-de-conduta/codigo-de-conduta";
 const CARTAO = "bg-white rounded-2xl border border-border shadow-premium";
+/** O mesmo teto do backend: um ano digitado errado travaria a publicação. */
+const DIAS_A_FRENTE = 90;
 
 interface VersaoDoCodigo {
   id: string;
@@ -22,6 +24,14 @@ interface VersaoDoCodigo {
 function diaBr(iso: string): string {
   const [ano, mes, dia] = iso.slice(0, 10).split("-");
   return `${dia}/${mes}/${ano}`;
+}
+
+/** Hoje em São Paulo e o teto da vigência, como "AAAA-MM-DD". */
+function faixaDaVigencia(agora: Date = new Date()): { min: string; max: string } {
+  const min = agora.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+  const teto = new Date(`${min}T00:00:00Z`);
+  teto.setUTCDate(teto.getUTCDate() + DIAS_A_FRENTE);
+  return { min, max: teto.toISOString().slice(0, 10) };
 }
 
 function linha(v: VersaoDoCodigo): string {
@@ -127,6 +137,8 @@ export function CodigoDeConduta() {
 
   if (recusado) return null;
 
+  const faixa = faixaDaVigencia();
+
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-base font-bold text-slate-900">Código de Conduta</h2>
@@ -159,10 +171,12 @@ export function CodigoDeConduta() {
             id="codigo-vigencia"
             type="date"
             value={vigenteDesde}
+            min={faixa.min}
+            max={faixa.max}
             onChange={(e) => setVigenteDesde(e.target.value)}
             className="w-48 rounded-xl border border-border px-3 py-2 text-sm text-slate-900"
           />
-          <p className="text-xs text-slate-500">Sem data, vale a partir de hoje. As versões anteriores continuam guardadas.</p>
+          <p className="text-xs text-slate-500">Sem data, vale a partir de hoje. A data pode ser até {DIAS_A_FRENTE} dias à frente. As versões anteriores continuam guardadas.</p>
           {erro && <p className="text-sm text-red-700">{erro}</p>}
           <button
             type="button"

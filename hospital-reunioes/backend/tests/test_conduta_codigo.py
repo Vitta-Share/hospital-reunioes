@@ -198,6 +198,24 @@ def test_vigencia_no_passado_responde_422(banco):
     assert banco.tabelas.get("conduta_codigo_versoes", []) == []
 
 
+def test_vigencia_alem_do_teto_responde_422_e_nada_e_gravado(banco):
+    """2062 digitado no lugar de 2026 viraria a última versão, imutável, e
+    toda publicação com data anterior a ela seria recusada por anos."""
+    resposta = _publicar(_cliente(banco, COORDENACAO), CODIGO_2026, vigente_desde=HOJE + timedelta(days=91))
+
+    assert resposta.status_code == 422
+    assert resposta.json()["detail"] == "A vigência pode ser no máximo 90 dias depois de hoje."
+    assert banco.tabelas.get("conduta_codigo_versoes", []) == []
+    assert banco.storage.baldes.get("conduta-codigo", {}) == {}
+
+
+def test_vigencia_no_teto_e_aceita(banco):
+    resposta = _publicar(_cliente(banco, COORDENACAO), CODIGO_2026, vigente_desde=HOJE + timedelta(days=90))
+
+    assert resposta.status_code == 201, resposta.text
+    assert resposta.json()["vigente_desde"] == (HOJE + timedelta(days=90)).isoformat()
+
+
 def test_vigencia_antes_da_ultima_versao_responde_422(banco):
     cliente = _cliente(banco, COORDENACAO)
     _publicar(cliente, CODIGO_2025, vigente_desde=HOJE + timedelta(days=10))

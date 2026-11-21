@@ -115,6 +115,21 @@ describe("CodigoDeConduta", () => {
     expect(corpo.get("vigente_desde")).toBe("2027-01-01");
   });
 
+  it("a data de vigência vai de hoje, em São Paulo, até 90 dias à frente", async () => {
+    // 23h de 21/11 em São Paulo, já 22/11 em UTC.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-22T02:00:00Z"));
+    try {
+      render(<CodigoDeConduta />);
+      await screen.findByText(/Versão 2, vigente desde/);
+
+      const campo = screen.getByLabelText("Vale a partir de") as HTMLInputElement;
+      expect([campo.min, campo.max]).toEqual(["2026-11-21", "2027-02-19"]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("mostra a recusa da publicação com a frase da API", async () => {
     render(<CodigoDeConduta />);
     await screen.findByText(/Versão 2, vigente desde/);

@@ -8,7 +8,9 @@ vigência, a publicada depois. O caso usa isso para citar o item do Código que
 valia na data do fato.
 
 A vigência nunca fica no passado nem antes da última versão: retroativa, ela
-trocaria a versão que valia numa data já julgada.
+trocaria a versão que valia numa data já julgada. Nem passa de 90 dias à
+frente: um ano digitado errado (2062 no lugar de 2026) viraria a última
+versão, imutável, e recusaria toda publicação anterior a ela por anos.
 
 O PDF vai para o bucket privado `conduta-codigo` e sai só pelo backend: na
 rota pública (a vigente) ou na da coordenação (qualquer versão).
@@ -17,7 +19,7 @@ rota pública (a vigente) ou na da coordenação (qualquer versão).
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from app.services import storage
@@ -25,11 +27,13 @@ from app.services import storage
 TABELA = "conduta_codigo_versoes"
 BUCKET = "conduta-codigo"
 LIMITE_BYTES = 20 * 1024 * 1024
+DIAS_A_FRENTE = 90
 
 MOTIVO_NAO_E_PDF = "O Código de Conduta precisa ser um arquivo PDF."
 MOTIVO_GRANDE = "O PDF passa de 20 MB. Mande um arquivo mais leve."
 MOTIVO_VAZIO = "O arquivo chegou vazio. Escolha o arquivo de novo."
 MOTIVO_PASSADO = "A vigência não pode ser antes de hoje."
+MOTIVO_LONGE_DEMAIS = f"A vigência pode ser no máximo {DIAS_A_FRENTE} dias depois de hoje."
 MOTIVO_ANTES_DA_ULTIMA = "A vigência não pode ser antes da vigência da última versão publicada."
 MOTIVO_NAO_GUARDOU = "Não foi possível guardar o PDF agora. Tente de novo em instantes."
 
@@ -133,6 +137,8 @@ def publicar(
     _conferir(conteudo)
     if vigente_desde < hoje:
         raise RecusaDoCodigo(MOTIVO_PASSADO)
+    if vigente_desde > hoje + timedelta(days=DIAS_A_FRENTE):
+        raise RecusaDoCodigo(MOTIVO_LONGE_DEMAIS)
     atuais = _linhas(supabase)
     if atuais and vigente_desde.isoformat() < str(atuais[0]["vigente_desde"]):
         raise RecusaDoCodigo(MOTIVO_ANTES_DA_ULTIMA)
