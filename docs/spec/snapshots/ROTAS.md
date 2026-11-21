@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T22:43+0000 -->
+<!-- last_update: 2026-11-21T22:50+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -85,10 +85,15 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 |--------|------|-----------|------|
 | GET | `/comite-de-conduta/casos` | Listar casos | ✅ |
 | GET | `/comite-de-conduta/casos/{caso_id}` | Abrir caso | ✅ |
+| GET | `/comite-de-conduta/casos/{caso_id}/cadastro` | Para ligar o Citado ao cadastro: só id e nome. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/citados` | Marcar citado | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/conferencia` | Conferir triagem | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/contestacao` | Contestar triagem | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/contestacao/decisao` | Decidir contestacao | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/contestacoes-de-participacao` | Contestar participacao | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/contestacoes-de-participacao/{contestacao_id}/decisao` | Decidir participacao | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/encaminhamento` | Enviar orientacao | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/impedimento` | Declarar impedimento | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/nota-ao-nsp` | Sinalizar ao NSP (issue #1850): um membro escreve a nota ao Núcleo. | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/nota-ao-nsp/envio` | A coordenação envia ao Núcleo a nota escrita, e só ela (issue #1850). | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/prorrogacao` | Prorrogar prazo | ✅ |
@@ -779,4 +784,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 448 endpoints em 65 routers · 93% exigem auth.
+**Totais:** 453 endpoints em 65 routers · 93% exigem auth.

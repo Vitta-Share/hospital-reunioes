@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T22:43+0000 -->
+<!-- last_update: 2026-11-21T22:50+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -187,6 +187,7 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 188 | `188_nsp_agente_de_triagem.sql` | o agente de triagem do Núcleo | 4 | 2 | 3 | 0 |
 | 189 | `189_fotografia_semanal_do_painel.sql` | Fotografia semanal do painel de Reunioes (PRD #1757; issue #1873) | 1 | 0 | 1 | 0 |
 | 190 | `190_fluxo_continuo_vira_rotina.sql` | o fluxo continuo antigo vira Rotina (ADR 0098, decisao 9; issue #1877) | 0 | 1 | 1 | 0 |
+| 191 | `191_conduta_impedimento_e_citado.sql` | Canal de Conduta, impedimento, suplente convocado e Citado | 2 | 1 | 6 | 0 |
 | 192 | `192_conduta_assinaturas.sql` | Canal de Conduta, as assinaturas pela ClickSign | 1 | 0 | 2 | 0 |
 | 194 | `194_revisao_da_rotina.sql` | a revisao de 90 dias da Rotina (issue #1944; decisao 72 da #1757) | 0 | 2 | 0 | 0 |
 | 196 | `196_email_de_segunda.sql` | Guarda do e-mail de segunda de Reunioes (PRD #1757; issue #1876) | 1 | 0 | 1 | 0 |
@@ -197,4 +198,4 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 203 | `203_conduta_nota_ao_nucleo.sql` | Canal de Conduta, a nota do Comitê ao Núcleo de Segurança | 2 | 0 | 5 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 189 migrations.
+**Total:** 190 migrations.
