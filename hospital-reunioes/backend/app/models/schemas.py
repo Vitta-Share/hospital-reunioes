@@ -112,6 +112,8 @@ class ParticipanteResponse(BaseModel):
     ) = None
     # Segurança do Paciente (ADR 0095, decisão 4): o Acesso pleno ao NSP.
     perfil_nsp: Literal["acesso_pleno"] | None = None
+    # Canal de Conduta (ADR 0097, decisão 3): quem cadastra membros do Comitê.
+    perfil_conduta: Literal["cadastro_de_membros"] | None = None
     # O registro profissional da pessoa (issue #1765).
     conselho_profissional: str | None = None
     registro_profissional: str | None = None
@@ -123,6 +125,9 @@ class ParticipanteResponse(BaseModel):
     # item e a rota abre para quem não é `nenhum`. Nulo quando o cadastro de
     # responsáveis não pôde ser lido.
     papel_ouvidoria: Literal["perfil_ouvidoria", "indice_geral", "responsavel", "nenhum"] | None = None
+    # A tela Membros do Comitê de Conduta (issue #1822). Só o `/me` preenche:
+    # o menu mostra o item para quem está no Comitê ou tem o perfil de cadastro.
+    ve_membros_do_comite: bool = False
     data_cadastro: date | None = None
 
 
@@ -344,6 +349,8 @@ class TipoNotificacao(StrEnum):
     CONTAS_MEDICAS = "CONTAS_MEDICAS"
     # A Conversa da Demanda (129, issue #1537): a referencia e a Demanda.
     TECNOLOGIA = "TECNOLOGIA"
+    # A mudança no Comitê de Conduta (178, issue #1822): sem referência.
+    CONDUTA = "CONDUTA"
 
 
 class NotificacaoResponse(BaseModel):

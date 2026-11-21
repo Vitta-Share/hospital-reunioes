@@ -415,3 +415,54 @@ class TestPerfilNaoAbreCaso:
 def test_situacao_da_participacao(inicio, fim, encerrada, esperada):
     participacao = _participacao("M1", inicio=inicio, fim=fim, encerrada_em=HOJE.isoformat() if encerrada else None)
     assert servico.situacao(participacao, HOJE) == esperada
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 8. O kit de conhecimento diz o comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_o_kit_do_canal_diz_quem_cadastra_e_que_toda_mudanca_avisa_o_comite():
+    from pathlib import Path
+
+    kit = (Path(__file__).resolve().parents[1] / "app" / "conhecimento" / "canal-de-conduta.md").read_text()
+    assert "## A tela Membros" in kit
+    assert "O super admin sem esse perfil não cadastra" in kit
+    assert "avisa os membros vigentes do Comitê no sino do aplicativo e por e-mail" in kit
+    assert "Encerrar não apaga" in kit
+    assert "o cadastro dos membros chegam nas próximas entregas" not in kit
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# O menu: o /me diz quem vê a tela Membros
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestMenu:
+    def _me(self, cenario: _Cenario) -> dict:
+        from app.routers import participantes
+
+        app = FastAPI()
+        app.include_router(participantes.router, prefix="/api")
+        quem = cenario.quem
+
+        async def _usuario() -> dict[str, Any]:
+            return {"id": quem["auth_user_id"], "email": quem["email"], "metadata": {}}
+
+        app.dependency_overrides[get_current_user] = _usuario
+        app.dependency_overrides[get_supabase_client] = lambda: cenario.banco
+        resposta = TestClient(app).get("/api/participantes/me")
+        assert resposta.status_code == 200, resposta.text
+        return resposta.json()
+
+    @pytest.mark.parametrize(
+        ("quem", "participacoes", "ve"),
+        [
+            (_pessoa("M1"), [_participacao("M1", papel="suplente")], True),
+            (_pessoa("C1", **CADASTRO), [], True),
+            (_pessoa("A1", **SUPER_ADMIN), [], False),
+            (_pessoa("M1"), [_participacao("M1", inicio=-900, fim=-200)], False),
+        ],
+    )
+    def test_o_me_diz_se_a_pessoa_ve_a_tela_membros(self, quem, participacoes, ve):
+        assert self._me(_Cenario(quem, [], participacoes))["ve_membros_do_comite"] is ve

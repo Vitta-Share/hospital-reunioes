@@ -57,6 +57,8 @@ from app.models.schemas import FacilitadorOption, ParticipanteCreate, Participan
 from app.services import ouvidoria_papel
 from app.services.auth_provisioning import definir_login_liberado
 from app.services.cargo_mapping import list_cargos
+from app.services.conduta import membros as membros_do_comite
+from app.services.conduta.acesso import hoje_em_sao_paulo
 from app.services.ouvidoria_prazos import FUSO as FUSO_HOSPITAL
 
 logger = logging.getLogger(__name__)
@@ -292,7 +294,18 @@ async def get_me(
         **me,
         "recursos_nsp": sorted(recursos_nsp_da_pessoa(supabase, me)),
         "papel_ouvidoria": _papel_ouvidoria(supabase, me),
+        "ve_membros_do_comite": _ve_membros_do_comite(supabase, me),
     }
+
+
+def _ve_membros_do_comite(supabase, me: dict) -> bool:
+    """Se o menu mostra a tela Membros do Comitê de Conduta (issue #1822).
+    Falha de leitura esconde o item: a rota decide de novo."""
+    try:
+        return membros_do_comite.ve_os_membros(supabase, me, hoje_em_sao_paulo())
+    except Exception as erro:  # noqa: BLE001
+        logger.warning(f"[me] Não deu para saber se a pessoa vê os membros do Comitê: {erro}")
+        return False
 
 
 def _papel_ouvidoria(supabase, me: dict) -> str | None:
