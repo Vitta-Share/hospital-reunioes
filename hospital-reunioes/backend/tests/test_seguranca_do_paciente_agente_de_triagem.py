@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -590,3 +591,90 @@ def test_a_rota_do_modulo_tambem_dispara_a_triagem(monkeypatch):
 
     assert resposta.status_code == 201, resposta.text
     assert banco.notificacoes[0]["classificar_manualmente"] is True
+
+
+def test_o_assunto_longo_e_cortado_no_teto_da_coluna(monkeypatch, agente_ligado):
+    _com_modelo(monkeypatch, {**SUGESTAO_DA_BOMBA, "assunto": "Bomba de heparina " * 40})
+    banco = _banco_com(NOTIFICACAO_IDENTIFICADA)
+
+    _triar(banco)
+
+    [triagem] = banco.triagens
+    assert len(triagem["assunto"]) == agente_de_triagem.TAMANHO_DO_ASSUNTO
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# A migration 176: configuração, triagem, marca e cota
+# ═══════════════════════════════════════════════════════════════════════════
+
+MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "176_nsp_agente_de_triagem.sql"
+BASE_DE_CONHECIMENTO = Path(agente_de_triagem.__file__).resolve().parents[2] / "prompts" / "nsp_base_de_conhecimento.md"
+
+
+def _sql() -> str:
+    return re.sub(r"--[^\n]*", "", MIGRATION.read_text(encoding="utf-8"))
+
+
+def _insert(tabela: str) -> str:
+    bloco = re.search(rf"INSERT INTO {tabela} \([^)]*\) VALUES(.*?)ON CONFLICT", _sql(), re.DOTALL)
+    assert bloco, tabela
+    return bloco.group(1)
+
+
+def test_as_19_categorias_sao_as_mesmas_na_migration_no_validador_e_na_base():
+    base = BASE_DE_CONHECIMENTO.read_text(encoding="utf-8")
+    na_base = re.findall(r"^\| \*\*([A-Z]{3})\*\* \|", base, re.MULTILINE)
+    na_migration = re.findall(r"\('([A-Z]{3})',", _insert("nsp_categorias"))
+    assert len(na_migration) == 19
+    assert na_migration == na_base == list(triagem_do_agente.CATEGORIAS)
+
+
+def test_os_30_eventos_sao_os_mesmos_na_migration_e_na_base():
+    base = BASE_DE_CONHECIMENTO.read_text(encoding="utf-8")
+    na_base = {int(n): evento.strip() for n, evento in re.findall(r"^\| (\d{1,2}) \| ([^|]+) \|$", base, re.MULTILINE)}
+    linhas = re.findall(r"\((\d+), '((?:[^']|'')*)', (true|false)\)", _insert("nsp_eventos_que_nunca_deveriam_ocorrer"))
+    na_migration = {int(n): evento.replace("''", "'") for n, evento, _ in linhas}
+    assert na_migration == na_base
+    assert sorted(na_migration) == list(triagem_do_agente.ITENS_DA_LISTA)
+    # Só valem com óbito ou lesão grave: 7 e 11 a 22 (Anexo A, seção 5).
+    assert {int(n) for n, _, exige in linhas if exige == "true"} == {7, *range(11, 23)}
+
+
+def test_a_cota_do_nucleo_tem_tabela_e_funcao_proprias_e_para_no_teto():
+    sql = _sql()
+    corpo = re.search(r"FUNCTION nsp_agente_reservar_chamada\(p_teto INTEGER\).*?\$\$(.*?)\$\$", sql, re.DOTALL)
+    assert corpo
+    assert "ouvidoria_agente_cota" not in corpo.group(1)
+    assert re.search(
+        r"INSERT INTO nsp_agente_cota AS cota \(dia, chamadas\)\s+VALUES \(v_dia, 1\)\s+"
+        r"ON CONFLICT \(dia\) DO UPDATE\s+SET chamadas = cota\.chamadas \+ 1\s+WHERE cota\.chamadas < p_teto;",
+        corpo.group(1),
+    )
+    assert "now() AT TIME ZONE 'America/Sao_Paulo'" in corpo.group(1)
+    assert "reservada := FOUND AND p_teto > 0;" in corpo.group(1)
+    assert agente_de_triagem.FUNCAO_DA_COTA == "nsp_agente_reservar_chamada"
+    assert agente_de_triagem.TETO_DIARIO == 100
+    assert "REVOKE EXECUTE ON FUNCTION nsp_agente_reservar_chamada(INTEGER) FROM PUBLIC, anon, authenticated;" in sql
+
+
+def test_a_marca_aceita_os_tres_motivos_que_o_agente_grava():
+    bloco = re.search(
+        r"motivo_classificar_manualmente TEXT\s+CHECK \(motivo_classificar_manualmente IN \(([^)]*)\)\)", _sql()
+    )
+    assert bloco
+    motivos = set(re.findall(r"'(\w+)'", bloco.group(1)))
+    assert motivos == {agente_de_triagem.AGENTE_FORA, agente_de_triagem.TETO, agente_de_triagem.VALIDACAO}
+
+
+def test_a_linha_de_triagem_cabe_na_tabela():
+    """Toda coluna que o agente grava existe em `nsp_triagens`."""
+    tabela = re.search(r"CREATE TABLE IF NOT EXISTS nsp_triagens \((.*?)\n\);", _sql(), re.DOTALL).group(1)
+    colunas = set(re.findall(r"^\s+(\w+)\s+[A-Z]", tabela, re.MULTILINE))
+    triagem = agente_de_triagem.Triagem(sugestao=_sugestao(), tentativas=1)
+    assert set(agente_de_triagem._linha_de_triagem("n1", triagem, "m")) <= colunas
+
+
+def test_toda_tabela_nova_nasce_com_rls():
+    sql = _sql()
+    for tabela in re.findall(r"CREATE TABLE IF NOT EXISTS (\w+)", sql):
+        assert f"ALTER TABLE {tabela} ENABLE ROW LEVEL SECURITY;" in sql, tabela

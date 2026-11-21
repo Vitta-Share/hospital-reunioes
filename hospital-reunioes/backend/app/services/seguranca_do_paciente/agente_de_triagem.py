@@ -60,6 +60,8 @@ VALIDACAO = "validacao"
 # A resposta é um JSON de umas 600 palavras; o resto é folga para o raciocínio.
 MAX_TOKENS = 4096
 TEMPO_LIMITE_S = 90.0
+# O teto da coluna `nsp_triagens.assunto` (migration 176).
+TAMANHO_DO_ASSUNTO = 300
 
 _VERSAO = re.compile(r"^Versão (\d+(?:\.\d+)*)", re.MULTILINE)
 
@@ -158,7 +160,7 @@ def _sugestao_final(saida: dict, relato: str) -> dict:
     """A saída validada, sanitizada, com o assunto numa linha e o alerta do
     sistema quando o relato traz instrução ao agente."""
     sugestao = _sanitizada(saida)
-    sugestao["assunto"] = " ".join(sugestao["assunto"].split())
+    sugestao["assunto"] = " ".join(sugestao["assunto"].split())[:TAMANHO_DO_ASSUNTO]
     if triagem_do_agente.tem_instrucao_ao_agente(relato):
         sugestao["alertas"] = [*sugestao["alertas"], triagem_do_agente.ALERTA_DE_INSTRUCAO]
     return sugestao
