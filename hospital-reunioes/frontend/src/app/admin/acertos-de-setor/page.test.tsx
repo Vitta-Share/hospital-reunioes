@@ -26,6 +26,16 @@ type Chamada = { endereco: string; metodo: string; corpo: Record<string, unknown
 const LISTA = {
   reunioes: [{ id_reuniao: "RD_SEM", titulo: "Reunião antiga", data: "2026-03-10", tipo: "Gerencial" }],
   responsaveis: [{ id: "P_SEM", nome_completo: "Carla Sem Setor", cargo: "Enfermeira", email: "c@hsm.com" }],
+  pendencias_sem_prazo: [
+    {
+      id_acao: "A10",
+      id_reuniao: "RD_COM",
+      descricao_acao: "Comprar luvas",
+      responsavel_nome: "Carla Sem Setor",
+      status: "PENDENTE",
+      reuniao_titulo: "Reunião da Farmácia",
+    },
+  ],
 };
 
 function montar(lista = LISTA) {
@@ -104,10 +114,22 @@ describe("Acertos de setor", () => {
     expect(gravou?.corpo).toEqual({ setor: "Faturamento" });
   });
 
+  it("lista as Pendências sem prazo que não viraram Rotina, com o caminho para dar o prazo (issue #1877)", async () => {
+    montar();
+
+    const pendencias = await screen.findByRole("region", { name: "Pendências sem prazo" });
+    expect(within(pendencias).getByText("Comprar luvas")).toBeTruthy();
+    expect(within(pendencias).getByText(/Reunião da Farmácia/).textContent).toContain("Carla Sem Setor");
+    const abrir = within(pendencias).getByRole("link", { name: "Abrir a pendência" });
+    expect(abrir.getAttribute("href")).toBe("/pendencias/kanban?highlight=A10");
+  });
+
   it("lista vazia diz que não falta nada", async () => {
-    montar({ reunioes: [], responsaveis: [] });
+    montar({ reunioes: [], responsaveis: [], pendencias_sem_prazo: [] });
 
     const reunioes = await screen.findByRole("region", { name: "Reuniões sem setor" });
     expect(within(reunioes).getByText(/Nenhuma reunião sem setor/)).toBeTruthy();
+    const pendencias = screen.getByRole("region", { name: "Pendências sem prazo" });
+    expect(within(pendencias).getByText(/Nenhuma pendência sem prazo/)).toBeTruthy();
   });
 });

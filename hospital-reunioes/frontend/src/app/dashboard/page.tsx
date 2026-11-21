@@ -13,6 +13,8 @@ import DashboardFilters from "@/components/dashboard/DashboardFilters";
 import StatusPieChart from "@/components/dashboard/StatusPieChart";
 import SetorBarChart from "@/components/dashboard/SetorBarChart";
 import RankingDeAtrasos from "@/components/dashboard/RankingDeAtrasos";
+import EvolucaoSemanal from "@/components/dashboard/EvolucaoSemanal";
+import type { SemanaDaEvolucao } from "@/components/dashboard/EvolucaoSemanal";
 import type { LinhaDoRanking, SetorDosAtrasos } from "@/components/dashboard/RankingDeAtrasos";
 import type { SetorBarEntry } from "@/components/dashboard/SetorBarChart";
 import type { PieEntry } from "@/components/dashboard/StatusPieChart";
@@ -28,17 +30,30 @@ interface Stats {
   totalPendencias: number;
 }
 
+interface CardsDoServidor {
+  atas_paradas: number;
+  aguardam_assinatura: number;
+  atrasadas: number;
+  vencem_em_3_dias: number;
+  conformidade: number;
+  ativas: number;
+}
+
+function paraStats(cards: CardsDoServidor): Stats {
+  return {
+    atasParadas: cards.atas_paradas,
+    aguardamAssinatura: cards.aguardam_assinatura,
+    atrasadas: cards.atrasadas,
+    vencemEm3Dias: cards.vencem_em_3_dias,
+    conformidade: cards.conformidade,
+    totalPendencias: cards.ativas,
+  };
+}
+
 // O que `/api/pendencias/painel` devolve (issue #1868): os números já
 // contados no servidor, da base inteira e no recorte de quem pede.
 interface PainelDoServidor {
-  cards: {
-    atas_paradas: number;
-    aguardam_assinatura: number;
-    atrasadas: number;
-    vencem_em_3_dias: number;
-    conformidade: number;
-    ativas: number;
-  };
+  cards: CardsDoServidor;
   situacoes: {
     pendente: number;
     em_progresso: number;
@@ -59,6 +74,10 @@ interface PainelDoServidor {
   // Só para o Super admin e para quem facilita alguma Reunião (issue #1871).
   atrasos_por_setor?: SetorDosAtrasos[] | null;
   ranking?: LinhaDoRanking[] | null;
+  // A fotografia de segunda (issue #1873): a evolução e os cards da semana
+  // anterior, que dão a seta. Sem a fotografia da semana anterior, null.
+  evolucao?: SemanaDaEvolucao[];
+  semana_anterior?: CardsDoServidor | null;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -77,6 +96,8 @@ export default function DashboardPage() {
   const router = useRouter();
 
   const [stats, setStats] = useState<Stats | null>(null);
+  const [statsAnteriores, setStatsAnteriores] = useState<Stats | null>(null);
+  const [evolucao, setEvolucao] = useState<SemanaDaEvolucao[]>([]);
   const [nome, setNome] = useState("Usuário");
   const [loading, setLoading] = useState(false);
   const [participantes, setParticipantes] = useState<
@@ -224,14 +245,9 @@ export default function DashboardPage() {
           "aguardam-assinatura": painel.aguardam_assinatura,
         });
 
-        setStats({
-          atasParadas: painel.cards.atas_paradas,
-          aguardamAssinatura: painel.cards.aguardam_assinatura,
-          atrasadas: painel.cards.atrasadas,
-          vencemEm3Dias: painel.cards.vencem_em_3_dias,
-          conformidade: painel.cards.conformidade,
-          totalPendencias: painel.cards.ativas,
-        });
+        setStats(paraStats(painel.cards));
+        setStatsAnteriores(painel.semana_anterior ? paraStats(painel.semana_anterior) : null);
+        setEvolucao(painel.evolucao ?? []);
 
         const sit = painel.situacoes;
         const pieData: PieEntry[] = [
@@ -384,6 +400,7 @@ export default function DashboardPage() {
       {/* Alert Cards */}
       <KpiCards
         stats={stats}
+        anterior={statsAnteriores}
         loading={loading}
         onNavigate={(href) => router.push(href)}
         onAbrirLista={setListaAberta}
@@ -436,6 +453,9 @@ export default function DashboardPage() {
           }
         />
       </div>
+
+      {/* A evolução das semanas fotografadas (issue #1873). */}
+      <EvolucaoSemanal semanas={evolucao} loading={loadingCharts} />
 
       {/* Atrasos por setor e ranking de 90 dias: só chegam para quem pode ver (issue #1871). */}
       {atrasos && <RankingDeAtrasos porSetor={atrasos.porSetor} ranking={atrasos.ranking} />}

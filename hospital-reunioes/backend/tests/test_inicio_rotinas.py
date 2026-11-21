@@ -190,6 +190,16 @@ def test_rotina_encerrada_nao_pede_revisao(fila):  # noqa: F811
     assert _a_revisar(fila(sb, PEDRO, "2027-03-01")) == []
 
 
+def test_rotina_sem_frequencia_espera_a_escolha_e_nao_a_revisao(fila):  # noqa: F811
+    # O fluxo contínuo convertido (issue #1877) tem a própria linha na fila.
+    sb = _sb_com_rotina(created_at="2026-11-20T14:00:00+00:00", frequencia=None, comeca_em=None)
+
+    resposta = fila(sb, PEDRO, "2027-03-01")
+
+    assert _a_revisar(resposta) == []
+    assert [i.tipo for i in resposta.itens] == ["frequencia_da_rotina"]
+
+
 def test_manter_e_um_clique_do_facilitador_e_a_proxima_revisao_vem_90_dias_depois(fila, cliente_das_rotinas, hoje):  # noqa: F811
     hoje["valor"] = D("2027-03-01")
     sb = _sb_com_rotina(created_at="2026-11-20T14:00:00+00:00")
