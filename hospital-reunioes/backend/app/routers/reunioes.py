@@ -45,6 +45,7 @@ from app.models.schemas import (
     TipoReuniao,
 )
 from app.services import audit, participantes_ata_service, reuniao_email_service
+from app.services.quadro_classificacao import classificar_quadro, rotinas_incompletas
 from app.services.reunioes_consulta import consultar_reunioes, participantes_por_reuniao
 from app.services.seguranca_do_paciente import ata as ata_do_nucleo
 from app.services.seguranca_do_paciente.permissao import id_do_nucleo
@@ -1707,6 +1708,22 @@ def _falha_do_envio_interrompido(reuniao: dict) -> dict:
     }
 
 
+def _recusar_rotina_incompleta(json_ata: dict | None) -> None:
+    """Toda Rotina precisa de responsável e frequência antes do envio da Ata
+    (decisão 88 da #1757; issue #1872). Recusa com a lista do que falta."""
+    from app.services.pendencia_service import extrair_quadro
+
+    faltas = rotinas_incompletas(extrair_quadro(json_ata))
+    if faltas:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Não dá para enviar a Ata: toda Rotina precisa de responsável e frequência. "
+                f"Complete no quadro: {'; '.join(faltas)}."
+            ),
+        )
+
+
 @router.post("/{id_reuniao}/aprovar")
 @limiter.limit("10/minute")
 async def aprovar_reuniao(
@@ -1730,7 +1747,8 @@ async def aprovar_reuniao(
     result = (
         supabase.table("reunioes")
         .select(
-            "status_ata, url_pdf_preliminar, tipo, objetivo, envelope_key_clicksign, falha_envio_assinatura, updated_at"
+            "status_ata, url_pdf_preliminar, tipo, objetivo, envelope_key_clicksign, falha_envio_assinatura, "
+            "updated_at, json_ata"
         )
         .eq("id_reuniao", id_reuniao)
         .execute()
@@ -1738,6 +1756,7 @@ async def aprovar_reuniao(
     if not result.data:
         raise HTTPException(status_code=404, detail="Reunião não encontrada")
     reuniao = result.data[0]
+    _recusar_rotina_incompleta(reuniao.get("json_ata"))
 
     # ADR 0098, decisão 1: no clique, a Reunião vai para AGUARDANDO_ASSINATURA
     # e nascem as Pendências; a ClickSign roda depois. O UPDATE condicionado é
@@ -1837,11 +1856,12 @@ async def aprovar_sem_assinatura(
         raise HTTPException(status_code=404, detail="Reunião não encontrada")
     _recusar_ata_do_nucleo(supabase, id_reuniao)
 
-    result = supabase.table("reunioes").select("status_ata").eq("id_reuniao", id_reuniao).execute()
+    result = supabase.table("reunioes").select("status_ata, json_ata").eq("id_reuniao", id_reuniao).execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Reunião não encontrada")
     if result.data[0]["status_ata"] != "AGUARDANDO_VALIDACAO":
         raise HTTPException(status_code=400, detail="Reunião não está aguardando validação")
+    _recusar_rotina_incompleta(result.data[0].get("json_ata"))
 
     from app.services.pendencia_service import liberar_pendencias
 
@@ -2127,7 +2147,8 @@ async def concluir_ata_guiada(
     rascunho = req.rascunho or {}
     # Só itens dict entram no quadro — protege liberar_pendencias (que faz acao.get(...))
     # de um item malformado (ex.: string) virar 500 na liberação de pendências.
-    quadro = [a for a in (rascunho.get("quadro_atribuicoes") or []) if isinstance(a, dict)]
+    # Ação, Rotina ou Processo (#1872): o tipo normalizado vale também aqui.
+    quadro = classificar_quadro(rascunho.get("quadro_atribuicoes"))
     # Revalidação server-side dos vínculos (ADR 0008): o quadro do cliente não é
     # confiável — anota ids que faltarem e derruba id forjado/inexistente/inativo,
     # que volta à Resolução pelo nome. Id inválido nunca persiste no json_ata.
@@ -2240,7 +2261,7 @@ async def patch_quadro_atribuicao(
         item["responsavel"] = (participante.get("nome_completo") or "").strip()
         item["cargo"] = (participante.get("cargo") or "").strip()
         item["responsavel_id"] = body.responsavel_participante_id
-    else:
+    elif body.mexe_no_responsavel():
         if body.responsavel is not None:
             item["responsavel"] = body.responsavel.strip()
         if body.cargo is not None:
@@ -2248,6 +2269,14 @@ async def patch_quadro_atribuicao(
         # Texto livre desfaz o vínculo: sem isso, a Pendência liberada ainda
         # apontaria para o Colaborador antigo (ADR 0008).
         item["responsavel_id"] = None
+
+    # Ação, Rotina ou Processo (#1872): o Facilitador ajusta o que a IA sugeriu.
+    if body.tipo is not None:
+        item["tipo"] = body.tipo
+    if "frequencia" in body.model_fields_set:
+        item["frequencia"] = body.frequencia
+    if {"tipo", "frequencia"} & body.model_fields_set:
+        item.update(classificar_quadro([item])[0])
 
     item["editado_manualmente"] = True
 

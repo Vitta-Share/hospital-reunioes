@@ -15,6 +15,7 @@ import logging
 import re
 from collections.abc import Callable
 
+from app.services.quadro_classificacao import ACAO, tipo_da_linha
 from app.services.resolucao_service import montar_candidatos, resolver_quadro
 
 logger = logging.getLogger(__name__)
@@ -237,6 +238,10 @@ def liberar_pendencias(
 
     for posicao, acao in enumerate(quadro_resolvido):
         if posicao in posicoes_ocupadas:
+            continue
+        # Só Ação vira Pendência (ADR 0098, decisão 9; #1872): Rotina e
+        # Processo ficam no quadro para a Rotina e a lista de processos.
+        if tipo_da_linha(acao) != ACAO:
             continue
         if filtro is not None and not filtro(acao):
             continue

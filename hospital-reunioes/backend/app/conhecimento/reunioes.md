@@ -16,7 +16,9 @@ Uma reunião tem no máximo uma ata, por um dos dois caminhos.
 
 Os nomes citados na reunião são casados com o cadastro de pessoas do hospital. Quem está no cadastro vira responsável de verdade e passa a ser cobrado; quem é de fora fica só como nome, sem cobrança. Quando o agente não tem certeza de quem é, ele pergunta.
 
-Cada ação combinada vira uma pendência, com responsável e prazo, e desde o primeiro segundo ela é cobrada de verdade: aparece no painel, vence e atrasa.
+Cada linha do quadro da ata é de um tipo: Ação, Rotina ou Processo. A Ação acontece uma vez e tem prazo. A Rotina se repete toda semana, quinzena ou mês e tem um responsável que executa; ela substitui o antigo "fluxo contínuo". O Processo diz como se faz dali para frente, sem executor e sem cobrança. A inteligência artificial sugere o tipo de cada linha, na ata por transcrição, na correção e na ata guiada, e o facilitador troca o tipo e a frequência na revisão da ata. A linha sem tipo vale como Ação, e é assim que as atas antigas continuam.
+
+No envio, só a Ação vira pendência, com responsável e prazo, e desde o primeiro segundo ela é cobrada de verdade: aparece no painel, vence e atrasa. A Rotina e o Processo ficam guardados no quadro da ata. Antes de enviar, toda Rotina precisa de responsável e frequência: se faltar um dos dois, o aplicativo não envia e diz qual linha falta completar.
 
 ## Como a pendência anda
 
@@ -129,6 +131,7 @@ Na tela da reunião, o botão Excluir, que apagava a reunião em qualquer status
 - No calendário, as reuniões de cada dia seguem a hora de início, da mais cedo para a mais tarde.
 - Nada apaga pendência: reunião que já teve pendência, mesmo toda cancelada, não se exclui.
 - Toda reunião nova tem setor, e quem administra o aplicativo preenche o setor que falta nas reuniões antigas e nos responsáveis.
+- Cada linha da ata é Ação, Rotina ou Processo, e só a Ação vira pendência; a linha sem tipo vale como Ação, e toda Rotina precisa de responsável e frequência antes do envio.
 
 ## O que costuma virar Demanda
 

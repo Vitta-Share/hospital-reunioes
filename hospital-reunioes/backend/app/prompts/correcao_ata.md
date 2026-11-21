@@ -40,7 +40,9 @@ Sua tarefa é aplicar correções específicas a uma ATA (formato JSON) já exis
       "objetivo_meta": "objetivo ou meta",
       "prazo": "YYYY-MM-DD ou 'Fluxo contínuo' ou null",
       "entregavel": "entregável ou 'A definir'",
-      "status": "ABERTO | EM_ANDAMENTO | CONCLUIDO"
+      "status": "ABERTO | EM_ANDAMENTO | CONCLUIDO",
+      "tipo": "ACAO | ROTINA | PROCESSO",
+      "frequencia": "SEMANAL | QUINZENAL | MENSAL (só na ROTINA) ou null"
     }}
   ]
 }}
@@ -50,6 +52,15 @@ Sua tarefa é aplicar correções específicas a uma ATA (formato JSON) já exis
 - Nomes SEM prefixos honoríficos (Dr., Dra., Enf., Eng., Prof., Sr., Sra.)
 - Prazos SEMPRE no formato `YYYY-MM-DD` ou exatamente a string `"Fluxo contínuo"`
 - Status aceita apenas `ABERTO`, `EM_ANDAMENTO`, `CONCLUIDO`
+
+## REGRAS SOBRE O TIPO DE CADA LINHA (Ação, Rotina ou Processo)
+
+Cada linha do `quadro_atribuicoes` tem um `tipo`:
+- `"ACAO"`: acontece uma vez, tem entregável e prazo (ex.: "Comprar o monitor novo até sexta"). É o padrão: na dúvida, use `"ACAO"`.
+- `"ROTINA"`: se repete toda semana, quinzena ou mês e tem um responsável que executa (ex.: "Reunir a equipe toda segunda", "Conferir o estoque todo mês"). Substitui o antigo "Fluxo contínuo".
+- `"PROCESSO"`: define como se faz dali para frente, sem executor e sem cobrança (ex.: "Toda alta passa pelo checklist de medicação").
+
+O campo `frequencia` só vale para a Rotina: `"SEMANAL"`, `"QUINZENAL"` ou `"MENSAL"`. Na Ação e no Processo, use `null`. Se a Rotina não tem frequência dita, deixe `null` (o Facilitador escolhe na validação). Na Rotina e no Processo, o `prazo` é `null`.
 
 ## Retrocompatibilidade
 

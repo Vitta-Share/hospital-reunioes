@@ -21,6 +21,7 @@ from datetime import UTC, datetime
 from app.config import settings
 from app.services import clicksign_service, pendencia_service, storage
 from app.services.pendencia_service import _e_conflito_unicidade
+from app.services.quadro_classificacao import ACAO, tipo_da_linha
 
 logger = logging.getLogger(__name__)
 
@@ -770,4 +771,6 @@ def progresso_pendencias(supabase, id_reuniao: str) -> dict:
         .data
         or []
     )
-    return {"pendencias_criadas": len(criadas), "total_acoes": len(quadro)}
+    # Só Ação vira Pendência (#1872): Rotina e Processo não entram no "de Y".
+    acoes = [a for a in quadro if isinstance(a, dict) and tipo_da_linha(a) == ACAO]
+    return {"pendencias_criadas": len(criadas), "total_acoes": len(acoes)}

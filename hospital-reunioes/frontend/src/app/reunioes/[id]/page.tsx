@@ -58,6 +58,7 @@ import {
   type ResolucaoEstado,
 } from "@/components/participantes/ParticipanteCombobox";
 import { ResponsavelInlineCombobox } from "@/components/reunioes/ResponsavelInlineCombobox";
+import { TipoDaLinhaInline } from "@/components/reunioes/TipoDaLinhaInline";
 import { AtaDoNucleo } from "@/components/seguranca-do-paciente/AtaDoNucleo";
 
 // ──────────────────────────────────────────
@@ -96,6 +97,8 @@ interface Atribuicao {
   entregavel: string;
   objetivo_meta?: string;
   status?: "ABERTO" | "EM_ANDAMENTO" | "CONCLUIDO";
+  tipo?: string | null;
+  frequencia?: string | null;
 }
 
 interface ContribuicaoDiscussao {
@@ -893,7 +896,12 @@ export default function ReuniaoDetailPage() {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
-    if (!res.ok) { toast("Erro ao aprovar a ata", "error"); setActionLoading(false); return; }
+    if (!res.ok) {
+      const b = await res.json().catch(() => ({}));
+      toast(typeof b.detail === "string" ? b.detail : "Erro ao aprovar a ata", "error");
+      setActionLoading(false);
+      return;
+    }
     window.location.reload();
   }
 
@@ -920,7 +928,8 @@ export default function ReuniaoDetailPage() {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     if (!res.ok) {
-      toast("Erro ao finalizar a ata sem assinatura", "error");
+      const b = await res.json().catch(() => ({}));
+      toast(typeof b.detail === "string" ? b.detail : "Erro ao finalizar a ata sem assinatura", "error");
       throw new Error("falha ao finalizar sem assinatura"); // mantém o ConfirmDialog aberto
     }
     const body = await res.json();
@@ -967,6 +976,16 @@ export default function ReuniaoDetailPage() {
       };
     });
     void loadReuniao();
+  }
+
+  function handleAtribuicaoTipoAtualizado(index: number, novo: { tipo: string; frequencia: string | null }) {
+    setReuniao((prev) => {
+      if (!prev || !prev.json_ata?.quadro_atribuicoes) return prev;
+      const novoQuadro = prev.json_ata.quadro_atribuicoes.map((item, i) =>
+        i === index ? { ...item, tipo: novo.tipo, frequencia: novo.frequencia } : item,
+      );
+      return { ...prev, json_ata: { ...prev.json_ata, quadro_atribuicoes: novoQuadro } };
+    });
   }
 
   // ── Handlers: PROGRAMADA editing ──
@@ -2283,6 +2302,20 @@ export default function ReuniaoDetailPage() {
             sectionContext={sectionContext}
             onSectionContext={setSectionContext}
             mounted={mounted}
+            renderTipo={
+              // Ação, Rotina ou Processo (#1872): o Facilitador ajusta o que a IA
+              // sugeriu em toda a janela de validação, inclusive na Ata Guiada.
+              reuniao.status_ata === "AGUARDANDO_VALIDACAO" && !ataDoNucleo
+                ? (a, i) => (
+                    <TipoDaLinhaInline
+                      reuniaoId={reuniao.id_reuniao}
+                      atribuicaoIndex={i}
+                      valorAtual={{ tipo: a.tipo, frequencia: a.frequencia }}
+                      onAtualizado={(novo) => handleAtribuicaoTipoAtualizado(i, novo)}
+                    />
+                  )
+                : undefined
+            }
             renderResponsavel={(a, i) =>
               correctionMode ? (
                 <ResponsavelInlineCombobox
