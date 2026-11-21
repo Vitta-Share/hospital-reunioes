@@ -538,6 +538,15 @@ def test_a_refeita_sem_vaga_na_cota_fica_para_classificar_manualmente(monkeypatc
     assert len(modelo.chamadas) == 1
 
 
+def test_o_agente_nasce_desligado_e_os_testes_nao_chamam_a_ia():
+    """Desligado por padrão: as outras rotas da suíte que registram notificação
+    disparam a triagem sem chegar ao modelo, mesmo com chave no `.env` desta
+    máquina. A trava de rede do `conftest.py` reprova o resto."""
+    from app.config import Settings
+
+    assert Settings.model_fields["nsp_agente_ligado"].default is False
+
+
 N103 = next(caso for caso in _casos() if caso["id"] == "N103")
 
 

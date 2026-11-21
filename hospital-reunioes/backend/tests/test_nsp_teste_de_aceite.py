@@ -110,6 +110,8 @@ def test_sem_a_confirmacao_o_comando_nao_chama_a_ia(monkeypatch, capsys):
         raise AssertionError("o cliente da IA foi criado sem confirmação")
 
     monkeypatch.setattr(comando, "ClienteDaAnthropic", _nao_pode)
+    # Com chave: sem ela o comando pararia por outro motivo, e o teste não diria nada.
+    monkeypatch.setattr(comando.settings, "anthropic_api_key", "chave-de-teste")
 
     saida = comando.main([], perguntar=lambda _pergunta: "sim")
 
