@@ -393,16 +393,24 @@ class QuadroAtribuicaoUpdate(BaseModel):
     vínculo (`responsavel_id`) no item (ADR 0008). Quando não vem id,
     `responsavel` e `cargo` são gravados como texto livre (fallback "Digitar
     livremente" do dropdown) e o vínculo anterior é limpo.
+
+    `tipo` e `frequencia` (issue #1872) classificam a linha como Ação, Rotina
+    ou Processo sem mexer no responsável. A frequência só vale na Rotina.
     """
 
     responsavel_participante_id: str | None = Field(default=None, min_length=1, max_length=10)
     responsavel: str | None = Field(default=None, max_length=500)
     cargo: str | None = Field(default=None, max_length=255)
+    tipo: Literal["ACAO", "ROTINA", "PROCESSO"] | None = None
+    frequencia: Literal["SEMANAL", "QUINZENAL", "MENSAL"] | None = None
+
+    def mexe_no_responsavel(self) -> bool:
+        return bool(self.responsavel_participante_id) or self.responsavel is not None or self.cargo is not None
 
     @model_validator(mode="after")
     def ao_menos_um_campo(self) -> QuadroAtribuicaoUpdate:
-        if not self.responsavel_participante_id and self.responsavel is None and self.cargo is None:
-            raise ValueError("Informe responsavel_participante_id ou responsavel/cargo (texto livre)")
+        if not self.mexe_no_responsavel() and not ({"tipo", "frequencia"} & self.model_fields_set):
+            raise ValueError("Informe responsavel_participante_id, responsavel/cargo (texto livre), tipo ou frequencia")
         return self
 
 

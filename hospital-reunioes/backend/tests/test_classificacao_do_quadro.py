@@ -168,3 +168,35 @@ def test_enviar_ata_com_rotina_incompleta_e_recusado(cliente, monkeypatch, rota,
     assert f'linha 2 ("Reunir a equipe") {falta}' in detalhe
     assert sb.reunioes[0]["status_ata"] == "AGUARDANDO_VALIDACAO"
     assert sb.pendencias == []
+
+
+# ─── 3. A validação troca tipo e frequência de cada linha ────────────────────
+
+
+def test_facilitador_troca_tipo_e_frequencia_na_validacao_sem_mexer_no_responsavel(cliente):
+    sb = _sb_com_quadro(
+        [{"acao": "Reunir a equipe", "responsavel": "Ana Lima", "responsavel_id": "P2", "cargo": "Coordenadora"}]
+    )
+    client = cliente(sb)
+
+    r = client.patch("/api/reunioes/R1/quadro-atribuicoes/0", json={"tipo": "ROTINA", "frequencia": "QUINZENAL"})
+
+    assert r.status_code == 200, r.text
+    item = sb.reunioes[0]["json_ata"]["quadro_atribuicoes"][0]
+    assert (item["tipo"], item["frequencia"]) == ("ROTINA", "QUINZENAL")
+    assert (item["responsavel"], item["responsavel_id"], item["cargo"]) == ("Ana Lima", "P2", "Coordenadora")
+
+    r = client.patch("/api/reunioes/R1/quadro-atribuicoes/0", json={"tipo": "PROCESSO"})
+
+    assert r.status_code == 200, r.text
+    item = sb.reunioes[0]["json_ata"]["quadro_atribuicoes"][0]
+    assert (item["tipo"], item["frequencia"]) == ("PROCESSO", None)
+
+
+def test_tipo_ou_frequencia_fora_da_lista_e_recusado(cliente):
+    sb = _sb_com_quadro([{"acao": "Reunir a equipe", "responsavel": "Ana Lima"}])
+    client = cliente(sb)
+
+    assert client.patch("/api/reunioes/R1/quadro-atribuicoes/0", json={"tipo": "META"}).status_code == 422
+    assert client.patch("/api/reunioes/R1/quadro-atribuicoes/0", json={"frequencia": "ANUAL"}).status_code == 422
+    assert "tipo" not in sb.reunioes[0]["json_ata"]["quadro_atribuicoes"][0]

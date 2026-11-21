@@ -2194,7 +2194,7 @@ async def patch_quadro_atribuicao(
         item["responsavel"] = (participante.get("nome_completo") or "").strip()
         item["cargo"] = (participante.get("cargo") or "").strip()
         item["responsavel_id"] = body.responsavel_participante_id
-    else:
+    elif body.mexe_no_responsavel():
         if body.responsavel is not None:
             item["responsavel"] = body.responsavel.strip()
         if body.cargo is not None:
@@ -2202,6 +2202,14 @@ async def patch_quadro_atribuicao(
         # Texto livre desfaz o vínculo: sem isso, a Pendência liberada ainda
         # apontaria para o Colaborador antigo (ADR 0008).
         item["responsavel_id"] = None
+
+    # Ação, Rotina ou Processo (#1872): o Facilitador ajusta o que a IA sugeriu.
+    if body.tipo is not None:
+        item["tipo"] = body.tipo
+    if "frequencia" in body.model_fields_set:
+        item["frequencia"] = body.frequencia
+    if {"tipo", "frequencia"} & body.model_fields_set:
+        item.update(classificar_quadro([item])[0])
 
     item["editado_manualmente"] = True
 
