@@ -1163,12 +1163,12 @@ describe("cada bloco pela permissão de /contas-medicas/me", () => {
     expect(screen.queryAllByRole("tab")).toHaveLength(0);
   });
 
-  it("quem tem as duas vê o envio e as quatro abas", async () => {
+  it("quem tem as duas tem o botão do envio e as quatro abas (issue #1954)", async () => {
     render(<ContasMedicasPage />);
 
     await linhas();
 
-    expect(screen.getByRole("region", { name: "Envio de contas" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Enviar contas" })).toBeTruthy();
     expect(screen.getAllByRole("tab")).toHaveLength(4);
   });
 });
@@ -1432,6 +1432,7 @@ describe("o envio", () => {
   it("soltar os PDFs envia todos e mostra o Último envio com as recusas", async () => {
     render(<ContasMedicasPage />);
     await linhas();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar contas" }));
     const area = screen.getByRole("region", { name: "Envio de contas" });
 
     fireEvent.drop(area, { dataTransfer: { files: [pdf("conta.pdf"), pdf("prontuario.pdf")] } });
@@ -1503,5 +1504,103 @@ describe("os botões das outras telas (issue #1950)", () => {
     for (const tela of ["painel", "validacao", "coordenacao", "contratos", "operadoras", "habilitacao"]) {
       expect(destinos).not.toContain(`/contas-medicas/${tela}`);
     }
+  });
+});
+
+describe("a área de envio pelo botão Enviar contas (issue #1954)", () => {
+  function botaoDeEnviar(): HTMLElement {
+    return screen.getByRole("button", { name: "Enviar contas" });
+  }
+
+  it("quem analisa e envia começa com a área fechada, e o botão abre e fecha", async () => {
+    render(<ContasMedicasPage />);
+    await linhas();
+
+    expect(screen.queryByRole("region", { name: "Envio de contas" })).toBeNull();
+    expect(botaoDeEnviar().getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(botaoDeEnviar());
+    expect(screen.getByRole("region", { name: "Envio de contas" })).toBeTruthy();
+    expect(botaoDeEnviar().getAttribute("aria-expanded")).toBe("true");
+
+    fireEvent.click(botaoDeEnviar());
+    expect(screen.queryByRole("region", { name: "Envio de contas" })).toBeNull();
+  });
+
+  it("quem só envia começa com a área aberta", async () => {
+    permissoes = [ENVIAR];
+    render(<ContasMedicasPage />);
+    await linhas();
+
+    expect(screen.getByRole("region", { name: "Envio de contas" })).toBeTruthy();
+    expect(botaoDeEnviar().getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("arrastar PDFs sobre a lista, com a área fechada, mostra o realce, e soltar envia com os mesmos limites", async () => {
+    render(<ContasMedicasPage />);
+    await linhas();
+    const lista = screen.getByRole("region", { name: "Lista de contas" });
+    const arquivos = Array.from({ length: 31 }, (_, i) => pdf(`arquivo-${i + 1}.pdf`));
+    const dataTransfer = { types: ["Files"], files: arquivos };
+
+    expect(screen.queryByText("Solte os PDFs para enviar")).toBeNull();
+    fireEvent.dragEnter(lista, { dataTransfer });
+    fireEvent.dragOver(lista, { dataTransfer });
+    expect(screen.getByText("Solte os PDFs para enviar")).toBeTruthy();
+
+    fireEvent.drop(lista, { dataTransfer });
+
+    expect(screen.queryByText("Solte os PDFs para enviar")).toBeNull();
+    const ultimo = await screen.findByRole("region", { name: "Último envio" });
+    await waitFor(() => expect(ultimo.textContent).toContain("31302, conta e prontuário"));
+    expect(ultimo.textContent).toContain("O envio já tem 30 arquivos, o limite. Mande este num próximo envio.");
+    expect(ultimo.textContent).toContain("arquivo-31.pdf");
+    const envio = chamadas.find((c) => c.url === "/api/contas-medicas/envios");
+    expect((envio?.init?.body as FormData).getAll("arquivos")).toHaveLength(30);
+  });
+
+  it("o realce some quando o arrasto sai da tela, e arrastar texto não acende nada", async () => {
+    render(<ContasMedicasPage />);
+    await linhas();
+    const esteiraDaTela = esteira();
+
+    fireEvent.dragEnter(esteiraDaTela, { dataTransfer: { types: ["Files"], files: [] } });
+    expect(screen.getByText("Solte os PDFs para enviar")).toBeTruthy();
+    fireEvent.dragLeave(esteiraDaTela, { dataTransfer: { types: ["Files"], files: [] } });
+    expect(screen.queryByText("Solte os PDFs para enviar")).toBeNull();
+
+    fireEvent.dragEnter(esteiraDaTela, { dataTransfer: { types: ["text/plain"], files: [] } });
+    expect(screen.queryByText("Solte os PDFs para enviar")).toBeNull();
+  });
+
+  it("o botão tem a dica do que enviar e dos limites, e a área tem a Legenda, que some com as Legendas desligadas", async () => {
+    render(comLegendas(true, <ContasMedicasPage />));
+    await linhas();
+
+    fireEvent.mouseEnter(botaoDeEnviar());
+    const dica = screen.getByRole("tooltip");
+    expect(dica.textContent).toContain("a conta e o prontuário do MV, em PDF");
+    expect(dica.textContent).toContain("Até 10 atendimentos e 30 arquivos por envio, 100 MB por arquivo.");
+    expect(botaoDeEnviar().getAttribute("aria-describedby")).toBe(dica.id);
+
+    fireEvent.click(botaoDeEnviar());
+    const area = screen.getByRole("region", { name: "Envio de contas" });
+    expect(area.textContent).toContain(
+      "Vários de uma vez, sem renomear: o app lê o tipo e o atendimento dentro de cada PDF. Até 10 atendimentos e 30 arquivos por envio, 100 MB por arquivo.",
+    );
+    cleanup();
+
+    render(comLegendas(false, <ContasMedicasPage />));
+    await linhas();
+    fireEvent.click(botaoDeEnviar());
+    expect(screen.getByRole("region", { name: "Envio de contas" }).textContent).not.toContain("Vários de uma vez");
+  });
+
+  it("quem só analisa não tem o botão", async () => {
+    permissoes = [ANALISAR];
+    render(<ContasMedicasPage />);
+    await linhas();
+
+    expect(screen.queryByRole("button", { name: "Enviar contas" })).toBeNull();
   });
 });
