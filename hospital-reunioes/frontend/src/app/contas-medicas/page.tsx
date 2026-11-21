@@ -18,9 +18,13 @@
  * o número de cada etapa, o bloco "Continue de onde parou", a lista de contas
  * (uma linha por conta, pelo número do atendimento e o rótulo do paciente) e
  * o cartão do envio, que segue como era.
+ *
+ * Desde a issue #1954 a área de envio abre pelo botão "Enviar contas" da
+ * barra: fechada para quem analisa, aberta para quem só envia. Soltar os PDFs
+ * em qualquer ponto da tela inicia o envio, com os mesmos limites.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type DragEvent, useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, Loader2, ReceiptText, Upload } from "lucide-react";
 
 import { BarraDeContas } from "@/components/contas-medicas/contas/BarraDeContas";
@@ -29,6 +33,8 @@ import { ContinueDeOndeParou } from "@/components/contas-medicas/contas/Continue
 import { Esteira } from "@/components/contas-medicas/contas/Esteira";
 import { ListaDeContas } from "@/components/contas-medicas/contas/ListaDeContas";
 import { PainelDoProcessamento } from "@/components/contas-medicas/PainelDoProcessamento";
+import { Dica } from "@/components/ui/Dica";
+import { Legenda } from "@/components/ui/Legenda";
 import {
   ANALISAR_CONTAS,
   ENVIAR_CONTAS,
@@ -46,10 +52,18 @@ import {
   rotaDoDescarte,
   separarArquivos,
 } from "@/lib/contas-medicas/envio";
-import { VAZIO_DA_ETAPA, type Etapa } from "@/lib/contas-medicas/textos";
+import {
+  DICA_DO_ENVIAR,
+  LEGENDA_DO_ENVIAR,
+  LEGENDA_DO_ENVIO,
+  SOLTE_PARA_ENVIAR,
+  VAZIO_DA_ETAPA,
+  type Etapa,
+} from "@/lib/contas-medicas/textos";
 import { createClient } from "@/lib/supabase/client";
 
 const CARTAO = "bg-white rounded-2xl border border-border shadow-premium";
+const ID_DA_AREA = "area-de-envio";
 
 /**
  * Enquanto houver conta esperando a análise, a fila se relê sozinha: a cada
@@ -84,6 +98,11 @@ const LISTA_DA_ETAPA: Record<Etapa, "meus_envios" | "fila" | "minhas" | "conclui
   concluidas: "concluidas",
 };
 
+/** O arrasto traz arquivos (e não um texto ou um link da própria tela). */
+function temArquivos(e: DragEvent): boolean {
+  return Array.from(e.dataTransfer?.types ?? []).includes("Files");
+}
+
 async function lerJson(rota: string, token: string) {
   const resposta = await fetch(rota, { headers: { Authorization: `Bearer ${token}` } });
   if (!resposta.ok) throw new Error(rota);
@@ -97,7 +116,7 @@ function UltimoEnvio({ resposta }: { resposta: RespostaDoEnvio }) {
       {resposta.ultimo_envio.length > 0 ? (
         <ul className="space-y-2">
           {resposta.ultimo_envio.map((linha) => (
-            <li key={linha.numero_atendimento} className="text-sm text-slate-800">
+            <li key={linha.numero_atendimento} className="text-sm tabular-nums text-slate-800">
               {linha.texto}
               {linha.aviso && <p className="mt-0.5 text-xs text-amber-700">{linha.aviso}</p>}
             </li>
@@ -133,6 +152,8 @@ export default function ContasMedicasPage() {
   const [fila, setFila] = useState<Fila | null>(null);
   const [erroDaFila, setErroDaFila] = useState<string | null>(null);
   const [etapa, setEtapa] = useState<Etapa>("fila");
+  /** A área de envio: fechada para quem analisa, aberta para quem só envia (issue #1954). */
+  const [areaAberta, setAreaAberta] = useState(false);
   const [arrastando, setArrastando] = useState(false);
   const [enviando, setEnviando] = useState<number | null>(null);
   const [ultimo, setUltimo] = useState<RespostaDoEnvio | null>(null);
@@ -141,6 +162,8 @@ export default function ContasMedicasPage() {
   /** A conta do painel lateral do Processamento (issue #1418). */
   const [painel, setPainel] = useState<string | null>(null);
   const seletor = useRef<HTMLInputElement>(null);
+  /** Quantos elementos da tela o arrasto de arquivos já cruzou para dentro. */
+  const entradasDoArrasto = useRef(0);
   /** Os envios da leitura anterior: a conta Processando que sumiu ficou pronta. */
   const enviosAntes = useRef<ItemDaFila[] | null>(null);
 
@@ -195,6 +218,7 @@ export default function ContasMedicasPage() {
       }
       if (!vivo) return;
       setPode(quem);
+      setAreaAberta(!quem.analisar);
       // A faturista entra na Fila; quem só envia, em Envios.
       setEtapa(quem.analisar ? "fila" : "envios");
       await carregarFila(tk, quem);
@@ -228,6 +252,8 @@ export default function ContasMedicasPage() {
     const arquivos = Array.from(lista ?? []);
     if (!token || !pode || arquivos.length === 0 || enviando !== null) return;
     const { aceitos, recusas } = separarArquivos(arquivos);
+    // O andamento do envio aparece na área, mesmo quando os arquivos vieram soltos na tela.
+    setAreaAberta(true);
     setEnviando(aceitos.length);
     try {
       const resposta = aceitos.length > 0 ? await enviarEmLotes(aceitos, token) : null;
@@ -286,23 +312,74 @@ export default function ContasMedicasPage() {
   /** As contas em análise da própria pessoa, para o "Continue de onde parou". */
   const minhasEmAnalise = (fila?.minhas ?? []).filter((conta) => conta.minha);
 
-  return (
-    <div className="space-y-6">
-      <BarraDeContas />
+  /**
+   * Soltar os PDFs em qualquer ponto da tela inicia o envio (issue #1954). O
+   * realce acende só para arquivos, e o contador de entradas evita que ele
+   * pisque ao passar de um elemento para outro dentro da tela.
+   */
+  const arrastoNaTela = pode?.enviar
+    ? {
+        onDragEnter: (e: DragEvent<HTMLDivElement>) => {
+          if (!temArquivos(e)) return;
+          e.preventDefault();
+          entradasDoArrasto.current += 1;
+          setArrastando(true);
+        },
+        onDragOver: (e: DragEvent<HTMLDivElement>) => {
+          if (temArquivos(e)) e.preventDefault();
+        },
+        onDragLeave: (e: DragEvent<HTMLDivElement>) => {
+          if (!temArquivos(e)) return;
+          entradasDoArrasto.current = Math.max(0, entradasDoArrasto.current - 1);
+          if (entradasDoArrasto.current === 0) setArrastando(false);
+        },
+        onDrop: (e: DragEvent<HTMLDivElement>) => {
+          e.preventDefault();
+          entradasDoArrasto.current = 0;
+          setArrastando(false);
+          enviar(e.dataTransfer?.files ?? null);
+        },
+      }
+    : {};
 
-      {pode?.enviar && (
+  return (
+    <div className="relative space-y-6" {...arrastoNaTela}>
+      {arrastando && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-30 flex items-start justify-center rounded-2xl border-2 border-dashed border-primary bg-primary/5 pt-24"
+        >
+          <p className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-medium text-primary shadow-premium">
+            <Upload className="w-4 h-4" aria-hidden="true" />
+            {SOLTE_PARA_ENVIAR}
+          </p>
+        </div>
+      )}
+
+      <BarraDeContas>
+        {pode?.enviar && (
+          <div className="flex max-w-xs flex-col items-end text-right">
+            <Dica texto={DICA_DO_ENVIAR} abrePara="esquerda">
+              <button
+                type="button"
+                aria-expanded={areaAberta}
+                aria-controls={ID_DA_AREA}
+                onClick={() => setAreaAberta((aberta) => !aberta)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium"
+              >
+                <Upload className="w-4 h-4" aria-hidden="true" />
+                Enviar contas
+              </button>
+            </Dica>
+            <Legenda className="text-xs">{LEGENDA_DO_ENVIAR}</Legenda>
+          </div>
+        )}
+      </BarraDeContas>
+
+      {pode?.enviar && areaAberta && (
         <section
+          id={ID_DA_AREA}
           aria-label="Envio de contas"
-          onDragOver={(e) => {
-            e.preventDefault();
-            setArrastando(true);
-          }}
-          onDragLeave={() => setArrastando(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setArrastando(false);
-            enviar(e.dataTransfer?.files ?? null);
-          }}
           className={`rounded-2xl border-2 border-dashed p-8 text-center transition-colors ${
             arrastando ? "border-primary bg-primary/5" : "border-slate-300 bg-white"
           }`}
@@ -316,10 +393,7 @@ export default function ContasMedicasPage() {
             <>
               <Upload className="w-8 h-8 text-slate-400 mx-auto mb-3" aria-hidden="true" />
               <p className="text-sm font-medium text-slate-800">Arraste aqui a conta e o prontuário do MV</p>
-              <p className="text-xs text-slate-500 mt-1">
-                Vários de uma vez, sem renomear: o app lê o tipo e o atendimento dentro de cada PDF. Até 10
-                atendimentos e 30 arquivos por envio, 100 MB por arquivo.
-              </p>
+              <Legenda>{LEGENDA_DO_ENVIO}</Legenda>
               <button
                 type="button"
                 onClick={() => seletor.current?.click()}
@@ -329,16 +403,20 @@ export default function ContasMedicasPage() {
               </button>
             </>
           )}
-          <input
-            ref={seletor}
-            type="file"
-            accept="application/pdf,.pdf"
-            multiple
-            hidden
-            aria-label="Arquivos da conta e do prontuário"
-            onChange={(e) => enviar(e.target.files)}
-          />
         </section>
+      )}
+
+      {pode?.enviar && (
+        // Fora da área: o "Enviar a conta" do cartão abre o seletor com a área fechada.
+        <input
+          ref={seletor}
+          type="file"
+          accept="application/pdf,.pdf"
+          multiple
+          hidden
+          aria-label="Arquivos da conta e do prontuário"
+          onChange={(e) => enviar(e.target.files)}
+        />
       )}
 
       {ultimo && <UltimoEnvio resposta={ultimo} />}

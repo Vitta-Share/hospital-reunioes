@@ -3,8 +3,11 @@
 /**
  * O cartão do envio, na etapa Envios (issues #1336, #1337, #1338, #1339,
  * #1401, #1416 a #1419), saído da página na divisão em peças da issue #1951.
- * As regras e a aparência seguem as de antes; o topo do cartão mostra o
- * número do atendimento e o rótulo do paciente, sem a palavra "Atendimento".
+ * As regras seguem as de antes; o topo do cartão mostra o número do
+ * atendimento e o rótulo do paciente, sem a palavra "Atendimento". Na issue
+ * #1954 o cartão ganhou a roupa do desenho novo: a pílula é a etiqueta de
+ * situação da lista, no mesmo tom, e o nome do quadrado segue a caixa alta da
+ * etiqueta (ADR 0080).
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -60,7 +63,7 @@ function Quadrado({
       data-estado={estado}
       className={`min-w-0 rounded-xl border px-3 py-2.5 ${cor.caixa}`}
     >
-      <p className={`text-xs font-semibold uppercase tracking-wide ${cor.rotulo}`}>
+      <p className={`etiqueta text-xs font-semibold ${cor.rotulo}`}>
         {nome}
       </p>
       {falta ? (
@@ -246,8 +249,8 @@ function corDaPilula(conta: ItemDaFila): string {
  */
 export function BarraDeTempos({ barra }: { barra: BarraDosEnvios }) {
   return (
-    <div role="status" aria-label="Tempos da fila" className="border-b border-border px-1 py-2">
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
+    <div role="status" aria-label="Tempos da fila" className="rounded-xl border border-border bg-white px-4 py-2 shadow-premium">
+      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs tabular-nums text-slate-600">
         {textosDaBarra(barra).map((texto) => (
           <li key={texto}>{texto}</li>
         ))}
@@ -302,7 +305,10 @@ export function CartaoDoEnvio({
           >
             <NumeroEPaciente conta={conta} />
           </button>
-          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${corDaPilula(conta)}`}>
+          <span
+            data-tom={conta.demorando ? "ambar" : tomDaSituacao(conta.situacao)}
+            className={`etiqueta rounded-full px-2.5 py-0.5 text-xs font-medium ${corDaPilula(conta)}`}
+          >
             {rotuloDaSituacao(conta)}
           </span>
           {conta.com && <span className="text-xs text-slate-500">com {conta.com}</span>}
