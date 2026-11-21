@@ -21,8 +21,10 @@ pessoa por notificação. Nenhum dado de pessoa real.
 from __future__ import annotations
 
 import os
+import re
 import sys
 from datetime import date, timedelta
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -276,3 +278,474 @@ def test_so_a_presidencia_e_o_acesso_pleno_abrem_a_fila(pessoa):
 
     assert _cliente(banco, pessoa).get(FILA).json() == RECUSA
     assert _cliente(banco, DIRETOR_EXECUTIVO).get(FILA).status_code == 200
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. Conferência campo a campo: faixas A e B e revisão forçada
+# ═══════════════════════════════════════════════════════════════════════════
+
+TODOS_OS_CAMPOS = list(triagem.CAMPOS_DA_CONFERENCIA)
+
+
+def _confirmar(banco, caso, conferidos=(), pessoa=PRESIDENTE):
+    return _cliente(banco, pessoa).post(_caso(caso["id"]), json={"conferidos": list(conferidos)})
+
+
+def _decisoes(banco) -> list[dict]:
+    return [t for t in banco.triagens if t["autor_tipo"] == "pessoa"]
+
+
+@pytest.mark.parametrize(
+    ("caso", "sugestao", "motivo"),
+    [
+        (_notificacao(1), OBITO, "faixa"),
+        (_notificacao(1), GRAVE, "faixa"),
+        (_notificacao(1, relato="O paciente foi a óbito depois da troca do soro."), MODERADO, "morte"),
+        (
+            _notificacao(1),
+            {**MODERADO, "evento_situacao": "possivel", "evento_item": 11, "revisao": "campo_a_campo"},
+            "evento_possivel",
+        ),
+        (_notificacao(1, chegou_ao_paciente="com_dano", grave_ou_morte=True), MODERADO, "grave_marcado"),
+    ],
+    ids=["faixa A", "faixa B", "menção a morte", "evento possível", "quem notificou marcou grave"],
+)
+def test_confirmar_o_caso_grave_exige_cada_campo_conferido(caso, sugestao, motivo):
+    banco = _banco([caso], [_sugestao(caso, **sugestao)])
+
+    tela = _cliente(banco).get(_caso(caso["id"])).json()
+    assert tela["conferencia"]["campo_a_campo"] is True
+    assert motivo in tela["conferencia"]["motivos"]
+
+    sem_tudo = _confirmar(banco, caso, TODOS_OS_CAMPOS[:-1])
+    assert sem_tudo.status_code == 422
+    assert "Confira cada campo" in sem_tudo.json()["detail"]
+    assert _decisoes(banco) == []
+    assert banco.notificacoes[0]["estado"] == "recebida"
+
+    com_tudo = _confirmar(banco, caso, TODOS_OS_CAMPOS)
+    assert com_tudo.status_code == 201, com_tudo.text
+    [decisao] = _decisoes(banco)
+    assert decisao["revisao"] == "campo_a_campo"
+    assert decisao["autor_id"] == "P1"
+
+
+def test_nao_existe_aceitar_tudo_nem_pelo_ajuste():
+    caso = _notificacao(1)
+    banco = _banco([caso], [_sugestao(caso, **GRAVE)])
+
+    resposta = _cliente(banco).post(_caso(caso["id"]), json={"classificacao": _classificacao(GRAVE), "conferidos": []})
+
+    assert resposta.status_code == 422
+    assert _decisoes(banco) == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. Faixas C, D e E: um clique
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.parametrize(
+    ("sugestao", "estado"),
+    [
+        (MODERADO, "classificada"),
+        ({}, "em_analise_agregada"),
+        ({"natureza": "evento_adverso", "grau_de_dano": "leve", "faixa": "D"}, "classificada"),
+        (QUASE_ERRO, "em_analise_agregada"),
+    ],
+    ids=["faixa C", "faixa D sem dano", "faixa D com dano leve", "faixa E"],
+)
+def test_confirmar_nas_faixas_c_d_e_e_um_clique(sugestao, estado):
+    caso = _notificacao(1)
+    banco = _banco([caso], [_sugestao(caso, **sugestao)])
+
+    tela = _cliente(banco).get(_caso(caso["id"])).json()
+    assert tela["conferencia"]["campo_a_campo"] is False
+
+    resposta = _confirmar(banco, caso)
+
+    assert resposta.status_code == 201, resposta.text
+    assert resposta.json()["estado"] == estado
+    assert banco.notificacoes[0]["estado"] == estado
+    [decisao] = _decisoes(banco)
+    assert decisao["divergencias"] == []
+    assert decisao["revisao"] == "confirmacao_simples"
+    assert decisao["faixa"] == (sugestao.get("faixa") or "D")
+    assert ("nsp_notificacoes", {"estado": estado, "editado_por": "P1"}) in banco.escritas
+
+
+def test_a_triagem_confirmada_nao_se_confirma_de_novo():
+    caso = _notificacao(1)
+    banco = _banco([caso], [_sugestao(caso)])
+    assert _confirmar(banco, caso).status_code == 201
+
+    segunda = _confirmar(banco, caso)
+
+    assert segunda.status_code == 409
+    assert len(_decisoes(banco)) == 1
+
+
+@pytest.mark.parametrize("pessoa", [MEMBRO, SUPER_ADMIN], ids=["membro do Núcleo", "super admin sem Acesso pleno"])
+def test_so_a_presidencia_e_o_acesso_pleno_confirmam(pessoa):
+    caso = _notificacao(1)
+    banco = _banco([caso], [_sugestao(caso)])
+
+    assert _confirmar(banco, caso, pessoa=pessoa).json() == RECUSA
+    assert _cliente(banco, pessoa).get(_caso(caso["id"])).json() == RECUSA
+    assert _decisoes(banco) == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. Ajustar: a linha da pessoa com as divergências, e a sugestão fica
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _classificacao(sugestao: dict | None = None, **campos) -> dict[str, Any]:
+    base = {
+        "assunto": "Alarme de bomba de infusão sem resposta",
+        "natureza": "incidente_sem_dano",
+        "grau_de_dano": "nenhum",
+        "categoria": "EQP",
+        "incidente": "Alarme inoperante",
+        "evento_situacao": "nao",
+        "evento_item": None,
+        "iras": False,
+        "risco_de_imagem": False,
+        "protocolo_basico": "nenhum",
+        "canais": ["NSP"],
+    }
+    if sugestao:
+        base.update({k: v for k, v in sugestao.items() if k in base})
+    return {**base, **campos}
+
+
+def test_ajustar_grava_as_divergencias_e_a_sugestao_continua_gravada():
+    caso = _notificacao(1)
+    sugestao = _sugestao(caso)
+    banco = _banco([caso], [sugestao])
+
+    resposta = _cliente(banco).post(
+        _caso(caso["id"]),
+        json={
+            "classificacao": _classificacao(
+                natureza="evento_adverso", grau_de_dano="moderado", categoria="MED", risco_de_imagem=True
+            ),
+            "conferidos": [],
+        },
+    )
+
+    assert resposta.status_code == 201, resposta.text
+    agente = [t for t in banco.triagens if t["autor_tipo"] == "agente"]
+    assert agente == [sugestao]
+    [decisao] = _decisoes(banco)
+    assert sorted(decisao["divergencias"]) == sorted(
+        ["natureza", "grau_de_dano", "categoria", "risco_de_imagem", "faixa"]
+    )
+    assert decisao["faixa"] == "C"
+    assert decisao["categoria"] == "MED"
+    assert decisao["versao"] == 2
+    assert resposta.json()["estado"] == "classificada"
+
+
+def test_ajustar_igual_a_sugestao_nao_tem_divergencia():
+    caso = _notificacao(1)
+    banco = _banco([caso], [_sugestao(caso)])
+
+    resposta = _cliente(banco).post(_caso(caso["id"]), json={"classificacao": _classificacao(), "conferidos": []})
+
+    assert resposta.status_code == 201, resposta.text
+    assert _decisoes(banco)[0]["divergencias"] == []
+
+
+@pytest.mark.parametrize(
+    "mudanca",
+    [
+        {"natureza": "quase_erro", "grau_de_dano": "leve"},
+        {"natureza": "evento_adverso", "grau_de_dano": "nenhum"},
+        {"categoria": "XYZ"},
+        {"canais": []},
+        {"canais": ["OUV"]},
+        {"evento_situacao": "sim", "evento_item": None},
+        {"evento_situacao": "nao", "evento_item": 11},
+        {"assunto": "   "},
+    ],
+    ids=[
+        "quase erro com dano",
+        "evento adverso sem dano",
+        "categoria fora da lista",
+        "sem canal",
+        "do Núcleo sem o canal NSP",
+        "evento da lista sem item",
+        "item sem evento",
+        "sem assunto",
+    ],
+)
+def test_o_ajuste_fora_das_regras_e_recusado_sem_gravar(mudanca):
+    caso = _notificacao(1)
+    banco = _banco([caso], [_sugestao(caso)])
+
+    resposta = _cliente(banco).post(
+        _caso(caso["id"]), json={"classificacao": _classificacao(**mudanca), "conferidos": []}
+    )
+
+    assert resposta.status_code == 422, resposta.text
+    assert _decisoes(banco) == []
+    assert banco.notificacoes[0]["estado"] == "recebida"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. Recorrência, casos parecidos, frequência e prioridade; os cortes
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _anterior(numero: int, dias_antes: int, **campos) -> dict[str, Any]:
+    return _notificacao(numero, data_ocorrencia=(DIA - timedelta(days=dias_antes)).isoformat(), **campos)
+
+
+def test_a_tela_mostra_a_recorrencia_e_os_casos_parecidos_de_60_dias():
+    caso = _notificacao(50)
+    ha_10_dias, ha_59_dias = _anterior(1, 10), _anterior(2, 59)
+    fora_da_janela = _anterior(3, 61)
+    outra_categoria = _anterior(4, 5)
+    outro_setor = _anterior(5, 5, setor_id=OUTRO_SETOR["id"])
+    depois = _notificacao(6, data_ocorrencia=(DIA + timedelta(days=1)).isoformat())
+    banco = _banco(
+        [caso, ha_10_dias, ha_59_dias, fora_da_janela, outra_categoria, outro_setor, depois],
+        [
+            _sugestao(caso),
+            _sugestao(ha_10_dias),
+            _sugestao(ha_59_dias, assunto="Monitor sem alarme sonoro"),
+            _sugestao(fora_da_janela),
+            _sugestao(outra_categoria, categoria="MED"),
+            _sugestao(outro_setor),
+            _sugestao(depois),
+        ],
+    )
+
+    contexto = _cliente(banco).get(_caso(caso["id"])).json()["contexto"]
+
+    assert contexto["recorrencia"] == 3
+    assert [p["protocolo"] for p in contexto["parecidos"]] == ["NSP-2026-0001", "NSP-2026-0002"]
+    assert contexto["parecidos"][1]["assunto"] == "Monitor sem alarme sonoro"
+
+
+def test_a_categoria_confirmada_vale_mais_que_a_sugerida_na_contagem():
+    caso, anterior = _notificacao(50), _anterior(1, 10)
+    decisao = {**_sugestao(anterior, versao=2, categoria="MED"), "autor_tipo": "pessoa", "autor_id": "P1"}
+    banco = _banco([caso, anterior], [_sugestao(caso), _sugestao(anterior), decisao])
+
+    contexto = _cliente(banco).get(_caso(caso["id"])).json()["contexto"]
+
+    assert contexto["recorrencia"] == 1
+    assert contexto["parecidos"] == []
+
+
+@pytest.mark.parametrize(
+    ("anteriores", "frequencia", "prioridade_b", "prioridade_c"),
+    [
+        (0, "remoto", "moderada", "baixa"),
+        (1, "incomum", "moderada", "baixa"),
+        (2, "ocasional", "moderada", "baixa"),
+        (3, "ocasional", "moderada", "baixa"),
+        (4, "frequente", "alta", "moderada"),
+    ],
+)
+def test_a_frequencia_conta_12_meses_e_a_prioridade_sai_da_matriz(anteriores, frequencia, prioridade_b, prioridade_c):
+    caso = _notificacao(50)
+    # Uma a mais, fora dos 12 meses, que não conta.
+    outros = [_anterior(i + 1, 30 * (i + 1)) for i in range(anteriores)] + [_anterior(40, 370)]
+    banco = _banco([caso, *outros], [_sugestao(n) for n in outros])
+    banco.triagens.append(_sugestao(caso, **GRAVE))
+
+    tela = _cliente(banco).get(_caso(caso["id"])).json()
+    assert tela["contexto"]["anteriores"] == anteriores
+    assert tela["contexto"]["frequencia"] == frequencia
+    assert tela["contexto"]["prioridade"] == prioridade_b
+
+    moderado = _cliente(banco).get(f"{_caso(caso['id'])}/contexto", params={"categoria": "EQP", "faixa": "C"})
+    assert moderado.json()["prioridade"] == prioridade_c
+
+
+def test_a_faixa_a_e_sempre_prioridade_alta():
+    caso = _notificacao(50)
+    banco = _banco([caso], [_sugestao(caso, **OBITO)])
+
+    contexto = _cliente(banco).get(_caso(caso["id"])).json()["contexto"]
+
+    assert (contexto["frequencia"], contexto["prioridade"]) == ("remoto", "alta")
+
+
+def test_a_decisao_grava_a_frequencia_e_a_prioridade_calculadas():
+    caso, anterior = _notificacao(50), _anterior(1, 10)
+    banco = _banco([caso, anterior], [_sugestao(caso, **MODERADO), _sugestao(anterior)])
+
+    assert _confirmar(banco, caso).status_code == 201
+
+    [decisao] = _decisoes(banco)
+    assert (decisao["frequencia"], decisao["prioridade"]) == ("incomum", "baixa")
+
+
+CORTES = "/api/nsp/configuracao/cortes-de-frequencia"
+
+
+def test_os_cortes_vem_com_o_padrao_da_sugestao_e_mudam_a_frequencia():
+    caso = _notificacao(50)
+    outros = [_anterior(1, 10), _anterior(2, 20)]
+    banco = _banco([caso, *outros], [_sugestao(caso), *(_sugestao(n) for n in outros)])
+    banco.tabelas["nsp_cortes_de_frequencia"] = [{"id": True, **triagem.CORTES_PADRAO}]
+    cliente = _cliente(banco, SUPER_ADMIN)
+
+    assert cliente.get(CORTES).json() == {
+        "janela_meses": 12,
+        "incomum_a_partir": 1,
+        "ocasional_a_partir": 2,
+        "frequente_a_partir": 4,
+    }
+    assert _cliente(banco).get(_caso(caso["id"])).json()["contexto"]["frequencia"] == "ocasional"
+
+    novos = {"janela_meses": 6, "incomum_a_partir": 1, "ocasional_a_partir": 3, "frequente_a_partir": 5}
+    resposta = cliente.put(CORTES, json=novos)
+
+    assert resposta.status_code == 200, resposta.text
+    assert banco.tabelas["nsp_cortes_de_frequencia"][0]["atualizado_por"] == SUPER_ADMIN["id"]
+    assert _cliente(banco).get(_caso(caso["id"])).json()["contexto"]["frequencia"] == "incomum"
+
+
+@pytest.mark.parametrize(
+    "cortes",
+    [
+        {"janela_meses": 12, "incomum_a_partir": 2, "ocasional_a_partir": 2, "frequente_a_partir": 4},
+        {"janela_meses": 12, "incomum_a_partir": 0, "ocasional_a_partir": 2, "frequente_a_partir": 4},
+        {"janela_meses": 0, "incomum_a_partir": 1, "ocasional_a_partir": 2, "frequente_a_partir": 4},
+    ],
+    ids=["fora de ordem", "incomum sem ocorrência", "janela vazia"],
+)
+def test_os_cortes_fora_de_ordem_sao_recusados(cortes):
+    banco = _banco()
+    banco.tabelas["nsp_cortes_de_frequencia"] = [{"id": True, **triagem.CORTES_PADRAO}]
+
+    resposta = _cliente(banco, SUPER_ADMIN).put(CORTES, json=cortes)
+
+    assert resposta.status_code == 422
+    assert banco.tabelas["nsp_cortes_de_frequencia"][0]["incomum_a_partir"] == 1
+
+
+def test_so_quem_alcanca_a_configuracao_muda_os_cortes():
+    banco = _banco()
+    banco.tabelas["nsp_cortes_de_frequencia"] = [{"id": True, **triagem.CORTES_PADRAO}]
+
+    resposta = _cliente(banco, MEMBRO).put(CORTES, json=triagem.CORTES_PADRAO)
+
+    assert resposta.json() == RECUSA
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. Classificar manualmente: a mesma tela, sem sugestão
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_a_notificacao_para_classificar_manualmente_abre_sem_sugestao():
+    caso = _notificacao(1, classificar_manualmente=True, motivo_classificar_manualmente="agente_fora")
+    banco = _banco([caso])
+
+    tela = _cliente(banco).get(_caso(caso["id"])).json()
+
+    assert tela["sugestao"] is None
+    assert tela["classificar_manualmente"] is True
+    assert tela["caso"]["protocolo"] == "NSP-2026-0001"
+    assert tela["caso"]["relato"] == caso["relato"]
+    assert [c["codigo"] for c in tela["opcoes"]["categorias"]] == ["MED", "EQP"]
+
+
+def test_sem_sugestao_nao_ha_o_que_confirmar_e_a_pessoa_classifica():
+    caso = _notificacao(1, classificar_manualmente=True, motivo_classificar_manualmente="teto")
+    banco = _banco([caso])
+
+    sem_classificacao = _confirmar(banco, caso)
+    assert sem_classificacao.status_code == 422
+    assert _decisoes(banco) == []
+
+    resposta = _cliente(banco).post(
+        _caso(caso["id"]), json={"classificacao": _classificacao(**QUASE_ERRO_CLASSIFICADO), "conferidos": []}
+    )
+
+    assert resposta.status_code == 201, resposta.text
+    [decisao] = _decisoes(banco)
+    assert decisao["divergencias"] is None
+    assert decisao["faixa"] == "E"
+    assert decisao["versao"] == 1
+    assert resposta.json()["estado"] == "em_analise_agregada"
+
+
+QUASE_ERRO_CLASSIFICADO = {"natureza": "quase_erro", "grau_de_dano": "nenhum"}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# O texto do Produto no Kit de conhecimento diz o comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _secao_do_kit(titulo: str) -> str:
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = (CONHECIMENTO_DIR / "seguranca-do-paciente.md").read_text(encoding="utf-8")
+    partes = texto.split(f"## {titulo}\n", 1)
+    assert len(partes) == 2, f"a seção {titulo!r} sumiu do kit"
+    return partes[1].split("\n## ", 1)[0]
+
+
+def test_o_kit_diz_como_a_presidencia_confirma_a_triagem():
+    no_ar = _secao_do_kit("O que já está no ar")
+    for termo in (
+        "Fila de triagem",
+        "da mais antiga para a mais nova",
+        "Leia o relato, confira a sugestão e confirme.",
+        "Caso grave: confirme cada campo.",
+        'Não existe "aceitar tudo"',
+        "Confirmar é um clique",
+        "a sugestão do agente continua guardada",
+        "3ª ocorrência desta categoria neste setor em 60 dias",
+        "Configuração do módulo",
+        "sem sugestão e com os campos em branco",
+    ):
+        assert termo in no_ar, termo
+    assert "a tela de triagem" not in _secao_do_kit("O que ele ainda não faz")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# A migration 189, lida como texto
+# ═══════════════════════════════════════════════════════════════════════════
+
+MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "189_nsp_tela_de_triagem.sql"
+
+
+def _sql() -> str:
+    return re.sub(r"--[^\n]*", "", MIGRATION.read_text(encoding="utf-8"))
+
+
+def test_a_migration_guarda_uma_decisao_de_pessoa_por_notificacao():
+    assert re.search(
+        r"CREATE UNIQUE INDEX IF NOT EXISTS \w+\s+ON nsp_triagens \(notificacao_id\) WHERE autor_tipo = 'pessoa'",
+        _sql(),
+    )
+
+
+def test_os_cortes_do_banco_nascem_com_o_padrao_do_app():
+    sql = _sql()
+    for campo, valor in triagem.CORTES_PADRAO.items():
+        assert re.search(rf"{campo}\s+SMALLINT NOT NULL DEFAULT {valor}\b", sql), campo
+
+
+def test_a_tabela_nova_nasce_com_rls_e_o_recibo_e_o_189():
+    sql = _sql()
+    for tabela in re.findall(r"CREATE TABLE IF NOT EXISTS (\w+)", sql):
+        assert f"ALTER TABLE {tabela} ENABLE ROW LEVEL SECURITY;" in sql, tabela
+    assert "VALUES (189) ON CONFLICT" in sql
+    assert "CREATE POLICY" not in sql.upper()
+
+
+def test_a_tela_de_um_caso_que_nao_existe_e_404():
+    banco = _banco()
+
+    assert _cliente(banco).get(_caso("00000000-0000-0000-0000-000000000099")).status_code == 404
+    assert _confirmar(banco, {"id": "00000000-0000-0000-0000-000000000099"}).status_code == 404
