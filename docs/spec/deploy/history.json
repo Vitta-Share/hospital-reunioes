@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-20T23:16:59-03:00",
+      "sha": "f4d4c5da581cb0213192e0f1bb3453840ca4514d",
+      "app_version": "0.333.0",
+      "subject": "Onda nsp2-onda3: Notificar um incidente, com protocolo e acompanhamento",
+      "raw_subject": "chore(deploy): registro da onda nsp2-onda3 (#2062)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1979
+      ],
+      "result": "healthy",
+      "duration_seconds": 1889,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "174_nsp_notificacao_de_incidente.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp2-onda3: PR #2062 (issue #1987), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 20,
+          "frontend": 213
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-20T23:10:11-03:00",
       "sha": "044c5e44eaaa96c3c0ab362a4fb06b20bd4984a2",
       "app_version": "0.332.0",
