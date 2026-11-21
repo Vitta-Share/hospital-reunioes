@@ -140,6 +140,11 @@ class _Consulta:
         return _Result(linhas)
 
 
+class _ConsultaQueFalhaNoInsert(_Consulta):
+    def insert(self, linha):
+        raise RuntimeError("PostgREST fora do ar")
+
+
 @dataclass
 class _Banco:
     participantes: list = field(default_factory=list)
@@ -151,8 +156,11 @@ class _Banco:
     # Quem nunca entrou no app; o resto do cadastro já entrou (issue #1878).
     nunca_entraram: set = field(default_factory=set)
     auth_fora_do_ar: bool = False
+    links_fora_do_ar: bool = False
 
     def table(self, nome):
+        if nome == "pendencias_links_pessoais" and self.links_fora_do_ar:
+            return _ConsultaQueFalhaNoInsert(getattr(self, nome))
         return _Consulta(getattr(self, nome))
 
     @property
@@ -601,6 +609,27 @@ def test_sem_saber_quem_entrou_todo_mundo_recebe_o_link_comum(job):
     assert "/inicio" in email["html"]
     assert not _LINK_PESSOAL.search(email["html"])
     assert banco.pendencias_links_pessoais == []
+
+
+def test_link_pessoal_que_nao_grava_nao_marca_e_a_hora_seguinte_manda(job):
+    rodar, estado = job
+    banco = _banco_com_quem_nunca_entrou(estado["banco"])
+    banco.links_fora_do_ar = True
+
+    rodar()
+
+    # O Bruno fica sem e-mail e sem guarda; a Carla, que já entrou, recebe.
+    assert _para(estado, "P_BRUNO") == []
+    assert len(_para(estado, "P_CARLA")) == 1
+    assert [linha["participante_id"] for linha in banco.email_de_segunda] == ["P_CARLA"]
+
+    banco.links_fora_do_ar = False
+    rodar()
+
+    (email,) = _para(estado, "P_BRUNO")
+    assert _LINK_PESSOAL.search(email["html"])
+    assert len(_para(estado, "P_CARLA")) == 1
+    assert sorted(linha["participante_id"] for linha in banco.email_de_segunda) == ["P_BRUNO", "P_CARLA"]
 
 
 # ─── 6. Sem travessão ────────────────────────────────────────────────────────
