@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T15:28+0000 -->
+<!-- last_update: 2026-11-21T15:49+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -1255,7 +1255,7 @@ erDiagram
         TEXT status_antes
         TEXT status_depois
         DATE prazo_antes
-        _ mais_colunas "+2"
+        _ mais_colunas "+4"
     }
     pendencia_anexos {
         BIGINT id PK
@@ -1586,6 +1586,7 @@ erDiagram
 | `registro_de_acesso` | `idx_registro_de_acesso_dia` | `dia` | `167_registro_de_acesso.sql` |
 | `pendencia_historico` | `idx_pendencia_historico_acao` | `id_acao, criado_em` | `169_ciclo_de_vida_da_pendencia.sql` |
 | `pendencia_historico` | `idx_pendencia_historico_repactuacao` | `id_acao` | `169_ciclo_de_vida_da_pendencia.sql` |
+| `pendencia_historico` | `idx_pendencia_historico_contestacao` | `id_acao, criado_em` | `187_contestacao_do_item_da_ata.sql` |
 | `pendencia_anexos` | `idx_pendencia_anexos_acao` | `id_acao` | `174_anexo_da_conclusao_da_pendencia.sql` |
 | `nsp_notificacoes` | `idx_nsp_notificacoes_criado_em` | `criado_em DESC` | `174_nsp_notificacao_de_incidente.sql` |
 | `nsp_notificacoes` | `idx_nsp_notificacoes_setor` | `setor_id` | `174_nsp_notificacao_de_incidente.sql` |
