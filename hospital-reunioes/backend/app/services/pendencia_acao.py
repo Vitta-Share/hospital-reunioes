@@ -30,6 +30,8 @@ def agir(
     autor_nome: str,
     hoje: date,
     prazo_novo: date | None = None,
+    ata_em_assinatura: bool = False,
+    contestada: bool = False,
 ) -> Mudanca:
     prazo_atual = as_data(pendencia.get("prazo"))
     mudanca = decidir(
@@ -40,6 +42,8 @@ def agir(
         hoje=hoje,
         anotacao=anotacao,
         prazo_novo=prazo_novo,
+        ata_em_assinatura=ata_em_assinatura,
+        contestada=contestada,
     )
     supabase.rpc(
         "registrar_acao_da_pendencia",

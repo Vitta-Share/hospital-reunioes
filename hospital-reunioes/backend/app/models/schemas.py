@@ -250,9 +250,12 @@ class PendenciaResponse(PendenciaBase):
 
 class AcaoPendenciaRequest(BaseModel):
     """Uma ação na Pendência (ADR 0098, decisão 5). A anotação é obrigatória;
-    o prazo só vale em repactuar e reabrir."""
+    o prazo só vale em repactuar, reabrir e ajustar. Contestar, ajustar e
+    recusar são a Contestação do item da Ata (issue #1870)."""
 
-    comando: Literal["iniciar", "anotar", "concluir", "repactuar", "cancelar", "reabrir"]
+    comando: Literal[
+        "iniciar", "anotar", "concluir", "repactuar", "cancelar", "reabrir", "contestar", "ajustar", "recusar"
+    ]
     anotacao: str = Field(..., max_length=5000)
     prazo: date | None = None
 

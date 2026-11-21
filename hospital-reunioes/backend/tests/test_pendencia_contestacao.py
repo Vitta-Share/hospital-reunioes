@@ -11,11 +11,18 @@ Os valores esperados saem da issue, não do código.
 
 from __future__ import annotations
 
+import os
+import sys
 from datetime import date
 
 import pytest
 
 from app.services.pendencia_ciclo import AcaoRecusada, Comando, Papel, acoes_disponiveis, decidir
+
+# O banco de mentira e o cliente da API são os de `test_pendencia_acoes.py`.
+sys.path.insert(0, os.path.dirname(__file__))
+
+from test_pendencia_acoes import _banco, cliente  # noqa: E402, F401
 
 HOJE = date(2026, 11, 19)
 ONTEM = date(2026, 11, 18)
@@ -167,3 +174,160 @@ def test_recusar_mantem_a_pendencia_como_esta():
     with pytest.raises(AcaoRecusada) as erro:
         _decidir(Comando.RECUSAR, PAPEIS["facilitador"], prazo_novo=DAQUI_A_UMA_SEMANA, contestada=True)
     assert erro.value.tipo == "dados"
+
+
+# ── Pela API: `POST /pendencias/{id}/acoes` ─────────────────────────────────
+
+
+def _em_assinatura(estado, status_ata="AGUARDANDO_ASSINATURA"):
+    estado["banco"].reunioes[0]["status_ata"] = status_ata
+    return estado
+
+
+def _evento(id_evento=10, comando="contestar", criado_em="2026-11-19T09:00:00+00:00"):
+    return {
+        "id": id_evento,
+        "id_acao": "A001",
+        "comando": comando,
+        "anotacao": "o prazo combinado era outro",
+        "autor_nome": "Rita Responsável",
+        "criado_em": criado_em,
+        "conta_atraso": False,
+    }
+
+
+@pytest.mark.parametrize(
+    "quem,status_ata,esperado",
+    [
+        ("resp", "AGUARDANDO_ASSINATURA", 200),
+        ("resp", "ASSINADA", 409),
+        ("resp", "AGUARDANDO_VALIDACAO", 409),
+        ("coresp", "AGUARDANDO_ASSINATURA", 403),
+        ("facil", "AGUARDANDO_ASSINATURA", 403),
+        ("admin", "AGUARDANDO_ASSINATURA", 403),
+        ("outro", "AGUARDANDO_ASSINATURA", 404),
+    ],
+)
+def test_contestar_pela_api_por_papel_e_por_estado_da_ata(cliente, quem, status_ata, esperado):  # noqa: F811
+    client, estado = cliente
+    _em_assinatura(estado, status_ata)
+    estado["quem"] = quem
+    r = client.post("/api/pendencias/A001/acoes", json={"comando": "contestar", "anotacao": "prazo errado"})
+    assert r.status_code == esperado, r.text
+    if esperado != 200:
+        assert estado["banco"].chamadas == []
+
+
+def test_contestar_grava_o_evento_e_o_item_segue_cobrado(cliente):  # noqa: F811
+    client, estado = cliente
+    estado["banco"] = _banco(prazo=ONTEM)
+    _em_assinatura(estado)
+    r = client.post("/api/pendencias/A001/acoes", json={"comando": "contestar", "anotacao": "o prazo era março"})
+
+    assert r.status_code == 200, r.text
+    corpo = r.json()
+    # Segue na cobrança e no cálculo de atraso, com o prazo de antes.
+    assert (corpo["status"], corpo["prazo"], corpo["atrasada"]) == ("PENDENTE", ONTEM.isoformat(), True)
+    params = estado["banco"].chamadas[0][1]
+    assert (params["p_comando"], params["p_anotacao"], params["p_prazo_novo"]) == (
+        "contestar",
+        "o prazo era março",
+        None,
+    )
+
+
+def test_contestar_nao_impede_assinar_a_ata(cliente):  # noqa: F811
+    """A Contestação é do item; a assinatura é a ciência da Ata inteira
+    (decisão 32). Quem já assinou ainda contesta, e contestar não mexe na
+    Reunião: a Ata segue em assinatura, e a única gravação é o evento."""
+    client, estado = cliente
+    _em_assinatura(estado)
+    estado["banco"].reuniao_aceites = [{"id_reuniao": "R1", "participante_id": "P_RESP"}]
+    r = client.post("/api/pendencias/A001/acoes", json={"comando": "contestar", "anotacao": "responsável errado"})
+
+    assert r.status_code == 200, r.text
+    assert estado["banco"].reunioes[0]["status_ata"] == "AGUARDANDO_ASSINATURA"
+    assert [nome for nome, _ in estado["banco"].chamadas] == ["registrar_acao_da_pendencia"]
+
+
+def test_item_ja_contestado_nao_se_contesta_de_novo_pela_api(cliente):  # noqa: F811
+    client, estado = cliente
+    _em_assinatura(estado)
+    estado["banco"].pendencia_historico = [_evento()]
+    r = client.post("/api/pendencias/A001/acoes", json={"comando": "contestar", "anotacao": "de novo"})
+    assert r.status_code == 409
+
+
+@pytest.mark.parametrize("comando", ["ajustar", "recusar"])
+def test_ajustar_e_recusar_exigem_anotacao_pela_api(cliente, comando):  # noqa: F811
+    client, estado = cliente
+    estado["quem"] = "facil"
+    estado["banco"].pendencia_historico = [_evento()]
+    r = client.post("/api/pendencias/A001/acoes", json={"comando": comando, "anotacao": "  "})
+    assert r.status_code == 422
+    assert estado["banco"].chamadas == []
+
+
+def test_facilitador_ajusta_o_prazo_e_o_evento_vai_para_o_historico(cliente):  # noqa: F811
+    client, estado = cliente
+    estado["quem"] = "facil"
+    # A Ata já foi assinada: o ajuste vale depois, e ela não volta a assinar.
+    _em_assinatura(estado, "ASSINADA")
+    estado["banco"].pendencia_historico = [_evento()]
+    novo = DAQUI_A_UMA_SEMANA.isoformat()
+    r = client.post(
+        "/api/pendencias/A001/acoes", json={"comando": "ajustar", "anotacao": "combinado em março", "prazo": novo}
+    )
+
+    assert r.status_code == 200, r.text
+    assert r.json()["prazo"] == novo
+    params = estado["banco"].chamadas[0][1]
+    assert (params["p_comando"], params["p_anotacao"], params["p_prazo_novo"]) == (
+        "ajustar",
+        "combinado em março",
+        novo,
+    )
+    assert estado["banco"].reunioes[0]["status_ata"] == "ASSINADA"
+
+
+def test_facilitador_recusa_e_a_pendencia_fica_como_esta(cliente):  # noqa: F811
+    client, estado = cliente
+    estado["quem"] = "facil"
+    estado["banco"].pendencia_historico = [_evento()]
+    r = client.post("/api/pendencias/A001/acoes", json={"comando": "recusar", "anotacao": "o prazo foi esse mesmo"})
+
+    assert r.status_code == 200, r.text
+    assert (r.json()["status"], r.json()["prazo"]) == ("PENDENTE", AMANHA.isoformat())
+    assert estado["banco"].chamadas[0][1]["p_comando"] == "recusar"
+
+
+def test_depois_da_resposta_a_contestacao_esta_fechada(cliente):  # noqa: F811
+    client, estado = cliente
+    estado["quem"] = "facil"
+    # O id e a hora contam a ordem, não a posição na lista.
+    estado["banco"].pendencia_historico = [
+        _evento(11, "recusar", "2026-11-19T11:00:00+00:00"),
+        _evento(),
+    ]
+    r = client.post("/api/pendencias/A001/acoes", json={"comando": "ajustar", "anotacao": "mudei de ideia"})
+    assert r.status_code == 409
+
+
+def test_historico_mostra_ao_facilitador_ajustar_e_recusar_so_com_contestacao_aberta(cliente):  # noqa: F811
+    client, estado = cliente
+    estado["quem"] = "facil"
+    assert client.get("/api/pendencias/A001/historico").json()["acoes_permitidas"] == ["repactuar", "cancelar"]
+    estado["banco"].pendencia_historico = [_evento()]
+    assert client.get("/api/pendencias/A001/historico").json()["acoes_permitidas"] == [
+        "repactuar",
+        "cancelar",
+        "ajustar",
+        "recusar",
+    ]
+
+
+def test_historico_mostra_ao_responsavel_contestar_com_a_ata_em_assinatura(cliente):  # noqa: F811
+    client, estado = cliente
+    assert "contestar" not in client.get("/api/pendencias/A001/historico").json()["acoes_permitidas"]
+    _em_assinatura(estado)
+    assert "contestar" in client.get("/api/pendencias/A001/historico").json()["acoes_permitidas"]
