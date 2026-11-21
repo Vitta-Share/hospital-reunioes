@@ -93,3 +93,73 @@ class TestTarefaNova:
         assert FRASE in emails[0]["texto"]
         assert "https://app.hsm.test/comite-de-conduta\n" in emails[0]["texto"]
         assert 'href="https://app.hsm.test/comite-de-conduta"' in emails[0]["html"]
+
+    def test_triagem_confirmada_avisa_o_segundo_leitor_e_so_ele(self, comite, emails):
+        caso_id = comite.caso()
+        avisos.rodada_do_dia(comite.banco, HOJE)
+        emails.clear()
+
+        comite.ok(COORDENACAO, caso_id, "triagem", DENTRO_RAPIDO)
+        avisos.rodada_do_dia(comite.banco, HOJE)
+
+        assert _para(emails) == [_email(SEGUNDO_LEITOR)]
+
+    def test_contestacao_avisa_os_votantes_e_quem_ja_votou_nao_e_avisado(self, comite, emails):
+        caso_id = comite.caso()
+        comite.ok(COORDENACAO, caso_id, "triagem", DENTRO_RAPIDO)
+        avisos.rodada_do_dia(comite.banco, HOJE)
+        emails.clear()
+
+        comite.ok(SEGUNDO_LEITOR, caso_id, "contestacao", {**DENTRO_COMPLETO, "motivo": "É grave."})
+        comite.ok(COORDENACAO, caso_id, "contestacao/decisao", {"escolha": "manter"})
+        avisos.rodada_do_dia(comite.banco, HOJE)
+
+        assert _para(emails) == [_email(SEGUNDO_LEITOR), _email(MEMBRO)]
+
+    def test_tarefa_que_ja_foi_feita_antes_da_rodada_nao_vira_email(self, comite, emails):
+        caso_id = comite.caso()
+        comite.ok(COORDENACAO, caso_id, "triagem", DENTRO_RAPIDO)
+
+        avisos.rodada_do_dia(comite.banco, HOJE)
+
+        assert _para(emails) == [_email(SEGUNDO_LEITOR)]
+        situacoes = {(a["participante_id"], a["situacao"]) for a in comite.banco.tabelas["conduta_avisos"]}
+        assert (COORDENACAO, "dispensado") in situacoes
+
+    def test_duas_rodadas_no_mesmo_dia_nao_repetem_o_email(self, comite, emails):
+        comite.caso()
+        avisos.rodada_do_dia(comite.banco, HOJE)
+
+        avisos.rodada_do_dia(comite.banco, HOJE)
+
+        assert _para(emails) == [_email(COORDENACAO)]
+
+    def test_quem_tem_varias_tarefas_recebe_um_email_so(self, comite, emails):
+        comite.caso()
+        comite.caso()
+
+        avisos.rodada_do_dia(comite.banco, HOJE)
+
+        assert _para(emails) == [_email(COORDENACAO)]
+        assert {a["situacao"] for a in comite.banco.tabelas["conduta_avisos"]} == {"enviado"}
+
+    def test_o_aviso_que_falha_fica_pendente_e_sai_na_rodada_seguinte(self, comite, emails, monkeypatch):
+        comite.caso()
+        monkeypatch.setattr(avisos, "_enviar_email", lambda *_a, **_kw: False)
+        avisos.rodada_do_dia(comite.banco, HOJE)
+        assert {a["situacao"] for a in comite.banco.tabelas["conduta_avisos"]} == {"pendente"}
+
+        monkeypatch.setattr(avisos, "_enviar_email", lambda para, *_a, **_kw: emails.append({"para": para}) or True)
+        avisos.rodada_do_dia(comite.banco, HOJE + timedelta(days=1))
+
+        assert _para(emails) == [_email(COORDENACAO)]
+
+    def test_a_acao_acontece_mesmo_com_o_aviso_fora_do_ar(self, comite, monkeypatch):
+        caso_id = comite.caso()
+
+        def _explode(*_a, **_kw):
+            raise RuntimeError("banco dos avisos fora do ar")
+
+        monkeypatch.setattr(avisos, "tarefas_do_caso", _explode)
+
+        assert comite.ok(COORDENACAO, caso_id, "triagem", DENTRO_RAPIDO)["etapa"] == "apuracao"
