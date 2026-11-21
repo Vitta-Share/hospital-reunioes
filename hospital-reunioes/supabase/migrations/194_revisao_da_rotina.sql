@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 191: a revisao de 90 dias da Rotina (issue #1944; decisao 72 da #1757)
+-- Migration 194: a revisao de 90 dias da Rotina (issue #1944; decisao 72 da #1757)
 -- =====================================================
 -- O Facilitador revisa cada Rotina a cada 90 dias: mantem ou encerra. Sem
 -- revisao a Rotina continua, e a revisao espera na Minha Fila dele. Manter e
@@ -23,4 +23,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (191) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (194) ON CONFLICT (numero) DO NOTHING;

@@ -113,12 +113,12 @@ def test_nenhum_job_nem_trigger_cria_verificacao():
     assert "rotina" not in agendador.lower()
 
 
-MIGRATION_191 = MIGRATION_177.with_name("191_revisao_da_rotina.sql")
+MIGRATION_194 = MIGRATION_177.with_name("194_revisao_da_rotina.sql")
 
 
-def test_a_191_grava_a_revisao_que_mantem_a_rotina_e_roda_duas_vezes(banco):
+def test_a_194_grava_a_revisao_que_mantem_a_rotina_e_roda_duas_vezes(banco):
     """A revisão de 90 dias (issue #1944): Manter grava o dia na Rotina."""
-    sql = MIGRATION_191.read_text(encoding="utf-8")
+    sql = MIGRATION_194.read_text(encoding="utf-8")
     banco.ok(sql)
     banco.ok(sql)  # rodar duas vezes é inofensivo
 
@@ -128,4 +128,4 @@ def test_a_191_grava_a_revisao_que_mantem_a_rotina_e_roda_duas_vezes(banco):
     )
 
     assert banco.ok(f"SELECT revisada_em FROM rotinas WHERE id = {ROTINA};") == "2027-03-01"
-    assert banco.ok("SELECT count(*) FROM migracoes_aplicadas WHERE numero = 191;") == "1"
+    assert banco.ok("SELECT count(*) FROM migracoes_aplicadas WHERE numero = 194;") == "1"
