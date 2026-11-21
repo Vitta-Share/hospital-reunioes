@@ -7,6 +7,8 @@
   faixa que a pessoa escolheu ao ajustar;
 - `POST /nsp/triagem/{id}`: confirmar (sem classificação, vale a sugestão) ou
   ajustar (com a classificação da pessoa);
+- `POST /nsp/triagem/{id}/encaminhamento`: encaminhar à Ouvidoria, ao Canal de
+  Conduta ou como fora de escopo, com ou sem o Núcleo (issue #1995);
 - `GET` e `PUT /nsp/configuracao/cortes-de-frequencia`: os cortes da matriz
   de prioridade, na Configuração do módulo.
 
@@ -28,7 +30,7 @@ from supabase import Client
 
 from app.dependencies import get_supabase_client, require_recurso_nsp
 from app.services import limite_sem_ip, ouvidoria_nucleo
-from app.services.seguranca_do_paciente import anexos, notificacoes, triagem
+from app.services.seguranca_do_paciente import anexos, encaminhamento, notificacoes, triagem
 
 logger = logging.getLogger(__name__)
 
@@ -159,6 +161,44 @@ async def decidir_a_triagem(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(erro)) from erro
     except (APIError, httpx.HTTPError) as erro:
         raise _indisponivel(erro, FALHA_DE_GRAVACAO) from erro
+
+
+class Encaminhamento(BaseModel):
+    """Um ou mais destinos e o motivo em uma frase. Fora de escopo leva também
+    a orientação a quem notificou."""
+
+    destinos: list[str] = Field(default_factory=list, max_length=len(encaminhamento.DESTINOS))
+    motivo: str | None = Field(default=None, max_length=2000)
+    orientacao: str | None = Field(default=None, max_length=2000)
+
+
+@router.post("/triagem/{notificacao_id}/encaminhamento", status_code=status.HTTP_201_CREATED)
+@limite_sem_ip.limitar("30/minute")
+async def encaminhar_o_caso_da_triagem(
+    request: Request,
+    notificacao_id: UUID,
+    pedido: Encaminhamento,
+    me: dict = Depends(require_recurso_nsp("triagem")),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """Grava o encaminhamento, preservando o protocolo. Sem o Núcleo entre os
+    destinos, o caso vai a Encaminhada ou a Fora de escopo."""
+    try:
+        return encaminhamento.encaminhar_da_triagem(
+            supabase,
+            str(notificacao_id),
+            autor_id=str(me["id"]),
+            destinos=pedido.destinos,
+            motivo=pedido.motivo,
+        )
+    except triagem.CasoNaoEncontradoError as erro:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(erro)) from erro
+    except triagem.JaConfirmadaError as erro:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(erro)) from erro
+    except triagem.TriagemRecusadaError as erro:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(erro)) from erro
+    except (APIError, httpx.HTTPError) as erro:
+        raise _indisponivel(erro, "Não foi possível gravar o encaminhamento agora. Tente de novo em instantes.") from erro
 
 
 class CortesDeFrequencia(BaseModel):
