@@ -16,7 +16,7 @@ from typing import Any
 
 from postgrest.exceptions import APIError
 
-from app.services.conduta import agente_de_triagem, avisos, cifra, trilha
+from app.services.conduta import agente_de_triagem, avisos, cifra, rota_especial, trilha
 from app.services.ouvidoria_acompanhamento import ALFABETO, gerar_codigo, hash_do_codigo
 
 _VIOLACAO_DE_UNICIDADE = "23505"
@@ -40,6 +40,7 @@ def registrar_caso(
     rota: str = "comum",
     manifestacao_id: str | None = None,
     tarefas=None,
+    direcao_envolvida: str | None = None,
 ) -> dict[str, Any]:
     """Grava o caso e a linha de recebimento na trilha. Devolve o id, o
     protocolo e o código de acompanhamento, que não fica guardado.
@@ -52,8 +53,15 @@ def registrar_caso(
     de triagem lê o caso depois da resposta, sem clique de ninguém (issue
     #1827, ADR 0097, decisão 6).
 
+    `direcao_envolvida` é a resposta do passo 3 sobre a Direção (issue #1829):
+    com "sim", o caso nunca entra na fila comum e nasce na Rota Especial, com
+    o relato selado; "nao_sei" fica na fila comum com o aviso.
+
     Sem a chave de cifra levanta `CifraIndisponivelError` antes de gravar qualquer
     coisa."""
+    if direcao_envolvida is not None and direcao_envolvida not in rota_especial.RESPOSTAS_SOBRE_A_DIRECAO:
+        raise ValueError("Resposta sobre a Direção fora das três do passo 3")
+    especial = direcao_envolvida == "sim"
     relato_cifrado = cifra.cifrar_texto(relato)
     codigo = gerar_codigo()
     linha = {
@@ -65,6 +73,10 @@ def registrar_caso(
     }
     if manifestacao_id is not None:
         linha |= {"origem": ORIGEM_OUVIDORIA, "manifestacao_id": manifestacao_id}
+    if direcao_envolvida is not None:
+        linha["direcao_envolvida"] = direcao_envolvida
+    if especial:
+        linha |= rota_especial.campos_da_entrada(rota_especial.agora_utc())
     for tentativa in range(1, _TENTATIVAS_DO_PROTOCOLO + 1):
         try:
             caso = supabase.table("conduta_casos").insert({**linha, "protocolo": novo_protocolo()}).execute().data[0]
@@ -74,6 +86,8 @@ def registrar_caso(
                 raise
     detalhe = "caso sinalizado pela Ouvidoria" if manifestacao_id is not None else "caso recebido"
     trilha.registrar(supabase, caso["id"], None, "recebimento", detalhe)
+    if especial:
+        rota_especial.entrar(supabase, caso["id"], relato, None, "nasceu na Rota Especial pelo Sim no passo 3")
     avisos.avisar_tarefas_novas(supabase, caso["id"], {})
     if tarefas is not None:
         agente_de_triagem.agendar_triagem_do_caso(tarefas, supabase, caso["id"])
