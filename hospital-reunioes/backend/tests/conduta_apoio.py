@@ -1,9 +1,9 @@
 """Dublê do banco para os testes do Canal de Conduta (issue #1820).
 
-Um PostgREST em memória com o que o módulo usa: select, eq, in_, is_,
-order, limit, insert e update (recusado na trilha, como o banco). O `insert`
-da trilha confere a cadeia como o trigger da
-migration 175 (a linha nova aponta para a última do caso), para o serviço ser
+Um PostgREST em memória com o que o módulo usa: select, eq, in_, is_, order,
+limit, insert e update (recusado nas tabelas imutáveis, como o banco faz). O
+`insert` confere as chaves únicas, e o da trilha confere a cadeia como o
+trigger da migration 175 (a linha nova aponta para a última do caso), para o serviço ser
 exercitado contra a mesma recusa que o banco faz.
 """
 
@@ -68,10 +68,10 @@ class _Consulta:
         self._inserir = [dict(linhas)] if isinstance(linhas, dict) else [dict(linha) for linha in linhas]
         return self
 
-    def update(self, valores):
-        if self._nome == "conduta_trilha":
-            raise AssertionError("a trilha do caso não se atualiza")
-        self._atualizar = dict(valores)
+    def update(self, campos):
+        if self._nome in IMUTAVEIS:
+            raise AssertionError(f"o banco recusa UPDATE em {self._nome}")
+        self._atualizar = dict(campos)
         return self
 
     def execute(self):
@@ -88,6 +88,17 @@ class _Consulta:
             coluna, desc = self._ordem
             linhas.sort(key=lambda linha: linha.get(coluna), reverse=desc)
         return SimpleNamespace(data=linhas[: self._teto] if self._teto is not None else linhas)
+
+
+# As tabelas que o banco não deixa alterar (migrations 175 e 179).
+IMUTAVEIS = ("conduta_trilha", "conduta_prazos_vencidos")
+
+# As chaves únicas que o módulo usa para não gravar duas vezes (migration 179).
+UNICAS = {
+    "conduta_prazos_vencidos": ("caso_id", "prazo_em"),
+    "conduta_contestacoes": ("caso_id",),
+    "conduta_contestacao_votos": ("contestacao_id", "participante_id"),
+}
 
 
 class Banco:
@@ -113,6 +124,9 @@ class Banco:
             # O DEFAULT now() da migration 184.
             linha = {"id": str(uuid.uuid4()), "registrado_em": datetime.now(UTC).isoformat(), **linha}
         else:
+            chave = UNICAS.get(nome)
+            if chave and any(all(x.get(c) == linha.get(c) for c in chave) for x in self.tabelas.get(nome, [])):
+                raise APIError({"code": "23505", "message": f"duplicate key value violates unique constraint ({nome})"})
             linha = {"id": str(uuid.uuid4()), **linha}
         self.tabelas.setdefault(nome, []).append(linha)
         return dict(linha)

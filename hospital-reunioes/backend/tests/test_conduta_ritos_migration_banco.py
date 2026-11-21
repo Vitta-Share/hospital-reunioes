@@ -87,7 +87,9 @@ def vencido(banco):
 
 @pytest.mark.parametrize("papel", ["service_role", None])
 def test_prazo_vencido_nao_se_altera(banco, vencido, papel):
-    r = banco.sql(f"UPDATE conduta_prazos_vencidos SET prazo_em = '2027-01-01' WHERE caso_id = '{vencido}';", papel=papel)
+    r = banco.sql(
+        f"UPDATE conduta_prazos_vencidos SET prazo_em = '2027-01-01' WHERE caso_id = '{vencido}';", papel=papel
+    )
     assert r.returncode != 0
     assert "para sempre" in r.stderr
     assert banco.ok(f"SELECT prazo_em FROM conduta_prazos_vencidos WHERE caso_id = '{vencido}';") == "2026-10-01"
@@ -108,7 +110,8 @@ def test_prazo_vencido_nao_se_trunca(banco, vencido):
 
 def test_o_mesmo_prazo_vencido_entra_uma_vez(banco, vencido):
     r = banco.sql(
-        f"INSERT INTO conduta_prazos_vencidos (caso_id, rito, prazo_em) VALUES ('{vencido}', 'completo', '2026-10-01');",
+        "INSERT INTO conduta_prazos_vencidos (caso_id, rito, prazo_em) "
+        f"VALUES ('{vencido}', 'completo', '2026-10-01');",
         papel="service_role",
     )
     assert r.returncode != 0

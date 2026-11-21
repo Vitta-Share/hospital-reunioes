@@ -30,7 +30,23 @@ SLUG_DO_COMITE = "conduta"
 PAPEIS_DA_FILA_COMUM = ("coordenacao", "segundo_leitor", "membro")
 
 # O que a lista mostra: metadados em claro, nunca o conteúdo cifrado.
-CAMPOS_DA_LISTA = ("id", "protocolo", "rota", "etapa", "categoria", "recebido_em", "prazo_em")
+CAMPOS_DA_LISTA = (
+    "id",
+    "protocolo",
+    "rota",
+    "etapa",
+    "categoria",
+    "recebido_em",
+    "prazo_em",
+    "escopo",
+    "rito",
+    "destino",
+    "triagem_em",
+    "conferida_em",
+    "prorrogado_em",
+    "encerrado_em",
+    "desfecho",
+)
 
 
 @dataclass(frozen=True)
@@ -138,12 +154,14 @@ def casos_da_pessoa(supabase, pessoa: PessoaNoComite) -> list[dict] | None:
     return sorted(abertos, key=lambda caso: str(caso.get("recebido_em") or ""), reverse=True)
 
 
-def caso_se_a_pessoa_abre(supabase, pessoa: PessoaNoComite, caso_id: str) -> dict | None:
-    """O caso inteiro (com o conteúdo cifrado) se a pessoa abre, senão None.
-    Caso que não existe e caso fechado para ela dão o mesmo None."""
+def caso_se_a_pessoa_abre(supabase, pessoa: PessoaNoComite, caso_id: str) -> tuple[dict, list[dict]] | None:
+    """O caso inteiro (com o conteúdo cifrado) e as atribuições da pessoa nele,
+    se ela abre; senão None. Caso que não existe e caso fechado para ela dão o
+    mesmo None."""
     linhas = supabase.table("conduta_casos").select("*").eq("id", caso_id).limit(1).execute().data or []
     if not linhas:
         return None
     atribuicoes, citados = _atribuicoes_e_citacoes(supabase, pessoa)
     caso = linhas[0]
-    return caso if pode_abrir(caso, pessoa, atribuicoes.get(caso_id, []), caso_id in citados) else None
+    do_caso = atribuicoes.get(caso_id, [])
+    return (caso, do_caso) if pode_abrir(caso, pessoa, do_caso, caso_id in citados) else None
