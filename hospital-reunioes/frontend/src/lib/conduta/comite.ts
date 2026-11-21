@@ -5,6 +5,7 @@
  * Quem decide o que cada pessoa pode fazer é o servidor: a caixa "O QUE FAZER
  * AGORA" chega pronta, com o motivo do botão bloqueado.
  */
+import type { Depoimento } from "@/lib/conduta/depoimentos";
 import { createClient } from "@/lib/supabase/client";
 
 export type Rito = "encaminhamento" | "rapido" | "completo";
@@ -103,6 +104,9 @@ export interface CasoAberto extends CasoDaLista {
   encerrado_em: string | null;
   desfecho: string | null;
   notas_ao_nsp?: NotaAoNucleo[];
+  /** Os cartões da Apuração (issue #1830). */
+  depoimentos: Depoimento[];
+  avanco_da_apuracao: string | null;
 }
 
 export const RITOS: { valor: Rito; rotulo: string; prazo: string }[] = [

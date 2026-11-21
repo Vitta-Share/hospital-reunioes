@@ -16,7 +16,15 @@ from pydantic import BaseModel, Field, field_validator
 from supabase import Client
 
 from app.dependencies import get_supabase_client
-from app.services.conduta import avisos, cifra, configuracoes, impedimento, nota_ao_nucleo, triagem
+from app.services.conduta import (
+    avisos,
+    cifra,
+    configuracoes,
+    depoimentos,
+    impedimento,
+    nota_ao_nucleo,
+    triagem,
+)
 from app.services.conduta.acesso import CAMPOS_DA_LISTA, hoje_em_sao_paulo
 from app.services.conduta.portao import (
     INDISPONIVEL,
@@ -118,6 +126,7 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         impedimentos = impedimento.para_a_tela(
             supabase, caso["id"], aberto.autor_id, impedimento.membros_do_caso(supabase, caso)
         )
+        cartoes = depoimentos.para_a_tela(supabase, caso)
     except cifra.CifraIndisponivelError as erro:
         raise _indisponivel(erro) from erro
     vencidos = triagem.registrar_vencidos(supabase, [caso], hoje_em_sao_paulo())
@@ -141,6 +150,7 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         else None,
         "orientacao": orientacao,
         "notas_ao_nsp": notas_ao_nsp,
+        **cartoes,
     }
 
 
