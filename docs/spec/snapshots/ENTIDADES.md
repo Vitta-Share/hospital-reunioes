@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T16:46+0000 -->
+<!-- last_update: 2026-11-21T20:04+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2470,7 +2470,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## rotinas
 
-> Origem: `177_rotina_e_verificacao.sql`
+> Origem: `177_rotina_e_verificacao.sql` (alterada em: 194_revisao_da_rotina.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2488,6 +2488,8 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `encerrada_por_nome` | `TEXT` | — | — | — |
 | `anotacao_encerramento` | `TEXT` | — | — | — |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `revisada_em` | `DATE` | — | — | — |
+| `revisada_por_nome` | `TEXT` | — | — | — |
 
 **Indexes:**
 - `idx_rotinas_responsavel` em `(responsavel_id)` (de `177_rotina_e_verificacao.sql`)
