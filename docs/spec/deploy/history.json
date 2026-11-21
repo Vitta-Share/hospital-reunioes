@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T12:53:18-03:00",
+      "sha": "130363335e4d2993c13dac215d200b1ecd737651",
+      "app_version": "0.341.0",
+      "subject": "Onda sesta-1757-onda6: Contestação do item da Ata na assinatura, com Ajustar e Recusar",
+      "raw_subject": "chore(deploy): registro da onda sesta-1757-onda6 (#2067)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1757
+      ],
+      "result": "healthy",
+      "duration_seconds": 2184,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "187_contestacao_do_item_da_ata.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1757-onda6: PR #2067 (issue #1870), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 4,
+        "build_s": {
+          "backend": 20,
+          "frontend": 224
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T12:45:39-03:00",
       "sha": "a7ed5ac25b297859b718d8872b049fcbf12d1ac5",
       "app_version": "0.340.2",
