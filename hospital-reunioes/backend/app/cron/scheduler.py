@@ -71,6 +71,11 @@ Jobs:
      podem sair (issue #1985): o que esperou a janela comercial e o que falhou e
      voltou com espera crescente. Reivindica cada registro antes de enviar, e o que
      saiu fica marcado: nada sai duas vezes. Sem IA.
+ 19. fotografar_painel_de_reunioes: segunda-feira, de hora em hora das 07h às 12h,
+     grava os cards do painel de Reuniões de cada pessoa que vê o painel (issue
+     #1873). Alimenta a evolução de 8 semanas e a seta dos cards. Idempotente
+     por semana: quem já tem a fotografia da semana não é fotografado de novo,
+     e a chave da tabela garante uma por pessoa e semana. Sem IA.
 
 Nenhum job dispara IA por conta própria (ADR 0082): a recomendação da Validação
 e o segundo agente de Contas médicas rodam só pelo botão da tela. A fila de
@@ -118,6 +123,22 @@ def apagar_registro_de_acesso_antigo() -> None:
 
 def _hoje() -> date:
     return datetime.now(tz=_TZ).date()
+
+
+def fotografar_painel_de_reunioes() -> None:
+    """A fotografia semanal do painel de Reuniões (issue #1873). Roda na
+    segunda, de hora em hora das 07h às 12h: o jobstore é em memória, e um
+    deploy às 07h não perde a semana, que sai na hora seguinte. A segunda
+    passada não regrava nada. Sem IA."""
+    from app.services import fotografia_do_painel, painel_reunioes
+
+    try:
+        gravadas = fotografia_do_painel.fotografar_semana(_supabase(), hoje=_hoje(), agora=painel_reunioes.agora_utc())
+    except Exception as e:
+        logger.error(f"[Cron] Erro em fotografar_painel_de_reunioes: {type(e).__name__}")
+        return
+    if gravadas:
+        logger.info(f"[Cron] Fotografia semanal do painel de Reuniões: {gravadas} pessoa(s).")
 
 
 def enviar_lembretes_24h() -> None:
@@ -802,6 +823,17 @@ def start_scheduler() -> None:
         id="avisos_termo_e_vigencia_nsp",
         replace_existing=True,
     )
+    # Segunda, 07h a 12h: a fotografia da semana sai na primeira passada, e as
+    # outras só pegam quem faltou (issue #1873).
+    scheduler.add_job(
+        fotografar_painel_de_reunioes,
+        "cron",
+        day_of_week="mon",
+        hour="7-12",
+        minute=0,
+        id="fotografia_painel_reunioes",
+        replace_existing=True,
+    )
     scheduler.add_job(
         despachar_emails_nsp,
         "interval",
@@ -861,7 +893,8 @@ def start_scheduler() -> None:
         "relatorio_quinzenal_ouvidoria (07:00 diário, email nos dias 1 e 16), "
         "reconciliacao_tecnologia (de hora em hora), nota_do_google (06:45, uma leitura por semana), "
         "agenda_regulatoria_nsp (05:45), avisos_termo_e_vigencia_nsp (08:00), emails_nsp (a cada 10min), "
-        "encerramento_atas_nsp (05:50), transcricoes_nsp (04:15)"
+        "encerramento_atas_nsp (05:50), transcricoes_nsp (04:15), "
+        "fotografia_painel_reunioes (segunda, 07h a 12h)"
     )
 
 

@@ -13,8 +13,9 @@ recorte de quem pede (`pendencias_recorte`, issue #1863):
   Núcleo esconde (ADR 0095).
 
 O alerta de 48 horas e a Minha Fila não moram aqui: estão no Início (ADR
-0104). A evolução semanal é de outra fatia; o `por_setor` daqui mantém o
-gráfico que o painel já tinha, no recorte de quem pede.
+0104). A evolução semanal e a seta dos cards vêm da fotografia de segunda
+(`fotografia_do_painel`, issue #1873); o `por_setor` daqui mantém o gráfico
+que o painel já tinha, no recorte de quem pede.
 
 O gráfico de atrasos por setor e o ranking de 90 dias (issue #1871) contam o
 hospital inteiro (decisão 55 do diretor), menos o Núcleo que o Núcleo esconde,
@@ -120,6 +121,13 @@ class LinhaDoRanking(AtrasosDoPainel):
     setor: str
 
 
+class SemanaDaEvolucao(BaseModel):
+    """Uma semana fotografada (issue #1873): a segunda-feira e as atrasadas."""
+
+    semana: str
+    atrasadas: int
+
+
 class PainelDeReunioes(BaseModel):
     cards: CardsDoPainel
     situacoes: SituacoesDoPainel
@@ -129,6 +137,11 @@ class PainelDeReunioes(BaseModel):
     # None para quem não é Super admin nem Facilitador (issue #1871).
     atrasos_por_setor: list[SetorDosAtrasos] | None = None
     ranking: list[LinhaDoRanking] | None = None
+    # A fotografia semanal (issue #1873): as atrasadas das últimas 8 semanas
+    # fotografadas e os cards da semana anterior, que dão a seta. Sem a
+    # fotografia da semana anterior, ou com filtro, None: o card fica sem seta.
+    evolucao: list[SemanaDaEvolucao] = []
+    semana_anterior: CardsDoPainel | None = None
 
 
 @dataclass(frozen=True)
