@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     # avaliação com comentário na chegada. Variável própria para trocar o
     # modelo sem mexer no resto da IA de texto.
     ouvidoria_agente_modelo: str = "claude-sonnet-5-5"
+    # Os agentes do Canal de Conduta que rodam depois de um clique, como o
+    # relatório de apuração (issue #1832, ADR 0097, decisão 6).
+    conduta_agente_modelo: str = "claude-sonnet-5-5"
     # O agente de triagem do Núcleo (issue #1990, ADR 0095 e 0107). Nasce
     # desligado: o Anexo F proíbe publicar antes de o teste de aceite dos 144
     # casos bater as metas (`scripts/nsp_teste_de_aceite.py`). Desligado, toda

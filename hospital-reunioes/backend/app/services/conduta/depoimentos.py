@@ -313,6 +313,61 @@ def para_a_tela(supabase, caso: dict) -> dict[str, Any]:
     return {"depoimentos": cartoes, "avanco_da_apuracao": bloqueio_do_avanco(lista)}
 
 
+def do_caso(supabase, caso_id: str) -> list[dict]:
+    """Os depoimentos do caso, ainda cifrados, na ordem em que entraram."""
+    return _do_caso(supabase, caso_id)
+
+
+_EXTENSAO_DO_CONTENT_TYPE = {
+    content_type: extensao for extensao, content_type in TIPOS["transcricao"].content_types.items()
+}
+
+
+def _texto_da_transcricao(supabase, arquivos: list[dict]) -> str | None:
+    """O texto da última versão da transcrição, ou None sem transcrição. O PDF
+    e o DOCX passam pelo extrator isolado (issue #758)."""
+    from app.services.transcricao_extractor import extrair_texto
+
+    versoes = sorted((a for a in arquivos if a["tipo"] == "transcricao"), key=lambda a: a["versao"])
+    if not versoes:
+        return None
+    ultima = versoes[-1]
+    cifrado = storage.download_file(supabase, BUCKET, ultima["storage_path"])
+    if cifrado is None:
+        return "(a transcrição não pôde ser lida agora)"
+    conteudo = cifra.decifrar_arquivo(cifrado)
+    if ultima["content_type"].startswith("text/"):
+        return conteudo.decode("utf-8", errors="replace").strip()
+    try:
+        return extrair_texto(f"transcricao{_EXTENSAO_DO_CONTENT_TYPE[ultima['content_type']]}", conteudo)[0]
+    except (KeyError, ValueError):
+        return "(a transcrição não pôde ser lida)"
+
+
+def material_da_apuracao(supabase, caso_id: str) -> list[dict[str, str]]:
+    """O que cada pessoa ouvida disse, para o relatório de apuração (issue
+    #1832): papel, nome, cargo e o texto (a transcrição ou, sem gravação, os
+    pontos da conversa), já decifrados. Os nomes saem daqui só para virar
+    marcador antes do agente."""
+    lista = _do_caso(supabase, caso_id)
+    arquivos = _arquivos(supabase, [d["id"] for d in lista])
+    material = []
+    for depoimento in lista:
+        if depoimento.get("sem_gravacao_em"):
+            texto = cifra.decifrar_texto(depoimento["pontos_cifrados"])
+        else:
+            texto = _texto_da_transcricao(supabase, [a for a in arquivos if a["depoimento_id"] == depoimento["id"]])
+        material.append(
+            {
+                "papel": PAPEIS[depoimento["papel"]],
+                "nome": cifra.decifrar_texto(depoimento["nome_cifrado"]),
+                "cargo": cifra.decifrar_texto(depoimento["cargo_cifrado"]),
+                "texto": texto or "(depoimento ainda sem transcrição)",
+            }
+        )
+    return material
+
+
 # ── Ações ───────────────────────────────────────────────────────────────────
 
 

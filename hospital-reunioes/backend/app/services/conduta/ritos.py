@@ -48,7 +48,7 @@ ETAPA_DO_RITO = {"encaminhamento": "encaminhamento", "rapido": "apuracao", "comp
 
 TRILHO = ("Triagem", "Apuração", "Voto", "Ata", "Medida", "Acompanhamento")
 TRILHO_DO_ENCAMINHAMENTO = ("Triagem", "Encaminhado")
-_POSICAO_NO_TRILHO = {"triagem": 0, "contestada": 0, "encaminhamento": 0, "apuracao": 1}
+_POSICAO_NO_TRILHO = {"triagem": 0, "contestada": 0, "encaminhamento": 0, "apuracao": 1, "voto": 2}
 
 
 def orientacao_do_encaminhamento(destino: str) -> str:
@@ -124,6 +124,11 @@ class Olhar:
     votante: bool
     contestacao: dict[str, Any] | None = None
     ja_votou_na_contestacao: bool = False
+    # A Apuração chegou ao relatório (issue #1832): quem pode enviar para voto
+    # e o que ainda falta, numa linha (`relatorio.olhar_do_envio`).
+    fase_do_relatorio: bool = False
+    envia_para_voto: bool = False
+    bloqueio_do_voto: str | None = None
 
 
 def trilho(caso: dict[str, Any]) -> list[dict[str, str]]:
@@ -159,6 +164,16 @@ _COMO_APURACAO = (
     "Use o roteiro sugerido",
     "Grave e diga o consentimento no início",
     "Siga os passos do cartão até concluir o depoimento",
+)
+_COMO_RELATORIO = (
+    "Confira fatos e datas",
+    "Confira a versão do acusado",
+    "Confira a regra do Código indicada",
+)
+_COMO_VOTO = (
+    "Escolha o resultado",
+    "Escolha a medida da Matriz",
+    "Escreva sua justificativa em até três linhas",
 )
 _COMO_CONFERIR = (
     "Leia o relato original",
@@ -235,6 +250,22 @@ def o_que_fazer_agora(caso: dict[str, Any], olhar: Olhar) -> dict[str, Any]:
             _COMO_FORA,
             "enviar_orientacao",
             bloqueio,
+        )
+    if etapa == "voto":
+        return _caixa(
+            "Leia o dossiê e vote. Seu voto fica oculto até todos votarem.",
+            "VOTAR",
+            _COMO_VOTO,
+            "votar",
+            "A votação chega numa próxima etapa do aplicativo.",
+        )
+    if olhar.fase_do_relatorio:
+        return _caixa(
+            "Revise o relatório de uma página antes de enviar para voto.",
+            "ENVIAR PARA VOTO",
+            _COMO_RELATORIO,
+            "enviar_para_voto",
+            olhar.bloqueio_do_voto if olhar.envia_para_voto else "Só quem apurou ou a coordenação envia para voto.",
         )
     return _caixa(
         "Ouça o acusado e até duas pessoas. Sempre em dupla.",

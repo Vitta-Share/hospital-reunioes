@@ -98,6 +98,7 @@ IMUTAVEIS = (
     "conduta_prazos_vencidos",
     "conduta_depoimento_arquivos",
     "conduta_depoimento_conferencia",
+    "conduta_relatorios",
 )
 
 # As chaves únicas que o módulo usa para não gravar duas vezes (migrations 185 e 193).
@@ -108,6 +109,7 @@ UNICAS = {
     "conduta_participacao_votos": ("contestacao_id", "participante_id"),
     "conduta_depoimento_arquivos": ("depoimento_id", "tipo", "versao", "pagina"),
     "conduta_depoimento_conferencia": ("depoimento_id", "item"),
+    "conduta_relatorios": ("caso_id", "tipo", "versao"),
 }
 
 
