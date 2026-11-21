@@ -2,6 +2,53 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T17:16:08-03:00",
+      "sha": "b6eaab09009b2d115ad11e0a94d1a378d82931d9",
+      "app_version": "0.348.0",
+      "subject": "Onda sesta-1757-onda9: E-mail de segunda para o Facilitador e o responsável",
+      "raw_subject": "chore(deploy): registro da onda sesta-1757-onda9 (#2099)",
+      "scope": [
+        "backend"
+      ],
+      "prds": [
+        1757
+      ],
+      "result": "healthy",
+      "duration_seconds": 650,
+      "services_touched": [
+        "backend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "196_email_de_segunda.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1757-onda9: PR #2099 (issue #1876), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 20
+        },
+        "health_s": 20
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T17:12:20-03:00",
       "sha": "24efccc7f861352204bfe705202cabc99af3eebb",
       "app_version": "0.347.0",

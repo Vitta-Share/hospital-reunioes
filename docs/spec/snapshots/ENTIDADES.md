@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T20:04+0000 -->
+<!-- last_update: 2026-11-21T20:15+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2698,6 +2698,19 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_painel_fotografias_semana` em `(semana)` (de `189_fotografia_semanal_do_painel.sql`)
 
+## email_de_segunda
+
+> Origem: `196_email_de_segunda.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `participante_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `semana` | `DATE` | NOT NULL | — | — |
+| `enviado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_email_de_segunda_semana` em `(semana)` (de `196_email_de_segunda.sql`)
+
 ---
 
-**Resumo:** 133 tabelas vivas.
+**Resumo:** 134 tabelas vivas.
