@@ -408,21 +408,23 @@ async def responder_as_perguntas(
     supabase: Client = Depends(get_supabase_client),
 ) -> dict:
     """Quem notificou responde as perguntas, na confirmação ou no
-    acompanhamento. Antes da confirmação da triagem, o agente lê de novo,
-    depois da resposta; depois, a resposta só fica gravada."""
+    acompanhamento. O agente lê de novo depois da resposta, só enquanto a
+    triagem não foi confirmada; depois, a resposta só fica gravada."""
     caso = _caso_conferido(supabase, envio)
     try:
-        ler_de_novo = esclarecimentos.responder(
-            supabase, caso, [(item.pergunta, item.resposta) for item in envio.respostas]
-        )
-        abertas, _ = esclarecimentos.pendentes(supabase, caso["id"])
+        esclarecimentos.responder(supabase, caso, [(item.pergunta, item.resposta) for item in envio.respostas])
     except esclarecimentos.PerguntaSemVagaError as erro:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=PERGUNTA_SEM_VAGA) from erro
     except (APIError, httpx.HTTPError) as erro:
         logger.error("Falha ao gravar a resposta de esclarecimento: %s", type(erro).__name__)
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=FALHA_DAS_PERGUNTAS) from erro
-    if ler_de_novo:
-        agente_de_triagem.agendar_triagem_com_esclarecimentos(tarefas, supabase, caso["id"])
+    agente_de_triagem.agendar_triagem_com_esclarecimentos(tarefas, supabase, caso["id"])
+    try:
+        abertas, _ = esclarecimentos.pendentes(supabase, caso["id"])
+    except (APIError, httpx.HTTPError) as erro:
+        # A resposta já ficou: a tela consulta de novo.
+        logger.error("Falha ao ler as perguntas depois da resposta: %s", type(erro).__name__)
+        abertas = []
     return {"perguntas": abertas}
 
 

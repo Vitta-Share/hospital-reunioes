@@ -66,10 +66,11 @@ def pendentes(supabase, notificacao_id: str) -> tuple[list[str], dict[str, Any] 
     return [p for p in (ultima.get("perguntas_ao_notificante") or []) if p not in ja], ultima
 
 
-def responder(supabase, caso: dict[str, Any], respostas: list[tuple[str, str]]) -> bool:
-    """Grava as respostas de quem notificou. Devolve se o agente deve rodar
-    de novo: só enquanto a triagem não foi confirmada. A pergunta que não
-    está esperando resposta recusa tudo, sem gravar nada."""
+def responder(supabase, caso: dict[str, Any], respostas: list[tuple[str, str]]) -> None:
+    """Grava as respostas de quem notificou. A pergunta que não está
+    esperando resposta recusa tudo, sem gravar nada. Se o agente lê de novo,
+    quem decide é a nova leitura (`agente_de_triagem`), que confere a
+    confirmação na hora em que roda."""
     abertas, ultima = pendentes(supabase, caso["id"])
     perguntas = [pergunta for pergunta, _ in respostas]
     if not respostas or len(set(perguntas)) != len(perguntas) or any(p not in abertas for p in perguntas):
@@ -87,7 +88,6 @@ def responder(supabase, caso: dict[str, Any], respostas: list[tuple[str, str]]) 
         if erro.code == "23505":
             raise PerguntaSemVagaError("pergunta já respondida") from erro
         raise
-    return not triagem_confirmada(caso)
 
 
 def texto_para_o_agente(supabase, notificacao_id: str) -> str:

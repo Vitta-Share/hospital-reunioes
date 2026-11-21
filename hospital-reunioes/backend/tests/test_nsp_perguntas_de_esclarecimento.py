@@ -141,6 +141,19 @@ def test_enquanto_o_agente_le_a_notificacao_a_confirmacao_aguarda(monkeypatch, l
     assert resposta.json() == {"perguntas": [], "aguardando": True}
 
 
+def test_com_o_agente_desligado_a_confirmacao_nao_espera_pela_leitura(monkeypatch):
+    """Antes de a marca "classificar manualmente" chegar, a confirmação já
+    sabe que não vem pergunta nenhuma."""
+    monkeypatch.setattr(settings, "nsp_agente_ligado", False)
+    monkeypatch.setattr(agente_de_triagem, "agendar_triagem_do_nucleo", lambda *_a: None)
+    banco = _banco_do_nucleo()
+
+    recibo = _notificar(banco)
+    resposta = _cliente(banco).post(PERGUNTAS, json=_chave(recibo))
+
+    assert resposta.json() == {"perguntas": [], "aguardando": False}
+
+
 def test_a_chave_errada_nao_mostra_as_perguntas(monkeypatch, ligado):
     _com_modelo(monkeypatch, COM_PERGUNTAS)
     banco = _banco_do_nucleo()
