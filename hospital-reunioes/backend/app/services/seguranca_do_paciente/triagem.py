@@ -17,7 +17,7 @@ O agente sugere (`agente_de_triagem`) e a Presidência decide aqui. Três peças
 Nas faixas A e B, com menção a morte, com evento da lista "possível" ou quando
 quem notificou marcou grave e o agente sugeriu menos, confirmar exige cada
 campo conferido: não existe "aceitar tudo". O banco guarda uma decisão de
-pessoa por notificação (migration 189).
+pessoa por notificação (migration 194).
 """
 
 from __future__ import annotations
@@ -250,7 +250,7 @@ def _meses_antes(dia: date, meses: int) -> date:
 
 
 def cortes_de_frequencia(supabase) -> dict[str, int]:
-    """Os cortes da Configuração, ou o padrão enquanto a migration 189 não
+    """Os cortes da Configuração, ou o padrão enquanto a migration 194 não
     rodou."""
     try:
         linhas = (
