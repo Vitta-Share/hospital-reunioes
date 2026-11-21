@@ -122,6 +122,8 @@ let aoAnalisarDeNovo: (url: string) => Response;
 const chamadas: { url: string; init?: RequestInit }[] = [];
 /** O que a rota do painel lateral responde (issue #1418). */
 let detalheDoServidor: DetalheDoProcessamento;
+/** A rota da fila responde 500 (o erro ao carregar). */
+let aFilaFalha: boolean;
 
 beforeEach(() => {
   filaDoServidor = FILA;
@@ -129,6 +131,7 @@ beforeEach(() => {
   respostaDoDescarte = () => new Response(JSON.stringify({ descartada: "erro" }));
   aoAnalisarDeNovo = () => new Response(JSON.stringify({ situacao: "NA_FILA" }));
   chamadas.length = 0;
+  aFilaFalha = false;
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
@@ -136,6 +139,7 @@ beforeEach(() => {
       // Cada rota devolve só as listas dela, como o backend (issue #1308).
       const { todas, fila, minhas, meus_envios, concluidas, barra, contagem } = filaDoServidor;
       const { envios, ...daAnalise } = contagem ?? {};
+      if (url === "/api/contas-medicas/fila" && aFilaFalha) return new Response("{}", { status: 500 });
       if (url === "/api/contas-medicas/fila")
         return new Response(JSON.stringify({ todas, fila, minhas, concluidas, contagem: daAnalise }));
       if (url === "/api/contas-medicas/meus-envios")
@@ -206,6 +210,15 @@ describe("a Esteira (issue #1951)", () => {
     await linhas();
 
     expect(within(esteira()).queryByText("As contas prontas que ninguém pegou, na ordem de envio.")).toBeNull();
+  });
+
+  it("o erro ao carregar aparece na lista, com a Esteira no lugar", async () => {
+    aFilaFalha = true;
+    render(<ContasMedicasPage />);
+
+    const lista = await screen.findByRole("region", { name: "Lista de contas" });
+    expect((await within(lista).findByRole("alert")).textContent).toContain("Não consegui carregar a fila.");
+    expect(within(esteira()).getAllByRole("tab").length).toBeGreaterThan(0);
   });
 
   it("cada etapa vazia diz isso com todas as letras", async () => {
