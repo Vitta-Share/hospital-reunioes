@@ -124,6 +124,14 @@ class _Consulta:
         self._filtros.append(lambda linha: linha.get(coluna) is None)
         return self
 
+    def gte(self, coluna, valor):
+        self._filtros.append(lambda linha: linha.get(coluna) is not None and str(linha.get(coluna)) >= str(valor))
+        return self
+
+    def limit(self, quantos):
+        self._recorte = (0, quantos - 1)
+        return self
+
     def or_(self, filtro):
         condicoes = [_condicao(p) for p in _partes_do_or(filtro)]
         self._filtros.append(lambda linha: any(c(linha) for c in condicoes))
@@ -340,7 +348,36 @@ def test_secretaria_nao_recebe_dado_de_pendencia(painel):
     assert "situacoes" not in resposta.json()
 
 
-# ─── 4. O kit de conhecimento ────────────────────────────────────────────────
+# ─── 4. O gráfico de atrasos por setor e o ranking de 90 dias (issue #1871) ──
+
+
+def _evento(id_acao, comando, criado_em, *, conta_atraso=False, status_antes="PENDENTE") -> dict:
+    return {
+        "id_acao": id_acao,
+        "comando": comando,
+        "criado_em": criado_em,
+        "conta_atraso": conta_atraso,
+        "status_antes": status_antes,
+    }
+
+
+def _ranking(corpo) -> dict:
+    return {linha["responsavel_id"]: linha for linha in corpo["ranking"]}
+
+
+def test_ranking_so_para_super_admin_e_quem_facilita_alguma_reuniao(painel):
+    pedir, estado = painel
+    estado["banco"] = _banco_de_papeis()
+
+    # Fábio facilita a R1 e a R3; o Super admin vê; Ana só é responsável.
+    assert pedir("admin").json()["ranking"] is not None
+    assert pedir("fabio").json()["ranking"] is not None
+    corpo_da_ana = pedir("ana").json()
+    assert corpo_da_ana["ranking"] is None
+    assert corpo_da_ana["atrasos_por_setor"] is None
+
+
+# ─── 5. O kit de conhecimento ────────────────────────────────────────────────
 
 
 def test_o_texto_de_reunioes_no_kit_diz_o_painel_novo():
