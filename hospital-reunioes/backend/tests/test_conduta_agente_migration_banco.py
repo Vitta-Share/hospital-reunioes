@@ -1,6 +1,6 @@
-"""A migration 195 do agente de triagem do Canal num Postgres de verdade (issue #1827).
+"""A migration 200 do agente de triagem do Canal num Postgres de verdade (issue #1827).
 
-Sobe um Postgres descartável, aplica a 175 e a 195 (a 195 duas vezes) sobre o
+Sobe um Postgres descartável, aplica a 175 e a 200 (a 200 duas vezes) sobre o
 mínimo de antes e prova no banco:
 
 - a cota do agente para no teto do dia, e só a `service_role` a chama;
@@ -21,7 +21,7 @@ from test_conduta_migration_banco import ESQUEMA_ANTERIOR
 from test_conduta_migration_banco import MIGRATION as MIGRATION_175
 from test_pendencia_historico_banco import _bin_do_postgres, _Postgres
 
-MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "195_conduta_agente_de_triagem.sql"
+MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "200_conduta_agente_de_triagem.sql"
 
 TABELAS_NOVAS = ("conduta_sugestoes", "conduta_sugestao_respostas", "conduta_agente_cota")
 
@@ -34,7 +34,7 @@ def banco():
             pytest.fail("O CI precisa do initdb para provar a cota do agente no banco.")
         pytest.skip("Sem initdb nesta máquina.")
     pg = _Postgres(bindir)
-    pg.porta = "54195"
+    pg.porta = "54200"
     pg.subir()
     try:
         pg.ok(ESQUEMA_ANTERIOR)

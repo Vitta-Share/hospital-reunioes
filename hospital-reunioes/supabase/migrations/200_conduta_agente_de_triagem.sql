@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 195: Canal de Conduta, o agente de triagem
+-- Migration 200: Canal de Conduta, o agente de triagem
 -- (issue #1827, PRD #1786, ADR 0097, decisões 6, 7 e 15; especificação,
 -- seções 6.1 e 11 e Anexo A)
 -- =====================================================
@@ -106,4 +106,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (195) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (200) ON CONFLICT (numero) DO NOTHING;

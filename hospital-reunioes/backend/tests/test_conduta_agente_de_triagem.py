@@ -87,7 +87,7 @@ class Modelo:
 
 
 class BancoComCota(Banco):
-    """O dublê com a função da cota da migration 195 e a chave única do caso
+    """O dublê com a função da cota da migration 200 e a chave única do caso
     em `conduta_sugestoes`."""
 
     def __init__(self, tabelas=None, *, teto_atingido: bool = False):

@@ -24,7 +24,7 @@ e outra na trilha:
   diz por quê. O relato nunca fica retido.
 
 Cada chamada gasta uma das `TETO_DIARIO` leituras do dia, contadas no banco à
-parte da Ouvidoria e do Núcleo (migration 195). O SDK não repete
+parte da Ouvidoria e do Núcleo (migration 200). O SDK não repete
 (`max_retries=0`).
 """
 
