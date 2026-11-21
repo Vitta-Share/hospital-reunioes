@@ -1,8 +1,8 @@
 """O portão único do lado do Comitê do Canal de Conduta (ADR 0097, decisão 4).
 
-Toda rota do Comitê depende de `portao_da_lista` ou de `portao_do_caso`, e
-`tests/test_conduta_varredura.py` reprova a rota do módulo que não dependa.
-A tela Membros, que não mostra caso, tem os dois portões dela:
+Toda rota do Comitê depende de `portao_da_lista`, de `portao_do_caso` ou de
+`portao_da_acao`, e `tests/test_conduta_varredura.py` reprova a rota do módulo
+que não dependa. A tela Membros, que não mostra caso, tem os dois portões dela:
 `portao_dos_membros` (ler) e `portao_do_cadastro` (incluir e encerrar).
 
 Na ordem: a chave de cifra (sem ela, 503 e nada é lido nem gravado), a pessoa
@@ -16,6 +16,7 @@ fechado para a pessoa não se distinguem. O super admin não passa por cima.
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from uuid import UUID
 
 import httpx
@@ -39,6 +40,25 @@ RECUSA = "Sem acesso a este conteúdo do Canal de Conduta"
 INDISPONIVEL = "O Canal de Conduta está indisponível no momento"
 
 
+@dataclass(frozen=True)
+class NoComite:
+    """Quem pediu e os casos que abre, só com os metadados."""
+
+    autor_id: str
+    pessoa: PessoaNoComite
+    casos: list[dict]
+
+
+@dataclass(frozen=True)
+class CasoAberto:
+    """O caso que a pessoa abre, ainda cifrado, e as atribuições dela nele."""
+
+    autor_id: str
+    pessoa: PessoaNoComite
+    caso: dict
+    atribuicoes: list[dict]
+
+
 def _recusar() -> HTTPException:
     return HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=RECUSA)
 
@@ -60,32 +80,49 @@ async def _pessoa(current_user: dict, supabase) -> tuple[dict, PessoaNoComite]:
 async def portao_da_lista(
     current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase_client),
-) -> list[dict]:
+) -> NoComite:
     """Os casos que a pessoa abre, só com os metadados. 403 a quem não tem
     designação nenhuma no Canal."""
-    _, pessoa = await _pessoa(current_user, supabase)
+    me, pessoa = await _pessoa(current_user, supabase)
     casos = casos_da_pessoa(supabase, pessoa)
     if casos is None:
         raise _recusar()
-    return casos
+    return NoComite(autor_id=me["id"], pessoa=pessoa, casos=casos)
+
+
+async def _caso_aberto(caso_id: UUID, current_user: dict, supabase) -> CasoAberto:
+    me, pessoa = await _pessoa(current_user, supabase)
+    aberto = caso_se_a_pessoa_abre(supabase, pessoa, str(caso_id))
+    if aberto is None:
+        raise _recusar()
+    caso, atribuicoes = aberto
+    return CasoAberto(autor_id=me["id"], pessoa=pessoa, caso=caso, atribuicoes=atribuicoes)
 
 
 async def portao_do_caso(
     caso_id: UUID,
     current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase_client),
-) -> dict:
+) -> CasoAberto:
     """O caso inteiro, ainda cifrado, depois de gravada a leitura na trilha."""
-    me, pessoa = await _pessoa(current_user, supabase)
-    caso = caso_se_a_pessoa_abre(supabase, pessoa, str(caso_id))
-    if caso is None:
-        raise _recusar()
+    aberto = await _caso_aberto(caso_id, current_user, supabase)
     try:
-        trilha.registrar(supabase, caso["id"], me["id"], "leitura", "abriu o caso")
+        trilha.registrar(supabase, aberto.caso["id"], aberto.autor_id, "leitura", "abriu o caso")
     except (APIError, httpx.HTTPError) as erro:
         logger.error("Leitura de caso do Canal de Conduta sem registro na trilha; o caso não sai: %s", erro)
         raise _indisponivel() from erro
-    return caso
+    return aberto
+
+
+async def portao_da_acao(
+    caso_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase_client),
+) -> CasoAberto:
+    """O caso em que a pessoa vai agir. A mesma autorização do `portao_do_caso`;
+    a linha da trilha é a da própria ação, gravada por quem age, e sem ela a
+    ação não vale."""
+    return await _caso_aberto(caso_id, current_user, supabase)
 
 
 async def _quem_esta_logado(current_user: dict, supabase) -> dict:

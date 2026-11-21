@@ -17,6 +17,21 @@ A base do sigilo e a tela Membros do Comitê:
 - a lista dos casos e a abertura de um caso, para quem está designado. Cada abertura fica registrada com quem abriu, quando e o quê;
 - o canal está fechado: a página pública responde como se não existisse, até a abertura.
 
+As telas do Comitê, em Comitê de Conduta:
+
+- MINHA VEZ, a tela inicial: só o que depende da pessoa naquele momento, do prazo que vence antes ao que vence depois. Cada linha mostra o protocolo, a etapa, o que falta fazer e o prazo ("Faltam 12 dias"). Vazia, diz "Nada depende de você agora.";
+- Casos: todos os casos a que a pessoa tem acesso, com filtro por situação (em triagem, em andamento, encerrado) e por rito. As duas listas não mostram nome nem trecho de relato;
+- a tela do caso: o trilho do rito no topo (Triagem, Apuração, Voto, Ata, Medida, Acompanhamento), o prazo sempre visível, a triagem, o relato original e a caixa "O QUE FAZER AGORA", com uma frase, um botão e o "Como fazer" em três linhas que abrem ao toque. Quando o botão está bloqueado, a caixa diz o motivo numa linha, como "Só a coordenação confirma a triagem." ou "Falta o segundo leitor conferir a triagem.".
+
+A triagem e os ritos:
+
+- a triagem é manual: a coordenação diz se o caso é do canal (dentro, fora ou misto), a categoria (A a F), o rito e, quando parte do assunto é de fora, para onde ele vai (Departamento Pessoal, Ouvidoria, Núcleo de Segurança do Paciente ou a liderança);
+- o segundo leitor vê a mesma fila e confere cada triagem, ou contesta com o motivo em uma linha e a triagem que defende. A contestação vai à decisão dos três membros votantes, e vale o que dois deles escolherem;
+- os ritos desta fase são Encaminhamento (5 dias úteis, sem contar feriado cadastrado), Rápido (20 dias corridos) e Completo (30 dias corridos). O prazo conta do dia em que o relato foi enviado, nunca da triagem;
+- prazo vencido fica registrado para sempre: nenhum perfil apaga o registro, e prorrogar depois não o tira;
+- o rito Completo prorroga uma única vez, por mais 30 dias, com justificativa escrita, que fica guardada cifrada;
+- no Encaminhamento (assunto fora do canal), depois da conferência do segundo leitor, a coordenação confirma a resposta padrão num clique e o caso encerra como "Encaminhado". A resposta diz ao relator que o assunto não é tratado no canal, para onde ele deve ir e que assédio, ameaça ou retaliação viram um novo relato.
+
 ## A tela Membros
 
 A tela Membros diz quem compõe o Comitê e até quando. Cada linha mostra a pessoa, a cadeira, se ela é diretor, a vigência e a situação: vigente, a começar, vencida ou encerrada. Escolhendo uma data passada, a tela mostra a composição daquele dia.
@@ -55,7 +70,7 @@ Quem não tem acesso recebe a mesma recusa, exista o caso ou não.
 
 ## O que ele ainda não faz
 
-O formulário público de relato, a página de acompanhamento, as telas de casos do Comitê, a triagem com o agente, os ritos, os depoimentos, o voto, a ata, o dossiê e o Termo de Confidencialidade e Posse do membro chegam nas próximas entregas. Por enquanto ninguém relata pelo Canal: os relatos continuam chegando pela Ouvidoria.
+O formulário público de relato, a página de acompanhamento, a sugestão do agente na triagem, a Rota Especial, as perguntas ao relator, os depoimentos, o voto, a ata, o dossiê e o Termo de Confidencialidade e Posse do membro chegam nas próximas entregas. Na apuração, o botão "ADICIONAR PESSOA A OUVIR" aparece bloqueado até os depoimentos chegarem. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ e Casos abrem pelo endereço do Comitê de Conduta. Por enquanto ninguém relata pelo Canal: os relatos continuam chegando pela Ouvidoria.
 
 ## O que já foi decidido
 
@@ -73,3 +88,6 @@ O formulário público de relato, a página de acompanhamento, as telas de casos
 - Pedido para o super admin ler um caso: não é atendido, por decisão da Diretoria.
 - A página pública que não abre: o canal ainda está fechado.
 - Pedido para apagar um registro de acesso: não existe; o registro não se apaga.
+- Pedido para tirar o prazo vencido de um caso: não existe; o vencido fica registrado mesmo depois da prorrogação.
+- Pedido para prorrogar de novo um caso do rito Completo, ou prorrogar um caso do rito Rápido: o rito Completo prorroga uma vez só, e os outros não prorrogam.
+- A coordenação que não consegue encerrar um Encaminhamento: costuma faltar a conferência do segundo leitor.

@@ -29,6 +29,7 @@ from app.middleware.request_context import JsonFormatter, RequestContextMiddlewa
 from app.routers import conduta_comite, conduta_publico  # noqa: E402
 from app.routers.conduta_publico import exigir_canal_aberto  # noqa: E402
 from app.services.conduta.portao import (  # noqa: E402
+    portao_da_acao,
     portao_da_lista,
     portao_do_cadastro,
     portao_do_caso,
@@ -36,7 +37,7 @@ from app.services.conduta.portao import (  # noqa: E402
 )
 
 # Os do caso e, para a tela Membros (issue #1822), os que não abrem caso.
-PORTOES_DO_COMITE = {portao_da_lista, portao_do_caso, portao_dos_membros, portao_do_cadastro}
+PORTOES_DO_COMITE = {portao_da_lista, portao_do_caso, portao_da_acao, portao_dos_membros, portao_do_cadastro}
 PREFIXO_PUBLICO = "/conduta"
 IP_DE_QUEM_RELATA = "203.0.113.45"
 
