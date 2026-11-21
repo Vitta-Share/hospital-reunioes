@@ -10,13 +10,30 @@
  * (`/notificar/modulo`), que já chega identificado pela sessão.
  *
  * O estado mora aqui, acima das telas, e é por isso que voltar não perde nada.
+ *
+ * Os anexos (issue #1988): até 3 fotos ou PDFs na primeira tela, somando menos
+ * de 9 MB, com a foto grande reduzida antes do envio. Com arquivo, o envio vai
+ * em multipart; sem arquivo, no JSON de sempre.
  */
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, Loader2, Send, ShieldCheck } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  Copy,
+  Loader2,
+  Paperclip,
+  Send,
+  ShieldCheck,
+  X,
+} from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
+import { ACEITOS_NO_CAMPO, conferirArquivos, reduzirFoto } from "@/lib/seguranca-do-paciente/anexos";
 import {
   AVISO_DO_PACIENTE,
   CHEGOU_AO_PACIENTE,
@@ -41,6 +58,8 @@ interface Recibo {
   criado_em: string | null;
   /** Só na anônima, e só nesta resposta: o banco guarda o hash. */
   codigo_acompanhamento?: string;
+  /** Só quando o envio levou arquivo: `false` se a notificação ficou e os arquivos não. */
+  anexos_guardados?: boolean;
 }
 
 interface Setor {
@@ -169,6 +188,11 @@ function Confirmacao({ recibo }: { recibo: Recibo }) {
       <p className="text-sm text-slate-500">
         O Núcleo de Segurança do Paciente vai ler o seu relato. Obrigado por notificar.
       </p>
+      {recibo.anexos_guardados === false && (
+        <p role="alert" className="text-sm text-amber-800 bg-amber-50 rounded-lg px-3 py-2">
+          A notificação foi registrada, mas não conseguimos guardar os arquivos. O relato já chegou ao Núcleo.
+        </p>
+      )}
       {recibo.codigo_acompanhamento && <CodigoDeAcompanhamento codigo={recibo.codigo_acompanhamento} />}
       <Link href="/notificar/acompanhar" className={BOTAO_SECUNDARIO + " w-full"}>
         Acompanhar a notificação
@@ -196,8 +220,24 @@ const FALHA_DOS_SETORES =
 const FALHA_DO_SERVIDOR = "Não foi possível registrar a notificação agora. Tente novamente em instantes.";
 const FALHA_DA_CONEXAO = "Não foi possível falar com o hospital agora. Verifique sua conexão e tente de novo.";
 
-async function enviar(porta: Porta, corpo: Record<string, unknown>): Promise<Response> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+function tamanhoLegivel(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1).replace(".", ",")} MB`;
+}
+
+async function enviar(porta: Porta, corpo: Record<string, unknown>, arquivos: File[]): Promise<Response> {
+  const headers: Record<string, string> = {};
+  let body: BodyInit;
+  if (arquivos.length > 0) {
+    // O navegador põe o Content-Type com o boundary do multipart.
+    const formulario = new FormData();
+    formulario.append("dados", JSON.stringify(corpo));
+    for (const arquivo of arquivos) formulario.append("anexos", arquivo, arquivo.name);
+    body = formulario;
+  } else {
+    headers["Content-Type"] = "application/json";
+    body = JSON.stringify(corpo);
+  }
   let url = "/api/nsp/publico/notificacoes";
   if (porta === "modulo") {
     url = "/api/nsp/notificacoes";
@@ -206,7 +246,7 @@ async function enviar(porta: Porta, corpo: Record<string, unknown>): Promise<Res
     } = await createClient().auth.getSession();
     headers.Authorization = `Bearer ${session?.access_token ?? ""}`;
   }
-  return fetch(url, { method: "POST", headers, body: JSON.stringify(corpo) });
+  return fetch(url, { method: "POST", headers, body });
 }
 
 export function FormularioDeNotificacao({ porta, identificacao = null }: Props) {
@@ -232,6 +272,27 @@ export function FormularioDeNotificacao({ porta, identificacao = null }: Props) 
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [recibo, setRecibo] = useState<Recibo | null>(null);
+  const [arquivos, setArquivos] = useState<File[]>([]);
+  const [preparando, setPreparando] = useState(false);
+  const [recusaDosArquivos, setRecusaDosArquivos] = useState<string | null>(null);
+
+  async function aoEscolherArquivos(evento: React.ChangeEvent<HTMLInputElement>) {
+    const escolhidos = Array.from(evento.target.files ?? []);
+    // Limpa o campo: escolher o mesmo arquivo de novo também conta.
+    evento.target.value = "";
+    if (escolhidos.length === 0) return;
+    setRecusaDosArquivos(null);
+    setPreparando(true);
+    try {
+      const prontos = await Promise.all(escolhidos.map(reduzirFoto));
+      const juntos = [...arquivos, ...prontos];
+      const recusa = conferirArquivos(juntos);
+      if (recusa) setRecusaDosArquivos(recusa);
+      else setArquivos(juntos);
+    } finally {
+      setPreparando(false);
+    }
+  }
 
   function mudar<K extends keyof Formulario>(campo: K, valor: Formulario[K]) {
     setForm((atual) => ({ ...atual, [campo]: valor }));
@@ -270,11 +331,11 @@ export function FormularioDeNotificacao({ porta, identificacao = null }: Props) 
 
   async function aoEnviar(evento: React.FormEvent) {
     evento.preventDefault();
-    if (tela !== TOTAL_DE_TELAS || !podeSeguir || enviando) return;
+    if (tela !== TOTAL_DE_TELAS || !podeSeguir || enviando || preparando) return;
     setEnviando(true);
     setErro(null);
     try {
-      const res = await enviar(porta, montarEnvio(form, porta));
+      const res = await enviar(porta, montarEnvio(form, porta), arquivos);
       if (res.status === 429) {
         setErro(porta === "modulo" ? RECUSA_POR_EXCESSO_DA_PESSOA : RECUSA_POR_EXCESSO_DA_REDE);
         return;
@@ -341,6 +402,61 @@ export function FormularioDeNotificacao({ porta, identificacao = null }: Props) 
               onChange={(e) => mudar("leito", e.target.value)}
               className={CAMPO}
             />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="nsp-anexos" className={`etiqueta ${ROTULO}`}>
+              Fotos ou PDF <Opcional />
+            </label>
+            <p id="nsp-anexos-ajuda" className="text-sm text-slate-500">
+              Até 3 arquivos, somando menos de 9 MB. A foto grande é reduzida antes do envio.
+            </p>
+            <input
+              id="nsp-anexos"
+              type="file"
+              multiple
+              accept={ACEITOS_NO_CAMPO}
+              aria-describedby="nsp-anexos-ajuda"
+              disabled={preparando}
+              onChange={aoEscolherArquivos}
+              className={CAMPO}
+            />
+            {preparando && (
+              <p className="flex items-center gap-1.5 text-sm text-slate-500">
+                <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+                Preparando os arquivos...
+              </p>
+            )}
+            {recusaDosArquivos && (
+              <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">
+                {recusaDosArquivos}
+              </p>
+            )}
+            {arquivos.length > 0 && (
+              <ul aria-label="Arquivos anexados" className="space-y-1.5">
+                {arquivos.map((arquivo, indice) => (
+                  <li
+                    key={`${arquivo.name}-${indice}`}
+                    className="flex items-center gap-2 rounded-xl border border-border px-3 py-1 text-sm text-slate-700"
+                  >
+                    <Paperclip className="w-4 h-4 shrink-0 text-slate-400" aria-hidden />
+                    <span className="flex-1 truncate">
+                      {arquivo.name} ({tamanhoLegivel(arquivo.size)})
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={`Tirar ${arquivo.name}`}
+                      onClick={() => {
+                        setRecusaDosArquivos(null);
+                        setArquivos((atuais) => atuais.filter((_, i) => i !== indice));
+                      }}
+                      className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-slate-500 hover:text-red-600"
+                    >
+                      <X className="w-4 h-4" aria-hidden />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       )}
@@ -537,7 +653,7 @@ export function FormularioDeNotificacao({ porta, identificacao = null }: Props) 
             <ArrowRight className="w-4 h-4" />
           </button>
         ) : (
-          <button type="submit" disabled={!podeSeguir || enviando} className={BOTAO_PRINCIPAL}>
+          <button type="submit" disabled={!podeSeguir || enviando || preparando} className={BOTAO_PRINCIPAL}>
             {enviando ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />

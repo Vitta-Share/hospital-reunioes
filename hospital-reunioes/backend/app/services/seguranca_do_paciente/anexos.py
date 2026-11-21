@@ -77,8 +77,9 @@ def conferir_os_arquivos(arquivos: list[ArquivoRecebido]) -> list[ArquivoAceito]
         aceitos.append(ArquivoAceito(arquivo.conteudo, extensao, content_type))
     soma = sum(len(a.conteudo) for a in aceitos)
     if soma >= LIMITE_DA_SOMA:
+        em_mb = f"{soma / (1024 * 1024):.1f}".replace(".", ",")
         raise AnexoGrandeDemaisError(
-            f"Os arquivos somam {soma / (1024 * 1024):.1f} MB e precisam somar menos de "
+            f"Os arquivos somam {em_mb} MB e precisam somar menos de "
             f"{LIMITE_DA_SOMA_LEGIVEL}. Tire um arquivo ou envie um menor."
         )
     return aceitos

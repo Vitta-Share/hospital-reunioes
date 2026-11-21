@@ -167,7 +167,7 @@ def test_tres_arquivos_entram_e_o_recibo_nao_traz_o_id_da_notificacao():
         (
             [("grande1.jpg", b"0" * (5 * MB), "image/jpeg"), ("grande2.pdf", b"0" * (4 * MB), "application/pdf")],
             413,
-            "menos de 9 MB",
+            "somam 9,0 MB e precisam somar menos de 9 MB",
         ),
     ],
     ids=["o quarto arquivo", "tipo não aceito", "áudio, que a Ouvidoria aceita", "arquivo vazio", "soma de 9 MB"],
