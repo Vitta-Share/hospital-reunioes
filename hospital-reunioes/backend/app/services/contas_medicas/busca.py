@@ -4,7 +4,8 @@ Procura parte do número do atendimento e parte do rótulo do paciente, sem
 diferenciar maiúscula nem acento, em todas as etapas da conta e de quem quer
 que esteja com ela (decisão 1). O número da conta não entra na busca. Cada
 conta volta com a etapa, com quem está e se a pessoa pode abrir o Guia dela:
-ver não é abrir (decisão 2).
+ver não é abrir (decisão 2). A arquivada também aparece, na etapa Arquivadas,
+com a Competência (issue #1958).
 """
 
 from __future__ import annotations
@@ -64,7 +65,11 @@ def _letra(c: str) -> str:
     return f"[{c}]"
 
 
-def etapa_da(situacao: str) -> str:
+def etapa_da(situacao: str, arquivada: bool = False) -> str:
+    """A etapa da Esteira. A arquivada fica em Arquivadas: o carimbo não muda
+    a situação, mas tira a conta das Concluídas (issue #1958)."""
+    if situacao in CONCLUIDAS and arquivada:
+        return "arquivadas"
     if situacao == LIVRE:
         return "fila"
     if situacao in COM_A_FATURISTA:
@@ -127,7 +132,7 @@ def _quem_esta_com_cada(supabase, me: dict, contas: list[dict]) -> None:
     todas = ve_todas(me)
     for conta in contas:
         situacao = conta.get("situacao")
-        conta["etapa_da_esteira"] = etapa_da(situacao)
+        conta["etapa_da_esteira"] = etapa_da(situacao, bool(conta.get("arquivada_em")))
         conta["minha"] = situacao not in NAO_PRONTAS and conta.get("faturista_id") == me.get("id")
         if situacao == LIVRE:
             conta["com_quem"] = None

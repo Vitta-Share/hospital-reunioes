@@ -141,6 +141,21 @@ class TestBusca:
             "no-envio": ("27754", "Ivone P.", "ASSIM", "2026-10-01", "2026-10-05", "envios", "Pessoa F2"),
         }
 
+    def test_acha_a_conta_arquivada_com_a_etapa_arquivadas_e_a_competencia(self):
+        """Issue #1958, ADR 0105 decisão 4: a busca olha também as Arquivadas,
+        que não vêm na carga da tela, e diz a Competência de cada uma."""
+        banco = _semeado()
+        concluida = banco.tabelas["cm_conta"][2]
+        concluida.update(arquivada_em="2026-11-10T12:00:00+00:00", arquivada_por="F2", periodo_fim="2026-10-28")
+
+        [conta] = _buscar("27753", banco).json()["contas"]
+
+        assert (conta["etapa_da_esteira"], conta["competencia"], conta["situacao"]) == (
+            "arquivadas",
+            "2026-10",
+            "CONCLUIDA",
+        )
+
     def test_nao_procura_pelo_numero_da_conta(self):
         banco = _semeado()
         # O número da conta da livre bate com o texto; o do atendimento, não.
