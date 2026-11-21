@@ -27,7 +27,7 @@ from uuid import uuid4
 
 from app.dependencies import selecionar_participantes
 from app.services import tecnologia_conversa
-from app.services.tecnologia import TABELA_CONVERSA_DA_DEMANDA
+from app.services.tecnologia import TABELA_CONVERSA_DA_DEMANDA, nome_do_projeto
 
 TABELA_PERGUNTAS = "tecnologia_perguntas"
 
@@ -165,6 +165,32 @@ def _nomes(supabase, ids: set[str]) -> dict[str, str]:
         return {}
     result = selecionar_participantes(supabase, "id, nome_completo", lambda q: q.in_("id", sorted(ids)))
     return {str(p["id"]): p.get("nome_completo") or "" for p in result.data or []}
+
+
+def cartoes_da_demanda(supabase, demanda: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """O cartao de cada Pergunta da Demanda, pela entrada dela na Conversa
+    (id da mensagem): de qual Projeto e, a pergunta, as quatro linhas, as
+    opcoes, o estado e desde quando espera. A tela conta os dias."""
+    linhas = supabase.table(TABELA_PERGUNTAS).select("*").eq("demanda_id", demanda["id"]).execute().data or []
+    nomes = _nomes(supabase, {str(p.get("destinatario_id") or "") for p in linhas})
+    projeto = nome_do_projeto(demanda)
+    return {
+        str(p["mensagem_id"]): {
+            "id": str(p["id"]),
+            "projeto": projeto,
+            "assunto": p.get("assunto") or "",
+            "texto": p.get("texto") or "",
+            **{chave: p.get(chave) or "" for chave, _ in LINHAS_DO_CARTAO},
+            "opcoes": p.get("opcoes") or [],
+            "recomendada": p.get("recomendada"),
+            "porque": p.get("porque_da_recomendada"),
+            "estado": p.get("estado") or ESTADO_ABERTA,
+            "criado_em": p.get("criado_em"),
+            "destinatario": nomes.get(str(p.get("destinatario_id"))),
+        }
+        for p in linhas
+        if p.get("mensagem_id")
+    }
 
 
 def resposta(supabase, pergunta: dict[str, Any]) -> dict[str, Any] | None:

@@ -331,3 +331,91 @@ class TestLer:
         resposta = cliente.get(f"/api/automacao/tecnologia/perguntas/{pergunta_id}")
 
         assert resposta.status_code == 401
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# A Conversa da Demanda, na tela
+# ═══════════════════════════════════════════════════════════════════════════
+
+CONVERSA_DA_TELA = f"/api/admin/tecnologia/chat/{DEMANDA}/conversa"
+
+
+def _tela(sb: _SupabaseMock, logado: dict, monkeypatch) -> TestClient:
+    cliente, _, _ = _montar(logado=logado, supabase=sb, monkeypatch=monkeypatch)
+    return cliente
+
+
+class TestNaConversaDaDemanda:
+    def test_a_conversa_mostra_a_pergunta_como_cartao_e_a_linha_de_sistema_da_pergunta_aberta(self, monkeypatch):
+        ponte, sb = _ponte()
+        pergunta_id = _criar(ponte).json()["id"]
+
+        resposta = _tela(sb, DIRETORA, monkeypatch).get(CONVERSA_DA_TELA)
+
+        assert resposta.status_code == 200, resposta.text
+        mensagens = resposta.json()["mensagens"]
+        entrada, linha = mensagens
+        assert entrada["texto"] == "Quem assina a Ata em nome da diretoria quando a senhora não está?"
+        cartao = entrada["pergunta"]
+        assert cartao["id"] == pergunta_id
+        assert cartao["projeto"] == "Aplicativo do Hospital"
+        assert cartao["assunto"] == "quem assina a Ata pela diretoria"
+        assert {chave: cartao[chave] for chave in QUATRO_LINHAS} == QUATRO_LINHAS
+        assert cartao["estado"] == "aberta"
+        assert cartao["criado_em"] == sb.tabelas[TABELA][0]["criado_em"]
+        assert cartao["destinatario"] == "Diretora Clínica"
+        assert (linha["sistema"], linha["texto"], linha["pergunta"]) == (
+            True,
+            "Pergunta aberta: quem assina a Ata pela diretoria",
+            None,
+        )
+
+    def test_mensagem_comum_nao_vira_cartao(self, monkeypatch):
+        ponte, sb = _ponte()
+        ponte.post(
+            MENSAGEM_DE_ANTES,
+            json={"texto": "Subiu a tela nova.", "github_login": "pedrorezendefig"},
+            headers={"X-API-Key": CHAVE},
+        )
+
+        [mensagem] = _tela(sb, DIRETORA, monkeypatch).get(CONVERSA_DA_TELA).json()["mensagens"]
+
+        assert mensagem["pergunta"] is None
+
+    def test_so_super_admin_ve_o_cartao(self, monkeypatch):
+        """ADR 0050: a aba Tecnologia é do Super admin. A gestora, que nem
+        Super admin é, não lê a Conversa, nem o cartão que nela mora."""
+        ponte, sb = _ponte()
+        _criar(ponte, destinatario_id=GESTORA["id"])
+
+        resposta = _tela(sb, GESTORA, monkeypatch).get(CONVERSA_DA_TELA)
+
+        assert resposta.status_code == 403
+        assert "quem assina a Ata" not in resposta.text
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# A rota de antes segue igual
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestARotaDeAntes:
+    @pytest.mark.parametrize(
+        "campos",
+        [{}, {"destinatario_id": DIRETORA["id"], "assunto": "quem assina a Ata", "pede_resposta": True}],
+        ids=["recado", "pede-resposta"],
+    )
+    def test_a_mensagem_pela_rota_de_antes_segue_igual_e_nao_cria_pergunta(self, campos):
+        cliente, sb = _ponte()
+
+        resposta = cliente.post(
+            MENSAGEM_DE_ANTES,
+            json={"texto": "Quem assina a Ata?", "github_login": "pedrorezendefig", **campos},
+            headers={"X-API-Key": CHAVE},
+        )
+
+        assert resposta.status_code == 201, resposta.text
+        assert set(resposta.json()) == {"id", "criado_em"}
+        assert sb.tabelas[TABELA] == []
+        [mensagem] = sb.tabelas[CONVERSA]
+        assert (mensagem["texto"], mensagem["origem"]) == ("Quem assina a Ata?", "terminal")

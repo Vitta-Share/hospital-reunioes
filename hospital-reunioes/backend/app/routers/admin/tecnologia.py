@@ -135,6 +135,7 @@ from app.services import (
     tecnologia_entregas,
     tecnologia_envio,
     tecnologia_envio_aos_desenvolvedores,
+    tecnologia_perguntas,
     tecnologia_revisao,
     tecnologia_sincronizacao,
 )
@@ -1226,7 +1227,9 @@ def _mencionaveis(supabase: Client, demanda: dict) -> list[dict]:
     return sorted(pessoas.values(), key=lambda p: (p.get("nome_completo") or "").casefold())
 
 
-def _mensagem_para_a_tela(linha: dict, *, nomes: dict[str, str], ator: dict) -> dict:
+def _mensagem_para_a_tela(
+    linha: dict, *, nomes: dict[str, str], ator: dict, cartoes: dict[str, dict] | None = None
+) -> dict:
     return {
         "id": str(linha["id"]),
         "autor": nomes.get(str(linha.get("autor_id"))),
@@ -1234,6 +1237,8 @@ def _mensagem_para_a_tela(linha: dict, *, nomes: dict[str, str], ator: dict) -> 
         "criado_em": linha.get("criado_em"),
         "minha": linha.get("autor_id") == ator["id"],
         "sistema": linha.get("origem") == tecnologia_envio_aos_desenvolvedores.ORIGEM_SISTEMA,
+        # A entrada da Pergunta da Vitta (issue #2116) vem com o cartao.
+        "pergunta": (cartoes or {}).get(str(linha["id"])),
     }
 
 
@@ -1259,8 +1264,9 @@ async def ler_a_conversa_da_demanda(
     envio = None
     if not e_desenvolvedor(ator) and demanda.get("github_issue_numero"):
         envio = {"mensagens_novas": tecnologia_envio_aos_desenvolvedores.mensagens_novas(supabase, demanda_id)}
+    cartoes = tecnologia_perguntas.cartoes_da_demanda(supabase, demanda)
     return {
-        "mensagens": [_mensagem_para_a_tela(linha, nomes=nomes, ator=ator) for linha in linhas],
+        "mensagens": [_mensagem_para_a_tela(linha, nomes=nomes, ator=ator, cartoes=cartoes) for linha in linhas],
         "mencionaveis": [
             {"id": str(p["id"]), "nome": p.get("nome_completo") or ""} for p in _mencionaveis(supabase, demanda)
         ],
