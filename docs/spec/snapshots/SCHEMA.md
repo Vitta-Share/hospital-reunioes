@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T16:46+0000 -->
+<!-- last_update: 2026-11-21T22:28+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -65,9 +65,12 @@ erDiagram
     colegiados ||--o{ nsp_reunioes_rapidas : "colegiado_id"
     colegiados ||--o{ participacoes : "colegiado_id"
     colegiados ||--o{ reunioes : "colegiado_id"
+    conduta_casos ||--o{ conduta_assinaturas : "caso_id"
     conduta_casos ||--o{ conduta_atribuicoes : "caso_id"
+    conduta_casos ||--o{ conduta_avisos : "caso_id"
     conduta_casos ||--o{ conduta_citados : "caso_id"
     conduta_casos ||--o{ conduta_contestacoes : "caso_id"
+    conduta_casos ||--o{ conduta_notas_nsp : "caso_id"
     conduta_casos ||--o{ conduta_prazos_vencidos : "caso_id"
     conduta_casos ||--o{ conduta_trilha : "caso_id"
     conduta_contestacoes ||--o{ conduta_contestacao_votos : "contestacao_id"
@@ -83,6 +86,7 @@ erDiagram
     nsp_notificacoes ||--o{ nsp_triagens : "notificacao_id"
     nsp_termos_envios ||--o{ nsp_documentos : "termo_envio_id"
     ouvidoria_pontos ||--o{ ouvidoria_avaliacoes : "ponto_id"
+    participacoes ||--o{ conduta_assinaturas : "participacao_id"
     participacoes ||--o{ conduta_registro : "participacao_id"
     participacoes ||--o{ nsp_avisos : "participacao_id"
     participacoes ||--o{ nsp_termos_envios : "participacao_id"
@@ -112,14 +116,18 @@ erDiagram
     participantes ||--o{ cm_validacao_tema : "decidido_por"
     participantes ||--o{ comentarios_pendencias : "autor_id"
     participantes ||--o{ conduta_atribuicoes : "participante_id"
+    participantes ||--o{ conduta_avisos : "participante_id"
     participantes ||--o{ conduta_casos : "escopo"
     participantes ||--o{ conduta_citados : "participante_id"
     participantes ||--o{ conduta_configuracoes : "autor_id"
     participantes ||--o{ conduta_contestacao_votos : "participante_id"
     participantes ||--o{ conduta_contestacoes : "autor_id"
+    participantes ||--o{ conduta_notas_nsp : "enviada_por"
+    participantes ||--o{ conduta_notas_nsp : "escrita_por"
     participantes ||--o{ conduta_registro : "autor_id"
     participantes ||--o{ conduta_registro : "ganhou"
     participantes ||--o{ conduta_trilha : "que"
+    participantes ||--o{ email_de_segunda : "participante_id"
     participantes ||--o{ notificacoes : "destinatario_id"
     participantes ||--o{ nsp_agenda_ocorrencias : "registrado_por"
     participantes ||--o{ nsp_avisos : "destinatario_id"
@@ -127,6 +135,7 @@ erDiagram
     participantes ||--o{ nsp_capacitacoes : "criado_por"
     participantes ||--o{ nsp_convocados : "convocado_por"
     participantes ||--o{ nsp_convocados : "participante_id"
+    participantes ||--o{ nsp_cortes_de_frequencia : "atualizado_por"
     participantes ||--o{ nsp_documentos : "publicado_por"
     participantes ||--o{ nsp_documentos_envios : "autor_id"
     participantes ||--o{ nsp_documentos_signatarios : "participante_id"
@@ -135,6 +144,7 @@ erDiagram
     participantes ||--o{ nsp_notificacoes_trilha : "autor_id"
     participantes ||--o{ nsp_pautas : "editada_por"
     participantes ||--o{ nsp_reunioes_rapidas : "criada_por"
+    participantes ||--o{ nsp_triagens : "autor_id"
     participantes ||--o{ ouvidoria_acessos : "ator_id"
     participantes ||--o{ ouvidoria_anexos : "enviado_por"
     participantes ||--o{ ouvidoria_avaliacoes : "revisada_por"
@@ -1308,7 +1318,7 @@ erDiagram
         TEXT categoria
         TIMESTAMPTZ recebido_em
         DATE prazo_em
-        _ mais_colunas "+3"
+        _ mais_colunas "+4"
     }
     conduta_atribuicoes {
         UUID id PK
@@ -1346,7 +1356,7 @@ erDiagram
         TEXT responsavel_nome
         TEXT frequencia
         DATE comeca_em
-        _ mais_colunas "+6"
+        _ mais_colunas "+8"
     }
     definicoes_processo {
         UUID id PK
@@ -1429,7 +1439,7 @@ erDiagram
         TEXT natureza
         TEXT grau_de_dano
         TEXT categoria FK
-        _ mais_colunas "+21"
+        _ mais_colunas "+25"
     }
     nsp_agente_cota {
         DATE dia PK
@@ -1445,6 +1455,56 @@ erDiagram
         INTEGER conformidade
         INTEGER ativas
         _ mais_colunas "+1"
+    }
+    conduta_assinaturas {
+        UUID id PK
+        TEXT tipo
+        UUID caso_id FK
+        UUID participacao_id FK
+        ordem na
+        TEXT situacao
+        TEXT envelope_id
+        TEXT documento_key
+        _ mais_colunas "+6"
+    }
+    email_de_segunda {
+        VARCHAR participante_id FK
+        DATE semana
+        TIMESTAMPTZ enviado_em
+    }
+    nsp_cortes_de_frequencia {
+        BOOLEAN id PK
+        SMALLINT janela_meses
+        SMALLINT incomum_a_partir
+        SMALLINT ocasional_a_partir
+        SMALLINT frequente_a_partir
+        VARCHAR atualizado_por FK
+        TIMESTAMPTZ atualizado_em
+    }
+    conduta_avisos {
+        UUID id PK
+        UUID caso_id FK
+        VARCHAR participante_id FK
+        TEXT motivo
+        TEXT referencia
+        BOOLEAN na_hora
+        TEXT situacao
+        TIMESTAMPTZ criado_em
+        _ mais_colunas "+1"
+    }
+    conduta_notas_nsp {
+        UUID id PK
+        UUID caso_id FK
+        TEXT texto_cifrado
+        VARCHAR escrita_por FK
+        TIMESTAMPTZ escrita_em
+        VARCHAR enviada_por FK
+        TIMESTAMPTZ enviada_em
+    }
+    nsp_notas_do_comite {
+        UUID id PK
+        TEXT texto
+        TIMESTAMPTZ enviada_em
     }
 ```
 
@@ -1663,6 +1723,8 @@ erDiagram
 | `conduta_casos` | `idx_conduta_casos_triagem_por` | `triagem_por` | `185_conduta_triagem_e_ritos.sql` |
 | `conduta_casos` | `idx_conduta_casos_conferida_por` | `conferida_por` | `185_conduta_triagem_e_ritos.sql` |
 | `conduta_casos` | `idx_conduta_casos_prorrogado_por` | `prorrogado_por` | `185_conduta_triagem_e_ritos.sql` |
+| `conduta_casos` | `idx_conduta_casos_abertos_prazo` | `prazo_em` | `199_conduta_avisos_por_email.sql` |
+| `conduta_casos` | `uq_conduta_casos_manifestacao` | `manifestacao_id` | `202_conduta_sinalizacao_da_ouvidoria.sql` |
 | `conduta_atribuicoes` | `idx_conduta_atribuicoes_pessoa` | `participante_id, caso_id` | `175_conduta_fundacao.sql` |
 | `conduta_atribuicoes` | `idx_conduta_atribuicoes_caso` | `caso_id` | `175_conduta_fundacao.sql` |
 | `conduta_citados` | `idx_conduta_citados_pessoa` | `participante_id, caso_id` | `175_conduta_fundacao.sql` |
@@ -1680,7 +1742,19 @@ erDiagram
 | `nsp_triagens` | `idx_nsp_triagens_notificacao` | `notificacao_id, versao DESC` | `188_nsp_agente_de_triagem.sql` |
 | `nsp_triagens` | `idx_nsp_triagens_categoria` | `categoria` | `188_nsp_agente_de_triagem.sql` |
 | `nsp_triagens` | `idx_nsp_triagens_evento_item` | `evento_item` | `188_nsp_agente_de_triagem.sql` |
+| `nsp_triagens` | `idx_nsp_triagens_autor` | `autor_id` | `197_nsp_tela_de_triagem.sql` |
+| `nsp_triagens` | `uq_nsp_triagens_uma_decisao_por_notificacao` | `notificacao_id` | `197_nsp_tela_de_triagem.sql` |
 | `painel_fotografias` | `idx_painel_fotografias_semana` | `semana` | `189_fotografia_semanal_do_painel.sql` |
+| `conduta_assinaturas` | `idx_conduta_assinaturas_participacao` | `participacao_id, created_at DESC` | `192_conduta_assinaturas.sql` |
+| `conduta_assinaturas` | `idx_conduta_assinaturas_caso` | `caso_id` | `192_conduta_assinaturas.sql` |
+| `email_de_segunda` | `idx_email_de_segunda_semana` | `semana` | `196_email_de_segunda.sql` |
+| `nsp_cortes_de_frequencia` | `idx_nsp_cortes_de_frequencia_atualizado_por` | `atualizado_por` | `197_nsp_tela_de_triagem.sql` |
+| `conduta_avisos` | `idx_conduta_avisos_pendentes` | `na_hora, criado_em` | `199_conduta_avisos_por_email.sql` |
+| `conduta_notas_nsp` | `uq_conduta_notas_nsp_pendente` | `caso_id` | `203_conduta_nota_ao_nucleo.sql` |
+| `conduta_notas_nsp` | `idx_conduta_notas_nsp_caso` | `caso_id` | `203_conduta_nota_ao_nucleo.sql` |
+| `conduta_notas_nsp` | `idx_conduta_notas_nsp_escrita_por` | `escrita_por` | `203_conduta_nota_ao_nucleo.sql` |
+| `conduta_notas_nsp` | `idx_conduta_notas_nsp_enviada_por` | `enviada_por` | `203_conduta_nota_ao_nucleo.sql` |
+| `nsp_notas_do_comite` | `idx_nsp_notas_do_comite_enviada_em` | `enviada_em DESC` | `203_conduta_nota_ao_nucleo.sql` |
 
 ---
-**Resumo:** 133 tabelas · 201 relacionamentos FK detectados.
+**Resumo:** 139 tabelas · 211 relacionamentos FK detectados.

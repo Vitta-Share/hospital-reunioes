@@ -1,5 +1,7 @@
+import { ApresentacaoDoComite } from "@/components/conduta/ApresentacaoDoComite";
 import { AppShell } from "@/components/layout/AppShell";
 import { requireComiteDeCondutaAccess } from "@/lib/conduta/guard";
+import { precisaDaApresentacao } from "@/lib/conduta/guia";
 
 /**
  * Layout da área /comite-de-conduta (issue #1824, ADR 0097): AppShell e o
@@ -18,6 +20,7 @@ export default async function ComiteDeCondutaLayout({ children }: { children: Re
   return (
     <AppShell userName={nome} userEmail={user.email}>
       {children}
+      {precisaDaApresentacao(user) && <ApresentacaoDoComite pessoa={user.id} />}
     </AppShell>
   );
 }

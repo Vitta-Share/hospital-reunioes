@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T16:46+0000 -->
+<!-- last_update: 2026-11-21T22:28+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2391,7 +2391,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## conduta_casos
 
-> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql)
+> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql, 202_conduta_sinalizacao_da_ouvidoria.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2407,12 +2407,15 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `relato_cifrado` | `TEXT` | NOT NULL | — | — |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
 | `escopo` | `TEXT` | — | — | `participantes.id` |
+| `origem` | `TEXT` | NOT NULL | — | `ouvidoria_protocolos.id` |
 
 **Indexes:**
 - `idx_conduta_casos_rota_etapa` em `(rota, etapa, recebido_em DESC)` (de `175_conduta_fundacao.sql`)
 - `idx_conduta_casos_triagem_por` em `(triagem_por)` (de `185_conduta_triagem_e_ritos.sql`)
 - `idx_conduta_casos_conferida_por` em `(conferida_por)` (de `185_conduta_triagem_e_ritos.sql`)
 - `idx_conduta_casos_prorrogado_por` em `(prorrogado_por)` (de `185_conduta_triagem_e_ritos.sql`)
+- `idx_conduta_casos_abertos_prazo` em `(prazo_em)` (de `199_conduta_avisos_por_email.sql`)
+- `uq_conduta_casos_manifestacao` em `(manifestacao_id)` (de `202_conduta_sinalizacao_da_ouvidoria.sql`)
 
 ## conduta_atribuicoes
 
@@ -2470,7 +2473,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## rotinas
 
-> Origem: `177_rotina_e_verificacao.sql`
+> Origem: `177_rotina_e_verificacao.sql` (alterada em: 194_revisao_da_rotina.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2488,6 +2491,8 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `encerrada_por_nome` | `TEXT` | — | — | — |
 | `anotacao_encerramento` | `TEXT` | — | — | — |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `revisada_em` | `DATE` | — | — | — |
+| `revisada_por_nome` | `TEXT` | — | — | — |
 
 **Indexes:**
 - `idx_rotinas_responsavel` em `(responsavel_id)` (de `177_rotina_e_verificacao.sql`)
@@ -2629,7 +2634,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## nsp_triagens
 
-> Origem: `188_nsp_agente_de_triagem.sql`
+> Origem: `188_nsp_agente_de_triagem.sql` (alterada em: 197_nsp_tela_de_triagem.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2662,11 +2667,17 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `modelo` | `TEXT` | — | — | — |
 | `tentativas` | `SMALLINT` | — | — | — |
 | `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `autor_id` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `divergencias` | `TEXT[]` | — | — | — |
+| `frequencia` | `TEXT` | — | — | — |
+| `prioridade` | `TEXT` | — | — | — |
 
 **Indexes:**
 - `idx_nsp_triagens_notificacao` em `(notificacao_id, versao DESC)` (de `188_nsp_agente_de_triagem.sql`)
 - `idx_nsp_triagens_categoria` em `(categoria)` (de `188_nsp_agente_de_triagem.sql`)
 - `idx_nsp_triagens_evento_item` em `(evento_item)` (de `188_nsp_agente_de_triagem.sql`)
+- `idx_nsp_triagens_autor` em `(autor_id)` (de `197_nsp_tela_de_triagem.sql`)
+- `uq_nsp_triagens_uma_decisao_por_notificacao` em `(notificacao_id)` (de `197_nsp_tela_de_triagem.sql`)
 
 ## nsp_agente_cota
 
@@ -2696,6 +2707,113 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_painel_fotografias_semana` em `(semana)` (de `189_fotografia_semanal_do_painel.sql`)
 
+## conduta_assinaturas
+
+> Origem: `192_conduta_assinaturas.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `tipo` | `TEXT` | NOT NULL | — | — |
+| `caso_id` | `UUID` | — | — | `conduta_casos.id` |
+| `participacao_id` | `UUID` | — | — | `participacoes.id` |
+| `na` | `ordem` | NOT NULL | — | — |
+| `situacao` | `TEXT` | NOT NULL | `'gerado'` | — |
+| `envelope_id` | `TEXT` | — | — | — |
+| `documento_key` | `TEXT` | UNIQUE | — | — |
+| `cifrada` | `pela` | — | — | — |
+| `erro` | `TEXT` | — | — | — |
+| `enviado_em` | `TIMESTAMPTZ` | — | — | — |
+| `assinado_em` | `TIMESTAMPTZ` | — | — | — |
+| `cancelado_em` | `TIMESTAMPTZ` | — | — | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_assinaturas_participacao` em `(participacao_id, created_at DESC)` (de `192_conduta_assinaturas.sql`)
+- `idx_conduta_assinaturas_caso` em `(caso_id)` (de `192_conduta_assinaturas.sql`)
+
+## email_de_segunda
+
+> Origem: `196_email_de_segunda.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `participante_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `semana` | `DATE` | NOT NULL | — | — |
+| `enviado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_email_de_segunda_semana` em `(semana)` (de `196_email_de_segunda.sql`)
+
+## nsp_cortes_de_frequencia
+
+> Origem: `197_nsp_tela_de_triagem.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `BOOLEAN` | PK | `true` | — |
+| `janela_meses` | `SMALLINT` | NOT NULL | `12` | — |
+| `incomum_a_partir` | `SMALLINT` | NOT NULL | `1` | — |
+| `ocasional_a_partir` | `SMALLINT` | NOT NULL | `2` | — |
+| `frequente_a_partir` | `SMALLINT` | NOT NULL | `4` | — |
+| `atualizado_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `atualizado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_cortes_de_frequencia_atualizado_por` em `(atualizado_por)` (de `197_nsp_tela_de_triagem.sql`)
+
+## conduta_avisos
+
+> Origem: `199_conduta_avisos_por_email.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `participante_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `motivo` | `TEXT` | NOT NULL | — | — |
+| `referencia` | `TEXT` | NOT NULL | — | — |
+| `na_hora` | `BOOLEAN` | NOT NULL | `false` | — |
+| `situacao` | `TEXT` | NOT NULL | `'pendente'` | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `enviado_em` | `TIMESTAMPTZ` | — | — | — |
+
+**Indexes:**
+- `idx_conduta_avisos_pendentes` em `(na_hora, criado_em)` (de `199_conduta_avisos_por_email.sql`)
+
+## conduta_notas_nsp
+
+> Origem: `203_conduta_nota_ao_nucleo.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `texto_cifrado` | `TEXT` | NOT NULL | — | — |
+| `escrita_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `escrita_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `enviada_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `enviada_em` | `TIMESTAMPTZ` | — | — | — |
+
+**Indexes:**
+- `uq_conduta_notas_nsp_pendente` em `(caso_id)` (de `203_conduta_nota_ao_nucleo.sql`)
+- `idx_conduta_notas_nsp_caso` em `(caso_id)` (de `203_conduta_nota_ao_nucleo.sql`)
+- `idx_conduta_notas_nsp_escrita_por` em `(escrita_por)` (de `203_conduta_nota_ao_nucleo.sql`)
+- `idx_conduta_notas_nsp_enviada_por` em `(enviada_por)` (de `203_conduta_nota_ao_nucleo.sql`)
+
+## nsp_notas_do_comite
+
+> Origem: `203_conduta_nota_ao_nucleo.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `texto` | `TEXT` | NOT NULL | — | — |
+| `enviada_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_notas_do_comite_enviada_em` em `(enviada_em DESC)` (de `203_conduta_nota_ao_nucleo.sql`)
+
 ---
 
-**Resumo:** 133 tabelas vivas.
+**Resumo:** 139 tabelas vivas.

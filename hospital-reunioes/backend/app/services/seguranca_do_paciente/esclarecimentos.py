@@ -6,7 +6,7 @@ depois do registro, na confirmação, ou mais tarde, na página de
 acompanhamento, e responde em poucas palavras. As perguntas a mostrar são as
 da linha mais recente do agente que ainda não têm resposta.
 
-Cada resposta fica gravada em `nsp_esclarecimentos` (migration 195). Enquanto
+Cada resposta fica gravada em `nsp_esclarecimentos` (migration 207). Enquanto
 a triagem não foi confirmada, a resposta roda o agente de novo, com as
 respostas na entrada; depois da confirmação, ela só fica gravada.
 """
@@ -84,7 +84,7 @@ def responder(supabase, caso: dict[str, Any], respostas: list[tuple[str, str]]) 
         ).execute()
     except APIError as erro:
         # Dois envios da mesma resposta ao mesmo tempo: o segundo bate no
-        # índice único da migration 195.
+        # índice único da migration 207.
         if erro.code == "23505":
             raise PerguntaSemVagaError("pergunta já respondida") from erro
         raise

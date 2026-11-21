@@ -116,6 +116,9 @@ export function CasosDoComite() {
                 {caso.prazo_vencido && (
                   <span className="text-xs font-semibold text-red-700">Prazo vencido registrado</span>
                 )}
+                {caso.origem === "ouvidoria" && (
+                  <span className="text-xs font-semibold text-slate-600">Origem: Ouvidoria</span>
+                )}
               </Link>
             </li>
           ))}

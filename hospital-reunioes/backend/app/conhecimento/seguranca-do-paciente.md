@@ -32,6 +32,18 @@ A notificação de incidente:
 - o agente nasce desligado, e toda notificação entra para classificar manualmente até a Vitta rodar o teste de aceite com os 144 casos da Diretoria (três vezes cada) e as metas baterem: nenhum caso das faixas A ou B rebaixado e todos os eventos que nunca deveriam ocorrer de confiança alta reconhecidos. Toda mudança no prompt ou na base repete o teste;
 - quando o agente acha que falta uma informação, ele propõe até duas perguntas curtas a quem notificou. Elas aparecem na tela de confirmação, depois que a notificação já está registrada e o protocolo já saiu, e nunca seguram o envio. Quem notificou responde em poucas palavras ou aperta **Responder depois**, que leva à página de acompanhamento: lá, com o protocolo e o código (ou o e-mail ou telefone que deixou), vê as perguntas que ainda não respondeu e pode responder. Sem pergunta do agente (inclusive com o agente desligado), a confirmação não mostra nada disso. Cada pergunta se responde uma vez. A resposta fica guardada com a pergunta; enquanto a triagem não foi confirmada pela Presidência, ela faz o agente ler a notificação de novo, com a resposta, e preparar uma sugestão nova, que fica guardada ao lado da anterior. A nova leitura conta no limite de 100 leituras por dia; sem vaga no dia, a sugestão anterior continua valendo. Depois da confirmação, a resposta só fica guardada e não chama o agente. A resposta vai ao agente sem o nome e o contato de quem notificou.
 
+A triagem pela Presidência:
+
+- em Notificações, o botão **Fila de triagem** abre as notificações que ainda esperam a triagem, da mais antiga para a mais nova, com o protocolo, o setor, a data, a faixa e o assunto sugeridos. A fila não mostra o relato nem quem notificou. Só a Presidência e o Acesso pleno abrem a fila e confirmam;
+- cada caso abre numa tela só, com a linha "Leia o relato, confira a sugestão e confirme. Se discordar, ajuste: o sistema aprende com a diferença." no topo. À esquerda ficam o relato, as respostas de quem notificou e os anexos; à direita, a sugestão do agente, marcada como "Sugestão", com a justificativa, a confiança em palavras e os alertas à vista, sem clique;
+- nas faixas A e B, quando o relato fala em morte, quando o evento que nunca deveria ocorrer é "possível" e quando quem notificou marcou grave e o agente sugeriu menos, a tela traz também "Caso grave: confirme cada campo. O prazo legal já está correndo." e o botão Confirmar só libera com cada campo marcado. Não existe "aceitar tudo";
+- nas faixas C, D e E, Confirmar é um clique;
+- **Ajustar** abre os campos para a Presidência mudar o que discordar. A decisão fica gravada com o nome de quem decidiu e os campos que mudaram, e a sugestão do agente continua guardada como veio, para medir onde ele erra;
+- a tela mostra, calculados pelo aplicativo e não pelo agente, quantas vezes a mesma categoria aconteceu no mesmo setor em 60 dias (por exemplo, "3ª ocorrência desta categoria neste setor em 60 dias"), os casos parecidos, a frequência e a prioridade pela matriz da norma (gravidade por frequência);
+- a frequência conta as ocorrências anteriores da mesma categoria no mesmo setor em 12 meses: nenhuma é remota, 1 é incomum, 2 ou 3 é ocasional, 4 ou mais é frequente. Esses cortes ficam na tela Configuração do módulo e podem ser mudados por quem chega a ela; a mudança vale para os cálculos seguintes;
+- a notificação marcada "classificar manualmente" abre na mesma tela, sem sugestão e com os campos em branco, para a Presidência preencher;
+- confirmar leva o caso a Classificada, ou a Em análise agregada quando é quase erro, circunstância de risco ou incidente sem dano.
+
 A fundação do módulo:
 
 - o item **Segurança do Paciente** no menu lateral, com a página inicial do módulo (o item Visão geral, para não se confundir com o Início de cada pessoa), as Reuniões e o grupo Núcleo (Membros, Documentos, Capacitações e Agenda regulatória). Cada tela abre com uma linha dizendo o que fazer ali;
@@ -121,6 +133,14 @@ O Núcleo no Início:
 - cada item só aparece para quem abriria a tela dele no módulo. Quem está no Núcleo sem o Termo assinado vê só o Termo; quem é de fora do Núcleo não vê nada do Núcleo, nem estando na lista de uma capacitação; o super admin sem o Acesso pleno também não vê nada do Núcleo no Início;
 - os casos e a notificação ao Notivisa entram no Início quando as próximas fases do Núcleo forem ao ar.
 
+As notas do Comitê de Conduta:
+
+- quando um caso do Canal de Conduta descreve um risco ao paciente, o Comitê de Conduta manda ao Núcleo uma nota escrita por ele: um membro do Comitê escreve a nota na tela do caso, pela ação **Sinalizar ao NSP**, e só a coordenação do Comitê a envia. O envio fica registrado na trilha do caso, do lado do Comitê;
+- a nota aparece no item **Notas do Comitê de Conduta**, dentro de Segurança do Paciente, da mais nova à mais antiga, com o texto e a data do envio. Só a Presidência do Núcleo e o Acesso pleno leem; o membro do Núcleo não vê o item;
+- a nota não leva o protocolo do caso, o relato, os anexos nem quem relatou, e nada nela leva ao caso do Canal. A nota com o protocolo do caso é recusada antes de sair. O relato nunca sai do Canal de Conduta;
+- quem lê a nota não abre nenhum caso do Canal de Conduta só por isso: o caso continua fechado para quem não é do Comitê;
+- a nota é só uma lista para leitura. Ela não vira notificação de incidente sozinha: se o Núcleo quiser tratar o risco como caso, registra a notificação pelo caminho de sempre.
+
 ## Quem vê
 
 O item Segurança do Paciente aparece para todo usuário logado, com o botão Notificar incidente, inclusive para quem só tem papel nas Reuniões e para o super admin. As telas do Núcleo aparecem para quem tem participação vigente no Núcleo, para quem tem o Acesso pleno ao NSP e para a Diretoria. Os demais veem só o botão Notificar incidente.
@@ -128,7 +148,7 @@ O item Segurança do Paciente aparece para todo usuário logado, com o botão No
 Dentro do módulo, cada pessoa vê conforme o papel:
 
 - **Acesso pleno ao NSP**: tudo, inclusive a configuração. É do Diretor Executivo;
-- **Presidência do Núcleo**, com o Termo de Adesão assinado: tudo do módulo;
+- **Presidência do Núcleo**, com o Termo de Adesão assinado: tudo do módulo, inclusive as notas do Comitê de Conduta;
 - **Membro do Núcleo** (ou suplente), com o Termo assinado: painel, calendário, agenda, membros, documentos, capacitações, reuniões e casos, sem a identidade de quem notificou;
 - **quem está no Núcleo e ainda não assinou o Termo**: só painel, calendário e agenda;
 - **Diretoria**: painel, calendário, agenda e a composição do Núcleo;
@@ -152,12 +172,13 @@ Membro nunca é apagado. Encerrar termina a vigência no dia escolhido e a parti
 
 ## O que ele ainda não faz
 
-Nas Capacitações, o profissional de fora do Núcleo que está na lista ainda não abre o módulo, então não confirma a presença por enquanto; a capacitação registrada também não se edita depois de salva. Nas reuniões, a ata própria do Núcleo também chega depois: por enquanto a ata segue o modelo das outras reuniões, e a pauta ainda não traz indicadores, casos, planos vencidos nem alertas, que dependem das próximas fases. Na notificação de incidente, ainda não chegaram a tela de triagem (a sugestão do agente já fica guardada, mas ainda não aparece na tela para a Presidência), os prazos e o encaminhamento a outro canal: a notificação fica registrada como Recebida até essas partes entrarem. As notificações criadas a partir da reunião rápida chegam na segunda fase. Os casos que a Ouvidoria manda ao Núcleo também chegam depois.
+Nas Capacitações, o profissional de fora do Núcleo que está na lista ainda não abre o módulo, então não confirma a presença por enquanto; a capacitação registrada também não se edita depois de salva. Nas reuniões, a ata própria do Núcleo também chega depois: por enquanto a ata segue o modelo das outras reuniões, e a pauta ainda não traz indicadores, casos, planos vencidos nem alertas, que dependem das próximas fases. Na notificação de incidente, ainda não chegaram os prazos, o que acontece depois que a triagem é confirmada (a reunião de análise e o chamado aos envolvidos) e o encaminhamento a outro canal. As notificações criadas a partir da reunião rápida chegam na segunda fase. Os casos que a Ouvidoria manda ao Núcleo também chegam depois.
 
 ## O que já foi decidido
 
 - O super admin do aplicativo não abre conteúdo do Núcleo e só chega à configuração técnica.
 - Quem vê tudo é o Acesso pleno ao NSP, uma permissão dada pelo nome ao Diretor Executivo.
+- Do Canal de Conduta, o Núcleo recebe só uma nota do Comitê, sem o relato e sem quem relatou, enquanto da Ouvidoria ele recebe o relato inteiro.
 - A proteção é do aplicativo, e a Diretoria sabe que quem opera o banco de dados diretamente consegue ler.
 - Presidência, suplente e membro vêm da participação vigente no Núcleo, com início e fim, e não de um perfil marcado à mão.
 - Quem está no Núcleo sem o Termo de Adesão assinado vê só painel, calendário e agenda, até assinar.
