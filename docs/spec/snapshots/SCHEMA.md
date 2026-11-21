@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T20:15+0000 -->
+<!-- last_update: 2026-11-21T22:02+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -65,6 +65,7 @@ erDiagram
     colegiados ||--o{ nsp_reunioes_rapidas : "colegiado_id"
     colegiados ||--o{ participacoes : "colegiado_id"
     colegiados ||--o{ reunioes : "colegiado_id"
+    conduta_casos ||--o{ conduta_assinaturas : "caso_id"
     conduta_casos ||--o{ conduta_atribuicoes : "caso_id"
     conduta_casos ||--o{ conduta_citados : "caso_id"
     conduta_casos ||--o{ conduta_contestacoes : "caso_id"
@@ -83,6 +84,7 @@ erDiagram
     nsp_notificacoes ||--o{ nsp_triagens : "notificacao_id"
     nsp_termos_envios ||--o{ nsp_documentos : "termo_envio_id"
     ouvidoria_pontos ||--o{ ouvidoria_avaliacoes : "ponto_id"
+    participacoes ||--o{ conduta_assinaturas : "participacao_id"
     participacoes ||--o{ conduta_registro : "participacao_id"
     participacoes ||--o{ nsp_avisos : "participacao_id"
     participacoes ||--o{ nsp_termos_envios : "participacao_id"
@@ -1447,6 +1449,17 @@ erDiagram
         INTEGER ativas
         _ mais_colunas "+1"
     }
+    conduta_assinaturas {
+        UUID id PK
+        TEXT tipo
+        UUID caso_id FK
+        UUID participacao_id FK
+        ordem na
+        TEXT situacao
+        TEXT envelope_id
+        TEXT documento_key
+        _ mais_colunas "+6"
+    }
     email_de_segunda {
         VARCHAR participante_id FK
         DATE semana
@@ -1687,7 +1700,9 @@ erDiagram
 | `nsp_triagens` | `idx_nsp_triagens_categoria` | `categoria` | `188_nsp_agente_de_triagem.sql` |
 | `nsp_triagens` | `idx_nsp_triagens_evento_item` | `evento_item` | `188_nsp_agente_de_triagem.sql` |
 | `painel_fotografias` | `idx_painel_fotografias_semana` | `semana` | `189_fotografia_semanal_do_painel.sql` |
+| `conduta_assinaturas` | `idx_conduta_assinaturas_participacao` | `participacao_id, created_at DESC` | `192_conduta_assinaturas.sql` |
+| `conduta_assinaturas` | `idx_conduta_assinaturas_caso` | `caso_id` | `192_conduta_assinaturas.sql` |
 | `email_de_segunda` | `idx_email_de_segunda_semana` | `semana` | `196_email_de_segunda.sql` |
 
 ---
-**Resumo:** 134 tabelas · 202 relacionamentos FK detectados.
+**Resumo:** 135 tabelas · 204 relacionamentos FK detectados.
