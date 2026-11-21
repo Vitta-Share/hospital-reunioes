@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-20T21:35:03-03:00",
+      "sha": "613f58f49f9cd48e508143249cd73e39d58360da",
+      "app_version": "0.325.0",
+      "subject": "Onda sesta-1757-onda3: Pendência nasce no envio da Ata para assinatura",
+      "raw_subject": "chore(deploy): registro da onda sesta-1757-onda3 (#2050)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1757
+      ],
+      "result": "healthy",
+      "duration_seconds": 4479,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "171_nascimento_da_pendencia.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1757-onda3: PR #2050 (issue #1867), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 19,
+          "frontend": 204
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-20T21:28:45-03:00",
       "sha": "f2d42b9022fe2b423e3879e54143ac9b3d0301c2",
       "app_version": "0.324.1",
