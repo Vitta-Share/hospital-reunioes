@@ -82,9 +82,15 @@ interface Props {
   perguntas: string[];
   /** Na confirmação: o link para responder na página de acompanhamento. */
   responderDepois?: boolean;
+  /** No acompanhamento: o bloco vem num cartão, como o estado. */
+  emCartao?: boolean;
 }
 
-export function PerguntasDeEsclarecimento({ chave, perguntas, responderDepois = false }: Props) {
+const BLOCO = "space-y-3 rounded-xl border border-border bg-slate-50 px-4 py-4 text-left";
+const CARTAO = "space-y-3 bg-white rounded-2xl border border-border shadow-premium px-5 py-6";
+
+/** Sem pergunta em aberto, não mostra nada. */
+export function PerguntasDeEsclarecimento({ chave, perguntas, responderDepois = false, emCartao = false }: Props) {
   const [abertas, setAbertas] = useState<string[]>(perguntas);
   const [textos, setTextos] = useState<Record<string, string>>({});
   const [enviando, setEnviando] = useState(false);
@@ -129,10 +135,7 @@ export function PerguntasDeEsclarecimento({ chave, perguntas, responderDepois = 
   }
 
   return (
-    <section
-      aria-labelledby="nsp-perguntas-titulo"
-      className="space-y-3 rounded-xl border border-border bg-slate-50 px-4 py-4 text-left"
-    >
+    <section aria-labelledby="nsp-perguntas-titulo" className={emCartao ? CARTAO : BLOCO}>
       <h3 id="nsp-perguntas-titulo" className="text-base font-bold text-slate-900">
         Perguntas do Núcleo
       </h3>

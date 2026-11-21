@@ -207,9 +207,7 @@ function Confirmacao({ recibo, contato }: { recibo: Recibo; contato: string }) {
         </p>
       )}
       {recibo.codigo_acompanhamento && <CodigoDeAcompanhamento codigo={recibo.codigo_acompanhamento} />}
-      {chave && perguntas.length > 0 && (
-        <PerguntasDeEsclarecimento chave={chave} perguntas={perguntas} responderDepois />
-      )}
+      {chave && <PerguntasDeEsclarecimento chave={chave} perguntas={perguntas} responderDepois />}
       <Link href="/notificar/acompanhar" className={BOTAO_SECUNDARIO + " w-full"}>
         Acompanhar a notificação
       </Link>
