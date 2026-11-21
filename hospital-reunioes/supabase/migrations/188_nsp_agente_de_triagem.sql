@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 176: o agente de triagem do Núcleo
+-- Migration 188: o agente de triagem do Núcleo
 -- (issue #1990, PRD #1979, ADR 0095 decisões 5, 7 e 8; ADR 0107 decisões 9 e 11)
 -- =====================================================
 -- O que entra:
@@ -229,4 +229,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (176) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (188) ON CONFLICT (numero) DO NOTHING;

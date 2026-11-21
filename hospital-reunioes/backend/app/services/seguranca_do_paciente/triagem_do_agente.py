@@ -11,7 +11,7 @@ Duas peças, sem banco e sem modelo:
   ou contato de quem notificou, leito ou anexo.
 
 As 19 categorias e os 30 eventos que nunca deveriam ocorrer estão aqui e na
-configuração do banco (migration 176); o teste confere que as duas listas e a
+configuração do banco (migration 188); o teste confere que as duas listas e a
 base de conhecimento dizem a mesma coisa.
 """
 

@@ -628,10 +628,10 @@ def test_o_assunto_longo_e_cortado_no_teto_da_coluna(monkeypatch, agente_ligado)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# A migration 176: configuração, triagem, marca e cota
+# A migration 188: configuração, triagem, marca e cota
 # ═══════════════════════════════════════════════════════════════════════════
 
-MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "176_nsp_agente_de_triagem.sql"
+MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "188_nsp_agente_de_triagem.sql"
 BASE_DE_CONHECIMENTO = Path(agente_de_triagem.__file__).resolve().parents[2] / "prompts" / "nsp_base_de_conhecimento.md"
 
 

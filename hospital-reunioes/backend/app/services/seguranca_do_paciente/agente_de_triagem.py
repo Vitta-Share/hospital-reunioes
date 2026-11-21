@@ -22,7 +22,7 @@ O que pode acontecer com a notificação:
   sem nunca ficar retida.
 
 Cada chamada ao modelo, a refeita também, gasta uma das `TETO_DIARIO`
-chamadas do dia, contadas no banco à parte da Ouvidoria (migration 176, ADR
+chamadas do dia, contadas no banco à parte da Ouvidoria (migration 188, ADR
 0107, decisão 11). O SDK não repete (`max_retries=0`).
 
 `classificar_pelo_agente_do_nucleo` é a mesma função que o comando manual do
@@ -60,7 +60,7 @@ VALIDACAO = "validacao"
 # A resposta é um JSON de umas 600 palavras; o resto é folga para o raciocínio.
 MAX_TOKENS = 4096
 TEMPO_LIMITE_S = 90.0
-# O teto da coluna `nsp_triagens.assunto` (migration 176).
+# O teto da coluna `nsp_triagens.assunto` (migration 188).
 TAMANHO_DO_ASSUNTO = 300
 
 _VERSAO = re.compile(r"^Versão (\d+(?:\.\d+)*)", re.MULTILINE)
