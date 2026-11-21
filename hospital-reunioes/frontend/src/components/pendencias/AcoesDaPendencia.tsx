@@ -8,7 +8,8 @@ import type { ComandoPendencia, EventoPendencia, HistoricoPendencia, Pendencia }
 /**
  * As ações e o histórico da Pendência (issue #1862, ADR 0098, decisão 5).
  *
- * Toda ação pede uma anotação; repactuar e reabrir pedem também o prazo novo.
+ * Toda ação pede uma anotação; repactuar e reabrir pedem também o prazo novo,
+ * e ajustar uma contestação aceita o prazo novo sem exigir (issue #1870).
  * Os botões são os que o backend devolve em `acoes_permitidas`: quem age sai do
  * vínculo com a Pendência, e a regra mora no servidor.
  */
@@ -20,6 +21,9 @@ const ROTULO_DO_BOTAO: Record<ComandoPendencia, string> = {
   repactuar: "Repactuar",
   cancelar: "Cancelar pendência",
   reabrir: "Reabrir",
+  contestar: "Contestar",
+  ajustar: "Ajustar",
+  recusar: "Recusar contestação",
 };
 
 const ROTULO_DO_EVENTO: Record<EventoPendencia["comando"], string> = {
@@ -30,10 +34,15 @@ const ROTULO_DO_EVENTO: Record<EventoPendencia["comando"], string> = {
   repactuar: "Repactuou",
   cancelar: "Cancelou",
   reabrir: "Reabriu",
+  contestar: "Contestou",
+  ajustar: "Ajustou a contestação",
+  recusar: "Recusou a contestação",
   migracao: "Ajuste da migração",
 };
 
 const PEDE_PRAZO: ComandoPendencia[] = ["repactuar", "reabrir"];
+// O ajuste da contestação pode trocar o prazo, ou não (o erro era outro).
+const PRAZO_OPCIONAL: ComandoPendencia[] = ["ajustar"];
 
 // O anexo da conclusão (issue #1865): o mesmo teto e os mesmos tipos do
 // backend (`app/services/pendencia_anexo.py`), que confere de novo.
@@ -128,6 +137,7 @@ export function AcoesDaPendencia({ idAcao, token, acaoInicial, onAtualizada }: P
   }
 
   const pedePrazo = acao !== null && PEDE_PRAZO.includes(acao);
+  const aceitaPrazo = pedePrazo || (acao !== null && PRAZO_OPCIONAL.includes(acao));
   const aceitaAnexo = acao === "concluir";
   const pronto = anotacao.trim().length > 0 && (!pedePrazo || prazo !== "") && !erroDoAnexo;
 
@@ -141,7 +151,7 @@ export function AcoesDaPendencia({ idAcao, token, acaoInicial, onAtualizada }: P
       return fetch(`/api/pendencias/${idAcao}/conclusao`, { method: "POST", headers: autorizacao, body: corpo });
     }
     const corpo: Record<string, string> = { comando, anotacao: anotacao.trim() };
-    if (pedePrazo) corpo.prazo = prazo;
+    if (aceitaPrazo && prazo !== "") corpo.prazo = prazo;
     return fetch(`/api/pendencias/${idAcao}/acoes`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...autorizacao },
@@ -238,9 +248,11 @@ export function AcoesDaPendencia({ idAcao, token, acaoInicial, onAtualizada }: P
               className="mt-1 w-full min-h-[80px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
           </label>
-          {pedePrazo && (
+          {aceitaPrazo && (
             <label className="block">
-              <span className="text-xs font-semibold text-slate-600">Prazo novo</span>
+              <span className="text-xs font-semibold text-slate-600">
+                {pedePrazo ? "Prazo novo" : "Prazo novo (opcional)"}
+              </span>
               <input
                 type="date"
                 value={prazo}

@@ -249,6 +249,80 @@ describe("anexo no histórico (issue #1865)", () => {
   });
 });
 
+describe("contestação do item da Ata (issue #1870)", () => {
+  function comHistorico(historico: unknown) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        chamadas.push({ url, init });
+        if (init?.method === "POST") return new Response(JSON.stringify({ id_acao: "A001" }), { status: 200 });
+        return new Response(JSON.stringify(historico), { status: 200 });
+      })
+    );
+  }
+
+  it("o responsável contesta com anotação, sem prazo", async () => {
+    comHistorico({ eventos: [], acoes_permitidas: ["anotar", "contestar"] });
+    montar();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Contestar" }));
+    expect(screen.queryByLabelText("Prazo novo")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Anotação (obrigatória)"), { target: { value: "O prazo era março" } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+
+    await waitFor(() => expect(chamadas.some((c) => c.init?.method === "POST")).toBe(true));
+    const post = chamadas.find((c) => c.init?.method === "POST");
+    expect(JSON.parse(String(post?.init?.body))).toEqual({ comando: "contestar", anotacao: "O prazo era março" });
+  });
+
+  it("o facilitador ajusta com anotação e, se quiser, o prazo novo", async () => {
+    comHistorico({ eventos: [], acoes_permitidas: ["ajustar", "recusar"] });
+    montar();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Ajustar" }));
+    fireEvent.change(screen.getByLabelText("Anotação (obrigatória)"), { target: { value: "Combinado em março" } });
+    const confirmar = screen.getByRole("button", { name: "Confirmar" }) as HTMLButtonElement;
+    // O prazo novo é opcional no ajuste: a anotação basta.
+    expect(confirmar.disabled).toBe(false);
+    fireEvent.change(screen.getByLabelText("Prazo novo (opcional)"), { target: { value: "2027-03-31" } });
+    fireEvent.click(confirmar);
+
+    await waitFor(() => expect(chamadas.some((c) => c.init?.method === "POST")).toBe(true));
+    const post = chamadas.find((c) => c.init?.method === "POST");
+    expect(JSON.parse(String(post?.init?.body))).toEqual({
+      comando: "ajustar",
+      anotacao: "Combinado em março",
+      prazo: "2027-03-31",
+    });
+  });
+
+  it("recusar só confirma com anotação", async () => {
+    comHistorico({ eventos: [], acoes_permitidas: ["ajustar", "recusar"] });
+    montar();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Recusar contestação" }));
+    const confirmar = screen.getByRole("button", { name: "Confirmar" }) as HTMLButtonElement;
+    expect(confirmar.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText("Anotação (obrigatória)"), { target: { value: "O prazo foi esse" } });
+    expect(confirmar.disabled).toBe(false);
+  });
+
+  it("o histórico mostra a contestação e a resposta", async () => {
+    comHistorico({
+      eventos: [
+        { id: 1, comando: "contestar", anotacao: "Prazo errado", autor_nome: "Rita", criado_em: "2026-11-19T12:00:00+00:00", conta_atraso: false },
+        { id: 2, comando: "recusar", anotacao: "Está certo", autor_nome: "Fábio", criado_em: "2026-11-19T13:00:00+00:00", conta_atraso: false },
+      ],
+      acoes_permitidas: [],
+    });
+    montar();
+
+    const itens = within(await screen.findByRole("list", { name: "Histórico da pendência" })).getAllByRole("listitem");
+    expect(itens[0].textContent).toContain("Contestou");
+    expect(itens[1].textContent).toContain("Recusou a contestação");
+  });
+});
+
 describe("arrasto no kanban", () => {
   it("arrastar para Repactuada abre o formulário uma vez só: depois de confirmar ele não volta preenchido", async () => {
     const onAtualizada = vi.fn();
