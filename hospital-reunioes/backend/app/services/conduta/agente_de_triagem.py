@@ -381,7 +381,7 @@ def _cliente() -> ClienteDaAnthropic:
     return ClienteDaAnthropic(max_retries=0, timeout=TEMPO_LIMITE_S)
 
 
-def _ler(supabase, caso_id: str, cliente) -> tuple[Leitura, str]:
+def _ler_o_caso(supabase, caso_id: str, cliente) -> tuple[Leitura, str]:
     modelo = settings.conduta_agente_modelo
     if not agente_ligado():
         return Leitura(motivo_manual=DESLIGADO), modelo
@@ -405,7 +405,7 @@ def triar_caso(supabase, caso_id: str, *, cliente=None) -> None:
         if _ja_lido(supabase, caso_id):
             return
         try:
-            leitura, modelo = _ler(supabase, caso_id, cliente)
+            leitura, modelo = _ler_o_caso(supabase, caso_id, cliente)
         except Exception as exc:
             logger.warning("[CONDUTA] Leitura do caso %s falhou (%s)", caso_id, type(exc).__name__)
             leitura, modelo = Leitura(motivo_manual=AGENTE_FORA), settings.conduta_agente_modelo
