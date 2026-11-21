@@ -207,9 +207,16 @@ def test_o_registro_rapido_entra_na_lista_como_qualquer_caso_recebido():
 class TestKitDeConhecimento:
     def test_o_registro_rapido_esta_no_que_ja_esta_no_ar(self):
         secao = _secao_do_kit("O que já está no ar")
-        for termo in ("Registro rápido", "busca ativa", "ronda", "reunião rápida", "auditoria", "membro com o Termo"):
-            assert termo in secao, termo
-
-    def test_o_que_ainda_nao_faz_deixa_de_prometer_a_notificacao_da_reuniao_rapida(self):
-        secao = _secao_do_kit("O que ele ainda não faz")
-        assert "As notificações criadas a partir da reunião rápida chegam na segunda fase." not in secao
+        [item] = [linha for linha in secao.splitlines() if "Registro rápido" in linha]
+        for termo in (
+            "Presidência",
+            "membro com o Termo",
+            "relato, o setor, a data e a origem",
+            "busca ativa",
+            "ronda",
+            "reunião rápida",
+            "auditoria",
+            "autor",
+            "membro sem o Termo",
+        ):
+            assert termo in item, termo
