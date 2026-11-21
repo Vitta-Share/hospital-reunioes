@@ -44,7 +44,7 @@ from app.dependencies import (
 from app.limiter import limiter
 from app.services import limite_sem_ip, ouvidoria_nucleo
 from app.services.ouvidoria_anexos import AnexoGrandeDemaisError, AnexoRecusadoError, TipoNaoPermitidoError
-from app.services.seguranca_do_paciente import anexos, caso_grave, notificacoes
+from app.services.seguranca_do_paciente import agente_de_triagem, anexos, caso_grave, notificacoes
 from app.services.seguranca_do_paciente.permissao import hoje_em_sao_paulo
 
 logger = logging.getLogger(__name__)
@@ -218,6 +218,7 @@ def _gravar_notificacao(
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=FALHA_AO_REGISTRAR) from erro
     notificacao_id = recibo.pop("id")
     _avisar_a_chegada(supabase, tarefas, notificacao_id)
+    agente_de_triagem.agendar_triagem_do_nucleo(tarefas, supabase, notificacao_id)
     if caminhos:
         try:
             anexos.ligar_a_notificacao(supabase, notificacao_id, aceitos, caminhos)

@@ -97,6 +97,25 @@ def menciona_morte(relato: str | None) -> bool:
     return bool(_MENCAO_A_MORTE.search(relato or ""))
 
 
+# Instrução dirigida ao agente dentro do relato (seção 10.2 da especificação,
+# caso N103): pedido para ignorar regras, mandar classificar ou falar com o
+# "sistema". O alerta é do sistema e não depende de o agente perceber.
+_INSTRUCAO_AO_AGENTE = re.compile(
+    r"\b(ignor\w*|desconsider\w*|esque[cç]\w*)\s+(as\s+|todas\s+as\s+|a\s+|o\s+|os\s+)?"
+    r"(regras|instru\w*|orienta\w*|prompt)"
+    r"|\bclassifique\b|\bresponda\s+(apenas|somente|s[oó])\b|\baten[cç][aã]o,?\s+sistema\b",
+    re.IGNORECASE,
+)
+ALERTA_DE_INSTRUCAO = (
+    "O relato traz uma instrução dirigida ao agente. Ela foi tratada como texto do caso, "
+    "e a classificação seguiu os fatos."
+)
+
+
+def tem_instrucao_ao_agente(relato: str | None) -> bool:
+    return bool(_INSTRUCAO_AO_AGENTE.search(relato or ""))
+
+
 def faixa_esperada(natureza: str, grau_de_dano: str, situacao_da_lista: str) -> str:
     """A faixa que a regra de coerência do Anexo B manda para essa natureza,
     esse dano e essa situação da lista."""
@@ -202,6 +221,21 @@ def entrada_da_notificacao(linha: dict, *, setor: str | None) -> dict:
         "atingiu_paciente": _ATINGIU_O_PACIENTE.get(linha.get("chegou_ao_paciente"), "nao_sei"),
         "grave_ou_morte": "nao_respondido" if grave is None else ("sim" if grave else "nao"),
         "percepcao_familia": _PERCEPCAO.get(linha.get("percebido_ou_reclamacao"), ""),
+        "esclarecimentos": "",
+    }
+
+
+def entrada_do_caso_de_teste(caso: dict) -> dict:
+    """A entrada de um dos 144 casos do teste de aceite, que já vêm no
+    vocabulário do Anexo B e sem onde nem quando."""
+    return {
+        "relato": pseudonimizar(caso.get("relato") or ""),
+        "local": "",
+        "data": "",
+        "turno": "",
+        "atingiu_paciente": caso.get("atingiu_paciente") or "nao_sei",
+        "grave_ou_morte": caso.get("grave_ou_morte") or "nao_respondido",
+        "percepcao_familia": "",
         "esclarecimentos": "",
     }
 
