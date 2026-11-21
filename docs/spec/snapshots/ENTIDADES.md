@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T20:15+0000 -->
+<!-- last_update: 2026-11-21T22:11+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2391,7 +2391,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## conduta_casos
 
-> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql)
+> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql, 202_conduta_sinalizacao_da_ouvidoria.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2407,12 +2407,14 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `relato_cifrado` | `TEXT` | NOT NULL | — | — |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
 | `escopo` | `TEXT` | — | — | `participantes.id` |
+| `origem` | `TEXT` | NOT NULL | — | `ouvidoria_protocolos.id` |
 
 **Indexes:**
 - `idx_conduta_casos_rota_etapa` em `(rota, etapa, recebido_em DESC)` (de `175_conduta_fundacao.sql`)
 - `idx_conduta_casos_triagem_por` em `(triagem_por)` (de `185_conduta_triagem_e_ritos.sql`)
 - `idx_conduta_casos_conferida_por` em `(conferida_por)` (de `185_conduta_triagem_e_ritos.sql`)
 - `idx_conduta_casos_prorrogado_por` em `(prorrogado_por)` (de `185_conduta_triagem_e_ritos.sql`)
+- `uq_conduta_casos_manifestacao` em `(manifestacao_id)` (de `202_conduta_sinalizacao_da_ouvidoria.sql`)
 
 ## conduta_atribuicoes
 
@@ -2698,6 +2700,31 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_painel_fotografias_semana` em `(semana)` (de `189_fotografia_semanal_do_painel.sql`)
 
+## conduta_assinaturas
+
+> Origem: `192_conduta_assinaturas.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `tipo` | `TEXT` | NOT NULL | — | — |
+| `caso_id` | `UUID` | — | — | `conduta_casos.id` |
+| `participacao_id` | `UUID` | — | — | `participacoes.id` |
+| `na` | `ordem` | NOT NULL | — | — |
+| `situacao` | `TEXT` | NOT NULL | `'gerado'` | — |
+| `envelope_id` | `TEXT` | — | — | — |
+| `documento_key` | `TEXT` | UNIQUE | — | — |
+| `cifrada` | `pela` | — | — | — |
+| `erro` | `TEXT` | — | — | — |
+| `enviado_em` | `TIMESTAMPTZ` | — | — | — |
+| `assinado_em` | `TIMESTAMPTZ` | — | — | — |
+| `cancelado_em` | `TIMESTAMPTZ` | — | — | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_assinaturas_participacao` em `(participacao_id, created_at DESC)` (de `192_conduta_assinaturas.sql`)
+- `idx_conduta_assinaturas_caso` em `(caso_id)` (de `192_conduta_assinaturas.sql`)
+
 ## email_de_segunda
 
 > Origem: `196_email_de_segunda.sql`
@@ -2711,6 +2738,39 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_email_de_segunda_semana` em `(semana)` (de `196_email_de_segunda.sql`)
 
+## conduta_notas_nsp
+
+> Origem: `203_conduta_nota_ao_nucleo.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `texto_cifrado` | `TEXT` | NOT NULL | — | — |
+| `escrita_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `escrita_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `enviada_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `enviada_em` | `TIMESTAMPTZ` | — | — | — |
+
+**Indexes:**
+- `uq_conduta_notas_nsp_pendente` em `(caso_id)` (de `203_conduta_nota_ao_nucleo.sql`)
+- `idx_conduta_notas_nsp_caso` em `(caso_id)` (de `203_conduta_nota_ao_nucleo.sql`)
+- `idx_conduta_notas_nsp_escrita_por` em `(escrita_por)` (de `203_conduta_nota_ao_nucleo.sql`)
+- `idx_conduta_notas_nsp_enviada_por` em `(enviada_por)` (de `203_conduta_nota_ao_nucleo.sql`)
+
+## nsp_notas_do_comite
+
+> Origem: `203_conduta_nota_ao_nucleo.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `texto` | `TEXT` | NOT NULL | — | — |
+| `enviada_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_notas_do_comite_enviada_em` em `(enviada_em DESC)` (de `203_conduta_nota_ao_nucleo.sql`)
+
 ---
 
-**Resumo:** 134 tabelas vivas.
+**Resumo:** 137 tabelas vivas.

@@ -72,6 +72,16 @@ describe("MINHA VEZ", () => {
     expect(await screen.findByText("Nada depende de você agora.")).toBeTruthy();
   });
 
+  it("sem o Termo assinado, diz que falta assinar e não oferece caso (issue #1823)", async () => {
+    respostas = { "/minha-vez": { itens: [], termo_pendente: true } };
+    render(<MinhaVez />);
+
+    expect(await screen.findByText("Falta assinar o Termo de Confidencialidade e Posse.")).toBeTruthy();
+    expect(screen.getByText(/chegou no seu e-mail profissional pela ClickSign/)).toBeTruthy();
+    expect(screen.queryByText("Nada depende de você agora.")).toBeNull();
+    expect(screen.queryByRole("link", { name: "ABRIR O MAIS URGENTE" })).toBeNull();
+  });
+
   it("mostra protocolo, etapa, ação e prazo, na ordem do servidor", async () => {
     respostas = {
       "/minha-vez": {
@@ -121,6 +131,23 @@ describe("Casos", () => {
 
     const caso = await screen.findByRole("link", { name: /CC-AB12-CD34/ });
     expect(caso.textContent).toBe("CC-AB12-CD34Venceu há 3 diasRápido, apuraçãoPrazo vencido registrado");
+  });
+
+  it("o caso sinalizado pela Ouvidoria diz a origem, e o do canal não (issue #1849)", async () => {
+    const base = { etapa: "triagem", rito: null, categoria: null, situacao: "em_triagem", prazo_em: null, prazo_vencido: false, faltam_dias: null };
+    respostas = {
+      "/casos": {
+        casos: [
+          { ...base, id: "c1", protocolo: "CC-AB12-CD34", origem: "ouvidoria" },
+          { ...base, id: "c2", protocolo: "CC-EF56-GH78", origem: "canal" },
+        ],
+      },
+    };
+    render(<CasosDoComite />);
+
+    const daOuvidoria = await screen.findByRole("link", { name: /CC-AB12-CD34/ });
+    expect(daOuvidoria.textContent).toContain("Origem: Ouvidoria");
+    expect(screen.getByRole("link", { name: /CC-EF56-GH78/ }).textContent).not.toContain("Origem");
   });
 });
 
@@ -259,6 +286,66 @@ describe("a tela do caso", () => {
     const botao = (await screen.findByRole("button", { name: "PRORROGAR PRAZO" })) as HTMLButtonElement;
     expect(botao.disabled).toBe(true);
     expect(screen.getByText("Só a coordenação prorroga o prazo.")).toBeTruthy();
+  });
+});
+
+describe("Sinalizar ao NSP (issue #1850)", () => {
+  const NOTA = "Risco de queda no corredor da ala B: piso molhado sem sinalização à noite.";
+  const PENDENTE = { texto: NOTA, escrita_em: "2026-11-20T10:00:00+00:00", enviada_em: null };
+
+  it("o membro escreve a nota e a tela a manda ao servidor", async () => {
+    respostas = { "/casos/c1": { ...CASO, papel: "membro", notas_ao_nsp: [] }, "/casos/c1/nota-ao-nsp": { caso: {} } };
+    render(<TelaDoCaso casoId="c1" />);
+
+    const lateral = await screen.findByRole("region", { name: "Sinalizar ao NSP" });
+    fireEvent.click(within(lateral).getByRole("button", { name: "SINALIZAR AO NSP" }));
+    fireEvent.change(within(lateral).getByLabelText("Nota ao Núcleo"), { target: { value: NOTA } });
+    fireEvent.click(within(lateral).getByRole("button", { name: "SALVAR A NOTA" }));
+
+    await waitFor(() =>
+      expect(chamadas.find((c) => c.method === "POST" && c.url === "/api/comite-de-conduta/casos/c1/nota-ao-nsp")?.body).toEqual({
+        texto: NOTA,
+      })
+    );
+  });
+
+  it("para o membro, o envio fica bloqueado com o motivo", async () => {
+    respostas = { "/casos/c1": { ...CASO, papel: "membro", notas_ao_nsp: [PENDENTE] } };
+    render(<TelaDoCaso casoId="c1" />);
+
+    const lateral = await screen.findByRole("region", { name: "Sinalizar ao NSP" });
+    expect(within(lateral).getByText(NOTA)).toBeTruthy();
+    const enviar = within(lateral).getByRole("button", { name: "ENVIAR AO NSP" }) as HTMLButtonElement;
+    expect(enviar.disabled).toBe(true);
+    expect(within(lateral).getByText("Só a coordenação envia a nota ao Núcleo.")).toBeTruthy();
+  });
+
+  it("a coordenação envia a nota que espera", async () => {
+    respostas = {
+      "/casos/c1": { ...CASO, papel: "coordenacao", notas_ao_nsp: [PENDENTE] },
+      "/casos/c1/nota-ao-nsp/envio": { caso: {} },
+    };
+    render(<TelaDoCaso casoId="c1" />);
+
+    const lateral = await screen.findByRole("region", { name: "Sinalizar ao NSP" });
+    fireEvent.click(within(lateral).getByRole("button", { name: "ENVIAR AO NSP" }));
+
+    await waitFor(() =>
+      expect(
+        chamadas.some((c) => c.method === "POST" && c.url === "/api/comite-de-conduta/casos/c1/nota-ao-nsp/envio")
+      ).toBe(true)
+    );
+  });
+
+  it("a nota enviada mostra a data do envio", async () => {
+    respostas = {
+      "/casos/c1": { ...CASO, notas_ao_nsp: [{ ...PENDENTE, enviada_em: "2026-11-21T13:00:00+00:00" }] },
+    };
+    render(<TelaDoCaso casoId="c1" />);
+
+    const lateral = await screen.findByRole("region", { name: "Sinalizar ao NSP" });
+    expect(within(lateral).getByText("Enviada ao Núcleo em 21/11/2026")).toBeTruthy();
+    expect(within(lateral).queryByRole("button", { name: "ENVIAR AO NSP" })).toBeNull();
   });
 });
 

@@ -27,6 +27,10 @@ import { useCurrentParticipante } from "@/hooks/useCurrentParticipante";
 import { ReasonModal } from "@/components/admin/ReasonModal";
 import { EncerrarModal } from "@/components/ouvidoria/EncerrarModal";
 import { ValidarModal } from "@/components/ouvidoria/ValidarModal";
+import {
+  BlocoDoCanalDeConduta,
+  type CamposDoCanalDeConduta,
+} from "@/components/ouvidoria/BlocoDoCanalDeConduta";
 import { BlocoDoNucleo } from "@/components/ouvidoria/BlocoDoNucleo";
 import type { CamposDoNucleo } from "@/lib/ouvidoria/nucleo";
 import {
@@ -97,7 +101,9 @@ interface Anexo {
 // O apontamento ao Núcleo de Segurança do Paciente e a decisão (issue #1621)
 // entram por `CamposDoNucleo`, opcionais pelo mesmo motivo: sem eles o bloco
 // do Núcleo só mostra o botão Enviar ao NSP.
-export interface Dossie extends CamposDoPassoAPasso, CamposDoNucleo {
+// A sinalização ao Canal de Conduta (issue #1849) entra por
+// `CamposDoCanalDeConduta`, opcional pelo mesmo motivo.
+export interface Dossie extends CamposDoPassoAPasso, CamposDoNucleo, CamposDoCanalDeConduta {
   id: string;
   protocolo: string;
   data_abertura: string;
@@ -1074,6 +1080,13 @@ export function Dossie({ protocolo, token }: DossieProps) {
               enquanto o caso não foi ao Núcleo. O caso apagado não vai a
               lugar nenhum. */}
           {!apagado && <BlocoDoNucleo caso={dossie} token={token} onEnviado={recarregarCaso} />}
+
+          {/* A sinalização ao Canal de Conduta (issue #1849, ADR 0097 decisão
+              14): a manifestação de paciente sobre conduta grave de um
+              profissional abre um caso no Canal e segue aberta aqui. */}
+          {!apagado && (
+            <BlocoDoCanalDeConduta caso={dossie} token={token} onSinalizado={recarregarCaso} />
+          )}
 
           {dossie.dados_incompletos && (
             <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-sky-50 border border-sky-200 text-sky-800 text-sm">

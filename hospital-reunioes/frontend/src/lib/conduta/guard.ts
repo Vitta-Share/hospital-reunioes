@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "../supabase/server";
 
-async function perguntarAoPortao(rota: string) {
+async function perguntarAoPortao(...rotas: string[]) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -17,14 +17,16 @@ async function perguntarAoPortao(rota: string) {
   if (!token) redirect("/login");
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
-  const res = await fetch(`${apiBase}${rota}`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
+  // Com mais de uma rota, basta uma abrir; elas são perguntadas na ordem.
+  for (const rota of rotas) {
+    const res = await fetch(`${apiBase}${rota}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (res.ok) return { user };
+  }
   // Falha de leitura também fecha a porta: sem saber quem é, ninguém entra.
-  if (!res.ok) redirect("/dashboard");
-
-  return { user };
+  redirect("/dashboard");
 }
 
 /**
@@ -58,4 +60,14 @@ export async function requireMembrosDoComiteAccess() {
  */
 export async function requireConfiguracoesDoCanalAccess() {
   return perguntarAoPortao("/comite-de-conduta/configuracoes");
+}
+
+/**
+ * Gate server-side do Guia do rito (issue #1842). O guia não leva caso, e
+ * abre para quem vê qualquer tela do Comitê: quem o portão dos casos deixa
+ * entrar (o apurador designado inclusive) e quem entra na tela Membros, que é
+ * onde o membro sem o Termo assinado chega.
+ */
+export async function requireGuiaDoRitoAccess() {
+  return perguntarAoPortao("/comite-de-conduta/minha-vez", "/comite-de-conduta/membros");
 }
