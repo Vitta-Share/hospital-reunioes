@@ -47,13 +47,19 @@ def hoje_em_sao_paulo() -> date:
     return datetime.now(tz=ZoneInfo("America/Sao_Paulo")).date()
 
 
+def _atribuicao_vale(atribuicao: dict[str, Any], pessoa: PessoaNoComite) -> bool:
+    """Não revogada, e com o Termo assinado: o da atribuição ou o da
+    Participação vigente."""
+    return atribuicao.get("revogada_em") is None and bool(atribuicao.get("termo_assinado_em") or pessoa.termo_valido)
+
+
 def pode_abrir(caso: dict[str, Any], pessoa: PessoaNoComite, atribuicoes: list[dict], citado: bool) -> bool:
     """`atribuicoes` são as da pessoa neste caso."""
     if citado:
         return False
     if any(a.get("impedido_em") for a in atribuicoes):
         return False
-    if any(a.get("revogada_em") is None and (a.get("termo_assinado_em") or pessoa.termo_valido) for a in atribuicoes):
+    if any(_atribuicao_vale(a, pessoa) for a in atribuicoes):
         return True
     return caso.get("rota") == "comum" and pessoa.na_fila_comum
 
@@ -102,12 +108,7 @@ def casos_da_pessoa(supabase, pessoa: PessoaNoComite) -> list[dict] | None:
     """Os casos que a pessoa abre, só com os metadados da lista. `None` quando
     ela não tem designação nenhuma no Canal: a rota responde 403."""
     atribuicoes, citados = _atribuicoes_e_citacoes(supabase, pessoa)
-    atribuicao_valida = any(
-        a.get("revogada_em") is None and (a.get("termo_assinado_em") or pessoa.termo_valido)
-        for linhas in atribuicoes.values()
-        for a in linhas
-    )
-    if not pessoa.na_fila_comum and not atribuicao_valida:
+    if not pessoa.na_fila_comum and not any(_atribuicao_vale(a, pessoa) for x in atribuicoes.values() for a in x):
         return None
     candidatos: dict[str, dict] = {}
     if pessoa.na_fila_comum:
