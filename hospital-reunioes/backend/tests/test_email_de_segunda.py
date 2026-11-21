@@ -226,6 +226,21 @@ def test_rodar_o_job_varias_vezes_na_mesma_segunda_manda_um_email_so_por_pessoa(
     assert len(_para(estado, "P_BRUNO")) == 2
 
 
+def test_o_job_roda_na_segunda_de_hora_em_hora_das_8h_as_12h():
+    from apscheduler.triggers.cron import CronTrigger
+
+    try:
+        cron.start_scheduler()
+        job = cron.scheduler.get_job("email_de_segunda_reunioes")
+        assert job.func is cron.enviar_email_de_segunda
+        assert isinstance(job.trigger, CronTrigger)
+        campos = {c.name: str(c) for c in job.trigger.fields}
+        assert (campos["day_of_week"], campos["hour"], campos["minute"]) == ("mon", "8-12", "0")
+        assert str(job.trigger.timezone) == "America/Sao_Paulo"
+    finally:
+        cron.stop_scheduler()
+
+
 def test_falha_no_envio_nao_marca_e_a_hora_seguinte_manda(job):
     rodar, estado = job
     _so_responsavel(estado["banco"])
