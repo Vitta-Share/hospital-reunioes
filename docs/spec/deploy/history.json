@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-20T21:49:11-03:00",
+      "sha": "cc397f436908686eea6258b61929c731cf77932c",
+      "app_version": "0.327.0",
+      "subject": "Onda sesta-1757-onda3: Cards de Reuniões calculados no servidor, base inteira e Cobrar de assinatura",
+      "raw_subject": "chore(deploy): registro da onda sesta-1757-onda3 (#2048)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1757
+      ],
+      "result": "healthy",
+      "duration_seconds": 231,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1757-onda3: PR #2048 (issue #1868), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 18,
+          "frontend": 203
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-20T21:42:48-03:00",
       "sha": "ae02a1391a6c6dbba99a97252f9622d20c2c9566",
       "app_version": "0.326.0",
