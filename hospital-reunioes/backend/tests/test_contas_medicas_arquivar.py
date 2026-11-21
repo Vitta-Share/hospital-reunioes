@@ -393,3 +393,31 @@ class TestArquivadas:
         assert cliente.post(f"/api/contas-medicas/contas/{_id('out-f1')}/arquivar").status_code == 403
         assert cliente.post("/api/contas-medicas/competencias/2026-10/arquivar").status_code == 403
         assert _arquivadas(banco) == {"out-arquivada"}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 7. O kit de conhecimento
+# ═══════════════════════════════════════════════════════════════════════════
+
+KIT = Path(__file__).resolve().parents[1] / "app" / "conhecimento" / "contas-medicas.md"
+
+
+class TestOKitDizOArquivar:
+    def test_diz_a_competencia_quem_arquiva_o_desarquivar_e_o_retorno(self):
+        secao = KIT.read_text(encoding="utf-8").split("## O envio e a fila", 1)[1].split("\n## ", 1)[0]
+        paragrafo = next(p for p in secao.split("\n\n") if p.startswith("Arquivar tira a conta"))
+
+        for trecho in (
+            "já foi tratada no MV",
+            '"Arquivar o mês"',
+            "quantas têm pendência",
+            "Painel completo arquiva qualquer uma",
+            "**Arquivadas**",
+            '"Desarquivar"',
+            "Retorno da Validação volta sozinha",
+            "A busca também acha a conta arquivada",
+        ):
+            assert trecho in paragrafo, trecho
+        assert "fim do período da conta" in secao
+        # O teto das 100 mais recentes saiu (issue #1958).
+        assert "100 que a lista mostra" not in secao
