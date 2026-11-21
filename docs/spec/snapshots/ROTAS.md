@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T16:46+0000 -->
+<!-- last_update: 2026-11-21T20:04+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -537,6 +537,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/rotinas/{id_rotina}/ciclos/{inicio}/realizada` | Realizada é um clique, sem anotação. | ✅ |
 | POST | `/rotinas/{id_rotina}/encerrar` | O Facilitador (ou o Super admin) encerra a qualquer momento, com anotação. | ✅ |
 | POST | `/rotinas/{id_rotina}/frequencia` | O Facilitador (ou o Super admin) escolhe a frequência da Rotina que veio | ✅ |
+| POST | `/rotinas/{id_rotina}/manter` | A revisão de 90 dias (issue #1944): o Facilitador (ou o Super admin) | ✅ |
 
 ## seguranca-do-paciente (`app/routers/seguranca_do_paciente.py`)
 
@@ -750,4 +751,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 429 endpoints em 63 routers · 93% exigem auth.
+**Totais:** 430 endpoints em 63 routers · 93% exigem auth.
