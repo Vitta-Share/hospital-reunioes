@@ -1421,6 +1421,26 @@ class TestKitDeConhecimento:
         ):
             assert trecho in secao, trecho
 
+    def test_diz_que_a_faturista_ve_as_contas_de_todas_e_o_filtro_todas_e_minhas(self):
+        """Issue #1955, ADR 0105: Em análise e Concluídas de todas, com quem
+        está cada uma, o filtro guardado no navegador e a conta da colega que
+        aparece e não abre. O texto antigo dizia que só o Painel completo via."""
+        texto = KIT.read_text(encoding="utf-8")
+        secao = texto.split("## O envio e a fila", 1)[1].split("\n## ", 1)[0]
+
+        for trecho in (
+            "de todas as faturistas",
+            '"Todas" e "Minhas"',
+            "fica guardada no navegador",
+            "Fila e Envios não mudam",
+            "não abre",
+            "com quem a conta está",
+            "abre a conta de qualquer faturista",
+            "a própria produção",
+        ):
+            assert trecho in secao, trecho
+        assert "que só quem tem o Painel completo vê" not in texto
+
     def test_diz_que_cada_envio_e_um_cartao_com_os_quadrados_da_conta_e_do_prontuario(self):
         """Issue #1336: o cartão do envio, com um quadrado para cada arquivo."""
         secao = KIT.read_text(encoding="utf-8").split("## O envio e a fila", 1)[1].split("\n## ", 1)[0]
