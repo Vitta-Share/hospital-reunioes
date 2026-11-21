@@ -70,7 +70,9 @@ def test_o_protocolo_sai_de_um_contador_por_ano_no_banco():
     )
     # Quatro dígitos, sem cortar o 10.000º (o lpad sozinho corta).
     assert "'NSP-' || v_ano || '-' || lpad(v_numero::text, greatest(4, length(v_numero::text)), '0')" in corpo
-    assert re.search(r"BEFORE INSERT ON nsp_notificacoes\s+FOR EACH ROW EXECUTE FUNCTION nsp_notificacao_protocolo\(\)", _sql())
+    assert re.search(
+        r"BEFORE INSERT ON nsp_notificacoes\s+FOR EACH ROW EXECUTE FUNCTION nsp_notificacao_protocolo\(\)", _sql()
+    )
 
 
 def test_o_protocolo_e_unico_e_o_numero_nao_repete_no_ano():

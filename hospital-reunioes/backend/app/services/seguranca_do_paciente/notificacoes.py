@@ -90,3 +90,72 @@ def registrar(
     if codigo:
         recibo["codigo_acompanhamento"] = codigo
     return recibo
+
+
+def consultar(supabase, protocolo: str, codigo: str | None, contato: str | None) -> dict[str, str] | None:
+    """O que a página de acompanhamento mostra, ou `None` para toda recusa.
+
+    Reusa as conferências da Ouvidoria: o código pelo hash, o contato pelo
+    e-mail sem caixa ou pelos dígitos do telefone. A recusa é uma só, para não
+    ensinar quais protocolos existem (`ouvidoria_acompanhamento`)."""
+    linhas = (
+        supabase.table("nsp_notificacoes")
+        .select("protocolo, estado, anonimo, codigo_acompanhamento_hash, notificante_contato")
+        .eq("protocolo", (protocolo or "").strip().upper())
+        .limit(1)
+        .execute()
+        .data
+    )
+    caso = linhas[0] if linhas else None
+    if caso is None:
+        if codigo:
+            # A recusa por protocolo inexistente gasta o tempo de uma conferência.
+            ouvidoria_acompanhamento._gastar_o_tempo_de_uma_conferencia(codigo)
+        return None
+    if caso.get("anonimo"):
+        if not codigo or not ouvidoria_acompanhamento.codigo_confere(codigo, caso.get("codigo_acompanhamento_hash")):
+            return None
+    elif not contato or not ouvidoria_acompanhamento.contato_confere(
+        contato, {"manifestante_contato": caso.get("notificante_contato")}
+    ):
+        return None
+    return {"protocolo": caso["protocolo"], "estado": ESTADO_PUBLICO.get(caso.get("estado"), RECEBIDA)}
+
+
+_CAMPOS_DA_LISTA = (
+    "id, protocolo, estado, origem, relato, leito_ou_atendimento, setor_id, data_ocorrencia, turno, "
+    "hora_aproximada, chegou_ao_paciente, grave_ou_morte, percebido_ou_reclamacao, criado_em, "
+    "anonimo, notificante_nome, notificante_contato"
+)
+LIMITE_DA_LISTA = 500
+
+
+def listar(supabase, *, com_identidade: bool) -> list[dict[str, Any]]:
+    """Os casos, do mais novo ao mais velho. A identidade de quem notificou só
+    entra quando `com_identidade` (Presidência e Acesso pleno)."""
+    linhas = (
+        supabase.table("nsp_notificacoes")
+        .select(_CAMPOS_DA_LISTA)
+        .order("criado_em", desc=True)
+        .order("numero", desc=True)
+        .limit(LIMITE_DA_LISTA)
+        .execute()
+        .data
+    ) or []
+    setor_ids = sorted({linha["setor_id"] for linha in linhas if linha.get("setor_id")})
+    setores = (
+        {s["id"]: s["nome"] for s in supabase.table("setores").select("id, nome").in_("id", setor_ids).execute().data}
+        if setor_ids
+        else {}
+    )
+    casos = []
+    for linha in linhas:
+        anonimo = linha.pop("anonimo", None)
+        nome = linha.pop("notificante_nome", None)
+        contato = linha.pop("notificante_contato", None)
+        caso = {**linha, "setor": setores.get(linha.get("setor_id"))}
+        if com_identidade:
+            caso["anonimo"] = bool(anonimo)
+            caso["notificante"] = None if anonimo else {"nome": nome, "contato": contato}
+        casos.append(caso)
+    return casos
