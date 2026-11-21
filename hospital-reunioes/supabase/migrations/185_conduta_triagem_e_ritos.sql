@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 179: Canal de Conduta, triagem, ritos e prazos
+-- Migration 185: Canal de Conduta, triagem, ritos e prazos
 -- (issue #1824, PRD #1786, ADR 0097; especificação, seções 5, 6.1, 6.2 e 18)
 -- =====================================================
 -- O que entra:
@@ -183,4 +183,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (179) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (185) ON CONFLICT (numero) DO NOTHING;

@@ -90,10 +90,10 @@ class _Consulta:
         return SimpleNamespace(data=linhas[: self._teto] if self._teto is not None else linhas)
 
 
-# As tabelas que o banco não deixa alterar (migrations 175 e 179).
+# As tabelas que o banco não deixa alterar (migrations 175 e 185).
 IMUTAVEIS = ("conduta_trilha", "conduta_prazos_vencidos")
 
-# As chaves únicas que o módulo usa para não gravar duas vezes (migration 179).
+# As chaves únicas que o módulo usa para não gravar duas vezes (migration 185).
 UNICAS = {
     "conduta_prazos_vencidos": ("caso_id", "prazo_em"),
     "conduta_contestacoes": ("caso_id",),

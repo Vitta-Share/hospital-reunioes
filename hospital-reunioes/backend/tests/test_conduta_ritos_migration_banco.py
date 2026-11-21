@@ -1,6 +1,6 @@
-"""A migration 179 do Canal de Conduta num Postgres de verdade (issue #1824).
+"""A migration 185 do Canal de Conduta num Postgres de verdade (issue #1824).
 
-Sobe um Postgres descartável, aplica a 175 e a 179 (a 179 duas vezes) sobre o
+Sobe um Postgres descartável, aplica a 175 e a 185 (a 185 duas vezes) sobre o
 mínimo de antes e prova no banco:
 
 - o prazo vencido não se altera nem se apaga, nem pela `service_role`;
@@ -23,7 +23,7 @@ from test_conduta_migration_banco import ESQUEMA_ANTERIOR
 from test_conduta_migration_banco import MIGRATION as MIGRATION_175
 from test_pendencia_historico_banco import _bin_do_postgres, _Postgres
 
-MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "179_conduta_triagem_e_ritos.sql"
+MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "185_conduta_triagem_e_ritos.sql"
 
 TABELAS_NOVAS = ("conduta_contestacoes", "conduta_contestacao_votos", "conduta_prazos_vencidos")
 
@@ -167,4 +167,4 @@ def test_nenhum_dado_de_pessoa_entra_pela_migration():
 
 
 def test_o_recibo_e_o_179(banco):
-    assert banco.ok("SELECT max(numero) FROM migracoes_aplicadas;") == "179"
+    assert banco.ok("SELECT max(numero) FROM migracoes_aplicadas;") == "185"
