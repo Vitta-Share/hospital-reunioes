@@ -12,7 +12,7 @@ import { SeloDaOuvidoria } from "./SeloDaOuvidoria";
 
 const CARTAO = "bg-white rounded-2xl border border-border shadow-premium";
 
-interface Caso {
+export interface Caso {
   id: string;
   protocolo: string;
   estado: string;
@@ -40,7 +40,7 @@ interface Anexo {
   tamanho_bytes: number;
 }
 
-const ESTADOS: Record<string, string> = {
+export const ESTADOS: Record<string, string> = {
   recebida: "Recebida",
   em_triagem: "Em triagem",
   classificada: "Classificada",
@@ -49,7 +49,7 @@ const ESTADOS: Record<string, string> = {
   em_analise_agregada: "Em análise agregada",
 };
 
-const ORIGENS: Record<string, string> = {
+export const ORIGENS: Record<string, string> = {
   qr: "Pelo QR",
   endereco: "Pelo endereço",
   modulo: "Pelo módulo",
@@ -61,13 +61,13 @@ const ORIGENS: Record<string, string> = {
   outra: "Outra",
 };
 
-function formatarData(iso: string): string {
+export function formatarData(iso: string): string {
   const d = new Date(iso.length === 10 ? `${iso}T12:00:00` : iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }
 
-function QuemNotificou({ caso }: { caso: Caso }) {
+export function QuemNotificou({ caso }: { caso: Caso }) {
   // O caso da Ouvidoria chega sem quem manifestou, e o selo já diz de onde veio.
   if (caso.notificante === undefined || caso.origem === "ouvidoria") return null;
   if (caso.anonimo || !caso.notificante) {

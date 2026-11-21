@@ -5,9 +5,10 @@
 /**
  * A tela do link do Núcleo de Segurança do Paciente (issue #1621, ADR 0088).
  *
- * O link do email abre sem senha e mostra o caso inteiro ao Núcleo; o botão
+ * O link do email abre sem senha e mostra o caso ao Núcleo, sem o relato
+ * desde a issue #1997 (o relato está no caso do módulo, com login); o botão
  * Recebido pelo NSP confirma, uma vez. O que a resposta carrega em cada caso
- * (o relato no sigiloso, quem manifestou só fora do sigilo e do anonimato) é
+ * (o paciente no sigiloso, quem manifestou só fora do sigilo e do anonimato) é
  * régua do backend; aqui se prova que a tela mostra o que veio, que abrir não
  * confirma nada e que o clique chama a rota certa.
  */
@@ -21,8 +22,6 @@ vi.mock("next/navigation", () => ({
   useParams: () => ({ token: "token-do-nucleo" }),
 }));
 
-const RELATO = "Minha mae caiu da cama no quarto 412 e ninguem veio ajudar por meia hora.";
-
 function tela(overrides: Record<string, unknown> = {}) {
   return {
     protocolo: "2026-0007",
@@ -30,8 +29,6 @@ function tela(overrides: Record<string, unknown> = {}) {
     gravidade: "alto",
     sigiloso: true,
     anonimo: false,
-    relato_integral: RELATO,
-    justificativa_tecnica: "Queda do leito, internacao, madrugada de 24/08.",
     paciente: { nome: "Ana Maria Souza", nascimento: "1948-03-02" },
     profissionais: "Enfermeiro do plantao noturno",
     quarto: "412",
@@ -65,14 +62,14 @@ afterEach(() => {
 });
 
 describe("a tela do link do Núcleo", () => {
-  it("mostra o relato, a justificativa técnica e o paciente com o nascimento", async () => {
+  it("mostra o paciente com o nascimento e diz que o relato está no módulo do Núcleo", async () => {
     fetchMock.mockResolvedValue(resposta(200, tela()));
     render(<NucleoPage />);
 
-    await waitFor(() => expect(screen.getByText(RELATO)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Ana Maria Souza")).toBeTruthy());
     expect(fetchMock).toHaveBeenCalledWith("/api/ouvidoria-setor/nsp/token-do-nucleo");
-    expect(screen.getByText("Queda do leito, internacao, madrugada de 24/08.")).toBeTruthy();
-    expect(screen.getByText("Ana Maria Souza")).toBeTruthy();
+    expect(screen.queryByText("Relato integral")).toBeNull();
+    expect(screen.getByText(/O relato está no caso, no módulo de Segurança do Paciente/)).toBeTruthy();
     expect(screen.getByText("02/03/1948")).toBeTruthy();
     expect(screen.getByText("Enfermeiro do plantao noturno")).toBeTruthy();
     expect(screen.getByText("Internação, Ala 4, quarto 412")).toBeTruthy();
