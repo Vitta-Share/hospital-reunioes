@@ -58,7 +58,15 @@ describe("ranking de atrasos no painel", () => {
     servir({
       ...BASE,
       atrasos_por_setor: [
-        { setor: "Farmácia", atrasadas: 1, repactuacoes_vencidas: 2, concluidas_com_atraso: 0, atrasos: 3, reaberturas: 1 },
+        {
+          setor: "Farmácia",
+          atrasadas: 1,
+          repactuacoes_vencidas: 2,
+          concluidas_com_atraso: 0,
+          atrasos: 3,
+          reaberturas: 1,
+          rotinas_nao_cumpridas: 4,
+        },
       ],
       ranking: [
         {
@@ -70,6 +78,7 @@ describe("ranking de atrasos no painel", () => {
           concluidas_com_atraso: 0,
           atrasos: 3,
           reaberturas: 1,
+          rotinas_nao_cumpridas: 4,
         },
       ],
     });
@@ -85,7 +94,10 @@ describe("ranking de atrasos no painel", () => {
       "0",
       "3",
       "1",
+      "4",
     ]);
+    // A Rotina não cumprida fica ao lado dos atrasos e das reaberturas (issue #1879).
+    expect(within(ranking).getByRole("columnheader", { name: "Rotinas não cumpridas" })).toBeTruthy();
     const setores = screen.getByRole("region", { name: "Atrasos por setor" });
     expect(within(setores).getByText("3 atrasos, 1 reabertura")).toBeTruthy();
   });
