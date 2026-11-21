@@ -44,7 +44,7 @@ from app.dependencies import (  # noqa: E402
 from app.limiter import limiter  # noqa: E402
 from app.routers import conduta_comite, conduta_convites, webhooks  # noqa: E402
 from app.services import auth_provisioning, clicksign_service  # noqa: E402
-from app.services.conduta import assinaturas, casos, convites  # noqa: E402
+from app.services.conduta import assinaturas, casos, convites, trilha  # noqa: E402
 from app.services.conduta.acesso import hoje_em_sao_paulo  # noqa: E402
 
 ROTA_DOS_CASOS = "/api/comite-de-conduta/casos"
@@ -365,7 +365,7 @@ PERFIS_DE_MODULO = ("perfil_pop", "perfil_ouvidoria", "perfil_contas_medicas", "
 
 class TestCadastroMinimo:
     def test_pessoa_sem_cadastro_ganha_cadastro_minimo_com_login_e_sem_outro_modulo(self, logins):
-        """Mutante: o cadastro mínimo nascer com o perfil padrão das Reuniões."""
+        """Mutante: o login do convidado nascer com o perfil padrão das Reuniões."""
         cenario = _Cenario()
         caso = cenario.caso()
 
@@ -518,3 +518,60 @@ class TestTermoDoConvidado:
         assert cenario.tabela("conduta_atribuicoes") == []
         assert clicksign.chamadas == []
         assert emails == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. O super admin não é avisado, e o e-mail não cita o caso
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestAvisoDoConvite:
+    @pytest.mark.parametrize(
+        "email,nome",
+        [(APURADOR["email"], ""), ("nova.pessoa@fora.com.br", "Nova Pessoa")],
+        ids=["com_cadastro", "sem_cadastro"],
+    )
+    def test_nenhum_aviso_chega_ao_super_admin_e_o_email_nao_cita_o_caso(self, emails, email, nome):
+        """Mutante: o convite avisar o super admin no sino."""
+        cenario = _Cenario(APURADOR)
+        caso = cenario.caso()
+
+        resposta = cenario.convidar("C1", caso, email=email, nome=nome)
+
+        assert resposta.status_code == 201, resposta.text
+        assert cenario.tabela("notificacoes") == []
+        assert cenario.tabela("audit_log") == []
+        assert [e["para"] for e in emails] == [email]
+        [email_do_convite] = emails
+        corpo = email_do_convite["assunto"] + email_do_convite["html"] + email_do_convite["texto"]
+        for proibido in (caso["protocolo"], "manutenção", "horas extras", "Ana", "Apuradora", "Nova Pessoa", "Cora"):
+            assert proibido not in corpo
+        assert "/comite-de-conduta" in email_do_convite["texto"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. Cada acesso do convidado entra na trilha do caso
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestTrilhaDoConvidado:
+    def test_cada_acesso_do_convidado_entra_na_trilha_do_caso(self):
+        """Mutante: a leitura de quem entra por atribuição não ir para a trilha."""
+        cenario = _Cenario(APURADOR)
+        caso = cenario.caso()
+        _assinar(cenario, _convidado(cenario, caso)["documento_key"])
+        cliente = cenario.como("A1")
+
+        assert cliente.get(f"{ROTA_DOS_CASOS}/{caso['id']}").status_code == 200
+        assert cliente.get(f"{ROTA_DOS_CASOS}/{caso['id']}").status_code == 200
+
+        linhas = sorted(cenario.tabela("conduta_trilha"), key=lambda x: x["seq"])
+        assert [(x["acao"], x["autor_id"]) for x in linhas] == [
+            ("recebimento", None),
+            ("convite", "C1"),
+            ("termo_assinado", "A1"),
+            ("leitura", "A1"),
+            ("leitura", "A1"),
+        ]
+        assert "A1" in linhas[1]["detalhe"]
+        assert trilha.linhas_adulteradas(linhas) == []

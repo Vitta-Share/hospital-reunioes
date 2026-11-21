@@ -281,9 +281,7 @@ def enviar_termo_do_convidado(supabase, caso_id: str, pessoa: dict, papel: str) 
         ).execute()
     assinatura = (
         supabase.table(TABELA)
-        .insert(
-            {"tipo": TERMO_DO_CONVIDADO, "caso_id": caso_id, "signatarios": [pessoa["id"]], "situacao": "gerado"}
-        )
+        .insert({"tipo": TERMO_DO_CONVIDADO, "caso_id": caso_id, "signatarios": [pessoa["id"]], "situacao": "gerado"})
         .execute()
         .data
     )[0]
