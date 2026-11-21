@@ -28,7 +28,6 @@ from app.limiter import limiter
 from app.models.admin_schemas import (
     ForceEditReuniaoRequest,
     ForceStatusReuniaoRequest,
-    ReasonRequest,
     TransferirFacilitadorRequest,
 )
 from app.models.schemas import (
@@ -866,6 +865,24 @@ async def lembrar_signatario(
     return {"sent": True, "signer_id": signer_id}
 
 
+RECUSA_REUNIAO_COM_PENDENCIA = (
+    "Esta reunião não pode ser excluída porque já tem pendências, mesmo que canceladas. "
+    "As pendências e o histórico delas ficam guardados; para tirar uma pendência da cobrança, "
+    "cancele-a com uma anotação."
+)
+
+
+def _reunioes_com_pendencia(supabase, ids_reuniao: list[str]) -> set[str]:
+    """Nada apaga Pendência (ADR 0098, decisão 6; issue #1864): a FK recusa a
+    exclusão (migration 172), e a rota pergunta antes para responder com o
+    motivo em vez do erro cru do banco. Conta toda Pendência, cancelada ou
+    não, inclusive as de `deleted_at` preenchido, porque a FK também conta."""
+    if not ids_reuniao:
+        return set()
+    linhas = supabase.table("pendencias").select("id_reuniao").in_("id_reuniao", ids_reuniao).execute().data or []
+    return {linha["id_reuniao"] for linha in linhas}
+
+
 @router.delete("/{id_reuniao}")
 async def cancelar_reuniao(
     id_reuniao: str,
@@ -905,6 +922,9 @@ async def cancelar_reuniao(
 
     if not autorizado:
         raise HTTPException(status_code=403, detail="Permissão insuficiente para cancelar esta reunião")
+
+    if _reunioes_com_pendencia(supabase, [id_reuniao]):
+        raise HTTPException(status_code=409, detail=RECUSA_REUNIAO_COM_PENDENCIA)
 
     supabase.table("reunioes").delete().eq("id_reuniao", id_reuniao).execute()
     logger.info(f"Reunião {id_reuniao} DELETADA permanentemente por {current_user['email']}")
@@ -978,6 +998,13 @@ async def cancelar_grupo_recorrencia(
         raise HTTPException(
             status_code=400,
             detail=f"A exclusão do grupo foi bloqueada: {len(bloqueadas)} reunião(ões) desta série já estão em andamento ou concluídas.",  # noqa: E501
+        )
+
+    com_pendencia = _reunioes_com_pendencia(supabase, [r["id_reuniao"] for r in result.data])
+    if com_pendencia:
+        raise HTTPException(
+            status_code=409,
+            detail=f"A exclusão do grupo foi bloqueada: {len(com_pendencia)} reunião(ões) desta série já têm pendências, mesmo que canceladas, e as pendências ficam guardadas.",  # noqa: E501
         )
 
     del_query = supabase.table("reunioes").delete().eq("id_grupo_recorrencia", id_grupo_recorrencia)
@@ -2233,45 +2260,8 @@ async def adicionar_participante_ata(
 
 
 # ─── Acoes de super admin (force) ────────────────────────────────────────────
-
-
-@router.delete("/{id_reuniao}/force")
-async def force_deletar_reuniao(
-    id_reuniao: str,
-    body: ReasonRequest,
-    request: Request,
-    actor: dict = Depends(require_super_admin),
-    supabase=Depends(get_supabase_client),
-):
-    """Super admin only: deleta uma reuniao em QUALQUER status. Motivo obrigatorio."""
-    result = supabase.table("reunioes").select("status_ata, titulo").eq("id_reuniao", id_reuniao).execute()
-    if not result.data:
-        raise HTTPException(status_code=404, detail="Reunião não encontrada")
-
-    status_before = result.data[0].get("status_ata")
-    titulo = result.data[0].get("titulo")
-
-    supabase.table("reunioes").delete().eq("id_reuniao", id_reuniao).execute()
-
-    audit.log_action(
-        supabase,
-        actor=actor,
-        action="DELETE_REUNIAO",
-        target_type="reuniao",
-        target_id=id_reuniao,
-        metadata={"status_before": status_before, "titulo": titulo},
-        reason=body.reason,
-        request=request,
-    )
-
-    logger.info(
-        f"Reunião {id_reuniao} FORCE-DELETADA (status_before={status_before}) por super admin {actor.get('email')}"
-    )
-    return {
-        "message": "Reunião deletada com sucesso (force).",
-        "id_reuniao": id_reuniao,
-        "status_before": status_before,
-    }
+# O force de exclusão saiu (ADR 0098, decisão 6; issue #1864): nada apaga
+# Pendência, e a Reunião só se exclui pela rota comum, sem Pendência.
 
 
 @router.patch("/{id_reuniao}/force-status")

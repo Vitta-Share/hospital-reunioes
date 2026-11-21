@@ -2,9 +2,11 @@
 
 Cobre:
 - 403 quando usuario nao e super admin.
-- DELETE /force funciona em qualquer status (inclui ASSINADA), loga em audit.
 - PATCH /force-status troca status e loga em audit_log.
 - PATCH /force edita campos e loga em audit_log.
+
+O DELETE /force saiu na issue #1864 (nada apaga Pendencia, ADR 0098):
+o teste dele esta em test_reuniao_com_pendencia_nao_se_exclui.py.
 """
 
 from __future__ import annotations
@@ -22,11 +24,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from app.models.admin_schemas import (  # noqa: E402
     ForceEditReuniaoRequest,
     ForceStatusReuniaoRequest,
-    ReasonRequest,
 )
 from app.models.schemas import StatusAta  # noqa: E402
 from app.routers.reunioes import (  # noqa: E402
-    force_deletar_reuniao,
     force_editar_reuniao,
     force_status_reuniao,
 )
@@ -175,7 +175,7 @@ SUPER_ADMIN = {
 }
 
 
-class TestForceDeleteReuniao:
+class TestForceExigeSuperAdmin:
     @pytest.mark.asyncio
     async def test_403_quando_require_super_admin_rejeita(self):
         # Simulamos o dependency ja tendo falhado: se actor nao passasse,
@@ -229,53 +229,6 @@ class TestForceDeleteReuniao:
                 supabase=sb,
             )
         assert exc.value.status_code == 403
-
-    @pytest.mark.asyncio
-    async def test_force_delete_em_ata_assinada_grava_audit(self):
-        sb = _Sb(
-            reunioes={
-                "RD_001": {
-                    "id_reuniao": "RD_001",
-                    "status_ata": "ASSINADA",
-                    "titulo": "Reuniao Importante",
-                }
-            }
-        )
-
-        resp = await force_deletar_reuniao(
-            id_reuniao="RD_001",
-            body=ReasonRequest(reason="ata duplicada erroneamente"),
-            request=_FakeRequest(),
-            actor=SUPER_ADMIN,
-            supabase=sb,
-        )
-
-        assert resp["id_reuniao"] == "RD_001"
-        assert resp["status_before"] == "ASSINADA"
-        # Reuniao foi deletada do store
-        assert "RD_001" not in sb.reunioes
-        # Audit log gravado
-        assert len(sb.audit_rows) == 1
-        log = sb.audit_rows[0]
-        assert log["action"] == "DELETE_REUNIAO"
-        assert log["target_type"] == "reuniao"
-        assert log["target_id"] == "RD_001"
-        assert log["metadata"]["status_before"] == "ASSINADA"
-        assert log["metadata"]["titulo"] == "Reuniao Importante"
-        assert log["reason"] == "ata duplicada erroneamente"
-
-    @pytest.mark.asyncio
-    async def test_force_delete_404_quando_nao_existe(self):
-        sb = _Sb()
-        with pytest.raises(HTTPException) as exc:
-            await force_deletar_reuniao(
-                id_reuniao="RD_NAO_EXISTE",
-                body=ReasonRequest(reason="teste"),
-                request=_FakeRequest(),
-                actor=SUPER_ADMIN,
-                supabase=sb,
-            )
-        assert exc.value.status_code == 404
 
 
 class TestForceStatusReuniao:

@@ -211,9 +211,10 @@ describe("Gerar a ata de novo", () => {
   });
 });
 
-// Issue #1860: o Excluir do super admin no cabeçalho deixa de ser o botão sólido
-// de cor primária e fica no estilo secundário destrutivo do Desmarcar ao lado
-// (borda e texto vermelhos, fundo transparente). A confirmação não muda.
+// Issue #1864 (ADR 0098, decisão 6): nada apaga Pendência. O Excluir do super
+// admin, que apagava a reunião em qualquer status pelo force, sai do
+// cabeçalho; o Desmarcar (a exclusão comum) continua, e a recusa por
+// Pendência vem do backend.
 describe("Excluir reunião no cabeçalho", () => {
   const SUPER_ADMIN = { id: "P_ADMIN", nome_completo: "Admin", email: "a@hsm.com", access_profile: "super_admin" };
 
@@ -222,23 +223,14 @@ describe("Excluir reunião no cabeçalho", () => {
   });
 
   it.each(["PROGRAMADA", "AGUARDANDO_VALIDACAO"])(
-    "na reunião %s o Excluir é secundário destrutivo e a confirmação continua igual",
+    "na reunião %s o super admin não tem mais o Excluir em qualquer status",
     async (status) => {
       servir(status);
       montar();
       await esperarCarregar();
 
-      const excluir = screen.getByRole("button", { name: "Excluir" });
-      expect(excluir.className).not.toContain("bg-purple-600");
-      expect(excluir.className).toContain("border-red-200");
-      expect(excluir.className).toContain("text-red-600");
-
-      fireEvent.click(excluir);
-      const dialogo = await screen.findByRole("dialog");
-      expect(dialogo.textContent).toContain("Excluir reunião em qualquer status?");
-      expect(dialogo.textContent).toContain(
-        "A reunião será removida permanentemente em qualquer status. Ação registrada no audit log.",
-      );
+      expect(screen.queryByRole("button", { name: "Excluir" })).toBeNull();
+      expect(screen.getByRole("button", { name: "Desmarcar" })).toBeTruthy();
     },
   );
 });
