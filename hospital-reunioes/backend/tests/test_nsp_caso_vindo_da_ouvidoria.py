@@ -53,7 +53,7 @@ from app.middleware.request_context import RequestContextMiddleware  # noqa: E40
 from app.routers import ouvidoria as ouvidoria_router  # noqa: E402
 from app.routers import ouvidoria_setor as ouvidoria_setor_router  # noqa: E402
 from app.routers import seguranca_do_paciente_notificacoes as nsp_router  # noqa: E402
-from app.services import ouvidoria_acionamentos, ouvidoria_notificacoes  # noqa: E402
+from app.services import ouvidoria_acionamentos, ouvidoria_notificacoes, ouvidoria_nucleo  # noqa: E402
 
 SETOR_ID = "11111111-1111-1111-1111-111111111111"
 MEMBRO_DO_NUCLEO = {"id": "P20", "nome_completo": "Dra. Marta Membro", "email": "marta@hsm.br", "ativo": True}
@@ -395,6 +395,27 @@ class TestOEmailAbreOCasoNoModulo:
 
         assert _abrir_o_caso(client, "33333333-3333-3333-3333-333333333333").status_code == 404
 
+    def test_o_caso_sem_notificacao_no_modulo_recebe_o_link_sem_senha_com_o_texto_dele(self, monkeypatch, emails):
+        """O caso confirmado antes da Fase 2 não foi importado ao módulo: a
+        ciência dele (na fila, na retentativa ou no Reenviar) ainda sai com o
+        link por token. O texto não pode prometer o login nem o Recebido ao
+        abrir, que lá não valem: o Recebido é o botão da tela."""
+        monkeypatch.setattr(ouvidoria_nucleo, "criar_a_notificacao_do_nucleo", lambda _sb, _manifestacao_id, _agora: {})
+        client, supabase = _client(monkeypatch)
+
+        assert _enviar_ao_nucleo(client).status_code == 200
+
+        assert supabase.notificacoes_do_nucleo == []
+        email = _email_do_nucleo(emails)
+        for corpo in (email["html"], email["texto"]):
+            assert re.search(r"/ouvidoria-setor/nsp/[A-Za-z0-9_-]{20,}", corpo), corpo
+            assert "/seguranca-do-paciente/notificacoes/" not in corpo
+            assert "login" not in corpo
+            assert "confirma o recebimento" not in corpo
+            assert "Recebido pelo NSP" in corpo
+            assert "sem senha" in corpo
+            assert RELATO not in corpo
+
 
 # =====================================================================
 # 4. A página por token não devolve o relato
@@ -484,6 +505,63 @@ class TestOEstadoDeCadaLado:
 
         assert "ouvidoria" not in caso
         assert supabase.tabelas["ouvidoria_movimentos"] == []
+
+    def test_a_lista_do_nucleo_abre_com_centenas_de_casos_da_ouvidoria(self, monkeypatch):
+        """A lista traz todos os casos, e os que vieram da Ouvidoria só
+        crescem. O estado de cada manifestação é lido em lotes: com algumas
+        centenas de UUIDs num `in_` só, a querystring estoura o header do
+        proxy e a fila inteira do Núcleo deixa de abrir."""
+        quantos = 250
+        supabase = _BancoComProxy([], responsaveis=[])
+        supabase.tabelas["ouvidoria_protocolos"] = [
+            {"id": f"man-{i:04d}", "status": "aguardando_area" if i % 2 else "encerrado"} for i in range(quantos)
+        ]
+        supabase.tabelas["nsp_notificacoes"] = [
+            {
+                "id": f"nsp-{i:04d}",
+                "protocolo": f"NSP-2026-{i + 1:04d}",
+                "numero": i + 1,
+                "estado": "recebida",
+                "origem": "ouvidoria",
+                "manifestacao_id": f"man-{i:04d}",
+                "relato": "Relato que veio da Ouvidoria.",
+                "data_ocorrencia": "2026-08-16",
+                "anonimo": False,
+                "criado_em": "2026-08-17T13:00:00+00:00",
+            }
+            for i in range(quantos)
+        ]
+        client, _supabase = _client(monkeypatch, supabase)
+
+        r = client.get("/api/nsp/notificacoes")
+
+        assert r.status_code == 200, r.text
+        casos = {c["id"]: c for c in r.json()["notificacoes"]}
+        assert len(casos) == quantos
+        assert casos["nsp-0001"]["ouvidoria"] == {"estado": "Em análise"}
+        assert casos["nsp-0248"]["ouvidoria"] == {"estado": "Encerrada"}
+        assert casos["nsp-0249"]["ouvidoria"] == {"estado": "Em análise"}
+
+
+class _BancoComProxy(_Banco):
+    """O proxy de produção recusa a consulta com ids demais na querystring."""
+
+    TETO_DE_IDS = 100
+
+    def table(self, nome: str):
+        tabela = super().table(nome)
+        if nome != "ouvidoria_protocolos":
+            return tabela
+        filtrar = tabela.in_
+
+        def in_(coluna, valores):
+            valores = list(valores)
+            if len(valores) > self.TETO_DE_IDS:
+                raise RuntimeError(f"431 Request Header Fields Too Large ({len(valores)} ids)")
+            return filtrar(coluna, valores)
+
+        tabela.in_ = in_
+        return tabela
 
 
 # =====================================================================

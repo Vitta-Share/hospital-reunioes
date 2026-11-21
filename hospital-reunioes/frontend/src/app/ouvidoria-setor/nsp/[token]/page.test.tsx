@@ -6,7 +6,8 @@
  * A tela do link do Núcleo de Segurança do Paciente (issue #1621, ADR 0088).
  *
  * O link do email abre sem senha e mostra o caso ao Núcleo, sem o relato
- * desde a issue #1997 (o relato está no caso do módulo, com login); o botão
+ * desde a issue #1997 (este link só existe no caso que não foi importado ao
+ * módulo, então o relato fica com a Ouvidoria); o botão
  * Recebido pelo NSP confirma, uma vez. O que a resposta carrega em cada caso
  * (o paciente no sigiloso, quem manifestou só fora do sigilo e do anonimato) é
  * régua do backend; aqui se prova que a tela mostra o que veio, que abrir não
@@ -62,14 +63,15 @@ afterEach(() => {
 });
 
 describe("a tela do link do Núcleo", () => {
-  it("mostra o paciente com o nascimento e diz que o relato está no módulo do Núcleo", async () => {
+  it("mostra o paciente com o nascimento e diz que o relato fica com a Ouvidoria", async () => {
     fetchMock.mockResolvedValue(resposta(200, tela()));
     render(<NucleoPage />);
 
     await waitFor(() => expect(screen.getByText("Ana Maria Souza")).toBeTruthy());
     expect(fetchMock).toHaveBeenCalledWith("/api/ouvidoria-setor/nsp/token-do-nucleo");
     expect(screen.queryByText("Relato integral")).toBeNull();
-    expect(screen.getByText(/O relato está no caso, no módulo de Segurança do Paciente/)).toBeTruthy();
+    expect(screen.getByText(/Para ler o relato, fale com a Ouvidoria/)).toBeTruthy();
+    expect(screen.queryByText(/módulo de Segurança do Paciente/)).toBeNull();
     expect(screen.getByText("02/03/1948")).toBeTruthy();
     expect(screen.getByText("Enfermeiro do plantao noturno")).toBeTruthy();
     expect(screen.getByText("Internação, Ala 4, quarto 412")).toBeTruthy();

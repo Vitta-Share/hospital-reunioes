@@ -249,6 +249,26 @@ def abrir(supabase, caso_id: str, *, com_identidade: bool) -> dict[str, Any] | N
     return _apresentar(supabase, linhas, com_identidade=com_identidade)[0]
 
 
+# Quantos ids cabem num `in_` por vez: o cliente do PostgREST põe a lista na
+# querystring, e algumas centenas de UUIDs estouram o header do proxy (como em
+# `contas_medicas.painel.LOTE_DE_IDS`). Cada lote volta inteiro, abaixo do teto
+# de linhas por resposta.
+LOTE_DE_IDS = 100
+
+
+def _estados_na_ouvidoria(supabase, manifestacao_ids: list[str]) -> dict[str, str]:
+    """O estado de cada manifestação numa palavra, lido em lotes: os casos que
+    vieram da Ouvidoria só crescem, e a lista traz todos."""
+    estados: dict[str, str] = {}
+    for inicio in range(0, len(manifestacao_ids), LOTE_DE_IDS):
+        lote = manifestacao_ids[inicio : inicio + LOTE_DE_IDS]
+        for m in supabase.table("ouvidoria_protocolos").select("id, status").in_("id", lote).execute().data:
+            estados[m["id"]] = ouvidoria_acompanhamento.ESTADO_PUBLICO.get(
+                m.get("status"), ouvidoria_acompanhamento.RECEBIDA
+            )
+    return estados
+
+
 def _apresentar(supabase, linhas: list[dict[str, Any]], *, com_identidade: bool) -> list[dict[str, Any]]:
     """O nome do setor, quem notificou (só com `com_identidade`) e, no caso
     que veio da Ouvidoria, o estado da manifestação numa palavra (issue
@@ -260,18 +280,7 @@ def _apresentar(supabase, linhas: list[dict[str, Any]], *, com_identidade: bool)
         else {}
     )
     manifestacao_ids = sorted({linha["manifestacao_id"] for linha in linhas if linha.get("manifestacao_id")})
-    estados_na_ouvidoria = (
-        {
-            m["id"]: ouvidoria_acompanhamento.ESTADO_PUBLICO.get(m.get("status"), ouvidoria_acompanhamento.RECEBIDA)
-            for m in supabase.table("ouvidoria_protocolos")
-            .select("id, status")
-            .in_("id", manifestacao_ids)
-            .execute()
-            .data
-        }
-        if manifestacao_ids
-        else {}
-    )
+    estados_na_ouvidoria = _estados_na_ouvidoria(supabase, manifestacao_ids)
     casos = []
     for linha in linhas:
         anonimo = linha.pop("anonimo", None)

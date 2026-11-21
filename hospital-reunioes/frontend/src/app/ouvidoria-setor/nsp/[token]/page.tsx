@@ -7,9 +7,9 @@
  * lê o paciente com a data de nascimento, os profissionais e o quarto, mesmo
  * no caso sigiloso (decisão 5). Quem manifestou só aparece quando o caso não é
  * sigiloso nem anônimo, e quem decide isso é o servidor. O relato e o que a
- * Ouvidoria apurou saíram daqui na issue #1997 (ADR 0107, decisão 7): estão no
- * caso do módulo do Núcleo, com login, e o email de agora leva a ele. Este
- * link só existe nos casos enviados antes disso.
+ * Ouvidoria apurou saíram daqui na issue #1997 (ADR 0107, decisão 7). Este
+ * link só existe nos casos enviados antes disso, que não foram importados ao
+ * módulo do Núcleo: o relato deles fica com a Ouvidoria.
  *
  * Abrir a tela não confirma nada, pelo mesmo motivo do elogio: leitor de email
  * que abre link sozinho gastaria o uso único. É o botão Recebido pelo NSP que
@@ -180,7 +180,7 @@ export default function NucleoPage() {
         )}
 
         <p className="text-sm text-slate-600">
-          O relato está no caso, no módulo de Segurança do Paciente do aplicativo, e abre com o seu login.
+          O relato não aparece neste link, que abre sem senha. Para ler o relato, fale com a Ouvidoria.
         </p>
 
         <Bloco titulo="Paciente">
