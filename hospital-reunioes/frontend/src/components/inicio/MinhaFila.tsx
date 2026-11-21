@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import { useMovimentoReduzido } from "@/hooks/useMovimentoReduzido";
 import { createClient } from "@/lib/supabase/client";
 
-import { Trilho, type ItemDoTrilho } from "./Trilho";
+import { Trilho, type ItemDoTrilho, type RotinaDoCiclo } from "./Trilho";
 
 export type GrupoDoInicio = "passou_do_prazo" | "ate_48_horas" | "proximos_7_dias";
 /** O grupo do item a que o módulo de origem não dá prazo (issue #1936). */
@@ -25,6 +25,8 @@ export interface ItemDoInicio {
   destino: string;
   contexto?: string | null;
   acao_de_um_clique: { rotulo: string; endpoint: string } | null;
+  /** A outra saída do item, que pede tela própria (a Não realizada da Rotina). */
+  acao_secundaria?: { rotulo: string; destino: string } | null;
   grupo: GrupoDoInicio | GrupoSemPrazo | null;
   dias_de_atraso: number | null;
   /** Só no grupo Sem prazo: há quantos dias o item espera. */
@@ -44,10 +46,14 @@ export interface FilaDoPapel {
 export interface InicioDaPessoa {
   hoje: string;
   frase: { titulo: string; apoio: string };
+  /** Nada vencido nem para as próximas 48 horas, como na frase (issue #1946). */
+  em_dia?: boolean;
   contadores: Record<GrupoDoInicio, number>;
   itens: ItemDoInicio[];
   avisos: { fonte: string; mensagem: string }[];
   trilho: ItemDoTrilho[];
+  /** As Rotinas do ciclo de agora, no trilho (issue #1944). */
+  rotinas_do_ciclo?: RotinaDoCiclo[];
   filas_do_papel: FilaDoPapel[];
 }
 
@@ -220,6 +226,15 @@ function Linha({
             {item.acao}
           </Link>
         )}
+        {item.acao_secundaria && (
+          <Link
+            href={item.acao_secundaria.destino}
+            aria-label={`${item.acao_secundaria.rotulo}: ${item.titulo}`}
+            className="text-xs text-primary underline-offset-4 hover:underline sm:whitespace-nowrap"
+          >
+            {item.acao_secundaria.rotulo}
+          </Link>
+        )}
       </div>
     </li>
   );
@@ -239,10 +254,16 @@ function tituloDaAba(vencidos: number): string {
  * A frase mora numa região anunciada que já existe enquanto a tela carrega:
  * quando ela chega, o leitor de tela a lê (issue #1935).
  */
-export function MinhaFila() {
+export function MinhaFila({ aoCarregar }: { aoCarregar?: (inicio: InicioDaPessoa) => void } = {}) {
   const [inicio, setInicio] = useState<InicioDaPessoa | null>(null);
   const [falhou, setFalhou] = useState(false);
   const movimentoReduzido = useMovimentoReduzido();
+  // Quem monta a tela fica sabendo do Início que chegou (se a pessoa está em
+  // dia, issue #1946), sem refazer o pedido quando a função muda.
+  const avisar = useRef(aoCarregar);
+  useEffect(() => {
+    avisar.current = aoCarregar;
+  });
 
   // Também roda depois de uma ação de um clique: o servidor refaz a fila, a
   // frase e os contadores.
@@ -251,7 +272,10 @@ export function MinhaFila() {
       const res = await fetch("/api/inicio", { headers: await cabecalhoDeAcesso() });
       if (!res.ok) throw new Error(String(res.status));
       const corpo = (await res.json()) as InicioDaPessoa;
-      if (vivo()) setInicio(corpo);
+      if (vivo()) {
+        setInicio(corpo);
+        avisar.current?.(corpo);
+      }
     } catch {
       if (vivo()) setFalhou(true);
     }
@@ -411,7 +435,7 @@ export function MinhaFila() {
             {/* O Registro de acesso (issue #1941, ADR 0104 decisão 10). */}
             <p className="text-xs text-text-secondary">O dia em que você abre o Início fica registrado.</p>
           </div>
-          <Trilho itens={inicio.trilho} hoje={inicio.hoje} />
+          <Trilho itens={inicio.trilho} hoje={inicio.hoje} rotinas={inicio.rotinas_do_ciclo ?? []} />
         </div>
       )}
     </div>
