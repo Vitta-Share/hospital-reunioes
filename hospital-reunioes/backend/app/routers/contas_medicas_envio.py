@@ -24,6 +24,7 @@ from app.config import settings
 from app.dependencies import get_supabase_client, require_permissao_cm
 from app.limiter import limiter
 from app.services.contas_medicas.busca import MINIMO_DE_CARACTERES, buscar
+from app.services.contas_medicas.competencia import competencia
 from app.services.contas_medicas.descarte import (
     ContaNaoEncontradaError,
     NaoDescartavelError,
@@ -40,6 +41,7 @@ from app.services.contas_medicas.envio import (
 from app.services.contas_medicas.erro_da_conta import arquivo_da_etapa, detalhe_legivel
 from app.services.contas_medicas.fila import NAO_PRONTAS, envios_da_pessoa, fila_da_pessoa
 from app.services.contas_medicas.guia import MARCADAS, linha_pendente
+from app.services.contas_medicas.painel import _em_lotes
 from app.services.contas_medicas.painel_do_processamento import (
     ContaNaoEncontradaError as ContaDoPainelNaoEncontradaError,
 )
@@ -99,19 +101,19 @@ async def enviar_arquivos(
 
 
 def _por_id(supabase: Client, tabela: str, coluna: str, valores: list) -> dict:
-    if not valores:
-        return {}
-    linhas = supabase.table(tabela).select("*").in_(coluna, valores).execute().data or []
+    linhas = _em_lotes(supabase, tabela, "*", coluna, valores, tabela)
     return {linha[coluna]: linha for linha in linhas}
 
 
 def _linhas_por_conta(supabase: Client, contas: list[dict]) -> dict[str, list[dict]]:
-    ids = [c["id"] for c in contas]
-    if not ids:
-        return {}
-    linhas = supabase.table("cm_guia_linha").select("conta_id, acao, estado").in_("conta_id", ids).execute().data
+    """As linhas do Guia de cada conta, em lotes de ids e em páginas: sem o
+    teto das Concluídas (issue #1958), a lista inteira não cabe num `in_` nem
+    numa leitura só."""
+    linhas = _em_lotes(
+        supabase, "cm_guia_linha", "id, conta_id, acao, estado", "conta_id", [c["id"] for c in contas], "linhas"
+    )
     por_conta: dict[str, list[dict]] = {}
-    for linha in linhas or []:
+    for linha in linhas:
         por_conta.setdefault(linha["conta_id"], []).append(linha)
     return por_conta
 
@@ -121,19 +123,17 @@ def _paginas_do_prontuario(supabase: Client, contas: list[dict]) -> dict[str, di
     que vão por OCR (issue #1419). Com o prontuário reenviado, vale o último
     que chegou."""
     ids = list({c["atendimento_id"] for c in contas if c.get("atendimento_id")})
-    if not ids:
-        return {}
-    prontuarios = (
-        supabase.table("cm_arquivo")
-        .select("atendimento_id, paginas, paginas_ocr, criado_em")
-        .in_("atendimento_id", ids)
-        .eq("tipo", "PRONTUARIO")
-        .order("criado_em")
-        .execute()
-        .data
+    arquivos = _em_lotes(
+        supabase,
+        "cm_arquivo",
+        "id, atendimento_id, tipo, paginas, paginas_ocr, criado_em",
+        "atendimento_id",
+        ids,
+        "prontuários",
     )
+    prontuarios = sorted((a for a in arquivos if a.get("tipo") == "PRONTUARIO"), key=lambda a: a.get("criado_em") or "")
     # Em ordem de chegada: o último de cada atendimento sobrescreve os de antes.
-    return {p["atendimento_id"]: p for p in prontuarios or []}
+    return {p["atendimento_id"]: p for p in prontuarios}
 
 
 def _dias_de_internacao(conta: dict) -> int | None:
@@ -237,6 +237,9 @@ def _item(
         "com": conta.get("com_quem"),
         # A conta é da própria pessoa (issue #1951); nas de envio, sempre falso.
         "minha": bool(conta.get("minha")),
+        # O mês do faturamento e o carimbo do arquivar (issue #1958, ADR 0105).
+        "competencia": competencia(conta),
+        "arquivada_em": conta.get("arquivada_em"),
     }
 
 

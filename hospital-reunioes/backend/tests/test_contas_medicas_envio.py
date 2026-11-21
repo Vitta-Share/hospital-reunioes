@@ -155,6 +155,7 @@ class _Consulta:
         self._filtros: list = []
         self._ordem: list[tuple[str, bool]] = []
         self._limite: int | None = None
+        self._inicio = 0
         self._update: dict | None = None
         self._insert: dict | list | None = None
         self._delete = False
@@ -170,12 +171,22 @@ class _Consulta:
 
     def in_(self, coluna, valores):
         valores = list(valores)
+        # O proxy recusa a querystring grande demais (414): centenas de UUIDs num `in_`.
+        if self._banco.teto_do_in is not None and len(valores) > self._banco.teto_do_in:
+            raise APIError({"message": "414 Request-URI Too Large", "code": "414"})
         self._filtros.append(lambda linha: linha.get(coluna) in valores)
+        return self
+
+    @property
+    def not_(self):
+        """O `not.` do PostgREST: nega o filtro seguinte (só o `is_` usa)."""
+        self._negar_o_proximo = True
         return self
 
     def is_(self, coluna, valor):
         assert valor == "null"
-        self._filtros.append(lambda linha: linha.get(coluna) is None)
+        negar, self._negar_o_proximo = getattr(self, "_negar_o_proximo", False), False
+        self._filtros.append(lambda linha: (linha.get(coluna) is None) != negar)
         return self
 
     def gt(self, coluna, valor):
@@ -188,6 +199,11 @@ class _Consulta:
 
     def limit(self, n):
         self._limite = n
+        return self
+
+    def range(self, inicio, fim):
+        """A página do PostgREST: de `inicio` a `fim`, os dois inclusive."""
+        self._inicio, self._limite = inicio, fim - inicio + 1
         return self
 
     def update(self, campos):
@@ -237,6 +253,7 @@ class _Consulta:
         for coluna, desc in reversed(self._ordem):
             casam.sort(key=lambda linha, c=coluna: (linha.get(c) is None, str(linha.get(c) or "")), reverse=desc)
         total = len(casam) if self._contar else None
+        casam = casam[self._inicio :]
         if self._limite is not None:
             casam = casam[: self._limite]
         if self._banco.max_rows is not None:
@@ -267,6 +284,8 @@ class _Banco:
         # O `max_rows` do PostgREST: a leitura volta cortada nele, com sucesso
         # e sem aviso. `None` é sem teto.
         self.max_rows: int | None = None
+        # Quantos valores cabem num `in_` antes do proxy recusar; `None` é sem teto.
+        self.teto_do_in: int | None = None
         self.storage = SimpleNamespace(from_=lambda nome: _Bucket(self, nome))
 
     def table(self, nome: str):
@@ -1000,16 +1019,6 @@ class TestFila:
         assert [c["id"] for c in corpo["minhas"] if c["minha"]] == ["retorno", "em-correcao"]
         assert [c["id"] for c in corpo["concluidas"] if c["minha"]] == ["concluida"]
 
-    def test_as_concluidas_da_pessoa_vem_mesmo_fora_das_mais_recentes_de_todas(self, monkeypatch):
-        """O teto da lista é das Concluídas de todas; em "Minhas" a pessoa ainda
-        vê as dela mais recentes."""
-        from app.services.contas_medicas import fila as fila_service
-
-        monkeypatch.setattr(fila_service, "TETO_DE_CONCLUIDAS", 1)
-        corpo = _cliente("outra_faturista", _fila_semeada()).get(ROTA_FILA).json()
-
-        assert _ids(corpo, "concluidas") == ["concluida", "concluida-f2"]
-
     def test_a_conta_que_nao_ficou_pronta_fica_com_quem_enviou_e_fora_da_fila(self):
         cliente = _cliente("faturista", _fila_semeada())
         corpo = cliente.get(ROTA_FILA).json()
@@ -1275,19 +1284,9 @@ class TestFila:
         cliente = _cliente("faturista", _fila_semeada())
         corpo = cliente.get(ROTA_FILA).json()
 
-        assert corpo["contagem"] == {"fila": 2, "em_analise": 3, "concluidas": 2}
+        assert corpo["contagem"] == {"fila": 2, "em_analise": 3, "concluidas": 2, "arquivadas": 0}
         assert corpo["contagem_minhas"] == {"em_analise": 2, "concluidas": 1}
         assert cliente.get(ROTA_MEUS_ENVIOS).json()["contagem"] == {"envios": 5}
-
-    def test_a_contagem_das_concluidas_passa_do_teto_da_lista(self, monkeypatch):
-        """A lista das Concluídas tem teto; o número da Esteira conta todas."""
-        from app.services.contas_medicas import fila as fila_service
-
-        monkeypatch.setattr(fila_service, "TETO_DE_CONCLUIDAS", 1)
-        corpo = _cliente("coordenadora", _fila_semeada()).get(ROTA_FILA).json()
-
-        assert len(corpo["concluidas"]) == 1
-        assert corpo["contagem"]["concluidas"] == 2
 
     def test_a_contagem_das_concluidas_passa_do_max_rows_do_banco(self):
         """O PostgREST corta toda leitura no `max_rows`, com sucesso e sem
