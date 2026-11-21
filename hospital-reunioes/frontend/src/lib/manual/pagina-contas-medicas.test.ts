@@ -101,7 +101,12 @@ describe("a página de Contas médicas do manual", () => {
     const arquivar = secoes(CONTAS!.corpo).find((s) => s.titulo === "Arquivar as contas do mês");
     expect(arquivar, "a página não tem a tarefa de arquivar").toBeDefined();
     const texto = arquivar!.texto;
-    expect(texto, "falta arquivar uma a uma").toContain("**Arquivar**");
+    const inicioUmaAUma = texto.indexOf("Para arquivar uma a uma");
+    const inicioMesInteiro = texto.indexOf("Para arquivar o mês inteiro");
+    expect(inicioUmaAUma, "falta o trecho Para arquivar uma a uma").toBeGreaterThanOrEqual(0);
+    expect(inicioMesInteiro, "falta o trecho Para arquivar o mês inteiro").toBeGreaterThan(inicioUmaAUma);
+    const umaAUma = texto.slice(inicioUmaAUma, inicioMesInteiro);
+    expect(umaAUma, "falta arquivar uma a uma").toContain("**Arquivar**");
     expect(texto, "falta arquivar o mês inteiro").toContain("**Arquivar o mês**");
     expect(texto, "falta dizer o que arquivar quer dizer").toContain(O_QUE_E_ARQUIVAR);
     expect(texto, "falta ensinar a desarquivar").toContain("**Desarquivar**");
