@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T22:28+0000 -->
+<!-- last_update: 2026-11-21T22:43+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -119,6 +119,7 @@ erDiagram
     participantes ||--o{ conduta_avisos : "participante_id"
     participantes ||--o{ conduta_casos : "escopo"
     participantes ||--o{ conduta_citados : "participante_id"
+    participantes ||--o{ conduta_codigo_versoes : "autor_id"
     participantes ||--o{ conduta_configuracoes : "autor_id"
     participantes ||--o{ conduta_contestacao_votos : "participante_id"
     participantes ||--o{ conduta_contestacoes : "autor_id"
@@ -1481,6 +1482,16 @@ erDiagram
         VARCHAR atualizado_por FK
         TIMESTAMPTZ atualizado_em
     }
+    conduta_codigo_versoes {
+        UUID id PK
+        INTEGER versao
+        DATE vigente_desde
+        TEXT storage_path
+        TEXT nome_arquivo
+        INTEGER tamanho_bytes
+        VARCHAR autor_id FK
+        TIMESTAMPTZ criado_em
+    }
     conduta_avisos {
         UUID id PK
         UUID caso_id FK
@@ -1757,4 +1768,4 @@ erDiagram
 | `nsp_notas_do_comite` | `idx_nsp_notas_do_comite_enviada_em` | `enviada_em DESC` | `203_conduta_nota_ao_nucleo.sql` |
 
 ---
-**Resumo:** 139 tabelas · 211 relacionamentos FK detectados.
+**Resumo:** 140 tabelas · 212 relacionamentos FK detectados.

@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T22:28+0000 -->
+<!-- last_update: 2026-11-21T22:43+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2762,6 +2762,21 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_nsp_cortes_de_frequencia_atualizado_por` em `(atualizado_por)` (de `197_nsp_tela_de_triagem.sql`)
 
+## conduta_codigo_versoes
+
+> Origem: `198_conduta_codigo_de_conduta.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `versao` | `INTEGER` | NOT NULL | — | — |
+| `vigente_desde` | `DATE` | NOT NULL | — | — |
+| `storage_path` | `TEXT` | NOT NULL | — | — |
+| `nome_arquivo` | `TEXT` | NOT NULL | — | — |
+| `tamanho_bytes` | `INTEGER` | NOT NULL | — | — |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
 ## conduta_avisos
 
 > Origem: `199_conduta_avisos_por_email.sql`
@@ -2816,4 +2831,4 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ---
 
-**Resumo:** 139 tabelas vivas.
+**Resumo:** 140 tabelas vivas.

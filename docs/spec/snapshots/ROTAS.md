@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T22:28+0000 -->
+<!-- last_update: 2026-11-21T22:43+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -70,6 +70,15 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | DELETE | `/pendencias/{id_acao}/comentarios/{comentario_id}` | Exclui um comentário. Apenas o autor pode excluir. | ✅ |
 | GET | `/pendencias/{id_acao}/mencionaveis` | Lista participantes mencionáveis no chat da Pendência (quem enxerga a Pendência). | ✅ |
 
+## canal-de-conduta (`app/routers/conduta_codigo.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| GET | `/comite-de-conduta/codigo-de-conduta` | Listar versoes | ✅ |
+| POST | `/comite-de-conduta/codigo-de-conduta` | Publicar versao | ✅ |
+| GET | `/comite-de-conduta/codigo-de-conduta/arquivo` | Baixar versao | ✅ |
+| GET | `/comite-de-conduta/codigo-de-conduta/vigente` | A versão que valia na data, ou `null` se nenhuma valia ainda. | ✅ |
+
 ## canal-de-conduta (`app/routers/conduta_comite.py`)
 
 | Método | Rota | O que faz | Auth |
@@ -105,6 +114,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | Método | Rota | O que faz | Auth |
 |--------|------|-----------|------|
 | GET | `/conduta/abertura` | Se o canal está aberto. Fechado, a rota nem aparece (404). | ❌ |
+| GET | `/conduta/codigo-de-conduta` | O PDF do Código de Conduta vigente hoje (issue #1841), num endereço que | ❌ |
 | GET | `/conduta/textos` | Os textos vigentes das telas públicas (issue #1826), cada um com o | ❌ |
 
 ## conector-mcp (`app/routers/conector_mcp.py`)
@@ -769,4 +779,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 443 endpoints em 64 routers · 93% exigem auth.
+**Totais:** 448 endpoints em 65 routers · 93% exigem auth.
