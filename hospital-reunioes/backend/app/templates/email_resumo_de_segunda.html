@@ -59,9 +59,14 @@
       <td align="center">
         <a href="{{ link }}"
            style="display:inline-block;background:#2B2E7E;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;padding:13px 36px;border-radius:10px;">
-          Abrir o aplicativo
+          {% if pessoal %}Atualizar minhas pendências{% else %}Abrir o aplicativo{% endif %}
         </a>
       </td>
     </tr>
   </table>
+  {% if pessoal %}
+  <p style="color:#64748b;font-size:12px;line-height:1.6;margin:16px 0 0;text-align:center;">
+    {{ aviso_do_link_pessoal }}
+  </p>
+  {% endif %}
 {% endblock %}

@@ -10,7 +10,6 @@ anotação e grava um evento no histórico, pelo mesmo módulo de ações da tel
 from __future__ import annotations
 
 import datetime as dt
-import re
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
