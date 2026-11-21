@@ -129,3 +129,116 @@ def test_coordenacao_salva_o_aviso_e_ele_vira_versao_com_autor_e_data(banco):
     (item,) = [i for i in cliente.get(ROTA).json()["itens"] if i["chave"] == "aviso_p1_boa_fe"]
     assert item["versoes"][0]["texto"] == AVISO_3
     assert item["versoes"][0]["autor"] == "Coordenadora de Teste"
+
+
+def test_a_versao_anterior_continua_consultavel_depois_da_nova(banco):
+    cliente = _cliente(banco, COORDENACAO)
+    cliente.post(f"{ROTA}/aviso_p1_boa_fe", json={"texto": AVISO_3})
+
+    resposta = cliente.post(f"{ROTA}/aviso_p1_boa_fe", json={"texto": AVISO_3_DO_JURIDICO})
+
+    assert resposta.json()["versao"] == 2
+    item = _item(cliente.get(ROTA).json(), "aviso_p1_boa_fe")
+    assert [(v["versao"], v["texto"]) for v in item["versoes"]] == [(2, AVISO_3_DO_JURIDICO), (1, AVISO_3)]
+
+
+def test_nenhuma_rota_do_modulo_altera_ou_apaga_versao_de_configuracao():
+    """Só GET e POST: não há PUT, PATCH nem DELETE nas configurações, em
+    nenhum perfil. O banco recusa o resto (test_conduta_configuracoes_banco)."""
+    metodos = {
+        metodo
+        for router in (conduta_comite.router, conduta_publico.router)
+        for rota in router.routes
+        if "configurac" in rota.path or "textos" in rota.path
+        for metodo in rota.methods
+    }
+
+    assert metodos == {"GET", "POST"}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. Só a coordenação
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.parametrize("pessoa", [MEMBRO, SUPER_ADMIN], ids=["membro", "super_admin"])
+def test_quem_nao_e_da_coordenacao_recebe_403_e_nada_e_gravado(banco, pessoa):
+    cliente = _cliente(banco, pessoa)
+
+    leitura = cliente.get(ROTA)
+    escrita = cliente.post(f"{ROTA}/contato_dp", json={"texto": "Ramal 2040"})
+
+    assert (leitura.status_code, leitura.json()) == (403, RECUSA)
+    assert (escrita.status_code, escrita.json()) == (403, RECUSA)
+    assert banco.tabelas.get("conduta_configuracoes", []) == []
+
+
+def test_coordenacao_com_a_participacao_vencida_recebe_403(banco):
+    banco.tabelas["participacoes"][0]["vigencia_fim"] = (HOJE - timedelta(days=1)).isoformat()
+
+    resposta = _cliente(banco, COORDENACAO).get(ROTA)
+
+    assert (resposta.status_code, resposta.json()) == (403, RECUSA)
+
+
+def test_item_que_nao_existe_responde_404(banco):
+    resposta = _cliente(banco, COORDENACAO).post(f"{ROTA}/qualquer_coisa", json={"texto": "x"})
+
+    assert resposta.status_code == 404
+    assert banco.tabelas.get("conduta_configuracoes", []) == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. As telas públicas leem a vigente, com o identificador
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@pytest.fixture
+def canal_aberto(monkeypatch):
+    monkeypatch.setattr(settings, "conduta_canal_aberto", True)
+
+
+def test_a_leitura_publica_devolve_a_vigente_com_o_identificador_da_versao(banco, canal_aberto):
+    coordenacao = _cliente(banco, COORDENACAO)
+    coordenacao.post(f"{ROTA}/aviso_p1_boa_fe", json={"texto": AVISO_3})
+    vigente = coordenacao.post(f"{ROTA}/aviso_p1_boa_fe", json={"texto": AVISO_3_DO_JURIDICO}).json()
+
+    resposta = _cliente(banco).get(ROTA_PUBLICA)
+
+    assert resposta.status_code == 200, resposta.text
+    assert resposta.json()["textos"]["aviso_p1_boa_fe"] == {
+        "texto": AVISO_3_DO_JURIDICO,
+        "versao": 2,
+        "versao_id": vigente["id"],
+    }
+
+
+def test_a_leitura_publica_nao_leva_o_que_e_do_comite_nem_o_autor(banco, canal_aberto):
+    coordenacao = _cliente(banco, COORDENACAO)
+    coordenacao.post(f"{ROTA}/local_guarda_envelopes", json={"texto": "Armário 3 da Diretoria"})
+    coordenacao.post(f"{ROTA}/contato_dp", json={"texto": "Ramal 2040"})
+
+    textos = _cliente(banco).get(ROTA_PUBLICA).json()["textos"]
+
+    assert "local_guarda_envelopes" not in textos
+    assert "consentimento_gravacao" not in textos
+    assert set(textos["contato_dp"]) == {"texto", "versao", "versao_id"}
+    assert textos["orientacao_nsp"] is None
+
+
+def test_com_o_canal_fechado_a_leitura_publica_responde_404(banco):
+    assert _cliente(banco).get(ROTA_PUBLICA).status_code == 404
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. Sem e-mail do DP (decisão 4 do diretor)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_nao_existe_campo_de_email_do_dp(banco):
+    cliente = _cliente(banco, COORDENACAO)
+    itens = cliente.get(ROTA).json()["itens"]
+
+    rotulos = " ".join(f"{item['chave']} {item['rotulo']}" for item in itens).lower()
+    assert "mail" not in rotulos
+    assert cliente.post(f"{ROTA}/email_dp", json={"texto": "dp@hsm.test"}).status_code == 404

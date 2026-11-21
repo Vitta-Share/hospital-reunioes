@@ -11,8 +11,11 @@ sem IP (`app.middleware.request_context`).
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from supabase import Client
 
 from app.config import settings
+from app.dependencies import get_supabase_client
+from app.services.conduta import configuracoes
 
 
 def exigir_canal_aberto() -> None:
@@ -27,3 +30,10 @@ router = APIRouter(prefix="/conduta", tags=["canal-de-conduta-publico"], depende
 async def abertura() -> dict:
     """Se o canal está aberto. Fechado, a rota nem aparece (404)."""
     return {"aberto": True}
+
+
+@router.get("/textos")
+async def textos(supabase: Client = Depends(get_supabase_client)) -> dict:
+    """Os textos vigentes das telas públicas (issue #1826), cada um com o
+    identificador da versão, para a tela dizer qual versão mostrou."""
+    return {"textos": configuracoes.vigentes_publicas(supabase)}

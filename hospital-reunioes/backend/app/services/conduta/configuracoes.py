@@ -94,6 +94,22 @@ def itens_com_historico(supabase) -> list[dict[str, Any]]:
     ]
 
 
+def vigentes_publicas(supabase) -> dict[str, dict[str, Any] | None]:
+    """O que as telas públicas mostram: a versão vigente de cada item público,
+    com o identificador dela, para a tela gravar qual versão a pessoa leu. Sem
+    autor. Item nunca salvo vem como None."""
+    publicos = [item.chave for item in ITENS if item.publico]
+    por_chave = _todas_as_versoes(supabase, publicos)
+    return {
+        chave: (
+            {"texto": versoes[0]["texto"], "versao": versoes[0]["versao"], "versao_id": versoes[0]["id"]}
+            if versoes
+            else None
+        )
+        for chave, versoes in por_chave.items()
+    }
+
+
 def salvar(supabase, chave: str, texto: str, autor_id: str) -> dict[str, Any]:
     """Grava a versão seguinte do item. A anterior não é tocada."""
     atuais = _todas_as_versoes(supabase, [chave])[chave]
