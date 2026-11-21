@@ -18,6 +18,7 @@ from __future__ import annotations
 import os
 import re
 import sys
+import uuid
 from pathlib import Path
 
 import pytest
@@ -118,6 +119,7 @@ class _NotificacoesDoNucleo(_TabelaComIn):
                 raise APIError({"code": "23505", "message": "duplicate key value violates unique constraint"})
             numero = len(self.rows) + 1
             self._insert = {
+                "id": str(uuid.uuid4()),
                 "estado": "recebida",
                 **linha,
                 "numero": numero,
@@ -320,3 +322,246 @@ class TestQuemManifestouNaoVai:
         assert r.status_code == 200, r.text
         assert "Joana da Silva" not in r.text
         assert r.json()["notificacoes"][0]["notificante"] is None
+
+
+# =====================================================================
+# 3. O e-mail abre o caso no módulo, com login, e abrir marca o Recebido
+# =====================================================================
+
+
+def _email_do_nucleo(emails: list[dict]) -> dict:
+    do_nucleo = [e for e in emails if e["destinatario"] == "nsp@hsm.br"]
+    assert len(do_nucleo) == 1
+    return do_nucleo[0]
+
+
+def _abrir_o_caso(client, caso_id: str):
+    return client.get(f"/api/nsp/notificacoes/{caso_id}")
+
+
+class TestOEmailAbreOCasoNoModulo:
+    def test_o_email_de_ciencia_leva_ao_caso_no_modulo_e_nao_ao_link_sem_senha(self, monkeypatch, emails):
+        client, supabase = _client(monkeypatch)
+
+        assert _enviar_ao_nucleo(client).status_code == 200
+
+        caso_id = supabase.notificacoes_do_nucleo[0]["id"]
+        email = _email_do_nucleo(emails)
+        for corpo in (email["html"], email["texto"]):
+            assert f"/seguranca-do-paciente/notificacoes/{caso_id}" in corpo
+            assert "/ouvidoria-setor/nsp/" not in corpo
+            assert "sem senha" not in corpo
+            assert RELATO not in corpo
+        assert "login" in email["texto"]
+
+    def test_abrir_o_caso_no_modulo_marca_o_recebido_com_o_nome_de_quem_abriu(self, monkeypatch):
+        client, supabase = _client(monkeypatch)
+        assert _enviar_ao_nucleo(client).status_code == 200
+        caso_id = supabase.notificacoes_do_nucleo[0]["id"]
+
+        r = _abrir_o_caso(client, caso_id)
+
+        assert r.status_code == 200, r.text
+        assert r.json()["relato"] == RELATO
+        ciencia = _ciencia(supabase)
+        assert ciencia["status"] == "ciente"
+        assert ciencia["respondido_em"] == DENTRO_DO_EXPEDIENTE.isoformat()
+        trilha = [m["observacao"] for m in supabase.tabelas["ouvidoria_movimentos"]]
+        assert any(o.startswith("Recebido pelo NSP: Dra. Marta Membro") for o in trilha), trilha
+
+    def test_abrir_o_caso_de_novo_nao_registra_outro_recebido(self, monkeypatch):
+        client, supabase = _client(monkeypatch)
+        assert _enviar_ao_nucleo(client).status_code == 200
+        caso_id = supabase.notificacoes_do_nucleo[0]["id"]
+
+        assert _abrir_o_caso(client, caso_id).status_code == 200
+        assert _abrir_o_caso(client, caso_id).status_code == 200
+
+        recebidos = [m for m in supabase.tabelas["ouvidoria_movimentos"] if "Recebido pelo NSP" in m["observacao"]]
+        assert len(recebidos) == 1
+
+    def test_quem_nao_tem_o_recurso_de_casos_nao_abre_nem_marca_o_recebido(self, monkeypatch):
+        client, supabase = _client(monkeypatch, recursos=("ver_modulo",))
+        assert _enviar_ao_nucleo(client).status_code == 200
+        caso_id = supabase.notificacoes_do_nucleo[0]["id"]
+
+        r = _abrir_o_caso(client, caso_id)
+
+        assert r.status_code == 403
+        assert _ciencia(supabase)["status"] == "pendente"
+
+    def test_caso_que_nao_existe_responde_404(self, monkeypatch):
+        client, _supabase = _client(monkeypatch)
+
+        assert _abrir_o_caso(client, "33333333-3333-3333-3333-333333333333").status_code == 404
+
+
+# =====================================================================
+# 4. A página por token não devolve o relato
+# =====================================================================
+
+
+class TestAPaginaPorTokenSemORelato:
+    def test_a_pagina_por_token_nao_devolve_o_relato_nem_a_justificativa(self, monkeypatch):
+        """O link sem senha mandado antes da Fase 2 ainda abre, mas sem o
+        relato: ele está no caso do módulo, com login."""
+        caso = _caso(setor_id=SETOR_ID, nsp_justificativa_tecnica=JUSTIFICATIVA_TECNICA)
+        client, supabase = _client(monkeypatch, _banco(caso))
+        assert _enviar_ao_nucleo(client).status_code == 200
+        link = ouvidoria_acionamentos.emitir_link(supabase, _ciencia(supabase))
+        token = re.search(r"/ouvidoria-setor/nsp/([A-Za-z0-9_-]+)$", link).group(1)
+        client.app.dependency_overrides.pop(get_current_user)
+
+        r = client.get(f"/api/ouvidoria-setor/nsp/{token}")
+
+        assert r.status_code == 200, r.text
+        assert r.json()["protocolo"] == "2026-0007"
+        assert RELATO not in r.text
+        assert JUSTIFICATIVA_TECNICA not in r.text
+
+
+# =====================================================================
+# 5. Cada lado vê, numa palavra, em que pé está o outro
+# =====================================================================
+
+
+def _dossie(client) -> dict:
+    r = client.get("/api/ouvidoria/manifestacoes/por-protocolo/2026-0007")
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+class TestOEstadoDeCadaLado:
+    def test_o_selo_da_ouvidoria_mostra_o_estado_do_caso_no_nucleo(self, monkeypatch):
+        client, supabase = _client(monkeypatch)
+        assert _enviar_ao_nucleo(client).status_code == 200
+
+        assert _dossie(client)["nsp_estado"] == "Recebida"
+
+        supabase.notificacoes_do_nucleo[0]["estado"] = "em_triagem"
+        assert _dossie(client)["nsp_estado"] == "Em análise"
+
+        supabase.notificacoes_do_nucleo[0]["estado"] = "encaminhada"
+        assert _dossie(client)["nsp_estado"] == "Concluída"
+
+    def test_sem_envio_ao_nucleo_o_dossie_nao_tem_estado_do_nucleo(self, monkeypatch):
+        client, _supabase = _client(monkeypatch)
+
+        assert _dossie(client)["nsp_estado"] is None
+
+    def test_o_caso_do_nucleo_mostra_que_veio_da_ouvidoria_com_o_estado_da_manifestacao(self, monkeypatch):
+        client, supabase = _client(monkeypatch)
+        assert _enviar_ao_nucleo(client).status_code == 200
+        caso_id = supabase.notificacoes_do_nucleo[0]["id"]
+
+        lista = client.get("/api/nsp/notificacoes").json()["notificacoes"]
+        aberto = _abrir_o_caso(client, caso_id).json()
+
+        assert lista[0]["origem"] == "ouvidoria"
+        assert lista[0]["ouvidoria"] == {"estado": "Em análise"}
+        assert aberto["ouvidoria"] == {"estado": "Em análise"}
+        assert "manifestacao_id" not in aberto
+
+        supabase.tabelas["ouvidoria_protocolos"][0]["status"] = "encerrado"
+        assert _abrir_o_caso(client, caso_id).json()["ouvidoria"] == {"estado": "Encerrada"}
+
+    def test_o_caso_que_nao_veio_da_ouvidoria_nao_tem_o_selo(self, monkeypatch):
+        client, supabase = _client(monkeypatch)
+        supabase.tabelas["nsp_notificacoes"] = [
+            {
+                "id": "44444444-4444-4444-4444-444444444444",
+                "protocolo": "NSP-2026-0001",
+                "estado": "recebida",
+                "origem": "qr",
+                "relato": "A bomba de infusao alarmou e ninguem ouviu.",
+                "data_ocorrencia": "2026-08-16",
+                "anonimo": True,
+                "criado_em": "2026-08-16T10:00:00+00:00",
+            }
+        ]
+
+        caso = _abrir_o_caso(client, "44444444-4444-4444-4444-444444444444").json()
+
+        assert "ouvidoria" not in caso
+        assert supabase.tabelas["ouvidoria_movimentos"] == []
+
+
+# =====================================================================
+# 6. A manifestação segue o curso dela; nada do Núcleo reabre nem bloqueia
+# =====================================================================
+
+
+class TestAManifestacaoSegueOCursoDela:
+    def test_abrir_o_caso_no_nucleo_nao_mexe_no_estado_da_manifestacao(self, monkeypatch):
+        client, supabase = _client(monkeypatch)
+        assert _enviar_ao_nucleo(client).status_code == 200
+        caso_id = supabase.notificacoes_do_nucleo[0]["id"]
+
+        assert _abrir_o_caso(client, caso_id).status_code == 200
+
+        assert supabase.tabelas["ouvidoria_protocolos"][0]["status"] == "aguardando_area"
+
+    def test_o_nucleo_abre_o_caso_da_manifestacao_ja_encerrada_sem_reabrir(self, monkeypatch):
+        client, supabase = _client(monkeypatch, _banco(_caso(status="encerrado", setor_id=SETOR_ID)))
+        assert _enviar_ao_nucleo(client).status_code == 200
+        caso_id = supabase.notificacoes_do_nucleo[0]["id"]
+
+        r = _abrir_o_caso(client, caso_id)
+
+        assert r.status_code == 200, r.text
+        assert supabase.tabelas["ouvidoria_protocolos"][0]["status"] == "encerrado"
+        assert _ciencia(supabase)["status"] == "ciente"
+
+    def test_falha_ao_marcar_o_recebido_nao_tira_o_caso_da_tela(self, monkeypatch):
+        client, supabase = _client(monkeypatch)
+        assert _enviar_ao_nucleo(client).status_code == 200
+        caso_id = supabase.notificacoes_do_nucleo[0]["id"]
+        supabase.indisponiveis.add("ouvidoria_acionamentos")
+
+        r = _abrir_o_caso(client, caso_id)
+
+        assert r.status_code == 200, r.text
+        assert r.json()["relato"] == RELATO
+
+
+# =====================================================================
+# 7 e 8. O kit de conhecimento diz o comportamento novo
+# =====================================================================
+
+CONHECIMENTO = Path(__file__).resolve().parents[1] / "app" / "conhecimento"
+
+
+def _paragrafo(arquivo: str, marca: str) -> str:
+    texto = (CONHECIMENTO / arquivo).read_text(encoding="utf-8")
+    achados = [p for p in re.split(r"\n\n|\n- ", texto) if marca in p]
+    assert len(achados) == 1, f"o kit {arquivo} precisa de um trecho com {marca!r}"
+    return achados[0]
+
+
+class TestOKitDeConhecimento:
+    def test_o_kit_de_seguranca_do_paciente_diz_que_o_caso_da_ouvidoria_vira_notificacao(self):
+        trecho = _paragrafo("seguranca-do-paciente.md", "Veio da Ouvidoria")
+        for termo in (
+            "notificação de origem Ouvidoria",
+            "relato integral",
+            "não traz o nome nem o contato de quem manifestou",
+            "Confirmar de novo não cria outra",
+            "com login",
+            "abrir o caso já marca o recebido",
+            "segue o curso dela",
+            "não foram trazidos",
+        ):
+            assert termo in trecho, termo
+
+    def test_o_kit_da_ouvidoria_diz_que_o_email_abre_o_caso_no_modulo_e_o_link_perdeu_o_relato(self):
+        trecho = _paragrafo("ouvidoria.md", "Recebido pelo NSP")
+        for termo in (
+            "notificação no módulo de Segurança do Paciente",
+            "estado do caso no Núcleo numa palavra",
+            "com login",
+            "abrir o caso já vale como Recebido pelo NSP",
+            "não mostra mais o relato",
+            "sem o nome nem o contato de quem manifestou",
+        ):
+            assert termo in trecho, termo
+        assert "O link abre sem senha e mostra o relato integral" not in trecho

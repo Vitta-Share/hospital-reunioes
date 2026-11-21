@@ -676,6 +676,9 @@ def dossie_completo(supabase, row: dict, agora: dt.datetime) -> dict:
         | ouvidoria_marcos.marcos_do_caso(row, agora, feriados)
         | {"acuse": acuse, "aviso_encerramento": aviso, "degradado": degradado + nao_lidos}
         | {"conta_no_indicador_de_resposta_conclusiva": entra_no_indicador_de_resposta_conclusiva(row)}
+        # O estado do caso no Núcleo, numa palavra, ao lado do selo Em análise
+        # pelo NSP (issue #1997).
+        | {"nsp_estado": ouvidoria_nucleo.estado_no_nucleo(supabase, row)}
     )
 
 

@@ -442,8 +442,10 @@ async def abrir_o_caso_no_nucleo(
     supabase=Depends(get_supabase_client),
 ):
     """A tela que o link do email do Núcleo abre, sem senha (ADR 0088,
-    decisões 5 e 7): o relato integral, a justificativa técnica, o paciente com
-    a data de nascimento, os profissionais e o quarto, mesmo no caso sigiloso.
+    decisões 5 e 7): o paciente com a data de nascimento, os profissionais e o
+    quarto, mesmo no caso sigiloso. O relato e a justificativa técnica não
+    saem mais por aqui (issue #1997): estão no caso do módulo do Núcleo, que
+    pede login, e o email de agora leva a ele.
 
     Abrir não confirma nada: o Recebido é o botão da tela, pelo mesmo motivo do
     elogio (leitor de email que abre link sozinho gastaria o uso único)."""

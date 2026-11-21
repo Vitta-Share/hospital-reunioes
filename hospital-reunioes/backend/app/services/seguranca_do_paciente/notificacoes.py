@@ -157,6 +157,12 @@ def caso_da_manifestacao(supabase, manifestacao_id: str) -> dict[str, Any] | Non
     return linhas[0] if linhas else None
 
 
+def manifestacao_do_caso(supabase, caso_id: str) -> str | None:
+    """A manifestação da Ouvidoria que o caso foi, ou None."""
+    linhas = supabase.table("nsp_notificacoes").select("manifestacao_id").eq("id", caso_id).limit(1).execute().data
+    return linhas[0].get("manifestacao_id") if linhas else None
+
+
 def consultar(supabase, protocolo: str, codigo: str | None, contato: str | None) -> dict[str, str] | None:
     """O que a página de acompanhamento mostra, ou `None` para toda recusa.
 
@@ -190,7 +196,7 @@ def consultar(supabase, protocolo: str, codigo: str | None, contato: str | None)
 _CAMPOS_DA_LISTA = (
     "id, protocolo, estado, origem, relato, leito_ou_atendimento, setor_id, data_ocorrencia, turno, "
     "hora_aproximada, chegou_ao_paciente, grave_ou_morte, percebido_ou_reclamacao, criado_em, "
-    "anonimo, notificante_nome, notificante_contato"
+    "anonimo, notificante_nome, notificante_contato, manifestacao_id"
 )
 # Abaixo do teto de linhas por resposta do PostgREST (1000 no Supabase).
 TAMANHO_DA_PAGINA = 500
@@ -225,11 +231,45 @@ def _todas_as_linhas(supabase) -> list[dict[str, Any]]:
 def listar(supabase, *, com_identidade: bool) -> list[dict[str, Any]]:
     """Todos os casos, do mais novo ao mais velho. A identidade de quem
     notificou só entra quando `com_identidade` (Presidência e Acesso pleno)."""
-    linhas = _todas_as_linhas(supabase)
+    return _apresentar(supabase, _todas_as_linhas(supabase), com_identidade=com_identidade)
+
+
+def abrir(supabase, caso_id: str, *, com_identidade: bool) -> dict[str, Any] | None:
+    """Um caso, com o que a Ouvidoria apurou quando ele veio dela, ou None."""
+    linhas = (
+        supabase.table("nsp_notificacoes")
+        .select(_CAMPOS_DA_LISTA + ", justificativa_tecnica")
+        .eq("id", caso_id)
+        .limit(1)
+        .execute()
+        .data
+    )
+    if not linhas:
+        return None
+    return _apresentar(supabase, linhas, com_identidade=com_identidade)[0]
+
+
+def _apresentar(supabase, linhas: list[dict[str, Any]], *, com_identidade: bool) -> list[dict[str, Any]]:
+    """O nome do setor, quem notificou (só com `com_identidade`) e, no caso
+    que veio da Ouvidoria, o estado da manifestação numa palavra (issue
+    #1997). O vínculo com a manifestação não sai daqui."""
     setor_ids = sorted({linha["setor_id"] for linha in linhas if linha.get("setor_id")})
     setores = (
         {s["id"]: s["nome"] for s in supabase.table("setores").select("id, nome").in_("id", setor_ids).execute().data}
         if setor_ids
+        else {}
+    )
+    manifestacao_ids = sorted({linha["manifestacao_id"] for linha in linhas if linha.get("manifestacao_id")})
+    estados_na_ouvidoria = (
+        {
+            m["id"]: ouvidoria_acompanhamento.ESTADO_PUBLICO.get(m.get("status"), ouvidoria_acompanhamento.RECEBIDA)
+            for m in supabase.table("ouvidoria_protocolos")
+            .select("id, status")
+            .in_("id", manifestacao_ids)
+            .execute()
+            .data
+        }
+        if manifestacao_ids
         else {}
     )
     casos = []
@@ -237,7 +277,10 @@ def listar(supabase, *, com_identidade: bool) -> list[dict[str, Any]]:
         anonimo = linha.pop("anonimo", None)
         nome = linha.pop("notificante_nome", None)
         contato = linha.pop("notificante_contato", None)
+        manifestacao_id = linha.pop("manifestacao_id", None)
         caso = {**linha, "setor": setores.get(linha.get("setor_id"))}
+        if linha.get("origem") == ORIGEM_OUVIDORIA:
+            caso["ouvidoria"] = {"estado": estados_na_ouvidoria.get(manifestacao_id)}
         if com_identidade:
             caso["anonimo"] = bool(anonimo)
             # O caso da Ouvidoria chega sem quem manifestou (issue #1997).

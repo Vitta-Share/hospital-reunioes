@@ -324,10 +324,15 @@ def _email_do_nucleo(emails: list[dict]) -> dict:
     return do_nucleo[0]
 
 
-def _token_do_nucleo(email: dict) -> str:
-    achado = re.search(r"/ouvidoria-setor/nsp/([A-Za-z0-9_-]{20,})", email["html"])
-    assert achado, "o email do Núcleo perdeu o link"
-    assert f"/ouvidoria-setor/nsp/{achado.group(1)}" in email["texto"]
+def _token_do_nucleo(supabase: _SupabaseFake) -> str:
+    """O link sem senha do Núcleo, como o email o mandava antes da Fase 2
+    (issue #1997). O email de agora abre o caso no módulo, com login, mas o
+    link já mandado continua abrindo a tela com o botão Recebido."""
+    from app.services import ouvidoria_acionamentos
+
+    link = ouvidoria_acionamentos.emitir_link(supabase, _ciencias_do_nucleo(supabase)[0])
+    achado = re.search(r"/ouvidoria-setor/nsp/([A-Za-z0-9_-]{20,})$", link)
+    assert achado, link
     return achado.group(1)
 
 
@@ -343,7 +348,7 @@ class TestOEmailAoNucleo:
         assert _enviar_ao_nucleo(client).status_code == 200
 
         email = _email_do_nucleo(emails)
-        _token_do_nucleo(email)
+        assert "/seguranca-do-paciente/notificacoes/" in email["html"]
         assert "2026-0007" in email["assunto"]
         for corpo in (email["html"], email["texto"]):
             assert "Protocolo 2026-0007" in corpo
@@ -355,7 +360,8 @@ class TestOEmailAoNucleo:
 
 
 # =====================================================================
-# 4. O link do Núcleo mostra o relato integral, mesmo no caso sigiloso
+# 4. O link sem senha do Núcleo não mostra mais o relato (issue #1997); o
+#    paciente, os profissionais e o quarto continuam, mesmo no sigiloso
 # =====================================================================
 
 
@@ -364,23 +370,25 @@ def _abrir_o_link_do_nucleo(client, token: str):
 
 
 class TestOLinkDoNucleo:
-    def test_o_link_do_nucleo_de_um_caso_sigiloso_mostra_o_relato_e_nao_quem_manifestou(self, monkeypatch, emails):
+    def test_o_link_do_nucleo_de_um_caso_sigiloso_mostra_o_paciente_sem_relato_nem_quem_manifestou(
+        self, monkeypatch, emails
+    ):
         caso = _caso(
             tipo_manifestacao="denuncia",
             sigilo_reforcado=True,
             nsp_justificativa_tecnica=JUSTIFICATIVA_TECNICA,
         )
-        client, _supabase = _client(monkeypatch, _banco(caso))
+        client, supabase = _client(monkeypatch, _banco(caso))
         assert _enviar_ao_nucleo(client).status_code == 200
         client.app.dependency_overrides.pop(get_current_user)
 
-        r = _abrir_o_link_do_nucleo(client, _token_do_nucleo(_email_do_nucleo(emails)))
+        r = _abrir_o_link_do_nucleo(client, _token_do_nucleo(supabase))
 
         assert r.status_code == 200, r.text
         tela = r.json()
         assert tela["protocolo"] == "2026-0007"
-        assert tela["relato_integral"] == RELATO
-        assert tela["justificativa_tecnica"] == JUSTIFICATIVA_TECNICA
+        assert RELATO not in r.text
+        assert JUSTIFICATIVA_TECNICA not in r.text
         assert tela["paciente"] == {"nome": "Ana Maria Souza", "nascimento": "1948-03-02"}
         assert tela["profissionais"] == "Enfermeiro do plantao noturno"
         assert tela["quarto"] == "Leito Girassol"
@@ -389,7 +397,7 @@ class TestOLinkDoNucleo:
 
     def test_o_link_de_outra_area_no_mesmo_caso_sigiloso_continua_so_com_a_nota(self, monkeypatch, emails):
         caso = _caso_apontado(tipo_manifestacao="denuncia", sigilo_reforcado=True)
-        client, _supabase = _client(monkeypatch, _banco(caso))
+        client, supabase = _client(monkeypatch, _banco(caso))
         r = _validar(client, tipo_manifestacao="denuncia", nsp_decisao="confirmado")
         assert r.status_code == 200, r.text
         client.app.dependency_overrides.pop(get_current_user)
@@ -397,29 +405,29 @@ class TestOLinkDoNucleo:
         email_da_area = next(e for e in emails if e["destinatario"] == "carlos@hsm.br")
         token_da_area = re.search(r"/ouvidoria-setor/([A-Za-z0-9_-]{20,})", email_da_area["html"]).group(1)
         da_area = client.get(f"/api/ouvidoria-setor/{token_da_area}")
-        do_nucleo = _abrir_o_link_do_nucleo(client, _token_do_nucleo(_email_do_nucleo(emails)))
+        do_nucleo = _abrir_o_link_do_nucleo(client, _token_do_nucleo(supabase))
 
         assert da_area.status_code == 200, da_area.text
         assert [b["chave"] for b in da_area.json()["blocos"]] == ["nota_da_ouvidoria"]
         assert RELATO not in da_area.text
-        assert do_nucleo.json()["relato_integral"] == RELATO
+        assert do_nucleo.json()["paciente"] == {"nome": "Ana Maria Souza", "nascimento": "1948-03-02"}
 
     def test_o_caso_comum_identificado_mostra_quem_manifestou(self, monkeypatch, emails):
-        client, _supabase = _client(monkeypatch)
+        client, supabase = _client(monkeypatch)
         assert _enviar_ao_nucleo(client).status_code == 200
 
-        r = _abrir_o_link_do_nucleo(client, _token_do_nucleo(_email_do_nucleo(emails)))
+        r = _abrir_o_link_do_nucleo(client, _token_do_nucleo(supabase))
 
         assert r.json()["quem_manifestou"] == "Joana da Silva"
 
     def test_o_caso_anonimo_nao_mostra_quem_manifestou(self, monkeypatch, emails):
-        client, _supabase = _client(monkeypatch, _banco(_caso(anonimo=True)))
+        client, supabase = _client(monkeypatch, _banco(_caso(anonimo=True)))
         assert _enviar_ao_nucleo(client).status_code == 200
 
-        r = _abrir_o_link_do_nucleo(client, _token_do_nucleo(_email_do_nucleo(emails)))
+        r = _abrir_o_link_do_nucleo(client, _token_do_nucleo(supabase))
 
+        assert r.status_code == 200, r.text
         assert r.json()["quem_manifestou"] is None
-        assert r.json()["relato_integral"] == RELATO
 
     def test_o_link_de_um_elogio_nao_abre_a_tela_do_nucleo(self, monkeypatch, emails):
         """O token de outra ciência do registro não pode abrir o relato
@@ -453,7 +461,7 @@ class TestRecebidoPeloNucleo:
         assert _enviar_ao_nucleo(client).status_code == 200
         client.app.dependency_overrides.pop(get_current_user)
 
-        r = _recebido(client, _token_do_nucleo(_email_do_nucleo(emails)))
+        r = _recebido(client, _token_do_nucleo(supabase))
 
         assert r.status_code == 200, r.text
         assert r.json()["protocolo"] == "2026-0007"
@@ -466,7 +474,7 @@ class TestRecebidoPeloNucleo:
     def test_recebido_pelo_nsp_vale_uma_vez_so(self, monkeypatch, emails):
         client, supabase = _client(monkeypatch)
         assert _enviar_ao_nucleo(client).status_code == 200
-        token = _token_do_nucleo(_email_do_nucleo(emails))
+        token = _token_do_nucleo(supabase)
 
         primeiro = _recebido(client, token)
         segundo = _recebido(client, token)
@@ -481,14 +489,14 @@ class TestRecebidoPeloNucleo:
         client, supabase = _client(monkeypatch)
         assert _enviar_ao_nucleo(client).status_code == 200
 
-        _recebido(client, _token_do_nucleo(_email_do_nucleo(emails)))
+        _recebido(client, _token_do_nucleo(supabase))
 
         assert supabase.tabelas["ouvidoria_protocolos"][0]["status"] == "aguardando_area"
 
     def test_depois_do_recebido_o_link_ainda_mostra_o_caso_com_a_marca(self, monkeypatch, emails):
-        client, _supabase = _client(monkeypatch)
+        client, supabase = _client(monkeypatch)
         assert _enviar_ao_nucleo(client).status_code == 200
-        token = _token_do_nucleo(_email_do_nucleo(emails))
+        token = _token_do_nucleo(supabase)
         _recebido(client, token)
 
         tela = _abrir_o_link_do_nucleo(client, token).json()
@@ -502,7 +510,7 @@ class TestRecebidoPeloNucleo:
         client, supabase = _client(monkeypatch)
         assert _enviar_ao_nucleo(client).status_code == 200
 
-        r = client.post(f"/api/ouvidoria-setor/elogio/{_token_do_nucleo(_email_do_nucleo(emails))}/recebido")
+        r = client.post(f"/api/ouvidoria-setor/elogio/{_token_do_nucleo(supabase)}/recebido")
 
         assert r.status_code == 404
         assert _ciencias_do_nucleo(supabase)[0]["status"] == "pendente"
@@ -594,7 +602,7 @@ class TestCobrancaDoRecebido:
     def test_com_o_recebido_ninguem_e_cobrado(self, monkeypatch, emails):
         client, supabase = _client(monkeypatch, _com_a_diretoria(_banco()))
         assert _enviar_ao_nucleo(client).status_code == 200
-        assert _recebido(client, _token_do_nucleo(_email_do_nucleo(emails))).status_code == 200
+        assert _recebido(client, _token_do_nucleo(supabase)).status_code == 200
         emails.clear()
 
         assert _cobrar(supabase, DOIS_DIAS_UTEIS_DEPOIS) == 0
@@ -675,7 +683,7 @@ class TestOCasoComOSelo:
         client, supabase = _client(monkeypatch, _banco(caso))
         assert _enviar_ao_nucleo(client).status_code == 200
 
-        r = _recebido(client, _token_do_nucleo(_email_do_nucleo(emails)))
+        r = _recebido(client, _token_do_nucleo(supabase))
 
         assert r.status_code == 200, r.text
         assert supabase.tabelas["ouvidoria_protocolos"][0]["status"] == "encerrado"

@@ -13,10 +13,13 @@ quando quiser.
 
 Três regras que só valem aqui:
 
-- O link do Núcleo mostra o relato integral, a justificativa técnica, o
-  paciente com a data de nascimento, os profissionais e o quarto, **mesmo no
-  sigilo reforçado** (decisão 5, a única exceção à decisão 8 da ADR 0034). Quem
-  manifestou só aparece quando o caso não é sigiloso nem anônimo.
+- Desde a Fase 2 do Núcleo (issue #1997, ADR 0107 decisão 7), confirmar o
+  envio cria também a notificação de origem Ouvidoria no módulo do Núcleo, com
+  o relato integral e a justificativa técnica e sem quem manifestou. O email
+  abre o caso lá, com login, e abrir o caso é o Recebido. O link antigo, sem
+  senha, mostra só o paciente com a data de nascimento, os profissionais e o
+  quarto, **mesmo no sigilo reforçado** (decisão 5, a única exceção à decisão 8
+  da ADR 0034), e quem manifestou quando o caso não é sigiloso nem anônimo.
 - O email só avisa e traz o link (decisão 6): o relato e a justificativa ficam
   na tela, porque o email passa por um processador fora do Brasil.
 - O prazo do Recebido é imediato no caso crítico e de 1 dia útil nos demais, e
@@ -96,12 +99,14 @@ def carregar_pelo_token(supabase, token: str) -> dict:
     return ciencia
 
 
-# O que a tela do Núcleo lê do caso. Fechado campo a campo, como o portal do
-# setor: o relato integral e o paciente vão mesmo no sigilo reforçado (ADR
-# 0088, decisão 5), e quem manifestou só no caso que não é sigiloso nem anônimo.
+# O que a tela do link lê do caso. Fechado campo a campo, como o portal do
+# setor: o paciente vai mesmo no sigilo reforçado (ADR 0088, decisão 5), e quem
+# manifestou só no caso que não é sigiloso nem anônimo. O relato e a
+# justificativa técnica não são lidos: desde a issue #1997 eles estão no caso
+# do módulo do Núcleo, com login (ADR 0107, decisão 7).
 CAMPOS_DA_TELA = (
     "id, protocolo, status, tipo_manifestacao, gravidade, sigilo_reforcado, anonimo, manifestante_nome, "
-    "relato_integral, nsp_justificativa_tecnica, paciente_nome, paciente_nascimento, profissionais, quarto, "
+    "paciente_nome, paciente_nascimento, profissionais, quarto, "
     "data_ocorrencia, periodo, hora_aprox, local_informado, anonimizada_em, apagamento_pedido_em"
 )
 
@@ -109,11 +114,11 @@ CAMPOS_DA_TELA = (
 def tela_do_nucleo(caso: dict, ciencia: dict) -> dict:
     """O que o link do Núcleo mostra (ADR 0088, decisão 5).
 
-    O relato integral, a justificativa técnica, o paciente com a data de
-    nascimento, os profissionais e o quarto saem em qualquer caso, inclusive no
-    sigilo reforçado: é a única exceção à decisão 8 da ADR 0034, e vale só
-    aqui. O nome de quem manifestou só sai quando o caso não é sigiloso nem
-    anônimo."""
+    O paciente com a data de nascimento, os profissionais e o quarto saem em
+    qualquer caso, inclusive no sigilo reforçado: é a única exceção à decisão 8
+    da ADR 0034, e vale só aqui. O nome de quem manifestou só sai quando o caso
+    não é sigiloso nem anônimo. O relato e a justificativa técnica não saem
+    mais por este link sem senha (issue #1997, ADR 0107 decisão 7)."""
     from app.services.ouvidoria_prazos import formatar_vencimento
 
     sigiloso = bool(caso.get("sigilo_reforcado"))
@@ -127,8 +132,6 @@ def tela_do_nucleo(caso: dict, ciencia: dict) -> dict:
         "gravidade": caso.get("gravidade"),
         "sigiloso": sigiloso,
         "anonimo": anonimo,
-        "relato_integral": (caso.get("relato_integral") or "").strip() or None,
-        "justificativa_tecnica": (caso.get("nsp_justificativa_tecnica") or "").strip() or None,
         "paciente": {"nome": nome_do_paciente, "nascimento": nascimento} if nome_do_paciente or nascimento else None,
         "profissionais": caso.get("profissionais") or None,
         "quarto": caso.get("quarto") or None,
@@ -153,6 +156,63 @@ def registrar_o_recebido(supabase, caso: dict, ciencia: dict) -> None:
         {"id": None, "nome_completo": nome},
         f"Recebido pelo NSP: {nome}, do setor {ciencia.get('setor')}, confirmou o recebimento.",
     )
+
+
+def link_do_caso_no_modulo(supabase, manifestacao_id: str) -> str | None:
+    """O endereço do caso no módulo do Núcleo, que pede login (issue #1997),
+    ou None quando o caso foi confirmado antes da Fase 2 e não tem
+    notificação no módulo."""
+    from app.config import settings
+    from app.services.seguranca_do_paciente import notificacoes as notificacoes_do_nucleo
+
+    caso = notificacoes_do_nucleo.caso_da_manifestacao(supabase, manifestacao_id)
+    if caso is None:
+        return None
+    return f"{settings.frontend_url}/seguranca-do-paciente/notificacoes/{caso['id']}"
+
+
+def estado_no_nucleo(supabase, caso: dict) -> str | None:
+    """Em que pé está o caso no Núcleo, numa palavra, para o selo Em análise
+    pelo NSP (issue #1997): Recebida, Em análise ou Concluída, a mesma língua
+    da página de acompanhamento. None quando o caso não foi ao Núcleo, quando
+    foi antes da Fase 2 (sem notificação no módulo) ou quando a leitura falhou:
+    o Dossiê não deixa de abrir por isso."""
+    from app.services.seguranca_do_paciente import notificacoes as notificacoes_do_nucleo
+
+    if caso.get("nsp_decisao") != CONFIRMADO or not caso.get("id"):
+        return None
+    try:
+        notificacao = notificacoes_do_nucleo.caso_da_manifestacao(supabase, caso["id"])
+    except Exception:  # noqa: BLE001
+        logger.warning("[Ouvidoria] Falha ao ler o estado do caso %s no Núcleo", caso.get("id"))
+        return None
+    if notificacao is None:
+        return None
+    return notificacoes_do_nucleo.ESTADO_PUBLICO.get(notificacao.get("estado"), notificacoes_do_nucleo.RECEBIDA)
+
+
+def receber_pelo_modulo(supabase, manifestacao_id: str, quem: dict, agora: dt.datetime) -> bool:
+    """Abrir o caso no módulo do Núcleo é o Recebido (issue #1997, ADR 0107
+    decisão 7). Devolve se este abrir confirmou: a ciência só passa de
+    `pendente` a `ciente` uma vez, e abrir de novo não grava nada.
+
+    Não mexe no estado da manifestação: a ciência corre em paralelo, e a
+    resposta e o encerramento seguem o caminho de sempre."""
+    ciencia = ciencia_do_caso(supabase, manifestacao_id)
+    if ciencia is None or ciencia.get("status") != ouvidoria_acionamentos.PENDENTE:
+        return False
+    if not ouvidoria_acionamentos.confirmar(supabase, ciencia, agora):
+        return False
+    lido = supabase.table("ouvidoria_protocolos").select("id, status").eq("id", manifestacao_id).limit(1).execute()
+    if lido.data:
+        nome = quem.get("nome_completo") or "Núcleo de Segurança do Paciente"
+        _registrar_na_trilha(
+            supabase,
+            lido.data[0],
+            {"id": quem.get("id"), "nome_completo": nome},
+            f"Recebido pelo NSP: {nome} abriu o caso no módulo de Segurança do Paciente.",
+        )
+    return True
 
 
 def prazo_do_recebido(agora: dt.datetime, gravidade: str | None, feriados: frozenset[dt.date]) -> dt.datetime:

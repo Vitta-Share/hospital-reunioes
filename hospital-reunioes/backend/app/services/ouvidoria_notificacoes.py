@@ -1072,8 +1072,9 @@ def montar_ciencia_nsp(
     (issue #1621, ADR 0088, decisão 6).
 
     Só o aviso, o protocolo, o prazo do Recebido e o link. Nada do caso viaja:
-    nem relato, nem justificativa técnica, nem paciente, nem setor. Quem lê o
-    caso é a tela do link, que fica no app."""
+    nem relato, nem justificativa técnica, nem paciente, nem setor. Desde a
+    issue #1997 o link abre o caso no módulo do Núcleo, com login, e abrir o
+    caso já é o Recebido."""
     from app.services.email_constants import get_logo_data_uri
 
     protocolo = manifestacao.get("protocolo") or ""
@@ -1088,10 +1089,11 @@ def montar_ciencia_nsp(
     texto = (
         f"Ola {destinatario_nome},\n\n"
         "A Ouvidoria enviou ao Nucleo de Seguranca do Paciente um caso que pode descrever um incidente "
-        "relacionado a assistencia. O relato e o que a Ouvidoria apurou estao na tela do link abaixo.\n\n"
-        f"Protocolo {protocolo}. Confirme o recebimento ate {quando}.\n\n"
+        "relacionado a assistencia. O relato e o que a Ouvidoria apurou estao no caso, no modulo de "
+        "Seguranca do Paciente.\n\n"
+        f"Protocolo {protocolo}. Abra o caso ate {quando}: abrir ja confirma o recebimento.\n\n"
         f"{link}\n\n"
-        "O link abre sem senha. Nao encaminhe este email.\n"
+        "O link pede o seu login no aplicativo.\n"
     )
     return (f"Ouvidoria {protocolo}: caso para o Núcleo de Segurança do Paciente", html, texto)
 
@@ -1882,7 +1884,13 @@ def despachar(supabase, notificacao: dict, agora: dt.datetime, feriados: frozens
                 _marcar(supabase, notificacao["id"], {"status": FALHA, "ultimo_erro": NUCLEO_JA_RECEBEU})
                 return False
             if notificacao["gatilho"] == GATILHO_CIENCIA_NSP:
-                link = ouvidoria_acionamentos.emitir_link(supabase, ciencia)
+                # Desde a Fase 2 do Núcleo (issue #1997), o caso é aberto no
+                # módulo, com login, e o link sem senha não nasce mais. Só o
+                # caso confirmado antes dela, sem notificação no módulo, ainda
+                # recebe o link antigo.
+                link = ouvidoria_nucleo.link_do_caso_no_modulo(
+                    supabase, notificacao["manifestacao_id"]
+                ) or ouvidoria_acionamentos.emitir_link(supabase, ciencia)
         assunto, html, texto = _montar(supabase, notificacao, manifestacao, agora, feriados, link=link)
         # Endereço de gente de fora não entra no log da aplicação: ele sairia ao
         # lado do assunto, que carrega o protocolo, e o par diria a quem lê o log
