@@ -12,16 +12,26 @@ import { createClient } from "@/lib/supabase/client";
  * login dela; aqui, assim que os cartões aparecem, a marca é gravada, para
  * que não voltem em outra tela nem em outro aparelho. Se a gravação falhar,
  * eles voltam no próximo acesso, e o guia continua no mesmo lugar.
+ *
+ * O navegador também lembra, enquanto a aba vive: voltar e avançar restauram
+ * do cache do roteador o layout montado antes da marca, ainda com os cartões
+ * dentro, e sem esta lembrança eles abririam de novo (revisão do PR #2107).
+ * A lembrança é por pessoa, porque sair e entrar com outro login não recarrega
+ * a aba.
  */
-export function ApresentacaoDoComite() {
-  const [aberta, setAberta] = useState(true);
+const jaApresentadaNestaAba = new Set<string>();
+
+export function ApresentacaoDoComite({ pessoa }: { pessoa: string }) {
+  const [aberta, setAberta] = useState(() => !jaApresentadaNestaAba.has(pessoa));
   const [indice, setIndice] = useState(0);
 
   useEffect(() => {
+    if (jaApresentadaNestaAba.has(pessoa)) return;
+    jaApresentadaNestaAba.add(pessoa);
     createClient()
       .auth.updateUser({ data: { [CHAVE_DA_APRESENTACAO]: new Date().toISOString() } })
       .catch(() => undefined);
-  }, []);
+  }, [pessoa]);
 
   if (!aberta) return null;
 

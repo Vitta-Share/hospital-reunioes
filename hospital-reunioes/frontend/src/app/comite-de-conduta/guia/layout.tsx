@@ -17,7 +17,7 @@ export default async function GuiaDoRitoLayout({ children }: { children: React.R
   return (
     <AppShell userName={nome} userEmail={user.email}>
       {children}
-      {precisaDaApresentacao(user) && <ApresentacaoDoComite />}
+      {precisaDaApresentacao(user) && <ApresentacaoDoComite pessoa={user.id} />}
     </AppShell>
   );
 }

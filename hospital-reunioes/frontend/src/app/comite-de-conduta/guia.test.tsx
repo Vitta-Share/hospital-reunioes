@@ -33,12 +33,16 @@ vi.mock("@/components/layout/AppShell", () => ({
 }));
 
 const metadados = vi.hoisted(() => ({ atual: {} as Record<string, unknown> }));
+/** Cada teste é uma pessoa nova, que nunca passou pelo Comitê nesta aba. */
+const pessoa = vi.hoisted(() => ({ atual: "", contador: 0 }));
 const updateUser = vi.hoisted(() => vi.fn(async () => ({ data: {}, error: null })));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     auth: {
-      getUser: async () => ({ data: { user: { email: "membro@hsm.test", user_metadata: metadados.atual } } }),
+      getUser: async () => ({
+        data: { user: { id: pessoa.atual, email: "membro@hsm.test", user_metadata: metadados.atual } },
+      }),
       getSession: async () => ({ data: { session: { access_token: "token-de-teste" } } }),
     },
   }),
@@ -58,6 +62,8 @@ let portao: Record<string, number>;
 
 beforeEach(() => {
   metadados.atual = { conduta_apresentacao_vista_em: "2026-11-01T10:00:00Z" };
+  pessoa.contador += 1;
+  pessoa.atual = `pessoa-${pessoa.contador}`;
   updateUser.mockClear();
   redirect.mockClear();
   portao = {};
@@ -186,6 +192,45 @@ describe("os cinco cartões do primeiro acesso", () => {
     fireEvent.click(within(dialogo).getByRole("button", { name: "Começar" }));
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.getByText(CONTEUDO)).toBeTruthy();
+  });
+
+  it.each(AREAS)(
+    "%s não reabre os cartões quando o navegador volta a uma tela montada antes da marca",
+    async (_caminho, modulo) => {
+      metadados.atual = { nome: "Ana" };
+      portao = TUDO_ABRE;
+      // O que o roteador guardou no cache do cliente: as telas montadas antes
+      // da marca, ainda com os cartões dentro (voltar e avançar não pedem nada
+      // ao servidor).
+      const telaDeAntes = await modulo.default({ children: <p>{CONTEUDO}</p> });
+      const irmas = await Promise.all(AREAS.map(([, m]) => m.default({ children: <p>{CONTEUDO}</p> })));
+
+      const primeira = render(telaDeAntes);
+      fireEvent.click(screen.getByRole("button", { name: "Pular" }));
+      primeira.unmount();
+
+      for (const tela of [telaDeAntes, ...irmas]) {
+        const voltou = render(tela);
+        expect(screen.getByText(CONTEUDO)).toBeTruthy();
+        expect(screen.queryByRole("dialog")).toBeNull();
+        voltou.unmount();
+      }
+      expect(updateUser).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it("outra pessoa que entra na mesma aba ainda vê os cartões", async () => {
+    metadados.atual = { nome: "Ana" };
+    portao = TUDO_ABRE;
+    const [, modulo] = AREAS[0];
+
+    const daAna = render(await modulo.default({ children: <p>{CONTEUDO}</p> }));
+    daAna.unmount();
+
+    pessoa.atual = `${pessoa.atual}-outra`;
+    render(await modulo.default({ children: <p>{CONTEUDO}</p> }));
+
+    expect(screen.getByRole("dialog", { name: "Bem-vindo ao Comitê de Conduta" })).toBeTruthy();
   });
 
   it.each(AREAS)("%s não mostra os cartões a quem já os viu", async (_caminho, modulo) => {

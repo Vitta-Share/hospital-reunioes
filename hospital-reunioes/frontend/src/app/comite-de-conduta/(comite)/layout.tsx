@@ -20,7 +20,7 @@ export default async function ComiteDeCondutaLayout({ children }: { children: Re
   return (
     <AppShell userName={nome} userEmail={user.email}>
       {children}
-      {precisaDaApresentacao(user) && <ApresentacaoDoComite />}
+      {precisaDaApresentacao(user) && <ApresentacaoDoComite pessoa={user.id} />}
     </AppShell>
   );
 }
