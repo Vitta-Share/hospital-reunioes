@@ -86,7 +86,7 @@ export function ContasPorCompetencia({
             <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 px-5 py-2">
               <h3 className="text-sm font-semibold text-slate-800">
                 {titulo}{" "}
-                <span className="font-normal normal-case text-slate-500">
+                <span className="font-normal text-slate-500">
                   {doMes.length === 1 ? "1 conta" : `${doMes.length} contas`}
                 </span>
               </h3>
