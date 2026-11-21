@@ -4,7 +4,7 @@ A faturista digita parte do número do atendimento ou do rótulo do paciente e a
 rota procura em todas as etapas da conta, de quem quer que esteja com ela,
 dizendo a etapa e com quem está. O número da conta não entra na busca.
 
-O dublê do banco é o da rota da fila, com o `ilike` do PostgREST: sem
+O dublê do banco é o da rota da fila, com o `imatch` do PostgREST: sem
 diferenciar maiúscula, mas diferenciando acento, como o Postgres. Os rótulos
 de paciente e os nomes de pessoa são inventados.
 """
@@ -32,22 +32,19 @@ from test_contas_medicas_envio import (  # noqa: E402
 ROTA_BUSCA = "/api/contas-medicas/busca"
 
 
-def _como_like(padrao: str) -> re.Pattern:
-    """O `ilike` do Postgres: `%` é qualquer trecho, `_` é um caractere."""
-    partes = ("." * (p == "_") or ".*" * (p == "%") or re.escape(p) for p in padrao)
-    return re.compile("".join(partes), re.IGNORECASE | re.DOTALL)
-
-
-class _ConsultaComIlike(_Consulta):
-    def ilike(self, coluna, padrao):
-        regex = _como_like(padrao)
-        self._filtros.append(lambda linha: linha.get(coluna) is not None and regex.fullmatch(linha[coluna]))
+class _ConsultaComImatch(_Consulta):
+    def filter(self, coluna, operador, expressao):
+        """O `imatch` do PostgREST, o `~*` do Postgres: acha a expressão em
+        qualquer ponto do texto, sem diferenciar maiúscula."""
+        assert operador == "imatch"
+        regex = re.compile(expressao, re.IGNORECASE)
+        self._filtros.append(lambda linha: linha.get(coluna) is not None and regex.search(linha[coluna]))
         return self
 
 
 class _BancoDaBusca(_Banco):
     def table(self, nome: str):
-        return _ConsultaComIlike(self, nome)
+        return _ConsultaComImatch(self, nome)
 
 
 def _banco(contas: list[dict], atendimentos: list[dict], **tabelas) -> _BancoDaBusca:
@@ -109,7 +106,7 @@ class TestBusca:
         assert _ids(_buscar("célia", banco)) == ["concluida"]
 
     def test_o_curinga_do_banco_nao_vira_resultado(self):
-        # "_" e "%" casam qualquer coisa no `ilike`: a conferência exata tira.
+        # "_" e "%" entram no banco como literais, não como curinga.
         assert _ids(_buscar("a_")) == []
         assert _ids(_buscar("2%5")) == []
 
@@ -198,6 +195,24 @@ class TestTetoDaBusca:
         corpo = _buscar("4001", banco).json()
 
         assert [c["numero_atendimento"] for c in corpo["contas"]][:3] == ["4001", "40019", "40018"]
+
+    @pytest.mark.parametrize("texto", ["caio", "CAIO", "cáio"])
+    def test_acha_a_conta_antiga_pelo_nome_so_de_vogal_e_c_mesmo_com_muitas_contas_novas(self, texto):
+        # Uns três meses de contas (ADR 0105): rótulos que nenhum "caio" casa,
+        # todos mais novos que o do "Caio S.", concluído há meses.
+        n = 2000
+        contas = [_c(f"c{i:04d}", "CONCLUIDA", i, faturista="F2", atendimento_id=f"at-{i:04d}") for i in range(n)]
+        atendimentos = [
+            {**_at(f"at-{i:04d}", f"5{i:04d}", f"Bruna Ramos {i:04d}"), "criado_em": f"2026-10-{1 + i // 100:02d}"}
+            for i in range(n)
+        ]
+        contas.append(_c("antiga", "CONCLUIDA", -1, faturista="F2", atendimento_id="at-antiga"))
+        atendimentos.append({**_at("at-antiga", "18877", "Caio S."), "criado_em": "2026-07-01"})
+
+        corpo = _buscar(texto, _banco(contas, atendimentos)).json()
+
+        assert [c["id"] for c in corpo["contas"]] == ["antiga"]
+        assert corpo["mais"] is False
 
 
 KIT = os.path.join(os.path.dirname(__file__), "..", "app", "conhecimento", "contas-medicas.md")

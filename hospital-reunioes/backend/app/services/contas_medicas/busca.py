@@ -24,11 +24,16 @@ from app.services.contas_medicas.fila import (
 MINIMO_DE_CARACTERES = 2
 # A tela mostra no máximo 50 contas e pede para refinar quando há mais.
 TETO = 50
-# Quantos atendimentos cada coluna lê antes da conferência sem acento: o
-# padrão do banco casa um pouco a mais (ver `_padrao`).
-CANDIDATOS = 500
-# Letras que levam acento em português: no banco viram curinga.
-_COM_ACENTO = set("aeiouc")
+# Cada letra que leva acento em português, com as formas que o banco pode ter
+# gravado, em maiúscula e minúscula.
+_FORMAS = {
+    "a": "aáàâãäAÁÀÂÃÄ",
+    "e": "eéèêëEÉÈÊË",
+    "i": "iíìîïIÍÌÎÏ",
+    "o": "oóòôõöOÓÒÔÕÖ",
+    "u": "uúùûüUÚÙÛÜ",
+    "c": "cçCÇ",
+}
 
 
 def sem_acento(texto: str) -> str:
@@ -37,13 +42,26 @@ def sem_acento(texto: str) -> str:
 
 
 def _padrao(termo: str) -> str:
-    """O padrão do `ilike`, que não diferencia maiúscula mas diferencia
-    acento: cada letra que pode ter acento vira `_` (um caractere qualquer), e
-    o que não é letra nem algarismo também, para `%`, `_` e a vírgula do
-    PostgREST não entrarem crus. O banco devolve um pouco a mais, e a
-    conferência exata é em Python."""
-    letras = ("_" if c in _COM_ACENTO or not (c.isascii() and c.isalnum()) else c for c in termo)
-    return f"%{''.join(letras)}%"
+    """A expressão do `imatch` (o `~*` do Postgres, sem diferenciar
+    maiúscula): cada letra que pode ter acento vira a lista das formas dela, e
+    o que não é letra nem algarismo entra escapado, como literal. O banco casa
+    o mesmo que a conferência sem acento, sem curinga: o teto de cada coluna
+    corta só achados de verdade (um curinga deixava "caio" casar qualquer
+    rótulo, e o teto perdia a conta antiga)."""
+    return "".join(_letra(c) for c in termo)
+
+
+# Os acentos combinantes (U+0300 a U+036F), para o rótulo gravado decomposto.
+_MARCAS = "[\u0300-\u036f]*"
+
+
+def _letra(c: str) -> str:
+    if c in _FORMAS:
+        return f"[{_FORMAS[c]}]{_MARCAS}"
+    if c.isascii():
+        # Pontuação ASCII escapada é literal no Postgres e no Python.
+        return c if c.isalnum() else f"\\{c}"
+    return f"[{c}]"
 
 
 def etapa_da(situacao: str) -> str:
@@ -63,9 +81,9 @@ def _atendimentos(supabase, termo: str) -> list[dict]:
         linhas = (
             supabase.table("cm_atendimento")
             .select("id, numero_atendimento, paciente_rotulo")
-            .ilike(coluna, _padrao(termo))
+            .filter(coluna, "imatch", _padrao(termo))
             .order("criado_em", desc=True)
-            .limit(CANDIDATOS)
+            .limit(TETO + 1)
             .execute()
             .data
             or []
