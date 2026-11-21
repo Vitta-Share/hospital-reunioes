@@ -21,7 +21,7 @@ from app.models.schemas import (
     PendenciaResponse,
     PendenciaStats,
 )
-from app.services import painel_reunioes, pendencia_anexo
+from app.services import fotografia_do_painel, painel_reunioes, pendencia_anexo
 from app.services.painel_reunioes import FiltrosDoPainel, PainelDeReunioes, montar_painel
 from app.services.pendencia_acao import agir
 from app.services.pendencia_ciclo import (
@@ -227,7 +227,8 @@ async def get_painel(
     cards, da base inteira e no recorte de quem pede. A Secretária não recebe
     dado de Pendência (decisão 53 do diretor no PRD #1757). O gráfico de
     atrasos por setor e o ranking de 90 dias (issue #1871) vão só para o Super
-    admin e para quem facilita ao menos uma Reunião."""
+    admin e para quem facilita ao menos uma Reunião. A evolução de 8 semanas e
+    a seta dos cards vêm da fotografia de segunda de quem pede (issue #1873)."""
     me = await get_participante_for_user(current_user, supabase)
     if is_secretaria(me):
         raise HTTPException(status_code=403, detail="Secretária não tem acesso a pendências")
@@ -250,14 +251,22 @@ async def get_painel(
         prazo_de=prazo_de,
         prazo_ate=prazo_ate,
     )
-    return montar_painel(
+    hoje = hoje_em_brasilia()
+    painel = montar_painel(
         supabase,
         recorte,
-        hoje=hoje_em_brasilia(),
+        hoje=hoje,
         agora=painel_reunioes.agora_utc(),
         filtros=filtros,
         com_ranking=painel_reunioes.ve_ranking(me, super_admin=super_admin, facilita_alguma=facilita_alguma),
     )
+    if me:
+        # A fotografia de segunda (issue #1873) é dos cards sem filtro: com
+        # filtro, a seta compararia números diferentes e não aparece.
+        painel.evolucao, anterior = fotografia_do_painel.ler_fotografias(supabase, me["id"], hoje=hoje)
+        sem_filtro = not (filtros.responsaveis or filtros.setores or filtros.prazo_de or filtros.prazo_ate)
+        painel.semana_anterior = anterior if sem_filtro else None
+    return painel
 
 
 @router.get("/minhas", response_model=list[PendenciaResponse])

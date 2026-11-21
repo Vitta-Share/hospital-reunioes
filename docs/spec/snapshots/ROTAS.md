@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T15:49+0000 -->
+<!-- last_update: 2026-11-21T16:46+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -82,6 +82,8 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/comite-de-conduta/casos/{caso_id}/encaminhamento` | Enviar orientacao | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/prorrogacao` | Prorrogar prazo | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/triagem` | Confirmar triagem | ✅ |
+| GET | `/comite-de-conduta/configuracoes` | Listar configuracoes | ✅ |
+| POST | `/comite-de-conduta/configuracoes/{chave}` | Salvar configuracao | ✅ |
 | GET | `/comite-de-conduta/minha-vez` | Minha vez | ✅ |
 
 ## canal-de-conduta (`app/routers/conduta_membros.py`)
@@ -99,6 +101,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | Método | Rota | O que faz | Auth |
 |--------|------|-----------|------|
 | GET | `/conduta/abertura` | Se o canal está aberto. Fechado, a rota nem aparece (404). | ❌ |
+| GET | `/conduta/textos` | Os textos vigentes das telas públicas (issue #1826), cada um com o | ❌ |
 
 ## conector-mcp (`app/routers/conector_mcp.py`)
 
@@ -253,6 +256,13 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | GET | `/admin/dados-atendimento/exames` | Lista todas as linhas (ativas e desativadas) e a data da última | ✅ |
 | POST | `/admin/dados-atendimento/exames` | Create exames | ✅ |
 | PATCH | `/admin/dados-atendimento/exames/{item_id}` | Update exames | ✅ |
+
+## definicoes-processo (`app/routers/definicoes_processo.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| GET | `/definicoes-processo` | A lista de definições de processo dos setores de quem pede. | ✅ |
+| POST | `/definicoes-processo/{id_definicao}/retirar` | Tira o item da lista (repetido ou que deixou de valer), com anotação. | ✅ |
 
 ## pops (`app/routers/pops/documento.py`)
 
@@ -526,12 +536,14 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/rotinas/{id_rotina}/ciclos/{inicio}/nao-realizada` | Não realizada pede anotação. | ✅ |
 | POST | `/rotinas/{id_rotina}/ciclos/{inicio}/realizada` | Realizada é um clique, sem anotação. | ✅ |
 | POST | `/rotinas/{id_rotina}/encerrar` | O Facilitador (ou o Super admin) encerra a qualquer momento, com anotação. | ✅ |
+| POST | `/rotinas/{id_rotina}/frequencia` | O Facilitador (ou o Super admin) escolhe a frequência da Rotina que veio | ✅ |
 
 ## seguranca-do-paciente (`app/routers/seguranca_do_paciente.py`)
 
 | Método | Rota | O que faz | Auth |
 |--------|------|-----------|------|
 | GET | `/nsp/configuracao` | A configuração técnica do módulo, a única parte que o super admin | ✅ |
+| GET | `/nsp/configuracao/qr-da-notificacao.png` | O QR único da notificação (issue #2046), para o cartaz e o papel de | ✅ |
 | GET | `/nsp/inicio` | A página inicial do módulo: o Núcleo, quantos membros estão com a | ✅ |
 
 ## seguranca-do-paciente (`app/routers/seguranca_do_paciente_agenda.py`)
@@ -589,6 +601,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 |--------|------|-----------|------|
 | GET | `/nsp/notificacoes` | Notificações: todos os casos, para quem tem o recurso de casos. Quem | ✅ |
 | POST | `/nsp/notificacoes` | O botão "Notificar incidente" do módulo: a identificação vem da sessão, | ✅ |
+| POST | `/nsp/notificacoes/registro-rapido` | Relato, setor, data e origem. Quem registrou é o autor, pela sessão, e | ✅ |
 | GET | `/nsp/notificacoes/{caso_id}` | Um caso do Núcleo. O caso que veio da Ouvidoria traz o que ela apurou | ✅ |
 | GET | `/nsp/notificacoes/{notificacao_id}/anexos/{anexo_id}` | O arquivo do caso, entregue pelo backend: sem URL assinada, que valeria | ✅ |
 | POST | `/nsp/publico/acompanhamento` | A página de acompanhamento: só o estado, em palavras simples. O limite | ❌ |
@@ -737,4 +750,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 421 endpoints em 62 routers · 93% exigem auth.
+**Totais:** 429 endpoints em 63 routers · 93% exigem auth.

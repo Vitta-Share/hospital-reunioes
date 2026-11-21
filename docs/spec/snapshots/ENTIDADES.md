@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T15:56+0000 -->
+<!-- last_update: 2026-11-21T16:46+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2279,7 +2279,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## pendencia_historico
 
-> Origem: `169_ciclo_de_vida_da_pendencia.sql` (alterada em: 187_contestacao_do_item_da_ata.sql)
+> Origem: `169_ciclo_de_vida_da_pendencia.sql` (alterada em: 187_contestacao_do_item_da_ata.sql, 190_fluxo_continuo_vira_rotina.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2295,11 +2295,13 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
 | `responsavel_antes` | `TEXT` | — | — | — |
 | `responsavel_depois` | `TEXT` | — | — | — |
+| `rotina_id` | `UUID` | — | — | `rotinas.id` |
 
 **Indexes:**
 - `idx_pendencia_historico_acao` em `(id_acao, criado_em)` (de `169_ciclo_de_vida_da_pendencia.sql`)
 - `idx_pendencia_historico_repactuacao` em `(id_acao)` (de `169_ciclo_de_vida_da_pendencia.sql`)
 - `idx_pendencia_historico_contestacao` em `(id_acao, criado_em)` (de `187_contestacao_do_item_da_ata.sql`)
+- `idx_pendencia_historico_rotina` em `(rotina_id)` (de `190_fluxo_continuo_vira_rotina.sql`)
 
 ## pendencia_anexos
 
@@ -2490,6 +2492,23 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_rotinas_responsavel` em `(responsavel_id)` (de `177_rotina_e_verificacao.sql`)
 
+## definicoes_processo
+
+> Origem: `178_definicoes_de_processo_do_setor.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `id_reuniao` | `VARCHAR(20)` | NOT NULL | — | `reunioes.id_reuniao` |
+| `quadro_pos` | `INTEGER` | NOT NULL | — | — |
+| `trecho` | `TEXT` | NOT NULL | — | — |
+| `objetivo` | `TEXT` | — | — | — |
+| `status` | `TEXT` | NOT NULL | `'ATIVA'` | — |
+| `retirada_em` | `TIMESTAMPTZ` | — | — | — |
+| `retirada_por_nome` | `TEXT` | — | — | — |
+| `anotacao_retirada` | `TEXT` | — | — | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
 ## nsp_notificacao_anexos
 
 > Origem: `181_nsp_anexos_da_notificacao.sql`
@@ -2574,6 +2593,19 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `prazo_em` | `DATE` | NOT NULL | — | — |
 | `registrado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
 
+## conduta_configuracoes
+
+> Origem: `186_conduta_configuracoes_com_versao.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `chave` | `TEXT` | NOT NULL | — | — |
+| `versao` | `INTEGER` | NOT NULL | — | — |
+| `texto` | `TEXT` | NOT NULL | — | — |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
 ## nsp_categorias
 
 > Origem: `188_nsp_agente_de_triagem.sql`
@@ -2645,6 +2677,25 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `dia` | `DATE` | PK | — | — |
 | `chamadas` | `INTEGER` | NOT NULL | `0` | — |
 
+## painel_fotografias
+
+> Origem: `189_fotografia_semanal_do_painel.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `participante_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `semana` | `DATE` | NOT NULL | — | — |
+| `atas_paradas` | `INTEGER` | NOT NULL | `0` | — |
+| `aguardam_assinatura` | `INTEGER` | NOT NULL | `0` | — |
+| `atrasadas` | `INTEGER` | NOT NULL | `0` | — |
+| `vencem_em_3_dias` | `INTEGER` | NOT NULL | `0` | — |
+| `conformidade` | `INTEGER` | NOT NULL | `100` | — |
+| `ativas` | `INTEGER` | NOT NULL | `0` | — |
+| `fotografada_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_painel_fotografias_semana` em `(semana)` (de `189_fotografia_semanal_do_painel.sql`)
+
 ---
 
-**Resumo:** 130 tabelas vivas.
+**Resumo:** 133 tabelas vivas.

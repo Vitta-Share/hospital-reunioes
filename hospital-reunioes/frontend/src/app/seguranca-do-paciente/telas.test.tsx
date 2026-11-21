@@ -26,6 +26,7 @@ import type { CurrentParticipante } from "@/hooks/useCurrentParticipante";
 import InicioPage from "./page";
 import AgendaPage from "./agenda/page";
 import CapacitacoesPage from "./capacitacoes/page";
+import ConfiguracaoPage from "./configuracao/page";
 import DocumentosPage from "./documentos/page";
 import MembrosPage from "./membros/page";
 import ReunioesPage from "./reunioes/page";
@@ -51,6 +52,12 @@ vi.mock("@/components/seguranca-do-paciente/AgendaRegulatoria", () => ({
 // componente. Aqui só importa que a tela Capacitações as mostra.
 vi.mock("@/components/seguranca-do-paciente/CapacitacoesDoNucleo", () => ({
   CapacitacoesDoNucleo: () => <p>Conteúdo das capacitações</p>,
+}));
+
+// O QR e o endereço da notificação chamam a API (issue #2046) e têm teste
+// próprio, ao lado do componente. Aqui só importa quem vê a seção.
+vi.mock("@/components/seguranca-do-paciente/QrDaNotificacao", () => ({
+  QrDaNotificacao: () => <p>QR e endereço da notificação</p>,
 }));
 
 // A lista dos membros chama a API (issue #1766) e tem teste próprio, ao lado
@@ -250,6 +257,27 @@ describe("quem não tem o recurso da tela", () => {
     render(<Pagina />);
 
     expect(screen.queryByText("Esta tela ainda não está liberada para você.")).toBeNull();
+  });
+});
+
+describe("a Configuração (issue #2046)", () => {
+  it("abre com o título, a linha de orientação e a seção do QR e do endereço", () => {
+    entrar([...TODOS, "configuracao"]);
+    render(<ConfiguracaoPage />);
+
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Configuração");
+    expect(screen.getByText("O que o módulo usa para funcionar no hospital.").tagName).toBe("P");
+    expect(screen.getByText("QR e endereço da notificação")).toBeTruthy();
+  });
+
+  it.each([
+    ["o membro", TODOS],
+    ["o membro sem Termo", SEM_TERMO],
+  ] as const)("%s, sem o recurso da Configuração, não vê a seção", (_quem, recursos) => {
+    entrar([...recursos]);
+    render(<ConfiguracaoPage />);
+
+    expect(screen.queryByText("QR e endereço da notificação")).toBeNull();
   });
 });
 

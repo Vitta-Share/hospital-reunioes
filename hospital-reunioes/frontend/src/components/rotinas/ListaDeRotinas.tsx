@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 
+import { Select } from "@/components/ui/Select";
 import { createClient } from "@/lib/supabase/client";
 
 /**
@@ -12,6 +13,9 @@ import { createClient } from "@/lib/supabase/client";
  * marcação). Realizada é um clique; Não realizada pede anotação. O
  * Facilitador marca pelo responsável que não entra no app e encerra a Rotina,
  * também com anotação. Quem pode o quê vem do servidor.
+ *
+ * A Rotina que veio do fluxo contínuo antigo nasce sem frequência (issue
+ * #1877): não tem ciclo até o Facilitador escolher, aqui mesmo.
  */
 
 interface CicloEmAberto {
@@ -43,9 +47,62 @@ export interface Rotina {
   verificacoes: Verificacao[];
   pode_marcar: boolean;
   pode_encerrar: boolean;
+  pode_escolher_frequencia?: boolean;
 }
 
 const FREQUENCIA: Record<string, string> = { SEMANAL: "semanal", QUINZENAL: "quinzenal", MENSAL: "mensal" };
+const OPCOES_DE_FREQUENCIA = [
+  { value: "SEMANAL", label: "Semanal" },
+  { value: "QUINZENAL", label: "Quinzenal" },
+  { value: "MENSAL", label: "Mensal" },
+];
+
+function EscolhaDaFrequencia({
+  descricao,
+  aoSalvar,
+}: {
+  descricao: string;
+  aoSalvar: (frequencia: string) => Promise<void>;
+}) {
+  const [frequencia, setFrequencia] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  async function salvar() {
+    if (!frequencia) return;
+    setSalvando(true);
+    await aoSalvar(frequencia);
+    setSalvando(false);
+  }
+
+  return (
+    <div
+      role="group"
+      aria-label={`Frequência de ${descricao}`}
+      className="p-3 rounded-xl border border-primary/30 bg-primary/5 space-y-2"
+    >
+      <p className="text-xs text-slate-600">
+        Era fluxo contínuo. Escolha a frequência: o primeiro ciclo cobrado é o seguinte ao de hoje.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <Select
+          value={frequencia}
+          onChange={setFrequencia}
+          placeholder="Escolha a frequência"
+          options={OPCOES_DE_FREQUENCIA}
+          className="w-56"
+        />
+        <button
+          type="button"
+          onClick={salvar}
+          disabled={!frequencia || salvando}
+          className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {salvando ? "Salvando..." : "Salvar a frequência"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 /** "2026-11-30" vira "30/11", sem passar por fuso. */
 function diaEMes(iso: string): string {
@@ -193,6 +250,18 @@ export function ListaDeRotinas() {
                 </button>
               )}
             </header>
+            {!rotina.frequencia &&
+              rotina.status === "ATIVA" &&
+              (rotina.pode_escolher_frequencia ? (
+                <EscolhaDaFrequencia
+                  descricao={rotina.descricao}
+                  aoSalvar={(escolhida) => enviar(`/api/rotinas/${rotina.id}/frequencia`, { frequencia: escolhida })}
+                />
+              ) : (
+                <p className="text-xs text-text-secondary">
+                  Sem ciclo por enquanto: o facilitador da reunião escolhe a frequência.
+                </p>
+              ))}
             {pedido?.tipo === "encerrar" && pedido.rotina === rotina.id && (
               <FormularioDeAnotacao
                 aoConfirmar={(anotacao) => enviar(`/api/rotinas/${rotina.id}/encerrar`, { anotacao })}

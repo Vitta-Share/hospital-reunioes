@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T15:56+0000 -->
+<!-- last_update: 2026-11-21T16:46+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -114,6 +114,7 @@ erDiagram
     participantes ||--o{ conduta_atribuicoes : "participante_id"
     participantes ||--o{ conduta_casos : "escopo"
     participantes ||--o{ conduta_citados : "participante_id"
+    participantes ||--o{ conduta_configuracoes : "autor_id"
     participantes ||--o{ conduta_contestacao_votos : "participante_id"
     participantes ||--o{ conduta_contestacoes : "autor_id"
     participantes ||--o{ conduta_registro : "autor_id"
@@ -142,6 +143,7 @@ erDiagram
     participantes ||--o{ ouvidoria_pontos : "criado_por"
     participantes ||--o{ ouvidoria_prorrogacoes : "decidida_por"
     participantes ||--o{ ouvidoria_tentativas_contato : "autor_id"
+    participantes ||--o{ painel_fotografias : "participante_id"
     participantes ||--o{ participacoes : "participante_id"
     participantes ||--o{ participacoes_trilha : "autor_id"
     participantes ||--o{ pendencias : "co_responsavel_id"
@@ -187,6 +189,7 @@ erDiagram
     pops_setores ||--o{ pops_setores_participantes : "setor_id"
     pops_versoes ||--o{ pops_devolucoes : "versao_id"
     pops_versoes ||--o{ pops_materiais_referencia : "versao_id"
+    reunioes ||--o{ definicoes_processo : "id_reuniao"
     reunioes ||--o{ nsp_convocados : "id_reuniao"
     reunioes ||--o{ nsp_documentos : "reuniao_id"
     reunioes ||--o{ nsp_pautas : "id_reuniao"
@@ -196,6 +199,7 @@ erDiagram
     reunioes ||--o{ reunioes : "reagendada_de"
     reunioes ||--o{ rotinas : "id_reuniao"
     reunioes ||--o{ tokens_validacao : "id_reuniao"
+    rotinas ||--o{ pendencia_historico : "rotina_id"
     tecnologia_conversas ||--o{ tecnologia_anexos : "conversa_id"
     tecnologia_demandas ||--o{ tecnologia_anexos : "demanda_id"
     tecnologia_demandas ||--o{ tecnologia_chamadas_ia : "demanda_id"
@@ -1258,7 +1262,7 @@ erDiagram
         TEXT status_antes
         TEXT status_depois
         DATE prazo_antes
-        _ mais_colunas "+4"
+        _ mais_colunas "+5"
     }
     pendencia_anexos {
         BIGINT id PK
@@ -1344,6 +1348,17 @@ erDiagram
         DATE comeca_em
         _ mais_colunas "+6"
     }
+    definicoes_processo {
+        UUID id PK
+        VARCHAR id_reuniao FK
+        INTEGER quadro_pos
+        TEXT trecho
+        TEXT objetivo
+        TEXT status
+        TIMESTAMPTZ retirada_em
+        TEXT retirada_por_nome
+        _ mais_colunas "+2"
+    }
     nsp_notificacao_anexos {
         UUID id PK
         UUID notificacao_id FK
@@ -1386,6 +1401,14 @@ erDiagram
         DATE prazo_em
         TIMESTAMPTZ registrado_em
     }
+    conduta_configuracoes {
+        UUID id PK
+        TEXT chave
+        INTEGER versao
+        TEXT texto
+        VARCHAR autor_id FK
+        TIMESTAMPTZ criado_em
+    }
     nsp_categorias {
         TEXT codigo PK
         TEXT nome
@@ -1411,6 +1434,17 @@ erDiagram
     nsp_agente_cota {
         DATE dia PK
         INTEGER chamadas
+    }
+    painel_fotografias {
+        VARCHAR participante_id FK
+        DATE semana
+        INTEGER atas_paradas
+        INTEGER aguardam_assinatura
+        INTEGER atrasadas
+        INTEGER vencem_em_3_dias
+        INTEGER conformidade
+        INTEGER ativas
+        _ mais_colunas "+1"
     }
 ```
 
@@ -1616,6 +1650,7 @@ erDiagram
 | `pendencia_historico` | `idx_pendencia_historico_acao` | `id_acao, criado_em` | `169_ciclo_de_vida_da_pendencia.sql` |
 | `pendencia_historico` | `idx_pendencia_historico_repactuacao` | `id_acao` | `169_ciclo_de_vida_da_pendencia.sql` |
 | `pendencia_historico` | `idx_pendencia_historico_contestacao` | `id_acao, criado_em` | `187_contestacao_do_item_da_ata.sql` |
+| `pendencia_historico` | `idx_pendencia_historico_rotina` | `rotina_id` | `190_fluxo_continuo_vira_rotina.sql` |
 | `pendencia_anexos` | `idx_pendencia_anexos_acao` | `id_acao` | `174_anexo_da_conclusao_da_pendencia.sql` |
 | `nsp_notificacoes` | `idx_nsp_notificacoes_criado_em` | `criado_em DESC` | `174_nsp_notificacao_de_incidente.sql` |
 | `nsp_notificacoes` | `idx_nsp_notificacoes_setor` | `setor_id` | `174_nsp_notificacao_de_incidente.sql` |
@@ -1645,6 +1680,7 @@ erDiagram
 | `nsp_triagens` | `idx_nsp_triagens_notificacao` | `notificacao_id, versao DESC` | `188_nsp_agente_de_triagem.sql` |
 | `nsp_triagens` | `idx_nsp_triagens_categoria` | `categoria` | `188_nsp_agente_de_triagem.sql` |
 | `nsp_triagens` | `idx_nsp_triagens_evento_item` | `evento_item` | `188_nsp_agente_de_triagem.sql` |
+| `painel_fotografias` | `idx_painel_fotografias_semana` | `semana` | `189_fotografia_semanal_do_painel.sql` |
 
 ---
-**Resumo:** 130 tabelas · 197 relacionamentos FK detectados.
+**Resumo:** 133 tabelas · 201 relacionamentos FK detectados.

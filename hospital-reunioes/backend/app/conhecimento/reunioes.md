@@ -55,6 +55,8 @@ Quem marca é o responsável, no aplicativo. Para quem não entra no aplicativo,
 
 A tela Rotinas, no menu de Reuniões, mostra as rotinas no nome da pessoa e as das reuniões que ela conduz, com os ciclos em aberto e as marcações feitas. A verificação do ciclo em aberto também aparece no Início do responsável, com o prazo no último dia do ciclo e o botão Realizada, que marca ali mesmo; o ciclo que fechou sem marcação aparece como prazo vencido.
 
+O fluxo contínuo das atas antigas acabou. Cada pendência aberta e sem prazo cuja linha no quadro da ata dizia "Fluxo contínuo" virou rotina sem frequência, com o mesmo responsável, e a pendência original foi encerrada, com um registro no histórico que aponta para a rotina. A rotina sem frequência fica no Início do facilitador da reunião até ele escolher a frequência (semanal, quinzenal ou mensal), na tela Rotinas. Até lá, nenhum ciclo é cobrado do responsável. Escolhida a frequência, ela não se troca, e a rotina começa no ciclo seguinte ao da escolha, o primeiro inteiro. A pendência sem prazo que não tinha "Fluxo contínuo" no quadro continua pendência: a tela Acertos de setor também lista as pendências abertas e sem prazo, para quem administra o aplicativo abrir cada uma e dar o prazo.
+
 ## Contestar um item da ata
 
 Quando um item da ata está errado (o prazo, o responsável ou o que foi combinado), o responsável por ele pode contestar. Só o responsável pelo item contesta, e só enquanto a ata está em assinatura. Na tela da pendência aparece o botão Contestar, que pede uma anotação explicando o que está errado. A contestação vale para aquele item: a pessoa contesta o item e assina a ata mesmo assim, porque a assinatura registra que ela leu o resto da ata.
@@ -95,6 +97,14 @@ Toda reunião marcada tem setor. Quem agenda, a Secretária inclusive, escolhe o
 
 As reuniões antigas, marcadas antes dessa regra, continuam valendo mesmo sem setor. Quem administra o aplicativo tem no Admin a tela Acertos de setor, que lista as reuniões e os responsáveis por pendência que estão sem setor e deixa escolher o setor de cada um. Preenchido o setor, o item sai da lista.
 
+## As definições de processo do setor
+
+No envio da ata, cada linha do tipo Processo entra na lista de definições de processo do setor da reunião, com o trecho da ata copiado: quem consulta lê a regra combinada sem abrir a ata, e a lista não muda se a ata for corrigida depois. A lista fica nas Reuniões, e não nos POPs, até o rascunho de POP chegar. Ela não tem responsável, prazo nem lembrete: o processo não vira tarefa cobrada, e o facilitador consulta a lista quando quiser, na tela Definições de processo, no menu de Reuniões.
+
+Enquanto o organograma não chega, cuidam da lista os facilitadores das reuniões do setor: quem conduz alguma reunião de um setor vê a lista inteira daquele setor, e os outros setores não aparecem para ele. A reunião antiga, ainda sem setor, mostra os itens dela só para o próprio facilitador. Quem administra o aplicativo vê as listas de todos os setores, menos as das reuniões do Núcleo de Segurança do Paciente, que seguem a regra do Núcleo. A Secretária não vê a lista.
+
+Um item repetido, ou que deixou de valer, sai da lista pelo botão Tirar da lista, que pede uma anotação dizendo por quê. Só tiram o facilitador da reunião de onde o item saiu e quem administra o aplicativo. O item retirado não aparece mais na lista, mas não se apaga: fica registrado com o dia, quem tirou e a anotação.
+
 ## As reuniões do Núcleo de Segurança do Paciente
 
 As reuniões do Núcleo de Segurança do Paciente ficam no módulo Segurança do Paciente, no item Reuniões, e não são marcadas pela tela de Reuniões. São de quatro tipos: ordinária mensal, análise de evento, apresentação à Diretoria e reunião rápida de segurança. Depois de criada, a reunião do Núcleo segue o mesmo caminho das outras até a ata. A reunião rápida de segurança é só um registro de três linhas, sem transcrição nem ata.
@@ -124,6 +134,8 @@ O painel de Reuniões mostra, em cards, os números de quem está olhando, conta
 Os cards são a conformidade (a parte das pendências abertas que está no prazo), as que vencem em até 3 dias, as atas paradas há mais de 3 dias e as atas que aguardam assinatura. Os filtros de setor, responsável e prazo valem para os números das pendências e para os gráficos; nos cards de atas, vale só o de setor. Os dois cards de atas abrem a lista das atas que contaram. Na lista das que aguardam assinatura, o facilitador da reunião e quem administra o aplicativo veem quem ainda falta assinar e o botão Cobrar, que manda de novo o pedido de assinatura da ClickSign só para quem não assinou. Na ata que passou para a coleta interna de aceites, o Cobrar avisa que o envio na ClickSign já foi encerrado.
 
 Abaixo dos gráficos, o painel mostra o gráfico de atrasos por setor e o ranking dos responsáveis dos últimos 90 dias, com o hospital inteiro na conta, menos as reuniões do Núcleo que o Núcleo não deixa ver. Os dois aparecem só para quem administra o aplicativo e para quem facilitou ao menos uma reunião; quem é só responsável não vê ranking. Os filtros do painel não mudam o ranking. Cada atraso conta no setor do responsável pela pendência, e o responsável sem setor aparece em Sem Setor. Contam como atraso a pendência aberta com o prazo vencido hoje e, nos últimos 90 dias (hoje e os 89 dias antes, no horário de Brasília), a repactuação feita depois de o prazo vencer e a conclusão depois do prazo; a repactuação feita antes de o prazo vencer não pesa. A conclusão só é medida se aconteceu depois que o histórico da pendência passou a guardar a data. As reaberturas de entrega concluída, nos mesmos 90 dias, aparecem ao lado dos atrasos. A pendência cancelada não entra em nenhuma dessas contas.
+
+Toda segunda-feira, o aplicativo guarda os números do painel de cada pessoa que o vê, a fotografia da semana, no horário de Brasília. Rodar de novo na mesma semana não muda a fotografia. Com ela, o painel mostra a evolução das atrasadas nas últimas 8 semanas, e cada card ganha a seta de subida ou descida em relação à semana anterior. A contagem começou quando essa mudança entrou: a seta só aparece quando existe a fotografia da semana anterior, ou seja, a partir da segunda semana. A semana sem fotografia não aparece, e nada é recalculado do passado. Com algum filtro ligado, os cards ficam sem seta, porque a fotografia é do painel sem filtro.
 
 O painel não tem alerta de prazo nem lista do que depende de cada um: isso fica no Início, e o painel tem um link para lá.
 
@@ -158,8 +170,10 @@ Na tela da reunião, o botão Excluir, que apagava a reunião em qualquer status
 - No calendário, as reuniões de cada dia seguem a hora de início, da mais cedo para a mais tarde.
 - Nada apaga pendência: reunião que já teve pendência, mesmo toda cancelada, não se exclui.
 - Toda reunião nova tem setor, e quem administra o aplicativo preenche o setor que falta nas reuniões antigas e nos responsáveis.
+- A linha de Processo entra, no envio, na lista de definições de processo do setor da reunião, com o trecho da ata copiado; cuidam dela os facilitadores das reuniões do setor, quem administra o aplicativo vê todas, a Secretária não vê, e tirar um item pede anotação e cabe ao facilitador da reunião de origem e a quem administra o aplicativo.
 - Cada linha da ata é Ação, Rotina ou Processo, e só a Ação vira pendência; a linha sem tipo vale como Ação, e toda Rotina precisa de responsável e frequência antes do envio.
 - A rotina segue o calendário (semana, quinzena de 1 a 15 e de 16 ao fim do mês, ou mês), começa no primeiro ciclo inteiro depois do envio, e cada ciclo é marcado como Realizada, com um clique, ou Não realizada, com anotação; o facilitador marca por quem não entra no aplicativo e encerra a rotina com anotação.
+- O fluxo contínuo antigo virou rotina sem frequência, que o facilitador completa pelo Início; a pendência sem prazo que não era fluxo contínuo vai para a tela Acertos de setor.
 
 ## O que costuma virar Demanda
 
