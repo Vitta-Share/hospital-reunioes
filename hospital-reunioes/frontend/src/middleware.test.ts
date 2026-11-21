@@ -91,6 +91,14 @@ describe("o que o middleware NÃO pode interceptar", () => {
     expect(isProtectedPath("/acompanhar")).toBe(false);
   });
 
+  it("não alcança a notificação de incidente do Núcleo, pelo QR, pelo endereço e no acompanhamento", () => {
+    // Issue #1987: o profissional notifica sem login, do celular.
+    for (const caminho of ["/notificar", "/notificar/qr", "/notificar/acompanhar"]) {
+      expect(interceptado(caminho), caminho).toBe(false);
+      expect(isProtectedPath(caminho), caminho).toBe(false);
+    }
+  });
+
   it("não alcança o endereço curto impresso no cartaz A4", () => {
     // Issue #1617: `/a/{código}` é o que o QR carrega. Interceptá-lo mandaria
     // quem escaneia para a tela de login do staff.

@@ -50,6 +50,7 @@ from app.routers import (
     seguranca_do_paciente_documentos,
     seguranca_do_paciente_documentos_assinatura,
     seguranca_do_paciente_membros,
+    seguranca_do_paciente_notificacoes,
     seguranca_do_paciente_reunioes,
     seguranca_do_paciente_termo,
     tecnologia_automacao,
@@ -176,6 +177,7 @@ app.include_router(seguranca_do_paciente_capacitacoes.router, prefix=settings.ap
 app.include_router(seguranca_do_paciente_documentos.router, prefix=settings.api_prefix)
 app.include_router(seguranca_do_paciente_documentos_assinatura.router, prefix=settings.api_prefix)
 app.include_router(seguranca_do_paciente_membros.router, prefix=settings.api_prefix)
+app.include_router(seguranca_do_paciente_notificacoes.router, prefix=settings.api_prefix)
 app.include_router(seguranca_do_paciente_reunioes.router, prefix=settings.api_prefix)
 app.include_router(seguranca_do_paciente_termo.router, prefix=settings.api_prefix)
 app.include_router(admin.router, prefix=settings.api_prefix)

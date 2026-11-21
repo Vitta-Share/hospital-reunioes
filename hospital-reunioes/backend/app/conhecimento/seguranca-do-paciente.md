@@ -8,6 +8,18 @@ Toda Demanda sobre o item Segurança do Paciente do menu, sobre quem vê o quê 
 
 ## O que já está no ar
 
+A notificação de incidente:
+
+- qualquer profissional notifica um incidente pelo celular ou pelo computador, sem login, em quatro telas curtas: o que aconteceu (com as próprias palavras, com o aviso de não escrever o nome do paciente e o campo opcional de leito ou atendimento), onde e quando (setor, data, que vem com hoje, turno e, se quiser, a hora aproximada), se o paciente foi atingido (não chegou, chegou sem dano, chegou com dano ou não sei; com dano ou não sei, pergunta se foi grave ou se houve morte; e, se quiser, se a família ou o paciente percebeu ou se há risco de reclamação) e a identificação. Quem notifica conta o que aconteceu e não classifica nada. Toda tela traz, no rodapé, "Notificar não gera punição" e, no topo, uma linha dizendo o que fazer ali;
+- há três portas para o mesmo formulário: o QR do Núcleo, o endereço da página (que a TI usa para criar o ícone nos computadores do hospital) e o botão **Notificar incidente**, dentro do grupo Segurança do Paciente do menu. Cada notificação guarda por qual porta chegou. Não há atalho no topo do aplicativo;
+- pelo botão do módulo, a identificação já vem preenchida com o nome e o e-mail da conta, sem digitar;
+- a identificação vem marcada como "Com o meu nome", com a explicação de que o nome aparece só para a Presidência do Núcleo e o Diretor Executivo. Quem escolhe "Sem me identificar" não deixa nome nem contato;
+- ao enviar, a pessoa recebe o protocolo na tela, no formato NSP-2026-0001, numa sequência que recomeça a cada ano. Quem notificou sem se identificar recebe também um código de acompanhamento, mostrado uma vez só: o aplicativo não guarda o código, e ninguém consegue recuperá-lo depois. O aplicativo não guarda o endereço de internet nem nada que identifique o aparelho de quem notificou;
+- na página de acompanhamento, a pessoa informa o protocolo e o código (se notificou sem se identificar) ou o protocolo e o e-mail ou telefone que deixou, e vê só o estado, em palavras simples: Recebida, Em análise ou Concluída. Dado errado recebe sempre a mesma resposta, sem dizer qual parte errou;
+- o formulário sem login aceita até 30 envios por minuto e 300 por hora de uma mesma rede. A conta é pela rede, sem guardar o endereço, e os computadores e o Wi-Fi do hospital saem pela mesma rede; acima disso o envio é recusado com o pedido de tentar mais tarde, e quem tem login pode notificar pelo botão **Notificar incidente**, que conta por pessoa (5 por minuto, 20 por hora);
+- o item **Notificações**, dentro do módulo, lista todos os casos, do mais novo ao mais antigo, para quem abre os casos: a Presidência, o Acesso pleno e o membro com o Termo assinado. O nome e o contato de quem notificou aparecem só para a Presidência e o Acesso pleno; o membro vê o caso sem saber quem notificou;
+- nenhuma notificação é apagada, por ninguém: a correção é feita por edição, e cada edição fica registrada com quem fez, quando, o valor anterior e o novo.
+
 A fundação do módulo:
 
 - o item **Segurança do Paciente** no menu lateral, com a página inicial do módulo (o item Visão geral, para não se confundir com o Início de cada pessoa), as Reuniões e o grupo Núcleo (Membros, Documentos, Capacitações e Agenda regulatória). Cada tela abre com uma linha dizendo o que fazer ali;
@@ -99,7 +111,7 @@ O Núcleo no Início:
 
 ## Quem vê
 
-O item Segurança do Paciente aparece para quem tem participação vigente no Núcleo, para quem tem o Acesso pleno ao NSP e para a Diretoria. Os demais não veem o item.
+O item Segurança do Paciente aparece para todo usuário logado, com o botão Notificar incidente, inclusive para quem só tem papel nas Reuniões e para o super admin. As telas do Núcleo aparecem para quem tem participação vigente no Núcleo, para quem tem o Acesso pleno ao NSP e para a Diretoria. Os demais veem só o botão Notificar incidente.
 
 Dentro do módulo, cada pessoa vê conforme o papel:
 
@@ -128,7 +140,7 @@ Membro nunca é apagado. Encerrar termina a vigência no dia escolhido e a parti
 
 ## O que ele ainda não faz
 
-Nas Capacitações, o profissional de fora do Núcleo que está na lista ainda não abre o módulo, então não confirma a presença por enquanto; a capacitação registrada também não se edita depois de salva. Nas reuniões, a ata própria do Núcleo também chega depois: por enquanto a ata segue o modelo das outras reuniões, e a pauta ainda não traz indicadores, casos, planos vencidos nem alertas, que dependem das próximas fases. A notificação de incidente e a triagem são da segunda fase. As notificações criadas a partir da reunião rápida chegam na segunda fase.
+Nas Capacitações, o profissional de fora do Núcleo que está na lista ainda não abre o módulo, então não confirma a presença por enquanto; a capacitação registrada também não se edita depois de salva. Nas reuniões, a ata própria do Núcleo também chega depois: por enquanto a ata segue o modelo das outras reuniões, e a pauta ainda não traz indicadores, casos, planos vencidos nem alertas, que dependem das próximas fases. Na notificação de incidente, ainda não chegaram os anexos (fotos e arquivos), o alerta imediato de caso grave, o e-mail de confirmação de recebimento, as perguntas de esclarecimento, a triagem, os prazos e o encaminhamento a outro canal: a notificação fica registrada como Recebida até essas partes entrarem. As notificações criadas a partir da reunião rápida chegam na segunda fase. Os casos que a Ouvidoria manda ao Núcleo também chegam depois.
 
 ## O que já foi decidido
 

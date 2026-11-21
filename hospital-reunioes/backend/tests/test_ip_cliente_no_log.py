@@ -383,6 +383,16 @@ MANIFESTACOES = "/api/ouvidoria/publico/manifestacoes"
 PONTOS = "/api/ouvidoria/publico/pontos/ABC123"
 QR = "/api/ouvidoria/qr"
 
+# As operações sem `security` que nem truncam: saem do log SEM endereço
+# nenhum, pelo limite sem IP (issue #1986, ADR 0107 decisão 6). A notificação
+# de incidente do Núcleo (issue #1987). A conferência de que cada uma usa o
+# serviço de verdade está em `test_o_canal_sem_endereco_usa_o_limite_sem_ip`.
+SEM_ENDERECO_NO_LOG = {
+    "GET /api/nsp/publico/setores",
+    "POST /api/nsp/publico/acompanhamento",
+    "POST /api/nsp/publico/notificacoes",
+}
+
 # As operações que o schema mostra sem `security` e que mesmo assim NÃO
 # truncam, classificadas uma a uma. A classificação é humana de propósito:
 # operação nova fora desta lista e fora do canal anônimo deixa a varredura
@@ -702,7 +712,9 @@ class TestOCanalAnonimoEstaTodoCoberto:
         nao_classificadas = [
             operacao
             for operacao in self._operacoes_sem_credencial()
-            if not _e_canal_anonimo_da_ouvidoria(operacao.split(" ", 1)[1]) and operacao not in SEM_ANONIMATO_A_PROTEGER
+            if not _e_canal_anonimo_da_ouvidoria(operacao.split(" ", 1)[1])
+            and operacao not in SEM_ANONIMATO_A_PROTEGER
+            and operacao not in SEM_ENDERECO_NO_LOG
         ]
 
         assert not nao_classificadas, (
@@ -710,6 +722,23 @@ class TestOCanalAnonimoEstaTodoCoberto:
             "Diga se ela é canal anônimo (o IP vai truncado, issue #543) ou se não há "
             "anonimato a proteger nela, antes de seguir."
         )
+
+    def test_o_canal_sem_endereco_usa_o_limite_sem_ip(self):
+        """A lista de cima só vale se cada rota dela sai mesmo do log sem
+        endereço: a marca do limite sem IP na função que o roteador casa."""
+        from app.config import settings
+        from app.routers import seguranca_do_paciente_notificacoes
+        from app.services import limite_sem_ip
+
+        marcadas = {
+            f"{metodo} {settings.api_prefix}{rota.path}"
+            for rota in seguranca_do_paciente_notificacoes.router.routes
+            if isinstance(rota, APIRoute) and limite_sem_ip.rota_sem_endereco({"endpoint": rota.endpoint})
+            for metodo in rota.methods
+        }
+
+        assert SEM_ENDERECO_NO_LOG <= marcadas, SEM_ENDERECO_NO_LOG - marcadas
+        assert SEM_ENDERECO_NO_LOG <= set(self._operacoes_sem_credencial())
 
     def test_o_qr_do_cartaz_esta_entre_as_rotas_sem_credencial(self):
         """Controle do filtro da camada 2: se ele parasse de enxergar as rotas
