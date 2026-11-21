@@ -30,6 +30,7 @@ from zoneinfo import ZoneInfo
 
 from app.config import settings
 from app.dependencies import selecionar_participantes
+from app.services.ouvidoria_contato import email_utilizavel
 from app.services.ouvidoria_notificacoes import ler_diretoria_executiva
 from app.services.seguranca_do_paciente import emails
 from app.services.seguranca_do_paciente.permissao import (
@@ -44,6 +45,7 @@ logger = logging.getLogger(__name__)
 _FUSO = ZoneInfo("America/Sao_Paulo")
 MODELO = "email_nsp_aviso.html"
 MARCO_DO_ALERTA = "caso_grave"
+MARCO_DA_CONFIRMACAO = "confirmacao_de_recebimento"
 
 _CAMPOS_DO_CASO = "id, protocolo, setor_id, grave_ou_morte, anonimo, notificante_nome, notificante_contato"
 
@@ -149,6 +151,44 @@ def _alertar_quem_decide(supabase, caso: dict, setor: str, agora: datetime) -> l
     return registros
 
 
+def mensagem_da_confirmacao(nome: str, protocolo: str, agora: datetime) -> tuple[str, str, dict]:
+    """(assunto, texto, contexto do modelo) da confirmação de recebimento, com
+    o protocolo e sem o relato."""
+    data, hora = _quando(agora)
+    link = f"{settings.frontend_url}/notificar/acompanhar"
+    assunto = f"Recebemos a sua notificação de incidente: protocolo {protocolo}"
+    paragrafos = [
+        f"A sua notificação de incidente chegou ao Núcleo de Segurança do Paciente em {data} às {hora}, "
+        f"com o protocolo {protocolo}.",
+        "Obrigado por notificar. Notificar não gera punição: serve para tornar o cuidado mais seguro.",
+        "Para acompanhar, abra a página de acompanhamento e informe o protocolo e o e-mail que você deixou.",
+    ]
+    assunto, nome, paragrafos = sanitizar_estrutura([assunto, nome, paragrafos])
+    texto = f"Olá, {nome}.\n\n" + "\n\n".join(paragrafos) + f"\n\nAcompanhar a notificação: {link}\n"
+    return assunto, texto, {"nome": nome, "paragrafos": paragrafos, "link": link, "botao": "Acompanhar a notificação"}
+
+
+def _confirmar_a_quem_notificou(supabase, caso: dict, agora: datetime) -> list[dict]:
+    """O endereço não vai para o registro: o envio o lê da notificação."""
+    if caso.get("anonimo") or not email_utilizavel(caso.get("notificante_contato")):
+        return []
+    assunto, texto, contexto = mensagem_da_confirmacao(caso.get("notificante_nome") or "", caso["protocolo"], agora)
+    registro = emails.registrar(
+        supabase,
+        caso_id=caso["id"],
+        marco=MARCO_DA_CONFIRMACAO,
+        referencia=caso["protocolo"],
+        destinatario_id=None,
+        assunto=assunto,
+        texto=texto,
+        modelo=MODELO,
+        contexto=contexto,
+        agora=agora,
+        urgente=True,
+    )
+    return [registro] if registro else []
+
+
 def avisar_a_chegada(supabase, notificacao_id: str) -> tuple[list[dict], datetime]:
     """Registra, no envio, os e-mails que a chegada pede, e devolve os
     registros para `entregar_os_avisos_da_chegada` e o instante do registro."""
@@ -159,6 +199,10 @@ def avisar_a_chegada(supabase, notificacao_id: str) -> tuple[list[dict], datetim
     registros: list[dict[str, Any]] = []
     if caso.get("grave_ou_morte"):
         registros += _alertar_quem_decide(supabase, caso, _nome_do_setor(supabase, caso.get("setor_id")), agora)
+    try:
+        registros += _confirmar_a_quem_notificou(supabase, caso, agora)
+    except Exception as falha:  # noqa: BLE001 (o alerta já registrado segue para a entrega)
+        logger.error("[Caso grave NSP] Confirmação de %s falhou: %s", caso["protocolo"], type(falha).__name__)
     return registros, agora
 
 

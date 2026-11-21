@@ -198,3 +198,69 @@ def test_o_alerta_sai_sem_travessao_mesmo_com_setor_e_nome_que_tem(enviados):
             assert "—" not in envio[parte]
             assert "–" not in envio[parte]
     assert any("UTI" in e["texto"] and "Leste" in e["texto"] for e in enviados)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. A confirmação de recebimento
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_quem_se_identificou_com_email_recebe_a_confirmacao_com_o_protocolo(enviados):
+    banco = _banco()
+
+    resposta = _cliente(banco).post(PUBLICO, json={**IDENTIFICADO, "origem": "endereco"})
+
+    protocolo = resposta.json()["protocolo"]
+    [confirmacao] = _avisos(banco, caso_grave.MARCO_DA_CONFIRMACAO)
+    assert confirmacao["destinatario_id"] is None
+    assert confirmacao["urgente"] is True
+    assert confirmacao["situacao"] == emails.ENVIADO
+    [envio] = enviados
+    assert envio["para"] == "profissional@hsm.test"
+    assert envio["assunto"] == f"Recebemos a sua notificação de incidente: protocolo {protocolo}"
+    for parte in ("texto", "html"):
+        assert protocolo in envio[parte]
+        assert "Profissional de Teste" in envio[parte]
+        assert "/notificar/acompanhar" in envio[parte]
+        assert RELATO["relato"] not in envio[parte]
+        assert "—" not in envio[parte]
+
+
+def test_quem_notifica_pelo_modulo_recebe_a_confirmacao_no_email_do_cadastro(enviados):
+    banco = _banco()
+
+    resposta = _cliente(banco, MEMBRO).post(PELO_MODULO, json={**RELATO, "anonimo": False})
+
+    assert resposta.status_code == 201, resposta.text
+    assert [e["para"] for e in enviados] == ["p2@hsm.test"]
+
+
+@pytest.mark.parametrize(
+    "envio",
+    [{**ANONIMO, "origem": "qr"}, {**IDENTIFICADO, "contato": "(21) 99999-0000", "origem": "endereco"}],
+    ids=["anônimo", "só telefone"],
+)
+def test_o_anonimo_e_quem_deixou_so_telefone_nao_geram_email(envio, enviados):
+    banco = _banco()
+
+    resposta = _cliente(banco).post(PUBLICO, json=envio)
+
+    assert resposta.status_code == 201, resposta.text
+    assert _avisos(banco, caso_grave.MARCO_DA_CONFIRMACAO) == []
+    assert enviados == []
+
+
+def test_caso_grave_identificado_alerta_quem_decide_e_confirma_a_quem_notificou(enviados):
+    banco = _banco()
+
+    _cliente(banco).post(PUBLICO, json={**IDENTIFICADO, **GRAVE, "origem": "qr"})
+
+    assert len(_avisos(banco, caso_grave.MARCO_DO_ALERTA)) == 4
+    assert len(_avisos(banco, caso_grave.MARCO_DA_CONFIRMACAO)) == 1
+    assert sorted(e["para"] for e in enviados) == [
+        "p1@hsm.test",
+        "p5@hsm.test",
+        "p7@hsm.test",
+        "p8@hsm.test",
+        "profissional@hsm.test",
+    ]
