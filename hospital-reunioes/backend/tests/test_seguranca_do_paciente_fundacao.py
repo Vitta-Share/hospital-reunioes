@@ -385,3 +385,13 @@ class TestQrEEnderecoDaNotificacao:
         resposta = _cliente(_pessoa(), [_participacao(papel="presidencia")]).get(ROTA_QR_DA_NOTIFICACAO)
 
         assert resposta.status_code == 200, resposta.text
+
+    def test_o_kit_de_conhecimento_diz_onde_ficam_o_qr_e_o_endereco(self):
+        """O texto do Produto no Kit de conhecimento diz o comportamento novo."""
+        from app.services.conhecimento import CONHECIMENTO_DIR
+
+        texto = (CONHECIMENTO_DIR / "seguranca-do-paciente.md").read_text(encoding="utf-8")
+        no_ar = texto.split("## O que já está no ar\n", 1)[1].split("\n## ", 1)[0]
+        assert "**Configuração**" in no_ar
+        assert "Baixar o QR" in no_ar
+        assert "Copiar" in no_ar
