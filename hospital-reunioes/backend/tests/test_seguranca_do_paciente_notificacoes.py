@@ -28,9 +28,11 @@ from datetime import timedelta
 from types import SimpleNamespace
 from typing import Any
 
+import httpx
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from postgrest.exceptions import APIError
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -370,6 +372,37 @@ def test_o_desligado_nao_notifica_pelo_modulo():
     assert banco.notificacoes == []
 
 
+def test_setor_fora_do_formato_e_recusado_sem_perguntar_ao_banco():
+    banco = _banco()
+
+    resposta = _cliente(banco).post(PUBLICO, json={**IDENTIFICADO, "origem": "endereco", "setor_id": "uti"})
+
+    assert resposta.status_code == 422
+    assert banco.notificacoes == []
+
+
+@pytest.mark.parametrize(
+    "falha",
+    [
+        APIError({"code": "57014", "message": "canceling statement due to statement timeout"}),
+        httpx.ReadTimeout("o PostgREST não respondeu"),
+    ],
+    ids=["erro do banco", "timeout do PostgREST"],
+)
+def test_falha_ao_gravar_pede_para_tentar_de_novo_sem_detalhe_do_banco(falha, monkeypatch):
+    banco = _banco()
+
+    def _falhar(self):
+        raise falha
+
+    monkeypatch.setattr(_Consulta, "_inserir", _falhar)
+
+    resposta = _cliente(banco).post(PUBLICO, json={**IDENTIFICADO, "origem": "endereco"})
+
+    assert resposta.status_code == 503
+    assert resposta.json() == {"detail": "Não foi possível registrar a notificação agora. Tente de novo em instantes."}
+
+
 def test_sem_dano_a_gravidade_nao_e_gravada():
     banco = _banco()
 
@@ -502,6 +535,17 @@ def test_o_estado_sai_em_palavras_simples(estado, publico):
     )
 
     assert resposta.json()["estado"] == publico
+
+
+def test_banco_fora_do_ar_no_acompanhamento_pede_para_tentar_de_novo(monkeypatch):
+    def _falhar(self):
+        raise httpx.ReadTimeout("o PostgREST não respondeu")
+
+    monkeypatch.setattr(_Consulta, "execute", _falhar)
+
+    resposta = _cliente(_banco()).post(ACOMPANHAMENTO, json={"protocolo": f"NSP-{ANO}-0001", "codigo": "AAAAA-BBBBB"})
+
+    assert resposta.status_code == 503
 
 
 def test_protocolo_com_codigo_ou_contato_errado_recebe_a_mesma_recusa():

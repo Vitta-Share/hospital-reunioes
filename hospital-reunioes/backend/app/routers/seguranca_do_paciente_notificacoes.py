@@ -17,8 +17,11 @@ from __future__ import annotations
 import logging
 from datetime import date
 from typing import Literal
+from uuid import UUID
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from postgrest.exceptions import APIError
 from pydantic import BaseModel, Field, field_validator, model_validator
 from supabase import Client
 
@@ -40,6 +43,7 @@ router = APIRouter(prefix="/nsp", tags=["seguranca-do-paciente"])
 LIMITE_DE_ENVIOS = "5/minute;20/hour"
 
 SETOR_INVALIDO = "Escolha o setor na lista."
+FALHA_AO_REGISTRAR = "Não foi possível registrar a notificação agora. Tente de novo em instantes."
 
 
 class RelatoDoIncidente(BaseModel):
@@ -47,7 +51,7 @@ class RelatoDoIncidente(BaseModel):
 
     relato: str = Field(..., min_length=1, max_length=10000)
     leito_ou_atendimento: str | None = Field(default=None, max_length=60)
-    setor_id: str = Field(..., min_length=1, max_length=40)
+    setor_id: UUID
     data_ocorrencia: date
     turno: Literal["manha", "tarde", "noite"]
     hora_aproximada: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
@@ -104,10 +108,16 @@ def _setor_ativo(supabase, setor_id: str) -> bool:
 
 
 def _registrar(supabase, envio: RelatoDoIncidente, **identificacao) -> dict:
-    if not _setor_ativo(supabase, envio.setor_id):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=SETOR_INVALIDO)
-    relato = envio.model_dump(mode="json")
-    return notificacoes.registrar(supabase, relato, anonimo=envio.anonimo, **identificacao)
+    try:
+        if not _setor_ativo(supabase, str(envio.setor_id)):
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=SETOR_INVALIDO)
+        relato = envio.model_dump(mode="json")
+        return notificacoes.registrar(supabase, relato, anonimo=envio.anonimo, **identificacao)
+    except (APIError, httpx.HTTPError) as erro:
+        # Detalhe do banco não vai para um canal aberto; quem notifica vê que
+        # não deu e tenta de novo, com o relato ainda na tela.
+        logger.error("Falha ao registrar a notificação de incidente: %s", type(erro).__name__)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=FALHA_AO_REGISTRAR) from erro
 
 
 @router.post("/publico/notificacoes", status_code=status.HTTP_201_CREATED)
@@ -186,7 +196,14 @@ async def acompanhar_notificacao(
 ) -> dict:
     """A página de acompanhamento: só o estado, em palavras simples. O limite
     por aparelho segura quem tenta adivinhar o código."""
-    situacao = notificacoes.consultar(supabase, consulta.protocolo, consulta.codigo, consulta.contato)
+    try:
+        situacao = notificacoes.consultar(supabase, consulta.protocolo, consulta.codigo, consulta.contato)
+    except (APIError, httpx.HTTPError) as erro:
+        logger.error("Falha ao consultar o acompanhamento da notificação: %s", type(erro).__name__)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Não foi possível consultar agora. Tente novamente em instantes.",
+        ) from erro
     if situacao is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=NAO_ENCONTRADA)
     return situacao
