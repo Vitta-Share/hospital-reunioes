@@ -357,9 +357,9 @@ def test_o_job_nao_fala_com_ia_nem_com_email():
 TELA = "/api/nsp/recalibracao"
 HOJE_DA_AUDITORIA = date(2026, 11, 30)
 # Os itens que dependem das Fases 3 e 4 (investigação, plano de ação,
-# notificação externa, dossiê), das perguntas de esclarecimento e do
-# encaminhamento, que ainda não chegaram, e a carga que a coordenadora estima.
-SEM_DADOS = {5, 7, 8, 9, 14, 15, 17, 18, 19}
+# notificação externa, dossiê) e do encaminhamento, que ainda não chegaram, e
+# a carga que a coordenadora estima.
+SEM_DADOS = {5, 7, 9, 14, 15, 17, 18, 19}
 
 
 def _decidida(notificacao: dict, divergencias: list[str], em: str, **campos) -> dict[str, Any]:
@@ -381,11 +381,24 @@ def _cenario_da_auditoria() -> _BancoDaRecalibracao:
             _decidida(obito, [], "2026-11-29T18:00:00+00:00", **OBITO),
             _sugestao(subiu, **MODERADO),
             _decidida(subiu, ["grau_de_dano", "faixa"], "2026-11-20T12:00:00+00:00", **GRAVE),
-            _sugestao(leve),
+            _sugestao(leve, perguntas_ao_notificante=["Quando foi?"]),
             _decidida(leve, [], "2026-11-10T11:00:00+00:00"),
             _sugestao(antigo, **QUASE_ERRO),
             _decidida(antigo, ["categoria"], "2026-10-15T10:30:00+00:00", categoria="MED", **QUASE_ERRO),
-            _sugestao(esperando, **QUASE_ERRO),
+            # Quem notificou respondeu uma das duas perguntas, e o agente, de
+            # novo, mudou a faixa de E para D.
+            _sugestao(esperando, perguntas_ao_notificante=["Houve dano?", "Qual equipamento?"], **QUASE_ERRO),
+            _sugestao(esperando, versao=2),
+        ],
+        nsp_esclarecimentos=[
+            {
+                "id": "esc-1",
+                "notificacao_id": esperando["id"],
+                "triagem_id": "tri-5-1",
+                "pergunta": "Houve dano?",
+                "resposta": "Não houve.",
+                "criado_em": "2026-11-25T11:00:00+00:00",
+            }
         ],
         setores=[dict(SETOR), dict(OUTRO_SETOR)],
         reunioes=[
@@ -496,6 +509,16 @@ def test_aprovacao_em_lote_mede_os_casos_leves_das_ultimas_4_semanas():
         "Casos leves (faixas D e E) confirmados nas últimas 4 semanas: 1 de 1 sem ajuste (100%)."
     ]
     assert itens[13]["alerta"] is False
+
+
+def test_perguntas_de_esclarecimento_respondidas_e_as_que_mudaram_a_classificacao():
+    itens = _itens()
+
+    assert itens[8]["linhas"] == [
+        "1 de 3 perguntas respondidas (33%).",
+        "1 de 1 caso com resposta com a classificação do agente mudada depois dela (100%).",
+    ]
+    assert itens[8]["alerta"] is False
 
 
 def test_reunioes_do_nucleo_nos_ultimos_60_dias():

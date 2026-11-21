@@ -488,6 +488,51 @@ def _lote(pares: list[tuple[dict, dict]], hoje: date) -> tuple[list[str], bool]:
     ], percentual < 90
 
 
+_CAMPOS_DA_MUDANCA = ("natureza", "grau_de_dano", "categoria", "faixa")
+_RESPONDIDAS_NO_MINIMO = 30
+
+
+def _esclarecimentos(supabase) -> tuple[list[str], bool]:
+    """As perguntas do agente a quem notificou, as respondidas (migration 207)
+    e os casos em que a rodada depois da resposta mudou a classificação."""
+    do_agente = triagem._paginas(
+        lambda: supabase.table("nsp_triagens").select("*").eq("autor_tipo", "agente").order("criado_em")
+    )
+    feitas: dict[str, set[str]] = {}
+    for linha in do_agente:
+        feitas.setdefault(linha["notificacao_id"], set()).update(linha.get("perguntas_ao_notificante") or [])
+    total = sum(len(perguntas) for perguntas in feitas.values())
+    if not total:
+        return ["Nenhuma pergunta de esclarecimento feita ainda."], False
+    respostas = [
+        r
+        for r in triagem._paginas(lambda: supabase.table("nsp_esclarecimentos").select("*").order("criado_em"))
+        if r.get("pergunta") in feitas.get(r["notificacao_id"], set())
+    ]
+    por_id = {linha["id"]: linha for linha in do_agente}
+    ultima: dict[str, dict] = {}
+    for linha in do_agente:
+        if linha["versao"] > ultima.get(linha["notificacao_id"], {}).get("versao", 0):
+            ultima[linha["notificacao_id"]] = linha
+    primeira_resposta: dict[str, dict] = {}
+    for resposta in respostas:
+        primeira_resposta.setdefault(resposta["notificacao_id"], resposta)
+    mudaram = 0
+    for notificacao_id, resposta in primeira_resposta.items():
+        perguntou, depois = por_id.get(resposta["triagem_id"]), ultima[notificacao_id]
+        if perguntou and depois["versao"] > perguntou["versao"]:
+            mudaram += any(perguntou.get(c) != depois.get(c) for c in _CAMPOS_DA_MUDANCA)
+    respondidas = _percentual(len(respostas), total)
+    casos = len(primeira_resposta)
+    linhas = [f"{len(respostas)} de {_plural(total, 'pergunta', 'perguntas')} respondidas ({respondidas}%)."]
+    if casos:
+        linhas.append(
+            f"{mudaram} de {_plural(casos, 'caso com resposta', 'casos com resposta')} com a classificação do "
+            f"agente mudada depois dela ({_percentual(mudaram, casos)}%)."
+        )
+    return linhas, respondidas < _RESPONDIDAS_NO_MINIMO
+
+
 def _reunioes(supabase, hoje: date) -> tuple[list[str], bool]:
     nucleo_id = id_do_nucleo(supabase)
     linhas = []
@@ -533,6 +578,7 @@ def itens_do_anexo_f(supabase, hoje: date) -> list[dict[str, Any]]:
         3: lambda: _linhas_dos_erros(medida),
         4: lambda: _lista_anvisa(decisoes, pares),
         6: lambda: _tempo_de_triagem(supabase, decisoes),
+        8: lambda: _esclarecimentos(supabase),
         10: lambda: _anonimas(do_mes),
         11: lambda: _amostra(supabase, pares),
         12: lambda: _tendencia(do_mes, do_mes_anterior),
