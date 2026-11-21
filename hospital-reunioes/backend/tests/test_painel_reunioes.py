@@ -351,13 +351,14 @@ def test_secretaria_nao_recebe_dado_de_pendencia(painel):
 # ─── 4. O gráfico de atrasos por setor e o ranking de 90 dias (issue #1871) ──
 
 
-def _evento(id_acao, comando, criado_em, *, conta_atraso=False, status_antes="PENDENTE") -> dict:
+def _evento(id_acao, comando, criado_em, *, conta_atraso=False, status_antes="PENDENTE", prazo_antes=None) -> dict:
     return {
         "id_acao": id_acao,
         "comando": comando,
         "criado_em": criado_em,
         "conta_atraso": conta_atraso,
         "status_antes": status_antes,
+        "prazo_antes": prazo_antes,
     }
 
 
@@ -443,20 +444,19 @@ def test_reabertura_e_repactuacao_vencida_entram_no_ranking_e_a_antes_do_vencime
 
 def test_atrasada_agora_e_conclusao_depois_do_prazo_contam_como_atraso(painel):
     pedir, estado = painel
-    concluida_no_prazo = _pendencia("B2", "P_BRUNO", id_reuniao="R9", status="CONCLUIDO", prazo="2026-11-17")
-    concluida_no_prazo["concluida_em"] = ONTEM_AS_15H
-    concluida_tarde = _pendencia("B3", "P_BRUNO", id_reuniao="R9", status="CONCLUIDO", prazo="2026-11-10")
-    concluida_tarde["concluida_em"] = ONTEM_AS_15H
-    # Concluída antes do ciclo de vida novo: sem data, não é medida.
-    concluida_antiga = _pendencia("B4", "P_BRUNO", id_reuniao="R9", status="CONCLUIDO", prazo="2026-11-10")
     estado["banco"] = _banco_do_ranking(
         [
             _pendencia("B1", "P_BRUNO", id_reuniao="R9", prazo=ONTEM),
-            concluida_no_prazo,
-            concluida_tarde,
-            concluida_antiga,
+            _pendencia("B2", "P_BRUNO", id_reuniao="R9", status="CONCLUIDO", prazo="2026-11-17"),
+            _pendencia("B3", "P_BRUNO", id_reuniao="R9", status="CONCLUIDO", prazo="2026-11-10"),
+            # Concluída antes do ciclo de vida novo: sem evento, não é medida.
+            _pendencia("B4", "P_BRUNO", id_reuniao="R9", status="CONCLUIDO", prazo="2026-11-10"),
         ],
-        [],
+        [
+            # Concluída no último dia do prazo: não pesa.
+            _evento("B2", "concluir", ONTEM_AS_15H, prazo_antes="2026-11-17"),
+            _evento("B3", "concluir", ONTEM_AS_15H, prazo_antes="2026-11-10"),
+        ],
     )
 
     bruno = _ranking(pedir("admin").json())["P_BRUNO"]
@@ -464,6 +464,37 @@ def test_atrasada_agora_e_conclusao_depois_do_prazo_contam_como_atraso(painel):
     assert bruno["atrasadas"] == 1
     assert bruno["concluidas_com_atraso"] == 1
     assert bruno["atrasos"] == 2
+
+
+def test_conclusao_atrasada_e_reaberta_nao_perde_o_atraso(painel):
+    pedir, estado = painel
+    # Ana: prazo 01/11, concluiu em 05/11, a entrega foi reaberta em 06/11 com
+    # prazo 20/11 e concluída de novo em 10/11, dentro do prazo novo. A
+    # Reabertura apaga o `concluida_em` de 05/11, o histórico não.
+    reaberta = _pendencia("A1", "P_ANA", id_reuniao="R9", status="CONCLUIDO", prazo="2026-11-20")
+    reaberta["concluida_em"] = "2026-11-10T15:00:00+00:00"
+    # Bruno: prazo 01/11, concluiu em 05/11 e ficou assim.
+    so_atrasada = _pendencia("B1", "P_BRUNO", id_reuniao="R9", status="CONCLUIDO", prazo="2026-11-01")
+    so_atrasada["concluida_em"] = "2026-11-05T15:00:00+00:00"
+    estado["banco"] = _banco_do_ranking(
+        [reaberta, so_atrasada],
+        [
+            _evento("A1", "concluir", "2026-11-05T15:00:00+00:00", prazo_antes="2026-11-01"),
+            _evento("A1", "reabrir", "2026-11-06T15:00:00+00:00", status_antes="CONCLUIDO", conta_atraso=True),
+            _evento("A1", "concluir", "2026-11-10T15:00:00+00:00", prazo_antes="2026-11-20"),
+            _evento("B1", "concluir", "2026-11-05T15:00:00+00:00", prazo_antes="2026-11-01"),
+        ],
+    )
+
+    corpo = pedir("admin").json()
+    ranking = _ranking(corpo)
+
+    assert ranking["P_ANA"]["concluidas_com_atraso"] == 1
+    assert ranking["P_ANA"]["atrasos"] == 1
+    assert ranking["P_ANA"]["reaberturas"] == 1
+    assert ranking["P_BRUNO"]["atrasos"] == 1
+    # Mesmo atraso, e a Reabertura pesa: Ana fica acima de Bruno.
+    assert [linha["responsavel_id"] for linha in corpo["ranking"]] == ["P_ANA", "P_BRUNO"]
 
 
 def test_janela_de_90_dias_nas_bordas(painel):

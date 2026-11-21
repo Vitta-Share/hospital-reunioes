@@ -318,18 +318,21 @@ def calcular_ranking(
         return linhas[rid]
 
     for p in por_id.values():
-        prazo = as_data(p.get("prazo"))
-        if esta_atrasada(p.get("status") or "", prazo, hoje):
+        if esta_atrasada(p.get("status") or "", as_data(p.get("prazo")), hoje):
             _somar(linha_de(p), "atrasadas")
-        concluida = _dia_em_brasilia(p.get("concluida_em"))
-        if p.get("status") == "CONCLUIDO" and prazo is not None and na_janela(concluida) and concluida > prazo:
-            _somar(linha_de(p), "concluidas_com_atraso")
 
     for evento in historico:
         p = por_id.get(evento.get("id_acao"))
-        if p is None or not na_janela(_dia_em_brasilia(evento.get("criado_em"))):
+        dia = _dia_em_brasilia(evento.get("criado_em"))
+        if p is None or not na_janela(dia):
             continue
-        if evento.get("comando") == "repactuar" and evento.get("conta_atraso"):
+        # A conclusão vem do evento, com o prazo que valia nela: a Reabertura
+        # apaga `pendencias.concluida_em` e o histórico guarda o atraso.
+        if evento.get("comando") == "concluir":
+            prazo_antes = as_data(evento.get("prazo_antes"))
+            if prazo_antes is not None and dia > prazo_antes:
+                _somar(linha_de(p), "concluidas_com_atraso")
+        elif evento.get("comando") == "repactuar" and evento.get("conta_atraso"):
             _somar(linha_de(p), "repactuacoes_vencidas")
         elif evento.get("comando") == "reabrir" and evento.get("status_antes") == "CONCLUIDO":
             _somar(linha_de(p), "reaberturas")
@@ -355,7 +358,7 @@ def _montar_ranking(supabase, recorte: RecorteDasPendencias, *, hoje: date, part
     pendencias = ler_tudo(
         lambda: sem_reunioes_ocultas(
             supabase.table("pendencias")
-            .select("id_acao, status, prazo, responsavel_id, id_reuniao, concluida_em")
+            .select("id_acao, status, prazo, responsavel_id, id_reuniao")
             .is_("deleted_at", "null")
             .not_.is_("id_reuniao", "null"),
             ocultas,
@@ -368,8 +371,8 @@ def _montar_ranking(supabase, recorte: RecorteDasPendencias, *, hoje: date, part
     historico = ler_tudo(
         lambda: (
             supabase.table("pendencia_historico")
-            .select("id, id_acao, comando, criado_em, conta_atraso, status_antes")
-            .in_("comando", ["repactuar", "reabrir"])
+            .select("id, id_acao, comando, criado_em, conta_atraso, status_antes, prazo_antes")
+            .in_("comando", ["concluir", "repactuar", "reabrir"])
             .gte("criado_em", desde)
             .order("id")
         ),
