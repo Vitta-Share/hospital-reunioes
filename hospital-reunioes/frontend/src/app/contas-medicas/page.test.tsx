@@ -13,6 +13,8 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { comLegendas } from "@/lib/testes/legendas";
+
 import type { DetalheDoProcessamento, Fila, ItemDaFila, RespostaDoEnvio } from "@/lib/contas-medicas/envio";
 
 import ContasMedicasPage from "./page";
@@ -1249,5 +1251,19 @@ describe("o envio", () => {
     const ultimo = await screen.findByRole("region", { name: "Último envio" });
     await waitFor(() => expect(ultimo.textContent).toContain("31302, conta e prontuário"));
     expect(screen.getByRole("button", { name: "Selecionar arquivos" })).toBeTruthy();
+  });
+});
+
+describe("o subtítulo da tela (issue #1950)", () => {
+  it("é uma Legenda: some com as Legendas desligadas e volta com elas ligadas", async () => {
+    render(comLegendas(false, <ContasMedicasPage />));
+
+    await screen.findByRole("heading", { level: 1, name: "Contas médicas" });
+    expect(screen.queryByText(/^Envie a conta e o prontuário do MV/)).toBeNull();
+    cleanup();
+
+    render(comLegendas(true, <ContasMedicasPage />));
+
+    expect(await screen.findByText(/^Envie a conta e o prontuário do MV/)).toBeTruthy();
   });
 });

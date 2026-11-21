@@ -21,6 +21,7 @@ import { AlertCircle, ArrowLeft, Loader2, ScanSearch } from "lucide-react";
 
 import { FiltrosDoPainel } from "@/components/contas-medicas/painel/FiltrosDoPainel";
 import { TelaDoPainel } from "@/components/contas-medicas/painel/TelaDoPainel";
+import { Legenda } from "@/components/ui/Legenda";
 import { detalheDoErro } from "@/lib/contas-medicas/operadoras";
 import {
   hojeIso,
@@ -179,9 +180,9 @@ export default function PainelPage() {
           <ArrowLeft className="w-4 h-4" aria-hidden="true" /> Contas médicas
         </Link>
         <h1 className="text-2xl font-bold text-slate-900">Painel</h1>
-        <p className="text-slate-500 text-sm mt-0.5">
+        <Legenda>
           A nota da semana e onde a perda da conta nasce, pelas contas concluídas de segunda a domingo.
-        </p>
+        </Legenda>
       </div>
 
       {token && <SegundoAgente token={token} aoTerminar={recarregar} />}

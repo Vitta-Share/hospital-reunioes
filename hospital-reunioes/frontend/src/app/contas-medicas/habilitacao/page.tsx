@@ -16,6 +16,7 @@ import Link from "next/link";
 import { AlertCircle, ArrowLeft, Loader2, Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Select } from "@/components/ui/Select";
+import { Legenda } from "@/components/ui/Legenda";
 import type { PerfilContasMedicas } from "@/types";
 
 type Matriz = Record<string, Record<string, boolean>>;
@@ -152,9 +153,9 @@ export default function HabilitacaoPage() {
           <ArrowLeft className="w-4 h-4" aria-hidden="true" /> Contas médicas
         </Link>
         <h1 className="text-2xl font-bold text-slate-900">Habilitação</h1>
-        <p className="text-slate-500 text-sm mt-0.5">
+        <Legenda>
           O que cada perfil pode fazer no módulo e quem tem cada perfil. A mudança vale na hora e fica registrada.
-        </p>
+        </Legenda>
       </div>
 
       {erroGeral && (

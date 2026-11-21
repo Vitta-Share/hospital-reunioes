@@ -832,7 +832,7 @@ ARQUIVOS_DA_FATIA = [
     KIT,
     RAIZ_DO_APP / "frontend/src/app/contas-medicas/validacao/page.tsx",
     RAIZ_DO_APP / "frontend/src/components/contas-medicas/CartaoDeTema.tsx",
-    RAIZ_DO_APP / "frontend/src/components/contas-medicas/LinkParaValidacao.tsx",
+    RAIZ_DO_APP / "frontend/src/components/contas-medicas/CascaDoModulo.tsx",
     RAIZ_DO_APP / "frontend/src/lib/contas-medicas/validacao.ts",
     Path(__file__),
 ]

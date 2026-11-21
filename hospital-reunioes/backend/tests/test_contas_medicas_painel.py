@@ -781,7 +781,7 @@ ARQUIVOS_DA_FATIA = [
     RAIZ_DO_APP / "backend/app/conhecimento/contas-medicas.md",
     RAIZ_DO_APP / "frontend/src/app/contas-medicas/painel/page.tsx",
     RAIZ_DO_APP / "frontend/src/lib/contas-medicas/painel.ts",
-    RAIZ_DO_APP / "frontend/src/components/contas-medicas/LinkParaPainel.tsx",
+    RAIZ_DO_APP / "frontend/src/components/contas-medicas/CascaDoModulo.tsx",
     *sorted(COMPONENTES.glob("*.ts*")),
     Path(__file__),
 ]

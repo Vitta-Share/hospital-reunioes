@@ -24,13 +24,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AlertCircle, Loader2, ReceiptText, Upload } from "lucide-react";
 
-import { LinkParaContratos } from "@/components/contas-medicas/LinkParaContratos";
-import { LinkParaCoordenacao } from "@/components/contas-medicas/LinkParaCoordenacao";
-import { LinkParaHabilitacao } from "@/components/contas-medicas/LinkParaHabilitacao";
-import { LinkParaOperadoras } from "@/components/contas-medicas/LinkParaOperadoras";
-import { LinkParaPainel } from "@/components/contas-medicas/LinkParaPainel";
-import { LinkParaValidacao } from "@/components/contas-medicas/LinkParaValidacao";
 import { PainelDoProcessamento } from "@/components/contas-medicas/PainelDoProcessamento";
+import { Legenda } from "@/components/ui/Legenda";
 import {
   ANALISAR_CONTAS,
   ENVIAR_CONTAS,
@@ -714,24 +709,16 @@ export default function ContasMedicasPage() {
   const contaDoPainel = painel ? envios.find((conta) => conta.id === painel) : undefined;
   const fecharOPainel = useCallback(() => setPainel(null), []);
   const abas = pode ? abasDe(pode) : [];
-  // Sem nenhuma das duas permissões (o credenciamento), a tela fica só com os atalhos.
+  // Sem nenhuma das duas permissões (o credenciamento), a tela fica só com as abas do módulo.
   const semListas = pode !== null && abas.length === 0;
 
   return (
     <div className="space-y-6">
       <div>
-        <div className="flex items-center justify-between gap-3">
-          <h1 className="flex-1 text-2xl font-bold text-slate-900">Contas médicas</h1>
-          <LinkParaPainel />
-          <LinkParaValidacao />
-          <LinkParaCoordenacao />
-          <LinkParaContratos />
-          <LinkParaOperadoras />
-          <LinkParaHabilitacao />
-        </div>
-        <p className="text-slate-500 text-sm mt-0.5">
+        <h1 className="text-2xl font-bold text-slate-900">Contas médicas</h1>
+        <Legenda>
           Envie a conta e o prontuário do MV e receba a lista do que corrigir antes de mandar para a operadora.
-        </p>
+        </Legenda>
       </div>
 
       {pode?.enviar && (

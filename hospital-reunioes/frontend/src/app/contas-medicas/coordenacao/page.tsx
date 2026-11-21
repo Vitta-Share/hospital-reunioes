@@ -17,6 +17,7 @@ import { AlertCircle, ArrowLeft, ClipboardCheck, Loader2 } from "lucide-react";
 
 import { AbaCenarios } from "@/components/contas-medicas/coordenacao/AbaCenarios";
 import { CartaoDoLembrete } from "@/components/contas-medicas/coordenacao/CartaoDoLembrete";
+import { Legenda } from "@/components/ui/Legenda";
 import {
   type Conferencia,
   type ContaComLembrete,
@@ -157,10 +158,10 @@ export default function CoordenacaoPage() {
           <ArrowLeft className="w-4 h-4" aria-hidden="true" /> Contas médicas
         </Link>
         <h1 className="text-2xl font-bold text-slate-900">Coordenação</h1>
-        <p className="text-slate-500 text-sm mt-0.5">
+        <Legenda>
           A segunda checagem: quando o prontuário mostra um cenário, os insumos que faltam na conta. A faturista não vê
           esta tela.
-        </p>
+        </Legenda>
       </div>
 
       {erro && (

@@ -15,6 +15,8 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { comLegendas } from "@/lib/testes/legendas";
+
 import { caixaDoDado } from "@/lib/testes/caixaDoDado";
 
 import OperadorasPage from "./page";
@@ -723,5 +725,19 @@ describe("o atalho da conversa com o auditor (issue #1490)", () => {
 
     const secao = screen.getByRole("region", { name: "Enviar tabela de preço" });
     expect(within(secao).getByRole("combobox", { name: "Operadora da tabela" }).textContent).not.toContain("ALFA");
+  });
+});
+
+describe("o subtítulo da tela (issue #1950)", () => {
+  it("é uma Legenda: some com as Legendas desligadas e volta com elas ligadas", async () => {
+    render(comLegendas(false, <OperadorasPage />));
+
+    await screen.findByRole("heading", { level: 1, name: "Operadoras" });
+    expect(screen.queryByText(/^A memória de cada convênio, os planos/)).toBeNull();
+    cleanup();
+
+    render(comLegendas(true, <OperadorasPage />));
+
+    expect(await screen.findByText(/^A memória de cada convênio, os planos/)).toBeTruthy();
   });
 });
