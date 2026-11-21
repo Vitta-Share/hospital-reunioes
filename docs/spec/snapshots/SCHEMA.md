@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T22:02+0000 -->
+<!-- last_update: 2026-11-21T22:10+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -1311,7 +1311,7 @@ erDiagram
         TEXT categoria
         TIMESTAMPTZ recebido_em
         DATE prazo_em
-        _ mais_colunas "+3"
+        _ mais_colunas "+4"
     }
     conduta_atribuicoes {
         UUID id PK
@@ -1682,6 +1682,7 @@ erDiagram
 | `conduta_casos` | `idx_conduta_casos_triagem_por` | `triagem_por` | `185_conduta_triagem_e_ritos.sql` |
 | `conduta_casos` | `idx_conduta_casos_conferida_por` | `conferida_por` | `185_conduta_triagem_e_ritos.sql` |
 | `conduta_casos` | `idx_conduta_casos_prorrogado_por` | `prorrogado_por` | `185_conduta_triagem_e_ritos.sql` |
+| `conduta_casos` | `uq_conduta_casos_manifestacao` | `manifestacao_id` | `202_conduta_sinalizacao_da_ouvidoria.sql` |
 | `conduta_atribuicoes` | `idx_conduta_atribuicoes_pessoa` | `participante_id, caso_id` | `175_conduta_fundacao.sql` |
 | `conduta_atribuicoes` | `idx_conduta_atribuicoes_caso` | `caso_id` | `175_conduta_fundacao.sql` |
 | `conduta_citados` | `idx_conduta_citados_pessoa` | `participante_id, caso_id` | `175_conduta_fundacao.sql` |

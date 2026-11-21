@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T22:02+0000 -->
+<!-- last_update: 2026-11-21T22:10+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2391,7 +2391,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## conduta_casos
 
-> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql)
+> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql, 202_conduta_sinalizacao_da_ouvidoria.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2407,12 +2407,14 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `relato_cifrado` | `TEXT` | NOT NULL | — | — |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
 | `escopo` | `TEXT` | — | — | `participantes.id` |
+| `origem` | `TEXT` | NOT NULL | — | `ouvidoria_protocolos.id` |
 
 **Indexes:**
 - `idx_conduta_casos_rota_etapa` em `(rota, etapa, recebido_em DESC)` (de `175_conduta_fundacao.sql`)
 - `idx_conduta_casos_triagem_por` em `(triagem_por)` (de `185_conduta_triagem_e_ritos.sql`)
 - `idx_conduta_casos_conferida_por` em `(conferida_por)` (de `185_conduta_triagem_e_ritos.sql`)
 - `idx_conduta_casos_prorrogado_por` em `(prorrogado_por)` (de `185_conduta_triagem_e_ritos.sql`)
+- `uq_conduta_casos_manifestacao` em `(manifestacao_id)` (de `202_conduta_sinalizacao_da_ouvidoria.sql`)
 
 ## conduta_atribuicoes
 

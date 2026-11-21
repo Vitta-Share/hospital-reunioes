@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T22:02+0000 -->
+<!-- last_update: 2026-11-21T22:10+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -355,6 +355,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/ouvidoria/manifestacoes/{manifestacao_id}/apagamento` | Apaga hoje o Dossiê de um caso encerrado, por ato da Diretoria. | ✅ |
 | DELETE | `/ouvidoria/manifestacoes/{manifestacao_id}/arquivo` | Devolve o caso à lista, limpando os dois carimbos. | ✅ |
 | POST | `/ouvidoria/manifestacoes/{manifestacao_id}/arquivo` | Tira da vista da lista um caso que já acabou (ADR 0047, decisão 3). | ✅ |
+| POST | `/ouvidoria/manifestacoes/{manifestacao_id}/canal-de-conduta` | O botão Sinalizar ao Canal de Conduta do Dossiê (issue #1849, ADR 0097 | ✅ |
 | POST | `/ouvidoria/manifestacoes/{manifestacao_id}/classificacao` | Classifica a manifestação e, no mesmo ato, resolve o sigilo dela. | ✅ |
 | POST | `/ouvidoria/manifestacoes/{manifestacao_id}/cobrar-setor` | Acorda de novo a área que está devendo resposta, pelo botão da fila. | ✅ |
 | POST | `/ouvidoria/manifestacoes/{manifestacao_id}/devolucoes` | Devolve ao setor a resposta que não resolve, com meio prazo novo. | ✅ |
@@ -754,4 +755,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 433 endpoints em 63 routers · 93% exigem auth.
+**Totais:** 434 endpoints em 63 routers · 93% exigem auth.
