@@ -12,7 +12,9 @@ linha por marco, com o vencimento já calculado em data e hora:
   circunstância de risco não é notificada e não tem prazo legal;
 - os **internos** vêm da tabela do Núcleo (faixa e marco), carregada com os
   valores do art. 26 e editável pela Presidência e pelo Acesso pleno. Contam
-  da chegada da notificação.
+  da chegada da notificação, menos a reunião de análise, que conta da
+  confirmação da triagem (art. 24). A lesão por pressão dos itens 8 a 10 sem
+  óbito não tem reunião extraordinária (art. 24, parágrafo único).
 
 Mudar a tabela não alcança o caso já classificado (art. 26, § 2º): o caso lê
 os vencimentos congelados, e não a tabela.
@@ -119,8 +121,16 @@ VIGIMED = "vigimed"
 NOTIVISA = "notivisa"
 CATEGORIA_DE_MEDICACAO = "MED"
 
-# Os feriados que a conta lê: do incidente até bem depois do mais longo prazo
-# em dias úteis (o 15º dia útil do mês seguinte e os 20 dias úteis).
+# A reunião extraordinária de análise conta da classificação (art. 24), e a
+# lesão por pressão estágio 3, estágio 4 ou não classificável (itens 8 a 10 da
+# lista) sem óbito não a tem: vai para a ordinária seguinte (parágrafo único).
+REUNIAO_DE_ANALISE = "reuniao_de_analise"
+ITENS_DA_LESAO_POR_PRESSAO = frozenset({8, 9, 10})
+OBITO = "obito"
+
+# Os feriados que a conta lê: da base mais antiga até bem depois do mais longo
+# prazo em dias úteis (o 15º dia útil do mês seguinte e os 20 dias úteis),
+# contado da base mais nova.
 _JANELA_DOS_FERIADOS = timedelta(days=120)
 
 
@@ -173,26 +183,37 @@ def _instante(bruto: str) -> datetime:
     return momento if momento.tzinfo else momento.replace(tzinfo=UTC)
 
 
+def sem_reuniao_extraordinaria(evento_item: int | None, grau_de_dano: str | None) -> bool:
+    """A lesão por pressão dos itens 8 a 10 sem óbito (art. 24, parágrafo único)."""
+    return evento_item in ITENS_DA_LESAO_POR_PRESSAO and grau_de_dano != OBITO
+
+
 def calcular(
     *,
     faixa: str | None,
     natureza: str | None,
     recebida_em: datetime,
+    classificada_em: datetime,
     incidente_em: datetime,
     tabela: dict[tuple[str, str], Prazo],
     feriados: frozenset[date],
+    sem_reuniao: bool = False,
 ) -> list[Vencimento]:
     """Os vencimentos do caso, marco a marco: os internos da tabela, contados
-    da chegada, e os legais do código, contados do incidente."""
+    da chegada (a reunião de análise, da classificação), e os legais do
+    código, contados do incidente."""
     if faixa not in FAIXAS:
         return []
     vencimentos = []
     for marco in MARCOS_INTERNOS:
+        if marco == REUNIAO_DE_ANALISE and sem_reuniao:
+            continue
         prazo = tabela.get((faixa, marco))
         if prazo is None or prazo.valor is None:
             continue
-        vence = calcular_vencimento(recebida_em, prazo, feriados)
-        vencimentos.append(Vencimento(marco, INTERNO, prazo, recebida_em, vence))
+        base = classificada_em if marco == REUNIAO_DE_ANALISE else recebida_em
+        vence = calcular_vencimento(base, prazo, feriados)
+        vencimentos.append(Vencimento(marco, INTERNO, prazo, base, vence))
     for marco, prazo in prazos_legais(faixa, natureza).items():
         vence = calcular_vencimento(incidente_em, prazo, feriados)
         vencimentos.append(Vencimento(marco, LEGAL, prazo, incidente_em, vence))
@@ -205,11 +226,11 @@ def calcular(
 
 
 def tabela_vigente(supabase) -> dict[tuple[str, str], Prazo]:
-    """A tabela do banco, ou o art. 26 enquanto a migration 204 não rodou."""
-    try:
-        linhas = supabase.table(TABELA_DE_PRAZOS).select("faixa, marco, valor, unidade").execute().data
-    except APIError:
-        linhas = None
+    """A tabela do banco, ou o art. 26 se ela estiver vazia. A falha de
+    leitura sobe: o caso não recalcula (art. 26, § 2º), e congelar os valores
+    de fábrica no lugar da tabela editada deixaria o prazo errado para sempre.
+    A rota devolve 503 e a nova tentativa conclui."""
+    linhas = supabase.table(TABELA_DE_PRAZOS).select("faixa, marco, valor, unidade").execute().data
     if not linhas:
         return dict(ART_26)
     return {
@@ -348,11 +369,14 @@ def alterar_prazo_interno(
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-def _feriados_da_conta(supabase, inicio: date) -> frozenset[date]:
-    """Os feriados do período. Sem o calendário, a conta segue sem feriado: o
-    vencimento sai mais cedo, nunca mais tarde que o certo."""
+def _feriados_da_conta(supabase, *bases: datetime) -> frozenset[date]:
+    """Os feriados do período: da base mais antiga até a janela depois da mais
+    nova (a notificação tardia chega meses depois do incidente). Sem o
+    calendário, a conta segue sem feriado: o vencimento sai mais cedo, nunca
+    mais tarde que o certo."""
+    dias = [base.astimezone(FUSO).date() for base in bases]
     try:
-        return feriados_service.feriados_entre(supabase, inicio, inicio + _JANELA_DOS_FERIADOS)
+        return feriados_service.feriados_entre(supabase, min(dias), max(dias) + _JANELA_DOS_FERIADOS)
     except feriados_service.FALHAS_DE_LEITURA_DO_CALENDARIO as erro:
         logger.warning("Feriados ilegíveis; os prazos do caso contam sem feriado: %s", type(erro).__name__)
         return frozenset()
@@ -374,13 +398,17 @@ def _gravar_os_prazos(supabase, notificacao: dict[str, Any], decisao: dict[str, 
     """Grava os vencimentos do caso e devolve as linhas gravadas."""
     incidente_em = momento_do_incidente(notificacao["data_ocorrencia"], notificacao.get("hora_aproximada"))
     recebida_em = _instante(notificacao["criado_em"])
+    # A classificação é a linha da decisão gravada (DEFAULT now() da 188).
+    classificada_em = _instante(decisao["criado_em"]) if decisao.get("criado_em") else datetime.now(UTC)
     vencimentos = calcular(
         faixa=decisao.get("faixa"),
         natureza=decisao.get("natureza"),
         recebida_em=recebida_em,
+        classificada_em=classificada_em,
         incidente_em=incidente_em,
         tabela=tabela_vigente(supabase),
-        feriados=_feriados_da_conta(supabase, min(incidente_em, recebida_em.astimezone(FUSO)).date()),
+        feriados=_feriados_da_conta(supabase, incidente_em, recebida_em, classificada_em),
+        sem_reuniao=sem_reuniao_extraordinaria(decisao.get("evento_item"), decisao.get("grau_de_dano")),
     )
     if not vencimentos:
         return []
@@ -399,7 +427,7 @@ def _gravar_os_prazos(supabase, notificacao: dict[str, Any], decisao: dict[str, 
     try:
         supabase.table(PRAZOS_DO_CASO).insert(linhas).execute()
     except APIError as erro:
-        # Outra tentativa gravou primeiro (um prazo por marco, migration 204):
+        # Outra tentativa gravou primeiro (um prazo por marco, migration 208):
         # valem os dela.
         if erro.code != "23505":
             raise

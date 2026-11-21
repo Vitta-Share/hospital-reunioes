@@ -1,7 +1,7 @@
-"""A migration 204, os prazos do caso e a tabela de prazos do Núcleo, num
+"""A migration 208, os prazos do caso e a tabela de prazos do Núcleo, num
 Postgres de verdade (issue #1993).
 
-Sobe um Postgres descartável, aplica a 204 duas vezes sobre o mínimo de antes
+Sobe um Postgres descartável, aplica a 208 duas vezes sobre o mínimo de antes
 e prova no banco:
 
 - a carga da tabela é a do art. 26 do Regimento, e nenhum marco legal cabe nela;
@@ -29,7 +29,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.services.seguranca_do_paciente import prazos  # noqa: E402
 
-MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "204_nsp_prazos_do_caso.sql"
+MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "208_nsp_prazos_do_caso.sql"
 
 TABELAS_NOVAS = (
     "nsp_tabela_de_prazos",
@@ -38,7 +38,7 @@ TABELAS_NOVAS = (
     "nsp_notificacoes_externas",
 )
 
-# O mínimo de antes da 204: os papéis do Supabase, o recibo, quem altera e a
+# O mínimo de antes da 208: os papéis do Supabase, o recibo, quem altera e a
 # notificação a que o prazo pertence.
 ESQUEMA_ANTERIOR = """
 CREATE ROLE anon NOLOGIN;
@@ -61,7 +61,7 @@ def banco():
             pytest.fail("O CI precisa do initdb para provar a tabela de prazos no banco.")
         pytest.skip("Sem initdb nesta máquina.")
     pg = _Postgres(bindir)
-    pg.porta = "54204"
+    pg.porta = "54208"
     pg.subir()
     try:
         pg.ok(ESQUEMA_ANTERIOR)
@@ -80,7 +80,7 @@ def _caso(banco) -> str:
 def test_a_migration_cria_as_quatro_tabelas():
     sql = re.sub(r"--[^\n]*", "", MIGRATION.read_text(encoding="utf-8"))
     assert sorted(re.findall(r"CREATE TABLE IF NOT EXISTS (\w+)\s*\(", sql)) == sorted(TABELAS_NOVAS)
-    assert "VALUES (204) ON CONFLICT" in sql
+    assert "VALUES (208) ON CONFLICT" in sql
 
 
 def test_a_carga_da_tabela_e_a_do_art_26(banco):

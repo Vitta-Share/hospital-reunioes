@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 204: os prazos do caso e a tabela de prazos do Núcleo
+-- Migration 208: os prazos do caso e a tabela de prazos do Núcleo
 -- (issue #1993, PRD #1979, ADR 0107 decisões 1 e 2)
 -- =====================================================
 -- O que entra:
@@ -188,4 +188,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (204) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (208) ON CONFLICT (numero) DO NOTHING;

@@ -46,12 +46,12 @@ from test_seguranca_do_paciente_triagem import (  # noqa: E402
     QUASE_ERRO,
     SUPER_ADMIN,
     TODOS_OS_CAMPOS,
-    _banco,
     _BancoDaTriagem,
     _ConsultaDaTriagem,
     _notificacao,
     _sugestao,
 )
+from test_seguranca_do_paciente_triagem import _banco as _banco_da_triagem  # noqa: E402
 
 from app.dependencies import get_current_user, get_supabase_client  # noqa: E402
 from app.limiter import limiter  # noqa: E402
@@ -65,6 +65,9 @@ SP = ZoneInfo("America/Sao_Paulo")
 # 09/11 às 22h.
 CHEGADA = "2026-11-10T13:00:00+00:00"
 DO_CASO = {"criado_em": CHEGADA, "data_ocorrencia": "2026-11-09", "hora_aproximada": "22:00:00"}
+# A triagem foi confirmada na quinta 12/11 às 15h de São Paulo: a reunião de
+# análise conta daí (art. 24 do Regimento), e não da chegada.
+CONFIRMACAO = "2026-11-12T18:00:00+00:00"
 
 SUPLENTE = _pessoa("P7")
 
@@ -93,6 +96,29 @@ def _cliente(banco, pessoa: dict[str, Any] = PRESIDENTE) -> TestClient:
     app.dependency_overrides[get_current_user] = _usuario
     app.dependency_overrides[get_supabase_client] = lambda: banco
     return TestClient(app)
+
+
+class _ConsultaDoNucleo(_ConsultaDaTriagem):
+    """O DEFAULT now() da 188: a linha da triagem nasce com a hora em que a
+    pessoa confirmou."""
+
+    def _inserir(self) -> list[dict]:
+        if self._nome == "nsp_triagens":
+            novas = self._valores if isinstance(self._valores, list) else [self._valores]
+            for valores in novas:
+                valores.setdefault("criado_em", self._banco.confirmacao_em)
+        return super()._inserir()
+
+
+class _BancoDoNucleo(_BancoDaTriagem):
+    confirmacao_em = CONFIRMACAO
+
+    def table(self, nome: str):
+        return _ConsultaDoNucleo(self, nome)
+
+
+def _banco(notificacoes: list[dict] | None = None, triagens: list[dict] | None = None) -> _BancoDoNucleo:
+    return _BancoDoNucleo(_banco_da_triagem(notificacoes, triagens).tabelas)
 
 
 def _caso_confirmado(sugestao: dict, **campos) -> tuple[Any, dict]:
@@ -127,7 +153,7 @@ PRAZOS_ESPERADOS = {
         "triagem": ("interno", "10/11/2026 14:00"),  # 4h úteis
         "inicio_da_investigacao": ("interno", "12/11/2026 16:00"),  # 24h úteis: 7 + 9 + 8
         "conclusao_da_investigacao": ("interno", "25/12/2026 23:59"),  # 45 dias corridos
-        "reuniao_de_analise": ("interno", "19/11/2026 17:00"),  # 7 dias úteis
+        "reuniao_de_analise": ("interno", "23/11/2026 17:00"),  # 7 dias úteis da confirmação (12/11)
         "notificacao_externa": ("legal", "12/11/2026 22:00"),  # 72h corridas do incidente
         "complementacao_da_notificacao_externa": ("legal", "08/01/2027 23:59"),  # 60 dias corridos
     },
@@ -138,7 +164,7 @@ PRAZOS_ESPERADOS = {
         "triagem": ("interno", "11/11/2026 17:00"),  # 1 dia útil
         "inicio_da_investigacao": ("interno", "13/11/2026 17:00"),  # 3 dias úteis
         "conclusao_da_investigacao": ("interno", "10/12/2026 23:59"),  # 30 dias corridos
-        "reuniao_de_analise": ("interno", "01/12/2026 17:00"),  # 15 dias úteis
+        "reuniao_de_analise": ("interno", "03/12/2026 17:00"),  # 15 dias úteis da confirmação (12/11)
         "notificacao_externa": ("legal", "21/12/2026 17:00"),
     },
     # Faixa C, dano moderado: sem comunicação à Direção e reunião na pauta
@@ -173,6 +199,83 @@ def test_confirmar_grava_os_prazos_do_art_26_da_faixa(faixa):
     banco, caso = _caso_confirmado(SUGESTAO_DA_FAIXA[faixa])
 
     assert _prazos_na_tela(banco, caso) == PRAZOS_ESPERADOS[faixa]
+
+
+# A lesão por pressão estágio 3, estágio 4 ou não classificável (itens 8 a 10
+# da lista), sem óbito, vai para a reunião ordinária seguinte, sem reunião
+# extraordinária (art. 24, parágrafo único; ADR 0107, decisão 1).
+LESAO_POR_PRESSAO = {
+    "natureza": "evento_adverso",
+    "grau_de_dano": "grave",
+    "faixa": "A",
+    "evento_situacao": "sim",
+    "evento_item": 9,
+    "protocolo_basico": "lesao_por_pressao",
+    "revisao": "campo_a_campo",
+}
+
+
+@pytest.mark.parametrize("item", [8, 9, 10])
+def test_a_lesao_por_pressao_dos_itens_8_a_10_sem_obito_nao_ganha_reuniao_extraordinaria(item):
+    banco, caso = _caso_confirmado({**LESAO_POR_PRESSAO, "evento_item": item})
+
+    na_tela = _prazos_na_tela(banco, caso)
+
+    assert "reuniao_de_analise" not in na_tela
+    assert na_tela["conclusao_da_investigacao"] == ("interno", "25/12/2026 23:59")
+    assert na_tela["notificacao_externa"] == ("legal", "12/11/2026 22:00")
+
+
+@pytest.mark.parametrize(
+    "sugestao",
+    [{**LESAO_POR_PRESSAO, "grau_de_dano": "obito"}, {**LESAO_POR_PRESSAO, "evento_item": 11}],
+    ids=["lesão por pressão com óbito", "outro evento que nunca deveria ocorrer"],
+)
+def test_o_evento_da_faixa_a_fora_da_excecao_tem_a_reuniao_extraordinaria(sugestao):
+    banco, caso = _caso_confirmado(sugestao)
+
+    assert _prazos_na_tela(banco, caso)["reuniao_de_analise"] == ("interno", "23/11/2026 17:00")
+
+
+def test_os_prazos_internos_da_notificacao_tardia_pulam_os_feriados_do_periodo():
+    """Busca ativa em prontuário: o incidente foi em 01/09 e a notificação
+    chegou na quinta 10/12, às 10h. Os 20 dias úteis da faixa C contam da
+    chegada e pulam o Natal e o 1º de janeiro: 11/12 é o dia 1, e o dia 20 cai
+    na segunda 11/01/2027."""
+    caso = _notificacao(1, criado_em="2026-12-10T13:00:00+00:00", data_ocorrencia="2026-09-01")
+    banco = _banco([caso], [_sugestao(caso, **MODERADO)])
+    banco.confirmacao_em = "2026-12-10T15:00:00+00:00"
+    banco.tabelas["ouvidoria_feriados"] = [{"data": "2026-12-25"}, {"data": "2027-01-01"}]
+
+    resposta = _cliente(banco).post(f"/api/nsp/triagem/{caso['id']}", json={"conferidos": TODOS_OS_CAMPOS})
+
+    assert resposta.status_code == 201, resposta.text
+    assert _prazos_na_tela(banco, caso)["conclusao_da_investigacao"] == ("interno", "11/01/2027 17:00")
+
+
+def test_a_tabela_de_prazos_ilegivel_nao_congela_os_valores_de_fabrica(monkeypatch):
+    """A leitura da tabela cai: a confirmação devolve 503 sem gravar prazo, e
+    a nova tentativa conclui com a tabela que a Presidência editou."""
+    caso = _notificacao(1, **DO_CASO)
+    banco = _banco_com_tabela([caso], [_sugestao(caso, **OBITO)])
+    assert _alterar(banco, "A", "triagem", {"valor": 2, "unidade": "horas_uteis"}).status_code == 200
+    executar = _ConsultaComHistorico.execute
+
+    def _a_tabela_nao_responde(self):
+        if self._nome == "nsp_tabela_de_prazos" and self._acao not in ("insert", "update"):
+            raise APIError({"code": "57014", "message": "canceling statement due to statement timeout"})
+        return executar(self)
+
+    monkeypatch.setattr(_ConsultaComHistorico, "execute", _a_tabela_nao_responde)
+    resposta = _cliente(banco).post(f"/api/nsp/triagem/{caso['id']}", json={"conferidos": TODOS_OS_CAMPOS})
+    assert resposta.status_code == 503, resposta.text
+    assert banco.tabelas.get("nsp_prazos_do_caso", []) == []
+    monkeypatch.undo()
+
+    nova = _cliente(banco).post(f"/api/nsp/triagem/{caso['id']}", json={"conferidos": TODOS_OS_CAMPOS})
+
+    assert nova.status_code == 201, nova.text
+    assert _prazos_na_tela(banco, caso)["triagem"] == ("interno", "10/11/2026 12:00")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -265,14 +368,14 @@ def test_o_caso_antes_da_confirmacao_nao_tem_prazo_nem_linha_externa():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# A tabela de prazos na Configuração. O dublê faz o que a migration 204 faz:
+# A tabela de prazos na Configuração. O dublê faz o que a migration 208 faz:
 # a carga do art. 26 e o trigger que grava o histórico a cada alteração.
 # ═══════════════════════════════════════════════════════════════════════════
 
 TABELA = "/api/nsp/configuracao/prazos"
 
 
-class _ConsultaComHistorico(_ConsultaDaTriagem):
+class _ConsultaComHistorico(_ConsultaDoNucleo):
     def execute(self):
         if self._nome != "nsp_tabela_de_prazos" or self._acao != "update":
             return super().execute()
@@ -297,7 +400,7 @@ class _ConsultaComHistorico(_ConsultaDaTriagem):
         return resposta
 
 
-class _BancoComTabela(_BancoDaTriagem):
+class _BancoComTabela(_BancoDoNucleo):
     def table(self, nome: str):
         return _ConsultaComHistorico(self, nome)
 
