@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T00:47:27-03:00",
+      "sha": "dad642d75ab3e5ee2d84573844f3a81d776708b5",
+      "app_version": "0.335.0",
+      "subject": "Onda sesta-1933-onda3: Envios com o botão Enviar contas e cartões no desenho novo; Todas e Minhas, com o nome de quem está com cada conta; Busca pelo número do atendimento e pelo paciente",
+      "raw_subject": "chore(deploy): registro da onda sesta-1933-onda3 (#2069 #2070 #2071)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1933
+      ],
+      "result": "healthy",
+      "duration_seconds": 924,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1933-onda3: PR #2069 (issue #1954), PR #2070 (issue #1955), PR #2071 (issue #1956), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 9,
+        "build_s": {
+          "backend": 17,
+          "frontend": 189
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-20T23:34:36-03:00",
       "sha": "e7344a3855d493fd87a608db1bc662469e736d27",
       "app_version": "0.334.0",
