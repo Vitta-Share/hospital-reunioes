@@ -19,14 +19,21 @@ Fora de escopo.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
+from app.config import settings
+from app.dependencies import selecionar_participantes
+from app.services.feriados import carregar_feriados
+from app.services.seguranca_do_paciente import emails
 from app.services.seguranca_do_paciente.triagem import (
     ESTADOS_DA_FILA,
     CasoNaoEncontradoError,
     JaConfirmadaError,
     TriagemRecusadaError,
 )
+from app.utils.text_sanitizer import sanitizar_estrutura
 
 NUCLEO = "nucleo"
 OUVIDORIA = "ouvidoria"
@@ -38,6 +45,13 @@ ENCAMINHADA = "encaminhada"
 ESTADO_FORA_DE_ESCOPO = "fora_de_escopo"
 
 TAMANHO_DA_FRASE = 300
+
+MARCO_DA_OUVIDORIA = "encaminhamento_ouvidoria"
+MODELO = "email_nsp_aviso.html"
+# O texto puro do registro cabe em 10 mil caracteres (migration 173); o
+# relato inteiro vai no HTML, e o texto puro corta o que passar.
+_TETO_DO_TEXTO = 10000
+_FUSO = ZoneInfo("America/Sao_Paulo")
 
 
 class EncaminhamentoInvalidoError(TriagemRecusadaError):
@@ -69,6 +83,66 @@ def estado_depois_do_encaminhamento(destinos: list[str]) -> str | None:
     return ESTADO_FORA_DE_ESCOPO if FORA_DE_ESCOPO in destinos else ENCAMINHADA
 
 
+def _agora() -> datetime:
+    return datetime.now(_FUSO)
+
+
+def _ouvidores(supabase) -> list[dict[str, Any]]:
+    """Quem tem o perfil de ouvidor e está ativo. A Diretoria Executiva da
+    Ouvidoria não recebe: o e-mail leva o relato."""
+    resposta = selecionar_participantes(
+        supabase, "id, nome_completo", lambda q: q.eq("perfil_ouvidoria", "ouvidor").eq("ativo", True)
+    )
+    return resposta.data or []
+
+
+def mensagem_a_ouvidoria(nome: str, protocolo: str, motivo: str, relato: str) -> tuple[str, str, dict]:
+    """(assunto, texto, contexto do modelo) do e-mail ao ouvidor, com o
+    protocolo, o motivo e o relato."""
+    link = f"{settings.frontend_url}/ouvidoria"
+    assunto = f"Caso do Núcleo encaminhado à Ouvidoria: protocolo {protocolo}"
+    paragrafos = [
+        f"O Núcleo de Segurança do Paciente encaminhou à Ouvidoria a notificação {protocolo}.",
+        f"Motivo: {motivo}",
+        f"Relato: {relato}",
+        "Abra a manifestação na Ouvidoria, se for o caso. O protocolo do Núcleo continua o mesmo.",
+    ]
+    assunto, nome, paragrafos = sanitizar_estrutura([assunto, nome, paragrafos])
+    cabeca = f"Olá, {nome}.\n\n"
+    rodape = f"\n\nOuvidoria: {link}\n"
+    texto = cabeca + "\n\n".join(paragrafos) + rodape
+    if len(texto) > _TETO_DO_TEXTO:
+        sobra = len(texto) - _TETO_DO_TEXTO + len(" [...]")
+        cortado = [*paragrafos[:2], paragrafos[2][:-sobra] + " [...]", paragrafos[3]]
+        texto = cabeca + "\n\n".join(cortado) + rodape
+    return assunto, texto, {"nome": nome, "paragrafos": paragrafos, "link": link, "botao": "Abrir a Ouvidoria"}
+
+
+def _registrar_o_email_a_ouvidoria(
+    supabase, notificacao: dict, ouvidores: list[dict], motivo: str, agora: datetime
+) -> None:
+    """Um registro por ouvidor, na fila do registro de e-mail: não é urgente, e
+    o job de 10 em 10 minutos entrega no expediente."""
+    feriados = carregar_feriados(supabase)
+    for ouvidor in ouvidores:
+        assunto, texto, contexto = mensagem_a_ouvidoria(
+            ouvidor.get("nome_completo") or "", notificacao["protocolo"], motivo, notificacao.get("relato") or ""
+        )
+        emails.registrar(
+            supabase,
+            caso_id=notificacao["id"],
+            marco=MARCO_DA_OUVIDORIA,
+            referencia=notificacao["protocolo"],
+            destinatario_id=ouvidor["id"],
+            assunto=assunto,
+            texto=texto,
+            modelo=MODELO,
+            contexto=contexto,
+            agora=agora,
+            feriados=feriados,
+        )
+
+
 def _notificacao(supabase, notificacao_id: str) -> dict[str, Any] | None:
     linhas = (
         supabase.table("nsp_notificacoes")
@@ -98,6 +172,9 @@ def encaminhar_da_triagem(
         raise CasoNaoEncontradoError("Caso não encontrado.")
     if notificacao.get("estado") not in ESTADOS_DA_FILA:
         raise JaConfirmadaError("Este caso já saiu da triagem.")
+    ouvidores = _ouvidores(supabase) if OUVIDORIA in escolhidos else []
+    if OUVIDORIA in escolhidos and not ouvidores:
+        raise EncaminhamentoInvalidoError("Não há ouvidor ativo no cadastro para receber o caso.")
     gravado = (
         supabase.table("nsp_encaminhamentos")
         .insert(
@@ -111,6 +188,8 @@ def encaminhar_da_triagem(
         .execute()
         .data[0]
     )
+    if ouvidores:
+        _registrar_o_email_a_ouvidoria(supabase, notificacao, ouvidores, motivo, _agora())
     estado = estado_depois_do_encaminhamento(escolhidos)
     if estado is not None:
         supabase.table("nsp_notificacoes").update({"estado": estado, "editado_por": autor_id}).eq(

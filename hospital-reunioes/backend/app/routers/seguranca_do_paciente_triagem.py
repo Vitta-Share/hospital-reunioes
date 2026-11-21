@@ -198,7 +198,9 @@ async def encaminhar_o_caso_da_triagem(
     except triagem.TriagemRecusadaError as erro:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(erro)) from erro
     except (APIError, httpx.HTTPError) as erro:
-        raise _indisponivel(erro, "Não foi possível gravar o encaminhamento agora. Tente de novo em instantes.") from erro
+        raise _indisponivel(
+            erro, "Não foi possível gravar o encaminhamento agora. Tente de novo em instantes."
+        ) from erro
 
 
 class CortesDeFrequencia(BaseModel):

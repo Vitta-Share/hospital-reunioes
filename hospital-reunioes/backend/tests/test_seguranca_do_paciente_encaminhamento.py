@@ -102,3 +102,39 @@ def test_encaminhar_grava_o_destino_e_o_motivo_e_o_protocolo_nao_muda():
     assert encaminhamento["autor_id"] == "P1"
     assert banco.notificacoes[0]["protocolo"] == "NSP-2026-0001"
     assert banco.notificacoes[0]["estado"] == "encaminhada"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. Ouvidoria: o e-mail ao ouvidor, no registro de e-mail do Núcleo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_encaminhar_a_ouvidoria_registra_o_email_ao_ouvidor_com_protocolo_motivo_e_relato():
+    banco, caso = _cenario()
+
+    resposta = _encaminhar(banco, caso, destinos=["ouvidoria"], motivo=MOTIVO)
+
+    assert resposta.status_code == 201, resposta.text
+    [email] = banco.tabelas["nsp_avisos"]
+    assert email["destinatario_id"] == "P7"
+    assert email["caso_id"] == caso["id"]
+    assert email["marco"] == "encaminhamento_ouvidoria"
+    assert email["situacao"] == "pendente"
+    assert "NSP-2026-0001" in email["assunto"]
+    for parte in ("NSP-2026-0001", MOTIVO, RELATO):
+        assert parte in email["texto"], parte
+        assert any(parte in p for p in email["contexto"]["paragrafos"]), parte
+    assert banco.notificacoes[0]["estado"] == "encaminhada"
+
+
+def test_sem_ouvidor_ativo_a_ouvidoria_e_recusada_sem_gravar():
+    banco, caso = _cenario()
+    banco.tabelas["participantes"] = [p for p in banco.tabelas["participantes"] if p["id"] != "P7"]
+
+    resposta = _encaminhar(banco, caso, destinos=["ouvidoria"], motivo=MOTIVO)
+
+    assert resposta.status_code == 422
+    assert "ouvidor" in resposta.json()["detail"]
+    assert banco.tabelas.get("nsp_encaminhamentos", []) == []
+    assert banco.tabelas.get("nsp_avisos", []) == []
+    assert banco.notificacoes[0]["estado"] == "recebida"
