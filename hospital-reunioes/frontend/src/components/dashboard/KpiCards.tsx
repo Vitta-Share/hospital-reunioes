@@ -2,9 +2,12 @@
 
 import {
   AlertTriangle,
-  PenLine,
+  ArrowDown,
+  ArrowUp,
   Clock,
   Loader2,
+  Minus,
+  PenLine,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -22,21 +25,53 @@ export type ListaDoCard = "atas-paradas" | "aguardam-assinatura";
 
 export interface KpiCardsProps {
   stats: Stats | null;
+  /** Os cards da fotografia da semana anterior (issue #1873). Sem ela, sem seta. */
+  anterior?: Stats | null;
   loading: boolean;
   onNavigate: (href: string) => void;
   /** Os cards de atas abrem a lista no próprio dashboard (issue #1055). */
   onAbrirLista: (lista: ListaDoCard) => void;
 }
 
+// ─── Seta da semana (issue #1873) ────────────────────────────────────────────
+
+/** Compara o card com a fotografia da semana anterior. `subirEhBom` diz a cor:
+ * na conformidade, subir é bom; nos outros cards, subir é mais coisa parada. */
+function SetaDaSemana({ atual, anterior, subirEhBom }: { atual: number; anterior: number; subirEhBom: boolean }) {
+  const diferenca = atual - anterior;
+  if (diferenca === 0) {
+    return (
+      <span aria-label="Igual à semana anterior" title="Igual à semana anterior" className="inline-flex items-center text-xs text-text-secondary">
+        <Minus className="w-3.5 h-3.5" strokeWidth={2.5} />
+      </span>
+    );
+  }
+  const subiu = diferenca > 0;
+  const bom = subiu === subirEhBom;
+  const rotulo = `${subiu ? "Subiu" : "Caiu"} ${Math.abs(diferenca)} desde a semana anterior`;
+  const Icone = subiu ? ArrowUp : ArrowDown;
+  return (
+    <span
+      aria-label={rotulo}
+      title={rotulo}
+      className={`inline-flex items-center gap-0.5 text-xs font-semibold ${bom ? "text-success" : "text-error"}`}
+    >
+      <Icone className="w-3.5 h-3.5" strokeWidth={2.5} />
+      {Math.abs(diferenca)}
+    </span>
+  );
+}
+
 // ─── KPI definitions ─────────────────────────────────────────────────────────
 
-function buildKpis(stats: Stats | null) {
+function buildKpis(stats: Stats | null, anterior: Stats | null) {
   return [
     {
       id: "vencem-3dias",
       label: "Vencem em 3 dias",
       sublabel: null as string | null,
       value: stats?.vencemEm3Dias ?? 0,
+      antes: anterior?.vencemEm3Dias ?? null,
       icon: Clock,
       alertColor: "border-warning/40 bg-warning/5",
       neutralColor: "border-border",
@@ -50,6 +85,7 @@ function buildKpis(stats: Stats | null) {
       label: "Atas Paradas",
       sublabel: "> 3 dias" as string | null,
       value: stats?.atasParadas ?? 0,
+      antes: anterior?.atasParadas ?? null,
       icon: AlertTriangle,
       alertColor: "border-warning/40 bg-warning/5",
       neutralColor: "border-border",
@@ -63,6 +99,7 @@ function buildKpis(stats: Stats | null) {
       label: "Aguardam Assinatura",
       sublabel: null as string | null,
       value: stats?.aguardamAssinatura ?? 0,
+      antes: anterior?.aguardamAssinatura ?? null,
       icon: PenLine,
       alertColor: "border-primary/40 bg-primary/5",
       neutralColor: "border-border",
@@ -76,13 +113,14 @@ function buildKpis(stats: Stats | null) {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function KpiCards({ stats, loading, onNavigate, onAbrirLista }: KpiCardsProps) {
-  const kpis = buildKpis(stats);
+export default function KpiCards({ stats, anterior = null, loading, onNavigate, onAbrirLista }: KpiCardsProps) {
+  const kpis = buildKpis(stats, anterior);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
       {/* Conformidade — primeiro card */}
       <div
+        id="conformidade"
         onClick={() => onNavigate("/pendencias")}
         className="bg-surface rounded-2xl p-5 border border-border shadow-premium hover:shadow-premium-strong hover:-translate-y-1 transition-all duration-300 cursor-pointer animate-fade-in-up"
       >
@@ -134,6 +172,9 @@ export default function KpiCards({ stats, loading, onNavigate, onAbrirLista }: K
               </div>
             )}
           </div>
+          {!loading && stats && anterior && (
+            <SetaDaSemana atual={stats.conformidade} anterior={anterior.conformidade} subirEhBom />
+          )}
         </div>
         {loading ? (
           <Loader2 className="w-6 h-6 animate-spin text-slate-300 mb-1" />
@@ -179,6 +220,9 @@ export default function KpiCards({ stats, loading, onNavigate, onAbrirLista }: K
               >
                 <Icon className={`w-5 h-5 ${kpi.iconColor}`} strokeWidth={2} />
               </div>
+              {!loading && stats && kpi.antes !== null && (
+                <SetaDaSemana atual={kpi.value} anterior={kpi.antes} subirEhBom={false} />
+              )}
             </div>
             {loading ? (
               <Loader2 className="w-6 h-6 animate-spin text-slate-300 mb-1" />
