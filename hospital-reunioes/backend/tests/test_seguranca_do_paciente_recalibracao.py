@@ -234,3 +234,114 @@ def test_quem_nao_confirma_triagem_nao_ve_a_concordancia(pessoa):
 
     assert resposta.status_code == 403
     assert resposta.json() == RECUSA
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. A pendência aos 30 e aos 60 dias, uma vez cada, sem e-mail
+# ═══════════════════════════════════════════════════════════════════════════
+
+# A primeira notificação registrada chega em 01/10/2026, às 22h de Brasília
+# (01h de 02/10 em UTC): o dia que conta é o de Brasília.
+PRIMEIRA = _notificacao(1, criado_em="2026-10-02T01:00:00+00:00")
+DEPOIS = _notificacao(2, criado_em="2026-10-20T10:00:00+00:00")
+TRINTA_DIAS = date(2026, 10, 31)
+SESSENTA_DIAS = date(2026, 11, 30)
+
+
+def _cenario_do_lembrete(*pessoas: dict) -> _BancoDaRecalibracao:
+    banco = _banco([DEPOIS, PRIMEIRA])
+    banco.tabelas["participantes"].extend(dict(p) for p in pessoas)
+    return banco
+
+
+def _recalibrar(banco: _BancoDaRecalibracao) -> list[dict]:
+    return [p for p in banco.pendencias if p["descricao_acao"].startswith("Recalibrar o agente do NSP")]
+
+
+def test_aos_30_dias_nasce_a_pendencia_para_cada_pessoa_com_acesso_pleno():
+    banco = _cenario_do_lembrete(OUTRO_PLENO)
+
+    criadas = recalibracao.lembrar(banco, TRINTA_DIAS)
+
+    assert criadas == 2
+    pendencias = _recalibrar(banco)
+    assert sorted(p["responsavel_id"] for p in pendencias) == ["P5", "P7"]
+    assert all(p["descricao_acao"] == "Recalibrar o agente do NSP (30 dias)" for p in pendencias)
+    assert all(p.get("id_reuniao") is None and p["status"] == "PENDENTE" for p in pendencias)
+    assert banco.recalibracoes[0]["marco"] == 30
+    assert sorted(banco.recalibracoes[0]["pendencias"]) == sorted(p["id_acao"] for p in pendencias)
+
+
+def test_antes_dos_30_dias_nada_nasce():
+    banco = _cenario_do_lembrete()
+
+    assert recalibracao.lembrar(banco, TRINTA_DIAS - timedelta(days=1)) == 0
+    assert _recalibrar(banco) == []
+    assert banco.recalibracoes == []
+
+
+def test_cada_marco_nasce_uma_vez_so():
+    banco = _cenario_do_lembrete()
+
+    recalibracao.lembrar(banco, TRINTA_DIAS)
+    assert recalibracao.lembrar(banco, TRINTA_DIAS) == 0
+    assert recalibracao.lembrar(banco, TRINTA_DIAS + timedelta(days=5)) == 0
+    assert recalibracao.lembrar(banco, SESSENTA_DIAS) == 1
+    assert recalibracao.lembrar(banco, SESSENTA_DIAS + timedelta(days=1)) == 0
+
+    assert [p["descricao_acao"] for p in _recalibrar(banco)] == [
+        "Recalibrar o agente do NSP (30 dias)",
+        "Recalibrar o agente do NSP (60 dias)",
+    ]
+
+
+def test_a_pendencia_nao_vai_para_quem_nao_tem_acesso_pleno_nem_para_o_desligado():
+    banco = _cenario_do_lembrete(_pessoa("P8", perfil_nsp="acesso_pleno", ativo=False))
+
+    recalibracao.lembrar(banco, TRINTA_DIAS)
+
+    assert [p["responsavel_id"] for p in _recalibrar(banco)] == ["P5"]
+
+
+def test_sem_notificacao_nenhuma_nada_nasce():
+    banco = _banco()
+
+    assert recalibracao.lembrar(banco, SESSENTA_DIAS) == 0
+    assert banco.recalibracoes == []
+
+
+def test_o_marco_sem_ninguem_com_acesso_pleno_nasce_quando_alguem_chega():
+    banco = _banco([PRIMEIRA])
+    banco.tabelas["participantes"] = [dict(PRESIDENTE)]
+
+    assert recalibracao.lembrar(banco, TRINTA_DIAS) == 0
+    banco.tabelas["participantes"].append(dict(DIRETOR_EXECUTIVO))
+    assert recalibracao.lembrar(banco, TRINTA_DIAS + timedelta(days=1)) == 1
+    assert [p["responsavel_id"] for p in _recalibrar(banco)] == ["P5"]
+
+
+# O que denuncia IA ou e-mail no código: os módulos do app que falam com
+# provedor de modelo ou de e-mail e os SDKs.
+_MARCAS_DE_IA_E_EMAIL = ("ai_processor", "anthropic", "openai", "openrouter", "email", "resend", "smtp")
+
+
+def _marcas(codigo: str) -> list[str]:
+    return [marca for marca in _MARCAS_DE_IA_E_EMAIL if marca in codigo.lower()]
+
+
+def test_o_detector_reconhece_um_modulo_que_chama_ia_e_email():
+    """Piso do detector: o agente de triagem e o serviço de e-mail têm marca."""
+    from app.services import email_service
+    from app.services.seguranca_do_paciente import agente_de_triagem
+
+    assert _marcas(inspect.getsource(agente_de_triagem))
+    assert _marcas(inspect.getsource(email_service))
+
+
+def test_o_job_nao_fala_com_ia_nem_com_email():
+    from app.cron import scheduler
+
+    assert _marcas(inspect.getsource(recalibracao.lembrar)) == []
+    assert _marcas(inspect.getsource(scheduler.lembrar_recalibracao_do_agente)) == []
+    assert "recalibracao.lembrar(" in inspect.getsource(scheduler.lembrar_recalibracao_do_agente)
+    assert 'lembrar_recalibracao_do_agente,\n        "cron"' in inspect.getsource(scheduler.start_scheduler)

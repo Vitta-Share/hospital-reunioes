@@ -89,6 +89,10 @@ Jobs:
  22. rodada_de_avisos_conduta: 08:00 diário, grava os lembretes a cinco dias e a um
      dia do prazo dos casos do Canal de Conduta e entrega todo aviso pendente, um
      e-mail por pessoa (issue #1840). Cada marco é gravado uma vez por prazo. Sem IA.
+ 23. lembrar_recalibracao_do_agente: 05:55 diário, cria a Pendência "Recalibrar o
+     agente do NSP" para quem tem Acesso pleno aos 30 e aos 60 dias da primeira
+     notificação do Núcleo (issue #2001). Idempotente: cada marco nasce uma vez
+     (a chave de `nsp_recalibracoes`). Sem IA e sem e-mail.
 
 Nenhum job dispara IA por conta própria (ADR 0082): a recomendação da Validação
 e o segundo agente de Contas médicas rodam só pelo botão da tela. A fila de
@@ -526,6 +530,20 @@ def lembrar_agenda_regulatoria() -> None:
         logger.info(f"[Cron] Agenda regulatória: {criados} lembrete(s) como Pendência da Presidência.")
 
 
+def lembrar_recalibracao_do_agente() -> None:
+    """A pendência de recalibração do agente do Núcleo aos 30 e aos 60 dias
+    (issue #2001). A regra e a guarda de uma por marco vivem no serviço."""
+    from app.services.seguranca_do_paciente import recalibracao
+
+    try:
+        criadas = recalibracao.lembrar(_supabase(), _hoje_em_sao_paulo())
+    except Exception as e:
+        logger.error(f"[Cron] Erro em lembrar_recalibracao_do_agente: {type(e).__name__}")
+        return
+    if criadas:
+        logger.info(f"[Cron] Recalibração do agente: {criadas} pendência(s) para o Acesso pleno.")
+
+
 def avisar_termo_e_vigencia_nsp() -> None:
     """Os avisos do Termo sem assinatura e do fim da vigência do Núcleo (issue
     #1770). Os marcos, os destinatários e a guarda de um aviso por marco vivem
@@ -870,6 +888,16 @@ def start_scheduler() -> None:
         id="agenda_regulatoria_nsp",
         replace_existing=True,
     )
+    # 05:55. Disparo perdido num deploy sai no dia seguinte (o marco continua
+    # alcançado) e nunca duas vezes (a linha do marco).
+    scheduler.add_job(
+        lembrar_recalibracao_do_agente,
+        "cron",
+        hour=5,
+        minute=55,
+        id="recalibracao_agente_nsp",
+        replace_existing=True,
+    )
     # 08:00, no começo do expediente: o e-mail chega quando a pessoa está no
     # hospital. Disparo perdido num deploy sai no dia seguinte (o marco
     # continua alcançado) e nunca duas vezes (a linha em `nsp_avisos`).
@@ -979,7 +1007,7 @@ def start_scheduler() -> None:
         "retencao_contas_medicas (04:30), fila_contas_medicas (a cada 10s), contratos_contas_medicas (07:15), "
         "relatorio_quinzenal_ouvidoria (07:00 diário, email nos dias 1 e 16), "
         "reconciliacao_tecnologia (de hora em hora), nota_do_google (06:45, uma leitura por semana), "
-        "agenda_regulatoria_nsp (05:45), avisos_termo_e_vigencia_nsp (08:00), emails_nsp (a cada 10min), "
+        "agenda_regulatoria_nsp (05:45), recalibracao_agente_nsp (05:55), avisos_termo_e_vigencia_nsp (08:00), emails_nsp (a cada 10min), "
         "encerramento_atas_nsp (05:50), transcricoes_nsp (04:15), "
         "fotografia_painel_reunioes (segunda, 07h a 12h), email_de_segunda_reunioes (segunda, 08h a 12h)"
     )
