@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T13:35:41-03:00",
+      "sha": "df3a7fb8587a19a778dbfb18096f2ebcff913e3d",
+      "app_version": "0.345.0",
+      "subject": "Onda nsp2-onda4: QR e endereço da notificação na Configuração",
+      "raw_subject": "chore(deploy): registro da onda nsp2-onda4 (#2073)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1979
+      ],
+      "result": "healthy",
+      "duration_seconds": 246,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp2-onda4: PR #2073 (issue #2046), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 2,
+        "build_s": {
+          "backend": 22,
+          "frontend": 223
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T13:21:41-03:00",
       "sha": "ba1b2a0c74afc7fcb460b431174fe4c9a496a331",
       "app_version": "0.344.0",
