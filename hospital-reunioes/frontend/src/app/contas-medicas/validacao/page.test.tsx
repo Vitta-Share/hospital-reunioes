@@ -13,6 +13,8 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { comLegendas } from "@/lib/testes/legendas";
+
 import { ToastProvider } from "@/components/ui/Toast";
 import { caixaDoDado } from "@/lib/testes/caixaDoDado";
 import {
@@ -573,5 +575,34 @@ describe("o Ditar na resposta ao time (issue #1145)", () => {
     await waitFor(() => expect(campo.value).toBe("vem no pacote da ALFA"));
     expect(pedidos.filter((p) => p.url === "/api/transcricao/voz")).toHaveLength(1);
     expect(pedidos.filter((p) => p.url.endsWith("/decisao"))).toEqual([]);
+  });
+});
+
+describe("o subtítulo da tela (issue #1950)", () => {
+  it("é uma Legenda: some com as Legendas desligadas e volta com elas ligadas", async () => {
+    servidor();
+    render(
+      comLegendas(
+        false,
+        <ToastProvider>
+          <ValidacaoPage />
+        </ToastProvider>,
+      ),
+    );
+
+    await screen.findByRole("heading", { level: 1, name: "Validação" });
+    expect(screen.queryByText(/^Regras pendentes, códigos bloqueados/)).toBeNull();
+    cleanup();
+
+    render(
+      comLegendas(
+        true,
+        <ToastProvider>
+          <ValidacaoPage />
+        </ToastProvider>,
+      ),
+    );
+
+    expect(await screen.findByText(/^Regras pendentes, códigos bloqueados/)).toBeTruthy();
   });
 });

@@ -15,6 +15,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { AlertCircle, ArrowLeft, Download, Loader2, Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { Legenda } from "@/components/ui/Legenda";
 
 type Situacao = "EM_DIA" | "NEGOCIAR" | "VENCIDO" | "SEM_CONTRATO";
 
@@ -178,10 +179,10 @@ export default function ContratosPage() {
           <ArrowLeft className="w-4 h-4" aria-hidden="true" /> Contas médicas
         </Link>
         <h1 className="text-2xl font-bold text-slate-900">Contratos</h1>
-        <p className="text-slate-500 text-sm mt-0.5">
+        <Legenda>
           O contrato de cada operadora e o vencimento. Na data do aviso, quem acompanha os contratos recebe o lembrete
           de reajuste no sino.
-        </p>
+        </Legenda>
       </div>
 
       {erroGeral && (

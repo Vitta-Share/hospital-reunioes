@@ -15,6 +15,8 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { comLegendas } from "@/lib/testes/legendas";
+
 import type { AbaDeCenarios, Conferencia } from "@/lib/contas-medicas/coordenacao";
 
 import { ToastProvider } from "@/components/ui/Toast";
@@ -310,5 +312,34 @@ describe("caixa alta (issue #1455)", () => {
 
     const botao = await screen.findByRole("button", { name: "Copiar código 70000002" });
     expect(caixaDoDado(botao)).toBe("normal-case");
+  });
+});
+
+describe("o subtítulo da tela (issue #1950)", () => {
+  it("é uma Legenda: some com as Legendas desligadas e volta com elas ligadas", async () => {
+    servidor();
+    render(
+      comLegendas(
+        false,
+        <ToastProvider>
+          <CoordenacaoPage />
+        </ToastProvider>,
+      ),
+    );
+
+    await screen.findByRole("heading", { level: 1, name: "Coordenação" });
+    expect(screen.queryByText(/^A segunda checagem: quando o prontuário mostra/)).toBeNull();
+    cleanup();
+
+    render(
+      comLegendas(
+        true,
+        <ToastProvider>
+          <CoordenacaoPage />
+        </ToastProvider>,
+      ),
+    );
+
+    expect(await screen.findByText(/^A segunda checagem: quando o prontuário mostra/)).toBeTruthy();
   });
 });

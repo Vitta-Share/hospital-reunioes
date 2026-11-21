@@ -14,6 +14,8 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { cloneElement, type ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { comLegendas } from "@/lib/testes/legendas";
+
 import { type Painel, PERGUNTA_A_CADA_MS, type PedidoAoSegundoAgente } from "@/lib/contas-medicas/painel";
 
 import PainelPage from "./page";
@@ -332,5 +334,20 @@ describe("o botão do segundo agente (ADR 0082, issue #1523)", () => {
 
     await waitFor(() => expect(pedidos(fetch).length).toBe(antes + 1));
     await waitFor(() => expect(screen.queryByRole("region", { name: "Segundo agente" })).toBeNull());
+  });
+});
+
+describe("o subtítulo da tela (issue #1950)", () => {
+  it("é uma Legenda: some com as Legendas desligadas e volta com elas ligadas", async () => {
+    servidorResponde(PAINEL);
+    render(comLegendas(false, <PainelPage />));
+
+    await screen.findByRole("heading", { level: 1, name: "Painel" });
+    expect(screen.queryByText(/^A nota da semana e onde a perda da conta nasce/)).toBeNull();
+    cleanup();
+
+    render(comLegendas(true, <PainelPage />));
+
+    expect(await screen.findByText(/^A nota da semana e onde a perda da conta nasce/)).toBeTruthy();
   });
 });

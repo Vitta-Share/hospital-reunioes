@@ -12,7 +12,7 @@
  * escura enquanto há prazo vencido e as regras de texto da casa: vermelho só
  * em texto, sem seta nem chevron, sem travessão e caixa alta (ADR 0080).
  */
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { caixaDoDado } from "@/lib/testes/caixaDoDado";
@@ -378,12 +378,13 @@ describe("o acabamento do protótipo (issue #1935)", () => {
   it("o título da aba leva o número de prazos vencidos, e só Início quando não há", async () => {
     document.title = "Gestão HSM";
     const { unmount } = await abrir();
-    expect(document.title).toBe("(2) Início");
+    // O título sai de um efeito passivo, que pode rodar depois da frase aparecer.
+    await waitFor(() => expect(document.title).toBe("(2) Início"));
     unmount();
     expect(document.title).toBe("Gestão HSM");
 
     await abrir(EM_DIA);
-    expect(document.title).toBe("Início");
+    await waitFor(() => expect(document.title).toBe("Início"));
   });
 
   it("em dia: a frase diz que está em dia e o próximo prazo, sem faixa escura", async () => {

@@ -12,6 +12,9 @@ import { createClient } from "../supabase/server";
  * admin, que passa em todos os módulos); repetir a regra aqui seria ter duas.
  *
  * Quem o módulo recusa (403) volta ao início, sem receber a página.
+ *
+ * Devolve também as permissões que a mesma resposta traz: a casca do módulo
+ * monta as abas com elas, numa leitura só (issue #1950).
  */
 export async function requireContasMedicasAccess() {
   const supabase = await createClient();
@@ -34,5 +37,8 @@ export async function requireContasMedicasAccess() {
   // Falha de leitura também fecha a porta: sem saber quem é, ninguém entra.
   if (!res.ok) redirect("/dashboard");
 
-  return { user };
+  const corpo = await res.json().catch(() => null);
+  const permissoes: string[] = Array.isArray(corpo?.permissoes) ? corpo.permissoes : [];
+
+  return { user, permissoes };
 }

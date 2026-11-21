@@ -14,6 +14,8 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { comLegendas } from "@/lib/testes/legendas";
+
 import HabilitacaoPage from "./page";
 
 vi.mock("@/lib/supabase/client", () => ({
@@ -220,5 +222,19 @@ describe("as pessoas", () => {
         { url: "/api/contas-medicas/habilitacao/pessoas/C1", metodo: "PUT", corpo: { perfil: null } },
       ]),
     );
+  });
+});
+
+describe("o subtítulo da tela (issue #1950)", () => {
+  it("é uma Legenda: some com as Legendas desligadas e volta com elas ligadas", async () => {
+    render(comLegendas(false, <HabilitacaoPage />));
+
+    await screen.findByRole("heading", { level: 1, name: "Habilitação" });
+    expect(screen.queryByText(/^O que cada perfil pode fazer no módulo/)).toBeNull();
+    cleanup();
+
+    render(comLegendas(true, <HabilitacaoPage />));
+
+    expect(await screen.findByText(/^O que cada perfil pode fazer no módulo/)).toBeTruthy();
   });
 });

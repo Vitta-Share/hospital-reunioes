@@ -15,6 +15,8 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { comLegendas } from "@/lib/testes/legendas";
+
 import ContratosPage from "./page";
 
 vi.mock("@/lib/supabase/client", () => ({
@@ -234,5 +236,19 @@ describe("a tela Contratos", () => {
       expect(corpo?.vencimento).toBe("2028-03-31");
       expect(corpo?.vencimento_calculado).toBe(false);
     });
+  });
+});
+
+describe("o subtítulo da tela (issue #1950)", () => {
+  it("é uma Legenda: some com as Legendas desligadas e volta com elas ligadas", async () => {
+    render(comLegendas(false, <ContratosPage />));
+
+    await screen.findByRole("heading", { level: 1, name: "Contratos" });
+    expect(screen.queryByText(/^O contrato de cada operadora e o vencimento/)).toBeNull();
+    cleanup();
+
+    render(comLegendas(true, <ContratosPage />));
+
+    expect(await screen.findByText(/^O contrato de cada operadora e o vencimento/)).toBeTruthy();
   });
 });

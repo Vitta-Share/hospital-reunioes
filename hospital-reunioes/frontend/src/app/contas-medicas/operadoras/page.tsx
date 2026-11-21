@@ -25,6 +25,7 @@ import { PropostasDoDicionario } from "@/components/contas-medicas/PropostasDoDi
 import { TabelasDePreco } from "@/components/contas-medicas/TabelasDePreco";
 import { createClient } from "@/lib/supabase/client";
 import { Select } from "@/components/ui/Select";
+import { Legenda } from "@/components/ui/Legenda";
 import {
   CATEGORIAS_DE_ENVIO,
   COR_SITUACAO,
@@ -207,9 +208,9 @@ export default function OperadorasPage() {
           <ArrowLeft className="w-4 h-4" aria-hidden="true" /> Contas médicas
         </Link>
         <h1 className="text-2xl font-bold text-slate-900">Operadoras</h1>
-        <p className="text-slate-500 text-sm mt-0.5">
+        <Legenda>
           A memória de cada convênio, os planos como o MV imprime e os setores com a acomodação.
-        </p>
+        </Legenda>
       </div>
 
       {erroGeral && (

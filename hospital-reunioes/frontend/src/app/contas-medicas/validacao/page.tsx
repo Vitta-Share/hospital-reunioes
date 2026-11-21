@@ -24,6 +24,7 @@ import Link from "next/link";
 import { AlertCircle, ArrowLeft, CheckCheck, Loader2, Sparkles } from "lucide-react";
 
 import { CartaoDeTema } from "@/components/contas-medicas/CartaoDeTema";
+import { Legenda } from "@/components/ui/Legenda";
 import { reais } from "@/lib/contas-medicas/guia";
 import { detalheDoErro } from "@/lib/contas-medicas/operadoras";
 import { textoEmDolar } from "@/lib/contas-medicas/painel";
@@ -273,10 +274,10 @@ export default function ValidacaoPage() {
           <ArrowLeft className="w-4 h-4" aria-hidden="true" /> Contas médicas
         </Link>
         <h1 className="text-2xl font-bold text-slate-900">Validação</h1>
-        <p className="text-slate-500 text-sm mt-0.5">
+        <Legenda>
           Regras pendentes, códigos bloqueados e observações do time, por tema, com quantas contas e quanto dinheiro
           esperam a sua decisão.
-        </p>
+        </Legenda>
       </div>
 
       {erro && (

@@ -702,7 +702,7 @@ ARQUIVOS_DA_FATIA = [
     RAIZ_DO_APP / "backend/app/prompts/contas_medicas_contrato.md",
     RAIZ_DO_APP / "backend/app/conhecimento/contas-medicas.md",
     RAIZ_DO_APP / "frontend/src/app/contas-medicas/contratos/page.tsx",
-    RAIZ_DO_APP / "frontend/src/components/contas-medicas/LinkParaContratos.tsx",
+    RAIZ_DO_APP / "frontend/src/components/contas-medicas/CascaDoModulo.tsx",
     Path(__file__),
 ]
 
