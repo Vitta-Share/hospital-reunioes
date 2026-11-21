@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T20:40:03-03:00",
+      "sha": "a9aa609393ba3e2463c05c2153a477e89c7bfc6f",
+      "app_version": "0.358.0",
+      "subject": "Onda sesta-1786-onda4: Agente de triagem do Canal e teste do Anexo B",
+      "raw_subject": "chore(deploy): registro da onda sesta-1786-onda4 (#2104)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 259,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "200_conduta_agente_de_triagem.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1786-onda4: PR #2104 (issue #1827), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 19,
+          "frontend": 205
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T20:26:32-03:00",
       "sha": "225cd9be236d70813f6f07834fc23e19ddfad395",
       "app_version": "0.357.0",
