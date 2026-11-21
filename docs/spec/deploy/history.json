@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T11:53:44-03:00",
+      "sha": "ac7046b58d99da8e7c18c7e6675fdde8a44833ae",
+      "app_version": "0.337.0",
+      "subject": "Onda sesta-1933-onda5: Arquivar por Competência e desarquivar",
+      "raw_subject": "chore(deploy): registro da onda sesta-1933-onda5 (#2084)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1933
+      ],
+      "result": "healthy",
+      "duration_seconds": 35774,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "176_contas_medicas_arquivar_por_competencia.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1933-onda5: PR #2084 (issue #1958), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 2,
+        "build_s": {
+          "backend": 30,
+          "frontend": 272
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T01:07:52-03:00",
       "sha": "176e8b0cb7b550d366999fa01729a0f93fb5f9d7",
       "app_version": "0.336.0",
