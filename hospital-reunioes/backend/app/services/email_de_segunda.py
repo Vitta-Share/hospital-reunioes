@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, time, timedelta
 
 from app.config import settings
-from app.dependencies import foi_desligado, is_secretaria, reunioes_ocultas
+from app.dependencies import _PARTICIPANTE_FULL_FIELDS, foi_desligado, is_secretaria, reunioes_ocultas
 from app.services.email_constants import get_logo_data_uri
 from app.services.email_service import _enviar_email, jinja_env, transporte_configurado
 from app.services.paginacao import ler_tudo
@@ -239,14 +239,12 @@ def enviar_semana(supabase, *, hoje: date) -> int:
             rotulo="e-mails de segunda da semana",
         )
     }
+    # O cadastro inteiro: o sigilo do Núcleo lê `perfil_nsp` e `role`.
     pessoas = {
         p["id"]: p
         for p in ler_tudo(
             lambda: (
-                supabase.table("participantes")
-                .select("id, nome_completo, email, access_profile, ativo")
-                .not_.is_("email", "null")
-                .order("id")
+                supabase.table("participantes").select(_PARTICIPANTE_FULL_FIELDS).not_.is_("email", "null").order("id")
             ),
             rotulo="quem recebe o e-mail de segunda",
         )
@@ -260,8 +258,16 @@ def enviar_semana(supabase, *, hoje: date) -> int:
         ),
         rotulo="reuniões do e-mail de segunda",
     )
+    # A Pendência sem Reunião é o lembrete da Agenda regulatória do Núcleo:
+    # como nas listas de Pendências, não entra (`e_lembrete_do_nucleo`).
     pendencias = ler_tudo(
-        lambda: supabase.table("pendencias").select(_CAMPOS_DA_PENDENCIA).is_("deleted_at", "null").order("id_acao"),
+        lambda: (
+            supabase.table("pendencias")
+            .select(_CAMPOS_DA_PENDENCIA)
+            .is_("deleted_at", "null")
+            .not_.is_("id_reuniao", "null")
+            .order("id_acao")
+        ),
         rotulo="pendências do e-mail de segunda",
     )
     eventos = ler_tudo(

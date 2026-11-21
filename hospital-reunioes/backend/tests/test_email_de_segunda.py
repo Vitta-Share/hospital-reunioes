@@ -56,12 +56,17 @@ class _Consulta:
         self._recorte: tuple[int, int] | None = None
         self._upsert = None
         self._apagar = False
+        self._colunas: list[str] | None = None
 
     @property
     def not_(self):
         return _Negacao(self)
 
-    def select(self, *_a, **_kw):
+    def select(self, colunas="*", **_kw):
+        # Só as colunas pedidas voltam, como no PostgREST: coluna esquecida no
+        # select some do dict, e a regra que a lê decide sem ela.
+        if colunas != "*":
+            self._colunas = [c.strip() for c in colunas.split(",")]
         return self
 
     def eq(self, coluna, valor):
@@ -116,7 +121,7 @@ class _Consulta:
             for linha in achadas:
                 self._linhas.remove(linha)
             return _Result([dict(linha) for linha in achadas])
-        linhas = [dict(linha) for linha in achadas]
+        linhas = [{c: linha.get(c) for c in self._colunas} if self._colunas else dict(linha) for linha in achadas]
         if self._recorte is not None:
             inicio, fim = self._recorte
             linhas = linhas[inicio : fim + 1]
@@ -135,13 +140,14 @@ class _Banco:
         return _Consulta(getattr(self, nome))
 
 
-def _pessoa(pid, nome, *, perfil="regular", email=True, ativo=True) -> dict:
+def _pessoa(pid, nome, *, perfil="regular", email=True, ativo=True, perfil_nsp=None) -> dict:
     return {
         "id": pid,
         "nome_completo": nome,
         "email": f"{pid.lower()}@hsm.test" if email else None,
         "access_profile": perfil,
         "ativo": ativo,
+        "perfil_nsp": perfil_nsp,
     }
 
 
@@ -331,6 +337,7 @@ def _banco_do_facilitador(banco: _Banco) -> _Banco:
         _pendencia("A3", "Comprar luvas", "P_BRUNO", id_reuniao="R1", prazo="2026-12-15"),
         _pendencia("A4", "Pintar a sala", "P_BRUNO", id_reuniao="R1", prazo=ATRASADA),
         _pendencia("A5", "Revisar a escala", "P_BRUNO", id_reuniao="R1"),
+        _pendencia("A6", "Conferir o carrinho de parada", "P_BRUNO", id_reuniao="R1"),
         # De outra Reunião, de outro Facilitador.
         _pendencia("A9", "Contratar o técnico", "P_BRUNO", id_reuniao="R9", status="CONCLUIDO"),
     ]
@@ -340,6 +347,7 @@ def _banco_do_facilitador(banco: _Banco) -> _Banco:
         _evento("A3", "repactuar", "2026-11-19T12:00:00+00:00", "O fornecedor atrasou.", prazo_depois="2026-12-15"),
         # Na semana anterior (domingo, 15/11, 23h em São Paulo): não entra.
         _evento("A5", "anotar", "2026-11-16T02:00:00+00:00", "Escala revista em parte."),
+        _evento("A6", "anotar", "2026-11-20T15:00:00+00:00", "Falta repor a adrenalina."),
         _evento("A9", "concluir", "2026-11-18T13:00:00+00:00", "Técnico contratado."),
     ]
     return banco
@@ -357,6 +365,8 @@ def test_email_do_facilitador_traz_conclusoes_atualizacoes_repactuacoes_e_atrasa
     assert "Trocar o monitor" in secoes["Concluídas na semana"]
     assert "Monitor trocado e testado." in secoes["Concluídas na semana"]
     assert "Treinar a equipe" in secoes["Atualizadas na semana"]
+    assert "Conferir o carrinho de parada" in secoes["Atualizadas na semana"]
+    assert "Falta repor a adrenalina." in secoes["Atualizadas na semana"]
     assert "Comprar luvas" in secoes["Repactuadas na semana"]
     assert "15/12/2026" in secoes["Repactuadas na semana"]
     assert "O fornecedor atrasou." in secoes["Repactuadas na semana"]
@@ -417,6 +427,55 @@ def test_pendencia_de_reuniao_do_nucleo_fica_fora_para_quem_o_nucleo_nao_libera(
     assert "Trocar o monitor do leito 4" in email["html"]
     assert "Notificar o evento adverso" not in email["html"]
     assert "Notificar o evento adverso" not in email["texto"]
+
+
+def test_acesso_pleno_ve_a_reuniao_do_nucleo_que_facilita_e_quem_nao_tem_nao_ve(job, monkeypatch):
+    """O caminho real do sigilo, com o dict da pessoa como o job o lê do banco."""
+    from app import dependencies
+    from app.services import colegiados
+
+    rodar, estado = job
+    banco = _so_responsavel(estado["banco"])
+    banco.participantes.append(_pessoa("P_DIRETOR", "Diretor Executivo", perfil_nsp="acesso_pleno"))
+    banco.reunioes.append(_reuniao("R_NSP", "P_DIRETOR", "Reunião do Núcleo"))
+    banco.pendencias += [
+        _pendencia("N1", "Analisar o evento adverso", "P_BRUNO", id_reuniao="R_NSP", prazo=ATRASADA),
+        _pendencia("N2", "Revisar o protocolo de quedas", "P_DIRETOR", id_reuniao="R_NSP"),
+    ]
+    monkeypatch.setattr(email_de_segunda, "reunioes_do_nucleo", lambda _sb: ["R_NSP"])
+    monkeypatch.setattr(dependencies, "reunioes_do_nucleo", lambda _sb: ["R_NSP"])
+    # Ninguém tem Participação no Núcleo: só o Acesso pleno libera.
+    monkeypatch.setattr(colegiados, "vinculo_vigente", lambda *_a, **_kw: (None, False))
+
+    rodar()
+
+    (do_diretor,) = _para(estado, "P_DIRETOR")
+    secoes = _secoes(do_diretor["html"])
+    assert "Analisar o evento adverso" in secoes["Seguem atrasadas"]
+    assert "Revisar o protocolo de quedas" in secoes["Suas pendências em aberto"]
+    (do_bruno,) = _para(estado, "P_BRUNO")
+    assert "Trocar o monitor do leito 4" in do_bruno["html"]
+    assert "Analisar o evento adverso" not in do_bruno["html"]
+
+
+def test_lembrete_da_agenda_regulatoria_nao_entra_no_email(job):
+    """A Pendência sem Reunião é o lembrete do Núcleo (ADR 0095, decisão 4):
+    nenhuma lista de Pendências o mostra, e o e-mail também não."""
+    rodar, estado = job
+    banco = _so_responsavel(estado["banco"])
+    banco.participantes.append(_pessoa("P_EX", "Ex-Presidente do Núcleo"))
+    banco.pendencias += [
+        _pendencia("L1", "Enviar o relatório à Anvisa", "P_EX", id_reuniao=None, prazo=ATRASADA),
+        _pendencia("L2", "Renovar o alvará sanitário", "P_BRUNO", id_reuniao=None),
+    ]
+
+    rodar()
+
+    assert _para(estado, "P_EX") == []
+    (do_bruno,) = _para(estado, "P_BRUNO")
+    assert "Trocar o monitor do leito 4" in do_bruno["html"]
+    assert "Renovar o alvará sanitário" not in do_bruno["html"]
+    assert "Renovar o alvará sanitário" not in do_bruno["texto"]
 
 
 # ─── 5. As duas coisas, um e-mail ────────────────────────────────────────────
