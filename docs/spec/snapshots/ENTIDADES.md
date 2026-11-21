@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T14:49+0000 -->
+<!-- last_update: 2026-11-21T14:57+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2453,6 +2453,30 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_conduta_trilha_caso` em `(caso_id, seq DESC)` (de `175_conduta_fundacao.sql`)
 - `idx_conduta_trilha_autor` em `(autor_id)` (de `175_conduta_fundacao.sql`)
 
+## rotinas
+
+> Origem: `177_rotina_e_verificacao.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `id_reuniao` | `VARCHAR(20)` | NOT NULL | — | `reunioes.id_reuniao` |
+| `quadro_pos` | `INTEGER` | NOT NULL | — | — |
+| `descricao` | `TEXT` | NOT NULL | — | — |
+| `responsavel_id` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `responsavel_nome` | `TEXT` | NOT NULL | `''` | — |
+| `frequencia` | `TEXT` | — | — | — |
+| `comeca_em` | `DATE` | — | — | — |
+| `status` | `TEXT` | NOT NULL | `'ATIVA'` | — |
+| `encerrada_em` | `DATE` | — | — | — |
+| `encerrada_por_id` | `VARCHAR(10)` | — | — | — |
+| `encerrada_por_nome` | `TEXT` | — | — | — |
+| `anotacao_encerramento` | `TEXT` | — | — | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_rotinas_responsavel` em `(responsavel_id)` (de `177_rotina_e_verificacao.sql`)
+
 ---
 
-**Resumo:** 120 tabelas vivas.
+**Resumo:** 121 tabelas vivas.

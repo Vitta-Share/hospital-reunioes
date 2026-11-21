@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T14:49+0000 -->
+<!-- last_update: 2026-11-21T14:57+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -149,6 +149,7 @@ erDiagram
     participantes ||--o{ reunioes : "criada_por"
     participantes ||--o{ reunioes : "facilitador_id"
     participantes ||--o{ reunioes : "nome_arquivo_original"
+    participantes ||--o{ rotinas : "responsavel_id"
     participantes ||--o{ tecnologia_anexos : "anexado_por"
     participantes ||--o{ tecnologia_conversa_da_demanda : "autor_id"
     participantes ||--o{ tecnologia_conversas : "autor_id"
@@ -180,6 +181,7 @@ erDiagram
     reunioes ||--o{ reuniao_participantes : "id_reuniao"
     reunioes ||--o{ reuniao_presencas : "id_reuniao"
     reunioes ||--o{ reunioes : "reagendada_de"
+    reunioes ||--o{ rotinas : "id_reuniao"
     reunioes ||--o{ tokens_validacao : "id_reuniao"
     tecnologia_conversas ||--o{ tecnologia_anexos : "conversa_id"
     tecnologia_demandas ||--o{ tecnologia_anexos : "demanda_id"
@@ -1318,6 +1320,17 @@ erDiagram
         TEXT codigo_anterior
         TEXT codigo
     }
+    rotinas {
+        UUID id PK
+        VARCHAR id_reuniao FK
+        INTEGER quadro_pos
+        TEXT descricao
+        VARCHAR responsavel_id FK
+        TEXT responsavel_nome
+        TEXT frequencia
+        DATE comeca_em
+        _ mais_colunas "+6"
+    }
 ```
 
 ## Indexes principais
@@ -1534,6 +1547,7 @@ erDiagram
 | `conduta_citados` | `idx_conduta_citados_caso` | `caso_id` | `175_conduta_fundacao.sql` |
 | `conduta_trilha` | `idx_conduta_trilha_caso` | `caso_id, seq DESC` | `175_conduta_fundacao.sql` |
 | `conduta_trilha` | `idx_conduta_trilha_autor` | `autor_id` | `175_conduta_fundacao.sql` |
+| `rotinas` | `idx_rotinas_responsavel` | `responsavel_id` | `177_rotina_e_verificacao.sql` |
 
 ---
-**Resumo:** 120 tabelas · 182 relacionamentos FK detectados.
+**Resumo:** 121 tabelas · 184 relacionamentos FK detectados.

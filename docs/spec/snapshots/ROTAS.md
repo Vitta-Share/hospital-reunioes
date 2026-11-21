@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T14:49+0000 -->
+<!-- last_update: 2026-11-21T14:57+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -501,6 +501,15 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/pops/{pop_id}/validacao/devolver` | Devolução do Validador: EM_VALIDACAO → EM_ELABORACAO com etapa de | ✅ |
 | GET | `/pops/{pop_id}/versao` | A Versão completa para leitura formal — mesma renderização das 11 | ✅ |
 
+## rotinas (`app/routers/rotinas.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| GET | `/rotinas` | As Rotinas de quem pede, com os ciclos em aberto e as Verificações. | ✅ |
+| POST | `/rotinas/{id_rotina}/ciclos/{inicio}/nao-realizada` | Não realizada pede anotação. | ✅ |
+| POST | `/rotinas/{id_rotina}/ciclos/{inicio}/realizada` | Realizada é um clique, sem anotação. | ✅ |
+| POST | `/rotinas/{id_rotina}/encerrar` | O Facilitador (ou o Super admin) encerra a qualquer momento, com anotação. | ✅ |
+
 ## seguranca-do-paciente (`app/routers/seguranca_do_paciente.py`)
 
 | Método | Rota | O que faz | Auth |
@@ -709,4 +718,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 403 endpoints em 60 routers · 93% exigem auth.
+**Totais:** 407 endpoints em 61 routers · 93% exigem auth.
