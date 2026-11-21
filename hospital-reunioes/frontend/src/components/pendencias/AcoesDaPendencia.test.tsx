@@ -296,6 +296,60 @@ describe("contestação do item da Ata (issue #1870)", () => {
     });
   });
 
+  it("o facilitador ajusta o responsável errado escolhendo a pessoa certa no cadastro", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        chamadas.push({ url, init });
+        if (init?.method === "POST") return new Response(JSON.stringify({ id_acao: "A001" }), { status: 200 });
+        if (url.startsWith("/api/participantes")) {
+          return new Response(JSON.stringify([{ id: "P_CERTO", nome_completo: "Carla Certa", cargo: "Enfermeira" }]), {
+            status: 200,
+          });
+        }
+        return new Response(JSON.stringify({ eventos: [], acoes_permitidas: ["ajustar", "recusar"] }), { status: 200 });
+      })
+    );
+    montar();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Ajustar" }));
+    fireEvent.change(screen.getByLabelText("Anotação (obrigatória)"), { target: { value: "A luva é com a Carla" } });
+    fireEvent.change(screen.getByLabelText("Responsável novo (opcional)"), { target: { value: "Carla" } });
+    fireEvent.click(await screen.findByRole("button", { name: /Carla Certa/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+
+    await waitFor(() => expect(chamadas.some((c) => c.init?.method === "POST")).toBe(true));
+    expect(chamadas.some((c) => c.url.startsWith("/api/participantes?nome=Carla"))).toBe(true);
+    const post = chamadas.find((c) => c.init?.method === "POST");
+    expect(JSON.parse(String(post?.init?.body))).toEqual({
+      comando: "ajustar",
+      anotacao: "A luva é com a Carla",
+      responsavel_id: "P_CERTO",
+    });
+  });
+
+  it("o histórico mostra a troca de responsável do ajuste", async () => {
+    comHistorico({
+      eventos: [
+        {
+          id: 3,
+          comando: "ajustar",
+          anotacao: "Era a Carla",
+          autor_nome: "Fábio",
+          responsavel_antes: "Edu Errado",
+          responsavel_depois: "Carla Certa",
+          criado_em: "2026-11-19T14:00:00+00:00",
+          conta_atraso: false,
+        },
+      ],
+      acoes_permitidas: [],
+    });
+    montar();
+
+    const itens = within(await screen.findByRole("list", { name: "Histórico da pendência" })).getAllByRole("listitem");
+    expect(itens[0].textContent).toContain("Responsável novo: Carla Certa (era Edu Errado)");
+  });
+
   it("recusar só confirma com anotação", async () => {
     comHistorico({ eventos: [], acoes_permitidas: ["ajustar", "recusar"] });
     montar();

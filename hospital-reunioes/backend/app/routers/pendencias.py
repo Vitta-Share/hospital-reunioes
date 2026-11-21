@@ -477,6 +477,7 @@ async def agir_na_pendencia(
             autor_nome=(me or {}).get("nome_completo") or current_user.get("email") or "Sem nome",
             hoje=hoje_em_brasilia(),
             prazo_novo=body.prazo,
+            responsavel_novo=body.responsavel_id,
             **momento,
         )
     except AcaoRecusada as recusa:

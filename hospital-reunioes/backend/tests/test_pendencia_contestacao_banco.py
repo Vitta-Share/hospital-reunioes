@@ -44,6 +44,11 @@ def banco():
     pg.subir()
     try:
         pg.ok(ESQUEMA_ANTERIOR)
+        # As colunas do responsável que a produção tem e o esquema mínimo não.
+        pg.ok(
+            "ALTER TABLE pendencias ADD COLUMN responsavel_nome TEXT, ADD COLUMN cargo TEXT;"
+            "INSERT INTO participantes (id, nome_completo) VALUES ('P_ERR', 'Edu Errado'), ('P_OK', 'Carla Certa');"
+        )
         pg.ok("INSERT INTO reunioes (id_reuniao, json_ata) VALUES ('R9', '{}');")
         pg.ok(MIGRATION.read_text(encoding="utf-8"))
         pg.ok(MIGRATION_171.read_text(encoding="utf-8"))
@@ -109,3 +114,27 @@ def test_ajustar_e_recusar_tambem_exigem_anotacao_no_banco(banco):
         r = _acao(banco, "A303", comando, "   ")
         assert r.returncode != 0, comando
     assert banco.ok("SELECT count(*) FROM pendencia_historico WHERE id_acao = 'A303';") == "1"
+
+
+def test_o_ajuste_troca_o_responsavel_na_pendencia_e_o_historico_guarda_a_troca(banco):
+    banco.ok(
+        "INSERT INTO pendencias (id_acao, id_reuniao, descricao_acao, prazo, status, "
+        "responsavel_id, responsavel_nome, cargo) "
+        "VALUES ('A304', 'R9', 'Comprar luvas', '2026-12-01', 'PENDENTE', 'P_ERR', 'Edu Errado', 'Copeiro');"
+    )
+    assert _acao(banco, "A304", "contestar", "a luva é com a Carla").returncode == 0
+    r = banco.sql(
+        "SELECT registrar_acao_da_pendencia('A304', 'ajustar', 'era a Carla', 'P01', 'Ana', "
+        "'PENDENTE', 'PENDENTE', NULL, NULL, false, 'P_OK', 'Carla Certa', 'Enfermeira');",
+        papel="service_role",
+    )
+    assert r.returncode == 0, r.stderr
+
+    assert (
+        banco.ok("SELECT responsavel_id, responsavel_nome, cargo, prazo FROM pendencias WHERE id_acao = 'A304';")
+        == "P_OK|Carla Certa|Enfermeira|2026-12-01"
+    )
+    assert banco.ok(
+        "SELECT comando, responsavel_antes, responsavel_depois FROM pendencia_historico "
+        "WHERE id_acao = 'A304' ORDER BY id;"
+    ).splitlines() == ["nascimento||", "contestar||", "ajustar|Edu Errado|Carla Certa"]

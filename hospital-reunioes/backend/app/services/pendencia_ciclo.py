@@ -11,8 +11,9 @@ vencido) e Repactuada também (há Repactuação no histórico).
 
 A Contestação (issue #1870): só o responsável contesta o item, e só com a Ata
 em assinatura; o Facilitador e o Super admin ajustam ou recusam. Nenhum dos
-três muda o estado, então o item contestado segue cobrado. Se há Contestação
-aberta sai do histórico e chega aqui como `contestada`.
+três muda o estado, então o item contestado segue cobrado. O ajuste corrige o
+prazo, o responsável ou os dois. Se há Contestação aberta sai do histórico e
+chega aqui como `contestada`.
 """
 
 from __future__ import annotations
@@ -94,6 +95,8 @@ class Mudanca:
     concluida: bool | None
     # Repactuação ou Reabertura feita com o prazo já vencido (ranking).
     conta_atraso: bool
+    # O responsável novo do ajuste (issue #1870); None não mexe.
+    responsavel_id: str | None = None
 
 
 def esta_atrasada(status: str, prazo: date | None, hoje: date) -> bool:
@@ -148,6 +151,7 @@ def decidir(
     hoje: date,
     anotacao: str | None,
     prazo_novo: date | None = None,
+    responsavel_novo: str | None = None,
     ata_em_assinatura: bool = False,
     contestada: bool = False,
 ) -> Mudanca:
@@ -171,6 +175,8 @@ def decidir(
             raise AcaoRecusada("dados", "Só repactuar, reabrir e ajustar mudam o prazo.")
         if prazo_novo < hoje:
             raise AcaoRecusada("dados", "O prazo novo não pode estar no passado.")
+    if responsavel_novo is not None and comando is not Comando.AJUSTAR:
+        raise AcaoRecusada("dados", "Só o ajuste de uma contestação troca o responsável.")
 
     vencido = prazo is not None and prazo < hoje
 
@@ -179,7 +185,7 @@ def decidir(
     if comando in (Comando.ANOTAR, Comando.CONTESTAR, Comando.RECUSAR):
         return Mudanca(status, prazo, None, False)
     if comando is Comando.AJUSTAR:
-        return Mudanca(status, prazo_novo or prazo, None, False)
+        return Mudanca(status, prazo_novo or prazo, None, False, responsavel_novo)
     if comando is Comando.CONCLUIR:
         return Mudanca("CONCLUIDO", prazo, True, False)
     if comando is Comando.CANCELAR:

@@ -260,6 +260,9 @@ export interface EventoPendencia {
   status_depois?: string | null;
   prazo_antes?: string | null;
   prazo_depois?: string | null;
+  // Só no ajuste que trocou o responsável (issue #1870).
+  responsavel_antes?: string | null;
+  responsavel_depois?: string | null;
   conta_atraso: boolean;
   criado_em: string;
   // Foto ou PDF anexado na conclusão (issue #1865).

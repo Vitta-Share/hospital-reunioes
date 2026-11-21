@@ -172,6 +172,30 @@ def test_ajustar_para_um_prazo_no_passado_e_recusado():
     assert erro.value.tipo == "dados"
 
 
+def test_ajustar_troca_o_responsavel_errado_da_pendencia():
+    """Erro de responsável na ata também se corrige no ajuste (issue #1870;
+    decisão 17 do PRD #1757: o ajuste do item contestado vai para a pendência)."""
+    mudanca = _decidir(Comando.AJUSTAR, PAPEIS["facilitador"], responsavel_novo="P_CERTO", contestada=True)
+    assert (mudanca.status, mudanca.prazo, mudanca.responsavel_id) == ("PENDENTE", AMANHA, "P_CERTO")
+
+
+def test_ajustar_sem_responsavel_novo_nao_mexe_no_responsavel():
+    assert _decidir(Comando.AJUSTAR, PAPEIS["facilitador"], contestada=True).responsavel_id is None
+
+
+@pytest.mark.parametrize("comando", [Comando.RECUSAR, Comando.REPACTUAR, Comando.ANOTAR])
+def test_so_ajustar_troca_o_responsavel(comando):
+    with pytest.raises(AcaoRecusada) as erro:
+        _decidir(
+            comando,
+            PAPEIS["facilitador"] | PAPEIS["responsavel"],
+            prazo_novo=DAQUI_A_UMA_SEMANA if comando is Comando.REPACTUAR else None,
+            responsavel_novo="P_CERTO",
+            contestada=True,
+        )
+    assert erro.value.tipo == "dados"
+
+
 def test_recusar_mantem_a_pendencia_como_esta():
     mudanca = _decidir(Comando.RECUSAR, PAPEIS["facilitador"], contestada=True)
     assert (mudanca.status, mudanca.prazo, mudanca.concluida, mudanca.conta_atraso) == ("PENDENTE", AMANHA, None, False)
@@ -292,6 +316,68 @@ def test_facilitador_ajusta_o_prazo_e_o_evento_vai_para_o_historico(cliente):  #
         novo,
     )
     assert estado["banco"].reunioes[0]["status_ata"] == "ASSINADA"
+
+
+_CERTO = {"id": "P_CERTO", "nome_completo": "Carla Certa", "cargo": "Enfermeira", "ativo": True}
+
+
+def test_facilitador_ajusta_o_responsavel_errado_e_a_troca_vai_para_a_gravacao(cliente):  # noqa: F811
+    client, estado = cliente
+    estado["quem"] = "facil"
+    estado["banco"].participantes.append(dict(_CERTO))
+    estado["banco"].pendencia_historico = [_evento()]
+    r = client.post(
+        "/api/pendencias/A001/acoes",
+        json={"comando": "ajustar", "anotacao": "a luva é com a Carla", "responsavel_id": "P_CERTO"},
+    )
+
+    assert r.status_code == 200, r.text
+    params = estado["banco"].chamadas[0][1]
+    assert (params["p_comando"], params["p_responsavel_id"], params["p_responsavel_nome"], params["p_cargo"]) == (
+        "ajustar",
+        "P_CERTO",
+        "Carla Certa",
+        "Enfermeira",
+    )
+
+
+def test_ajustar_sem_responsavel_novo_nao_manda_troca_de_responsavel(cliente):  # noqa: F811
+    client, estado = cliente
+    estado["quem"] = "facil"
+    estado["banco"].pendencia_historico = [_evento()]
+    r = client.post("/api/pendencias/A001/acoes", json={"comando": "ajustar", "anotacao": "o erro era outro"})
+
+    assert r.status_code == 200, r.text
+    assert estado["banco"].chamadas[0][1].get("p_responsavel_id") is None
+
+
+@pytest.mark.parametrize("pessoa", [None, {**_CERTO, "ativo": False}])
+def test_ajustar_para_quem_nao_esta_ativo_no_cadastro_e_recusado(cliente, pessoa):  # noqa: F811
+    client, estado = cliente
+    estado["quem"] = "facil"
+    if pessoa:
+        estado["banco"].participantes.append(pessoa)
+    estado["banco"].pendencia_historico = [_evento()]
+    r = client.post(
+        "/api/pendencias/A001/acoes",
+        json={"comando": "ajustar", "anotacao": "a luva é com a Carla", "responsavel_id": "P_CERTO"},
+    )
+
+    assert r.status_code == 422, r.text
+    assert estado["banco"].chamadas == []
+
+
+def test_o_responsavel_nao_troca_o_proprio_nome_pela_contestacao(cliente):  # noqa: F811
+    client, estado = cliente
+    _em_assinatura(estado)
+    estado["banco"].participantes.append(dict(_CERTO))
+    r = client.post(
+        "/api/pendencias/A001/acoes",
+        json={"comando": "contestar", "anotacao": "não é comigo", "responsavel_id": "P_CERTO"},
+    )
+
+    assert r.status_code == 422, r.text
+    assert estado["banco"].chamadas == []
 
 
 def test_facilitador_recusa_e_a_pendencia_fica_como_esta(cliente):  # noqa: F811
@@ -426,6 +512,7 @@ def test_o_texto_de_reunioes_no_kit_diz_como_funciona_a_contestacao():
     assert "aparece na hora no Início do facilitador" in secao
     assert "ajustar ou recusar, sempre com uma anotação" in secao
     assert "a ata não volta para assinatura" in secao
+    assert "Se o erro era o responsável, ele escolhe a pessoa certa no cadastro" in secao
     # Quem administra o aplicativo faz tudo, menos contestar.
     assert "faz tudo, menos contestar" in texto
     assert chr(0x2014) not in secao

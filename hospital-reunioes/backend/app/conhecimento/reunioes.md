@@ -63,7 +63,7 @@ Contestar não é jeito de adiar. O item contestado continua sendo cobrado, com 
 
 A contestação aparece na hora no Início do facilitador da reunião, no grupo do que vence em até 48 horas, sem esperar a segunda-feira. Se ele não responde até o fim do dia seguinte, ela passa para o grupo do que já venceu. O facilitador, ou quem administra o aplicativo, abre a pendência e escolhe ajustar ou recusar, sempre com uma anotação:
 
-- **Ajustar** aceita a contestação, e a anotação diz o que foi corrigido. Se o erro era o prazo, ele informa também o prazo novo, que vale na hora e não conta como repactuação.
+- **Ajustar** aceita a contestação, e a anotação diz o que foi corrigido. Se o erro era o prazo, ele informa também o prazo novo, que vale na hora e não conta como repactuação. Se o erro era o responsável, ele escolhe a pessoa certa no cadastro: a pendência passa para o nome dela na hora, sai da lista de quem estava errado, e o histórico mostra quem era e quem passou a ser.
 - **Recusar** mantém a pendência como está, e a anotação explica por quê.
 
 O ajuste fica na pendência e no histórico, e a ata não volta para assinatura. Respondida a contestação, ela sai do Início do facilitador, e o responsável pode contestar de novo enquanto a ata estiver em assinatura.
