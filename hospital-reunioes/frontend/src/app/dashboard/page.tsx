@@ -2,16 +2,13 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { fetchParticipantesAtivos } from "@/lib/participantes";
 import KpiCards from "@/components/dashboard/KpiCards";
 import type { ListaDoCard } from "@/components/dashboard/KpiCards";
 import ListaAtasModal from "@/components/dashboard/ListaAtasModal";
-import {
-  atasParadas as filtrarAtasParadas,
-  atasAguardandoAssinatura,
-  type AtaDoDashboard,
-} from "@/lib/reunioes/atasDoDashboard";
+import type { AtaDoDashboard } from "@/lib/reunioes/atasDoDashboard";
 import DashboardFilters from "@/components/dashboard/DashboardFilters";
 import StatusPieChart from "@/components/dashboard/StatusPieChart";
 import SetorBarChart from "@/components/dashboard/SetorBarChart";
@@ -29,12 +26,34 @@ interface Stats {
   totalPendencias: number;
 }
 
-interface PendenciaRaw {
-  id_acao: string;
-  responsavel_id?: string;
-  status: string;
-  situacao?: string;
-  prazo?: string;
+// O que `/api/pendencias/painel` devolve (issue #1868): os números já
+// contados no servidor, da base inteira e no recorte de quem pede.
+interface PainelDoServidor {
+  cards: {
+    atas_paradas: number;
+    aguardam_assinatura: number;
+    atrasadas: number;
+    vencem_em_3_dias: number;
+    conformidade: number;
+    ativas: number;
+  };
+  situacoes: {
+    pendente: number;
+    em_progresso: number;
+    concluido: number;
+    atrasado: number;
+    repactuada: number;
+  };
+  por_setor: {
+    setor: string;
+    pendente: number;
+    em_progresso: number;
+    concluido: number;
+    atrasado: number;
+    repactuada: number;
+  }[];
+  atas_paradas: AtaDoDashboard[];
+  aguardam_assinatura: AtaDoDashboard[];
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -72,7 +91,7 @@ export default function DashboardPage() {
 
   // Dados dos gráficos
   const [pieStats, setPieStats] = useState<PieEntry[]>([]);
-  const [allPendencias, setAllPendencias] = useState<PendenciaRaw[]>([]);
+  const [setorBarData, setSetorBarData] = useState<SetorBarEntry[]>([]);
   const [loadingCharts, setLoadingCharts] = useState(false);
 
   // Atas que os cards contam, e qual lista está aberta no modal (issue #1055)
@@ -185,96 +204,49 @@ export default function DashboardPage() {
         const params = buildParams();
         const queryStr = params.toString() ? `?${params.toString()}` : "";
 
-        const [reunioesRes, statsRes, pendenciasRes] = await Promise.all([
-          fetch(`/api/reunioes?limit=200`, { headers }),
-          fetch(`/api/pendencias/stats${queryStr}`, { headers }),
-          fetch(
-            `/api/pendencias?limit=200${queryStr ? "&" + params.toString() : ""}`,
-            { headers }
-          ),
-        ]);
+        // Um pedido só: o servidor lê a base inteira e conta (issue #1868).
+        const painelRes = await fetch(`/api/pendencias/painel${queryStr}`, { headers });
+        const corpo = painelRes.ok ? await painelRes.json() : null;
+        const painel: PainelDoServidor | null = corpo && corpo.cards ? corpo : null;
+        if (!painel) {
+          setStats(null);
+          return;
+        }
 
-        const reunioes = reunioesRes.ok ? await reunioesRes.json() : [];
-        const pStats = statsRes.ok ? await statsRes.json() : {};
-        const pendencias: PendenciaRaw[] = pendenciasRes.ok
-          ? await pendenciasRes.json()
-          : [];
-
-        // Apply setor filter client-side — the reunioes endpoint doesn't support filter params
-        const filteredReunioes =
-          filtroSetores.length > 0
-            ? reunioes.filter(
-                (r: { setor?: string }) =>
-                  r.setor && filtroSetores.includes(r.setor)
-              )
-            : reunioes;
-
-        // KPI stats
-        // todayLocal: for prazo comparisons (date-only strings, interpreted as local midnight)
-        const todayLocal = new Date();
-        todayLocal.setHours(0, 0, 0, 0);
-
-        // Atas paradas e aguardando assinatura: o card conta a mesma lista que o modal mostra
-        const listaParadas = filtrarAtasParadas(filteredReunioes as AtaDoDashboard[]);
-        const listaAssinatura = atasAguardandoAssinatura(filteredReunioes as AtaDoDashboard[]);
         setListasDeAtas({
-          "atas-paradas": listaParadas,
-          "aguardam-assinatura": listaAssinatura,
+          "atas-paradas": painel.atas_paradas,
+          "aguardam-assinatura": painel.aguardam_assinatura,
         });
-        const atasParadas = listaParadas.length;
-        const aguardamAssinatura = listaAssinatura.length;
-
-        // Pendências atrasadas
-        const atrasadas = pStats.atrasado ?? 0;
-
-        // Pendências que vencem em 3 dias (PENDENTE com prazo entre hoje e hoje+3)
-        const vencemEm3Dias = pendencias.filter((p) => {
-          if (p.status !== "PENDENTE" || !p.prazo) return false;
-          const prazoDate = new Date(p.prazo + "T00:00:00");
-          const diffDays = Math.ceil(
-            (prazoDate.getTime() - todayLocal.getTime()) / (1000 * 60 * 60 * 24)
-          );
-          return diffDays >= 0 && diffDays <= 3;
-        }).length;
-
-        // Conformidade: % de pendências ativas que NÃO estão atrasadas
-        const totalAtivas =
-          (pStats.pendente ?? 0) +
-          (pStats.em_progresso ?? 0) +
-          (pStats.atrasado ?? 0);
-        const conformidade =
-          totalAtivas > 0
-            ? Math.round(((totalAtivas - atrasadas) / totalAtivas) * 100)
-            : 100;
 
         setStats({
-          atasParadas,
-          aguardamAssinatura,
-          atrasadas,
-          vencemEm3Dias,
-          conformidade,
-          totalPendencias: totalAtivas,
+          atasParadas: painel.cards.atas_paradas,
+          aguardamAssinatura: painel.cards.aguardam_assinatura,
+          atrasadas: painel.cards.atrasadas,
+          vencemEm3Dias: painel.cards.vencem_em_3_dias,
+          conformidade: painel.cards.conformidade,
+          totalPendencias: painel.cards.ativas,
         });
 
-        // Pie stats
+        const sit = painel.situacoes;
         const pieData: PieEntry[] = [
-          { name: "Pendente", value: pStats.pendente ?? 0, color: STATUS_COLORS.Pendente },
-          {
-            name: "Em Progresso",
-            value: pStats.em_progresso ?? 0,
-            color: STATUS_COLORS["Em Progresso"],
-          },
-          {
-            name: "Concluído",
-            value: pStats.concluido ?? 0,
-            color: STATUS_COLORS.Concluído,
-          },
-          { name: "Atrasado", value: pStats.atrasado ?? 0, color: STATUS_COLORS.Atrasado },
-          { name: "Repactuada", value: pStats.repactuada ?? 0, color: STATUS_COLORS.Repactuada },
+          { name: "Pendente", value: sit.pendente, color: STATUS_COLORS.Pendente },
+          { name: "Em Progresso", value: sit.em_progresso, color: STATUS_COLORS["Em Progresso"] },
+          { name: "Concluído", value: sit.concluido, color: STATUS_COLORS.Concluído },
+          { name: "Atrasado", value: sit.atrasado, color: STATUS_COLORS.Atrasado },
+          { name: "Repactuada", value: sit.repactuada, color: STATUS_COLORS.Repactuada },
         ].filter((item) => item.value > 0);
-
         setPieStats(pieData);
-        setAllPendencias(pendencias);
+
+        setSetorBarData(
+          painel.por_setor.map((linha) => ({
+            setor: linha.setor,
+            Pendente: linha.pendente,
+            "Em Progresso": linha.em_progresso,
+            Concluído: linha.concluido,
+            Atrasado: linha.atrasado,
+            Repactuada: linha.repactuada,
+          }))
+        );
       } catch (e) {
         console.error("Erro ao carregar dashboard:", e);
       } finally {
@@ -315,45 +287,6 @@ export default function DashboardPage() {
     token,
     fetchAllData,
   ]);
-
-  // ─── Dados derivados para os gráficos ──────────────────────────────────────
-
-  // Gráfico 2: Pendências por Setor (stacked bar horizontal)
-  const setorBarData = useMemo<SetorBarEntry[]>(() => {
-    const map: Record<string, SetorBarEntry> = {};
-
-    allPendencias.forEach((p) => {
-      const part = participantes.find((pt) => pt.id === p.responsavel_id);
-      const setor = part?.setor || "Sem Setor";
-
-      if (!map[setor]) {
-        map[setor] = {
-          setor,
-          Pendente: 0,
-          "Em Progresso": 0,
-          Concluído: 0,
-          Atrasado: 0,
-          Repactuada: 0,
-        };
-      }
-
-      // A situação vem calculada do backend (Atrasada e Repactuada, issue #1862).
-      const situacao = p.situacao ?? p.status;
-      if (situacao === "PENDENTE") map[setor].Pendente++;
-      else if (situacao === "EM_PROGRESSO") map[setor]["Em Progresso"]++;
-      else if (situacao === "CONCLUIDO") map[setor].Concluído++;
-      else if (situacao === "ATRASADO") map[setor].Atrasado++;
-      else if (situacao === "REPACTUADA") map[setor].Repactuada++;
-    });
-
-    return Object.values(map).sort(
-      (a, b) =>
-        b.Pendente +
-        b["Em Progresso"] +
-        b.Atrasado -
-        (a.Pendente + a["Em Progresso"] + a.Atrasado)
-    );
-  }, [allPendencias, participantes]);
 
   // ─── Navigation helper ────────────────────────────────────────────────────
 
@@ -430,6 +363,10 @@ export default function DashboardPage() {
             {mounted ? today : ""}
           </p>
         </div>
+        {/* O painel não tem fila própria: o que depende de cada um mora no Início (ADR 0104). */}
+        <Link href="/inicio" className="text-sm font-medium text-primary hover:underline">
+          O que depende de você está no Início
+        </Link>
       </div>
 
       {/* Alert Cards */}
@@ -444,6 +381,7 @@ export default function DashboardPage() {
         <ListaAtasModal
           titulo={listaAberta === "atas-paradas" ? "Atas Paradas" : "Aguardam Assinatura"}
           atas={listasDeAtas[listaAberta]}
+          token={listaAberta === "aguardam-assinatura" ? token : null}
           onClose={() => setListaAberta(null)}
         />
       )}

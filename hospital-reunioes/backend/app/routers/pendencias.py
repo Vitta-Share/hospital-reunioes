@@ -20,6 +20,8 @@ from app.models.schemas import (
     PendenciaResponse,
     PendenciaStats,
 )
+from app.services import painel_reunioes
+from app.services.painel_reunioes import FiltrosDoPainel, PainelDeReunioes, montar_painel
 from app.services.pendencia_acao import agir
 from app.services.pendencia_ciclo import (
     AcaoRecusada,
@@ -207,6 +209,37 @@ async def get_pendencias_stats(
             stats.repactuada += 1
     stats.total = len(rows)
     return stats
+
+
+@router.get("/painel", response_model=PainelDeReunioes)
+async def get_painel(
+    responsavel_id: str | None = Query(None, description="Responsáveis separados por vírgula"),
+    setor: str | None = Query(None, description="Setores separados por vírgula"),
+    prazo_de: date | None = Query(None),
+    prazo_ate: date | None = Query(None),
+    current_user: dict = Depends(get_current_user),
+    supabase=Depends(get_supabase_client),
+):
+    """O painel de Reuniões (issue #1868): os cards, as situações e as Atas dos
+    cards, da base inteira e no recorte de quem pede. A Secretária não recebe
+    dado de Pendência (decisão 53 do diretor no PRD #1757)."""
+    me = await get_participante_for_user(current_user, supabase)
+    if is_secretaria(me):
+        raise HTTPException(status_code=403, detail="Secretária não tem acesso a pendências")
+    recorte = await get_recorte_das_pendencias(current_user, supabase)
+    filtros = FiltrosDoPainel(
+        responsaveis=frozenset(parse_csv_param(responsavel_id) or ()),
+        setores=frozenset(parse_csv_param(setor) or ()),
+        prazo_de=prazo_de,
+        prazo_ate=prazo_ate,
+    )
+    return montar_painel(
+        supabase,
+        recorte,
+        hoje=hoje_em_brasilia(),
+        agora=painel_reunioes.agora_utc(),
+        filtros=filtros,
+    )
 
 
 @router.get("/minhas", response_model=list[PendenciaResponse])
