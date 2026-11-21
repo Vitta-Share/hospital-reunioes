@@ -226,3 +226,120 @@ def test_o_link_nao_age_na_pendencia_de_outra_pessoa(portal):
     assert resposta.status_code == 404
     assert banco.chamadas == []
     assert next(p for p in banco.pendencias if p["id_acao"] == "A3")["status"] == "PENDENTE"
+
+
+# ─── 2. Vencido ou revogado responde com mensagem clara ──────────────────────
+
+
+def test_link_vencido_responde_que_venceu_e_onde_achar_o_novo(portal):
+    cliente, banco, estado = portal
+    token = _token(banco)
+    # Ainda vale no último minuto, e vence quando os 14 dias passam.
+    estado["agora"] = AGORA + timedelta(days=14) - timedelta(minutes=1)
+    assert cliente.get(f"/api/minhas-pendencias/{token}").status_code == 200
+
+    estado["agora"] = AGORA + timedelta(days=14)
+    resposta = cliente.get(f"/api/minhas-pendencias/{token}")
+    acao = cliente.post(
+        f"/api/minhas-pendencias/{token}/pendencias/A1/acoes",
+        json={"comando": "concluir", "anotacao": "Feito."},
+    )
+
+    assert resposta.status_code == 410
+    assert resposta.json()["detail"] == (
+        "Este link venceu. O e-mail de segunda traz um link novo toda semana; "
+        "se precisar antes, entre no aplicativo com o seu e-mail."
+    )
+    assert acao.status_code == 410
+    assert banco.chamadas == []
+
+
+@pytest.mark.asyncio
+async def test_desligar_a_pessoa_cancela_o_link_e_ele_responde_que_foi_cancelado(portal, monkeypatch):
+    from app.routers import participantes as participantes_router
+
+    cliente, banco, _ = portal
+    token = _token(banco)
+    da_carla = _token(banco, "P_CARLA")
+    monkeypatch.setattr(participantes_router, "definir_login_liberado", lambda *_a, **_kw: True)
+
+    await participantes_router.soft_delete_participante(
+        participante_id="P_BRUNO", _={"id": "u", "email": "diretor@hsm.test"}, supabase=banco
+    )
+
+    assert [linha["revogado_em"] is not None for linha in banco.pendencias_links_pessoais] == [True, False]
+    resposta = cliente.get(f"/api/minhas-pendencias/{token}")
+    assert resposta.status_code == 410
+    assert resposta.json()["detail"] == (
+        "Este link foi cancelado e não vale mais. Se precisar, fale com quem conduz a sua reunião."
+    )
+    # O link da Carla segue valendo.
+    assert cliente.get(f"/api/minhas-pendencias/{da_carla}").status_code == 200
+    # Reativar a pessoa não ressuscita o link cancelado.
+    banco.participantes[0]["ativo"] = True
+    assert cliente.get(f"/api/minhas-pendencias/{token}").status_code == 410
+
+
+def test_link_que_nao_existe_responde_404_sem_vazar_nada(portal):
+    cliente, _banco, _ = portal
+
+    resposta = cliente.get("/api/minhas-pendencias/nao-existe")
+
+    assert resposta.status_code == 404
+    assert resposta.json()["detail"] == "Este link não existe. Confira se ele foi copiado inteiro do e-mail."
+
+
+# ─── 3. Toda ação pelo link exige anotação e grava evento no histórico ───────
+
+
+@pytest.mark.parametrize("anotacao", ["", "   "])
+def test_acao_pelo_link_sem_anotacao_e_recusada_e_nada_muda(portal, anotacao):
+    cliente, banco, _ = portal
+    token = _token(banco)
+
+    resposta = cliente.post(
+        f"/api/minhas-pendencias/{token}/pendencias/A1/acoes",
+        json={"comando": "concluir", "anotacao": anotacao},
+    )
+
+    assert resposta.status_code == 422
+    assert banco.chamadas == []
+    assert banco.pendencia_historico == []
+    assert banco.pendencias[0]["status"] == "PENDENTE"
+
+
+def test_cada_acao_pelo_link_grava_um_evento_com_a_anotacao_em_nome_da_pessoa(portal):
+    cliente, banco, _ = portal
+    token = _token(banco)
+    url = f"/api/minhas-pendencias/{token}/pendencias/A1/acoes"
+
+    passos = [
+        {"comando": "iniciar", "anotacao": "Pedi o monitor ao almoxarifado."},
+        {"comando": "anotar", "anotacao": "O fornecedor entrega na sexta."},
+        {"comando": "repactuar", "anotacao": "Atrasou a entrega.", "prazo": SEMANA_QUE_VEM},
+        {"comando": "concluir", "anotacao": "Monitor trocado."},
+    ]
+    for passo in passos:
+        assert cliente.post(url, json=passo).status_code == 200, passo
+
+    assert [(e["comando"], e["anotacao"], e["autor_id"], e["autor_nome"]) for e in banco.pendencia_historico] == [
+        ("iniciar", "Pedi o monitor ao almoxarifado.", "P_BRUNO", "Bruno Reis"),
+        ("anotar", "O fornecedor entrega na sexta.", "P_BRUNO", "Bruno Reis"),
+        ("repactuar", "Atrasou a entrega.", "P_BRUNO", "Bruno Reis"),
+        ("concluir", "Monitor trocado.", "P_BRUNO", "Bruno Reis"),
+    ]
+    a1 = banco.pendencias[0]
+    assert (a1["status"], a1["prazo"]) == ("CONCLUIDO", SEMANA_QUE_VEM)
+
+
+def test_pelo_link_so_vale_o_que_o_responsavel_faz(portal):
+    cliente, banco, _ = portal
+    token = _token(banco)
+
+    resposta = cliente.post(
+        f"/api/minhas-pendencias/{token}/pendencias/A1/acoes",
+        json={"comando": "cancelar", "anotacao": "Não preciso mais."},
+    )
+
+    assert resposta.status_code == 422
+    assert banco.chamadas == []
