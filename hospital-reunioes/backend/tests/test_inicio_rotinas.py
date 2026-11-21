@@ -231,3 +231,17 @@ def test_rotina_encerrada_nao_se_mantem(cliente_das_rotinas, hoje):  # noqa: F81
 
     assert r.status_code == 409
     assert sb.rotinas[0].get("revisada_em") is None
+
+
+# ─── 6. O kit de conhecimento ────────────────────────────────────────────────
+
+
+def test_o_texto_de_reunioes_no_kit_diz_as_rotinas_no_inicio():
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = (CONHECIMENTO_DIR / "reunioes.md").read_text(encoding="utf-8")
+    assert "o trilho do Início mostra as rotinas do ciclo de agora" in texto
+    assert "quantas já têm a verificação marcada" in texto
+    assert "Não realizada leva à tela Rotinas, que pede a anotação" in texto
+    assert "a revisão aparece no Início do facilitador" in texto
+    assert "Manter é um clique" in texto
