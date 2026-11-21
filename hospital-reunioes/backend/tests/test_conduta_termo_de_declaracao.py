@@ -24,7 +24,7 @@ from test_conduta_depoimentos import (  # noqa: F401  (a fixture da chave vale a
     _chave,
 )
 
-from app.services.conduta import termo_de_declaracao
+from app.services.conduta import cifra, termo_de_declaracao
 
 TRANSCRICAO = (
     "Entrevistador: Fulano de Tal, o senhor confirma que estava no almoxarifado?\n"
@@ -155,3 +155,77 @@ class TestOTermoNasceDeUmClique:
         assert resposta.status_code == 409
         assert "Anexe a transcrição" in resposta.json()["detail"]
         assert agente.chamadas == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. Marcadores na ida, nomes na volta
+# ═══════════════════════════════════════════════════════════════════════════
+
+NOMES_DA_CONVERSA = ("Fulano", "Maria Souza", "Ana Coordenadora", "Bruno Membro", "Joana Citada", "529.982.247-25")
+
+
+class TestNenhumNomeVaiAoModelo:
+    def test_o_texto_enviado_leva_marcadores_e_o_termo_exibido_traz_os_nomes(self, agente):
+        comite = Comite()
+        caso = comite.caso()
+        comite.banco.tabelas.setdefault("conduta_citados", []).append(
+            {"id": "cit-1", "caso_id": caso, "participante_id": None, "nome_cifrado": cifra.cifrar_texto("Joana Citada")}
+        )
+        dep = comite.depoimento(caso)
+        conversa = TRANSCRICAO + "Fulano de Tal: A joana citada viu tudo. Meu CPF é 529.982.247-25.\n".encode()
+        comite.anexar(MEMBRO, caso, dep, "transcricao", "depoimento.txt", conversa)
+
+        assert _redigir(comite, caso, dep).status_code == 200
+
+        enviado = _enviado(agente)
+        for nome in NOMES_DA_CONVERSA:
+            assert nome.lower() not in enviado.lower(), f"{nome} foi ao modelo"
+        assert "[PESSOA_" in enviado and "[CPF_1]" in enviado
+        termo = _cartao(comite, caso, dep)["termo"]
+        assert termo["declaracoes"] == [
+            "Fulano de Tal declarou que estava no almoxarifado com Maria Souza, das 14h às 15h."
+        ]
+        assert termo["notas"]["itens"] == ["Perguntar a Maria Souza o que ouviu."]
+
+    def test_quem_conduziu_tambem_vira_marcador_e_o_modelo_sabe_quem_e_quem(self, agente):
+        comite = Comite()
+        caso, dep = _com_transcricao(comite)
+
+        _redigir(comite, caso, dep)
+
+        mensagem = agente.chamadas[-1]["messages"][0]["content"]
+        achado = re.search(r"Quem é quem: (\[PESSOA_\d+\]) é o declarante\. (\[PESSOA_\d+\]) e (\[PESSOA_\d+\])", mensagem)
+        assert achado, mensagem
+        assert len(set(achado.groups())) == 3
+        assert achado.group(1) == _marcador(mensagem, "Entrevistador: ")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. Relato anônimo: o termo não cita quem relatou
+# ═══════════════════════════════════════════════════════════════════════════
+
+AVISO_DE_ANONIMO = "O relato do caso é ANÔNIMO"
+REGRA_8 = "Quando o relato é anônimo, não escreva nome, marcador, cargo ou pista de quem relatou."
+
+
+class TestRelatoAnonimo:
+    def test_no_caso_anonimo_o_agente_e_proibido_de_citar_quem_relatou(self, agente):
+        comite = Comite()
+        caso, dep = _com_transcricao(comite)
+
+        _redigir(comite, caso, dep)
+
+        assert AVISO_DE_ANONIMO in agente.chamadas[-1]["messages"][0]["content"]
+        assert REGRA_8 in agente.chamadas[-1]["system"]
+
+    def test_com_denunciante_identificado_no_caso_o_relato_deixa_de_ser_anonimo(self, agente):
+        comite = Comite()
+        caso, dep = _com_transcricao(comite)
+        comite.adicionar(MEMBRO, caso, {"nome": "Beltrana Souto", "cargo": "Auxiliar", "papel": "denunciante"})
+
+        _redigir(comite, caso, dep)
+
+        mensagem = agente.chamadas[-1]["messages"][0]["content"]
+        assert AVISO_DE_ANONIMO not in mensagem
+        assert "Não cite quem relatou." in mensagem
+        assert "beltrana" not in mensagem.lower()
