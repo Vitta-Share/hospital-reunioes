@@ -40,6 +40,7 @@ TODOS = {
     "notas_do_comite",
     "gerir_nucleo",
     "configuracao",
+    "tabela_de_prazos",
 }
 
 # Membro sem Termo válido: painel, calendário e agenda (seção 3 e glossário).

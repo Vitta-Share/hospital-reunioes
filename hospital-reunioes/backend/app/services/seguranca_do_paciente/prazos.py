@@ -43,6 +43,7 @@ from app.services.ouvidoria_prazos import (
     Prazo,
     calcular_vencimento,
 )
+from app.services.seguranca_do_paciente.notificacoes import LOTE_DE_IDS
 
 logger = logging.getLogger(__name__)
 
@@ -218,6 +219,130 @@ def tabela_vigente(supabase) -> dict[tuple[str, str], Prazo]:
     }
 
 
+_UNIDADES_POR_EXTENSO = {
+    HORAS_CORRIDAS: "horas corridas",
+    HORAS_UTEIS: "horas úteis",
+    DIAS_CORRIDOS: "dias corridos",
+    DIAS_UTEIS: "dias úteis",
+}
+
+# O que a Configuração mostra dos prazos legais, faixa a faixa. Só leitura.
+_LEGAIS_POR_EXTENSO = {
+    "notificacao_externa": {
+        "A": "72 horas corridas do incidente",
+        **{faixa: "Até o 15º dia útil do mês seguinte" for faixa in ("B", "C", "D")},
+        "E": "Quase erro: até o 15º dia útil do mês seguinte. Circunstância de risco: não se notifica",
+    },
+    "complementacao_da_notificacao_externa": {"A": "60 dias corridos do incidente"},
+}
+
+_TETO_DO_HISTORICO = 200
+
+
+def _nomes(supabase, ids: set[str]) -> dict[str, str]:
+    """O nome de quem alterou, lido em lotes de ids."""
+    nomes: dict[str, str] = {}
+    lista = sorted(ids)
+    for inicio in range(0, len(lista), LOTE_DE_IDS):
+        lote = lista[inicio : inicio + LOTE_DE_IDS]
+        for linha in supabase.table("participantes").select("id, nome_completo").in_("id", lote).execute().data or []:
+            nomes[linha["id"]] = linha.get("nome_completo") or linha["id"]
+    return nomes
+
+
+def tabela_para_a_configuracao(supabase, *, pode_editar: bool) -> dict[str, Any]:
+    """A tabela da Configuração: os internos (editáveis por quem pode), os
+    legais (nunca editáveis) e o histórico, do mais novo ao mais velho."""
+    linhas = (
+        supabase.table(TABELA_DE_PRAZOS).select("faixa, marco, valor, unidade, atualizado_em").execute().data
+    ) or []
+    por_celula = {(linha["faixa"], linha["marco"]): linha for linha in linhas}
+    internos = []
+    for marco in MARCOS_INTERNOS:
+        for faixa in FAIXAS:
+            linha = por_celula.get((faixa, marco), {})
+            internos.append(
+                {
+                    "faixa": faixa,
+                    "marco": marco,
+                    "rotulo": ROTULOS[marco],
+                    "valor": linha.get("valor"),
+                    "unidade": linha.get("unidade"),
+                    "editavel": pode_editar,
+                }
+            )
+    legais = [
+        {"marco": marco, "rotulo": ROTULOS[marco], "celulas": dict(celulas), "editavel": False}
+        for marco, celulas in _LEGAIS_POR_EXTENSO.items()
+    ]
+    registros = (
+        supabase.table(HISTORICO_DA_TABELA)
+        .select("id, faixa, marco, de_valor, de_unidade, para_valor, para_unidade, alterado_por, alterado_em")
+        .order("alterado_em", desc=True)
+        .limit(_TETO_DO_HISTORICO)
+        .execute()
+        .data
+    ) or []
+    registros.sort(key=lambda r: str(r["alterado_em"]), reverse=True)
+    nomes = _nomes(supabase, {r["alterado_por"] for r in registros if r.get("alterado_por")})
+    historico = [
+        {
+            "faixa": r["faixa"],
+            "marco": r["marco"],
+            "rotulo": ROTULOS.get(r["marco"], r["marco"]),
+            "de": {"valor": r["de_valor"], "unidade": r["de_unidade"]},
+            "para": {"valor": r["para_valor"], "unidade": r["para_unidade"]},
+            "quem": nomes.get(r.get("alterado_por")) if r.get("alterado_por") else None,
+            "quando": r["alterado_em"],
+        }
+        for r in registros
+    ]
+    return {
+        "faixas": list(FAIXAS),
+        "unidades": [{"valor": u, "rotulo": _UNIDADES_POR_EXTENSO[u]} for u in UNIDADES_INTERNAS],
+        "internos": internos,
+        "legais": legais,
+        "historico": historico,
+        "pode_editar": pode_editar,
+    }
+
+
+def alterar_prazo_interno(
+    supabase, faixa: str, marco: str, valor: int | None, unidade: str | None, *, autor_id: str
+) -> dict[str, Any]:
+    """Muda uma célula interna da tabela. O banco grava o histórico (quem,
+    quando, de e para) no mesmo update; o caso já classificado não muda."""
+    if marco in MARCOS_LEGAIS:
+        raise PrazoLegalError("Prazo legal não se altera pela tela: ele vem da norma.")
+    if faixa not in FAIXAS or marco not in MARCOS_INTERNOS:
+        raise PrazoRecusadoError("Escolha uma faixa e um marco da tabela.")
+    if valor is None:
+        unidade = None
+    else:
+        if isinstance(valor, bool) or not isinstance(valor, int) or not 1 <= valor <= TETO_DO_VALOR:
+            raise PrazoRecusadoError(f"O prazo vai de 1 a {TETO_DO_VALOR}.")
+        if unidade not in UNIDADES_INTERNAS:
+            raise PrazoRecusadoError("Escolha a unidade: horas corridas, horas úteis, dias corridos ou dias úteis.")
+    gravadas = (
+        supabase.table(TABELA_DE_PRAZOS)
+        .update(
+            {
+                "valor": valor,
+                "unidade": unidade,
+                "atualizado_por": autor_id,
+                "atualizado_em": datetime.now(UTC).isoformat(),
+            }
+        )
+        .eq("faixa", faixa)
+        .eq("marco", marco)
+        .execute()
+        .data
+    )
+    if not gravadas:
+        raise PrazoRecusadoError("Escolha uma faixa e um marco da tabela.")
+    return {"faixa": faixa, "marco": marco, "valor": valor, "unidade": unidade}
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Congelar no caso, ao confirmar
 # ═══════════════════════════════════════════════════════════════════════════
@@ -237,9 +362,7 @@ def congelar_no_caso(supabase, notificacao: dict[str, Any], decisao: dict[str, A
     """Grava os prazos do caso e a linha de notificação externa, uma vez só.
     A nova tentativa de uma confirmação que caiu no meio não grava de novo."""
     caso_id = notificacao["id"]
-    ja_gravados = (
-        supabase.table(PRAZOS_DO_CASO).select("marco, vence_em").eq("notificacao_id", caso_id).execute().data
-    )
+    ja_gravados = supabase.table(PRAZOS_DO_CASO).select("marco, vence_em").eq("notificacao_id", caso_id).execute().data
     if not ja_gravados:
         ja_gravados = _gravar_os_prazos(supabase, notificacao, decisao)
     prazo_externo = next((linha["vence_em"] for linha in ja_gravados if linha["marco"] == "notificacao_externa"), None)
