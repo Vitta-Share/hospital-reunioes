@@ -378,6 +378,30 @@ describe("a faixa dos números (issue #1953)", () => {
     }
   });
 
+  it("a dica do número da borda direita abre para dentro da faixa", async () => {
+    // O jsdom não mede layout. A dica tem 256 px e abre presa ao nome do
+    // número; na coluna da direita (duas colunas, celular) e no último número
+    // (uma linha só, computador) ela passaria da borda e a página rolaria de
+    // lado. Aqui se trava a regra: a dica se prende ao título inteiro da
+    // célula, e nessas células abre a partir da borda direita.
+    servidorResponde({ ...PAINEL, coordenacao: COORDENACAO });
+    render(<PainelPage />);
+
+    const faixa = await screen.findByRole("region", { name: "Números da semana" });
+    const numero = within(faixa).getByRole("group", { name: "Não procede" });
+    fireEvent.mouseEnter(within(numero).getByText("Não procede"));
+    const dica = screen.getByRole("tooltip");
+
+    const titulo = numero.querySelector("h3")!;
+    expect(titulo.classList.contains("relative")).toBe(true);
+    expect(dica.parentElement?.parentElement).toBe(titulo);
+    expect(titulo.className).toContain("[&>span]:static");
+    expect(numero.className).toContain("max-lg:even:[&_[role=tooltip]]:right-0");
+    expect(numero.className).toContain("max-lg:even:[&_[role=tooltip]]:left-auto");
+    expect(numero.className).toContain("lg:last:[&_[role=tooltip]]:right-0");
+    expect(numero.className).toContain("lg:last:[&_[role=tooltip]]:left-auto");
+  });
+
   it("a dica do número também abre pelo teclado", async () => {
     servidorResponde(PAINEL);
     render(<PainelPage />);
