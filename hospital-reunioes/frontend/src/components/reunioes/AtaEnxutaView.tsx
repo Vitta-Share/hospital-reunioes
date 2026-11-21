@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { FileText, ListChecks, Crosshair, Check } from "lucide-react";
 import { Section } from "@/components/ui/Section";
+import { rotuloDoTipo } from "./TipoDaLinhaInline";
 
 /** Item do quadro de ações montado pelo agente (shape consumido por liberar_pendencias). */
 export interface AcaoEnxuta {
@@ -16,6 +17,10 @@ export interface AcaoEnxuta {
   entregavel?: string | null;
   objetivo_meta?: string | null;
   status?: string;
+  /** Ação, Rotina ou Processo (#1872); sem tipo vale como Ação. */
+  tipo?: string | null;
+  /** Só na Rotina: SEMANAL, QUINZENAL ou MENSAL. */
+  frequencia?: string | null;
 }
 
 /** Rascunho enxuto da Ata Guiada (ADR 0005/0006): só resumo + quadro de ações. */
@@ -46,6 +51,8 @@ interface AtaEnxutaViewProps {
   alvoPorAcao?: boolean;
   /** Render custom da célula Responsável (o detalhe injeta o combobox inline). */
   renderResponsavel?: (acao: AcaoEnxuta, index: number) => ReactNode;
+  /** Render custom da célula Tipo (a validação injeta os seletores, #1872). */
+  renderTipo?: (acao: AcaoEnxuta, index: number) => ReactNode;
   /**
    * Quadro ao vivo da Guiada (#79): exibe o indicador de vínculo da Resolução —
    * ✓ quando o responsável casou com o cadastro, "sem vínculo" quando ficou só o
@@ -93,6 +100,7 @@ export default function AtaEnxutaView({
   onSectionContext,
   alvoPorAcao = false,
   renderResponsavel,
+  renderTipo,
   mostrarVinculo = false,
   mounted = true,
   placeholderVazio,
@@ -147,7 +155,7 @@ export default function AtaEnxutaView({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100">
-                  {["Ação", "Responsável", "Objetivo / Meta", "Prazo", "Status"].map((h) => (
+                  {["Ação", "Tipo", "Responsável", "Objetivo / Meta", "Prazo", "Status"].map((h) => (
                     <th
                       key={h}
                       className="text-left pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wide pr-4"
@@ -168,6 +176,9 @@ export default function AtaEnxutaView({
                     onClick={correctionMode && onSectionContext ? () => onSectionContext(ctxAcao) : undefined}
                   >
                     <td className="py-3 pr-4 text-slate-800 font-medium align-top">{a.acao}</td>
+                    <td className="py-3 pr-4 text-slate-600 text-xs align-top whitespace-nowrap">
+                      {renderTipo ? renderTipo(a, i) : rotuloDoTipo(a.tipo, a.frequencia)}
+                    </td>
                     <td className="py-3 pr-4 align-top min-w-[180px]">
                       {renderResponsavel ? (
                         renderResponsavel(a, i)
