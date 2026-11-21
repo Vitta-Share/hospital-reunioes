@@ -679,13 +679,22 @@ def enviar(supabase, demanda: dict[str, Any], *, ator: dict[str, Any], envio_id:
             "ajuste_numero": numero,
         }
     ).eq("id", envio["id"]).execute()
+    return gravar_linha_do_sistema(
+        supabase, demanda_id, texto_da_linha(data=data, hora=hora, topicos=topicos), autor_id=ator["id"]
+    )
+
+
+def gravar_linha_do_sistema(supabase, demanda_id: str, texto: str, *, autor_id: str | None) -> dict[str, Any]:
+    """A linha do sistema na Conversa da Demanda, que nao e bolha de ninguem:
+    a do Envio aos desenvolvedores e a de Em producao (issue #2117). Devolve a
+    linha gravada."""
     [linha] = (
         supabase.table(TABELA_CONVERSA_DA_DEMANDA)
         .insert(
             {
                 "demanda_id": demanda_id,
-                "autor_id": ator["id"],
-                "texto": texto_da_linha(data=data, hora=hora, topicos=topicos),
+                "autor_id": autor_id,
+                "texto": texto,
                 "mencoes": [],
                 "origem": ORIGEM_SISTEMA,
             }
@@ -694,3 +703,12 @@ def enviar(supabase, demanda: dict[str, Any], *, ator: dict[str, Any], envio_id:
         .data
     )
     return linha
+
+
+def texto_da_linha_em_producao(*, versao: str, data: str) -> str:
+    """A linha de Em producao (issue #2117): a versao e o dia da subida, no fuso do hospital."""
+    try:
+        dia, _ = _data_e_hora(datetime.fromisoformat(data))
+    except (TypeError, ValueError):
+        return f"Entrou no ar na versão {versao}."
+    return f"Entrou no ar na versão {versao}, em {dia}."
