@@ -17,11 +17,15 @@ from datetime import date
 
 import pytest
 
+from app.services.inicio import fonte_contestacoes
 from app.services.pendencia_ciclo import AcaoRecusada, Comando, Papel, acoes_disponiveis, decidir
 
-# O banco de mentira e o cliente da API são os de `test_pendencia_acoes.py`.
+# O banco de mentira e o cliente da API são os de `test_pendencia_acoes.py`;
+# o Início, os de `test_inicio_reunioes.py`.
 sys.path.insert(0, os.path.dirname(__file__))
 
+from test_inicio_reunioes import AURORA, FACILITADOR, _reuniao, _rota, nucleo  # noqa: E402, F401
+from test_inicio_reunioes import _Banco as _BancoDoInicio  # noqa: E402
 from test_pendencia_acoes import _banco, cliente  # noqa: E402, F401
 
 HOJE = date(2026, 11, 19)
@@ -331,3 +335,78 @@ def test_historico_mostra_ao_responsavel_contestar_com_a_ata_em_assinatura(clien
     assert "contestar" not in client.get("/api/pendencias/A001/historico").json()["acoes_permitidas"]
     _em_assinatura(estado)
     assert "contestar" in client.get("/api/pendencias/A001/historico").json()["acoes_permitidas"]
+
+
+# ── A Contestação na Minha Fila do Facilitador, sem esperar job ─────────────
+# O Início e o banco de mentira são os de `test_inicio_reunioes.py`; a
+# Contestação sai do histórico na hora em que a pessoa abre o Início.
+
+
+@pytest.fixture
+def ocultas(monkeypatch, nucleo):  # noqa: F811
+    """As reuniões do Núcleo que a pessoa não alcança, também para a fonte
+    das Contestações."""
+    monkeypatch.setattr(fonte_contestacoes, "reunioes_ocultas", lambda _sb, _me: list(nucleo["ocultas"]))
+    return nucleo
+
+
+def _cenario_da_fila(*eventos: dict, status="PENDENTE", facilitador="P_FACI") -> _BancoDoInicio:
+    return _BancoDoInicio(
+        reunioes=[_reuniao("R50", status_ata="AGUARDANDO_ASSINATURA", facilitador_id=facilitador)],
+        pendencias=[
+            {
+                "id_acao": "A050",
+                "id_reuniao": "R50",
+                "descricao_acao": "Comprar luvas",
+                "responsavel_id": "P_AURORA",
+                "responsavel_nome": "Aurora Lima",
+                "co_responsavel_id": None,
+                "prazo": "2026-12-10",
+                "status": status,
+                "deleted_at": None,
+                "created_at": "2026-11-17T12:00:00+00:00",
+            }
+        ],
+        pendencia_historico=[{**e, "id_acao": "A050"} for e in eventos],
+    )
+
+
+_CONTESTOU_HOJE = _evento(20, "contestar", "2026-11-18T12:30:00+00:00")
+
+
+def _contestacoes(resposta) -> list[tuple[str, str, str | None]]:
+    return [(item.tipo, item.id, item.grupo) for item in resposta.itens if item.tipo == "contestacao"]
+
+
+def test_a_contestacao_aparece_na_hora_no_alerta_e_na_minha_fila_do_facilitador(monkeypatch, ocultas):
+    resposta = _rota(monkeypatch, FACILITADOR, _cenario_da_fila(_CONTESTOU_HOJE))
+
+    assert _contestacoes(resposta) == [("contestacao", "A050", "ate_48_horas")]
+    assert resposta.contadores.ate_48_horas == 1
+    item = next(i for i in resposta.itens if i.tipo == "contestacao")
+    assert "Comprar luvas" in item.titulo
+    assert item.destino == "/pendencias/kanban?highlight=A050"
+    assert "o prazo combinado era outro" in (item.contexto or "")
+
+
+def test_a_contestacao_nao_vai_para_a_fila_do_responsavel_nem_de_outro_facilitador(monkeypatch, ocultas):
+    assert _contestacoes(_rota(monkeypatch, AURORA, _cenario_da_fila(_CONTESTOU_HOJE))) == []
+    assert (
+        _contestacoes(_rota(monkeypatch, FACILITADOR, _cenario_da_fila(_CONTESTOU_HOJE, facilitador="P_OUTRO"))) == []
+    )
+
+
+@pytest.mark.parametrize("resposta_do_facilitador", ["ajustar", "recusar"])
+def test_depois_de_ajustar_ou_recusar_a_contestacao_sai_da_fila(monkeypatch, ocultas, resposta_do_facilitador):
+    respondida = _evento(21, resposta_do_facilitador, "2026-11-18T13:00:00+00:00")
+    assert _contestacoes(_rota(monkeypatch, FACILITADOR, _cenario_da_fila(_CONTESTOU_HOJE, respondida))) == []
+
+
+def test_contestacao_de_pendencia_fechada_nao_vai_para_a_fila(monkeypatch, ocultas):
+    banco = _cenario_da_fila(_CONTESTOU_HOJE, status="CONCLUIDO")
+    assert _contestacoes(_rota(monkeypatch, FACILITADOR, banco)) == []
+
+
+def test_contestacao_de_reuniao_do_nucleo_fora_do_alcance_nao_aparece(monkeypatch, ocultas):
+    ocultas["ocultas"] = ["R50"]
+    assert _contestacoes(_rota(monkeypatch, FACILITADOR, _cenario_da_fila(_CONTESTOU_HOJE))) == []
