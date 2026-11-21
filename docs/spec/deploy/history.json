@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T13:13:57-03:00",
+      "sha": "f3223cd4a71452e78052f30a291f1a2e6cada97e",
+      "app_version": "0.343.0",
+      "subject": "Onda sesta-1757-onda7: Lista de definições de processo do setor",
+      "raw_subject": "chore(deploy): registro da onda sesta-1757-onda7 (#2072)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1757
+      ],
+      "result": "healthy",
+      "duration_seconds": 411,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "178_definicoes_de_processo_do_setor.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1757-onda7: PR #2072 (issue #1875), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 4,
+        "build_s": {
+          "backend": 21,
+          "frontend": 216
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T13:07:11-03:00",
       "sha": "7199a46df41c9741d5dd90d7136a811071ecc138",
       "app_version": "0.342.0",
