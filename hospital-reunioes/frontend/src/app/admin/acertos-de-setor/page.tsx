@@ -2,9 +2,10 @@
 
 // Acertos de setor (issue #1861): as Reuniões antigas e os responsáveis que
 // ficaram sem setor, para o Super admin preencher. Preenchido, sai da lista.
-// Cada grupo é uma seção própria; a próxima lista (as Pendências de fluxo
-// contínuo que não casam com o quadro da Ata) entra como mais uma seção.
+// Cada grupo é uma seção própria. A terceira (issue #1877) traz as Pendências
+// sem prazo que não viraram Rotina: o prazo se dá na própria Pendência.
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, MapPinned } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,9 +26,17 @@ interface ResponsavelSemSetor {
   email: string | null;
 }
 
+interface PendenciaSemPrazo {
+  id_acao: string;
+  descricao_acao: string;
+  responsavel_nome: string | null;
+  reuniao_titulo: string | null;
+}
+
 interface Acertos {
   reunioes: ReuniaoSemSetor[];
   responsaveis: ResponsavelSemSetor[];
+  pendencias_sem_prazo?: PendenciaSemPrazo[];
 }
 
 function dataCurta(iso: string): string {
@@ -172,7 +181,8 @@ export default function AcertosDeSetorPage() {
         <div>
           <h1 className="text-2xl font-bold text-text">Acertos de setor</h1>
           <p className="text-sm text-text-secondary">
-            Reuniões e responsáveis que ficaram sem setor. Preenchido, o item sai da lista.
+            Reuniões e responsáveis que ficaram sem setor, e pendências sem prazo que não viraram rotina. Acertado, o
+            item sai da lista.
           </p>
         </div>
       </div>
@@ -212,6 +222,29 @@ export default function AcertosDeSetorPage() {
                 setores={setores}
                 onSalvar={(setor) => salvarResponsavel(p.id, setor)}
               />
+            ))}
+          </SecaoDeAcertos>
+
+          <SecaoDeAcertos
+            titulo="Pendências sem prazo"
+            vazio="Nenhuma pendência sem prazo."
+            quantidade={(acertos.pendencias_sem_prazo ?? []).length}
+          >
+            {(acertos.pendencias_sem_prazo ?? []).map((p) => (
+              <li key={p.id_acao} className="flex flex-col md:flex-row md:items-center gap-3 px-4 py-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-text break-words normal-case">{p.descricao_acao}</p>
+                  <p className="text-xs text-text-secondary truncate">
+                    {[p.reuniao_titulo, p.responsavel_nome].filter(Boolean).join(", ")}
+                  </p>
+                </div>
+                <Link
+                  href={`/pendencias/kanban?highlight=${encodeURIComponent(p.id_acao)}`}
+                  className="px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-text hover:bg-slate-50"
+                >
+                  Abrir a pendência
+                </Link>
+              </li>
             ))}
           </SecaoDeAcertos>
         </>

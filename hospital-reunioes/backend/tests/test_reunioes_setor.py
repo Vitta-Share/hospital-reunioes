@@ -391,3 +391,54 @@ class TestPreencherTiraDaLista:
 
         assert resp.status_code == 404, resp.text
         assert sb.reuniao("RD_NSP")["setor_id"] is None
+
+
+# ─── Issue #1877: as Pendências sem prazo que não viraram Rotina ──────────────
+
+ABERTA_SEM_PRAZO = {
+    "id_acao": "A10",
+    "id_reuniao": "RD_COM",
+    "descricao_acao": "Comprar luvas",
+    "responsavel_nome": "Carla Sem Setor",
+    "responsavel_id": SEM_SETOR["id"],
+    "status": "PENDENTE",
+    "prazo": None,
+    "deleted_at": None,
+}
+PENDENCIAS_SEM_PRAZO = [
+    ABERTA_SEM_PRAZO,
+    {**ABERTA_SEM_PRAZO, "id_acao": "A11", "status": "EM_PROGRESSO", "descricao_acao": "Treinar equipe"},
+    # Com prazo, concluída, cancelada (a que virou Rotina) ou apagada: nada a acertar.
+    {**ABERTA_SEM_PRAZO, "id_acao": "A12", "prazo": "2026-12-01"},
+    {**ABERTA_SEM_PRAZO, "id_acao": "A13", "status": "CONCLUIDO"},
+    {**ABERTA_SEM_PRAZO, "id_acao": "A14", "status": "CANCELADO"},
+    {**ABERTA_SEM_PRAZO, "id_acao": "A15", "deleted_at": "2026-10-01T00:00:00Z"},
+    # A da Reunião do Núcleo é sigilosa até para o Super admin; a da Reunião
+    # excluída não aparece em lugar nenhum; o lembrete do Núcleo não tem Reunião.
+    {**ABERTA_SEM_PRAZO, "id_acao": "A16", "id_reuniao": "RD_NSP"},
+    {**ABERTA_SEM_PRAZO, "id_acao": "A17", "id_reuniao": "RD_DEL"},
+    {**ABERTA_SEM_PRAZO, "id_acao": "A18", "id_reuniao": None},
+]
+
+
+class TestPendenciasSemPrazo:
+    def test_as_pendencias_abertas_sem_prazo_entram_na_tela_de_acertos(self):
+        sb = _Supabase(
+            [SUPER_ADMIN, SEM_SETOR],
+            reunioes=[REUNIAO_SEM_SETOR, REUNIAO_COM_SETOR, REUNIAO_EXCLUIDA, REUNIAO_DO_NUCLEO],
+            pendencias=PENDENCIAS_SEM_PRAZO,
+        )
+
+        resp = _acertos(sb, SUPER_ADMIN)
+
+        assert resp.status_code == 200, resp.text
+        lista = resp.json()["pendencias_sem_prazo"]
+        assert [(p["id_acao"], p["descricao_acao"], p["responsavel_nome"], p["reuniao_titulo"]) for p in lista] == [
+            ("A10", "Comprar luvas", "Carla Sem Setor", "Reunião antiga"),
+            ("A11", "Treinar equipe", "Carla Sem Setor", "Reunião antiga"),
+        ]
+
+    def test_sem_pendencia_sem_prazo_a_lista_vem_vazia(self):
+        resp = _acertos(_banco_de_acertos(), SUPER_ADMIN)
+
+        assert resp.json()["pendencias_sem_prazo"] == []

@@ -6,11 +6,15 @@ gravado para ele existir. O prazo é o último dia do ciclo, então o ciclo que
 fechou cai em "Passou do prazo" sozinho. Realizada é um clique, ali mesmo;
 Não realizada pede anotação e fica na tela das Rotinas. O sigilo do Núcleo
 segue o das Pendências.
+
+A Rotina sem frequência (o fluxo contínuo antigo convertido, issue #1877) não
+tem ciclo: ela entra na fila do Facilitador da Reunião, sem prazo, até ele
+escolher a frequência.
 """
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from app.dependencies import reunioes_ocultas, tem_acesso_reunioes
 from app.services import rotina_service
@@ -28,10 +32,62 @@ def _origem(rotina: dict, reuniao: dict | None) -> str:
     return f"{rotina_de} da {titulo}." if titulo else f"{rotina_de}."
 
 
+def _dia_em_brasilia(quando) -> date | None:
+    if not quando:
+        return None
+    return datetime.fromisoformat(str(quando).replace("Z", "+00:00")).astimezone(FUSO).date()
+
+
 def itens(supabase, me: dict, agora: datetime | None = None) -> list[dict]:
     """Os itens da fonte, no formato comum do Início, sem grupo."""
     if not tem_acesso_reunioes(me):
         return []
+    return _verificacoes(supabase, me, agora) + _frequencias_a_escolher(supabase, me)
+
+
+def _frequencias_a_escolher(supabase, me: dict) -> list[dict]:
+    """As Rotinas ativas e sem frequência das Reuniões que a pessoa facilita."""
+    facilitadas = {
+        r["id_reuniao"]: r
+        for r in supabase.table("reunioes").select("id_reuniao, titulo").eq("facilitador_id", me["id"]).execute().data
+        or []
+    }
+    if not facilitadas:
+        return []
+    ocultas = set(reunioes_ocultas(supabase, me))
+    rotinas = (
+        supabase.table("rotinas")
+        .select("*")
+        .in_("id_reuniao", sorted(facilitadas))
+        .is_("frequencia", "null")
+        .eq("status", rotina_service.ATIVA)
+        .execute()
+        .data
+        or []
+    )
+    return [
+        {
+            "tipo": "frequencia_da_rotina",
+            "id": rotina["id"],
+            "titulo": rotina.get("descricao") or "Rotina sem descrição",
+            "origem": _origem(rotina, facilitadas.get(rotina["id_reuniao"])),
+            "chegou_em": _dia_em_brasilia(rotina.get("created_at")),
+            "sem_prazo_no_modulo": True,
+            "area": "Reuniões",
+            "acao": "Escolher a frequência",
+            "destino": "/rotinas",
+            "contexto": (
+                "Era fluxo contínuo e virou Rotina. Escolha se é semanal, quinzenal ou mensal; "
+                "até lá, nenhum ciclo é cobrado do responsável."
+            ),
+        }
+        for rotina in rotinas
+        if rotina["id_reuniao"] not in ocultas
+    ]
+
+
+def _verificacoes(supabase, me: dict, agora: datetime | None) -> list[dict]:
+    """Os ciclos em aberto das Rotinas de que a pessoa é responsável."""
     rotinas = supabase.table("rotinas").select("*").eq("responsavel_id", me["id"]).execute().data or []
     if not rotinas:
         return []
