@@ -10,7 +10,7 @@ segue o das Pendências.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from app.dependencies import reunioes_ocultas, tem_acesso_reunioes
 from app.services import rotina_service
@@ -28,15 +28,61 @@ def _origem(rotina: dict, reuniao: dict | None) -> str:
     return f"{rotina_de} da {titulo}." if titulo else f"{rotina_de}."
 
 
-def itens(supabase, me: dict, agora: datetime | None = None) -> list[dict]:
-    """Os itens da fonte, no formato comum do Início, sem grupo."""
+def _do_responsavel(supabase, me: dict) -> list[dict]:
+    """As Rotinas de que a pessoa é a responsável, sem as do Núcleo oculto. Só
+    o responsável vê a Rotina no Início: o Facilitador marca por ele na tela
+    das Rotinas, não aqui."""
     if not tem_acesso_reunioes(me):
         return []
     rotinas = supabase.table("rotinas").select("*").eq("responsavel_id", me["id"]).execute().data or []
     if not rotinas:
         return []
     ocultas = set(reunioes_ocultas(supabase, me))
-    rotinas = [r for r in rotinas if r["id_reuniao"] not in ocultas]
+    return [r for r in rotinas if r["id_reuniao"] not in ocultas]
+
+
+def _destino(rotina: dict) -> str:
+    return f"/rotinas#rotina-{rotina['id']}"
+
+
+def do_ciclo(supabase, me: dict, hoje: date) -> list[dict]:
+    """O trilho (issue #1944): as Rotinas com um ciclo que contém hoje, e a
+    Verificação desse ciclo quando já foi marcada. A que ainda não começou ou
+    foi encerrada não tem ciclo corrente e fica de fora."""
+    rotinas = _do_responsavel(supabase, me)
+    if not rotinas:
+        return []
+    marcadas = rotina_service.verificacoes_de(supabase, [r["id"] for r in rotinas])
+    saida: list[dict] = []
+    for rotina in rotinas:
+        corrente = next((c for c in rotina_service.devidos(rotina, hoje) if c.inicio <= hoje <= c.fim), None)
+        if corrente is None:
+            continue
+        verificacao = next(
+            (
+                v
+                for v in marcadas.get(rotina["id"], [])
+                if str(v.get("ciclo_inicio"))[:10] == corrente.inicio.isoformat()
+            ),
+            None,
+        )
+        saida.append(
+            {
+                "id": rotina["id"],
+                "titulo": rotina.get("descricao") or "Rotina sem descrição",
+                "ciclo_inicio": corrente.inicio,
+                "ciclo_fim": corrente.fim,
+                "verificacao": (verificacao or {}).get("resultado"),
+                "destino": _destino(rotina),
+            }
+        )
+    saida.sort(key=lambda r: (r["ciclo_fim"], r["titulo"].lower()))
+    return saida
+
+
+def itens(supabase, me: dict, agora: datetime | None = None) -> list[dict]:
+    """Os itens da fonte, no formato comum do Início, sem grupo."""
+    rotinas = _do_responsavel(supabase, me)
     if not rotinas:
         return []
     hoje = (agora or datetime.now(FUSO)).astimezone(FUSO).date()

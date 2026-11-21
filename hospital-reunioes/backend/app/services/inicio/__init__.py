@@ -50,13 +50,15 @@ class Fonte:
     rotulo: str
     # (supabase, quem pede, agora) -> itens no formato comum, sem grupo.
     itens: Callable[..., list[dict]]
+    # (supabase, quem pede, hoje) -> as Rotinas do ciclo, no trilho (issue #1944).
+    do_ciclo: Callable[..., list[dict]] | None = None
 
 
 FONTES: tuple[Fonte, ...] = (
     Fonte("pendencias", fonte_pendencias.ROTULO, fonte_pendencias.itens),
     Fonte("contestacoes", fonte_contestacoes.ROTULO, fonte_contestacoes.itens),
     Fonte("atas", fonte_reunioes.ROTULO, fonte_reunioes.itens),
-    Fonte("rotinas", fonte_rotinas.ROTULO, fonte_rotinas.itens),
+    Fonte("rotinas", fonte_rotinas.ROTULO, fonte_rotinas.itens, fonte_rotinas.do_ciclo),
     Fonte("ouvidoria", fonte_ouvidoria.ROTULO, fonte_ouvidoria.itens),
     Fonte("pops", fonte_pops.ROTULO, fonte_pops.itens),
     Fonte("contas_medicas", fonte_contas_medicas.ROTULO, fonte_contas_medicas.itens),
@@ -125,6 +127,18 @@ class ItemDoTrilho(BaseModel):
     destino: str
 
 
+class RotinaDoCiclo(BaseModel):
+    """Uma Rotina no trilho (issue #1944): o ciclo de agora e a Verificação
+    dele, quando já marcada (REALIZADA ou NAO_REALIZADA)."""
+
+    id: str
+    titulo: str
+    ciclo_inicio: date
+    ciclo_fim: date
+    verificacao: str | None = None
+    destino: str
+
+
 class FilaDoPapel(BaseModel):
     fila: str
     titulo: str
@@ -140,9 +154,10 @@ class Inicio(BaseModel):
     contadores: Contadores
     itens: list[ItemDoInicio]
     avisos: list[AvisoDeFonte]
-    # O trilho, ao lado da fila: as próximas Reuniões (e, quando existirem,
-    # as Rotinas do ciclo). Fora da fila e da contagem da frase.
+    # O trilho, ao lado da fila: as próximas Reuniões e as Rotinas do ciclo
+    # (issue #1944). Fora da fila e da contagem da frase.
     trilho: list[ItemDoTrilho] = []
+    rotinas_do_ciclo: list[RotinaDoCiclo] = []
     filas_do_papel: list[FilaDoPapel] = []
 
 
@@ -184,6 +199,7 @@ def montar_inicio(
     filas: list[FilaDoPapel] = []
     avisos: list[AvisoDeFonte] = []
     trilho: list[ItemDoTrilho] = []
+    rotinas_do_ciclo: list[RotinaDoCiclo] = []
     hoje = agora.astimezone(FUSO).date()
     if me:
         for fonte in fontes:
@@ -193,6 +209,11 @@ def montar_inicio(
                 item.dias_de_atraso = dias_de_atraso(item.prazo, agora) if item.grupo == PASSOU_DO_PRAZO else None
                 item.dias_esperando = dias_esperando(item.chegou_em, agora) if item.grupo == SEM_PRAZO else None
                 itens.append(item)
+            if fonte.do_ciclo is not None:
+                try:
+                    rotinas_do_ciclo.extend(RotinaDoCiclo(**bruto) for bruto in fonte.do_ciclo(supabase, me, hoje))
+                except Exception:
+                    avisos.append(_aviso(f"{fonte.nome}_do_ciclo", f"{fonte.rotulo} do ciclo", me))
         try:
             trilho = [ItemDoTrilho(**bruto) for bruto in fonte_reunioes.proximas(supabase, me, hoje)]
         except Exception:
@@ -225,5 +246,6 @@ def montar_inicio(
         itens=itens,
         avisos=avisos,
         trilho=trilho,
+        rotinas_do_ciclo=rotinas_do_ciclo,
         filas_do_papel=filas,
     )
