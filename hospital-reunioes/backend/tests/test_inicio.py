@@ -205,6 +205,28 @@ class TestFonteDePendencias:
         assert item.origem == "Lembrete da Agenda regulatória do Núcleo."
         assert item.destino == "/seguranca-do-paciente/agenda"
 
+    def test_acesso_pleno_ve_a_recalibracao_que_abre_a_tela_do_anexo_f(self, monkeypatch, nucleo):
+        """A pendência de recalibração do agente (issue #2001) também é
+        Pendência sem Reunião, mas o atalho dela é a tela dos itens do Anexo F."""
+        nucleo["recursos"] = frozenset({"agenda", "triagem", "ver_modulo"})
+        banco = _Banco(
+            pendencias=[
+                _pendencia(
+                    "A022",
+                    responsavel_id="P_AURORA",
+                    id_reuniao=None,
+                    descricao_acao="Recalibrar o agente do NSP (30 dias)",
+                )
+            ]
+        )
+
+        item = _rota(monkeypatch, AURORA, banco).itens[0]
+
+        assert item.titulo == "Recalibrar o agente do NSP (30 dias)"
+        assert item.origem == "Recalibração do agente de triagem do Núcleo."
+        assert item.acao == "Abrir a recalibração"
+        assert item.destino == "/seguranca-do-paciente/recalibracao"
+
     def test_quem_nao_alcanca_a_agenda_nao_ve_o_lembrete(self, monkeypatch, nucleo):
         """O lembrete leva o evento do Núcleo (ADR 0095, decisão 4): quem saiu
         da Presidência e não alcança mais a Agenda não o lê pelo Início."""
