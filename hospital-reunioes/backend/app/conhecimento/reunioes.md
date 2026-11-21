@@ -95,6 +95,14 @@ Toda reunião marcada tem setor. Quem agenda, a Secretária inclusive, escolhe o
 
 As reuniões antigas, marcadas antes dessa regra, continuam valendo mesmo sem setor. Quem administra o aplicativo tem no Admin a tela Acertos de setor, que lista as reuniões e os responsáveis por pendência que estão sem setor e deixa escolher o setor de cada um. Preenchido o setor, o item sai da lista.
 
+## As definições de processo do setor
+
+No envio da ata, cada linha do tipo Processo entra na lista de definições de processo do setor da reunião, com o trecho da ata copiado: quem consulta lê a regra combinada sem abrir a ata, e a lista não muda se a ata for corrigida depois. A lista fica nas Reuniões, e não nos POPs, até o rascunho de POP chegar. Ela não tem responsável, prazo nem lembrete: o processo não vira tarefa cobrada, e o facilitador consulta a lista quando quiser, na tela Definições de processo, no menu de Reuniões.
+
+Enquanto o organograma não chega, cuidam da lista os facilitadores das reuniões do setor: quem conduz alguma reunião de um setor vê a lista inteira daquele setor, e os outros setores não aparecem para ele. A reunião antiga, ainda sem setor, mostra os itens dela só para o próprio facilitador. Quem administra o aplicativo vê as listas de todos os setores, menos as das reuniões do Núcleo de Segurança do Paciente, que seguem a regra do Núcleo. A Secretária não vê a lista.
+
+Um item repetido, ou que deixou de valer, sai da lista pelo botão Tirar da lista, que pede uma anotação dizendo por quê. Só tiram o facilitador da reunião de onde o item saiu e quem administra o aplicativo. O item retirado não aparece mais na lista, mas não se apaga: fica registrado com o dia, quem tirou e a anotação.
+
 ## As reuniões do Núcleo de Segurança do Paciente
 
 As reuniões do Núcleo de Segurança do Paciente ficam no módulo Segurança do Paciente, no item Reuniões, e não são marcadas pela tela de Reuniões. São de quatro tipos: ordinária mensal, análise de evento, apresentação à Diretoria e reunião rápida de segurança. Depois de criada, a reunião do Núcleo segue o mesmo caminho das outras até a ata. A reunião rápida de segurança é só um registro de três linhas, sem transcrição nem ata.
@@ -158,6 +166,7 @@ Na tela da reunião, o botão Excluir, que apagava a reunião em qualquer status
 - No calendário, as reuniões de cada dia seguem a hora de início, da mais cedo para a mais tarde.
 - Nada apaga pendência: reunião que já teve pendência, mesmo toda cancelada, não se exclui.
 - Toda reunião nova tem setor, e quem administra o aplicativo preenche o setor que falta nas reuniões antigas e nos responsáveis.
+- A linha de Processo entra, no envio, na lista de definições de processo do setor da reunião, com o trecho da ata copiado; cuidam dela os facilitadores das reuniões do setor, quem administra o aplicativo vê todas, a Secretária não vê, e tirar um item pede anotação e cabe ao facilitador da reunião de origem e a quem administra o aplicativo.
 - Cada linha da ata é Ação, Rotina ou Processo, e só a Ação vira pendência; a linha sem tipo vale como Ação, e toda Rotina precisa de responsável e frequência antes do envio.
 - A rotina segue o calendário (semana, quinzena de 1 a 15 e de 16 ao fim do mês, ou mês), começa no primeiro ciclo inteiro depois do envio, e cada ciclo é marcado como Realizada, com um clique, ou Não realizada, com anotação; o facilitador marca por quem não entra no aplicativo e encerra a rotina com anotação.
 

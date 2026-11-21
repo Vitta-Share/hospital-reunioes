@@ -134,6 +134,9 @@ PARAMS_SEM_SEGREDO = {
     "externo_id",
     "gravidade",
     "id_acao",
+    # UUID do item das Definições de processo (issue #1875). Nao e credencial:
+    # a rota exige login e o vinculo com a Reuniao de origem.
+    "id_definicao",
     "id_grupo_recorrencia",
     "id_reuniao",
     # UUID da Rotina e o primeiro dia do ciclo (issue #1874). Nao sao
