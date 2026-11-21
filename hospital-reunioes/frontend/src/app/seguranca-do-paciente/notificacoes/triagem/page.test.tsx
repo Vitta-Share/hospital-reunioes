@@ -11,7 +11,6 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { CurrentParticipante } from "@/hooks/useCurrentParticipante";
-import { ORIENTACAO_DA_TRIAGEM } from "@/lib/seguranca-do-paciente/triagem";
 
 import FilaDeTriagemPage from "./page";
 import TriagemDoCasoPage from "../[id]/triagem/page";
@@ -39,6 +38,11 @@ afterEach(() => {
   sessao.participante = null;
 });
 
+// O texto literal da seção 17 da especificação (tela "Fila de triagem"), e não a
+// constante: trocar o texto da tela tem que quebrar este teste.
+const LINHA_DA_SECAO_17 =
+  "Leia o relato, confira a sugestão e confirme. Se discordar, ajuste: o sistema aprende com a diferença.";
+
 describe("as telas da triagem", () => {
   it.each([
     ["a fila", FilaDeTriagemPage, "Fila de triagem", "A fila"],
@@ -48,7 +52,7 @@ describe("as telas da triagem", () => {
     render(<Pagina />);
 
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(titulo);
-    expect(screen.getByText(ORIENTACAO_DA_TRIAGEM).tagName).toBe("P");
+    expect(screen.getByText(LINHA_DA_SECAO_17).tagName).toBe("P");
     expect(screen.getByText(conteudo)).toBeTruthy();
   });
 

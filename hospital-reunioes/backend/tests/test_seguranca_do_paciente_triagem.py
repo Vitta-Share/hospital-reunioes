@@ -27,6 +27,7 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -383,6 +384,48 @@ def test_a_triagem_confirmada_nao_se_confirma_de_novo():
 
     assert segunda.status_code == 409
     assert len(_decisoes(banco)) == 1
+
+
+@pytest.mark.parametrize(
+    ("sugestao", "estado"),
+    [(GRAVE, "classificada"), (QUASE_ERRO, "em_analise_agregada")],
+    ids=["faixa B", "faixa E"],
+)
+@pytest.mark.parametrize(
+    "falha",
+    [APIError({"code": "57014", "message": "canceling statement"}), httpx.ReadTimeout("timeout")],
+    ids=["APIError", "timeout do PostgREST"],
+)
+def test_a_nova_tentativa_conclui_a_mudanca_de_estado_que_falhou(sugestao, estado, falha, monkeypatch):
+    caso = _notificacao(1)
+    banco = _banco([caso], [_sugestao(caso, **sugestao)])
+    executar = _ConsultaDaTriagem.execute
+    derrubados: list[str] = []
+
+    def _derrubar_o_update_do_estado(self):
+        if self._nome == "nsp_notificacoes" and self._acao == "update" and not derrubados:
+            derrubados.append(self._nome)
+            raise falha
+        return executar(self)
+
+    monkeypatch.setattr(_ConsultaDaTriagem, "execute", _derrubar_o_update_do_estado)
+    conferidos = triagem.CAMPOS_DA_CONFERENCIA
+
+    primeira = _confirmar(banco, caso, conferidos)
+
+    assert primeira.status_code == 503, primeira.text
+    assert derrubados == ["nsp_notificacoes"]
+    assert len(_decisoes(banco)) == 1
+    assert banco.notificacoes[0]["estado"] == "recebida"
+
+    segunda = _confirmar(banco, caso, conferidos)
+
+    assert segunda.status_code == 201, segunda.text
+    assert segunda.json()["estado"] == estado
+    assert segunda.json()["triagem"]["faixa"] == sugestao["faixa"]
+    assert banco.notificacoes[0]["estado"] == estado
+    assert len(_decisoes(banco)) == 1
+    assert _confirmar(banco, caso, conferidos).status_code == 409
 
 
 @pytest.mark.parametrize("pessoa", [MEMBRO, SUPER_ADMIN], ids=["membro do Núcleo", "super admin sem Acesso pleno"])

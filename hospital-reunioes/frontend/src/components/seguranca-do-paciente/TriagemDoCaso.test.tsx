@@ -15,7 +15,11 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CAMPOS, ORIENTACAO_DO_CASO_GRAVE } from "@/lib/seguranca-do-paciente/triagem";
+import { CAMPOS } from "@/lib/seguranca-do-paciente/triagem";
+
+// O texto literal da seção 17 da especificação (tela "Triagem de caso grave"),
+// e não a constante: trocar o texto da tela tem que quebrar este teste.
+const LINHA_DO_CASO_GRAVE = "Caso grave: confirme cada campo. O prazo legal já está correndo.";
 import { TriagemDoCaso } from "./TriagemDoCaso";
 
 vi.mock("@/lib/supabase/client", () => ({
@@ -143,7 +147,7 @@ describe("a tela de triagem", () => {
     expect(within(sugestao).getByText(SUGESTAO.justificativa)).toBeTruthy();
     expect(within(sugestao).getByText(/Confiança média/)).toBeTruthy();
     expect(within(sugestao).getByText(SUGESTAO.alertas[0])).toBeTruthy();
-    expect(screen.queryByText(ORIENTACAO_DO_CASO_GRAVE)).toBeNull();
+    expect(screen.queryByText(LINHA_DO_CASO_GRAVE)).toBeNull();
   });
 
   it("mostra a recorrência, os casos parecidos, a frequência e a prioridade calculadas", async () => {
@@ -175,7 +179,7 @@ describe("a tela de triagem", () => {
     resposta = tela(true, { sugestao: { ...SUGESTAO, faixa: "A", grau_de_dano: "obito" } });
     render(<TriagemDoCaso id="c1" />);
 
-    expect(await screen.findByText(ORIENTACAO_DO_CASO_GRAVE)).toBeTruthy();
+    expect(await screen.findByText(LINHA_DO_CASO_GRAVE)).toBeTruthy();
     const confirmar = screen.getByRole("button", { name: "Confirmar" });
     expect(screen.queryByRole("button", { name: /aceitar tudo|marcar todos/i })).toBeNull();
 

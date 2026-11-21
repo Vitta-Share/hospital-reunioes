@@ -630,8 +630,13 @@ def decidir(
         raise CasoNaoEncontradoError("Caso não encontrado.")
     linhas = _triagens_por_notificacao(supabase, [notificacao_id]).get(notificacao_id, [])
     sugestao = _sugestao(linhas)
-    if _decisao(linhas) or notificacao.get("estado") not in ESTADOS_DA_FILA:
+    if notificacao.get("estado") not in ESTADOS_DA_FILA:
         raise JaConfirmadaError("A triagem deste caso já foi confirmada.")
+    gravada = _decisao(linhas)
+    if gravada:
+        # A decisão ficou gravada e a mudança de estado falhou: a nova
+        # tentativa conclui com o que foi gravado, sem gravar outra linha.
+        return _concluir(supabase, notificacao_id, gravada, autor_id)
     motivos = motivos_da_conferencia(notificacao, sugestao)
     if motivos and not set(CAMPOS_DA_CONFERENCIA) <= set(conferidos or []):
         raise ConferenciaIncompletaError(
@@ -664,8 +669,13 @@ def decidir(
         if erro.code == "23505":
             raise JaConfirmadaError("A triagem deste caso já foi confirmada.") from erro
         raise
-    estado = estado_depois_da_triagem(campos["faixa"], campos["grau_de_dano"])
+    return _concluir(supabase, notificacao_id, gravada, autor_id)
+
+
+def _concluir(supabase, notificacao_id: str, decisao: dict[str, Any], autor_id: str) -> dict[str, Any]:
+    """Leva o caso ao estado que a decisão gravada pede."""
+    estado = estado_depois_da_triagem(decisao["faixa"], decisao["grau_de_dano"])
     supabase.table("nsp_notificacoes").update({"estado": estado, "editado_por": autor_id}).eq("id", notificacao_id).in_(
         "estado", list(ESTADOS_DA_FILA)
     ).execute()
-    return {"estado": estado, "triagem": _apresentar(gravada)}
+    return {"estado": estado, "triagem": _apresentar(decisao)}
