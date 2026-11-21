@@ -2,6 +2,53 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T19:25:17-03:00",
+      "sha": "e2eea9bd34abc2582dd47ce69394d3de447ed1b7",
+      "app_version": "0.351.0",
+      "subject": "Onda sesta-1786-onda4: Avisos por e-mail sem conteúdo e lembretes de prazo no Canal de Conduta",
+      "raw_subject": "chore(deploy): registro da onda sesta-1786-onda4 (#2101)",
+      "scope": [
+        "backend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 71,
+      "services_touched": [
+        "backend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "199_conduta_avisos_por_email.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1786-onda4: PR #2101 (issue #1840), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 18
+        },
+        "health_s": 10
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T19:13:06-03:00",
       "sha": "3992c387c661f38fc0b07a40aa585a241090cbd7",
       "app_version": "0.350.0",
