@@ -578,7 +578,7 @@ ARQUIVOS_DA_FATIA = [
     RAIZ_DO_APP / "backend/app/routers/contas_medicas_envio.py",
     RAIZ_DO_APP / "backend/app/conhecimento/contas-medicas.md",
     RAIZ_DO_APP / "frontend/src/app/contas-medicas/guia/[contaId]/page.tsx",
-    RAIZ_DO_APP / "frontend/src/components/contas-medicas/LinhaDoGuia.tsx",
+    RAIZ_DO_APP / "frontend/src/components/contas-medicas/ItemDaVez.tsx",
     RAIZ_DO_APP / "frontend/src/lib/contas-medicas/guia.ts",
     RAIZ_DO_APP / "frontend/src/lib/contas-medicas/envio.ts",
 ]
