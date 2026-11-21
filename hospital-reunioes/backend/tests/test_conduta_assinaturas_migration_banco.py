@@ -1,4 +1,4 @@
-"""A migration 189 das assinaturas do Canal de Conduta num Postgres de verdade (issue #1823).
+"""A migration 192 das assinaturas do Canal de Conduta num Postgres de verdade (issue #1823).
 
 Sobe um Postgres descartável (o mesmo apoio da migration 169), monta o mínimo
 das tabelas de antes, aplica a migration duas vezes e prova no banco:
@@ -20,9 +20,9 @@ from pathlib import Path
 import pytest
 from test_pendencia_historico_banco import _bin_do_postgres, _Postgres
 
-MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "189_conduta_assinaturas.sql"
+MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "192_conduta_assinaturas.sql"
 
-# O mínimo de antes da 189 (migrations 001, 146, 150 e 175).
+# O mínimo de antes da 192 (migrations 001, 146, 150 e 175).
 ESQUEMA_ANTERIOR = """
 CREATE ROLE anon NOLOGIN;
 CREATE ROLE authenticated NOLOGIN;
@@ -58,7 +58,7 @@ def banco():
             pytest.fail("O CI precisa do initdb para provar as assinaturas no banco.")
         pytest.skip("Sem initdb nesta máquina.")
     pg = _Postgres(bindir)
-    pg.porta = "54189"
+    pg.porta = "54192"
     pg.subir()
     try:
         pg.ok(ESQUEMA_ANTERIOR)
@@ -114,5 +114,5 @@ def test_tipo_e_situacao_fora_da_lista_sao_recusados(banco):
     assert _assinatura(banco, situacao="'perdido'").returncode != 0
 
 
-def test_o_recibo_e_o_189(banco):
-    assert banco.ok("SELECT max(numero) FROM migracoes_aplicadas;") == "189"
+def test_o_recibo_e_o_192(banco):
+    assert banco.ok("SELECT max(numero) FROM migracoes_aplicadas;") == "192"

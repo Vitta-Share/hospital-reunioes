@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 189: Canal de Conduta, as assinaturas pela ClickSign
+-- Migration 192: Canal de Conduta, as assinaturas pela ClickSign
 -- (issue #1823, PRD #1786, ADR 0097, decisões 2 e 13)
 -- =====================================================
 -- O que entra:
@@ -63,4 +63,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (189) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (192) ON CONFLICT (numero) DO NOTHING;

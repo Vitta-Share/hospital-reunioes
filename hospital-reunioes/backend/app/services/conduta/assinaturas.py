@@ -2,7 +2,7 @@
 decisões 2 e 13).
 
 Todo documento do módulo que vai à ClickSign é uma linha de
-`conduta_assinaturas` (migration 189): o tipo, o caso quando houver, os
+`conduta_assinaturas` (migration 192): o tipo, o caso quando houver, os
 signatários e a situação. O webhook acha a linha pela chave do documento, e o
 "Reconsultar status" chega ao mesmo `processar_evento`. A assinatura conta no
 fechamento do envelope (todos assinaram), e a cópia do PDF assinado, que traz
