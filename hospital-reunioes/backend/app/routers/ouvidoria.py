@@ -635,6 +635,9 @@ _CAMPOS_DOSSIE_TUPLA = _CAMPOS_PROTOCOLO_TUPLA + (
     "nsp_decisao",
     "nsp_decisao_motivo",
     "nsp_decidido_em",
+    # Quando o ouvidor sinalizou o caso ao Canal de Conduta (issue #1849,
+    # migration 202). Só o carimbo: nada do caso do Canal volta para cá.
+    "conduta_sinalizada_em",
 )
 _CAMPOS_DOSSIE = ", ".join(_CAMPOS_DOSSIE_TUPLA)
 

@@ -149,3 +149,138 @@ class TestOCasoNoCanal:
         assert caso["etapa"] == "triagem"
         assert caso["rota"] == "comum"
         assert caso["manifestacao_id"] == MANIFESTACAO_ID
+
+    def test_o_caso_nao_traz_o_nome_nem_o_contato_de_quem_manifestou(self):
+        banco = _banco()
+
+        resposta = _cliente(banco, OUVIDOR).post(ROTA)
+
+        assert resposta.status_code == 200, resposta.text
+        (caso,) = _casos(banco)
+        tudo_do_canal = repr(banco.tabelas["conduta_casos"]) + repr(banco.tabelas["conduta_trilha"])
+        tudo_do_canal += cifra.decifrar_texto(caso["relato_cifrado"])
+        for dado in (NOME, "Josefa", EMAIL, TELEFONE):
+            assert dado not in tudo_do_canal
+        # E nada do caso do Canal volta para o ouvidor.
+        assert caso["protocolo"] not in resposta.text
+        assert caso["id"] not in resposta.text
+
+    def test_a_coordenacao_do_comite_ve_o_caso_na_fila_com_a_origem_ouvidoria(self):
+        banco = _banco()
+        _cliente(banco, OUVIDOR).post(ROTA)
+
+        lista = _cliente(banco, MEMBRO_DO_COMITE).get("/api/comite-de-conduta/casos")
+
+        assert lista.status_code == 200, lista.text
+        (caso,) = lista.json()["casos"]
+        assert caso["origem"] == "ouvidoria"
+        assert caso["situacao"] == "em_triagem"
+
+
+class TestAManifestacaoSegueNaOuvidoria:
+    def test_a_manifestacao_nao_muda_de_estado_e_ganha_o_movimento_da_sinalizacao(self):
+        banco = _banco()
+
+        _cliente(banco, OUVIDOR).post(ROTA)
+
+        (manifestacao,) = banco.tabelas["ouvidoria_protocolos"]
+        assert manifestacao["status"] == "aguardando_area"
+        assert manifestacao["conduta_sinalizada_em"] is not None
+        (movimento,) = banco.tabelas["ouvidoria_movimentos"]
+        assert movimento["manifestacao_id"] == MANIFESTACAO_ID
+        assert movimento["estado_anterior"] == movimento["estado_novo"] == "aguardando_area"
+        assert movimento["autor_id"] == OUVIDOR["id"]
+        assert "Canal de Conduta" in movimento["observacao"]
+
+
+class TestOOuvidorNaoVeOCaso:
+    def test_o_ouvidor_recebe_403_ao_tentar_abrir_o_caso_no_canal(self):
+        banco = _banco()
+        cliente = _cliente(banco, OUVIDOR)
+        cliente.post(ROTA)
+        (caso,) = _casos(banco)
+
+        resposta = cliente.get(f"/api/comite-de-conduta/casos/{caso['id']}")
+
+        assert resposta.status_code == 403, resposta.text
+        assert not [linha for linha in banco.tabelas["conduta_trilha"] if linha["acao"] == "leitura"]
+
+
+class TestUmCasoPorManifestacao:
+    def test_sinalizar_duas_vezes_nao_cria_dois_casos(self):
+        banco = _banco()
+        cliente = _cliente(banco, OUVIDOR)
+
+        primeira = cliente.post(ROTA)
+        segunda = cliente.post(ROTA)
+
+        assert primeira.status_code == 200, primeira.text
+        assert segunda.status_code == 409, segunda.text
+        assert len(_casos(banco)) == 1
+        assert len(banco.tabelas["ouvidoria_movimentos"]) == 1
+
+    def test_a_sinalizacao_que_parou_depois_do_caso_termina_sem_abrir_outro(self):
+        banco = _banco()
+        cliente = _cliente(banco, OUVIDOR)
+        cliente.post(ROTA)
+        # O caso ficou, o carimbo e o movimento não.
+        banco.tabelas["ouvidoria_protocolos"][0]["conduta_sinalizada_em"] = None
+        banco.tabelas["ouvidoria_movimentos"].clear()
+
+        resposta = cliente.post(ROTA)
+
+        assert resposta.status_code == 200, resposta.text
+        assert len(_casos(banco)) == 1
+        assert banco.tabelas["ouvidoria_protocolos"][0]["conduta_sinalizada_em"] is not None
+        assert len(banco.tabelas["ouvidoria_movimentos"]) == 1
+
+
+class TestQuemSinaliza:
+    def test_a_diretoria_executiva_tambem_sinaliza(self):
+        banco = _banco()
+
+        resposta = _cliente(banco, DIRETORA).post(ROTA)
+
+        assert resposta.status_code == 200, resposta.text
+        assert len(_casos(banco)) == 1
+
+    @pytest.mark.parametrize("pessoa", [SUPER_ADMIN, MEMBRO_DO_COMITE], ids=["super_admin", "membro_do_comite"])
+    def test_quem_nao_tem_o_perfil_da_ouvidoria_recebe_403(self, pessoa):
+        banco = _banco()
+
+        resposta = _cliente(banco, pessoa).post(ROTA)
+
+        assert resposta.status_code == 403, resposta.text
+        assert _casos(banco) == []
+
+    def test_caso_apagado_nao_e_sinalizado(self):
+        banco = _banco(anonimizada_em="2026-10-01T12:00:00+00:00")
+
+        resposta = _cliente(banco, OUVIDOR).post(ROTA)
+
+        assert resposta.status_code == 409, resposta.text
+        assert _casos(banco) == []
+
+    def test_sem_a_chave_do_canal_nada_e_gravado(self, monkeypatch):
+        monkeypatch.setattr(settings, "conduta_chave_cifra", "")
+        banco = _banco()
+
+        resposta = _cliente(banco, OUVIDOR).post(ROTA)
+
+        assert resposta.status_code == 503, resposta.text
+        assert _casos(banco) == []
+        assert banco.tabelas["ouvidoria_protocolos"][0]["conduta_sinalizada_em"] is None
+
+
+class TestODossie:
+    def test_o_dossie_diz_que_o_caso_foi_sinalizado(self):
+        banco = _banco()
+        cliente = _cliente(banco, OUVIDOR)
+        cliente.post(ROTA)
+
+        dossie = cliente.get(f"/api/ouvidoria/manifestacoes/{MANIFESTACAO_ID}")
+
+        assert dossie.status_code == 200, dossie.text
+        assert (
+            dossie.json()["conduta_sinalizada_em"] == banco.tabelas["ouvidoria_protocolos"][0]["conduta_sinalizada_em"]
+        )

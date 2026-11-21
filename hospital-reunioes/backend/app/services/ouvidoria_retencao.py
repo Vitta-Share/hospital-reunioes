@@ -431,6 +431,9 @@ CAMPOS_PRESERVADOS_SEM_METRICA: tuple[str, ...] = (
     "nsp_decisao",
     "nsp_decidido_por",
     "nsp_decidido_em",
+    # Quando o ouvidor sinalizou o caso ao Canal de Conduta (issue #1849,
+    # migration 202): só o instante. O caso do Canal tem a guarda dele.
+    "conduta_sinalizada_em",
 )
 
 # As três colunas que não entram na escolha entre sair e ficar, por natureza:
