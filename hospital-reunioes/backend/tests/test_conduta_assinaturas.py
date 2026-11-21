@@ -599,6 +599,25 @@ def test_a_rede_esta_fechada_para_a_clicksign_nos_testes():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# 7. O kit de conhecimento diz o comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_o_kit_do_canal_diz_como_o_termo_e_assinado():
+    from pathlib import Path
+
+    kit = (Path(__file__).resolve().parents[1] / "app" / "conhecimento" / "canal-de-conduta.md").read_text(
+        encoding="utf-8"
+    )
+    assert "## O Termo de Confidencialidade e Posse" in kit
+    assert "chega à ClickSign no e-mail profissional do membro" in kit
+    assert "Reconsultar status" in kit
+    assert "cifrada" in kit
+    assert "vê a tela inicial, mas não abre caso" in kit
+    assert "o Termo de Confidencialidade e Posse do membro chegam nas próximas entregas" not in kit
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # O PDF assinado vem em `links.files.signed` (pesquisa na #1786)
 # ═══════════════════════════════════════════════════════════════════════════
 
