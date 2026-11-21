@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T20:04+0000 -->
+<!-- last_update: 2026-11-21T20:15+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -120,6 +120,7 @@ erDiagram
     participantes ||--o{ conduta_registro : "autor_id"
     participantes ||--o{ conduta_registro : "ganhou"
     participantes ||--o{ conduta_trilha : "que"
+    participantes ||--o{ email_de_segunda : "participante_id"
     participantes ||--o{ notificacoes : "destinatario_id"
     participantes ||--o{ nsp_agenda_ocorrencias : "registrado_por"
     participantes ||--o{ nsp_avisos : "destinatario_id"
@@ -1446,6 +1447,11 @@ erDiagram
         INTEGER ativas
         _ mais_colunas "+1"
     }
+    email_de_segunda {
+        VARCHAR participante_id FK
+        DATE semana
+        TIMESTAMPTZ enviado_em
+    }
 ```
 
 ## Indexes principais
@@ -1681,6 +1687,7 @@ erDiagram
 | `nsp_triagens` | `idx_nsp_triagens_categoria` | `categoria` | `188_nsp_agente_de_triagem.sql` |
 | `nsp_triagens` | `idx_nsp_triagens_evento_item` | `evento_item` | `188_nsp_agente_de_triagem.sql` |
 | `painel_fotografias` | `idx_painel_fotografias_semana` | `semana` | `189_fotografia_semanal_do_painel.sql` |
+| `email_de_segunda` | `idx_email_de_segunda_semana` | `semana` | `196_email_de_segunda.sql` |
 
 ---
-**Resumo:** 133 tabelas · 201 relacionamentos FK detectados.
+**Resumo:** 134 tabelas · 202 relacionamentos FK detectados.
