@@ -42,6 +42,7 @@ from test_seguranca_do_paciente_notificacoes import (  # noqa: E402, F401
     _cliente,
     _Consulta,
     _reset_rate_limiter,
+    _secao_do_kit,
 )
 
 from app.routers import seguranca_do_paciente_notificacoes as notificacoes_router  # noqa: E402
@@ -366,3 +367,25 @@ def test_a_notificacao_nao_guarda_nada_do_arquivo():
     tudo_no_banco = json.dumps(banco.tabelas, ensure_ascii=False, default=str)
     assert "corredor" not in tudo_no_banco
     assert "escala.pdf" not in tudo_no_banco
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. O texto do Produto no Kit de conhecimento diz o comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestKitDeConhecimento:
+    def test_o_que_ja_esta_no_ar_diz_os_anexos(self):
+        secao = _secao_do_kit("O que já está no ar")
+        for termo in (
+            "até três fotos ou PDFs",
+            "menos de 9 MB",
+            "reduzida no próprio celular",
+            "só abrem para quem abre os casos",
+            "nenhum anexo vai para a inteligência artificial",
+        ):
+            assert termo in secao, termo
+
+    def test_o_que_ainda_nao_faz_deixa_de_dizer_que_os_anexos_nao_chegaram(self):
+        secao = _secao_do_kit("O que ele ainda não faz")
+        assert "anexos (fotos e arquivos)" not in secao
