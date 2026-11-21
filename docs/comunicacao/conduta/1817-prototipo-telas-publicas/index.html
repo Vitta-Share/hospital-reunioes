@@ -1,0 +1,781 @@
+<!doctype html>
+<!--
+  Protótipo das telas públicas do Canal de Conduta (issue #1817, PRD #1786).
+  Descartável: serve para a Diretoria navegar e aprovar o layout (#1818) antes
+  de qualquer tela pública ser construída no app. Dados fictícios, nada é
+  gravado nem enviado, nenhum recurso de fora é carregado.
+  O deploy copia logo-hsm.png e HPSimplified_Rg.ttf de docs/comunicacao/_assets.
+  Teste: tools/test_prototipo_canal_de_conduta.py.
+-->
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Canal de Conduta · Protótipo</title>
+<style>
+  @font-face {
+    font-family: "HP Simplified";
+    src: url("HPSimplified_Rg.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  :root {
+    --primaria: #2B2E7E;
+    --primaria-escura: #1A1C4E;
+    --acento: #3B6FB6;
+    --gelo: #EEF2FA;
+    --texto: #1E293B;
+    --texto-2: #5B6678;
+    --borda: #E2E8F0;
+  }
+  * { box-sizing: border-box; }
+  html { font-size: 17px; }
+  body {
+    margin: 0;
+    font-family: "HP Simplified", system-ui, -apple-system, sans-serif;
+    font-weight: 400;
+    color: var(--texto);
+    background: #fff;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+  /* Caixa alta só em título, botão e aba (ADR 0080). O texto da fonte é em
+     caixa de frase; só a exibição muda. */
+  h1, h2, h3, button, [role="tab"] {
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  h1, h2, h3 { font-weight: 400; margin: 0; }
+  h1 { font-size: 1.45rem; color: var(--primaria-escura); line-height: 1.25; }
+  h2 { font-size: 0.95rem; color: var(--primaria); }
+  p { margin: 0; }
+  a { color: var(--acento); }
+
+  .faixa {
+    background: var(--gelo);
+    color: var(--texto-2);
+    font-size: 0.78rem;
+    text-align: center;
+    padding: 6px 16px;
+  }
+  .topo {
+    display: flex;
+    justify-content: center;
+    padding: 20px 16px 4px;
+  }
+  .logo { height: 40px; width: auto; }
+  main { max-width: 560px; margin: 0 auto; padding: 16px 20px 32px; }
+  .tela { display: flex; flex-direction: column; gap: 28px; }
+  .tela[hidden] { display: none; }
+  .bloco { display: flex; flex-direction: column; gap: 12px; }
+  .apoio { color: var(--texto-2); font-size: 0.9rem; }
+  .frase { font-size: 1.2rem; color: var(--primaria-escura); }
+
+  .proposito {
+    border-left: 3px solid var(--primaria);
+    padding: 4px 0 4px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .proposito h2 { font-size: 1.05rem; }
+
+  .selos { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+  .selos li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--gelo);
+    color: var(--primaria-escura);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+  }
+  .icone { width: 14px; height: 14px; flex: none; }
+
+  .acoes { display: flex; flex-direction: column; gap: 12px; }
+  button {
+    font: inherit;
+    font-size: 0.9rem;
+    border-radius: 4px;
+    padding: 14px 18px;
+    cursor: pointer;
+    width: 100%;
+    border: 1px solid var(--primaria);
+    background: #fff;
+    color: var(--primaria);
+  }
+  button.principal { background: var(--primaria); color: #fff; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  button.voltar {
+    border: none;
+    background: none;
+    padding: 8px 0;
+    width: auto;
+    align-self: flex-start;
+    color: var(--texto-2);
+    font-size: 0.8rem;
+  }
+  button.pequeno { width: auto; padding: 8px 14px; font-size: 0.78rem; }
+  button:focus-visible, a:focus-visible, input:focus-visible,
+  textarea:focus-visible, select:focus-visible {
+    outline: 2px solid var(--acento);
+    outline-offset: 2px;
+  }
+  h1[tabindex="-1"]:focus { outline: none; }
+  .motivo { color: var(--texto-2); font-size: 0.82rem; text-align: center; }
+
+  .lista { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+  .portas { display: flex; flex-direction: column; gap: 10px; }
+  .porta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border: 1px solid var(--borda);
+    border-radius: 4px;
+    padding: 12px 14px;
+    text-decoration: none;
+    color: var(--texto);
+  }
+  .porta span:last-child { color: var(--acento); font-size: 0.85rem; }
+  .links { display: flex; flex-direction: column; gap: 8px; }
+
+  .progresso { display: flex; flex-direction: column; gap: 6px; }
+  .progresso .trilho { height: 4px; background: var(--borda); border-radius: 999px; overflow: hidden; }
+  .progresso .preenchido { height: 4px; width: 0; background: var(--primaria); }
+  .progresso p { font-size: 0.78rem; color: var(--texto-2); }
+
+  .avisos { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; }
+  .avisos li, .destaque {
+    background: var(--gelo);
+    border-radius: 4px;
+    padding: 14px 16px;
+  }
+  .ciencia, .opcao {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .ciencia input, .opcao input { margin-top: 5px; flex: none; }
+
+  .cartao {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    border: 1px solid var(--borda);
+    border-radius: 4px;
+    padding: 16px;
+  }
+  .cartao:has(input:checked) { border-color: var(--primaria); background: var(--gelo); }
+  .cartao input { margin-top: 5px; flex: none; }
+  .cartao-nome { display: block; color: var(--primaria-escura); font-size: 1.05rem; }
+
+  fieldset { border: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  legend { padding: 0; margin-bottom: 10px; color: var(--primaria-escura); }
+  .opcional { color: var(--texto-2); font-size: 0.82rem; }
+  .exemplos { display: block; color: var(--texto-2); font-size: 0.82rem; }
+  .campo { display: flex; flex-direction: column; gap: 6px; }
+  .campo[hidden] { display: none; }
+  .rotulo { color: var(--primaria-escura); }
+  input[type="text"], textarea, select {
+    font: inherit;
+    width: 100%;
+    border: 1px solid var(--borda);
+    border-radius: 4px;
+    padding: 12px;
+    color: var(--texto);
+    background: #fff;
+  }
+  input[type="file"] { font: inherit; font-size: 0.85rem; max-width: 100%; }
+  textarea { min-height: 120px; resize: vertical; }
+  #texto { min-height: 220px; }
+  .contador { text-align: right; font-size: 0.78rem; color: var(--texto-2); }
+  .em-linha { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+
+  .resumo { margin: 0; display: flex; flex-direction: column; gap: 4px; }
+  .resumo dt { color: var(--texto-2); font-size: 0.82rem; margin-top: 10px; }
+  .resumo dd { margin: 0; white-space: pre-wrap; }
+  .sugestao {
+    border: 1px solid var(--acento);
+    border-radius: 4px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .sugestao[hidden] { display: none; }
+  .etiqueta-sugestao { color: var(--acento); font-size: 0.78rem; }
+
+  .codigo { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .codigo-valor { font-size: 1.35rem; color: var(--primaria-escura); letter-spacing: 0.06em; }
+  .notas { display: flex; flex-wrap: wrap; gap: 8px; }
+  .notas label {
+    border: 1px solid var(--borda);
+    border-radius: 4px;
+    padding: 8px 14px;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .situacoes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .situacoes li { color: var(--texto-2); padding-left: 18px; position: relative; }
+  .situacoes li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 1px solid var(--texto-2);
+  }
+  .situacoes li.atual { color: var(--primaria-escura); }
+  .situacoes li.atual::before { background: var(--primaria); border-color: var(--primaria); }
+  .mensagem { border-left: 3px solid var(--acento); padding: 4px 0 4px 14px; display: flex; flex-direction: column; gap: 4px; }
+
+  .rodape { max-width: 560px; margin: 0 auto; padding: 0 20px 40px; }
+  .rodape[hidden] { display: none; }
+</style>
+</head>
+<body>
+<p class="faixa">Protótipo para avaliação. Nada aqui é gravado nem enviado.</p>
+<header class="topo"><img class="logo" src="logo-hsm.png" alt="Hospital São Matheus"></header>
+
+<main>
+<form id="relato" novalidate autocomplete="off">
+
+  <!-- P0: Entrada -->
+  <section class="tela" data-tela="P0" aria-label="Entrada">
+    <div class="bloco">
+      <h1>Canal de Conduta</h1>
+      <div class="proposito">
+        <h2>Agir certo</h2>
+        <p>É um dos nossos propósitos. Este canal existe para isso.</p>
+      </div>
+    </div>
+    <p class="frase">Você pode relatar sem dizer quem é.</p>
+    <ul class="selos" aria-label="Garantias do canal">
+      <li><svg class="icone" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Sem login</li>
+      <li><svg class="icone" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Sem registro de IP</li>
+      <li><svg class="icone" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Só o Comitê lê</li>
+    </ul>
+    <div class="acoes">
+      <button type="button" class="principal" data-ir="P1">Fazer relato</button>
+      <button type="button" data-ir="P7">Acompanhar relato</button>
+    </div>
+    <p>Este canal trata de conduta grave: assédio, discriminação, violência, fraude e desvio. Não trata de salário, escala, benefícios nem de atendimento a pacientes.</p>
+    <div class="bloco" data-bloco="e-aqui">
+      <h2>É aqui</h2>
+      <ul class="lista">
+        <li>Assédio moral ou sexual</li>
+        <li>Discriminação</li>
+        <li>Violência</li>
+        <li>Furto, desvio ou fraude</li>
+        <li>Comissão ou propina</li>
+        <li>Registro falso</li>
+        <li>Acesso indevido a dados</li>
+        <li>Retaliação</li>
+      </ul>
+    </div>
+    <div class="bloco" data-bloco="nao-e-aqui">
+      <h2>Não é aqui</h2>
+      <div class="portas">
+        <a class="porta" href="#dp" data-ir="dp">
+          <span>Salário, contracheque, escala, férias, benefícios</span>
+          <span>Ver o contato do Departamento Pessoal</span>
+        </a>
+        <a class="porta" href="#ouvidoria" data-ir="ouvidoria">
+          <span>Sou paciente ou acompanhante</span>
+          <span>Ir para a Ouvidoria</span>
+        </a>
+      </div>
+    </div>
+    <div class="links">
+      <a href="#protecao" data-ir="protecao">Como este canal protege você</a>
+      <a href="#codigo" data-ir="codigo">Código de Conduta</a>
+    </div>
+  </section>
+
+  <!-- Porta do DP: só o contato, sem envio e sem protocolo (decisão 4) -->
+  <section class="tela" data-tela="dp" aria-label="Departamento Pessoal" hidden>
+    <button type="button" class="voltar" data-voltar>Voltar</button>
+    <h1>Departamento Pessoal</h1>
+    <p>Salário, contracheque, escala, férias, benefícios e banco de horas são tratados pelo Departamento Pessoal. Fale direto com o DP:</p>
+    <div class="destaque bloco" data-contato-dp>
+      <p>Sala do Departamento Pessoal, térreo</p>
+      <p>Ramal 0000</p>
+      <p>De segunda a sexta, das 8h às 17h</p>
+      <p class="apoio">Contato de exemplo. O texto real vem do hospital.</p>
+    </div>
+    <p>Este canal não envia nada ao DP e não abre protocolo. Quem procura o DP fala com ele diretamente.</p>
+    <p class="apoio">Se houver assédio, ameaça ou retaliação envolvidos, faça um relato contando essa parte.</p>
+    <button type="button" data-ir="P1">Fazer relato</button>
+  </section>
+
+  <!-- Porta da Ouvidoria -->
+  <section class="tela" data-tela="ouvidoria" aria-label="Ouvidoria" hidden>
+    <button type="button" class="voltar" data-voltar>Voltar</button>
+    <h1>Ouvidoria</h1>
+    <p>Reclamação sobre o atendimento a pacientes e acompanhantes é tratada pela Ouvidoria do hospital.</p>
+    <p class="apoio">No canal real, este botão abre o formulário da Ouvidoria.</p>
+  </section>
+
+  <!-- Código de Conduta -->
+  <section class="tela" data-tela="codigo" aria-label="Código de Conduta" hidden>
+    <button type="button" class="voltar" data-voltar>Voltar</button>
+    <h1>Código de Conduta</h1>
+    <p>No canal real, este link abre a versão em vigor do Código de Conduta, publicada pela coordenação do Comitê. As versões anteriores ficam guardadas.</p>
+  </section>
+
+  <!-- Aviso de privacidade -->
+  <section class="tela" data-tela="privacidade" aria-label="Aviso de privacidade" hidden>
+    <button type="button" class="voltar" data-voltar>Voltar</button>
+    <h1>Aviso de privacidade</h1>
+    <p>Não guardamos IP, identificação do aparelho nem localização de quem relata ou acompanha.</p>
+    <p>Os dados de origem dos anexos são apagados antes de o arquivo ser guardado.</p>
+    <p>O texto do relato passa por um serviço de inteligência artificial que ajuda a organizá-lo. Esse serviço guarda o texto por até 30 dias e não o usa para treinar a IA. Nenhuma decisão é tomada por IA.</p>
+    <p class="apoio">No canal real, aqui fica o aviso completo, com a versão e a data.</p>
+  </section>
+
+  <!-- P1: Antes de começar -->
+  <section class="tela" data-tela="P1" aria-label="Antes de começar" hidden>
+    <button type="button" class="voltar" data-voltar>Voltar</button>
+    <div class="progresso" role="progressbar" aria-label="Progresso do relato" aria-valuemin="1" aria-valuenow="1" aria-valuemax="6">
+      <div class="trilho"><div class="preenchido"></div></div>
+      <p>Passo 1 de 6</p>
+    </div>
+    <h1>Antes de começar</h1>
+    <ol class="avisos">
+      <li>Você pode relatar sem se identificar.</li>
+      <li>Guarde o protocolo e o código que vai receber. O hospital não consegue recuperá-los, e é só por esta página que o Comitê fala com você.</li>
+      <li>Relato equivocado, feito de boa-fé, não gera nenhuma consequência. Acusação que a pessoa sabe ser falsa, feita para prejudicar alguém, é falta grave e pode ser crime contra a honra.</li>
+    </ol>
+    <p data-aviso-ia>Usamos inteligência artificial para organizar o relato. Nenhuma decisão é tomada por IA. O serviço de IA guarda o texto por até 30 dias e não o usa para treinar a IA.</p>
+    <label class="ciencia"><input type="checkbox" name="aceite"> <span>Li as orientações. Relato o que acredito ser verdade.</span></label>
+    <a href="#privacidade" data-ir="privacidade">Ler o aviso de privacidade completo</a>
+    <div class="acoes">
+      <button type="button" class="principal" data-ir="P2" data-trava="aceite" disabled>Continuar</button>
+      <p class="motivo" data-motivo="aceite">Marque a caixa acima para continuar.</p>
+    </div>
+  </section>
+
+  <!-- P2: Identificação -->
+  <section class="tela" data-tela="P2" aria-label="Identificação" hidden>
+    <button type="button" class="voltar" data-voltar>Voltar</button>
+    <div class="progresso" role="progressbar" aria-label="Progresso do relato" aria-valuemin="1" aria-valuenow="2" aria-valuemax="6">
+      <div class="trilho"><div class="preenchido"></div></div>
+      <p>Passo 2 de 6</p>
+    </div>
+    <h1>Como você quer relatar?</h1>
+    <label class="cartao">
+      <input type="radio" name="identificacao" value="anonimo" checked>
+      <span><span class="cartao-nome">Anônimo</span>Você acompanha pelo protocolo e pelo código. Ninguém saberá quem relatou.</span>
+    </label>
+    <label class="cartao">
+      <input type="radio" name="identificacao" value="identificado">
+      <span><span class="cartao-nome">Com identificação</span>O Comitê pode conversar com você pessoalmente. Sua identidade fica restrita ao Comitê.</span>
+    </label>
+    <label class="campo" data-campo="nome" hidden>
+      <span class="rotulo">Seu nome</span>
+      <input type="text" name="nome">
+    </label>
+    <div class="acoes">
+      <button type="button" class="principal" data-ir="P3">Continuar</button>
+    </div>
+  </section>
+
+  <!-- P3: Sobre o quê -->
+  <section class="tela" data-tela="P3" aria-label="Sobre o quê" hidden>
+    <button type="button" class="voltar" data-voltar>Voltar</button>
+    <div class="progresso" role="progressbar" aria-label="Progresso do relato" aria-valuemin="1" aria-valuenow="3" aria-valuemax="6">
+      <div class="trilho"><div class="preenchido"></div></div>
+      <p>Passo 3 de 6</p>
+    </div>
+    <h1>Sobre o quê</h1>
+    <fieldset>
+      <legend>O relato envolve a Direção, a Presidência ou a família proprietária?</legend>
+      <div class="em-linha">
+        <label class="opcao"><input type="radio" name="direcao" value="Sim"> <span>Sim</span></label>
+        <label class="opcao"><input type="radio" name="direcao" value="Não"> <span>Não</span></label>
+        <label class="opcao"><input type="radio" name="direcao" value="Não sei"> <span>Não sei</span></label>
+      </div>
+      <p class="apoio">Se sim, seu relato não passa pelo Comitê comum.</p>
+    </fieldset>
+    <fieldset>
+      <legend>Assunto <span class="opcional">(opcional)</span></legend>
+      <label class="opcao"><input type="radio" name="assunto" value="Conduta e relações"> <span>Conduta e relações<span class="exemplos">Assédio moral, assédio sexual, discriminação, violência, retaliação</span></span></label>
+      <label class="opcao"><input type="radio" name="assunto" value="Patrimônio"> <span>Patrimônio<span class="exemplos">Furto, desvio de material, desvio de medicamento controlado</span></span></label>
+      <label class="opcao"><input type="radio" name="assunto" value="Integridade nos negócios"> <span>Integridade nos negócios<span class="exemplos">Propina, comissão de fornecedor, conflito de interesse, irregularidade em compra, fraude de faturamento</span></span></label>
+      <label class="opcao"><input type="radio" name="assunto" value="Registros e informação"> <span>Registros e informação<span class="exemplos">Falsificação de ponto, escala ou prontuário, acesso indevido a dados, vazamento</span></span></label>
+      <label class="opcao"><input type="radio" name="assunto" value="Segurança e conformidade"> <span>Segurança e conformidade<span class="exemplos">Descumprimento de norma de segurança, exercício profissional irregular, risco assistencial ocultado</span></span></label>
+      <label class="opcao"><input type="radio" name="assunto" value="Não sei classificar"> <span>Não sei classificar</span></label>
+    </fieldset>
+    <fieldset>
+      <legend>Você <span class="opcional">(opcional)</span></legend>
+      <div class="em-linha">
+        <label class="opcao"><input type="radio" name="voce" value="Sofreu"> <span>Sofreu</span></label>
+        <label class="opcao"><input type="radio" name="voce" value="Presenciou"> <span>Presenciou</span></label>
+        <label class="opcao"><input type="radio" name="voce" value="Ficou sabendo"> <span>Ficou sabendo</span></label>
+      </div>
+    </fieldset>
+    <div class="acoes">
+      <button type="button" class="principal" data-ir="P4" data-trava="direcao" disabled>Continuar</button>
+      <p class="motivo" data-motivo="direcao">Responda se o relato envolve a Direção para continuar.</p>
+    </div>
+  </section>
+
+  <!-- P4: O que aconteceu -->
+  <section class="tela" data-tela="P4" aria-label="O que aconteceu" hidden>
+    <button type="button" class="voltar" data-voltar>Voltar</button>
+    <div class="progresso" role="progressbar" aria-label="Progresso do relato" aria-valuemin="1" aria-valuenow="4" aria-valuemax="6">
+      <div class="trilho"><div class="preenchido"></div></div>
+      <p>Passo 4 de 6</p>
+    </div>
+    <h1>O que aconteceu</h1>
+    <p class="frase">Conte com suas palavras. Não precisa ter provas nem certeza.</p>
+    <p class="destaque" data-aviso-anonimo>Evite detalhes que só você saberia.</p>
+    <label class="campo">
+      <span class="rotulo">O que aconteceu?</span>
+      <textarea id="texto" name="texto" maxlength="10000" placeholder="O que aconteceu? Quem estava envolvido? Quando e onde? Ainda acontece?"></textarea>
+      <span class="contador" data-contador>0 de 10.000</span>
+    </label>
+    <div class="campo">
+      <label class="campo"><span class="rotulo">Quando <span class="opcional">(opcional)</span></span>
+        <input type="text" name="quando" placeholder="Data ou período"></label>
+      <label class="opcao"><input type="checkbox" name="ainda"> <span>Ainda está acontecendo</span></label>
+    </div>
+    <div class="campo">
+      <label class="campo"><span class="rotulo">Onde <span class="opcional">(opcional)</span></span>
+        <select name="setor">
+          <option value="">Escolha o setor</option>
+          <option>Recepção</option>
+          <option>Emergência</option>
+          <option>Enfermagem</option>
+          <option>Centro cirúrgico</option>
+          <option>Maternidade</option>
+          <option>Administrativo</option>
+          <option>Outro</option>
+        </select></label>
+      <input type="text" name="onde" placeholder="Ou escreva o local" aria-label="Local">
+    </div>
+    <label class="campo"><span class="rotulo">Quem <span class="opcional">(opcional)</span></span>
+      <input type="text" name="quem" placeholder="Nome ou cargo, se souber"></label>
+    <label class="campo"><span class="rotulo">Testemunhas <span class="opcional">(opcional)</span></span>
+      <input type="text" name="testemunhas"></label>
+    <fieldset>
+      <legend>Alguma liderança já sabe? <span class="opcional">(opcional)</span></legend>
+      <div class="em-linha">
+        <label class="opcao"><input type="radio" name="lideranca" value="Sim"> <span>Sim</span></label>
+        <label class="opcao"><input type="radio" name="lideranca" value="Não"> <span>Não</span></label>
+        <label class="opcao"><input type="radio" name="lideranca" value="Não sei"> <span>Não sei</span></label>
+      </div>
+      <label class="campo" data-campo="feito" hidden><span class="rotulo">O que foi feito?</span>
+        <textarea name="feito"></textarea></label>
+    </fieldset>
+    <label class="campo"><span class="rotulo">Evidências <span class="opcional">(opcional)</span></span>
+      <textarea name="evidencias" placeholder="Existe algo que comprove? Onde pode ser encontrado?"></textarea></label>
+    <label class="campo"><span class="rotulo">Anexos <span class="opcional">(opcional)</span></span>
+      <input type="file" name="anexos" multiple accept="image/*,application/pdf,audio/*">
+      <span class="apoio">Imagem, PDF ou áudio. Os dados de origem do arquivo são apagados automaticamente.</span></label>
+    <div class="acoes">
+      <button type="button" class="principal" data-ir="P5" data-trava="texto" disabled>Continuar</button>
+      <p class="motivo" data-motivo="texto">Conte o que aconteceu para continuar.</p>
+    </div>
+  </section>
+
+  <!-- P5: Revisão -->
+  <section class="tela" data-tela="P5" aria-label="Revisão" hidden>
+    <button type="button" class="voltar" data-voltar>Voltar</button>
+    <div class="progresso" role="progressbar" aria-label="Progresso do relato" aria-valuemin="1" aria-valuenow="5" aria-valuemax="6">
+      <div class="trilho"><div class="preenchido"></div></div>
+      <p>Passo 5 de 6</p>
+    </div>
+    <h1>Revisão</h1>
+    <dl class="resumo" data-resumo></dl>
+
+    <div class="sugestao" data-sugestao="dp" hidden>
+      <span class="etiqueta-sugestao">Sugestão</span>
+      <p>Pelo que você escreveu, este assunto é do Departamento Pessoal. O Canal de Conduta não resolve esse tipo de questão.</p>
+      <p class="apoio">Você escreveu sobre salário, férias, escala ou benefício, sem citar assédio, ameaça, fraude ou retaliação.</p>
+      <button type="button" class="principal" data-ir="dp">Ver o contato do DP</button>
+      <button type="button" data-fechar>Registrar mesmo assim</button>
+    </div>
+    <div class="sugestao" data-sugestao="ouvidoria" hidden>
+      <span class="etiqueta-sugestao">Sugestão</span>
+      <p>Pelo que você escreveu, este assunto é da Ouvidoria. O Canal de Conduta não trata de atendimento a pacientes.</p>
+      <p class="apoio">Você escreveu sobre atendimento a paciente ou acompanhante, sem citar assédio, ameaça, fraude ou retaliação.</p>
+      <button type="button" class="principal" data-ir="ouvidoria">Ir para a Ouvidoria</button>
+      <button type="button" data-fechar>Registrar mesmo assim</button>
+    </div>
+
+    <p class="destaque">Seu relato pode iniciar a apuração da conduta de uma pessoa. Confira se descreve o que você viu, viveu ou soube.</p>
+    <div class="acoes">
+      <button type="button" class="principal" data-ir="P6">Enviar</button>
+      <p class="apoio">Seu relato será lido pelo Comitê em até 5 dias úteis.</p>
+    </div>
+  </section>
+
+  <!-- P6: Protocolo -->
+  <section class="tela" data-tela="P6" aria-label="Protocolo" hidden>
+    <button type="button" class="voltar" data-voltar="P0">Voltar ao início</button>
+    <div class="progresso" role="progressbar" aria-label="Progresso do relato" aria-valuemin="1" aria-valuenow="6" aria-valuemax="6">
+      <div class="trilho"><div class="preenchido"></div></div>
+      <p>Passo 6 de 6</p>
+    </div>
+    <h1>Relato registrado</h1>
+    <p class="destaque">Anote agora. Não há como recuperar.</p>
+    <div class="bloco">
+      <p class="apoio">Protocolo</p>
+      <div class="codigo"><span class="codigo-valor">2026-0042</span><button type="button" class="pequeno" data-copiar="2026-0042">Copiar</button></div>
+      <p class="apoio">Código</p>
+      <div class="codigo"><span class="codigo-valor">k7m4-q2xt</span><button type="button" class="pequeno" data-copiar="k7m4-q2xt">Copiar</button></div>
+    </div>
+    <p>Volte a esta página a partir de <span data-volta>27/11/2026</span>. É por aqui que o Comitê fala com você.</p>
+    <fieldset>
+      <legend>De 1 a 5, quanto você confia neste canal? <span class="opcional">(opcional)</span></legend>
+      <div class="notas">
+        <label><input type="radio" name="confianca" value="1"> 1</label>
+        <label><input type="radio" name="confianca" value="2"> 2</label>
+        <label><input type="radio" name="confianca" value="3"> 3</label>
+        <label><input type="radio" name="confianca" value="4"> 4</label>
+        <label><input type="radio" name="confianca" value="5"> 5</label>
+      </div>
+    </fieldset>
+    <button type="button" data-ir="P7">Acompanhar relato</button>
+  </section>
+
+  <!-- P7: Acompanhar -->
+  <section class="tela" data-tela="P7" aria-label="Acompanhar relato" hidden>
+    <button type="button" class="voltar" data-voltar>Voltar</button>
+    <h1>Acompanhar relato</h1>
+    <label class="campo"><span class="rotulo">Protocolo</span><input type="text" name="protocolo" placeholder="2026-0042"></label>
+    <label class="campo"><span class="rotulo">Código</span><input type="text" name="codigo" placeholder="k7m4-q2xt"></label>
+    <button type="button" class="principal" data-abrir="caso">Ver situação</button>
+    <p class="apoio">No protótipo, qualquer protocolo mostra o caso de exemplo.</p>
+
+    <div class="bloco" data-painel="caso" hidden>
+      <div class="bloco">
+        <h2>Situação</h2>
+        <ol class="situacoes">
+          <li>Recebido</li>
+          <li>Em análise</li>
+          <li>Em apuração</li>
+          <li class="atual" aria-current="step">Aguardando sua resposta</li>
+          <li>Concluído</li>
+          <li>Encaminhado</li>
+        </ol>
+      </div>
+      <div class="bloco">
+        <h2>Mensagens do Comitê</h2>
+        <div class="mensagem">
+          <p class="apoio">Comitê, 18/11/2026</p>
+          <p>Obrigado pelo relato. Você lembra se mais alguém estava no setor naquele dia?</p>
+        </div>
+        <p class="apoio">Se um pedido do Comitê ficar sem resposta por 15 dias, o caso pode ser arquivado por falta de informação. Ele volta a andar se a informação chegar depois.</p>
+      </div>
+      <div class="bloco">
+        <h2>Complemento</h2>
+        <label class="campo"><span class="rotulo">Acrescente o que quiser</span><textarea name="complemento"></textarea></label>
+        <label class="campo"><span class="rotulo">Anexo <span class="opcional">(opcional)</span></span><input type="file" name="anexo-complemento" accept="image/*,application/pdf,audio/*"></label>
+        <button type="button" class="principal" data-abrir="complemento-ok">Enviar complemento</button>
+        <p class="destaque" data-painel="complemento-ok" hidden>Complemento recebido. No protótipo, nada foi enviado.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Página de proteção -->
+  <section class="tela" data-tela="protecao" aria-label="Como este canal protege você" hidden>
+    <button type="button" class="voltar" data-voltar>Voltar</button>
+    <h1>Como este canal protege você</h1>
+    <p class="frase">Este canal é do hospital. Por isso foi construído para que nem o hospital consiga saber quem relatou.</p>
+    <div class="bloco">
+      <h2>Para quem relata</h2>
+      <p>Não pedimos login nem guardamos IP. Os dados de origem dos anexos são apagados. Retaliação é falta grave, e verificamos por 180 dias se ela ocorreu.</p>
+    </div>
+    <div class="bloco">
+      <h2>Para quem é citado</h2>
+      <p>Ninguém é punido só com base em relato anônimo. Você sempre será ouvido antes de qualquer decisão. Caso não confirmado não deixa marca. O assunto fica restrito ao Comitê.</p>
+    </div>
+    <div class="bloco" data-quem-le>
+      <h2>Quem lê e quem não lê</h2>
+      <p>Leem os três membros do Comitê. A Direção só lê a conclusão e a ata do caso, nunca o relato. Não leem TI, DP, chefia nem a empresa que desenvolve o sistema.</p>
+    </div>
+    <div class="bloco" data-aviso-ia>
+      <h2>Inteligência artificial</h2>
+      <p>Usamos inteligência artificial para organizar o relato. Nenhuma decisão é tomada por IA. O serviço de IA guarda o texto por até 30 dias e não o usa para treinar a IA.</p>
+    </div>
+    <div class="bloco">
+      <h2>Se envolver a Direção ou a família</h2>
+      <p>O relato não passa pelo Comitê comum.</p>
+    </div>
+    <div class="bloco">
+      <h2>Prazos</h2>
+      <p>Leitura em até 5 dias úteis. Conclusão em 20 ou 30 dias, conforme o caso.</p>
+    </div>
+    <div class="bloco">
+      <h2>O que o canal não garante</h2>
+      <p>O anonimato também depende de você: evite detalhes que só você saberia. Em equipes pequenas, o próprio fato pode indicar quem relatou.</p>
+    </div>
+  </section>
+
+</form>
+</main>
+
+<footer class="rodape" data-rodape>
+  <a href="#protecao" data-ir="protecao">Como este canal protege você</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  var form = document.getElementById("relato");
+  var telas = Array.prototype.slice.call(document.querySelectorAll("[data-tela]"));
+  var rodape = document.querySelector("[data-rodape]");
+  var atual = "P0";
+
+  function tela(nome) {
+    for (var i = 0; i < telas.length; i++) {
+      if (telas[i].getAttribute("data-tela") === nome) return telas[i];
+    }
+    return telas[0];
+  }
+
+  // Só esconde e mostra: o formulário nunca é refeito, então o que foi
+  // digitado continua lá ao voltar.
+  function mostrar(nome) {
+    var alvo = tela(nome);
+    atual = alvo.getAttribute("data-tela");
+    telas.forEach(function (t) { t.hidden = t !== alvo; });
+    // A entrada já tem o link da proteção; a própria proteção não precisa dele.
+    rodape.hidden = atual === "protecao" || atual === "P0";
+    if (atual === "P5") montarRevisao();
+    window.scrollTo(0, 0);
+    var titulo = alvo.querySelector("h1");
+    if (titulo) { titulo.tabIndex = -1; titulo.focus({ preventScroll: true }); }
+  }
+
+  function ir(nome) {
+    var fundo = (history.state && history.state.fundo) || 0;
+    history.pushState({ tela: nome, fundo: fundo + 1 }, "", "#" + nome);
+    mostrar(nome);
+  }
+
+  function voltar(destino) {
+    if (destino) { ir(destino); return; }
+    if (history.state && history.state.fundo > 0) history.back();
+    else mostrar("P0");
+  }
+
+  window.addEventListener("popstate", function (e) {
+    mostrar((e.state && e.state.tela) || "P0");
+  });
+
+  document.addEventListener("click", function (e) {
+    var el = e.target.closest("[data-ir], [data-voltar], [data-fechar], [data-abrir], [data-copiar]");
+    if (!el || el.disabled) return;
+    e.preventDefault();
+    if (el.hasAttribute("data-ir")) ir(el.getAttribute("data-ir"));
+    else if (el.hasAttribute("data-voltar")) voltar(el.getAttribute("data-voltar"));
+    else if (el.hasAttribute("data-fechar")) el.closest(".sugestao").hidden = true;
+    else if (el.hasAttribute("data-abrir")) {
+      document.querySelector('[data-painel="' + el.getAttribute("data-abrir") + '"]').hidden = false;
+    } else if (el.hasAttribute("data-copiar")) {
+      if (navigator.clipboard) navigator.clipboard.writeText(el.getAttribute("data-copiar"));
+      el.textContent = "Copiado";
+    }
+  });
+
+  form.addEventListener("submit", function (e) { e.preventDefault(); });
+
+  function marcado(nome) {
+    var el = form.querySelector('input[name="' + nome + '"]:checked');
+    return el ? el.value : "";
+  }
+
+  var travas = {
+    aceite: function () { return form.elements.aceite.checked; },
+    direcao: function () { return marcado("direcao") !== ""; },
+    texto: function () { return form.elements.texto.value.trim() !== ""; }
+  };
+
+  function atualizar() {
+    Object.keys(travas).forEach(function (chave) {
+      var livre = travas[chave]();
+      form.querySelector('[data-trava="' + chave + '"]').disabled = !livre;
+      form.querySelector('[data-motivo="' + chave + '"]').hidden = livre;
+    });
+    var identificado = marcado("identificacao") === "identificado";
+    form.querySelector('[data-campo="nome"]').hidden = !identificado;
+    form.querySelector("[data-aviso-anonimo]").hidden = identificado;
+    form.querySelector('[data-campo="feito"]').hidden = marcado("lideranca") !== "Sim";
+    form.querySelector("[data-contador]").textContent =
+      form.elements.texto.value.length.toLocaleString("pt-BR") + " de 10.000";
+  }
+  form.addEventListener("input", atualizar);
+  form.addEventListener("change", atualizar);
+
+  // Simulação da leitura do agente na revisão: só sugere, nunca bloqueia.
+  var PROTECAO = /ass[eé]dio|discrimina|amea[cç]a|viol[eê]ncia|retalia|fraude|desvio|falsifica|propina/i;
+  var DO_DP = /sal[aá]rio|contracheque|f[eé]rias|benef[ií]cio|escala|banco de horas/i;
+  var DA_OUVIDORIA = /paciente|acompanhante|atendimento/i;
+
+  function montarRevisao() {
+    var f = form.elements;
+    var nomes = Array.prototype.map.call(f.anexos.files, function (a) { return a.name; });
+    var onde = [f.setor.value, f.onde.value.trim()].filter(Boolean).join(", ");
+    var quando = [f.quando.value.trim(), f.ainda.checked ? "Ainda está acontecendo" : ""].filter(Boolean).join(", ");
+    var lideranca = marcado("lideranca");
+    if (lideranca === "Sim" && f.feito.value.trim()) lideranca += ". " + f.feito.value.trim();
+    var linhas = [
+      ["Identificação", marcado("identificacao") === "identificado"
+        ? "Com identificação" + (f.nome.value.trim() ? ": " + f.nome.value.trim() : "")
+        : "Anônimo"],
+      ["Envolve a Direção", marcado("direcao")],
+      ["Assunto", marcado("assunto")],
+      ["Você", marcado("voce")],
+      ["O que aconteceu", f.texto.value.trim()],
+      ["Quando", quando],
+      ["Onde", onde],
+      ["Quem", f.quem.value.trim()],
+      ["Testemunhas", f.testemunhas.value.trim()],
+      ["Alguma liderança já sabe?", lideranca],
+      ["Evidências", f.evidencias.value.trim()],
+      ["Anexos", nomes.join(", ")]
+    ];
+    // Só o que foi preenchido entra no resumo.
+    var itens = [];
+    linhas.filter(function (l) { return l[1]; }).forEach(function (l) {
+      var dt = document.createElement("dt");
+      var dd = document.createElement("dd");
+      dt.textContent = l[0];
+      dd.textContent = l[1];
+      itens.push(dt, dd);
+    });
+    form.querySelector("[data-resumo]").replaceChildren.apply(form.querySelector("[data-resumo]"), itens);
+
+    var texto = f.texto.value;
+    var protegido = PROTECAO.test(texto);
+    form.querySelector('[data-sugestao="dp"]').hidden = protegido || !DO_DP.test(texto);
+    form.querySelector('[data-sugestao="ouvidoria"]').hidden =
+      protegido || DO_DP.test(texto) || !DA_OUVIDORIA.test(texto);
+  }
+
+  // Data para voltar: uma semana depois de hoje.
+  var volta = new Date();
+  volta.setDate(volta.getDate() + 7);
+  document.querySelector("[data-volta]").textContent = volta.toLocaleDateString("pt-BR");
+
+  document.querySelectorAll('[role="progressbar"]').forEach(function (barra) {
+    var feito = Number(barra.getAttribute("aria-valuenow")) / Number(barra.getAttribute("aria-valuemax"));
+    barra.querySelector(".preenchido").style.width = (feito * 100) + "%";
+  });
+
+  history.replaceState({ tela: "P0", fundo: 0 }, "", location.pathname);
+  atualizar();
+  mostrar("P0");
+})();
+</script>
+</body>
+</html>
