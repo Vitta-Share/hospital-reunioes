@@ -407,3 +407,121 @@ class TestMarcosEPrazo:
 
         assert not comite.banco.tabelas.get("conduta_prazos_vencidos")
         assert comite.abre(MEMBRO, caso_id).json()["rota_especial"]["nao_respondido_no_prazo"] is False
+
+    def test_caso_com_o_parecer_entregue_nao_vira_nao_respondido(self, comite, emails):
+        caso_id = comite.caso("sim", dias_atras=59)
+        comite.agir(MEMBRO, caso_id, "entrega-do-parecer", {"destinatario": "Conselho", "entregue_em": str(HOJE)})
+
+        avisos.rodada_do_dia(comite.banco, HOJE + timedelta(days=5))
+
+        assert not comite.banco.tabelas.get("conduta_prazos_vencidos")
+        assert _marcos(comite, caso_id) == {}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. O grupo registra a entrega do parecer, com data e destinatário
+# ═══════════════════════════════════════════════════════════════════════════
+
+DESTINATARIO = "Presidente do Conselho de Administração"
+
+
+class TestEntregaDoParecer:
+    def test_o_grupo_registra_a_entrega_com_data_e_destinatario(self, comite):
+        caso_id = comite.caso("sim", dias_atras=20)
+        dia = HOJE - timedelta(days=2)
+
+        resposta = comite.agir(
+            SUPLENTE, caso_id, "entrega-do-parecer", {"destinatario": DESTINATARIO, "entregue_em": str(dia)}
+        )
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["caso"]["desfecho"] == "parecer_entregue"
+        entrega = comite.abre(MEMBRO, caso_id).json()["rota_especial"]["entrega"]
+        assert entrega == {"destinatario": DESTINATARIO, "entregue_em": dia.isoformat()}
+        gravada = comite.banco.tabelas["conduta_entregas_do_parecer"][0]
+        assert DESTINATARIO not in gravada["destinatario_cifrado"]
+        assert "entrega_do_parecer" in [linha["acao"] for linha in comite.trilha(caso_id)]
+
+    def test_a_entrega_encerra_o_caso_e_nao_se_registra_duas_vezes(self, comite):
+        caso_id = comite.caso("sim", dias_atras=20)
+        corpo = {"destinatario": DESTINATARIO, "entregue_em": str(HOJE)}
+        comite.agir(MEMBRO, caso_id, "entrega-do-parecer", corpo)
+
+        assert comite.linha(caso_id)["encerrado_em"]
+        assert comite.agir(MEMBRO, caso_id, "entrega-do-parecer", corpo).status_code == 409
+        assert len(comite.banco.tabelas["conduta_entregas_do_parecer"]) == 1
+
+    def test_entrega_sem_destinatario_ou_com_data_futura_e_recusada(self, comite):
+        caso_id = comite.caso("sim", dias_atras=20)
+
+        sem_nome = {"destinatario": "  ", "entregue_em": str(HOJE)}
+        assert comite.agir(MEMBRO, caso_id, "entrega-do-parecer", sem_nome).status_code == 422
+        futura = {"destinatario": DESTINATARIO, "entregue_em": str(HOJE + timedelta(days=1))}
+        assert comite.agir(MEMBRO, caso_id, "entrega-do-parecer", futura).status_code == 422
+        assert not comite.linha(caso_id).get("encerrado_em")
+
+    def test_quem_nao_e_do_grupo_nao_registra_a_entrega(self, comite):
+        caso_id = comite.caso("nao")
+
+        corpo = {"destinatario": DESTINATARIO, "entregue_em": str(HOJE)}
+        assert comite.agir(COORDENACAO, caso_id, "entrega-do-parecer", corpo).status_code == 403
+        assert not comite.banco.tabelas.get("conduta_entregas_do_parecer")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 7. Fora do grupo, só a contagem
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestContagem:
+    def test_fora_do_grupo_so_se_ve_a_contagem(self, comite):
+        aberto = comite.caso("sim")
+        concluido = comite.caso("sim", dias_atras=10)
+        comite.agir(MEMBRO, concluido, "entrega-do-parecer", {"destinatario": DESTINATARIO, "entregue_em": str(HOJE)})
+        comite.caso("nao")
+
+        resposta = comite.cliente(COORDENACAO).get(f"{BASE}/rota-especial/contagem")
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json() == {"recebidos": 2, "concluidos": 1, "em_aberto": 1}
+        ids = comite.lista(COORDENACAO)
+        assert aberto not in ids and concluido not in ids
+
+    def test_quem_nao_esta_no_comite_nao_ve_nem_a_contagem(self, comite):
+        comite.banco.tabelas["participantes"].append(_pessoa("FORA"))
+        comite.caso("sim")
+
+        assert comite.cliente("FORA").get(f"{BASE}/rota-especial/contagem").status_code == 403
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# A tela do caso e a MINHA VEZ do grupo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestTelaDoGrupo:
+    def test_a_caixa_do_caso_especial_diz_o_que_o_grupo_faz(self, comite):
+        caso_id = comite.caso("sim")
+
+        tela = comite.abre(MEMBRO, caso_id).json()
+
+        assert "Rota Especial" in tela["o_que_fazer_agora"]["frase"]
+        assert [etapa["nome"] for etapa in tela["trilho"]] == ["Apuração", "Parecer entregue"]
+        assert tela["rota_especial"]["pode_registrar_entrega"] is True
+
+    def test_o_caso_especial_aparece_na_minha_vez_do_grupo(self, comite):
+        caso_id = comite.caso("sim")
+
+        resposta = comite.cliente(SUPLENTE).get(f"{BASE}/minha-vez")
+
+        assert [item["id"] for item in resposta.json()["itens"]] == [caso_id]
+
+    def test_o_caso_encerrado_diz_que_o_parecer_foi_entregue(self, comite):
+        caso_id = comite.caso("sim")
+        comite.agir(MEMBRO, caso_id, "entrega-do-parecer", {"destinatario": DESTINATARIO, "entregue_em": str(HOJE)})
+
+        tela = comite.abre(MEMBRO, caso_id).json()
+
+        assert "parecer" in tela["o_que_fazer_agora"]["frase"]
+        assert "Encaminhado" not in tela["o_que_fazer_agora"]["frase"]
+        assert tela["rota_especial"]["pode_registrar_entrega"] is False
