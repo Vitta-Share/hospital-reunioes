@@ -48,6 +48,10 @@ class AnotacaoRequest(BaseModel):
     anotacao: str | None = Field(default=None, max_length=5000)
 
 
+class FrequenciaRequest(BaseModel):
+    frequencia: str = Field(max_length=20)
+
+
 class CicloEmAberto(BaseModel):
     inicio: date
     fim: date
@@ -79,6 +83,8 @@ class RotinaResponse(BaseModel):
     verificacoes: list[VerificacaoResponse]
     pode_marcar: bool
     pode_encerrar: bool
+    # A Rotina que veio do fluxo contínuo espera o Facilitador (issue #1877).
+    pode_escolher_frequencia: bool = False
 
 
 async def _quem_pede(current_user: dict, supabase) -> dict | None:
@@ -178,6 +184,9 @@ async def listar_rotinas(
                 "pode_marcar": bool(papeis),
                 "pode_encerrar": rotina.get("status") == rotina_service.ATIVA
                 and bool(papeis & {FACILITADOR, SUPER_ADMIN}),
+                "pode_escolher_frequencia": rotina.get("status") == rotina_service.ATIVA
+                and not rotina.get("frequencia")
+                and bool(papeis & {FACILITADOR, SUPER_ADMIN}),
             }
         )
     saida.sort(key=lambda r: (r["status"] != rotina_service.ATIVA, r["descricao"].lower()))
@@ -237,3 +246,29 @@ async def encerrar_rotina(
         raise HTTPException(status_code=409, detail=str(recusa)) from recusa
     logger.info("[Rotina] %s encerrada por %s", id_rotina, (me or {}).get("id"))
     return {"id": encerrada.get("id", str(id_rotina)), "status": encerrada.get("status")}
+
+
+@router.post("/{id_rotina}/frequencia")
+async def escolher_frequencia(
+    id_rotina: UUID,
+    body: FrequenciaRequest,
+    current_user: dict = Depends(get_current_user),
+    supabase=Depends(get_supabase_client),
+):
+    """O Facilitador (ou o Super admin) escolhe a frequência da Rotina que veio
+    do fluxo contínuo (issue #1877). Até lá, ela não tem ciclo."""
+    rotina, me, papeis = await _rotina_e_papeis(id_rotina, current_user, supabase)
+    if not papeis & {FACILITADOR, SUPER_ADMIN}:
+        raise HTTPException(status_code=403, detail="Só o Facilitador da Reunião escolhe a frequência da Rotina")
+    try:
+        gravada = rotina_service.escolher_frequencia(supabase, rotina, body.frequencia)
+    except VerificacaoRecusada as recusa:
+        raise HTTPException(status_code=422, detail=str(recusa)) from recusa
+    except rotina_service.JaTemFrequencia as recusa:
+        raise HTTPException(status_code=409, detail=str(recusa)) from recusa
+    logger.info("[Rotina] %s ganhou frequência %s por %s", id_rotina, body.frequencia, (me or {}).get("id"))
+    return {
+        "id": gravada.get("id", str(id_rotina)),
+        "frequencia": gravada.get("frequencia"),
+        "comeca_em": gravada.get("comeca_em"),
+    }

@@ -16,6 +16,9 @@ from app.services.pendencia_service import _e_conflito_unicidade
 from app.services.pendencias_consulta import as_data, hoje_em_brasilia
 from app.services.quadro_classificacao import ROTINA, frequencia_da_linha, tipo_da_linha
 from app.services.rotina_ciclo import (
+    MENSAL,
+    QUINZENAL,
+    SEMANAL,
     Ciclo,
     VerificacaoRecusada,
     ciclos_devidos,
@@ -28,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 ATIVA = "ATIVA"
 ENCERRADA = "ENCERRADA"
+FREQUENCIAS = (SEMANAL, QUINZENAL, MENSAL)
 
 
 def nascer_rotinas(
@@ -119,6 +123,40 @@ class JaMarcada(ValueError):  # noqa: N818, o nome do domínio
 
 class JaEncerrada(ValueError):  # noqa: N818, o nome do domínio
     """A Rotina já foi encerrada."""
+
+
+class JaTemFrequencia(ValueError):  # noqa: N818, o nome do domínio
+    """A Rotina já tem frequência, ou foi encerrada antes de ganhar uma."""
+
+
+def escolher_frequencia(supabase, rotina: dict, frequencia: str) -> dict:
+    """O Facilitador escolhe a frequência da Rotina que veio do fluxo contínuo
+    (issue #1877). Ela começa no primeiro ciclo inteiro depois da escolha,
+    como a Rotina que nasce do envio. Só vale uma vez: a escolhida não se
+    troca por aqui."""
+    if frequencia not in FREQUENCIAS:
+        raise VerificacaoRecusada("A frequência é semanal, quinzenal ou mensal.")
+    if rotina.get("status") != ATIVA:
+        raise JaTemFrequencia("Esta Rotina já foi encerrada.")
+    if rotina.get("frequencia"):
+        raise JaTemFrequencia("Esta Rotina já tem frequência.")
+    mudanca = {
+        "frequencia": frequencia,
+        "comeca_em": primeiro_ciclo(hoje_em_brasilia(), frequencia).inicio.isoformat(),
+    }
+    # Dois cliques ao mesmo tempo: só o primeiro grava.
+    gravada = (
+        supabase.table("rotinas")
+        .update(mudanca)
+        .eq("id", rotina["id"])
+        .eq("status", ATIVA)
+        .is_("frequencia", "null")
+        .execute()
+        .data
+    )
+    if not gravada:
+        raise JaTemFrequencia("Esta Rotina já tem frequência.")
+    return gravada[0]
 
 
 def marcar(
