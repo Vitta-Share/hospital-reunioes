@@ -132,7 +132,7 @@ def revisao_em(rotina: dict) -> date | None:
     return base + timedelta(days=DIAS_ATE_A_REVISAO) if base else None
 
 
-# ─── Marcar, manter e encerrar ───────────────────────────────────────────────────────
+# ─── Marcar, manter e encerrar ───────────────────────────────────────────────
 
 
 class CicloInexistente(ValueError):  # noqa: N818, o nome do domínio
