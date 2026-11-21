@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T02:06+0000 -->
+<!-- last_update: 2026-11-21T02:13+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2191,6 +2191,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `uq_nsp_avisos_caso` em `(caso_id, marco, referencia, destinatario_id)` (de `173_nsp_registro_de_email.sql`)
 - `idx_nsp_avisos_fila` em `(enviar_a_partir_de)` (de `173_nsp_registro_de_email.sql`)
 - `idx_nsp_avisos_marco_referencia` em `(marco, referencia, situacao)` (de `173_nsp_registro_de_email.sql`)
+- `idx_nsp_avisos_caso` em `(caso_id)` (de `174_nsp_notificacao_de_incidente.sql`)
 
 ## nsp_documentos_envios
 
@@ -2309,6 +2310,70 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_pendencia_anexos_acao` em `(id_acao)` (de `174_anexo_da_conclusao_da_pendencia.sql`)
 
+## nsp_protocolos
+
+> Origem: `174_nsp_notificacao_de_incidente.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `ano` | `SMALLINT` | PK | — | — |
+| `ultimo` | `INTEGER` | NOT NULL | — | — |
+
+## nsp_notificacoes
+
+> Origem: `174_nsp_notificacao_de_incidente.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `protocolo` | `TEXT` | UNIQUE, NOT NULL | — | — |
+| `ano` | `SMALLINT` | NOT NULL | — | — |
+| `numero` | `INTEGER` | NOT NULL | — | — |
+| `origem` | `TEXT` | NOT NULL | — | — |
+| `estado` | `TEXT` | NOT NULL | `'recebida'` | — |
+| `relato` | `TEXT` | NOT NULL | — | — |
+| `leito_ou_atendimento` | `TEXT` | — | — | — |
+| `setor_id` | `UUID` | — | — | `setores.id` |
+| `data_ocorrencia` | `DATE` | NOT NULL | — | — |
+| `turno` | `TEXT` | — | — | — |
+| `hora_aproximada` | `TIME` | — | — | — |
+| `chegou_ao_paciente` | `TEXT` | — | — | — |
+| `grave_ou_morte` | `BOOLEAN` | — | — | — |
+| `percebido_ou_reclamacao` | `TEXT` | — | — | — |
+| `anonimo` | `BOOLEAN` | NOT NULL | — | — |
+| `notificante_id` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `notificante_nome` | `TEXT` | — | — | — |
+| `notificante_contato` | `TEXT` | — | — | — |
+| `codigo_acompanhamento_hash` | `TEXT` | — | — | — |
+| `editado_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `atualizado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_notificacoes_criado_em` em `(criado_em DESC)` (de `174_nsp_notificacao_de_incidente.sql`)
+- `idx_nsp_notificacoes_setor` em `(setor_id)` (de `174_nsp_notificacao_de_incidente.sql`)
+- `idx_nsp_notificacoes_notificante` em `(notificante_id)` (de `174_nsp_notificacao_de_incidente.sql`)
+- `idx_nsp_notificacoes_editado_por` em `(editado_por)` (de `174_nsp_notificacao_de_incidente.sql`)
+
+## nsp_notificacoes_trilha
+
+> Origem: `174_nsp_notificacao_de_incidente.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `notificacao_id` | `UUID` | NOT NULL | — | `nsp_notificacoes.id` |
+| `campo` | `TEXT` | NOT NULL | — | — |
+| `de` | `TEXT` | — | — | — |
+| `para` | `TEXT` | — | — | — |
+| `autor_id` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `papel_do_banco` | `TEXT` | NOT NULL | `current_user` | — |
+| `ocorrido_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_notificacoes_trilha_notificacao` em `(notificacao_id, ocorrido_em DESC)` (de `174_nsp_notificacao_de_incidente.sql`)
+- `idx_nsp_notificacoes_trilha_autor` em `(autor_id)` (de `174_nsp_notificacao_de_incidente.sql`)
+
 ---
 
-**Resumo:** 113 tabelas vivas.
+**Resumo:** 116 tabelas vivas.

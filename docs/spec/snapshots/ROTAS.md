@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T02:06+0000 -->
+<!-- last_update: 2026-11-21T02:13+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -539,6 +539,16 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/nsp/membros/{participacao_id}/renovar` | Estende o fim da vigência. A mesma Participação segue, com a trilha | ✅ |
 | GET | `/nsp/membros/{participacao_id}/trilha` | Trilha do membro | ✅ |
 
+## seguranca-do-paciente (`app/routers/seguranca_do_paciente_notificacoes.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| GET | `/nsp/notificacoes` | Notificações: todos os casos, para quem tem o recurso de casos. Quem | ✅ |
+| POST | `/nsp/notificacoes` | O botão "Notificar incidente" do módulo: a identificação vem da sessão, | ✅ |
+| POST | `/nsp/publico/acompanhamento` | A página de acompanhamento: só o estado, em palavras simples. O limite | ❌ |
+| POST | `/nsp/publico/notificacoes` | O formulário público, pelo QR ou pelo endereço. | ❌ |
+| GET | `/nsp/publico/setores` | A lista de "Onde" do formulário: os setores ativos, pelo id. | ❌ |
+
 ## seguranca-do-paciente (`app/routers/seguranca_do_paciente_reunioes.py`)
 
 | Método | Rota | O que faz | Auth |
@@ -681,4 +691,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 390 endpoints em 57 routers · 94% exigem auth.
+**Totais:** 395 endpoints em 58 routers · 93% exigem auth.

@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T02:06+0000 -->
+<!-- last_update: 2026-11-21T02:13+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -172,6 +172,7 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 172 | `172_pendencia_nao_cai_com_a_reuniao.sql` | nada apaga Pendencia (ADR 0098, decisao 6; issue #1864) | 0 | 0 | 0 | 0 |
 | 173 | `173_nsp_registro_de_email.sql` | o registro de e-mail do Núcleo, com retentativa | 0 | 1 | 3 | 0 |
 | 174 | `174_anexo_da_conclusao_da_pendencia.sql` | foto ou PDF anexado na conclusao da Pendencia (issue #1865, PRD #1757) | 1 | 0 | 1 | 0 |
+| 174 | `174_nsp_notificacao_de_incidente.sql` | a Notificação de incidente do Núcleo | 3 | 0 | 7 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 166 migrations.
+**Total:** 167 migrations.

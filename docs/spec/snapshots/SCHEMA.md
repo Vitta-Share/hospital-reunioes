@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T02:06+0000 -->
+<!-- last_update: 2026-11-21T02:13+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -70,6 +70,7 @@ erDiagram
     nsp_documentos ||--o{ nsp_documentos_envios : "documento_id"
     nsp_documentos ||--o{ nsp_termos_envios : "regimento_id"
     nsp_documentos_envios ||--o{ nsp_documentos_signatarios : "envio_id"
+    nsp_notificacoes ||--o{ nsp_notificacoes_trilha : "notificacao_id"
     nsp_termos_envios ||--o{ nsp_documentos : "termo_envio_id"
     ouvidoria_pontos ||--o{ ouvidoria_avaliacoes : "ponto_id"
     participacoes ||--o{ nsp_avisos : "participacao_id"
@@ -108,6 +109,9 @@ erDiagram
     participantes ||--o{ nsp_documentos : "publicado_por"
     participantes ||--o{ nsp_documentos_envios : "autor_id"
     participantes ||--o{ nsp_documentos_signatarios : "participante_id"
+    participantes ||--o{ nsp_notificacoes : "editado_por"
+    participantes ||--o{ nsp_notificacoes : "notificante_id"
+    participantes ||--o{ nsp_notificacoes_trilha : "autor_id"
     participantes ||--o{ nsp_pautas : "editada_por"
     participantes ||--o{ nsp_reunioes_rapidas : "criada_por"
     participantes ||--o{ ouvidoria_acessos : "ator_id"
@@ -1244,6 +1248,31 @@ erDiagram
         BIGINT tamanho_bytes
         TIMESTAMPTZ criado_em
     }
+    nsp_protocolos {
+        SMALLINT ano PK
+        INTEGER ultimo
+    }
+    nsp_notificacoes {
+        UUID id PK
+        TEXT protocolo
+        SMALLINT ano
+        INTEGER numero
+        TEXT origem
+        TEXT estado
+        TEXT relato
+        TEXT leito_ou_atendimento
+        _ mais_colunas "+15"
+    }
+    nsp_notificacoes_trilha {
+        UUID id PK
+        UUID notificacao_id FK
+        TEXT campo
+        TEXT de
+        TEXT para
+        VARCHAR autor_id FK
+        TEXT papel_do_banco
+        TIMESTAMPTZ ocorrido_em
+    }
 ```
 
 ## Indexes principais
@@ -1434,6 +1463,7 @@ erDiagram
 | `nsp_avisos` | `uq_nsp_avisos_caso` | `caso_id, marco, referencia, destinatario_id` | `173_nsp_registro_de_email.sql` |
 | `nsp_avisos` | `idx_nsp_avisos_fila` | `enviar_a_partir_de` | `173_nsp_registro_de_email.sql` |
 | `nsp_avisos` | `idx_nsp_avisos_marco_referencia` | `marco, referencia, situacao` | `173_nsp_registro_de_email.sql` |
+| `nsp_avisos` | `idx_nsp_avisos_caso` | `caso_id` | `174_nsp_notificacao_de_incidente.sql` |
 | `nsp_documentos_envios` | `uq_nsp_documentos_envios_documento_key` | `documento_key` | `159_nsp_assinatura_dos_documentos.sql` |
 | `nsp_documentos_envios` | `uq_nsp_documentos_envios_aberto` | `documento_id` | `159_nsp_assinatura_dos_documentos.sql` |
 | `nsp_documentos_envios` | `idx_nsp_documentos_envios_documento` | `documento_id, created_at DESC` | `159_nsp_assinatura_dos_documentos.sql` |
@@ -1445,6 +1475,12 @@ erDiagram
 | `pendencia_historico` | `idx_pendencia_historico_acao` | `id_acao, criado_em` | `169_ciclo_de_vida_da_pendencia.sql` |
 | `pendencia_historico` | `idx_pendencia_historico_repactuacao` | `id_acao` | `169_ciclo_de_vida_da_pendencia.sql` |
 | `pendencia_anexos` | `idx_pendencia_anexos_acao` | `id_acao` | `174_anexo_da_conclusao_da_pendencia.sql` |
+| `nsp_notificacoes` | `idx_nsp_notificacoes_criado_em` | `criado_em DESC` | `174_nsp_notificacao_de_incidente.sql` |
+| `nsp_notificacoes` | `idx_nsp_notificacoes_setor` | `setor_id` | `174_nsp_notificacao_de_incidente.sql` |
+| `nsp_notificacoes` | `idx_nsp_notificacoes_notificante` | `notificante_id` | `174_nsp_notificacao_de_incidente.sql` |
+| `nsp_notificacoes` | `idx_nsp_notificacoes_editado_por` | `editado_por` | `174_nsp_notificacao_de_incidente.sql` |
+| `nsp_notificacoes_trilha` | `idx_nsp_notificacoes_trilha_notificacao` | `notificacao_id, ocorrido_em DESC` | `174_nsp_notificacao_de_incidente.sql` |
+| `nsp_notificacoes_trilha` | `idx_nsp_notificacoes_trilha_autor` | `autor_id` | `174_nsp_notificacao_de_incidente.sql` |
 
 ---
-**Resumo:** 113 tabelas · 171 relacionamentos FK detectados.
+**Resumo:** 116 tabelas · 175 relacionamentos FK detectados.
