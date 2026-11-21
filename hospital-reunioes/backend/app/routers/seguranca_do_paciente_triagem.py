@@ -77,6 +77,7 @@ async def tela_de_triagem(
             tela["caso"]["anexos"] = anexos.anexos_dos_casos(supabase, [str(notificacao_id)]).get(
                 str(notificacao_id), []
             )
+            tela["encaminhamentos"] = encaminhamento.encaminhamentos_do_caso(supabase, str(notificacao_id))
     except (APIError, httpx.HTTPError) as erro:
         raise _indisponivel(erro, FALHA_DE_LEITURA) from erro
     if tela is None:
@@ -190,6 +191,7 @@ async def encaminhar_o_caso_da_triagem(
             autor_id=str(me["id"]),
             destinos=pedido.destinos,
             motivo=pedido.motivo,
+            orientacao=pedido.orientacao,
         )
     except triagem.CasoNaoEncontradoError as erro:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(erro)) from erro

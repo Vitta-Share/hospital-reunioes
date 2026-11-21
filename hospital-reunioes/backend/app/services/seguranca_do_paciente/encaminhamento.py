@@ -44,7 +44,15 @@ DESTINOS = (NUCLEO, OUVIDORIA, CANAL_DE_CONDUTA, FORA_DE_ESCOPO)
 ENCAMINHADA = "encaminhada"
 ESTADO_FORA_DE_ESCOPO = "fora_de_escopo"
 
+TABELA = "nsp_encaminhamentos"
 TAMANHO_DA_FRASE = 300
+
+# O que a tela mostra quando o destino é o Canal de Conduta: só a orientação,
+# sem link e sem nada do caso (ADR 0095, decisão 11).
+ORIENTACAO_DO_CANAL_DE_CONDUTA = (
+    "Nada deste caso foi enviado ao Canal de Conduta. Oriente quem notificou a "
+    "relatar o fato diretamente ao Canal de Conduta do hospital."
+)
 
 MARCO_DA_OUVIDORIA = "encaminhamento_ouvidoria"
 MODELO = "email_nsp_aviso.html"
@@ -73,6 +81,8 @@ def _destinos(destinos: list[str]) -> list[str]:
         raise EncaminhamentoInvalidoError("Escolha ao menos um destino.")
     if any(destino not in DESTINOS for destino in escolhidos):
         raise EncaminhamentoInvalidoError("Escolha o destino na lista.")
+    if FORA_DE_ESCOPO in escolhidos and len(escolhidos) > 1:
+        raise EncaminhamentoInvalidoError("Fora de escopo encerra o caso: não se soma a outro destino.")
     return escolhidos
 
 
@@ -162,11 +172,17 @@ def encaminhar_da_triagem(
     autor_id: str,
     destinos: list[str],
     motivo: str | None,
+    orientacao: str | None = None,
 ) -> dict[str, Any]:
     """Grava o encaminhamento e leva o caso ao estado que os destinos pedem.
-    Devolve o estado do caso e o encaminhamento gravado."""
+    Devolve o estado do caso, o encaminhamento gravado e, com o Canal de
+    Conduta entre os destinos, a orientação para a tela."""
     escolhidos = _destinos(destinos)
     motivo = _frase(motivo, "Escreva o motivo do encaminhamento em uma frase.")
+    if FORA_DE_ESCOPO in escolhidos:
+        orientacao = _frase(orientacao, "Escreva, em uma frase, a orientação para quem notificou.")
+    else:
+        orientacao = None
     notificacao = _notificacao(supabase, notificacao_id)
     if notificacao is None:
         raise CasoNaoEncontradoError("Caso não encontrado.")
@@ -176,12 +192,13 @@ def encaminhar_da_triagem(
     if OUVIDORIA in escolhidos and not ouvidores:
         raise EncaminhamentoInvalidoError("Não há ouvidor ativo no cadastro para receber o caso.")
     gravado = (
-        supabase.table("nsp_encaminhamentos")
+        supabase.table(TABELA)
         .insert(
             {
                 "notificacao_id": notificacao_id,
                 "destinos": escolhidos,
                 "motivo": motivo,
+                "orientacao": orientacao,
                 "autor_id": autor_id,
             }
         )
@@ -195,4 +212,31 @@ def encaminhar_da_triagem(
         supabase.table("nsp_notificacoes").update({"estado": estado, "editado_por": autor_id}).eq(
             "id", notificacao_id
         ).in_("estado", list(ESTADOS_DA_FILA)).execute()
-    return {"estado": estado or notificacao["estado"], "encaminhamento": gravado}
+    resposta: dict[str, Any] = {"estado": estado or notificacao["estado"], "encaminhamento": _apresentar(gravado)}
+    if CANAL_DE_CONDUTA in escolhidos:
+        resposta["orientacao_do_canal_de_conduta"] = ORIENTACAO_DO_CANAL_DE_CONDUTA
+    return resposta
+
+
+def _apresentar(linha: dict[str, Any]) -> dict[str, Any]:
+    return {campo: linha.get(campo) for campo in ("destinos", "motivo", "orientacao", "autor_id", "criado_em")}
+
+
+def encaminhamentos_do_caso(supabase, notificacao_id: str) -> list[dict[str, Any]]:
+    """Os encaminhamentos do caso, do mais antigo para o mais novo."""
+    linhas = supabase.table(TABELA).select("*").eq("notificacao_id", notificacao_id).order("criado_em").execute().data
+    return [_apresentar(linha) for linha in linhas or []]
+
+
+def orientacao_ao_notificante(supabase, notificacao_id: str) -> str | None:
+    """A orientação do caso fora de escopo, a que quem notificou vê no
+    acompanhamento. Só ela: o motivo é do Núcleo."""
+    linhas = (
+        supabase.table(TABELA)
+        .select("orientacao, criado_em")
+        .eq("notificacao_id", notificacao_id)
+        .order("criado_em", desc=True)
+        .execute()
+        .data
+    )
+    return next((linha["orientacao"] for linha in linhas or [] if linha.get("orientacao")), None)

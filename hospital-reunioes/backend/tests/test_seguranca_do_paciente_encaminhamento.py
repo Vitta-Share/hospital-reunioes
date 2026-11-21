@@ -20,17 +20,16 @@ from __future__ import annotations
 import os
 import re
 import sys
-from pathlib import Path
 from typing import Any
 
 import pytest
-from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from test_seguranca_do_paciente_notificacoes import _pessoa  # noqa: E402
 from test_seguranca_do_paciente_notificacoes import _cliente as _cliente_publico  # noqa: E402
+from test_seguranca_do_paciente_notificacoes import _pessoa  # noqa: E402
 from test_seguranca_do_paciente_triagem import (  # noqa: E402
+    MEMBRO,
     PRESIDENTE,
     _banco,
     _cliente,
@@ -138,3 +137,113 @@ def test_sem_ouvidor_ativo_a_ouvidoria_e_recusada_sem_gravar():
     assert banco.tabelas.get("nsp_encaminhamentos", []) == []
     assert banco.tabelas.get("nsp_avisos", []) == []
     assert banco.notificacoes[0]["estado"] == "recebida"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. Canal de Conduta: só a orientação na tela
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_canal_de_conduta_so_orienta_e_nada_sai_nem_e_gravado_fora_do_nucleo():
+    banco, caso = _cenario()
+
+    resposta = _encaminhar(banco, caso, destinos=["canal_de_conduta"], motivo=MOTIVO)
+
+    assert resposta.status_code == 201, resposta.text
+    orientacao = resposta.json()["orientacao_do_canal_de_conduta"]
+    assert "Canal de Conduta" in orientacao
+    assert not re.search(r"https?://|www\.|/conduta", orientacao)
+    assert banco.tabelas.get("nsp_avisos", []) == []
+    assert _escritas_fora_do_nucleo(banco) == []
+    [gravado] = [valores for nome, valores in banco.escritas if nome == "nsp_encaminhamentos"]
+    assert RELATO not in str(gravado)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. Fora de escopo: encerra, e a orientação aparece no acompanhamento
+# ═══════════════════════════════════════════════════════════════════════════
+
+ORIENTACAO = "Este assunto é trabalhista: procure o Departamento Pessoal do hospital."
+ACOMPANHAMENTO = {"protocolo": "NSP-2026-0001", "contato": "notificante@hsm.test"}
+
+
+def test_fora_de_escopo_encerra_e_a_orientacao_aparece_no_acompanhamento():
+    banco, caso = _cenario()
+
+    resposta = _encaminhar(banco, caso, destinos=["fora_de_escopo"], motivo=MOTIVO, orientacao=ORIENTACAO)
+
+    assert resposta.status_code == 201, resposta.text
+    assert banco.notificacoes[0]["estado"] == "fora_de_escopo"
+    assert banco.notificacoes[0]["protocolo"] == "NSP-2026-0001"
+    acompanhamento = _cliente_publico(banco).post("/api/nsp/publico/acompanhamento", json=ACOMPANHAMENTO)
+    assert acompanhamento.status_code == 200, acompanhamento.text
+    assert acompanhamento.json()["estado"] == "Concluída"
+    assert acompanhamento.json()["orientacao"] == ORIENTACAO
+    assert MOTIVO not in acompanhamento.text
+
+
+def test_o_caso_que_segue_no_nucleo_nao_mostra_orientacao_no_acompanhamento():
+    banco, _ = _cenario()
+
+    acompanhamento = _cliente_publico(banco).post("/api/nsp/publico/acompanhamento", json=ACOMPANHAMENTO)
+
+    assert acompanhamento.status_code == 200, acompanhamento.text
+    assert acompanhamento.json().get("orientacao") is None
+
+
+@pytest.mark.parametrize(
+    "corpo",
+    [
+        {"destinos": ["fora_de_escopo"], "motivo": MOTIVO},
+        {"destinos": ["fora_de_escopo", "ouvidoria"], "motivo": MOTIVO, "orientacao": ORIENTACAO},
+        {"destinos": ["fora_de_escopo", "nucleo"], "motivo": MOTIVO, "orientacao": ORIENTACAO},
+    ],
+    ids=["sem orientação", "junto da Ouvidoria", "junto do Núcleo"],
+)
+def test_fora_de_escopo_pede_a_orientacao_e_nao_se_soma_a_outro_destino(corpo):
+    banco, caso = _cenario()
+
+    resposta = _encaminhar(banco, caso, **corpo)
+
+    assert resposta.status_code == 422, resposta.text
+    assert banco.tabelas.get("nsp_encaminhamentos", []) == []
+    assert banco.notificacoes[0]["estado"] == "recebida"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. Núcleo e Ouvidoria juntos: o caso fica na triagem do Núcleo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_nucleo_e_ouvidoria_juntos_mantem_o_caso_na_triagem_e_registram_o_email():
+    banco, caso = _cenario()
+
+    resposta = _encaminhar(banco, caso, destinos=["nucleo", "ouvidoria"], motivo=MOTIVO)
+
+    assert resposta.status_code == 201, resposta.text
+    assert resposta.json()["estado"] == "recebida"
+    assert banco.notificacoes[0]["estado"] == "recebida"
+    assert [c["protocolo"] for c in _cliente(banco).get("/api/nsp/triagem").json()["fila"]] == ["NSP-2026-0001"]
+    [email] = banco.tabelas["nsp_avisos"]
+    assert email["destinatario_id"] == "P7"
+    assert MOTIVO in email["texto"]
+    tela = _cliente(banco).get(f"/api/nsp/triagem/{caso['id']}").json()
+    assert [e["destinos"] for e in tela["encaminhamentos"]] == [["nucleo", "ouvidoria"]]
+
+
+def test_o_caso_que_ja_saiu_da_triagem_nao_se_encaminha():
+    banco, caso = _cenario(estado="classificada")
+
+    resposta = _encaminhar(banco, caso, destinos=["ouvidoria"], motivo=MOTIVO)
+
+    assert resposta.status_code == 409
+    assert banco.tabelas.get("nsp_avisos", []) == []
+
+
+def test_so_a_presidencia_e_o_acesso_pleno_encaminham():
+    banco, caso = _cenario()
+
+    resposta = _encaminhar(banco, caso, pessoa=MEMBRO, destinos=["ouvidoria"], motivo=MOTIVO)
+
+    assert resposta.status_code == 403
+    assert banco.tabelas.get("nsp_encaminhamentos", []) == []
