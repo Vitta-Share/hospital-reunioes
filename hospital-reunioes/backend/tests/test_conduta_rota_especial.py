@@ -334,3 +334,76 @@ class TestGrupoFixo:
         caso_id = comite.caso("sim")
 
         assert comite.grupo(caso_id) == {NOVO_MEMBRO, SUPLENTE}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. Avisos de 15, 30 e 60 dias, e "Caso não respondido no prazo"
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@pytest.fixture
+def emails(monkeypatch) -> list[str]:
+    enviados: list[str] = []
+
+    def _enviar(destino, *_a, **_kw):
+        enviados.append(destino)
+        return True
+
+    monkeypatch.setattr(avisos, "_enviar_email", _enviar)
+    monkeypatch.setattr(avisos, "_montar", lambda: ("<p>aviso</p>", "aviso"))
+    return enviados
+
+
+def _marcos(comite: Comite, caso_id: str) -> dict[str, set[str]]:
+    saida: dict[str, set[str]] = {}
+    for aviso in comite.banco.tabelas.get("conduta_avisos", []):
+        if aviso["caso_id"] == caso_id and aviso["motivo"].startswith("marco_"):
+            saida.setdefault(aviso["motivo"], set()).add(aviso["participante_id"])
+    return saida
+
+
+class TestMarcosEPrazo:
+    @pytest.mark.parametrize(("dias", "marco"), [(15, "marco_15"), (30, "marco_30"), (60, "marco_60")])
+    def test_o_aviso_do_marco_sai_ao_grupo(self, comite, emails, dias, marco):
+        caso_id = comite.caso("sim", dias_atras=dias)
+
+        avisos.rodada_do_dia(comite.banco, HOJE)
+
+        assert _marcos(comite, caso_id) == {marco: GRUPO_CERTO}
+        assert {"memb@hsm.test", "supl@hsm.test"} <= set(emails)
+        assert "coord@hsm.test" not in emails
+
+    def test_antes_de_15_dias_nao_ha_aviso_de_marco(self, comite, emails):
+        caso_id = comite.caso("sim", dias_atras=14)
+
+        avisos.rodada_do_dia(comite.banco, HOJE)
+
+        assert _marcos(comite, caso_id) == {}
+
+    def test_o_marco_sai_uma_vez_e_o_de_15_nao_vem_depois_do_de_30(self, comite, emails):
+        caso_id = comite.caso("sim", dias_atras=30)
+        avisos.rodada_do_dia(comite.banco, HOJE)
+        avisos.rodada_do_dia(comite.banco, HOJE)
+        avisos.rodada_do_dia(comite.banco, HOJE - timedelta(days=13))
+
+        marcos = [a["motivo"] for a in comite.banco.tabelas["conduta_avisos"] if a["caso_id"] == caso_id]
+        assert sorted(m for m in marcos if m.startswith("marco_")) == ["marco_30", "marco_30"]
+
+    def test_prazo_vencido_sem_parecer_grava_caso_nao_respondido_no_prazo(self, comite, emails):
+        caso_id = comite.caso("sim", dias_atras=61)
+
+        avisos.rodada_do_dia(comite.banco, HOJE)
+
+        detalhes = [linha["detalhe"] for linha in comite.trilha(caso_id) if linha["acao"] == "prazo_vencido"]
+        assert detalhes == ["Caso não respondido no prazo"]
+        assert [v["caso_id"] for v in comite.banco.tabelas["conduta_prazos_vencidos"]] == [caso_id]
+        tela = comite.abre(MEMBRO, caso_id).json()
+        assert tela["rota_especial"]["nao_respondido_no_prazo"] is True
+
+    def test_dentro_do_prazo_nao_ha_registro_de_nao_respondido(self, comite, emails):
+        caso_id = comite.caso("sim", dias_atras=59)
+
+        avisos.rodada_do_dia(comite.banco, HOJE)
+
+        assert not comite.banco.tabelas.get("conduta_prazos_vencidos")
+        assert comite.abre(MEMBRO, caso_id).json()["rota_especial"]["nao_respondido_no_prazo"] is False

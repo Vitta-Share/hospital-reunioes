@@ -308,6 +308,10 @@ def despachar(supabase, hoje: date, *, so_na_hora: bool = False) -> dict[str, in
 
 def rodada_do_dia(supabase, hoje: date) -> dict[str, int]:
     """A rodada das 08:00: cria os lembretes do dia e entrega todo aviso
-    pendente, o da tarefa de caso comum inclusive."""
+    pendente, o da tarefa de caso comum inclusive. E os marcos de 15, 30 e 60
+    dias da Rota Especial, com o prazo vencido sem parecer (issue #1829)."""
+    from app.services.conduta import rota_especial  # importa este módulo
+
     lembrar_prazos(supabase, hoje)
+    rota_especial.rodada(supabase, hoje)
     return despachar(supabase, hoje)

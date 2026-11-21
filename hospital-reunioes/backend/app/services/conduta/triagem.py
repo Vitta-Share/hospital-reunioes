@@ -46,6 +46,7 @@ logger = logging.getLogger(__name__)
 NOMES_DOS_RITOS = {"encaminhamento": "Encaminhamento", "rapido": "Rápido", "completo": "Completo"}
 _TAMANHO_DO_MOTIVO = 500
 _TAMANHO_DA_JUSTIFICATIVA = 2000
+NAO_RESPONDIDO = "Caso não respondido no prazo"
 
 
 class AcaoRecusadaError(Exception):
@@ -112,7 +113,9 @@ def registrar_vencidos(supabase, casos: list[dict], hoje: date) -> set[str]:
         if not prazo_venceu(caso, hoje) or (caso["id"], str(caso["prazo_em"])[:10]) in registrados:
             continue
         prazo = str(caso["prazo_em"])[:10]
-        trilha.registrar(supabase, caso["id"], None, "prazo_vencido", f"prazo do rito venceu em {prazo}")
+        # Na Rota Especial, o registro permanente tem nome próprio (issue #1829).
+        detalhe = NAO_RESPONDIDO if caso.get("rota") == "especial" else f"prazo do rito venceu em {prazo}"
+        trilha.registrar(supabase, caso["id"], None, "prazo_vencido", detalhe)
         supabase.table("conduta_prazos_vencidos").insert(
             {"caso_id": caso["id"], "rito": caso.get("rito") or "", "prazo_em": prazo}
         ).execute()

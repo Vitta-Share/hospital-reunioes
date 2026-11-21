@@ -49,7 +49,6 @@ AVISO = (
     "Este relato pode envolver a Direção, a Presidência ou a família proprietária. "
     "Se envolver, confirme o desvio para a Rota Especial."
 )
-NAO_RESPONDIDO = "Caso não respondido no prazo"
 # Do mais adiantado para o primeiro: o primeiro que a contagem alcança é o do dia.
 MARCOS = (("marco_60", 60), ("marco_30", 30), ("marco_15", 15))
 _TAMANHO_DO_DESTINATARIO = 300
@@ -170,7 +169,9 @@ def confirmar_desvio(supabase, aberto: CasoAberto) -> dict:
     if not tem_aviso(caso):
         raise AcaoRecusadaError(409, "Este caso não tem o aviso de Rota Especial.")
     relato = cifra.decifrar_texto(caso["relato_cifrado"])
-    trilha.registrar(supabase, caso["id"], aberto.autor_id, "desvio_especial", "confirmou o desvio para a Rota Especial")
+    trilha.registrar(
+        supabase, caso["id"], aberto.autor_id, "desvio_especial", "confirmou o desvio para a Rota Especial"
+    )
     mudado = _mudar(
         supabase,
         caso,
@@ -298,7 +299,9 @@ def rodada(supabase, hoje: date) -> int:
         marco = _marco((hoje - envio).days)
         if marco is None:
             continue
-        ja = supabase.table(avisos.TABELA).select("motivo").eq("caso_id", caso["id"]).eq("referencia", envio.isoformat())
+        ja = (
+            supabase.table(avisos.TABELA).select("motivo").eq("caso_id", caso["id"]).eq("referencia", envio.isoformat())
+        )
         ja_marcos = {linha["motivo"] for linha in ja.execute().data or []}
         # O job parado uns dias não manda o de 15 depois do de 30.
         posicao = [m for m, _ in MARCOS].index(marco)
