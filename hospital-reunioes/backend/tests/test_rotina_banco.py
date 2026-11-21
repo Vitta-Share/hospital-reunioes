@@ -103,3 +103,6 @@ def test_nenhum_job_nem_trigger_cria_verificacao():
     assert "CREATE TRIGGER" not in sql
     assert "CREATE OR REPLACE FUNCTION" not in sql and "CREATE FUNCTION" not in sql
     assert "CRON" not in re.sub(r"--.*", "", sql)
+    # Nem o agendador do backend: o ciclo vem da data.
+    agendador = (Path(__file__).resolve().parents[1] / "app" / "cron" / "scheduler.py").read_text(encoding="utf-8")
+    assert "rotina" not in agendador.lower()
