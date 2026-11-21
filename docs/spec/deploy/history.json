@@ -2,6 +2,58 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T12:33:33-03:00",
+      "sha": "d89bd0ae222b8c66082a1090c23dd05b473145c9",
+      "app_version": "0.340.0",
+      "subject": "Onda ok-sesta-1786-onda2: Membros do Comitê, perfil de cadastro e aviso a cada mudança; Triagem, ritos, prazos e a tela MINHA VEZ do Canal de Conduta",
+      "raw_subject": "chore(deploy): registro da onda ok-sesta-1786-onda2 (#2079 #2078)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 868,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "184_conduta_membros_do_comite.sql",
+        "184_conduta_membros_do_comite.sql",
+        "185_conduta_triagem_e_ritos.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta ok-sesta-1786-onda2: PR #2079 (issue #1822), PR #2078 (issue #1824), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 5,
+        "build_s": {
+          "backend": 18,
+          "frontend": 191
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T12:20:38-03:00",
       "sha": "bec04a6667858e67b984f61490fc3e8b736b251c",
       "app_version": "0.339.0",
