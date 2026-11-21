@@ -4,7 +4,7 @@
 vier, um anexo (imagem ou PDF até 10 MB) que sobe ao bucket privado e fica
 ligado ao evento de conclusão. `GET /pendencias/{id}/anexos/{anexo}/link`
 devolve o link assinado de curta duração só ao responsável, ao Facilitador da
-Reunião e ao Super admin. O banco aqui é de mentira; a prova da migration 170
+Reunião e ao Super admin. O banco aqui é de mentira; a prova da migration 174
 num Postgres de verdade está em `test_pendencia_anexo_banco.py`.
 """
 
@@ -32,7 +32,7 @@ DEZ_MB = 10 * 1024 * 1024
 
 
 class _BancoComAnexos(_Banco):
-    """O banco de mentira da 169, mais a função de conclusão com anexo da 170."""
+    """O banco de mentira da 169, mais a função de conclusão com anexo da 174."""
 
     def __init__(self, base: _Banco):
         super().__init__(

@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     # Bucket privado dos arquivos do Núcleo de Segurança do Paciente
     # (migration 151): o Termo de Adesão gerado e o assinado.
     supabase_storage_bucket_nsp_documentos: str = "nsp-documentos"
-    # Bucket privado do anexo da conclusão da Pendência (migration 170).
+    # Bucket privado do anexo da conclusão da Pendência (migration 174).
     supabase_storage_bucket_anexos_pendencias: str = "anexos-pendencias"
 
     # IA de texto (issue #1302): API da Anthropic, um fornecedor e um modelo

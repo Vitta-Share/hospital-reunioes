@@ -506,7 +506,7 @@ def _pendencia_atualizada(supabase, id_acao: str) -> dict:
 # Concluir com a anotação obrigatória e, se vier, uma foto ou um PDF de até
 # 10 MB. Toda recusa (regra do ciclo, tipo, tamanho) vem antes do bucket; o
 # binário sobe antes da gravação e sai se a conclusão não entrar. A conclusão
-# e o anexo entram juntos pela `registrar_conclusao_com_anexo` (migration 170).
+# e o anexo entram juntos pela `registrar_conclusao_com_anexo` (migration 174).
 
 
 @router.post("/{id_acao}/conclusao", response_model=PendenciaResponse)

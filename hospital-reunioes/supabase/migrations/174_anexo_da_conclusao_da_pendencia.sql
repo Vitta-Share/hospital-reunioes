@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 170: foto ou PDF anexado na conclusao da Pendencia (issue #1865, PRD #1757)
+-- Migration 174: foto ou PDF anexado na conclusao da Pendencia (issue #1865, PRD #1757)
 -- =====================================================
 -- Ao concluir, o responsavel pode anexar uma imagem ou um PDF de ate 10 MB,
 -- alem da anotacao, que continua obrigatoria.
@@ -110,4 +110,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (170) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (174) ON CONFLICT (numero) DO NOTHING;

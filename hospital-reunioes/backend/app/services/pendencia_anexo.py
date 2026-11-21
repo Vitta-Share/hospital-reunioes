@@ -4,7 +4,7 @@ Ao concluir, o responsável pode anexar uma imagem ou um PDF de até 10 MB, alé
 da anotação, que continua obrigatória. O binário vai para o bucket privado
 `anexos-pendencias` com caminho sorteado; os metadados ficam em
 `pendencia_anexos`, ligados ao evento de conclusão do Histórico (migration
-170). Abrir é só por link assinado de curta duração, e só para o responsável,
+174). Abrir é só por link assinado de curta duração, e só para o responsável,
 o Facilitador da Reunião e o Super admin (decisão 47 da #1757, confirmada pelo
 diretor na #1859).
 

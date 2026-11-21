@@ -1,6 +1,6 @@
-"""O anexo da conclusão e a migration 170 num Postgres de verdade (issue #1865).
+"""O anexo da conclusão e a migration 174 num Postgres de verdade (issue #1865).
 
-Sobe um Postgres descartável como o teste da 169, aplica a 169 e a 170 (a 170
+Sobe um Postgres descartável como o teste da 169, aplica a 169 e a 174 (a 174
 duas vezes) e prova no banco que:
 
 - o bucket `anexos-pendencias` nasce privado, com o teto de 10 MB e só imagem
@@ -30,9 +30,9 @@ from test_pendencia_historico_banco import (  # noqa: E402
 )
 from test_pendencia_historico_banco import MIGRATION as MIGRATION_169  # noqa: E402
 
-MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "170_anexo_da_conclusao_da_pendencia.sql"
+MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "174_anexo_da_conclusao_da_pendencia.sql"
 
-# O mínimo do schema `storage` do Supabase que a 170 toca.
+# O mínimo do schema `storage` do Supabase que a 174 toca.
 STORAGE = """
 CREATE SCHEMA storage;
 CREATE TABLE storage.buckets (
@@ -62,7 +62,7 @@ def banco():
     bindir = _bin_do_postgres()
     if bindir is None:
         if os.environ.get("CI"):
-            pytest.fail("O CI precisa do initdb para provar a migration 170 no banco.")
+            pytest.fail("O CI precisa do initdb para provar a migration 174 no banco.")
         pytest.skip("Sem initdb nesta máquina.")
     pg = _Postgres(bindir)
     pg.subir()
