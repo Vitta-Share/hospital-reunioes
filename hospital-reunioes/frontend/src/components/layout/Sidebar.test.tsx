@@ -473,6 +473,16 @@ describe("Sidebar com o item Segurança do Paciente", () => {
     expect(hrefs(semConfiguracao)).not.toContain("/seguranca-do-paciente/configuracao");
   });
 
+  it("o item Notas do Comitê de Conduta aparece para quem tem o recurso das notas, e só para ele (issue #1850)", () => {
+    const comNotas = entrar({ access_profile: null, recursos_nsp: [...SEM_TERMO, "notas_do_comite"] });
+    expect(hrefs(comNotas)).toContain("/seguranca-do-paciente/notas-do-comite");
+    cleanup();
+
+    const membro = entrar({ access_profile: null, recursos_nsp: [...SEM_TERMO, "casos"] });
+    expect(hrefs(membro)).toContain("/seguranca-do-paciente/notificacoes");
+    expect(hrefs(membro)).not.toContain("/seguranca-do-paciente/notas-do-comite");
+  });
+
   it.each([
     [
       "Auditorias de adesão",
