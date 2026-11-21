@@ -2,6 +2,57 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T19:13:06-03:00",
+      "sha": "3992c387c661f38fc0b07a40aa585a241090cbd7",
+      "app_version": "0.350.0",
+      "subject": "Onda sesta-1786-onda5: Guia do rito e primeiro acesso do Comitê; Botão Sinalizar ao Canal de Conduta no Dossiê; Nota do Comitê ao Núcleo de Segurança do Paciente",
+      "raw_subject": "chore(deploy): registro da onda sesta-1786-onda5 (#2107 #2109 #2108)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 4300,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "202_conduta_sinalizacao_da_ouvidoria.sql",
+        "203_conduta_nota_ao_nucleo.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1786-onda5: PR #2107 (issue #1842), PR #2109 (issue #1849), PR #2108 (issue #1850), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 16,
+        "build_s": {
+          "backend": 27,
+          "frontend": 177
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T19:06:10-03:00",
       "sha": "bdd32a3972a187dca441c63f886f4937d579058e",
       "app_version": "0.349.0",
