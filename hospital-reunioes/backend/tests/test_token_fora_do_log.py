@@ -136,6 +136,10 @@ PARAMS_SEM_SEGREDO = {
     "id_acao",
     "id_grupo_recorrencia",
     "id_reuniao",
+    # UUID da Rotina e o primeiro dia do ciclo (issue #1874). Nao sao
+    # credencial: a rota exige login e o vinculo com a Rotina.
+    "id_rotina",
+    "inicio",
     # Id do Objetivo da Central de Comando (issue #820): uma chave de catálogo
     # fechado ("instagram-seguidores", "contatos"), não credencial. A rota exige
     # require_super_admin, e o id sozinho não abre porta nenhuma, como o

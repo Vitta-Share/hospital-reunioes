@@ -233,6 +233,12 @@ def liberar_pendencias(
     # ou de inativo é descartado e o item volta à resolução por nome.
     quadro_resolvido = resolver_quadro_da_reuniao(supabase, id_reuniao, quadro)
 
+    # 3b. A Rotina nasce na mesma porta (ADR 0098, decisão 9; #1874), com o
+    # responsável já resolvido. Idempotente pela posição no quadro.
+    from app.services.rotina_service import nascer_rotinas
+
+    nascer_rotinas(supabase, id_reuniao, quadro_resolvido, filtro=filtro)
+
     # 4. Preparar lote de inserção: pula posições já nascidas e aplica o filtro
     batch_pendencias = []
 

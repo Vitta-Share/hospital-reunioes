@@ -18,7 +18,7 @@ Os nomes citados na reunião são casados com o cadastro de pessoas do hospital.
 
 Cada linha do quadro da ata é de um tipo: Ação, Rotina ou Processo. A Ação acontece uma vez e tem prazo. A Rotina se repete toda semana, quinzena ou mês e tem um responsável que executa; ela substitui o antigo "fluxo contínuo". O Processo diz como se faz dali para frente, sem executor e sem cobrança. A inteligência artificial sugere o tipo de cada linha, na ata por transcrição, na correção e na ata guiada, e o facilitador troca o tipo e a frequência na revisão da ata. A linha sem tipo vale como Ação, e é assim que as atas antigas continuam.
 
-No envio, só a Ação vira pendência, com responsável e prazo, e desde o primeiro segundo ela é cobrada de verdade: aparece no painel, vence e atrasa. A Rotina e o Processo ficam guardados no quadro da ata. Antes de enviar, toda Rotina precisa de responsável e frequência: se faltar um dos dois, o aplicativo não envia e diz qual linha falta completar.
+No envio, só a Ação vira pendência, com responsável e prazo, e desde o primeiro segundo ela é cobrada de verdade: aparece no painel, vence e atrasa. A linha de Rotina vira uma rotina, com o responsável e a frequência da linha, e o Processo fica guardado no quadro da ata. Antes de enviar, toda Rotina precisa de responsável e frequência: se faltar um dos dois, o aplicativo não envia e diz qual linha falta completar.
 
 ## Como a pendência anda
 
@@ -44,6 +44,16 @@ Excluir a reunião também não apaga as pendências dela. Reunião que já teve
 Os lembretes da Agenda regulatória do Núcleo de Segurança do Paciente também são pendências e têm o mesmo histórico. Quando o resultado do evento é registrado na Agenda, o lembrete é concluído e o resultado que a Presidência escreve vira a anotação. Se a data do evento muda antes do resultado, o lembrete da data antiga é cancelado, e a anotação diz a data de antes e a nova. Esses lembretes continuam aparecendo só na Agenda regulatória, para quem é do Núcleo.
 
 As pendências antigas que estavam atrasadas ou "a repactuar" (sem prazo) recuperaram o prazo que estava no quadro da ata. Onde o quadro não tinha o prazo, ficou valendo a data da última mudança, e o histórico dela mostra esse ajuste.
+
+## A rotina e a verificação de cada ciclo
+
+A rotina nasce no envio da ata e segue o calendário: a semana vai de segunda a domingo, a quinzena vai do dia 1 ao 15 e do 16 ao fim do mês, e o mês vai do dia 1 ao último dia. Ela começa no ciclo seguinte ao do envio, o primeiro inteiro: a ata enviada numa quinta só cobra a partir da segunda seguinte, e ninguém é cobrado por um ciclo pela metade.
+
+A cada ciclo o responsável marca se fez ou não. Realizada é um clique; Não realizada pede uma anotação, e o aplicativo não grava sem ela. A verificação vale até o último dia do ciclo. O ciclo que terminou sem marcação fica atrasado e ainda pode ser marcado depois, mas a marcação fica registrada como atrasada. Nenhuma rotina de fundo cria a verificação: o ciclo existe pela data, e o registro só aparece quando alguém marca.
+
+Quem marca é o responsável, no aplicativo. Para quem não entra no aplicativo, o facilitador da reunião marca por ele. O facilitador também pode encerrar a rotina a qualquer momento, com uma anotação: o ciclo em curso e os seguintes deixam de ser cobrados, e os que já tinham terminado sem marcação continuam lá para marcar. Quem administra o aplicativo faz o mesmo que o facilitador, menos nas reuniões do Núcleo de Segurança do Paciente, que seguem a regra do Núcleo.
+
+A tela Rotinas, no menu de Reuniões, mostra as rotinas no nome da pessoa e as das reuniões que ela conduz, com os ciclos em aberto e as marcações feitas. A verificação do ciclo em aberto também aparece no Início do responsável, com o prazo no último dia do ciclo e o botão Realizada, que marca ali mesmo; o ciclo que fechou sem marcação aparece como prazo vencido.
 
 ## Assinar ou finalizar sem assinar
 
@@ -136,6 +146,7 @@ Na tela da reunião, o botão Excluir, que apagava a reunião em qualquer status
 - Nada apaga pendência: reunião que já teve pendência, mesmo toda cancelada, não se exclui.
 - Toda reunião nova tem setor, e quem administra o aplicativo preenche o setor que falta nas reuniões antigas e nos responsáveis.
 - Cada linha da ata é Ação, Rotina ou Processo, e só a Ação vira pendência; a linha sem tipo vale como Ação, e toda Rotina precisa de responsável e frequência antes do envio.
+- A rotina segue o calendário (semana, quinzena de 1 a 15 e de 16 ao fim do mês, ou mês), começa no primeiro ciclo inteiro depois do envio, e cada ciclo é marcado como Realizada, com um clique, ou Não realizada, com anotação; o facilitador marca por quem não entra no aplicativo e encerra a rotina com anotação.
 
 ## O que costuma virar Demanda
 

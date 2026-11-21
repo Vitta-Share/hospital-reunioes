@@ -88,6 +88,8 @@ class _Banco:
     ouvidoria_setor_responsaveis: list = field(default_factory=list)
     ouvidoria_protocolos: list = field(default_factory=list)
     ouvidoria_prorrogacoes: list = field(default_factory=list)
+    # A fonte das Rotinas (#1874) também lê o banco; vazia aqui.
+    rotinas: list = field(default_factory=list)
 
     def table(self, nome):
         return _Consulta(getattr(self, nome))

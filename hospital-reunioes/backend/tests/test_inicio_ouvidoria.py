@@ -102,6 +102,8 @@ class _Banco:
     ouvidoria_setor_responsaveis: list = field(default_factory=list)
     ouvidoria_protocolos: list = field(default_factory=list)
     ouvidoria_prorrogacoes: list = field(default_factory=list)
+    # A fonte das Rotinas (#1874) também lê o banco; vazia aqui.
+    rotinas: list = field(default_factory=list)
     # A fonte das Atas e o trilho (#1936) também leem o banco; vazios aqui.
     reuniao_participantes: list = field(default_factory=list)
     reuniao_aceites: list = field(default_factory=list)

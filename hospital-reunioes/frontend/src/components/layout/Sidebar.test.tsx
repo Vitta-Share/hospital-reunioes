@@ -244,7 +244,7 @@ describe.each([
     [
       "padrão",
       { access_profile: "regular", perfil_ouvidoria: "ouvidor" },
-      ["Início", "Dashboard", "Calendário", "Ouvidoria"],
+      ["Início", "Dashboard", "Calendário", "Rotinas", "Ouvidoria"],
     ],
     [
       "Secretária",
