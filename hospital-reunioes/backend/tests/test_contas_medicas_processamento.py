@@ -227,8 +227,10 @@ class _Consulta:
         self._insert: dict | list | None = None
         self._upsert: tuple[list, list[str]] | None = None
         self._delete = False
+        self._contar = False
 
-    def select(self, *_a, **_kw):
+    def select(self, *_a, count=None, **_kw):
+        self._contar = count == "exact"
         return self
 
     def eq(self, coluna, valor):
@@ -359,10 +361,11 @@ class _Consulta:
             return SimpleNamespace(data=[dict(linha) for linha in casam])
         for coluna, desc in reversed(self._ordem):
             casam.sort(key=lambda linha, c=coluna: (linha.get(c) is None, str(linha.get(c) or "")), reverse=desc)
+        total = len(casam) if self._contar else None
         casam = casam[self._inicio :]
         if self._limite is not None:
             casam = casam[: self._limite]
-        return SimpleNamespace(data=[dict(linha) for linha in casam])
+        return SimpleNamespace(data=[dict(linha) for linha in casam], count=total)
 
 
 class _Bucket:
@@ -2997,7 +3000,8 @@ class TestEtapaDoProcessamento:
             "parte 3 de 7",
             "tentativa 2 de 3",
             "a cada 5 segundos",
-            "Atendimento 31310 pronto, foi para a Fila",
+            # Desde a issue #1951 o aviso diz o número e o rótulo, sem "Atendimento".
+            "31310 Antônia F. ficou pronta e foi para a Fila",
         ):
             assert trecho in texto, trecho
 

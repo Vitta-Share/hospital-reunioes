@@ -92,6 +92,8 @@ export type EtapaDoProcessamento =
 export interface ItemDaFila {
   id: string;
   numero_atendimento: string | null;
+  /** O rótulo do paciente, "Antônia F." (issue #1951, ADR 0105); nulo sem nome na capa. */
+  paciente_rotulo?: string | null;
   numero_conta: string | null;
   situacao: SituacaoDaConta;
   falta: "prontuario" | "conta" | null;
@@ -158,6 +160,16 @@ export interface ItemDaFila {
   demorando?: boolean;
   /** Só para quem tem "painel completo": quem está com a conta (issue #1307). */
   com?: string | null;
+  /** A conta é da própria pessoa (issue #1951): a ação dela fica sempre visível. */
+  minha?: boolean;
+}
+
+/** O número de cada etapa da Esteira (issue #1951); cada rota manda as dela. */
+export interface ContagemDaEsteira {
+  envios?: number;
+  fila?: number;
+  em_analise?: number;
+  concluidas?: number;
 }
 
 /**
@@ -187,6 +199,8 @@ export interface Fila {
   concluidas: ItemDaFila[];
   /** A barra da aba Envios (issue #1417); só vem com "Meus envios". */
   barra?: BarraDosEnvios | null;
+  /** O número de cada etapa da Esteira (issue #1951). */
+  contagem?: ContagemDaEsteira;
 }
 
 /** Os arquivos que sobem e os que ficam de fora, com a frase de cada um. */
@@ -402,18 +416,24 @@ export function textosDaBarra(barra: BarraDosEnvios): string[] {
   return textos;
 }
 
+/** O número do atendimento com o rótulo do paciente ao lado, quando houver (issue #1951). */
+export function numeroERotulo(conta: Pick<ItemDaFila, "numero_atendimento" | "paciente_rotulo">): string {
+  return [conta.numero_atendimento, conta.paciente_rotulo].filter(Boolean).join(" ");
+}
+
 /**
  * O aviso de cada conta que estava Processando e sumiu da lista de envios
  * (issue #1416): sair de Processando sem ir para Erro nem para a fila é ficar
  * pronta, e a conta pronta sai dos envios e vai para a Fila. Um aviso por
- * atendimento, mesmo com duas parciais prontas juntas.
+ * atendimento, mesmo com duas parciais prontas juntas. O aviso diz o número e
+ * o rótulo do paciente, sem a palavra "Atendimento" (issue #1951).
  */
 export function avisosDeProntas(antes: ItemDaFila[], depois: ItemDaFila[]): string[] {
   const ficaram = new Set(depois.map((conta) => conta.id));
   const atendimentos = antes
     .filter((conta) => conta.situacao === "PROCESSANDO" && !ficaram.has(conta.id))
-    .map((conta) => conta.numero_atendimento);
-  return [...new Set(atendimentos)].map((numero) => `Atendimento ${numero} pronto, foi para a Fila`);
+    .map(numeroERotulo);
+  return [...new Set(atendimentos)].map((conta) => `${conta} ficou pronta e foi para a Fila`);
 }
 
 const DINHEIRO = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

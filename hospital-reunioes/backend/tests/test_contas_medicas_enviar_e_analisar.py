@@ -274,8 +274,9 @@ class TestKitDizQueEnviarEAnalisarSaoSeparados:
             assert trecho in quem_ve, trecho
         assert "São seis" not in quem_ve
 
-    def test_o_envio_diz_que_quem_so_envia_ve_meus_envios_e_nao_a_fila(self):
+    def test_o_envio_diz_que_quem_so_envia_ve_os_envios_e_nao_a_fila(self):
+        """A etapa "Meus envios" virou Envios na Esteira (issue #1951)."""
         envio = _secao("O envio e a fila")
 
-        for trecho in ("Enviar contas", "Analisar contas", "Apoio ao faturamento", "**Meus envios**"):
+        for trecho in ("Enviar contas", "Analisar contas", "Apoio ao faturamento", "**Envios**"):
             assert trecho in envio, trecho

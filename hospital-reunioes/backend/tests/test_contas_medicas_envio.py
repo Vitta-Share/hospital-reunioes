@@ -158,8 +158,10 @@ class _Consulta:
         self._update: dict | None = None
         self._insert: dict | list | None = None
         self._delete = False
+        self._contar = False
 
-    def select(self, *_a, **_kw):
+    def select(self, *_a, count=None, **_kw):
+        self._contar = count == "exact"
         return self
 
     def eq(self, coluna, valor):
@@ -234,9 +236,12 @@ class _Consulta:
             return SimpleNamespace(data=[dict(linha) for linha in casam])
         for coluna, desc in reversed(self._ordem):
             casam.sort(key=lambda linha, c=coluna: (linha.get(c) is None, str(linha.get(c) or "")), reverse=desc)
+        total = len(casam) if self._contar else None
         if self._limite is not None:
             casam = casam[: self._limite]
-        return SimpleNamespace(data=[dict(linha) for linha in casam])
+        if self._banco.max_rows is not None:
+            casam = casam[: self._banco.max_rows]
+        return SimpleNamespace(data=[dict(linha) for linha in casam], count=total)
 
 
 class _Bucket:
@@ -259,6 +264,9 @@ class _Banco:
         self.tabelas = tabelas
         self.bucket: dict[tuple[str, str], bytes] = {}
         self.relogio = 0
+        # O `max_rows` do PostgREST: a leitura volta cortada nele, com sucesso
+        # e sem aviso. `None` é sem teto.
+        self.max_rows: int | None = None
         self.storage = SimpleNamespace(from_=lambda nome: _Bucket(self, nome))
 
     def table(self, nome: str):
@@ -1192,6 +1200,72 @@ class TestFila:
         assert (barra["tempo_processamento_s"], barra["tempo_envio_a_fila_s"]) == (600, 900)
         assert barra["fila_esvazia_em"] == na_fila["previsao_pronta_em"]
 
+    def test_cada_conta_das_listas_traz_o_rotulo_do_paciente(self):
+        """Issue #1951: a linha mostra o número e o rótulo do paciente ao lado.
+        O atendimento sem rótulo (a capa sem nome) volta nulo."""
+        banco = _fila_semeada()
+        atendimentos = {a["id"]: a for a in banco.tabelas["cm_atendimento"]}
+        atendimentos["at-livre-nova"]["paciente_rotulo"] = "Fulana T."
+        atendimentos["at-em-correcao"]["paciente_rotulo"] = "Beltrano Q."
+        atendimentos["at-na-fila"]["paciente_rotulo"] = "Sicrana Z."
+        cliente = _cliente("faturista", banco)
+        corpo = {**cliente.get(ROTA_FILA).json(), **cliente.get(ROTA_MEUS_ENVIOS).json()}
+        rotulo = {c["id"]: c["paciente_rotulo"] for lista in ("fila", "minhas", "meus_envios") for c in corpo[lista]}
+
+        assert rotulo["livre-nova"] == "Fulana T."
+        assert rotulo["em-correcao"] == "Beltrano Q."
+        assert rotulo["na-fila"] == "Sicrana Z."
+        assert rotulo["livre-antiga"] is None
+
+    def test_a_rota_da_fila_devolve_a_contagem_de_cada_etapa_e_a_de_envios_a_dela(self):
+        """Issue #1951: a Esteira mostra a contagem de cada etapa. Quem vê o
+        quê não muda: a faturista conta as livres, as dela em análise e as
+        concluídas dela."""
+        cliente = _cliente("faturista", _fila_semeada())
+
+        assert cliente.get(ROTA_FILA).json()["contagem"] == {"fila": 2, "em_analise": 2, "concluidas": 1}
+        assert cliente.get(ROTA_MEUS_ENVIOS).json()["contagem"] == {"envios": 5}
+
+    def test_a_contagem_das_concluidas_passa_do_teto_da_lista(self, monkeypatch):
+        """A lista das Concluídas tem teto; o número da Esteira conta todas."""
+        from app.services.contas_medicas import fila as fila_service
+
+        monkeypatch.setattr(fila_service, "TETO_DE_CONCLUIDAS", 1)
+        corpo = _cliente("coordenadora", _fila_semeada()).get(ROTA_FILA).json()
+
+        assert len(corpo["concluidas"]) == 1
+        assert corpo["contagem"]["concluidas"] == 2
+
+    def test_a_contagem_das_concluidas_passa_do_max_rows_do_banco(self):
+        """O PostgREST corta toda leitura no `max_rows`, com sucesso e sem
+        aviso: o número da Esteira conta no banco, não pelo tamanho da lista."""
+        banco = _fila_semeada()
+        banco.tabelas["cm_conta"] += [_c(f"concluida-{n}", "CONCLUIDA", 100 + n, faturista="F2") for n in range(120)]
+        banco.max_rows = 100
+        corpo = _cliente("coordenadora", banco).get(ROTA_FILA).json()
+
+        assert corpo["contagem"]["concluidas"] == 122
+
+    def test_cada_conta_diz_se_e_da_propria_pessoa(self):
+        """Issue #1951: com o painel completo, "Em análise" traz as de todas;
+        o "Continue de onde parou" e a ação sempre visível são só das dela."""
+        banco = _fila_semeada()
+        for conta in banco.tabelas["cm_conta"]:
+            if conta["id"] == "retorno":
+                conta["faturista_id"] = PESSOAS["coordenadora"]["id"]
+        corpo = _cliente("coordenadora", banco).get(ROTA_FILA).json()
+
+        minha = {c["id"]: c["minha"] for lista in ("fila", "minhas", "concluidas") for c in corpo[lista]}
+        assert minha == {
+            "livre-antiga": False,
+            "livre-nova": False,
+            "retorno": True,
+            "da-f2-em-correcao": False,
+            "em-correcao": False,
+            "concluida": False,
+            "concluida-f2": False,
+        }
+
     @pytest.mark.parametrize("quem", ["credenciamento", "sem_eixo"])
     def test_sem_a_permissao_de_enviar_e_corrigir_contas_recebe_403(self, quem):
         assert _cliente(quem, _fila_semeada()).get(ROTA_FILA).status_code == 403
@@ -1249,9 +1323,36 @@ class TestKitDeConhecimento:
         texto = KIT.read_text(encoding="utf-8")
         secao = texto.split("## O envio e a fila", 1)[1].split("\n## ", 1)[0]
 
-        for trecho in ("a mesma Fila", "**Minhas**", "**Meus envios**", "quem enviou", "puxa"):
+        for trecho in ("a mesma Fila", "**Em análise**", "**Envios**", "quem enviou", "puxa"):
             assert trecho in secao, trecho
         assert "vê só as próprias" not in texto
+
+    def test_diz_a_esteira_a_lista_por_numero_e_paciente_e_o_pegar(self):
+        """Issue #1951: a Esteira com o número de cada etapa, a linha pelo
+        número e pelo rótulo, o "Continue de onde parou", o "Pegar" e as cores.
+        As abas antigas (Minhas, Meus envios) saem do texto."""
+        texto = KIT.read_text(encoding="utf-8")
+        secao = texto.split("## O envio e a fila", 1)[1].split("\n## ", 1)[0]
+
+        for trecho in (
+            "Esteira",
+            "número de cada uma",
+            "rótulo do paciente",
+            "cabeçalho da coluna",
+            "Continue de onde parou",
+            "itens feitos",
+            '"Pegar"',
+            "passa a ser de quem pega",
+            "neutra",
+            "azul",
+            "âmbar",
+            "vermelho só no Erro",
+            "O valor da conta não aparece na lista",
+            "ficou pronta e foi para a Fila",
+        ):
+            assert trecho in secao, trecho
+        for antigo in ("Meus envios", "aba Minhas", "Atendimento 31310 pronto"):
+            assert antigo not in texto, antigo
 
     def test_diz_que_cada_envio_e_um_cartao_com_os_quadrados_da_conta_e_do_prontuario(self):
         """Issue #1336: o cartão do envio, com um quadrado para cada arquivo."""

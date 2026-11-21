@@ -143,7 +143,8 @@ class _Consulta:
         self._update: dict | None = None
         self._insert: dict | list | None = None
 
-    def select(self, *_a, **_kw):
+    def select(self, *_a, count=None, **_kw):
+        self._contar = count == "exact"
         return self
 
     def eq(self, coluna, valor):
@@ -198,9 +199,10 @@ class _Consulta:
             return SimpleNamespace(data=[dict(linha) for linha in casam])
         for coluna, desc in reversed(self._ordem):
             casam.sort(key=lambda linha, c=coluna: (linha.get(c) is None, str(linha.get(c) or "")), reverse=desc)
+        total = len(casam) if getattr(self, "_contar", False) else None
         if self._limite is not None:
             casam = casam[: self._limite]
-        return SimpleNamespace(data=[dict(linha) for linha in casam])
+        return SimpleNamespace(data=[dict(linha) for linha in casam], count=total)
 
 
 class _Bucket:

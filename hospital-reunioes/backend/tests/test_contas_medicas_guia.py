@@ -152,7 +152,8 @@ class _Consulta:
         self._insert: dict | list | None = None
         self._recorte: tuple[int, int] | None = None
 
-    def select(self, *_a, **_kw):
+    def select(self, *_a, count=None, **_kw):
+        self._contar = count == "exact"
         return self
 
     def eq(self, coluna, valor):
@@ -219,11 +220,12 @@ class _Consulta:
             return SimpleNamespace(data=[dict(linha) for linha in casam])
         for coluna, desc in reversed(self._ordem):
             casam.sort(key=lambda linha, c=coluna: (linha.get(c) is None, linha.get(c) or 0), reverse=desc)
+        total = len(casam) if getattr(self, "_contar", False) else None
         if self._recorte is not None:
             casam = casam[self._recorte[0] : self._recorte[1] + 1]
         if self._limite is not None:
             casam = casam[: self._limite]
-        return SimpleNamespace(data=[dict(linha) for linha in casam])
+        return SimpleNamespace(data=[dict(linha) for linha in casam], count=total)
 
 
 class _Banco:
