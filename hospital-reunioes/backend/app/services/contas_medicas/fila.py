@@ -36,11 +36,12 @@ def _contas(supabase, me: dict, situacoes, *, da_pessoa: bool, recentes_primeiro
 
 def _quantas_concluidas(supabase, me: dict) -> int:
     """Todas as Concluídas que a pessoa vê, sem o teto da lista: é o número da
-    Esteira (issue #1951)."""
-    consulta = supabase.table("cm_conta").select("id").in_("situacao", list(CONCLUIDAS))
+    Esteira (issue #1951). Conta no banco: a leitura volta cortada no
+    `max_rows` do PostgREST, sem aviso."""
+    consulta = supabase.table("cm_conta").select("id", count="exact").in_("situacao", list(CONCLUIDAS))
     if not ve_todas(me):
         consulta = consulta.eq("faturista_id", me.get("id"))
-    return len(consulta.execute().data or [])
+    return consulta.limit(1).execute().count or 0
 
 
 def ve_todas(me: dict) -> bool:

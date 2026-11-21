@@ -322,6 +322,8 @@ describe("a lista de contas (issue #1951)", () => {
     expect(lugar.className.split(" ")).toEqual(
       expect.arrayContaining(["md:opacity-0", "md:group-hover:opacity-100", "md:group-focus-within:opacity-100"]),
     );
+    // O hover e o foco que revelam a ação são os da linha: sem o `group` nela, o Abrir some para sempre.
+    expect(lugar.closest("li")?.className.split(" ")).toContain("group");
     expect(within(minha).getByRole("link", { name: "Continuar" }).closest("[data-acao]")?.className ?? "").not.toContain(
       "opacity-0",
     );
@@ -343,16 +345,28 @@ describe("a lista de contas (issue #1951)", () => {
     render(<ContasMedicasPage />);
     await linhas();
     const tons: Record<string, string | null> = {};
+    const cores: Record<string, string[]> = {};
     for (const nome of [/^Fila/, /^Em análise/, /^Concluídas/]) {
       etapa(nome);
       for (const item of await linhas()) {
         const numero = within(item).getByText(/^\d+$/).textContent ?? "";
-        tons[numero] = item.querySelector("[data-tom]")?.getAttribute("data-tom") ?? null;
+        const etiqueta = item.querySelector("[data-tom]");
+        tons[numero] = etiqueta?.getAttribute("data-tom") ?? null;
+        // A cor que a tela pinta, não só o nome do tom.
+        cores[numero] = (etiqueta?.className ?? "").split(" ").filter((c) => /^(bg|text)-(\[#|slate-)/.test(c));
         expect(item.innerHTML).not.toMatch(/\bred-|FEE2E2/);
       }
     }
 
     expect(tons).toEqual({ "1": "neutro", "2": "azul", "3": "azul", "4": "verde", "5": "ambar" });
+    const azul = ["bg-[#DBEAFE]", "text-[#1E40AF]"];
+    expect(cores).toEqual({
+      "1": ["bg-slate-100", "text-slate-600"],
+      "2": azul,
+      "3": azul,
+      "4": ["bg-[#DCFCE7]", "text-[#166534]"],
+      "5": ["bg-[#FEF3C7]", "text-[#92400E]"],
+    });
   });
 
   it("na tela estreita a Esteira e as linhas quebram, sem largura fixa que force rolagem lateral", async () => {

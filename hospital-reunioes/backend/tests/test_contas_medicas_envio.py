@@ -158,8 +158,10 @@ class _Consulta:
         self._update: dict | None = None
         self._insert: dict | list | None = None
         self._delete = False
+        self._contar = False
 
-    def select(self, *_a, **_kw):
+    def select(self, *_a, count=None, **_kw):
+        self._contar = count == "exact"
         return self
 
     def eq(self, coluna, valor):
@@ -234,9 +236,12 @@ class _Consulta:
             return SimpleNamespace(data=[dict(linha) for linha in casam])
         for coluna, desc in reversed(self._ordem):
             casam.sort(key=lambda linha, c=coluna: (linha.get(c) is None, str(linha.get(c) or "")), reverse=desc)
+        total = len(casam) if self._contar else None
         if self._limite is not None:
             casam = casam[: self._limite]
-        return SimpleNamespace(data=[dict(linha) for linha in casam])
+        if self._banco.max_rows is not None:
+            casam = casam[: self._banco.max_rows]
+        return SimpleNamespace(data=[dict(linha) for linha in casam], count=total)
 
 
 class _Bucket:
@@ -259,6 +264,9 @@ class _Banco:
         self.tabelas = tabelas
         self.bucket: dict[tuple[str, str], bytes] = {}
         self.relogio = 0
+        # O `max_rows` do PostgREST: a leitura volta cortada nele, com sucesso
+        # e sem aviso. `None` é sem teto.
+        self.max_rows: int | None = None
         self.storage = SimpleNamespace(from_=lambda nome: _Bucket(self, nome))
 
     def table(self, nome: str):
@@ -1227,6 +1235,16 @@ class TestFila:
 
         assert len(corpo["concluidas"]) == 1
         assert corpo["contagem"]["concluidas"] == 2
+
+    def test_a_contagem_das_concluidas_passa_do_max_rows_do_banco(self):
+        """O PostgREST corta toda leitura no `max_rows`, com sucesso e sem
+        aviso: o número da Esteira conta no banco, não pelo tamanho da lista."""
+        banco = _fila_semeada()
+        banco.tabelas["cm_conta"] += [_c(f"concluida-{n}", "CONCLUIDA", 100 + n, faturista="F2") for n in range(120)]
+        banco.max_rows = 100
+        corpo = _cliente("coordenadora", banco).get(ROTA_FILA).json()
+
+        assert corpo["contagem"]["concluidas"] == 122
 
     def test_cada_conta_diz_se_e_da_propria_pessoa(self):
         """Issue #1951: com o painel completo, "Em análise" traz as de todas;
