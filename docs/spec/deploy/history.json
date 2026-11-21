@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-20T22:07:07-03:00",
+      "sha": "829ff197593ec1a7bb2f884f37b2f791c61bacaa",
+      "app_version": "0.329.0",
+      "subject": "Onda sesta-1933-onda1: Casca do módulo com abas, dica e Legenda",
+      "raw_subject": "chore(deploy): registro da onda sesta-1933-onda1 (#2059)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1933
+      ],
+      "result": "healthy",
+      "duration_seconds": 304,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1933-onda1: PR #2059 (issue #1950), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 2,
+        "build_s": {
+          "backend": 19,
+          "frontend": 215
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-20T22:00:34-03:00",
       "sha": "615588350ccac74a78cf5e1c8ed400291431c29e",
       "app_version": "0.328.0",
