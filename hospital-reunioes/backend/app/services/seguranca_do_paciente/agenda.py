@@ -22,7 +22,8 @@ from typing import Any
 import httpx
 from postgrest.exceptions import APIError
 
-from app.services.pendencia_ciclo import situacao
+from app.services.pendencia_acao import agir
+from app.services.pendencia_ciclo import ABERTOS, Comando, Papel, situacao
 from app.services.pendencia_service import criar_pendencia_sem_reuniao
 from app.services.pendencias_consulta import as_data, hoje_em_brasilia
 from app.services.seguranca_do_paciente.permissao import id_do_nucleo, participacoes_vigentes
@@ -41,6 +42,11 @@ ANTECEDENCIA_MAXIMA = 90
 # O lembrete, enquanto aberto, não volta a nascer; concluído ou cancelado, o
 # resultado já foi tratado.
 _STATUS_ABERTOS = ("PENDENTE", "EM_PROGRESSO", "ATRASADO", "REPACTUADA")
+
+# No lembrete, a Presidência é a responsável (ele nasce para ela) e quem conduz
+# o Núcleo (cancela o da data que mudou). Quem é Presidência quem decide é o
+# recurso `gerir_nucleo` da rota; o job age em nome dela.
+_PAPEIS_DA_PRESIDENCIA = frozenset({Papel.RESPONSAVEL, Papel.FACILITADOR})
 
 
 class EventoNaoEncontradoError(LookupError):
@@ -141,20 +147,64 @@ def lembrar(supabase, hoje: date) -> int:
             if getattr(erro, "code", None) != "23505":
                 raise
             # Outra rodada lembrou a mesma ocorrência no meio: a Pendência
-            # desta sai, para o lembrete continuar sendo um só.
-            supabase.table("pendencias").update({"deleted_at": datetime.now().astimezone().isoformat()}).eq(
-                "id_acao", pendencia["id_acao"]
-            ).execute()
+            # desta é cancelada, para o lembrete continuar sendo um só. Nada
+            # apaga Pendência (ADR 0098, decisão 6).
+            _agir_no_lembrete(
+                supabase,
+                pendencia["id_acao"],
+                Comando.CANCELAR,
+                anotacao="Lembrete repetido: outra rodada já lembrou esta data do evento.",
+                autor_id=None,
+                autor_nome=None,
+            )
             continue
         criados += 1
     return criados
 
 
+def _agir_no_lembrete(
+    supabase, id_acao: str, comando: Comando, *, anotacao: str, autor_id: str | None, autor_nome: str | None
+) -> None:
+    """Conclui ou cancela o lembrete pelo comando de ação da Pendência, com a
+    anotação no histórico (ADR 0098; issue #1866). Lembrete já fechado não
+    tem o que mudar."""
+    linhas = (
+        supabase.table("pendencias")
+        .select("id_acao, status, prazo")
+        .eq("id_acao", id_acao)
+        .is_("deleted_at", "null")
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+    if not linhas or linhas[0].get("status") not in ABERTOS:
+        return
+    agir(
+        supabase,
+        linhas[0],
+        comando,
+        _PAPEIS_DA_PRESIDENCIA,
+        anotacao=anotacao,
+        autor_id=autor_id,
+        autor_nome=autor_nome or "Sistema",
+        hoje=hoje_em_brasilia(),
+    )
+
+
 def registrar_resultado(
-    supabase, item_id: str, *, resultado: str, realizada_em: date, autor_id: str | None, agora: datetime
+    supabase,
+    item_id: str,
+    *,
+    resultado: str,
+    realizada_em: date,
+    autor_id: str | None,
+    agora: datetime,
+    autor_nome: str | None = None,
 ) -> dict[str, Any]:
     """Guarda o resultado da ocorrência da próxima data, conclui o lembrete
-    dela e avança a próxima data. Devolve o evento atualizado."""
+    dela (o resultado é a anotação) e avança a próxima data. Devolve o evento
+    atualizado."""
     itens = supabase.table(TABELA).select("*").eq("id", item_id).limit(1).execute().data or []
     if not itens:
         raise EventoNaoEncontradoError(item_id)
@@ -188,9 +238,9 @@ def registrar_resultado(
 
     if pendencia_id:
         try:
-            supabase.table("pendencias").update({"status": "CONCLUIDO"}).eq("id_acao", pendencia_id).in_(
-                "status", list(_STATUS_ABERTOS)
-            ).execute()
+            _agir_no_lembrete(
+                supabase, pendencia_id, Comando.CONCLUIR, anotacao=resultado, autor_id=autor_id, autor_nome=autor_nome
+            )
         except (APIError, httpx.HTTPError) as erro:
             # O resultado já está guardado; o lembrete aberto a Presidência
             # conclui à mão.
@@ -203,11 +253,24 @@ def registrar_resultado(
     return atualizado[0]
 
 
-def encerrar_lembrete(supabase, item_id: str, data_prevista: str) -> None:
+def _dd_mm_aaaa(valor: str) -> str:
+    return date.fromisoformat(str(valor)[:10]).strftime("%d/%m/%Y")
+
+
+def encerrar_lembrete(
+    supabase,
+    item_id: str,
+    data_prevista: str,
+    *,
+    data_nova: str | None = None,
+    autor_id: str | None = None,
+    autor_nome: str | None = None,
+) -> None:
     """A data do evento mudou antes do resultado: o lembrete da data antiga
-    não tem mais o que cobrar. A Pendência dele vira CANCELADO e a ocorrência
-    sem resultado sai, para a data antiga voltar a lembrar se for marcada de
-    novo. Ocorrência com resultado é histórico e fica."""
+    não tem mais o que cobrar. A Pendência dele é cancelada pelo comando de
+    ação, com a troca de data na anotação, e a ocorrência sem resultado sai,
+    para a data antiga voltar a lembrar se for marcada de novo. Ocorrência com
+    resultado é histórico e fica."""
     ocorrencias = (
         supabase.table(TABELA_OCORRENCIAS)
         .select("id, pendencia_id, resultado")
@@ -222,9 +285,20 @@ def encerrar_lembrete(supabase, item_id: str, data_prevista: str) -> None:
         return
     ocorrencia = ocorrencias[0]
     if ocorrencia.get("pendencia_id"):
-        supabase.table("pendencias").update({"status": "CANCELADO"}).eq("id_acao", ocorrencia["pendencia_id"]).in_(
-            "status", list(_STATUS_ABERTOS)
-        ).execute()
+        antiga = _dd_mm_aaaa(data_prevista)
+        anotacao = (
+            f"A data do evento mudou de {antiga} para {_dd_mm_aaaa(data_nova)} antes do resultado."
+            if data_nova
+            else f"A data do evento, {antiga}, foi retirada antes do resultado."
+        )
+        _agir_no_lembrete(
+            supabase,
+            ocorrencia["pendencia_id"],
+            Comando.CANCELAR,
+            anotacao=anotacao,
+            autor_id=autor_id,
+            autor_nome=autor_nome,
+        )
     supabase.table(TABELA_OCORRENCIAS).delete().eq("id", ocorrencia["id"]).execute()
 
 

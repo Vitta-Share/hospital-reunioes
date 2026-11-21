@@ -89,7 +89,7 @@ async def editar_evento(
     request: Request,
     item_id: str,
     corpo: EventoEditado,
-    _: dict = Depends(require_recurso_nsp("gerir_nucleo")),
+    me: dict = Depends(require_recurso_nsp("gerir_nucleo")),
     supabase: Client = Depends(get_supabase_client),
 ) -> dict:
     campos = corpo.model_dump(exclude_unset=True)
@@ -111,10 +111,17 @@ async def editar_evento(
     gravavel = _gravavel(campos)
     atualizado = supabase.table(agenda.TABELA).update(gravavel).eq("id", item_id).execute().data[0]
     # A data mudou antes do resultado: o lembrete da data antiga se encerra,
-    # senão vira ATRASADO e nada o fecha.
+    # senão fica atrasado e nada o fecha.
     data_antiga = existe[0].get("proxima_data")
     if "proxima_data" in gravavel and data_antiga and str(data_antiga)[:10] != gravavel["proxima_data"]:
-        agenda.encerrar_lembrete(supabase, item_id, data_antiga)
+        agenda.encerrar_lembrete(
+            supabase,
+            item_id,
+            data_antiga,
+            data_nova=gravavel["proxima_data"],
+            autor_id=me.get("id"),
+            autor_nome=me.get("nome_completo"),
+        )
     return atualizado
 
 
@@ -137,6 +144,7 @@ async def registrar_resultado(
             resultado=resultado,
             realizada_em=corpo.realizada_em or hoje_em_sao_paulo(),
             autor_id=me.get("id"),
+            autor_nome=me.get("nome_completo"),
             agora=datetime.now().astimezone(),
         )
     except agenda.EventoNaoEncontradoError:

@@ -190,10 +190,12 @@ def test_a_unica_escrita_em_pendencia_pela_api_e_a_rota_de_acoes():
     assert [e for e in escritas if "/comentarios" not in e[0]] == [("/api/pendencias/{id_acao}/acoes", "POST")]
 
 
-# Escritas diretas em `pendencias` que ficam de fora: o lembrete do Núcleo
-# (Pendência sem Reunião) passa pelas ações na issue #1866.
-_ESCRITA_PERMITIDA = {"services/seguranca_do_paciente/agenda.py"}
-_RE_ESCRITA = re.compile(r'table\("pendencias"\)\s*\.\s*update\(\s*\{[^}]*"(status|prazo|responsavel_id)"', re.S)
+# Sem exceção: desde a issue #1866 os lembretes do Núcleo (Pendência sem
+# Reunião) também passam pelo comando de ação. Apagar (`deleted_at`) conta como
+# mudança: nada apaga Pendência (ADR 0098, decisão 6).
+_RE_ESCRITA = re.compile(
+    r'table\("pendencias"\)\s*\.\s*update\(\s*\{[^}]*"(status|prazo|responsavel_id|deleted_at)"', re.S
+)
 
 
 def test_codigo_nao_grava_estado_prazo_ou_responsavel_direto_na_pendencia():
@@ -205,8 +207,6 @@ def test_codigo_nao_grava_estado_prazo_ou_responsavel_direto_na_pendencia():
                 continue
             caminho = os.path.join(pasta, arquivo)
             relativo = os.path.relpath(caminho, raiz)
-            if relativo in _ESCRITA_PERMITIDA:
-                continue
             with open(caminho, encoding="utf-8") as f:
                 if _RE_ESCRITA.search(f.read()):
                     achados.append(relativo)
@@ -215,6 +215,11 @@ def test_codigo_nao_grava_estado_prazo_ou_responsavel_direto_na_pendencia():
 
 def test_o_detector_de_escrita_direta_enxerga_a_forma_de_varias_linhas():
     trecho = 'supabase.table("pendencias")\n    .update({"status": "ATRASADO"})\n    .eq("x", 1)'
+    assert _RE_ESCRITA.search(trecho)
+
+
+def test_o_detector_de_escrita_direta_enxerga_o_apagar_da_pendencia():
+    trecho = 'supabase.table("pendencias").update({"deleted_at": agora}).eq("id_acao", x)'
     assert _RE_ESCRITA.search(trecho)
 
 
@@ -371,3 +376,13 @@ def test_o_texto_de_reunioes_no_kit_diz_o_ciclo_novo_da_pendencia():
     # O comportamento antigo saiu do texto.
     assert "marcada como a repactuar" not in texto
     assert "antes de o aplicativo marcá-la como atrasada" not in texto
+
+
+def test_o_texto_de_reunioes_no_kit_diz_que_o_lembrete_do_nucleo_tem_o_mesmo_historico():
+    """Issue #1866: o resultado registrado no lembrete é a anotação."""
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = (CONHECIMENTO_DIR / "reunioes.md").read_text(encoding="utf-8")
+    secao = texto.split("## Como a pendência anda\n", 1)[1].split("\n## ", 1)[0]
+    assert "lembretes da Agenda regulatória do Núcleo de Segurança do Paciente" in secao
+    assert "o resultado que a Presidência escreve vira a anotação" in secao

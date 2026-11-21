@@ -181,6 +181,42 @@ class _Banco:
     def table(self, nome: str):
         return _Consulta(self, nome)
 
+    def rpc(self, nome: str, params: dict):
+        """A função `registrar_acao_da_pendencia` (migration 169): confere o
+        estado lido, muda a Pendência e insere o evento no histórico."""
+        banco = self
+
+        class _Exec:
+            def execute(self_inner):  # noqa: N805
+                assert nome == "registrar_acao_da_pendencia"
+                banco.escritas.append(("rpc", nome))
+                pendencia = next(
+                    p
+                    for p in banco.tabelas["pendencias"]
+                    if p["id_acao"] == params["p_id_acao"] and p.get("deleted_at") is None
+                )
+                if pendencia["status"] != params["p_status_esperado"]:
+                    raise APIError({"code": "PT409", "message": "A pendencia mudou."})
+                antes = pendencia["status"]
+                pendencia["status"] = params["p_status_novo"]
+                if params["p_prazo_novo"]:
+                    pendencia["prazo"] = params["p_prazo_novo"]
+                historico = banco.tabelas.setdefault("pendencia_historico", [])
+                historico.append(
+                    {
+                        "id_acao": params["p_id_acao"],
+                        "comando": params["p_comando"],
+                        "anotacao": params["p_anotacao"],
+                        "autor_id": params["p_autor_id"],
+                        "autor_nome": params["p_autor_nome"],
+                        "status_antes": antes,
+                        "status_depois": params["p_status_novo"],
+                    }
+                )
+                return SimpleNamespace(data=len(historico))
+
+        return _Exec()
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Pessoas e cenário
@@ -420,6 +456,34 @@ class TestLembrete:
         assert segunda == 0
         assert len(banco.tabelas["pendencias"]) == 1
 
+    def test_lembrete_repetido_pela_corrida_e_cancelado_com_anotacao_e_nao_apagado(self, monkeypatch):
+        """Issue #1866: outra rodada do job lembra a mesma data no meio. O
+        lembrete repetido é cancelado pelo comando de ação; nada apaga Pendência."""
+        banco = _cenario_da_presidencia([_item(id="item-fixo", proxima_data=(DIA + timedelta(days=5)).isoformat())])
+        criar = agenda.criar_pendencia_sem_reuniao
+
+        def _outra_rodada_no_meio(supabase, item):
+            pendencia = criar(supabase, item)
+            banco.tabelas["nsp_agenda_ocorrencias"].append(
+                {"id": "da-outra", "item_id": "item-fixo", "data_prevista": item["prazo"], "pendencia_id": "A-OUTRA"}
+            )
+            return pendencia
+
+        monkeypatch.setattr(agenda, "criar_pendencia_sem_reuniao", _outra_rodada_no_meio)
+
+        assert agenda.lembrar(banco, DIA) == 0
+
+        [repetido] = banco.tabelas["pendencias"]
+        assert repetido.get("deleted_at") is None
+        assert repetido["status"] == "CANCELADO"
+        [evento] = banco.tabelas["pendencia_historico"]
+        assert (evento["id_acao"], evento["comando"], evento["autor_nome"]) == (
+            repetido["id_acao"],
+            "cancelar",
+            "Sistema",
+        )
+        assert evento["anotacao"].strip()
+
     def test_data_longe_ainda_nao_lembra(self):
         """Mutante: ignorar a antecedência."""
         banco = _cenario_da_presidencia([_item(proxima_data=(DIA + timedelta(days=8)).isoformat())])
@@ -608,6 +672,21 @@ class TestDataMudada:
         assert status[antigo] == "CANCELADO"
         assert sorted(status.values()) == ["CANCELADO", "CONCLUIDO"]
 
+    def test_o_cancelamento_pela_data_mudada_vai_para_o_historico_com_anotacao(self):
+        """Issue #1866: cancelar o lembrete da data antiga passa pelo comando de
+        ação, com quem mudou a data como autor."""
+        banco, antigo = _cenario_com_lembrete()
+
+        _cliente(PRESIDENTE, banco).patch(
+            f"{ROTA}/item-fixo", json={"proxima_data": (DIA + timedelta(days=20)).isoformat()}
+        )
+
+        [evento] = banco.tabelas["pendencia_historico"]
+        assert (evento["id_acao"], evento["comando"]) == (antigo, "cancelar")
+        assert (evento["autor_id"], evento["autor_nome"]) == ("P1", "Pessoa de Teste P1")
+        assert "21/11/2026" in evento["anotacao"]
+        assert "06/12/2026" in evento["anotacao"]
+
     def test_voltar_para_a_data_antiga_lembra_de_novo(self):
         banco, _ = _cenario_com_lembrete()
         cliente = _cliente(PRESIDENTE, banco)
@@ -654,6 +733,25 @@ class TestResultado:
         assert historico["resultado"] == "Reunião feita, ata assinada"
         assert historico["realizada_em"] == "2026-01-30"
         assert historico["registrado_por"] == "P1"
+
+    def test_o_resultado_registrado_vira_a_anotacao_do_evento_de_conclusao(self):
+        """Issue #1866: o lembrete conclui pelo comando de ação, e o que a
+        Presidência escreveu é a anotação no histórico da pendência."""
+        banco = _cenario_da_presidencia([_item(id="item-fixo", proxima_data="2026-01-31")])
+        agenda.lembrar(banco, date(2026, 1, 30))
+        [lembrete] = banco.tabelas["pendencias"]
+
+        resposta = _cliente(PRESIDENTE, banco).post(
+            f"{ROTA}/item-fixo/resultado", json={"resultado": "Reunião feita, ata assinada"}
+        )
+
+        assert resposta.status_code == 200, resposta.text
+        [evento] = banco.tabelas["pendencia_historico"]
+        assert evento["id_acao"] == lembrete["id_acao"]
+        assert evento["comando"] == "concluir"
+        assert evento["anotacao"] == "Reunião feita, ata assinada"
+        assert (evento["autor_id"], evento["autor_nome"]) == ("P1", "Pessoa de Teste P1")
+        assert (evento["status_antes"], evento["status_depois"]) == ("PENDENTE", "CONCLUIDO")
 
     def test_registrar_antes_do_lembrete_tambem_guarda(self):
         banco = _cenario_da_presidencia([_item(id="item-fixo", periodicidade="anual", proxima_data="2027-03-15")])
