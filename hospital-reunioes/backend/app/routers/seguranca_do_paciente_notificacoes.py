@@ -44,7 +44,7 @@ from app.dependencies import (
 from app.limiter import limiter
 from app.services import limite_sem_ip, ouvidoria_nucleo
 from app.services.ouvidoria_anexos import AnexoGrandeDemaisError, AnexoRecusadoError, TipoNaoPermitidoError
-from app.services.seguranca_do_paciente import agente_de_triagem, anexos, caso_grave, notificacoes
+from app.services.seguranca_do_paciente import agente_de_triagem, anexos, caso_grave, notificacoes, prazos
 from app.services.seguranca_do_paciente.permissao import hoje_em_sao_paulo
 
 logger = logging.getLogger(__name__)
@@ -468,6 +468,9 @@ async def caso_do_nucleo(
     com_identidade = "identidade_notificante" in me["recursos_nsp"]
     try:
         caso = notificacoes.abrir(supabase, str(caso_id), com_identidade=com_identidade)
+        if caso is not None:
+            # Os vencimentos congelados na confirmação da triagem (issue #1993).
+            caso["prazos"] = prazos.do_caso(supabase, str(caso_id))
     except (APIError, httpx.HTTPError) as erro:
         logger.error("Falha ao abrir o caso do Núcleo: %s", type(erro).__name__)
         raise HTTPException(

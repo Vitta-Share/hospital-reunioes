@@ -29,7 +29,7 @@ from typing import Any
 
 from postgrest.exceptions import APIError
 
-from app.services.seguranca_do_paciente import notificacoes
+from app.services.seguranca_do_paciente import notificacoes, prazos
 from app.services.seguranca_do_paciente.triagem_do_agente import (
     CANAIS,
     CATEGORIAS,
@@ -412,8 +412,8 @@ def motivos_da_conferencia(notificacao: dict[str, Any], sugestao: dict[str, Any]
 
 
 _CAMPOS_DA_NOTIFICACAO = (
-    "id, estado, relato, setor_id, data_ocorrencia, grave_ou_morte, classificar_manualmente, "
-    "motivo_classificar_manualmente"
+    "id, estado, relato, setor_id, data_ocorrencia, hora_aproximada, criado_em, grave_ou_morte, "
+    "classificar_manualmente, motivo_classificar_manualmente"
 )
 
 
@@ -636,7 +636,7 @@ def decidir(
     if gravada:
         # A decisão ficou gravada e a mudança de estado falhou: a nova
         # tentativa conclui com o que foi gravado, sem gravar outra linha.
-        return _concluir(supabase, notificacao_id, gravada, autor_id)
+        return _concluir(supabase, notificacao, gravada, autor_id)
     motivos = motivos_da_conferencia(notificacao, sugestao)
     if motivos and not set(CAMPOS_DA_CONFERENCIA) <= set(conferidos or []):
         raise ConferenciaIncompletaError(
@@ -669,11 +669,15 @@ def decidir(
         if erro.code == "23505":
             raise JaConfirmadaError("A triagem deste caso já foi confirmada.") from erro
         raise
-    return _concluir(supabase, notificacao_id, gravada, autor_id)
+    return _concluir(supabase, notificacao, gravada, autor_id)
 
 
-def _concluir(supabase, notificacao_id: str, decisao: dict[str, Any], autor_id: str) -> dict[str, Any]:
-    """Leva o caso ao estado que a decisão gravada pede."""
+def _concluir(supabase, notificacao: dict[str, Any], decisao: dict[str, Any], autor_id: str) -> dict[str, Any]:
+    """Congela os prazos do caso e leva o caso ao estado que a decisão gravada
+    pede. Os prazos vêm antes do estado: se a mudança de estado cair, a nova
+    tentativa encontra os prazos já gravados e não grava de novo."""
+    notificacao_id = notificacao["id"]
+    prazos.congelar_no_caso(supabase, notificacao, decisao)
     estado = estado_depois_da_triagem(decisao["faixa"], decisao["grau_de_dano"])
     supabase.table("nsp_notificacoes").update({"estado": estado, "editado_por": autor_id}).eq("id", notificacao_id).in_(
         "estado", list(ESTADOS_DA_FILA)
