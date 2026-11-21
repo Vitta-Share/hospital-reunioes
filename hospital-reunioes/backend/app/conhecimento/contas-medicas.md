@@ -98,7 +98,7 @@ A conta parada porque as folhas escaneadas não deram para ler (CM-ARQ-DIGITALIZ
 
 O envio que não vale mais pode ser descartado. No cartão da conta em **Erro**, **Falta o prontuário** ou **Falta a conta**, quem enviou vê o botão "Descartar"; quem tem o Painel completo vê o botão no envio de qualquer pessoa. Antes de apagar, o app pergunta "Descartar o atendimento 31302? Os arquivos serão apagados.", e cancelar não apaga nada. Confirmado, a conta sai do sistema e os PDFs dela saem na hora, sem esperar os sete dias. O prontuário só sai se nenhuma outra conta do mesmo atendimento usa ele, e o prontuário que outra pessoa enviou fica até o fim dos sete dias. Quando mais de uma pessoa enviou o prontuário de um atendimento que ainda não tem conta, só a gestão descarta. O custo da IA da conta descartada continua registrado. Conta na fila, em análise, com Guia ou concluída não tem "Descartar". Mandar o mesmo atendimento depois cria uma conta nova, do zero.
 
-A etapa **Concluídas** guarda as contas que a faturista concluiu, as mais recentes primeiro, com a contagem de pendências de quem concluiu com pendência. Quem tem o Painel completo vê as contas de todas em cada etapa, com o nome de quem está com cada uma.
+A etapa **Concluídas** guarda as contas que a faturista concluiu, as mais recentes primeiro, com a contagem de pendências de quem concluiu com pendência. O que fica só com quem tem o Painel completo é abrir a conta das outras faturistas e ver os envios de todos: quem tem o Painel completo vê os envios de todos em Envios, com o nome de quem enviou cada um.
 
 ## No Início
 

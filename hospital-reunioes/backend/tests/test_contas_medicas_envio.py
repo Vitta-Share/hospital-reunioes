@@ -1440,6 +1440,8 @@ class TestKitDeConhecimento:
         ):
             assert trecho in secao, trecho
         assert "que só quem tem o Painel completo vê" not in texto
+        assert "Painel completo vê as contas de todas em cada etapa" not in texto
+        assert "Painel completo vê os envios de todos" in secao
 
     def test_diz_que_cada_envio_e_um_cartao_com_os_quadrados_da_conta_e_do_prontuario(self):
         """Issue #1336: o cartão do envio, com um quadrado para cada arquivo."""
