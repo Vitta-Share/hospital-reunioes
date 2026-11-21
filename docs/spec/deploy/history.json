@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T13:21:41-03:00",
+      "sha": "ba1b2a0c74afc7fcb460b431174fe4c9a496a331",
+      "app_version": "0.344.0",
+      "subject": "Onda ok-sesta-1786-onda2: Configurações e textos com versão do Canal de Conduta",
+      "raw_subject": "chore(deploy): registro da onda ok-sesta-1786-onda2 (#2076)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 2343,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "186_conduta_configuracoes_com_versao.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta ok-sesta-1786-onda2: PR #2076 (issue #1826), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 4,
+        "build_s": {
+          "backend": 19,
+          "frontend": 244
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T13:13:57-03:00",
       "sha": "f3223cd4a71452e78052f30a291f1a2e6cada97e",
       "app_version": "0.343.0",
