@@ -147,7 +147,12 @@ def _alertar_quem_decide(supabase, caso: dict, setor: str, agora: datetime) -> l
                 urgente=True,
             )
         except Exception as falha:  # noqa: BLE001 (um alerta que falha não segura os outros)
-            logger.error("[Caso grave NSP] Alerta de %s para %s falhou: %s", caso["protocolo"], pessoa["id"], falha)
+            logger.error(
+                "[Caso grave NSP] Alerta de %s para %s falhou: %s",
+                caso["protocolo"],
+                pessoa["id"],
+                type(falha).__name__,
+            )
             continue
         if registro:
             registros.append(registro)
