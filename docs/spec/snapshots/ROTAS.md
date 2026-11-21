@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T22:50+0000 -->
+<!-- last_update: 2026-11-21T23:12+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -101,6 +101,19 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | GET | `/comite-de-conduta/configuracoes` | Listar configuracoes | ✅ |
 | POST | `/comite-de-conduta/configuracoes/{chave}` | Salvar configuracao | ✅ |
 | GET | `/comite-de-conduta/minha-vez` | `termo_pendente`: a pessoa está no Comitê e ainda não assinou o Termo | ✅ |
+
+## canal-de-conduta (`app/routers/conduta_depoimentos.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| POST | `/comite-de-conduta/casos/{caso_id}/depoimentos` | Adicionar pessoa a ouvir | ✅ |
+| GET | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/arquivos/{arquivo_id}` | O arquivo decifrado, entregue pelo backend. Nada de cache no navegador | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/audio` | Anexar audio | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/conclusao` | Concluir depoimento | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/conferencia` | Marcar item da lista | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/sem-gravacao` | Registrar sem gravacao | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/termo-assinado` | Arquivo ou câmera do celular: uma foto por página, até cinco. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/transcricao` | Anexar transcricao | ✅ |
 
 ## canal-de-conduta (`app/routers/conduta_membros.py`)
 
@@ -629,6 +642,8 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | GET | `/nsp/notificacoes/{notificacao_id}/anexos/{anexo_id}` | O arquivo do caso, entregue pelo backend: sem URL assinada, que valeria | ✅ |
 | POST | `/nsp/publico/acompanhamento` | A página de acompanhamento: só o estado, em palavras simples. O limite | ❌ |
 | POST | `/nsp/publico/notificacoes` | O formulário público, pelo QR ou pelo endereço. | ❌ |
+| POST | `/nsp/publico/perguntas` | As perguntas do agente que ainda esperam resposta (issue #1991), com a | ❌ |
+| POST | `/nsp/publico/respostas` | Quem notificou responde as perguntas, na confirmação ou no | ❌ |
 | GET | `/nsp/publico/setores` | A lista de "Onde" do formulário: os setores ativos, pelo id. | ❌ |
 
 ## seguranca-do-paciente (`app/routers/seguranca_do_paciente_reunioes.py`)
@@ -784,4 +799,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 453 endpoints em 65 routers · 93% exigem auth.
+**Totais:** 463 endpoints em 66 routers · 93% exigem auth.

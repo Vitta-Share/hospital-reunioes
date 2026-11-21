@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T22:50+0000 -->
+<!-- last_update: 2026-11-21T23:12+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2770,6 +2770,67 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_conduta_assinaturas_participacao` em `(participacao_id, created_at DESC)` (de `192_conduta_assinaturas.sql`)
 - `idx_conduta_assinaturas_caso` em `(caso_id)` (de `192_conduta_assinaturas.sql`)
 
+## conduta_depoimentos
+
+> Origem: `193_conduta_depoimentos.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `nome_cifrado` | `TEXT` | NOT NULL | — | — |
+| `cargo_cifrado` | `TEXT` | NOT NULL | — | — |
+| `papel` | `TEXT` | NOT NULL | — | — |
+| `criado_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `sem_gravacao_em` | `TIMESTAMPTZ` | — | — | — |
+| `sem_gravacao_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `sem_gravacao_motivo_cifrado` | `TEXT` | — | — | — |
+| `pontos_cifrados` | `TEXT` | — | — | — |
+| `concluido_em` | `TIMESTAMPTZ` | — | — | — |
+| `concluido_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+
+**Indexes:**
+- `idx_conduta_depoimentos_caso` em `(caso_id)` (de `193_conduta_depoimentos.sql`)
+- `idx_conduta_depoimentos_criado_por` em `(criado_por)` (de `193_conduta_depoimentos.sql`)
+- `idx_conduta_depoimentos_sem_gravacao_por` em `(sem_gravacao_por)` (de `193_conduta_depoimentos.sql`)
+- `idx_conduta_depoimentos_concluido_por` em `(concluido_por)` (de `193_conduta_depoimentos.sql`)
+
+## conduta_depoimento_arquivos
+
+> Origem: `193_conduta_depoimentos.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `depoimento_id` | `UUID` | NOT NULL | — | `conduta_depoimentos.id` |
+| `tipo` | `TEXT` | NOT NULL | — | — |
+| `versao` | `INTEGER` | NOT NULL | — | — |
+| `pagina` | `INTEGER` | NOT NULL | `1` | — |
+| `storage_path` | `TEXT` | UNIQUE, NOT NULL | — | — |
+| `content_type` | `TEXT` | NOT NULL | — | — |
+| `tamanho_bytes` | `BIGINT` | NOT NULL | — | — |
+| `enviado_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `enviado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_depoimento_arquivos_enviado_por` em `(enviado_por)` (de `193_conduta_depoimentos.sql`)
+
+## conduta_depoimento_conferencia
+
+> Origem: `193_conduta_depoimentos.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `depoimento_id` | `UUID` | NOT NULL | — | `conduta_depoimentos.id` |
+| `item` | `TEXT` | NOT NULL | — | — |
+| `marcado_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `marcado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_depoimento_conferencia_marcado_por` em `(marcado_por)` (de `193_conduta_depoimentos.sql`)
+
 ## email_de_segunda
 
 > Origem: `196_email_de_segunda.sql`
@@ -2867,6 +2928,22 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_nsp_notas_do_comite_enviada_em` em `(enviada_em DESC)` (de `203_conduta_nota_ao_nucleo.sql`)
 
+## nsp_esclarecimentos
+
+> Origem: `207_nsp_perguntas_de_esclarecimento.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `notificacao_id` | `UUID` | NOT NULL | — | `nsp_notificacoes.id` |
+| `triagem_id` | `UUID` | NOT NULL | — | `nsp_triagens.id` |
+| `pergunta` | `TEXT` | NOT NULL | — | — |
+| `resposta` | `TEXT` | NOT NULL | — | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_esclarecimentos_triagem` em `(triagem_id)` (de `207_nsp_perguntas_de_esclarecimento.sql`)
+
 ---
 
-**Resumo:** 142 tabelas vivas.
+**Resumo:** 146 tabelas vivas.
