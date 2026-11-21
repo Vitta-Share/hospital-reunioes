@@ -496,7 +496,8 @@ def enviar_semana(supabase, *, hoje: date) -> int:
             if not guarda.data:
                 continue
         token = None
-        if email.do_responsavel:
+        # O link pessoal abre só Pendências: Rotina a verificar não o emite.
+        if email.abertas:
             if nunca_entraram is None:
                 nunca_entraram = link_pessoal.quem_nunca_entrou(supabase, pessoas.values())
             if pid in nunca_entraram:

@@ -709,6 +709,23 @@ def test_quem_ja_entrou_no_app_recebe_o_link_comum(job):
     assert [linha["participante_id"] for linha in banco.pendencias_links_pessoais] == ["P_BRUNO"]
 
 
+def test_quem_nunca_entrou_e_so_tem_rotina_a_verificar_recebe_o_link_comum(job):
+    rodar, estado = job
+    banco = _banco_das_rotinas(estado["banco"])
+    # Só as Rotinas: o link pessoal abre Pendências, e Bruno não tem nenhuma.
+    banco.pendencias = []
+    banco.pendencia_historico = []
+    banco.nunca_entraram = {"P_BRUNO"}
+
+    rodar()
+
+    (email,) = _para(estado, "P_BRUNO")
+    assert "Abrir o aplicativo" in email["html"]
+    assert "/inicio" in email["texto"]
+    assert not _LINK_PESSOAL.search(email["html"] + email["texto"])
+    assert banco.pendencias_links_pessoais == []
+
+
 def test_sem_saber_quem_entrou_todo_mundo_recebe_o_link_comum(job):
     rodar, estado = job
     banco = _banco_com_quem_nunca_entrou(estado["banco"])
