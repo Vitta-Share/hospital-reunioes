@@ -70,3 +70,29 @@ def test_o_trilho_mostra_as_rotinas_do_ciclo_com_quais_ja_tem_verificacao(fila, 
     ]
     [rotina] = [r for r in resposta.rotinas_do_ciclo if r.id == RT1]
     assert rotina.destino == f"/rotinas#rotina-{RT1}"
+
+
+# ─── 2. Realizada é um clique; Não realizada leva à tela da Rotina ───────────
+
+
+def test_realizada_e_um_clique_e_nao_realizada_leva_a_tela_da_rotina(fila, cliente_das_rotinas, hoje):  # noqa: F811
+    hoje["valor"] = D("2026-11-25")
+    sb = _sb_com_rotina()
+
+    [item] = [i for i in fila(sb, ANA, "2026-11-25").itens if i.tipo == "verificacao_da_rotina"]
+
+    assert (item.acao_de_um_clique.rotulo, item.acao_de_um_clique.endpoint) == (
+        "Realizada",
+        f"/api/rotinas/{RT1}/ciclos/2026-11-23/realizada",
+    )
+    assert (item.acao_secundaria.rotulo, item.acao_secundaria.destino) == (
+        "Não realizada",
+        f"/rotinas#rotina-{RT1}",
+    )
+    # O clique grava a Verificação pela rota que o Início mandou.
+    r = cliente_das_rotinas(sb, ANA).post(item.acao_de_um_clique.endpoint)
+    assert r.status_code == 201, r.text
+    assert [(v["resultado"], v["atrasada"]) for v in sb.rotina_verificacoes] == [("REALIZADA", False)]
+    resposta = fila(sb, ANA, "2026-11-25")
+    assert [i for i in resposta.itens if i.tipo == "verificacao_da_rotina"] == []
+    assert [r.verificacao for r in resposta.rotinas_do_ciclo] == ["REALIZADA"]

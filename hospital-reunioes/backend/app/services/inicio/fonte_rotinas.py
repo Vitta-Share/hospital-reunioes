@@ -117,6 +117,7 @@ def itens(supabase, me: dict, agora: datetime | None = None) -> list[dict]:
                         "rotulo": "Realizada",
                         "endpoint": f"/api/rotinas/{rotina['id']}/ciclos/{inicio}/realizada",
                     },
+                    "acao_secundaria": {"rotulo": "Não realizada", "destino": _destino(rotina)},
                 }
             )
     return saida

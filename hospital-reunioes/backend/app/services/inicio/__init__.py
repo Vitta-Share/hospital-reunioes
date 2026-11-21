@@ -79,6 +79,14 @@ class AcaoDeUmClique(BaseModel):
     endpoint: str
 
 
+class AcaoSecundaria(BaseModel):
+    """O caminho ao lado do botão de um clique, para a outra saída do item que
+    pede tela própria (a Não realizada da Rotina, que pede Anotação)."""
+
+    rotulo: str
+    destino: str
+
+
 class ItemDoInicio(BaseModel):
     tipo: str
     id: str
@@ -93,6 +101,7 @@ class ItemDoInicio(BaseModel):
     # tela de toque. Fonte que não tem o que dizer deixa vazia.
     contexto: str | None = None
     acao_de_um_clique: AcaoDeUmClique | None = None
+    acao_secundaria: AcaoSecundaria | None = None
     # O módulo de origem não dá prazo ao item: ele fica em Sem prazo, e só
     # sai de lá se o `prazo` que a fonte calculou vencer.
     sem_prazo_no_modulo: bool = False
