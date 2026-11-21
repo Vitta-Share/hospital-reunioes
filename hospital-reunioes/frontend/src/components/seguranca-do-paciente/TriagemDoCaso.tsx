@@ -267,14 +267,13 @@ function FormularioDaClassificacao({
   valor,
   mudar,
   opcoes,
-  conferencia,
+  conferir,
 }: {
   valor: Classificacao;
   mudar: (c: Classificacao) => void;
   opcoes: Tela["opcoes"];
-  conferencia: ReactNode | ((campo: string, nome: string) => ReactNode);
+  conferir: (campo: string, nome: string) => ReactNode;
 }) {
-  const conferir = typeof conferencia === "function" ? conferencia : () => conferencia;
   const faixa = valor.natureza && valor.grau_de_dano ? faixaEsperada(valor.natureza, valor.grau_de_dano, valor.evento_situacao) : null;
   const linha = (campo: string, nome: string, filho: ReactNode) => (
     <div className="flex items-end gap-3">
@@ -583,7 +582,7 @@ export function TriagemDoCaso({ id }: { id: string }) {
                 valor={classificacao}
                 mudar={setClassificacao}
                 opcoes={tela.opcoes}
-                conferencia={conferencia}
+                conferir={conferencia}
               />
             </Secao>
           ) : (
