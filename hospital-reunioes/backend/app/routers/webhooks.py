@@ -90,13 +90,16 @@ async def webhook_clicksign(
         _processar_versao_pop(supabase, versao_q.data[0], event_name)
         return {"received": True}
 
-    # Terceiro destino (issue #1768): o envelope do Termo de Adesão do Núcleo.
-    termo_q = supabase.table("nsp_termos_envios").select("*").eq("documento_key", envelope_key).execute()
+    # Terceiro destino (issue #1768): o envelope do Termo de Adesão do Núcleo,
+    # na tabela de envios do Colegiado (issue #1819).
+    from app.services.seguranca_do_paciente.permissao import NUCLEO
+
+    termo_q = supabase.table(NUCLEO.termos_envios).select("*").eq("documento_key", envelope_key).execute()
     if termo_q.data:
         from app.services.seguranca_do_paciente import termo
 
         try:
-            termo.processar_evento(supabase, termo_q.data[0], event_name)
+            termo.processar_evento(supabase, termo_q.data[0], event_name, colegiado=NUCLEO)
         except Exception as e:
             logger.error(f"[ClickSign webhook] Falha no Termo do Núcleo: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="Falha ao registrar o Termo; a ClickSign deve reenviar.")

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import ast
 import os
+import re
 import sys
 import uuid
 from dataclasses import replace
@@ -316,6 +317,49 @@ class TestMembrosPorColegiado:
         assert colegiados.vinculo_vigente(banco, COMITE, "P3", HOJE) == ("presidencia", True)
         assert colegiados.vinculo_vigente(banco, COMITE, "P1", HOJE) == (None, False)
         assert colegiados.vinculo_vigente(banco, NUCLEO, "P1", HOJE) == ("presidencia", True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# O serviço compartilhado não sabe qual é o Colegiado
+# ═══════════════════════════════════════════════════════════════════════════
+
+SERVICOS = Path(__file__).resolve().parent.parent / "app" / "services"
+SERVICO_COMPARTILHADO = (
+    SERVICOS / "colegiados.py",
+    SERVICOS / "seguranca_do_paciente" / "termo.py",
+    SERVICOS / "seguranca_do_paciente" / "membros.py",
+)
+LITERAL_DO_NUCLEO = re.compile(r"nsp|n[uú]cleo", re.IGNORECASE)
+
+
+def literais_do_nucleo(fonte: str) -> list[str]:
+    """Os textos do código (docstring fora) que citam o Núcleo."""
+    arvore = ast.parse(fonte)
+    docstrings = {
+        id(no.value)
+        for no in ast.walk(arvore)
+        if isinstance(no, ast.Expr) and isinstance(no.value, ast.Constant) and isinstance(no.value.value, str)
+    }
+    return [
+        no.value
+        for no in ast.walk(arvore)
+        if isinstance(no, ast.Constant)
+        and isinstance(no.value, str)
+        and id(no) not in docstrings
+        and LITERAL_DO_NUCLEO.search(no.value)
+    ]
+
+
+class TestSemLiteralDoNucleo:
+    def test_o_detector_acha_o_literal_do_nucleo_e_ignora_a_docstring(self):
+        fonte = 'def f():\n    """O Termo do Núcleo."""\n    return supabase.table("nsp_termos_envios")\n'
+
+        assert literais_do_nucleo(fonte) == ["nsp_termos_envios"]
+        assert literais_do_nucleo('x = f"Termo de Adesão NSP - {envio}"\n') == ["Termo de Adesão NSP - "]
+
+    @pytest.mark.parametrize("arquivo", SERVICO_COMPARTILHADO, ids=lambda caminho: caminho.name)
+    def test_o_servico_compartilhado_nao_tem_literal_do_nucleo(self, arquivo):
+        assert literais_do_nucleo(arquivo.read_text(encoding="utf-8")) == []
 
 
 # ═══════════════════════════════════════════════════════════════════════════
