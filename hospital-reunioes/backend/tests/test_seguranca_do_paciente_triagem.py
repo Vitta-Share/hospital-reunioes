@@ -14,7 +14,7 @@ Um bloco por critério de aceite do backend:
 6. a notificação "classificar manualmente" abre sem sugestão.
 
 O banco é o dublê em memória do teste da notificação, com o que a migration
-188 e a 194 fazem no insert da triagem: a versão em sequência e uma decisão de
+188 e a 197 fazem no insert da triagem: a versão em sequência e uma decisão de
 pessoa por notificação. Nenhum dado de pessoa real.
 """
 
@@ -67,7 +67,7 @@ def _reset_rate_limiter():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# O dublê: o que a 188 e a 194 fazem no insert da triagem
+# O dublê: o que a 188 e a 197 fazem no insert da triagem
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -756,10 +756,10 @@ def test_o_kit_diz_como_a_presidencia_confirma_a_triagem():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# A migration 194, lida como texto
+# A migration 197, lida como texto
 # ═══════════════════════════════════════════════════════════════════════════
 
-MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "194_nsp_tela_de_triagem.sql"
+MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "197_nsp_tela_de_triagem.sql"
 
 
 def _sql() -> str:
@@ -779,11 +779,11 @@ def test_os_cortes_do_banco_nascem_com_o_padrao_do_app():
         assert re.search(rf"{campo}\s+SMALLINT NOT NULL DEFAULT {valor}\b", sql), campo
 
 
-def test_a_tabela_nova_nasce_com_rls_e_o_recibo_e_o_194():
+def test_a_tabela_nova_nasce_com_rls_e_o_recibo_e_o_197():
     sql = _sql()
     for tabela in re.findall(r"CREATE TABLE IF NOT EXISTS (\w+)", sql):
         assert f"ALTER TABLE {tabela} ENABLE ROW LEVEL SECURITY;" in sql, tabela
-    assert "VALUES (194) ON CONFLICT" in sql
+    assert "VALUES (197) ON CONFLICT" in sql
     assert "CREATE POLICY" not in sql.upper()
 
 

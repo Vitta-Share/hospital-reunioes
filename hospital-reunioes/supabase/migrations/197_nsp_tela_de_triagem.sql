@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 194: a tela de triagem do Núcleo
+-- Migration 197: a tela de triagem do Núcleo
 -- (issue #1992, PRD #1979, ADR 0095 e ADR 0107)
 -- =====================================================
 -- O que entra:
@@ -78,4 +78,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (194) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (197) ON CONFLICT (numero) DO NOTHING;
