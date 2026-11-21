@@ -29,9 +29,10 @@ from supabase import Client
 
 from app.dependencies import get_supabase_client, require_recurso_nsp, selecionar_participantes
 from app.limiter import limiter
+from app.services import colegiados
 from app.services.seguranca_do_paciente import termo
 from app.services.seguranca_do_paciente.membros import estado_do_membro, vigente_em
-from app.services.seguranca_do_paciente.permissao import PAPEIS_DO_NUCLEO, hoje_em_sao_paulo, id_do_nucleo
+from app.services.seguranca_do_paciente.permissao import NUCLEO, PAPEIS_DO_NUCLEO, hoje_em_sao_paulo
 
 logger = logging.getLogger(__name__)
 
@@ -43,11 +44,6 @@ Papel = Literal["presidencia", "suplente", "membro"]
 # dos membros o edita junto, com a mesma trilha.
 CAMPOS_DO_REGISTRO = ("conselho_profissional", "registro_profissional", "registro_uf")
 CAMPOS_DA_PARTICIPACAO = ("papel", "area", "vigencia_inicio", "vigencia_fim")
-
-_COLUNAS_DA_PARTICIPACAO = (
-    "id, participante_id, papel, area, vigencia_inicio, vigencia_fim, encerrada_em, "
-    "termo_gerado_em, termo_enviado_em, termo_assinado_em"
-)
 
 
 def _texto_opcional(valor: str | None) -> str | None:
@@ -119,7 +115,7 @@ class Encerramento(BaseModel):
 
 
 def _nucleo_id(supabase) -> str:
-    nucleo_id = id_do_nucleo(supabase)
+    nucleo_id = colegiados.id_do_colegiado(supabase, NUCLEO)
     if not nucleo_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="O Núcleo ainda não foi criado")
     return nucleo_id
@@ -179,18 +175,10 @@ def _linhas(supabase, participacoes: list[dict]) -> list[dict]:
 
 
 def _participacao(supabase, nucleo_id: str, participacao_id: str) -> dict:
-    linhas = (
-        supabase.table("participacoes")
-        .select(_COLUNAS_DA_PARTICIPACAO)
-        .eq("id", participacao_id)
-        .eq("colegiado_id", nucleo_id)
-        .limit(1)
-        .execute()
-        .data
-    ) or []
-    if not linhas:
+    participacao = colegiados.participacao_do_colegiado(supabase, nucleo_id, participacao_id)
+    if not participacao:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Participação não encontrada")
-    return linhas[0]
+    return participacao
 
 
 @router.get("")
@@ -204,13 +192,7 @@ async def listar_membros(
     """Todas as Participações do Núcleo, encerradas inclusive, com o estado de
     hoje. Com `data`, a composição daquele dia: quem tinha a vigência valendo,
     encerrado depois ou não."""
-    participacoes = (
-        supabase.table("participacoes")
-        .select(_COLUNAS_DA_PARTICIPACAO)
-        .eq("colegiado_id", _nucleo_id(supabase))
-        .execute()
-        .data
-    ) or []
+    participacoes = colegiados.participacoes_do_colegiado(supabase, _nucleo_id(supabase))
     if data is not None:
         participacoes = [p for p in participacoes if vigente_em(p, data)]
     return {"data": data.isoformat() if data else None, "membros": _linhas(supabase, participacoes)}

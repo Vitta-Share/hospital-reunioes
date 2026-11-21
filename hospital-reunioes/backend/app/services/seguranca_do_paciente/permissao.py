@@ -25,6 +25,9 @@ from zoneinfo import ZoneInfo
 import httpx
 from postgrest.exceptions import APIError
 
+from app.services import colegiados
+from app.services.colegiados import Colegiado
+
 logger = logging.getLogger(__name__)
 
 # O slug do Núcleo na tabela `colegiados` (a migration 146 o cria).
@@ -33,6 +36,19 @@ SLUG_DO_NUCLEO = "nsp"
 PERFIL_ACESSO_PLENO = "acesso_pleno"
 
 PAPEIS_DO_NUCLEO = ("presidencia", "suplente", "membro")
+
+# O Núcleo para o serviço compartilhado de membros e de Termo (issue #1819).
+NUCLEO = Colegiado(
+    slug=SLUG_DO_NUCLEO,
+    nome="Núcleo",
+    sigla="NSP",
+    papeis=PAPEIS_DO_NUCLEO,
+    termos_envios="nsp_termos_envios",
+    documentos="nsp_documentos",
+    documentos_envios="nsp_documentos_envios",
+    bucket_dos_documentos="supabase_storage_bucket_nsp_documentos",
+    modelo_do_termo="nsp_termo_adesao.html",
+)
 
 # O cargo de Diretoria no cadastro (o `role` da pessoa).
 ROLES_DA_DIRETORIA = ("diretor", "presidente")
@@ -101,22 +117,11 @@ def hoje_em_sao_paulo() -> date:
 
 def id_do_nucleo(supabase) -> str | None:
     """O id do Núcleo em `colegiados`, ou None quando a migration não rodou."""
-    linhas = supabase.table("colegiados").select("id").eq("slug", SLUG_DO_NUCLEO).limit(1).execute().data or []
-    return linhas[0]["id"] if linhas else None
+    return colegiados.id_do_colegiado(supabase, NUCLEO)
 
 
-def participacoes_vigentes(supabase, nucleo_id: str, hoje: date) -> Any:
-    """A consulta das Participações do Núcleo vigentes no dia, sem executar."""
-    return (
-        supabase.table("participacoes")
-        .select("id, participante_id, papel, termo_assinado_em")
-        .eq("colegiado_id", nucleo_id)
-        .lte("vigencia_inicio", hoje.isoformat())
-        .gte("vigencia_fim", hoje.isoformat())
-    )
-
-
-_ORDEM_DO_PAPEL = {papel: i for i, papel in enumerate(PAPEIS_DO_NUCLEO)}
+# As Participações vigentes de um Colegiado, sem executar (o serviço compartilhado).
+participacoes_vigentes = colegiados.participacoes_vigentes
 
 
 def situacao_da_pessoa(
@@ -129,26 +134,11 @@ def situacao_da_pessoa(
     módulo fica fechado e o resto do app segue de pé.
     """
     hoje = hoje or hoje_em_sao_paulo()
-    papel: str | None = None
-    termo = False
     try:
-        nucleo_id = id_do_nucleo(supabase)
-        linhas = (
-            participacoes_vigentes(supabase, nucleo_id, hoje).eq("participante_id", participante["id"]).execute().data
-            if nucleo_id
-            else []
-        ) or []
+        papel, termo = colegiados.vinculo_vigente(supabase, NUCLEO, participante["id"], hoje)
     except (APIError, httpx.HTTPError) as erro:
         logger.warning("Participação no Núcleo ilegível; o módulo fica fechado para a pessoa: %s", erro)
-        linhas = []
-    if linhas:
-        # Termo válido primeiro, depois o papel mais alto.
-        melhor = min(
-            linhas,
-            key=lambda linha: (not linha.get("termo_assinado_em"), _ORDEM_DO_PAPEL.get(linha.get("papel"), 99)),
-        )
-        papel = melhor.get("papel")
-        termo = bool(melhor.get("termo_assinado_em"))
+        papel, termo = None, False
     return SituacaoNsp(
         acesso_pleno=participante.get("perfil_nsp") == PERFIL_ACESSO_PLENO,
         papel_vigente=papel,
