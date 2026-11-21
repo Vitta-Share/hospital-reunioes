@@ -179,6 +179,8 @@ class _Banco:
     participantes: list = field(default_factory=list)
     pendencia_historico: list = field(default_factory=list)
     painel_fotografias: list = field(default_factory=list)
+    rotinas: list = field(default_factory=list)
+    rotina_verificacoes: list = field(default_factory=list)
 
     def table(self, nome):
         return _Consulta(self, getattr(self, nome))
@@ -555,6 +557,83 @@ def test_responsavel_sem_setor_aparece_como_sem_setor(painel):
 
     assert _ranking(corpo)["P_DORA"]["setor"] == "Sem Setor"
     assert {s["setor"]: s["atrasos"] for s in corpo["atrasos_por_setor"]} == {"Sem Setor": 1, "UTI": 1}
+
+
+# ─── 4b. A Rotina no ranking (issue #1879; decisões 71 e 89 da #1757) ───────
+
+
+def _rotina(rid, responsavel_id, frequencia, comeca_em, *, encerrada_em=None) -> dict:
+    return {
+        "id": rid,
+        "id_reuniao": "R9",
+        "responsavel_id": responsavel_id,
+        "frequencia": frequencia,
+        "comeca_em": comeca_em,
+        "status": "ENCERRADA" if encerrada_em else "ATIVA",
+        "encerrada_em": encerrada_em,
+    }
+
+
+def _verificacao(rotina_id, ciclo_inicio, ciclo_fim, resultado="REALIZADA", *, atrasada=False) -> dict:
+    return {
+        "rotina_id": rotina_id,
+        "ciclo_inicio": ciclo_inicio,
+        "ciclo_fim": ciclo_fim,
+        "resultado": resultado,
+        "atrasada": atrasada,
+    }
+
+
+def test_verificacao_nao_realizada_ou_atrasada_entra_no_ranking_do_responsavel_da_rotina(painel):
+    pedir, estado = painel
+    banco = _banco_do_ranking([], [])
+    # Hoje é quarta, 18/11. Ana tem uma Rotina semanal desde 26/10:
+    # 26/10 a 01/11 realizada no prazo (não pesa), 02/11 a 08/11 não
+    # realizada (pesa), 09/11 a 15/11 terminou sem marcação (pesa) e
+    # 16/11 a 22/11 ainda corre (não pesa).
+    banco.rotinas = [
+        _rotina("RA", "P_ANA", "SEMANAL", "2026-10-26"),
+        # Bruno: semanal realizada fora do ciclo (pesa) e mensal desde julho:
+        # julho terminou antes da janela de 90 dias (não pesa), agosto
+        # terminou sem marcação dentro dela (pesa), setembro e outubro
+        # realizadas, novembro ainda corre.
+        _rotina("RB", "P_BRUNO", "SEMANAL", "2026-11-09"),
+        _rotina("RM", "P_BRUNO", "MENSAL", "2026-07-01"),
+        # Sem frequência (o fluxo contínuo antigo): não tem ciclo, não pesa.
+        _rotina("RS", "P_ANA", None, None),
+    ]
+    banco.rotina_verificacoes = [
+        _verificacao("RA", "2026-10-26", "2026-11-01"),
+        _verificacao("RA", "2026-11-02", "2026-11-08", "NAO_REALIZADA"),
+        _verificacao("RB", "2026-11-09", "2026-11-15", atrasada=True),
+        _verificacao("RM", "2026-09-01", "2026-09-30"),
+        _verificacao("RM", "2026-10-01", "2026-10-31"),
+    ]
+    estado["banco"] = banco
+
+    corpo = pedir("admin").json()
+    ranking = _ranking(corpo)
+
+    assert ranking["P_ANA"]["rotinas_nao_cumpridas"] == 2
+    assert ranking["P_BRUNO"]["rotinas_nao_cumpridas"] == 2
+    # Ao lado dos atrasos e das reaberturas, sem somar neles.
+    assert ranking["P_ANA"]["atrasos"] == 0
+    assert ranking["P_ANA"]["reaberturas"] == 0
+    assert {s["setor"]: s["rotinas_nao_cumpridas"] for s in corpo["atrasos_por_setor"]} == {"UTI": 2, "Farmácia": 2}
+
+
+def test_rotina_encerrada_deixa_de_contar_a_partir_do_encerramento(painel):
+    pedir, estado = painel
+    banco = _banco_do_ranking([], [])
+    # Ana encerrou a Rotina semanal em 11/11, no meio do ciclo de 09/11 a
+    # 15/11: o ciclo de 02/11 a 08/11, que fechou sem marcação, continua
+    # pesando; o de 09/11, mesmo marcado como não realizado, e os
+    # seguintes, não.
+    banco.rotinas = [_rotina("RA", "P_ANA", "SEMANAL", "2026-11-02", encerrada_em="2026-11-11")]
+    banco.rotina_verificacoes = [_verificacao("RA", "2026-11-09", "2026-11-15", "NAO_REALIZADA")]
+    estado["banco"] = banco
+
+    assert _ranking(pedir("admin").json())["P_ANA"]["rotinas_nao_cumpridas"] == 1
 
 
 # ─── 5. O kit de conhecimento ────────────────────────────────────────────────
