@@ -67,7 +67,17 @@ export function BlocoDoNucleo({ caso, token, onEnviado }: BlocoDoNucleoProps) {
         <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-900 text-sm">
           <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />
           <div className="min-w-0">
-            <p className="font-semibold">{SELO_DO_NUCLEO}</p>
+            <p data-testid="selo-do-nucleo" className="font-semibold flex flex-wrap items-center gap-2">
+              <span>{SELO_DO_NUCLEO}</span>
+              {caso.nsp_estado && (
+                <span
+                  data-testid="estado-no-nucleo"
+                  className="rounded-full bg-white border border-indigo-200 px-2 py-0.5 text-xs font-semibold text-indigo-800"
+                >
+                  {`No Núcleo: ${caso.nsp_estado}`}
+                </span>
+              )}
+            </p>
             <p className="text-xs mt-0.5 text-indigo-800">
               O caso foi enviado ao Núcleo de Segurança do Paciente. A resposta e o encerramento seguem
               normalmente.
@@ -114,8 +124,8 @@ export function BlocoDoNucleo({ caso, token, onEnviado }: BlocoDoNucleoProps) {
           ) : (
             <div className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-700 space-y-2">
               <p>
-                O Núcleo de Segurança do Paciente recebe um email com o link do caso. A tela do link mostra o
-                relato integral e o paciente, mesmo no caso sigiloso.
+                O caso vira uma notificação no módulo de Segurança do Paciente, com o relato integral, mesmo no
+                caso sigiloso, e sem quem manifestou. O Núcleo recebe um email com o link do caso, que pede login.
               </p>
               <div className="flex flex-wrap gap-2">
                 <button

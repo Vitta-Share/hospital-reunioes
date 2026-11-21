@@ -1066,14 +1066,17 @@ def montar_ciencia_elogio(manifestacao: dict, destinatario_nome: str, link: str)
 
 
 def montar_ciencia_nsp(
-    manifestacao: dict, destinatario_nome: str, link: str, prazo: str | None
+    manifestacao: dict, destinatario_nome: str, link: str, prazo: str | None, *, no_modulo: bool = True
 ) -> tuple[str, str, str]:
     """Assunto, HTML e texto do caso enviado ao Núcleo de Segurança do Paciente
     (issue #1621, ADR 0088, decisão 6).
 
     Só o aviso, o protocolo, o prazo do Recebido e o link. Nada do caso viaja:
-    nem relato, nem justificativa técnica, nem paciente, nem setor. Quem lê o
-    caso é a tela do link, que fica no app."""
+    nem relato, nem justificativa técnica, nem paciente, nem setor. Desde a
+    issue #1997 o link abre o caso no módulo do Núcleo, com login, e abrir o
+    caso já é o Recebido. O caso confirmado antes dela (`no_modulo` falso)
+    ainda leva o link sem senha, que não mostra o relato e em que o Recebido
+    é o botão da tela: o texto dele diz isso, e não o do módulo."""
     from app.services.email_constants import get_logo_data_uri
 
     protocolo = manifestacao.get("protocolo") or ""
@@ -1083,16 +1086,30 @@ def montar_ciencia_nsp(
         protocolo=protocolo,
         prazo=quando,
         link=link,
+        no_modulo=no_modulo,
         logo_base64=get_logo_data_uri(),
     )
-    texto = (
+    abertura = (
         f"Ola {destinatario_nome},\n\n"
         "A Ouvidoria enviou ao Nucleo de Seguranca do Paciente um caso que pode descrever um incidente "
-        "relacionado a assistencia. O relato e o que a Ouvidoria apurou estao na tela do link abaixo.\n\n"
-        f"Protocolo {protocolo}. Confirme o recebimento ate {quando}.\n\n"
-        f"{link}\n\n"
-        "O link abre sem senha. Nao encaminhe este email.\n"
+        "relacionado a assistencia. "
     )
+    if no_modulo:
+        texto = (
+            abertura + "O relato e o que a Ouvidoria apurou estao no caso, no modulo de Seguranca do Paciente.\n\n"
+            f"Protocolo {protocolo}. Abra o caso ate {quando}: abrir ja confirma o recebimento.\n\n"
+            f"{link}\n\n"
+            "O link pede o seu login no aplicativo.\n"
+        )
+    else:
+        texto = (
+            abertura + "A tela do link mostra o paciente, os profissionais e o quarto. Para ler o relato, "
+            "fale com a Ouvidoria.\n\n"
+            f"Protocolo {protocolo}. Confirme o recebimento ate {quando} no botao Recebido pelo NSP, "
+            "na tela do link.\n\n"
+            f"{link}\n\n"
+            "O link abre sem senha. Nao encaminhe este email.\n"
+        )
     return (f"Ouvidoria {protocolo}: caso para o Núcleo de Segurança do Paciente", html, texto)
 
 
@@ -1515,6 +1532,7 @@ def _montar(
     agora: dt.datetime,
     feriados: frozenset[dt.date],
     link: str | None = None,
+    link_no_modulo: bool = True,
 ):
     if notificacao["gatilho"] in GATILHOS_DA_PRORROGACAO:
         # Import DENTRO da função porque ele fecha um ciclo: este módulo é
@@ -1580,7 +1598,11 @@ def _montar(
         # O prazo vem da ciência, e não do caso: o Recebido do Núcleo tem
         # relógio próprio, que não é o da área. Viaja no `detalhe` da linha.
         return montar_ciencia_nsp(
-            manifestacao, notificacao["destinatario_nome"], link or "", notificacao.get("detalhe")
+            manifestacao,
+            notificacao["destinatario_nome"],
+            link or "",
+            notificacao.get("detalhe"),
+            no_modulo=link_no_modulo,
         )
     if notificacao["gatilho"] in (GATILHO_COBRANCA_NSP_GESTOR, GATILHO_COBRANCA_NSP_DIRETORIA):
         # Quem devia clicar viaja no `detalhe`, congelado no degrau.
@@ -1845,6 +1867,7 @@ def despachar(supabase, notificacao: dict, agora: dt.datetime, feriados: frozens
             _marcar(supabase, notificacao["id"], {"status": FALHA, "ultimo_erro": LINK_FORA_DA_AREA})
             return False
         link = _link_tokenizado(supabase, notificacao) if notificacao["gatilho"] in GATILHOS_COM_PORTAL else None
+        link_no_modulo = True
         if notificacao["gatilho"] == GATILHO_CIENCIA_ELOGIO:
             # O link do elogio nasce aqui, como o do portal, e só enquanto a
             # ciência espera o clique: o elogio já confirmado (ou mandado de
@@ -1882,8 +1905,17 @@ def despachar(supabase, notificacao: dict, agora: dt.datetime, feriados: frozens
                 _marcar(supabase, notificacao["id"], {"status": FALHA, "ultimo_erro": NUCLEO_JA_RECEBEU})
                 return False
             if notificacao["gatilho"] == GATILHO_CIENCIA_NSP:
-                link = ouvidoria_acionamentos.emitir_link(supabase, ciencia)
-        assunto, html, texto = _montar(supabase, notificacao, manifestacao, agora, feriados, link=link)
+                # Desde a Fase 2 do Núcleo (issue #1997), o caso é aberto no
+                # módulo, com login, e o link sem senha não nasce mais. Só o
+                # caso confirmado antes dela, sem notificação no módulo, ainda
+                # recebe o link antigo, com o texto dele.
+                link = ouvidoria_nucleo.link_do_caso_no_modulo(supabase, notificacao["manifestacao_id"])
+                link_no_modulo = link is not None
+                if link is None:
+                    link = ouvidoria_acionamentos.emitir_link(supabase, ciencia)
+        assunto, html, texto = _montar(
+            supabase, notificacao, manifestacao, agora, feriados, link=link, link_no_modulo=link_no_modulo
+        )
         # Endereço de gente de fora não entra no log da aplicação: ele sairia ao
         # lado do assunto, que carrega o protocolo, e o par diria a quem lê o log
         # do container QUEM abriu cada caso (issue #493). Quem responde é o

@@ -4,10 +4,12 @@
  * O caso enviado ao Núcleo de Segurança do Paciente (issue #1621, ADR 0088).
  *
  * A presidência do Núcleo chega pelo link do email, sem senha (decisão 7), e
- * lê o caso inteiro: o relato como o paciente contou, o que a Ouvidoria
- * apurou, o paciente com a data de nascimento, os profissionais e o quarto,
- * mesmo no caso sigiloso (decisão 5). Quem manifestou só aparece quando o
- * caso não é sigiloso nem anônimo, e quem decide isso é o servidor.
+ * lê o paciente com a data de nascimento, os profissionais e o quarto, mesmo
+ * no caso sigiloso (decisão 5). Quem manifestou só aparece quando o caso não é
+ * sigiloso nem anônimo, e quem decide isso é o servidor. O relato e o que a
+ * Ouvidoria apurou saíram daqui na issue #1997 (ADR 0107, decisão 7). Este
+ * link só existe nos casos enviados antes disso, que não foram importados ao
+ * módulo do Núcleo: o relato deles fica com a Ouvidoria.
  *
  * Abrir a tela não confirma nada, pelo mesmo motivo do elogio: leitor de email
  * que abre link sozinho gastaria o uso único. É o botão Recebido pelo NSP que
@@ -31,8 +33,6 @@ interface TelaDoNucleo {
   gravidade: string | null;
   sigiloso: boolean;
   anonimo: boolean;
-  relato_integral: string | null;
-  justificativa_tecnica: string | null;
   paciente: { nome: string | null; nascimento: string | null } | null;
   profissionais: string | null;
   quarto: string | null;
@@ -173,23 +173,15 @@ export default function NucleoPage() {
           <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
             <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
             <span>
-              Caso sob sigilo reforçado. O Núcleo recebe o relato inteiro por exceção à regra do sigilo. Não
+              Caso sob sigilo reforçado. O Núcleo recebe os dados do paciente por exceção à regra do sigilo. Não
               encaminhe este link nem o conteúdo da tela.
             </span>
           </div>
         )}
 
-        <Bloco titulo="Relato integral">
-          <p className="whitespace-pre-wrap break-words">
-            {caso.relato_integral || "O relato original não está registrado neste caso."}
-          </p>
-        </Bloco>
-
-        {caso.justificativa_tecnica && (
-          <Bloco titulo="O que a Ouvidoria apurou">
-            <p className="whitespace-pre-wrap break-words">{caso.justificativa_tecnica}</p>
-          </Bloco>
-        )}
+        <p className="text-sm text-slate-600">
+          O relato não aparece neste link, que abre sem senha. Para ler o relato, fale com a Ouvidoria.
+        </p>
 
         <Bloco titulo="Paciente">
           {caso.paciente ? (

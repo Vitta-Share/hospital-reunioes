@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -42,7 +42,7 @@ from app.dependencies import (
     require_recurso_nsp,
 )
 from app.limiter import limiter
-from app.services import limite_sem_ip
+from app.services import limite_sem_ip, ouvidoria_nucleo
 from app.services.ouvidoria_anexos import AnexoGrandeDemaisError, AnexoRecusadoError, TipoNaoPermitidoError
 from app.services.seguranca_do_paciente import anexos, caso_grave, notificacoes
 from app.services.seguranca_do_paciente.permissao import hoje_em_sao_paulo
@@ -386,3 +386,46 @@ async def abrir_anexo_do_caso(
             "Cache-Control": "private, no-store",
         },
     )
+
+
+def agora_utc() -> datetime:
+    return datetime.now(UTC)
+
+
+@router.get("/notificacoes/{caso_id}")
+@limite_sem_ip.limitar("60/minute")
+async def caso_do_nucleo(
+    request: Request,
+    caso_id: UUID,
+    me: dict = Depends(require_recurso_nsp("casos")),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """Um caso do Núcleo. O caso que veio da Ouvidoria traz o que ela apurou
+    e o estado da manifestação, e abri-lo é o Recebido do Núcleo na
+    Ouvidoria (issue #1997, ADR 0107 decisão 7): o e-mail de ciência traz o
+    endereço desta tela, que pede login."""
+    com_identidade = "identidade_notificante" in me["recursos_nsp"]
+    try:
+        caso = notificacoes.abrir(supabase, str(caso_id), com_identidade=com_identidade)
+    except (APIError, httpx.HTTPError) as erro:
+        logger.error("Falha ao abrir o caso do Núcleo: %s", type(erro).__name__)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Não foi possível abrir o caso agora. Tente de novo em instantes.",
+        ) from erro
+    if caso is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Caso não encontrado.")
+    if caso.get("origem") == notificacoes.ORIGEM_OUVIDORIA:
+        _marcar_o_recebido_na_ouvidoria(supabase, str(caso_id), me)
+    return caso
+
+
+def _marcar_o_recebido_na_ouvidoria(supabase, caso_id: str, me: dict) -> None:
+    """Melhor esforço: o Recebido que não gravou volta no próximo abrir, e a
+    falha não tira o caso da tela de quem o abriu."""
+    try:
+        manifestacao_id = notificacoes.manifestacao_do_caso(supabase, caso_id)
+        if manifestacao_id:
+            ouvidoria_nucleo.receber_pelo_modulo(supabase, manifestacao_id, me, agora_utc())
+    except (APIError, httpx.HTTPError) as erro:
+        logger.error("Falha ao marcar o Recebido do Núcleo na Ouvidoria: %s", type(erro).__name__)

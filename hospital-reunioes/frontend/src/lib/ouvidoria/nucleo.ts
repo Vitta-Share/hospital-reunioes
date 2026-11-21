@@ -17,6 +17,8 @@ export interface CamposDoNucleo {
   nsp_decisao?: DecisaoDoNucleo | string | null;
   nsp_decisao_motivo?: string | null;
   nsp_decidido_em?: string | null;
+  /** Em que pé está o caso no Núcleo, numa palavra (issue #1997). */
+  nsp_estado?: string | null;
 }
 
 /**
