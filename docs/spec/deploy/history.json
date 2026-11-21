@@ -2,6 +2,51 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T12:45:39-03:00",
+      "sha": "a7ed5ac25b297859b718d8872b049fcbf12d1ac5",
+      "app_version": "0.340.2",
+      "subject": "Onda nsp2-onda6: Ouvidoria diz que o caso mandado ao Núcleo vira notificação",
+      "raw_subject": "chore(deploy): registro da onda nsp2-onda6 (#2087)",
+      "scope": [
+        "frontend"
+      ],
+      "prds": [
+        1979
+      ],
+      "result": "healthy",
+      "duration_seconds": 793,
+      "services_touched": [
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp2-onda6: PR #2087 (issue #2004), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "frontend": 197
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T12:39:30-03:00",
       "sha": "7c30fa243123efa71d6475bd907399c021264f93",
       "app_version": "0.340.1",
