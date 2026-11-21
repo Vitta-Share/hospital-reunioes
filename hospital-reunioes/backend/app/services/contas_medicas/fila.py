@@ -34,6 +34,15 @@ def _contas(supabase, me: dict, situacoes, *, da_pessoa: bool, recentes_primeiro
     return consulta.execute().data or []
 
 
+def _quantas_concluidas(supabase, me: dict) -> int:
+    """Todas as Concluídas que a pessoa vê, sem o teto da lista: é o número da
+    Esteira (issue #1951)."""
+    consulta = supabase.table("cm_conta").select("id").in_("situacao", list(CONCLUIDAS))
+    if not ve_todas(me):
+        consulta = consulta.eq("faturista_id", me.get("id"))
+    return len(consulta.execute().data or [])
+
+
 def ve_todas(me: dict) -> bool:
     """Quem tem "painel completo" vê as listas de todas as pessoas."""
     return "painel_completo" in me["permissoes_cm"]
@@ -45,7 +54,8 @@ def fila_da_pessoa(supabase, me: dict) -> dict:
     concluiu) e as Concluídas dela, as mais recentes primeiro.
 
     Quem tem "painel completo" vê todas, e cada conta vem com `com_quem`: o nome
-    da faturista que está com ela."""
+    da faturista que está com ela. Cada conta diz se é da própria pessoa
+    (`minha`), e a `contagem` dá o número de cada etapa da Esteira (issue #1951)."""
     todas = ve_todas(me)
     livres = _contas(supabase, me, (LIVRE,), da_pessoa=False)
     minhas = _contas(supabase, me, COM_A_FATURISTA, da_pessoa=True)
@@ -53,11 +63,14 @@ def fila_da_pessoa(supabase, me: dict) -> dict:
 
     for conta in livres:
         conta["com_quem"] = None
+        conta["minha"] = False
     for conta in minhas + concluidas:
         conta["com_quem"] = conta.get("faturista_id") if todas else None
+        conta["minha"] = conta.get("faturista_id") == me.get("id")
     if todas:
         _trocar_id_por_nome(supabase, minhas + concluidas)
-    return {"todas": todas, "fila": livres, "minhas": minhas, "concluidas": concluidas}
+    contagem = {"fila": len(livres), "em_analise": len(minhas), "concluidas": _quantas_concluidas(supabase, me)}
+    return {"todas": todas, "fila": livres, "minhas": minhas, "concluidas": concluidas, "contagem": contagem}
 
 
 def envios_da_pessoa(supabase, me: dict) -> dict:
@@ -75,7 +88,7 @@ def envios_da_pessoa(supabase, me: dict) -> dict:
         conta["so_a_gestao_descarta"] = not todas and conta["id"] in ambiguas
     if todas:
         _trocar_id_por_nome(supabase, envios)
-    return {"todas": todas, "meus_envios": envios}
+    return {"todas": todas, "meus_envios": envios, "contagem": {"envios": len(envios)}}
 
 
 def quem_enviou(supabase, conta: dict) -> str | None:

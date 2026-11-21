@@ -1192,6 +1192,62 @@ class TestFila:
         assert (barra["tempo_processamento_s"], barra["tempo_envio_a_fila_s"]) == (600, 900)
         assert barra["fila_esvazia_em"] == na_fila["previsao_pronta_em"]
 
+    def test_cada_conta_das_listas_traz_o_rotulo_do_paciente(self):
+        """Issue #1951: a linha mostra o número e o rótulo do paciente ao lado.
+        O atendimento sem rótulo (a capa sem nome) volta nulo."""
+        banco = _fila_semeada()
+        atendimentos = {a["id"]: a for a in banco.tabelas["cm_atendimento"]}
+        atendimentos["at-livre-nova"]["paciente_rotulo"] = "Fulana T."
+        atendimentos["at-em-correcao"]["paciente_rotulo"] = "Beltrano Q."
+        atendimentos["at-na-fila"]["paciente_rotulo"] = "Sicrana Z."
+        cliente = _cliente("faturista", banco)
+        corpo = {**cliente.get(ROTA_FILA).json(), **cliente.get(ROTA_MEUS_ENVIOS).json()}
+        rotulo = {c["id"]: c["paciente_rotulo"] for lista in ("fila", "minhas", "meus_envios") for c in corpo[lista]}
+
+        assert rotulo["livre-nova"] == "Fulana T."
+        assert rotulo["em-correcao"] == "Beltrano Q."
+        assert rotulo["na-fila"] == "Sicrana Z."
+        assert rotulo["livre-antiga"] is None
+
+    def test_a_rota_da_fila_devolve_a_contagem_de_cada_etapa_e_a_de_envios_a_dela(self):
+        """Issue #1951: a Esteira mostra a contagem de cada etapa. Quem vê o
+        quê não muda: a faturista conta as livres, as dela em análise e as
+        concluídas dela."""
+        cliente = _cliente("faturista", _fila_semeada())
+
+        assert cliente.get(ROTA_FILA).json()["contagem"] == {"fila": 2, "em_analise": 2, "concluidas": 1}
+        assert cliente.get(ROTA_MEUS_ENVIOS).json()["contagem"] == {"envios": 5}
+
+    def test_a_contagem_das_concluidas_passa_do_teto_da_lista(self, monkeypatch):
+        """A lista das Concluídas tem teto; o número da Esteira conta todas."""
+        from app.services.contas_medicas import fila as fila_service
+
+        monkeypatch.setattr(fila_service, "TETO_DE_CONCLUIDAS", 1)
+        corpo = _cliente("coordenadora", _fila_semeada()).get(ROTA_FILA).json()
+
+        assert len(corpo["concluidas"]) == 1
+        assert corpo["contagem"]["concluidas"] == 2
+
+    def test_cada_conta_diz_se_e_da_propria_pessoa(self):
+        """Issue #1951: com o painel completo, "Em análise" traz as de todas;
+        o "Continue de onde parou" e a ação sempre visível são só das dela."""
+        banco = _fila_semeada()
+        for conta in banco.tabelas["cm_conta"]:
+            if conta["id"] == "retorno":
+                conta["faturista_id"] = PESSOAS["coordenadora"]["id"]
+        corpo = _cliente("coordenadora", banco).get(ROTA_FILA).json()
+
+        minha = {c["id"]: c["minha"] for lista in ("fila", "minhas", "concluidas") for c in corpo[lista]}
+        assert minha == {
+            "livre-antiga": False,
+            "livre-nova": False,
+            "retorno": True,
+            "da-f2-em-correcao": False,
+            "em-correcao": False,
+            "concluida": False,
+            "concluida-f2": False,
+        }
+
     @pytest.mark.parametrize("quem", ["credenciamento", "sem_eixo"])
     def test_sem_a_permissao_de_enviar_e_corrigir_contas_recebe_403(self, quem):
         assert _cliente(quem, _fila_semeada()).get(ROTA_FILA).status_code == 403

@@ -204,6 +204,8 @@ def _item(
     return {
         "id": conta["id"],
         "numero_atendimento": atendimento.get("numero_atendimento"),
+        # O rótulo do paciente ao lado do número (issue #1951, ADR 0105).
+        "paciente_rotulo": atendimento.get("paciente_rotulo"),
         "numero_conta": conta.get("numero_conta"),
         "situacao": conta.get("situacao"),
         "falta": _falta(conta),
@@ -232,6 +234,8 @@ def _item(
         "pode_descartar": pode_descartar(conta, linhas),
         # Só para quem tem "painel completo": quem está com a conta.
         "com": conta.get("com_quem"),
+        # A conta é da própria pessoa (issue #1951); nas de envio, sempre falso.
+        "minha": bool(conta.get("minha")),
     }
 
 
@@ -258,7 +262,12 @@ def _itens(supabase: Client, listas: dict, nomes: tuple[str, ...]) -> dict:
             for c in contas
         ]
 
-    return {"todas": listas["todas"], **{nome: itens(listas[nome]) for nome in nomes}}
+    return {
+        "todas": listas["todas"],
+        **{nome: itens(listas[nome]) for nome in nomes},
+        # O número de cada etapa da Esteira (issue #1951).
+        "contagem": listas["contagem"],
+    }
 
 
 def _quando(valor: str | None) -> datetime | None:
