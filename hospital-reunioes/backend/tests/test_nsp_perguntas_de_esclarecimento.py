@@ -448,7 +448,7 @@ def test_sem_pergunta_proposta_nao_ha_pergunta_a_mostrar(monkeypatch, ligado):
 
 
 def test_dois_envios_da_mesma_resposta_ao_mesmo_tempo_recusam_o_segundo(monkeypatch, ligado):
-    """O índice único da migration 190 barra o segundo: a recusa é a da
+    """O índice único da migration 195 barra o segundo: a recusa é a da
     pergunta já respondida, e não a falha do banco."""
     _com_modelo(monkeypatch, COM_PERGUNTAS)
     banco = _banco_do_nucleo()
@@ -469,10 +469,10 @@ def test_dois_envios_da_mesma_resposta_ao_mesmo_tempo_recusam_o_segundo(monkeypa
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# A migration 190
+# A migration 195
 # ═══════════════════════════════════════════════════════════════════════════
 
-MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "190_nsp_perguntas_de_esclarecimento.sql"
+MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "195_nsp_perguntas_de_esclarecimento.sql"
 
 
 def test_a_tabela_das_respostas_nasce_com_rls_e_uma_resposta_por_pergunta():

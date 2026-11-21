@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 190: as respostas às perguntas de esclarecimento do Núcleo
+-- Migration 195: as respostas às perguntas de esclarecimento do Núcleo
 -- (issue #1991, PRD #1979, ADR 0107)
 -- =====================================================
 -- O agente de triagem propõe até duas perguntas a quem notificou, na linha de
@@ -40,4 +40,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (190) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (195) ON CONFLICT (numero) DO NOTHING;
