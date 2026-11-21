@@ -23,16 +23,17 @@ import { LegendasProvider } from "@/components/ui/Legenda";
 import { ToastProvider } from "@/components/ui/Toast";
 import { caixaDoDado } from "@/lib/testes/caixaDoDado";
 import type { Guia, LinhaGuia } from "@/lib/contas-medicas/guia";
+import { LEGENDA_DO_AUDITOR, LEGENDA_DO_SO_O_QUE_FALTA } from "@/lib/contas-medicas/textos";
 
 import GuiaPage from "./page";
 
 const CONTA = "11111111-1111-1111-1111-111111111111";
 const PROXIMA = "22222222-2222-2222-2222-222222222222";
 
-const navegacao = vi.hoisted(() => ({ push: vi.fn() }));
+const navegacao = vi.hoisted(() => ({ push: vi.fn(), contaId: "11111111-1111-1111-1111-111111111111" }));
 
 vi.mock("next/navigation", () => ({
-  useParams: () => ({ contaId: "11111111-1111-1111-1111-111111111111" }),
+  useParams: () => ({ contaId: navegacao.contaId }),
   useRouter: () => ({ push: navegacao.push }),
 }));
 
@@ -157,6 +158,7 @@ beforeEach(() => {
   respostaDoGuia = guia();
   respostaDaConclusao = { situacao: "CONCLUIDA_COM_PENDENCIA", pendencias: 3, proxima_conta_id: PROXIMA };
   navegacao.push.mockReset();
+  navegacao.contaId = CONTA;
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
@@ -659,6 +661,105 @@ describe("o cabeçalho de cada dia da lista", () => {
       .getAllByRole("option")
       .map((opcao) => opcao.textContent);
     expect(dias).toEqual(["03/10", "04/10", "05/10", "06/10", "07/10"]);
+  });
+});
+
+describe("Só o que falta (issue #1957)", () => {
+  /** Um dia com uma marcada e uma aberta, outro com uma marcada e a Validar, e um dia todo marcado. */
+  function guiaComMarcadas(): Guia {
+    const base = guia();
+    base.grupos[0].linhas[0] = linha({ estado: "FEITO" });
+    base.grupos[1].linhas[0] = linha({
+      id: "l-fita",
+      data: "2026-10-04",
+      setor: "ENFERMARIA",
+      descricao: "Fita de glicemia",
+      estado: "NAO_PROCEDE",
+    });
+    base.grupos.push({
+      data: "2026-10-05",
+      setor: "CTI",
+      linhas: [linha({ id: "l-gaze", data: "2026-10-05", descricao: "Gaze estéril", estado: "BLOQUEADO" })],
+    });
+    return base;
+  }
+
+  function oInterruptor() {
+    return within(aLista()).getByRole("switch", { name: "Só o que falta" });
+  }
+
+  it("ligado, mostra só as abertas e as em validação, com a contagem do dia inteiro, e o dia sem aberta some", async () => {
+    respostaDoGuia = guiaComMarcadas();
+    await abrir();
+    expect(naLista("Luva de procedimento")).toBeTruthy();
+    expect(naLista("Fita de glicemia")).toBeTruthy();
+    expect(within(aLista()).getByRole("region", { name: "05/10 · CTI" })).toBeTruthy();
+    expect(oInterruptor().getAttribute("aria-checked")).toBe("false");
+
+    fireEvent.click(oInterruptor());
+
+    expect(oInterruptor().getAttribute("aria-checked")).toBe("true");
+    const nomes = within(aLista())
+      .getAllByRole("listitem")
+      .map((item) => item.textContent ?? "");
+    expect(nomes).toHaveLength(2);
+    expect(nomes[0]).toContain("Lavagem de sonda");
+    expect(nomes[1]).toContain("Dieta enteral");
+    expect(within(within(aLista()).getByRole("region", { name: "03/10 · CTI" })).getByText("2 itens")).toBeTruthy();
+    expect(
+      within(within(aLista()).getByRole("region", { name: "04/10 · ENFERMARIA" })).getByText("2 itens"),
+    ).toBeTruthy();
+    expect(within(aLista()).queryByRole("region", { name: "05/10 · CTI" })).toBeNull();
+  });
+
+  it("desfazer uma marcação com o interruptor ligado traz a Linha de volta", async () => {
+    respostaDoGuia = guiaComMarcadas();
+    await abrir();
+    fireEvent.click(naLista("Luva de procedimento"));
+    fireEvent.click(oInterruptor());
+    expect(within(aLista()).queryByRole("button", { name: /Luva de procedimento/ })).toBeNull();
+    respostaDoGuia = guiaComMarcadas();
+    respostaDoGuia.grupos[0].linhas[0] = linha({});
+
+    fireEvent.click(within(oItem()).getByRole("button", { name: "Desfazer" }));
+
+    await waitFor(() => expect(naLista("Luva de procedimento")).toBeTruthy());
+    expect(oInterruptor().getAttribute("aria-checked")).toBe("true");
+    expect(within(aLista()).queryByRole("button", { name: /Fita de glicemia/ })).toBeNull();
+  });
+
+  it("a escolha vale para a conta aberta; a próxima conta abre com a lista inteira", async () => {
+    respostaDoGuia = guiaComMarcadas();
+    const arvore = () => (
+      <LegendasProvider chave="teste-legendas" ligadasIniciais>
+        <ToastProvider>
+          <GuiaPage />
+        </ToastProvider>
+      </LegendasProvider>
+    );
+    const { rerender } = render(arvore());
+    await screen.findByRole("heading", { level: 1, name: "31245 Maria S." });
+    fireEvent.click(oInterruptor());
+    fireEvent.click(naLista("Lavagem de sonda"));
+    expect(within(aLista()).queryByRole("button", { name: /Luva de procedimento/ })).toBeNull();
+    expect(oInterruptor().getAttribute("aria-checked")).toBe("true");
+
+    navegacao.contaId = PROXIMA;
+    rerender(arvore());
+
+    await waitFor(() => expect(chamadas.at(-1)?.url).toBe(`/api/contas-medicas/contas/${PROXIMA}/guia`));
+    await waitFor(() => expect(naLista("Luva de procedimento")).toBeTruthy());
+    expect(oInterruptor().getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("o interruptor tem a Legenda, que some com as Legendas desligadas", async () => {
+    await abrir();
+    expect(within(aLista()).getByText(LEGENDA_DO_SO_O_QUE_FALTA)).toBeTruthy();
+    cleanup();
+
+    await abrir(false);
+    expect(oInterruptor()).toBeTruthy();
+    expect(within(aLista()).queryByText(LEGENDA_DO_SO_O_QUE_FALTA)).toBeNull();
   });
 });
 

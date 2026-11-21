@@ -76,3 +76,9 @@ export const LEGENDA_DO_RECORTE = "Em Minhas, Em análise e Concluídas mostram 
 export function dicaDaContaAlheia(nome: string | null | undefined): string {
   return nome ? `Esta conta está com ${nome}.` : "Esta conta está com outra faturista.";
 }
+
+/** A Legenda do interruptor da lista da Mesa de trabalho (issue #1957). */
+export const LEGENDA_DO_SO_O_QUE_FALTA = "Esconde da lista os itens que você já marcou.";
+
+/** A Legenda do botão do cabeçalho da conta aberta que abre a conversa (issue #1957). */
+export const LEGENDA_DO_AUDITOR = "Abre a conversa ao lado, sem sair do item em que você está.";

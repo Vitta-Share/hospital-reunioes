@@ -115,6 +115,7 @@ export default function GuiaPage() {
   const [resultadoDoReenvio, setResultadoDoReenvio] = useState<string | null>(null);
   const [escolhaDoFaltouIsto, setEscolhaDoFaltouIsto] = useState<{ dia: string; vez: number } | null>(null);
   const [idDaVez, setIdDaVez] = useState<string | null>(null);
+  const [soOQueFalta, setSoOQueFalta] = useState(false);
   const seletorDoPdf = useRef<HTMLInputElement>(null);
 
   const base = `/api/contas-medicas/contas/${contaId}/guia`;
@@ -146,6 +147,7 @@ export default function GuiaPage() {
       setGuia(null);
       setObservacao("");
       setResultadoDoReenvio(null);
+      setSoOQueFalta(false);
       if (!tk) {
         setErro("Sessão expirada. Entre de novo.");
         return;
@@ -437,6 +439,8 @@ export default function GuiaPage() {
           idDaVez={idDaVez}
           concluida={concluida}
           ocupado={ocupado}
+          soOQueFalta={soOQueFalta}
+          onAlternarSoOQueFalta={() => setSoOQueFalta((atual) => !atual)}
           onEscolher={setIdDaVez}
           onFaltouIsto={(dia) => setEscolhaDoFaltouIsto({ dia, vez: Date.now() })}
           onMarcarODia={marcarODia}
