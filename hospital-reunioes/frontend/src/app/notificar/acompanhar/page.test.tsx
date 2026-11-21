@@ -92,6 +92,20 @@ describe("acompanhar a notificação", () => {
     expect(enviados[0].corpo).toEqual({ protocolo: "NSP-2026-0007", contato: "profissional@hsm.test" });
   });
 
+  it("fora de escopo mostra a orientação do Núcleo junto do estado (issue #1995)", async () => {
+    const orientacao = "Este assunto é trabalhista: procure o Departamento Pessoal do hospital.";
+    servidor(200, { protocolo: "NSP-2026-0007", estado: "Concluída", orientacao });
+    render(<AcompanharNotificacaoPage />);
+
+    fireEvent.click(botao("Notifiquei com o meu nome"));
+    escrever("Protocolo", "NSP-2026-0007");
+    escrever("E-mail ou telefone", "profissional@hsm.test");
+    fireEvent.click(botao("Consultar"));
+
+    await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Concluída"));
+    expect(screen.getByText(orientacao)).toBeTruthy();
+  });
+
   it("dado errado mostra a recusa do servidor", async () => {
     const recusa =
       "Não encontramos uma notificação com esses dados. Confira o protocolo e o código, ou o e-mail ou telefone que você deixou.";
