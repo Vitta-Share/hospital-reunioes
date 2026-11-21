@@ -1354,6 +1354,20 @@ class TestKitDeConhecimento:
         for antigo in ("Meus envios", "aba Minhas", "Atendimento 31310 pronto"):
             assert antigo not in texto, antigo
 
+    def test_diz_que_a_area_de_envio_abre_pelo_botao_e_que_soltar_na_tela_envia(self):
+        """Issue #1954: a área de envio abre pelo botão "Enviar contas", fechada
+        para quem analisa e aberta para quem só envia, e soltar os PDFs em
+        qualquer ponto da tela também envia."""
+        secao = KIT.read_text(encoding="utf-8").split("## O envio e a fila", 1)[1].split("\n## ", 1)[0]
+
+        for trecho in (
+            'botão "Enviar contas"',
+            "começa fechada",
+            "começa aberta",
+            "qualquer ponto da tela",
+        ):
+            assert trecho in secao, trecho
+
     def test_diz_que_cada_envio_e_um_cartao_com_os_quadrados_da_conta_e_do_prontuario(self):
         """Issue #1336: o cartão do envio, com um quadrado para cada arquivo."""
         secao = KIT.read_text(encoding="utf-8").split("## O envio e a fila", 1)[1].split("\n## ", 1)[0]

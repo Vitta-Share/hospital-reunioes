@@ -18,6 +18,10 @@
  * o número de cada etapa, o bloco "Continue de onde parou", a lista de contas
  * (uma linha por conta, pelo número do atendimento e o rótulo do paciente) e
  * o cartão do envio, que segue como era.
+ *
+ * Desde a issue #1954 a área de envio abre pelo botão "Enviar contas" da
+ * barra: fechada para quem analisa, aberta para quem só envia. Soltar os PDFs
+ * em qualquer ponto da tela inicia o envio, com os mesmos limites.
  */
 
 import { type DragEvent, useCallback, useEffect, useRef, useState } from "react";
@@ -111,7 +115,7 @@ function UltimoEnvio({ resposta }: { resposta: RespostaDoEnvio }) {
       {resposta.ultimo_envio.length > 0 ? (
         <ul className="space-y-2">
           {resposta.ultimo_envio.map((linha) => (
-            <li key={linha.numero_atendimento} className="text-sm text-slate-800">
+            <li key={linha.numero_atendimento} className="text-sm tabular-nums text-slate-800">
               {linha.texto}
               {linha.aviso && <p className="mt-0.5 text-xs text-amber-700">{linha.aviso}</p>}
             </li>

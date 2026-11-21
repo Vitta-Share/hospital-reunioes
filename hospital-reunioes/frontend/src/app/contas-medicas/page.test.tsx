@@ -1596,6 +1596,17 @@ describe("a área de envio pelo botão Enviar contas (issue #1954)", () => {
     expect(screen.getByRole("region", { name: "Envio de contas" }).textContent).not.toContain("Vários de uma vez");
   });
 
+  it("a pílula do cartão do envio é a etiqueta de situação da lista, no tom da situação", async () => {
+    render(<ContasMedicasPage />);
+    await linhas();
+    etapa(/^Envios/);
+
+    const cartoes = await linhas();
+    const pilulas = cartoes.map((cartao) => cartao.querySelector(".etiqueta[data-tom]"));
+    expect(pilulas.map((pilula) => pilula?.getAttribute("data-tom"))).toEqual(["neutro", "neutro", "azul", "vermelho"]);
+    expect(pilulas[3]?.textContent).toBe("Erro");
+  });
+
   it("quem só analisa não tem o botão", async () => {
     permissoes = [ANALISAR];
     render(<ContasMedicasPage />);
