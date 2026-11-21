@@ -34,7 +34,7 @@ class Ciclo:
     fim: date
 
 
-class VerificacaoRecusada(ValueError):
+class VerificacaoRecusada(ValueError):  # noqa: N818, o nome do domínio
     """A marcação que a regra não aceita, com a frase para quem marcou."""
 
 

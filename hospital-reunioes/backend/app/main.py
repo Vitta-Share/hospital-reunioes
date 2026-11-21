@@ -46,6 +46,7 @@ from app.routers import (
     pendencias,
     perfil,
     reunioes,
+    rotinas,
     seguranca_do_paciente,
     seguranca_do_paciente_agenda,
     seguranca_do_paciente_capacitacoes,
@@ -138,6 +139,8 @@ app.include_router(participantes.router, prefix=settings.api_prefix)
 app.include_router(reunioes.router, prefix=settings.api_prefix)
 app.include_router(transcricao.router, prefix=settings.api_prefix)
 app.include_router(pendencias.router, prefix=settings.api_prefix)
+# A Rotina e a Verificação por ciclo de calendário (ADR 0098, decisão 9).
+app.include_router(rotinas.router, prefix=settings.api_prefix)
 # O Início de cada pessoa (ADR 0104): a Minha Fila de todos os módulos.
 app.include_router(inicio.router, prefix=settings.api_prefix)
 app.include_router(webhooks.router, prefix=settings.api_prefix)
