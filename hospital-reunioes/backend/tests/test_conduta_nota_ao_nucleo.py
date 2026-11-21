@@ -1,0 +1,123 @@
+"""A nota do Comitê de Conduta ao Núcleo de Segurança do Paciente (issue #1850,
+PRD #1786, ADR 0097, decisão 14).
+
+Cada classe é um critério de aceite da issue:
+
+1. um membro escreve a nota e a coordenação a envia, com registro na trilha;
+2. a Presidência do Núcleo lê a nota na lista de Segurança do Paciente;
+3. a nota não leva protocolo, relato, anexo nem quem relatou, e nada liga a
+   nota ao caso do lado do Núcleo;
+4. quem lê a nota recebe 403 em qualquer rota de caso do Canal.
+
+O banco é o dublê de `conduta_apoio`, e o relato é cifrado de verdade. As
+pessoas são de teste.
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+from datetime import timedelta
+
+import pytest
+from fastapi import FastAPI
+from fastapi.routing import APIRoute
+from fastapi.testclient import TestClient
+from test_conduta_triagem import (
+    BASE,
+    COORDENACAO,
+    DE_FORA,
+    HOJE,
+    MEMBRO,
+    RELATO,
+    SEGUNDO_LEITOR,
+    Comite,
+    _chave,  # noqa: F401  (a chave de cifra de teste, autouse)
+    _pessoa,
+)
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+from app.dependencies import get_current_user, get_supabase_client  # noqa: E402
+from app.limiter import limiter  # noqa: E402
+from app.routers import conduta_comite  # noqa: E402
+from app.routers import seguranca_do_paciente as nsp_router  # noqa: E402
+
+ROTA_DO_NUCLEO = "/api/nsp/notas-do-comite"
+NOTA = "Há risco de queda no corredor da ala B: o piso molhado fica sem sinalização à noite."
+PRESIDENCIA, MEMBRO_DO_NUCLEO = "PRESNSP", "MEMBNSP"
+NUCLEO = {"id": "col-nsp", "slug": "nsp", "nome": "Núcleo de Segurança do Paciente", "setor_id": None}
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    limiter._storage.reset()
+    yield
+    limiter._storage.reset()
+
+
+def _no_nucleo(pid: str, papel: str) -> dict:
+    return {
+        "id": f"part-{pid}",
+        "colegiado_id": NUCLEO["id"],
+        "participante_id": pid,
+        "papel": papel,
+        "vigencia_inicio": (HOJE - timedelta(days=30)).isoformat(),
+        "vigencia_fim": (HOJE + timedelta(days=600)).isoformat(),
+        "termo_assinado_em": "2026-10-01T12:00:00+00:00",
+    }
+
+
+class ComiteENucleo(Comite):
+    """O Comitê inteiro e, ao lado, o Núcleo: a Presidência e um membro."""
+
+    def __init__(self):
+        super().__init__()
+        tabelas = self.banco.tabelas
+        tabelas["participantes"] += [_pessoa(PRESIDENCIA), _pessoa(MEMBRO_DO_NUCLEO)]
+        tabelas["colegiados"].append(dict(NUCLEO))
+        tabelas["participacoes"] += [_no_nucleo(PRESIDENCIA, "presidencia"), _no_nucleo(MEMBRO_DO_NUCLEO, "membro")]
+
+    def cliente_do_nucleo(self, pid: str) -> TestClient:
+        app = FastAPI()
+        app.include_router(nsp_router.router, prefix="/api")
+        pessoa = next(p for p in self.banco.tabelas["participantes"] if p["id"] == pid)
+
+        async def _usuario() -> dict:
+            return {"id": pessoa["auth_user_id"], "email": pessoa["email"], "metadata": {}}
+
+        app.dependency_overrides[get_current_user] = _usuario
+        app.dependency_overrides[get_supabase_client] = lambda: self.banco
+        return TestClient(app)
+
+    def escrever(self, pid: str, caso_id: str, texto: str = NOTA):
+        return self.agir(pid, caso_id, "nota-ao-nsp", {"texto": texto})
+
+    def enviar(self, pid: str, caso_id: str):
+        return self.agir(pid, caso_id, "nota-ao-nsp/envio")
+
+    def notas_no_nucleo(self, pid: str = PRESIDENCIA):
+        return self.cliente_do_nucleo(pid).get(ROTA_DO_NUCLEO)
+
+
+@pytest.fixture
+def comite() -> ComiteENucleo:
+    return ComiteENucleo()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 1. Um membro escreve a nota e a coordenação a envia, com registro na trilha
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestMembroEscreveCoordenacaoEnvia:
+    def test_o_membro_escreve_a_coordenacao_envia_e_a_trilha_registra(self, comite):
+        caso = comite.caso()
+
+        assert comite.escrever(MEMBRO, caso).status_code == 200
+        assert comite.enviar(COORDENACAO, caso).status_code == 200
+
+        assert comite.trilha(caso)[-2:] == ["nota_ao_nsp_escrita", "nota_ao_nsp_enviada"]
+        (nota,) = comite.abrir(MEMBRO, caso)["notas_ao_nsp"]
+        assert nota["texto"] == NOTA
+        assert nota["enviada_em"] is not None

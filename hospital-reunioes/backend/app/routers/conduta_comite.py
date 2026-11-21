@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field, field_validator
 from supabase import Client
 
 from app.dependencies import get_supabase_client
-from app.services.conduta import cifra, configuracoes, triagem
+from app.services.conduta import cifra, configuracoes, nota_ao_nucleo, triagem
 from app.services.conduta.acesso import CAMPOS_DA_LISTA, hoje_em_sao_paulo
 from app.services.conduta.portao import (
     INDISPONIVEL,
@@ -90,6 +90,7 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         contestacao = triagem.contestacao_para_a_tela(supabase, caso["id"])
         prorrogacao = cifra.decifrar_texto(caso["prorrogacao_cifrada"]) if caso.get("prorrogacao_cifrada") else None
         orientacao = cifra.decifrar_texto(caso["orientacao_cifrada"]) if caso.get("orientacao_cifrada") else None
+        notas_ao_nsp = nota_ao_nucleo.notas_do_caso(supabase, caso["id"])
     except cifra.CifraIndisponivelError as erro:
         raise _indisponivel(erro) from erro
     vencidos = triagem.registrar_vencidos(supabase, [caso], hoje_em_sao_paulo())
@@ -111,6 +112,7 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         if caso.get("rito") == "completo"
         else None,
         "orientacao": orientacao,
+        "notas_ao_nsp": notas_ao_nsp,
     }
 
 
@@ -164,6 +166,26 @@ async def enviar_orientacao(
     aberto: CasoAberto = Depends(portao_da_acao), supabase: Client = Depends(get_supabase_client)
 ) -> dict:
     return _agir(triagem.enviar_orientacao, supabase, aberto, hoje=hoje_em_sao_paulo())
+
+
+class NotaAoNucleo(BaseModel):
+    texto: str = Field(default="", max_length=nota_ao_nucleo.TAMANHO_DA_NOTA)
+
+
+@router.post("/casos/{caso_id}/nota-ao-nsp")
+async def escrever_nota_ao_nucleo(
+    corpo: NotaAoNucleo, aberto: CasoAberto = Depends(portao_da_acao), supabase: Client = Depends(get_supabase_client)
+) -> dict:
+    """Sinalizar ao NSP (issue #1850): um membro escreve a nota ao Núcleo."""
+    return _agir(nota_ao_nucleo.escrever_nota, supabase, aberto, texto=corpo.texto)
+
+
+@router.post("/casos/{caso_id}/nota-ao-nsp/envio")
+async def enviar_nota_ao_nucleo(
+    aberto: CasoAberto = Depends(portao_da_acao), supabase: Client = Depends(get_supabase_client)
+) -> dict:
+    """A coordenação envia ao Núcleo a nota escrita, e só ela (issue #1850)."""
+    return _agir(nota_ao_nucleo.enviar_nota, supabase, aberto)
 
 
 class NovaVersao(BaseModel):
