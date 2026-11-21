@@ -54,7 +54,7 @@ from app.dependencies import (
     require_role,
 )
 from app.models.schemas import FacilitadorOption, ParticipanteCreate, ParticipanteResponse
-from app.services import ouvidoria_papel
+from app.services import link_pessoal, ouvidoria_papel
 from app.services.auth_provisioning import definir_login_liberado
 from app.services.cargo_mapping import list_cargos
 from app.services.conduta import membros as membros_do_comite
@@ -431,3 +431,9 @@ async def soft_delete_participante(
         raise HTTPException(status_code=404, detail="Participante não encontrado")
 
     definir_login_liberado(supabase, result.data[0].get("auth_user_id"), liberado=False)
+    # O link pessoal das Pendências (issue #1878) cai junto. Falha aqui não
+    # desfaz o desligamento: a página do link já recusa a pessoa desligada.
+    try:
+        link_pessoal.revogar_da_pessoa(supabase, participante_id, dt.datetime.now(dt.UTC))
+    except Exception as e:  # noqa: BLE001
+        logger.error("[participantes] Não revogou o link pessoal de %s: %s", participante_id, e)
