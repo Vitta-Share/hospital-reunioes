@@ -394,6 +394,10 @@ export function itensDoMenu(participante: CurrentParticipante | null): NavItem[]
   const notificacoesItem: NavItem[] = participante?.recursos_nsp?.includes("casos")
     ? [{ href: `${HREF_DA_SEGURANCA_DO_PACIENTE}/notificacoes`, label: "Notificações", icon: Inbox }]
     : [];
+  // As notas do Comitê de Conduta (issue #1850): a Presidência e o Acesso pleno.
+  const notasDoComiteItem: NavItem[] = participante?.recursos_nsp?.includes("notas_do_comite")
+    ? [{ href: `${HREF_DA_SEGURANCA_DO_PACIENTE}/notas-do-comite`, label: "Notas do Comitê de Conduta", icon: Scale }]
+    : [];
   // A Configuração do módulo (issue #2046): o QR e o endereço da notificação.
   const configuracaoItem: NavItem[] = participante?.recursos_nsp?.includes("configuracao")
     ? [{ href: `${HREF_DA_SEGURANCA_DO_PACIENTE}/configuracao`, label: "Configuração", icon: Settings }]
@@ -418,6 +422,7 @@ export function itensDoMenu(participante: CurrentParticipante | null): NavItem[]
             notificarIncidente,
             { href: HREF_DA_SEGURANCA_DO_PACIENTE, label: "Visão geral", icon: Home },
             ...notificacoesItem,
+            ...notasDoComiteItem,
             {
               href: `${HREF_DA_SEGURANCA_DO_PACIENTE}/reunioes`,
               label: "Reuniões",

@@ -32,6 +32,8 @@ export interface CasoDaLista {
   prazo_em: string | null;
   prazo_vencido: boolean;
   faltam_dias: number | null;
+  /** De onde o caso veio: a página pública ou a sinalização do ouvidor (issue #1849). */
+  origem?: "canal" | "ouvidoria" | null;
 }
 
 export interface Caixa {
@@ -52,6 +54,14 @@ export interface Contestacao {
   resultado: "mantida" | "acatada" | null;
 }
 
+/** A nota do Comitê ao Núcleo de Segurança do Paciente (issue #1850). */
+export interface NotaAoNucleo {
+  texto: string;
+  escrita_em: string | null;
+  /** Sem data, a nota espera a coordenação enviar. */
+  enviada_em: string | null;
+}
+
 export interface CasoAberto extends CasoDaLista {
   relato: string;
   escopo: Escopo | null;
@@ -67,6 +77,7 @@ export interface CasoAberto extends CasoDaLista {
   conferida_em: string | null;
   encerrado_em: string | null;
   desfecho: string | null;
+  notas_ao_nsp?: NotaAoNucleo[];
 }
 
 export const RITOS: { valor: Rito; rotulo: string; prazo: string }[] = [

@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T20:04+0000 -->
+<!-- last_update: 2026-11-21T22:11+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -80,11 +80,13 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/comite-de-conduta/casos/{caso_id}/contestacao` | Contestar triagem | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/contestacao/decisao` | Decidir contestacao | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/encaminhamento` | Enviar orientacao | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/nota-ao-nsp` | Sinalizar ao NSP (issue #1850): um membro escreve a nota ao Núcleo. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/nota-ao-nsp/envio` | A coordenação envia ao Núcleo a nota escrita, e só ela (issue #1850). | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/prorrogacao` | Prorrogar prazo | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/triagem` | Confirmar triagem | ✅ |
 | GET | `/comite-de-conduta/configuracoes` | Listar configuracoes | ✅ |
 | POST | `/comite-de-conduta/configuracoes/{chave}` | Salvar configuracao | ✅ |
-| GET | `/comite-de-conduta/minha-vez` | Minha vez | ✅ |
+| GET | `/comite-de-conduta/minha-vez` | `termo_pendente`: a pessoa está no Comitê e ainda não assinou o Termo | ✅ |
 
 ## canal-de-conduta (`app/routers/conduta_membros.py`)
 
@@ -95,6 +97,8 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | GET | `/comite-de-conduta/membros/pessoas` | As pessoas ativas do cadastro, só id e nome. | ✅ |
 | GET | `/comite-de-conduta/membros/registro` | Quem entrou, saiu, ganhou ou perdeu o perfil de cadastro, por quem e quando. | ✅ |
 | POST | `/comite-de-conduta/membros/{participacao_id}/encerrar` | Encerra sem apagar: a vigência termina no dia (inclusive) e a linha | ✅ |
+| POST | `/comite-de-conduta/membros/{participacao_id}/termo/reconsultar` | Pergunta à ClickSign e aplica o mesmo tratamento do webhook. | ✅ |
+| POST | `/comite-de-conduta/membros/{participacao_id}/termo/reenviar` | Cancela o envio aberto e manda outro Termo, com outro identificador. | ✅ |
 
 ## canal-de-conduta-publico (`app/routers/conduta_publico.py`)
 
@@ -303,6 +307,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | Método | Rota | O que faz | Auth |
 |--------|------|-----------|------|
 | GET | `/inicio` | Get inicio | ✅ |
+| GET | `/inicio/meus-numeros` | Os próprios números de 90 dias e o que foi entregue nos últimos 7 dias | ✅ |
 | GET | `/inicio/quem-responde` | O bloco Quem responde a você (issue #1943), em pedido separado do resto | ✅ |
 
 ## admin (`app/routers/admin/legacy.py`)
@@ -352,6 +357,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/ouvidoria/manifestacoes/{manifestacao_id}/apagamento` | Apaga hoje o Dossiê de um caso encerrado, por ato da Diretoria. | ✅ |
 | DELETE | `/ouvidoria/manifestacoes/{manifestacao_id}/arquivo` | Devolve o caso à lista, limpando os dois carimbos. | ✅ |
 | POST | `/ouvidoria/manifestacoes/{manifestacao_id}/arquivo` | Tira da vista da lista um caso que já acabou (ADR 0047, decisão 3). | ✅ |
+| POST | `/ouvidoria/manifestacoes/{manifestacao_id}/canal-de-conduta` | O botão Sinalizar ao Canal de Conduta do Dossiê (issue #1849, ADR 0097 | ✅ |
 | POST | `/ouvidoria/manifestacoes/{manifestacao_id}/classificacao` | Classifica a manifestação e, no mesmo ato, resolve o sigilo dela. | ✅ |
 | POST | `/ouvidoria/manifestacoes/{manifestacao_id}/cobrar-setor` | Acorda de novo a área que está devendo resposta, pelo botão da fila. | ✅ |
 | POST | `/ouvidoria/manifestacoes/{manifestacao_id}/devolucoes` | Devolve ao setor a resposta que não resolve, com meio prazo novo. | ✅ |
@@ -546,6 +552,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | GET | `/nsp/configuracao` | A configuração técnica do módulo, a única parte que o super admin | ✅ |
 | GET | `/nsp/configuracao/qr-da-notificacao.png` | O QR único da notificação (issue #2046), para o cartaz e o papel de | ✅ |
 | GET | `/nsp/inicio` | A página inicial do módulo: o Núcleo, quantos membros estão com a | ✅ |
+| GET | `/nsp/notas-do-comite` | As notas que o Comitê de Conduta mandou ao Núcleo (issue #1850): só o | ✅ |
 
 ## seguranca-do-paciente (`app/routers/seguranca_do_paciente_agenda.py`)
 
@@ -751,4 +758,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 430 endpoints em 63 routers · 93% exigem auth.
+**Totais:** 437 endpoints em 63 routers · 93% exigem auth.

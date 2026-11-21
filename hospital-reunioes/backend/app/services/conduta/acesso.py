@@ -46,6 +46,9 @@ CAMPOS_DA_LISTA = (
     "prorrogado_em",
     "encerrado_em",
     "desfecho",
+    # De onde o caso veio: `canal` ou `ouvidoria`, a sinalização do ouvidor
+    # (issue #1849). A lista diz a origem, nunca quem manifestou.
+    "origem",
 )
 
 

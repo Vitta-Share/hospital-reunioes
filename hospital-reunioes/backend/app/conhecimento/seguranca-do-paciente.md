@@ -132,6 +132,14 @@ O Núcleo no Início:
 - cada item só aparece para quem abriria a tela dele no módulo. Quem está no Núcleo sem o Termo assinado vê só o Termo; quem é de fora do Núcleo não vê nada do Núcleo, nem estando na lista de uma capacitação; o super admin sem o Acesso pleno também não vê nada do Núcleo no Início;
 - os casos e a notificação ao Notivisa entram no Início quando as próximas fases do Núcleo forem ao ar.
 
+As notas do Comitê de Conduta:
+
+- quando um caso do Canal de Conduta descreve um risco ao paciente, o Comitê de Conduta manda ao Núcleo uma nota escrita por ele: um membro do Comitê escreve a nota na tela do caso, pela ação **Sinalizar ao NSP**, e só a coordenação do Comitê a envia. O envio fica registrado na trilha do caso, do lado do Comitê;
+- a nota aparece no item **Notas do Comitê de Conduta**, dentro de Segurança do Paciente, da mais nova à mais antiga, com o texto e a data do envio. Só a Presidência do Núcleo e o Acesso pleno leem; o membro do Núcleo não vê o item;
+- a nota não leva o protocolo do caso, o relato, os anexos nem quem relatou, e nada nela leva ao caso do Canal. A nota com o protocolo do caso é recusada antes de sair. O relato nunca sai do Canal de Conduta;
+- quem lê a nota não abre nenhum caso do Canal de Conduta só por isso: o caso continua fechado para quem não é do Comitê;
+- a nota é só uma lista para leitura. Ela não vira notificação de incidente sozinha: se o Núcleo quiser tratar o risco como caso, registra a notificação pelo caminho de sempre.
+
 ## Quem vê
 
 O item Segurança do Paciente aparece para todo usuário logado, com o botão Notificar incidente, inclusive para quem só tem papel nas Reuniões e para o super admin. As telas do Núcleo aparecem para quem tem participação vigente no Núcleo, para quem tem o Acesso pleno ao NSP e para a Diretoria. Os demais veem só o botão Notificar incidente.
@@ -139,7 +147,7 @@ O item Segurança do Paciente aparece para todo usuário logado, com o botão No
 Dentro do módulo, cada pessoa vê conforme o papel:
 
 - **Acesso pleno ao NSP**: tudo, inclusive a configuração. É do Diretor Executivo;
-- **Presidência do Núcleo**, com o Termo de Adesão assinado: tudo do módulo;
+- **Presidência do Núcleo**, com o Termo de Adesão assinado: tudo do módulo, inclusive as notas do Comitê de Conduta;
 - **Membro do Núcleo** (ou suplente), com o Termo assinado: painel, calendário, agenda, membros, documentos, capacitações, reuniões e casos, sem a identidade de quem notificou;
 - **quem está no Núcleo e ainda não assinou o Termo**: só painel, calendário e agenda;
 - **Diretoria**: painel, calendário, agenda e a composição do Núcleo;
@@ -169,6 +177,7 @@ Nas Capacitações, o profissional de fora do Núcleo que está na lista ainda n
 
 - O super admin do aplicativo não abre conteúdo do Núcleo e só chega à configuração técnica.
 - Quem vê tudo é o Acesso pleno ao NSP, uma permissão dada pelo nome ao Diretor Executivo.
+- Do Canal de Conduta, o Núcleo recebe só uma nota do Comitê, sem o relato e sem quem relatou, enquanto da Ouvidoria ele recebe o relato inteiro.
 - A proteção é do aplicativo, e a Diretoria sabe que quem opera o banco de dados diretamente consegue ler.
 - Presidência, suplente e membro vêm da participação vigente no Núcleo, com início e fim, e não de um perfil marcado à mão.
 - Quem está no Núcleo sem o Termo de Adesão assinado vê só painel, calendário e agenda, até assinar.
