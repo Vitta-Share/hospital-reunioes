@@ -777,3 +777,15 @@ def test_o_texto_de_reunioes_no_kit_diz_o_email_de_segunda():
     assert "só as pendências dele em aberto" in texto
     assert "um e-mail só, com as duas partes separadas" in texto
     assert "Quem não tem nada para ver não recebe e-mail" in texto
+
+
+def test_o_texto_de_reunioes_no_kit_diz_as_rotinas_no_email_e_no_ranking():
+    """Issue #1879: o assistente responde pelo comportamento novo."""
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = (CONHECIMENTO_DIR / "reunioes.md").read_text(encoding="utf-8")
+    assert "o facilitador recebe as verificações marcadas na semana e as não realizadas" in texto
+    assert "os ciclos das rotinas dele que ainda não foram marcados" in texto
+    assert "As rotinas aparecem no ranking ao lado dos atrasos e das reaberturas" in texto
+    assert "marcado depois do fim do ciclo ou que terminou sem marcação" in texto
+    assert "A rotina encerrada deixa de contar a partir do encerramento" in texto
