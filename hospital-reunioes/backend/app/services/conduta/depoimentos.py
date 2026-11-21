@@ -19,6 +19,7 @@ não leva nome de pessoa ouvida.
 
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 from dataclasses import dataclass
@@ -36,6 +37,8 @@ logger = logging.getLogger(__name__)
 TABELA = "conduta_depoimentos"
 ARQUIVOS = "conduta_depoimento_arquivos"
 CONFERENCIA = "conduta_depoimento_conferencia"
+# As versões do termo de declaração (migration 208, issue #1831).
+TERMOS = "conduta_depoimento_termos"
 # O bucket privado do Canal (migration 175), sem policy e sem URL.
 BUCKET = "conduta-arquivos"
 
@@ -260,6 +263,29 @@ def _marcas(supabase, depoimento_ids: list[str]) -> list[dict]:
     return supabase.table(CONFERENCIA).select("*").in_("depoimento_id", depoimento_ids).execute().data or []
 
 
+def _termos(supabase, depoimento_ids: list[str]) -> list[dict]:
+    if not depoimento_ids:
+        return []
+    return supabase.table(TERMOS).select("*").in_("depoimento_id", depoimento_ids).execute().data or []
+
+
+def _termo(versoes: list[dict], nomes: dict[str, str]) -> dict[str, Any] | None:
+    """A última versão do termo, decifrada, e as Notas para quem apura, que
+    são Sugestão e nunca vão ao PDF."""
+    if not versoes:
+        return None
+    ultima = max(versoes, key=lambda v: v["versao"])
+    notas = json.loads(cifra.decifrar_texto(ultima["notas_cifradas"])) if ultima.get("notas_cifradas") else []
+    return {
+        **json.loads(cifra.decifrar_texto(ultima["termo_cifrado"])),
+        "versao": ultima["versao"],
+        "origem": ultima["origem"],
+        "criado_em": ultima["criado_em"],
+        "criado_por": nomes.get(ultima["criado_por"], ""),
+        "notas": {"rotulo": "Sugestão", "itens": notas},
+    }
+
+
 def _sem_gravacao(depoimento: dict, nomes: dict[str, str]) -> dict[str, str] | None:
     if not depoimento.get("sem_gravacao_em"):
         return None
@@ -270,7 +296,9 @@ def _sem_gravacao(depoimento: dict, nomes: dict[str, str]) -> dict[str, str] | N
     }
 
 
-def _cartao(depoimento: dict, arquivos: list[dict], marcas: list[dict], nomes: dict[str, str]) -> dict[str, Any]:
+def _cartao(
+    depoimento: dict, arquivos: list[dict], marcas: list[dict], nomes: dict[str, str], termos: list[dict]
+) -> dict[str, Any]:
     sem_gravacao = _sem_gravacao(depoimento, nomes)
     lista = lista_de_conferencia(depoimento, arquivos, marcas, nomes, sem_gravacao and sem_gravacao["motivo"])
     return {
@@ -285,6 +313,7 @@ def _cartao(depoimento: dict, arquivos: list[dict], marcas: list[dict], nomes: d
         "bloqueio_da_conclusao": None if depoimento.get("concluido_em") else bloqueio_da_conclusao(lista),
         "concluido_em": depoimento.get("concluido_em"),
         "concluido_por": nomes.get(depoimento.get("concluido_por") or "", "") or None,
+        "termo": _termo(termos, nomes),
     }
 
 
@@ -293,11 +322,12 @@ def para_a_tela(supabase, caso: dict) -> dict[str, Any]:
     Levanta `CifraIndisponivelError` se a chave não abre."""
     lista = _do_caso(supabase, caso["id"])
     ids = [d["id"] for d in lista]
-    arquivos, marcas = _arquivos(supabase, ids), _marcas(supabase, ids)
+    arquivos, marcas, termos = _arquivos(supabase, ids), _marcas(supabase, ids), _termos(supabase, ids)
     nomes = _nomes(
         supabase,
         {a["enviado_por"] for a in arquivos}
         | {m["marcado_por"] for m in marcas}
+        | {t["criado_por"] for t in termos}
         | {d.get("sem_gravacao_por") for d in lista}
         | {d.get("concluido_por") for d in lista},
     )
@@ -307,6 +337,7 @@ def para_a_tela(supabase, caso: dict) -> dict[str, Any]:
             [a for a in arquivos if a["depoimento_id"] == d["id"]],
             [m for m in marcas if m["depoimento_id"] == d["id"]],
             nomes,
+            [t for t in termos if t["depoimento_id"] == d["id"]],
         )
         for d in lista
     ]
