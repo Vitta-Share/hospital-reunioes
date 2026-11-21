@@ -165,6 +165,14 @@ export function esperaMarcacao(linha: LinhaGuia): boolean {
   return linha.acao !== "VALIDAR" && (linha.estado === "ABERTA" || linha.estado === "DECIDIDA");
 }
 
+/**
+ * A Linha que o "Só o que falta" deixa na lista (issue #1957): a aberta, a em
+ * validação e a decidida que ainda espera a faturista lançar no MV.
+ */
+export function faltaFazer(linha: LinhaGuia): boolean {
+  return linha.estado === "ABERTA" || linha.estado === "EM_VALIDACAO" || esperaMarcacao(linha);
+}
+
 /** As Linhas na ordem da lista: dia e setor, como o servidor manda. */
 export function linhasEmOrdem(guia: Pick<Guia, "grupos">): LinhaGuia[] {
   return guia.grupos.flatMap((grupo) => grupo.linhas);

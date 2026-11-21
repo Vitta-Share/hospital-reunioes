@@ -49,3 +49,31 @@ class TestOKitDescreveAMesaDeTrabalho:
         ):
             assert trecho in guia, trecho
         assert "Ver evidência" not in guia
+
+
+class TestOKitDescreveOSoOQueFaltaEOPainelDoAuditor:
+    """Issue #1957: o "Só o que falta" na lista e a conversa com o Auditor num
+    painel lateral, em vez do fim do Guia."""
+
+    def test_so_o_que_falta_esconde_as_marcadas_e_vale_so_na_conta_aberta(self):
+        guia = _secao("O Guia")
+
+        for trecho in (
+            '"Só o que falta"',
+            "esconde as Linhas já marcadas",
+            "a contagem do grupo inteiro",
+            "cada conta abre com a lista inteira",
+        ):
+            assert trecho in guia, trecho
+
+    def test_a_conversa_com_o_auditor_abre_num_painel_ao_lado(self):
+        faltou = _secao("O Faltou isto e o Auditor")
+
+        for trecho in (
+            "painel ao lado",
+            '"Falar com o auditor"',
+            "Esc",
+            "sem perder a conversa",
+        ):
+            assert trecho in faltou, trecho
+        assert "no fim do Guia" not in faltou

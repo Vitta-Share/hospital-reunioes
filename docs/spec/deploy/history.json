@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T01:07:52-03:00",
+      "sha": "176e8b0cb7b550d366999fa01729a0f93fb5f9d7",
+      "app_version": "0.336.0",
+      "subject": "Onda sesta-1933-onda4: Só o que falta e o Auditor em painel lateral na conta aberta",
+      "raw_subject": "chore(deploy): registro da onda sesta-1933-onda4 (#2080)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1933
+      ],
+      "result": "healthy",
+      "duration_seconds": 264,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1933-onda4: PR #2080 (issue #1957), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 4,
+        "build_s": {
+          "backend": 24,
+          "frontend": 225
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T00:47:27-03:00",
       "sha": "dad642d75ab3e5ee2d84573844f3a81d776708b5",
       "app_version": "0.335.0",

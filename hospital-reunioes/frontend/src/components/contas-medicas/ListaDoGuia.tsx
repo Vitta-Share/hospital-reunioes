@@ -6,17 +6,23 @@
  * estado, o verbo, o nome e o valor, e o clique a torna o Item da vez. A
  * marcada fica apagada. O cabeçalho de cada dia tem o "Faltou isto" e o
  * "Marcar o dia como feito". A lista rola sozinha, ao lado do Item da vez.
+ *
+ * O interruptor "Só o que falta" (issue #1957) esconde as Linhas marcadas e o
+ * dia que fica sem nenhuma; a contagem do dia continua a do grupo inteiro.
  */
 
 import { COR_DO_REENVIO, ESTADO_MARCADO, ETIQUETA } from "@/components/contas-medicas/ItemDaVez";
+import { Legenda } from "@/components/ui/Legenda";
 import {
   type GrupoGuia,
   ROTULO_ACAO,
   ROTULO_ESTADO,
   ROTULO_REENVIO,
+  faltaFazer,
   rotuloDoGrupo,
   valorComSinal,
 } from "@/lib/contas-medicas/guia";
+import { LEGENDA_DO_SO_O_QUE_FALTA } from "@/lib/contas-medicas/textos";
 
 const COR_DO_ESTADO: Record<string, string> = {
   ABERTA: "bg-[#EEEEF6] text-primary",
@@ -29,6 +35,8 @@ interface Props {
   idDaVez: string | null;
   concluida: boolean;
   ocupado: boolean;
+  soOQueFalta: boolean;
+  onAlternarSoOQueFalta: () => void;
   onEscolher: (linhaId: string) => void;
   onFaltouIsto: (dia: string) => void;
   onMarcarODia: (grupo: GrupoGuia) => void;
@@ -38,14 +46,50 @@ function contagem(n: number): string {
   return n === 1 ? "1 item" : `${n} itens`;
 }
 
-export function ListaDoGuia({ grupos, idDaVez, concluida, ocupado, onEscolher, onFaltouIsto, onMarcarODia }: Props) {
+export function ListaDoGuia({
+  grupos,
+  idDaVez,
+  concluida,
+  ocupado,
+  soOQueFalta,
+  onAlternarSoOQueFalta,
+  onEscolher,
+  onFaltouIsto,
+  onMarcarODia,
+}: Props) {
   return (
     <section
       aria-label="Itens da conta"
       className="min-w-0 space-y-4 overflow-y-auto max-h-[60vh] min-[1000px]:max-h-[calc(100vh-16rem)] pr-1"
     >
+      <div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={soOQueFalta}
+          onClick={onAlternarSoOQueFalta}
+          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600"
+        >
+          <span
+            aria-hidden="true"
+            className={`relative inline-flex h-4 w-7 shrink-0 rounded-full transition-colors ${
+              soOQueFalta ? "bg-primary" : "bg-slate-300"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all ${
+                soOQueFalta ? "left-3.5" : "left-0.5"
+              }`}
+            />
+          </span>
+          Só o que falta
+        </button>
+        <Legenda className="text-xs">{LEGENDA_DO_SO_O_QUE_FALTA}</Legenda>
+      </div>
       {grupos.map((grupo) => {
         const rotulo = rotuloDoGrupo(grupo);
+        const visiveis = soOQueFalta ? grupo.linhas.filter(faltaFazer) : grupo.linhas;
+        if (soOQueFalta && visiveis.length === 0) return null;
         return (
           <section key={rotulo} aria-label={rotulo} className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -74,7 +118,7 @@ export function ListaDoGuia({ grupos, idDaVez, concluida, ocupado, onEscolher, o
               </div>
             </div>
             <ul className="space-y-1">
-              {grupo.linhas.map((linha) => {
+              {visiveis.map((linha) => {
                 const daVez = linha.id === idDaVez;
                 const marcado = linha.acao === "VALIDAR" ? undefined : ESTADO_MARCADO[linha.estado];
                 return (

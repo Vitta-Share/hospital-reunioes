@@ -1,7 +1,12 @@
 "use client";
 
 /**
- * A conversa da Conta com o Auditor, no fim do Guia (issue #1489, PRD #1484, ADR 0081).
+ * A conversa da Conta com o Auditor, no Guia (issue #1489, PRD #1484, ADR 0081).
+ *
+ * Desde a issue #1957 ela abre num painel lateral, pelo "Falar com o auditor"
+ * do cabeçalho da conta e pelo "Faltou isto" de cada dia, e fecha com o botão
+ * e com o Esc. Fechado, o painel só some: as mensagens e o rascunho ficam.
+ * Sem fundo escuro, para a faturista seguir no Item da vez com ele aberto.
  *
  * Quem vê o Guia aponta o Faltou isto de um dia: o item, a página do
  * prontuário e a pergunta. O Auditor responde por que o Guia não achou e de
@@ -12,6 +17,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { X } from "lucide-react";
 
 import { Ditar, juntarDitado } from "@/components/contas-medicas/Ditar";
 import { useToast } from "@/components/ui/Toast";
@@ -39,9 +45,12 @@ interface Props {
   iniciais: FaltouIsto[];
   /** O dia escolhido no "Faltou isto" de um grupo do Guia; `vez` muda a cada clique. */
   escolha: { dia: string; vez: number } | null;
+  /** O painel aberto. Fechado, ele continua montado, com a conversa. */
+  aberta: boolean;
+  onFechar: () => void;
 }
 
-export function ConversaDaConta({ contaId, token, dias, iniciais, escolha }: Props) {
+export function ConversaDaConta({ contaId, token, dias, iniciais, escolha, aberta, onFechar }: Props) {
   const { toast } = useToast();
   const [apontamentos, setApontamentos] = useState<FaltouIsto[]>(iniciais);
   const [dia, setDia] = useState(dias[0] ?? "");
@@ -58,6 +67,15 @@ export function ConversaDaConta({ contaId, token, dias, iniciais, escolha }: Pro
     setDia(escolha.dia);
     campoDoItem.current?.focus();
   }, [escolha]);
+
+  useEffect(() => {
+    if (!aberta) return;
+    const aoTeclar = (evento: KeyboardEvent) => {
+      if (evento.key === "Escape") onFechar();
+    };
+    window.addEventListener("keydown", aoTeclar);
+    return () => window.removeEventListener("keydown", aoTeclar);
+  }, [aberta, onFechar]);
 
   async function enviar(caminho: string, corpo?: unknown): Promise<FaltouIsto | null> {
     if (!token) return null;
@@ -104,13 +122,26 @@ export function ConversaDaConta({ contaId, token, dias, iniciais, escolha }: Pro
   }
 
   return (
-    <section
+    <aside
+      role="dialog"
+      aria-modal="false"
       aria-labelledby="falar-com-o-auditor"
-      className="bg-white rounded-2xl border border-border shadow-premium p-4 space-y-3"
+      hidden={!aberta}
+      className="fixed inset-y-0 right-0 z-[200] w-full sm:w-96 overflow-y-auto border-l border-border bg-white p-4 shadow-premium-strong space-y-3"
     >
-      <h2 id="falar-com-o-auditor" className={TITULO}>
-        Falar com o auditor
-      </h2>
+      <div className="flex items-start justify-between gap-3">
+        <h2 id="falar-com-o-auditor" className={TITULO}>
+          Falar com o auditor
+        </h2>
+        <button
+          type="button"
+          onClick={onFechar}
+          aria-label="Fechar a conversa"
+          className="rounded-lg p-1 text-slate-500 hover:bg-slate-100"
+        >
+          <X className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
 
       {apontamentos.map((apontamento) => (
         <div key={apontamento.id} className="space-y-2">
@@ -162,7 +193,7 @@ export function ConversaDaConta({ contaId, token, dias, iniciais, escolha }: Pro
         <p className="text-xs text-slate-500">
           Diga o que o Guia não apontou e a página do prontuário. O Auditor explica por que não achou.
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-[8rem_1fr_9rem] gap-2">
+        <div className="grid grid-cols-[8rem_1fr] gap-2">
           <label className="text-xs text-slate-600 space-y-1">
             <span className="block">Dia</span>
             <select
@@ -231,6 +262,6 @@ export function ConversaDaConta({ contaId, token, dias, iniciais, escolha }: Pro
           )}
         </div>
       </fieldset>
-    </section>
+    </aside>
   );
 }
