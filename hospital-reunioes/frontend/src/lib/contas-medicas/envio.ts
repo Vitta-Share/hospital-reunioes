@@ -162,6 +162,8 @@ export interface ItemDaFila {
   com?: string | null;
   /** A conta é da própria pessoa (issue #1951): a ação dela fica sempre visível. */
   minha?: boolean;
+  /** Na busca (issue #1956), se a pessoa pode abrir o Guia: falso, a linha fica sem botão. */
+  pode_abrir?: boolean;
 }
 
 /** O número de cada etapa da Esteira (issue #1951); cada rota manda as dela. */

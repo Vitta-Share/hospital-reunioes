@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Lock } from "lucide-react";
 
 import { Dica } from "@/components/ui/Dica";
+import { trechoAchado } from "@/lib/contas-medicas/busca";
 import { detalheDaConta, rotuloDaSituacao, type ItemDaFila } from "@/lib/contas-medicas/envio";
 import { dataCurta } from "@/lib/contas-medicas/guia";
 import { COLUNAS, DICA_DO_PEGAR, dicaDaContaAlheia } from "@/lib/contas-medicas/textos";
@@ -33,12 +34,32 @@ function contagensDaConta(conta: ItemDaFila): string | null {
   return `${itens}, ${conta.eventos_lidos} ${conta.eventos_lidos === 1 ? "evento" : "eventos"}`;
 }
 
+/** O texto com o trecho buscado marcado (issue #1956); sem busca, o texto como é. */
+export function Marcado({ texto, marcar }: { texto: string; marcar?: string }) {
+  const partes = marcar ? trechoAchado(texto, marcar) : null;
+  if (!partes) return <>{texto}</>;
+  const [antes, achado, depois] = partes;
+  return (
+    <>
+      {antes}
+      <mark className="rounded-sm bg-[#FEF3C7] px-0.5 text-inherit">{achado}</mark>
+      {depois}
+    </>
+  );
+}
+
 /** O número em destaque, com algarismos tabulares, e o rótulo do paciente ao lado. */
-export function NumeroEPaciente({ conta }: { conta: ItemDaFila }) {
+export function NumeroEPaciente({ conta, marcar }: { conta: ItemDaFila; marcar?: string }) {
   return (
     <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
-      <span className="text-base font-semibold tabular-nums text-slate-900">{conta.numero_atendimento}</span>
-      {conta.paciente_rotulo && <span className="text-sm text-slate-600">{conta.paciente_rotulo}</span>}
+      <span className="text-base font-semibold tabular-nums text-slate-900">
+        <Marcado texto={conta.numero_atendimento ?? ""} marcar={marcar} />
+      </span>
+      {conta.paciente_rotulo && (
+        <span className="text-sm text-slate-600">
+          <Marcado texto={conta.paciente_rotulo} marcar={marcar} />
+        </span>
+      )}
     </span>
   );
 }
@@ -54,6 +75,8 @@ const BOTAO = "inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semi
  */
 function AcaoDaConta({ conta, abreAlheias }: { conta: ItemDaFila; abreAlheias: boolean }) {
   const guia = `/contas-medicas/guia/${conta.id}`;
+  // Ver não é abrir (ADR 0105, decisão 2): a busca mostra a conta da colega sem botão.
+  if (conta.pode_abrir === false) return null;
   if (conta.situacao === "A_FAZER") {
     return (
       <span data-acao="principal">
@@ -107,7 +130,15 @@ function AcaoDaConta({ conta, abreAlheias }: { conta: ItemDaFila; abreAlheias: b
   );
 }
 
-function LinhaDaConta({ conta, abreAlheias }: { conta: ItemDaFila; abreAlheias: boolean }) {
+function LinhaDaConta({
+  conta,
+  abreAlheias,
+  marcar,
+}: {
+  conta: ItemDaFila;
+  abreAlheias: boolean;
+  marcar?: string;
+}) {
   // O valor da conta fica fora da lista (issue #1419): a Fila nunca anda por valor.
   const andamento = [detalheDaConta({ ...conta, valor_apontado: null }), contagensDaConta(conta)]
     .filter(Boolean)
@@ -116,7 +147,7 @@ function LinhaDaConta({ conta, abreAlheias }: { conta: ItemDaFila; abreAlheias: 
   return (
     <li className={`group flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3 ${GRADE}`}>
       <div className="min-w-0 basis-full md:basis-auto">
-        <NumeroEPaciente conta={conta} />
+        <NumeroEPaciente conta={conta} marcar={marcar} />
         {conta.numero_conta && <p className="text-xs text-slate-500">conta {conta.numero_conta}</p>}
       </div>
       <span className="min-w-0 text-sm text-slate-700">{conta.operadora ?? ""}</span>
@@ -138,8 +169,19 @@ function LinhaDaConta({ conta, abreAlheias }: { conta: ItemDaFila; abreAlheias: 
   );
 }
 
-/** `abreAlheias`: a pessoa tem o painel completo e abre a conta de qualquer faturista. */
-export function ListaDeContas({ contas, abreAlheias }: { contas: ItemDaFila[]; abreAlheias: boolean }) {
+/**
+ * `abreAlheias`: a pessoa tem o painel completo e abre a conta de qualquer faturista.
+ * `marcar` é o texto da busca (issue #1956), marcado no número e no nome de cada linha.
+ */
+export function ListaDeContas({
+  contas,
+  abreAlheias,
+  marcar,
+}: {
+  contas: ItemDaFila[];
+  abreAlheias: boolean;
+  marcar?: string;
+}) {
   return (
     <div>
       <div
@@ -153,7 +195,7 @@ export function ListaDeContas({ contas, abreAlheias }: { contas: ItemDaFila[]; a
       </div>
       <ul className="divide-y divide-border">
         {contas.map((conta) => (
-          <LinhaDaConta key={conta.id} conta={conta} abreAlheias={abreAlheias} />
+          <LinhaDaConta key={conta.id} conta={conta} abreAlheias={abreAlheias} marcar={marcar} />
         ))}
       </ul>
     </div>

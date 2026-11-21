@@ -388,7 +388,7 @@ async def buscar_contas(
     achadas = buscar(supabase, me, q)
     itens = _itens(supabase, {**achadas, "contagem": None}, ("contas",))["contas"]
     for item, conta in zip(itens, achadas["contas"], strict=True):
-        item |= {"etapa": conta["etapa"], "pode_abrir": conta["pode_abrir"]}
+        item |= {"etapa_da_esteira": conta["etapa_da_esteira"], "pode_abrir": conta["pode_abrir"]}
     return {"todas": achadas["todas"], "contas": itens, "mais": achadas["mais"]}
 
 

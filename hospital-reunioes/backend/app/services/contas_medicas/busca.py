@@ -77,7 +77,7 @@ def _atendimentos(supabase, termo: str) -> list[dict]:
 
 
 def buscar(supabase, me: dict, texto: str) -> dict:
-    """As contas achadas (no máximo `TETO`), com `etapa`, `com_quem`, `minha`
+    """As contas achadas (no máximo `TETO`), com `etapa_da_esteira`, `com_quem`, `minha`
     e `pode_abrir`, e `mais` quando passou do teto. A conta cujo número do
     atendimento é o digitado vem primeiro; o resto, a mais recente primeiro."""
     termo = sem_acento(texto.strip())
@@ -109,7 +109,7 @@ def _quem_esta_com_cada(supabase, me: dict, contas: list[dict]) -> None:
     todas = ve_todas(me)
     for conta in contas:
         situacao = conta.get("situacao")
-        conta["etapa"] = etapa_da(situacao)
+        conta["etapa_da_esteira"] = etapa_da(situacao)
         conta["minha"] = situacao not in NAO_PRONTAS and conta.get("faturista_id") == me.get("id")
         if situacao == LIVRE:
             conta["com_quem"] = None

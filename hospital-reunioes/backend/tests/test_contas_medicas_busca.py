@@ -128,7 +128,15 @@ class TestBusca:
     def test_acha_a_livre_a_da_outra_a_concluida_e_a_de_envios_com_a_etapa_e_com_quem_esta(self):
         contas = {c["id"]: c for c in _buscar("2775").json()["contas"]}
 
-        campos = ("numero_atendimento", "paciente_rotulo", "operadora", "periodo_inicio", "periodo_fim", "etapa", "com")
+        campos = (
+            "numero_atendimento",
+            "paciente_rotulo",
+            "operadora",
+            "periodo_inicio",
+            "periodo_fim",
+            "etapa_da_esteira",
+            "com",
+        )
         assert {i: tuple(c[k] for k in campos) for i, c in contas.items()} == {
             "livre": ("27751", "Antônia F.", "ASSIM", "2026-10-01", "2026-10-05", "fila", None),
             "da-outra": ("27752", "Joana B.", "ASSIM", "2026-10-01", "2026-10-05", "em_analise", "Pessoa F2"),
@@ -190,3 +198,28 @@ class TestTetoDaBusca:
         corpo = _buscar("4001", banco).json()
 
         assert [c["numero_atendimento"] for c in corpo["contas"]][:3] == ["4001", "40019", "40018"]
+
+
+KIT = os.path.join(os.path.dirname(__file__), "..", "app", "conhecimento", "contas-medicas.md")
+
+
+class TestKitDeConhecimento:
+    def test_o_produto_diz_como_a_busca_funciona(self):
+        with open(KIT, encoding="utf-8") as arquivo:
+            texto = arquivo.read()
+        [paragrafo] = [p for p in texto.split("\n\n") if "campo de busca" in p]
+
+        for trecho in (
+            "pelo número do atendimento ou pelo rótulo do paciente",
+            "sem diferenciar maiúscula nem acento",
+            "O número da conta não entra na busca",
+            "começa no segundo caractere",
+            "olha todas as etapas",
+            "ocupam o lugar da Esteira e da lista",
+            "Limpar o campo devolve a tela como estava",
+            "Quando só uma conta bate, ela aparece em destaque",
+            '"Pegar" na conta livre, "Continuar" na dela em análise e nenhum na conta de outra faturista',
+            "no máximo 50 contas",
+            "a busca olhou todas as etapas",
+        ):
+            assert trecho in paragrafo, trecho
