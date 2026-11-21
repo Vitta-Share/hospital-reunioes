@@ -14,7 +14,7 @@
  * Os layouts e o portão rodam de verdade: só o Supabase do servidor, o fetch
  * e o AppShell são de mentira.
  */
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const redirect = vi.fn((destino: string) => {
@@ -30,10 +30,73 @@ vi.mock("@/components/layout/AppShell", () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
+const metadados = vi.hoisted(() => ({ atual: {} as Record<string, unknown> }));
+const updateUser = vi.hoisted(() => vi.fn(async () => ({ data: {}, error: null })));
+
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: async () => ({
+    auth: {
+      getUser: async () => ({ data: { user: { email: "membro@hsm.test", user_metadata: metadados.atual } } }),
+      getSession: async () => ({ data: { session: { access_token: "token-de-teste" } } }),
+    },
+  }),
+}));
+
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: () => ({ auth: { updateUser } }),
+}));
+
+import GuiaDoRitoLayout from "./guia/layout";
 import GuiaDoRitoPage from "./guia/page";
+
+/** O que cada rota do portão responde: 200 ou a recusa. */
+let portao: Record<string, number>;
+
+beforeEach(() => {
+  metadados.atual = { conduta_apresentacao_vista_em: "2026-11-01T10:00:00Z" };
+  updateUser.mockClear();
+  redirect.mockClear();
+  portao = {};
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      const rota = Object.keys(portao).find((r) => url.endsWith(r));
+      const status = rota ? portao[rota] : 403;
+      return { ok: status === 200, status, json: async () => ({}) } as Response;
+    })
+  );
+});
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
+});
+
+const CONTEUDO = "o conteúdo do guia";
+
+describe("quem abre o guia", () => {
+  it("o membro sem o Termo assinado abre o guia, que o portão dos casos recusaria", async () => {
+    portao = { "/comite-de-conduta/minha-vez": 403, "/comite-de-conduta/membros": 200 };
+
+    render(await GuiaDoRitoLayout({ children: <p>{CONTEUDO}</p> }));
+
+    expect(screen.getByText(CONTEUDO)).toBeTruthy();
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it("o apurador designado, que não é membro, também abre", async () => {
+    portao = { "/comite-de-conduta/minha-vez": 200, "/comite-de-conduta/membros": 403 };
+
+    render(await GuiaDoRitoLayout({ children: <p>{CONTEUDO}</p> }));
+
+    expect(screen.getByText(CONTEUDO)).toBeTruthy();
+  });
+
+  it("quem não é do Comitê volta ao início sem receber o guia", async () => {
+    portao = { "/comite-de-conduta/minha-vez": 403, "/comite-de-conduta/membros": 403 };
+
+    await expect(GuiaDoRitoLayout({ children: <p>{CONTEUDO}</p> })).rejects.toThrow("redirect:/dashboard");
+  });
 });
 
 describe("o Guia do rito", () => {
