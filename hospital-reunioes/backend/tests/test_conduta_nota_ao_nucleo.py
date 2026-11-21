@@ -18,6 +18,7 @@ from __future__ import annotations
 import os
 import sys
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
@@ -286,3 +287,24 @@ def test_quem_le_a_nota_nao_abre_caso_do_canal(comite, metodo, caminho, quem):
 
     assert resposta.status_code == 403, resposta.text
     assert RELATO[:40] not in resposta.text
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. O texto do Produto Segurança do Paciente diz o comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+TEXTO_DO_PRODUTO = Path(__file__).resolve().parents[1] / "app" / "conhecimento" / "seguranca-do-paciente.md"
+
+
+@pytest.mark.parametrize(
+    "trecho",
+    [
+        "**Sinalizar ao NSP**",
+        "só a coordenação do Comitê a envia",
+        "**Notas do Comitê de Conduta**",
+        "Só a Presidência do Núcleo e o Acesso pleno leem",
+        "não leva o protocolo do caso, o relato, os anexos nem quem relatou",
+    ],
+)
+def test_o_kit_de_conhecimento_diz_a_nota_do_comite(trecho):
+    assert trecho in TEXTO_DO_PRODUTO.read_text(encoding="utf-8")
