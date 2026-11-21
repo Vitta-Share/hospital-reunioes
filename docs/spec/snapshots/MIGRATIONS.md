@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T22:11+0000 -->
+<!-- last_update: 2026-11-21T22:43+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -190,8 +190,11 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 192 | `192_conduta_assinaturas.sql` | Canal de Conduta, as assinaturas pela ClickSign | 1 | 0 | 2 | 0 |
 | 194 | `194_revisao_da_rotina.sql` | a revisao de 90 dias da Rotina (issue #1944; decisao 72 da #1757) | 0 | 2 | 0 | 0 |
 | 196 | `196_email_de_segunda.sql` | Guarda do e-mail de segunda de Reunioes (PRD #1757; issue #1876) | 1 | 0 | 1 | 0 |
+| 197 | `197_nsp_tela_de_triagem.sql` | a tela de triagem do Núcleo | 1 | 4 | 3 | 0 |
+| 198 | `198_conduta_codigo_de_conduta.sql` | Canal de Conduta, o Código de Conduta com versões | 1 | 0 | 0 | 0 |
+| 199 | `199_conduta_avisos_por_email.sql` | Avisos por e-mail do Canal de Conduta (PRD #1786; issue #1840) | 1 | 0 | 2 | 0 |
 | 202 | `202_conduta_sinalizacao_da_ouvidoria.sql` | o caso que a Ouvidoria sinaliza ao Canal de Conduta | 0 | 2 | 1 | 0 |
 | 203 | `203_conduta_nota_ao_nucleo.sql` | Canal de Conduta, a nota do Comitê ao Núcleo de Segurança | 2 | 0 | 5 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 186 migrations.
+**Total:** 189 migrations.

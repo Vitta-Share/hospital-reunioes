@@ -16,7 +16,7 @@ from typing import Any
 
 from postgrest.exceptions import APIError
 
-from app.services.conduta import cifra, trilha
+from app.services.conduta import avisos, cifra, trilha
 from app.services.ouvidoria_acompanhamento import ALFABETO, gerar_codigo, hash_do_codigo
 
 _VIOLACAO_DE_UNICIDADE = "23505"
@@ -69,4 +69,5 @@ def registrar_caso(
                 raise
     detalhe = "caso sinalizado pela Ouvidoria" if manifestacao_id is not None else "caso recebido"
     trilha.registrar(supabase, caso["id"], None, "recebimento", detalhe)
+    avisos.avisar_tarefas_novas(supabase, caso["id"], {})
     return {"id": caso["id"], "protocolo": caso["protocolo"], "codigo": codigo}

@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T22:11+0000 -->
+<!-- last_update: 2026-11-21T22:43+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -70,6 +70,15 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | DELETE | `/pendencias/{id_acao}/comentarios/{comentario_id}` | Exclui um comentário. Apenas o autor pode excluir. | ✅ |
 | GET | `/pendencias/{id_acao}/mencionaveis` | Lista participantes mencionáveis no chat da Pendência (quem enxerga a Pendência). | ✅ |
 
+## canal-de-conduta (`app/routers/conduta_codigo.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| GET | `/comite-de-conduta/codigo-de-conduta` | Listar versoes | ✅ |
+| POST | `/comite-de-conduta/codigo-de-conduta` | Publicar versao | ✅ |
+| GET | `/comite-de-conduta/codigo-de-conduta/arquivo` | Baixar versao | ✅ |
+| GET | `/comite-de-conduta/codigo-de-conduta/vigente` | A versão que valia na data, ou `null` se nenhuma valia ainda. | ✅ |
+
 ## canal-de-conduta (`app/routers/conduta_comite.py`)
 
 | Método | Rota | O que faz | Auth |
@@ -105,6 +114,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | Método | Rota | O que faz | Auth |
 |--------|------|-----------|------|
 | GET | `/conduta/abertura` | Se o canal está aberto. Fechado, a rota nem aparece (404). | ❌ |
+| GET | `/conduta/codigo-de-conduta` | O PDF do Código de Conduta vigente hoje (issue #1841), num endereço que | ❌ |
 | GET | `/conduta/textos` | Os textos vigentes das telas públicas (issue #1826), cada um com o | ❌ |
 
 ## conector-mcp (`app/routers/conector_mcp.py`)
@@ -646,6 +656,17 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/nsp/membros/{participacao_id}/termo/reenviar` | Cancela o envio anterior e gera outro documento, com outro identificador. | ✅ |
 | GET | `/nsp/meu-termo` | Para a faixa das telas bloqueadas: a pessoa tem Termo pendente numa | ✅ |
 
+## seguranca-do-paciente (`app/routers/seguranca_do_paciente_triagem.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| GET | `/nsp/configuracao/cortes-de-frequencia` | Ler cortes de frequencia | ✅ |
+| PUT | `/nsp/configuracao/cortes-de-frequencia` | Os cortes novos valem para o que for calculado daqui para a frente. | ✅ |
+| GET | `/nsp/triagem` | A fila de triagem: sem relato e sem quem notificou. | ✅ |
+| GET | `/nsp/triagem/{notificacao_id}` | A tela única: o caso, com os anexos, a sugestão (ou nenhuma) e o que o | ✅ |
+| POST | `/nsp/triagem/{notificacao_id}` | Confirmar ou ajustar. Grava a linha da pessoa ao lado da sugestão e leva | ✅ |
+| GET | `/nsp/triagem/{notificacao_id}/contexto` | A recorrência, os casos parecidos, a frequência e a prioridade para a | ✅ |
+
 ## pops (`app/routers/pops/setores.py`)
 
 | Método | Rota | O que faz | Auth |
@@ -758,4 +779,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 437 endpoints em 63 routers · 93% exigem auth.
+**Totais:** 448 endpoints em 65 routers · 93% exigem auth.

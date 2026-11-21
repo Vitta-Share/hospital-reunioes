@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T22:11+0000 -->
+<!-- last_update: 2026-11-21T22:43+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2414,6 +2414,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_conduta_casos_triagem_por` em `(triagem_por)` (de `185_conduta_triagem_e_ritos.sql`)
 - `idx_conduta_casos_conferida_por` em `(conferida_por)` (de `185_conduta_triagem_e_ritos.sql`)
 - `idx_conduta_casos_prorrogado_por` em `(prorrogado_por)` (de `185_conduta_triagem_e_ritos.sql`)
+- `idx_conduta_casos_abertos_prazo` em `(prazo_em)` (de `199_conduta_avisos_por_email.sql`)
 - `uq_conduta_casos_manifestacao` em `(manifestacao_id)` (de `202_conduta_sinalizacao_da_ouvidoria.sql`)
 
 ## conduta_atribuicoes
@@ -2633,7 +2634,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## nsp_triagens
 
-> Origem: `188_nsp_agente_de_triagem.sql`
+> Origem: `188_nsp_agente_de_triagem.sql` (alterada em: 197_nsp_tela_de_triagem.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2666,11 +2667,17 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `modelo` | `TEXT` | — | — | — |
 | `tentativas` | `SMALLINT` | — | — | — |
 | `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `autor_id` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `divergencias` | `TEXT[]` | — | — | — |
+| `frequencia` | `TEXT` | — | — | — |
+| `prioridade` | `TEXT` | — | — | — |
 
 **Indexes:**
 - `idx_nsp_triagens_notificacao` em `(notificacao_id, versao DESC)` (de `188_nsp_agente_de_triagem.sql`)
 - `idx_nsp_triagens_categoria` em `(categoria)` (de `188_nsp_agente_de_triagem.sql`)
 - `idx_nsp_triagens_evento_item` em `(evento_item)` (de `188_nsp_agente_de_triagem.sql`)
+- `idx_nsp_triagens_autor` em `(autor_id)` (de `197_nsp_tela_de_triagem.sql`)
+- `uq_nsp_triagens_uma_decisao_por_notificacao` em `(notificacao_id)` (de `197_nsp_tela_de_triagem.sql`)
 
 ## nsp_agente_cota
 
@@ -2738,6 +2745,57 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_email_de_segunda_semana` em `(semana)` (de `196_email_de_segunda.sql`)
 
+## nsp_cortes_de_frequencia
+
+> Origem: `197_nsp_tela_de_triagem.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `BOOLEAN` | PK | `true` | — |
+| `janela_meses` | `SMALLINT` | NOT NULL | `12` | — |
+| `incomum_a_partir` | `SMALLINT` | NOT NULL | `1` | — |
+| `ocasional_a_partir` | `SMALLINT` | NOT NULL | `2` | — |
+| `frequente_a_partir` | `SMALLINT` | NOT NULL | `4` | — |
+| `atualizado_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `atualizado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_cortes_de_frequencia_atualizado_por` em `(atualizado_por)` (de `197_nsp_tela_de_triagem.sql`)
+
+## conduta_codigo_versoes
+
+> Origem: `198_conduta_codigo_de_conduta.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `versao` | `INTEGER` | NOT NULL | — | — |
+| `vigente_desde` | `DATE` | NOT NULL | — | — |
+| `storage_path` | `TEXT` | NOT NULL | — | — |
+| `nome_arquivo` | `TEXT` | NOT NULL | — | — |
+| `tamanho_bytes` | `INTEGER` | NOT NULL | — | — |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+## conduta_avisos
+
+> Origem: `199_conduta_avisos_por_email.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `participante_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `motivo` | `TEXT` | NOT NULL | — | — |
+| `referencia` | `TEXT` | NOT NULL | — | — |
+| `na_hora` | `BOOLEAN` | NOT NULL | `false` | — |
+| `situacao` | `TEXT` | NOT NULL | `'pendente'` | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `enviado_em` | `TIMESTAMPTZ` | — | — | — |
+
+**Indexes:**
+- `idx_conduta_avisos_pendentes` em `(na_hora, criado_em)` (de `199_conduta_avisos_por_email.sql`)
+
 ## conduta_notas_nsp
 
 > Origem: `203_conduta_nota_ao_nucleo.sql`
@@ -2773,4 +2831,4 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ---
 
-**Resumo:** 137 tabelas vivas.
+**Resumo:** 140 tabelas vivas.
