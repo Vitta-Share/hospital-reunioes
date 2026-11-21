@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T15:49+0000 -->
+<!-- last_update: 2026-11-21T15:56+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -73,11 +73,14 @@ erDiagram
     conduta_contestacoes ||--o{ conduta_contestacao_votos : "contestacao_id"
     nsp_agenda_regulatoria ||--o{ nsp_agenda_ocorrencias : "item_id"
     nsp_capacitacoes ||--o{ nsp_capacitacao_participantes : "capacitacao_id"
+    nsp_categorias ||--o{ nsp_triagens : "categoria"
     nsp_documentos ||--o{ nsp_documentos_envios : "documento_id"
     nsp_documentos ||--o{ nsp_termos_envios : "regimento_id"
     nsp_documentos_envios ||--o{ nsp_documentos_signatarios : "envio_id"
+    nsp_eventos_que_nunca_deveriam_ocorrer ||--o{ nsp_triagens : "evento_item"
     nsp_notificacoes ||--o{ nsp_notificacao_anexos : "notificacao_id"
     nsp_notificacoes ||--o{ nsp_notificacoes_trilha : "notificacao_id"
+    nsp_notificacoes ||--o{ nsp_triagens : "notificacao_id"
     nsp_termos_envios ||--o{ nsp_documentos : "termo_envio_id"
     ouvidoria_pontos ||--o{ ouvidoria_avaliacoes : "ponto_id"
     participacoes ||--o{ conduta_registro : "participacao_id"
@@ -1280,7 +1283,7 @@ erDiagram
         TEXT estado
         TEXT relato
         TEXT leito_ou_atendimento
-        _ mais_colunas "+16"
+        _ mais_colunas "+18"
     }
     nsp_notificacoes_trilha {
         UUID id PK
@@ -1382,6 +1385,32 @@ erDiagram
         TEXT rito
         DATE prazo_em
         TIMESTAMPTZ registrado_em
+    }
+    nsp_categorias {
+        TEXT codigo PK
+        TEXT nome
+        TEXT incidentes
+        SMALLINT ordem
+    }
+    nsp_eventos_que_nunca_deveriam_ocorrer {
+        SMALLINT item PK
+        TEXT evento
+        BOOLEAN exige_obito_ou_lesao_grave
+    }
+    nsp_triagens {
+        UUID id PK
+        UUID notificacao_id FK
+        INTEGER versao
+        TEXT autor_tipo
+        TEXT assunto
+        TEXT natureza
+        TEXT grau_de_dano
+        TEXT categoria FK
+        _ mais_colunas "+21"
+    }
+    nsp_agente_cota {
+        DATE dia PK
+        INTEGER chamadas
     }
 ```
 
@@ -1613,6 +1642,9 @@ erDiagram
 | `conduta_registro` | `idx_conduta_registro_participacao` | `participacao_id` | `184_conduta_membros_do_comite.sql` |
 | `conduta_contestacoes` | `idx_conduta_contestacoes_autor` | `autor_id` | `185_conduta_triagem_e_ritos.sql` |
 | `conduta_contestacao_votos` | `idx_conduta_contestacao_votos_pessoa` | `participante_id` | `185_conduta_triagem_e_ritos.sql` |
+| `nsp_triagens` | `idx_nsp_triagens_notificacao` | `notificacao_id, versao DESC` | `188_nsp_agente_de_triagem.sql` |
+| `nsp_triagens` | `idx_nsp_triagens_categoria` | `categoria` | `188_nsp_agente_de_triagem.sql` |
+| `nsp_triagens` | `idx_nsp_triagens_evento_item` | `evento_item` | `188_nsp_agente_de_triagem.sql` |
 
 ---
-**Resumo:** 126 tabelas · 194 relacionamentos FK detectados.
+**Resumo:** 130 tabelas · 197 relacionamentos FK detectados.

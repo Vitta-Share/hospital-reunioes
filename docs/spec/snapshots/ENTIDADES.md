@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T15:49+0000 -->
+<!-- last_update: 2026-11-21T15:56+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2330,7 +2330,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## nsp_notificacoes
 
-> Origem: `174_nsp_notificacao_de_incidente.sql` (alterada em: 183_nsp_caso_vindo_da_ouvidoria.sql)
+> Origem: `174_nsp_notificacao_de_incidente.sql` (alterada em: 183_nsp_caso_vindo_da_ouvidoria.sql, 188_nsp_agente_de_triagem.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2358,6 +2358,8 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
 | `atualizado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
 | `manifestacao_id` | `UUID` | — | — | `ouvidoria_protocolos.id` |
+| `classificar_manualmente` | `BOOLEAN` | NOT NULL | `false` | — |
+| `motivo_classificar_manualmente` | `TEXT` | — | — | — |
 
 **Indexes:**
 - `idx_nsp_notificacoes_criado_em` em `(criado_em DESC)` (de `174_nsp_notificacao_de_incidente.sql`)
@@ -2572,6 +2574,77 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `prazo_em` | `DATE` | NOT NULL | — | — |
 | `registrado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
 
+## nsp_categorias
+
+> Origem: `188_nsp_agente_de_triagem.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `codigo` | `TEXT` | PK | — | — |
+| `nome` | `TEXT` | NOT NULL | — | — |
+| `incidentes` | `TEXT` | NOT NULL | — | — |
+| `ordem` | `SMALLINT` | UNIQUE, NOT NULL | — | — |
+
+## nsp_eventos_que_nunca_deveriam_ocorrer
+
+> Origem: `188_nsp_agente_de_triagem.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `item` | `SMALLINT` | PK | — | — |
+| `evento` | `TEXT` | NOT NULL | — | — |
+| `exige_obito_ou_lesao_grave` | `BOOLEAN` | NOT NULL | — | — |
+
+## nsp_triagens
+
+> Origem: `188_nsp_agente_de_triagem.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `notificacao_id` | `UUID` | NOT NULL | — | `nsp_notificacoes.id` |
+| `versao` | `INTEGER` | NOT NULL | — | — |
+| `autor_tipo` | `TEXT` | NOT NULL | — | — |
+| `assunto` | `TEXT` | NOT NULL | — | — |
+| `natureza` | `TEXT` | NOT NULL | — | — |
+| `grau_de_dano` | `TEXT` | NOT NULL | — | — |
+| `categoria` | `TEXT` | NOT NULL | — | `nsp_categorias.codigo` |
+| `incidente` | `TEXT` | — | — | — |
+| `evento_situacao` | `TEXT` | NOT NULL | — | — |
+| `evento_item` | `SMALLINT` | — | — | `nsp_eventos_que_nunca_deveriam_ocorrer.item` |
+| `evento_motivo` | `TEXT` | — | — | — |
+| `iras` | `BOOLEAN` | NOT NULL | — | — |
+| `risco_de_imagem` | `BOOLEAN` | NOT NULL | — | — |
+| `protocolo_basico` | `TEXT` | NOT NULL | — | — |
+| `canais` | `TEXT[]` | NOT NULL | — | — |
+| `motivo_do_encaminhamento` | `TEXT` | — | — | — |
+| `faixa` | `TEXT` | NOT NULL | — | — |
+| `revisao` | `TEXT` | NOT NULL | — | — |
+| `justificativa` | `TEXT` | — | — | — |
+| `confianca` | `TEXT` | — | — | — |
+| `motivo_da_confianca` | `TEXT` | — | — | — |
+| `alertas` | `TEXT[]` | NOT NULL | `'{}'` | — |
+| `perguntas_ao_notificante` | `TEXT[]` | NOT NULL | `'{}'` | — |
+| `prompt_versao` | `TEXT` | — | — | — |
+| `base_versao` | `TEXT` | — | — | — |
+| `modelo` | `TEXT` | — | — | — |
+| `tentativas` | `SMALLINT` | — | — | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_triagens_notificacao` em `(notificacao_id, versao DESC)` (de `188_nsp_agente_de_triagem.sql`)
+- `idx_nsp_triagens_categoria` em `(categoria)` (de `188_nsp_agente_de_triagem.sql`)
+- `idx_nsp_triagens_evento_item` em `(evento_item)` (de `188_nsp_agente_de_triagem.sql`)
+
+## nsp_agente_cota
+
+> Origem: `188_nsp_agente_de_triagem.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `dia` | `DATE` | PK | — | — |
+| `chamadas` | `INTEGER` | NOT NULL | `0` | — |
+
 ---
 
-**Resumo:** 126 tabelas vivas.
+**Resumo:** 130 tabelas vivas.
