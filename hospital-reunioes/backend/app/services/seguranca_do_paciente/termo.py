@@ -12,8 +12,13 @@ fica Ativo), grava a trilha e guarda o PDF assinado nos Documentos do Núcleo,
 como Termo daquele membro e daquela vigência. Evento repetido não duplica nada;
 envio cancelado (pelo reenvio) não muda nada.
 
-Cada envio é uma linha de `nsp_termos_envios` (migration 151); o id dela é o
-identificador impresso no documento.
+Cada envio é uma linha da tabela de envios do Colegiado (a do Núcleo é
+`nsp_termos_envios`, migration 151); o id dela é o identificador impresso no
+documento.
+
+O serviço recebe o Colegiado (issue #1819, ADR 0097 decisão 3): as tabelas, o
+bucket, o modelo e a sigla do envelope vêm do `Colegiado`. Sem ele, vale o
+Núcleo, e o comportamento do Núcleo é o de antes.
 """
 
 from __future__ import annotations
@@ -28,7 +33,8 @@ import httpx
 from postgrest.exceptions import APIError
 
 from app.config import settings
-from app.services import clicksign_service, storage
+from app.services import clicksign_service, colegiados, storage
+from app.services.colegiados import Colegiado
 from app.services.paginacao import ler_tudo
 from app.services.seguranca_do_paciente import permissao
 from app.services.seguranca_do_paciente.membros import estado_do_membro
@@ -95,14 +101,14 @@ def marca_do_novo_termo(participacao: dict) -> dict:
     return {"termo_gerado_em": _agora()} if participacao.get("termo_assinado_em") else {}
 
 
-def revisao_material_em(supabase) -> str | None:
+def revisao_material_em(supabase, *, colegiado: Colegiado = permissao.NUCLEO) -> str | None:
     """Quando passou a valer a última revisão material do Regimento (issue
     #1800). Só conta a que de fato vigorou: a publicada direto, pelo
     `publicado_em`; a enviada para assinatura, pela conclusão do envio, e
     nada enquanto ela espera. A assinada depois de uma versão mais nova já
     valer nunca vigorou (`nsp_tornar_vigente` não a troca) e também não conta."""
     versoes = (
-        supabase.table("nsp_documentos")
+        supabase.table(colegiado.documentos)
         .select("id, versao, natureza_revisao, publicado_em")
         .eq("tipo", "regimento")
         .execute()
@@ -111,7 +117,7 @@ def revisao_material_em(supabase) -> str | None:
     if not any(v.get("natureza_revisao") == "material" for v in versoes):
         return None
     envios = (
-        supabase.table("nsp_documentos_envios")
+        supabase.table(colegiado.documentos_envios)
         .select("documento_id, situacao, assinado_em")
         .in_("documento_id", [v["id"] for v in versoes])
         .execute()
@@ -136,8 +142,8 @@ def revisao_material_em(supabase) -> str | None:
     return max(datas, key=lambda d: datetime.fromisoformat(str(d))) if datas else None
 
 
-def _bucket() -> str:
-    return settings.supabase_storage_bucket_nsp_documentos
+def _bucket(colegiado: Colegiado) -> str:
+    return getattr(settings, colegiado.bucket_dos_documentos)
 
 
 def registro_do_membro(pessoa: dict) -> str:
@@ -155,9 +161,9 @@ def registro_do_membro(pessoa: dict) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _vigente(supabase, tipo: str) -> dict | None:
+def _vigente(supabase, tipo: str, *, colegiado: Colegiado = permissao.NUCLEO) -> dict | None:
     linhas = (
-        supabase.table("nsp_documentos")
+        supabase.table(colegiado.documentos)
         .select("id, tipo, versao, titulo, texto, publicado_em")
         .eq("tipo", tipo)
         .eq("vigente", True)
@@ -182,10 +188,19 @@ def _pessoa(supabase, participante_id: str) -> dict:
     return linhas[0]
 
 
-def dados_do_termo(pessoa: dict, participacao: dict, regimento: dict, designacao: dict | None, envio_id: str) -> dict:
-    """O que preenche o gabarito. Tudo passa pelo sanitizador: o texto do
-    Regimento e os nomes vêm de quem digitou, e o PDF não sai com travessão."""
-    return sanitizar_estrutura(
+def dados_do_termo(
+    pessoa: dict,
+    participacao: dict,
+    regimento: dict,
+    designacao: dict | None,
+    envio_id: str,
+    *,
+    colegiado: Colegiado = permissao.NUCLEO,
+) -> dict:
+    """O que preenche o gabarito, e o `modelo` do Colegiado. Tudo passa pelo
+    sanitizador: o texto do Regimento e os nomes vêm de quem digitou, e o PDF
+    não sai com travessão."""
+    dados = sanitizar_estrutura(
         {
             "membro": {
                 "nome": pessoa.get("nome_completo") or _SEM_VALOR,
@@ -199,7 +214,7 @@ def dados_do_termo(pessoa: dict, participacao: dict, regimento: dict, designacao
             "designacao": (
                 f"{designacao['titulo']}, de {_dia(designacao.get('publicado_em'))}"
                 if designacao
-                else "Ainda não publicado nos Documentos do Núcleo"
+                else f"Ainda não publicado nos Documentos do {colegiado.nome}"
             ),
             "regimento": {
                 "titulo": regimento.get("titulo") or "Regimento Interno",
@@ -210,10 +225,12 @@ def dados_do_termo(pessoa: dict, participacao: dict, regimento: dict, designacao
             "documento": {"identificador": envio_id},
         }
     )
+    return {**dados, "modelo": colegiado.modelo_do_termo}
 
 
 def gerar_pdf_do_termo(dados: dict) -> bytes:
-    """O PDF do Termo com o Regimento no fim (WeasyPrint, como a Ata e o POP)."""
+    """O PDF do Termo com o Regimento no fim (WeasyPrint, como a Ata e o POP),
+    no modelo que veio em `dados`."""
     from weasyprint import HTML
 
     from app.services.pdf_generator import env
@@ -225,7 +242,7 @@ def gerar_pdf_do_termo(dados: dict) -> bytes:
     logo_uri = f"file://{logo_path}" if os.path.exists(logo_path) else None
     font_uri = f"file://{font_path}" if os.path.exists(font_path) else None
 
-    html = env.get_template("nsp_termo_adesao.html").render(**dados, logo_path=logo_uri, font_path=font_uri)
+    html = env.get_template(dados["modelo"]).render(**dados, logo_path=logo_uri, font_path=font_uri)
     alvo = io.BytesIO()
     permitidos = frozenset(uri for uri in (logo_uri, font_uri) if uri)
     HTML(string=html, url_fetcher=criar_pdf_url_fetcher(permitidos)).write_pdf(target=alvo)
@@ -251,9 +268,9 @@ def _trilha(supabase, participacao_id: str, autor_id: str, acao: str, *, valor_n
     ).execute()
 
 
-def envios_abertos(supabase, participacao_id: str) -> list[dict]:
+def envios_abertos(supabase, participacao_id: str, *, colegiado: Colegiado = permissao.NUCLEO) -> list[dict]:
     return (
-        supabase.table("nsp_termos_envios")
+        supabase.table(colegiado.termos_envios)
         .select("*")
         .eq("participacao_id", participacao_id)
         .in_("situacao", ["gerado", "enviado"])
@@ -262,9 +279,9 @@ def envios_abertos(supabase, participacao_id: str) -> list[dict]:
     ) or []
 
 
-def ultimo_envio(supabase, participacao_id: str) -> dict | None:
+def ultimo_envio(supabase, participacao_id: str, *, colegiado: Colegiado = permissao.NUCLEO) -> dict | None:
     linhas = (
-        supabase.table("nsp_termos_envios")
+        supabase.table(colegiado.termos_envios)
         .select("*")
         .eq("participacao_id", participacao_id)
         .order("created_at", desc=True)
@@ -291,14 +308,14 @@ def _participacao(supabase, participacao_id: str) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def _enviar(pdf: bytes, envio_id: str, pessoa: dict) -> tuple[str, str] | str:
+def _enviar(pdf: bytes, envio_id: str, pessoa: dict, sigla: str) -> tuple[str, str] | str:
     """O envelope com o documento e o signatário. Devolve (envelope, chave do
     documento) ou, em falha, a mensagem para a tela."""
     falha = "A assinatura eletrônica não respondeu. Use Reenviar o Termo em instantes."
-    envelope_id = clicksign_service.create_envelope(f"Termo de Adesão NSP - {envio_id}")
+    envelope_id = clicksign_service.create_envelope(f"Termo de Adesão {sigla} - {envio_id}")
     if not envelope_id:
         return falha
-    documento_id = clicksign_service.add_document(envelope_id, pdf, f"Termo_de_Adesao_NSP_{envio_id}.pdf")
+    documento_id = clicksign_service.add_document(envelope_id, pdf, f"Termo_de_Adesao_{sigla}_{envio_id}.pdf")
     if not documento_id:
         return falha
     signatario_id = clicksign_service.add_signer(envelope_id, nome=pessoa["nome_completo"], email=pessoa["email"])
@@ -316,14 +333,21 @@ def _enviar(pdf: bytes, envio_id: str, pessoa: dict) -> tuple[str, str] | str:
     return envelope_id, documento_id
 
 
-def gerar_e_enviar_termo(supabase, participacao: dict, *, autor_id: str, acao: str = "termo_enviado") -> dict:
+def gerar_e_enviar_termo(
+    supabase,
+    participacao: dict,
+    *,
+    autor_id: str,
+    acao: str = "termo_enviado",
+    colegiado: Colegiado = permissao.NUCLEO,
+) -> dict:
     """Gera o documento e o envia para a assinatura. Devolve o envio gravado.
 
     Sem Regimento vigente ou sem e-mail, nada é gerado e sobe `TermoNaoGeradoError`.
     Falha da assinatura eletrônica deixa o envio em "gerado", com o erro, e a
     Participação em Documento gerado: o reenvio tenta de novo.
     """
-    regimento = _vigente(supabase, "regimento")
+    regimento = _vigente(supabase, "regimento", colegiado=colegiado)
     if not regimento:
         raise TermoNaoGeradoError("Publique o Regimento em Documentos para gerar o Termo de Adesão.")
     pessoa = _pessoa(supabase, participacao["participante_id"])
@@ -331,20 +355,21 @@ def gerar_e_enviar_termo(supabase, participacao: dict, *, autor_id: str, acao: s
         raise TermoNaoGeradoError("A pessoa não tem e-mail no cadastro, e o Termo vai por e-mail para assinatura.")
 
     envio = (
-        supabase.table("nsp_termos_envios")
+        supabase.table(colegiado.termos_envios)
         .insert({"participacao_id": participacao["id"], "regimento_id": regimento["id"], "situacao": "gerado"})
         .execute()
         .data
     )[0]
-    dados = dados_do_termo(pessoa, participacao, regimento, _vigente(supabase, "ato_designacao"), envio["id"])
+    designacao = _vigente(supabase, "ato_designacao", colegiado=colegiado)
+    dados = dados_do_termo(pessoa, participacao, regimento, designacao, envio["id"], colegiado=colegiado)
     pdf = gerar_pdf_do_termo(dados)
     caminho = f"termos/{envio['id']}.pdf"
-    arquivo = caminho if storage.upload_private(supabase, _bucket(), caminho, pdf, "application/pdf") else None
+    arquivo = caminho if storage.upload_private(supabase, _bucket(colegiado), caminho, pdf, "application/pdf") else None
     supabase.table("participacoes").update({"termo_gerado_em": _agora(), "termo_enviado_em": None}).eq(
         "id", participacao["id"]
     ).execute()
 
-    resultado = _enviar(pdf, envio["id"], pessoa)
+    resultado = _enviar(pdf, envio["id"], pessoa, colegiado.sigla)
     if isinstance(resultado, str):
         logger.warning("Termo %s gerado e não enviado: %s", envio["id"], resultado)
         campos = {"arquivo_path": arquivo, "erro": resultado}
@@ -361,7 +386,7 @@ def gerar_e_enviar_termo(supabase, participacao: dict, *, autor_id: str, acao: s
         }
         supabase.table("participacoes").update({"termo_enviado_em": agora}).eq("id", participacao["id"]).execute()
         _trilha(supabase, participacao["id"], autor_id, acao, valor_novo=envio["id"])
-    supabase.table("nsp_termos_envios").update(campos).eq("id", envio["id"]).execute()
+    supabase.table(colegiado.termos_envios).update(campos).eq("id", envio["id"]).execute()
     return {**envio, **campos}
 
 
@@ -370,9 +395,9 @@ def gerar_e_enviar_termo(supabase, participacao: dict, *, autor_id: str, acao: s
 # ---------------------------------------------------------------------------
 
 
-def _proxima_versao_do_termo(supabase) -> int:
+def _proxima_versao_do_termo(supabase, colegiado: Colegiado) -> int:
     linhas = (
-        supabase.table("nsp_documentos")
+        supabase.table(colegiado.documentos)
         .select("versao")
         .eq("tipo", "termo")
         .order("versao", desc=True)
@@ -383,10 +408,10 @@ def _proxima_versao_do_termo(supabase) -> int:
     return int(linhas[0]["versao"]) + 1 if linhas else 1
 
 
-def _guardar_documento_assinado(supabase, envio: dict) -> None:
+def _guardar_documento_assinado(supabase, envio: dict, colegiado: Colegiado) -> None:
     """O PDF assinado nos Documentos, uma vez por envio. Best-effort: sem o
     arquivo pronto, o próximo evento (ou a reconsulta) tenta de novo."""
-    ja = supabase.table("nsp_documentos").select("id").eq("termo_envio_id", envio["id"]).limit(1).execute().data
+    ja = supabase.table(colegiado.documentos).select("id").eq("termo_envio_id", envio["id"]).limit(1).execute().data
     if ja:
         return
     pdf = clicksign_service.get_signed_document(envio.get("envelope_id"))
@@ -394,7 +419,7 @@ def _guardar_documento_assinado(supabase, envio: dict) -> None:
         logger.warning("PDF assinado do Termo %s ainda indisponível", envio["id"])
         return
     caminho = f"termos/{envio['id']}-assinado.pdf"
-    if not storage.upload_private(supabase, _bucket(), caminho, pdf, "application/pdf"):
+    if not storage.upload_private(supabase, _bucket(colegiado), caminho, pdf, "application/pdf"):
         return
     participacao = _participacao(supabase, envio["participacao_id"])
     pessoa = _pessoa(supabase, participacao["participante_id"])
@@ -403,10 +428,10 @@ def _guardar_documento_assinado(supabase, envio: dict) -> None:
         f"{_dia(participacao['vigencia_inicio'])} a {_dia(participacao['vigencia_fim'])}"
     )[:200]
     try:
-        supabase.table("nsp_documentos").insert(
+        supabase.table(colegiado.documentos).insert(
             {
                 "tipo": "termo",
-                "versao": _proxima_versao_do_termo(supabase),
+                "versao": _proxima_versao_do_termo(supabase, colegiado),
                 "titulo": titulo,
                 "vigente": False,
                 "arquivo_assinado_path": caminho,
@@ -419,12 +444,12 @@ def _guardar_documento_assinado(supabase, envio: dict) -> None:
         logger.warning("Termo assinado %s não entrou nos Documentos agora: %s", envio["id"], erro)
 
 
-def aplicar_assinatura(supabase, envio: dict) -> bool:
+def aplicar_assinatura(supabase, envio: dict, *, colegiado: Colegiado = permissao.NUCLEO) -> bool:
     """Carimba a assinatura. Só o envio ainda "enviado" muda: a troca é
     condicional, e o retorno repetido ou atrasado não acha mais nada."""
     agora = _agora()
     trocados = (
-        supabase.table("nsp_termos_envios")
+        supabase.table(colegiado.termos_envios)
         .update({"situacao": "assinado", "assinado_em": agora})
         .eq("id", envio["id"])
         .eq("situacao", "enviado")
@@ -436,7 +461,7 @@ def aplicar_assinatura(supabase, envio: dict) -> bool:
     participacao = _participacao(supabase, envio["participacao_id"])
     supabase.table("participacoes").update({"termo_assinado_em": agora}).eq("id", participacao["id"]).execute()
     _trilha(supabase, participacao["id"], participacao["participante_id"], "termo_assinado", valor_novo=envio["id"])
-    _guardar_documento_assinado(supabase, {**envio, "situacao": "assinado"})
+    _guardar_documento_assinado(supabase, {**envio, "situacao": "assinado"}, colegiado)
     return True
 
 
@@ -464,13 +489,13 @@ def _completar_carimbo(supabase, envio: dict) -> None:
         _trilha(supabase, participacao["id"], participacao["participante_id"], "termo_assinado", valor_novo=envio["id"])
 
 
-def processar_evento(supabase, envio: dict, evento: str) -> None:
+def processar_evento(supabase, envio: dict, evento: str, *, colegiado: Colegiado = permissao.NUCLEO) -> None:
     """O mesmo tratamento para o webhook e para a reconsulta."""
     if envio.get("situacao") == "enviado" and evento in EVENTOS_DE_ASSINATURA:
-        aplicar_assinatura(supabase, envio)
+        aplicar_assinatura(supabase, envio, colegiado=colegiado)
     elif envio.get("situacao") == "assinado" and (evento in EVENTOS_DE_ASSINATURA or evento == EVENTO_DOCUMENTO_PRONTO):
         _completar_carimbo(supabase, envio)
-        _guardar_documento_assinado(supabase, envio)
+        _guardar_documento_assinado(supabase, envio, colegiado)
     else:
         logger.info("Evento %r do Termo %s (%s) sem efeito", evento, envio.get("id"), envio.get("situacao"))
 
@@ -484,33 +509,40 @@ class AssinaturaIndisponivelError(Exception):
     """A assinatura eletrônica não respondeu à reconsulta."""
 
 
-def reconsultar(supabase, participacao: dict) -> dict | None:
+def reconsultar(supabase, participacao: dict, *, colegiado: Colegiado = permissao.NUCLEO) -> dict | None:
     """Pergunta à assinatura eletrônica como está o último envio e aplica o
     mesmo tratamento do retorno automático. None quando não há envio."""
-    envio = ultimo_envio(supabase, participacao["id"])
+    envio = ultimo_envio(supabase, participacao["id"], colegiado=colegiado)
     if not envio or not envio.get("envelope_id"):
         return None
     status = clicksign_service.get_envelope_status(envio["envelope_id"])
     if status is None:
         raise AssinaturaIndisponivelError()
     if status == "closed":
-        processar_evento(supabase, envio, "auto_close")
+        processar_evento(supabase, envio, "auto_close", colegiado=colegiado)
     return envio
 
 
-def novo_termo(supabase, participacao: dict, *, autor_id: str, acao: str = "termo_enviado") -> dict:
+def novo_termo(
+    supabase,
+    participacao: dict,
+    *,
+    autor_id: str,
+    acao: str = "termo_enviado",
+    colegiado: Colegiado = permissao.NUCLEO,
+) -> dict:
     """Cancela o envio aberto (o link antigo morre) e gera outro, com outro
     identificador. O retorno do envelope cancelado não muda mais nada.
 
     A assinatura anterior fica onde está: o membro que já era Ativo segue as
     regras de estado e de carência até assinar o novo (issue #1769)."""
-    for envio in envios_abertos(supabase, participacao["id"]):
+    for envio in envios_abertos(supabase, participacao["id"], colegiado=colegiado):
         if envio.get("envelope_id"):
             clicksign_service.cancel_envelope(envio["envelope_id"])
-        supabase.table("nsp_termos_envios").update({"situacao": "cancelado", "cancelado_em": _agora()}).eq(
+        supabase.table(colegiado.termos_envios).update({"situacao": "cancelado", "cancelado_em": _agora()}).eq(
             "id", envio["id"]
         ).execute()
-    return gerar_e_enviar_termo(supabase, participacao, autor_id=autor_id, acao=acao)
+    return gerar_e_enviar_termo(supabase, participacao, autor_id=autor_id, acao=acao, colegiado=colegiado)
 
 
 # Quem assina de novo quando o Regimento muda de conteúdo (anexo E da
@@ -518,7 +550,7 @@ def novo_termo(supabase, participacao: dict, *, autor_id: str, acao: str = "term
 ESTADOS_DA_REVISAO_MATERIAL = frozenset({"ativo", "a_vencer", "em_carencia"})
 
 
-def termos_da_revisao_material(supabase, *, autor_id: str) -> None:
+def termos_da_revisao_material(supabase, *, autor_id: str, colegiado: Colegiado = permissao.NUCLEO) -> None:
     """Novo Termo, com o Regimento que acabou de ser publicado, para cada
     membro em Ativo, A vencer e Em carência (issue #1769). Roda depois da
     resposta da publicação: falha num membro vai para o log e não impede os
@@ -526,8 +558,8 @@ def termos_da_revisao_material(supabase, *, autor_id: str) -> None:
     do documento: a ficha de quem falhou tem o reenvio, mesmo se tudo falhar
     antes do primeiro membro."""
     try:
-        nucleo_id = permissao.id_do_nucleo(supabase)
-        if not nucleo_id:
+        colegiado_id = colegiados.id_do_colegiado(supabase, colegiado)
+        if not colegiado_id:
             return
         hoje = permissao.hoje_em_sao_paulo()
         participacoes = ler_tudo(
@@ -537,11 +569,11 @@ def termos_da_revisao_material(supabase, *, autor_id: str) -> None:
                     "id, participante_id, papel, area, vigencia_inicio, vigencia_fim, encerrada_em, "
                     "termo_gerado_em, termo_enviado_em, termo_assinado_em"
                 )
-                .eq("colegiado_id", nucleo_id)
+                .eq("colegiado_id", colegiado_id)
                 .is_("encerrada_em", "null")
                 .order("id")
             ),
-            rotulo="participações do Núcleo",
+            rotulo=f"participações do {colegiado.nome}",
         )
     except Exception:  # noqa: BLE001 (depois da resposta: o log e o reenvio da ficha)
         logger.exception("Termos da revisão do Regimento não gerados: a leitura dos membros falhou")
@@ -550,16 +582,16 @@ def termos_da_revisao_material(supabase, *, autor_id: str) -> None:
         if estado_do_membro(participacao, hoje) not in ESTADOS_DA_REVISAO_MATERIAL:
             continue
         try:
-            novo_termo(supabase, participacao, autor_id=autor_id)
+            novo_termo(supabase, participacao, autor_id=autor_id, colegiado=colegiado)
         except TermoNaoGeradoError as erro:
             logger.warning("Termo da revisão do Regimento não gerado para %s: %s", participacao["id"], erro)
         except Exception:  # noqa: BLE001 (um membro não segura os outros)
             logger.exception("Termo da revisão do Regimento falhou para %s", participacao["id"])
 
 
-def reenviar_termo(supabase, participacao: dict, *, autor_id: str) -> dict:
+def reenviar_termo(supabase, participacao: dict, *, autor_id: str, colegiado: Colegiado = permissao.NUCLEO) -> dict:
     """O reenvio da ficha: outro documento, com outro identificador."""
-    return novo_termo(supabase, participacao, autor_id=autor_id, acao="termo_reenviado")
+    return novo_termo(supabase, participacao, autor_id=autor_id, acao="termo_reenviado", colegiado=colegiado)
 
 
 def liberar(supabase, participacao: dict, *, autor_id: str, justificativa: str) -> None:
@@ -570,7 +602,7 @@ def liberar(supabase, participacao: dict, *, autor_id: str, justificativa: str) 
     _trilha(supabase, participacao["id"], autor_id, "liberacao_manual", valor_novo=agora, motivo=justificativa)
 
 
-def link_do_documento(supabase, envio: dict | None) -> str | None:
+def link_do_documento(supabase, envio: dict | None, *, colegiado: Colegiado = permissao.NUCLEO) -> str | None:
     if not envio or not envio.get("arquivo_path"):
         return None
-    return storage.signed_url(supabase, _bucket(), envio["arquivo_path"], VALIDADE_DO_LINK)
+    return storage.signed_url(supabase, _bucket(colegiado), envio["arquivo_path"], VALIDADE_DO_LINK)
