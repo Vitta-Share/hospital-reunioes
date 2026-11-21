@@ -23,16 +23,17 @@ import { LegendasProvider } from "@/components/ui/Legenda";
 import { ToastProvider } from "@/components/ui/Toast";
 import { caixaDoDado } from "@/lib/testes/caixaDoDado";
 import type { Guia, LinhaGuia } from "@/lib/contas-medicas/guia";
+import { LEGENDA_DO_AUDITOR, LEGENDA_DO_SO_O_QUE_FALTA } from "@/lib/contas-medicas/textos";
 
 import GuiaPage from "./page";
 
 const CONTA = "11111111-1111-1111-1111-111111111111";
 const PROXIMA = "22222222-2222-2222-2222-222222222222";
 
-const navegacao = vi.hoisted(() => ({ push: vi.fn() }));
+const navegacao = vi.hoisted(() => ({ push: vi.fn(), contaId: "11111111-1111-1111-1111-111111111111" }));
 
 vi.mock("next/navigation", () => ({
-  useParams: () => ({ contaId: "11111111-1111-1111-1111-111111111111" }),
+  useParams: () => ({ contaId: navegacao.contaId }),
   useRouter: () => ({ push: navegacao.push }),
 }));
 
@@ -148,6 +149,22 @@ function guia(campos: Partial<Guia> = {}): Guia {
   };
 }
 
+/** O Faltou isto que o servidor devolve ao perguntar, com a resposta do Auditor. */
+function apontamentoDoTeste(corpo: { data: string; item: string }) {
+  return {
+    id: "f-1",
+    data: corpo.data,
+    item: corpo.item,
+    pagina: null,
+    texto: null,
+    origem: "PESSOA",
+    classificacao: "REGRA",
+    explicacao: "Nenhuma regra da memória cobra este item.",
+    pedido_aberto: false,
+    pode_abrir_pedido: false,
+  };
+}
+
 let chamadas: { url: string; metodo: string; corpo: unknown }[] = [];
 let respostaDoGuia: Guia;
 let respostaDaConclusao: Record<string, unknown>;
@@ -157,6 +174,7 @@ beforeEach(() => {
   respostaDoGuia = guia();
   respostaDaConclusao = { situacao: "CONCLUIDA_COM_PENDENCIA", pendencias: 3, proxima_conta_id: PROXIMA };
   navegacao.push.mockReset();
+  navegacao.contaId = CONTA;
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
@@ -166,6 +184,8 @@ beforeEach(() => {
       chamadas.push({ url, metodo, corpo: corpoEnviado });
       const corpo = url.endsWith("/concluir")
         ? respostaDaConclusao
+        : url.endsWith("/faltou-isto")
+          ? { apontamento: apontamentoDoTeste(corpoEnviado as { data: string; item: string }) }
         : url.endsWith("/reenvio")
           ? { nota_saida: 86, corrigidas: 2, ainda_na_conta: 1, linhas: {} }
         : metodo === "GET"
@@ -645,13 +665,14 @@ describe("o cabeçalho de cada dia da lista", () => {
     expect(screen.getAllByRole("button", { name: "Faltou isto" })).toHaveLength(2);
   });
 
-  it("o Faltou isto leva o dia para a conversa com o Auditor, que oferece todos os dias do período", async () => {
+  it("o Faltou isto abre o painel do Auditor com o dia escolhido, e ele oferece todos os dias do período", async () => {
     await abrir();
+    expect(screen.queryByRole("dialog", { name: "Falar com o auditor" })).toBeNull();
 
     const dia = within(aLista()).getByRole("region", { name: "04/10 · ENFERMARIA" });
     fireEvent.click(within(dia).getByRole("button", { name: "Faltou isto" }));
 
-    const conversa = screen.getByRole("region", { name: "Falar com o auditor" });
+    const conversa = screen.getByRole("dialog", { name: "Falar com o auditor" });
     await waitFor(() =>
       expect((within(conversa).getByLabelText("Dia") as HTMLSelectElement).value).toBe("2026-10-04"),
     );
@@ -659,6 +680,163 @@ describe("o cabeçalho de cada dia da lista", () => {
       .getAllByRole("option")
       .map((opcao) => opcao.textContent);
     expect(dias).toEqual(["03/10", "04/10", "05/10", "06/10", "07/10"]);
+  });
+});
+
+describe("Só o que falta (issue #1957)", () => {
+  /** Um dia com uma marcada e uma aberta, outro com uma marcada e a Validar, e um dia todo marcado. */
+  function guiaComMarcadas(): Guia {
+    const base = guia();
+    base.grupos[0].linhas[0] = linha({ estado: "FEITO" });
+    base.grupos[1].linhas[0] = linha({
+      id: "l-fita",
+      data: "2026-10-04",
+      setor: "ENFERMARIA",
+      descricao: "Fita de glicemia",
+      estado: "NAO_PROCEDE",
+    });
+    base.grupos.push({
+      data: "2026-10-05",
+      setor: "CTI",
+      linhas: [linha({ id: "l-gaze", data: "2026-10-05", descricao: "Gaze estéril", estado: "BLOQUEADO" })],
+    });
+    return base;
+  }
+
+  function oInterruptor() {
+    return within(aLista()).getByRole("switch", { name: "Só o que falta" });
+  }
+
+  it("ligado, mostra só as abertas e as em validação, com a contagem do dia inteiro, e o dia sem aberta some", async () => {
+    respostaDoGuia = guiaComMarcadas();
+    await abrir();
+    expect(naLista("Luva de procedimento")).toBeTruthy();
+    expect(naLista("Fita de glicemia")).toBeTruthy();
+    expect(within(aLista()).getByRole("region", { name: "05/10 · CTI" })).toBeTruthy();
+    expect(oInterruptor().getAttribute("aria-checked")).toBe("false");
+
+    fireEvent.click(oInterruptor());
+
+    expect(oInterruptor().getAttribute("aria-checked")).toBe("true");
+    const nomes = within(aLista())
+      .getAllByRole("listitem")
+      .map((item) => item.textContent ?? "");
+    expect(nomes).toHaveLength(2);
+    expect(nomes[0]).toContain("Lavagem de sonda");
+    expect(nomes[1]).toContain("Dieta enteral");
+    expect(within(within(aLista()).getByRole("region", { name: "03/10 · CTI" })).getByText("2 itens")).toBeTruthy();
+    expect(
+      within(within(aLista()).getByRole("region", { name: "04/10 · ENFERMARIA" })).getByText("2 itens"),
+    ).toBeTruthy();
+    expect(within(aLista()).queryByRole("region", { name: "05/10 · CTI" })).toBeNull();
+  });
+
+  it("desfazer uma marcação com o interruptor ligado traz a Linha de volta", async () => {
+    respostaDoGuia = guiaComMarcadas();
+    await abrir();
+    fireEvent.click(naLista("Luva de procedimento"));
+    fireEvent.click(oInterruptor());
+    expect(within(aLista()).queryByRole("button", { name: /Luva de procedimento/ })).toBeNull();
+    respostaDoGuia = guiaComMarcadas();
+    respostaDoGuia.grupos[0].linhas[0] = linha({});
+
+    fireEvent.click(within(oItem()).getByRole("button", { name: "Desfazer" }));
+
+    await waitFor(() => expect(naLista("Luva de procedimento")).toBeTruthy());
+    expect(oInterruptor().getAttribute("aria-checked")).toBe("true");
+    expect(within(aLista()).queryByRole("button", { name: /Fita de glicemia/ })).toBeNull();
+  });
+
+  it("a escolha vale para a conta aberta; a próxima conta abre com a lista inteira", async () => {
+    respostaDoGuia = guiaComMarcadas();
+    const arvore = () => (
+      <LegendasProvider chave="teste-legendas" ligadasIniciais>
+        <ToastProvider>
+          <GuiaPage />
+        </ToastProvider>
+      </LegendasProvider>
+    );
+    const { rerender } = render(arvore());
+    await screen.findByRole("heading", { level: 1, name: "31245 Maria S." });
+    fireEvent.click(oInterruptor());
+    fireEvent.click(naLista("Lavagem de sonda"));
+    expect(within(aLista()).queryByRole("button", { name: /Luva de procedimento/ })).toBeNull();
+    expect(oInterruptor().getAttribute("aria-checked")).toBe("true");
+
+    navegacao.contaId = PROXIMA;
+    rerender(arvore());
+
+    await waitFor(() => expect(chamadas.at(-1)?.url).toBe(`/api/contas-medicas/contas/${PROXIMA}/guia`));
+    await waitFor(() => expect(naLista("Luva de procedimento")).toBeTruthy());
+    expect(oInterruptor().getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("o interruptor tem a Legenda, que some com as Legendas desligadas", async () => {
+    await abrir();
+    expect(within(aLista()).getByText(LEGENDA_DO_SO_O_QUE_FALTA)).toBeTruthy();
+    cleanup();
+
+    await abrir(false);
+    expect(oInterruptor()).toBeTruthy();
+    expect(within(aLista()).queryByText(LEGENDA_DO_SO_O_QUE_FALTA)).toBeNull();
+  });
+});
+
+describe("o Auditor em painel lateral (issue #1957)", () => {
+  function oPainel() {
+    return screen.getByRole("dialog", { name: "Falar com o auditor" });
+  }
+
+  it("Falar com o auditor no cabeçalho abre a conversa no painel; fechar e abrir de novo mantém as mensagens", async () => {
+    await abrir();
+    expect(screen.queryByRole("dialog", { name: "Falar com o auditor" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Falar com o auditor" }));
+    fireEvent.change(within(oPainel()).getByLabelText("Item que faltou"), { target: { value: "Equipo macrogotas" } });
+    fireEvent.click(within(oPainel()).getByRole("button", { name: "Perguntar ao auditor" }));
+    expect(await within(oPainel()).findByText("Nenhuma regra da memória cobra este item.")).toBeTruthy();
+    expect(chamadas.at(-1)).toEqual({
+      url: `/api/contas-medicas/contas/${CONTA}/guia/faltou-isto`,
+      metodo: "POST",
+      corpo: { data: "2026-10-03", item: "Equipo macrogotas", pagina: null, texto: null },
+    });
+
+    fireEvent.click(within(oPainel()).getByRole("button", { name: "Fechar a conversa" }));
+    expect(screen.queryByRole("dialog", { name: "Falar com o auditor" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Falar com o auditor" }));
+
+    expect(within(oPainel()).getByText("Nenhuma regra da memória cobra este item.")).toBeTruthy();
+  });
+
+  it("o Esc fecha o painel", async () => {
+    await abrir();
+    fireEvent.click(screen.getByRole("button", { name: "Falar com o auditor" }));
+    expect(oPainel()).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog", { name: "Falar com o auditor" })).toBeNull();
+  });
+
+  it("com o painel aberto, a página guarda o lugar dele a partir de 1600 px e o Item da vez fica à vista", async () => {
+    await abrir();
+    const RESERVA = "min-[1600px]:pr-[24rem]";
+    expect(screen.getByTestId("guia").className.split(" ")).not.toContain(RESERVA);
+
+    fireEvent.click(screen.getByRole("button", { name: "Falar com o auditor" }));
+
+    expect(screen.getByTestId("guia").className.split(" ")).toContain(RESERVA);
+    expect(oPainel().className.split(" ")).toContain("sm:w-96");
+  });
+
+  it("o botão do Auditor tem a Legenda, que some com as Legendas desligadas", async () => {
+    await abrir();
+    expect(screen.getByText(LEGENDA_DO_AUDITOR)).toBeTruthy();
+    cleanup();
+
+    await abrir(false);
+    expect(screen.getByRole("button", { name: "Falar com o auditor" })).toBeTruthy();
+    expect(screen.queryByText(LEGENDA_DO_AUDITOR)).toBeNull();
   });
 });
 

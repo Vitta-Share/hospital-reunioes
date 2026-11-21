@@ -3,7 +3,8 @@
  */
 
 /**
- * A conversa da Conta com o Auditor, no Guia (issue #1489, PRD #1484, ADR 0081).
+ * A conversa da Conta com o Auditor, no Guia (issue #1489, PRD #1484, ADR 0081),
+ * num painel lateral desde a issue #1957.
  *
  * A tela não decide nada: quem aponta, a origem e quem abre o pedido para a
  * Tecnologia vêm do servidor. O que se trava aqui é o que a pessoa vê (o nome
@@ -71,14 +72,25 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  fechar.mockReset();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
-function abrir(escolha: { dia: string; vez: number } | null = null) {
+const fechar = vi.fn();
+
+function abrir(escolha: { dia: string; vez: number } | null = null, aberta = true) {
   return render(
     <ToastProvider>
-      <ConversaDaConta contaId={CONTA} token="token-de-teste" dias={DIAS} iniciais={lista} escolha={escolha} />
+      <ConversaDaConta
+        contaId={CONTA}
+        token="token-de-teste"
+        dias={DIAS}
+        iniciais={lista}
+        escolha={escolha}
+        aberta={aberta}
+        onFechar={fechar}
+      />
     </ToastProvider>,
   );
 }
@@ -87,7 +99,7 @@ describe("a conversa com o Auditor", () => {
   it("chama o agente de Auditor e mostra a fala de quem apontou com a resposta e a origem", async () => {
     abrir();
 
-    const conversa = screen.getByRole("region", { name: "Falar com o auditor" });
+    const conversa = screen.getByRole("dialog", { name: "Falar com o auditor" });
     expect(within(conversa).getByRole("heading", { name: "Falar com o auditor" })).toBeTruthy();
     expect(
       await within(conversa).findByText(
@@ -182,5 +194,42 @@ describe("o pedido para a Tecnologia", () => {
 
     expect(await screen.findByText("O acesso está na página 2, mas o Guia não pediu o equipo.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Abrir o pedido para a Tecnologia" })).toBeNull();
+  });
+});
+
+describe("o painel lateral da conversa (issue #1957)", () => {
+  it("fechado, o painel não aparece; aberto, aparece com o título", async () => {
+    abrir(null, false);
+    expect(screen.queryByRole("dialog", { name: "Falar com o auditor" })).toBeNull();
+    cleanup();
+
+    abrir();
+    expect(screen.getByRole("dialog", { name: "Falar com o auditor" })).toBeTruthy();
+  });
+
+  it("fecha pelo botão e pelo Esc; fechado, o Esc não chama nada", async () => {
+    abrir();
+
+    fireEvent.click(screen.getByRole("button", { name: "Fechar a conversa" }));
+    expect(fechar).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(fechar).toHaveBeenCalledTimes(2);
+    cleanup();
+
+    abrir(null, false);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(fechar).toHaveBeenCalledTimes(2);
+  });
+
+  it("ocupa a tela inteira na largura estreita e fica numa coluna à direita a partir de 640 px, sem fundo escuro", async () => {
+    const { container } = abrir();
+
+    const painel = screen.getByRole("dialog", { name: "Falar com o auditor" });
+    const classes = painel.className.split(" ");
+    for (const classe of ["fixed", "inset-y-0", "right-0", "w-full", "sm:w-96", "overflow-y-auto"]) {
+      expect(classes).toContain(classe);
+    }
+    expect(painel.getAttribute("aria-modal")).toBe("false");
+    expect(container.querySelector(".bg-black\\/30")).toBeNull();
   });
 });
