@@ -59,7 +59,11 @@ beforeEach(() => {
         });
       }
       if (url === ROTA) return new Response(JSON.stringify({ versoes }), { status: 200 });
-      if (url.startsWith(`${ROTA}/arquivo`)) return new Response(new Blob(["%PDF-1.7"]), { status: 200 });
+      // Corpo em texto, não `new Blob`: sob jsdom o Blob global é o do jsdom, sem stream(), e o
+      // Response do Node 22 (o do CI) quebra com "object.stream is not a function".
+      if (url.startsWith(`${ROTA}/arquivo`)) {
+        return new Response("%PDF-1.7", { status: 200, headers: { "Content-Type": "application/pdf" } });
+      }
       return new Response("{}", { status: 404 });
     }),
   );
