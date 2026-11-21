@@ -174,3 +174,35 @@ def test_o_tambem_aceito_conta_como_acerto(caso):
     metas = _metas({caso: trocas[caso]})
     assert metas[REBAIXADOS]["bateu"] is True
     assert metas[LISTA]["bateu"] is True
+
+
+@pytest.mark.parametrize(
+    "caso, troca",
+    [
+        # N042: lesão por pressão estágio 3, item 8, faixa A pela lista; aceita dano leve.
+        (
+            "N042",
+            {
+                "grau_de_dano": "leve",
+                "faixa": "D",
+                "revisao": "campo_a_campo",
+                "evento_que_nunca_deveria_ocorrer": {"situacao": "possivel", "item": 8, "motivo": "Fronteira."},
+            },
+        ),
+        # N020: lado errado, item 24, faixa A pela lista; aceita dano leve.
+        (
+            "N020",
+            {
+                "grau_de_dano": "leve",
+                "faixa": "D",
+                "revisao": "confirmacao_simples",
+                "evento_que_nunca_deveria_ocorrer": {"situacao": "nao", "item": 0, "motivo": "-"},
+            },
+        ),
+    ],
+)
+def test_caso_a_pela_lista_com_dano_tambem_aceito_rebaixado_derruba_a_meta(caso, troca):
+    """O também aceito do dano não isenta a faixa A que vem do evento da lista."""
+    metas = _metas({caso: troca})
+    assert metas[REBAIXADOS]["bateu"] is False
+    assert caso in metas[REBAIXADOS]["resultado"]

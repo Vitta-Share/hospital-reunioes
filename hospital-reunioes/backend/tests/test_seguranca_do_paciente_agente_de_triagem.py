@@ -295,6 +295,21 @@ def test_o_nome_de_quem_notificou_sai_mesmo_fora_da_base_de_nomes():
     assert "viu a bomba alarmando" in texto
 
 
+@pytest.mark.parametrize("nome", ["Qxwurt dos Ykzzab", "Qxwurt das Ykzzab"])
+def test_o_conectivo_do_nome_de_quem_notificou_fica_no_relato(nome):
+    """Os conectivos "dos" e "das" do nome não viram [NOME] no resto do relato."""
+    linha = {
+        **NOTIFICACAO_IDENTIFICADA,
+        "relato": (f"Sou {nome}. A bomba dos dois pacientes das camas 3 e 4 ficou acima dos limites das prescrições."),
+        "notificante_nome": nome,
+        "notificante_contato": None,
+    }
+    texto = _texto_da_ia(linha)
+    for dado in ("qxwurt", "ykzzab"):
+        assert dado not in texto.lower(), dado
+    assert "A bomba dos dois pacientes das camas 3 e 4 ficou acima dos limites das prescrições." in texto
+
+
 def test_o_texto_da_ia_segue_o_formato_de_entrada_do_anexo_b():
     texto = _texto_da_ia(NOTIFICACAO_IDENTIFICADA)
     assert texto.startswith("<notificacao>\n") and texto.endswith("\n</notificacao>")

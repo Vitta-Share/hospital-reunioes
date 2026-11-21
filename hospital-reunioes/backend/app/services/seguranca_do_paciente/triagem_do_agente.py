@@ -193,6 +193,8 @@ _PERCEPCAO = {
 }
 # Palavra do nome com menos letras que isso ("da", "de") não sai do relato.
 _MENOR_PALAVRA_DO_NOME = 3
+# Conectivo do nome com três letras ou mais também não sai do relato.
+_CONECTIVOS_DO_NOME = {"das", "dos"}
 
 
 def _sem_quem_notificou(relato: str, nome: str | None, contato: str | None) -> str:
@@ -201,7 +203,7 @@ def _sem_quem_notificou(relato: str, nome: str | None, contato: str | None) -> s
     if contato and contato.strip():
         relato = re.sub(re.escape(contato.strip()), "[CONTATO]", relato, flags=re.IGNORECASE)
     for palavra in (nome or "").split():
-        if len(palavra) >= _MENOR_PALAVRA_DO_NOME:
+        if len(palavra) >= _MENOR_PALAVRA_DO_NOME and palavra.lower() not in _CONECTIVOS_DO_NOME:
             relato = re.sub(rf"\b{re.escape(palavra)}\b", "[NOME]", relato, flags=re.IGNORECASE)
     return relato
 

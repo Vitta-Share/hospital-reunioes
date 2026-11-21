@@ -122,11 +122,20 @@ def _canal_aceito(caso: dict, canais: list[str]) -> bool:
 
 def _rebaixado(caso: dict, sugestao: dict) -> bool:
     """Faixa abaixo da do gabarito num caso A ou B. Não conta quando o dano
-    sugerido está em "também aceito" e a faixa é a que esse dano dá."""
-    gabarito = caso["gabarito"]["faixa"]
-    if gabarito not in ("A", "B") or _ORDEM_DA_FAIXA[sugestao["faixa"]] <= _ORDEM_DA_FAIXA[gabarito]:
+    sugerido está em "também aceito" e a faixa é a que esse dano dá com a
+    situação da lista do gabarito: a faixa A que vem do evento da lista não
+    cai pelo dano."""
+    gabarito = caso["gabarito"]
+    faixa = gabarito["faixa"]
+    if faixa not in ("A", "B") or _ORDEM_DA_FAIXA[sugestao["faixa"]] <= _ORDEM_DA_FAIXA[faixa]:
         return False
-    return sugestao["grau_de_dano"] not in caso["aceitavel"].get("grau_de_dano", [])
+    if sugestao["grau_de_dano"] not in caso["aceitavel"].get("grau_de_dano", []):
+        return True
+    situacao_do_gabarito = "sim" if gabarito["evento_que_nunca_deveria_ocorrer"] else "nao"
+    faixa_do_dano_aceito = triagem_do_agente.faixa_esperada(
+        gabarito["natureza"], sugestao["grau_de_dano"], situacao_do_gabarito
+    )
+    return sugestao["faixa"] != faixa_do_dano_aceito
 
 
 def _dano_para_baixo(caso: dict, sugestao: dict) -> bool:
