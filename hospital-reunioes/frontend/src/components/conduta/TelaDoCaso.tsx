@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, Check, Loader2 } from "lucide-react";
 
+import { DepoimentosDaApuracao } from "@/components/conduta/DepoimentosDaApuracao";
 import { ImpedimentoECitados } from "@/components/conduta/ImpedimentoECitados";
 import { OQueFazerAgora } from "@/components/conduta/OQueFazerAgora";
 import { SinalizarAoNsp } from "@/components/conduta/SinalizarAoNsp";
@@ -300,6 +301,16 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
           </div>
         </div>
       )}
+
+      <DepoimentosDaApuracao
+        casoId={casoId}
+        depoimentos={caso.depoimentos ?? []}
+        emApuracao={caso.etapa === "apuracao" && !encerrado}
+        bloqueioDoAvanco={caso.avanco_da_apuracao ?? null}
+        adicionando={passo === "adicionar_pessoa"}
+        aoFecharAdicionar={() => setPasso(null)}
+        aoMudar={carregar}
+      />
 
       {caso.triagem_em && (
         <section aria-label="Triagem" className={`${CARTAO} px-4 py-4 space-y-1`}>
