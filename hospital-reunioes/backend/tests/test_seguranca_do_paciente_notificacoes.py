@@ -72,6 +72,7 @@ class _Consulta:
         self._filtros: list = []
         self._ordem: tuple[str, bool] | None = None
         self._teto: int | None = None
+        self._faixa: tuple[int, int] | None = None
         self._acao = "select"
         self._valores: Any = None
 
@@ -111,6 +112,10 @@ class _Consulta:
         self._teto = n
         return self
 
+    def range(self, inicio, fim):
+        self._faixa = (inicio, fim)
+        return self
+
     def execute(self):
         if self._acao == "insert":
             self._banco.escritas.append((self._nome, self._valores))
@@ -125,6 +130,9 @@ class _Consulta:
         if self._ordem:
             coluna, desc = self._ordem
             casam.sort(key=lambda linha: str(linha.get(coluna)), reverse=desc)
+        if self._faixa is not None:
+            # Como o PostgREST: as duas pontas entram.
+            casam = casam[self._faixa[0] : self._faixa[1] + 1]
         return SimpleNamespace(data=casam[: self._teto] if self._teto is not None else casam)
 
     def _inserir(self) -> list[dict]:
@@ -610,6 +618,23 @@ def test_o_membro_com_termo_ve_os_casos_sem_quem_notificou():
         assert "anonimo" not in caso
 
 
+def test_a_lista_traz_todos_os_casos_alem_de_uma_pagina(monkeypatch):
+    """A tela diz "toda notificação que chegou ao Núcleo": a lista não pode
+    parar no tamanho de uma página do banco e esconder as mais antigas."""
+    from app.services.seguranca_do_paciente import notificacoes as servico
+
+    monkeypatch.setattr(servico, "TAMANHO_DA_PAGINA", 2)
+    banco = _banco()
+    for _ in range(5):
+        _notificar(banco, ANONIMO)
+
+    resposta = _cliente(banco, PRESIDENTE).get(LISTA)
+
+    assert resposta.status_code == 200, resposta.text
+    protocolos = sorted(c["protocolo"] for c in resposta.json()["notificacoes"])
+    assert protocolos == [f"NSP-{ANO}-{n:04d}" for n in range(1, 6)]
+
+
 @pytest.mark.parametrize(
     "pessoa",
     [SUPER_ADMIN, SO_REUNIOES, DIRETOR],
@@ -627,15 +652,32 @@ def test_quem_nao_tem_o_recurso_de_casos_recebe_recusa(pessoa):
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-def test_envio_repetido_do_mesmo_aparelho_acima_do_limite_e_recusado():
+# Sem o IP (ADR 0107, decisão 6), a conta é por rede: os computadores e o
+# Wi-Fi do hospital saem pelo mesmo endereço, e o TestClient também manda
+# tudo de um endereço só. O teto da rede precisa caber no hospital inteiro.
+TETO_DA_REDE_POR_MINUTO = 30
+
+
+def test_envio_repetido_da_mesma_rede_acima_do_teto_e_recusado():
     banco = _banco()
     cliente = _cliente(banco)
 
-    respostas = [cliente.post(PUBLICO, json={**ANONIMO, "origem": "qr"}) for _ in range(6)]
+    respostas = [cliente.post(PUBLICO, json={**ANONIMO, "origem": "qr"}) for _ in range(TETO_DA_REDE_POR_MINUTO + 1)]
 
-    assert [r.status_code for r in respostas[:5]] == [201] * 5
-    assert respostas[5].status_code == 429
-    assert len(banco.notificacoes) == 5
+    assert [r.status_code for r in respostas[:-1]] == [201] * TETO_DA_REDE_POR_MINUTO
+    assert respostas[-1].status_code == 429
+    assert len(banco.notificacoes) == TETO_DA_REDE_POR_MINUTO
+
+
+def test_vinte_envios_da_rede_do_hospital_nao_fecham_o_canal():
+    """Antes o teto era 20 por hora para o endereço, e o hospital inteiro sai
+    por um endereço só: vinte envios de qualquer pessoa fechavam o canal."""
+    banco = _banco()
+    cliente = _cliente(banco)
+
+    respostas = [cliente.post(PUBLICO, json={**ANONIMO, "origem": "endereco"}) for _ in range(21)]
+
+    assert [r.status_code for r in respostas] == [201] * 21
 
 
 def test_o_botao_do_modulo_tambem_tem_limite():
@@ -648,17 +690,44 @@ def test_o_botao_do_modulo_tambem_tem_limite():
     assert len(banco.notificacoes) == 5
 
 
+def test_o_botao_do_modulo_conta_por_pessoa_e_nao_pela_rede():
+    """Duas pessoas no mesmo computador do hospital: o limite de uma não
+    recusa a outra."""
+    banco = _banco()
+    for _ in range(5):
+        assert _cliente(banco, SO_REUNIOES).post(PELO_MODULO, json=ANONIMO).status_code == 201
+    assert _cliente(banco, SO_REUNIOES).post(PELO_MODULO, json=ANONIMO).status_code == 429
+
+    resposta = _cliente(banco, MEMBRO).post(PELO_MODULO, json=ANONIMO)
+
+    assert resposta.status_code == 201, resposta.text
+
+
+def test_a_porta_publica_esgotada_nao_fecha_o_botao_do_modulo():
+    """Quem esgota o teto das portas sem login não tranca quem está logado."""
+    banco = _banco()
+    publico = _cliente(banco)
+    for _ in range(TETO_DA_REDE_POR_MINUTO):
+        publico.post(PUBLICO, json={**ANONIMO, "origem": "qr"})
+    assert publico.post(PUBLICO, json={**ANONIMO, "origem": "qr"}).status_code == 429
+
+    resposta = _cliente(banco, SO_REUNIOES).post(PELO_MODULO, json=ANONIMO)
+
+    assert resposta.status_code == 201, resposta.text
+
+
 def test_tentar_adivinhar_o_codigo_tambem_tem_limite():
     banco = _banco()
     recibo = _notificar(banco, ANONIMO)
     cliente = _cliente(banco)
 
     respostas = [
-        cliente.post(ACOMPANHAMENTO, json={"protocolo": recibo["protocolo"], "codigo": f"AAAAA-BBBB{n}"})
-        for n in range(6)
+        cliente.post(ACOMPANHAMENTO, json={"protocolo": recibo["protocolo"], "codigo": f"AAAAA-BBB{n:02d}"})
+        for n in range(TETO_DA_REDE_POR_MINUTO + 1)
     ]
 
-    assert respostas[5].status_code == 429
+    assert respostas[-2].status_code == 404
+    assert respostas[-1].status_code == 429
 
 
 def test_as_rotas_sem_login_saem_do_log_sem_endereco():

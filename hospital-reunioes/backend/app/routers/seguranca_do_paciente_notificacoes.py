@@ -8,8 +8,9 @@ Três portas para o mesmo formulário, e a origem vem da porta:
   módulo, que todo usuário logado vê. A identificação vem da sessão.
 
 As rotas de envio e a de acompanhamento usam o limite sem IP (ADR 0107,
-decisão 6): a conta é por aparelho, com chave embaralhada, e a linha do log
+decisão 6): a conta é pelo endereço, com chave embaralhada, e a linha do log
 sai sem endereço. Nada aqui lê IP ou identificador do aparelho para gravar.
+O botão do módulo conta também por pessoa (`LIMITE_POR_PESSOA`).
 """
 
 from __future__ import annotations
@@ -32,6 +33,7 @@ from app.dependencies import (
     get_supabase_client,
     require_recurso_nsp,
 )
+from app.limiter import limiter
 from app.services import limite_sem_ip
 from app.services.seguranca_do_paciente import notificacoes
 from app.services.seguranca_do_paciente.permissao import hoje_em_sao_paulo
@@ -40,7 +42,14 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/nsp", tags=["seguranca-do-paciente"])
 
-LIMITE_DE_ENVIOS = "5/minute;20/hour"
+# A conta do limite sem IP é por endereço, e o endereço é o da rede: os
+# computadores e o Wi-Fi do hospital saem por um só, como os celulares de uma
+# mesma operadora. O teto da rede precisa caber no hospital inteiro, senão
+# quem esgota a conta fecha o canal para todos. Cada rota tem a sua conta:
+# esgotar as portas sem login não fecha o botão do módulo.
+LIMITE_DA_REDE = "30/minute;300/hour"
+# O botão do módulo sabe quem está logado e conta por pessoa.
+LIMITE_POR_PESSOA = "5/minute;20/hour"
 
 SETOR_INVALIDO = "Escolha o setor na lista."
 FALHA_AO_REGISTRAR = "Não foi possível registrar a notificação agora. Tente de novo em instantes."
@@ -107,7 +116,7 @@ def _setor_ativo(supabase, setor_id: str) -> bool:
     return bool(linhas)
 
 
-def _registrar(supabase, envio: RelatoDoIncidente, **identificacao) -> dict:
+def _gravar_notificacao(supabase, envio: RelatoDoIncidente, **identificacao) -> dict:
     try:
         if not _setor_ativo(supabase, str(envio.setor_id)):
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=SETOR_INVALIDO)
@@ -121,17 +130,18 @@ def _registrar(supabase, envio: RelatoDoIncidente, **identificacao) -> dict:
 
 
 @router.post("/publico/notificacoes", status_code=status.HTTP_201_CREATED)
-@limite_sem_ip.limitar(LIMITE_DE_ENVIOS)
+@limite_sem_ip.limitar(LIMITE_DA_REDE)
 async def notificar_sem_login(
     request: Request,
     envio: EnvioPublico,
     supabase: Client = Depends(get_supabase_client),
 ) -> dict:
     """O formulário público, pelo QR ou pelo endereço."""
-    return _registrar(supabase, envio, origem=envio.origem, nome=envio.nome, contato=envio.contato)
+    return _gravar_notificacao(supabase, envio, origem=envio.origem, nome=envio.nome, contato=envio.contato)
 
 
 async def _quem_esta_logado(
+    request: Request,
     current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase_client),
 ) -> dict:
@@ -141,11 +151,19 @@ async def _quem_esta_logado(
     barrar_desligado(me)
     if not me:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cadastro não encontrado.")
+    # O limitador roda depois das dependências e conta por esta pessoa.
+    request.state.nsp_notificante_id = str(me["id"])
     return me
 
 
+def _chave_da_pessoa(request: Request) -> str:
+    """A conta do botão do módulo: quem está logado, e não a rede."""
+    return "nsp-pessoa:" + request.state.nsp_notificante_id
+
+
 @router.post("/notificacoes", status_code=status.HTTP_201_CREATED)
-@limite_sem_ip.limitar(LIMITE_DE_ENVIOS)
+@limite_sem_ip.limitar(LIMITE_DA_REDE)
+@limiter.limit(LIMITE_POR_PESSOA, key_func=_chave_da_pessoa)
 async def notificar_pelo_modulo(
     request: Request,
     envio: RelatoDoIncidente,
@@ -154,7 +172,7 @@ async def notificar_pelo_modulo(
 ) -> dict:
     """O botão "Notificar incidente" do módulo: a identificação vem da sessão,
     e não do que a tela mandar."""
-    return _registrar(
+    return _gravar_notificacao(
         supabase,
         envio,
         origem=notificacoes.ORIGEM_MODULO,
@@ -188,14 +206,14 @@ NAO_ENCONTRADA = (
 
 
 @router.post("/publico/acompanhamento")
-@limite_sem_ip.limitar(LIMITE_DE_ENVIOS)
+@limite_sem_ip.limitar(LIMITE_DA_REDE)
 async def acompanhar_notificacao(
     request: Request,
     consulta: ConsultaDeAcompanhamento,
     supabase: Client = Depends(get_supabase_client),
 ) -> dict:
     """A página de acompanhamento: só o estado, em palavras simples. O limite
-    por aparelho segura quem tenta adivinhar o código."""
+    da rede segura quem tenta adivinhar o código (dez símbolos)."""
     try:
         situacao = notificacoes.consultar(supabase, consulta.protocolo, consulta.codigo, consulta.contato)
     except (APIError, httpx.HTTPError) as erro:

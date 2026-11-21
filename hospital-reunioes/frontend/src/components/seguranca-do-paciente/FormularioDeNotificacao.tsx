@@ -184,7 +184,15 @@ interface Props {
   identificacao?: { nome: string; contato: string } | null;
 }
 
-const RECUSA_POR_EXCESSO = "Recebemos muitos envios deste aparelho agora há pouco. Aguarde um minuto e tente de novo.";
+// O limite sem login conta pela rede (os computadores e o Wi-Fi do hospital
+// saem por uma só), e o teto estourado pode ser o da hora: a recusa não culpa
+// o aparelho nem promete um minuto. O botão do módulo conta por pessoa.
+const RECUSA_POR_EXCESSO_DA_REDE =
+  "Recebemos muitos envios desta rede agora há pouco. Tente de novo mais tarde, o seu relato continua aqui. Se você tem login no app do hospital, pode notificar pelo botão Notificar incidente.";
+const RECUSA_POR_EXCESSO_DA_PESSOA =
+  "Recebemos muitos envios seus agora há pouco. Tente de novo mais tarde, o seu relato continua aqui.";
+const FALHA_DOS_SETORES =
+  "Não foi possível carregar a lista de setores. Verifique sua conexão e tente de novo.";
 const FALHA_DO_SERVIDOR = "Não foi possível registrar a notificação agora. Tente novamente em instantes.";
 const FALHA_DA_CONEXAO = "Não foi possível falar com o hospital agora. Verifique sua conexão e tente de novo.";
 
@@ -218,6 +226,9 @@ export function FormularioDeNotificacao({ porta, identificacao = null }: Props) 
     contato: "",
   });
   const [setores, setSetores] = useState<Setor[]>([]);
+  // Sem a lista, o Setor (obrigatório) trava o Continuar: a tela tem que dizer.
+  const [falhaDosSetores, setFalhaDosSetores] = useState(false);
+  const [tentativaDosSetores, setTentativaDosSetores] = useState(0);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [recibo, setRecibo] = useState<Recibo | null>(null);
@@ -231,15 +242,18 @@ export function FormularioDeNotificacao({ porta, identificacao = null }: Props) 
     fetch("/api/nsp/publico/setores")
       .then((res) => (res.ok ? res.json() : null))
       .then((corpo) => {
-        if (vivo) setSetores(Array.isArray(corpo?.setores) ? corpo.setores : []);
+        if (!vivo) return;
+        const lista = Array.isArray(corpo?.setores) ? corpo.setores : null;
+        setSetores(lista ?? []);
+        setFalhaDosSetores(lista === null);
       })
       .catch(() => {
-        if (vivo) setSetores([]);
+        if (vivo) setFalhaDosSetores(true);
       });
     return () => {
       vivo = false;
     };
-  }, []);
+  }, [tentativaDosSetores]);
 
   // Leva o foco ao título da tela nova: quem usa leitor de tela ouve onde está.
   const titulo = useRef<HTMLHeadingElement>(null);
@@ -262,7 +276,7 @@ export function FormularioDeNotificacao({ porta, identificacao = null }: Props) 
     try {
       const res = await enviar(porta, montarEnvio(form, porta));
       if (res.status === 429) {
-        setErro(RECUSA_POR_EXCESSO);
+        setErro(porta === "modulo" ? RECUSA_POR_EXCESSO_DA_PESSOA : RECUSA_POR_EXCESSO_DA_REDE);
         return;
       }
       if (!res.ok) {
@@ -333,6 +347,24 @@ export function FormularioDeNotificacao({ porta, identificacao = null }: Props) 
 
       {tela === 2 && (
         <div className="space-y-4">
+          {falhaDosSetores && (
+            <div role="alert" className="space-y-2 rounded-xl bg-red-50 border border-red-200 px-3 py-3">
+              <div className="flex gap-2 items-start">
+                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-red-600" aria-hidden />
+                <p className="text-sm text-red-700">{FALHA_DOS_SETORES}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setFalhaDosSetores(false);
+                  setTentativaDosSetores((n) => n + 1);
+                }}
+                className={BOTAO_SECUNDARIO + " w-full"}
+              >
+                Carregar os setores de novo
+              </button>
+            </div>
+          )}
           <div className="space-y-1.5">
             <label htmlFor="nsp-setor" className={`etiqueta ${ROTULO}`}>
               Setor

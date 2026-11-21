@@ -127,21 +127,40 @@ _CAMPOS_DA_LISTA = (
     "hora_aproximada, chegou_ao_paciente, grave_ou_morte, percebido_ou_reclamacao, criado_em, "
     "anonimo, notificante_nome, notificante_contato"
 )
-LIMITE_DA_LISTA = 500
+# Abaixo do teto de linhas por resposta do PostgREST (1000 no Supabase).
+TAMANHO_DA_PAGINA = 500
+
+
+def _todas_as_linhas(supabase) -> list[dict[str, Any]]:
+    """Toda notificação, página a página: a tela promete todos os casos, e uma
+    consulta só pararia no teto do PostgREST sem avisar. Um caso que chegue no
+    meio empurra os outros uma posição; o id descarta a repetição."""
+    linhas: list[dict[str, Any]] = []
+    vistas: set[str] = set()
+    inicio = 0
+    while True:
+        pagina = (
+            supabase.table("nsp_notificacoes")
+            .select(_CAMPOS_DA_LISTA)
+            .order("criado_em", desc=True)
+            .order("numero", desc=True)
+            .range(inicio, inicio + TAMANHO_DA_PAGINA - 1)
+            .execute()
+            .data
+        ) or []
+        for linha in pagina:
+            if linha["id"] not in vistas:
+                vistas.add(linha["id"])
+                linhas.append(linha)
+        if len(pagina) < TAMANHO_DA_PAGINA:
+            return linhas
+        inicio += TAMANHO_DA_PAGINA
 
 
 def listar(supabase, *, com_identidade: bool) -> list[dict[str, Any]]:
-    """Os casos, do mais novo ao mais velho. A identidade de quem notificou só
-    entra quando `com_identidade` (Presidência e Acesso pleno)."""
-    linhas = (
-        supabase.table("nsp_notificacoes")
-        .select(_CAMPOS_DA_LISTA)
-        .order("criado_em", desc=True)
-        .order("numero", desc=True)
-        .limit(LIMITE_DA_LISTA)
-        .execute()
-        .data
-    ) or []
+    """Todos os casos, do mais novo ao mais velho. A identidade de quem
+    notificou só entra quando `com_identidade` (Presidência e Acesso pleno)."""
+    linhas = _todas_as_linhas(supabase)
     setor_ids = sorted({linha["setor_id"] for linha in linhas if linha.get("setor_id")})
     setores = (
         {s["id"]: s["nome"] for s in supabase.table("setores").select("id, nome").in_("id", setor_ids).execute().data}

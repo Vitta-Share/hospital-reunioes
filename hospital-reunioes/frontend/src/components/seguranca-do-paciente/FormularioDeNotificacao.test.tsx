@@ -32,6 +32,8 @@ interface Chamada {
 }
 
 let chamadas: Chamada[] = [];
+/** Quantas vezes a lista de setores ainda falha antes de responder. */
+let falhasDosSetores = 0;
 let respostaDoEnvio: { status: number; corpo: unknown } = {
   status: 201,
   corpo: { protocolo: "NSP-2026-0007", criado_em: "2026-11-20T10:00:00+00:00" },
@@ -39,6 +41,7 @@ let respostaDoEnvio: { status: number; corpo: unknown } = {
 
 beforeEach(() => {
   chamadas = [];
+  falhasDosSetores = 0;
   respostaDoEnvio = { status: 201, corpo: { protocolo: "NSP-2026-0007", criado_em: "2026-11-20T10:00:00+00:00" } };
   vi.stubGlobal(
     "fetch",
@@ -51,6 +54,10 @@ beforeEach(() => {
         autorizacao: cabecalhos.get("Authorization"),
       });
       if (url === "/api/nsp/publico/setores") {
+        if (falhasDosSetores > 0) {
+          falhasDosSetores -= 1;
+          return { ok: false, status: 503, json: async () => ({ detail: "fora do ar" }) } as Response;
+        }
         return {
           ok: true,
           status: 200,
@@ -239,13 +246,75 @@ describe("a origem vem da porta", () => {
 });
 
 describe("a recusa do servidor", () => {
-  it("muitos envios do mesmo aparelho pedem para esperar", async () => {
+  it("sem login, muitos envios da rede pedem para tentar mais tarde e apontam o botão do módulo", async () => {
     respostaDoEnvio = { status: 429, corpo: { error: "Rate limit exceeded" } };
     render(<FormularioDeNotificacao porta="endereco" />);
     await preencherAteAIdentificacao();
     fireEvent.click(botao("Sem me identificar"));
     fireEvent.click(botao("Enviar notificação"));
 
-    await waitFor(() => expect(screen.getByRole("alert").textContent).toMatch(/muitos envios deste aparelho/));
+    await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
+    const aviso = screen.getByRole("alert").textContent ?? "";
+    // A conta é da rede inteira, e o teto pode ser o da hora: nada de
+    // "deste aparelho" nem de "um minuto".
+    expect(aviso).toMatch(/muitos envios desta rede/);
+    expect(aviso).toMatch(/Tente de novo mais tarde/);
+    expect(aviso).toMatch(/Notificar incidente/);
+    expect(aviso).not.toMatch(/aparelho|um minuto/);
+  });
+
+  it("pelo módulo, a recusa não fala da rede nem de um minuto", async () => {
+    respostaDoEnvio = { status: 429, corpo: { error: "Rate limit exceeded" } };
+    render(<FormularioDeNotificacao porta="modulo" identificacao={{ nome: "Pessoa de Teste", contato: "p@hsm.test" }} />);
+    await preencherAteAIdentificacao();
+    fireEvent.click(botao("Enviar notificação"));
+
+    await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
+    const aviso = screen.getByRole("alert").textContent ?? "";
+    expect(aviso).toMatch(/Recebemos muitos envios seus/);
+    expect(aviso).toMatch(/Tente de novo mais tarde/);
+    expect(aviso).not.toMatch(/aparelho|um minuto|rede/);
+  });
+});
+
+describe("a lista de setores", () => {
+  it("se não carrega, a tela avisa e deixa tentar de novo, sem perder o relato", async () => {
+    falhasDosSetores = 1;
+    render(<FormularioDeNotificacao porta="endereco" />);
+    escrever("O que aconteceu", "A bomba de infusão alarmou e ninguém ouviu.");
+    fireEvent.click(botao("Continuar"));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toMatch(/Não foi possível carregar a lista de setores/)
+    );
+    expect(screen.queryByRole("option", { name: "UTI Adulto" })).toBeNull();
+
+    fireEvent.click(botao("Carregar os setores de novo"));
+
+    await waitFor(() => expect(screen.getByRole("option", { name: "UTI Adulto" })).toBeTruthy());
+    expect(screen.queryByRole("alert")).toBeNull();
+    escrever("Setor", "setor-uti");
+    escolher("Turno", "Noite");
+    expect(botao("Continuar").disabled).toBe(false);
+    fireEvent.click(botao("Voltar"));
+    expect((screen.getByLabelText("O que aconteceu") as HTMLTextAreaElement).value).toBe(
+      "A bomba de infusão alarmou e ninguém ouviu."
+    );
+  });
+
+  it("se a conexão cai, a tela também avisa", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("Failed to fetch");
+      })
+    );
+    render(<FormularioDeNotificacao porta="qr" />);
+    escrever("O que aconteceu", "Queda no banheiro.");
+    fireEvent.click(botao("Continuar"));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toMatch(/Não foi possível carregar a lista de setores/)
+    );
   });
 });
