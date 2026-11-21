@@ -37,6 +37,10 @@ def banco():
         pg.ok(ESQUEMA_ANTERIOR)
         pg.ok("INSERT INTO reunioes (id_reuniao, json_ata) VALUES ('R9', '{}');")
         pg.ok("INSERT INTO participantes (id, nome_completo) VALUES ('P2', 'Ana Lima');")
+        # O GRANT padrão do Supabase: toda tabela nova nasce aberta ao anon e ao
+        # authenticated. Sem ele o `permission denied` viria de graça e o teste
+        # de acesso não provaria o REVOKE da 175.
+        pg.ok("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated;")
         sql = MIGRATION_175.read_text(encoding="utf-8")
         pg.ok(sql)
         pg.ok(sql)  # rodar duas vezes é inofensivo
@@ -91,8 +95,9 @@ def test_o_banco_recusa_encerrar_sem_anotacao(banco):
     assert banco.ok(f"SELECT status FROM rotinas WHERE id = {ROTINA};") == "ATIVA"
 
 
-def test_quem_nao_e_o_backend_nao_le_a_rotina(banco):
-    r = banco.sql("SELECT count(*) FROM rotinas;", papel="authenticated")
+@pytest.mark.parametrize("tabela", ["rotinas", "rotina_verificacoes"])
+def test_quem_nao_e_o_backend_nao_le_a_rotina(banco, tabela):
+    r = banco.sql(f"SELECT count(*) FROM {tabela};", papel="authenticated")
 
     assert r.returncode != 0
     assert "permission denied" in r.stderr

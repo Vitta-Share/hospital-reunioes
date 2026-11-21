@@ -13,9 +13,10 @@ from __future__ import annotations
 
 import logging
 from datetime import date
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.dependencies import (
     get_current_user,
@@ -43,7 +44,8 @@ SUPER_ADMIN = "super_admin"
 
 
 class AnotacaoRequest(BaseModel):
-    anotacao: str | None = None
+    # O mesmo teto da anotação da Pendência (AcaoPendenciaRequest).
+    anotacao: str | None = Field(default=None, max_length=5000)
 
 
 class CicloEmAberto(BaseModel):
@@ -115,11 +117,11 @@ def _autor(me: dict | None, current_user: dict) -> dict:
     }
 
 
-async def _rotina_e_papeis(id_rotina: str, current_user: dict, supabase) -> tuple[dict, dict | None, set[str]]:
+async def _rotina_e_papeis(id_rotina: UUID, current_user: dict, supabase) -> tuple[dict, dict | None, set[str]]:
     """A Rotina que quem pede alcança e os papéis dele nela. O Núcleo oculto e
     quem está fora do vínculo recebem 404, sem dizer que ela existe."""
     me = await _quem_pede(current_user, supabase)
-    linhas = supabase.table("rotinas").select("*").eq("id", id_rotina).execute().data
+    linhas = supabase.table("rotinas").select("*").eq("id", str(id_rotina)).execute().data
     if not linhas or linhas[0]["id_reuniao"] in set(reunioes_ocultas(supabase, me)):
         raise HTTPException(status_code=404, detail="Rotina não encontrada")
     rotina = linhas[0]
@@ -193,7 +195,7 @@ def _marcar(rotina: dict, inicio: date, resultado: str, anotacao: str | None, au
 
 @router.post("/{id_rotina}/ciclos/{inicio}/realizada", status_code=201, response_model=VerificacaoResponse)
 async def marcar_realizada(
-    id_rotina: str,
+    id_rotina: UUID,
     inicio: date,
     current_user: dict = Depends(get_current_user),
     supabase=Depends(get_supabase_client),
@@ -205,7 +207,7 @@ async def marcar_realizada(
 
 @router.post("/{id_rotina}/ciclos/{inicio}/nao-realizada", status_code=201, response_model=VerificacaoResponse)
 async def marcar_nao_realizada(
-    id_rotina: str,
+    id_rotina: UUID,
     inicio: date,
     body: AnotacaoRequest,
     current_user: dict = Depends(get_current_user),
@@ -218,7 +220,7 @@ async def marcar_nao_realizada(
 
 @router.post("/{id_rotina}/encerrar")
 async def encerrar_rotina(
-    id_rotina: str,
+    id_rotina: UUID,
     body: AnotacaoRequest,
     current_user: dict = Depends(get_current_user),
     supabase=Depends(get_supabase_client),
@@ -234,4 +236,4 @@ async def encerrar_rotina(
     except rotina_service.JaEncerrada as recusa:
         raise HTTPException(status_code=409, detail=str(recusa)) from recusa
     logger.info("[Rotina] %s encerrada por %s", id_rotina, (me or {}).get("id"))
-    return {"id": encerrada.get("id", id_rotina), "status": encerrada.get("status")}
+    return {"id": encerrada.get("id", str(id_rotina)), "status": encerrada.get("status")}

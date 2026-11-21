@@ -107,6 +107,7 @@ ANA = {"id": "P2", "nome_completo": "Ana Lima", "access_profile": "regular", "em
 PEDRO = {"id": "P1", "nome_completo": "Pedro Rezende", "access_profile": "regular", "email": "pedro@hsm.com"}
 OUTRO = {"id": "P3", "nome_completo": "Bruno Souza", "access_profile": "regular", "email": "bruno@hsm.com"}
 ADMIN = {"id": "P9", "nome_completo": "Diretor", "access_profile": "super_admin", "email": "dir@hsm.com"}
+RT1 = "00000000-0000-0000-0000-0000000000a1"
 
 
 def _sb_com_rotina(**rotina):
@@ -115,7 +116,7 @@ def _sb_com_rotina(**rotina):
     sb = _sb()
     sb.rotinas.append(
         {
-            "id": "RT1",
+            "id": RT1,
             "id_reuniao": "R1",
             "quadro_pos": 1,
             "descricao": "Reunir a equipe",
@@ -161,12 +162,12 @@ def test_realizada_e_um_clique_do_responsavel(cliente_das_rotinas, hoje):
     hoje["valor"] = D("2026-11-25")
     sb = _sb_com_rotina()
 
-    r = cliente_das_rotinas(sb, ANA).post("/api/rotinas/RT1/ciclos/2026-11-23/realizada")
+    r = cliente_das_rotinas(sb, ANA).post(f"/api/rotinas/{RT1}/ciclos/2026-11-23/realizada")
 
     assert r.status_code == 201, r.text
     [v] = sb.rotina_verificacoes
     assert (v["rotina_id"], v["ciclo_inicio"], v["ciclo_fim"], v["resultado"], v["atrasada"]) == (
-        "RT1",
+        RT1,
         "2026-11-23",
         "2026-11-29",
         "REALIZADA",
@@ -180,7 +181,7 @@ def test_nao_realizada_sem_anotacao_e_recusada(cliente_das_rotinas, hoje, corpo)
     hoje["valor"] = D("2026-11-25")
     sb = _sb_com_rotina()
 
-    r = cliente_das_rotinas(sb, ANA).post("/api/rotinas/RT1/ciclos/2026-11-23/nao-realizada", json=corpo)
+    r = cliente_das_rotinas(sb, ANA).post(f"/api/rotinas/{RT1}/ciclos/2026-11-23/nao-realizada", json=corpo)
 
     assert r.status_code == 422, r.text
     assert sb.rotina_verificacoes == []
@@ -191,7 +192,7 @@ def test_nao_realizada_com_anotacao_e_gravada(cliente_das_rotinas, hoje):
     sb = _sb_com_rotina()
 
     r = cliente_das_rotinas(sb, ANA).post(
-        "/api/rotinas/RT1/ciclos/2026-11-23/nao-realizada", json={"anotacao": "A equipe estava de plantão."}
+        f"/api/rotinas/{RT1}/ciclos/2026-11-23/nao-realizada", json={"anotacao": "A equipe estava de plantão."}
     )
 
     assert r.status_code == 201, r.text
@@ -204,7 +205,7 @@ def test_marcada_depois_do_ciclo_fica_registrada_como_atrasada(cliente_das_rotin
     hoje["valor"] = D("2026-12-02")
     sb = _sb_com_rotina()
 
-    r = cliente_das_rotinas(sb, ANA).post("/api/rotinas/RT1/ciclos/2026-11-23/realizada")
+    r = cliente_das_rotinas(sb, ANA).post(f"/api/rotinas/{RT1}/ciclos/2026-11-23/realizada")
 
     assert r.status_code == 201, r.text
     assert sb.rotina_verificacoes[0]["atrasada"] is True
@@ -214,7 +215,7 @@ def test_o_facilitador_marca_pelo_responsavel(cliente_das_rotinas, hoje):
     hoje["valor"] = D("2026-11-25")
     sb = _sb_com_rotina()
 
-    r = cliente_das_rotinas(sb, PEDRO).post("/api/rotinas/RT1/ciclos/2026-11-23/realizada")
+    r = cliente_das_rotinas(sb, PEDRO).post(f"/api/rotinas/{RT1}/ciclos/2026-11-23/realizada")
 
     assert r.status_code == 201, r.text
     assert sb.rotina_verificacoes[0]["marcada_por_id"] == "P1"
@@ -224,7 +225,7 @@ def test_quem_nao_e_responsavel_nem_facilitador_nao_marca(cliente_das_rotinas, h
     hoje["valor"] = D("2026-11-25")
     sb = _sb_com_rotina()
 
-    r = cliente_das_rotinas(sb, OUTRO).post("/api/rotinas/RT1/ciclos/2026-11-23/realizada")
+    r = cliente_das_rotinas(sb, OUTRO).post(f"/api/rotinas/{RT1}/ciclos/2026-11-23/realizada")
 
     assert r.status_code == 404, r.text
     assert sb.rotina_verificacoes == []
@@ -242,7 +243,7 @@ def test_ciclo_que_nao_existe_pela_data_e_recusado(cliente_das_rotinas, hoje, in
     hoje["valor"] = D("2026-11-25")
     sb = _sb_com_rotina()
 
-    r = cliente_das_rotinas(sb, ANA).post(f"/api/rotinas/RT1/ciclos/{inicio}/realizada")
+    r = cliente_das_rotinas(sb, ANA).post(f"/api/rotinas/{RT1}/ciclos/{inicio}/realizada")
 
     assert r.status_code == 422, r.text
     assert sb.rotina_verificacoes == []
@@ -252,9 +253,9 @@ def test_o_mesmo_ciclo_nao_se_marca_duas_vezes(cliente_das_rotinas, hoje):
     hoje["valor"] = D("2026-11-25")
     sb = _sb_com_rotina()
     client = cliente_das_rotinas(sb, ANA)
-    assert client.post("/api/rotinas/RT1/ciclos/2026-11-23/realizada").status_code == 201
+    assert client.post(f"/api/rotinas/{RT1}/ciclos/2026-11-23/realizada").status_code == 201
 
-    r = client.post("/api/rotinas/RT1/ciclos/2026-11-23/nao-realizada", json={"anotacao": "mudei"})
+    r = client.post(f"/api/rotinas/{RT1}/ciclos/2026-11-23/nao-realizada", json={"anotacao": "mudei"})
 
     assert r.status_code == 409, r.text
     assert len(sb.rotina_verificacoes) == 1
@@ -264,7 +265,7 @@ def test_o_mesmo_ciclo_nao_se_marca_duas_vezes(cliente_das_rotinas, hoje):
 def test_encerrar_sem_anotacao_e_recusado(cliente_das_rotinas, hoje, corpo):
     sb = _sb_com_rotina()
 
-    r = cliente_das_rotinas(sb, PEDRO).post("/api/rotinas/RT1/encerrar", json=corpo)
+    r = cliente_das_rotinas(sb, PEDRO).post(f"/api/rotinas/{RT1}/encerrar", json=corpo)
 
     assert r.status_code == 422, r.text
     assert sb.rotinas[0]["status"] == "ATIVA"
@@ -275,7 +276,7 @@ def test_encerrar_para_os_ciclos_seguintes(cliente_das_rotinas, hoje):
     sb = _sb_com_rotina()
     client = cliente_das_rotinas(sb, PEDRO)
 
-    r = client.post("/api/rotinas/RT1/encerrar", json={"anotacao": "A equipe passou a se reunir no plantão."})
+    r = client.post(f"/api/rotinas/{RT1}/encerrar", json={"anotacao": "A equipe passou a se reunir no plantão."})
 
     assert r.status_code == 200, r.text
     rotina = sb.rotinas[0]
@@ -288,24 +289,24 @@ def test_encerrar_para_os_ciclos_seguintes(cliente_das_rotinas, hoje):
     # O ciclo em curso (07/12 a 13/12) e os seguintes saem; os que já
     # fecharam continuam devidos e ainda podem ser marcados, com atraso.
     hoje["valor"] = D("2026-12-20")
-    assert client.post("/api/rotinas/RT1/ciclos/2026-12-07/realizada").status_code == 422
-    assert client.post("/api/rotinas/RT1/ciclos/2026-12-14/realizada").status_code == 422
-    assert client.post("/api/rotinas/RT1/ciclos/2026-11-30/realizada").status_code == 201
+    assert client.post(f"/api/rotinas/{RT1}/ciclos/2026-12-07/realizada").status_code == 422
+    assert client.post(f"/api/rotinas/{RT1}/ciclos/2026-12-14/realizada").status_code == 422
+    assert client.post(f"/api/rotinas/{RT1}/ciclos/2026-11-30/realizada").status_code == 201
 
 
 def test_encerrar_duas_vezes_e_recusado(cliente_das_rotinas, hoje):
     sb = _sb_com_rotina()
     client = cliente_das_rotinas(sb, PEDRO)
-    assert client.post("/api/rotinas/RT1/encerrar", json={"anotacao": "Acabou."}).status_code == 200
+    assert client.post(f"/api/rotinas/{RT1}/encerrar", json={"anotacao": "Acabou."}).status_code == 200
 
-    assert client.post("/api/rotinas/RT1/encerrar", json={"anotacao": "De novo."}).status_code == 409
+    assert client.post(f"/api/rotinas/{RT1}/encerrar", json={"anotacao": "De novo."}).status_code == 409
     assert sb.rotinas[0]["anotacao_encerramento"] == "Acabou."
 
 
 def test_o_responsavel_nao_encerra_a_rotina(cliente_das_rotinas, hoje):
     sb = _sb_com_rotina()
 
-    r = cliente_das_rotinas(sb, ANA).post("/api/rotinas/RT1/encerrar", json={"anotacao": "Não quero mais."})
+    r = cliente_das_rotinas(sb, ANA).post(f"/api/rotinas/{RT1}/encerrar", json={"anotacao": "Não quero mais."})
 
     assert r.status_code == 403, r.text
     assert sb.rotinas[0]["status"] == "ATIVA"
@@ -314,7 +315,7 @@ def test_o_responsavel_nao_encerra_a_rotina(cliente_das_rotinas, hoje):
 def test_o_super_admin_encerra_a_rotina(cliente_das_rotinas, hoje):
     sb = _sb_com_rotina()
 
-    r = cliente_das_rotinas(sb, ADMIN).post("/api/rotinas/RT1/encerrar", json={"anotacao": "Repetida."})
+    r = cliente_das_rotinas(sb, ADMIN).post(f"/api/rotinas/{RT1}/encerrar", json={"anotacao": "Repetida."})
 
     assert r.status_code == 200, r.text
     assert sb.rotinas[0]["status"] == "ENCERRADA"
@@ -324,7 +325,7 @@ def test_rotina_de_reuniao_do_nucleo_oculta_nao_se_marca(cliente_das_rotinas, ho
     hoje["valor"] = D("2026-11-25")
     sb = _sb_com_rotina()
 
-    r = cliente_das_rotinas(sb, ADMIN, ocultas=["R1"]).post("/api/rotinas/RT1/ciclos/2026-11-23/realizada")
+    r = cliente_das_rotinas(sb, ADMIN, ocultas=["R1"]).post(f"/api/rotinas/{RT1}/ciclos/2026-11-23/realizada")
 
     assert r.status_code == 404, r.text
 
@@ -333,13 +334,13 @@ def test_a_lista_traz_os_ciclos_em_aberto_e_o_que_cada_um_pode_fazer(cliente_das
     hoje["valor"] = D("2026-12-09")
     sb = _sb_com_rotina()
     client = cliente_das_rotinas(sb, PEDRO)
-    assert client.post("/api/rotinas/RT1/ciclos/2026-11-23/realizada").status_code == 201
+    assert client.post(f"/api/rotinas/{RT1}/ciclos/2026-11-23/realizada").status_code == 201
 
     r = client.get("/api/rotinas")
 
     assert r.status_code == 200, r.text
     [rotina] = r.json()
-    assert rotina["id"] == "RT1"
+    assert rotina["id"] == RT1
     assert rotina["pode_encerrar"] is True
     assert [(c["inicio"], c["fim"], c["atrasado"]) for c in rotina["ciclos_em_aberto"]] == [
         ("2026-11-30", "2026-12-06", True),
@@ -350,6 +351,48 @@ def test_a_lista_traz_os_ciclos_em_aberto_e_o_que_cada_um_pode_fazer(cliente_das
     [da_ana] = cliente_das_rotinas(sb, ANA).get("/api/rotinas").json()
     assert da_ana["pode_encerrar"] is False
     assert cliente_das_rotinas(sb, OUTRO).get("/api/rotinas").json() == []
+
+
+@pytest.mark.parametrize(
+    "rota",
+    [
+        "/api/rotinas/abc/ciclos/2026-11-23/realizada",
+        "/api/rotinas/abc/ciclos/2026-11-23/nao-realizada",
+        "/api/rotinas/abc/encerrar",
+    ],
+)
+def test_id_que_nao_e_uuid_para_na_validacao_sem_ir_ao_banco(cliente_das_rotinas, hoje, rota):
+    """No Postgres a coluna é UUID: "abc" chegaria como 22P02 e viraria 500."""
+    hoje["valor"] = D("2026-11-25")
+    sb = _sb_com_rotina()
+
+    r = cliente_das_rotinas(sb, PEDRO).post(rota, json={"anotacao": "Qualquer coisa."})
+
+    assert r.status_code == 422, r.text
+    assert r.json()["detail"][0]["loc"] == ["path", "id_rotina"]
+
+
+@pytest.mark.parametrize("acao", ["ciclos/2026-11-23/nao-realizada", "encerrar"])
+def test_anotacao_acima_de_5000_caracteres_e_recusada(cliente_das_rotinas, hoje, acao):
+    hoje["valor"] = D("2026-11-25")
+    sb = _sb_com_rotina()
+
+    r = cliente_das_rotinas(sb, PEDRO).post(f"/api/rotinas/{RT1}/{acao}", json={"anotacao": "x" * 5001})
+
+    assert r.status_code == 422, r.text
+    assert r.json()["detail"][0]["loc"] == ["body", "anotacao"]
+    assert sb.rotina_verificacoes == []
+    assert (sb.rotinas[0]["status"], sb.rotinas[0]["anotacao_encerramento"]) == ("ATIVA", None)
+
+
+@pytest.mark.parametrize("acao", ["ciclos/2026-11-23/nao-realizada", "encerrar"])
+def test_anotacao_de_5000_caracteres_passa(cliente_das_rotinas, hoje, acao):
+    hoje["valor"] = D("2026-11-25")
+    sb = _sb_com_rotina()
+
+    r = cliente_das_rotinas(sb, PEDRO).post(f"/api/rotinas/{RT1}/{acao}", json={"anotacao": "x" * 5000})
+
+    assert r.status_code in (200, 201), r.text
 
 
 # ─── 3. A Verificação na Minha Fila do responsável ───────────────────────────
@@ -394,7 +437,7 @@ def test_a_verificacao_do_ciclo_aparece_na_minha_fila_do_responsavel(fila):
     # Rotinas não pode falhar.
     assert [a for a in resposta.avisos if a.fonte == "rotinas"] == []
     assert _verificacoes(resposta) == [
-        ("Reunir a equipe", "2026-11-29", "proximos_7_dias", "/api/rotinas/RT1/ciclos/2026-11-23/realizada"),
+        ("Reunir a equipe", "2026-11-29", "proximos_7_dias", f"/api/rotinas/{RT1}/ciclos/2026-11-23/realizada"),
     ]
     [item] = resposta.itens
     assert item.acao_de_um_clique.rotulo == "Realizada"
@@ -416,7 +459,7 @@ def test_o_ciclo_que_fechou_sem_marcacao_fica_atrasado_na_fila(fila):
 def test_o_ciclo_marcado_sai_da_fila(fila, cliente_das_rotinas, hoje):
     hoje["valor"] = D("2026-11-25")
     sb = _sb_com_rotina()
-    assert cliente_das_rotinas(sb, ANA).post("/api/rotinas/RT1/ciclos/2026-11-23/realizada").status_code == 201
+    assert cliente_das_rotinas(sb, ANA).post(f"/api/rotinas/{RT1}/ciclos/2026-11-23/realizada").status_code == 201
 
     assert _verificacoes(fila(sb, ANA, "2026-11-25")) == []
 
