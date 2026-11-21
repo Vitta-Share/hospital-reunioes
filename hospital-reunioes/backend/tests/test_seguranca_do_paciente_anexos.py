@@ -46,6 +46,7 @@ from test_seguranca_do_paciente_notificacoes import (  # noqa: E402, F401
 )
 
 from app.routers import seguranca_do_paciente_notificacoes as notificacoes_router  # noqa: E402
+from app.services.seguranca_do_paciente import anexos as anexos_service  # noqa: E402
 
 BUCKET = "nsp-anexos"
 MB = 1024 * 1024
@@ -346,6 +347,47 @@ def test_a_lista_de_casos_diz_os_anexos_sem_o_caminho_no_bucket():
         {"id": pdf["id"], "content_type": "application/pdf", "tamanho_bytes": len(PDF)},
     ]
     assert foto["storage_path"] not in resposta.text
+
+
+def test_com_centenas_de_casos_os_anexos_vem_em_lotes_e_nenhum_se_perde(monkeypatch):
+    """Todos os ids num `in_` só estourariam a URL do GET, e uma resposta só
+    pararia no teto de 1000 linhas do PostgREST sem avisar."""
+    teto_do_postgrest = 1000
+    casos = [f"caso-{i:04d}" for i in range(400)]
+    banco = _banco_com_storage()
+    banco.tabelas["nsp_notificacao_anexos"] = [
+        {
+            "id": f"{caso}-anexo-{n}",
+            "notificacao_id": caso,
+            "storage_path": f"{caso}-{n}.jpg",
+            "content_type": "image/jpeg",
+            "tamanho_bytes": 10,
+            "criado_em": f"2026-11-0{n + 1}T10:00:00+00:00",
+        }
+        for caso in casos
+        for n in range(anexos_service.MAXIMO_DE_ARQUIVOS)
+    ]
+    tamanhos_do_in: list[int] = []
+    in_original, execute_original = _Consulta.in_, _Consulta.execute
+
+    def in_que_mede(self, coluna, valores):
+        tamanhos_do_in.append(len(list(valores)))
+        return in_original(self, coluna, valores)
+
+    def execute_com_teto(self):
+        resposta = execute_original(self)
+        resposta.data = resposta.data[:teto_do_postgrest]
+        return resposta
+
+    monkeypatch.setattr(_Consulta, "in_", in_que_mede)
+    monkeypatch.setattr(_Consulta, "execute", execute_com_teto)
+
+    por_caso = anexos_service.anexos_dos_casos(banco, casos)
+
+    assert tamanhos_do_in and max(tamanhos_do_in) <= anexos_service.LOTE_DE_IDS
+    assert sum(tamanhos_do_in) == len(casos)
+    assert set(por_caso) == set(casos)
+    assert [anexo["id"] for anexo in por_caso["caso-0399"]] == [f"caso-0399-anexo-{n}" for n in range(3)]
 
 
 # ═══════════════════════════════════════════════════════════════════════════

@@ -37,6 +37,10 @@ LIMITE_DA_SOMA_LEGIVEL = "9 MB"
 EXTENSOES_ACEITAS = frozenset({".jpg", ".jpeg", ".png", ".webp", ".heic", ".pdf"})
 
 TABELA = "nsp_notificacao_anexos"
+# Ids por `in_`: todos numa URL só estourariam o tamanho dela. Com até três
+# anexos por caso, um lote volta com no máximo 300 linhas, abaixo do teto de
+# linhas do PostgREST.
+LOTE_DE_IDS = 100
 
 
 class ArquivosDemaisError(AnexoRecusadoError):
@@ -130,16 +134,17 @@ def ligar_a_notificacao(supabase, notificacao_id: str, aceitos: list[ArquivoAcei
 def anexos_dos_casos(supabase, notificacao_ids: list[str]) -> dict[str, list[dict[str, Any]]]:
     """Os anexos de cada caso, sem o caminho no bucket: o arquivo só sai pela
     rota que confere o acesso."""
-    if not notificacao_ids:
-        return {}
-    linhas = (
-        supabase.table(TABELA)
-        .select("id, notificacao_id, content_type, tamanho_bytes, criado_em")
-        .in_("notificacao_id", notificacao_ids)
-        .order("criado_em")
-        .execute()
-        .data
-    ) or []
+    linhas: list[dict[str, Any]] = []
+    for i in range(0, len(notificacao_ids), LOTE_DE_IDS):
+        lote = notificacao_ids[i : i + LOTE_DE_IDS]
+        linhas += (
+            supabase.table(TABELA)
+            .select("id, notificacao_id, content_type, tamanho_bytes, criado_em")
+            .in_("notificacao_id", lote)
+            .order("criado_em")
+            .execute()
+            .data
+        ) or []
     por_caso: dict[str, list[dict[str, Any]]] = {}
     for linha in linhas:
         por_caso.setdefault(linha["notificacao_id"], []).append(

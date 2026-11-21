@@ -444,7 +444,7 @@ export function FormularioDeNotificacao({ porta, identificacao = null }: Props) 
                         setRecusaDosArquivos(null);
                         setArquivos((atuais) => atuais.filter((_, i) => i !== indice));
                       }}
-                      className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-slate-500 hover:text-red-600"
+                      className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-500 hover:text-red-600"
                     >
                       <X className="w-4 h-4" aria-hidden />
                     </button>
