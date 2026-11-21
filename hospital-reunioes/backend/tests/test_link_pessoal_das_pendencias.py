@@ -342,3 +342,19 @@ def test_pelo_link_so_vale_o_que_o_responsavel_faz(portal):
 
     assert resposta.status_code == 422
     assert banco.chamadas == []
+
+
+# ─── 5. O kit de conhecimento ────────────────────────────────────────────────
+
+
+def test_o_texto_de_reunioes_no_kit_diz_o_link_pessoal_de_quem_nunca_entrou():
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = (CONHECIMENTO_DIR / "reunioes.md").read_text(encoding="utf-8")
+    assert "Quem nunca entrou no aplicativo recebe, no e-mail de segunda, um link pessoal" in texto
+    assert "só as pendências em aberto dessa pessoa" in texto
+    assert "iniciar, anotar, concluir ou repactuar, sempre com uma anotação" in texto
+    assert "vale por 14 dias" in texto
+    assert "é cancelado quando a pessoa é desligada" in texto
+    assert "Quem já entrou no aplicativo recebe o link comum" in texto
+    assert "O link do e-mail abre o aplicativo." not in texto
