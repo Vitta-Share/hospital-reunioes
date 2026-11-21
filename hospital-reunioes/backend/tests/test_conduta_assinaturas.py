@@ -26,6 +26,7 @@ import sys
 from datetime import timedelta
 from typing import Any
 
+import httpx
 import pdfplumber
 import pytest
 from conduta_apoio import Banco
@@ -109,6 +110,10 @@ class _ClickSign:
     def nomes(self) -> list[str]:
         return [c[0] for c in self.chamadas]
 
+
+# Os de verdade, guardados antes de qualquer dublê, para o teste do download.
+_CLIENTE_HTTP = httpx.Client
+_BAIXAR_ASSINADO = clicksign_service.get_signed_document
 
 FUNCOES_DA_CLICKSIGN = (
     "create_envelope",
@@ -405,3 +410,219 @@ class TestRetornoPeloWebhook:
         _retorno_da_clicksign(cliente, "doc-env-1", "auto_close")
 
         assert cenario.participacao("N1").get("termo_assinado_em") is None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. Sem o Termo assinado: a tela inicial abre, o caso não
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestSemTermoAssinado:
+    def _cenario(self, termo: bool) -> tuple[_Cenario, dict]:
+        cenario = _Cenario(_pessoa("M1"), [], [_participacao("M1", termo=termo)])
+        caso = casos.registrar_caso(cenario.banco, relato="Relato de teste.", categoria="assedio_moral", rota="comum")
+        return cenario, caso
+
+    def test_membro_sem_termo_ve_a_tela_inicial_e_recebe_403_ao_abrir_caso(self):
+        """Mutante: a tela inicial recusar o membro sem Termo, como antes."""
+        cenario, caso = self._cenario(termo=False)
+        cliente = cenario.cliente()
+
+        inicial = cliente.get("/api/comite-de-conduta/minha-vez")
+        aberto = cliente.get(f"/api/comite-de-conduta/casos/{caso['id']}")
+
+        assert inicial.status_code == 200, inicial.text
+        assert inicial.json() == {"itens": [], "termo_pendente": True}
+        assert aberto.status_code == 403 and aberto.json() == RECUSA
+        assert [t["acao"] for t in cenario.tabela("conduta_trilha")] == ["recebimento"]
+
+    def test_membro_com_termo_assinado_abre_o_caso(self):
+        cenario, caso = self._cenario(termo=True)
+        cliente = cenario.cliente()
+
+        inicial = cliente.get("/api/comite-de-conduta/minha-vez")
+        aberto = cliente.get(f"/api/comite-de-conduta/casos/{caso['id']}")
+
+        assert inicial.status_code == 200 and inicial.json()["termo_pendente"] is False
+        assert aberto.status_code == 200, aberto.text
+
+    def test_quem_nao_esta_no_comite_segue_recusado_na_tela_inicial(self):
+        cenario = _Cenario(_pessoa("X1"), [], [])
+        resposta = cenario.cliente().get("/api/comite-de-conduta/minha-vez")
+        assert resposta.status_code == 403 and resposta.json() == RECUSA
+
+    def test_assinado_pelo_webhook_o_membro_passa_a_abrir_caso(self, clicksign):
+        cenario, caso = self._cenario(termo=False)
+        cenario.banco.tabelas["conduta_assinaturas"] = [
+            {
+                "id": "ass-1",
+                "tipo": "termo_de_posse",
+                "participacao_id": "part-M1",
+                "signatarios": ["M1"],
+                "situacao": "enviado",
+                "envelope_id": "env-9",
+                "documento_key": "doc-env-9",
+                "created_at": "2026-11-20T12:00:00+00:00",
+            }
+        ]
+        cliente = cenario.cliente()
+
+        _retorno_da_clicksign(cliente, "doc-env-9", "auto_close")
+
+        assert cliente.get(f"/api/comite-de-conduta/casos/{caso['id']}").status_code == 200
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. "Reconsultar status" atualiza sem depender do webhook
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestReconsultar:
+    def test_reconsultar_status_atualiza_a_situacao_sem_o_webhook(self, clicksign, guardados):
+        """Mutante: a reconsulta não aplicar o envelope fechado."""
+        cenario = _cenario_do_cadastro()
+        cenario.incluir()
+        clicksign.status = "closed"
+        participacao_id = cenario.participacao("N1")["id"]
+
+        resposta = cenario.cliente().post(f"{ROTA}/{participacao_id}/termo/reconsultar")
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["termo"] == "assinado"
+        assert ("get_envelope_status", "env-1") in clicksign.chamadas
+        assert cenario.assinaturas()[0]["situacao"] == "assinado"
+        assert len(guardados) == 1
+
+    def test_envelope_ainda_aberto_nao_muda_nada(self, clicksign):
+        cenario = _cenario_do_cadastro()
+        cenario.incluir()
+
+        resposta = cenario.cliente().post(f"{ROTA}/{cenario.participacao('N1')['id']}/termo/reconsultar")
+
+        assert resposta.status_code == 200
+        assert resposta.json()["termo"] == "aguardando_assinatura"
+
+    def test_clicksign_sem_resposta_da_503(self, clicksign):
+        cenario = _cenario_do_cadastro()
+        cenario.incluir()
+        clicksign.status = None
+
+        resposta = cenario.cliente().post(f"{ROTA}/{cenario.participacao('N1')['id']}/termo/reconsultar")
+
+        assert resposta.status_code == 503
+
+    def test_sem_termo_enviado_a_reconsulta_pede_o_reenvio(self, clicksign):
+        cenario = _Cenario(_pessoa("C1", **CADASTRO), [_pessoa("N1")], [_participacao("N1", termo=False)])
+        resposta = cenario.cliente().post(f"{ROTA}/part-N1/termo/reconsultar")
+        assert resposta.status_code == 409
+        assert "Reenviar o Termo" in resposta.json()["detail"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. Os envelopes de Reuniões, POPs e do Núcleo continuam achados
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestRoteamentoDoWebhook:
+    @pytest.fixture
+    def destinos(self, monkeypatch) -> list[tuple[str, str]]:
+        """Cada destino do webhook anota quem recebeu o evento."""
+        from app.services.seguranca_do_paciente import assinatura_dos_documentos, termo
+
+        chegou: list[tuple[str, str]] = []
+        monkeypatch.setattr(
+            webhooks, "_processar_reuniao", lambda _s, r, *_a: chegou.append(("reuniao", r["id_reuniao"]))
+        )
+        monkeypatch.setattr(webhooks, "_processar_versao_pop", lambda _s, v, *_a: chegou.append(("pop", v["id"])))
+        monkeypatch.setattr(termo, "processar_evento", lambda _s, e, *_a, **_kw: chegou.append(("termo_nsp", e["id"])))
+        monkeypatch.setattr(
+            assinatura_dos_documentos,
+            "tratar_retorno_da_versao",
+            lambda _s, v, *_a, **_kw: chegou.append(("documento_nsp", v["id"])),
+        )
+        monkeypatch.setattr(
+            assinaturas, "processar_evento", lambda _s, a, *_a: chegou.append(("canal_de_conduta", a["id"]))
+        )
+        return chegou
+
+    def test_cada_envelope_chega_ao_seu_destino(self, destinos):
+        """Cada chave no seu destino, e o Canal sem tomar a chave dos outros."""
+        cenario = _Cenario(
+            _pessoa("C1"),
+            reunioes=[{"id_reuniao": "R1", "envelope_key_clicksign": "k-reuniao"}],
+            pops_versoes=[{"id": "V1", "envelope_key_clicksign": "k-pop"}],
+            nsp_termos_envios=[{"id": "T1", "documento_key": "k-termo-nsp"}],
+            nsp_documentos_envios=[{"id": "D1", "documento_key": "k-documento-nsp"}],
+            conduta_assinaturas=[{"id": "A1", "documento_key": "k-canal", "situacao": "enviado"}],
+        )
+        cliente = cenario.cliente()
+
+        for chave in ("k-reuniao", "k-pop", "k-termo-nsp", "k-documento-nsp", "k-canal"):
+            assert _retorno_da_clicksign(cliente, chave).status_code == 200
+
+        assert destinos == [
+            ("reuniao", "R1"),
+            ("pop", "V1"),
+            ("termo_nsp", "T1"),
+            ("documento_nsp", "D1"),
+            ("canal_de_conduta", "A1"),
+        ]
+
+    def test_chave_desconhecida_nao_chega_a_destino_nenhum(self, destinos):
+        """Mutante: o Canal achar a assinatura sem filtrar pela chave."""
+        cenario = _Cenario(_pessoa("C1"), conduta_assinaturas=[{"id": "A1", "documento_key": "k-canal"}])
+        resposta = _retorno_da_clicksign(cenario.cliente(), "k-ninguem")
+        assert resposta.json() == {"message": "Documento não encontrado."}
+        assert destinos == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. Nenhum teste chama a ClickSign de verdade
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_toda_funcao_da_clicksign_que_o_canal_usa_e_dubla_aqui():
+    """O dublê cobre o que o serviço do Canal chama da ClickSign: função nova
+    no serviço sem dublê fica vermelha aqui, antes de algum teste sair para a
+    rede com a credencial de produção do `.env` local."""
+    import inspect
+
+    fonte = inspect.getsource(assinaturas)
+    usadas = set(re.findall(r"clicksign_service\.(\w+)\(", fonte))
+    assert usadas
+    assert usadas <= set(FUNCOES_DA_CLICKSIGN), usadas - set(FUNCOES_DA_CLICKSIGN)
+
+
+def test_a_rede_esta_fechada_para_a_clicksign_nos_testes():
+    with pytest.raises(AssertionError, match="rede"):
+        clicksign_service.httpx.Client()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# O PDF assinado vem em `links.files.signed` (pesquisa na #1786)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_o_pdf_assinado_e_baixado_do_link_signed_da_v3(monkeypatch):
+    """Mutante: ler só o `attributes.download_url`. A ClickSign aqui é um
+    transporte de mentira, sem rede."""
+    pedidos: list[str] = []
+
+    def _responder(pedido: httpx.Request) -> httpx.Response:
+        pedidos.append(str(pedido.url))
+        if pedido.url.path.endswith("/envelopes/env-1/documents"):
+            return httpx.Response(
+                200,
+                json={"data": [{"attributes": {}, "links": {"files": {"signed": "https://arquivos.test/assinado"}}}]},
+            )
+        if str(pedido.url) == "https://arquivos.test/assinado":
+            return httpx.Response(200, content=PDF_ASSINADO)
+        return httpx.Response(404)
+
+    def _cliente(*_a, **kw):
+        return _CLIENTE_HTTP(transport=httpx.MockTransport(_responder), timeout=kw.get("timeout"))
+
+    monkeypatch.setattr(clicksign_service.httpx, "Client", _cliente)
+
+    assert _BAIXAR_ASSINADO("env-1") == PDF_ASSINADO
+    assert pedidos[-1] == "https://arquivos.test/assinado"

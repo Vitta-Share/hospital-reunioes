@@ -86,9 +86,12 @@ def test_a_tabela_tem_rls_ligada_e_nenhuma_policy(banco):
 def test_o_termo_de_posse_guarda_signatarios_e_nasce_gerado(banco):
     r = _assinatura(banco, chave="'doc-1'")
     assert r.returncode == 0, r.stderr
-    assert banco.ok("SELECT situacao, signatarios FROM conduta_assinaturas WHERE documento_key = 'doc-1';").replace(
-        " ", ""
-    ) == "gerado|{P1}"
+    assert (
+        banco.ok("SELECT situacao, signatarios FROM conduta_assinaturas WHERE documento_key = 'doc-1';").replace(
+            " ", ""
+        )
+        == "gerado|{P1}"
+    )
 
 
 def test_a_chave_do_documento_nao_se_repete(banco):
