@@ -425,7 +425,9 @@ def test_situacao_da_participacao(inicio, fim, encerrada, esperada):
 def test_o_kit_do_canal_diz_quem_cadastra_e_que_toda_mudanca_avisa_o_comite():
     from pathlib import Path
 
-    kit = (Path(__file__).resolve().parents[1] / "app" / "conhecimento" / "canal-de-conduta.md").read_text()
+    kit = (Path(__file__).resolve().parents[1] / "app" / "conhecimento" / "canal-de-conduta.md").read_text(
+        encoding="utf-8"
+    )
     assert "## A tela Membros" in kit
     assert "O super admin sem esse perfil não cadastra" in kit
     assert "avisa os membros vigentes do Comitê no sino do aplicativo e por e-mail" in kit
