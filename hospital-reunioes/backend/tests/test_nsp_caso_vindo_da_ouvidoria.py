@@ -34,7 +34,9 @@ from test_ouvidoria_nucleo_seguranca_paciente import (  # noqa: E402
     NUCLEO,
     RELATO,
     _caso,
+    _caso_apontado,
     _responsavel,
+    _validar,
 )
 from test_ouvidoria_validacao_acionamento import (  # noqa: E402
     DENTRO_DO_EXPEDIENTE,
@@ -214,3 +216,107 @@ class TestConfirmarOEnvioCriaANotificacao:
         assert notificacao["justificativa_tecnica"] == JUSTIFICATIVA_TECNICA
         assert notificacao["setor_id"] == SETOR_ID
         assert notificacao["anonimo"] is False
+
+    def test_confirmar_o_envio_na_validacao_tambem_cria_a_notificacao(self, monkeypatch):
+        client, supabase = _client(monkeypatch, _banco(_caso_apontado(setor_id=SETOR_ID)))
+
+        r = _validar(client, nsp_decisao="confirmado")
+
+        assert r.status_code == 200, r.text
+        assert [n["manifestacao_id"] for n in supabase.notificacoes_do_nucleo] == ["uuid-7"]
+        assert supabase.notificacoes_do_nucleo[0]["justificativa_tecnica"] == JUSTIFICATIVA_TECNICA
+
+    def test_confirmar_de_novo_nao_cria_outra_notificacao(self, monkeypatch):
+        client, supabase = _client(monkeypatch)
+        assert _enviar_ao_nucleo(client).status_code == 200
+
+        de_novo = _enviar_ao_nucleo(client)
+
+        assert de_novo.status_code == 409
+        assert len(supabase.notificacoes_do_nucleo) == 1
+
+    def test_a_nova_tentativa_de_um_envio_pela_metade_reusa_a_notificacao(self, monkeypatch, emails):
+        """A notificação e a ciência gravaram, e a decisão não: a nova
+        tentativa termina o envio com a mesma notificação."""
+        supabase = _BancoQueFalhaNaDecisao(
+            [_caso(setor_id=SETOR_ID)], responsaveis=_banco().tabelas["ouvidoria_setor_responsaveis"]
+        )
+        supabase.tabelas["ouvidoria_config"] = [{"id": True, "nsp_setor": NUCLEO}]
+        client, supabase = _client(monkeypatch, supabase)
+
+        assert _enviar_ao_nucleo(client).status_code == 500
+        segunda = _enviar_ao_nucleo(client)
+
+        assert segunda.status_code == 200, segunda.text
+        assert len(supabase.notificacoes_do_nucleo) == 1
+        assert supabase.tabelas["ouvidoria_protocolos"][0]["nsp_decisao"] == "confirmado"
+
+
+class _BancoQueFalhaNaDecisao(_Banco):
+    """A segunda ciência do caso é recusada (índice da migration 139), e o
+    update da decisão estoura uma vez, como o PostgREST em timeout."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.falhas_da_decisao = 1
+
+    def table(self, nome: str):
+        tabela = super().table(nome)
+        if nome == "ouvidoria_acionamentos":
+            insert_original = tabela.insert
+
+            def _insert(payload):
+                if payload.get("motivo_ciencia") == "nsp" and any(
+                    a.get("motivo_ciencia") == "nsp" for a in tabela.rows
+                ):
+                    raise APIError({"code": "23505", "message": "duplicate key value violates unique constraint"})
+                return insert_original(payload)
+
+            tabela.insert = _insert
+        if nome == "ouvidoria_protocolos":
+            update_original = tabela.update
+
+            def _update(payload: dict):
+                if "nsp_decisao" in payload and self.falhas_da_decisao:
+                    self.falhas_da_decisao -= 1
+                    raise APIError({"code": "57014", "message": "canceling statement due to statement timeout"})
+                return update_original(payload)
+
+            tabela.update = _update
+        return tabela
+
+
+# =====================================================================
+# 2. A notificação não traz nome nem contato de quem manifestou
+# =====================================================================
+
+
+class TestQuemManifestouNaoVai:
+    def test_a_notificacao_nao_leva_o_nome_nem_o_contato_de_quem_manifestou(self, monkeypatch):
+        caso = _caso(
+            setor_id=SETOR_ID,
+            manifestante_nome="Joana da Silva",
+            manifestante_contato="joana@exemplo.com",
+            manifestante_telefone="(31) 99999-0000",
+        )
+        client, supabase = _client(monkeypatch, _banco(caso))
+
+        assert _enviar_ao_nucleo(client).status_code == 200
+
+        notificacao = supabase.notificacoes_do_nucleo[0]
+        assert notificacao.get("notificante_nome") is None
+        assert notificacao.get("notificante_contato") is None
+        assert notificacao.get("notificante_id") is None
+        valores = " ".join(str(v) for v in notificacao.values())
+        for dado in ("Joana da Silva", "joana@exemplo.com", "99999-0000"):
+            assert dado not in valores
+
+    def test_a_lista_do_nucleo_nao_mostra_quem_manifestou_nem_para_a_presidencia(self, monkeypatch):
+        client, _supabase = _client(monkeypatch, recursos=("casos", "identidade_notificante"))
+        assert _enviar_ao_nucleo(client).status_code == 200
+
+        r = client.get("/api/nsp/notificacoes")
+
+        assert r.status_code == 200, r.text
+        assert "Joana da Silva" not in r.text
+        assert r.json()["notificacoes"][0]["notificante"] is None

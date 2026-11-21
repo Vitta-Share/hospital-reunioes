@@ -240,6 +240,8 @@ def listar(supabase, *, com_identidade: bool) -> list[dict[str, Any]]:
         caso = {**linha, "setor": setores.get(linha.get("setor_id"))}
         if com_identidade:
             caso["anonimo"] = bool(anonimo)
-            caso["notificante"] = None if anonimo else {"nome": nome, "contato": contato}
+            # O caso da Ouvidoria chega sem quem manifestou (issue #1997).
+            sem_quem = anonimo or linha.get("origem") == ORIGEM_OUVIDORIA
+            caso["notificante"] = None if sem_quem else {"nome": nome, "contato": contato}
         casos.append(caso)
     return casos
