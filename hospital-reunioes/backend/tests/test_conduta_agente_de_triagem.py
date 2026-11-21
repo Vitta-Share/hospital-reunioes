@@ -320,3 +320,118 @@ class TestSemSugestao:
         assert "perguntas" in agente.validar_saida(quatro)
         sem_justificativa = resposta_valida(resumo=_item("Resumo.", justificativa=""))
         assert "formato:resumo" in agente.validar_saida(sem_justificativa)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. Cada item sugerido aparece marcado como "Sugestão", com a justificativa
+#    visível sem clique
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestSugestaoNaTela:
+    def test_cada_item_vem_como_sugestao_com_a_justificativa(self):
+        comite = Comite()
+        caso_id = comite.novo_caso()
+
+        sugestao = comite.abrir(MEMBRO, caso_id)["sugestao_do_agente"]
+
+        assert sugestao["situacao"] == "sugerida"
+        assert [i["item"] for i in sugestao["itens"]] == list(agente.ITENS)
+        assert all(i["rotulo"] == "Sugestão" and i["justificativa"] for i in sugestao["itens"])
+        rito = next(i for i in sugestao["itens"] if i["item"] == "rito")
+        assert rito["valor"] == "Rápido"
+        assert rito["justificativa"] == "Não há fato que leve a demissão por justa causa."
+        assert rito["trecho"] == "grita comigo"
+        lacunas = next(i for i in sugestao["itens"] if i["item"] == "lacunas")
+        assert lacunas["valor"] == "setor\ntestemunhas"
+
+    def test_sem_sugestao_a_tela_diz_por_que(self):
+        comite = Comite(teto_atingido=True)
+        caso_id = comite.novo_caso()
+
+        sugestao = comite.abrir(COORDENACAO, caso_id)["sugestao_do_agente"]
+
+        assert sugestao["situacao"] == "manual"
+        assert sugestao["itens"] == []
+        assert sugestao["motivo"] == "Sem sugestão do agente: o teto diário de leituras do agente foi atingido."
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. Discordar de um item exige o motivo e grava a discordância
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _responder(comite: Comite, pid: str, caso_id: str, **corpo):
+    return comite.cliente(pid).post(f"{BASE}/casos/{caso_id}/sugestao", json=corpo)
+
+
+class TestDiscordancia:
+    def test_discordar_sem_motivo_e_recusado(self):
+        comite = Comite()
+        caso_id = comite.novo_caso()
+
+        resposta = _responder(comite, COORDENACAO, caso_id, item="rito", resposta="discordo", motivo="  ")
+
+        assert resposta.status_code == 422
+        assert resposta.json()["detail"] == "Escreva o motivo da discordância em uma linha."
+        assert comite.banco.tabelas.get("conduta_sugestao_respostas", []) == []
+
+    def test_discordar_com_motivo_grava_a_discordancia_cifrada_e_a_trilha(self):
+        comite = Comite()
+        caso_id = comite.novo_caso()
+
+        resposta = _responder(
+            comite, COORDENACAO, caso_id, item="rito", resposta="discordo", motivo="Há ameaça de demissão."
+        )
+
+        assert resposta.status_code == 200, resposta.text
+        [linha] = comite.banco.tabelas["conduta_sugestao_respostas"]
+        assert linha["item"] == "rito" and linha["resposta"] == "discordo" and linha["autor_id"] == COORDENACAO
+        assert cifra.decifrar_texto(linha["motivo_cifrado"]) == "Há ameaça de demissão."
+        assert ("sugestao_discordada", "discordou da sugestão do agente: Rito") in comite.trilha(caso_id)
+        itens = comite.abrir(COORDENACAO, caso_id)["sugestao_do_agente"]["itens"]
+        rito = next(i for i in itens if i["item"] == "rito")
+        assert rito["resposta"] == "discordo" and rito["motivo"] == "Há ameaça de demissão."
+
+    def test_confirmar_nao_pede_motivo(self):
+        comite = Comite()
+        caso_id = comite.novo_caso()
+
+        resposta = _responder(comite, COORDENACAO, caso_id, item="categoria", resposta="confirmo", motivo="")
+
+        assert resposta.status_code == 200, resposta.text
+        assert ("sugestao_confirmada", "confirmou a sugestão do agente: Categoria") in comite.trilha(caso_id)
+
+    def test_so_a_coordenacao_responde_e_uma_vez_por_item(self):
+        comite = Comite()
+        caso_id = comite.novo_caso()
+
+        assert _responder(comite, MEMBRO, caso_id, item="rito", resposta="confirmo").status_code == 403
+        assert _responder(comite, COORDENACAO, caso_id, item="rito", resposta="confirmo").status_code == 200
+        segunda = _responder(comite, COORDENACAO, caso_id, item="rito", resposta="discordo", motivo="x")
+        assert segunda.status_code == 409
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. O possível impedimento por nome é calculado no app, sem chamada de IA
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestImpedimentoPorNome:
+    def test_membro_citado_pelo_nome_aparece_como_possivel_impedimento_sem_ia(self):
+        comite = Comite(modelo=Modelo(falha=AssertionError("o impedimento não chama a IA")))
+        caso_id = comite.novo_caso("Quem grita com a equipe é a beatriz mendes, da coordenação.")
+        chamadas_da_entrada = len(comite.modelo.chamadas)
+
+        sugestao = comite.abrir(MEMBRO, caso_id)["sugestao_do_agente"]
+
+        assert sugestao["possivel_impedimento"] == [
+            {"membro": "Beatriz Albuquerque Mendes", "motivo": "O nome aparece no relato."}
+        ]
+        assert len(comite.modelo.chamadas) == chamadas_da_entrada
+
+    def test_relato_sem_nome_de_membro_nao_aponta_impedimento(self):
+        comite = Comite()
+        caso_id = comite.novo_caso()
+
+        assert comite.abrir(MEMBRO, caso_id)["sugestao_do_agente"]["possivel_impedimento"] == []

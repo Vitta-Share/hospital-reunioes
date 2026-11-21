@@ -424,3 +424,125 @@ def triar_caso(supabase, caso_id: str, *, cliente=None) -> None:
         supabase.table("conduta_sugestoes").insert(linha).execute()
     except Exception as exc:
         logger.error("[CONDUTA] Triagem do agente falhou no caso %s (%s)", caso_id, type(exc).__name__)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# A sugestão na tela do caso, e a resposta da coordenação item a item
+# ═══════════════════════════════════════════════════════════════════════════
+
+RESPOSTAS = ("confirmo", "discordo")
+_TAMANHO_DO_MOTIVO = 500
+
+
+class RespostaRecusadaError(Exception):
+    """A resposta não pode ser gravada agora. `status` vai para a resposta HTTP."""
+
+    def __init__(self, status: int, mensagem: str):
+        super().__init__(mensagem)
+        self.status = status
+        self.mensagem = mensagem
+
+
+def _valor_na_tela(item: str, bloco: dict) -> str:
+    valor = bloco["valor"]
+    if isinstance(valor, list):
+        return "\n".join(valor) or "Nenhum"
+    if item == "categoria":
+        return f"{valor}. {_NOMES_DAS_CATEGORIAS[valor]}" if valor else "Sem categoria (fora do canal)"
+    texto = _ROTULOS.get(valor, valor)
+    if item == "escopo" and bloco.get("destino"):
+        texto = f"{texto}, parte de fora: {_ROTULOS[bloco['destino']]}"
+    if item == "especial" and valor == "SIM" and bloco.get("citados"):
+        texto = f"{texto}, cita: {bloco['citados']}"
+    return texto
+
+
+def _membros_vigentes(supabase, hoje) -> list[dict]:
+    ids = membros.ids_dos_membros_vigentes(supabase, hoje)
+    return [{"nome": nome} for nome in membros.nomes(supabase, ids).values() if nome]
+
+
+def sugestao_para_a_tela(supabase, caso: dict, relato: str, papel: str | None, hoje) -> dict:
+    """O que a tela do caso mostra: cada item como "Sugestão", com a
+    justificativa e o trecho, a resposta da coordenação, e o possível
+    impedimento por nome, conferido aqui."""
+    linhas = supabase.table("conduta_sugestoes").select("*").eq("caso_id", caso["id"]).limit(1).execute().data
+    linha = linhas[0] if linhas else None
+    respostas = {
+        r["item"]: r
+        for r in supabase.table("conduta_sugestao_respostas").select("*").eq("caso_id", caso["id"]).execute().data
+        or []
+    }
+    itens = []
+    if linha and linha.get("sugestao_cifrada"):
+        sugestao = json.loads(cifra.decifrar_texto(linha["sugestao_cifrada"]))
+        for item, titulo in ITENS.items():
+            resposta = respostas.get(item)
+            itens.append(
+                {
+                    "item": item,
+                    "titulo": titulo,
+                    "rotulo": "Sugestão",
+                    "valor": _valor_na_tela(item, sugestao[item]),
+                    "justificativa": sugestao[item]["justificativa"],
+                    "trecho": sugestao[item].get("trecho") or "",
+                    "resposta": resposta["resposta"] if resposta else None,
+                    "motivo": cifra.decifrar_texto(resposta["motivo_cifrado"])
+                    if resposta and resposta.get("motivo_cifrado")
+                    else None,
+                }
+            )
+    motivo = None
+    if linha and linha["situacao"] == "manual":
+        motivo = f"Sem sugestão do agente: {POR_QUE_SEM_SUGESTAO[linha['motivo_manual']]}."
+    return {
+        "situacao": linha["situacao"] if linha else "aguardando",
+        "motivo": motivo,
+        "itens": itens,
+        "pode_responder": papel == "coordenacao" and not caso.get("encerrado_em") and bool(itens),
+        "possivel_impedimento": possivel_impedimento(relato, _membros_vigentes(supabase, hoje)),
+    }
+
+
+def responder_item(supabase, aberto, *, item: str, resposta: str, motivo: str = "") -> dict:
+    """A coordenação confirma ou discorda de um item da sugestão. Discordar
+    exige o motivo em uma linha, que fica cifrado. Um item, uma resposta."""
+    caso = aberto.caso
+    if aberto.pessoa.papel != "coordenacao":
+        raise RespostaRecusadaError(403, "Só a coordenação confirma ou discorda da sugestão do agente.")
+    if item not in ITENS or resposta not in RESPOSTAS:
+        raise RespostaRecusadaError(422, "Item ou resposta inexistente.")
+    motivo = (motivo or "").strip()
+    if resposta == "discordo" and not motivo:
+        raise RespostaRecusadaError(422, "Escreva o motivo da discordância em uma linha.")
+    if len(motivo) > _TAMANHO_DO_MOTIVO:
+        raise RespostaRecusadaError(422, "O motivo cabe em uma linha.")
+    sugerida = (
+        supabase.table("conduta_sugestoes")
+        .select("caso_id")
+        .eq("caso_id", caso["id"])
+        .eq("situacao", "sugerida")
+        .limit(1)
+        .execute()
+        .data
+    )
+    if not sugerida or caso.get("encerrado_em"):
+        raise RespostaRecusadaError(409, "Não há sugestão do agente a responder neste caso.")
+    ja = supabase.table("conduta_sugestao_respostas").select("id").eq("caso_id", caso["id"]).eq("item", item)
+    if ja.execute().data:
+        raise RespostaRecusadaError(409, "Este item já foi respondido.")
+    if resposta == "confirmo":
+        acao, detalhe = "sugestao_confirmada", f"confirmou a sugestão do agente: {ITENS[item]}"
+    else:
+        acao, detalhe = "sugestao_discordada", f"discordou da sugestão do agente: {ITENS[item]}"
+    trilha.registrar(supabase, caso["id"], aberto.autor_id, acao, detalhe)
+    supabase.table("conduta_sugestao_respostas").insert(
+        {
+            "caso_id": caso["id"],
+            "item": item,
+            "resposta": resposta,
+            "motivo_cifrado": cifra.cifrar_texto(motivo) if resposta == "discordo" else None,
+            "autor_id": aberto.autor_id,
+        }
+    ).execute()
+    return caso
