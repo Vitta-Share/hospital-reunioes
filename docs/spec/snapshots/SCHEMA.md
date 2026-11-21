@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T02:13+0000 -->
+<!-- last_update: 2026-11-21T02:33+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -65,6 +65,9 @@ erDiagram
     colegiados ||--o{ nsp_reunioes_rapidas : "colegiado_id"
     colegiados ||--o{ participacoes : "colegiado_id"
     colegiados ||--o{ reunioes : "colegiado_id"
+    conduta_casos ||--o{ conduta_atribuicoes : "caso_id"
+    conduta_casos ||--o{ conduta_citados : "caso_id"
+    conduta_casos ||--o{ conduta_trilha : "caso_id"
     nsp_agenda_regulatoria ||--o{ nsp_agenda_ocorrencias : "item_id"
     nsp_capacitacoes ||--o{ nsp_capacitacao_participantes : "capacitacao_id"
     nsp_documentos ||--o{ nsp_documentos_envios : "documento_id"
@@ -99,6 +102,9 @@ erDiagram
     participantes ||--o{ cm_tabela_preco : "autor_id"
     participantes ||--o{ cm_validacao_tema : "decidido_por"
     participantes ||--o{ comentarios_pendencias : "autor_id"
+    participantes ||--o{ conduta_atribuicoes : "participante_id"
+    participantes ||--o{ conduta_citados : "participante_id"
+    participantes ||--o{ conduta_trilha : "que"
     participantes ||--o{ notificacoes : "destinatario_id"
     participantes ||--o{ nsp_agenda_ocorrencias : "registrado_por"
     participantes ||--o{ nsp_avisos : "destinatario_id"
@@ -193,7 +199,7 @@ erDiagram
         TEXT setor
         user_role role
         BOOLEAN ativo
-        _ mais_colunas "+15"
+        _ mais_colunas "+16"
     }
     reunioes {
         VARCHAR id_reuniao PK
@@ -1273,6 +1279,44 @@ erDiagram
         TEXT papel_do_banco
         TIMESTAMPTZ ocorrido_em
     }
+    conduta_casos {
+        UUID id PK
+        pelo gerado
+        TEXT codigo_hash
+        TEXT rota
+        TEXT etapa
+        TEXT categoria
+        TIMESTAMPTZ recebido_em
+        DATE prazo_em
+        _ mais_colunas "+2"
+    }
+    conduta_atribuicoes {
+        UUID id PK
+        UUID caso_id FK
+        VARCHAR participante_id FK
+        TEXT motivo
+        TIMESTAMPTZ termo_assinado_em
+        TIMESTAMPTZ impedido_em
+        TIMESTAMPTZ revogada_em
+        TIMESTAMPTZ created_at
+    }
+    conduta_citados {
+        UUID id PK
+        UUID caso_id FK
+        VARCHAR participante_id FK
+        TEXT nome_cifrado
+        TIMESTAMPTZ created_at
+    }
+    conduta_trilha {
+        BIGINT seq PK
+        UUID caso_id FK
+        n que FK
+        TEXT acao
+        TEXT detalhe
+        TIMESTAMPTZ registrado_em
+        TEXT codigo_anterior
+        TEXT codigo
+    }
 ```
 
 ## Indexes principais
@@ -1481,6 +1525,13 @@ erDiagram
 | `nsp_notificacoes` | `idx_nsp_notificacoes_editado_por` | `editado_por` | `174_nsp_notificacao_de_incidente.sql` |
 | `nsp_notificacoes_trilha` | `idx_nsp_notificacoes_trilha_notificacao` | `notificacao_id, ocorrido_em DESC` | `174_nsp_notificacao_de_incidente.sql` |
 | `nsp_notificacoes_trilha` | `idx_nsp_notificacoes_trilha_autor` | `autor_id` | `174_nsp_notificacao_de_incidente.sql` |
+| `conduta_casos` | `idx_conduta_casos_rota_etapa` | `rota, etapa, recebido_em DESC` | `175_conduta_fundacao.sql` |
+| `conduta_atribuicoes` | `idx_conduta_atribuicoes_pessoa` | `participante_id, caso_id` | `175_conduta_fundacao.sql` |
+| `conduta_atribuicoes` | `idx_conduta_atribuicoes_caso` | `caso_id` | `175_conduta_fundacao.sql` |
+| `conduta_citados` | `idx_conduta_citados_pessoa` | `participante_id, caso_id` | `175_conduta_fundacao.sql` |
+| `conduta_citados` | `idx_conduta_citados_caso` | `caso_id` | `175_conduta_fundacao.sql` |
+| `conduta_trilha` | `idx_conduta_trilha_caso` | `caso_id, seq DESC` | `175_conduta_fundacao.sql` |
+| `conduta_trilha` | `idx_conduta_trilha_autor` | `autor_id` | `175_conduta_fundacao.sql` |
 
 ---
-**Resumo:** 116 tabelas · 175 relacionamentos FK detectados.
+**Resumo:** 120 tabelas · 181 relacionamentos FK detectados.

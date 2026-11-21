@@ -1,12 +1,12 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T02:13+0000 -->
+<!-- last_update: 2026-11-21T02:33+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## participantes
 
-> Origem: `001_create_participantes.sql` (alterada em: 014_add_externo_co_responsavel.sql, 017_add_super_admin.sql, 028_add_taxonomy_fks.sql, 036_add_access_profile.sql, 045_pops_fundacao_acesso.sql, 064_ouvidoria_manifestacao.sql, 103_tecnologia_vinculo.sql, 116_contas_medicas_fundacao.sql, 146_nsp_fundacao.sql)
+> Origem: `001_create_participantes.sql` (alterada em: 014_add_externo_co_responsavel.sql, 017_add_super_admin.sql, 028_add_taxonomy_fks.sql, 036_add_access_profile.sql, 045_pops_fundacao_acesso.sql, 064_ouvidoria_manifestacao.sql, 103_tecnologia_vinculo.sql, 116_contas_medicas_fundacao.sql, 146_nsp_fundacao.sql, 175_conduta_fundacao.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -33,6 +33,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `conselho_profissional` | `TEXT` | — | — | — |
 | `registro_profissional` | `TEXT` | — | — | — |
 | `registro_uf` | `TEXT` | — | — | — |
+| `perfil_conduta` | `TEXT` | — | — | — |
 
 **Indexes:**
 - `idx_participantes_email` em `(email)` (de `001_create_participantes.sql`)
@@ -2374,6 +2375,81 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_nsp_notificacoes_trilha_notificacao` em `(notificacao_id, ocorrido_em DESC)` (de `174_nsp_notificacao_de_incidente.sql`)
 - `idx_nsp_notificacoes_trilha_autor` em `(autor_id)` (de `174_nsp_notificacao_de_incidente.sql`)
 
+## conduta_casos
+
+> Origem: `175_conduta_fundacao.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `gerado` | `pelo` | UNIQUE, NOT NULL | `de sequência de propósito.
+  protocolo          TEXT` | — |
+| `codigo_hash` | `TEXT` | NOT NULL | — | — |
+| `rota` | `TEXT` | NOT NULL | `'comum'` | — |
+| `etapa` | `TEXT` | NOT NULL | `'triagem'` | — |
+| `categoria` | `TEXT` | — | — | — |
+| `recebido_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `prazo_em` | `DATE` | — | — | — |
+| `relato_cifrado` | `TEXT` | NOT NULL | — | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_casos_rota_etapa` em `(rota, etapa, recebido_em DESC)` (de `175_conduta_fundacao.sql`)
+
+## conduta_atribuicoes
+
+> Origem: `175_conduta_fundacao.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `participante_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `motivo` | `TEXT` | NOT NULL | — | — |
+| `termo_assinado_em` | `TIMESTAMPTZ` | — | — | — |
+| `impedido_em` | `TIMESTAMPTZ` | — | — | — |
+| `revogada_em` | `TIMESTAMPTZ` | — | — | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_atribuicoes_pessoa` em `(participante_id, caso_id)` (de `175_conduta_fundacao.sql`)
+- `idx_conduta_atribuicoes_caso` em `(caso_id)` (de `175_conduta_fundacao.sql`)
+
+## conduta_citados
+
+> Origem: `175_conduta_fundacao.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `participante_id` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `nome_cifrado` | `TEXT` | — | — | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_citados_pessoa` em `(participante_id, caso_id)` (de `175_conduta_fundacao.sql`)
+- `idx_conduta_citados_caso` em `(caso_id)` (de `175_conduta_fundacao.sql`)
+
+## conduta_trilha
+
+> Origem: `175_conduta_fundacao.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `seq` | `BIGINT` | PK | — | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `que` | `n` | — | — | `participantes.id` |
+| `acao` | `TEXT` | NOT NULL | — | — |
+| `detalhe` | `TEXT` | NOT NULL | `''` | — |
+| `registrado_em` | `TIMESTAMPTZ` | NOT NULL | — | — |
+| `codigo_anterior` | `TEXT` | — | — | — |
+| `codigo` | `TEXT` | UNIQUE, NOT NULL | — | — |
+
+**Indexes:**
+- `idx_conduta_trilha_caso` em `(caso_id, seq DESC)` (de `175_conduta_fundacao.sql`)
+- `idx_conduta_trilha_autor` em `(autor_id)` (de `175_conduta_fundacao.sql`)
+
 ---
 
-**Resumo:** 116 tabelas vivas.
+**Resumo:** 120 tabelas vivas.

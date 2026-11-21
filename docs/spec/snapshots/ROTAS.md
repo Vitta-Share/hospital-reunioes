@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T02:13+0000 -->
+<!-- last_update: 2026-11-21T02:33+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -69,6 +69,19 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/pendencias/{id_acao}/comentarios` | Cria um comentário na pendência e gera notificações de menção. | ✅ |
 | DELETE | `/pendencias/{id_acao}/comentarios/{comentario_id}` | Exclui um comentário. Apenas o autor pode excluir. | ✅ |
 | GET | `/pendencias/{id_acao}/mencionaveis` | Lista participantes mencionáveis no chat da Pendência (quem enxerga a Pendência). | ✅ |
+
+## canal-de-conduta (`app/routers/conduta_comite.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| GET | `/comite-de-conduta/casos` | Listar casos | ✅ |
+| GET | `/comite-de-conduta/casos/{caso_id}` | Abrir caso | ✅ |
+
+## canal-de-conduta-publico (`app/routers/conduta_publico.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| GET | `/conduta/abertura` | Se o canal está aberto. Fechado, a rota nem aparece (404). | ❌ |
 
 ## conector-mcp (`app/routers/conector_mcp.py`)
 
@@ -691,4 +704,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 395 endpoints em 58 routers · 93% exigem auth.
+**Totais:** 398 endpoints em 60 routers · 93% exigem auth.
