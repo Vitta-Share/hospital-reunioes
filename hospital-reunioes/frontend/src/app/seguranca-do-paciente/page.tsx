@@ -1,5 +1,6 @@
 "use client";
 
+import { CasosGraves } from "@/components/seguranca-do-paciente/CasosGraves";
 import { TelaDoNucleo } from "@/components/seguranca-do-paciente/TelaDoNucleo";
 
 /** Os seis passos da seção 17 da especificação, "Como funciona o Núcleo". */
@@ -23,6 +24,7 @@ export default function SegurancaDoPacientePage() {
       orientacao="O que precisa de você hoje vem primeiro. O resto é acompanhamento."
       recurso="ver_modulo"
     >
+      <CasosGraves />
       <h2 className="text-base font-semibold text-slate-900 mb-3">Como funciona o Núcleo</h2>
       <ol aria-label="Como funciona o Núcleo" className="space-y-2.5">
         {PASSOS.map((passo, i) => (
