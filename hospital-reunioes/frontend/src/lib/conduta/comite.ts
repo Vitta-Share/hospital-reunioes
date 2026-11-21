@@ -5,6 +5,7 @@
  * Quem decide o que cada pessoa pode fazer é o servidor: a caixa "O QUE FAZER
  * AGORA" chega pronta, com o motivo do botão bloqueado.
  */
+import type { Depoimento } from "@/lib/conduta/depoimentos";
 import { createClient } from "@/lib/supabase/client";
 
 export type Rito = "encaminhamento" | "rapido" | "completo";
@@ -62,6 +63,15 @@ export interface NotaAoNucleo {
   enviada_em: string | null;
 }
 
+/** Quem foi convidado para o caso e o termo dele (issue #1825). */
+export interface Convidado {
+  participante_id: string;
+  nome: string | null;
+  motivo: "apurador" | "cipa";
+  papel: string;
+  termo: "assinado" | "aguardando_assinatura" | "nao_enviado";
+}
+
 export interface MembroDoCaso {
   id: string;
   nome: string | null;
@@ -103,6 +113,9 @@ export interface CasoAberto extends CasoDaLista {
   encerrado_em: string | null;
   desfecho: string | null;
   notas_ao_nsp?: NotaAoNucleo[];
+  /** Os cartões da Apuração (issue #1830). */
+  depoimentos: Depoimento[];
+  avanco_da_apuracao: string | null;
 }
 
 export const RITOS: { valor: Rito; rotulo: string; prazo: string }[] = [

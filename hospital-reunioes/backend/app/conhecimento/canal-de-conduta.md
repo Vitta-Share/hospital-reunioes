@@ -48,6 +48,26 @@ Os avisos por e-mail:
 - quem relatou não recebe aviso por nenhum meio: o retorno a ele é só pela página de acompanhamento;
 - os avisos são feitos por uma rotina automática, sem IA.
 
+## Os depoimentos
+
+Na etapa Apuração, o botão "ADICIONAR PESSOA A OUVIR" cria um cartão para cada pessoa ouvida, com o nome, o cargo e o papel: acusado, testemunha ou denunciante identificado. A gravação e a transcrição são feitas fora do aplicativo, na plataforma de gravação do hospital, e o cartão recebe os arquivos depois.
+
+- Cada arquivo tem o seu botão, sem escolher o tipo: "ANEXAR TRANSCRIÇÃO DO DEPOIMENTO" (TXT, VTT, DOCX ou PDF), "ANEXAR ÁUDIO DO DEPOIMENTO" (MP3, M4A ou OGG, até 300 MB, o que cabe um depoimento de duas horas) e "ANEXAR TERMO ASSINADO" (PDF ou foto).
+- O termo assinado também sobe pela câmera do celular: "FOTOGRAFAR TERMO ASSINADO" abre a câmera, uma foto por página, e as páginas vão juntas.
+- Mandar um arquivo de novo cria uma versão nova, e a anterior continua guardada. O cartão mostra todas as versões, com quem enviou e quando.
+- Os arquivos ficam cifrados e só abrem pelo aplicativo, para quem abre o caso. Não existe link para baixar direto. O áudio toca na própria tela. Cada abertura de arquivo fica registrada.
+- O nome e o cargo da pessoa ouvida ficam guardados cifrados.
+- O cartão mostra "Aguardando assinatura" até o termo assinado chegar.
+
+"CONCLUIR DEPOIMENTO" só libera com os sete itens da lista de conferência marcados. Enquanto falta algum, o botão fica bloqueado e a tela diz o que falta.
+
+- Três itens se marcam sozinhos quando o arquivo chega: transcrição, áudio e termo assinado.
+- Quatro são declarações de quem conduziu: "Abri os arquivos na aplicação e estão corretos", "Apaguei a gravação de áudio da plataforma de gravação", "Apaguei os arquivos do computador e do celular" e "Guardei o original assinado no envelope do caso". Cada uma guarda quem marcou e quando, e não se desmarca.
+- Quando a pessoa não aceita gravação, quem conduz toca em "A PESSOA NÃO ACEITOU GRAVAÇÃO", escreve o motivo e digita os pontos da conversa, que fazem as vezes da transcrição. Os itens de transcrição e de áudio ficam "Não se aplica", com o motivo, e o termo assinado continua obrigatório.
+- O depoimento concluído não muda mais.
+
+A etapa Apuração só avança com todos os depoimentos concluídos. Com algum em aberto, a tela diz quantos faltam.
+
 ## As configurações e os textos
 
 A coordenação do Comitê edita, na tela Configurações:
@@ -100,6 +120,17 @@ A tela Membros diz quem compõe o Comitê e até quando. Cada linha mostra a pes
 - Reconsultar e reenviar o Termo é de quem tem o perfil de cadastro de membros.
 - Os outros documentos do Canal que vão à ClickSign, como a ata e o relatório de apuração, vão usar o mesmo registro de assinaturas.
 
+## O convite do apurador e do membro da CIPA
+
+- Na tela do caso, a coordenação convida o apurador designado nos casos da fila comum, e o Grupo Especial convida, no caso dele, o membro da CIPA ou um apurador. O convite é feito pelo e-mail da pessoa, e quem convida escolhe o papel: apurador designado ou membro da CIPA. Os outros membros do Comitê não veem o convite.
+- Quem ainda não tem cadastro no aplicativo ganha um cadastro mínimo, só com o nome e o e-mail, e um login. Quem está no cadastro e ainda não tinha login também ganha o login. Esse login não abre nenhum outro módulo: nem Reuniões, nem Ouvidoria, nem os outros. A senha é a pessoa quem cria, pelo "Esqueci a senha" da tela de entrada, com o e-mail do convite.
+- O convidado recebe o termo de confidencialidade pela ClickSign. Antes de assinar, ele não abre o caso. Depois de assinar, abre só aquele caso, e a lista de casos dele mostra só esse. Ele não vê a fila do Comitê nem os outros casos.
+- O e-mail do convite diz só que há um convite do Comitê de Conduta e leva ao aplicativo, sem o protocolo, sem nomes e sem nada do relato. O termo também não traz o protocolo.
+- O super admin não participa do convite e não recebe aviso nenhum dele. O convite não passa pela área de administração.
+- O convite, a assinatura do termo e cada vez que o convidado abre o caso ficam na trilha do caso, com quem, quando e o quê.
+- Quem é citado no caso não pode ser convidado para ele, e a tela diz isso, para o convite não avisar ao citado que existe um caso.
+- A tela do caso mostra cada convidado, o papel dele e em que pé está o termo: assinado, esperando a assinatura ou não enviado. Se a ClickSign não respondeu, ou se o convidado perdeu o e-mail, convidar de novo a mesma pessoa cancela o termo anterior e manda outro.
+
 ## Impedimento, suplente e Citado
 
 Ninguém julga um caso em que é parte, chefe, parente ou interessado. Na tela do caso:
@@ -123,7 +154,7 @@ Ninguém vê um caso por ter um cargo. Vê quem está designado naquele caso:
 
 - a coordenação, o segundo leitor e os membros do Comitê, com a participação em dia e o Termo assinado, veem os casos da fila comum;
 - o suplente vê só o caso para o qual foi convocado;
-- o apurador, o membro da CIPA e o grupo da Rota Especial veem só o caso que receberam, depois do termo assinado;
+- o apurador e o membro da CIPA, convidados dentro do caso, e o grupo da Rota Especial veem só o caso que receberam, depois do termo assinado;
 - quem é citado no relato como envolvido nunca vê o caso, em nenhum perfil, e quem se declarou impedido perde o acesso àquele caso;
 - o super admin e a equipe técnica não abrem conteúdo de caso pelo aplicativo;
 - quem está no Comitê e ainda não assinou o Termo não abre caso.
@@ -141,7 +172,7 @@ Quem não tem acesso recebe a mesma recusa, exista o caso ou não.
 
 ## O que ele ainda não faz
 
-O formulário público de relato, as páginas públicas que vão mostrar os textos das configurações, a página de acompanhamento, a sugestão do agente na triagem, a Rota Especial, as perguntas ao relator, os depoimentos, o voto, a ata e o dossiê chegam nas próximas entregas. Na apuração, o botão "ADICIONAR PESSOA A OUVIR" aparece bloqueado até os depoimentos chegarem. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. Por enquanto ninguém relata pelo Canal: os relatos continuam chegando pela Ouvidoria.
+O formulário público de relato, as páginas públicas que vão mostrar os textos das configurações, a página de acompanhamento, a sugestão do agente na triagem, a Rota Especial, as perguntas ao relator, o roteiro de perguntas e o termo de declaração redigidos pelo agente, o voto, a ata e o dossiê chegam nas próximas entregas. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. Por enquanto ninguém relata pelo Canal: os relatos continuam chegando pela Ouvidoria.
 
 ## O que já foi decidido
 
@@ -155,6 +186,9 @@ O formulário público de relato, as páginas públicas que vão mostrar os text
 ## O que costuma virar Demanda
 
 - Um membro do Comitê que não abre caso: costuma ser o Termo ainda não assinado ou a participação fora da vigência.
+- Um apurador ou membro da CIPA convidado que não abre o caso: costuma ser o termo ainda não assinado. A tela do caso mostra se ele espera a assinatura, e convidar de novo a mesma pessoa reenvia o termo.
+- Convidado que não sabe a senha: ele cria a senha pelo "Esqueci a senha" da tela de entrada, com o e-mail do convite.
+- Pedido para o super admin liberar o acesso de um apurador ou da CIPA: não é atendido. Quem convida é a coordenação ou o Grupo Especial, dentro do caso.
 - Membro que assinou o Termo e a tela ainda diz que falta: use "Reconsultar status" na linha dele, na tela Membros.
 - O super admin que não consegue incluir membro: falta o perfil de cadastro de membros no cadastro dele.
 - Pedido para o super admin ler um caso: não é atendido, por decisão da Diretoria.
@@ -163,6 +197,11 @@ O formulário público de relato, as páginas públicas que vão mostrar os text
 - Pedido para tirar o prazo vencido de um caso: não existe; o vencido fica registrado mesmo depois da prorrogação.
 - Pedido para prorrogar de novo um caso do rito Completo, ou prorrogar um caso do rito Rápido: o rito Completo prorroga uma vez só, e os outros não prorrogam.
 - A coordenação que não consegue encerrar um Encaminhamento: costuma faltar a conferência do segundo leitor.
+- "CONCLUIR DEPOIMENTO" que não libera: falta algum dos sete itens da lista; a tela diz qual.
+- Pedido para trocar ou apagar um arquivo do depoimento: não existe; mande a versão nova, e a anterior fica guardada.
+- Pedido para desmarcar uma declaração da lista ou reabrir um depoimento concluído: não existe; a declaração e o depoimento concluído ficam como estão.
+- Áudio que não sobe: o botão aceita MP3, M4A ou OGG de até 300 MB.
+- A Apuração que não avança: há depoimento em aberto.
 - Pedido para apagar ou corrigir uma versão antiga de um texto: não existe; salva-se uma versão nova, e a antiga fica.
 - Pedido para publicar o Código de Conduta com vigência numa data passada: não existe; a versão nova vale de hoje ou de uma data futura, e a que valia antes continua valendo para os dias que já passaram.
 - Pedido de um item novo nas configurações: entra por Demanda, porque a lista de itens é fixa.

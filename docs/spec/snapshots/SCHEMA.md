@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T22:59+0000 -->
+<!-- last_update: 2026-11-21T23:12+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -71,11 +71,14 @@ erDiagram
     conduta_casos ||--o{ conduta_citados : "caso_id"
     conduta_casos ||--o{ conduta_contestacoes : "caso_id"
     conduta_casos ||--o{ conduta_contestacoes_de_participacao : "caso_id"
+    conduta_casos ||--o{ conduta_depoimentos : "caso_id"
     conduta_casos ||--o{ conduta_notas_nsp : "caso_id"
     conduta_casos ||--o{ conduta_prazos_vencidos : "caso_id"
     conduta_casos ||--o{ conduta_trilha : "caso_id"
     conduta_contestacoes ||--o{ conduta_contestacao_votos : "contestacao_id"
     conduta_contestacoes_de_participacao ||--o{ conduta_participacao_votos : "contestacao_id"
+    conduta_depoimentos ||--o{ conduta_depoimento_arquivos : "depoimento_id"
+    conduta_depoimentos ||--o{ conduta_depoimento_conferencia : "depoimento_id"
     nsp_agenda_regulatoria ||--o{ nsp_agenda_ocorrencias : "item_id"
     nsp_capacitacoes ||--o{ nsp_capacitacao_participantes : "capacitacao_id"
     nsp_categorias ||--o{ nsp_triagens : "categoria"
@@ -130,6 +133,11 @@ erDiagram
     participantes ||--o{ conduta_contestacoes : "autor_id"
     participantes ||--o{ conduta_contestacoes_de_participacao : "autor_id"
     participantes ||--o{ conduta_contestacoes_de_participacao : "contestado_id"
+    participantes ||--o{ conduta_depoimento_arquivos : "enviado_por"
+    participantes ||--o{ conduta_depoimento_conferencia : "marcado_por"
+    participantes ||--o{ conduta_depoimentos : "concluido_por"
+    participantes ||--o{ conduta_depoimentos : "criado_por"
+    participantes ||--o{ conduta_depoimentos : "sem_gravacao_por"
     participantes ||--o{ conduta_notas_nsp : "enviada_por"
     participantes ||--o{ conduta_notas_nsp : "escrita_por"
     participantes ||--o{ conduta_participacao_votos : "participante_id"
@@ -1494,6 +1502,35 @@ erDiagram
         TEXT documento_key
         _ mais_colunas "+6"
     }
+    conduta_depoimentos {
+        UUID id PK
+        UUID caso_id FK
+        TEXT nome_cifrado
+        TEXT cargo_cifrado
+        TEXT papel
+        VARCHAR criado_por FK
+        TIMESTAMPTZ criado_em
+        TIMESTAMPTZ sem_gravacao_em
+        _ mais_colunas "+5"
+    }
+    conduta_depoimento_arquivos {
+        UUID id PK
+        UUID depoimento_id FK
+        TEXT tipo
+        INTEGER versao
+        INTEGER pagina
+        TEXT storage_path
+        TEXT content_type
+        BIGINT tamanho_bytes
+        _ mais_colunas "+2"
+    }
+    conduta_depoimento_conferencia {
+        UUID id PK
+        UUID depoimento_id FK
+        TEXT item
+        VARCHAR marcado_por FK
+        TIMESTAMPTZ marcado_em
+    }
     email_de_segunda {
         VARCHAR participante_id FK
         DATE semana
@@ -1798,6 +1835,12 @@ erDiagram
 | `conduta_participacao_votos` | `idx_conduta_participacao_votos_pessoa` | `participante_id` | `191_conduta_impedimento_e_citado.sql` |
 | `conduta_assinaturas` | `idx_conduta_assinaturas_participacao` | `participacao_id, created_at DESC` | `192_conduta_assinaturas.sql` |
 | `conduta_assinaturas` | `idx_conduta_assinaturas_caso` | `caso_id` | `192_conduta_assinaturas.sql` |
+| `conduta_depoimentos` | `idx_conduta_depoimentos_caso` | `caso_id` | `193_conduta_depoimentos.sql` |
+| `conduta_depoimentos` | `idx_conduta_depoimentos_criado_por` | `criado_por` | `193_conduta_depoimentos.sql` |
+| `conduta_depoimentos` | `idx_conduta_depoimentos_sem_gravacao_por` | `sem_gravacao_por` | `193_conduta_depoimentos.sql` |
+| `conduta_depoimentos` | `idx_conduta_depoimentos_concluido_por` | `concluido_por` | `193_conduta_depoimentos.sql` |
+| `conduta_depoimento_arquivos` | `idx_conduta_depoimento_arquivos_enviado_por` | `enviado_por` | `193_conduta_depoimentos.sql` |
+| `conduta_depoimento_conferencia` | `idx_conduta_depoimento_conferencia_marcado_por` | `marcado_por` | `193_conduta_depoimentos.sql` |
 | `email_de_segunda` | `idx_email_de_segunda_semana` | `semana` | `196_email_de_segunda.sql` |
 | `nsp_cortes_de_frequencia` | `idx_nsp_cortes_de_frequencia_atualizado_por` | `atualizado_por` | `197_nsp_tela_de_triagem.sql` |
 | `conduta_avisos` | `idx_conduta_avisos_pendentes` | `na_hora, criado_em` | `199_conduta_avisos_por_email.sql` |
@@ -1809,4 +1852,4 @@ erDiagram
 | `nsp_esclarecimentos` | `idx_nsp_esclarecimentos_triagem` | `triagem_id` | `207_nsp_perguntas_de_esclarecimento.sql` |
 
 ---
-**Resumo:** 143 tabelas · 220 relacionamentos FK detectados.
+**Resumo:** 146 tabelas · 228 relacionamentos FK detectados.

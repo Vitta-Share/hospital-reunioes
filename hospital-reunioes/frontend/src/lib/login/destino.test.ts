@@ -162,6 +162,10 @@ describe("a URL de login de quem pediu uma área sem sessão", () => {
     );
   });
 
+  it("leva o convidado do Comitê de Conduta de volta à área do Comitê (issue #1825)", () => {
+    expect(urlDeLoginPara("/comite-de-conduta")).toBe("/login?redirect=%2Fcomite-de-conduta");
+  });
+
   it("manda o resto do admin para o login sem retorno", () => {
     expect(urlDeLoginPara("/admin")).toBe("/login");
     expect(urlDeLoginPara("/admin/usuarios?p=2")).toBe("/login");

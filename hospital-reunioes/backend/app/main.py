@@ -21,6 +21,8 @@ from app.routers import (
     comentarios,
     conduta_codigo,
     conduta_comite,
+    conduta_convites,
+    conduta_depoimentos,
     conduta_membros,
     conduta_publico,
     conector_mcp,
@@ -198,6 +200,8 @@ app.include_router(seguranca_do_paciente_triagem.router, prefix=settings.api_pre
 # atrás do portão; o lado público em /conduta, em 404 até a chave de abertura.
 app.include_router(conduta_comite.router, prefix=settings.api_prefix)
 app.include_router(conduta_codigo.router, prefix=settings.api_prefix)
+app.include_router(conduta_convites.router, prefix=settings.api_prefix)
+app.include_router(conduta_depoimentos.router, prefix=settings.api_prefix)
 app.include_router(conduta_membros.router, prefix=settings.api_prefix)
 app.include_router(conduta_publico.router, prefix=settings.api_prefix)
 app.include_router(admin.router, prefix=settings.api_prefix)
