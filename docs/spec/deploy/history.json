@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-20T21:42:48-03:00",
+      "sha": "ae02a1391a6c6dbba99a97252f9622d20c2c9566",
+      "app_version": "0.326.0",
+      "subject": "Onda nsp2-onda1: Limitador de envios sem IP para o formulário público do Núcleo; Setor por id na manifestação; Registro de e-mail do Núcleo com retentativa",
+      "raw_subject": "chore(deploy): registro da onda nsp2-onda1 (#2051 #2053 #2052)",
+      "scope": [
+        "backend"
+      ],
+      "prds": [
+        1979
+      ],
+      "result": "healthy",
+      "duration_seconds": 3938,
+      "services_touched": [
+        "backend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "172_ouvidoria_setor_id.sql",
+        "173_nsp_registro_de_email.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp2-onda1: PR #2051 (issue #1986), PR #2053 (issue #1983), PR #2052 (issue #1985), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 10,
+        "build_s": {
+          "backend": 19
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-20T21:35:03-03:00",
       "sha": "613f58f49f9cd48e508143249cd73e39d58360da",
       "app_version": "0.325.0",
