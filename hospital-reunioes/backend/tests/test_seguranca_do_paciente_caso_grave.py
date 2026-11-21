@@ -23,6 +23,7 @@ from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
+import httpx
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -45,6 +46,7 @@ from test_seguranca_do_paciente_notificacoes import (  # noqa: E402
     SUPER_ADMIN,
     _Banco,
     _cliente,
+    _Consulta,
     _participacao,
     _pessoa,
 )
@@ -144,6 +146,86 @@ def test_o_alerta_fica_registrado_no_envio_mesmo_sem_a_tarefa_de_fundo(monkeypat
     assert len(alertas) == 4
     assert {a["situacao"] for a in alertas} == {emails.PENDENTE}
     assert enviados == []
+
+
+class _ConsultaQueFalha(_Consulta):
+    """A consulta do dublê que anota as colunas filtradas, para a leitura
+    escolhida falhar dentro do `execute`, como um timeout do PostgREST."""
+
+    def __init__(self, banco, nome):
+        super().__init__(banco, nome)
+        self._colunas: dict[str, str] = {}
+
+    def eq(self, coluna, valor):
+        self._colunas[coluna] = "eq"
+        return super().eq(coluna, valor)
+
+    def in_(self, coluna, valores):
+        self._colunas[coluna] = "in"
+        return super().in_(coluna, valores)
+
+    def execute(self):
+        if self._acao == "select" and self._banco.falha(self._nome, self._colunas):
+            raise httpx.ReadTimeout("timeout")
+        return super().execute()
+
+
+class _BancoQueFalha(_Banco):
+    def __init__(self, tabelas, falha):
+        super().__init__(tabelas)
+        self.falha = falha
+
+    def table(self, nome):
+        return _ConsultaQueFalha(self, nome)
+
+
+# Cada leitura que o alerta faz antes de gravar os avisos, e quem ainda o
+# recebe quando só ela falha.
+LEITURAS_DO_ALERTA = {
+    "o Núcleo": (lambda t, c: t == "colegiados", ["P5", "P8"]),
+    "as Participações vigentes": (lambda t, c: t == "participacoes", ["P5", "P8"]),
+    "o Acesso pleno": (lambda t, c: t == "participantes" and "perfil_nsp" in c, ["P1", "P7", "P8"]),
+    "a Diretoria Executiva": (lambda t, c: t == "participantes" and "perfil_ouvidoria" in c, ["P1", "P5", "P7"]),
+    "as pessoas": (lambda t, c: t == "participantes" and c.get("id") == "in", ["P1", "P5", "P7", "P8"]),
+    # O envio confere o setor ativo antes de gravar; o alerta lê só pelo id.
+    "o setor": (lambda t, c: t == "setores" and "ativo" not in c, ["P1", "P5", "P7", "P8"]),
+}
+
+
+@pytest.mark.parametrize("leitura", list(LEITURAS_DO_ALERTA))
+def test_leitura_que_falha_nao_derruba_o_alerta_dos_demais_nem_a_confirmacao(monkeypatch, leitura, enviados):
+    """Às 3h ninguém abre o destaque do início: uma leitura que cai não pode
+    deixar o caso grave sem nenhum aviso gravado."""
+    falha, quem_recebe = LEITURAS_DO_ALERTA[leitura]
+    avisos_ao_admin: list[tuple[str, str]] = []
+    monkeypatch.setattr(caso_grave, "avisar_admins_tecnicos", lambda _s, a, t: avisos_ao_admin.append((a, t)) or 1)
+    banco = _BancoQueFalha(_banco().tabelas, falha)
+
+    resposta = _cliente(banco).post(PUBLICO, json={**IDENTIFICADO, **GRAVE, "origem": "qr"})
+
+    assert resposta.status_code == 201, resposta.text
+    [caso] = banco.notificacoes
+    alertas = _avisos(banco, caso_grave.MARCO_DO_ALERTA)
+    assert sorted(a["destinatario_id"] for a in alertas) == quem_recebe
+    assert {a["situacao"] for a in alertas} == {emails.ENVIADO}
+    assert len(_avisos(banco, caso_grave.MARCO_DA_CONFIRMACAO)) == 1
+    assert "profissional@hsm.test" in [e["para"] for e in enviados]
+    if len(quem_recebe) < 4:
+        # Quem ficou de fora só fica sabendo pelo admin técnico.
+        [(assunto, texto)] = avisos_ao_admin
+        assert caso["protocolo"] in texto
+        assert RELATO_GRAVE not in assunto + texto
+    else:
+        assert avisos_ao_admin == []
+
+
+def test_setor_ilegivel_sai_no_alerta_como_nao_informado(enviados):
+    banco = _BancoQueFalha(_banco().tabelas, LEITURAS_DO_ALERTA["o setor"][0])
+
+    _cliente(banco).post(PUBLICO, json={**GRAVE, "anonimo": True, "origem": "qr"})
+
+    [alerta, *_] = _avisos(banco, caso_grave.MARCO_DO_ALERTA)
+    assert "Setor: não informado." in alerta["texto"]
 
 
 @pytest.mark.parametrize(
