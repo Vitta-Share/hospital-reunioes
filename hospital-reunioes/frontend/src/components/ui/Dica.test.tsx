@@ -64,4 +64,22 @@ describe("a dica", () => {
 
     expect(screen.queryByRole("tooltip")).toBeNull();
   });
+
+  it("aberta pelo mouse, some com Esc mesmo sem o foco no elemento", () => {
+    const link = abrir();
+
+    fireEvent.mouseEnter(link);
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
+
+  it("outra tecla no documento não fecha a dica aberta pelo mouse", () => {
+    const link = abrir();
+
+    fireEvent.mouseEnter(link);
+    fireEvent.keyDown(document, { key: "Tab" });
+
+    expect(screen.getByRole("tooltip").textContent).toBe(FRASE);
+  });
 });
