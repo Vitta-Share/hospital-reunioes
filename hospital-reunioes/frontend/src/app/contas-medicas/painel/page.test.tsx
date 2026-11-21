@@ -395,6 +395,79 @@ describe("a faixa dos números (issue #1953)", () => {
   });
 });
 
+describe("o hover nos blocos (issue #1953)", () => {
+  it("o ponto do gráfico da nota mostra a semana e a nota", async () => {
+    servidorResponde(PAINEL);
+    render(<PainelPage />);
+
+    const bloco = await screen.findByRole("region", { name: "Nota média por semana" });
+    // 600 px de largura (o `ResponsiveContainer` do mock): o eixo da nota ocupa
+    // os primeiros 36 e a margem os últimos 12, então a semana de 05/10 fica em 588.
+    fireEvent.mouseMove(bloco.querySelector(".recharts-wrapper")!, { clientX: 580, clientY: 100 });
+
+    const dica = bloco.querySelector(".recharts-tooltip-wrapper")!;
+    expect(dica.textContent).toContain("Semana de 05/10");
+    expect(dica.textContent).toContain("Nota média : 70");
+  });
+
+  it("a barra do nível de evidência mostra o R$ de cada nível da semana", async () => {
+    servidorResponde(PAINEL);
+    render(<PainelPage />);
+
+    const bloco = await screen.findByRole("region", { name: "R$ incluído por nível de evidência" });
+    fireEvent.mouseMove(bloco.querySelector(".recharts-wrapper")!, { clientX: 500, clientY: 100 });
+
+    const dica = bloco.querySelector(".recharts-tooltip-wrapper")!;
+    expect(dica.textContent).toContain("Semana de 05/10");
+    expect(dica.textContent).toContain("Prescrito SN : R$ 60,00");
+  });
+
+  it("a barra da causa-raiz mostra o R$ e o percentual dela", async () => {
+    servidorResponde(PAINEL);
+    render(<PainelPage />);
+
+    const bloco = await screen.findByRole("region", { name: "R$ apontado por causa-raiz" });
+    expect(screen.queryByRole("tooltip")).toBeNull();
+
+    fireEvent.mouseEnter(within(bloco).getByRole("img", { name: "Regra automática" }));
+
+    expect(screen.getByRole("tooltip").textContent).toBe("Regra automática: R$ 50,00, 15,9% do R$ apontado");
+  });
+});
+
+describe("as tabelas e a largura estreita (issue #1953)", () => {
+  // O jsdom não mede layout: o que se trava aqui são as classes que seguram a
+  // largura. Bloco sem `min-w-0` cresce até a largura da tabela e a página
+  // inteira rola de lado; tabela fora de um `overflow-x-auto` faz o mesmo.
+  it("cada tabela rola dentro do próprio bloco, e nenhum bloco empurra a página", async () => {
+    servidorResponde(PAINEL);
+    render(<PainelPage />);
+    await screen.findByRole("region", { name: "Os dez itens que mais faltam" });
+
+    const tabelas = screen.getAllByRole("table");
+    expect(tabelas).toHaveLength(3);
+    for (const tabela of tabelas) {
+      const bloco = tabela.closest("section")!.getAttribute("aria-labelledby");
+      expect(tabela.parentElement?.classList.contains("overflow-x-auto"), bloco ?? "").toBe(true);
+    }
+    for (const nome of BLOCOS) {
+      expect(screen.getByRole("region", { name: nome }).classList.contains("min-w-0"), nome).toBe(true);
+    }
+  });
+
+  it("a linha da tabela se destaca ao passar o mouse", async () => {
+    servidorResponde(PAINEL);
+    render(<PainelPage />);
+    await screen.findByRole("region", { name: "Os dez itens que mais faltam" });
+
+    for (const tabela of screen.getAllByRole("table")) {
+      for (const linha of Array.from(tabela.querySelectorAll("tbody tr"))) {
+        expect(linha.classList.contains("hover:bg-slate-50"), linha.textContent ?? "").toBe(true);
+      }
+    }
+  });
+});
+
 describe("o subtítulo da tela (issue #1950)", () => {
   it("é uma Legenda: some com as Legendas desligadas e volta com elas ligadas", async () => {
     servidorResponde(PAINEL);

@@ -26,7 +26,7 @@ export function BlocoProducao({ linhas }: { linhas: Painel["producao"] }) {
             </thead>
             <tbody>
               {linhas.map((linha) => (
-                <tr key={linha.faturista_id ?? "sem-faturista"} className="border-t border-slate-100">
+                <tr key={linha.faturista_id ?? "sem-faturista"} className="border-t border-slate-100 hover:bg-slate-50">
                   <td className="py-1.5 text-slate-800">{linha.nome ?? "Sem faturista"}</td>
                   <td className="py-1.5 text-right font-semibold tabular-nums text-primary">{linha.contas}</td>
                   <td className="py-1.5 text-right tabular-nums text-slate-700">{linha.com_pendencia}</td>
