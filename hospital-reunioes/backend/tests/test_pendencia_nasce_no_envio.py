@@ -134,6 +134,8 @@ class _SupabaseMock:
     reuniao_aceite_tokens: list = field(default_factory=list)
     audit_log: list = field(default_factory=list)
     colegiados: list = field(default_factory=list)
+    # A Rotina nasce no mesmo envio (issue #1874).
+    rotinas: list = field(default_factory=list)
 
     def table(self, name: str):
         rows = getattr(self, name, None)
