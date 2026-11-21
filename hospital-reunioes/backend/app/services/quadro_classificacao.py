@@ -17,7 +17,9 @@ PROCESSO = "PROCESSO"
 TIPOS = (ACAO, ROTINA, PROCESSO)
 FREQUENCIAS = ("SEMANAL", "QUINZENAL", "MENSAL")
 
-_SEM_NOME = ("", "null", "none", "n/a", "a definir")
+# Comparado sem acento e em maiúscula. "NAO INFORMADO" é o que o prompt da
+# transcrição manda a IA escrever quando o texto não cita o responsável.
+_SEM_NOME = ("", "NULL", "NONE", "N/A", "A DEFINIR", "NAO INFORMADO")
 
 
 def _chave(valor) -> str:
@@ -62,7 +64,7 @@ def rotinas_incompletas(quadro) -> list[str]:
         if not isinstance(item, dict) or tipo_da_linha(item) != ROTINA:
             continue
         falta = []
-        if str(item.get("responsavel") or "").strip().lower() in _SEM_NOME:
+        if _chave(str(item.get("responsavel") or "")) in _SEM_NOME:
             falta.append("responsável")
         if frequencia_da_linha(item) is None:
             falta.append("frequência")

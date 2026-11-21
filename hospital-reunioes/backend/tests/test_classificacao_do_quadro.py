@@ -150,6 +150,15 @@ def test_pendencias_criadas_de_y_conta_so_as_acoes(cliente, monkeypatch):
     ("rotina", "falta"),
     [
         ({"acao": "Reunir a equipe", "responsavel": "", "tipo": "ROTINA", "frequencia": "SEMANAL"}, "sem responsável"),
+        # O prompt da transcrição manda a IA preencher o ausente com "Não informado".
+        (
+            {"acao": "Reunir a equipe", "responsavel": "Não informado", "tipo": "ROTINA", "frequencia": "SEMANAL"},
+            "sem responsável",
+        ),
+        (
+            {"acao": "Reunir a equipe", "responsavel": " nao informado ", "tipo": "ROTINA", "frequencia": "SEMANAL"},
+            "sem responsável",
+        ),
         (
             {"acao": "Reunir a equipe", "responsavel": "Ana Lima", "tipo": "ROTINA", "frequencia": None},
             "sem frequência",
