@@ -169,7 +169,12 @@ class TestNenhumNomeVaiAoModelo:
         comite = Comite()
         caso = comite.caso()
         comite.banco.tabelas.setdefault("conduta_citados", []).append(
-            {"id": "cit-1", "caso_id": caso, "participante_id": None, "nome_cifrado": cifra.cifrar_texto("Joana Citada")}
+            {
+                "id": "cit-1",
+                "caso_id": caso,
+                "participante_id": None,
+                "nome_cifrado": cifra.cifrar_texto("Joana Citada"),
+            }
         )
         dep = comite.depoimento(caso)
         conversa = TRANSCRICAO + "Fulano de Tal: A joana citada viu tudo. Meu CPF é 529.982.247-25.\n".encode()
@@ -194,7 +199,9 @@ class TestNenhumNomeVaiAoModelo:
         _redigir(comite, caso, dep)
 
         mensagem = agente.chamadas[-1]["messages"][0]["content"]
-        achado = re.search(r"Quem é quem: (\[PESSOA_\d+\]) é o declarante\. (\[PESSOA_\d+\]) e (\[PESSOA_\d+\])", mensagem)
+        achado = re.search(
+            r"Quem é quem: (\[PESSOA_\d+\]) é o declarante\. (\[PESSOA_\d+\]) e (\[PESSOA_\d+\])", mensagem
+        )
         assert achado, mensagem
         assert len(set(achado.groups())) == 3
         assert achado.group(1) == _marcador(mensagem, "Entrevistador: ")
@@ -229,3 +236,161 @@ class TestRelatoAnonimo:
         assert AVISO_DE_ANONIMO not in mensagem
         assert "Não cite quem relatou." in mensagem
         assert "beltrana" not in mensagem.lower()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4 e 5. As notas são Sugestão e ficam fora do PDF; IMPRIMIR TERMO e a correção
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _texto_do_pdf(pdf: bytes) -> str:
+    with pdfplumber.open(io.BytesIO(pdf)) as documento:
+        texto = "\n".join(pagina.extract_text() or "" for pagina in documento.pages)
+    return re.sub(r"\s+", " ", texto)
+
+
+def _imprimir(comite: Comite, caso: str, dep: str, pid: str = MEMBRO):
+    return comite.cliente(pid).get(f"{BASE}/casos/{caso}/depoimentos/{dep}/termo/pdf")
+
+
+def _corrigir(comite: Comite, caso: str, dep: str, termo: dict, pid: str = MEMBRO):
+    campos = ("identificacao", "gravacao", "declaracoes", "documentos", "lido_em_voz_alta")
+    corpo = {campo: termo[campo] for campo in campos}
+    corpo["identificacao"] = {k: v for k, v in corpo["identificacao"].items() if k not in ("nome", "cargo")}
+    return comite.cliente(pid).post(f"{BASE}/casos/{caso}/depoimentos/{dep}/termo/correcoes", json=corpo)
+
+
+def _termo_redigido(comite: Comite, **corpo) -> tuple[str, str]:
+    caso, dep = _com_transcricao(comite)
+    resposta = _redigir(comite, caso, dep, **corpo)
+    assert resposta.status_code == 200, resposta.text
+    return caso, dep
+
+
+class TestNotasParaQuemApura:
+    def test_as_notas_aparecem_marcadas_como_sugestao_e_nao_entram_no_pdf(self, agente):
+        comite = Comite()
+        caso, dep = _termo_redigido(comite)
+        notas = _cartao(comite, caso, dep)["termo"]["notas"]
+        assert notas == {"rotulo": "Sugestão", "itens": ["Perguntar a Maria Souza o que ouviu."]}
+
+        resposta = _imprimir(comite, caso, dep)
+
+        assert resposta.status_code == 200, resposta.text
+        texto = _texto_do_pdf(resposta.content)
+        assert "estava no almoxarifado com Maria Souza" in texto
+        assert "o que ouviu" not in texto
+        assert "Sugestão" not in texto and "Notas para quem apura" not in texto
+
+
+class TestImprimirTermo:
+    def test_imprimir_termo_gera_o_pdf_com_os_blocos_do_anexo_e1(self, agente):
+        comite = Comite()
+        caso, dep = _termo_redigido(comite, cpf="529.982.247-25")
+        protocolo = comite.abrir(MEMBRO, caso)["protocolo"]
+
+        resposta = _imprimir(comite, caso, dep)
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.headers["content-type"] == "application/pdf"
+        texto = _texto_do_pdf(resposta.content)
+        for trecho in (
+            # Cabeçalho
+            "Hospital São Matheus · Canal de Conduta · Termo de declaração",
+            protocolo,
+            # Identificação
+            "Fulano de Tal",
+            "529.982.247-25",
+            "Supervisor do almoxarifado",
+            "20/11/2026",
+            "14:30",
+            "Sala do Comitê",
+            "Ana Coordenadora e Bruno Membro",
+            # Gravação
+            "Esta conversa foi gravada com meu consentimento.",
+            # Declarações, numeradas
+            "1. Fulano de Tal declarou que estava no almoxarifado com Maria Souza, das 14h às 15h.",
+            # Encerramento
+            "Li este termo (ou ouvi sua leitura) e ele corresponde ao que declarei.",
+            # Compromissos
+            "dever de dizer a verdade",
+            "sigilo sobre o caso",
+            "retaliação é falta grave",
+            # Rodapé
+            "Texto elaborado com apoio de inteligência artificial a partir da gravação e revisado por quem "
+            "conduziu a conversa.",
+            # Assinaturas e rubrica
+            "Declarante",
+            "Quem conduziu",
+            "Rubrica",
+        ):
+            assert trecho in texto, f"falta no PDF: {trecho!r}"
+
+    def test_imprimir_fica_na_trilha(self, agente):
+        comite = Comite()
+        caso, dep = _termo_redigido(comite)
+
+        _imprimir(comite, caso, dep)
+
+        acoes = [linha["acao"] for linha in comite.banco.tabelas["conduta_trilha"] if linha["caso_id"] == caso]
+        assert acoes[-2:] == ["redigiu_termo", "imprimiu_termo"]
+
+    def test_uma_correcao_gera_versao_nova_e_a_anterior_fica(self, agente):
+        comite = Comite()
+        caso, dep = _termo_redigido(comite)
+        termo = _cartao(comite, caso, dep)["termo"]
+        termo["declaracoes"] = ["Fulano de Tal declarou que estava no almoxarifado com Maria Souza, das 13h às 15h."]
+        termo["lido_em_voz_alta"] = True
+
+        resposta = _corrigir(comite, caso, dep, termo)
+
+        assert resposta.status_code == 200, resposta.text
+        novo = _cartao(comite, caso, dep)["termo"]
+        assert (novo["versao"], novo["origem"]) == (2, "correcao")
+        assert novo["notas"]["itens"] == ["Perguntar a Maria Souza o que ouviu."]
+        assert [v["versao"] for v in comite.banco.tabelas["conduta_depoimento_termos"]] == [1, 2]
+        texto = _texto_do_pdf(_imprimir(comite, caso, dep).content)
+        assert "das 13h às 15h" in texto and "das 14h às 15h" not in texto
+        assert "Versão 2" in texto
+        assert "Este termo foi lido em voz alta ao declarante por quem conduziu a conversa." in texto
+
+    def test_correcao_sem_mudanca_nao_gera_versao(self, agente):
+        comite = Comite()
+        caso, dep = _termo_redigido(comite)
+
+        resposta = _corrigir(comite, caso, dep, _cartao(comite, caso, dep)["termo"])
+
+        assert resposta.status_code == 409
+        assert len(comite.banco.tabelas["conduta_depoimento_termos"]) == 1
+
+    def test_sem_termo_redigido_nao_ha_o_que_imprimir(self, agente):
+        comite = Comite()
+        caso, dep = _com_transcricao(comite)
+
+        assert _imprimir(comite, caso, dep).status_code == 409
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 7. O PDF não tem travessão
+# ═══════════════════════════════════════════════════════════════════════════
+
+TRACOS = ("—", "–")
+
+
+class TestSemTravessao:
+    def test_o_pdf_sai_sem_travessao_mesmo_quando_o_agente_escreve_um(self, agente):
+        comite = Comite()
+
+        def com_travessao(enviado: str) -> str:
+            termo = json.loads(termo_que_ecoa(enviado))
+            termo["declaracoes"] = ["Declarou que — naquele dia – estava no almoxarifado."]
+            termo["documentos"] = ["Escala de novembro — cópia"]
+            return json.dumps(termo)
+
+        agente.responder = com_travessao
+        caso, dep = _termo_redigido(comite, local="Sala 2 — térreo")
+
+        texto = _texto_do_pdf(_imprimir(comite, caso, dep).content)
+
+        assert "naquele dia" in texto and "Escala de novembro" in texto and "térreo" in texto
+        assert not any(traco in texto for traco in TRACOS)

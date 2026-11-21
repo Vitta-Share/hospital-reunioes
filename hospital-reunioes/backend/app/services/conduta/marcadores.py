@@ -30,9 +30,7 @@ import re
 from app.services.ouvidoria_pseudonimizacao import pseudonimizar
 
 # Os marcadores genéricos que a pseudonimização deixa.
-_GENERICO = re.compile(
-    r"\[(EMAIL|REDE_SOCIAL|CPF|RG|CEP|PLACA|CNS|DATA_NASCIMENTO|PROTOCOLO|TELEFONE|NOME)\]"
-)
+_GENERICO = re.compile(r"\[(EMAIL|REDE_SOCIAL|CPF|RG|CEP|PLACA|CNS|DATA_NASCIMENTO|PROTOCOLO|TELEFONE|NOME)\]")
 # O nome desconhecido também vira PESSOA: o modelo lê um tipo só de pessoa.
 _TIPO = {"NOME": "PESSOA"}
 _NUMERADO = re.compile(r"\[(?:PESSOA|EMAIL|REDE_SOCIAL|CPF|RG|CEP|PLACA|CNS|DATA_NASCIMENTO|PROTOCOLO|TELEFONE)_\d+\]")

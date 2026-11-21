@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Termo de declaração, {{ protocolo }}</title>
+    <style>
+        {% if font_path %}
+        @font-face {
+            font-family: "HP Simplified";
+            src: url("{{ font_path }}") format("truetype");
+            font-weight: 400;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: "HP Simplified";
+            src: url("{{ font_path }}") format("truetype");
+            font-weight: 700;
+            font-style: normal;
+        }
+        {% endif %}
+
+        @page {
+            size: A4;
+            margin: 2cm 1.8cm 2.2cm 1.8cm;
+            @bottom-left {
+                content: "Termo de declaração · {{ protocolo }} · Versão {{ versao }}";
+                font-family: "HP Simplified", sans-serif;
+                font-size: 8pt;
+                color: #64748B;
+            }
+            @bottom-center {
+                content: "Rubrica do declarante: ________   Rubrica de quem conduziu: ________";
+                font-family: "HP Simplified", sans-serif;
+                font-size: 8pt;
+                color: #1E293B;
+            }
+            @bottom-right {
+                content: "Página " counter(page) " de " counter(pages);
+                font-family: "HP Simplified", sans-serif;
+                font-size: 8pt;
+                color: #64748B;
+            }
+        }
+
+        body {
+            font-family: "HP Simplified", sans-serif;
+            font-synthesis: weight style;
+            color: #1E293B;
+            line-height: 1.5;
+            margin: 0;
+            font-size: 10.5pt;
+        }
+
+        .header { display: table; width: 100%; border-bottom: 1px solid #E2E8F0; padding-bottom: 12px; margin-bottom: 12px; }
+        .header-logo { display: table-cell; vertical-align: middle; width: 110px; }
+        .header-logo img { max-width: 96px; height: auto; }
+        .header-title { display: table-cell; vertical-align: middle; padding-left: 12px; }
+        .header-title h1 { color: #2B2E7E; margin: 0 0 4px 0; font-size: 16pt; text-transform: uppercase; line-height: 1.15; }
+        .header-title p { margin: 0; font-size: 10pt; font-weight: 700; }
+
+        h2 { color: #2B2E7E; font-size: 11pt; text-transform: uppercase; margin: 14px 0 6px 0; break-after: avoid; }
+        p { margin: 0 0 6px 0; text-align: justify; }
+        ol.declaracoes { margin: 0; padding-left: 0; list-style: none; }
+        ol.declaracoes li { margin: 0 0 6px 0; text-align: justify; }
+
+        table.identificacao { width: 100%; border-collapse: collapse; margin: 4px 0 8px 0; }
+        table.identificacao th, table.identificacao td { border: 1px solid #E2E8F0; padding: 4px 8px; text-align: left; vertical-align: top; }
+        table.identificacao th { background: #F8FAFC; width: 30%; font-weight: 700; }
+
+        .rodape { margin-top: 12px; font-size: 9pt; color: #475569; border-top: 1px solid #E2E8F0; padding-top: 6px; }
+        .assinaturas { margin-top: 18px; break-inside: avoid; }
+        .assinatura { margin-top: 28px; }
+        .assinatura .linha { border-top: 1px solid #1E293B; width: 70%; padding-top: 4px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        {% if logo_path %}<div class="header-logo"><img src="{{ logo_path }}" alt="Hospital São Matheus"></div>{% endif %}
+        <div class="header-title">
+            <h1>Termo de declaração</h1>
+            <p>Hospital São Matheus · Canal de Conduta · Termo de declaração · {{ protocolo }}</p>
+        </div>
+    </div>
+
+    <h2>Identificação</h2>
+    <table class="identificacao">
+        <tr><th>Declarante</th><td>{{ identificacao.nome }}</td></tr>
+        <tr><th>CPF</th><td>{{ identificacao.cpf or "" }}</td></tr>
+        <tr><th>Cargo</th><td>{{ identificacao.cargo }}</td></tr>
+        <tr><th>Data e hora</th><td>{{ identificacao.data }}, {{ identificacao.hora }}</td></tr>
+        <tr><th>Local</th><td>{{ identificacao.local }}</td></tr>
+        <tr><th>Quem conduziu</th><td>{{ identificacao.conduziram }}</td></tr>
+    </table>
+
+    <h2>Gravação</h2>
+    <p>{{ gravacao }}</p>
+
+    <h2>Declarações</h2>
+    <ol class="declaracoes">
+        {% for paragrafo in declaracoes %}<li>{{ loop.index }}. {{ paragrafo }}</li>
+        {% endfor %}
+    </ol>
+
+    <h2>Documentos ou evidências</h2>
+    {% if documentos %}
+    <ol class="declaracoes">
+        {% for documento in documentos %}<li>{{ loop.index }}. {{ documento }}</li>
+        {% endfor %}
+    </ol>
+    {% else %}
+    <p>O declarante não mencionou nem entregou documentos ou evidências.</p>
+    {% endif %}
+
+    <h2>Encerramento</h2>
+    {% if lido_em_voz_alta %}
+    <p>Este termo foi lido em voz alta ao declarante por quem conduziu a conversa.</p>
+    <p>Ouvi a leitura deste termo e ele corresponde ao que declarei.</p>
+    {% else %}
+    <p>Li este termo (ou ouvi sua leitura) e ele corresponde ao que declarei.</p>
+    {% endif %}
+
+    <h2>Compromissos</h2>
+    <p>Declaro ciência do dever de dizer a verdade, do sigilo sobre o caso e de que retaliação é falta grave.</p>
+
+    <div class="assinaturas">
+        <div class="assinatura">
+            <p class="linha">Declarante: {{ identificacao.nome }}</p>
+        </div>
+        {% for nome in assinam_por_quem_conduziu %}
+        <div class="assinatura">
+            <p class="linha">Quem conduziu: {{ nome }}</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <p class="rodape">Texto elaborado com apoio de inteligência artificial a partir da gravação e revisado por quem conduziu a conversa.</p>
+</body>
+</html>

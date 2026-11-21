@@ -256,9 +256,7 @@ def redigir_termo_de_declaracao_conduta(supabase, aberto: CasoAberto, depoimento
     conversa = _conversa(supabase, depoimento)
     nomes = _nomes_do_caso(supabase, caso, ident["nome"], *ident["conduziram"])
     marcacao = Marcacao()
-    usuario = _mensagem_do_termo(
-        marcacao, ident, depoimento, relato_anonimo(supabase, caso["id"]), conversa, nomes
-    )
+    usuario = _mensagem_do_termo(marcacao, ident, depoimento, relato_anonimo(supabase, caso["id"]), conversa, nomes)
     resposta = _pedir_ao_agente_do_canal_de_conduta(PROMPT_DO_TERMO, usuario)
     declaracoes = [marcacao.devolver(p) for p in _textos(resposta.get("declaracoes"))]
     if not declaracoes:
@@ -276,3 +274,101 @@ def redigir_termo_de_declaracao_conduta(supabase, aberto: CasoAberto, depoimento
     return _gravar_versao(
         supabase, aberto, depoimento, termo, notas, origem="agente", detalhe="termo de declaração redigido pelo agente"
     )
+
+
+def _ultima_versao(supabase, depoimento_id: str) -> dict:
+    versoes = _versoes(supabase, depoimento_id)
+    if not versoes:
+        raise DepoimentoRecusadoError(409, "O termo ainda não foi redigido. Toque em REDIGIR TERMO.")
+    return versoes[-1]
+
+
+def _paragrafos(valor: Any, campo: str, *, obrigatorio: bool) -> list[str]:
+    itens = [" ".join(str(p).split()) for p in valor or [] if str(p).strip()]
+    if obrigatorio and not itens:
+        raise DepoimentoRecusadoError(422, f"O termo precisa de {campo}.")
+    if len(itens) > _ITENS or any(len(p) > _TAMANHO_DO_PARAGRAFO for p in itens):
+        raise DepoimentoRecusadoError(422, "O termo passou do tamanho que cabe.")
+    return itens
+
+
+def lancar_correcoes(supabase, aberto: CasoAberto, depoimento_id: str, corrigido: dict) -> dict:
+    """As correções do depoente, lançadas por quem conduziu: o termo inteiro,
+    como ficou, vira uma versão nova. A anterior fica, e as notas seguem."""
+    caso = aberto.caso
+    depoimento = depoimentos._depoimento(supabase, caso["id"], depoimento_id)
+    depoimentos._exigir_aberto(caso, depoimento)
+    ultima = _ultima_versao(supabase, depoimento["id"])
+    anterior = json.loads(cifra.decifrar_texto(ultima["termo_cifrado"]))
+    termo = sanitizar_estrutura(
+        {
+            "identificacao": identificacao(depoimento, corrigido.get("identificacao") or {}),
+            "gravacao": _paragrafos([corrigido.get("gravacao")], "a frase da gravação", obrigatorio=True)[0],
+            "declaracoes": _paragrafos(corrigido.get("declaracoes"), "ao menos uma declaração", obrigatorio=True),
+            "documentos": _paragrafos(corrigido.get("documentos"), "documentos", obrigatorio=False),
+            "lido_em_voz_alta": bool(corrigido.get("lido_em_voz_alta")),
+        }
+    )
+    if termo == anterior:
+        raise DepoimentoRecusadoError(409, "Nada mudou no termo.")
+    notas = json.loads(cifra.decifrar_texto(ultima["notas_cifradas"])) if ultima.get("notas_cifradas") else []
+    return _gravar_versao(
+        supabase,
+        aberto,
+        depoimento,
+        termo,
+        notas,
+        origem="correcao",
+        detalhe="correções lançadas no termo de declaração",
+    )
+
+
+# ── O PDF (Anexo E.1) ───────────────────────────────────────────────────────
+
+
+def _dia_legivel(iso: str) -> str:
+    return date.fromisoformat(iso).strftime("%d/%m/%Y")
+
+
+def dados_do_pdf(caso: dict, versao: dict) -> dict[str, Any]:
+    """O que preenche o modelo do termo. As Notas para quem apura não entram:
+    elas nem chegam ao modelo. Passa pelo sanitizador, para o PDF não sair com
+    travessão."""
+    termo = json.loads(cifra.decifrar_texto(versao["termo_cifrado"]))
+    ident = termo["identificacao"]
+    return sanitizar_estrutura(
+        {
+            "protocolo": caso["protocolo"],
+            "versao": versao["versao"],
+            "identificacao": {
+                **ident,
+                "data": _dia_legivel(ident["data"]),
+                "conduziram": " e ".join(ident["conduziram"]),
+            },
+            "assinam_por_quem_conduziu": ident["conduziram"],
+            "gravacao": termo["gravacao"],
+            "declaracoes": termo["declaracoes"],
+            "documentos": termo["documentos"],
+            "lido_em_voz_alta": termo["lido_em_voz_alta"],
+            "modelo": MODELO_DO_PDF,
+        }
+    )
+
+
+def imprimir_termo(supabase, aberto: CasoAberto, depoimento_id: str) -> tuple[bytes, str]:
+    """IMPRIMIR TERMO: o PDF da última versão, depois de gravada a impressão
+    na trilha."""
+    from app.services.seguranca_do_paciente.termo import gerar_pdf_do_termo
+
+    caso = aberto.caso
+    depoimento = depoimentos._depoimento(supabase, caso["id"], depoimento_id)
+    versao = _ultima_versao(supabase, depoimento["id"])
+    dados = dados_do_pdf(caso, versao)
+    trilha.registrar(
+        supabase,
+        caso["id"],
+        aberto.autor_id,
+        "imprimiu_termo",
+        f"imprimiu o termo de declaração, versão {versao['versao']}",
+    )
+    return gerar_pdf_do_termo(dados), f"Termo_de_declaracao_versao_{versao['versao']}.pdf"

@@ -54,6 +54,16 @@ class Identificacao(BaseModel):
     cpf: str = Field(default="", max_length=20)
 
 
+class TermoCorrigido(BaseModel):
+    """O termo inteiro, como ficou depois das correções do depoente."""
+
+    identificacao: Identificacao
+    gravacao: str = Field(default="", max_length=8000)
+    declaracoes: list[str] = Field(default_factory=list, max_length=120)
+    documentos: list[str] = Field(default_factory=list, max_length=120)
+    lido_em_voz_alta: bool = False
+
+
 def _agir(funcao, *argumentos, **nomeados):
     try:
         return funcao(*argumentos, **nomeados)
@@ -290,4 +300,30 @@ async def redigir_termo(
         aberto,
         str(depoimento_id),
         corpo.model_dump(),
+    )
+
+
+@router.post("/casos/{caso_id}/depoimentos/{depoimento_id}/termo/correcoes")
+async def lancar_correcoes_do_termo(
+    depoimento_id: UUID,
+    corpo: TermoCorrigido,
+    aberto: CasoAberto = Depends(portao_da_acao),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """Cada correção lançada é uma versão nova do termo."""
+    return _agir(termo_de_declaracao.lancar_correcoes, supabase, aberto, str(depoimento_id), corpo.model_dump())
+
+
+@router.get("/casos/{caso_id}/depoimentos/{depoimento_id}/termo/pdf")
+async def imprimir_termo(
+    depoimento_id: UUID,
+    aberto: CasoAberto = Depends(portao_da_acao),
+    supabase: Client = Depends(get_supabase_client),
+) -> Response:
+    """IMPRIMIR TERMO: o PDF da última versão, no modelo do Anexo E.1."""
+    pdf, nome = _agir(termo_de_declaracao.imprimir_termo, supabase, aberto, str(depoimento_id))
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Cache-Control": "no-store", "Content-Disposition": f'inline; filename="{nome}"'},
     )
