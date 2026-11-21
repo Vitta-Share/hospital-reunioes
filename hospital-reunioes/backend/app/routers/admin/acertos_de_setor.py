@@ -5,9 +5,7 @@ parte dos responsáveis (Colaboradores) não têm, e no gráfico por setor do pa
 isso vira a barra "Sem setor" (decisões 11 e 62 do PRD #1757). Esta tela lista
 os dois grupos e deixa o Super admin preencher cada um; preenchido, sai da lista.
 
-A resposta é um objeto com uma lista por grupo para receber depois uma terceira
-(as Pendências de fluxo contínuo que não casam com o quadro da Ata) sem mudar o
-contrato das duas primeiras.
+A resposta é um objeto com uma lista por grupo.
 
 - Reuniões: vivas, sem `setor_id` e fora do Núcleo. A reunião do Núcleo é
   sigilosa até para o Super admin (issue #1772), então não aparece nem se
@@ -15,6 +13,10 @@ contrato das duas primeiras.
 - Responsáveis: Colaboradores internos sem `setor_id` que respondem por alguma
   pendência, porque é o setor do responsável que o gráfico de atrasos usa
   (decisão 62). O externo é só um nome e não tem setor a acertar.
+- Pendências sem prazo (issue #1877): abertas, vivas e sem prazo, de Reunião
+  viva e fora do Núcleo. O fluxo contínuo que casou com o quadro da Ata virou
+  Rotina (migration 190) e foi encerrado; o que sobra aqui não casou e espera
+  um prazo, que se dá na própria Pendência. Só leitura nesta tela.
 
 Preencher grava `setor_id` e a TEXT `setor` juntos, em sincronia (migrations
 028 e 168), e grava no `audit_log`.
@@ -89,7 +91,44 @@ async def listar_sem_setor(supabase: Client = Depends(get_supabase_client)):
         }
         responsaveis = [p for p in sem_setor if p["id"] in com_pendencia]
 
-    return {"reunioes": reunioes, "responsaveis": responsaveis}
+    return {
+        "reunioes": reunioes,
+        "responsaveis": responsaveis,
+        "pendencias_sem_prazo": _pendencias_sem_prazo(supabase),
+    }
+
+
+def _pendencias_sem_prazo(supabase: Client) -> list[dict]:
+    abertas = (
+        supabase.table("pendencias")
+        .select("id_acao, id_reuniao, descricao_acao, responsavel_nome, status")
+        .in_("status", ["PENDENTE", "EM_PROGRESSO"])
+        .is_("prazo", "null")
+        .is_("deleted_at", "null")
+        .not_.is_("id_reuniao", "null")
+        .order("id_acao")
+        .execute()
+        .data
+        or []
+    )
+    if not abertas:
+        return []
+    visiveis = {
+        r["id_reuniao"]: r
+        for r in (
+            supabase.table("reunioes")
+            .select("id_reuniao, titulo")
+            .in_("id_reuniao", sorted({p["id_reuniao"] for p in abertas}))
+            .is_("deleted_at", "null")
+            .is_("colegiado_id", "null")
+            .execute()
+            .data
+            or []
+        )
+    }
+    return [
+        {**p, "reuniao_titulo": visiveis[p["id_reuniao"]].get("titulo")} for p in abertas if p["id_reuniao"] in visiveis
+    ]
 
 
 @router.patch("/reunioes/{id_reuniao}")
