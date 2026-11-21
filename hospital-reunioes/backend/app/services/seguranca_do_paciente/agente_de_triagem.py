@@ -41,7 +41,7 @@ from app.config import settings
 from app.services import ai_processor
 from app.services.ia_chaves import ClienteDaAnthropic
 from app.services.prompt_loader import load_prompt
-from app.services.seguranca_do_paciente import triagem_do_agente
+from app.services.seguranca_do_paciente import esclarecimentos, triagem_do_agente
 from app.utils.text_sanitizer import sanitizar_travessao
 
 logger = logging.getLogger(__name__)
@@ -200,7 +200,7 @@ def classificar_pelo_agente_do_nucleo(
 
 _CAMPOS_DA_NOTIFICACAO = (
     "id, relato, setor_id, data_ocorrencia, turno, chegou_ao_paciente, grave_ou_morte, "
-    "percebido_ou_reclamacao, notificante_nome, notificante_contato"
+    "percebido_ou_reclamacao, notificante_nome, notificante_contato, estado"
 )
 
 
@@ -275,33 +275,45 @@ def _marcar_para_classificar_manualmente(supabase, notificacao_id: str, motivo: 
     ).eq("id", notificacao_id).execute()
 
 
+def _ler_a_notificacao_do_nucleo(supabase, notificacao_id: str) -> dict | None:
+    linhas = (
+        supabase.table("nsp_notificacoes")
+        .select(_CAMPOS_DA_NOTIFICACAO)
+        .eq("id", notificacao_id)
+        .limit(1)
+        .execute()
+        .data
+    )
+    return linhas[0] if linhas else None
+
+
+def _rodar_o_agente_do_nucleo(supabase, linha: dict, texto_dos_esclarecimentos: str = "") -> str | None:
+    """Roda o agente na notificação e grava a linha de triagem dele. Devolve
+    None quando gravou, ou o motivo de não ter sugestão."""
+    entrada = triagem_do_agente.entrada_da_notificacao(
+        linha, setor=_nome_do_setor(supabase, linha.get("setor_id")), esclarecimentos=texto_dos_esclarecimentos
+    )
+    modelo = settings.nsp_agente_modelo
+    triagem = classificar_pelo_agente_do_nucleo(
+        _cliente_do_nucleo(), entrada, modelo=modelo, reservar=lambda: _reservar_chamada_do_nucleo(supabase)
+    )
+    if triagem.sugestao is None:
+        return triagem.motivo_manual or AGENTE_FORA
+    supabase.table("nsp_triagens").insert(_linha_de_triagem(linha["id"], triagem, modelo)).execute()
+    return None
+
+
 def triar_notificacao_do_nucleo(supabase, notificacao_id: str) -> None:
     """Triagem da notificação recém-registrada. Nunca levanta: a notificação
     já existe e já tem protocolo. Toda saída que não é a linha de triagem do
     agente deixa a notificação marcada "classificar manualmente"."""
     motivo = AGENTE_FORA
     try:
-        linhas = (
-            supabase.table("nsp_notificacoes")
-            .select(_CAMPOS_DA_NOTIFICACAO)
-            .eq("id", notificacao_id)
-            .limit(1)
-            .execute()
-            .data
-        )
-        if linhas and agente_ligado():
-            linha = linhas[0]
-            entrada = triagem_do_agente.entrada_da_notificacao(
-                linha, setor=_nome_do_setor(supabase, linha.get("setor_id"))
-            )
-            modelo = settings.nsp_agente_modelo
-            triagem = classificar_pelo_agente_do_nucleo(
-                _cliente_do_nucleo(), entrada, modelo=modelo, reservar=lambda: _reservar_chamada_do_nucleo(supabase)
-            )
-            if triagem.sugestao is not None:
-                supabase.table("nsp_triagens").insert(_linha_de_triagem(notificacao_id, triagem, modelo)).execute()
+        linha = _ler_a_notificacao_do_nucleo(supabase, notificacao_id)
+        if linha and agente_ligado():
+            motivo = _rodar_o_agente_do_nucleo(supabase, linha)
+            if motivo is None:
                 return
-            motivo = triagem.motivo_manual or AGENTE_FORA
             logger.warning("[NSP] Notificação %s para classificar manualmente (%s)", notificacao_id, motivo)
     except Exception as exc:
         logger.warning("[NSP] Triagem do agente falhou na notificação %s (%s)", notificacao_id, type(exc).__name__)
@@ -309,3 +321,35 @@ def triar_notificacao_do_nucleo(supabase, notificacao_id: str) -> None:
         _marcar_para_classificar_manualmente(supabase, notificacao_id, motivo)
     except Exception as exc:
         logger.error("[NSP] Falha ao marcar a notificação %s para classificar (%s)", notificacao_id, type(exc).__name__)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# A resposta de quem notificou às perguntas de esclarecimento (issue #1991)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def agendar_triagem_com_esclarecimentos(tarefas, supabase, notificacao_id: str) -> None:
+    """Põe a nova leitura do agente, com as respostas, para depois da resposta."""
+    tarefas.add_task(_triar_com_esclarecimentos_fora_do_loop, supabase, notificacao_id)
+
+
+async def _triar_com_esclarecimentos_fora_do_loop(supabase, notificacao_id: str) -> None:
+    await ai_processor.chamar_ia_fora_do_loop(triar_de_novo_com_esclarecimentos, supabase, notificacao_id)
+
+
+def triar_de_novo_com_esclarecimentos(supabase, notificacao_id: str) -> None:
+    """O agente lê a notificação de novo, com as respostas de quem notificou,
+    e grava uma linha de triagem nova. Só antes da confirmação da triagem, e
+    gasta a cota do dia como a primeira leitura. Nunca levanta, e a falha não
+    marca "classificar manualmente": a sugestão anterior continua valendo."""
+    try:
+        linha = _ler_a_notificacao_do_nucleo(supabase, notificacao_id)
+        if not linha or not agente_ligado() or esclarecimentos.triagem_confirmada(linha):
+            return
+        motivo = _rodar_o_agente_do_nucleo(
+            supabase, linha, esclarecimentos.texto_para_o_agente(supabase, notificacao_id)
+        )
+        if motivo is not None:
+            logger.warning("[NSP] A nova leitura da notificação %s ficou sem sugestão (%s)", notificacao_id, motivo)
+    except Exception as exc:
+        logger.warning("[NSP] Nova leitura do agente falhou na notificação %s (%s)", notificacao_id, type(exc).__name__)
