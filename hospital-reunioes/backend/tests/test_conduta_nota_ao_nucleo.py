@@ -121,3 +121,68 @@ class TestMembroEscreveCoordenacaoEnvia:
         (nota,) = comite.abrir(MEMBRO, caso)["notas_ao_nsp"]
         assert nota["texto"] == NOTA
         assert nota["enviada_em"] is not None
+
+    def test_so_a_coordenacao_envia(self, comite):
+        caso = comite.caso()
+        comite.escrever(MEMBRO, caso)
+
+        for pid in (MEMBRO, SEGUNDO_LEITOR):
+            resposta = comite.enviar(pid, caso)
+            assert resposta.status_code == 403
+            assert resposta.json()["detail"] == "Só a coordenação envia a nota ao Núcleo."
+        assert "nota_ao_nsp_enviada" not in comite.trilha(caso)
+        assert comite.notas_no_nucleo().json()["notas"] == []
+
+    def test_quem_nao_e_do_comite_nao_escreve(self, comite):
+        caso = comite.caso()
+
+        assert comite.escrever(DE_FORA, caso).status_code == 403
+        assert comite.banco.tabelas.get("conduta_notas_nsp", []) == []
+
+    def test_sem_nota_escrita_nao_ha_o_que_enviar(self, comite):
+        caso = comite.caso()
+
+        resposta = comite.enviar(COORDENACAO, caso)
+
+        assert resposta.status_code == 409
+        assert "nota_ao_nsp_enviada" not in comite.trilha(caso)
+
+    def test_a_nota_enviada_nao_se_envia_de_novo(self, comite):
+        caso = comite.caso()
+        comite.escrever(MEMBRO, caso)
+        comite.enviar(COORDENACAO, caso)
+
+        assert comite.enviar(COORDENACAO, caso).status_code == 409
+        assert len(comite.notas_no_nucleo().json()["notas"]) == 1
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. A Presidência do Núcleo lê a nota na lista de Segurança do Paciente
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestPresidenciaLeANota:
+    def test_a_presidencia_le_a_nota_enviada(self, comite):
+        caso = comite.caso()
+        comite.escrever(MEMBRO, caso)
+        comite.enviar(COORDENACAO, caso)
+
+        resposta = comite.notas_no_nucleo(PRESIDENCIA)
+
+        assert resposta.status_code == 200, resposta.text
+        (nota,) = resposta.json()["notas"]
+        assert nota["texto"] == NOTA
+
+    def test_a_nota_que_espera_a_coordenacao_nao_chega_ao_nucleo(self, comite):
+        caso = comite.caso()
+        comite.escrever(MEMBRO, caso)
+
+        assert comite.notas_no_nucleo(PRESIDENCIA).json()["notas"] == []
+
+    def test_o_membro_do_nucleo_e_quem_e_de_fora_nao_leem(self, comite):
+        caso = comite.caso()
+        comite.escrever(MEMBRO, caso)
+        comite.enviar(COORDENACAO, caso)
+
+        for pid in (MEMBRO_DO_NUCLEO, COORDENACAO, DE_FORA):
+            assert comite.notas_no_nucleo(pid).status_code == 403, pid

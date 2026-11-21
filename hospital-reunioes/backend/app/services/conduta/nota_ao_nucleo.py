@@ -114,3 +114,13 @@ def notas_do_caso(supabase, caso_id: str) -> list[dict[str, Any]]:
         }
         for linha in sorted(linhas, key=lambda x: str(x.get("escrita_em") or ""))
     ]
+
+
+def notas_para_o_nucleo(supabase) -> list[dict[str, Any]]:
+    """A lista "Notas do Comitê de Conduta" de Segurança do Paciente, da mais
+    nova à mais antiga: o texto e a data do envio, e nada mais."""
+    linhas = supabase.table(_DO_NUCLEO).select("id, texto, enviada_em").execute().data or []
+    return [
+        {"id": linha["id"], "texto": linha["texto"], "enviada_em": linha.get("enviada_em")}
+        for linha in sorted(linhas, key=lambda x: str(x.get("enviada_em") or ""), reverse=True)
+    ]
