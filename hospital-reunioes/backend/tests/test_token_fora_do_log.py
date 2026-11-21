@@ -142,6 +142,10 @@ PARAMS_SEM_SEGREDO = {
     # abre porta nenhuma, como o `manifestacao_id`.
     "email_id",
     "especialidade_id",
+    # Faixa de gravidade do prazo interno do Núcleo (issue #1993), de "A" a "E".
+    # Não é credencial: vem de uma lista fixa (`FAIXAS`), fora dela a rota
+    # responde 422, e mudar o prazo exige o recurso de edição do Núcleo.
+    "faixa",
     # UUID do Faltou isto do Guia de Contas médicas (issue #1489). Nao e
     # credencial: a rota exige "enviar e corrigir contas", ver o Guia da Conta
     # do caminho e ser quem apontou, entao o id sozinho nao abre porta nenhuma.
