@@ -471,6 +471,7 @@ async def caso_do_nucleo(
         if caso is not None:
             # Os vencimentos congelados na confirmação da triagem (issue #1993).
             caso["prazos"] = prazos.do_caso(supabase, str(caso_id))
+            caso["notificacao_externa"] = prazos.notificacao_externa_do_caso(supabase, str(caso_id))
     except (APIError, httpx.HTTPError) as erro:
         logger.error("Falha ao abrir o caso do Núcleo: %s", type(erro).__name__)
         raise HTTPException(

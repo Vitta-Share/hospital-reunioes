@@ -169,3 +169,56 @@ def test_confirmar_grava_os_prazos_do_art_26_da_faixa(faixa):
     banco, caso = _caso_confirmado(SUGESTAO_DA_FAIXA[faixa])
 
     assert _prazos_na_tela(banco, caso) == PRAZOS_ESPERADOS[faixa]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. A linha de notificação externa: VigiMed para medicação, NOTIVISA para o
+#    resto, nenhuma na circunstância de risco
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _notificacao_externa(banco, caso) -> dict | None:
+    resposta = _cliente(banco).get(f"/api/nsp/notificacoes/{caso['id']}")
+    assert resposta.status_code == 200, resposta.text
+    return resposta.json()["notificacao_externa"]
+
+
+def _em_sao_paulo(instante: str) -> str:
+    return datetime.fromisoformat(instante).astimezone(SP).strftime("%d/%m/%Y %H:%M")
+
+
+@pytest.mark.parametrize(
+    ("sugestao", "sistema", "prazo"),
+    [
+        ({**OBITO, "categoria": "MED"}, "vigimed", "12/11/2026 22:00"),
+        ({**MODERADO, "categoria": "MED"}, "vigimed", "21/12/2026 17:00"),
+        (OBITO, "notivisa", "12/11/2026 22:00"),
+        (QUASE_ERRO, "notivisa", "21/12/2026 17:00"),
+    ],
+    ids=["óbito por medicação", "medicação, dano moderado", "óbito por equipamento", "quase erro"],
+)
+def test_confirmar_cria_a_linha_de_notificacao_externa_com_o_sistema_e_o_prazo_legal(sugestao, sistema, prazo):
+    banco, caso = _caso_confirmado(sugestao)
+
+    externa = _notificacao_externa(banco, caso)
+
+    assert externa is not None
+    assert externa["sistema"] == sistema
+    assert _em_sao_paulo(externa["prazo_legal"]) == prazo
+    assert externa["estado"] == "pendente"
+
+
+def test_circunstancia_de_risco_nao_cria_linha_de_notificacao_externa():
+    banco, caso = _caso_confirmado(CIRCUNSTANCIA)
+
+    assert _notificacao_externa(banco, caso) is None
+    assert banco.tabelas.get("nsp_notificacoes_externas", []) == []
+    assert "notificacao_externa" not in _prazos_na_tela(banco, caso)
+
+
+def test_o_caso_antes_da_confirmacao_nao_tem_prazo_nem_linha_externa():
+    caso = _notificacao(1, **DO_CASO)
+    banco = _banco([caso], [_sugestao(caso, **OBITO)])
+
+    assert _prazos_na_tela(banco, caso) == {}
+    assert _notificacao_externa(banco, caso) is None

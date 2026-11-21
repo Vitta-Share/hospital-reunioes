@@ -237,33 +237,57 @@ def congelar_no_caso(supabase, notificacao: dict[str, Any], decisao: dict[str, A
     """Grava os prazos do caso e a linha de notificação externa, uma vez só.
     A nova tentativa de uma confirmação que caiu no meio não grava de novo."""
     caso_id = notificacao["id"]
-    ja_gravados = supabase.table(PRAZOS_DO_CASO).select("id").eq("notificacao_id", caso_id).limit(1).execute().data
-    incidente_em = momento_do_incidente(notificacao["data_ocorrencia"], notificacao.get("hora_aproximada"))
+    ja_gravados = (
+        supabase.table(PRAZOS_DO_CASO).select("marco, vence_em").eq("notificacao_id", caso_id).execute().data
+    )
     if not ja_gravados:
-        recebida_em = _instante(notificacao["criado_em"])
-        vencimentos = calcular(
-            faixa=decisao.get("faixa"),
-            natureza=decisao.get("natureza"),
-            recebida_em=recebida_em,
-            incidente_em=incidente_em,
-            tabela=tabela_vigente(supabase),
-            feriados=_feriados_da_conta(supabase, min(incidente_em, recebida_em.astimezone(FUSO)).date()),
-        )
-        if vencimentos:
-            supabase.table(PRAZOS_DO_CASO).insert(
-                [
-                    {
-                        "notificacao_id": caso_id,
-                        "marco": v.marco,
-                        "tipo": v.tipo,
-                        "valor": v.prazo.valor,
-                        "unidade": v.prazo.unidade,
-                        "contado_de": v.contado_de.astimezone(UTC).isoformat(),
-                        "vence_em": v.vence_em.astimezone(UTC).isoformat(),
-                    }
-                    for v in vencimentos
-                ]
-            ).execute()
+        ja_gravados = _gravar_os_prazos(supabase, notificacao, decisao)
+    prazo_externo = next((linha["vence_em"] for linha in ja_gravados if linha["marco"] == "notificacao_externa"), None)
+    if prazo_externo is not None:
+        _criar_a_notificacao_externa(supabase, caso_id, sistema_de_destino(decisao.get("categoria")), prazo_externo)
+
+
+def _gravar_os_prazos(supabase, notificacao: dict[str, Any], decisao: dict[str, Any]) -> list[dict[str, Any]]:
+    """Grava os vencimentos do caso e devolve as linhas gravadas."""
+    incidente_em = momento_do_incidente(notificacao["data_ocorrencia"], notificacao.get("hora_aproximada"))
+    recebida_em = _instante(notificacao["criado_em"])
+    vencimentos = calcular(
+        faixa=decisao.get("faixa"),
+        natureza=decisao.get("natureza"),
+        recebida_em=recebida_em,
+        incidente_em=incidente_em,
+        tabela=tabela_vigente(supabase),
+        feriados=_feriados_da_conta(supabase, min(incidente_em, recebida_em.astimezone(FUSO)).date()),
+    )
+    if not vencimentos:
+        return []
+    linhas = [
+        {
+            "notificacao_id": notificacao["id"],
+            "marco": v.marco,
+            "tipo": v.tipo,
+            "valor": v.prazo.valor,
+            "unidade": v.prazo.unidade,
+            "contado_de": v.contado_de.astimezone(UTC).isoformat(),
+            "vence_em": v.vence_em.astimezone(UTC).isoformat(),
+        }
+        for v in vencimentos
+    ]
+    supabase.table(PRAZOS_DO_CASO).insert(linhas).execute()
+    return linhas
+
+
+def _criar_a_notificacao_externa(supabase, caso_id: str, sistema: str, prazo_legal: str) -> None:
+    """A linha mínima da notificação à vigilância, uma por caso."""
+    if supabase.table(NOTIFICACOES_EXTERNAS).select("id").eq("notificacao_id", caso_id).limit(1).execute().data:
+        return
+    try:
+        supabase.table(NOTIFICACOES_EXTERNAS).insert(
+            {"notificacao_id": caso_id, "sistema": sistema, "prazo_legal": prazo_legal}
+        ).execute()
+    except APIError as erro:
+        if erro.code != "23505":
+            raise
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -295,3 +319,28 @@ def do_caso(supabase, caso_id: str) -> list[dict[str, Any]]:
         }
         for linha in linhas
     ]
+
+
+SISTEMAS = {VIGIMED: "VigiMed", NOTIVISA: "NOTIVISA"}
+
+
+def notificacao_externa_do_caso(supabase, caso_id: str) -> dict[str, Any] | None:
+    """A linha de notificação externa do caso, ou None (antes da confirmação,
+    e sempre na circunstância de risco)."""
+    linhas = (
+        supabase.table(NOTIFICACOES_EXTERNAS)
+        .select("sistema, prazo_legal, estado")
+        .eq("notificacao_id", caso_id)
+        .limit(1)
+        .execute()
+        .data
+    )
+    if not linhas:
+        return None
+    linha = linhas[0]
+    return {
+        "sistema": linha["sistema"],
+        "rotulo": SISTEMAS.get(linha["sistema"], linha["sistema"]),
+        "prazo_legal": linha["prazo_legal"],
+        "estado": linha.get("estado") or "pendente",
+    }
