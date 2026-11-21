@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T15:17+0000 -->
+<!-- last_update: 2026-11-21T15:23+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -77,6 +77,7 @@ erDiagram
     nsp_notificacoes ||--o{ nsp_notificacoes_trilha : "notificacao_id"
     nsp_termos_envios ||--o{ nsp_documentos : "termo_envio_id"
     ouvidoria_pontos ||--o{ ouvidoria_avaliacoes : "ponto_id"
+    participacoes ||--o{ conduta_registro : "participacao_id"
     participacoes ||--o{ nsp_avisos : "participacao_id"
     participacoes ||--o{ nsp_termos_envios : "participacao_id"
     participacoes ||--o{ participacoes_trilha : "participacao_id"
@@ -106,6 +107,8 @@ erDiagram
     participantes ||--o{ comentarios_pendencias : "autor_id"
     participantes ||--o{ conduta_atribuicoes : "participante_id"
     participantes ||--o{ conduta_citados : "participante_id"
+    participantes ||--o{ conduta_registro : "autor_id"
+    participantes ||--o{ conduta_registro : "ganhou"
     participantes ||--o{ conduta_trilha : "que"
     participantes ||--o{ notificacoes : "destinatario_id"
     participantes ||--o{ nsp_agenda_ocorrencias : "registrado_por"
@@ -1075,7 +1078,7 @@ erDiagram
         DATE vigencia_fim
         TIMESTAMPTZ termo_assinado_em
         TIMESTAMPTZ created_at
-        _ mais_colunas "+5"
+        _ mais_colunas "+6"
     }
     nsp_documentos {
         UUID id PK
@@ -1340,6 +1343,15 @@ erDiagram
         BIGINT tamanho_bytes
         TIMESTAMPTZ criado_em
     }
+    conduta_registro {
+        UUID id PK
+        TEXT acao
+        ou ganhou FK
+        UUID participacao_id FK
+        VARCHAR autor_id FK
+        TEXT detalhe
+        TIMESTAMPTZ registrado_em
+    }
 ```
 
 ## Indexes principais
@@ -1560,6 +1572,10 @@ erDiagram
 | `conduta_trilha` | `idx_conduta_trilha_autor` | `autor_id` | `175_conduta_fundacao.sql` |
 | `rotinas` | `idx_rotinas_responsavel` | `responsavel_id` | `177_rotina_e_verificacao.sql` |
 | `nsp_notificacao_anexos` | `idx_nsp_notificacao_anexos_notificacao` | `notificacao_id, criado_em` | `181_nsp_anexos_da_notificacao.sql` |
+| `conduta_registro` | `idx_conduta_registro_quando` | `registrado_em DESC` | `184_conduta_membros_do_comite.sql` |
+| `conduta_registro` | `idx_conduta_registro_pessoa` | `participante_id` | `184_conduta_membros_do_comite.sql` |
+| `conduta_registro` | `idx_conduta_registro_autor` | `autor_id` | `184_conduta_membros_do_comite.sql` |
+| `conduta_registro` | `idx_conduta_registro_participacao` | `participacao_id` | `184_conduta_membros_do_comite.sql` |
 
 ---
-**Resumo:** 122 tabelas · 185 relacionamentos FK detectados.
+**Resumo:** 123 tabelas · 188 relacionamentos FK detectados.

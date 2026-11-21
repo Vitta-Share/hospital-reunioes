@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T15:17+0000 -->
+<!-- last_update: 2026-11-21T15:23+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -1927,7 +1927,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## participacoes
 
-> Origem: `146_nsp_fundacao.sql` (alterada em: 150_nsp_membros.sql, 151_nsp_termo_de_adesao.sql)
+> Origem: `146_nsp_fundacao.sql` (alterada em: 150_nsp_membros.sql, 151_nsp_termo_de_adesao.sql, 184_conduta_membros_do_comite.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -1944,6 +1944,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `encerrada_em` | `DATE` | — | — | — |
 | `termo_gerado_em` | `TIMESTAMPTZ` | — | — | — |
 | `termo_enviado_em` | `TIMESTAMPTZ` | — | — | — |
+| `e_diretor` | `BOOLEAN` | NOT NULL | `false` | — |
 
 **Indexes:**
 - `idx_participacoes_participante` em `(participante_id, colegiado_id)` (de `146_nsp_fundacao.sql`)
@@ -2496,6 +2497,26 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_nsp_notificacao_anexos_notificacao` em `(notificacao_id, criado_em)` (de `181_nsp_anexos_da_notificacao.sql`)
 
+## conduta_registro
+
+> Origem: `184_conduta_membros_do_comite.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `acao` | `TEXT` | NOT NULL | — | — |
+| `ganhou` | `ou` | NOT NULL | — | `participantes.id` |
+| `participacao_id` | `UUID` | — | — | `participacoes.id` |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `detalhe` | `TEXT` | NOT NULL | `''` | — |
+| `registrado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_registro_quando` em `(registrado_em DESC)` (de `184_conduta_membros_do_comite.sql`)
+- `idx_conduta_registro_pessoa` em `(participante_id)` (de `184_conduta_membros_do_comite.sql`)
+- `idx_conduta_registro_autor` em `(autor_id)` (de `184_conduta_membros_do_comite.sql`)
+- `idx_conduta_registro_participacao` em `(participacao_id)` (de `184_conduta_membros_do_comite.sql`)
+
 ---
 
-**Resumo:** 122 tabelas vivas.
+**Resumo:** 123 tabelas vivas.
