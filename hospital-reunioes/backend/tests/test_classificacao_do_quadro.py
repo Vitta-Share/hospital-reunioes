@@ -17,6 +17,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+# O `make_client` importado registra a fábrica de TestClient do envio aqui.
 from test_pendencia_nasce_no_envio import _sb, make_client  # noqa: E402, F401
 
 from app.services import ai_processor  # noqa: E402
@@ -87,3 +88,83 @@ def test_a_ata_guiada_classifica_cada_linha_e_sem_tipo_vale_acao(ia_de_mentira):
     saida = ai_processor.chat_ata_guiada({}, [{"role": "user", "content": "oi"}])
 
     assert _classificacao(saida["rascunho"]["quadro_atribuicoes"]) == CLASSIFICACAO_ESPERADA
+
+
+@pytest.fixture
+def cliente(request):
+    return request.getfixturevalue("make_client")
+
+
+# ─── 2. O envio: Rotina incompleta trava, e só Ação vira Pendência ───────────
+
+
+def _sb_com_quadro(quadro: list[dict]):
+    sb = _sb()
+    sb.reunioes[0]["json_ata"] = {"quadro_atribuicoes": quadro}
+    return sb
+
+
+def _sem_clicksign(monkeypatch):
+    from app.services import clicksign_service
+
+    monkeypatch.setattr(clicksign_service, "start_signature_flow", lambda *_a, **_kw: None)
+
+
+QUADRO_CLASSIFICADO = [
+    {"acao": "Comprar insumos", "responsavel": "Pedro Rezende", "prazo": "2026-12-10", "tipo": "ACAO"},
+    {"acao": "Reunir a equipe", "responsavel": "Ana Lima", "tipo": "ROTINA", "frequencia": "SEMANAL"},
+    {"acao": "Toda alta passa pelo checklist", "responsavel": None, "tipo": "PROCESSO", "frequencia": None},
+    {"acao": "Ligar para o fornecedor", "responsavel": "Ana Lima"},
+]
+
+
+@pytest.mark.parametrize("rota", ["aprovar", "aprovar-sem-assinatura"])
+def test_no_envio_rotina_e_processo_nao_viram_pendencia(cliente, monkeypatch, rota):
+    _sem_clicksign(monkeypatch)
+    sb = _sb_com_quadro([dict(a) for a in QUADRO_CLASSIFICADO])
+
+    r = cliente(sb).post(f"/api/reunioes/R1/{rota}")
+
+    assert r.status_code == 200, r.text
+    assert r.json()["total_pendencias"] == 2
+    assert sorted((p["quadro_pos"], p["descricao_acao"]) for p in sb.pendencias) == [
+        (0, "Comprar insumos"),
+        (3, "Ligar para o fornecedor"),
+    ]
+
+
+def test_pendencias_criadas_de_y_conta_so_as_acoes(cliente, monkeypatch):
+    from app.services import aceite_service
+
+    _sem_clicksign(monkeypatch)
+    sb = _sb_com_quadro([dict(a) for a in QUADRO_CLASSIFICADO])
+    assert cliente(sb).post("/api/reunioes/R1/aprovar").status_code == 200
+    for p in sb.pendencias:
+        p.setdefault("deleted_at", None)
+
+    assert aceite_service.progresso_pendencias(sb, "R1") == {"pendencias_criadas": 2, "total_acoes": 2}
+
+
+@pytest.mark.parametrize("rota", ["aprovar", "aprovar-sem-assinatura"])
+@pytest.mark.parametrize(
+    ("rotina", "falta"),
+    [
+        ({"acao": "Reunir a equipe", "responsavel": "", "tipo": "ROTINA", "frequencia": "SEMANAL"}, "sem responsável"),
+        (
+            {"acao": "Reunir a equipe", "responsavel": "Ana Lima", "tipo": "ROTINA", "frequencia": None},
+            "sem frequência",
+        ),
+    ],
+)
+def test_enviar_ata_com_rotina_incompleta_e_recusado(cliente, monkeypatch, rota, rotina, falta):
+    _sem_clicksign(monkeypatch)
+    sb = _sb_com_quadro([{"acao": "Comprar insumos", "responsavel": "Pedro Rezende"}, rotina])
+
+    r = cliente(sb).post(f"/api/reunioes/R1/{rota}")
+
+    assert r.status_code == 422, r.text
+    detalhe = r.json()["detail"]
+    assert "Rotina" in detalhe
+    assert f'linha 2 ("Reunir a equipe") {falta}' in detalhe
+    assert sb.reunioes[0]["status_ata"] == "AGUARDANDO_VALIDACAO"
+    assert sb.pendencias == []
