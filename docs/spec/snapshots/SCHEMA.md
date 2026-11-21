@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-20T22:09+0000 -->
+<!-- last_update: 2026-11-21T00:39+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -1184,7 +1184,7 @@ erDiagram
         TEXT situacao
         TEXT erro
         TIMESTAMPTZ created_at
-        _ mais_colunas "+1"
+        _ mais_colunas "+2"
     }
     nsp_documentos_envios {
         UUID id PK
@@ -1419,6 +1419,9 @@ erDiagram
 | `nsp_capacitacoes` | `idx_nsp_capacitacoes_criado_por` | `criado_por` | `155_nsp_capacitacoes.sql` |
 | `nsp_capacitacao_participantes` | `idx_nsp_capacitacao_participantes_pessoa` | `participante_id` | `155_nsp_capacitacoes.sql` |
 | `nsp_avisos` | `idx_nsp_avisos_destinatario` | `destinatario_id` | `158_nsp_avisos.sql` |
+| `nsp_avisos` | `uq_nsp_avisos_caso` | `caso_id, marco, referencia, destinatario_id` | `173_nsp_registro_de_email.sql` |
+| `nsp_avisos` | `idx_nsp_avisos_fila` | `enviar_a_partir_de` | `173_nsp_registro_de_email.sql` |
+| `nsp_avisos` | `idx_nsp_avisos_marco_referencia` | `marco, referencia, situacao` | `173_nsp_registro_de_email.sql` |
 | `nsp_documentos_envios` | `uq_nsp_documentos_envios_documento_key` | `documento_key` | `159_nsp_assinatura_dos_documentos.sql` |
 | `nsp_documentos_envios` | `uq_nsp_documentos_envios_aberto` | `documento_id` | `159_nsp_assinatura_dos_documentos.sql` |
 | `nsp_documentos_envios` | `idx_nsp_documentos_envios_documento` | `documento_id, created_at DESC` | `159_nsp_assinatura_dos_documentos.sql` |

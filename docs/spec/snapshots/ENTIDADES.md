@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-20T22:09+0000 -->
+<!-- last_update: 2026-11-21T00:39+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2171,7 +2171,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## nsp_avisos
 
-> Origem: `158_nsp_avisos.sql`
+> Origem: `158_nsp_avisos.sql` (alterada em: 173_nsp_registro_de_email.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2184,9 +2184,13 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `erro` | `TEXT` | — | — | — |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
 | `enviado_em` | `TIMESTAMPTZ` | — | — | — |
+| `caso_id` | `UUID` | NOT NULL | `0` | — |
 
 **Indexes:**
 - `idx_nsp_avisos_destinatario` em `(destinatario_id)` (de `158_nsp_avisos.sql`)
+- `uq_nsp_avisos_caso` em `(caso_id, marco, referencia, destinatario_id)` (de `173_nsp_registro_de_email.sql`)
+- `idx_nsp_avisos_fila` em `(enviar_a_partir_de)` (de `173_nsp_registro_de_email.sql`)
+- `idx_nsp_avisos_marco_referencia` em `(marco, referencia, situacao)` (de `173_nsp_registro_de_email.sql`)
 
 ## nsp_documentos_envios
 

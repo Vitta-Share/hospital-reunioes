@@ -170,6 +170,7 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 171 | `171_nascimento_da_pendencia.sql` | evento de nascimento da Pendencia (ADR 0098, decisao 1; issue #1867) | 0 | 0 | 0 | 0 |
 | 172 | `172_ouvidoria_setor_id.sql` | o setor da manifestação aponta para a tabela de setores | 0 | 1 | 1 | 1 |
 | 172 | `172_pendencia_nao_cai_com_a_reuniao.sql` | nada apaga Pendencia (ADR 0098, decisao 6; issue #1864) | 0 | 0 | 0 | 0 |
+| 173 | `173_nsp_registro_de_email.sql` | o registro de e-mail do Núcleo, com retentativa | 0 | 1 | 3 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 164 migrations.
+**Total:** 165 migrations.
