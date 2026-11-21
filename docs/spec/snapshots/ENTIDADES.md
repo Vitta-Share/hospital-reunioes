@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T22:50+0000 -->
+<!-- last_update: 2026-11-21T22:59+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2867,6 +2867,22 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_nsp_notas_do_comite_enviada_em` em `(enviada_em DESC)` (de `203_conduta_nota_ao_nucleo.sql`)
 
+## nsp_esclarecimentos
+
+> Origem: `207_nsp_perguntas_de_esclarecimento.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `notificacao_id` | `UUID` | NOT NULL | — | `nsp_notificacoes.id` |
+| `triagem_id` | `UUID` | NOT NULL | — | `nsp_triagens.id` |
+| `pergunta` | `TEXT` | NOT NULL | — | — |
+| `resposta` | `TEXT` | NOT NULL | — | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_esclarecimentos_triagem` em `(triagem_id)` (de `207_nsp_perguntas_de_esclarecimento.sql`)
+
 ---
 
-**Resumo:** 142 tabelas vivas.
+**Resumo:** 143 tabelas vivas.

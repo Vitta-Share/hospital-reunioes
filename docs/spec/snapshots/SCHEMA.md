@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T22:50+0000 -->
+<!-- last_update: 2026-11-21T22:59+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -83,10 +83,12 @@ erDiagram
     nsp_documentos ||--o{ nsp_termos_envios : "regimento_id"
     nsp_documentos_envios ||--o{ nsp_documentos_signatarios : "envio_id"
     nsp_eventos_que_nunca_deveriam_ocorrer ||--o{ nsp_triagens : "evento_item"
+    nsp_notificacoes ||--o{ nsp_esclarecimentos : "notificacao_id"
     nsp_notificacoes ||--o{ nsp_notificacao_anexos : "notificacao_id"
     nsp_notificacoes ||--o{ nsp_notificacoes_trilha : "notificacao_id"
     nsp_notificacoes ||--o{ nsp_triagens : "notificacao_id"
     nsp_termos_envios ||--o{ nsp_documentos : "termo_envio_id"
+    nsp_triagens ||--o{ nsp_esclarecimentos : "triagem_id"
     ouvidoria_pontos ||--o{ ouvidoria_avaliacoes : "ponto_id"
     participacoes ||--o{ conduta_assinaturas : "participacao_id"
     participacoes ||--o{ conduta_registro : "participacao_id"
@@ -1541,6 +1543,14 @@ erDiagram
         TEXT texto
         TIMESTAMPTZ enviada_em
     }
+    nsp_esclarecimentos {
+        UUID id PK
+        UUID notificacao_id FK
+        UUID triagem_id FK
+        TEXT pergunta
+        TEXT resposta
+        TIMESTAMPTZ criado_em
+    }
 ```
 
 ## Indexes principais
@@ -1796,6 +1806,7 @@ erDiagram
 | `conduta_notas_nsp` | `idx_conduta_notas_nsp_escrita_por` | `escrita_por` | `203_conduta_nota_ao_nucleo.sql` |
 | `conduta_notas_nsp` | `idx_conduta_notas_nsp_enviada_por` | `enviada_por` | `203_conduta_nota_ao_nucleo.sql` |
 | `nsp_notas_do_comite` | `idx_nsp_notas_do_comite_enviada_em` | `enviada_em DESC` | `203_conduta_nota_ao_nucleo.sql` |
+| `nsp_esclarecimentos` | `idx_nsp_esclarecimentos_triagem` | `triagem_id` | `207_nsp_perguntas_de_esclarecimento.sql` |
 
 ---
-**Resumo:** 142 tabelas · 218 relacionamentos FK detectados.
+**Resumo:** 143 tabelas · 220 relacionamentos FK detectados.
