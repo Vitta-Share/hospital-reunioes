@@ -28,6 +28,12 @@ function emMB(bytes: number): string {
   return (bytes / (1024 * 1024)).toFixed(1).replace(".", ",");
 }
 
+/** O tamanho na tela: KB abaixo de 1 MB, MB com uma casa acima. */
+export function tamanhoLegivel(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${emMB(bytes)} MB`;
+}
+
 /** A recusa, com a mensagem para a tela, ou `null` quando está tudo certo. */
 export function conferirArquivos(arquivos: File[]): string | null {
   if (arquivos.length > MAXIMO_DE_ARQUIVOS) return `Você pode anexar até ${MAXIMO_DE_ARQUIVOS} arquivos.`;

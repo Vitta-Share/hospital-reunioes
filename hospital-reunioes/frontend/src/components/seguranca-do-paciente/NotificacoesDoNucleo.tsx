@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AlertCircle, FileText, Image as IconeDeFoto, Inbox, Loader2 } from "lucide-react";
 
+import { tamanhoLegivel } from "@/lib/seguranca-do-paciente/anexos";
 import { chamarNsp } from "@/lib/seguranca-do-paciente/membros";
 import { createClient } from "@/lib/supabase/client";
 import { CHEGOU_AO_PACIENTE, TURNOS } from "@/lib/seguranca-do-paciente/notificacao";
@@ -73,11 +74,6 @@ function QuemNotificou({ caso }: { caso: Caso }) {
       {`Notificado por ${nome ?? "pessoa sem nome"}${contato ? ` (${contato})` : ""}`}
     </p>
   );
-}
-
-function tamanhoLegivel(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1).replace(".", ",")} MB`;
 }
 
 /** Os anexos do caso. O arquivo sai pelo backend, com a sessão de quem abre:

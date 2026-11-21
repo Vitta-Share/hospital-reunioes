@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
-import { ACEITOS_NO_CAMPO, conferirArquivos, reduzirFoto } from "@/lib/seguranca-do-paciente/anexos";
+import { ACEITOS_NO_CAMPO, conferirArquivos, reduzirFoto, tamanhoLegivel } from "@/lib/seguranca-do-paciente/anexos";
 import {
   AVISO_DO_PACIENTE,
   CHEGOU_AO_PACIENTE,
@@ -219,11 +219,6 @@ const FALHA_DOS_SETORES =
   "Não foi possível carregar a lista de setores. Verifique sua conexão e tente de novo.";
 const FALHA_DO_SERVIDOR = "Não foi possível registrar a notificação agora. Tente novamente em instantes.";
 const FALHA_DA_CONEXAO = "Não foi possível falar com o hospital agora. Verifique sua conexão e tente de novo.";
-
-function tamanhoLegivel(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1).replace(".", ",")} MB`;
-}
 
 async function enviar(porta: Porta, corpo: Record<string, unknown>, arquivos: File[]): Promise<Response> {
   const headers: Record<string, string> = {};
