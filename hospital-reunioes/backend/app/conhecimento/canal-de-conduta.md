@@ -111,6 +111,23 @@ A tela Membros diz quem compõe o Comitê e até quando. Cada linha mostra a pes
 - Quem é citado no caso não pode ser convidado para ele, e a tela diz isso, para o convite não avisar ao citado que existe um caso.
 - A tela do caso mostra cada convidado, o papel dele e em que pé está o termo: assinado, esperando a assinatura ou não enviado. Se a ClickSign não respondeu, ou se o convidado perdeu o e-mail, convidar de novo a mesma pessoa cancela o termo anterior e manda outro.
 
+## Impedimento, suplente e Citado
+
+Ninguém julga um caso em que é parte, chefe, parente ou interessado. Na tela do caso:
+
+- cada membro tem o botão Declarar impedimento, com o motivo: parte no caso, chefia direta de envolvido, parentesco, relação pessoal ou interesse no resultado. Declarado, o membro perde o acesso àquele caso na hora: o caso some da lista dele, e abrir o endereço dá a mesma recusa de quem nunca teve acesso. Os outros casos continuam com ele;
+- um membro pode contestar a participação de outro no mesmo caso, com um desses motivos. Os demais membros decidem, sem o contestado: ele não vota na própria contestação. Vale a maioria de quem decide, e quem contestou já conta como um voto para confirmar. Confirmada, o contestado fica impedido. Rejeitada, ele segue no caso;
+- quando quem fica impedido votava no caso, um suplente vigente, com o Termo assinado, é convocado no lugar dele e avisado no sino. O suplente convocado vê só aquele caso e faz o que o substituído fazia: se substitui a coordenação, confirma a triagem; se substitui o segundo leitor, confere. Sem suplente livre, o impedimento vale do mesmo jeito, e a trilha registra que ninguém foi convocado;
+- o suplente sem convocação não vê caso nenhum.
+
+O Citado é a pessoa nomeada no caso como envolvida. Qualquer membro do caso marca um Citado, em qualquer etapa, até depois de encerrado, porque nomes novos aparecem nos depoimentos:
+
+- buscando pelo nome no cadastro do hospital, a marcação se liga à pessoa. Ligada, ela recebe a recusa naquele caso em qualquer perfil, mesmo designada como apuradora;
+- se a pessoa citada é do Comitê, ela fica impedida na hora, sem ato de ninguém, e um suplente é convocado no lugar quando ela votava no caso;
+- o nome que não está no cadastro fica como texto, guardado cifrado.
+
+Cada declaração de impedimento, contestação, voto, decisão, convocação e marcação de Citado entra na trilha do caso, com quem fez e quando. A trilha não leva o nome do Citado.
+
 ## Quem vê
 
 Ninguém vê um caso por ter um cargo. Vê quem está designado naquele caso:
@@ -164,3 +181,5 @@ O formulário público de relato, as páginas públicas que vão mostrar os text
 - Pedido para publicar o Código de Conduta com vigência numa data passada: não existe; a versão nova vale de hoje ou de uma data futura, e a que valia antes continua valendo para os dias que já passaram.
 - Pedido de um item novo nas configurações: entra por Demanda, porque a lista de itens é fixa.
 - Pedido para ver de novo os cinco cartões do primeiro acesso: eles aparecem uma vez só por pessoa; o Guia do rito fica sempre disponível.
+- Um membro que deixou de ver um caso: ele se declarou impedido, teve a participação contestada e confirmada, ou foi marcado como Citado. A trilha do caso diz qual.
+- Um impedimento sem suplente convocado: não havia suplente vigente com o Termo assinado e livre naquele caso.
