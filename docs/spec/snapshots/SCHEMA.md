@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T02:33+0000 -->
+<!-- last_update: 2026-11-21T14:49+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -82,6 +82,7 @@ erDiagram
     participantes ||--o{ audit_log : "actor_id"
     participantes ||--o{ bulk_jobs : "actor_id"
     participantes ||--o{ cm_cenario : "autor_id"
+    participantes ||--o{ cm_conta : "arquivada_por"
     participantes ||--o{ cm_conta : "faturista_id"
     participantes ||--o{ cm_contrato : "confirmado_por"
     participantes ||--o{ cm_conversa : "criado_por"
@@ -775,7 +776,7 @@ erDiagram
         DATE periodo_inicio
         DATE periodo_fim
         NUMERIC total_lancado
-        _ mais_colunas "+31"
+        _ mais_colunas "+33"
     }
     cm_conta_item {
         UUID id PK
@@ -1442,6 +1443,7 @@ erDiagram
 | `cm_cirurgia` | `idx_cm_cirurgia_atendimento` | `atendimento_id` | `116_contas_medicas_fundacao.sql` |
 | `cm_conta` | `idx_cm_conta_faturista_situacao_ordem` | `faturista_id, situacao, ordem_fila` | `116_contas_medicas_fundacao.sql` |
 | `cm_conta` | `idx_cm_conta_atendimento` | `atendimento_id` | `116_contas_medicas_fundacao.sql` |
+| `cm_conta` | `idx_cm_conta_concluidas_nao_arquivadas` | `situacao, ordem_fila` | `176_contas_medicas_arquivar_por_competencia.sql` |
 | `cm_conta_item` | `idx_cm_conta_item_conta` | `conta_id` | `116_contas_medicas_fundacao.sql` |
 | `cm_guia_linha` | `idx_cm_guia_linha_conta` | `conta_id` | `116_contas_medicas_fundacao.sql` |
 | `cm_guia_linha` | `idx_cm_guia_linha_causa_raiz_data` | `causa_raiz, data` | `117_contas_medicas_ia.sql` |
@@ -1534,4 +1536,4 @@ erDiagram
 | `conduta_trilha` | `idx_conduta_trilha_autor` | `autor_id` | `175_conduta_fundacao.sql` |
 
 ---
-**Resumo:** 120 tabelas · 181 relacionamentos FK detectados.
+**Resumo:** 120 tabelas · 182 relacionamentos FK detectados.

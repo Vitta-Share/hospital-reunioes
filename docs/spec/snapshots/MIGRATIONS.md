@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T02:33+0000 -->
+<!-- last_update: 2026-11-21T14:49+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -174,6 +174,7 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 174 | `174_anexo_da_conclusao_da_pendencia.sql` | foto ou PDF anexado na conclusao da Pendencia (issue #1865, PRD #1757) | 1 | 0 | 1 | 0 |
 | 174 | `174_nsp_notificacao_de_incidente.sql` | a Notificação de incidente do Núcleo | 3 | 0 | 7 | 0 |
 | 175 | `175_conduta_fundacao.sql` | Canal de Conduta, a fundação do sigilo | 4 | 1 | 7 | 0 |
+| 176 | `176_contas_medicas_arquivar_por_competencia.sql` | Contas medicas, arquivar por Competencia | 0 | 2 | 1 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 168 migrations.
+**Total:** 169 migrations.

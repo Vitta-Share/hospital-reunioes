@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T03:44+0000 -->
+<!-- last_update: 2026-11-21T14:49+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -135,9 +135,13 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 | Método | Rota | O que faz | Auth |
 |--------|------|-----------|------|
+| GET | `/contas-medicas/arquivadas` | A etapa Arquivadas (issue #1958, ADR 0105): só quando a etapa é aberta, | ✅ |
 | GET | `/contas-medicas/busca` | A busca da tela de contas (issue #1956, ADR 0105, decisão 4): parte do | ✅ |
+| POST | `/contas-medicas/competencias/{mes}/arquivar` | "Arquivar o mês": as Concluídas da pessoa naquela Competência, ou todas | ✅ |
 | POST | `/contas-medicas/contas/{conta_id}/analisar-assim-mesmo` | A conta parada por folha digitalizada que não deu para ler | ✅ |
 | POST | `/contas-medicas/contas/{conta_id}/analisar-de-novo` | A conta em Erro da IA, da configuração ou do app volta para a fila com | ✅ |
+| POST | `/contas-medicas/contas/{conta_id}/arquivar` | A conta concluída sai da Esteira com o carimbo de quando e quem | ✅ |
+| POST | `/contas-medicas/contas/{conta_id}/desarquivar` | A conta arquivada volta para as Concluídas, com a mesma regra de quem pode. | ✅ |
 | POST | `/contas-medicas/contas/{conta_id}/descartar` | A conta em Erro ou Aguardando arquivo sai do banco, e os PDFs dela, do | ✅ |
 | GET | `/contas-medicas/contas/{conta_id}/processamento` | O painel lateral do cartão do envio (issue #1418): as cinco etapas com o | ✅ |
 | POST | `/contas-medicas/envios` | Um lote de PDFs de um envio. Sem `envio_id`, abre um envio novo; com | ✅ |
@@ -705,4 +709,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 399 endpoints em 60 routers · 93% exigem auth.
+**Totais:** 403 endpoints em 60 routers · 93% exigem auth.

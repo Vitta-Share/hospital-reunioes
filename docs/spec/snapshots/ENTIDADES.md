@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T02:33+0000 -->
+<!-- last_update: 2026-11-21T14:49+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -1275,7 +1275,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## cm_conta
 
-> Origem: `116_contas_medicas_fundacao.sql` (alterada em: 117_contas_medicas_ia.sql, 122_contas_medicas_codigo_do_erro.sql, 124_contas_medicas_etapa_do_processamento.sql)
+> Origem: `116_contas_medicas_fundacao.sql` (alterada em: 117_contas_medicas_ia.sql, 122_contas_medicas_codigo_do_erro.sql, 124_contas_medicas_etapa_do_processamento.sql, 176_contas_medicas_arquivar_por_competencia.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -1318,10 +1318,13 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `etapa_desde` | `TIMESTAMPTZ` | — | — | — |
 | `etapa_parte` | `INTEGER` | — | — | — |
 | `etapa_partes` | `INTEGER` | — | — | — |
+| `arquivada_em` | `TIMESTAMPTZ` | — | — | — |
+| `arquivada_por` | `VARCHAR(10)` | — | — | `participantes.id` |
 
 **Indexes:**
 - `idx_cm_conta_faturista_situacao_ordem` em `(faturista_id, situacao, ordem_fila)` (de `116_contas_medicas_fundacao.sql`)
 - `idx_cm_conta_atendimento` em `(atendimento_id)` (de `116_contas_medicas_fundacao.sql`)
+- `idx_cm_conta_concluidas_nao_arquivadas` em `(situacao, ordem_fila)` (de `176_contas_medicas_arquivar_por_competencia.sql`)
 
 ## cm_conta_item
 
