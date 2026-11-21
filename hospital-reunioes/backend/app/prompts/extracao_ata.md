@@ -62,7 +62,9 @@ Retorne **somente JSON válido**, sem markdown e sem explicações:
       "objetivo_meta": "objetivo ou meta da ação (o 'para quê')",
       "prazo": "YYYY-MM-DD ou 'Fluxo contínuo'",
       "entregavel": "o que deve ser entregue ou 'A definir'",
-      "status": "ABERTO"
+      "status": "ABERTO",
+      "tipo": "ACAO | ROTINA | PROCESSO",
+      "frequencia": "SEMANAL | QUINZENAL | MENSAL (só na ROTINA) ou null"
     }}
   ]
 }}
@@ -135,6 +137,15 @@ Erros de ASR comuns: "investidura/infraestrutura", "fiscalização/sistematizaç
 ### 6. REGRA CRÍTICA: citação não é participação
 
 Só entra em `participantes[]` quem efetivamente participou da reunião. Se a pessoa foi apenas citada ou mencionada e não participou, **NÃO a inclua** em `participantes[]` em hipótese alguma, nem em qualquer lista separada, mesmo que ela conste no diretório de participantes ativos. Se for relevante para o entendimento de algum tópico, registre-a apenas em `descricao` ou `contribuicoes` da `discussao` correspondente. Em contrapartida, quem participou de fato entra em `participantes[]` mesmo que apareça pouco na transcrição.
+
+## REGRAS SOBRE O TIPO DE CADA LINHA (Ação, Rotina ou Processo)
+
+Cada linha do `quadro_atribuicoes` tem um `tipo`:
+- `"ACAO"`: acontece uma vez, tem entregável e prazo (ex.: "Comprar o monitor novo até sexta"). É o padrão: na dúvida, use `"ACAO"`.
+- `"ROTINA"`: se repete toda semana, quinzena ou mês e tem um responsável que executa (ex.: "Reunir a equipe toda segunda", "Conferir o estoque todo mês"). Substitui o antigo "Fluxo contínuo".
+- `"PROCESSO"`: define como se faz dali para frente, sem executor e sem cobrança (ex.: "Toda alta passa pelo checklist de medicação").
+
+O campo `frequencia` só vale para a Rotina: `"SEMANAL"`, `"QUINZENAL"` ou `"MENSAL"`. Na Ação e no Processo, use `null`. Se a Rotina não tem frequência dita, deixe `null` (o Facilitador escolhe na validação). Na Rotina e no Processo, o `prazo` é `null`.
 
 ## REGRAS SOBRE STATUS
 

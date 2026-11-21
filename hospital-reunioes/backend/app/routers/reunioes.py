@@ -45,6 +45,7 @@ from app.models.schemas import (
     TipoReuniao,
 )
 from app.services import audit, participantes_ata_service, reuniao_email_service
+from app.services.quadro_classificacao import classificar_quadro, rotinas_incompletas
 from app.services.reunioes_consulta import consultar_reunioes, participantes_por_reuniao
 from app.services.seguranca_do_paciente import ata as ata_do_nucleo
 from app.services.seguranca_do_paciente.permissao import id_do_nucleo
@@ -2060,7 +2061,8 @@ async def concluir_ata_guiada(
     rascunho = req.rascunho or {}
     # Só itens dict entram no quadro — protege liberar_pendencias (que faz acao.get(...))
     # de um item malformado (ex.: string) virar 500 na liberação de pendências.
-    quadro = [a for a in (rascunho.get("quadro_atribuicoes") or []) if isinstance(a, dict)]
+    # Ação, Rotina ou Processo (#1872): o tipo normalizado vale também aqui.
+    quadro = classificar_quadro(rascunho.get("quadro_atribuicoes"))
     # Revalidação server-side dos vínculos (ADR 0008): o quadro do cliente não é
     # confiável — anota ids que faltarem e derruba id forjado/inexistente/inativo,
     # que volta à Resolução pelo nome. Id inválido nunca persiste no json_ata.

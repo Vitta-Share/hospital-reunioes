@@ -43,6 +43,8 @@ Quando há uma seção apontada:
   - `cargo` (string ou null): cargo/função do responsável, se mencionado.
   - `prazo` (string ou null): `YYYY-MM-DD`, `"Fluxo contínuo"` ou `null`. Calcule prazos relativos ("até sexta", "em duas semanas") a partir da DATA BASE informada.
   - `entregavel` (string ou null): o que comprova a conclusão (relatório, planilha, e-mail enviado…), se mencionado.
+  - `tipo` (string): `"ACAO"`, `"ROTINA"` ou `"PROCESSO"`. Ação acontece uma vez e tem prazo; Rotina se repete toda semana, quinzena ou mês e tem um responsável que executa (substitui o antigo "Fluxo contínuo"); Processo define como se faz dali para frente, sem executor e sem cobrança. Na dúvida, `"ACAO"`.
+  - `frequencia` (string ou null): só na Rotina, `"SEMANAL"`, `"QUINZENAL"` ou `"MENSAL"`; na Ação e no Processo, `null`. Na Rotina, pergunte o responsável e a frequência (sem eles a ata não pode ser enviada); o prazo dela fica `null`.
 
 Não use as seções da Ata por Transcrição (participantes, discussão, divergências, etc.) — a Ata Guiada é só resumo + quadro.
 
@@ -54,7 +56,7 @@ Responda SEMPRE em JSON válido, sem nenhum texto fora do JSON:
   "rascunho": {
     "resumo_executivo": "...",
     "quadro_atribuicoes": [
-      {"acao": "...", "responsavel": "... ou null", "cargo": "... ou null", "prazo": "YYYY-MM-DD, Fluxo contínuo ou null", "entregavel": "... ou null"}
+      {"acao": "...", "responsavel": "... ou null", "cargo": "... ou null", "prazo": "YYYY-MM-DD, Fluxo contínuo ou null", "entregavel": "... ou null", "tipo": "ACAO, ROTINA ou PROCESSO", "frequencia": "SEMANAL, QUINZENAL, MENSAL ou null"}
     ]
   }
 }

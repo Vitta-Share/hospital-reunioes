@@ -10,6 +10,7 @@ from functools import partial
 from app.config import settings
 from app.services.ia_chaves import ClienteDaAnthropic
 from app.services.prompt_loader import load_prompt, render_prompt
+from app.services.quadro_classificacao import classificar_quadro
 from app.utils.text_sanitizer import sanitizar_estrutura, sanitizar_travessao
 
 logger = logging.getLogger(__name__)
@@ -223,6 +224,8 @@ def process_transcricao(
                 item["status"] = _normalizar_status_atribuicao(item.get("status"))
                 # Garantir existência dos novos campos opcionais para evitar KeyError no template
                 item.setdefault("objetivo_meta", item.get("objetivo_meta") or "")
+            # Ação, Rotina ou Processo (#1872): linha sem tipo vale como Ação.
+            parsed["quadro_atribuicoes"] = classificar_quadro(parsed["quadro_atribuicoes"])
 
         # Garantir arrays HSM para compat com templates (6 seções oficiais)
         parsed.setdefault("discussao", [])
@@ -274,6 +277,8 @@ def process_correcao(
         parsed = json.loads(raw)
         # ADR 0013: ata corrigida também sai sem travessão.
         parsed = sanitizar_estrutura(parsed)
+        if isinstance(parsed.get("quadro_atribuicoes"), list):
+            parsed["quadro_atribuicoes"] = classificar_quadro(parsed["quadro_atribuicoes"])
 
         logger.info(f"[AI] Correcao aplicada com sucesso na ata {reuniao_id} via {provider}")
         return parsed
@@ -481,9 +486,7 @@ def _normalizar_rascunho_guiado(novo: dict | None, atual: dict) -> dict:
     quadro = novo.get("quadro_atribuicoes")
     return {
         "resumo_executivo": resumo if isinstance(resumo, str) else atual["resumo_executivo"],
-        "quadro_atribuicoes": (
-            [a for a in quadro if isinstance(a, dict)] if isinstance(quadro, list) else atual["quadro_atribuicoes"]
-        ),
+        "quadro_atribuicoes": classificar_quadro(quadro if isinstance(quadro, list) else atual["quadro_atribuicoes"]),
     }
 
 
