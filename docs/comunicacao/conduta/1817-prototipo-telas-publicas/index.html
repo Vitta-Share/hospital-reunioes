@@ -124,6 +124,7 @@
     outline: 2px solid var(--acento);
     outline-offset: 2px;
   }
+  h1[tabindex="-1"]:focus { outline: none; }
   .motivo { color: var(--texto-2); font-size: 0.82rem; text-align: center; }
 
   .lista { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
@@ -647,7 +648,8 @@
     var alvo = tela(nome);
     atual = alvo.getAttribute("data-tela");
     telas.forEach(function (t) { t.hidden = t !== alvo; });
-    rodape.hidden = atual === "protecao";
+    // A entrada já tem o link da proteção; a própria proteção não precisa dele.
+    rodape.hidden = atual === "protecao" || atual === "P0";
     if (atual === "P5") montarRevisao();
     window.scrollTo(0, 0);
     var titulo = alvo.querySelector("h1");
@@ -742,12 +744,13 @@
       ["Evidências", f.evidencias.value.trim()],
       ["Anexos", nomes.join(", ")]
     ];
+    // Só o que foi preenchido entra no resumo.
     var itens = [];
-    linhas.forEach(function (l) {
+    linhas.filter(function (l) { return l[1]; }).forEach(function (l) {
       var dt = document.createElement("dt");
       var dd = document.createElement("dd");
       dt.textContent = l[0];
-      dd.textContent = l[1] || "Não informado";
+      dd.textContent = l[1];
       itens.push(dt, dd);
     });
     form.querySelector("[data-resumo]").replaceChildren.apply(form.querySelector("[data-resumo]"), itens);
