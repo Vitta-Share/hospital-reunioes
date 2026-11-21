@@ -678,3 +678,39 @@ def test_toda_tabela_nova_nasce_com_rls():
     sql = _sql()
     for tabela in re.findall(r"CREATE TABLE IF NOT EXISTS (\w+)", sql):
         assert f"ALTER TABLE {tabela} ENABLE ROW LEVEL SECURITY;" in sql, tabela
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# O texto do Produto no Kit de conhecimento diz o comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _secao_do_kit(titulo: str) -> str:
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = (CONHECIMENTO_DIR / "seguranca-do-paciente.md").read_text(encoding="utf-8")
+    partes = texto.split(f"## {titulo}\n", 1)
+    assert len(partes) == 2, f"a seção {titulo!r} sumiu do kit"
+    return partes[1].split("\n## ", 1)[0]
+
+
+def test_o_kit_diz_o_que_o_agente_de_triagem_faz():
+    secao = _secao_do_kit("O que já está no ar")
+    for termo in (
+        "agente de triagem",
+        "quem decide é a Presidência",
+        "versão do prompt",
+        "não recebe o nome nem o contato de quem notificou",
+        "classificar manualmente",
+        "100 leituras por dia",
+        "não divide conta com a Ouvidoria",
+        "nasce desligado",
+        "144 casos",
+    ):
+        assert termo in secao, termo
+
+
+def test_o_kit_nao_diz_mais_que_a_triagem_nao_chegou():
+    ainda_nao = _secao_do_kit("O que ele ainda não faz")
+    assert "as perguntas de esclarecimento, a triagem, os prazos" not in ainda_nao
+    assert "a tela de triagem" in ainda_nao
