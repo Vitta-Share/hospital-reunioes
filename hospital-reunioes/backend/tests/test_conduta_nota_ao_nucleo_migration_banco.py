@@ -6,7 +6,8 @@ mínimo de antes e prova no banco:
 
 - a linha do lado do Núcleo não tem coluna que leve ao caso nem a quem agiu;
 - uma nota só esperando o envio por caso;
-- as duas tabelas têm RLS ligada, nenhuma policy, e o anon não lê.
+- as duas tabelas têm RLS ligada, nenhuma policy, e nem o anon nem o
+  authenticated leem, mesmo com o GRANT padrão do Supabase.
 
 Sem `initdb` na máquina o teste pula; no CI ele falha, para não ficar verde
 sobre nada.
@@ -41,6 +42,10 @@ def banco():
     try:
         pg.ok(ESQUEMA_ANTERIOR)
         pg.ok(MIGRATION_175.read_text(encoding="utf-8"))
+        # O GRANT padrão do Supabase: toda tabela nova nasce aberta ao anon e ao
+        # authenticated. Sem ele o `permission denied` viria de graça e o teste
+        # de acesso não provaria o REVOKE da 203.
+        pg.ok("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated;")
         migration = MIGRATION.read_text(encoding="utf-8")
         pg.ok(migration)
         pg.ok(migration)  # rodar duas vezes é inofensivo
@@ -101,7 +106,8 @@ def test_toda_tabela_nova_tem_rls_ligada_e_nenhuma_policy(banco, tabela):
     assert banco.ok(f"SELECT count(*) FROM pg_policies WHERE tablename = '{tabela}';") == "0"
 
 
+@pytest.mark.parametrize("papel", ["anon", "authenticated"])
 @pytest.mark.parametrize("tabela", TABELAS_NOVAS)
-def test_o_anon_nao_le(banco, tabela):
-    r = banco.sql(f"SELECT * FROM {tabela};", papel="anon")
+def test_o_anon_nao_le(banco, tabela, papel):
+    r = banco.sql(f"SELECT * FROM {tabela};", papel=papel)
     assert "permission denied" in r.stderr
