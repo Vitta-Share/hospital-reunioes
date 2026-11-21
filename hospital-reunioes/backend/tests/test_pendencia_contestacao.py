@@ -555,3 +555,18 @@ def test_o_texto_de_reunioes_no_kit_diz_como_funciona_a_contestacao():
     assert "faz tudo, menos contestar" in texto
     assert chr(0x2014) not in secao
     assert chr(0x2013) not in secao
+
+
+def test_o_texto_do_inicio_no_kit_diz_quem_ve_a_contestacao():
+    """Issue #1945: a seção do Início diz que a Contestação aberta entra só na
+    fila do Facilitador, o que o botão abre e quando ela sai."""
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = " ".join((CONHECIMENTO_DIR / "reunioes.md").read_text(encoding="utf-8").split())
+    secao = texto.split("## O Início", 1)[1].split(" ## ", 1)[0]
+    assert "A contestação de um item da ata aparece só no Início do facilitador da reunião" in secao
+    assert "quem contestou e os outros participantes não a veem" in secao
+    assert "O botão Ajustar ou recusar abre a pendência no quadro de pendências" in secao
+    assert "sai da lista assim que ele ajusta ou recusa" in secao
+    assert chr(0x2014) not in secao
+    assert chr(0x2013) not in secao
