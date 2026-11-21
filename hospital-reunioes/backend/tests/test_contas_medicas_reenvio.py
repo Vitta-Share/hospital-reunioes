@@ -180,6 +180,11 @@ class _Consulta:
         self._limite = n
         return self
 
+    def range(self, inicio, fim):
+        """A página do PostgREST: de `inicio` a `fim`, os dois inclusive."""
+        self._inicio, self._limite = inicio, fim - inicio + 1
+        return self
+
     def update(self, campos):
         self._update = dict(campos)
         return self
@@ -207,6 +212,7 @@ class _Consulta:
         for coluna, desc in reversed(self._ordem):
             casam.sort(key=lambda linha, c=coluna: (linha.get(c) is None, str(linha.get(c) or "")), reverse=desc)
         total = len(casam) if getattr(self, "_contar", False) else None
+        casam = casam[getattr(self, "_inicio", 0) :]
         if self._limite is not None:
             casam = casam[: self._limite]
         return SimpleNamespace(data=[dict(linha) for linha in casam], count=total)
