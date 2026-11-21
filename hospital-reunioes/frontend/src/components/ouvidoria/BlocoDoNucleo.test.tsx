@@ -51,6 +51,21 @@ describe("o Núcleo no Dossiê", () => {
     expect(screen.getByText(JUSTIFICATIVA)).toBeTruthy();
   });
 
+  it("o selo diz, numa palavra, em que pé está o caso no Núcleo (issue #1997)", () => {
+    montar(caso({ nsp_decisao: "confirmado", nsp_estado: "Em análise" }));
+
+    const selo = screen.getByTestId("selo-do-nucleo");
+    expect(selo.textContent).toContain("Em análise pelo NSP");
+    expect(screen.getByTestId("estado-no-nucleo").textContent).toBe("No Núcleo: Em análise");
+  });
+
+  it("sem o estado do Núcleo, o selo fica sem a palavra", () => {
+    montar(caso({ nsp_decisao: "confirmado", nsp_estado: null }));
+
+    expect(screen.getByText("Em análise pelo NSP")).toBeTruthy();
+    expect(screen.queryByTestId("estado-no-nucleo")).toBeNull();
+  });
+
   it("o caso enviado ganha o selo e perde o botão", () => {
     montar(caso({ nsp_sugerido: true, nsp_decisao: "confirmado" }));
 

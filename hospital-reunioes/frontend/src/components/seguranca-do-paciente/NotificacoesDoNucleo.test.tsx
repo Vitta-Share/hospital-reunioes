@@ -90,6 +90,43 @@ describe("a lista de casos", () => {
     expect(within(anonima).getByText("Notificado sem identificação")).toBeTruthy();
   });
 
+  it("o caso que veio da Ouvidoria mostra o selo com o estado da manifestação (issue #1997)", async () => {
+    corpo = {
+      notificacoes: [
+        {
+          ...CASO,
+          origem: "ouvidoria",
+          ouvidoria: { estado: "Respondida" },
+          anonimo: false,
+          notificante: null,
+        },
+      ],
+    };
+    render(<NotificacoesDoNucleo />);
+
+    const caso = await screen.findByRole("article", { name: "NSP-2026-0001" });
+    expect(within(caso).getByTestId("selo-veio-da-ouvidoria").textContent).toBe("Veio da Ouvidoria: Respondida");
+    expect(within(caso).queryByText(/Notificado/)).toBeNull();
+  });
+
+  it("o caso que não veio da Ouvidoria não tem o selo", async () => {
+    corpo = { notificacoes: [CASO] };
+    render(<NotificacoesDoNucleo />);
+
+    const caso = await screen.findByRole("article", { name: "NSP-2026-0001" });
+    expect(within(caso).queryByTestId("selo-veio-da-ouvidoria")).toBeNull();
+  });
+
+  it("o protocolo abre o caso", async () => {
+    corpo = { notificacoes: [CASO] };
+    render(<NotificacoesDoNucleo />);
+
+    const caso = await screen.findByRole("article", { name: "NSP-2026-0001" });
+    expect(within(caso).getByRole("link", { name: "NSP-2026-0001" }).getAttribute("href")).toBe(
+      "/seguranca-do-paciente/notificacoes/n1"
+    );
+  });
+
   it("sem casos, o estado vazio", async () => {
     corpo = { notificacoes: [] };
     render(<NotificacoesDoNucleo />);
