@@ -2,6 +2,57 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-20T21:28:45-03:00",
+      "sha": "f2d42b9022fe2b423e3879e54143ac9b3d0301c2",
+      "app_version": "0.324.1",
+      "subject": "Onda sesta-1757-onda4: Reunião com pendência não se exclui e o force de exclusão sai; Lembretes do Núcleo passam pelas ações da Pendência com anotação",
+      "raw_subject": "chore(deploy): registro da onda sesta-1757-onda4 (#2055 #2054)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1757
+      ],
+      "result": "healthy",
+      "duration_seconds": 2675,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "172_pendencia_nao_cai_com_a_reuniao.sql",
+        "172_pendencia_nao_cai_com_a_reuniao.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1757-onda4: PR #2055 (issue #1864), PR #2054 (issue #1866), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 5,
+        "build_s": {
+          "backend": 23,
+          "frontend": 162
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-20T20:49:18-03:00",
       "sha": "6dca8cebe254e4fbe32f3adc1f76660af11a6d2f",
       "app_version": "0.324.0",
