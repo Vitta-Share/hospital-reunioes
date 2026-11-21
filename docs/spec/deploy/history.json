@@ -2,6 +2,53 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-20T23:34:36-03:00",
+      "sha": "e7344a3855d493fd87a608db1bc662469e736d27",
+      "app_version": "0.334.0",
+      "subject": "Onda pedro-2060: Fundação do sigilo do Canal de Conduta (caso cifrado, portão e trilha)",
+      "raw_subject": "chore(deploy): registro da onda pedro-2060 (#2060)",
+      "scope": [
+        "backend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 84,
+      "services_touched": [
+        "backend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "175_conduta_fundacao.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta pedro-2060: PR #2060 (issue #1820), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 4,
+        "build_s": {
+          "backend": 38
+        },
+        "health_s": 20
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-20T23:16:59-03:00",
       "sha": "f4d4c5da581cb0213192e0f1bb3453840ca4514d",
       "app_version": "0.333.0",
