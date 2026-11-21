@@ -43,6 +43,10 @@ class ArquivosDemaisError(AnexoRecusadoError):
     """Mais de três arquivos."""
 
 
+class AnexoIndisponivelError(Exception):
+    """O anexo existe no banco, mas o storage não o devolveu agora."""
+
+
 @dataclass(frozen=True)
 class ArquivoRecebido:
     nome: str
@@ -60,9 +64,7 @@ def conferir_os_arquivos(arquivos: list[ArquivoRecebido]) -> list[ArquivoAceito]
     """Devolve os arquivos aceitos, ou levanta a recusa com a mensagem que
     quem notifica lê na tela. Nada é gravado antes desta conferência."""
     if len(arquivos) > MAXIMO_DE_ARQUIVOS:
-        raise ArquivosDemaisError(
-            f"Você pode anexar até {MAXIMO_DE_ARQUIVOS} arquivos. Tire um e envie de novo."
-        )
+        raise ArquivosDemaisError(f"Você pode anexar até {MAXIMO_DE_ARQUIVOS} arquivos. Tire um e envie de novo.")
     aceitos = []
     for arquivo in arquivos:
         nome = (arquivo.nome or "").strip()
@@ -162,5 +164,5 @@ def abrir_o_anexo(supabase, notificacao_id: str, anexo_id: str) -> tuple[bytes, 
     caminho = linhas[0]["storage_path"]
     conteudo = storage.download_file(supabase, _bucket(), caminho)
     if conteudo is None:
-        raise ConnectionError("o storage não devolveu o anexo")
+        raise AnexoIndisponivelError(caminho)
     return conteudo, linhas[0]["content_type"], caminho[caminho.rfind(".") :]

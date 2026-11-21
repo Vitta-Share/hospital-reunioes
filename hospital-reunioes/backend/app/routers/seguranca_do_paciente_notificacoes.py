@@ -222,9 +222,7 @@ async def notificar_sem_login(
 ) -> dict:
     """O formulário público, pelo QR ou pelo endereço."""
     envio, arquivos = pedido
-    return _gravar_notificacao(
-        supabase, envio, arquivos, origem=envio.origem, nome=envio.nome, contato=envio.contato
-    )
+    return _gravar_notificacao(supabase, envio, arquivos, origem=envio.origem, nome=envio.nome, contato=envio.contato)
 
 
 async def _quem_esta_logado(
@@ -326,4 +324,41 @@ async def lista_de_casos(
     """Notificações: todos os casos, para quem tem o recurso de casos. Quem
     notificou só para a Presidência e o Acesso pleno."""
     com_identidade = "identidade_notificante" in me["recursos_nsp"]
-    return {"notificacoes": notificacoes.listar(supabase, com_identidade=com_identidade)}
+    casos = notificacoes.listar(supabase, com_identidade=com_identidade)
+    por_caso = anexos.anexos_dos_casos(supabase, [caso["id"] for caso in casos])
+    for caso in casos:
+        caso["anexos"] = por_caso.get(caso["id"], [])
+    return {"notificacoes": casos}
+
+
+@router.get("/notificacoes/{notificacao_id}/anexos/{anexo_id}")
+@limite_sem_ip.limitar("60/minute")
+async def abrir_anexo_do_caso(
+    request: Request,
+    notificacao_id: UUID,
+    anexo_id: UUID,
+    me: dict = Depends(require_recurso_nsp("casos")),
+    supabase: Client = Depends(get_supabase_client),
+) -> Response:
+    """O arquivo do caso, entregue pelo backend: sem URL assinada, que valeria
+    para quem recebesse o link. O nome original não volta."""
+    try:
+        achado = anexos.abrir_o_anexo(supabase, str(notificacao_id), str(anexo_id))
+    except (APIError, httpx.HTTPError, anexos.AnexoIndisponivelError) as erro:
+        logger.error("Falha ao abrir o anexo da notificação: %s", type(erro).__name__)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Não foi possível abrir o arquivo agora. Tente de novo em instantes.",
+        ) from erro
+    if achado is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Arquivo não encontrado.")
+    conteudo, content_type, extensao = achado
+    return Response(
+        content=conteudo,
+        media_type=content_type,
+        headers={
+            "Content-Disposition": f'inline; filename="anexo{extensao}"',
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "private, no-store",
+        },
+    )
