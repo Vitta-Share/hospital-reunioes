@@ -169,7 +169,7 @@ def test_coordenacao_publica_versao_nova_e_a_anterior_continua_consultavel(banco
 
 def test_nenhuma_rota_do_codigo_altera_ou_apaga_versao():
     """Só GET e POST no Código de Conduta, em nenhum perfil. O banco recusa o
-    resto (migration 194)."""
+    resto (migration 198)."""
     metodos = {
         metodo
         for router in (conduta_codigo.router, conduta_publico.router)

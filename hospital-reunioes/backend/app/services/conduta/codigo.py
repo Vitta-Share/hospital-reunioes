@@ -2,7 +2,7 @@
 (issue #1841, PRD #1786, decisão 37 do diretor).
 
 Cada publicação é um PDF e vira a versão seguinte, com data de vigência e
-autor. Nenhuma versão sai: o banco (migration 194) recusa UPDATE, DELETE e
+autor. Nenhuma versão sai: o banco (migration 198) recusa UPDATE, DELETE e
 TRUNCATE. A que valia numa data é a de maior vigência até aquele dia; na mesma
 vigência, a publicada depois. O caso usa isso para citar o item do Código que
 valia na data do fato.

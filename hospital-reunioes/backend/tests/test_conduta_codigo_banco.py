@@ -1,4 +1,4 @@
-"""A migration 194 do Canal de Conduta num Postgres de verdade (issue #1841).
+"""A migration 198 do Canal de Conduta num Postgres de verdade (issue #1841).
 
 Sobe um Postgres descartável (o mesmo apoio da migration 169), monta o mínimo
 de antes, aplica a migration duas vezes e prova no banco:
@@ -20,9 +20,9 @@ from pathlib import Path
 import pytest
 from test_pendencia_historico_banco import _bin_do_postgres, _Postgres
 
-MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "194_conduta_codigo_de_conduta.sql"
+MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "198_conduta_codigo_de_conduta.sql"
 
-# O mínimo de antes da 194 (migrations 001 e 146, e o `storage` do Supabase).
+# O mínimo de antes da 198 (migrations 001 e 146, e o `storage` do Supabase).
 ESQUEMA_ANTERIOR = """
 CREATE ROLE anon NOLOGIN;
 CREATE ROLE authenticated NOLOGIN;
@@ -50,7 +50,7 @@ def banco():
             pytest.fail("O CI precisa do initdb para provar as versões no banco.")
         pytest.skip("Sem initdb nesta máquina.")
     pg = _Postgres(bindir)
-    pg.porta = "54194"
+    pg.porta = "54198"
     pg.subir()
     try:
         pg.ok(ESQUEMA_ANTERIOR)
@@ -129,5 +129,5 @@ def test_a_migration_nao_grava_nenhuma_versao(banco):
     assert "INSERT INTO conduta_codigo_versoes" not in MIGRATION.read_text(encoding="utf-8")
 
 
-def test_o_recibo_e_o_194(banco):
-    assert banco.ok("SELECT max(numero) FROM migracoes_aplicadas;") == "194"
+def test_o_recibo_e_o_198(banco):
+    assert banco.ok("SELECT max(numero) FROM migracoes_aplicadas;") == "198"

@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 194: Canal de Conduta, o Código de Conduta com versões
+-- Migration 198: Canal de Conduta, o Código de Conduta com versões
 -- (issue #1841, PRD #1786, decisão 37 do diretor)
 -- =====================================================
 -- A coordenação do Comitê publica o Código de Conduta em PDF, e cada
@@ -66,4 +66,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (194) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (198) ON CONFLICT (numero) DO NOTHING;
