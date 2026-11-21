@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 175: Rotina e Verificacao (ADR 0098, decisao 9; issue #1874)
+-- Migration 177: Rotina e Verificacao (ADR 0098, decisao 9; issue #1874)
 -- =====================================================
 -- A Rotina substitui o "fluxo continuo": nasce do envio da Ata (linha do tipo
 -- Rotina no quadro), com responsavel e frequencia, e vive aqui, fora de
@@ -83,4 +83,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (175) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (177) ON CONFLICT (numero) DO NOTHING;

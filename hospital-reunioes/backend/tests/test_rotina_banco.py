@@ -1,6 +1,6 @@
-"""A Rotina e a Verificação num Postgres de verdade (issue #1874, migration 175).
+"""A Rotina e a Verificação num Postgres de verdade (issue #1874, migration 177).
 
-Usa o Postgres descartável de `test_pendencia_historico_banco.py`: aplica a 175
+Usa o Postgres descartável de `test_pendencia_historico_banco.py`: aplica a 177
 duas vezes (rodar de novo é inofensivo) e prova no banco que Não realizada sem
 anotação e o encerramento sem anotação são recusados, e que um ciclo só se
 marca uma vez. Também lê o SQL: nada de job, trigger ou função que crie
@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from test_pendencia_historico_banco import ESQUEMA_ANTERIOR, _bin_do_postgres, _Postgres  # noqa: E402
 
-MIGRATION_175 = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "175_rotina_e_verificacao.sql"
+MIGRATION_177 = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "177_rotina_e_verificacao.sql"
 
 
 @pytest.fixture(scope="module")
@@ -31,7 +31,7 @@ def banco():
             pytest.fail("O CI precisa do initdb para provar a Rotina no banco.")
         pytest.skip("Sem initdb nesta máquina.")
     pg = _Postgres(bindir)
-    pg.porta = "54175"
+    pg.porta = "54177"
     pg.subir()
     try:
         pg.ok(ESQUEMA_ANTERIOR)
@@ -39,9 +39,9 @@ def banco():
         pg.ok("INSERT INTO participantes (id, nome_completo) VALUES ('P2', 'Ana Lima');")
         # O GRANT padrão do Supabase: toda tabela nova nasce aberta ao anon e ao
         # authenticated. Sem ele o `permission denied` viria de graça e o teste
-        # de acesso não provaria o REVOKE da 175.
+        # de acesso não provaria o REVOKE da 177.
         pg.ok("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated;")
-        sql = MIGRATION_175.read_text(encoding="utf-8")
+        sql = MIGRATION_177.read_text(encoding="utf-8")
         pg.ok(sql)
         pg.ok(sql)  # rodar duas vezes é inofensivo
         pg.ok(
@@ -104,7 +104,7 @@ def test_quem_nao_e_o_backend_nao_le_a_rotina(banco, tabela):
 
 
 def test_nenhum_job_nem_trigger_cria_verificacao():
-    sql = MIGRATION_175.read_text(encoding="utf-8").upper()
+    sql = MIGRATION_177.read_text(encoding="utf-8").upper()
     assert "CREATE TRIGGER" not in sql
     assert "CREATE OR REPLACE FUNCTION" not in sql and "CREATE FUNCTION" not in sql
     assert "CRON" not in re.sub(r"--.*", "", sql)
