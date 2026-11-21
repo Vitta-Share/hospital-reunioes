@@ -437,3 +437,38 @@ def test_o_super_admin_le_a_tabela_na_configuracao_sem_poder_editar():
 
     assert corpo["pode_editar"] is False
     assert all(linha["editavel"] is False for linha in corpo["internos"])
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. O kit de conhecimento diz o comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _secao_do_kit(titulo: str) -> str:
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = (CONHECIMENTO_DIR / "seguranca-do-paciente.md").read_text(encoding="utf-8")
+    partes = texto.split(f"## {titulo}\n", 1)
+    assert len(partes) == 2, f"a seção {titulo!r} sumiu do kit"
+    return partes[1].split("\n## ", 1)[0]
+
+
+def test_o_kit_diz_os_prazos_do_caso_e_a_tabela_de_prazos():
+    no_ar = _secao_do_kit("O que já está no ar")
+    for termo in (
+        "todos os prazos do Regimento",
+        "data e hora",
+        "72 horas corridas do incidente",
+        "15º dia útil do mês seguinte",
+        "60 dias corridos",
+        "não se alteram pela tela",
+        "VigiMed",
+        "NOTIVISA",
+        "Circunstância de risco não é notificada",
+        "**Tabela de prazos**",
+        "Só a Presidência e o Acesso pleno mudam um prazo",
+        "histórico",
+        "caso já classificado guarda os prazos",
+    ):
+        assert termo in no_ar, termo
+    assert "os prazos," not in _secao_do_kit("O que ele ainda não faz")
