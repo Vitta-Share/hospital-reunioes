@@ -25,8 +25,9 @@ from zoneinfo import ZoneInfo
 # O slug do Comitê na tabela `colegiados` (a migration 175 o cria).
 SLUG_DO_COMITE = "conduta"
 
-# Quem lê a fila comum pela Participação. O suplente só pela convocação.
-PAPEIS_DA_FILA_COMUM = ("coordenacao", "membro")
+# Quem lê a fila comum pela Participação, o segundo leitor inclusive
+# (especificação, 3.2). O suplente só pela convocação.
+PAPEIS_DA_FILA_COMUM = ("coordenacao", "segundo_leitor", "membro")
 
 # O que a lista mostra: metadados em claro, nunca o conteúdo cifrado.
 CAMPOS_DA_LISTA = ("id", "protocolo", "rota", "etapa", "categoria", "recebido_em", "prazo_em")

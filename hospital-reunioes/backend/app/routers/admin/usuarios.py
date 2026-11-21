@@ -20,7 +20,7 @@ import logging
 import re
 import secrets
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from starlette.requests import Request
 from supabase import Client
 
@@ -43,6 +43,8 @@ from app.models.admin_schemas import (
 )
 from app.services import audit, ouvidoria_escalonamento
 from app.services.auth_provisioning import definir_login_liberado
+from app.services.conduta import membros as membros_do_comite
+from app.services.conduta.acesso import hoje_em_sao_paulo
 from app.services.tecnologia_vinculo import (
     motivo_github_login_invalido,
     motivo_github_login_repetido,
@@ -62,7 +64,7 @@ router = APIRouter(prefix="/admin/usuarios", tags=["admin", "usuarios"])
 _SELECT_FIELDS = (
     "id, nome_completo, email, cargo, area, setor, role, ativo, is_externo, "
     "is_super_admin, access_profile, perfil_pop, perfil_ouvidoria, github_login, auth_user_id, data_cadastro, "
-    "perfil_nsp, conselho_profissional, registro_profissional, registro_uf"
+    "perfil_nsp, conselho_profissional, registro_profissional, registro_uf, perfil_conduta"
 )
 
 
@@ -445,6 +447,8 @@ async def update_usuario(
     request: Request,
     actor: dict = Depends(require_super_admin),
     supabase: Client = Depends(get_supabase_client),
+    # O FastAPI injeta pelo tipo; a chamada direta (testes antigos) fica sem.
+    tarefas: BackgroundTasks = None,
 ):
     """Atualizacao parcial. Loga EDIT_USUARIO com antes/depois por campo."""
     atual = _fetch_usuario(supabase, participante_id)
@@ -585,6 +589,9 @@ async def update_usuario(
         # escada ninguém novo a quem falar.
         ouvidoria_escalonamento.destravar_todos(supabase)
 
+    if "perfil_conduta" in changes:
+        _avisar_o_comite_do_perfil(supabase, tarefas, actor, atualizado, bool(data["perfil_conduta"]))
+
     audit.log_action(
         supabase,
         actor=actor,
@@ -597,6 +604,25 @@ async def update_usuario(
     )
 
     return atualizado
+
+
+def _avisar_o_comite_do_perfil(supabase, tarefas: BackgroundTasks | None, actor: dict, pessoa: dict, deu: bool) -> None:
+    """Dar ou tirar o perfil de cadastro do Canal de Conduta entra no registro
+    do módulo e avisa os membros do Comitê, como toda inclusão ou saída de
+    membro (ADR 0097, decisão 3)."""
+    nome = pessoa.get("nome_completo") or "Uma pessoa"
+    avisados = membros_do_comite.mudanca_no_comite(
+        supabase,
+        acao="perfil_dado" if deu else "perfil_tirado",
+        participante_id=pessoa["id"],
+        autor_id=actor["id"],
+        mensagem=(f"{nome} {'recebeu' if deu else 'perdeu'} o perfil de cadastro de membros do Comitê de Conduta."),
+        hoje=hoje_em_sao_paulo(),
+    )
+    if tarefas is None:
+        membros_do_comite.enviar_emails(supabase, avisados)
+    else:
+        tarefas.add_task(membros_do_comite.enviar_emails, supabase, avisados)
 
 
 @router.delete("/{participante_id}", status_code=status.HTTP_200_OK)

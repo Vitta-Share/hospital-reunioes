@@ -28,9 +28,15 @@ from app.dependencies import get_current_user  # noqa: E402
 from app.middleware.request_context import JsonFormatter, RequestContextMiddleware  # noqa: E402
 from app.routers import conduta_comite, conduta_publico  # noqa: E402
 from app.routers.conduta_publico import exigir_canal_aberto  # noqa: E402
-from app.services.conduta.portao import portao_da_lista, portao_do_caso  # noqa: E402
+from app.services.conduta.portao import (  # noqa: E402
+    portao_da_lista,
+    portao_do_cadastro,
+    portao_do_caso,
+    portao_dos_membros,
+)
 
-PORTOES_DO_COMITE = {portao_da_lista, portao_do_caso}
+# Os do caso e, para a tela Membros (issue #1822), os que não abrem caso.
+PORTOES_DO_COMITE = {portao_da_lista, portao_do_caso, portao_dos_membros, portao_do_cadastro}
 PREFIXO_PUBLICO = "/conduta"
 IP_DE_QUEM_RELATA = "203.0.113.45"
 
@@ -71,7 +77,12 @@ class TestVarredura:
     def test_a_varredura_enxerga_as_rotas_do_modulo(self):
         """Controle: varredura vazia satisfaria "toda rota tem portão"."""
         caminhos = {rota.path for router in _routers_do_modulo() for rota in router.routes}
-        assert {"/comite-de-conduta/casos", "/comite-de-conduta/casos/{caso_id}", "/conduta/abertura"} <= caminhos
+        assert {
+            "/comite-de-conduta/casos",
+            "/comite-de-conduta/casos/{caso_id}",
+            "/comite-de-conduta/membros",
+            "/conduta/abertura",
+        } <= caminhos
 
     def test_toda_rota_do_modulo_passa_pela_trava(self):
         assert rotas_sem_trava(_routers_do_modulo()) == []

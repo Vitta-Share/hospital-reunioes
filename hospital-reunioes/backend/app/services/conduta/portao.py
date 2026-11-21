@@ -2,6 +2,8 @@
 
 Toda rota do Comitê depende de `portao_da_lista` ou de `portao_do_caso`, e
 `tests/test_conduta_varredura.py` reprova a rota do módulo que não dependa.
+A tela Membros, que não mostra caso, tem os dois portões dela:
+`portao_dos_membros` (ler) e `portao_do_cadastro` (incluir e encerrar).
 
 Na ordem: a chave de cifra (sem ela, 503 e nada é lido nem gravado), a pessoa
 logada e não desligada, a designação dela (`acesso`) e, no caso, a leitura
@@ -22,11 +24,12 @@ from postgrest.exceptions import APIError
 from supabase import Client
 
 from app.dependencies import barrar_desligado, get_current_user, get_participante_for_user, get_supabase_client
-from app.services.conduta import cifra, trilha
+from app.services.conduta import cifra, membros, trilha
 from app.services.conduta.acesso import (
     PessoaNoComite,
     caso_se_a_pessoa_abre,
     casos_da_pessoa,
+    hoje_em_sao_paulo,
     pessoa_no_comite,
 )
 
@@ -83,3 +86,36 @@ async def portao_do_caso(
         logger.error("Leitura de caso do Canal de Conduta sem registro na trilha; o caso não sai: %s", erro)
         raise _indisponivel() from erro
     return caso
+
+
+async def _quem_esta_logado(current_user: dict, supabase) -> dict:
+    me = await get_participante_for_user(current_user, supabase)
+    barrar_desligado(me)
+    if not me:
+        raise _recusar()
+    return me
+
+
+async def portao_dos_membros(
+    current_user: dict = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """A tela Membros: quem está no Comitê hoje e quem tem o perfil de
+    cadastro. Devolve a pessoa com `pode_cadastrar`. O super admin sem um dos
+    dois recebe a mesma recusa."""
+    me = await _quem_esta_logado(current_user, supabase)
+    if not membros.ve_os_membros(supabase, me, hoje_em_sao_paulo()):
+        raise _recusar()
+    return {**me, "pode_cadastrar": me.get("perfil_conduta") == membros.PERFIL_DE_CADASTRO}
+
+
+async def portao_do_cadastro(
+    current_user: dict = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """Incluir e encerrar membro: só com o perfil de cadastro do módulo
+    (ADR 0097, decisão 3). O super admin não herda o perfil."""
+    me = await _quem_esta_logado(current_user, supabase)
+    if me.get("perfil_conduta") != membros.PERFIL_DE_CADASTRO:
+        raise _recusar()
+    return me

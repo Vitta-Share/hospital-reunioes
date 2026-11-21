@@ -140,7 +140,7 @@ def _assert_recusado(resposta) -> None:
 
 
 class TestQuemAbre:
-    @pytest.mark.parametrize("papel", ["membro", "coordenacao"])
+    @pytest.mark.parametrize("papel", ["membro", "coordenacao", "segundo_leitor"])
     def test_membro_com_participacao_vigente_e_termo_lista_e_abre_caso_comum(self, papel):
         cenario = _Cenario(_pessoa(), [_participacao(papel=papel)])
         caso = cenario.caso()

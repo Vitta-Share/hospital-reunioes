@@ -144,9 +144,12 @@ def test_o_registro_tem_rls_ligada_e_nenhuma_policy(banco):
 def test_o_registro_guarda_autor_e_data(banco):
     r = _registro(banco, "perfil_dado")
     assert r.returncode == 0, r.stderr
-    assert banco.ok(
-        "SELECT autor_id, registrado_em IS NOT NULL FROM conduta_registro WHERE acao = 'perfil_dado';"
-    ).replace(" ", "") == "P2|t"
+    assert (
+        banco.ok(
+            "SELECT autor_id, registrado_em IS NOT NULL FROM conduta_registro WHERE acao = 'perfil_dado';"
+        ).replace(" ", "")
+        == "P2|t"
+    )
 
 
 def test_o_registro_recusa_acao_desconhecida(banco):
