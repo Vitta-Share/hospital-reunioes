@@ -41,6 +41,7 @@ from test_seguranca_do_paciente_notificacoes import (  # noqa: E402
     NUCLEO,
     PRESIDENTE,
     SETOR,
+    SETOR_DESATIVADO,
     SUPER_ADMIN,
     _participacao,
     _pessoa,
@@ -223,6 +224,40 @@ def test_os_casos_em_que_a_presidencia_subiu_o_grau_aparecem_a_parte():
     ]
 
 
+FORA_DO_NSP = {"natureza": "nao_e_do_nsp", "grau_de_dano": "nao_se_aplica", "faixa": "nao_se_aplica"}
+
+
+def _cenario_do_fora_do_nsp() -> _BancoDaRecalibracao:
+    """O agente nem tratou como incidente; a Presidência decidiu óbito."""
+    caso = _notificacao(1, estado="classificada", criado_em="2026-11-29T13:00:00+00:00")
+    return _banco([caso], [_sugestao(caso, **FORA_DO_NSP), _decisao(caso, ["natureza", "grau_de_dano"], **OBITO)])
+
+
+def test_o_obito_que_o_agente_nem_tratou_como_incidente_e_erro_para_baixo():
+    corpo = _cliente(_cenario_do_fora_do_nsp()).get(CONCORDANCIA).json()
+
+    assert corpo["erros_para_baixo"] == [
+        {
+            "notificacao_id": "00000000-0000-0000-0000-000000000001",
+            "protocolo": "NSP-2026-0001",
+            "sugerido": "nao_se_aplica",
+            "decidido": "obito",
+            "grave_ou_obito": True,
+        }
+    ]
+
+
+def test_o_obito_que_o_agente_nem_tratou_como_incidente_acende_o_item_3():
+    tela = recalibracao.tela(_cenario_do_fora_do_nsp(), date(2026, 11, 30))
+    item = next(i for i in tela["itens"] if i["numero"] == 3)
+
+    assert item["linhas"] == [
+        "1 caso com o grau de dano subido pela Presidência.",
+        "NSP-2026-0001: sugerido não se aplica, decidido óbito",
+    ]
+    assert item["alerta"] is True
+
+
 def test_a_configuracao_diz_as_versoes_do_prompt_e_da_base_em_uso():
     corpo = _cliente(_banco()).get(CONCORDANCIA).json()
 
@@ -296,6 +331,43 @@ def test_cada_marco_nasce_uma_vez_so():
         "Recalibrar o agente do NSP (30 dias)",
         "Recalibrar o agente do NSP (60 dias)",
     ]
+
+
+def test_a_rodada_que_caiu_no_meio_nao_repete_a_pendencia_na_seguinte(monkeypatch):
+    """O marco gravou, a primeira pendência nasceu e a segunda falhou."""
+    banco = _cenario_do_lembrete(OUTRO_PLENO)
+    criar = recalibracao.criar_pendencia_sem_reuniao
+    chamadas = []
+
+    def _cai_na_segunda(supabase, item):
+        chamadas.append(item)
+        if len(chamadas) == 2:
+            raise APIError({"code": "57014", "message": "statement timeout"})
+        return criar(supabase, item)
+
+    monkeypatch.setattr(recalibracao, "criar_pendencia_sem_reuniao", _cai_na_segunda)
+    with pytest.raises(APIError):
+        recalibracao.lembrar(banco, TRINTA_DIAS)
+    monkeypatch.setattr(recalibracao, "criar_pendencia_sem_reuniao", criar)
+
+    assert recalibracao.lembrar(banco, TRINTA_DIAS + timedelta(days=1)) == 1
+
+    pendencias = _recalibrar(banco)
+    assert sorted(p["responsavel_id"] for p in pendencias) == ["P5", "P7"]
+    assert sorted(banco.recalibracoes[0]["pendencias"]) == sorted(p["id_acao"] for p in pendencias)
+
+
+def test_a_rodada_que_nao_gravou_a_lista_nao_cria_de_novo():
+    """Todas nasceram e o update da lista no marco falhou."""
+    banco = _cenario_do_lembrete(OUTRO_PLENO)
+    recalibracao.lembrar(banco, TRINTA_DIAS)
+    banco.recalibracoes[0]["pendencias"] = []
+
+    assert recalibracao.lembrar(banco, TRINTA_DIAS + timedelta(days=1)) == 0
+
+    pendencias = _recalibrar(banco)
+    assert len(pendencias) == 2
+    assert sorted(banco.recalibracoes[0]["pendencias"]) == sorted(p["id_acao"] for p in pendencias)
 
 
 def test_a_pendencia_nao_vai_para_quem_nao_tem_acesso_pleno_nem_para_o_desligado():
@@ -472,6 +544,29 @@ def test_volume_anonimas_e_tendencia_contam_os_ultimos_30_dias():
     assert itens[12]["alerta"] is False
 
 
+def test_o_setor_sem_notificacao_nos_ultimos_30_dias_aparece_e_acende_o_item_1():
+    banco = _cenario_da_auditoria()
+    banco.tabelas["setores"] += [
+        {"id": "55555555-5555-5555-5555-555555555555", "nome": "Pronto-socorro", "ativo": True},
+        {"id": "66666666-6666-6666-6666-666666666666", "nome": "Farmácia", "ativo": True},
+        dict(SETOR_DESATIVADO),
+    ]
+
+    item = next(i for i in recalibracao.tela(banco, HOJE_DA_AUDITORIA)["itens"] if i["numero"] == 1)
+
+    assert item["linhas"] == [
+        "4 notificações nos últimos 30 dias.",
+        "UTI Adulto: 3",
+        "Centro Cirúrgico: 1",
+        "Setores sem notificação nos últimos 30 dias: Farmácia, Pronto-socorro.",
+    ]
+    assert item["alerta"] is True
+
+
+def test_com_todo_setor_notificando_o_item_1_fica_apagado():
+    assert _itens()[1]["alerta"] is False
+
+
 def test_concordancia_e_erros_para_baixo_acendem_o_sinal_de_alerta():
     itens = _itens()
 
@@ -529,6 +624,22 @@ def test_reunioes_do_nucleo_nos_ultimos_60_dias():
         "Ordinárias mensais nos últimos 30 dias: 1.",
     ]
     assert itens[16]["alerta"] is False
+
+
+@pytest.mark.parametrize("status", ["PROGRAMADA", "CANCELADA", "NAO_INSTALADA"])
+def test_a_ordinaria_que_nao_aconteceu_nao_conta_e_acende_o_item_16(status):
+    """O calendário anual cria as 12 ordinárias de antemão como PROGRAMADA."""
+    banco = _cenario_da_auditoria()
+    ordinaria = next(r for r in banco.tabelas["reunioes"] if r["id_reuniao"] == "R1")
+    ordinaria["status_ata"] = status
+
+    item = next(i for i in recalibracao.tela(banco, HOJE_DA_AUDITORIA)["itens"] if i["numero"] == 16)
+
+    assert item["linhas"] == [
+        "1 reunião do Núcleo nos últimos 60 dias, 0 com ata assinada.",
+        "Ordinárias mensais nos últimos 30 dias: 0.",
+    ]
+    assert item["alerta"] is True
 
 
 def test_a_tela_abre_pela_rota_com_os_itens():

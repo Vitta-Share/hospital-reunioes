@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 206: a recalibração do agente do Núcleo
+-- Migration 210: a recalibração do agente do Núcleo
 -- (issue #2001, PRD #1979, ADR 0107 decisão 10; Anexo F, seções 4, 5 e 7)
 -- =====================================================
 -- O que entra: uma linha por marco da recalibração (30 e 60 dias da primeira
@@ -42,4 +42,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (206) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (210) ON CONFLICT (numero) DO NOTHING;

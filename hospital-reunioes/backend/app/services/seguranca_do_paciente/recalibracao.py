@@ -10,7 +10,7 @@ Três peças, todas sem IA:
 - o lembrete: aos 30 e aos 60 dias da primeira notificação registrada, o job
   diário cria a pendência "Recalibrar o agente do NSP" para quem tem Acesso
   pleno, pela porta de Pendência sem Reunião da Fase 1, sem e-mail. Cada marco
-  nasce uma vez só (a chave de `nsp_recalibracoes`, migration 206);
+  nasce uma vez só (a chave de `nsp_recalibracoes`, migration 210);
 - a tela dos itens do Anexo F (seções 4 e 5): o que já tem dado nesta fase sai
   calculado; o resto aparece como "sem dados nesta fase". Concluir grava a
   decisão (manter, ajustar ou ligar a aprovação em lote), quem e quando.
@@ -26,6 +26,7 @@ from zoneinfo import ZoneInfo
 import httpx
 from postgrest.exceptions import APIError
 
+from app.models.schemas import StatusAta
 from app.services.pendencia_ciclo import Comando
 from app.services.pendencia_service import criar_pendencia_sem_reuniao
 from app.services.seguranca_do_paciente import agenda, triagem
@@ -61,7 +62,9 @@ EIXOS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
 )
 
 # A ordem do grau de dano: o erro para baixo é a decisão acima da sugestão.
-_ORDEM_DO_DANO = {"nenhum": 0, "leve": 1, "moderado": 2, "grave": 3, "obito": 4}
+# `nao_se_aplica` (migration 188) é o caso que o agente nem tratou como
+# incidente: fica no fundo, junto do sem dano.
+_ORDEM_DO_DANO = {"nao_se_aplica": 0, "nenhum": 0, "leve": 1, "moderado": 2, "grave": 3, "obito": 4}
 
 
 def _percentual(parte: int, total: int) -> int | None:
@@ -212,20 +215,38 @@ def lembrar(supabase, hoje: date) -> int:
                     raise
                 # Outra rodada gravou o marco no meio: ela cria as pendências.
                 continue
-        ids = [
-            criar_pendencia_sem_reuniao(
-                supabase,
-                {
-                    "descricao_acao": f"{TITULO} ({marco} dias)",
-                    "responsavel_id": pessoa["id"],
-                    "responsavel_nome": pessoa.get("nome_completo"),
-                    "prazo": (devida_em + timedelta(days=PRAZO_DIAS)).isoformat(),
-                },
-            )["id_acao"]
-            for pessoa in pessoas
-        ]
+        titulo = f"{TITULO} ({marco} dias)"
+        # A rodada que caiu depois do insert do marco deixou pendências sem
+        # entrar na lista: elas valem, e só quem ficou sem a sua ganha uma.
+        ja_nascidas = {
+            linha["responsavel_id"]: linha["id_acao"]
+            for linha in (
+                supabase.table("pendencias")
+                .select("id_acao, responsavel_id")
+                .eq("descricao_acao", titulo)
+                .is_("id_reuniao", "null")
+                .execute()
+                .data
+            )
+            or []
+        }
+        ids = list(ja_nascidas.values())
+        for pessoa in pessoas:
+            if pessoa["id"] in ja_nascidas:
+                continue
+            ids.append(
+                criar_pendencia_sem_reuniao(
+                    supabase,
+                    {
+                        "descricao_acao": titulo,
+                        "responsavel_id": pessoa["id"],
+                        "responsavel_nome": pessoa.get("nome_completo"),
+                        "prazo": (devida_em + timedelta(days=PRAZO_DIAS)).isoformat(),
+                    },
+                )["id_acao"]
+            )
+            criadas += 1
         supabase.table(TABELA).update({"pendencias": ids}).eq("marco", marco).execute()
-        criadas += len(ids)
     return criadas
 
 
@@ -356,7 +377,14 @@ _JANELA = 30
 _SEMANAS_DO_LOTE = 4
 _TAMANHO_DA_AMOSTRA = 15
 _HORAS_DA_FAIXA_A = 4
-_ROTULO_DO_DANO = {"nenhum": "nenhum", "leve": "leve", "moderado": "moderado", "grave": "grave", "obito": "óbito"}
+_ROTULO_DO_DANO = {
+    "nao_se_aplica": "não se aplica",
+    "nenhum": "nenhum",
+    "leve": "leve",
+    "moderado": "moderado",
+    "grave": "grave",
+    "obito": "óbito",
+}
 
 
 def _dia(instante: Any) -> date:
@@ -389,9 +417,17 @@ def _volume(supabase, do_mes: list[dict]) -> tuple[list[str], bool]:
         nome = nomes.get(linha.get("setor_id"), "Sem setor")
         por_setor[nome] = por_setor.get(nome, 0) + 1
     ordem = sorted(por_setor.items(), key=lambda par: (-par[1], par[0]))
-    return [f"{_plural(len(do_mes), 'notificação', 'notificações')} nos últimos 30 dias."] + [
-        f"{nome}: {total}" for nome, total in ordem
-    ], False
+    linhas = [f"{_plural(len(do_mes), 'notificação', 'notificações')} nos últimos 30 dias."]
+    linhas += [f"{nome}: {total}" for nome, total in ordem]
+    # O setor com zero é o que o item procura. A tabela `setores` não diz a
+    # natureza (a da migration 053 era de `pops_setores` e saiu na 055): entra
+    # todo setor ativo, a lista que o formulário da notificação oferece.
+    ativos = supabase.table("setores").select("id, nome").eq("ativo", True).order("nome").execute().data or []
+    notificaram = {n.get("setor_id") for n in do_mes}
+    zerados = sorted(s["nome"] for s in ativos if s["id"] not in notificaram)
+    if zerados:
+        linhas.append(f"Setores sem notificação nos últimos 30 dias: {', '.join(zerados)}.")
+    return linhas, bool(zerados)
 
 
 def _linhas_da_concordancia(medida: dict[str, Any]) -> tuple[list[str], bool]:
@@ -533,6 +569,9 @@ def _esclarecimentos(supabase) -> tuple[list[str], bool]:
     return linhas, respondidas < _RESPONDIDAS_NO_MINIMO
 
 
+_NAO_REALIZADA = (StatusAta.PROGRAMADA.value, StatusAta.CANCELADA.value, StatusAta.NAO_INSTALADA.value)
+
+
 def _reunioes(supabase, hoje: date) -> tuple[list[str], bool]:
     nucleo_id = id_do_nucleo(supabase)
     linhas = []
@@ -547,6 +586,9 @@ def _reunioes(supabase, hoje: date) -> tuple[list[str], bool]:
             .execute()
             .data
         ) or []
+    # A reunião que não aconteceu não conta: o calendário anual cria as
+    # ordinárias de antemão como PROGRAMADA.
+    linhas = [r for r in linhas if r.get("status_ata") not in _NAO_REALIZADA]
     assinadas = sum(1 for r in linhas if r.get("status_ata") == "ASSINADA")
     inicio_do_mes = hoje - timedelta(days=_JANELA - 1)
     ordinarias = sum(

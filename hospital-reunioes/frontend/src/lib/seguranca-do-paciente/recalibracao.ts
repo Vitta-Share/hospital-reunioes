@@ -54,6 +54,7 @@ export interface TelaDaRecalibracao {
 }
 
 export const ROTULO_DO_DANO: Record<string, string> = {
+  nao_se_aplica: "não se aplica",
   nenhum: "nenhum",
   leve: "leve",
   moderado: "moderado",
