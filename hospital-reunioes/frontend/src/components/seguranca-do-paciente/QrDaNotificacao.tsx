@@ -9,9 +9,13 @@ import { chamarNsp } from "@/lib/seguranca-do-paciente/membros";
 const CARTAO = "bg-white rounded-2xl border border-border shadow-premium";
 const ROTA_DO_QR = "/api/nsp/configuracao/qr-da-notificacao.png";
 
-/** A imagem do QR, pedida com o token: um `<img src>` direto iria sem ele. */
-function useImagemDoQr(): string | null {
+/**
+ * A imagem do QR, pedida com o token: um `<img src>` direto iria sem ele.
+ * `falhou` liga quando a rota recusa (sessão vencida, 403, 500) ou a rede cai.
+ */
+function useImagemDoQr(): { url: string | null; falhou: boolean } {
   const [url, setUrl] = useState<string | null>(null);
+  const [falhou, setFalhou] = useState(false);
   useEffect(() => {
     let vivo = true;
     let criada: string | null = null;
@@ -20,16 +24,18 @@ function useImagemDoQr(): string | null {
         data: { session },
       } = await createClient().auth.getSession();
       const res = await fetch(ROTA_DO_QR, { headers: { Authorization: `Bearer ${session?.access_token ?? ""}` } });
-      if (!res.ok || !vivo) return;
-      criada = URL.createObjectURL(await res.blob());
+      if (!res.ok) throw new Error(`QR ${res.status}`);
+      const blob = await res.blob();
+      if (!vivo) return;
+      criada = URL.createObjectURL(blob);
       setUrl(criada);
-    })().catch(() => vivo && setUrl(null));
+    })().catch(() => vivo && setFalhou(true));
     return () => {
       vivo = false;
       if (criada) URL.revokeObjectURL(criada);
     };
   }, []);
-  return url;
+  return { url, falhou };
 }
 
 /**
@@ -39,7 +45,7 @@ function useImagemDoQr(): string | null {
  * leitura: não há nada para editar.
  */
 export function QrDaNotificacao() {
-  const imagem = useImagemDoQr();
+  const { url: imagem, falhou: qrFalhou } = useImagemDoQr();
   const [endereco, setEndereco] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -111,6 +117,7 @@ export function QrDaNotificacao() {
         </button>
       </div>
 
+      {qrFalhou && <p className="text-sm text-red-700">Não foi possível carregar o QR. Recarregue a página.</p>}
       {erro && <p className="text-sm text-red-700">{erro}</p>}
     </section>
   );

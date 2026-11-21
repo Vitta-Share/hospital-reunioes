@@ -26,10 +26,12 @@ const ENDERECO = "https://app.hsm.test/notificar";
 const IMAGEM = new Blob(["png"], { type: "image/png" });
 
 let escrito: string | null;
+let qrResponde: boolean;
 let chamadas: { url: string; auth: string | undefined }[];
 
 beforeEach(() => {
   escrito = null;
+  qrResponde = true;
   chamadas = [];
   vi.stubGlobal(
     "fetch",
@@ -39,6 +41,7 @@ beforeEach(() => {
         return { ok: true, status: 200, json: async () => ({ colegiado: null, endereco_da_notificacao: ENDERECO }) };
       }
       if (url === "/api/nsp/configuracao/qr-da-notificacao.png") {
+        if (!qrResponde) return { ok: false, status: 401, json: async () => ({}) };
         return { ok: true, status: 200, blob: async () => IMAGEM };
       }
       return { ok: false, status: 404, json: async () => ({}) };
@@ -95,5 +98,14 @@ describe("a seção QR e endereço da notificação", () => {
 
     await waitFor(() => expect(escrito).toBe(ENDERECO));
     expect(await screen.findByRole("button", { name: "Copiado" })).toBeTruthy();
+  });
+
+  it("avisa quando o QR não carrega, sem o botão Baixar o QR", async () => {
+    qrResponde = false;
+    render(<QrDaNotificacao />);
+
+    expect(await screen.findByText("Não foi possível carregar o QR. Recarregue a página.")).toBeTruthy();
+    expect(screen.queryByRole("img", { name: "QR da notificação de incidente" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Baixar o QR" })).toBeNull();
   });
 });
