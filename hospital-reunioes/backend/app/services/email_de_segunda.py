@@ -28,6 +28,7 @@ e-mail que sai.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, time, timedelta
@@ -41,6 +42,8 @@ from app.services.paginacao import ler_tudo
 from app.services.pendencia_ciclo import ABERTOS, esta_atrasada
 from app.services.pendencias_consulta import FUSO, as_data
 from app.services.seguranca_do_paciente.reunioes import reunioes_do_nucleo
+
+logger = logging.getLogger(__name__)
 
 TABELA = "email_de_segunda"
 TEMPLATE = "email_resumo_de_segunda.html"
@@ -336,7 +339,14 @@ def enviar_semana(supabase, *, hoje: date) -> int:
             if nunca_entraram is None:
                 nunca_entraram = link_pessoal.quem_nunca_entrou(supabase, pessoas.values())
             if pid in nunca_entraram:
-                token = link_pessoal.emitir(supabase, pid, datetime.now(UTC))
+                try:
+                    token = link_pessoal.emitir(supabase, pid, datetime.now(UTC))
+                except Exception as e:  # noqa: BLE001
+                    # Sem o link, a guarda sai e a hora seguinte tenta de novo.
+                    logger.warning("[E-mail de segunda] Link pessoal não gravou para %s: %s", pid, type(e).__name__)
+                    if com_transporte:
+                        _soltar_guarda(supabase, pid, semana)
+                    continue
         assunto, html, texto = montar_mensagem(pessoa.get("nome_completo") or "", email, token=token)
         if not com_transporte:
             # Modo de teste: o e-mail vai para o log e nada é marcado.
@@ -345,5 +355,9 @@ def enviar_semana(supabase, *, hoje: date) -> int:
         if _enviar_email(pessoa["email"], assunto, html, texto):
             enviados += 1
         else:
-            supabase.table(TABELA).delete().eq("participante_id", pid).eq("semana", semana).execute()
+            _soltar_guarda(supabase, pid, semana)
     return enviados
+
+
+def _soltar_guarda(supabase, pid: str, semana: str) -> None:
+    supabase.table(TABELA).delete().eq("participante_id", pid).eq("semana", semana).execute()
