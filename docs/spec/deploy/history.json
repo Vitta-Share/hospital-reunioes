@@ -2,6 +2,51 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-20T22:00:34-03:00",
+      "sha": "615588350ccac74a78cf5e1c8ed400291431c29e",
+      "app_version": "0.328.0",
+      "subject": "Onda sesta-1786-onda1: Protótipo navegável das telas públicas do Canal de Conduta; Membros, Participações vigentes e Termo de Adesão recebem o Colegiado",
+      "raw_subject": "chore(deploy): registro da onda sesta-1786-onda1 (#2057 #2058)",
+      "scope": [
+        "backend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 150,
+      "services_touched": [
+        "backend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1786-onda1: PR #2057 (issue #1817), PR #2058 (issue #1819), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 6,
+        "build_s": {
+          "backend": 28
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-20T21:49:11-03:00",
       "sha": "cc397f436908686eea6258b61929c731cf77932c",
       "app_version": "0.327.0",
