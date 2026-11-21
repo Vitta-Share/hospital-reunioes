@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, Check, Loader2 } from "lucide-react";
 
+import { ConvidarAoCaso } from "@/components/conduta/ConvidarAoCaso";
 import { OQueFazerAgora } from "@/components/conduta/OQueFazerAgora";
 import { SinalizarAoNsp } from "@/components/conduta/SinalizarAoNsp";
 import {
@@ -365,6 +366,8 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
       )}
 
       <SinalizarAoNsp notas={caso.notas_ao_nsp ?? []} papel={caso.papel} ocupado={ocupado} enviar={enviar} />
+
+      <ConvidarAoCaso casoId={casoId} />
 
       <section aria-label="Relato original" className={`${CARTAO} px-4 py-4 space-y-1`}>
         <h2 className="text-base font-semibold text-slate-900">Relato original</h2>

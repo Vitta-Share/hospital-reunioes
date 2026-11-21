@@ -349,6 +349,56 @@ describe("Sinalizar ao NSP (issue #1850)", () => {
   });
 });
 
+describe("Convidar para o caso (issue #1825)", () => {
+  it("a coordenação convida o apurador pelo e-mail", async () => {
+    respostas = { "/casos/c1": CASO, "/casos/c1/convites": { pode_convidar: true, convites: [] } };
+    render(<TelaDoCaso casoId="c1" />);
+
+    const convite = await screen.findByRole("region", { name: "Convidar para o caso" });
+    fireEvent.click(within(convite).getByLabelText("Apurador designado"));
+    fireEvent.change(within(convite).getByLabelText("E-mail"), { target: { value: "ana@hsm.com.br" } });
+    fireEvent.change(within(convite).getByLabelText(/Nome completo/), { target: { value: "Ana Apuradora" } });
+    fireEvent.click(within(convite).getByRole("button", { name: "CONVIDAR" }));
+
+    await waitFor(() =>
+      expect(chamadas.find((c) => c.method === "POST" && c.url === "/api/comite-de-conduta/casos/c1/convites")?.body).toEqual({
+        email: "ana@hsm.com.br",
+        nome: "Ana Apuradora",
+        motivo: "apurador",
+      })
+    );
+  });
+
+  it("mostra cada convidado e em que pé está o termo", async () => {
+    respostas = {
+      "/casos/c1": CASO,
+      "/casos/c1/convites": {
+        pode_convidar: true,
+        convites: [
+          { participante_id: "A1", nome: "Ana Apuradora", motivo: "apurador", papel: "Apurador designado", termo: "assinado" },
+          { participante_id: "B1", nome: "Beto da CIPA", motivo: "cipa", papel: "Membro da CIPA", termo: "aguardando_assinatura" },
+        ],
+      },
+    };
+    render(<TelaDoCaso casoId="c1" />);
+
+    const lista = await screen.findByRole("list", { name: "Convidados" });
+    expect(within(lista).getAllByRole("listitem").map((l) => l.textContent)).toEqual([
+      "Ana Apuradora, Apurador designadoTermo assinado",
+      "Beto da CIPA, Membro da CIPAEsperando a assinatura do termo",
+    ]);
+  });
+
+  it("quem não pode convidar não vê o convite", async () => {
+    respostas = { "/casos/c1": CASO, "/casos/c1/convites": { pode_convidar: false, convites: [] } };
+    render(<TelaDoCaso casoId="c1" />);
+
+    await screen.findByText(CASO.relato);
+    await waitFor(() => expect(chamadas.some((c) => c.url.endsWith("/casos/c1/convites"))).toBe(true));
+    expect(screen.queryByRole("region", { name: "Convidar para o caso" })).toBeNull();
+  });
+});
+
 const PASTAS = [resolve(process.cwd(), "src/components/conduta"), resolve(process.cwd(), "src/app/comite-de-conduta")];
 
 function arquivos(pasta: string): string[] {
