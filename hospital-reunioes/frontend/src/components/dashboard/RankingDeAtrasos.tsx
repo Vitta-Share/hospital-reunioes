@@ -65,7 +65,8 @@ export default function RankingDeAtrasos({ porSetor, ranking }: Props) {
                   <span className="text-text">{s.setor}</span>
                   <span className="text-text-secondary tabular-nums">
                     {s.atrasos} {s.atrasos === 1 ? "atraso" : "atrasos"}, {s.reaberturas}{" "}
-                    {s.reaberturas === 1 ? "reabertura" : "reaberturas"}
+                    {s.reaberturas === 1 ? "reabertura" : "reaberturas"}, {s.rotinas_nao_cumpridas}{" "}
+                    {s.rotinas_nao_cumpridas === 1 ? "rotina não cumprida" : "rotinas não cumpridas"}
                   </span>
                 </div>
                 <div className="h-2 rounded-full bg-border mt-1">

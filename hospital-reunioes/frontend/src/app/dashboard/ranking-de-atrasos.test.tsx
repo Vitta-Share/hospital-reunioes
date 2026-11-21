@@ -99,7 +99,27 @@ describe("ranking de atrasos no painel", () => {
     // A Rotina não cumprida fica ao lado dos atrasos e das reaberturas (issue #1879).
     expect(within(ranking).getByRole("columnheader", { name: "Rotinas não cumpridas" })).toBeTruthy();
     const setores = screen.getByRole("region", { name: "Atrasos por setor" });
-    expect(within(setores).getByText("3 atrasos, 1 reabertura")).toBeTruthy();
+    expect(within(setores).getByText("3 atrasos, 1 reabertura, 4 rotinas não cumpridas")).toBeTruthy();
+  });
+
+  it("mostra na linha do setor as rotinas não cumpridas quando o setor só tem rotinas", async () => {
+    const zerado = { atrasadas: 0, repactuacoes_vencidas: 0, concluidas_com_atraso: 0, atrasos: 0 };
+    servir({
+      ...BASE,
+      atrasos_por_setor: [
+        { setor: "Nutrição", ...zerado, reaberturas: 0, rotinas_nao_cumpridas: 1 },
+        { setor: "Farmácia", ...zerado, reaberturas: 2, rotinas_nao_cumpridas: 0 },
+      ],
+      ranking: [],
+    });
+    render(<DashboardPage />);
+
+    const setores = await screen.findByRole("region", { name: "Atrasos por setor" });
+    const linhas = within(setores).getAllByRole("listitem");
+    expect(linhas.map((l) => l.textContent)).toEqual([
+      "Nutrição0 atrasos, 0 reaberturas, 1 rotina não cumprida",
+      "Farmácia0 atrasos, 2 reaberturas, 0 rotinas não cumpridas",
+    ]);
   });
 
   it("não mostra ranking quando o servidor não manda (o responsável)", async () => {
