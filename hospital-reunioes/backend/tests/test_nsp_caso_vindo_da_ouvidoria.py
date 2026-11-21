@@ -84,8 +84,8 @@ def emails(monkeypatch) -> list[dict]:
 
 
 class _TabelaComIn(_TabelaFake):
-    """O `in_` do PostgREST, que a lista do Núcleo usa para ler os setores e
-    as manifestações de uma vez."""
+    """O `in_` do PostgREST, que a lista do Núcleo usa para ler os setores,
+    as manifestações e os anexos de uma vez."""
 
     def __init__(self, nome: str, rows: list[dict]):
         super().__init__(nome, rows)
@@ -135,7 +135,7 @@ class _Banco(_SupabaseFake):
             return super().table(nome)
         if nome == "nsp_notificacoes":
             return _NotificacoesDoNucleo(nome, self.tabelas.setdefault(nome, []))
-        if nome in ("setores", "ouvidoria_protocolos"):
+        if nome in ("setores", "ouvidoria_protocolos", "nsp_notificacao_anexos"):
             return _TabelaComIn(nome, self.tabelas.setdefault(nome, []))
         return super().table(nome)
 
