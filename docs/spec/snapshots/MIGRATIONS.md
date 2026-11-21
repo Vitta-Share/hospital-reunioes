@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T00:31+0000 -->
+<!-- last_update: 2026-11-21T00:39+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -168,7 +168,8 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 168 | `168_reunioes_setor_obrigatorio.sql` | o setor da Reunião aponta para a tabela de setores | 0 | 1 | 1 | 1 |
 | 169 | `169_ciclo_de_vida_da_pendencia.sql` | ciclo de vida da Pendencia (ADR 0098, decisoes 4 e 5; issue #1862) | 1 | 1 | 2 | 0 |
 | 171 | `171_nascimento_da_pendencia.sql` | evento de nascimento da Pendencia (ADR 0098, decisao 1; issue #1867) | 0 | 0 | 0 | 0 |
+| 172 | `172_ouvidoria_setor_id.sql` | o setor da manifestação aponta para a tabela de setores | 0 | 1 | 1 | 1 |
 | 172 | `172_pendencia_nao_cai_com_a_reuniao.sql` | nada apaga Pendencia (ADR 0098, decisao 6; issue #1864) | 0 | 0 | 0 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 163 migrations.
+**Total:** 164 migrations.
