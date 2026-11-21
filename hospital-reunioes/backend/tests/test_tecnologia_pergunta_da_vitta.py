@@ -14,9 +14,7 @@ Pela ROTA de verdade, com o Supabase em memória de `test_tecnologia_vinculo`.
 from __future__ import annotations
 
 import os
-import re
 import sys
-from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
@@ -194,7 +192,10 @@ class TestRecusa:
             ({"o_que_esta_parado": None}, "Falta a linha do cartão: o que está parado."),
             ({"o_que_anda_depois": ""}, "Falta a linha do cartão: o que anda depois."),
             ({"ganho": None}, "Falta a linha do cartão: o ganho."),
-            ({"opcoes": ["Só uma"], "recomendada": "A"}, "A Pergunta com opções precisa de duas a quatro, todas com texto."),
+            (
+                {"opcoes": ["Só uma"], "recomendada": "A"},
+                "A Pergunta com opções precisa de duas a quatro, todas com texto.",
+            ),
             ({"recomendada": "C"}, "A recomendada precisa ser a letra de uma das opções."),
         ],
         ids=[
@@ -419,3 +420,23 @@ class TestARotaDeAntes:
         assert sb.tabelas[TABELA] == []
         [mensagem] = sb.tabelas[CONVERSA]
         assert (mensagem["texto"], mensagem["origem"]) == ("Quem assina a Ata?", "terminal")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# O kit de conhecimento
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestOKit:
+    def test_o_kit_da_tecnologia_diz_que_a_pergunta_da_vitta_chega_como_cartao(self):
+        texto = (CONHECIMENTO_DIR / "tecnologia.md").read_text(encoding="utf-8")
+
+        for trecho in (
+            "a pergunta aparece na Conversa como um cartão em destaque",
+            "por que a resposta é sua, o que está parado, o que anda quando você responder e o que o hospital ganha",
+            "há quantos dias ela espera",
+            'a linha "Pergunta aberta"',
+        ):
+            assert trecho in texto, trecho
+        assert "sem marca diferente" not in texto
+        assert "Pendência da Vitta" not in texto
