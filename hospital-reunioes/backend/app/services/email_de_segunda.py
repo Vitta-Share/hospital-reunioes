@@ -9,6 +9,12 @@ Toda segunda, o job manda um e-mail por pessoa, com até duas partes:
 - a do responsável: só as Pendências dele em aberto, como responsável ou
   co-responsável.
 
+As Rotinas entram nas duas partes (issue #1879; decisão 83 da #1757): o
+Facilitador vê as Verificações marcadas na semana e as não realizadas (a
+marcada assim na semana e o ciclo que fechou sem marcação), e o responsável vê
+os ciclos dele em aberto, inclusive o que começa hoje. Encerrada a Rotina, o
+ciclo do encerramento e os seguintes deixam de existir (`rotina_service`).
+
 Quem é as duas coisas recebe um e-mail só, com as duas partes separadas, e quem
 não tem nada para ver não recebe (um e-mail vazio acostuma a ignorar o de
 segunda). As Reuniões do Núcleo que a pessoa não alcança ficam de fora (ADR
@@ -35,12 +41,13 @@ from datetime import UTC, date, datetime, time, timedelta
 
 from app.config import settings
 from app.dependencies import _PARTICIPANTE_FULL_FIELDS, foi_desligado, is_secretaria, reunioes_ocultas
-from app.services import link_pessoal
+from app.services import link_pessoal, rotina_service
 from app.services.email_constants import get_logo_data_uri
 from app.services.email_service import _enviar_email, jinja_env, transporte_configurado
 from app.services.paginacao import ler_tudo
 from app.services.pendencia_ciclo import ABERTOS, esta_atrasada
 from app.services.pendencias_consulta import FUSO, as_data
+from app.services.rotina_ciclo import NAO_REALIZADA, Ciclo
 from app.services.seguranca_do_paciente.reunioes import reunioes_do_nucleo
 
 logger = logging.getLogger(__name__)
@@ -79,6 +86,23 @@ class ItemDoEmail:
         return self.prazo.strftime("%d/%m/%Y") if self.prazo else "Sem prazo"
 
 
+@dataclass(frozen=True)
+class CicloDoEmail:
+    """Um ciclo de Rotina no e-mail, com o que aconteceu com ele."""
+
+    id_reuniao: str | None
+    descricao: str
+    reuniao: str
+    responsavel: str
+    ciclo: Ciclo
+    situacao: str
+    anotacao: str | None = None
+
+    @property
+    def ciclo_formatado(self) -> str:
+        return f"de {self.ciclo.inicio.strftime('%d/%m/%Y')} a {self.ciclo.fim.strftime('%d/%m/%Y')}"
+
+
 @dataclass
 class EmailDaPessoa:
     concluidas: list[ItemDoEmail] = field(default_factory=list)
@@ -86,14 +110,24 @@ class EmailDaPessoa:
     repactuadas: list[ItemDoEmail] = field(default_factory=list)
     atrasadas: list[ItemDoEmail] = field(default_factory=list)
     abertas: list[ItemDoEmail] = field(default_factory=list)
+    rotinas_verificadas: list[CicloDoEmail] = field(default_factory=list)
+    rotinas_nao_realizadas: list[CicloDoEmail] = field(default_factory=list)
+    rotinas_a_verificar: list[CicloDoEmail] = field(default_factory=list)
 
     @property
     def do_facilitador(self) -> bool:
-        return bool(self.concluidas or self.atualizadas or self.repactuadas or self.atrasadas)
+        return bool(
+            self.concluidas
+            or self.atualizadas
+            or self.repactuadas
+            or self.atrasadas
+            or self.rotinas_verificadas
+            or self.rotinas_nao_realizadas
+        )
 
     @property
     def do_responsavel(self) -> bool:
-        return bool(self.abertas)
+        return bool(self.abertas or self.rotinas_a_verificar)
 
     def sem(self, ocultas: set[str]) -> EmailDaPessoa:
         """O mesmo e-mail sem as Reuniões que a pessoa não alcança."""
@@ -109,6 +143,9 @@ class EmailDaPessoa:
             _fora(self.repactuadas),
             _fora(self.atrasadas),
             _fora(self.abertas),
+            _fora(self.rotinas_verificadas),
+            _fora(self.rotinas_nao_realizadas),
+            _fora(self.rotinas_a_verificar),
         )
 
 
@@ -116,11 +153,89 @@ def _ordem(item: ItemDoEmail):
     return (item.prazo is None, item.prazo or date.max, item.descricao)
 
 
+def _ordem_do_ciclo(item: CicloDoEmail):
+    return (item.ciclo.inicio, item.descricao)
+
+
+def _dia_em_sao_paulo(valor) -> date | None:
+    if not valor:
+        return None
+    momento = datetime.fromisoformat(str(valor).replace("Z", "+00:00"))
+    if momento.tzinfo is None:
+        momento = momento.replace(tzinfo=UTC)
+    return momento.astimezone(FUSO).date()
+
+
+def _situacao(verificacao: dict) -> str:
+    texto = "Não realizada" if verificacao.get("resultado") == NAO_REALIZADA else "Realizada"
+    return f"{texto} com atraso" if verificacao.get("atrasada") else texto
+
+
+def _somar_rotinas(
+    email_de: Callable[[str], EmailDaPessoa],
+    *,
+    por_reuniao: dict[str, dict],
+    rotinas: Iterable[dict],
+    verificacoes: Iterable[dict],
+    hoje: date,
+) -> None:
+    """As partes das Rotinas (issue #1879). A semana que passou vai da
+    segunda anterior ao domingo, no fuso de São Paulo."""
+    fim_da_semana = segunda_da_semana(hoje)
+    inicio_da_semana = fim_da_semana - timedelta(weeks=1)
+    marcadas: dict[str, list[dict]] = {}
+    for v in verificacoes:
+        marcadas.setdefault(v["rotina_id"], []).append(v)
+
+    for rotina in rotinas:
+        reuniao = por_reuniao.get(rotina.get("id_reuniao"))
+        if reuniao is None:
+            continue
+        da_rotina = marcadas.get(rotina["id"], [])
+
+        def _ciclo(ciclo: Ciclo, situacao: str, anotacao: str | None = None, *, r=rotina, reuniao=reuniao):
+            return CicloDoEmail(
+                id_reuniao=r.get("id_reuniao"),
+                descricao=r.get("descricao") or "",
+                reuniao=reuniao.get("titulo") or r.get("id_reuniao") or "",
+                responsavel=r.get("responsavel_nome") or "",
+                ciclo=ciclo,
+                situacao=situacao,
+                anotacao=anotacao,
+            )
+
+        em_aberto = rotina_service.ciclos_em_aberto(rotina, da_rotina, hoje)
+        facilitador = reuniao.get("facilitador_id")
+        if facilitador:
+            email = email_de(facilitador)
+            devidos = {c.inicio.isoformat(): c for c in rotina_service.devidos(rotina, hoje)}
+            for v in da_rotina:
+                ciclo = devidos.get(str(v.get("ciclo_inicio"))[:10])
+                dia = _dia_em_sao_paulo(v.get("marcada_em"))
+                if ciclo is None or dia is None or not (inicio_da_semana <= dia < fim_da_semana):
+                    continue
+                item = _ciclo(ciclo, _situacao(v), v.get("anotacao"))
+                if v.get("resultado") == NAO_REALIZADA:
+                    email.rotinas_nao_realizadas.append(item)
+                else:
+                    email.rotinas_verificadas.append(item)
+            # O ciclo que fechou sem marcação; o em curso ainda não é cobrado.
+            email.rotinas_nao_realizadas += [_ciclo(c, "Sem verificação") for c in em_aberto if c.fim < hoje]
+        if rotina.get("responsavel_id"):
+            email_de(rotina["responsavel_id"]).rotinas_a_verificar += [_ciclo(c, "Em aberto") for c in em_aberto]
+
+
 def montar_emails(
-    *, reunioes: Iterable[dict], pendencias: Iterable[dict], eventos: Iterable[dict], hoje: date
+    *,
+    reunioes: Iterable[dict],
+    pendencias: Iterable[dict],
+    eventos: Iterable[dict],
+    hoje: date,
+    rotinas: Iterable[dict] = (),
+    verificacoes: Iterable[dict] = (),
 ) -> dict[str, EmailDaPessoa]:
-    """O e-mail de cada pessoa, por id, a partir das Reuniões, das Pendências
-    e dos eventos do histórico da semana. Função pura."""
+    """O e-mail de cada pessoa, por id, a partir das Reuniões, das Pendências,
+    dos eventos do histórico da semana e das Rotinas. Função pura."""
     por_reuniao = {r["id_reuniao"]: r for r in reunioes}
     por_id = {p["id_acao"]: p for p in pendencias}
     emails: dict[str, EmailDaPessoa] = {}
@@ -175,9 +290,14 @@ def montar_emails(
         for pid in dict.fromkeys(x for x in (p.get("responsavel_id"), p.get("co_responsavel_id")) if x):
             _email(pid).abertas.append(item)
 
+    _somar_rotinas(_email, por_reuniao=por_reuniao, rotinas=rotinas, verificacoes=verificacoes, hoje=hoje)
+
     for email in emails.values():
         email.atrasadas.sort(key=_ordem)
         email.abertas.sort(key=_ordem)
+        email.rotinas_verificadas.sort(key=_ordem_do_ciclo)
+        email.rotinas_nao_realizadas.sort(key=_ordem_do_ciclo)
+        email.rotinas_a_verificar.sort(key=_ordem_do_ciclo)
     return {pid: e for pid, e in emails.items() if e.do_facilitador or e.do_responsavel}
 
 
@@ -200,15 +320,30 @@ def _texto(nome: str, email: EmailDaPessoa, link: str, *, pessoal: bool) -> str:
             linhas.append(f"- {i.descricao} ({i.reuniao}; responsável: {i.responsavel}; prazo: {i.prazo_formatado})")
         linhas.append("")
 
+    def _bloco_de_rotinas(titulo: str, itens: list[CicloDoEmail]):
+        if not itens:
+            return
+        linhas.append(titulo)
+        for i in itens:
+            anotacao = f"; anotação: {i.anotacao}" if i.anotacao else ""
+            linhas.append(
+                f"- {i.descricao} ({i.reuniao}; responsável: {i.responsavel}; "
+                f"ciclo {i.ciclo_formatado}; {i.situacao}{anotacao})"
+            )
+        linhas.append("")
+
     if email.do_facilitador:
         linhas += ["DAS REUNIÕES QUE VOCÊ FACILITA", ""]
         _bloco("Concluídas na semana:", email.concluidas)
         _bloco("Atualizadas na semana:", email.atualizadas)
         _bloco("Repactuadas na semana:", email.repactuadas)
         _bloco("Seguem atrasadas:", email.atrasadas)
+        _bloco_de_rotinas("Rotinas verificadas na semana:", email.rotinas_verificadas)
+        _bloco_de_rotinas("Rotinas não realizadas:", email.rotinas_nao_realizadas)
     if email.do_responsavel:
         linhas += ["SUAS PENDÊNCIAS EM ABERTO", ""]
         _bloco("Em aberto:", email.abertas)
+        _bloco_de_rotinas("Rotinas a verificar:", email.rotinas_a_verificar)
     if pessoal:
         linhas.append(f"Atualize as suas pendências por este link, sem senha: {link}")
         linhas.append(AVISO_DO_LINK_PESSOAL)
@@ -307,13 +442,39 @@ def enviar_semana(supabase, *, hoje: date) -> int:
         ),
         rotulo="eventos da semana",
     )
+    # A Rotina sem frequência (o fluxo contínuo antigo) não tem ciclo.
+    rotinas = ler_tudo(
+        lambda: (
+            supabase.table("rotinas")
+            .select("id, id_reuniao, descricao, responsavel_id, responsavel_nome, frequencia, comeca_em, encerrada_em")
+            .not_.is_("frequencia", "null")
+            .order("id")
+        ),
+        rotulo="rotinas do e-mail de segunda",
+    )
+    verificacoes = ler_tudo(
+        lambda: (
+            supabase.table("rotina_verificacoes")
+            .select("rotina_id, ciclo_inicio, resultado, anotacao, atrasada, marcada_em")
+            .order("rotina_id")
+            .order("ciclo_inicio")
+        ),
+        rotulo="verificações do e-mail de segunda",
+    )
     ocultas_de = _ocultas_por_pessoa(supabase)
     # Quem nunca entrou, lido do Auth só quando o primeiro e-mail com
     # Pendência em aberto vai sair.
     nunca_entraram: set[str] | None = None
 
     enviados = 0
-    emails = montar_emails(reunioes=reunioes, pendencias=pendencias, eventos=eventos, hoje=hoje)
+    emails = montar_emails(
+        reunioes=reunioes,
+        pendencias=pendencias,
+        eventos=eventos,
+        hoje=hoje,
+        rotinas=rotinas,
+        verificacoes=verificacoes,
+    )
     for pid, email in sorted(emails.items()):
         pessoa = pessoas.get(pid)
         if pid in ja_recebeu or not pessoa or is_secretaria(pessoa) or foi_desligado(pessoa):

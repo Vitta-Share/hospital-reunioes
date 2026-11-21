@@ -157,6 +157,8 @@ class _Banco:
     nunca_entraram: set = field(default_factory=set)
     auth_fora_do_ar: bool = False
     links_fora_do_ar: bool = False
+    rotinas: list = field(default_factory=list)
+    rotina_verificacoes: list = field(default_factory=list)
 
     def table(self, nome):
         if nome == "pendencias_links_pessoais" and self.links_fora_do_ar:
@@ -355,7 +357,10 @@ _TITULOS = [
     "Atualizadas na semana",
     "Repactuadas na semana",
     "Seguem atrasadas",
+    "Rotinas verificadas na semana",
+    "Rotinas não realizadas",
     "Suas pendências em aberto",
+    "Rotinas a verificar",
     "Abrir o aplicativo",
 ]
 
@@ -522,6 +527,112 @@ def test_lembrete_da_agenda_regulatoria_nao_entra_no_email(job):
     assert "Trocar o monitor do leito 4" in do_bruno["html"]
     assert "Renovar o alvará sanitário" not in do_bruno["html"]
     assert "Renovar o alvará sanitário" not in do_bruno["texto"]
+
+
+# ─── 4b. As Rotinas no e-mail (issue #1879; decisão 83 da #1757) ────────────
+
+
+def _rotina(rid, descricao, responsavel_id, *, id_reuniao, frequencia="SEMANAL", comeca_em="2026-11-02"):
+    return {
+        "id": rid,
+        "id_reuniao": id_reuniao,
+        "descricao": descricao,
+        "responsavel_id": responsavel_id,
+        "responsavel_nome": f"Nome {responsavel_id}",
+        "frequencia": frequencia,
+        "comeca_em": comeca_em,
+        "status": "ATIVA",
+        "encerrada_em": None,
+    }
+
+
+def _verificacao(rotina_id, ciclo_inicio, ciclo_fim, marcada_em, resultado="REALIZADA", anotacao=None, atrasada=False):
+    return {
+        "rotina_id": rotina_id,
+        "ciclo_inicio": ciclo_inicio,
+        "ciclo_fim": ciclo_fim,
+        "resultado": resultado,
+        "anotacao": anotacao,
+        "atrasada": atrasada,
+        "marcada_em": marcada_em,
+    }
+
+
+def _banco_das_rotinas(banco: _Banco) -> _Banco:
+    banco = _banco_do_facilitador(banco)
+    banco.rotinas = [
+        # Semanal desde 02/11: 02/11 a 08/11 fechou sem marcação, 09/11 a
+        # 15/11 foi marcada com atraso na semana, 16/11 a 22/11 foi marcada
+        # como não realizada na semana, e 23/11 a 29/11 começa hoje.
+        _rotina("RA", "Conferir o oxigênio", "P_BRUNO", id_reuniao="R1"),
+        # Mensal de novembro, realizada na semana.
+        _rotina("RB", "Limpar o filtro", "P_BRUNO", id_reuniao="R1", frequencia="MENSAL", comeca_em="2026-11-01"),
+        # Mensal realizada na semana anterior: não entra na semana.
+        _rotina("RC", "Revisar o extintor", "P_BRUNO", id_reuniao="R1", frequencia="MENSAL", comeca_em="2026-11-01"),
+        # Da Reunião de Gil.
+        _rotina("RG", "Auditar o prontuário", "P_BRUNO", id_reuniao="R9", comeca_em="2026-11-16"),
+    ]
+    banco.rotina_verificacoes = [
+        _verificacao("RA", "2026-11-09", "2026-11-15", "2026-11-17T12:00:00+00:00", atrasada=True),
+        _verificacao(
+            "RA", "2026-11-16", "2026-11-22", "2026-11-20T12:00:00+00:00", "NAO_REALIZADA", "Faltou o cilindro."
+        ),
+        _verificacao("RB", "2026-11-01", "2026-11-30", "2026-11-18T12:00:00+00:00"),
+        # Domingo, 15/11, 23h em São Paulo: semana anterior.
+        _verificacao("RC", "2026-11-01", "2026-11-30", "2026-11-16T02:00:00+00:00"),
+        _verificacao(
+            "RG", "2026-11-16", "2026-11-22", "2026-11-19T12:00:00+00:00", "NAO_REALIZADA", "Sistema fora do ar."
+        ),
+    ]
+    return banco
+
+
+def test_email_do_facilitador_traz_as_verificacoes_da_semana_e_as_nao_realizadas(job):
+    rodar, estado = job
+    _banco_das_rotinas(estado["banco"])
+
+    rodar()
+
+    (email,) = _para(estado, "P_FABIO")
+    secoes = _secoes(email["html"])
+    verificadas = secoes["Rotinas verificadas na semana"]
+    assert "Limpar o filtro" in verificadas
+    assert "Conferir o oxigênio" in verificadas
+    assert "de 09/11/2026 a 15/11/2026" in verificadas
+    assert "Realizada com atraso" in verificadas
+    nao_realizadas = secoes["Rotinas não realizadas"]
+    # A marcada como não realizada na semana, com a anotação, e o ciclo que
+    # fechou sem marcação.
+    assert "de 16/11/2026 a 22/11/2026" in nao_realizadas
+    assert "Faltou o cilindro." in nao_realizadas
+    assert "de 02/11/2026 a 08/11/2026" in nao_realizadas
+    assert "Sem verificação" in nao_realizadas
+    # O ciclo que começa hoje ainda não é cobrado do Facilitador.
+    assert "23/11/2026" not in email["html"]
+    # A da semana anterior e a da Reunião de Gil ficam de fora.
+    assert "Revisar o extintor" not in email["html"]
+    assert "Auditar o prontuário" not in email["html"]
+    assert "Conferir o oxigênio" in email["texto"]
+    (do_gil,) = _para(estado, "P_GIL")
+    assert "Sistema fora do ar." in _secoes(do_gil["html"])["Rotinas não realizadas"]
+
+
+def test_email_do_responsavel_lista_as_verificacoes_dele_em_aberto(job):
+    rodar, estado = job
+    banco = _banco_das_rotinas(estado["banco"])
+    # Só as Rotinas: sem Pendência nenhuma.
+    banco.pendencias = []
+    banco.pendencia_historico = []
+
+    rodar()
+
+    (email,) = _para(estado, "P_BRUNO")
+    a_verificar = _secoes(email["html"])["Rotinas a verificar"]
+    # O ciclo que fechou sem marcação e o que começa hoje.
+    assert "de 02/11/2026 a 08/11/2026" in a_verificar
+    assert "de 23/11/2026 a 29/11/2026" in a_verificar
+    assert "Limpar o filtro" not in a_verificar
+    assert "Conferir o oxigênio" in email["texto"]
 
 
 # ─── 5. As duas coisas, um e-mail ────────────────────────────────────────────
