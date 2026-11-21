@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T19:31:43-03:00",
+      "sha": "20da859c555b65b471d4e8686e2d2dc7e9175648",
+      "app_version": "0.352.0",
+      "subject": "Onda nsp2-onda7: Tela de triagem do Núcleo, com fila, confirmar e ajustar, matriz de prioridade e cortes de frequência",
+      "raw_subject": "chore(deploy): registro da onda nsp2-onda7 (#2095)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1979
+      ],
+      "result": "healthy",
+      "duration_seconds": 325,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "197_nsp_tela_de_triagem.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp2-onda7: PR #2095 (issue #1992), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 22,
+          "frontend": 215
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T19:25:17-03:00",
       "sha": "e2eea9bd34abc2582dd47ce69394d3de447ed1b7",
       "app_version": "0.351.0",
