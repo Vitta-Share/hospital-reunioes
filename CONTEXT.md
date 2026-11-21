@@ -497,7 +497,7 @@ _Evitar_: "dossiê" solto (a Ouvidoria tem o Dossiê dela, e a Direção recebe 
 
 ## Tecnologia (o chat do diretor com o agente)
 
-Desde 02/11/2026 (ADR 0077) a aba Tecnologia é uma tela só: o chat do [Assistente de Tecnologia], em que o diretor relata um bug ou pede uma melhoria e o card nasce no GitHub. Só o Super admin vê (ADR 0050). Desde 10/11/2026 (ADR 0083) o [Desenvolvedor] vê as Demandas de todos, o diretor escolhe o [Responsável] e cada Demanda tem a [Conversa da Demanda]. Desde 11/11/2026 (ADR 0084) a aba tem duas abas, Conversas e [Entregas], mostra também o que a Vitta abre pelo terminal ([Origem]) e cada card abre como [Documento do card]. Desde 12/11/2026 (ADR 0090) a aba Conversas virou o [Quadro]. Os pedidos da Vitta ao hospital que não nascem de uma Demanda continuam no WhatsApp.
+Desde 02/11/2026 (ADR 0077) a aba Tecnologia é uma tela só: o chat do [Assistente de Tecnologia], em que o diretor relata um bug ou pede uma melhoria e o card nasce no GitHub. Só o Super admin vê (ADR 0050). Desde 10/11/2026 (ADR 0083) o [Desenvolvedor] vê as Demandas de todos, o diretor escolhe o [Responsável] e cada Demanda tem a [Conversa da Demanda]. Desde 11/11/2026 (ADR 0084) a aba tem duas abas, Conversas e [Entregas], mostra também o que a Vitta abre pelo terminal ([Origem]) e cada card abre como [Documento do card]. Desde 12/11/2026 (ADR 0090) a aba Conversas virou o [Quadro]. Desde 21/11/2026 (ADR 0109) a aba mostra a lista [Esperando sua resposta], com as [Perguntas da Vitta] abertas. Só quem não tem login no app recebe o pedido da Vitta pelo WhatsApp.
 
 **Demanda**:
 Um bug ou uma melhoria que o diretor relatou ao [Assistente de Tecnologia] ou que a Vitta abriu pelo terminal (ver [Origem]). Na origem do diretor, é o registro de uma conversa: o que foi dito, os [Anexos da Demanda] e, depois do clique "Criar o card", o [Vínculo com o desenvolvimento]. Na tela aparece como um card no [Quadro] (no celular, uma linha da lista), com o título que o agente dá desde a primeira resposta, o selo Bug ou Melhoria e a [Etapa] (ADR 0079). Fica **totalmente apartada** das Pendências de Ata: Demanda é assunto de tecnologia entre o hospital e a Vitta, Pendência é compromisso operacional do hospital.
@@ -536,12 +536,24 @@ Quem o diretor escolhe, entre os [Desenvolvedores], antes de "Criar o card" (ADR
 _Evitar_: dois Responsáveis; card sem Responsável; trocar pelo app; confundir com o Responsável do setor da Ouvidoria.
 
 **Conversa da Demanda**:
-A troca de mensagens entre o diretor e os [Desenvolvedores] dentro de uma Demanda, separada da conversa com o agente, com menção (ADR 0083). Vive só no app e nunca vai para a issue. Menção e mensagem nova avisam por sino e e-mail; sem menção, a mensagem do diretor avisa o [Responsável] e a do Desenvolvedor avisa quem abriu a Demanda. Uma mensagem do Desenvolvedor também pode entrar pela [Mensagem pelo terminal].
+A troca de mensagens entre o diretor e os [Desenvolvedores] dentro de uma Demanda, separada da conversa com o agente, com menção (ADR 0083). Vive só no app e nunca vai para a issue. Menção e mensagem nova avisam por sino e e-mail; sem menção, a mensagem do diretor avisa o [Responsável] e a do Desenvolvedor avisa quem abriu a Demanda. Uma mensagem do Desenvolvedor também pode entrar pela [Mensagem pelo terminal]. A mensagem aceita negrito, lista e link, as mensagens se separam por dia, a [Pergunta da Vitta] aparece como um cartão em destaque e os eventos da Demanda (travou, destravou, subiu) entram como linha de sistema (ADR 0109). Não tem anexo.
 _Evitar_: espelhar com os comentários da issue (a versão aposentada em 02/11/2026); misturar com a conversa do agente; pedido da Vitta que não nasce de uma Demanda.
 
 **Mensagem pelo terminal**:
 A mensagem que a sessão do terminal de um [Desenvolvedor] escreve na [Conversa da Demanda] quando para numa decisão que é do diretor: a baixa de uma onda num PRD que ele planejou ou as perguntas do Refino (ADR 0096). Sai no perfil de quem roda a sessão, só depois do "aprovo" dele, pela ponte de automação, e avisa a diretoria no card da Vitta ou quem abriu a Demanda no card do diretor. Na tela não tem selo; o banco guarda a origem. A resposta do diretor volta à sessão pela mesma ponte e nunca vai para o GitHub.
 _Evitar_: mandar pelo app e pelo WhatsApp ao mesmo tempo; postar sem o "aprovo"; copiar a fala do diretor para a issue ou o PR.
+
+**Pergunta da Vitta**:
+A pergunta que a Vitta faz a uma pessoa do Hospital e que segura trabalho até a resposta (ADRs 0106 e 0109). É um registro do app, ligado a uma [Demanda], com Destinatário, Assunto e quatro estados: aberta, respondida, resolvida (a Vitta leu a resposta e o trabalho andou) e cancelada (a pergunta deixou de ser necessária). O cartão dela diz de qual Demanda e de qual [Projeto] é, a pergunta, por que precisa da pessoa, o que está parado, o que anda quando ela responder e o que o hospital ganha, tudo em palavras simples. Pode trazer opções prontas, com uma recomendada, além do campo livre. Aparece na [Esperando sua resposta] e, em destaque, na [Conversa da Demanda]. Todo Super admin vê; quem responde é o Destinatário, e um [Desenvolvedor] pode registrar a resposta no lugar dele, com o próprio nome gravado. Depois de 3 dias sem resposta, o app lembra o Destinatário uma vez, por sino e e-mail. A resposta não solta o trabalho sozinha: volta para a Vitta, e a resolução entra na Conversa como linha de sistema, com o que foi decidido e o que destravou.
+_Evitar_: Pendência (é a Ação da Ata); pergunta sem Destinatário; ganho em dinheiro ou em horas no lugar da frase; lembrete repetido; resposta que destrava sem a Vitta ler.
+
+**Esperando sua resposta**:
+A lista da aba Tecnologia com as [Perguntas da Vitta] abertas, de todos os [Projetos], cada uma com há quantos dias espera. A pessoa responde no próprio cartão, e a resposta também entra na [Conversa da Demanda].
+_Evitar_: Pendências (são as da Ata); caixa de entrada; lista só do diretor (todo Super admin vê).
+
+**Me explique**:
+O botão do cartão da [Pergunta da Vitta] que abre o [Assistente de Tecnologia] em particular: ele explica a Demanda e a pergunta, tira dúvida e propõe um rascunho de resposta (ADR 0109). Só o que a pessoa envia vai para a [Conversa da Demanda].
+_Evitar_: o agente como participante da Conversa da Demanda; resposta enviada pelo agente sem o clique da pessoa.
 
 **Envio falhou**:
 O estado de uma Demanda cujo "Criar o card" não chegou ao GitHub (ADR 0083). Fica registrado com o motivo, aparece na lista e se resolve com "Reenviar", pelo diretor ou pelo Desenvolvedor. Nunca é reenviado sozinho.
