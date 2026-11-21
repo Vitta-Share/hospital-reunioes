@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, Check, Loader2 } from "lucide-react";
 
+import { ConvidarAoCaso } from "@/components/conduta/ConvidarAoCaso";
 import { DepoimentosDaApuracao } from "@/components/conduta/DepoimentosDaApuracao";
 import { ImpedimentoECitados } from "@/components/conduta/ImpedimentoECitados";
 import { OQueFazerAgora } from "@/components/conduta/OQueFazerAgora";
@@ -393,6 +394,8 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
       <SinalizarAoNsp notas={caso.notas_ao_nsp ?? []} papel={caso.papel} ocupado={ocupado} enviar={enviar} />
 
       <ImpedimentoECitados casoId={casoId} caso={caso} aoMudar={carregar} aoImpedir={() => setImpedido(true)} />
+
+      <ConvidarAoCaso casoId={casoId} />
 
       <section aria-label="Relato original" className={`${CARTAO} px-4 py-4 space-y-1`}>
         <h2 className="text-base font-semibold text-slate-900">Relato original</h2>

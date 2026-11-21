@@ -96,9 +96,11 @@ export function urlDeLoginCom(destino: unknown): string {
 /**
  * As áreas cujo link chega de fora do app (sino, e-mail, WhatsApp) e precisa
  * abrir onde apontava depois do login (issues #477 e #1587). O resto do staff
- * vai para o login limpo e, depois dele, para o padrão.
+ * vai para o login limpo e, depois dele, para o padrão. O Comitê de Conduta
+ * entra pelo e-mail do convite, e o convidado não tem o item no menu (issue
+ * #1825).
  */
-const AREAS_COM_RETORNO = ["/ouvidoria", "/admin/tecnologia"] as const;
+const AREAS_COM_RETORNO = ["/ouvidoria", "/admin/tecnologia", "/comite-de-conduta"] as const;
 
 /**
  * A URL do login para quem pediu `caminho` sem sessão: com o retorno quando o

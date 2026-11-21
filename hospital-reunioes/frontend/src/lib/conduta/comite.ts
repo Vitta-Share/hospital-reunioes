@@ -63,6 +63,15 @@ export interface NotaAoNucleo {
   enviada_em: string | null;
 }
 
+/** Quem foi convidado para o caso e o termo dele (issue #1825). */
+export interface Convidado {
+  participante_id: string;
+  nome: string | null;
+  motivo: "apurador" | "cipa";
+  papel: string;
+  termo: "assinado" | "aguardando_assinatura" | "nao_enviado";
+}
+
 export interface MembroDoCaso {
   id: string;
   nome: string | null;

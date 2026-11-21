@@ -120,6 +120,17 @@ A tela Membros diz quem compõe o Comitê e até quando. Cada linha mostra a pes
 - Reconsultar e reenviar o Termo é de quem tem o perfil de cadastro de membros.
 - Os outros documentos do Canal que vão à ClickSign, como a ata e o relatório de apuração, vão usar o mesmo registro de assinaturas.
 
+## O convite do apurador e do membro da CIPA
+
+- Na tela do caso, a coordenação convida o apurador designado nos casos da fila comum, e o Grupo Especial convida, no caso dele, o membro da CIPA ou um apurador. O convite é feito pelo e-mail da pessoa, e quem convida escolhe o papel: apurador designado ou membro da CIPA. Os outros membros do Comitê não veem o convite.
+- Quem ainda não tem cadastro no aplicativo ganha um cadastro mínimo, só com o nome e o e-mail, e um login. Quem está no cadastro e ainda não tinha login também ganha o login. Esse login não abre nenhum outro módulo: nem Reuniões, nem Ouvidoria, nem os outros. A senha é a pessoa quem cria, pelo "Esqueci a senha" da tela de entrada, com o e-mail do convite.
+- O convidado recebe o termo de confidencialidade pela ClickSign. Antes de assinar, ele não abre o caso. Depois de assinar, abre só aquele caso, e a lista de casos dele mostra só esse. Ele não vê a fila do Comitê nem os outros casos.
+- O e-mail do convite diz só que há um convite do Comitê de Conduta e leva ao aplicativo, sem o protocolo, sem nomes e sem nada do relato. O termo também não traz o protocolo.
+- O super admin não participa do convite e não recebe aviso nenhum dele. O convite não passa pela área de administração.
+- O convite, a assinatura do termo e cada vez que o convidado abre o caso ficam na trilha do caso, com quem, quando e o quê.
+- Quem é citado no caso não pode ser convidado para ele, e a tela diz isso, para o convite não avisar ao citado que existe um caso.
+- A tela do caso mostra cada convidado, o papel dele e em que pé está o termo: assinado, esperando a assinatura ou não enviado. Se a ClickSign não respondeu, ou se o convidado perdeu o e-mail, convidar de novo a mesma pessoa cancela o termo anterior e manda outro.
+
 ## Impedimento, suplente e Citado
 
 Ninguém julga um caso em que é parte, chefe, parente ou interessado. Na tela do caso:
@@ -143,7 +154,7 @@ Ninguém vê um caso por ter um cargo. Vê quem está designado naquele caso:
 
 - a coordenação, o segundo leitor e os membros do Comitê, com a participação em dia e o Termo assinado, veem os casos da fila comum;
 - o suplente vê só o caso para o qual foi convocado;
-- o apurador, o membro da CIPA e o grupo da Rota Especial veem só o caso que receberam, depois do termo assinado;
+- o apurador e o membro da CIPA, convidados dentro do caso, e o grupo da Rota Especial veem só o caso que receberam, depois do termo assinado;
 - quem é citado no relato como envolvido nunca vê o caso, em nenhum perfil, e quem se declarou impedido perde o acesso àquele caso;
 - o super admin e a equipe técnica não abrem conteúdo de caso pelo aplicativo;
 - quem está no Comitê e ainda não assinou o Termo não abre caso.
@@ -175,6 +186,9 @@ O formulário público de relato, as páginas públicas que vão mostrar os text
 ## O que costuma virar Demanda
 
 - Um membro do Comitê que não abre caso: costuma ser o Termo ainda não assinado ou a participação fora da vigência.
+- Um apurador ou membro da CIPA convidado que não abre o caso: costuma ser o termo ainda não assinado. A tela do caso mostra se ele espera a assinatura, e convidar de novo a mesma pessoa reenvia o termo.
+- Convidado que não sabe a senha: ele cria a senha pelo "Esqueci a senha" da tela de entrada, com o e-mail do convite.
+- Pedido para o super admin liberar o acesso de um apurador ou da CIPA: não é atendido. Quem convida é a coordenação ou o Grupo Especial, dentro do caso.
 - Membro que assinou o Termo e a tela ainda diz que falta: use "Reconsultar status" na linha dele, na tela Membros.
 - O super admin que não consegue incluir membro: falta o perfil de cadastro de membros no cadastro dele.
 - Pedido para o super admin ler um caso: não é atendido, por decisão da Diretoria.
