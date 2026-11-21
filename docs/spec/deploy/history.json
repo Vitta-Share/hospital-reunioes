@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T17:12:20-03:00",
+      "sha": "24efccc7f861352204bfe705202cabc99af3eebb",
+      "app_version": "0.347.0",
+      "subject": "Onda sesta-1932-onda1: Rotinas do ciclo no trilho, Verificação em um clique e Rotina a revisar; Início mostra a Contestação só ao facilitador, com teste por papel e texto do kit; Números de 90 dias e ",
+      "raw_subject": "chore(deploy): registro da onda sesta-1932-onda1 (#2098 #2096 #2097)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1932
+      ],
+      "result": "healthy",
+      "duration_seconds": 561,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "194_revisao_da_rotina.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1932-onda1: PR #2098 (issue #1944), PR #2096 (issue #1945), PR #2097 (issue #1946), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 9,
+        "build_s": {
+          "backend": 26,
+          "frontend": 208
+        },
+        "health_s": 25
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T13:49:44-03:00",
       "sha": "4f8286b5beebeba4e80b1d44320075c5d98ffbc1",
       "app_version": "0.346.0",
