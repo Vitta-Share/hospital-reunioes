@@ -87,6 +87,12 @@ describe("o seed da página de Contas médicas", () => {
     expect(SEED.faturista.id).toMatch(/^P1724\d$/);
   });
 
+  it("toda conta do seed fica na faixa de atendimento 172400 a 172499, que o semear.py apaga e refaz", () => {
+    const numeros = Object.values(SEED.contas).map((c) => (c as { numero_atendimento: string }).numero_atendimento);
+    expect(numeros.length).toBeGreaterThan(0);
+    expect(numeros.filter((n) => !/^1724\d\d$/.test(n))).toEqual([]);
+  });
+
   it("todo e-mail do seed é de exemplo", () => {
     const emails = SEED_CRU.match(/[\w.+-]+@[\w.-]+/g) ?? [];
     expect(emails.length).toBeGreaterThan(0);

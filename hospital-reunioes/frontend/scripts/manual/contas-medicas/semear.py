@@ -3,8 +3,9 @@
 do manual e guarda os prints contra dado real (issue #1724, ADR 0094, decisão 5).
 
 Tudo vem do `seed.json` ao lado: a faturista de exemplo (faixa P17240 a
-P17249, só deste módulo), uma operadora de exemplo e três contas, duas na Fila
-com o Guia pronto e uma esperando o prontuário. Nada aqui é gente, paciente ou
+P17249, só deste módulo), uma operadora de exemplo e seis contas: duas na Fila
+com o Guia pronto, uma esperando o prontuário, duas concluídas pela faturista
+e uma já arquivada (issue #1959). Nada aqui é gente, paciente ou
 contrato de verdade, e o script recusa qualquer Supabase que não seja o local.
 
 O banco local é compartilhado com o resto do trabalho, então este script só
@@ -150,6 +151,8 @@ def _em(valores) -> str:
 
 CAMPOS_DA_CONTA = ("numero_conta", "situacao", "ordem_fila", "periodo_inicio", "periodo_fim", "total_lancado")
 CAMPOS_DA_CONTA_PRONTA = ("nota_bruta", "valor_apontado")
+CONCLUIDAS = ("CONCLUIDA", "CONCLUIDA_COM_PENDENCIA")
+PRONTAS = ("A_FAZER", *CONCLUIDAS)
 
 
 def semear() -> None:
@@ -248,9 +251,15 @@ def semear() -> None:
 
         conta = {campo: receita[campo] for campo in CAMPOS_DA_CONTA}
         conta.update(atendimento_id=atendimento_id, arquivo_id=da_conta["id"], enviada_em=agora)
-        if receita["situacao"] == "A_FAZER":
+        if receita["situacao"] in PRONTAS:
             conta.update({campo: receita[campo] for campo in CAMPOS_DA_CONTA_PRONTA})
             conta.update(pronta_em=agora, faltantes={"itens": [], "contagens": receita["contagens"]})
+        if receita["situacao"] in CONCLUIDAS:
+            # A conta que a faturista de exemplo já analisou e concluiu; a
+            # arquivada ganha também o carimbo do arquivar (issue #1959).
+            conta.update(faturista_id=faturista["id"], aberta_em=agora, concluida_em=agora)
+            if receita.get("arquivada"):
+                conta.update(arquivada_em=agora, arquivada_por=faturista["id"])
         (gravada_a_conta,) = rest(url, chave, "cm_conta", "POST", [conta], prefer="return=representation")
 
         if receita["linhas"]:
