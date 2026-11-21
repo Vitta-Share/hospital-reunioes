@@ -29,6 +29,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from postgrest.exceptions import APIError
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -230,6 +231,28 @@ def test_a_nova_tentativa_da_confirmacao_nao_grava_os_prazos_de_novo():
 
     assert resposta.status_code == 201, resposta.text
     assert banco.tabelas["nsp_prazos_do_caso"] == prazos_gravados
+    assert len(banco.tabelas["nsp_notificacoes_externas"]) == 1
+
+
+def test_a_confirmacao_que_chega_depois_de_outra_fica_com_os_prazos_da_primeira(monkeypatch):
+    """Duas tentativas ao mesmo tempo: a segunda esbarra no um prazo por marco
+    do banco e conclui com os prazos que a primeira gravou."""
+    caso = _notificacao(1, **DO_CASO)
+    banco = _banco([caso], [_sugestao(caso, **OBITO)])
+    inserir = _ConsultaDaTriagem._inserir
+
+    def _a_outra_gravou_primeiro(self):
+        if self._nome == "nsp_prazos_do_caso":
+            inserir(self)
+            raise APIError({"code": "23505", "message": "duplicate key value"})
+        return inserir(self)
+
+    monkeypatch.setattr(_ConsultaDaTriagem, "_inserir", _a_outra_gravou_primeiro)
+
+    resposta = _cliente(banco).post(f"/api/nsp/triagem/{caso['id']}", json={"conferidos": TODOS_OS_CAMPOS})
+
+    assert resposta.status_code == 201, resposta.text
+    assert _prazos_na_tela(banco, caso) == PRAZOS_ESPERADOS["A"]
     assert len(banco.tabelas["nsp_notificacoes_externas"]) == 1
 
 

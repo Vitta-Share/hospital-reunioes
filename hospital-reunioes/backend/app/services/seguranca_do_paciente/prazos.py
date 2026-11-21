@@ -396,7 +396,20 @@ def _gravar_os_prazos(supabase, notificacao: dict[str, Any], decisao: dict[str, 
         }
         for v in vencimentos
     ]
-    supabase.table(PRAZOS_DO_CASO).insert(linhas).execute()
+    try:
+        supabase.table(PRAZOS_DO_CASO).insert(linhas).execute()
+    except APIError as erro:
+        # Outra tentativa gravou primeiro (um prazo por marco, migration 204):
+        # valem os dela.
+        if erro.code != "23505":
+            raise
+        return (
+            supabase.table(PRAZOS_DO_CASO)
+            .select("marco, vence_em")
+            .eq("notificacao_id", notificacao["id"])
+            .execute()
+            .data
+        ) or []
     return linhas
 
 
