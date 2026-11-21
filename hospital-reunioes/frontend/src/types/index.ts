@@ -243,7 +243,7 @@ export type ComandoPendencia = "iniciar" | "anotar" | "concluir" | "repactuar" |
 
 export interface EventoPendencia {
   id: number;
-  comando: ComandoPendencia | "migracao";
+  comando: ComandoPendencia | "nascimento" | "migracao";
   anotacao: string;
   autor_nome: string;
   status_antes?: string | null;

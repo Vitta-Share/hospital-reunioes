@@ -1,13 +1,12 @@
 """
-Registro de Aceites (ADR 0030): módulo profundo do nascimento incremental.
+Registro de Aceites (ADR 0030, emendada pela ADR 0098): a ciência da Ata.
 
-Persiste, por Reunião e Signatário, a origem do compromisso ('clicksign',
-'aceite_interno', 'super_admin') e o timestamp na tabela `reuniao_aceites`,
-e encapsula TODA a regra incremental de nascimento de Pendências:
-
-- Signatário assina no ClickSign: nascem na hora as Pendências dele, plenas.
-- O Facilitador da Reunião assina: nascem também as de responsáveis fora do
-  Envelope (sem vínculo ou fora do roster de signatários).
+Persiste, por Reunião e Signatário, a origem da ciência ('clicksign',
+'aceite_interno', 'super_admin') e o timestamp na tabela `reuniao_aceites`.
+Desde a ADR 0098 (issue #1867) as Pendências nascem no envio da Ata para
+assinatura: assinar ou dar o "Li e aceito" é só ciência e não cria Pendência.
+No modo interno (Envelope morto), a Reunião fecha quando todo Signatário deu
+ciência.
 
 Correlação signatário ↔ Participante por `signer.key`, com fallback por email
 normalizado (mesmo padrão da tela de signatários). Webhook e endpoints são
@@ -21,7 +20,7 @@ from datetime import UTC, datetime
 
 from app.config import settings
 from app.services import clicksign_service, pendencia_service, storage
-from app.services.pendencia_service import _e_conflito_unicidade, _posicoes_ocupadas
+from app.services.pendencia_service import _e_conflito_unicidade
 
 logger = logging.getLogger(__name__)
 
@@ -88,19 +87,12 @@ def _signatarios_envelope(roster: dict[str, str]) -> set[str]:
     return {pid for pid, email in roster.items() if email}
 
 
-def _filtro_incremental(participante_id: str, eh_facilitador: bool, signatarios_envelope: set[str]):
-    """Filtro do gatilho incremental (ADR 0030, decisão 1), compartilhado pela
-    assinatura ClickSign e pelo Aceite interno: nascem as ações do próprio
-    aceitante e, quando ele é o Facilitador, também as de quem está fora do
-    Envelope (responsável sem vínculo ou que não é Signatário)."""
-
-    def _filtro(acao: dict) -> bool:
-        responsavel_id = acao.get("responsavel_id")
-        if responsavel_id == participante_id:
-            return True
-        return eh_facilitador and (responsavel_id is None or responsavel_id not in signatarios_envelope)
-
-    return _filtro
+def _com_ciencia(roster: dict[str, str], aceites: list[dict]) -> set[str]:
+    """Quem do roster já deu ciência da Ata (aceite de qualquer origem), pelo
+    Participante ou, no aceite sem correlação, pelo email."""
+    ids = {a.get("participante_id") for a in aceites if a.get("participante_id")}
+    emails = {a.get("email") for a in aceites if a.get("email")}
+    return {pid for pid, email in roster.items() if pid in ids or (email and email in emails)}
 
 
 def registrar_assinatura_clicksign(
@@ -109,12 +101,12 @@ def registrar_assinatura_clicksign(
     signer_key: str | None,
     signer_email: str | None,
     aceito_em: str | None = None,
-) -> int:
-    """Registra o aceite de um signatário ClickSign e cria as Pendências dele.
+) -> str | None:
+    """Registra a assinatura de um signatário ClickSign como ciência da Ata.
 
-    Idempotente: evento repetido não duplica aceite nem Pendência (a criação
-    delega em `liberar_pendencias`, idempotente por ação do quadro). Retorna o
-    número de Pendências criadas nesta chamada.
+    Não cria Pendência: elas nasceram no envio (ADR 0098, decisão 1).
+    Idempotente: evento repetido não duplica o aceite. Devolve o Participante
+    correlacionado, ou None quando o signatário não casa com ninguém.
     """
     email_norm = _normalizar_email(signer_email)
     roster = _roster(supabase, id_reuniao)
@@ -150,29 +142,17 @@ def registrar_assinatura_clicksign(
         except Exception as e:
             if not _e_conflito_unicidade(e):
                 raise
-            # Webhook duplicado em paralelo já gravou o mesmo aceite: segue em
-            # frente, a criação de Pendências abaixo é idempotente.
+            # Webhook duplicado em paralelo já gravou o mesmo aceite.
             logger.info(f"[AceiteService] Aceite de {signer_key or email_norm} em {id_reuniao} já registrado.")
 
     if not participante_id:
         # Log sem PII: email mascarado (só key + 2 primeiros chars)
         ident = signer_key or (email_norm[:2] + "***" if email_norm else "?")
-        logger.warning(
-            f"[AceiteService] Signatário sem correlação com Participante em {id_reuniao} "
-            f"(signer={ident}). Aceite registrado; nenhuma Pendência criada."
-        )
-        return 0
+        logger.warning(f"[AceiteService] Signatário sem correlação com Participante em {id_reuniao} (signer={ident}).")
+        return None
 
-    reuniao_q = supabase.table("reunioes").select("facilitador_id").eq("id_reuniao", id_reuniao).execute()
-    facilitador_id = (reuniao_q.data or [{}])[0].get("facilitador_id")
-    eh_facilitador = bool(facilitador_id) and participante_id == facilitador_id
-    filtro = _filtro_incremental(participante_id, eh_facilitador, _signatarios_envelope(roster))
-    criadas = pendencia_service.liberar_pendencias(supabase, id_reuniao, origem="CLICKSIGN_SIGN", filtro=filtro)
-    logger.info(
-        f"[AceiteService] Aceite clicksign de {participante_id} em {id_reuniao}: "
-        f"{criadas} Pendências criadas (facilitador={eh_facilitador})."
-    )
-    return criadas
+    logger.info(f"[AceiteService] Ciência por assinatura ClickSign de {participante_id} em {id_reuniao}.")
+    return participante_id
 
 
 def consultar_signatarios(envelope_id: str | None) -> list[dict] | None:
@@ -377,9 +357,15 @@ def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
-def _quadro_resolvido(supabase, id_reuniao: str, json_ata: dict | None) -> list[dict]:
-    quadro = pendencia_service.extrair_quadro(json_ata)
-    return pendencia_service.resolver_quadro_da_reuniao(supabase, id_reuniao, quadro)
+def _aceites(supabase, id_reuniao: str) -> list[dict]:
+    return (
+        supabase.table("reuniao_aceites")
+        .select("participante_id, email, origem")
+        .eq("id_reuniao", id_reuniao)
+        .execute()
+        .data
+        or []
+    )
 
 
 def _buscar_reuniao(supabase, id_reuniao: str) -> dict | None:
@@ -395,23 +381,17 @@ def _buscar_reuniao(supabase, id_reuniao: str) -> dict | None:
 
 
 def verificar_desfecho_modo_interno(supabase, id_reuniao: str) -> bool:
-    """Desfecho terminal do modo interno (regra EXCLUSIVA dele): quando toda
-    ação do quadro tem Pendência nascida, a Reunião vira ASSINADA com
-    `data_assinatura` e o selo de assinaturas mistas (contagem persistida:
-    total = signatários do Envelope, assinaram = aceites `clicksign`; como o
-    modo interno implica aceite não-ClickSign, assinaram < total e o selo
-    discreto do banner aparece). Retorna True se finalizou nesta chamada.
+    """Desfecho terminal do modo interno (regra EXCLUSIVA dele): quando todo
+    Signatário deu ciência (aceite de qualquer origem, ADR 0098 decisão 2), a
+    Reunião vira ASSINADA com `data_assinatura` e o selo de assinaturas mistas
+    (contagem persistida: total = signatários do Envelope, assinaram = aceites
+    `clicksign`). Retorna True se finalizou nesta chamada.
 
-    Quadro sem ações conta como satisfeito: não há compromisso a colher e a
-    Reunião não pode ficar presa em AGUARDANDO_ASSINATURA para sempre.
+    A recusa ou o cancelamento na ClickSign não fecham nada sozinhos: quem
+    recusou ainda não deu ciência.
     """
     reuniao = _buscar_reuniao(supabase, id_reuniao)
     if not reuniao or reuniao.get("status_ata") != "AGUARDANDO_ASSINATURA" or not reuniao.get("modo_interno_desde"):
-        return False
-
-    quadro = pendencia_service.extrair_quadro(reuniao.get("json_ata"))
-    ocupadas = _posicoes_ocupadas(supabase, id_reuniao)
-    if any(pos not in ocupadas for pos in range(len(quadro))):
         return False
 
     # Selo com base única: total e assinaram contados sobre o MESMO conjunto
@@ -420,11 +400,10 @@ def verificar_desfecho_modo_interno(supabase, id_reuniao: str) -> bool:
     # sempre, e o selo misto nunca some por contagem absurda.
     roster = _roster(supabase, id_reuniao)
     signatarios = _signatarios_envelope(roster)
+    aceites = _aceites(supabase, id_reuniao)
+    if signatarios - _com_ciencia(roster, aceites):
+        return False
     total = len(signatarios)
-    aceites = (
-        supabase.table("reuniao_aceites").select("participante_id, origem").eq("id_reuniao", id_reuniao).execute().data
-        or []
-    )
     assinaram = len(
         {
             a["participante_id"]
@@ -453,7 +432,7 @@ def verificar_desfecho_modo_interno(supabase, id_reuniao: str) -> bool:
         return False
     logger.info(
         f"[AceiteService] ✅ Desfecho terminal do modo interno em {id_reuniao}: "
-        f"toda ação com Pendência, ASSINADA com aceites mistos ({assinaram} de {total} no ClickSign)."
+        f"todos deram ciência, ASSINADA com aceites mistos ({assinaram} de {total} no ClickSign)."
     )
     return True
 
@@ -461,24 +440,20 @@ def verificar_desfecho_modo_interno(supabase, id_reuniao: str) -> bool:
 def iniciar_coleta_interna(supabase, id_reuniao: str) -> dict:
     """Dispara (ou re-dispara) a coleta de Aceites internos no modo interno.
 
-    Idempotente e re-invocável: roda na abertura do modo interno e de novo
-    quando o quadro muda (ex.: ação reatribuída na edição parcial). Em ordem:
+    Idempotente e re-invocável: roda na abertura do modo interno. Em ordem:
 
-    1. Ações abertas de quem JÁ firmou compromisso (aceite registrado, de
-       qualquer origem) nascem direto, com a regra do Facilitador (ADR 0030
-       decisão 1: o aceite dele libera sem vínculo e não-signatários).
-    2. Se toda ação do quadro tem Pendência, o desfecho terminal fecha a
+    1. Se todo Signatário já deu ciência, o desfecho terminal fecha a
        Reunião, sem emails.
-    3. Cada signatário pendente cujo aceite ainda LIBERA algo (ações próprias
-       abertas; para o Facilitador, também as sem vínculo/de não-signatários)
-       recebe email com link público tokenizado (token opaco de uso único; só
-       o hash é persistido). Signatário sem ação não recebe link nem trava o
-       desfecho. Facilitador pendente recebe também notificação in-app.
-       Se o email falha e nenhum canal chegou ao signatário, o token é
-       removido para uma recoleta futura reemitir o link.
+    2. Cada Signatário sem ciência recebe email com link público tokenizado
+       (token opaco de uso único; só o hash é persistido). O Facilitador
+       pendente recebe também notificação in-app. Se o email falha e nenhum
+       canal chegou ao Signatário, o token é removido para uma recoleta
+       futura reemitir o link.
 
-    Best-effort por destinatário: falha de email/notificação fica no log e
-    não interrompe os demais (o caller já tratou o webhook como 200).
+    O aceite é só ciência e não cria Pendência (ADR 0098, decisão 2): elas
+    nasceram no envio. Best-effort por destinatário: falha de email ou
+    notificação fica no log e não interrompe os demais (o caller já tratou o
+    webhook como 200).
     """
     from app.services import notificacao_service, reuniao_email_service
 
@@ -486,44 +461,16 @@ def iniciar_coleta_interna(supabase, id_reuniao: str) -> dict:
     if not reuniao or reuniao.get("status_ata") != "AGUARDANDO_ASSINATURA" or not reuniao.get("modo_interno_desde"):
         return {"emails_enviados": 0, "desfecho_terminal": False}
 
+    # 1. Desfecho terminal: se todos já deram ciência, fecha sem emails.
+    if verificar_desfecho_modo_interno(supabase, id_reuniao):
+        return {"emails_enviados": 0, "desfecho_terminal": True}
+
     roster = _roster(supabase, id_reuniao)
     signatarios = _signatarios_envelope(roster)
     facilitador_id = reuniao.get("facilitador_id")
-    aceites = (
-        supabase.table("reuniao_aceites").select("participante_id, email").eq("id_reuniao", id_reuniao).execute().data
-        or []
-    )
-    aceitaram = {a["participante_id"] for a in aceites if a.get("participante_id")}
-    emails_com_aceite = {(a.get("email") or "") for a in aceites if a.get("email")}
+    com_ciencia = _com_ciencia(roster, _aceites(supabase, id_reuniao))
 
-    quadro = _quadro_resolvido(supabase, id_reuniao, reuniao.get("json_ata"))
-    ocupadas = _posicoes_ocupadas(supabase, id_reuniao)
-
-    # 1. Compromisso já firmado libera direto (cobre ação reatribuída para quem
-    # já aceitou e webhook `sign` perdido; idempotente por ação do quadro).
-    fac_aceitou = bool(facilitador_id) and facilitador_id in aceitaram
-
-    def _filtro_ja_firmados(acao: dict) -> bool:
-        responsavel_id = acao.get("responsavel_id")
-        if responsavel_id in aceitaram:
-            return True
-        return fac_aceitou and (responsavel_id is None or responsavel_id not in signatarios)
-
-    if any(pos not in ocupadas and _filtro_ja_firmados(acao) for pos, acao in enumerate(quadro)):
-        pendencia_service.liberar_pendencias(supabase, id_reuniao, origem="ACEITE_RECOLETA", filtro=_filtro_ja_firmados)
-        ocupadas = _posicoes_ocupadas(supabase, id_reuniao)
-
-    # 2. Desfecho terminal: nada mais a colher.
-    if all(pos in ocupadas for pos in range(len(quadro))):
-        finalizou = verificar_desfecho_modo_interno(supabase, id_reuniao)
-        return {"emails_enviados": 0, "desfecho_terminal": finalizou}
-
-    # 3. Links de Aceite interno para quem ainda destrava algo.
-    abertas = [acao for pos, acao in enumerate(quadro) if pos not in ocupadas]
-    responsaveis_com_acao_aberta = {acao.get("responsavel_id") for acao in abertas if acao.get("responsavel_id")}
-    ha_aberta_fora_do_envelope = any(
-        acao.get("responsavel_id") is None or acao.get("responsavel_id") not in signatarios for acao in abertas
-    )
+    # 2. Links de Aceite interno para quem ainda não deu ciência.
     nomes = {
         p["id"]: p.get("nome_completo") or "Participante"
         for p in (
@@ -533,14 +480,9 @@ def iniciar_coleta_interna(supabase, id_reuniao: str) -> dict:
 
     enviados = 0
     for pid, email in sorted(roster.items()):
-        if not email:
-            continue  # sem email = fora do Envelope, nunca foi signatário
-        if pid in aceitaram or email in emails_com_aceite:
-            continue  # já firmou compromisso
+        if pid not in signatarios or pid in com_ciencia:
+            continue  # sem email nunca foi signatário; com aceite já deu ciência
         eh_facilitador = bool(facilitador_id) and pid == facilitador_id
-        libera_algo = pid in responsaveis_com_acao_aberta or (eh_facilitador and ha_aberta_fora_do_envelope)
-        if not libera_algo:
-            continue  # signatário sem ação não recebe link (ADR 0030)
 
         token = secrets.token_urlsafe(32)
         token_hash = _hash_token(token)
@@ -681,13 +623,12 @@ def registrar_aceite_interno(supabase, token: str) -> dict:
 
     Uso único garantido por claim atômico (UPDATE condicionado a
     `usado_em IS NULL`): reuso concorrente falha sem nenhum efeito. O aceite
-    nasce com origem `aceite_interno` e timestamp; as Pendências do
-    signatário nascem todas de uma vez (idempotente por ação do quadro); o
-    desfecho terminal fecha a Reunião quando este era o último aceite
-    necessário. Falha após o claim devolve o token (best-effort) para o link
-    não queimar por erro transitório.
+    nasce com origem `aceite_interno` e timestamp. É só ciência: não cria
+    Pendência (ADR 0098, decisão 2). O desfecho terminal fecha a Reunião
+    quando este era o último Signatário sem ciência. Falha após o claim
+    devolve o token (best-effort) para o link não queimar por erro transitório.
     """
-    registro, reuniao = _carregar_token(supabase, token)
+    registro, _reuniao = _carregar_token(supabase, token)
     id_reuniao = registro["id_reuniao"]
     participante_id = registro["participante_id"]
 
@@ -718,29 +659,18 @@ def registrar_aceite_interno(supabase, token: str) -> dict:
         except Exception as e:
             if not _e_conflito_unicidade(e):
                 raise
-            # Aceite já registrado por outra via (ex.: super admin): segue em
-            # frente, a criação de Pendências abaixo é idempotente.
+            # Aceite já registrado por outra via (ex.: super admin).
             logger.info(f"[AceiteService] Aceite de {participante_id} em {id_reuniao} já registrado por outra via.")
 
-        # Mesma regra incremental da assinatura ClickSign (ADR 0030, decisão
-        # 1): o aceite do Facilitador libera também as ações sem vínculo e as
-        # de responsáveis fora do Envelope; sem isso, essas ações nunca
-        # nasceriam no modo interno e o desfecho terminal ficaria preso.
-        roster = _roster(supabase, id_reuniao)
-        facilitador_id = reuniao.get("facilitador_id")
-        eh_facilitador = bool(facilitador_id) and participante_id == facilitador_id
-        filtro = _filtro_incremental(participante_id, eh_facilitador, _signatarios_envelope(roster))
-        criadas = pendencia_service.liberar_pendencias(supabase, id_reuniao, origem="ACEITE_INTERNO", filtro=filtro)
         assinada = verificar_desfecho_modo_interno(supabase, id_reuniao)
     except Exception:
         supabase.table("reuniao_aceite_tokens").update({"usado_em": None}).eq("id", registro["id"]).execute()
         raise
 
     logger.info(
-        f"[AceiteService] Aceite interno de {participante_id} em {id_reuniao}: "
-        f"{criadas} Pendências criadas (reuniao_assinada={assinada})."
+        f"[AceiteService] Ciência pelo Aceite interno de {participante_id} em {id_reuniao} (assinada={assinada})."
     )
-    return {"pendencias_criadas": criadas, "reuniao_assinada": assinada}
+    return {"reuniao_assinada": assinada}
 
 
 # ─── Aceite manual do Super admin (ADR 0030 decisão 3, issue #278) ───────────
@@ -762,16 +692,14 @@ def registrar_aceite_manual(supabase, id_reuniao: str, participante_id: str) -> 
     """Registra o aceite em nome de um signatário pendente (Super admin).
 
     Regra exclusiva do modo interno: o Envelope morreu e o Super admin destrava
-    a ata registrando o compromisso pela pessoa que sumiu. O aceite nasce com
-    origem `super_admin`; as Pendências do signatário nascem pela MESMA regra
-    incremental do Aceite interno (o aceite do Facilitador libera também as
-    ações de quem está fora do Envelope) e o desfecho terminal fecha a Reunião
-    quando este era o último aceite necessário.
+    a ata registrando a ciência pela pessoa que sumiu. O aceite nasce com
+    origem `super_admin` e não cria Pendência (ADR 0098, decisão 2); o
+    desfecho terminal fecha a Reunião quando este era o último Signatário sem
+    ciência.
 
-    Idempotente: signatário que já firmou compromisso (qualquer origem) não
-    ganha aceite novo; a criação de Pendências é idempotente por ação do
-    quadro. O retorno informa `ja_registrado` para o caller decidir o rastro
-    de auditoria (só a primeira chamada audita).
+    Idempotente: signatário que já deu ciência (qualquer origem) não ganha
+    aceite novo. O retorno informa `ja_registrado` para o caller decidir o
+    rastro de auditoria (só a primeira chamada audita).
     """
     reuniao = _buscar_reuniao(supabase, id_reuniao)
     if not reuniao:
@@ -811,22 +739,17 @@ def registrar_aceite_manual(supabase, id_reuniao: str, participante_id: str) -> 
             ja_registrado = True
             logger.info(f"[AceiteService] Aceite de {participante_id} em {id_reuniao} já registrado por outra via.")
 
-    facilitador_id = reuniao.get("facilitador_id")
-    eh_facilitador = bool(facilitador_id) and participante_id == facilitador_id
-    filtro = _filtro_incremental(participante_id, eh_facilitador, _signatarios_envelope(roster))
-    criadas = pendencia_service.liberar_pendencias(supabase, id_reuniao, origem="ACEITE_SUPER_ADMIN", filtro=filtro)
     assinada = verificar_desfecho_modo_interno(supabase, id_reuniao)
 
     nome_q = supabase.table("participantes").select("nome_completo").eq("id", participante_id).execute()
     nome = ((nome_q.data or [{}])[0].get("nome_completo")) or ""
 
     logger.info(
-        f"[AceiteService] Aceite manual (super_admin) de {participante_id} em {id_reuniao}: "
-        f"{criadas} Pendências criadas (ja_registrado={ja_registrado}, reuniao_assinada={assinada})."
+        f"[AceiteService] Aceite manual (super_admin) de {participante_id} em {id_reuniao} "
+        f"(ja_registrado={ja_registrado}, reuniao_assinada={assinada})."
     )
     return {
         "ja_registrado": ja_registrado,
-        "pendencias_criadas": criadas,
         "reuniao_assinada": assinada,
         "signatario": {"id": participante_id, "nome": nome, "email": email_norm or None},
     }

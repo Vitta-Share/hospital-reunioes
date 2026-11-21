@@ -153,7 +153,6 @@ interface Reuniao {
   // Alimenta o selo discreto "N de M assinaram"; ausente = sem selo.
   signatarios_total?: number | null;
   signatarios_assinaram?: number | null;
-  modo_interno_desde?: string | null;
   fonte: string;
   metodo_geracao?: "TRANSCRICAO" | "GUIADA";
   // Reunião do Núcleo (issue #1775): a ata dela não passa pela Ata Guiada.
@@ -198,6 +197,7 @@ const STATUS_ORDER: Record<StatusAta, number> = {
 // em linguagem de usuário. Chaves espelham _registrar_falha_envio no backend.
 const FALHA_ENVIO_PASSO_LABEL: Record<string, string> = {
   baixar_pdf: "baixar o PDF da ata",
+  gerar_pdf: "gerar o PDF da ata",
   criar_envelope: "criar o envelope de assinatura",
   anexar_documento: "anexar o PDF ao envelope",
   adicionar_signatarios: "adicionar os signatários",
@@ -690,11 +690,6 @@ export default function ReuniaoDetailPage() {
   // Chat correction mode
   const [correctionMode, setCorrectionMode] = useState(false);
   const [sectionContext, setSectionContext] = useState<string | null>(null);
-
-  // Edição das ações ainda sem Pendência no modo interno (ADR 0030, #276):
-  // liga só o combobox de responsável do quadro, sem abrir o chat de correção
-  // (indisponível fora de AGUARDANDO_VALIDACAO).
-  const [modoInternoEdicao, setModoInternoEdicao] = useState(false);
 
   // Desmarcar reunião
   const [showDesmarcarModal, setShowDesmarcarModal] = useState(false);
@@ -1674,9 +1669,56 @@ export default function ReuniaoDetailPage() {
           </div>
         )}
 
+      {/* Aviso de falha no envio para assinatura (#193). Desde a issue #1867 o
+          envio já levou a Reunião a AGUARDANDO_ASSINATURA e criou as Pendências;
+          sem Envelope gravado, a tela oferece o Reenviar. */}
+      {reuniao.status_ata === "AGUARDANDO_ASSINATURA" &&
+        !hideAtaSections &&
+        !reuniao.do_nucleo &&
+        !reuniao.envelope_key_clicksign &&
+        reuniao.falha_envio_assinatura &&
+        reuniao.falha_envio_assinatura.passo !== "notificar_signatarios" && (
+          <div className="flex items-start gap-3 px-5 py-4 rounded-2xl bg-red-50 border border-red-100">
+            <XCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-red-700">O envio para assinatura falhou</p>
+              <p className="text-sm text-red-700 mt-0.5">
+                {`Não foi possível ${
+                  FALHA_ENVIO_PASSO_LABEL[reuniao.falha_envio_assinatura.passo ?? ""] ??
+                  "concluir o envio"
+                }`}
+                {mounted && reuniao.falha_envio_assinatura.em
+                  ? ` (${new Date(reuniao.falha_envio_assinatura.em).toLocaleString("pt-BR", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })})`
+                  : ""}
+                {reuniao.falha_envio_assinatura.passo === "finalizar"
+                  ? ". O envelope pode já ter sido ativado e os emails enviados. Confirme com os signatários antes de reenviar: um novo envio cria um envelope novo e dispara novos emails."
+                  : ". Ninguém recebeu o email de assinatura. As pendências já foram criadas. Reenvie quando quiser."}
+              </p>
+              <button
+                onClick={handleReenviarAssinatura}
+                disabled={actionLoading}
+                className="mt-3 flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 disabled:opacity-50 transition-colors cursor-pointer"
+              >
+                <PenLine className="w-4 h-4" />
+                {actionLoading ? "Reenviando..." : "Reenviar para assinatura"}
+              </button>
+            </div>
+          </div>
+        )}
+
       {/* Card: status live dos signatarios (polling 30s + botao Atualizar + Lembrar por linha).
+          Só com Envelope gravado: antes dele não há o que consultar na ClickSign.
           A ata do Núcleo tem envelope próprio e a situação dela na tela da ata (issue #1776). */}
-      {reuniao.status_ata === "AGUARDANDO_ASSINATURA" && !hideAtaSections && !reuniao.do_nucleo && (
+      {reuniao.status_ata === "AGUARDANDO_ASSINATURA" &&
+        !hideAtaSections &&
+        !reuniao.do_nucleo &&
+        Boolean(reuniao.envelope_key_clicksign) && (
         <SignatariosCard
           idReuniao={reuniao.id_reuniao}
           envelopeKey={reuniao.envelope_key_clicksign || ""}
@@ -1684,27 +1726,6 @@ export default function ReuniaoDetailPage() {
           canSuperAdmin={canSuperAdmin}
           onDesfecho={loadReuniao}
         />
-      )}
-
-      {/* Modo interno (ADR 0030, #276): o Envelope morreu, mas as acoes que
-          ainda nao viraram Pendencia seguem editaveis pelo Facilitador dono. */}
-      {reuniao.status_ata === "AGUARDANDO_ASSINATURA" &&
-        Boolean(reuniao.modo_interno_desde) &&
-        !hideAtaSections &&
-        !reuniao.do_nucleo && (
-        <div className="flex items-center justify-between gap-4 bg-white rounded-2xl border border-border shadow-premium px-6 py-4">
-          <p className="text-sm text-slate-600">
-            As ações que ainda não viraram Pendência podem ser corrigidas enquanto aguardam o aceite.
-          </p>
-          <button
-            type="button"
-            onClick={() => setModoInternoEdicao((v) => !v)}
-            className="flex items-center gap-2 px-4 py-2 bg-amber-100 text-amber-800 font-medium rounded-xl hover:bg-amber-200 transition-colors cursor-pointer flex-shrink-0"
-          >
-            <Pen className="w-4 h-4" />
-            {modoInternoEdicao ? "Fechar edição" : "Editar ações abertas"}
-          </button>
-        </div>
       )}
 
       {/* Banner: Ata Assinada */}
@@ -1905,42 +1926,6 @@ export default function ReuniaoDetailPage() {
               </p>
             </div>
           </div>
-          {/* Aviso de falha no envio para assinatura (#193): o backend registra a
-              falha do fluxo ClickSign e a tela oferece o reenvio manual. */}
-          {reuniao.falha_envio_assinatura && (
-            <div className="flex items-start gap-3 px-5 py-4 mb-4 rounded-2xl bg-red-50 border border-red-100">
-              <XCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-red-700">O envio para assinatura falhou</p>
-                <p className="text-sm text-red-700 mt-0.5">
-                  {`Não foi possível ${
-                    FALHA_ENVIO_PASSO_LABEL[reuniao.falha_envio_assinatura.passo ?? ""] ??
-                    "concluir o envio"
-                  }`}
-                  {mounted && reuniao.falha_envio_assinatura.em
-                    ? ` (${new Date(reuniao.falha_envio_assinatura.em).toLocaleString("pt-BR", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })})`
-                    : ""}
-                  {reuniao.falha_envio_assinatura.passo === "finalizar"
-                    ? ". O envelope pode já ter sido ativado e os emails enviados. Confirme com os signatários antes de reenviar: um novo envio cria um envelope novo e dispara novos emails."
-                    : ". Ninguém recebeu o email de assinatura. Reenvie quando quiser."}
-                </p>
-                <button
-                  onClick={handleReenviarAssinatura}
-                  disabled={actionLoading}
-                  className="mt-3 flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 disabled:opacity-50 transition-colors cursor-pointer"
-                >
-                  <PenLine className="w-4 h-4" />
-                  {actionLoading ? "Reenviando..." : "Reenviar para assinatura"}
-                </button>
-              </div>
-            </div>
-          )}
           <div className="flex flex-wrap gap-3">
             {!isGuiada && (
               <button onClick={handleAprovar} disabled={actionLoading} className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-primary to-primary-dark text-white font-medium rounded-xl hover:shadow-lg transition-all cursor-pointer">
@@ -2299,7 +2284,7 @@ export default function ReuniaoDetailPage() {
             onSectionContext={setSectionContext}
             mounted={mounted}
             renderResponsavel={(a, i) =>
-              correctionMode || modoInternoEdicao ? (
+              correctionMode ? (
                 <ResponsavelInlineCombobox
                   reuniaoId={reuniao.id_reuniao}
                   atribuicaoIndex={i}

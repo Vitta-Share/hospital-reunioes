@@ -152,10 +152,10 @@ def _iniciar_coleta_interna_best_effort(supabase, id_reuniao: str) -> None:
 
 
 def _processar_reuniao(supabase, reuniao: dict, event_name: str, envelope_key: str, payload: dict) -> None:
-    """Ata de Reunião: `sign` cria na hora as Pendências do signatário (ADR
-    0030, nascimento incremental via Registro de Aceites); fechamento
-    (`close`/`auto_close`/`deadline` com ao menos uma assinatura) libera o
-    restante + registro de faltantes + ASSINADA + PDF best-effort;
+    """Ata de Reunião: `sign` registra a ciência do signatário (as Pendências
+    já nasceram no envio, ADR 0098); fechamento (`close`/`auto_close`/
+    `deadline` com ao menos uma assinatura) garante as Pendências + registro
+    de faltantes + ASSINADA + PDF best-effort;
     `document_closed` baixa o PDF assinado; `refusal`, `cancel` e `deadline`
     com zero assinaturas abrem o modo interno (Envelope morto, sem reenvio; a
     Reunião permanece em AGUARDANDO_ASSINATURA com flag persistida).
@@ -180,14 +180,13 @@ def _processar_reuniao(supabase, reuniao: dict, event_name: str, envelope_key: s
     logger.info(f"[ClickSign webhook] Reunião {id_reuniao} — processando evento '{event_name}'")
 
     if is_signed:
-        # Gatilho incremental só vale com a Ata aguardando assinatura (o modo
-        # interno permanece nesse status, então um 'sign' atrasado ainda conta).
-        # Evento tardio ou redelivery fora de ordem não pode criar Pendência de
-        # uma ata em revisão nem reprocessar estado terminal.
+        # A ciência só vale com a Ata aguardando assinatura (o modo interno
+        # permanece nesse status, então um 'sign' atrasado ainda conta).
+        # Evento tardio ou redelivery fora de ordem não reprocessa estado terminal.
         if reuniao.get("status_ata") != "AGUARDANDO_ASSINATURA":
             logger.info(
                 f"[ClickSign webhook] Reunião {id_reuniao} em '{reuniao.get('status_ata')}', "
-                "'sign' ignorado (gatilho incremental exige AGUARDANDO_ASSINATURA)."
+                "'sign' ignorado (a ciência exige AGUARDANDO_ASSINATURA)."
             )
             return
         event = payload.get("event") or {}
@@ -198,16 +197,16 @@ def _processar_reuniao(supabase, reuniao: dict, event_name: str, envelope_key: s
             logger.warning(f"[ClickSign webhook] Evento 'sign' sem signer identificável para {id_reuniao}, ignorado.")
             return
         try:
-            criadas = aceite_service.registrar_assinatura_clicksign(
+            aceite_service.registrar_assinatura_clicksign(
                 supabase,
                 id_reuniao,
                 signer_key=signer_key,
                 signer_email=signer_email,
                 aceito_em=event.get("occurred_at"),
             )
-            logger.info(f"[ClickSign webhook] 📋 'sign' (key={signer_key}): {criadas} pendências em {id_reuniao}.")
+            logger.info(f"[ClickSign webhook] 'sign' (key={signer_key}) registrado como ciência em {id_reuniao}.")
             # `sign` atrasado no modo interno ainda conta (issue #277): se era
-            # a última ação sem Pendência, o desfecho terminal fecha a Reunião.
+            # a última ciência que faltava, o desfecho terminal fecha a Reunião.
             # Auto-guardado: fora do modo interno é no-op. Falha propaga para o
             # except abaixo (não-2xx, a ClickSign reenvia; tudo idempotente).
             aceite_service.verificar_desfecho_modo_interno(supabase, id_reuniao)

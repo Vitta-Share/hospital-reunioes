@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import time
-from datetime import date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Response, UploadFile
 from pydantic import BaseModel
@@ -429,6 +429,10 @@ async def get_reuniao(
     reuniao["participantes_programada"] = participantes
     # A tela esconde a Ata Guiada na reunião do Núcleo, que a recusa (issue #1775).
     reuniao["do_nucleo"] = bool(reuniao.get("colegiado_id")) and reuniao["colegiado_id"] == id_do_nucleo(supabase)
+    # Envio que parou no meio: a tela recebe a falha para mostrar o Reenviar
+    # (não grava nada; o claim do /aprovar confere o mesmo prazo).
+    if not reuniao["do_nucleo"] and _envio_interrompido(reuniao):
+        reuniao["falha_envio_assinatura"] = _falha_do_envio_interrompido(reuniao)
 
     me = await get_participante_for_user(current_user, supabase)
     if is_secretaria(me):
@@ -754,9 +758,9 @@ async def registrar_aceite_manual(
     """Botão "Registrar aceite manualmente" do card de Signatários (issue #278).
 
     Super admin only, exclusivo do modo interno (ADR 0030): registra o aceite
-    em nome de um signatário pendente com origem `super_admin`, cria as
-    Pendências daquele responsável e deixa rastro em audit_log (quem forçou,
-    quando, em nome de quem). Idempotente: repetir não duplica nada.
+    em nome de um signatário pendente com origem `super_admin` (só ciência, ADR
+    0098) e deixa rastro em audit_log (quem forçou, quando, em nome de quem).
+    Idempotente: repetir não duplica nada.
     """
     from app.services import aceite_service
 
@@ -781,7 +785,6 @@ async def registrar_aceite_manual(
                 "participante_id": signatario["id"],
                 "participante_nome": signatario["nome"],
                 "participante_email": signatario["email"],
-                "pendencias_criadas": resultado["pendencias_criadas"],
                 "reuniao_assinada": resultado["reuniao_assinada"],
             },
             request=request,
@@ -798,7 +801,6 @@ async def registrar_aceite_manual(
             else f"Aceite registrado em nome de {signatario['nome'] or 'signatário'}."
         ),
         "ja_registrado": resultado["ja_registrado"],
-        "pendencias_criadas": resultado["pendencias_criadas"],
         "reuniao_assinada": resultado["reuniao_assinada"],
     }
 
@@ -1567,6 +1569,9 @@ async def reprocessar_reuniao(
     reuniao = result.data[0]
     if reuniao.get("status_ata") == "ASSINADA":
         raise HTTPException(status_code=400, detail="Reunião já assinada não pode ser reprocessada")
+    if reuniao.get("status_ata") == "AGUARDANDO_ASSINATURA":
+        # ADR 0098, decisão 1: as Pendências nasceram no envio, do quadro desta Ata.
+        raise HTTPException(status_code=400, detail="A Ata já foi enviada para assinatura e não pode ser refeita.")
     _so_quem_conduz_a_ata_do_nucleo(supabase, me, id_reuniao)
     if reuniao.get("status_ata") not in ("ERRO", "AGUARDANDO_VALIDACAO") and ata_do_nucleo.reuniao_do_nucleo(
         supabase, id_reuniao
@@ -1602,6 +1607,39 @@ async def reprocessar_reuniao(
     return {"id_reuniao": id_reuniao, "status": "PROCESSANDO", "message": "Reprocessamento iniciado"}
 
 
+# Envio que parou no meio (issue #1867): o claim já levou a Reunião a
+# AGUARDANDO_ASSINATURA, mas o processo morreu durante a ClickSign (deploy ou
+# restart) ou a falha não foi gravada. Sem Envelope e sem falha, nada mais muda
+# a linha. Passado este prazo, bem acima do pior caso das chamadas à ClickSign,
+# o envio conta como interrompido: a tela recebe a falha e o Reenviar aceita.
+_PRAZO_ENVIO_INTERROMPIDO = timedelta(minutes=30)
+
+
+def _envio_interrompido(reuniao: dict) -> bool:
+    if reuniao.get("status_ata") != "AGUARDANDO_ASSINATURA":
+        return False
+    if reuniao.get("envelope_key_clicksign") or reuniao.get("falha_envio_assinatura"):
+        return False
+    try:
+        desde = datetime.fromisoformat(str(reuniao.get("updated_at")))
+    except ValueError:
+        return False
+    if desde.tzinfo is None:
+        desde = desde.replace(tzinfo=UTC)
+    return datetime.now(UTC) - desde > _PRAZO_ENVIO_INTERROMPIDO
+
+
+def _falha_do_envio_interrompido(reuniao: dict) -> dict:
+    """A falha que o processo não chegou a gravar. O passo é `finalizar`
+    porque o Envelope pode ter sido ativado antes da queda: a tela avisa para
+    confirmar com os signatários antes de reenviar."""
+    return {
+        "passo": "finalizar",
+        "detalhe": "O envio parou no meio, sem gravar o Envelope nem a falha.",
+        "em": reuniao.get("updated_at"),
+    }
+
+
 @router.post("/{id_reuniao}/aprovar")
 @limiter.limit("10/minute")
 async def aprovar_reuniao(
@@ -1624,21 +1662,84 @@ async def aprovar_reuniao(
 
     result = (
         supabase.table("reunioes")
-        .select("status_ata, url_pdf_preliminar, tipo, objetivo")
+        .select(
+            "status_ata, url_pdf_preliminar, tipo, objetivo, envelope_key_clicksign, falha_envio_assinatura, updated_at"
+        )
         .eq("id_reuniao", id_reuniao)
         .execute()
     )
     if not result.data:
         raise HTTPException(status_code=404, detail="Reunião não encontrada")
-    if result.data[0]["status_ata"] != "AGUARDANDO_VALIDACAO":
+    reuniao = result.data[0]
+
+    # ADR 0098, decisão 1: no clique, a Reunião vai para AGUARDANDO_ASSINATURA
+    # e nascem as Pendências; a ClickSign roda depois. O UPDATE condicionado é
+    # o claim: o duplo clique acha o estado já mudado (ou a falha já limpa, no
+    # Reenviar) e não cria um segundo Envelope.
+    status = reuniao["status_ata"]
+    if status == "AGUARDANDO_VALIDACAO":
+        claim = (
+            supabase.table("reunioes")
+            .update({"status_ata": "AGUARDANDO_ASSINATURA", "falha_envio_assinatura": None})
+            .eq("id_reuniao", id_reuniao)
+            .eq("status_ata", "AGUARDANDO_VALIDACAO")
+            .execute()
+        )
+    elif (
+        status == "AGUARDANDO_ASSINATURA"
+        and reuniao.get("falha_envio_assinatura")
+        and not reuniao.get("envelope_key_clicksign")
+    ):
+        # Reenviar: só depois de uma falha registrada e sem Envelope gravado.
+        claim = (
+            supabase.table("reunioes")
+            .update({"falha_envio_assinatura": None})
+            .eq("id_reuniao", id_reuniao)
+            .eq("status_ata", "AGUARDANDO_ASSINATURA")
+            .is_("envelope_key_clicksign", "null")
+            .not_.is_("falha_envio_assinatura", "null")
+            .execute()
+        )
+    elif _envio_interrompido(reuniao):
+        # Reenviar do envio que parou no meio. O `updated_at` lido é a versão:
+        # o próprio UPDATE do claim faz o trigger gravar now(), e o segundo
+        # clique não acha mais a linha.
+        claim = (
+            supabase.table("reunioes")
+            .update({"falha_envio_assinatura": None})
+            .eq("id_reuniao", id_reuniao)
+            .eq("status_ata", "AGUARDANDO_ASSINATURA")
+            .is_("envelope_key_clicksign", "null")
+            .is_("falha_envio_assinatura", "null")
+            .eq("updated_at", reuniao["updated_at"])
+            .execute()
+        )
+    elif status == "AGUARDANDO_ASSINATURA" and not reuniao.get("envelope_key_clicksign"):
+        # Envio recente sem falha: a ClickSign ainda pode estar rodando.
+        raise HTTPException(status_code=409, detail="O envio para assinatura já está em andamento.")
+    else:
         raise HTTPException(status_code=400, detail="Reunião não está aguardando validação")
+    if not claim.data:
+        raise HTTPException(status_code=409, detail="O envio para assinatura já está em andamento.")
 
-    # Dispara o fluxo ClickSign em background
     from app.services import clicksign_service
+    from app.services.pendencia_service import liberar_pendencias
 
-    background_tasks.add_task(clicksign_service.start_signature_flow, supabase, id_reuniao, result.data[0])
+    # Idempotente por ação do quadro: o Reenviar não duplica. Falha aqui não
+    # segura o envio; a reconciliação das 5h30 cria o que faltou (decisão 3).
+    total = 0
+    try:
+        total = liberar_pendencias(supabase, id_reuniao, origem="ENVIO_PARA_ASSINATURA")
+    except Exception as e:
+        logger.error(f"Falha ao criar as Pendências no envio de {id_reuniao}: {e}", exc_info=True)
 
-    return {"message": "Ata aprovada. Processo de assinatura digital iniciado."}
+    background_tasks.add_task(clicksign_service.start_signature_flow, supabase, id_reuniao, reuniao)
+
+    return {
+        "status": "AGUARDANDO_ASSINATURA",
+        "total_pendencias": total,
+        "message": "Ata enviada para assinatura. As pendências já foram criadas.",
+    }
 
 
 @router.post("/{id_reuniao}/aprovar-sem-assinatura")
@@ -2014,8 +2115,8 @@ async def patch_quadro_atribuicao(
 ):
     """Edita um item do `json_ata.quadro_atribuicoes` antes da liberação de pendências.
 
-    Permitido em ATA com status AGUARDANDO_VALIDACAO e, no modo interno (ADR
-    0030), só para ações ainda sem Pendência. Substitui a edição implícita
+    Permitido só em ATA com status AGUARDANDO_VALIDACAO (ADR 0098: depois do
+    envio, toda ação já é Pendência). Substitui a edição implícita
     por chat pra o caso do responsável: quando `responsavel_participante_id` é
     informado, sobrescreve `responsavel`/`cargo` com os dados canônicos do participante
     (corrige o bug em que mudar o nome via chat deixava o cargo desatualizado) e grava
@@ -2034,21 +2135,14 @@ async def patch_quadro_atribuicao(
     if allowed_ids is not None and id_reuniao not in allowed_ids:
         raise HTTPException(status_code=404, detail="Reunião não encontrada")
 
-    result = (
-        supabase.table("reunioes")
-        .select("status_ata, json_ata, modo_interno_desde")
-        .eq("id_reuniao", id_reuniao)
-        .execute()
-    )
+    result = supabase.table("reunioes").select("status_ata, json_ata").eq("id_reuniao", id_reuniao).execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Reunião não encontrada")
 
     reuniao = result.data[0]
-    # Janela de edição: AGUARDANDO_VALIDACAO (regra original) ou o modo interno
-    # (ADR 0030, issue #276): AGUARDANDO_ASSINATURA com Envelope morto, onde só
-    # as ações ainda sem Pendência seguem editáveis.
-    modo_interno = reuniao["status_ata"] == "AGUARDANDO_ASSINATURA" and bool(reuniao.get("modo_interno_desde"))
-    if reuniao["status_ata"] != "AGUARDANDO_VALIDACAO" and not modo_interno:
+    # Janela de edição: só AGUARDANDO_VALIDACAO. Desde a ADR 0098 (decisão 1)
+    # toda ação vira Pendência no envio, então nem o modo interno edita mais.
+    if reuniao["status_ata"] != "AGUARDANDO_VALIDACAO":
         raise HTTPException(
             status_code=400,
             detail="Quadro de atribuições só pode ser editado quando a ATA aguarda validação",
@@ -2058,20 +2152,6 @@ async def patch_quadro_atribuicao(
     quadro = json_ata.get("quadro_atribuicoes") or []
     if index < 0 or index >= len(quadro):
         raise HTTPException(status_code=404, detail="Item do quadro de atribuições não encontrado")
-
-    if modo_interno:
-        # Ação com Pendência nascida fica travada: o compromisso já foi firmado
-        # por quem assinou e não pode mudar por baixo dele. Pendência legada sem
-        # quadro_pos (liberação total pré-incremental) trava o quadro inteiro.
-        # Sem filtro de soft-delete: o índice único de quadro_pos também não
-        # filtra, e linha viva ou não já representa compromisso firmado.
-        rows = supabase.table("pendencias").select("quadro_pos").eq("id_reuniao", id_reuniao).execute().data or []
-        posicoes = {r.get("quadro_pos") for r in rows}
-        if None in posicoes or index in posicoes:
-            raise HTTPException(
-                status_code=409,
-                detail="Esta ação já virou Pendência e está travada para edição no modo interno",
-            )
 
     item = dict(quadro[index])
 
@@ -2115,17 +2195,6 @@ async def patch_quadro_atribuicao(
         f"[Reunioes] Quadro de atribuições item {index} editado em {id_reuniao}: "
         f"responsavel='{item.get('responsavel')}' cargo='{item.get('cargo')}'"
     )
-
-    if modo_interno:
-        # Reatribuição no modo interno (issue #277): o novo responsável precisa
-        # do link de Aceite interno (ou, se já firmou compromisso, da liberação
-        # direta). A recoleta é idempotente; falha não bloqueia a edição.
-        from app.services import aceite_service
-
-        try:
-            aceite_service.iniciar_coleta_interna(supabase, id_reuniao)
-        except Exception as e:
-            logger.error(f"[Reunioes] Falha best-effort na recoleta de aceites de {id_reuniao}: {e}")
 
     return item
 

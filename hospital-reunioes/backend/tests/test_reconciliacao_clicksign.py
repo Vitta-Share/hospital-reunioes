@@ -159,7 +159,8 @@ class TestJobDocumentoFechado:
 
         assert contadores["sem_mudanca"] == 1
         assert _reuniao(sb)["status_ata"] == "AGUARDANDO_ASSINATURA"
-        assert _pendencias(sb) == []
+        # As Pendências que faltavam nascem mesmo assim (ADR 0098, decisão 3).
+        assert sorted(p["quadro_pos"] for p in _pendencias(sb)) == [0, 1, 2, 3, 4]
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -185,7 +186,9 @@ class TestJobDocumentoCancelado:
 
         reconciliacao_service.reconciliar_pendentes(sb)
 
-        assert len(_pendencias(sb)) == 1
+        # A001 fica como estava e as outras quatro ações nascem (ADR 0098).
+        assert sorted(p["quadro_pos"] for p in _pendencias(sb)) == [0, 1, 2, 3, 4]
+        assert [p["id_acao"] for p in _pendencias(sb) if p["quadro_pos"] == 0] == ["A001"]
         assert _reuniao(sb)["modo_interno_desde"]
 
 
@@ -267,7 +270,7 @@ class TestJobVarredura:
 
         assert contadores["indisponivel"] == 1
         assert _reuniao(sb)["status_ata"] == "AGUARDANDO_ASSINATURA"
-        assert _pendencias(sb) == []
+        assert not _reuniao(sb).get("modo_interno_desde")
 
     def test_falha_numa_reuniao_nao_para_as_outras(self, clicksign, monkeypatch):
         clicksign.status["env-r2"] = "canceled"

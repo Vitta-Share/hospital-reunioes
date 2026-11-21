@@ -111,8 +111,9 @@ def _reuniao(sb: _SupabaseMock) -> dict:
 
 class TestDeadlineComAssinaturaParcial:
     def test_deadline_com_assinatura_parcial_finaliza(self, signers_clicksign, pdf_baixado):
-        """deadline após o sign da Ana: Pendências restantes nascem e a
-        Reunião vira ASSINADA (fechamento normal, ADR 0030 decisão 2)."""
+        """deadline após o sign da Ana: a Reunião vira ASSINADA (fechamento
+        normal, ADR 0030 decisão 2). O sign é só ciência (ADR 0098); a
+        finalização garante as Pendências que faltarem, idempotente."""
         signers_clicksign.extend(
             [
                 _signer("sk-fac", "fabio@hsm.com", assinou=False),
@@ -123,7 +124,7 @@ class TestDeadlineComAssinaturaParcial:
         sb = _sb()
         client = _client(sb)
         _post(client, _evento_sign("sk-ana", "ana@hsm.com"))
-        assert sorted(p["quadro_pos"] for p in _pendencias(sb)) == [0, 4]
+        assert _pendencias(sb) == []
 
         res = _post(client, _evento("deadline"))
 

@@ -1,11 +1,11 @@
-"""Espinha do nascimento incremental (issue #274, ADR 0030).
+"""A assinatura na ClickSign como ciencia da Ata (issue #274, ADR 0030; issue #1867, ADR 0098).
 
 Seam principal: POST /api/webhooks/clicksign com payloads oficiais da ClickSign
-(evento `sign`, snake_case). A assinatura de um signatario cria na hora so as
-Pendencias dele, plenas; a assinatura do Facilitador da Reuniao cria tambem as
-de responsaveis fora do Envelope. O aceite fica persistido em `reuniao_aceites`
-com origem `clicksign` e timestamp. Idempotencia por acao do quadro
-(`quadro_pos`) e numeracao `A###` protegida contra webhooks concorrentes.
+(evento `sign`, snake_case). Desde a ADR 0098 as Pendencias nascem no envio
+da Ata: a assinatura so registra a ciencia em `reuniao_aceites`, com origem
+`clicksign` e timestamp, e nao cria Pendencia. O fechamento do Envelope
+garante as Pendencias que faltarem (idempotente por `quadro_pos`), com a
+numeracao `A###` protegida contra insercoes concorrentes.
 
 ClickSign SEMPRE mockado (o .env de teste carrega credenciais reais).
 """
@@ -288,31 +288,23 @@ def _aceites(sb: _SupabaseMock) -> list[dict]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# CA: sign de um signatario cria na hora so as Pendencias dele, plenas
+# CA: sign de um signatario e so ciencia (ADR 0098): nao cria Pendencia
 # ═══════════════════════════════════════════════════════════════════════════
 
 
 class TestSignIndividual:
-    def test_sign_cria_so_as_pendencias_do_signatario(self):
+    @pytest.mark.parametrize(
+        ("signer_key", "email"), [("sk-ana", "ana@hsm.com"), ("sk-fac", "fabio@hsm.com")], ids=["ana", "facilitador"]
+    )
+    def test_sign_registra_ciencia_sem_criar_pendencia(self, signer_key, email):
+        """As Pendencias nasceram no envio (issue #1867): a assinatura, nem a
+        do Facilitador, cria Pendencia."""
         sb = _sb()
-        res = _post(_client(sb), _evento_sign("sk-ana", "ana@hsm.com", "Ana Lima"))
+        res = _post(_client(sb), _evento_sign(signer_key, email))
 
         assert res.status_code == 200
-        criadas = _pendencias(sb)
-        assert len(criadas) == 2  # posicoes 0 e 4 (as duas acoes da Ana)
-        assert all(p["responsavel_id"] == "P_ANA" for p in criadas)
-        assert sorted(p["quadro_pos"] for p in criadas) == [0, 4]
-
-    def test_pendencia_nasce_plena(self):
-        sb = _sb()
-        _post(_client(sb), _evento_sign("sk-ana", "ana@hsm.com", "Ana Lima"))
-
-        por_pos = {p["quadro_pos"]: p for p in _pendencias(sb)}
-        p0 = por_pos[0]
-        assert p0["status"] == "PENDENTE"
-        assert p0["prazo"] == "2026-09-01"
-        assert p0["descricao_acao"] == "Revisar protocolo"
-        assert p0["id_acao"].startswith("A")
+        assert _pendencias(sb) == []
+        assert len(_aceites(sb)) == 1
 
     def test_reuniao_nao_avanca_de_estado_no_sign(self):
         sb = _sb()
@@ -326,7 +318,6 @@ class TestSignIndividual:
         res = _post(client, _evento_sign("sk-ana", "ana@hsm.com"))
 
         assert res.status_code == 200
-        assert len(_pendencias(sb)) == 2
         assert len(_aceites(sb)) == 1
 
     def test_sign_sem_correlacao_nao_cria_nada(self):
@@ -367,22 +358,20 @@ class TestRegistroDeAceite:
         _post(client, _evento_sign("sk-ana", "ana.lima@outro.com"))
 
         assert len(_aceites(sb)) == 1
-        assert len(_pendencias(sb)) == 2
+        assert _aceites(sb)[0]["participante_id"] == "P_ANA"
 
     def test_fallback_por_email_normalizado_sem_signer_key(self):
         sb = _sb()
         res = _post(_client(sb), _evento_sign(None, "  BRUNO@hsm.com "))
 
         assert res.status_code == 200
-        criadas = _pendencias(sb)
-        assert len(criadas) == 1
-        assert criadas[0]["responsavel_id"] == "P_BRUNO"
+        assert _aceites(sb)[0]["participante_id"] == "P_BRUNO"
         assert _aceites(sb)[0]["email"] == "bruno@hsm.com"
 
     def test_redelivery_recorrelaciona_aceite_sem_participante(self):
         """Aceite gravado sem correlacao (email divergente na epoca) nao
         congela o signatario: apos corrigir o cadastro, o redelivery do sign
-        correlaciona, atualiza o aceite e cria as Pendencias."""
+        correlaciona e atualiza o aceite."""
         sb = _sb()
         # No primeiro evento, o cadastro da Ana tem email antigo (nao casa)
         for p in sb.tables["participantes"]:
@@ -390,7 +379,6 @@ class TestRegistroDeAceite:
                 p["email"] = "ana@antigo.com"
         client = _client(sb)
         _post(client, _evento_sign("sk-ana", "ana@hsm.com"))
-        assert _pendencias(sb) == []
         assert _aceites(sb)[0]["participante_id"] is None
 
         # Cadastro corrigido; ClickSign reenvia o mesmo evento
@@ -402,69 +390,10 @@ class TestRegistroDeAceite:
         assert res.status_code == 200
         assert len(_aceites(sb)) == 1
         assert _aceites(sb)[0]["participante_id"] == "P_ANA"
-        assert sorted(p["quadro_pos"] for p in _pendencias(sb)) == [0, 4]
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# CA: sign do Facilitador cria tambem as Pendencias de fora do Envelope
-# ═══════════════════════════════════════════════════════════════════════════
-
-
-class TestSignDoFacilitador:
-    def test_facilitador_libera_fora_do_envelope(self):
-        sb = _sb()
-        res = _post(_client(sb), _evento_sign("sk-fac", "fabio@hsm.com", "Fabio Facilitador"))
-
-        assert res.status_code == 200
-        criadas = _pendencias(sb)
-        # Carla (fora do Envelope, pos 2) + acao sem vinculo (pos 3)
-        assert sorted(p["quadro_pos"] for p in criadas) == [2, 3]
-        assert {p.get("responsavel_id") for p in criadas} == {"P_CARLA", None}
-
-    def test_sign_de_nao_facilitador_nao_libera_fora_do_envelope(self):
-        sb = _sb()
-        _post(_client(sb), _evento_sign("sk-bruno", "bruno@hsm.com"))
-
-        criadas = _pendencias(sb)
-        assert sorted(p["quadro_pos"] for p in criadas) == [1]
-
-    def test_membro_do_roster_sem_email_conta_como_fora_do_envelope(self):
-        """add_signer exige email: quem esta no roster sem email nunca assina,
-        entao a assinatura do Facilitador libera as Pendencias dele tambem."""
-        sb = _sb()
-        davi = {"id": "P_DAVI", "nome_completo": "Davi Externo", "email": None, "cargo": None, "setor": None}
-        sb.tables["participantes"].append({**davi, "ativo": True})
-        sb.tables["reuniao_participantes"].append({"id_reuniao": "R1", "participante_id": "P_DAVI"})
-        reuniao = sb.tables["reunioes"][0]
-        reuniao["json_ata"]["quadro_atribuicoes"].append(
-            {"acao": "Levantar orcamento", "responsavel": "Davi Externo", "responsavel_id": "P_DAVI", "prazo": None}
-        )
-
-        _post(_client(sb), _evento_sign("sk-fac", "fabio@hsm.com", "Fabio Facilitador"))
-
-        criadas = _pendencias(sb)
-        assert sorted(p["quadro_pos"] for p in criadas) == [2, 3, 5]
-        assert {p.get("responsavel_id") for p in criadas} == {"P_CARLA", None, "P_DAVI"}
-
-    def test_sem_facilitador_no_envelope_fora_fica_para_finalizacao(self):
-        sb = _sb()
-        # Facilitador sai do roster (nao e Signatario do Envelope)
-        sb.tables["reuniao_participantes"] = [
-            rp for rp in sb.tables["reuniao_participantes"] if rp["participante_id"] != "P_FAC"
-        ]
-        client = _client(sb)
-        _post(client, _evento_sign("sk-ana", "ana@hsm.com"))
-        _post(client, _evento_sign("sk-bruno", "bruno@hsm.com"))
-        assert sorted(p["quadro_pos"] for p in _pendencias(sb)) == [0, 1, 4]
-
-        # Finalizacao cria o resto (posicoes 2 e 3) sem duplicar nada
-        _post(client, _evento("auto_close"))
-        assert sorted(p["quadro_pos"] for p in _pendencias(sb)) == [0, 1, 2, 3, 4]
-        assert sb.tables["reunioes"][0]["status_ata"] == "ASSINADA"
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# CA: sem regressao nos caminhos atuais (fechamento total)
+# CA: o fechamento garante as Pendencias (rede de seguranca, idempotente)
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -516,14 +445,14 @@ class TestFechamentoIncremental:
                 {"id_acao": "A002", "id_reuniao": "R1", "status": "PENDENTE"},
             ]
         )
-        res = _post(_client(sb), _evento_sign("sk-ana", "ana@hsm.com"))
+        res = _post(_client(sb), _evento("auto_close"))
 
         assert res.status_code == 200
         assert len(_pendencias(sb)) == 2
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# CA: dois sign concorrentes nao duplicam Pendencia nem numeracao A###
+# CA: criacao concorrente nao duplica Pendencia nem numeracao A###
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -532,7 +461,12 @@ class TestConcorrencia:
         """Leitura defasada do ultimo A### colide no PK e o retry renumera."""
         sb = _sb()
         client = _client(sb)
-        _post(client, _evento_sign("sk-ana", "ana@hsm.com"))  # A001, A002
+        sb.tables["pendencias"].extend(
+            [
+                {"id_acao": "A001", "id_reuniao": "R0", "status": "PENDENTE", "quadro_pos": 0},
+                {"id_acao": "A002", "id_reuniao": "R0", "status": "PENDENTE", "quadro_pos": 1},
+            ]
+        )
 
         real = pendencia_service._get_last_id_num
         chamadas = {"n": 0}
@@ -544,11 +478,11 @@ class TestConcorrencia:
             return real(supabase)
 
         monkeypatch.setattr(pendencia_service, "_get_last_id_num", _defasado)
-        res = _post(client, _evento_sign("sk-bruno", "bruno@hsm.com"))
+        res = _post(client, _evento("auto_close"))
 
         assert res.status_code == 200
         ids = [p["id_acao"] for p in _pendencias(sb)]
-        assert len(ids) == len(set(ids)) == 3
+        assert len(ids) == len(set(ids)) == 7
         assert chamadas["n"] >= 2  # houve retry
 
     def test_corrida_na_mesma_acao_nao_duplica_pendencia(self):
@@ -577,11 +511,11 @@ class TestConcorrencia:
             )
 
         sb.antes_do_insert["pendencias"] = _outro_webhook_insere_antes
-        res = _post(client, _evento_sign("sk-ana", "ana@hsm.com"))
+        res = _post(client, _evento("auto_close"))
 
         assert res.status_code == 200
         criadas = _pendencias(sb)
-        assert sorted(p["quadro_pos"] for p in criadas) == [0, 4]  # nada duplicado
+        assert sorted(p["quadro_pos"] for p in criadas) == [0, 1, 2, 3, 4]  # nada duplicado
 
     def test_aceite_concorrente_nao_quebra_nem_duplica(self):
         """Outra transacao grava o mesmo aceite entre a leitura e o insert."""
@@ -606,7 +540,6 @@ class TestConcorrencia:
 
         assert res.status_code == 200
         assert len(_aceites(sb)) == 1
-        assert len(_pendencias(sb)) == 2  # as Pendencias da Ana nascem mesmo assim
 
 
 # ═══════════════════════════════════════════════════════════════════════════

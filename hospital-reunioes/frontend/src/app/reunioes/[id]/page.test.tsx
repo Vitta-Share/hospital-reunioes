@@ -273,7 +273,11 @@ describe("assinatura na reunião do Núcleo", () => {
       "fetch",
       vi.fn(async (url: string) => {
         if (url === "/api/reunioes/REU_TESTE") {
-          const corpo = { ...reuniao(status_ata, { modelo: do_nucleo ? "nsp_dez_blocos" : undefined }), do_nucleo };
+          const corpo = {
+            ...reuniao(status_ata, { modelo: do_nucleo ? "nsp_dez_blocos" : undefined }),
+            envelope_key_clicksign: "doc-key",
+            do_nucleo,
+          };
           return { ok: true, status: 200, json: async () => corpo } as unknown as Response;
         }
         return { ok: true, status: 200, json: async () => [] } as unknown as Response;
@@ -305,5 +309,53 @@ describe("assinatura na reunião do Núcleo", () => {
     montar();
     await esperarCarregar();
     expect(screen.queryByText("Ata Aprovada")).toBeNull();
+  });
+});
+
+// A Pendência nasce no envio (issue #1867): a Reunião já está aguardando
+// assinatura quando a ClickSign falha, e o Reenviar fica nesse estado.
+describe("falha da ClickSign depois do envio", () => {
+  function servir(extra: Record<string, unknown>) {
+    const chamadas: Array<{ url: string; method: string }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const method = init?.method ?? "GET";
+        chamadas.push({ url, method });
+        if (url === "/api/reunioes/REU_TESTE" && method === "GET") {
+          const corpo = { ...reuniao("AGUARDANDO_ASSINATURA", null), ...extra };
+          return { ok: true, status: 200, json: async () => corpo } as unknown as Response;
+        }
+        return { ok: true, status: 200, json: async () => ({}) } as unknown as Response;
+      }),
+    );
+    return chamadas;
+  }
+
+  it("sem Envelope e com a falha registrada, mostra o Reenviar e não o cartão de signatários", async () => {
+    const chamadas = servir({ falha_envio_assinatura: { passo: "criar_envelope", detalhe: "HTTP 500" } });
+    montar();
+
+    const botao = await screen.findByRole("button", { name: /Reenviar para assinatura/ });
+    expect(screen.getByText(/As pendências já foram criadas/)).toBeTruthy();
+    expect(screen.queryByTestId("cartao-signatarios")).toBeNull();
+
+    await act(async () => {
+      fireEvent.click(botao);
+    });
+    await waitFor(() =>
+      expect(chamadas.filter((c) => c.url === "/api/reunioes/REU_TESTE/aprovar" && c.method === "POST")).toHaveLength(1),
+    );
+  });
+
+  it("com o Envelope gravado, não mostra o Reenviar", async () => {
+    servir({
+      envelope_key_clicksign: "doc-key",
+      falha_envio_assinatura: { passo: "notificar_signatarios", detalhe: "x" },
+    });
+    montar();
+
+    expect(await screen.findByTestId("cartao-signatarios")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Reenviar para assinatura/ })).toBeNull();
   });
 });
