@@ -24,6 +24,8 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -47,7 +49,9 @@ from test_seguranca_do_paciente_notificacoes import (  # noqa: E402
     _pessoa,
 )
 
+from app.dependencies import get_current_user, get_supabase_client  # noqa: E402
 from app.limiter import limiter  # noqa: E402
+from app.routers import seguranca_do_paciente as nsp_router  # noqa: E402
 from app.services.seguranca_do_paciente import caso_grave, emails  # noqa: E402
 
 SP = ZoneInfo("America/Sao_Paulo")
@@ -198,6 +202,63 @@ def test_o_alerta_sai_sem_travessao_mesmo_com_setor_e_nome_que_tem(enviados):
             assert "—" not in envio[parte]
             assert "–" not in envio[parte]
     assert any("UTI" in e["texto"] and "Leste" in e["texto"] for e in enviados)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. O destaque no início do módulo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _inicio(banco: _Banco, pessoa: dict[str, Any]):
+    app = FastAPI()
+    app.state.limiter = limiter
+    app.include_router(nsp_router.router, prefix="/api")
+
+    async def _usuario() -> dict[str, Any]:
+        return {"id": pessoa["auth_user_id"], "email": pessoa["email"], "metadata": {}}
+
+    app.dependency_overrides[get_current_user] = _usuario
+    app.dependency_overrides[get_supabase_client] = lambda: banco
+    return TestClient(app).get("/api/nsp/inicio")
+
+
+def _tres_casos(banco: _Banco) -> str:
+    """Um grave que espera a triagem, um grave já classificado e um sem dano.
+    Devolve o protocolo do primeiro."""
+    cliente = _cliente(banco)
+    grave = cliente.post(PUBLICO, json={**GRAVE, "anonimo": True, "origem": "qr"}).json()["protocolo"]
+    cliente.post(PUBLICO, json={**GRAVE, "anonimo": True, "origem": "qr"})
+    cliente.post(PUBLICO, json={**ANONIMO, "origem": "qr"})
+    banco.notificacoes[1]["estado"] = "classificada"
+    return grave
+
+
+def test_o_inicio_do_modulo_destaca_o_caso_grave_que_espera_a_triagem(enviados):
+    banco = _banco()
+    protocolo = _tres_casos(banco)
+
+    resposta = _inicio(banco, PRESIDENTE)
+
+    assert resposta.status_code == 200, resposta.text
+    [destaque] = resposta.json()["casos_graves"]
+    assert destaque["protocolo"] == protocolo
+    assert destaque["setor"] == SETOR["nome"]
+    assert destaque["criado_em"]
+    assert RELATO_GRAVE not in resposta.text
+
+
+@pytest.mark.parametrize("pessoa", [DIRETOR, SO_REUNIOES], ids=["diretoria sem casos", "sem o Núcleo"])
+def test_quem_nao_abre_casos_nao_ve_o_destaque(pessoa, enviados):
+    banco = _banco()
+    _tres_casos(banco)
+
+    resposta = _inicio(banco, pessoa)
+
+    if resposta.status_code == 200:
+        assert resposta.json()["casos_graves"] == []
+    else:
+        assert resposta.status_code == 403
+    assert "NSP-" not in resposta.text
 
 
 # ═══════════════════════════════════════════════════════════════════════════

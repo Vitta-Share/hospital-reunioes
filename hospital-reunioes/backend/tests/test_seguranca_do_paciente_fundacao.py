@@ -79,6 +79,10 @@ class _Consulta:
         self._teto = n
         return self
 
+    def order(self, *_a, **_kw):
+        """Os casos graves do início (issue #1989); aqui não há nenhum."""
+        return self
+
     def execute(self):
         casam = [dict(linha) for linha in self._linhas if all(f(linha) for f in self._filtros)]
         return SimpleNamespace(data=casam[: self._teto] if self._teto is not None else casam)

@@ -28,6 +28,9 @@ from datetime import date, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
+import httpx
+from postgrest.exceptions import APIError
+
 from app.config import settings
 from app.dependencies import selecionar_participantes
 from app.services.ouvidoria_contato import email_utilizavel
@@ -46,6 +49,8 @@ _FUSO = ZoneInfo("America/Sao_Paulo")
 MODELO = "email_nsp_aviso.html"
 MARCO_DO_ALERTA = "caso_grave"
 MARCO_DA_CONFIRMACAO = "confirmacao_de_recebimento"
+# Quantos casos graves o início do módulo destaca, no máximo.
+TETO_DO_DESTAQUE = 20
 
 _CAMPOS_DO_CASO = "id, protocolo, setor_id, grave_ou_morte, anonimo, notificante_nome, notificante_contato"
 
@@ -204,6 +209,41 @@ def avisar_a_chegada(supabase, notificacao_id: str) -> tuple[list[dict], datetim
     except Exception as falha:  # noqa: BLE001 (o alerta já registrado segue para a entrega)
         logger.error("[Caso grave NSP] Confirmação de %s falhou: %s", caso["protocolo"], type(falha).__name__)
     return registros, agora
+
+
+def casos_graves_em_espera(supabase) -> list[dict]:
+    """O destaque do início do módulo: os casos graves ou com morte que ainda
+    esperam a triagem, do mais novo ao mais velho. Sem o relato.
+
+    A falha de leitura devolve a lista vazia: o início do módulo é a porta de
+    entrada (o gate da área pergunta a ele), e o destaque não pode fechá-la."""
+    try:
+        linhas = (
+            supabase.table("nsp_notificacoes")
+            .select("id, protocolo, setor_id, criado_em")
+            .eq("grave_ou_morte", True)
+            .eq("estado", "recebida")
+            .order("criado_em", desc=True)
+            .limit(TETO_DO_DESTAQUE)
+            .execute()
+            .data
+        ) or []
+        setor_ids = sorted({linha["setor_id"] for linha in linhas if linha.get("setor_id")})
+        setores = (
+            {
+                s["id"]: s["nome"]
+                for s in supabase.table("setores").select("id, nome").in_("id", setor_ids).execute().data
+            }
+            if setor_ids
+            else {}
+        )
+    except (APIError, httpx.HTTPError) as erro:
+        logger.error("[Caso grave NSP] Destaque do início ilegível: %s", type(erro).__name__)
+        return []
+    return [
+        {"protocolo": linha["protocolo"], "setor": setores.get(linha.get("setor_id")), "criado_em": linha["criado_em"]}
+        for linha in linhas
+    ]
 
 
 def entregar_os_avisos_da_chegada(supabase, registros: list[dict], agora: datetime) -> None:
