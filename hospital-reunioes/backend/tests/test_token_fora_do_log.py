@@ -107,6 +107,10 @@ PARAMS_SEM_SEGREDO = {
     # passa pelo portão do caso, que confere a designação da pessoa. O
     # protocolo, que é dado do caso, nunca vai no path (especificação, C6).
     "caso_id",
+    # Nome do item de configuração do Canal de Conduta (issue #1826), como
+    # `contato_dp`. Não é credencial: vem de uma lista fixa (`POR_CHAVE`), fora
+    # dela a rota responde 404, e salvar exige a coordenação vigente do Comitê.
+    "chave",
     "codigo",
     "comentario_id",
     # UUID da Conta de Contas médicas (issue #1121). Nao e credencial: o Guia

@@ -15,7 +15,8 @@ A base do sigilo e a tela Membros do Comitê:
 - o protocolo do caso é sorteado, sem ordem e sem contagem, para não revelar quantos casos existem. A numeração da Ouvidoria continua a mesma;
 - o código de acompanhamento é mostrado uma vez só a quem relatou, e o aplicativo guarda apenas uma marca dele, que não permite recuperar o código;
 - a lista dos casos e a abertura de um caso, para quem está designado. Cada abertura fica registrada com quem abriu, quando e o quê;
-- o canal está fechado: a página pública responde como se não existisse, até a abertura.
+- o canal está fechado: a página pública responde como se não existisse, até a abertura;
+- a tela Configurações, só da coordenação do Comitê, com os contatos e os textos que o canal mostra (veja abaixo).
 
 As telas do Comitê, em Comitê de Conduta:
 
@@ -31,6 +32,23 @@ A triagem e os ritos:
 - prazo vencido fica registrado para sempre: nenhum perfil apaga o registro, e prorrogar depois não o tira;
 - o rito Completo prorroga uma única vez, por mais 30 dias, com justificativa escrita, que fica guardada cifrada;
 - no Encaminhamento (assunto fora do canal), depois da conferência do segundo leitor, a coordenação confirma a resposta padrão num clique e o caso encerra como "Encaminhado". A resposta diz ao relator que o assunto não é tratado no canal, para onde ele deve ir e que assédio, ameaça ou retaliação viram um novo relato.
+
+## As configurações e os textos
+
+A coordenação do Comitê edita, na tela Configurações:
+
+- o contato do DP, mostrado a quem procura o canal por salário, contracheque ou escala;
+- a orientação do NSP, mostrada quando o assunto é segurança do paciente;
+- os três avisos do primeiro passo do relato;
+- os textos da página "Como este canal protege você", bloco a bloco;
+- o texto de consentimento lido no início de cada depoimento gravado;
+- o local padrão de guarda dos envelopes com os originais em papel.
+
+Cada vez que alguém salva um item, nasce uma versão nova, com quem salvou e quando. A anterior continua lá e pode ser consultada na mesma tela. Nenhum perfil apaga ou troca uma versão, e a própria base de dados recusa essa alteração. As páginas públicas mostram sempre a versão mais recente e sabem dizer qual versão mostraram, para ficar guardado o texto que cada pessoa leu ao relatar.
+
+Quem não é da coordenação do Comitê, o super admin inclusive, não abre a tela. Item que ninguém salvou ainda aparece como "Ainda não preenchido".
+
+Não existe e-mail do DP nas configurações: o encaminhamento ao DP não sai por e-mail, e a página só mostra o contato dele.
 
 ## A tela Membros
 
@@ -70,7 +88,7 @@ Quem não tem acesso recebe a mesma recusa, exista o caso ou não.
 
 ## O que ele ainda não faz
 
-O formulário público de relato, a página de acompanhamento, a sugestão do agente na triagem, a Rota Especial, as perguntas ao relator, os depoimentos, o voto, a ata, o dossiê e o Termo de Confidencialidade e Posse do membro chegam nas próximas entregas. Na apuração, o botão "ADICIONAR PESSOA A OUVIR" aparece bloqueado até os depoimentos chegarem. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ e Casos abrem pelo endereço do Comitê de Conduta. Por enquanto ninguém relata pelo Canal: os relatos continuam chegando pela Ouvidoria.
+O formulário público de relato, as páginas públicas que vão mostrar os textos das configurações, a página de acompanhamento, a sugestão do agente na triagem, a Rota Especial, as perguntas ao relator, os depoimentos, o voto, a ata, o dossiê e o Termo de Confidencialidade e Posse do membro chegam nas próximas entregas. Na apuração, o botão "ADICIONAR PESSOA A OUVIR" aparece bloqueado até os depoimentos chegarem. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. Por enquanto ninguém relata pelo Canal: os relatos continuam chegando pela Ouvidoria.
 
 ## O que já foi decidido
 
@@ -91,3 +109,5 @@ O formulário público de relato, a página de acompanhamento, a sugestão do ag
 - Pedido para tirar o prazo vencido de um caso: não existe; o vencido fica registrado mesmo depois da prorrogação.
 - Pedido para prorrogar de novo um caso do rito Completo, ou prorrogar um caso do rito Rápido: o rito Completo prorroga uma vez só, e os outros não prorrogam.
 - A coordenação que não consegue encerrar um Encaminhamento: costuma faltar a conferência do segundo leitor.
+- Pedido para apagar ou corrigir uma versão antiga de um texto: não existe; salva-se uma versão nova, e a antiga fica.
+- Pedido de um item novo nas configurações: entra por Demanda, porque a lista de itens é fixa.
