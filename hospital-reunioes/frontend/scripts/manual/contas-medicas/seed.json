@@ -172,6 +172,58 @@
       "total_lancado": 9870.0,
       "paginas_da_conta": 4,
       "linhas": []
+    },
+    "concluida": {
+      "numero_atendimento": "172404",
+      "paciente_rotulo": "Célia R.",
+      "idade_anos": 71,
+      "numero_conta": "72404",
+      "situacao": "CONCLUIDA",
+      "ordem_fila": 17240004,
+      "periodo_inicio": "2026-10-27",
+      "periodo_fim": "2026-11-01",
+      "total_lancado": 11240.0,
+      "nota_bruta": 94.0,
+      "valor_apontado": 42.3,
+      "contagens": { "itens": 47, "eventos": 102 },
+      "paginas_da_conta": 5,
+      "paginas_do_prontuario": 142,
+      "linhas": []
+    },
+    "concluida_com_pendencia": {
+      "numero_atendimento": "172405",
+      "paciente_rotulo": "Davi P.",
+      "idade_anos": 39,
+      "numero_conta": "72405",
+      "situacao": "CONCLUIDA_COM_PENDENCIA",
+      "ordem_fila": 17240005,
+      "periodo_inicio": "2026-10-29",
+      "periodo_fim": "2026-11-03",
+      "total_lancado": 5310.0,
+      "nota_bruta": 97.0,
+      "valor_apontado": 18.6,
+      "contagens": { "itens": 26, "eventos": 58 },
+      "paginas_da_conta": 3,
+      "paginas_do_prontuario": 88,
+      "linhas": []
+    },
+    "arquivada": {
+      "numero_atendimento": "172406",
+      "paciente_rotulo": "Elisa T.",
+      "idade_anos": 58,
+      "numero_conta": "72406",
+      "situacao": "CONCLUIDA",
+      "arquivada": true,
+      "ordem_fila": 17240006,
+      "periodo_inicio": "2026-10-02",
+      "periodo_fim": "2026-10-07",
+      "total_lancado": 8460.0,
+      "nota_bruta": 95.0,
+      "valor_apontado": 31.2,
+      "contagens": { "itens": 39, "eventos": 85 },
+      "paginas_da_conta": 4,
+      "paginas_do_prontuario": 117,
+      "linhas": []
     }
   }
 }
