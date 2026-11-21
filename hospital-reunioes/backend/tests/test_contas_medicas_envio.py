@@ -1305,9 +1305,36 @@ class TestKitDeConhecimento:
         texto = KIT.read_text(encoding="utf-8")
         secao = texto.split("## O envio e a fila", 1)[1].split("\n## ", 1)[0]
 
-        for trecho in ("a mesma Fila", "**Minhas**", "**Meus envios**", "quem enviou", "puxa"):
+        for trecho in ("a mesma Fila", "**Em análise**", "**Envios**", "quem enviou", "puxa"):
             assert trecho in secao, trecho
         assert "vê só as próprias" not in texto
+
+    def test_diz_a_esteira_a_lista_por_numero_e_paciente_e_o_pegar(self):
+        """Issue #1951: a Esteira com o número de cada etapa, a linha pelo
+        número e pelo rótulo, o "Continue de onde parou", o "Pegar" e as cores.
+        As abas antigas (Minhas, Meus envios) saem do texto."""
+        texto = KIT.read_text(encoding="utf-8")
+        secao = texto.split("## O envio e a fila", 1)[1].split("\n## ", 1)[0]
+
+        for trecho in (
+            "Esteira",
+            "número de cada uma",
+            "rótulo do paciente",
+            "cabeçalho da coluna",
+            "Continue de onde parou",
+            "itens feitos",
+            '"Pegar"',
+            "passa a ser de quem pega",
+            "neutra",
+            "azul",
+            "âmbar",
+            "vermelho só no Erro",
+            "O valor da conta não aparece na lista",
+            "ficou pronta e foi para a Fila",
+        ):
+            assert trecho in secao, trecho
+        for antigo in ("Meus envios", "aba Minhas", "Atendimento 31310 pronto"):
+            assert antigo not in texto, antigo
 
     def test_diz_que_cada_envio_e_um_cartao_com_os_quadrados_da_conta_e_do_prontuario(self):
         """Issue #1336: o cartão do envio, com um quadrado para cada arquivo."""

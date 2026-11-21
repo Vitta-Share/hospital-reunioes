@@ -1101,7 +1101,7 @@ describe("Analisar assim mesmo a conta parada por folha escaneada ilegível (iss
 });
 
 describe("cada bloco pela permissão de /contas-medicas/me", () => {
-  it("quem só envia vê o envio e Meus envios, e a tela nem pede a Fila", async () => {
+  it("quem só envia vê o envio e Envios, e a tela nem pede a Fila", async () => {
     permissoes = [ENVIAR];
     render(<ContasMedicasPage />);
 
@@ -1113,7 +1113,7 @@ describe("cada bloco pela permissão de /contas-medicas/me", () => {
     expect(chamadas.some((c) => c.url === "/api/contas-medicas/fila")).toBe(false);
   });
 
-  it("quem só analisa vê Fila, Minhas e Concluídas, sem o envio e sem Meus envios", async () => {
+  it("quem só analisa vê Fila, Em análise e Concluídas, sem o envio e sem Envios", async () => {
     permissoes = [ANALISAR];
     render(<ContasMedicasPage />);
 

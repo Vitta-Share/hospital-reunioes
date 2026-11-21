@@ -2997,7 +2997,8 @@ class TestEtapaDoProcessamento:
             "parte 3 de 7",
             "tentativa 2 de 3",
             "a cada 5 segundos",
-            "Atendimento 31310 pronto, foi para a Fila",
+            # Desde a issue #1951 o aviso diz o número e o rótulo, sem "Atendimento".
+            "31310 Antônia F. ficou pronta e foi para a Fila",
         ):
             assert trecho in texto, trecho
 
