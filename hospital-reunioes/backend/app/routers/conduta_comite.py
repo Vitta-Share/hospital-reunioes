@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field, field_validator
 from supabase import Client
 
 from app.dependencies import get_supabase_client
-from app.services.conduta import avisos, cifra, configuracoes, nota_ao_nucleo, triagem
+from app.services.conduta import avisos, cifra, configuracoes, impedimento, nota_ao_nucleo, triagem
 from app.services.conduta.acesso import CAMPOS_DA_LISTA, hoje_em_sao_paulo
 from app.services.conduta.portao import (
     INDISPONIVEL,
@@ -55,6 +55,10 @@ class Decisao(BaseModel):
 
 class Prorrogacao(BaseModel):
     justificativa: str = Field(default="", max_length=4000)
+
+
+class Impedimento(BaseModel):
+    motivo: str = Field(default="", max_length=40)
 
 
 def _indisponivel(erro: Exception) -> HTTPException:
@@ -194,6 +198,13 @@ async def enviar_nota_ao_nucleo(
 ) -> dict:
     """A coordenação envia ao Núcleo a nota escrita, e só ela (issue #1850)."""
     return _agir(nota_ao_nucleo.enviar_nota, supabase, aberto)
+
+
+@router.post("/casos/{caso_id}/impedimento")
+async def declarar_impedimento(
+    corpo: Impedimento, aberto: CasoAberto = Depends(portao_da_acao), supabase: Client = Depends(get_supabase_client)
+) -> dict:
+    return _agir(impedimento.declarar_impedimento, supabase, aberto, motivo=corpo.motivo)
 
 
 class NovaVersao(BaseModel):
