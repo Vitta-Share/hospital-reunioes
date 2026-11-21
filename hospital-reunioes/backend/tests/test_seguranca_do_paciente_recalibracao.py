@@ -12,7 +12,8 @@ Um bloco por critério de aceite do backend:
 3. a tela dos itens do Anexo F calcula o que tem dado nesta fase e marca o
    resto como "sem dados nesta fase";
 4. concluir a pendência exige uma das três decisões e grava quem decidiu e
-   quando.
+   quando;
+5. o kit de conhecimento diz o comportamento novo.
 
 O banco é o dublê em memória da tela de triagem. Nenhum dado de pessoa real.
 """
@@ -598,3 +599,26 @@ def test_quem_nao_confirma_triagem_nao_abre_a_recalibracao(pessoa):
 
     assert _cliente(banco, pessoa).get(TELA).json() == RECUSA
     assert _cliente(banco, pessoa).post(_decidir(30), json={"decisao": "manter"}).status_code == 403
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. O kit de conhecimento diz o comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_o_kit_diz_a_concordancia_a_pendencia_a_tela_e_as_tres_decisoes():
+    """O Assistente responde "quando o agente é recalibrado?" e "quem decide?"
+    pelo kit. Mutante: apagar o bloco da recalibração."""
+    from test_kit_conhecimento import _secao, _texto
+
+    no_ar = _secao(_texto("seguranca-do-paciente.md"), "O que já está no ar")
+    for termo in (
+        "Concordância do agente",
+        "subiu o grau de dano sugerido",
+        "aos 30 e aos 60 dias da primeira notificação registrada",
+        '"Recalibrar o agente do NSP", uma vez cada, sem e-mail',
+        "Sem dados nesta fase",
+        "manter o agente como está, ajustar o prompt e a base, ou ligar a aprovação em lote",
+        "gravada com o nome de quem decidiu e o dia",
+    ):
+        assert termo in no_ar, termo
