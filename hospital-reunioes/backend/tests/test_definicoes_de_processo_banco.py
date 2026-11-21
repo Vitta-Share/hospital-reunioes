@@ -1,6 +1,6 @@
-"""As Definições de processo num Postgres de verdade (issue #1875, migration 177).
+"""As Definições de processo num Postgres de verdade (issue #1875, migration 178).
 
-Usa o Postgres descartável de `test_pendencia_historico_banco.py`: aplica a 177
+Usa o Postgres descartável de `test_pendencia_historico_banco.py`: aplica a 178
 duas vezes (rodar de novo é inofensivo) e prova no banco que tirar da lista
 sem anotação é recusado, que a mesma linha da Ata não entra duas vezes e que
 só o backend lê a tabela.
@@ -18,8 +18,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from test_pendencia_historico_banco import ESQUEMA_ANTERIOR, _bin_do_postgres, _Postgres  # noqa: E402
 
-MIGRATION_177 = (
-    Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "177_definicoes_de_processo_do_setor.sql"
+MIGRATION_178 = (
+    Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "178_definicoes_de_processo_do_setor.sql"
 )
 ITEM = "'00000000-0000-0000-0000-000000000001'"
 
@@ -32,16 +32,16 @@ def banco():
             pytest.fail("O CI precisa do initdb para provar as Definições de processo no banco.")
         pytest.skip("Sem initdb nesta máquina.")
     pg = _Postgres(bindir)
-    pg.porta = "54177"
+    pg.porta = "54176"
     pg.subir()
     try:
         pg.ok(ESQUEMA_ANTERIOR)
         pg.ok("INSERT INTO reunioes (id_reuniao, json_ata) VALUES ('R9', '{}');")
         # O GRANT padrão do Supabase: toda tabela nova nasce aberta ao anon e ao
         # authenticated. Sem ele o `permission denied` viria de graça e o teste
-        # de acesso não provaria o REVOKE da 177.
+        # de acesso não provaria o REVOKE da 178.
         pg.ok("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated;")
-        sql = MIGRATION_177.read_text(encoding="utf-8")
+        sql = MIGRATION_178.read_text(encoding="utf-8")
         pg.ok(sql)
         pg.ok(sql)  # rodar duas vezes é inofensivo
         pg.ok(

@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 177: Definicoes de processo do setor (ADR 0098, decisao 9; issue #1875)
+-- Migration 178: Definicoes de processo do setor (ADR 0098, decisao 9; issue #1875)
 -- =====================================================
 -- A linha do tipo Processo do quadro da Ata entra, no envio, na lista do setor
 -- da Reuniao, com o trecho da Ata copiado (`trecho`, e o "para que" em
@@ -48,4 +48,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (177) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (178) ON CONFLICT (numero) DO NOTHING;
