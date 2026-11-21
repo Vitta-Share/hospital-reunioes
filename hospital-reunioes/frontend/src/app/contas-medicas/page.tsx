@@ -26,12 +26,18 @@
  * Desde a issue #1955 (ADR 0105) Em análise e Concluídas trazem as contas de
  * todas as faturistas, cada uma com quem está com ela, e o filtro "Todas" e
  * "Minhas" da barra recorta essas duas etapas pelas contas da pessoa.
+ *
+ * A busca da barra (issue #1956) vai ao servidor 300 ms depois da última
+ * tecla, a partir do segundo caractere. Com texto no campo, os resultados
+ * ocupam o lugar da Esteira e da lista; limpar o campo devolve a etapa que
+ * estava aberta.
  */
 
 import { type DragEvent, useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, Loader2, ReceiptText, Upload } from "lucide-react";
 
 import { BarraDeContas } from "@/components/contas-medicas/contas/BarraDeContas";
+import { CampoDaBusca, ResultadosDaBusca } from "@/components/contas-medicas/contas/BuscaDeContas";
 import { BarraDeTempos, CartaoDoEnvio } from "@/components/contas-medicas/contas/CartaoDoEnvio";
 import { ContinueDeOndeParou } from "@/components/contas-medicas/contas/ContinueDeOndeParou";
 import { Esteira } from "@/components/contas-medicas/contas/Esteira";
@@ -57,6 +63,12 @@ import {
   rotaDoDescarte,
   separarArquivos,
 } from "@/lib/contas-medicas/envio";
+import {
+  ESPERA_DA_BUSCA_MS,
+  MINIMO_DA_BUSCA,
+  type RespostaDaBusca,
+  rotaDaBusca,
+} from "@/lib/contas-medicas/busca";
 import {
   DICA_DO_ENVIAR,
   ETAPAS_DO_RECORTE,
@@ -173,6 +185,10 @@ export default function ContasMedicasPage() {
   const entradasDoArrasto = useRef(0);
   /** Os envios da leitura anterior: a conta Processando que sumiu ficou pronta. */
   const enviosAntes = useRef<ItemDaFila[] | null>(null);
+  /** O texto do campo de busca e a resposta da última busca (issue #1956). */
+  const [busca, setBusca] = useState("");
+  const [achadas, setAchadas] = useState<RespostaDaBusca | null>(null);
+  const [erroDaBusca, setErroDaBusca] = useState(false);
 
   /** Cada lista vem da rota da permissão dela; a que a pessoa não tem fica vazia. */
   const carregarFila = useCallback(async (tk: string, quem: Pode) => {
@@ -248,6 +264,27 @@ export default function ContasMedicasPage() {
     const relogio = setInterval(() => carregarFila(token, pode), intervalo);
     return () => clearInterval(relogio);
   }, [token, pode, intervalo, carregarFila]);
+
+  /** Busca 300 ms depois da última tecla; a resposta de um texto antigo é jogada fora. */
+  const termo = busca.trim();
+  useEffect(() => {
+    setAchadas(null);
+    setErroDaBusca(false);
+    if (!token || termo.length < MINIMO_DA_BUSCA) return;
+    let valendo = true;
+    const relogio = setTimeout(async () => {
+      try {
+        const resposta = await lerJson(rotaDaBusca(termo), token);
+        if (valendo) setAchadas(resposta);
+      } catch {
+        if (valendo) setErroDaBusca(true);
+      }
+    }, ESPERA_DA_BUSCA_MS);
+    return () => {
+      valendo = false;
+      clearTimeout(relogio);
+    };
+  }, [termo, token]);
 
   /** O aviso de que a conta foi para a Fila some sozinho depois de uns segundos. */
   useEffect(() => {
@@ -376,6 +413,7 @@ export default function ContasMedicasPage() {
       )}
 
       <BarraDeContas>
+        {pode?.analisar && <CampoDaBusca texto={busca} onMudar={setBusca} />}
         {pode?.analisar && <FiltroTodasMinhas valor={recorte} onMudar={setRecorte} />}
         {pode?.enviar && (
           <div className="flex max-w-xs flex-col items-end text-right">
@@ -455,7 +493,9 @@ export default function ContasMedicasPage() {
         <PainelDoProcessamento conta={contaDoPainel} token={token} onFechar={fecharOPainel} />
       )}
 
-      {!semListas && (
+      {termo && pode?.analisar ? (
+        <ResultadosDaBusca texto={busca} resposta={achadas} erro={erroDaBusca} />
+      ) : !semListas && (
         <div className="space-y-4">
           <Esteira etapas={etapas} aberta={etapa} contagem={contagemDa} onAbrir={setEtapa} />
 

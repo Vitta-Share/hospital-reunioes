@@ -16,13 +16,14 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 from supabase import Client
 
 from app.config import settings
 from app.dependencies import get_supabase_client, require_permissao_cm
 from app.limiter import limiter
+from app.services.contas_medicas.busca import MINIMO_DE_CARACTERES, buscar
 from app.services.contas_medicas.descarte import (
     ContaNaoEncontradaError,
     NaoDescartavelError,
@@ -371,6 +372,24 @@ async def ver_fila(
     listas = fila_da_pessoa(supabase, me)
     resposta = _itens(supabase, listas, ("fila", "minhas", "concluidas"))
     return resposta | {"contagem_minhas": listas["contagem_minhas"]}
+
+
+@router.get("/busca")
+@limiter.limit("120/minute")
+async def buscar_contas(
+    request: Request,
+    q: str = Query(min_length=MINIMO_DE_CARACTERES, max_length=60),
+    me: dict = Depends(_PODE_ANALISAR),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """A busca da tela de contas (issue #1956, ADR 0105, decisão 4): parte do
+    número do atendimento ou do rótulo do paciente, em todas as etapas, cada
+    conta com a etapa, com quem está e se a pessoa pode abrir o Guia dela."""
+    achadas = buscar(supabase, me, q)
+    itens = _itens(supabase, {**achadas, "contagem": None}, ("contas",))["contas"]
+    for item, conta in zip(itens, achadas["contas"], strict=True):
+        item |= {"etapa_da_esteira": conta["etapa_da_esteira"], "pode_abrir": conta["pode_abrir"]}
+    return {"todas": achadas["todas"], "contas": itens, "mais": achadas["mais"]}
 
 
 @router.get("/meus-envios")
