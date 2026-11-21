@@ -133,9 +133,26 @@ describe("dado de cidadão não fica gravado no aparelho (issue #483, ADR 0041)"
       "/api/aceite/",
       "/api/ouvidoria-setor/",
       "/api/ouvidoria/",
+      "/api/minhas-pendencias/",
       "/aceite/",
       "/ouvidoria-setor",
+      "/minhas-pendencias/",
     ]);
+  });
+});
+
+describe("o link pessoal das pendências não fica no aparelho (issue #1878)", () => {
+  it("o GET e a tela do link pessoal caem em NetworkOnly", () => {
+    // O token é a credencial de quem nunca entrou: gravar a resposta ou a
+    // casca no Cache Storage deixaria as pendências dela no aparelho.
+    for (const caminho of ["/api/minhas-pendencias/token-opaco-do-email", "/minhas-pendencias/token-opaco-do-email"]) {
+      expect(modulo.podeGuardarNoAparelho(caminho), caminho).toBe(false);
+      expect(regraQueVence(caminho), caminho).toBe(modulo.runtimeCaching[0]);
+    }
+  });
+
+  it("as pendências do app logado seguem como antes", () => {
+    expect(modulo.podeGuardarNoAparelho("/api/pendencias/stats")).toBe(true);
   });
 });
 
