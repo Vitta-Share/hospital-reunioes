@@ -19,6 +19,8 @@ import {
   screen,
   within,
 } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { CurrentParticipante } from "@/hooks/useCurrentParticipante";
@@ -421,13 +423,44 @@ describe("Sidebar com o item Segurança do Paciente", () => {
     ["super admin sem Acesso pleno", { access_profile: "super_admin", recursos_nsp: ["configuracao"] }],
     ["quem só tem papel nas Reuniões", { access_profile: "regular", recursos_nsp: [] }],
     ["quem ainda não tem a lista do servidor", { access_profile: "regular" }],
-  ] as const)("não aparece para %s", (_nome, papeis) => {
+    ["quem não tem papel em módulo nenhum", { access_profile: null, recursos_nsp: [] }],
+  ] as const)("para %s, o grupo aparece só com o botão Notificar incidente (issue #1987)", (_nome, papeis) => {
     const menu = entrar(papeis as Partial<CurrentParticipante>);
 
-    // Controle positivo: o menu montou, e o item é que não está nele.
-    expect(within(menu).getAllByRole("link").length).toBeGreaterThan(0);
-    expect(within(menu).queryByRole("button", { name: "Segurança do Paciente" })).toBeNull();
-    expect(hrefs(menu).filter((href) => href.startsWith("/seguranca-do-paciente"))).toEqual([]);
+    expect(within(menu).getByRole("button", { name: "Segurança do Paciente" })).toBeTruthy();
+    const doModulo = within(menu)
+      .getAllByRole("link")
+      .filter((link) => /^\/(seguranca-do-paciente|notificar)/.test(link.getAttribute("href") ?? ""));
+    expect(doModulo.map((link) => [link.textContent?.trim(), link.getAttribute("href")])).toEqual([
+      ["Notificar incidente", "/notificar/modulo"],
+    ]);
+    // Nem os itens Em breve: eles são do módulo, que a pessoa não abre.
+    expect(within(menu).queryByRole("button", { name: /^Comissões/ })).toBeNull();
+  });
+
+  it("o botão mora só no menu: nem o topo nem a barra inferior têm atalho (Ajuste do plano #2045)", () => {
+    for (const arquivo of ["Header.tsx", "BottomNav.tsx", "AppShell.tsx", "MobileDrawer.tsx"]) {
+      const fonte = readFileSync(join(__dirname, arquivo), "utf-8");
+      expect(fonte.length, arquivo).toBeGreaterThan(0);
+      expect(fonte, arquivo).not.toMatch(/notificar|Notificar incidente/);
+    }
+  });
+
+  it("quem abre o módulo também tem o botão Notificar incidente, primeiro no grupo", () => {
+    const menu = entrar({ access_profile: null, recursos_nsp: SEM_TERMO });
+
+    const doModulo = hrefs(menu).filter((href) => /^\/(seguranca-do-paciente|notificar)/.test(href));
+    expect(doModulo[0]).toBe("/notificar/modulo");
+  });
+
+  it("o item Notificações aparece para quem tem o recurso de casos, e só para ele", () => {
+    const comCasos = entrar({ access_profile: null, recursos_nsp: [...SEM_TERMO, "casos"] });
+    expect(hrefs(comCasos)).toContain("/seguranca-do-paciente/notificacoes");
+    cleanup();
+
+    const semCasos = entrar({ access_profile: null, recursos_nsp: SEM_TERMO });
+    expect(hrefs(semCasos)).toContain("/seguranca-do-paciente/membros");
+    expect(hrefs(semCasos)).not.toContain("/seguranca-do-paciente/notificacoes");
   });
 
   it.each([

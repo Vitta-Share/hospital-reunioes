@@ -25,6 +25,8 @@ import {
   ClipboardCheck,
   ShieldAlert,
   Landmark,
+  Siren,
+  Inbox,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -75,6 +77,9 @@ export type NavItem = {
 const HREF_DA_SEGURANCA_DO_PACIENTE = "/seguranca-do-paciente";
 const GRUPO_DA_SEGURANCA_DO_PACIENTE = "grupo:seguranca-do-paciente";
 const GRUPO_DO_NUCLEO = "grupo:seguranca-do-paciente/nucleo";
+// O botão "Notificar incidente" (issue #1987): fora de /seguranca-do-paciente
+// porque todo usuário logado o abre, mesmo sem acesso ao resto do módulo.
+const HREF_DE_NOTIFICAR = "/notificar/modulo";
 
 /**
  * O que a Diretoria quer que já apareça no menu, desabilitado (seção 14 da
@@ -116,7 +121,8 @@ export function Sidebar({
   const [preferenciaRecolhido, alternarRecolhido] = useMenuRecolhido();
   const recolhido = variant === "desktop" && preferenciaRecolhido;
   const isSec = isSecretaria(participante);
-  const dentroDaSegurancaDoPaciente = pathname.startsWith(HREF_DA_SEGURANCA_DO_PACIENTE);
+  const dentroDaSegurancaDoPaciente =
+    pathname.startsWith(HREF_DA_SEGURANCA_DO_PACIENTE) || pathname.startsWith(HREF_DE_NOTIFICAR);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({
     "/reunioes-metas": true,
     "/pendencias": pathname.startsWith("/pendencias"),
@@ -376,17 +382,35 @@ export function itensDoMenu(participante: CurrentParticipante | null): NavItem[]
   const contasMedicasItens: NavItem[] = temAcessoContasMedicas(participante)
     ? [{ href: "/contas-medicas", label: "Contas médicas", icon: ReceiptText }]
     : [];
-  // Segurança do Paciente (ADR 0095): quem entra o servidor diz; o super admin
-  // sem Acesso pleno não vê o item. As cinco telas da Fase 1 e os três itens
-  // "Em breve" já ficam aqui: as fatias seguintes só preenchem as páginas.
-  const segurancaDoPacienteItens: NavItem[] = temAcessoSegurancaDoPaciente(participante)
+  // Segurança do Paciente (ADR 0095): o grupo aparece para todo usuário logado,
+  // com o botão "Notificar incidente" (issue #1987, Ajuste do plano #2045).
+  // O resto do módulo, quem entra o servidor diz; o super admin sem Acesso
+  // pleno fica só com o botão. As telas da Fase 1 e os três itens "Em breve"
+  // já ficam aqui: as fatias seguintes só preenchem as páginas.
+  const notificarIncidente: NavItem = { href: HREF_DE_NOTIFICAR, label: "Notificar incidente", icon: Siren };
+  const notificacoesItem: NavItem[] = participante?.recursos_nsp?.includes("casos")
+    ? [{ href: `${HREF_DA_SEGURANCA_DO_PACIENTE}/notificacoes`, label: "Notificações", icon: Inbox }]
+    : [];
+  const segurancaDoPacienteItens: NavItem[] = !participante
+    ? []
+    : !temAcessoSegurancaDoPaciente(participante)
     ? [
         {
           href: GRUPO_DA_SEGURANCA_DO_PACIENTE,
           label: "Segurança do Paciente",
           icon: HeartPulse,
+          subItems: [notificarIncidente],
+        },
+      ]
+    : [
+        {
+          href: GRUPO_DA_SEGURANCA_DO_PACIENTE,
+          label: "Segurança do Paciente",
+          icon: HeartPulse,
           subItems: [
+            notificarIncidente,
             { href: HREF_DA_SEGURANCA_DO_PACIENTE, label: "Visão geral", icon: Home },
+            ...notificacoesItem,
             {
               href: `${HREF_DA_SEGURANCA_DO_PACIENTE}/reunioes`,
               label: "Reuniões",
@@ -414,8 +438,7 @@ export function itensDoMenu(participante: CurrentParticipante | null): NavItem[]
             ...ITENS_EM_BREVE_DO_NSP,
           ],
         },
-      ]
-    : [];
+      ];
 
   // Grupo colapsável que reúne todo o tema Reuniões (Dashboard, Calendário,
   // Pendências). "Metas" é só o rótulo, não há feature nova.

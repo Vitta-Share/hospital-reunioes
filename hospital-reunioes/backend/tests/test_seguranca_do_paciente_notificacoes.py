@@ -622,3 +622,44 @@ def test_as_rotas_sem_login_saem_do_log_sem_endereco():
 
     for rota in notificacoes_router.router.routes:
         assert limite_sem_ip.rota_sem_endereco({"endpoint": rota.endpoint}), rota.path
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. O texto do Produto no Kit de conhecimento diz o comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _secao_do_kit(titulo: str) -> str:
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = (CONHECIMENTO_DIR / "seguranca-do-paciente.md").read_text(encoding="utf-8")
+    partes = texto.split(f"## {titulo}\n", 1)
+    assert len(partes) == 2, f"a seção {titulo!r} sumiu do kit"
+    return partes[1].split("\n## ", 1)[0]
+
+
+class TestKitDeConhecimento:
+    def test_a_notificacao_esta_no_que_ja_esta_no_ar(self):
+        secao = _secao_do_kit("O que já está no ar")
+        for termo in (
+            "Notificar incidente",
+            "sem login",
+            "NSP-2026-0001",
+            "código de acompanhamento",
+            "Notificar não gera punição",
+            "página de acompanhamento",
+            "Notificações",
+            "Diretor Executivo",
+        ):
+            assert termo in secao, termo
+
+    def test_quem_ve_diz_que_todo_logado_tem_o_botao(self):
+        secao = _secao_do_kit("Quem vê")
+        assert "todo usuário logado" in secao
+        assert "Notificar incidente" in secao
+        assert "Os demais não veem o item." not in secao
+
+    def test_o_que_ainda_nao_faz_deixa_de_dizer_que_a_notificacao_e_da_segunda_fase(self):
+        secao = _secao_do_kit("O que ele ainda não faz")
+        assert "A notificação de incidente e a triagem são da segunda fase." not in secao
+        assert "triagem" in secao
