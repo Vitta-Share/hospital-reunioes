@@ -59,7 +59,7 @@ class TestCifraDoTexto:
         cifrado = cifra.cifrar_texto(RELATO)
         monkeypatch.setattr(settings, "conduta_chave_cifra", _chave())
 
-        with pytest.raises(cifra.CifraIndisponivel):
+        with pytest.raises(cifra.CifraIndisponivelError):
             cifra.decifrar_texto(cifrado)
 
     def test_o_arquivo_cifrado_volta_igual(self, com_chave):
@@ -72,14 +72,14 @@ class TestCifraDoTexto:
 
 class TestSemAChave:
     def test_sem_a_chave_o_modulo_recusa_gravar(self, sem_chave):
-        with pytest.raises(cifra.CifraIndisponivel):
+        with pytest.raises(cifra.CifraIndisponivelError):
             cifra.cifrar_texto(RELATO)
 
     def test_sem_a_chave_o_modulo_recusa_ler(self, com_chave, monkeypatch):
         cifrado = cifra.cifrar_texto(RELATO)
         monkeypatch.setattr(settings, "conduta_chave_cifra", "")
 
-        with pytest.raises(cifra.CifraIndisponivel):
+        with pytest.raises(cifra.CifraIndisponivelError):
             cifra.decifrar_texto(cifrado)
 
     @pytest.mark.parametrize("valor", ["", "curta", base64.b64encode(b"x" * 16).decode(), "não é base64!"])
@@ -87,7 +87,7 @@ class TestSemAChave:
         monkeypatch.setattr(settings, "conduta_chave_cifra", valor)
 
         assert cifra.chave_configurada() is False
-        with pytest.raises(cifra.CifraIndisponivel):
+        with pytest.raises(cifra.CifraIndisponivelError):
             cifra.cifrar_arquivo(b"audio")
 
     def test_o_app_inteiro_sobe_sem_a_chave(self, sem_chave):

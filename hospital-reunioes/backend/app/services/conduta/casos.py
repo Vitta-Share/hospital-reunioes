@@ -32,7 +32,7 @@ def registrar_caso(supabase, *, relato: str, categoria: str | None, rota: str = 
     """Grava o caso e a linha de recebimento na trilha. Devolve o id, o
     protocolo e o código de acompanhamento, que não fica guardado.
 
-    Sem a chave de cifra levanta `CifraIndisponivel` antes de gravar qualquer
+    Sem a chave de cifra levanta `CifraIndisponivelError` antes de gravar qualquer
     coisa."""
     relato_cifrado = cifra.cifrar_texto(relato)
     codigo = gerar_codigo()

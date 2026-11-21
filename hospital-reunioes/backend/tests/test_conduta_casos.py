@@ -53,7 +53,7 @@ class TestConteudoCifrado:
         monkeypatch.setattr(settings, "conduta_chave_cifra", "")
         banco = Banco()
 
-        with pytest.raises(cifra.CifraIndisponivel):
+        with pytest.raises(cifra.CifraIndisponivelError):
             casos.registrar_caso(banco, relato=RELATO, categoria="assedio_moral")
 
         assert banco.tabelas.get("conduta_casos", []) == []

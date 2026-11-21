@@ -5,7 +5,7 @@ base64, no Coolify). Cada cifra usa um nonce novo, então o mesmo relato gravado
 duas vezes não se repete no banco.
 
 Fail-closed: sem a chave, com a chave malformada ou com um texto que a chave
-não abre, tudo levanta `CifraIndisponivel`. Quem chama responde 503 e não grava
+não abre, tudo levanta `CifraIndisponivelError`. Quem chama responde 503 e não grava
 nem mostra nada. A chave é lida a cada chamada, para o resto do app subir sem
 ela e para a troca no Coolify valer no restart.
 
@@ -31,7 +31,7 @@ _BYTES_DA_CHAVE = 32
 _BYTES_DO_NONCE = 12
 
 
-class CifraIndisponivel(RuntimeError):
+class CifraIndisponivelError(RuntimeError):
     """O módulo não pode gravar nem ler conteúdo de caso agora."""
 
 
@@ -50,7 +50,7 @@ def chave_configurada() -> bool:
 def _aes() -> AESGCM:
     chave = _chave()
     if chave is None:
-        raise CifraIndisponivel("chave de cifra do Canal de Conduta ausente ou malformada")
+        raise CifraIndisponivelError("chave de cifra do Canal de Conduta ausente ou malformada")
     return AESGCM(chave)
 
 
@@ -65,7 +65,7 @@ def decifrar_arquivo(dados: bytes) -> bytes:
     try:
         return aes.decrypt(dados[:_BYTES_DO_NONCE], dados[_BYTES_DO_NONCE:], None)
     except (InvalidTag, ValueError) as erro:
-        raise CifraIndisponivel("conteúdo que esta chave não abre") from erro
+        raise CifraIndisponivelError("conteúdo que esta chave não abre") from erro
 
 
 def cifrar_texto(texto: str) -> str:
@@ -74,9 +74,9 @@ def cifrar_texto(texto: str) -> str:
 
 def decifrar_texto(cifrado: str) -> str:
     if not cifrado.startswith(_VERSAO):
-        raise CifraIndisponivel("texto sem a versão da cifra")
+        raise CifraIndisponivelError("texto sem a versão da cifra")
     try:
         dados = base64.b64decode(cifrado[len(_VERSAO) :], validate=True)
     except (binascii.Error, ValueError) as erro:
-        raise CifraIndisponivel("texto cifrado malformado") from erro
+        raise CifraIndisponivelError("texto cifrado malformado") from erro
     return decifrar_arquivo(dados).decode("utf-8")

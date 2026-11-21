@@ -1,0 +1,144 @@
+"""Quem abre um caso do Canal de Conduta (ADR 0097, decisão 4; especificação,
+regras C3 e C4 e seção 3.2).
+
+Ninguém vê caso por ter um cargo: vê porque está designado naquele caso. A
+Participação vigente no Comitê, como coordenação ou membro e com o Termo
+assinado, é a designação para os casos da fila comum. As outras (suplente
+convocado, apurador, CIPA, grupo da Rota Especial) são caso a caso, em
+`conduta_atribuicoes`, e valem com o Termo assinado: o da atribuição ou o da
+Participação vigente.
+
+Por cima de tudo: o Citado e o impedido não abrem o caso, em nenhum perfil. O
+super admin não entra na conta.
+
+A regra é `pode_abrir`, pura. As leituras do banco ficam ao lado.
+"""
+
+from __future__ import annotations
+
+from collections import defaultdict
+from dataclasses import dataclass
+from datetime import date, datetime
+from typing import Any
+from zoneinfo import ZoneInfo
+
+# O slug do Comitê na tabela `colegiados` (a migration 175 o cria).
+SLUG_DO_COMITE = "conduta"
+
+# Quem lê a fila comum pela Participação. O suplente só pela convocação.
+PAPEIS_DA_FILA_COMUM = ("coordenacao", "membro")
+
+# O que a lista mostra: metadados em claro, nunca o conteúdo cifrado.
+CAMPOS_DA_LISTA = ("id", "protocolo", "rota", "etapa", "categoria", "recebido_em", "prazo_em")
+
+
+@dataclass(frozen=True)
+class PessoaNoComite:
+    id: str
+    papel: str | None
+    termo_valido: bool
+
+    @property
+    def na_fila_comum(self) -> bool:
+        return self.papel in PAPEIS_DA_FILA_COMUM and self.termo_valido
+
+
+def hoje_em_sao_paulo() -> date:
+    return datetime.now(tz=ZoneInfo("America/Sao_Paulo")).date()
+
+
+def pode_abrir(caso: dict[str, Any], pessoa: PessoaNoComite, atribuicoes: list[dict], citado: bool) -> bool:
+    """`atribuicoes` são as da pessoa neste caso."""
+    if citado:
+        return False
+    if any(a.get("impedido_em") for a in atribuicoes):
+        return False
+    if any(a.get("revogada_em") is None and (a.get("termo_assinado_em") or pessoa.termo_valido) for a in atribuicoes):
+        return True
+    return caso.get("rota") == "comum" and pessoa.na_fila_comum
+
+
+def pessoa_no_comite(supabase, participante_id: str, hoje: date | None = None) -> PessoaNoComite:
+    hoje = hoje or hoje_em_sao_paulo()
+    comite = supabase.table("colegiados").select("id").eq("slug", SLUG_DO_COMITE).limit(1).execute().data or []
+    linhas = (
+        (
+            supabase.table("participacoes")
+            .select("papel, termo_assinado_em")
+            .eq("colegiado_id", comite[0]["id"])
+            .eq("participante_id", participante_id)
+            .lte("vigencia_inicio", hoje.isoformat())
+            .gte("vigencia_fim", hoje.isoformat())
+            .execute()
+            .data
+        )
+        if comite
+        else []
+    ) or []
+    # Termo válido primeiro, depois o papel que lê a fila comum.
+    melhor = min(
+        linhas,
+        key=lambda x: (not x.get("termo_assinado_em"), x.get("papel") not in PAPEIS_DA_FILA_COMUM),
+        default=None,
+    )
+    return PessoaNoComite(
+        id=participante_id,
+        papel=melhor.get("papel") if melhor else None,
+        termo_valido=bool(melhor and melhor.get("termo_assinado_em")),
+    )
+
+
+def _atribuicoes_e_citacoes(supabase, pessoa: PessoaNoComite) -> tuple[dict[str, list[dict]], set[str]]:
+    atribuicoes: dict[str, list[dict]] = defaultdict(list)
+    for linha in (
+        supabase.table("conduta_atribuicoes").select("*").eq("participante_id", pessoa.id).execute().data or []
+    ):
+        atribuicoes[linha["caso_id"]].append(linha)
+    citados = supabase.table("conduta_citados").select("caso_id").eq("participante_id", pessoa.id).execute().data
+    return atribuicoes, {linha["caso_id"] for linha in citados or []}
+
+
+def casos_da_pessoa(supabase, pessoa: PessoaNoComite) -> list[dict] | None:
+    """Os casos que a pessoa abre, só com os metadados da lista. `None` quando
+    ela não tem designação nenhuma no Canal: a rota responde 403."""
+    atribuicoes, citados = _atribuicoes_e_citacoes(supabase, pessoa)
+    atribuicao_valida = any(
+        a.get("revogada_em") is None and (a.get("termo_assinado_em") or pessoa.termo_valido)
+        for linhas in atribuicoes.values()
+        for a in linhas
+    )
+    if not pessoa.na_fila_comum and not atribuicao_valida:
+        return None
+    candidatos: dict[str, dict] = {}
+    if pessoa.na_fila_comum:
+        for caso in (
+            supabase.table("conduta_casos").select(", ".join(CAMPOS_DA_LISTA)).eq("rota", "comum").execute().data or []
+        ):
+            candidatos[caso["id"]] = caso
+    if atribuicoes:
+        for caso in (
+            supabase.table("conduta_casos")
+            .select(", ".join(CAMPOS_DA_LISTA))
+            .in_("id", list(atribuicoes))
+            .execute()
+            .data
+            or []
+        ):
+            candidatos[caso["id"]] = caso
+    abertos = [
+        {campo: caso.get(campo) for campo in CAMPOS_DA_LISTA}
+        for caso in candidatos.values()
+        if pode_abrir(caso, pessoa, atribuicoes.get(caso["id"], []), caso["id"] in citados)
+    ]
+    return sorted(abertos, key=lambda caso: str(caso.get("recebido_em") or ""), reverse=True)
+
+
+def caso_se_a_pessoa_abre(supabase, pessoa: PessoaNoComite, caso_id: str) -> dict | None:
+    """O caso inteiro (com o conteúdo cifrado) se a pessoa abre, senão None.
+    Caso que não existe e caso fechado para ela dão o mesmo None."""
+    linhas = supabase.table("conduta_casos").select("*").eq("id", caso_id).limit(1).execute().data or []
+    if not linhas:
+        return None
+    atribuicoes, citados = _atribuicoes_e_citacoes(supabase, pessoa)
+    caso = linhas[0]
+    return caso if pode_abrir(caso, pessoa, atribuicoes.get(caso_id, []), caso_id in citados) else None
