@@ -13,6 +13,9 @@
  * Todo teste de ausência tem irmão de presença no mesmo estado: afirmar que a
  * linha Validar não tem botão é vazio se nenhuma linha tivesse.
  */
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -233,6 +236,23 @@ describe("o cabeçalho da conta", () => {
     expect(dicaDe(screen.getByRole("button", { name: "Reanalisar" }))).toBe(
       "A conta volta para a análise com a memória e as tabelas de agora. As linhas já marcadas ficam como estão.",
     );
+  });
+
+  it("a dica de Devolver à fila e de Reanalisar abre para a esquerda, sem passar da borda direita", async () => {
+    // Os botões ficam colados na borda direita (`ml-auto`) e a raiz do Guia
+    // corta o que passa dela (`overflow-x-clip`): a dica presa pela esquerda
+    // do botão, com até 256 px, sairia cortada no fim de cada linha.
+    respostaDoGuia = guia({ pode_reanalisar: true });
+    await abrir();
+
+    for (const nome of ["Devolver à fila", "Reanalisar"]) {
+      const botao = screen.getByRole("button", { name: nome });
+      fireEvent.focus(botao);
+      const classes = screen.getByRole("tooltip").className.split(" ");
+      expect(classes).toContain("right-0");
+      expect(classes).not.toContain("left-0");
+      fireEvent.blur(botao);
+    }
   });
 
   it("pede o guia da conta da URL, com o token", async () => {
@@ -659,6 +679,43 @@ describe("o rodapé fixo", () => {
     await abrir(false);
     expect(screen.getByRole("button", { name: "Concluir e abrir a próxima" })).toBeTruthy();
     expect(screen.queryByText(/Você pode concluir com pendência/)).toBeNull();
+  });
+
+  it("fica fixo na rolagem da página: entre ele e o main do AppShell, nenhuma caixa rola", async () => {
+    // O `sticky` se prende à caixa de rolagem mais próxima. O `<main>` do
+    // AppShell tem `overflow-auto` e cresce com o conteúdo (quem rola é a
+    // página): sem a regra do `globals.css` que o desliga, o rodapé ficaria
+    // parado no fim da conta, depois da conversa com o Auditor.
+    const regrasDoMain = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8").match(
+      /^main[^{]*\{[^}]*\}/gm,
+    );
+    const estilo = document.createElement("style");
+    estilo.textContent = (regrasDoMain ?? []).join("\n");
+    document.head.appendChild(estilo);
+    try {
+      render(
+        <main className="flex-1 p-4 md:p-8 overflow-auto pb-[88px] md:pb-8">
+          <LegendasProvider chave="teste-legendas" ligadasIniciais>
+            <ToastProvider>
+              <GuiaPage />
+            </ToastProvider>
+          </LegendasProvider>
+        </main>,
+      );
+      await screen.findByRole("heading", { level: 1, name: "31245 Maria S." });
+
+      const main = document.querySelector("main") as HTMLElement;
+      expect(getComputedStyle(main).overflowY).toBe("visible");
+      expect(getComputedStyle(main).overflowX).toBe("clip");
+
+      const rodape = screen.getByRole("contentinfo");
+      expect(rodape.className).toMatch(/(^| )sticky( |$)/);
+      for (let caixa = rodape.parentElement; caixa && caixa !== main; caixa = caixa.parentElement) {
+        expect(caixa.className).not.toMatch(/(^| )overflow(-[xy])?-(auto|scroll|hidden)( |$)/);
+      }
+    } finally {
+      estilo.remove();
+    }
   });
 
   it("com um item só, a frase vai no singular; sem nenhum, diz que não falta nada", async () => {

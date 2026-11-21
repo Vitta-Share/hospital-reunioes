@@ -314,7 +314,7 @@ export default function GuiaPage() {
   const andamento = numeros.itens_total > 0 ? Math.round((100 * numeros.itens_feitos) / numeros.itens_total) : 0;
 
   return (
-    <div data-testid="guia" className="w-full min-w-0 overflow-x-clip space-y-4">
+    <div data-testid="guia" data-guia="" className="w-full min-w-0 overflow-x-clip space-y-4">
       <VoltarParaContas />
 
       <header className="space-y-1">
@@ -337,7 +337,7 @@ export default function GuiaPage() {
           )}
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {cabecalho.situacao === "EM_CORRECAO" && (
-              <Dica texto={DICA_DE_DEVOLVER}>
+              <Dica texto={DICA_DE_DEVOLVER} abrePara="esquerda">
                 <button type="button" onClick={devolver} disabled={ocupado} className={BOTAO_DO_TOPO}>
                   <Undo2 className="w-4 h-4" aria-hidden="true" />
                   Devolver à fila
@@ -345,7 +345,7 @@ export default function GuiaPage() {
               </Dica>
             )}
             {guia.pode_reanalisar && (
-              <Dica texto={DICA_DE_REANALISAR}>
+              <Dica texto={DICA_DE_REANALISAR} abrePara="esquerda">
                 <button type="button" onClick={reanalisar} disabled={ocupado} className={BOTAO_DO_TOPO}>
                   <RefreshCw className="w-4 h-4" aria-hidden="true" />
                   {guia.regra_nova_desde_analise ? "Reanalisar com a regra nova" : "Reanalisar"}
@@ -474,7 +474,7 @@ export default function GuiaPage() {
         escolha={escolhaDoFaltouIsto}
       />
 
-      <footer className="sticky bottom-0 z-10 bg-white rounded-2xl border border-border shadow-premium p-4 space-y-3">
+      <footer className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] md:bottom-0 z-10bg-white rounded-2xl border border-border shadow-premium p-4 space-y-3">
         {concluida ? (
           <>
             <p className="text-sm text-slate-600">Conta concluída. As marcações não mudam mais.</p>

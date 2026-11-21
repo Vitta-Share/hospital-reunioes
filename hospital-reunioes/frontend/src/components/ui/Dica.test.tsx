@@ -82,4 +82,22 @@ describe("a dica", () => {
 
     expect(screen.getByRole("tooltip").textContent).toBe(FRASE);
   });
+
+  it("abre para a direita do elemento; com abrePara esquerda, fica presa na borda direita dele (issue #1952)", () => {
+    fireEvent.focus(abrir());
+    const padrao = screen.getByRole("tooltip").className.split(" ");
+    expect(padrao).toContain("left-0");
+    expect(padrao).not.toContain("right-0");
+    cleanup();
+
+    render(
+      <Dica texto={FRASE} abrePara="esquerda">
+        <button type="button">Reanalisar</button>
+      </Dica>,
+    );
+    fireEvent.focus(screen.getByRole("button", { name: "Reanalisar" }));
+    const aEsquerda = screen.getByRole("tooltip").className.split(" ");
+    expect(aEsquerda).toContain("right-0");
+    expect(aEsquerda).not.toContain("left-0");
+  });
 });
