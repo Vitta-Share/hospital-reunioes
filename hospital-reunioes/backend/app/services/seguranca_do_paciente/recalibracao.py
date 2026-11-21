@@ -23,10 +23,12 @@ from datetime import date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
+import httpx
 from postgrest.exceptions import APIError
 
+from app.services.pendencia_ciclo import Comando
 from app.services.pendencia_service import criar_pendencia_sem_reuniao
-from app.services.seguranca_do_paciente import triagem
+from app.services.seguranca_do_paciente import agenda, triagem
 from app.services.seguranca_do_paciente.agente_de_triagem import BASE, PROMPT, versao
 from app.services.seguranca_do_paciente.permissao import PERFIL_ACESSO_PLENO
 
@@ -220,3 +222,99 @@ def lembrar(supabase, hoje: date) -> int:
         supabase.table(TABELA).update({"pendencias": ids}).eq("marco", marco).execute()
         criadas += len(ids)
     return criadas
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# A decisão da Diretoria
+# ═══════════════════════════════════════════════════════════════════════════
+
+# As três decisões da auditoria (Anexo F, seção 7), na ordem da tela.
+DECISOES = {
+    "manter": "Manter o agente como está",
+    "ajustar": "Ajustar o prompt e a base",
+    "ligar_lote": "Ligar a aprovação em lote",
+}
+
+
+class RecalibracaoRecusadaError(Exception):
+    """A decisão não pode ser gravada; a mensagem vai para a tela."""
+
+
+class DecisaoInvalidaError(RecalibracaoRecusadaError):
+    pass
+
+
+class MarcoNaoChegouError(RecalibracaoRecusadaError):
+    pass
+
+
+class JaDecididaError(RecalibracaoRecusadaError):
+    pass
+
+
+def decidir(supabase, marco: int, decisao: str | None, *, autor: dict[str, Any], agora: datetime) -> None:
+    """Grava a decisão do marco, quem decidiu e quando, e conclui as pendências
+    dele com a decisão na anotação. A decisão gravada não muda depois."""
+    if decisao not in DECISOES:
+        raise DecisaoInvalidaError("Escolha uma das três decisões: manter, ajustar ou ligar a aprovação em lote.")
+    linhas = supabase.table(TABELA).select("*").eq("marco", marco).limit(1).execute().data or []
+    if not linhas:
+        raise MarcoNaoChegouError("Esta recalibração ainda não chegou.")
+    if linhas[0].get("decisao"):
+        raise JaDecididaError("A decisão desta recalibração já foi registrada.")
+    gravadas = (
+        supabase.table(TABELA)
+        .update({"decisao": decisao, "decidido_por": autor["id"], "decidido_em": agora.isoformat()})
+        .eq("marco", marco)
+        .is_("decisao", "null")
+        .execute()
+        .data
+    )
+    if not gravadas:
+        raise JaDecididaError("A decisão desta recalibração já foi registrada.")
+    for id_acao in linhas[0].get("pendencias") or []:
+        try:
+            agenda._agir_no_lembrete(
+                supabase,
+                id_acao,
+                Comando.CONCLUIR,
+                anotacao=f"Decisão da recalibração: {DECISOES[decisao]}.",
+                autor_id=autor["id"],
+                autor_nome=autor.get("nome_completo"),
+            )
+        except (APIError, httpx.HTTPError) as erro:
+            # A decisão já está gravada; a pendência aberta se conclui à mão.
+            logger.warning("[Recalibração] Pendência %s não concluída: %s", id_acao, erro)
+
+
+def _nomes(supabase, ids: set[str]) -> dict[str, str]:
+    if not ids:
+        return {}
+    linhas = supabase.table("participantes").select("id, nome_completo").in_("id", sorted(ids)).execute().data or []
+    return {linha["id"]: linha.get("nome_completo") for linha in linhas}
+
+
+def recalibracoes(supabase) -> list[dict[str, Any]]:
+    """Os marcos que já chegaram, com a decisão, quem decidiu e quando."""
+    linhas = sorted(supabase.table(TABELA).select("*").execute().data or [], key=lambda linha: linha["marco"])
+    nomes = _nomes(supabase, {linha["decidido_por"] for linha in linhas if linha.get("decidido_por")})
+    return [
+        {
+            "marco": linha["marco"],
+            "devida_em": str(linha["devida_em"])[:10],
+            "decisao": linha.get("decisao"),
+            "decidido_por": nomes.get(linha.get("decidido_por")) if linha.get("decidido_por") else None,
+            "decidido_em": linha.get("decidido_em"),
+        }
+        for linha in linhas
+    ]
+
+
+def tela(supabase, hoje: date) -> dict[str, Any]:
+    """A tela da recalibração: os marcos, as decisões possíveis e os itens do
+    Anexo F."""
+    return {
+        "recalibracoes": recalibracoes(supabase),
+        "decisoes": [{"valor": valor, "rotulo": rotulo} for valor, rotulo in DECISOES.items()],
+        "itens": [],
+    }

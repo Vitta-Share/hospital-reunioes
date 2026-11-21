@@ -22,7 +22,7 @@ from __future__ import annotations
 import inspect
 import os
 import sys
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -345,3 +345,88 @@ def test_o_job_nao_fala_com_ia_nem_com_email():
     assert _marcas(inspect.getsource(scheduler.lembrar_recalibracao_do_agente)) == []
     assert "recalibracao.lembrar(" in inspect.getsource(scheduler.lembrar_recalibracao_do_agente)
     assert 'lembrar_recalibracao_do_agente,\n        "cron"' in inspect.getsource(scheduler.start_scheduler)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. Concluir exige uma das três decisões e grava quem decidiu e quando
+# ═══════════════════════════════════════════════════════════════════════════
+
+TELA = "/api/nsp/recalibracao"
+AGORA = datetime(2026, 11, 2, 13, 0, tzinfo=UTC)
+
+
+def _decidir(marco: int) -> str:
+    return f"/api/nsp/recalibracao/{marco}"
+
+
+def _com_o_marco_de_30() -> _BancoDaRecalibracao:
+    banco = _cenario_do_lembrete(OUTRO_PLENO)
+    recalibracao.lembrar(banco, TRINTA_DIAS)
+    return banco
+
+
+@pytest.mark.parametrize("decisao", ["manter", "ajustar", "ligar_lote"])
+def test_concluir_grava_a_decisao_quem_decidiu_e_quando_e_fecha_as_pendencias(decisao, monkeypatch):
+    banco = _com_o_marco_de_30()
+    monkeypatch.setattr(recalibracao_router, "agora_utc", lambda: AGORA)
+
+    resposta = _cliente(banco, DIRETOR_EXECUTIVO).post(_decidir(30), json={"decisao": decisao})
+
+    assert resposta.status_code == 200, resposta.text
+    linha = banco.recalibracoes[0]
+    assert (linha["decisao"], linha["decidido_por"], linha["decidido_em"]) == (
+        decisao,
+        "P5",
+        "2026-11-02T13:00:00+00:00",
+    )
+    assert [p["status"] for p in _recalibrar(banco)] == ["CONCLUIDO", "CONCLUIDO"]
+    marco = next(r for r in resposta.json()["recalibracoes"] if r["marco"] == 30)
+    assert marco["decidido_por"] == "Pessoa de Teste P5"
+
+
+@pytest.mark.parametrize("corpo", [{}, {"decisao": ""}, {"decisao": "desligar"}, {"decisao": None}])
+def test_concluir_sem_uma_das_tres_decisoes_e_recusado(corpo):
+    banco = _com_o_marco_de_30()
+
+    resposta = _cliente(banco, DIRETOR_EXECUTIVO).post(_decidir(30), json=corpo)
+
+    assert resposta.status_code == 422
+    assert banco.recalibracoes[0]["decisao"] is None
+    assert [p["status"] for p in _recalibrar(banco)] == ["PENDENTE", "PENDENTE"]
+
+
+def test_a_decisao_gravada_nao_muda_depois():
+    banco = _com_o_marco_de_30()
+    _cliente(banco, DIRETOR_EXECUTIVO).post(_decidir(30), json={"decisao": "manter"})
+
+    resposta = _cliente(banco, OUTRO_PLENO).post(_decidir(30), json={"decisao": "ligar_lote"})
+
+    assert resposta.status_code == 409
+    assert (banco.recalibracoes[0]["decisao"], banco.recalibracoes[0]["decidido_por"]) == ("manter", "P5")
+
+
+def test_o_marco_que_ainda_nao_chegou_nao_se_decide():
+    banco = _com_o_marco_de_30()
+
+    assert _cliente(banco, DIRETOR_EXECUTIVO).post(_decidir(60), json={"decisao": "manter"}).status_code == 404
+
+
+def test_a_presidencia_le_a_tela_mas_so_o_acesso_pleno_decide():
+    banco = _com_o_marco_de_30()
+
+    tela = _cliente(banco, PRESIDENTE).get(TELA)
+    resposta = _cliente(banco, PRESIDENTE).post(_decidir(30), json={"decisao": "manter"})
+
+    assert tela.status_code == 200, tela.text
+    assert tela.json()["pode_decidir"] is False
+    assert _cliente(banco, DIRETOR_EXECUTIVO).get(TELA).json()["pode_decidir"] is True
+    assert resposta.status_code == 403
+    assert banco.recalibracoes[0]["decisao"] is None
+
+
+@pytest.mark.parametrize("pessoa", [MEMBRO, SUPER_ADMIN])
+def test_quem_nao_confirma_triagem_nao_abre_a_recalibracao(pessoa):
+    banco = _com_o_marco_de_30()
+
+    assert _cliente(banco, pessoa).get(TELA).json() == RECUSA
+    assert _cliente(banco, pessoa).post(_decidir(30), json={"decisao": "manter"}).status_code == 403
