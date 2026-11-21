@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T16:10+0000 -->
+<!-- last_update: 2026-11-21T16:17+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2591,6 +2591,19 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `prazo_em` | `DATE` | NOT NULL | — | — |
 | `registrado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
 
+## conduta_configuracoes
+
+> Origem: `186_conduta_configuracoes_com_versao.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `chave` | `TEXT` | NOT NULL | — | — |
+| `versao` | `INTEGER` | NOT NULL | — | — |
+| `texto` | `TEXT` | NOT NULL | — | — |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
 ## nsp_categorias
 
 > Origem: `188_nsp_agente_de_triagem.sql`
@@ -2664,4 +2677,4 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ---
 
-**Resumo:** 131 tabelas vivas.
+**Resumo:** 132 tabelas vivas.
