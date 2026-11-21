@@ -39,6 +39,9 @@ dependencies = [
     # MCP só aceita RS256 e nunca decifra JWE, mas o pin trava a regressão.
     "pyjwt[crypto]>=2.10.0",
     "bcrypt>=4.2.0",
+    # A cifra do conteúdo do Canal de Conduta (ADR 0097, decisão 1): AES-GCM.
+    # Já vinha pelo `pyjwt[crypto]`; declarado porque o app passou a importar.
+    "cryptography>=46.0.0",
     "slowapi>=0.1.9",
     "resend>=2.0.0",
     "pdfplumber>=0.11.0",
