@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T16:45+0000 -->
+<!-- last_update: 2026-11-21T16:46+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2279,7 +2279,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## pendencia_historico
 
-> Origem: `169_ciclo_de_vida_da_pendencia.sql` (alterada em: 187_contestacao_do_item_da_ata.sql)
+> Origem: `169_ciclo_de_vida_da_pendencia.sql` (alterada em: 187_contestacao_do_item_da_ata.sql, 190_fluxo_continuo_vira_rotina.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2295,11 +2295,13 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
 | `responsavel_antes` | `TEXT` | — | — | — |
 | `responsavel_depois` | `TEXT` | — | — | — |
+| `rotina_id` | `UUID` | — | — | `rotinas.id` |
 
 **Indexes:**
 - `idx_pendencia_historico_acao` em `(id_acao, criado_em)` (de `169_ciclo_de_vida_da_pendencia.sql`)
 - `idx_pendencia_historico_repactuacao` em `(id_acao)` (de `169_ciclo_de_vida_da_pendencia.sql`)
 - `idx_pendencia_historico_contestacao` em `(id_acao, criado_em)` (de `187_contestacao_do_item_da_ata.sql`)
+- `idx_pendencia_historico_rotina` em `(rotina_id)` (de `190_fluxo_continuo_vira_rotina.sql`)
 
 ## pendencia_anexos
 

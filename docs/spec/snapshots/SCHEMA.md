@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T16:45+0000 -->
+<!-- last_update: 2026-11-21T16:46+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -199,6 +199,7 @@ erDiagram
     reunioes ||--o{ reunioes : "reagendada_de"
     reunioes ||--o{ rotinas : "id_reuniao"
     reunioes ||--o{ tokens_validacao : "id_reuniao"
+    rotinas ||--o{ pendencia_historico : "rotina_id"
     tecnologia_conversas ||--o{ tecnologia_anexos : "conversa_id"
     tecnologia_demandas ||--o{ tecnologia_anexos : "demanda_id"
     tecnologia_demandas ||--o{ tecnologia_chamadas_ia : "demanda_id"
@@ -1261,7 +1262,7 @@ erDiagram
         TEXT status_antes
         TEXT status_depois
         DATE prazo_antes
-        _ mais_colunas "+4"
+        _ mais_colunas "+5"
     }
     pendencia_anexos {
         BIGINT id PK
@@ -1649,6 +1650,7 @@ erDiagram
 | `pendencia_historico` | `idx_pendencia_historico_acao` | `id_acao, criado_em` | `169_ciclo_de_vida_da_pendencia.sql` |
 | `pendencia_historico` | `idx_pendencia_historico_repactuacao` | `id_acao` | `169_ciclo_de_vida_da_pendencia.sql` |
 | `pendencia_historico` | `idx_pendencia_historico_contestacao` | `id_acao, criado_em` | `187_contestacao_do_item_da_ata.sql` |
+| `pendencia_historico` | `idx_pendencia_historico_rotina` | `rotina_id` | `190_fluxo_continuo_vira_rotina.sql` |
 | `pendencia_anexos` | `idx_pendencia_anexos_acao` | `id_acao` | `174_anexo_da_conclusao_da_pendencia.sql` |
 | `nsp_notificacoes` | `idx_nsp_notificacoes_criado_em` | `criado_em DESC` | `174_nsp_notificacao_de_incidente.sql` |
 | `nsp_notificacoes` | `idx_nsp_notificacoes_setor` | `setor_id` | `174_nsp_notificacao_de_incidente.sql` |
@@ -1681,4 +1683,4 @@ erDiagram
 | `painel_fotografias` | `idx_painel_fotografias_semana` | `semana` | `189_fotografia_semanal_do_painel.sql` |
 
 ---
-**Resumo:** 133 tabelas · 200 relacionamentos FK detectados.
+**Resumo:** 133 tabelas · 201 relacionamentos FK detectados.
