@@ -42,6 +42,7 @@ from app.middleware.request_context import (  # noqa: E402
     JsonFormatter,
     RequestContextMiddleware,
     _e_canal_anonimo_da_ouvidoria,
+    _e_rota_do_canal_de_conduta,
 )
 
 _DOCKERFILE = Path(__file__).resolve().parents[1] / "Dockerfile"
@@ -706,13 +707,15 @@ class TestOCanalAnonimoEstaTodoCoberto:
     def test_toda_rota_sem_credencial_do_app_esta_classificada(self):
         """Camada 2, o app inteiro: pega a rota anônima montada em outro router.
 
-        Rota que qualquer um alcança sem apresentar nada tem que estar truncada
-        OU declarada aqui como sem anonimato a proteger. Rota nova fora das duas
-        listas fica vermelha, que é o ponto: a classificação é humana."""
+        Rota que qualquer um alcança sem apresentar nada tem que estar truncada,
+        sair sem IP (o Canal de Conduta, issue #1820) OU estar declarada aqui
+        como sem anonimato a proteger. Rota nova fora das três fica vermelha,
+        que é o ponto: a classificação é humana."""
         nao_classificadas = [
             operacao
             for operacao in self._operacoes_sem_credencial()
             if not _e_canal_anonimo_da_ouvidoria(operacao.split(" ", 1)[1])
+            and not _e_rota_do_canal_de_conduta(operacao.split(" ", 1)[1])
             and operacao not in SEM_ANONIMATO_A_PROTEGER
             and operacao not in SEM_ENDERECO_NO_LOG
         ]

@@ -48,6 +48,7 @@ ARQUIVO_POR_PRODUTO = {
     "Central de Comando": "central-de-comando.md",
     "Contas médicas": "contas-medicas.md",
     "Segurança do Paciente": "seguranca-do-paciente.md",
+    "Canal de Conduta": "canal-de-conduta.md",
 }
 
 # O arquivo que sobra nao e de Produto nenhum: e o da propria aba.
@@ -105,7 +106,7 @@ class TestUmArquivoPorProduto:
         """Piso de sanidade do proprio detector: se a regex parar de casar, a
         lista volta vazia e TODO teste parametrizado por ela some em silencio,
         verde, sem ter olhado para nada."""
-        assert len(_produtos_do_seed()) == 10
+        assert len(_produtos_do_seed()) == 11
 
     def test_o_mapa_cobre_exatamente_o_seed(self):
         """Mutante: acrescentar um Produto ao seed sem escrever o texto dele."""

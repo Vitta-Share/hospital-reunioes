@@ -10,10 +10,9 @@ nasce fechada sem depender de quem a escreve. O log das rotas do módulo sai
 sem IP (`app.middleware.request_context`).
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.config import settings
-from app.limiter import limiter
 
 
 def exigir_canal_aberto() -> None:
@@ -25,7 +24,6 @@ router = APIRouter(prefix="/conduta", tags=["canal-de-conduta-publico"], depende
 
 
 @router.get("/abertura")
-@limiter.limit("60/minute")
-async def abertura(request: Request) -> dict:
+async def abertura() -> dict:
     """Se o canal está aberto. Fechado, a rota nem aparece (404)."""
     return {"aberto": True}

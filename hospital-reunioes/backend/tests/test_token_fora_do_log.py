@@ -103,6 +103,10 @@ PARAMS_SEM_SEGREDO = {
     # UUID da Capacitação do Núcleo (issue #1778). Não é credencial: confirmar
     # a presença exige estar na lista da capacitação, e vale só para si.
     "capacitacao_id",
+    # UUID do caso do Canal de Conduta (issue #1820). Não é credencial: a rota
+    # passa pelo portão do caso, que confere a designação da pessoa. O
+    # protocolo, que é dado do caso, nunca vai no path (especificação, C6).
+    "caso_id",
     "codigo",
     "comentario_id",
     # UUID da Conta de Contas médicas (issue #1121). Nao e credencial: o Guia
