@@ -19,6 +19,7 @@ interpretacao, que e o que vai para o GitHub.
 """
 
 from datetime import datetime
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response, status
@@ -37,6 +38,7 @@ from app.services import (
     tecnologia_conversa,
     tecnologia_envio_aos_desenvolvedores,
     tecnologia_espelho,
+    tecnologia_perguntas,
 )
 from app.services.conhecimento import carregar_kit
 from app.services.github_client import FORMATO_DO_PROJETO, PROJETO_HOSPITAL
@@ -204,6 +206,63 @@ def escrever_pelo_terminal(
         pede_resposta_sobre=assunto if payload.pede_resposta else None,
     )
     return {"id": str(linha["id"]), "criado_em": linha.get("criado_em")}
+
+
+# ─── A Pergunta da Vitta (issue #2116, PRD #2112, ADR 0109) ──────────────────
+
+# Cada linha do cartao e uma frase em palavras simples (ADR 0109, decisao 3).
+LIMITE_DA_LINHA_DO_CARTAO = 500
+LIMITE_DA_OPCAO = 300
+
+
+class PerguntaDaVittaPayload(BaseModel):
+    """A Pergunta da Vitta: quem a manda (o login do GitHub, como na Mensagem
+    pelo terminal), o Destinatario, o Assunto, o texto, as quatro linhas do
+    cartao e, se houver, as opcoes com a letra da recomendada e o porque. O
+    que falta e recusado pelo servico, com o motivo em palavras; aqui so os
+    tetos de tamanho."""
+
+    github_login: str = Field(min_length=1, max_length=100)
+    destinatario_id: str | None = Field(default=None, max_length=10)
+    assunto: str | None = Field(default=None, max_length=LIMITE_DO_ASSUNTO)
+    texto: str | None = Field(default=None, max_length=LIMITE_DA_MENSAGEM)
+    por_que_precisa: str | None = Field(default=None, max_length=LIMITE_DA_LINHA_DO_CARTAO)
+    o_que_esta_parado: str | None = Field(default=None, max_length=LIMITE_DA_LINHA_DO_CARTAO)
+    o_que_anda_depois: str | None = Field(default=None, max_length=LIMITE_DA_LINHA_DO_CARTAO)
+    ganho: str | None = Field(default=None, max_length=LIMITE_DA_LINHA_DO_CARTAO)
+    opcoes: list[Annotated[str, Field(max_length=LIMITE_DA_OPCAO)]] = Field(
+        default_factory=list, max_length=len(tecnologia_perguntas.LETRAS)
+    )
+    recomendada: str | None = Field(default=None, max_length=1)
+    porque: str | None = Field(default=None, max_length=LIMITE_DA_LINHA_DO_CARTAO)
+
+
+@router.post("/demandas/{demanda_id}/perguntas", status_code=status.HTTP_201_CREATED)
+def criar_a_pergunta(demanda_id: UUID, payload: PerguntaDaVittaPayload, supabase=Depends(get_supabase_client)) -> dict:
+    """Cria a Pergunta da Vitta aberta na Demanda, com a entrada na Conversa,
+    a linha de sistema e o aviso so ao Destinatario. Falta de Destinatario
+    ativo, de Assunto, de texto ou de uma das quatro linhas e 422 com o
+    motivo, e nada fica gravado."""
+    autor = tecnologia_conversa.desenvolvedor_do_login(supabase, payload.github_login)
+    if autor is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=MOTIVO_LOGIN_RECUSADO)
+    demanda = _demanda_ou_404(supabase, id=str(demanda_id))
+    try:
+        pergunta = tecnologia_perguntas.criar(
+            supabase,
+            demanda,
+            autor=autor,
+            destinatario_id=payload.destinatario_id,
+            assunto=payload.assunto,
+            texto=payload.texto,
+            linhas={chave: getattr(payload, chave) for chave, _ in tecnologia_perguntas.LINHAS_DO_CARTAO},
+            opcoes=payload.opcoes,
+            recomendada=payload.recomendada,
+            porque=payload.porque,
+        )
+    except tecnologia_perguntas.PerguntaRecusadaError as recusa:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(recusa)) from recusa
+    return {"id": str(pergunta["id"]), "estado": pergunta["estado"], "criado_em": pergunta.get("criado_em")}
 
 
 @router.get("/demandas/{demanda_id}/conversa")
