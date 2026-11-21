@@ -16,14 +16,16 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac as hmac_lib
+import io
 import json
 import os
+import re
 import secrets
 import sys
 from datetime import timedelta
 from typing import Any
 
-import httpx
+import pdfplumber
 import pytest
 from conduta_apoio import Banco
 from fastapi import FastAPI
@@ -32,7 +34,13 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.config import settings  # noqa: E402
-from app.dependencies import get_current_user, get_supabase_client  # noqa: E402
+from app.dependencies import (  # noqa: E402
+    get_current_user,
+    get_supabase_client,
+    is_super_admin,
+    permissoes_contas_medicas,
+    tem_acesso_reunioes,
+)
 from app.limiter import limiter  # noqa: E402
 from app.routers import conduta_comite, conduta_convites, webhooks  # noqa: E402
 from app.services import auth_provisioning, clicksign_service  # noqa: E402
@@ -254,6 +262,12 @@ class _Cenario:
         return self.como(quem).post(f"{ROTA_DOS_CASOS}/{caso['id']}/convites", json=corpo)
 
 
+def _texto_do_pdf(pdf: bytes) -> str:
+    with pdfplumber.open(io.BytesIO(pdf)) as documento:
+        texto = "\n".join(pagina.extract_text() or "" for pagina in documento.pages)
+    return re.sub(r"\s+", " ", texto)
+
+
 def _assinar(cenario: _Cenario, documento_key: str):
     corpo = json.dumps({"event": {"name": "auto_close"}, "document": {"key": documento_key}}).encode()
     assinatura = hmac_lib.new(SEGREDO_DO_WEBHOOK.encode(), corpo, hashlib.sha256).hexdigest()
@@ -288,3 +302,219 @@ class TestQuemConvida:
         assert termo["caso_id"] == caso["id"]
         assert termo["signatarios"] == ["A1"]
         assert termo["situacao"] == "enviado"
+        assert resposta.json()["convites"] == [
+            {
+                "participante_id": "A1",
+                "nome": "Ana Apuradora",
+                "motivo": "apurador",
+                "papel": "Apurador designado",
+                "termo": "aguardando_assinatura",
+            }
+        ]
+        assert resposta.json()["aviso_termo"] is None
+
+    def test_o_grupo_especial_convida_o_membro_da_cipa_dentro_do_caso_dele(self, clicksign):
+        """Mutante: tirar o Grupo Especial de quem convida."""
+        cenario = _Cenario(APURADOR)
+        caso = cenario.caso(rota="especial")
+        cenario.no_grupo_especial(caso)
+
+        resposta = cenario.convidar("G1", caso, motivo="cipa")
+
+        assert resposta.status_code == 201, resposta.text
+        convidado = [a for a in cenario.tabela("conduta_atribuicoes") if a["motivo"] == "cipa"]
+        assert [(a["caso_id"], a["participante_id"]) for a in convidado] == [(caso["id"], "A1")]
+        assert [c[3] for c in clicksign.signatarios()] == ["ana.apuradora@hsm.com.br"]
+
+    def test_membro_que_nao_e_da_coordenacao_nao_convida(self, clicksign):
+        cenario = _Cenario(APURADOR)
+        caso = cenario.caso()
+
+        resposta = cenario.convidar("M1", caso)
+
+        assert resposta.status_code == 403, resposta.text
+        assert resposta.json()["detail"] == convites.SO_QUEM_CONVIDA
+        assert cenario.tabela("conduta_atribuicoes") == []
+        assert clicksign.chamadas == []
+
+    def test_a_coordenacao_nao_alcanca_o_caso_especial(self, clicksign):
+        cenario = _Cenario(APURADOR)
+        caso = cenario.caso(rota="especial")
+
+        resposta = cenario.convidar("C1", caso)
+
+        assert resposta.status_code == 403
+        assert resposta.json() == RECUSA
+        assert cenario.tabela("conduta_atribuicoes") == []
+
+    def test_a_tela_do_caso_diz_quem_pode_convidar(self):
+        cenario = _Cenario(APURADOR)
+        caso = cenario.caso()
+        rota = f"{ROTA_DOS_CASOS}/{caso['id']}/convites"
+
+        assert cenario.como("C1").get(rota).json() == {"pode_convidar": True, "convites": []}
+        assert cenario.como("M1").get(rota).json() == {"pode_convidar": False, "convites": []}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. Quem não tem login ganha um cadastro mínimo
+# ═══════════════════════════════════════════════════════════════════════════
+
+PERFIS_DE_MODULO = ("perfil_pop", "perfil_ouvidoria", "perfil_contas_medicas", "perfil_nsp", "perfil_conduta")
+
+
+class TestCadastroMinimo:
+    def test_pessoa_sem_cadastro_ganha_cadastro_minimo_com_login_e_sem_outro_modulo(self, logins):
+        """Mutante: o cadastro mínimo nascer com o perfil padrão das Reuniões."""
+        cenario = _Cenario()
+        caso = cenario.caso()
+
+        resposta = cenario.convidar("C1", caso, email="Nova.Pessoa@Fora.com.br", nome="Nova Pessoa")
+
+        assert resposta.status_code == 201, resposta.text
+        nova = cenario.pessoa("nova.pessoa@fora.com.br")
+        assert nova["nome_completo"] == "Nova Pessoa"
+        assert nova["auth_user_id"] == "auth-novo-1"
+        assert logins == [{"nome": "Nova Pessoa", "email": "nova.pessoa@fora.com.br", "role": "convidado_do_canal"}]
+        assert nova.get("access_profile", "regular") is None
+        assert nova.get("role") is None
+        assert nova.get("cargo") is None
+        assert nova.get("is_super_admin") is False
+        assert all(nova.get(perfil) is None for perfil in PERFIS_DE_MODULO)
+        [atribuicao] = cenario.tabela("conduta_atribuicoes")
+        assert atribuicao["participante_id"] == nova["id"]
+
+    def test_o_login_novo_nao_abre_outro_modulo(self):
+        """Os eixos de acesso dos outros módulos recusam o convidado."""
+        cenario = _Cenario()
+        caso = cenario.caso()
+        cenario.convidar("C1", caso, email="nova.pessoa@fora.com.br", nome="Nova Pessoa")
+        nova = cenario.pessoa("nova.pessoa@fora.com.br")
+
+        assert not tem_acesso_reunioes(nova)
+        assert not is_super_admin(nova)
+        assert permissoes_contas_medicas(cenario.banco, nova) == []
+
+    def test_pessoa_do_cadastro_sem_login_ganha_login_sem_papel_nas_reunioes(self, logins):
+        sem_login = _pessoa("X1", "Xavier", email="xavier@hsm.com.br", auth_user_id=None, access_profile="regular")
+        cenario = _Cenario(sem_login)
+        caso = cenario.caso()
+
+        resposta = cenario.convidar("C1", caso, email="xavier@hsm.com.br")
+
+        assert resposta.status_code == 201, resposta.text
+        xavier = cenario.pessoa("xavier@hsm.com.br")
+        assert xavier["id"] == "X1"
+        assert xavier["auth_user_id"] == "auth-novo-1"
+        assert not tem_acesso_reunioes(xavier)
+
+    def test_quem_ja_tem_login_nao_ganha_outro_nem_perde_o_que_tem(self, logins):
+        cenario = _Cenario(_pessoa("R1", email="regina@hsm.com.br", access_profile="regular"))
+        caso = cenario.caso()
+
+        resposta = cenario.convidar("C1", caso, email="regina@hsm.com.br")
+
+        assert resposta.status_code == 201, resposta.text
+        assert logins == []
+        assert cenario.pessoa("regina@hsm.com.br")["access_profile"] == "regular"
+
+    def test_sem_cadastro_e_sem_nome_o_convite_pede_o_nome(self, logins):
+        cenario = _Cenario()
+        caso = cenario.caso()
+
+        resposta = cenario.convidar("C1", caso, email="ninguem@fora.com.br")
+
+        assert resposta.status_code == 422
+        assert resposta.json()["detail"] == convites.SEM_NOME
+        assert logins == []
+        assert cenario.tabela("conduta_atribuicoes") == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. O termo assinado abre o caso, e só ele
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _convidado(cenario: _Cenario, caso: dict) -> dict:
+    """Convida a Ana para o caso e devolve a linha do termo dela."""
+    assert cenario.convidar("C1", caso).status_code == 201
+    [termo] = [a for a in cenario.tabela("conduta_assinaturas") if a["situacao"] == "enviado"]
+    return termo
+
+
+class TestTermoDoConvidado:
+    def test_antes_do_termo_assinado_o_convidado_recebe_403_ao_abrir_o_caso(self):
+        cenario = _Cenario(APURADOR)
+        caso = cenario.caso()
+        _convidado(cenario, caso)
+        cliente = cenario.como("A1")
+
+        assert cliente.get(f"{ROTA_DOS_CASOS}/{caso['id']}").json() == RECUSA
+        assert cliente.get(f"{ROTA_DOS_CASOS}/{caso['id']}").status_code == 403
+        assert cliente.get(ROTA_DOS_CASOS).status_code == 403
+
+    def test_com_o_termo_assinado_o_convidado_abre_so_aquele_caso(self):
+        """Mutante: o retorno da ClickSign não carimbar a atribuição do convidado."""
+        cenario = _Cenario(APURADOR)
+        caso = cenario.caso()
+        outro = cenario.caso()
+        termo = _convidado(cenario, caso)
+
+        assert _assinar(cenario, termo["documento_key"]).status_code == 200
+        cliente = cenario.como("A1")
+
+        aberto = cliente.get(f"{ROTA_DOS_CASOS}/{caso['id']}")
+        assert aberto.status_code == 200, aberto.text
+        assert aberto.json()["relato"] == RELATO
+        assert cliente.get(f"{ROTA_DOS_CASOS}/{outro['id']}").json() == RECUSA
+        assert [c["id"] for c in cliente.get(ROTA_DOS_CASOS).json()["casos"]] == [caso["id"]]
+        [convite] = cenario.como("C1").get(f"{ROTA_DOS_CASOS}/{caso['id']}/convites").json()["convites"]
+        assert convite["termo"] == "assinado"
+
+    def test_o_termo_nao_cita_o_protocolo_nem_o_caso(self, clicksign):
+        cenario = _Cenario(APURADOR)
+        caso = cenario.caso()
+        _convidado(cenario, caso)
+
+        texto = _texto_do_pdf(clicksign.documentos[0])
+        assert "Ana Apuradora" in texto
+        assert "Apurador designado" in texto
+        assert caso["protocolo"] not in texto
+        assert "manutenção" not in texto
+        assert not any(caso["protocolo"] in str(c) for c in clicksign.chamadas)
+
+    def test_convidar_de_novo_quem_nao_assinou_cancela_o_termo_aberto_e_manda_outro(self, clicksign):
+        cenario = _Cenario(APURADOR)
+        caso = cenario.caso()
+        _convidado(cenario, caso)
+
+        resposta = cenario.convidar("C1", caso)
+
+        assert resposta.status_code == 201, resposta.text
+        assert ("cancel_envelope", "env-1") in clicksign.chamadas
+        assert [a["situacao"] for a in cenario.tabela("conduta_assinaturas")] == ["cancelado", "enviado"]
+        assert len(cenario.tabela("conduta_atribuicoes")) == 1
+
+    def test_quem_ja_assinou_nao_e_convidado_de_novo(self):
+        cenario = _Cenario(APURADOR)
+        caso = cenario.caso()
+        _assinar(cenario, _convidado(cenario, caso)["documento_key"])
+
+        resposta = cenario.convidar("C1", caso)
+
+        assert resposta.status_code == 409
+        assert resposta.json()["detail"] == convites.JA_TEM_ACESSO
+
+    def test_quem_e_citado_no_caso_nao_recebe_o_convite(self, clicksign, emails):
+        """O convite contaria ao citado que existe um caso."""
+        cenario = _Cenario(APURADOR)
+        caso = cenario.caso()
+        cenario.banco.tabelas["conduta_citados"] = [{"caso_id": caso["id"], "participante_id": "A1"}]
+
+        resposta = cenario.convidar("C1", caso)
+
+        assert resposta.status_code == 409
+        assert resposta.json()["detail"] == convites.CITADA
+        assert cenario.tabela("conduta_atribuicoes") == []
+        assert clicksign.chamadas == []
+        assert emails == []
