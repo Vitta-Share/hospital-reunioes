@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 196: Avisos por e-mail do Canal de Conduta (PRD #1786; issue #1840)
+-- Migration 199: Avisos por e-mail do Canal de Conduta (PRD #1786; issue #1840)
 -- =====================================================
 -- Cada linha e um aviso a um membro do Comite: a tarefa nova num caso, ou o
 -- lembrete a cinco dias e a um dia do prazo. O e-mail nao leva nada do caso
@@ -39,10 +39,14 @@ COMMENT ON TABLE conduta_avisos IS
 CREATE INDEX IF NOT EXISTS idx_conduta_avisos_pendentes
   ON conduta_avisos (na_hora, criado_em) WHERE situacao = 'pendente';
 
+-- A rodada dos lembretes procura os casos abertos com prazo.
+CREATE INDEX IF NOT EXISTS idx_conduta_casos_abertos_prazo
+  ON conduta_casos (prazo_em) WHERE encerrado_em IS NULL;
+
 ALTER TABLE conduta_avisos ENABLE ROW LEVEL SECURITY;
 
 COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (196) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (199) ON CONFLICT (numero) DO NOTHING;
