@@ -137,11 +137,11 @@ beforeEach(() => {
     vi.fn(async (url: string, init?: RequestInit) => {
       chamadas.push({ url, init });
       // Cada rota devolve só as listas dela, como o backend (issue #1308).
-      const { todas, fila, minhas, meus_envios, concluidas, barra, contagem } = filaDoServidor;
+      const { todas, fila, minhas, meus_envios, concluidas, barra, contagem, contagem_minhas } = filaDoServidor;
       const { envios, ...daAnalise } = contagem ?? {};
       if (url === "/api/contas-medicas/fila" && aFilaFalha) return new Response("{}", { status: 500 });
       if (url === "/api/contas-medicas/fila")
-        return new Response(JSON.stringify({ todas, fila, minhas, concluidas, contagem: daAnalise }));
+        return new Response(JSON.stringify({ todas, fila, minhas, concluidas, contagem: daAnalise, contagem_minhas }));
       if (url === "/api/contas-medicas/meus-envios")
         return new Response(JSON.stringify({ todas, meus_envios, barra, contagem: { envios } }));
       if (url === "/api/contas-medicas/envios") return new Response(JSON.stringify(RESPOSTA_DO_ENVIO));
@@ -486,6 +486,166 @@ describe("Continue de onde parou (issue #1951)", () => {
     await linhas();
 
     expect(screen.queryByRole("region", { name: "Continue de onde parou" })).toBeNull();
+  });
+});
+
+/**
+ * A Esteira inteira (issue #1955, ADR 0105): a faturista vê as contas em
+ * análise e as concluídas de todas, cada uma com quem está com ela, e o filtro
+ * "Todas" e "Minhas" da barra recorta Em análise e Concluídas.
+ */
+const FILA_DE_TODAS: Fila = {
+  ...FILA,
+  minhas: [
+    conta({ id: "em-correcao", numero_atendimento: "31250", situacao: "EM_CORRECAO", com: "Faturista Inventada Um", minha: true }),
+    conta({ id: "da-colega", numero_atendimento: "31252", situacao: "EM_CORRECAO", com: "Faturista Inventada Dois" }),
+  ],
+  concluidas: [
+    conta({ id: "feita", numero_atendimento: "31200", situacao: "CONCLUIDA", com: "Faturista Inventada Um", minha: true }),
+    conta({ id: "feita-da-colega", numero_atendimento: "31201", situacao: "CONCLUIDA", com: "Faturista Inventada Dois" }),
+  ],
+  contagem: { envios: 4, fila: 2, em_analise: 2, concluidas: 130 },
+  contagem_minhas: { em_analise: 1, concluidas: 40 },
+};
+
+const CHAVE_DO_RECORTE = "contas-medicas:recorte";
+
+function recorte(): HTMLElement {
+  return screen.getByRole("group", { name: "Todas ou Minhas" });
+}
+
+function marcado(): string[] {
+  return within(recorte())
+    .getAllByRole("button")
+    .filter((b) => b.getAttribute("aria-pressed") === "true")
+    .map((b) => b.textContent ?? "");
+}
+
+function numeros(itens: HTMLElement[]): string[] {
+  return itens.map((li) => within(li).getByText(/^\d+$/).textContent ?? "");
+}
+
+describe("Todas e Minhas (issue #1955)", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    filaDoServidor = FILA_DE_TODAS;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    window.localStorage.clear();
+  });
+
+  it("o filtro fica na barra do topo, com Todas marcado quando não há escolha guardada", async () => {
+    render(<ContasMedicasPage />);
+    await linhas();
+
+    const barra = screen.getByRole("heading", { level: 1 }).closest("[data-barra]") as HTMLElement;
+    expect(barra.contains(recorte())).toBe(true);
+    expect(within(recorte()).getAllByRole("button").map((b) => b.textContent)).toEqual(["Todas", "Minhas"]);
+    expect(marcado()).toEqual(["Todas"]);
+  });
+
+  it("o filtro tem Legenda de uma frase, que some com as Legendas desligadas", async () => {
+    const frase = "Em Minhas, Em análise e Concluídas mostram só as contas que você pegou.";
+    render(<ContasMedicasPage />);
+    await linhas();
+    expect(screen.getByText(frase)).toBeTruthy();
+    cleanup();
+
+    render(comLegendas(false, <ContasMedicasPage />));
+    await linhas();
+    expect(screen.queryByText(frase)).toBeNull();
+  });
+
+  it("em Todas, Em análise e Concluídas trazem as contas de todas, com quem está cada uma", async () => {
+    render(<ContasMedicasPage />);
+    await linhas();
+
+    etapa(/^Em análise/);
+    const emAnalise = await linhas();
+    expect(numeros(emAnalise)).toEqual(["31250", "31252"]);
+    expect(emAnalise[1].textContent).toContain("com Faturista Inventada Dois");
+    etapa(/^Concluídas/);
+    expect(numeros(await linhas())).toEqual(["31200", "31201"]);
+  });
+
+  it("em Minhas, Em análise e Concluídas mostram só as da pessoa e a contagem acompanha; Fila e Envios não mudam", async () => {
+    render(<ContasMedicasPage />);
+    await linhas();
+
+    fireEvent.click(within(recorte()).getByRole("button", { name: "Minhas" }));
+
+    expect(marcado()).toEqual(["Minhas"]);
+    expect(within(esteira()).getAllByRole("tab").map((t) => t.textContent)).toEqual([
+      "Envios 4",
+      "Fila 2",
+      "Em análise 1",
+      "Concluídas 40",
+    ]);
+    expect(numeros(await linhas())).toEqual(["31245", "31246"]);
+    etapa(/^Em análise/);
+    expect(numeros(await linhas())).toEqual(["31250"]);
+    etapa(/^Concluídas/);
+    expect(numeros(await linhas())).toEqual(["31200"]);
+    etapa(/^Envios/);
+    expect(await linhas()).toHaveLength(4);
+  });
+
+  it("a escolha fica guardada no navegador e volta na próxima vez que a tela abre", async () => {
+    render(<ContasMedicasPage />);
+    await linhas();
+
+    fireEvent.click(within(recorte()).getByRole("button", { name: "Minhas" }));
+    expect(window.localStorage.getItem(CHAVE_DO_RECORTE)).toBe("minhas");
+    cleanup();
+
+    render(<ContasMedicasPage />);
+    await linhas();
+    await waitFor(() => expect(marcado()).toEqual(["Minhas"]));
+    etapa(/^Em análise/);
+    expect(numeros(await linhas())).toEqual(["31250"]);
+  });
+
+  it("a escolha guardada que não é Todas nem Minhas vale como Todas", async () => {
+    window.localStorage.setItem(CHAVE_DO_RECORTE, "outra-coisa");
+    render(<ContasMedicasPage />);
+    await linhas();
+
+    expect(marcado()).toEqual(["Todas"]);
+  });
+
+  it("com a leitura e a escrita do navegador falhando, a tela abre em Todas e o filtro segue funcionando", async () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("armazenamento bloqueado");
+    });
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("cota cheia");
+    });
+    render(<ContasMedicasPage />);
+    await linhas();
+
+    expect(marcado()).toEqual(["Todas"]);
+    fireEvent.click(within(recorte()).getByRole("button", { name: "Minhas" }));
+    expect(marcado()).toEqual(["Minhas"]);
+  });
+
+  it("a conta de outra faturista mostra o nome dela, sem ação de abrir, com a dica de com quem está", async () => {
+    render(<ContasMedicasPage />);
+    await linhas();
+
+    etapa(/^Em análise/);
+    const [, daColega] = await linhas();
+    expect(daColega.textContent).toContain("com Faturista Inventada Dois");
+    expect(within(daColega).queryByRole("link")).toBeNull();
+    fireEvent.focus(within(daColega).getByLabelText("Conta de outra faturista"));
+    expect((await within(daColega).findByRole("tooltip")).textContent).toBe(
+      "Esta conta está com Faturista Inventada Dois.",
+    );
+
+    etapa(/^Concluídas/);
+    const [, concluidaDaColega] = await linhas();
+    expect(within(concluidaDaColega).queryByRole("link")).toBeNull();
   });
 });
 

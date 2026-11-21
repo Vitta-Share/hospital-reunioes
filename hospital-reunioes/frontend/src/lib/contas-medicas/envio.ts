@@ -158,7 +158,7 @@ export interface ItemDaFila {
   previsao_inicio_em?: string | null;
   previsao_pronta_em?: string | null;
   demorando?: boolean;
-  /** Só para quem tem "painel completo": quem está com a conta (issue #1307). */
+  /** Quem está com a conta Em análise ou Concluída (issues #1307 e #1955). */
   com?: string | null;
   /** A conta é da própria pessoa (issue #1951): a ação dela fica sempre visível. */
   minha?: boolean;
@@ -188,8 +188,9 @@ export interface BarraDosEnvios {
 /**
  * A tela Contas (issue #1307, ADR 0073): a Fila comum das livres, "Minhas"
  * (as que a pessoa puxou e não concluiu), "Meus envios" (as que ela enviou e
- * não ficaram prontas) e as Concluídas. Com `todas`, a pessoa tem o painel
- * completo e as listas trazem as contas de todas.
+ * não ficaram prontas) e as Concluídas. "Minhas" e as Concluídas trazem as
+ * contas de todas as faturistas (issue #1955, ADR 0105); com `todas`, a pessoa
+ * tem o painel completo, abre a conta de qualquer uma e vê os envios de todos.
  */
 export interface Fila {
   todas: boolean;
@@ -201,6 +202,8 @@ export interface Fila {
   barra?: BarraDosEnvios | null;
   /** O número de cada etapa da Esteira (issue #1951). */
   contagem?: ContagemDaEsteira;
+  /** O número de Em análise e de Concluídas no filtro "Minhas" (issue #1955). */
+  contagem_minhas?: { em_analise?: number; concluidas?: number };
 }
 
 /** Os arquivos que sobem e os que ficam de fora, com a frase de cada um. */
