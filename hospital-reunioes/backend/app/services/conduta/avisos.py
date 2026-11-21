@@ -77,11 +77,8 @@ def _quem_abre(supabase, caso: dict, hoje: date) -> list[tuple[str, Olhar, list[
     """Cada pessoa que abre o caso, com o olhar dela (o mesmo da MINHA VEZ) e
     as atribuições dela no caso."""
     atribuicoes = supabase.table("conduta_atribuicoes").select("*").eq("caso_id", caso["id"]).execute().data or []
-    citados = {
-        linha.get("participante_id")
-        for linha in supabase.table("conduta_citados").select("participante_id").eq("caso_id", caso["id"]).execute().data
-        or []
-    }
+    citacoes = supabase.table("conduta_citados").select("participante_id").eq("caso_id", caso["id"]).execute()
+    citados = {linha.get("participante_id") for linha in citacoes.data or []}
     contestacao, votaram = None, set()
     if caso.get("etapa") == "contestada":
         linhas = supabase.table("conduta_contestacoes").select("*").eq("caso_id", caso["id"]).execute().data or []

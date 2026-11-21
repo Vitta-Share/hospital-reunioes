@@ -350,3 +350,110 @@ class TestQuemRelatou:
         assert "decifrar_texto" not in atributos
         assert not {"relato_cifrado", "codigo_hash"} & textos
         assert "CAMPOS_DA_LISTA" in importados
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. O job não chama IA
+# ═══════════════════════════════════════════════════════════════════════════
+
+# O que denuncia IA no código: os módulos do app que falam com provedor de
+# modelo e os SDKs.
+_MARCAS_DE_IA = ("ai_processor", "anthropic", "openai", "openrouter", "agente")
+
+
+def _marcas(codigo: str) -> list[str]:
+    return [marca for marca in _MARCAS_DE_IA if marca in codigo.lower()]
+
+
+class TestSemIa:
+    def test_o_detector_reconhece_um_modulo_que_chama_ia(self):
+        """Piso do detector: o módulo de IA do app tem marca."""
+        from app.services import ai_processor
+
+        assert _marcas(inspect.getsource(ai_processor))
+
+    def test_o_servico_dos_avisos_nao_fala_com_ia(self):
+        assert _marcas(inspect.getsource(avisos)) == []
+
+    def test_os_jobs_do_scheduler_so_chamam_o_servico(self):
+        from app.cron import scheduler
+
+        for job, chamada in (
+            (scheduler.avisar_na_hora_conduta, "avisos.despachar("),
+            (scheduler.rodada_de_avisos_conduta, "avisos.rodada_do_dia("),
+        ):
+            codigo = inspect.getsource(job)
+            assert _marcas(codigo) == []
+            assert chamada in codigo
+
+    def test_os_jobs_estao_registrados_de_minuto_em_minuto_e_uma_vez_por_dia(self):
+        from app.cron import scheduler
+
+        codigo = inspect.getsource(scheduler.start_scheduler)
+        assert 'avisar_na_hora_conduta,\n        "interval",\n        minutes=1,' in codigo
+        assert 'rodada_de_avisos_conduta,\n        "cron",\n        hour=8,' in codigo
+
+    def test_os_avisos_saem_com_o_provedor_de_ia_fora_do_ar(self, comite, emails, monkeypatch):
+        import anthropic
+
+        def _explode(*_a, **_kw):
+            raise AssertionError("o job dos avisos chamou IA")
+
+        monkeypatch.setattr(anthropic, "Anthropic", _explode)
+        monkeypatch.setattr(anthropic, "AsyncAnthropic", _explode)
+        _com_prazo(comite, 5)
+
+        assert avisos.rodada_do_dia(comite.banco, HOJE) == {"enviados": 1, "falhas": 0}
+
+    def test_os_jobs_leem_o_dia_em_sao_paulo_e_chamam_o_servico(self, monkeypatch):
+        from app.cron import scheduler
+
+        dia = HOJE + timedelta(days=3)
+        chamadas: list = []
+        monkeypatch.setattr(scheduler, "_supabase", lambda: "banco")
+        monkeypatch.setattr(scheduler, "_hoje_em_sao_paulo", lambda: dia)
+        monkeypatch.setattr(avisos, "despachar", lambda b, h, **kw: chamadas.append(("na_hora", b, h, kw)) or {})
+        monkeypatch.setattr(avisos, "rodada_do_dia", lambda b, h: chamadas.append(("dia", b, h, {})) or {})
+
+        scheduler.avisar_na_hora_conduta()
+        scheduler.rodada_de_avisos_conduta()
+
+        assert chamadas == [("na_hora", "banco", dia, {"so_na_hora": True}), ("dia", "banco", dia, {})]
+
+    def test_o_job_que_falha_nao_derruba_o_scheduler(self, monkeypatch):
+        from app.cron import scheduler
+
+        monkeypatch.setattr(scheduler, "_supabase", lambda: "banco")
+
+        def _explode(*_a, **_kw):
+            raise RuntimeError("banco fora do ar")
+
+        monkeypatch.setattr(avisos, "despachar", _explode)
+        monkeypatch.setattr(avisos, "rodada_do_dia", _explode)
+
+        scheduler.avisar_na_hora_conduta()
+        scheduler.rodada_de_avisos_conduta()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 7. O texto do Produto no kit de conhecimento diz o comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _secao_do_kit(titulo: str) -> str:
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = (CONHECIMENTO_DIR / "canal-de-conduta.md").read_text(encoding="utf-8")
+    partes = texto.split(f"## {titulo}\n", 1)
+    assert len(partes) == 2, f"a seção {titulo!r} sumiu do kit"
+    return partes[1].split("\n## ", 1)[0]
+
+
+class TestKitDeConhecimento:
+    def test_os_avisos_estao_no_que_ja_esta_no_ar(self):
+        secao = _secao_do_kit("O que já está no ar")
+        assert FRASE in secao
+        assert "MINHA VEZ" in secao
+        assert "cinco dias e a um dia do prazo" in secao
+        assert "rito Completo e a Rota Especial avisam na hora" in secao
+        assert "quem relatou não recebe aviso por nenhum meio" in secao
