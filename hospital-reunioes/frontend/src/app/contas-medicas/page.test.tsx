@@ -3,12 +3,14 @@
  */
 
 /**
- * A tela Contas de Contas médicas (issues #1114, #1123 e #1308, PRD #1113).
+ * A tela Contas de Contas médicas (issues #1114, #1123, #1308 e #1951, PRD
+ * #1113 e PRD #1933).
  *
- * A tela não decide nada: o servidor pareia, recusa e ordena. O que se trava
- * aqui é o que a faturista vê (a fila, as situações, o "Último envio"), o que
- * soltar os arquivos dispara (a rota e os arquivos no corpo) e que cada bloco
- * aparece pela permissão que `/contas-medicas/me` devolve.
+ * A tela não decide nada: o servidor pareia, recusa, ordena e conta. O que se
+ * trava aqui é o que a faturista vê (a Esteira, a lista, as situações, o
+ * "Último envio"), o que soltar os arquivos dispara (a rota e os arquivos no
+ * corpo) e que cada etapa aparece pela permissão que `/contas-medicas/me`
+ * devolve. Os nomes de paciente e de faturista dos dados são inventados.
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -52,8 +54,10 @@ const FILA: Fila = {
     conta({
       id: "a-fazer",
       numero_atendimento: "31245",
+      paciente_rotulo: "Fulana T.",
       numero_conta: "48811",
       situacao: "A_FAZER",
+      operadora: "ASSIM",
       nota_entrada: 74,
       valor_apontado: 584.6,
       itens_total: 9,
@@ -61,8 +65,16 @@ const FILA: Fila = {
     conta({ id: "a-fazer-2", numero_atendimento: "31246", situacao: "A_FAZER" }),
   ],
   minhas: [
-    conta({ id: "em-correcao", numero_atendimento: "31250", situacao: "EM_CORRECAO", itens_feitos: 3, itens_total: 5 }),
-    conta({ id: "retorno", numero_atendimento: "31251", situacao: "RETORNO" }),
+    conta({
+      id: "em-correcao",
+      numero_atendimento: "31250",
+      paciente_rotulo: "Beltrano Q.",
+      situacao: "EM_CORRECAO",
+      itens_feitos: 3,
+      itens_total: 5,
+      minha: true,
+    }),
+    conta({ id: "retorno", numero_atendimento: "31251", situacao: "RETORNO", minha: true }),
   ],
   meus_envios: [
     conta({ id: "na-fila", numero_atendimento: "31302", situacao: "NA_FILA" }),
@@ -71,8 +83,17 @@ const FILA: Fila = {
     conta({ id: "erro", numero_atendimento: "31260", situacao: "ERRO", erro_motivo: "Não consegui ler a conta inteira" }),
   ],
   concluidas: [
-    conta({ id: "feita", numero_atendimento: "31200", situacao: "CONCLUIDA_COM_PENDENCIA", nota_entrada: 80, pendencias: 2 }),
+    conta({
+      id: "feita",
+      numero_atendimento: "31200",
+      situacao: "CONCLUIDA_COM_PENDENCIA",
+      nota_entrada: 80,
+      pendencias: 2,
+      minha: true,
+    }),
   ],
+  // O número da Esteira vem do servidor: as Concluídas passam do teto da lista.
+  contagem: { envios: 4, fila: 2, em_analise: 2, concluidas: 130 },
 };
 
 const RESPOSTA_DO_ENVIO: RespostaDoEnvio = {
@@ -113,9 +134,12 @@ beforeEach(() => {
     vi.fn(async (url: string, init?: RequestInit) => {
       chamadas.push({ url, init });
       // Cada rota devolve só as listas dela, como o backend (issue #1308).
-      const { todas, fila, minhas, meus_envios, concluidas, barra } = filaDoServidor;
-      if (url === "/api/contas-medicas/fila") return new Response(JSON.stringify({ todas, fila, minhas, concluidas }));
-      if (url === "/api/contas-medicas/meus-envios") return new Response(JSON.stringify({ todas, meus_envios, barra }));
+      const { todas, fila, minhas, meus_envios, concluidas, barra, contagem } = filaDoServidor;
+      const { envios, ...daAnalise } = contagem ?? {};
+      if (url === "/api/contas-medicas/fila")
+        return new Response(JSON.stringify({ todas, fila, minhas, concluidas, contagem: daAnalise }));
+      if (url === "/api/contas-medicas/meus-envios")
+        return new Response(JSON.stringify({ todas, meus_envios, barra, contagem: { envios } }));
       if (url === "/api/contas-medicas/envios") return new Response(JSON.stringify(RESPOSTA_DO_ENVIO));
       if (url === "/api/contas-medicas/me") return new Response(JSON.stringify({ perfil: "faturista", permissoes }));
       if (url.endsWith("/descartar")) return respostaDoDescarte();
@@ -137,95 +161,222 @@ function pdf(nome: string): File {
 }
 
 async function linhas(): Promise<HTMLElement[]> {
-  const fila = await screen.findByRole("region", { name: "Fila de contas" });
-  await waitFor(() => expect(within(fila).getAllByRole("listitem").length).toBeGreaterThan(0));
-  return within(fila).getAllByRole("listitem");
+  const lista = await screen.findByRole("region", { name: "Lista de contas" });
+  await waitFor(() => expect(within(lista).getAllByRole("listitem").length).toBeGreaterThan(0));
+  return within(lista).getAllByRole("listitem");
 }
 
-function aba(nome: RegExp) {
-  fireEvent.click(screen.getByRole("tab", { name: nome }));
+function etapa(nome: RegExp) {
+  fireEvent.click(within(screen.getByRole("region", { name: "Esteira" })).getByRole("tab", { name: nome }));
 }
 
-describe("a fila comum", () => {
-  it("sem nenhuma conta livre, diz isso com todas as letras", async () => {
+function esteira(): HTMLElement {
+  return screen.getByRole("region", { name: "Esteira" });
+}
+
+describe("a Esteira (issue #1951)", () => {
+  it("mostra Envios, Fila, Em análise e Concluídas numa faixa só, cada uma com o número do servidor", async () => {
+    render(<ContasMedicasPage />);
+    await linhas();
+
+    const etapas = within(esteira()).getAllByRole("tab");
+    expect(etapas.map((t) => t.textContent)).toEqual(["Envios 4", "Fila 2", "Em análise 2", "Concluídas 130"]);
+    expect(within(esteira()).getAllByRole("tablist")).toHaveLength(1);
+  });
+
+  it("a faturista entra na Fila, marcada, com a Legenda dela; o clique troca a etapa, a lista e a Legenda", async () => {
+    render(<ContasMedicasPage />);
+    await linhas();
+    const marcada = () => within(esteira()).getAllByRole("tab").filter((t) => t.getAttribute("aria-selected") === "true");
+
+    expect(marcada().map((t) => t.textContent)).toEqual(["Fila 2"]);
+    expect(within(esteira()).getByText("As contas prontas que ninguém pegou, na ordem de envio.")).toBeTruthy();
+
+    etapa(/^Concluídas/);
+
+    expect(marcada().map((t) => t.textContent)).toEqual(["Concluídas 130"]);
+    expect(within(esteira()).getByText("As contas que a faturista já concluiu.")).toBeTruthy();
+    expect(within(esteira()).queryByText("As contas prontas que ninguém pegou, na ordem de envio.")).toBeNull();
+    const [feita] = await linhas();
+    expect(feita.textContent).toContain("31200");
+  });
+
+  it("a Legenda da etapa some com as Legendas desligadas", async () => {
+    render(comLegendas(false, <ContasMedicasPage />));
+    await linhas();
+
+    expect(within(esteira()).queryByText("As contas prontas que ninguém pegou, na ordem de envio.")).toBeNull();
+  });
+
+  it("cada etapa vazia diz isso com todas as letras", async () => {
     filaDoServidor = { todas: false, fila: [], minhas: [], meus_envios: [], concluidas: [] };
     render(<ContasMedicasPage />);
 
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Contas médicas");
-    const fila = await screen.findByRole("region", { name: "Fila de contas" });
-    await waitFor(() => expect(fila.textContent).toContain("Nenhuma conta livre na fila"));
-  });
-
-  it("as quatro abas trazem a contagem de cada lista", async () => {
-    render(<ContasMedicasPage />);
-    await linhas();
-
-    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual([
-      "Fila (2)",
-      "Minhas (2)",
-      "Meus envios (4)",
-      "Concluídas (1)",
+    const lista = await screen.findByRole("region", { name: "Lista de contas" });
+    await waitFor(() => expect(lista.textContent).toContain("Nenhuma conta livre na fila"));
+    expect(within(esteira()).getAllByRole("tab").map((t) => t.textContent)).toEqual([
+      "Envios 0",
+      "Fila 0",
+      "Em análise 0",
+      "Concluídas 0",
     ]);
-  });
-
-  it("a Fila mostra as livres pelo atendimento, na ordem do servidor, e Abrir puxa a conta pelo Guia", async () => {
-    render(<ContasMedicasPage />);
-
-    const itens = await linhas();
-    expect(itens.map((li) => within(li).getByText(/^Atendimento /).textContent)).toEqual([
-      "Atendimento 31245",
-      "Atendimento 31246",
-    ]);
-    expect(itens[0].textContent).toContain("conta 48811");
-    expect(itens[0].textContent).toContain("A fazer");
-    expect(itens[0].textContent).toContain("Nota 74, R$ 584,60, 0 de 9");
-    expect(within(itens[0]).getByRole("link", { name: "Abrir" }).getAttribute("href")).toBe(
-      "/contas-medicas/guia/a-fazer",
-    );
-  });
-
-  it("o Atendimento N de cada linha da lista sai em caixa alta, a pedido do diretor (PR #1411)", async () => {
-    render(<ContasMedicasPage />);
-
-    const itens = await linhas();
-    for (const item of itens) {
-      expect(within(item).getByText(/^Atendimento /).className.split(" ")).toContain("uppercase");
+    for (const [nome, frase] of [
+      [/^Envios/, "Nenhum envio esperando o guia"],
+      [/^Em análise/, "Nenhuma conta em análise"],
+      [/^Concluídas/, "Nenhuma conta concluída ainda"],
+    ] as const) {
+      etapa(nome);
+      expect(lista.textContent).toContain(frase);
     }
   });
+});
 
-  it("Minhas mostra as que a faturista puxou, com Continuar", async () => {
+describe("a lista de contas (issue #1951)", () => {
+  it("cada linha mostra o número em destaque com o rótulo do paciente ao lado, e Atendimento só no cabeçalho", async () => {
+    render(<ContasMedicasPage />);
+
+    const itens = await linhas();
+    const lista = screen.getByRole("region", { name: "Lista de contas" });
+    expect(itens.map((li) => within(li).getByText(/^\d+$/).textContent)).toEqual(["31245", "31246"]);
+    expect(within(itens[0]).getByText("Fulana T.")).toBeTruthy();
+    expect(within(itens[0]).getByText("31245").className.split(" ")).toContain("tabular-nums");
+    expect(lista.textContent?.match(/Atendimento/g)).toHaveLength(1);
+    for (const item of itens) expect(item.textContent).not.toMatch(/atendimento/i);
+  });
+
+  it("a linha traz operadora, período e andamento, na ordem do servidor e sem o valor da conta", async () => {
+    render(<ContasMedicasPage />);
+
+    const [primeira] = await linhas();
+    expect(primeira.textContent).toContain("ASSIM");
+    expect(primeira.textContent).toContain("01/10 a 05/10");
+    expect(primeira.textContent).toContain("A fazer");
+    expect(primeira.textContent).toContain("Nota 74, 0 de 9");
+    expect(primeira.textContent).not.toContain("R$");
+    expect(primeira.textContent).not.toContain("584,60");
+  });
+
+  it("a conta livre tem Pegar, que leva ao Guia e diz na dica que a conta passa a ser de quem pega", async () => {
+    render(<ContasMedicasPage />);
+
+    const [livre] = await linhas();
+    const pegar = within(livre).getByRole("link", { name: "Pegar" });
+    expect(pegar.getAttribute("href")).toBe("/contas-medicas/guia/a-fazer");
+    expect(within(livre).queryByRole("link", { name: "Abrir" })).toBeNull();
+
+    fireEvent.mouseEnter(pegar);
+
+    expect((await within(livre).findByRole("tooltip")).textContent).toBe("A conta passa a ser sua quando você pega.");
+  });
+
+  it("Em análise mostra as da pessoa com Continuar sempre visível", async () => {
     render(<ContasMedicasPage />);
     await linhas();
 
-    aba(/^Minhas/);
+    etapa(/^Em análise/);
 
     const itens = await linhas();
-    expect(itens.map((li) => within(li).getByText(/^Atendimento /).textContent)).toEqual([
-      "Atendimento 31250",
-      "Atendimento 31251",
-    ]);
-    expect(within(itens[0]).getByRole("link", { name: "Continuar" }).getAttribute("href")).toBe(
-      "/contas-medicas/guia/em-correcao",
-    );
+    expect(itens.map((li) => within(li).getByText(/^\d+$/).textContent)).toEqual(["31250", "31251"]);
+    const continuar = within(itens[0]).getByRole("link", { name: "Continuar" });
+    expect(continuar.getAttribute("href")).toBe("/contas-medicas/guia/em-correcao");
+    expect(continuar.closest("[data-acao]")?.getAttribute("data-acao")).toBe("principal");
     expect(itens[1].textContent).toContain("Retorno");
     expect(within(itens[1]).getByRole("link", { name: "Continuar" }).getAttribute("href")).toBe(
       "/contas-medicas/guia/retorno",
     );
   });
 
-  it("Meus envios mostra o que ainda não ficou pronto, e o erro traz o motivo com Enviar de novo", async () => {
+  it("a conta de outra faturista, que o painel completo vê, mostra Abrir só no hover e no foco", async () => {
+    filaDoServidor = {
+      ...FILA,
+      todas: true,
+      minhas: [
+        conta({ id: "da-colega", numero_atendimento: "31250", situacao: "EM_CORRECAO", com: "Faturista Inventada" }),
+        conta({ id: "minha", numero_atendimento: "31251", situacao: "EM_CORRECAO", com: "Coordenação Inventada", minha: true }),
+      ],
+    };
     render(<ContasMedicasPage />);
     await linhas();
 
-    aba(/^Meus envios/);
+    etapa(/^Em análise/);
+
+    const [daColega, minha] = await linhas();
+    expect(daColega.textContent).toContain("com Faturista Inventada");
+    const abrir = within(daColega).getByRole("link", { name: "Abrir" });
+    const lugar = abrir.closest("[data-acao]") as HTMLElement;
+    expect(lugar.getAttribute("data-acao")).toBe("secundaria");
+    expect(lugar.className.split(" ")).toEqual(
+      expect.arrayContaining(["md:opacity-0", "md:group-hover:opacity-100", "md:group-focus-within:opacity-100"]),
+    );
+    expect(within(minha).getByRole("link", { name: "Continuar" }).closest("[data-acao]")?.className ?? "").not.toContain(
+      "opacity-0",
+    );
+  });
+
+  it("a etiqueta de situação: livre neutra, em análise azul, concluída verde, com pendência âmbar, sem vermelho fora do Erro", async () => {
+    filaDoServidor = {
+      ...FILA,
+      fila: [conta({ id: "livre", numero_atendimento: "1", situacao: "A_FAZER" })],
+      minhas: [
+        conta({ id: "corrigindo", numero_atendimento: "2", situacao: "EM_CORRECAO", minha: true }),
+        conta({ id: "voltou", numero_atendimento: "3", situacao: "RETORNO", minha: true }),
+      ],
+      concluidas: [
+        conta({ id: "limpa", numero_atendimento: "4", situacao: "CONCLUIDA", minha: true }),
+        conta({ id: "pendente", numero_atendimento: "5", situacao: "CONCLUIDA_COM_PENDENCIA", minha: true }),
+      ],
+    };
+    render(<ContasMedicasPage />);
+    await linhas();
+    const tons: Record<string, string | null> = {};
+    for (const nome of [/^Fila/, /^Em análise/, /^Concluídas/]) {
+      etapa(nome);
+      for (const item of await linhas()) {
+        const numero = within(item).getByText(/^\d+$/).textContent ?? "";
+        tons[numero] = item.querySelector("[data-tom]")?.getAttribute("data-tom") ?? null;
+        expect(item.innerHTML).not.toMatch(/\bred-|FEE2E2/);
+      }
+    }
+
+    expect(tons).toEqual({ "1": "neutro", "2": "azul", "3": "azul", "4": "verde", "5": "ambar" });
+  });
+
+  it("na tela estreita a Esteira e as linhas quebram, sem largura fixa que force rolagem lateral", async () => {
+    render(<ContasMedicasPage />);
+    const itens = await linhas();
+
+    expect(within(esteira()).getByRole("tablist").className.split(" ")).toContain("flex-wrap");
+    for (const item of itens) {
+      const classes = item.className.split(" ");
+      expect(classes).toContain("flex-wrap");
+      expect(classes.filter((c) => /^(grid-cols|w-\[|min-w-\[)/.test(c))).toEqual([]);
+    }
+  });
+
+  it("quem tem o painel completo vê com quem está cada conta", async () => {
+    filaDoServidor = {
+      ...FILA,
+      todas: true,
+      minhas: [conta({ id: "da-ana", numero_atendimento: "31250", situacao: "EM_CORRECAO", com: "Faturista Inventada" })],
+    };
+    render(<ContasMedicasPage />);
+    await linhas();
+
+    etapa(/^Em análise/);
+
+    const [item] = await linhas();
+    expect(item.textContent).toContain("com Faturista Inventada");
+  });
+
+  it("Envios mostra o que ainda não ficou pronto, e o erro traz o motivo com Enviar de novo", async () => {
+    render(<ContasMedicasPage />);
+    await linhas();
+
+    etapa(/^Envios/);
 
     const itens = await linhas();
-    expect(itens.map((li) => within(li).getByText(/^Atendimento /).textContent)).toEqual([
-      "Atendimento 31302",
-      "Atendimento 31318",
-      "Atendimento 31310",
-      "Atendimento 31260",
-    ]);
+    expect(itens.map((li) => li.querySelector(".tabular-nums")?.textContent)).toEqual(["31302", "31318", "31310", "31260"]);
     expect(itens[0].textContent).toContain("Na fila");
     expect(itens[1].textContent).toContain("Falta o prontuário");
     expect(itens[2].textContent).toContain("Processando");
@@ -239,7 +390,7 @@ describe("a fila comum", () => {
     const abrir = vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(() => {});
     render(<ContasMedicasPage />);
     await linhas();
-    aba(/^Meus envios/);
+    etapa(/^Envios/);
     const itens = await linhas();
 
     fireEvent.click(within(itens[3]).getByRole("button", { name: "Enviar de novo" }));
@@ -248,38 +399,66 @@ describe("a fila comum", () => {
     abrir.mockRestore();
   });
 
-  it("a aba Concluídas mostra as concluídas, com as pendências", async () => {
+  it("Concluídas mostra as concluídas, com as pendências e Abrir", async () => {
     render(<ContasMedicasPage />);
     await linhas();
 
-    aba(/Concluídas/);
+    etapa(/^Concluídas/);
 
     const itens = await linhas();
     expect(itens).toHaveLength(1);
-    expect(itens[0].textContent).toContain("Atendimento 31200");
+    expect(itens[0].textContent).toContain("31200");
     expect(itens[0].textContent).toContain("Concluída com pendência");
     expect(itens[0].textContent).toContain("Nota 80, 2 pendências");
+    expect(within(itens[0]).getByRole("link", { name: "Abrir" }).getAttribute("href")).toBe("/contas-medicas/guia/feita");
+  });
+});
+
+describe("Continue de onde parou (issue #1951)", () => {
+  it("na Fila, as contas em análise da pessoa vêm antes da lista, com os itens feitos e Continuar", async () => {
+    render(<ContasMedicasPage />);
+    await linhas();
+
+    const bloco = screen.getByRole("region", { name: "Continue de onde parou" });
+    const itens = within(bloco).getAllByRole("listitem");
+    expect(itens).toHaveLength(2);
+    expect(itens[0].textContent).toContain("31250");
+    expect(itens[0].textContent).toContain("Beltrano Q.");
+    expect(itens[0].textContent).toContain("3 de 5 itens feitos");
+    expect(within(itens[0]).getByRole("link", { name: "Continuar" }).getAttribute("href")).toBe(
+      "/contas-medicas/guia/em-correcao",
+    );
+    const lista = screen.getByRole("region", { name: "Lista de contas" });
+    expect(bloco.compareDocumentPosition(lista) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("quem tem o painel completo vê com quem está cada conta", async () => {
+  it("traz só as da própria pessoa, e fica fora das outras etapas", async () => {
     filaDoServidor = {
       ...FILA,
       todas: true,
-      minhas: [conta({ id: "da-ana", numero_atendimento: "31250", situacao: "EM_CORRECAO", com: "Ana Faturista" })],
+      minhas: [
+        conta({ id: "da-colega", numero_atendimento: "31250", situacao: "EM_CORRECAO", com: "Faturista Inventada" }),
+        conta({ id: "minha", numero_atendimento: "31251", situacao: "RETORNO", minha: true }),
+      ],
     };
     render(<ContasMedicasPage />);
     await linhas();
 
-    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual([
-      "Fila (2)",
-      "Em análise (1)",
-      "Envios (4)",
-      "Concluídas (1)",
+    const bloco = screen.getByRole("region", { name: "Continue de onde parou" });
+    expect(within(bloco).getAllByRole("listitem").map((li) => li.querySelector(".tabular-nums")?.textContent)).toEqual([
+      "31251",
     ]);
-    aba(/^Em análise/);
 
-    const [item] = await linhas();
-    expect(item.textContent).toContain("com Ana Faturista");
+    etapa(/^Em análise/);
+    expect(screen.queryByRole("region", { name: "Continue de onde parou" })).toBeNull();
+  });
+
+  it("sem conta em análise da pessoa, o bloco não aparece", async () => {
+    filaDoServidor = { ...FILA, minhas: [] };
+    render(<ContasMedicasPage />);
+    await linhas();
+
+    expect(screen.queryByRole("region", { name: "Continue de onde parou" })).toBeNull();
   });
 });
 
@@ -311,7 +490,7 @@ describe("o cartão do envio (issue #1336)", () => {
     filaDoServidor = { ...FILA, meus_envios: ENVIOS };
     render(<ContasMedicasPage />);
     await linhas();
-    aba(/^Meus envios/);
+    etapa(/^Envios/);
     return linhas();
   }
 
@@ -328,12 +507,19 @@ describe("o cartão do envio (issue #1336)", () => {
     }
   });
 
-  it("o Atendimento N de cada cartão sai em caixa alta, a pedido do diretor (PR #1411)", async () => {
-    const itens = await cartoes();
+  it("o topo do cartão mostra o número e o rótulo do paciente, sem a palavra Atendimento (issue #1951)", async () => {
+    filaDoServidor = {
+      ...FILA,
+      meus_envios: [conta({ id: "com-nome", numero_atendimento: "31302", paciente_rotulo: "Sicrana Z." })],
+    };
+    render(<ContasMedicasPage />);
+    await linhas();
+    etapa(/^Envios/);
 
-    for (const cartao of itens) {
-      expect(within(cartao).getByText(/^Atendimento /).className.split(" ")).toContain("uppercase");
-    }
+    const [cartao] = await linhas();
+    const topo = within(cartao).getByRole("button", { name: /^31302/ });
+    expect(topo.textContent).toBe("31302Sicrana Z.");
+    expect(cartao.textContent).not.toMatch(/atendimento/i);
   });
 
   it("o arquivo que chegou fica verde, com o número e o período da conta e as páginas do prontuário", async () => {
@@ -410,8 +596,8 @@ describe("o cartão do envio (issue #1336)", () => {
     render(<ContasMedicasPage />);
     await linhas();
 
-    for (const nome of [/^Fila/, /^Minhas/, /Concluídas/]) {
-      aba(nome);
+    for (const nome of [/^Fila/, /^Em análise/, /^Concluídas/]) {
+      etapa(nome);
       const itens = await linhas();
       for (const item of itens) {
         expect(within(item).queryByRole("region", { name: "Conta" })).toBeNull();
@@ -459,7 +645,7 @@ describe("os dados da conta e do prontuário no cartão (issue #1419)", () => {
     filaDoServidor = { ...FILA, meus_envios: ENVIOS };
     render(<ContasMedicasPage />);
     await linhas();
-    aba(/^Meus envios/);
+    etapa(/^Envios/);
     return linhas();
   }
 
@@ -552,7 +738,7 @@ describe("o Código do erro no cartão (issue #1337)", () => {
     filaDoServidor = { ...FILA, meus_envios: ENVIOS };
     render(<ContasMedicasPage />);
     await linhas();
-    aba(/^Meus envios/);
+    etapa(/^Envios/);
     return linhas();
   }
 
@@ -654,7 +840,7 @@ describe("o Código do erro no cartão (issue #1337)", () => {
     };
     render(<ContasMedicasPage />);
     await linhas();
-    aba(/^Meus envios/);
+    etapa(/^Envios/);
     const [cartao] = await linhas();
 
     expect(quadrado(cartao, "Prontuário").getAttribute("data-estado")).toBe("erro");
@@ -689,7 +875,7 @@ describe("Descartar um envio (issue #1338)", () => {
     filaDoServidor = { ...FILA, meus_envios: ENVIOS };
     render(<ContasMedicasPage />);
     await linhas();
-    aba(/^Meus envios/);
+    etapa(/^Envios/);
     return linhas();
   }
 
@@ -768,7 +954,7 @@ describe("Analisar de novo sem anexar o PDF (issue #1339)", () => {
     filaDoServidor = { ...FILA, meus_envios: [DA_IA, DO_ARQUIVO] };
     render(<ContasMedicasPage />);
     await linhas();
-    aba(/^Meus envios/);
+    etapa(/^Envios/);
     return linhas();
   }
 
@@ -823,7 +1009,7 @@ describe("Analisar de novo sem anexar o PDF (issue #1339)", () => {
     };
     render(<ContasMedicasPage />);
     await linhas();
-    aba(/^Meus envios/);
+    etapa(/^Envios/);
     const [daIA, doArquivo] = await linhas();
     const botoes = (cartao: HTMLElement) =>
       within(cartao)
@@ -862,7 +1048,7 @@ describe("Analisar assim mesmo a conta parada por folha escaneada ilegível (iss
     filaDoServidor = { ...FILA, meus_envios: [DIGITALIZADO, SEM_PODER, DO_ARQUIVO] };
     render(<ContasMedicasPage />);
     await linhas();
-    aba(/^Meus envios/);
+    etapa(/^Envios/);
     return linhas();
   }
 
@@ -922,8 +1108,8 @@ describe("cada bloco pela permissão de /contas-medicas/me", () => {
     const itens = await linhas();
 
     expect(screen.getByRole("region", { name: "Envio de contas" })).toBeTruthy();
-    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Meus envios (4)"]);
-    expect(within(itens[0]).getByText(/^Atendimento /).textContent).toBe("Atendimento 31302");
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Envios 4"]);
+    expect(itens[0].querySelector(".tabular-nums")?.textContent).toBe("31302");
     expect(chamadas.some((c) => c.url === "/api/contas-medicas/fila")).toBe(false);
   });
 
@@ -934,7 +1120,7 @@ describe("cada bloco pela permissão de /contas-medicas/me", () => {
     await linhas();
 
     expect(screen.queryByRole("region", { name: "Envio de contas" })).toBeNull();
-    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Fila (2)", "Minhas (2)", "Concluídas (1)"]);
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Fila 2", "Em análise 2", "Concluídas 130"]);
     expect(chamadas.some((c) => c.url === "/api/contas-medicas/meus-envios")).toBe(false);
   });
 
@@ -946,7 +1132,7 @@ describe("cada bloco pela permissão de /contas-medicas/me", () => {
 
     await waitFor(() => expect(screen.queryByText("Carregando a fila")).toBeNull());
     expect(screen.queryByRole("region", { name: "Envio de contas" })).toBeNull();
-    expect(screen.queryByRole("region", { name: "Fila de contas" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Lista de contas" })).toBeNull();
     expect(screen.queryAllByRole("tab")).toHaveLength(0);
   });
 
@@ -987,7 +1173,7 @@ describe("o Processamento visível (issue #1416)", () => {
     filaDoServidor = { ...FILA, meus_envios: [RODANDO] };
     render(<ContasMedicasPage />);
     await linhas();
-    aba(/^Meus envios/);
+    etapa(/^Envios/);
 
     const [cartao] = await linhas();
 
@@ -1022,9 +1208,9 @@ describe("o Processamento visível (issue #1416)", () => {
     expect(leiturasDosEnvios()).toBe(antes + 1);
   });
 
-  it("a conta que some da lista por ter ficado pronta avisa que foi para a Fila", async () => {
+  it("a conta que some da lista por ter ficado pronta avisa que foi para a Fila, pelo número e o rótulo", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    filaDoServidor = { ...FILA, meus_envios: [RODANDO, ESPERANDO] };
+    filaDoServidor = { ...FILA, meus_envios: [{ ...RODANDO, paciente_rotulo: "Fulana T." }, ESPERANDO] };
     render(<ContasMedicasPage />);
     await linhas();
     expect(screen.queryByText(/foi para a Fila/)).toBeNull();
@@ -1032,7 +1218,7 @@ describe("o Processamento visível (issue #1416)", () => {
     filaDoServidor = { ...FILA, meus_envios: [ESPERANDO] };
     await vi.advanceTimersByTimeAsync(5_000);
 
-    expect((await screen.findByText(/foi para a Fila/)).textContent).toBe("Atendimento 31310 pronto, foi para a Fila");
+    expect((await screen.findByText(/foi para a Fila/)).textContent).toBe("31310 Fulana T. ficou pronta e foi para a Fila");
   });
 });
 
@@ -1075,7 +1261,7 @@ describe("a Previsão e a barra de tempos (issue #1417)", () => {
     filaDoServidor = { ...FILA, meus_envios: [RODANDO, DEMORANDO, ESPERANDO], barra: BARRA };
     render(<ContasMedicasPage />);
     await linhas();
-    aba(/^Meus envios/);
+    etapa(/^Envios/);
     return linhas();
   }
 
@@ -1160,7 +1346,7 @@ describe("o painel lateral do Processamento (issue #1418)", () => {
     filaDoServidor = { ...FILA, meus_envios: [RODANDO] };
     render(<ContasMedicasPage />);
     await linhas();
-    aba(/^Meus envios/);
+    etapa(/^Envios/);
     const [cartao] = await linhas();
     fireEvent.click(within(cartao).getByRole("article"));
     return screen.findByRole("dialog", { name: "Processamento do atendimento 31310" });
@@ -1229,7 +1415,8 @@ describe("o envio", () => {
     expect(ultimo.textContent).toContain("31318, falta o prontuário");
     expect(ultimo.textContent).toContain("Envie o prontuário atualizado.");
     expect(ultimo.textContent).toContain("Plano UNIMED RIO ENF ainda não configurado");
-    expect(ultimo.textContent).toContain("conta-unimed.pdf");
+    expect(ultimo.textContent).toContain("conta-unimed.pdf, 31399");
+    expect(ultimo.textContent).not.toMatch(/atendimento/i);
 
     const envio = chamadas.find((c) => c.url === "/api/contas-medicas/envios");
     expect(envio?.init?.method).toBe("POST");

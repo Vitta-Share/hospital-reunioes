@@ -1,35 +1,37 @@
 "use client";
 
 /**
- * A tela Contas de Contas médicas (issues #1114 e #1123, PRD #1113, ADR 0070).
+ * A tela Contas de Contas médicas (issues #1114, #1123 e #1951, PRD #1113 e
+ * PRD #1933, ADR 0070).
  *
  * Quem envia arrasta a conta e o prontuário do MV (ou clica em "Selecionar
- * arquivos"), recebe na hora o "Último envio" por atendimento e acompanha em
- * "Meus envios" o que ainda não ficou pronto. A faturista puxa da Fila comum,
- * em ordem de envio, e segue em "Minhas" (issue #1307, ADR 0073). Cada bloco
- * aparece pela permissão: "Enviar contas" dá o envio e "Meus envios", e
- * "Analisar contas" dá a Fila, "Minhas" e as Concluídas (issue #1308). Quem pareia,
- * recusa, ordena e decide quem vê o quê é o servidor; a tela só confere os
- * limites que dá para conferir antes de subir e manda os arquivos em lotes que
- * cabem no teto do corpo.
+ * arquivos"), recebe na hora o "Último envio" por atendimento e acompanha na
+ * etapa Envios o que ainda não ficou pronto. A faturista pega da Fila comum,
+ * em ordem de envio, e segue em "Em análise" (issue #1307, ADR 0073). Cada
+ * etapa aparece pela permissão: "Enviar contas" dá o envio e Envios, e
+ * "Analisar contas" dá a Fila, Em análise e Concluídas (issue #1308). Quem
+ * pareia, recusa, ordena e decide quem vê o quê é o servidor; a tela só
+ * confere os limites que dá para conferir antes de subir e manda os arquivos
+ * em lotes que cabem no teto do corpo.
  *
- * A conta é sempre identificada pelo atendimento, com a conta como complemento.
- * Na aba de envios, cada conta é um cartão com um quadrado para a Conta e outro
- * para o Prontuário (issue #1336): verde o que chegou, tracejado o que falta,
- * com o botão para mandar só aquele arquivo. O envio em Erro ou com arquivo
- * faltando tem ainda "Descartar", que pergunta antes de apagar (issue #1338).
+ * Desde a issue #1951 a tela é feita de peças: a barra do topo, a Esteira com
+ * o número de cada etapa, o bloco "Continue de onde parou", a lista de contas
+ * (uma linha por conta, pelo número do atendimento e o rótulo do paciente) e
+ * o cartão do envio, que segue como era.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { AlertCircle, Loader2, ReceiptText, Upload } from "lucide-react";
 
+import { BarraDeContas } from "@/components/contas-medicas/contas/BarraDeContas";
+import { BarraDeTempos, CartaoDoEnvio } from "@/components/contas-medicas/contas/CartaoDoEnvio";
+import { ContinueDeOndeParou } from "@/components/contas-medicas/contas/ContinueDeOndeParou";
+import { Esteira } from "@/components/contas-medicas/contas/Esteira";
+import { ListaDeContas } from "@/components/contas-medicas/contas/ListaDeContas";
 import { PainelDoProcessamento } from "@/components/contas-medicas/PainelDoProcessamento";
-import { Legenda } from "@/components/ui/Legenda";
 import {
   ANALISAR_CONTAS,
   ENVIAR_CONTAS,
-  type BarraDosEnvios,
   type Fila,
   type ItemDaFila,
   type RespostaDoEnvio,
@@ -39,31 +41,15 @@ import {
   analisarAssimMesmo,
   analisarDeNovo,
   avisosDeProntas,
-  detalheDaConta,
   enviarEmLotes,
   perguntaDoDescarte,
   rotaDoDescarte,
-  rotuloDaSituacao,
   separarArquivos,
-  textoParaATI,
-  textosDaBarra,
 } from "@/lib/contas-medicas/envio";
-import { dataCurta } from "@/lib/contas-medicas/guia";
+import { VAZIO_DA_ETAPA, type Etapa } from "@/lib/contas-medicas/textos";
 import { createClient } from "@/lib/supabase/client";
 
 const CARTAO = "bg-white rounded-2xl border border-border shadow-premium";
-
-const COR_DA_SITUACAO: Record<string, string> = {
-  AGUARDANDO_ARQUIVO: "bg-slate-100 text-slate-600",
-  NA_FILA: "bg-slate-100 text-slate-600",
-  PROCESSANDO: "bg-[#DBEAFE] text-[#1E40AF]",
-  A_FAZER: "bg-[#FEE2E2] text-[#991B1B]",
-  EM_CORRECAO: "bg-[#FEF3C7] text-[#92400E]",
-  ERRO: "bg-[#FEE2E2] text-[#991B1B]",
-  CONCLUIDA: "bg-[#DCFCE7] text-[#166534]",
-  CONCLUIDA_COM_PENDENCIA: "bg-[#FEF3C7] text-[#92400E]",
-  RETORNO: "bg-[#FEF3C7] text-[#92400E]",
-};
 
 /**
  * Enquanto houver conta esperando a análise, a fila se relê sozinha: a cada
@@ -73,10 +59,8 @@ const COR_DA_SITUACAO: Record<string, string> = {
 const RELER_A_CADA_MS = 20_000;
 const RELER_PROCESSANDO_A_CADA_MS = 5_000;
 const ESPERANDO_ANALISE = ["NA_FILA", "PROCESSANDO"];
-/** Quanto tempo o aviso "Atendimento N pronto, foi para a Fila" fica na tela. */
+/** Quanto tempo o aviso "31310 ficou pronta e foi para a Fila" fica na tela. */
 const AVISO_DE_PRONTA_MS = 10_000;
-
-type Aba = "fila" | "minhas" | "meus_envios" | "concluidas";
 
 /** O que a pessoa pode fazer na tela, pela matriz que `/contas-medicas/me` resolve. */
 interface Pode {
@@ -84,443 +68,26 @@ interface Pode {
   analisar: boolean;
 }
 
-/** As abas na ordem da tela, só as das permissões da pessoa. */
-function abasDe(pode: Pode): Aba[] {
-  const abas: Aba[] = [];
-  if (pode.analisar) abas.push("fila", "minhas");
-  if (pode.enviar) abas.push("meus_envios");
-  if (pode.analisar) abas.push("concluidas");
-  return abas;
+/** As etapas da Esteira na ordem do caminho da conta, só as das permissões da pessoa. */
+function etapasDe(pode: Pode): Etapa[] {
+  const etapas: Etapa[] = [];
+  if (pode.enviar) etapas.push("envios");
+  if (pode.analisar) etapas.push("fila", "em_analise", "concluidas");
+  return etapas;
 }
+
+/** A lista da resposta do servidor que cada etapa mostra. */
+const LISTA_DA_ETAPA: Record<Etapa, "meus_envios" | "fila" | "minhas" | "concluidas"> = {
+  envios: "meus_envios",
+  fila: "fila",
+  em_analise: "minhas",
+  concluidas: "concluidas",
+};
 
 async function lerJson(rota: string, token: string) {
   const resposta = await fetch(rota, { headers: { Authorization: `Bearer ${token}` } });
   if (!resposta.ok) throw new Error(rota);
   return resposta.json();
-}
-
-/** O rótulo de cada aba; com o painel completo, as listas são de todas. */
-function rotuloDaAba(aba: Aba, todas: boolean): string {
-  if (aba === "fila") return "Fila";
-  if (aba === "minhas") return todas ? "Em análise" : "Minhas";
-  if (aba === "meus_envios") return todas ? "Envios" : "Meus envios";
-  return "Concluídas";
-}
-
-const VAZIO: Record<Aba, string> = {
-  fila: "Nenhuma conta livre na fila",
-  minhas: "Nenhuma conta em análise",
-  meus_envios: "Nenhum envio esperando o guia",
-  concluidas: "Nenhuma conta concluída ainda",
-};
-
-function periodoDaConta(conta: ItemDaFila): string | null {
-  return conta.periodo_inicio && conta.periodo_fim
-    ? `${dataCurta(conta.periodo_inicio)} a ${dataCurta(conta.periodo_fim)}`
-    : null;
-}
-
-/** Quantos itens e eventos a análise achou, só na conta pronta (issue #1419). */
-function contagensDaConta(conta: ItemDaFila): string | null {
-  if (conta.itens_lidos == null || conta.eventos_lidos == null) return null;
-  const itens = `${conta.itens_lidos} ${conta.itens_lidos === 1 ? "item" : "itens"}`;
-  return `${itens}, ${conta.eventos_lidos} ${conta.eventos_lidos === 1 ? "evento" : "eventos"}`;
-}
-
-function complemento(conta: ItemDaFila): string {
-  const periodo = periodoDaConta(conta);
-  return [conta.numero_conta ? `conta ${conta.numero_conta}` : null, periodo, contagensDaConta(conta)]
-    .filter(Boolean)
-    .join(" · ");
-}
-
-/** A borda do cartão do envio pela situação, nas cores dos cartões da Ouvidoria. */
-const BORDA_DA_SITUACAO: Record<string, string> = {
-  ERRO: "border-l-red-500",
-  AGUARDANDO_ARQUIVO: "border-l-amber-500",
-  NA_FILA: "border-l-slate-300",
-  PROCESSANDO: "border-l-emerald-500",
-};
-
-/** O quadrado de cada estado: o que falta, o que chegou e o arquivo em que a análise parou (issue #1337). */
-const COR_DO_QUADRADO = {
-  falta: { caixa: "border-dashed border-slate-300 bg-white", rotulo: "text-slate-500", texto: "text-slate-600" },
-  chegou: { caixa: "border-emerald-200 bg-emerald-50", rotulo: "text-emerald-800", texto: "text-emerald-900" },
-  erro: { caixa: "border-red-300 bg-red-50", rotulo: "text-red-800", texto: "text-red-900" },
-};
-
-function Quadrado({
-  nome,
-  falta,
-  comErro = false,
-  rotuloDoBotao,
-  onEnviar,
-  children,
-}: {
-  nome: "Conta" | "Prontuário";
-  falta: boolean;
-  comErro?: boolean;
-  rotuloDoBotao: string;
-  onEnviar: () => void;
-  children: React.ReactNode;
-}) {
-  const estado = falta ? "falta" : comErro ? "erro" : "chegou";
-  const cor = COR_DO_QUADRADO[estado];
-  return (
-    <section
-      aria-label={nome}
-      data-estado={estado}
-      className={`min-w-0 rounded-xl border px-3 py-2.5 ${cor.caixa}`}
-    >
-      <p className={`text-xs font-semibold uppercase tracking-wide ${cor.rotulo}`}>
-        {nome}
-      </p>
-      {falta ? (
-        <>
-          <p className="mt-0.5 text-sm text-slate-600">Falta enviar</p>
-          <button
-            type="button"
-            onClick={onEnviar}
-            className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white"
-          >
-            <Upload className="h-3.5 w-3.5" aria-hidden="true" />
-            {rotuloDoBotao}
-          </button>
-        </>
-      ) : (
-        <div className={`mt-0.5 text-sm break-words ${cor.texto}`}>{children}</div>
-      )}
-    </section>
-  );
-}
-
-/**
- * A frase da cópia que não aconteceu. O `writeText` falha igual quando a API
- * não existe e quando o navegador nega: a frase diz o desfecho e a saída, que
- * é a caixa logo abaixo (o mesmo cuidado do "Copiar para IA" da Tecnologia).
- */
-const NAO_COPIOU =
-  "O navegador não liberou a cópia automática. O texto está na caixa abaixo, já selecionado: copie com Ctrl+C (ou Cmd+C).";
-
-/**
- * O Erro do cartão do envio (issue #1337): a frase, o Código do erro, "Ver
- * detalhes" com o detalhe técnico e "Copiar para a TI", que leva o que a TI
- * precisa para achar o erro sem ver a tela. Quando o servidor diz que a ação é
- * Analisar de novo (o erro não foi no PDF e ele ainda está guardado), o botão
- * põe a conta de volta na fila sem anexar nada (issue #1339). Na conta parada
- * por folha escaneada ilegível, "Analisar assim mesmo" fica ao lado de "Enviar
- * de novo" quando o servidor deixa (issue #1401).
- */
-function ErroDoEnvio({
-  conta,
-  onEnviar,
-  onAnalisarDeNovo,
-  onAnalisarAssimMesmo,
-  onDescartar,
-}: {
-  conta: ItemDaFila;
-  onEnviar: () => void;
-  onAnalisarDeNovo: () => Promise<string | null>;
-  onAnalisarAssimMesmo: () => Promise<string | null>;
-  onDescartar?: () => void;
-}) {
-  const [aberto, setAberto] = useState(false);
-  const [analisando, setAnalisando] = useState(false);
-  const [recusa, setRecusa] = useState<string | null>(null);
-  const [copiou, setCopiou] = useState(false);
-  const [paraPegarAMao, setParaPegarAMao] = useState<string | null>(null);
-  const caixa = useRef<HTMLTextAreaElement | null>(null);
-
-  useEffect(() => {
-    if (paraPegarAMao) caixa.current?.select();
-  }, [paraPegarAMao]);
-
-  async function copiar() {
-    const texto = textoParaATI(conta);
-    setCopiou(false);
-    setParaPegarAMao(null);
-    try {
-      await navigator.clipboard.writeText(texto);
-      setCopiou(true);
-    } catch (e) {
-      console.error("[contas-medicas] o navegador não copiou", e);
-      setParaPegarAMao(texto);
-    }
-  }
-
-  async function analisar(pedir: () => Promise<string | null>) {
-    setAnalisando(true);
-    setRecusa(null);
-    const frase = await pedir();
-    setAnalisando(false);
-    setRecusa(frase);
-  }
-
-  const idDoDetalhe = `detalhe-do-erro-${conta.id}`;
-  return (
-    <div className="space-y-2">
-      {conta.erro_motivo && <p className="min-w-0 break-words text-sm text-red-700">{conta.erro_motivo}</p>}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        {conta.erro_codigo && (
-          <span className="text-xs text-slate-500">
-            Código <span className="font-mono font-semibold text-slate-800">{conta.erro_codigo}</span>
-          </span>
-        )}
-        <button
-          type="button"
-          aria-expanded={aberto}
-          aria-controls={idDoDetalhe}
-          onClick={() => setAberto((valor) => !valor)}
-          className="text-sm font-medium text-primary hover:underline"
-        >
-          Ver detalhes
-        </button>
-        <button type="button" onClick={copiar} className="text-sm font-medium text-primary hover:underline">
-          Copiar para a TI
-        </button>
-        {conta.erro_acao === "analisar_de_novo" ? (
-          <button
-            type="button"
-            onClick={() => analisar(onAnalisarDeNovo)}
-            disabled={analisando}
-            className="text-sm font-medium text-primary hover:underline disabled:opacity-50"
-          >
-            Analisar de novo
-          </button>
-        ) : (
-          <button type="button" onClick={onEnviar} className="text-sm font-medium text-primary hover:underline">
-            Enviar de novo
-          </button>
-        )}
-        {conta.pode_analisar_assim_mesmo && (
-          <button
-            type="button"
-            onClick={() => analisar(onAnalisarAssimMesmo)}
-            disabled={analisando}
-            className="text-sm font-medium text-primary hover:underline disabled:opacity-50"
-          >
-            Analisar assim mesmo
-          </button>
-        )}
-        {onDescartar && (
-          <button type="button" onClick={onDescartar} className="text-sm font-medium text-red-700 hover:underline">
-            Descartar
-          </button>
-        )}
-      </div>
-      {recusa && (
-        <p role="alert" className="text-sm text-red-700">
-          {recusa}
-        </p>
-      )}
-      {aberto && (
-        <p id={idDoDetalhe} className="break-all rounded-lg bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700">
-          {conta.erro_detalhe ?? "Sem detalhe técnico gravado."}
-        </p>
-      )}
-      {copiou && (
-        <p role="status" className="text-xs text-emerald-700">
-          Copiado. Cole na conversa com a TI.
-        </p>
-      )}
-      {paraPegarAMao && (
-        <>
-          <p role="status" className="text-xs text-amber-800">
-            {NAO_COPIOU}
-          </p>
-          <textarea
-            ref={caixa}
-            readOnly
-            value={paraPegarAMao}
-            rows={5}
-            aria-label="Texto para a TI"
-            className="w-full rounded-lg border border-border bg-white px-3 py-2 font-mono text-xs text-slate-800"
-          />
-        </>
-      )}
-    </div>
-  );
-}
-
-/** A pílula âmbar da conta que passou de 2 vezes a Previsão (issue #1417). */
-const COR_DA_DEMORA = "bg-amber-100 text-amber-900";
-
-/** A cor da pílula: a da situação, ou âmbar na conta demorando mais que o normal. */
-function corDaPilula(conta: ItemDaFila): string {
-  if (conta.demorando) return COR_DA_DEMORA;
-  return COR_DA_SITUACAO[conta.situacao] ?? "bg-slate-100 text-slate-600";
-}
-
-/**
- * A barra fina no topo da aba Envios (issue #1417): quantas contas estão sendo
- * lidas e quantas esperam, os tempos médios da semana e a hora em que a fila
- * deve esvaziar.
- */
-function BarraDeTempos({ barra }: { barra: BarraDosEnvios }) {
-  return (
-    <div role="status" aria-label="Tempos da fila" className="border-b border-border px-1 py-2">
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
-        {textosDaBarra(barra).map((texto) => (
-          <li key={texto}>{texto}</li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-/**
- * A conta da aba de envios, com o quadrado de cada arquivo (issue #1336). O
- * clique no cartão abre o painel lateral do Processamento (issue #1418); o
- * clique nos botões e links de dentro faz só o que eles fazem.
- */
-function CartaoDoEnvio({
-  conta,
-  onAbrir,
-  onEnviar,
-  onAnalisarDeNovo,
-  onAnalisarAssimMesmo,
-  onDescartar,
-}: {
-  conta: ItemDaFila;
-  onAbrir: () => void;
-  onEnviar: () => void;
-  onAnalisarDeNovo: () => Promise<string | null>;
-  onAnalisarAssimMesmo: () => Promise<string | null>;
-  onDescartar: () => void;
-}) {
-  // O valor da conta fica fora do cartão (issue #1419): a Fila nunca anda por valor.
-  const detalhe = detalheDaConta({ ...conta, valor_apontado: null });
-  const periodo = periodoDaConta(conta);
-  const paginas = conta.prontuario_paginas;
-  const ocr = conta.prontuario_paginas_ocr;
-  const dias = conta.dias_internacao;
-  const erro = conta.situacao === "ERRO";
-  return (
-    <li>
-      <article
-        onClick={(e) => {
-          if (!(e.target as HTMLElement).closest("button, a, textarea")) onAbrir();
-        }}
-        className={`cursor-pointer rounded-xl border border-border border-l-4 bg-white p-4 space-y-3 hover:shadow-premium ${
-          BORDA_DA_SITUACAO[conta.situacao] ?? "border-l-slate-300"
-        }`}
-      >
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <button
-            type="button"
-            onClick={onAbrir}
-            aria-haspopup="dialog"
-            className="min-w-0 flex-1 text-left text-sm font-semibold uppercase text-slate-900 hover:underline"
-          >
-            Atendimento {conta.numero_atendimento}
-          </button>
-          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${corDaPilula(conta)}`}>
-            {rotuloDaSituacao(conta)}
-          </span>
-          {conta.com && <span className="text-xs text-slate-500">com {conta.com}</span>}
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Quadrado
-            nome="Conta"
-            falta={conta.falta === "conta"}
-            comErro={erro && conta.erro_arquivo === "conta"}
-            rotuloDoBotao="Enviar a conta"
-            onEnviar={onEnviar}
-          >
-            <p>{conta.numero_conta ? `Conta ${conta.numero_conta}` : "Chegou"}</p>
-            {periodo && <p className="text-xs">{periodo}</p>}
-            {(conta.operadora || dias != null) && (
-              <p className="text-xs">
-                {[conta.operadora, dias != null ? `${dias} ${dias === 1 ? "dia" : "dias"} de internação` : null]
-                  .filter(Boolean)
-                  .join(", ")}
-              </p>
-            )}
-          </Quadrado>
-          <Quadrado
-            nome="Prontuário"
-            falta={conta.falta === "prontuario"}
-            comErro={erro && conta.erro_arquivo === "prontuario"}
-            rotuloDoBotao="Enviar o prontuário"
-            onEnviar={onEnviar}
-          >
-            <p>{paginas != null ? `${paginas} ${paginas === 1 ? "página" : "páginas"}` : "Chegou"}</p>
-            {ocr != null && (
-              <p className="text-xs">{ocr === 0
-                  ? "nenhuma escaneada"
-                  : ocr === 1
-                    ? "1 escaneada, lida por OCR"
-                    : `${ocr} escaneadas, lidas por OCR`}</p>
-            )}
-          </Quadrado>
-        </div>
-        {erro ? (
-          <ErroDoEnvio
-            conta={conta}
-            onEnviar={onEnviar}
-            onAnalisarDeNovo={onAnalisarDeNovo}
-            onAnalisarAssimMesmo={onAnalisarAssimMesmo}
-            onDescartar={conta.pode_descartar ? onDescartar : undefined}
-          />
-        ) : (
-          (detalhe || conta.pode_descartar) && (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              {detalhe && <span className="min-w-0 break-words text-xs text-slate-600">{detalhe}</span>}
-              {conta.pode_descartar && (
-                <button type="button" onClick={onDescartar} className="text-sm font-medium text-red-700 hover:underline">
-                  Descartar
-                </button>
-              )}
-            </div>
-          )
-        )}
-      </article>
-    </li>
-  );
-}
-
-function LinhaDaFila({ conta, onEnviarDeNovo }: { conta: ItemDaFila; onEnviarDeNovo: () => void }) {
-  const detalhe = detalheDaConta(conta);
-  const guia = `/contas-medicas/guia/${conta.id}`;
-  let acao: React.ReactNode = null;
-  if (conta.situacao === "A_FAZER" || conta.situacao.startsWith("CONCLUIDA")) {
-    acao = (
-      <Link href={guia} className="text-sm font-medium text-primary hover:underline">
-        Abrir
-      </Link>
-    );
-  } else if (conta.situacao === "EM_CORRECAO" || conta.situacao === "RETORNO") {
-    acao = (
-      <Link href={guia} className="text-sm font-medium text-primary hover:underline">
-        Continuar
-      </Link>
-    );
-  } else if (conta.situacao === "ERRO") {
-    acao = (
-      <button type="button" onClick={onEnviarDeNovo} className="text-sm font-medium text-primary hover:underline">
-        Enviar de novo
-      </button>
-    );
-  }
-
-  return (
-    <li className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3">
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold uppercase text-slate-900">Atendimento {conta.numero_atendimento}</p>
-        {complemento(conta) && <p className="text-xs text-slate-500">{complemento(conta)}</p>}
-      </div>
-      <span
-        className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${COR_DA_SITUACAO[conta.situacao] ?? "bg-slate-100 text-slate-600"}`}
-      >
-        {rotuloDaSituacao(conta)}
-      </span>
-      {detalhe && (
-        <span className={`text-xs ${conta.situacao === "ERRO" ? "text-red-700" : "text-slate-600"}`}>{detalhe}</span>
-      )}
-      {conta.com && <span className="text-xs text-slate-500">com {conta.com}</span>}
-      {acao}
-    </li>
-  );
 }
 
 function UltimoEnvio({ resposta }: { resposta: RespostaDoEnvio }) {
@@ -547,7 +114,7 @@ function UltimoEnvio({ resposta }: { resposta: RespostaDoEnvio }) {
               <span>
                 {recusa.motivo}
                 <span className="block text-xs text-slate-500">
-                  {[recusa.arquivo, recusa.numero_atendimento ? `atendimento ${recusa.numero_atendimento}` : null]
+                  {[recusa.arquivo, recusa.numero_atendimento]
                     .filter(Boolean)
                     .join(", ")}
                 </span>
@@ -565,7 +132,7 @@ export default function ContasMedicasPage() {
   const [pode, setPode] = useState<Pode | null>(null);
   const [fila, setFila] = useState<Fila | null>(null);
   const [erroDaFila, setErroDaFila] = useState<string | null>(null);
-  const [aba, setAba] = useState<Aba>("fila");
+  const [etapa, setEtapa] = useState<Etapa>("fila");
   const [arrastando, setArrastando] = useState(false);
   const [enviando, setEnviando] = useState<number | null>(null);
   const [ultimo, setUltimo] = useState<RespostaDoEnvio | null>(null);
@@ -597,6 +164,7 @@ export default function ContasMedicasPage() {
         meus_envios: envios?.meus_envios ?? [],
         concluidas: analise?.concluidas ?? [],
         barra: envios?.barra ?? null,
+        contagem: { ...analise?.contagem, ...envios?.contagem },
       });
     } catch {
       setErroDaFila("Não consegui carregar a fila.");
@@ -627,7 +195,8 @@ export default function ContasMedicasPage() {
       }
       if (!vivo) return;
       setPode(quem);
-      setAba(abasDe(quem)[0] ?? "fila");
+      // A faturista entra na Fila; quem só envia, em Envios.
+      setEtapa(quem.analisar ? "fila" : "envios");
       await carregarFila(tk, quem);
     }
     iniciar();
@@ -704,22 +273,22 @@ export default function ContasMedicasPage() {
     return recusa;
   }
 
-  const contas = fila?.[aba];
+  const contas = fila?.[LISTA_DA_ETAPA[etapa]];
   // A conta que ficou pronta sai dos envios, e o painel dela fecha junto.
   const contaDoPainel = painel ? envios.find((conta) => conta.id === painel) : undefined;
   const fecharOPainel = useCallback(() => setPainel(null), []);
-  const abas = pode ? abasDe(pode) : [];
+  const etapas = pode ? etapasDe(pode) : [];
   // Sem nenhuma das duas permissões (o credenciamento), a tela fica só com as abas do módulo.
-  const semListas = pode !== null && abas.length === 0;
+  const semListas = pode !== null && etapas.length === 0;
+  /** O número da etapa vem do servidor; antes da primeira leitura, nenhum. */
+  const contagemDa = (qual: Etapa): number | null =>
+    fila ? (fila.contagem?.[qual] ?? fila[LISTA_DA_ETAPA[qual]].length) : null;
+  /** As contas em análise da própria pessoa, para o "Continue de onde parou". */
+  const minhasEmAnalise = (fila?.minhas ?? []).filter((conta) => conta.minha);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Contas médicas</h1>
-        <Legenda>
-          Envie a conta e o prontuário do MV e receba a lista do que corrigir antes de mandar para a operadora.
-        </Legenda>
-      </div>
+      <BarraDeContas />
 
       {pode?.enviar && (
         <section
@@ -789,34 +358,20 @@ export default function ContasMedicasPage() {
       )}
 
       {!semListas && (
-        <div>
-          <div className="flex gap-2 border-b border-border" role="tablist">
-            {abas.map((id) => (
+        <div className="space-y-4">
+          <Esteira etapas={etapas} aberta={etapa} contagem={contagemDa} onAbrir={setEtapa} />
 
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={aba === id}
-                onClick={() => setAba(id)}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  aba === id ? "border-primary text-primary" : "border-transparent text-text-secondary hover:text-text"
-                }`}
-              >
-                {`${rotuloDaAba(id, fila?.todas ?? false)} (${fila?.[id].length ?? 0})`}
-              </button>
-            ))}
-          </div>
+          {etapa === "envios" && fila?.barra && <BarraDeTempos barra={fila.barra} />}
 
-          {aba === "meus_envios" && fila?.barra && <BarraDeTempos barra={fila.barra} />}
+          {etapa === "fila" && <ContinueDeOndeParou contas={minhasEmAnalise} />}
 
           {recusaDoDescarte && (
-            <p role="alert" className="mt-4 flex items-center gap-2 text-sm text-red-700">
+            <p role="alert" className="flex items-center gap-2 text-sm text-red-700">
               <AlertCircle className="w-4 h-4" aria-hidden="true" /> {recusaDoDescarte}
             </p>
           )}
 
-          <section aria-label="Fila de contas" className={`${CARTAO} mt-4`}>
+          <section aria-label="Lista de contas" className={CARTAO}>
             <div role="tabpanel">
               {erroDaFila ? (
                 <p role="alert" className="flex items-center gap-2 p-6 text-sm text-red-700">
@@ -826,7 +381,7 @@ export default function ContasMedicasPage() {
                 <p className="flex items-center gap-2 p-6 text-sm text-slate-500">
                   <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> Carregando a fila
                 </p>
-              ) : contas && contas.length > 0 && aba === "meus_envios" ? (
+              ) : contas && contas.length > 0 && etapa === "envios" ? (
                 <ul className="space-y-3 p-3">
                   {contas.map((conta) => (
                     <CartaoDoEnvio
@@ -841,15 +396,11 @@ export default function ContasMedicasPage() {
                   ))}
                 </ul>
               ) : contas && contas.length > 0 ? (
-                <ul className="divide-y divide-border">
-                  {contas.map((conta) => (
-                    <LinhaDaFila key={conta.id} conta={conta} onEnviarDeNovo={() => seletor.current?.click()} />
-                  ))}
-                </ul>
+                <ListaDeContas contas={contas} />
               ) : (
                 <div className="p-10 text-center">
                   <ReceiptText className="w-8 h-8 text-slate-300 mx-auto mb-3" aria-hidden="true" />
-                  <p className="text-slate-500 text-sm">{VAZIO[aba]}</p>
+                  <p className="text-slate-500 text-sm">{VAZIO_DA_ETAPA[etapa]}</p>
                 </div>
               )}
             </div>
