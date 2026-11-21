@@ -189,6 +189,10 @@ def enviar(
 
     from app.services import ouvidoria_notificacoes
 
+    # A notificação do Núcleo nasce antes da ciência (issue #1997): a nova
+    # tentativa de um envio que parou depois dela reusa a que ficou, e o email
+    # da ciência já encontra o caso no módulo.
+    criar_a_notificacao_do_nucleo(supabase, caso["id"], agora)
     try:
         result = (
             supabase.table(ouvidoria_acionamentos.TABELA)
@@ -248,6 +252,46 @@ def enviar(
     else:
         ouvidoria_notificacoes.despachar_agora_se_puder(supabase, notificacao, agora, feriados)
     return ciencia
+
+
+# O que a notificação do Núcleo leva do caso (ADR 0107, decisão 7): o relato
+# integral, a justificativa técnica, o setor por id e quando foi. Fechado
+# campo a campo: nada de quem manifestou é lido aqui.
+_CAMPOS_DA_NOTIFICACAO = (
+    "id, relato_integral, nsp_justificativa_tecnica, setor_id, data_ocorrencia, periodo, hora_aprox, data_abertura"
+)
+# Os turnos do formulário do Núcleo. A madrugada da Ouvidoria não tem par lá.
+_TURNOS_DO_NUCLEO = ("manha", "tarde", "noite")
+
+
+def criar_a_notificacao_do_nucleo(supabase, manifestacao_id: str, agora: dt.datetime) -> dict:
+    """O caso vira a notificação de origem Ouvidoria no módulo do Núcleo.
+    Devolve o id e o protocolo dela. Sem a data da ocorrência, vale a data em
+    que a manifestação foi aberta, que é quando o hospital soube."""
+    from app.services.ouvidoria_prazos import FUSO
+    from app.services.seguranca_do_paciente import notificacoes as notificacoes_do_nucleo
+
+    lido = (
+        supabase.table("ouvidoria_protocolos")
+        .select(_CAMPOS_DA_NOTIFICACAO)
+        .eq("id", manifestacao_id)
+        .limit(1)
+        .execute()
+    )
+    caso = lido.data[0]
+    periodo = caso.get("periodo")
+    return notificacoes_do_nucleo.criar_caso_da_ouvidoria(
+        supabase,
+        manifestacao_id=manifestacao_id,
+        relato=caso.get("relato_integral"),
+        justificativa_tecnica=caso.get("nsp_justificativa_tecnica"),
+        setor_id=caso.get("setor_id"),
+        data_ocorrencia=str(
+            caso.get("data_ocorrencia") or caso.get("data_abertura") or agora.astimezone(FUSO).date().isoformat()
+        ),
+        turno=periodo if periodo in _TURNOS_DO_NUCLEO else None,
+        hora_aproximada=caso.get("hora_aprox"),
+    )
 
 
 def descartar(supabase, *, caso: dict, motivo: str, autor: dict, agora: dt.datetime) -> None:

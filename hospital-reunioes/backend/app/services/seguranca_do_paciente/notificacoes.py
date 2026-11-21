@@ -98,6 +98,65 @@ def registrar(
     return recibo
 
 
+ORIGEM_OUVIDORIA = "ouvidoria"
+_LIMITE_DO_RELATO = 10000
+
+
+def criar_caso_da_ouvidoria(
+    supabase,
+    *,
+    manifestacao_id: str,
+    relato: str | None,
+    justificativa_tecnica: str | None,
+    setor_id: str | None,
+    data_ocorrencia: str,
+    turno: str | None,
+    hora_aproximada: str | None,
+) -> dict[str, Any]:
+    """A notificação de origem Ouvidoria (issue #1997, ADR 0107 decisão 7).
+    Devolve o id e o protocolo.
+
+    Quem manifestou não entra: nem nome, nem contato, nem código. Uma
+    manifestação vira uma notificação só: o índice único recusa a segunda
+    (23505), e a nova tentativa do envio segue com a que ficou."""
+    from postgrest.exceptions import APIError
+
+    linha: dict[str, Any] = {
+        "origem": ORIGEM_OUVIDORIA,
+        "manifestacao_id": manifestacao_id,
+        "relato": ((relato or "").strip() or "A Ouvidoria não registrou o relato original.")[:_LIMITE_DO_RELATO],
+        "justificativa_tecnica": ((justificativa_tecnica or "").strip() or None),
+        "setor_id": setor_id,
+        "data_ocorrencia": data_ocorrencia,
+        "turno": turno,
+        "hora_aproximada": hora_aproximada,
+        "anonimo": False,
+    }
+    try:
+        gravada = supabase.table("nsp_notificacoes").insert(linha).execute().data[0]
+    except APIError as erro:
+        if erro.code != "23505":
+            raise
+        gravada = caso_da_manifestacao(supabase, manifestacao_id)
+        if gravada is None:
+            raise
+    return {"id": gravada["id"], "protocolo": gravada.get("protocolo")}
+
+
+def caso_da_manifestacao(supabase, manifestacao_id: str) -> dict[str, Any] | None:
+    """A notificação que a manifestação virou, ou None (caso confirmado antes
+    da Fase 2, que não foi importado)."""
+    linhas = (
+        supabase.table("nsp_notificacoes")
+        .select("id, protocolo, estado")
+        .eq("manifestacao_id", manifestacao_id)
+        .limit(1)
+        .execute()
+        .data
+    )
+    return linhas[0] if linhas else None
+
+
 def consultar(supabase, protocolo: str, codigo: str | None, contato: str | None) -> dict[str, str] | None:
     """O que a página de acompanhamento mostra, ou `None` para toda recusa.
 
