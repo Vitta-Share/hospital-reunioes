@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T22:10+0000 -->
+<!-- last_update: 2026-11-21T22:11+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2738,6 +2738,39 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_email_de_segunda_semana` em `(semana)` (de `196_email_de_segunda.sql`)
 
+## conduta_notas_nsp
+
+> Origem: `203_conduta_nota_ao_nucleo.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `texto_cifrado` | `TEXT` | NOT NULL | — | — |
+| `escrita_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `escrita_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `enviada_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `enviada_em` | `TIMESTAMPTZ` | — | — | — |
+
+**Indexes:**
+- `uq_conduta_notas_nsp_pendente` em `(caso_id)` (de `203_conduta_nota_ao_nucleo.sql`)
+- `idx_conduta_notas_nsp_caso` em `(caso_id)` (de `203_conduta_nota_ao_nucleo.sql`)
+- `idx_conduta_notas_nsp_escrita_por` em `(escrita_por)` (de `203_conduta_nota_ao_nucleo.sql`)
+- `idx_conduta_notas_nsp_enviada_por` em `(enviada_por)` (de `203_conduta_nota_ao_nucleo.sql`)
+
+## nsp_notas_do_comite
+
+> Origem: `203_conduta_nota_ao_nucleo.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `texto` | `TEXT` | NOT NULL | — | — |
+| `enviada_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_notas_do_comite_enviada_em` em `(enviada_em DESC)` (de `203_conduta_nota_ao_nucleo.sql`)
+
 ---
 
-**Resumo:** 135 tabelas vivas.
+**Resumo:** 137 tabelas vivas.

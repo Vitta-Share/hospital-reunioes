@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T22:10+0000 -->
+<!-- last_update: 2026-11-21T22:11+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -69,6 +69,7 @@ erDiagram
     conduta_casos ||--o{ conduta_atribuicoes : "caso_id"
     conduta_casos ||--o{ conduta_citados : "caso_id"
     conduta_casos ||--o{ conduta_contestacoes : "caso_id"
+    conduta_casos ||--o{ conduta_notas_nsp : "caso_id"
     conduta_casos ||--o{ conduta_prazos_vencidos : "caso_id"
     conduta_casos ||--o{ conduta_trilha : "caso_id"
     conduta_contestacoes ||--o{ conduta_contestacao_votos : "contestacao_id"
@@ -119,6 +120,8 @@ erDiagram
     participantes ||--o{ conduta_configuracoes : "autor_id"
     participantes ||--o{ conduta_contestacao_votos : "participante_id"
     participantes ||--o{ conduta_contestacoes : "autor_id"
+    participantes ||--o{ conduta_notas_nsp : "enviada_por"
+    participantes ||--o{ conduta_notas_nsp : "escrita_por"
     participantes ||--o{ conduta_registro : "autor_id"
     participantes ||--o{ conduta_registro : "ganhou"
     participantes ||--o{ conduta_trilha : "que"
@@ -1465,6 +1468,20 @@ erDiagram
         DATE semana
         TIMESTAMPTZ enviado_em
     }
+    conduta_notas_nsp {
+        UUID id PK
+        UUID caso_id FK
+        TEXT texto_cifrado
+        VARCHAR escrita_por FK
+        TIMESTAMPTZ escrita_em
+        VARCHAR enviada_por FK
+        TIMESTAMPTZ enviada_em
+    }
+    nsp_notas_do_comite {
+        UUID id PK
+        TEXT texto
+        TIMESTAMPTZ enviada_em
+    }
 ```
 
 ## Indexes principais
@@ -1704,6 +1721,11 @@ erDiagram
 | `conduta_assinaturas` | `idx_conduta_assinaturas_participacao` | `participacao_id, created_at DESC` | `192_conduta_assinaturas.sql` |
 | `conduta_assinaturas` | `idx_conduta_assinaturas_caso` | `caso_id` | `192_conduta_assinaturas.sql` |
 | `email_de_segunda` | `idx_email_de_segunda_semana` | `semana` | `196_email_de_segunda.sql` |
+| `conduta_notas_nsp` | `uq_conduta_notas_nsp_pendente` | `caso_id` | `203_conduta_nota_ao_nucleo.sql` |
+| `conduta_notas_nsp` | `idx_conduta_notas_nsp_caso` | `caso_id` | `203_conduta_nota_ao_nucleo.sql` |
+| `conduta_notas_nsp` | `idx_conduta_notas_nsp_escrita_por` | `escrita_por` | `203_conduta_nota_ao_nucleo.sql` |
+| `conduta_notas_nsp` | `idx_conduta_notas_nsp_enviada_por` | `enviada_por` | `203_conduta_nota_ao_nucleo.sql` |
+| `nsp_notas_do_comite` | `idx_nsp_notas_do_comite_enviada_em` | `enviada_em DESC` | `203_conduta_nota_ao_nucleo.sql` |
 
 ---
-**Resumo:** 135 tabelas · 204 relacionamentos FK detectados.
+**Resumo:** 137 tabelas · 207 relacionamentos FK detectados.

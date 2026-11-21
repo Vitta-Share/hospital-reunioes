@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T22:10+0000 -->
+<!-- last_update: 2026-11-21T22:11+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -80,6 +80,8 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/comite-de-conduta/casos/{caso_id}/contestacao` | Contestar triagem | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/contestacao/decisao` | Decidir contestacao | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/encaminhamento` | Enviar orientacao | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/nota-ao-nsp` | Sinalizar ao NSP (issue #1850): um membro escreve a nota ao Núcleo. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/nota-ao-nsp/envio` | A coordenação envia ao Núcleo a nota escrita, e só ela (issue #1850). | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/prorrogacao` | Prorrogar prazo | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/triagem` | Confirmar triagem | ✅ |
 | GET | `/comite-de-conduta/configuracoes` | Listar configuracoes | ✅ |
@@ -550,6 +552,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | GET | `/nsp/configuracao` | A configuração técnica do módulo, a única parte que o super admin | ✅ |
 | GET | `/nsp/configuracao/qr-da-notificacao.png` | O QR único da notificação (issue #2046), para o cartaz e o papel de | ✅ |
 | GET | `/nsp/inicio` | A página inicial do módulo: o Núcleo, quantos membros estão com a | ✅ |
+| GET | `/nsp/notas-do-comite` | As notas que o Comitê de Conduta mandou ao Núcleo (issue #1850): só o | ✅ |
 
 ## seguranca-do-paciente (`app/routers/seguranca_do_paciente_agenda.py`)
 
@@ -755,4 +758,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 434 endpoints em 63 routers · 93% exigem auth.
+**Totais:** 437 endpoints em 63 routers · 93% exigem auth.
