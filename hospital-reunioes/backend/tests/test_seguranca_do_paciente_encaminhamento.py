@@ -20,6 +20,7 @@ from __future__ import annotations
 import os
 import re
 import sys
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -37,6 +38,8 @@ from test_seguranca_do_paciente_triagem import (  # noqa: E402
     _secao_do_kit,
     _sugestao,
 )
+
+from app.services.seguranca_do_paciente import encaminhamento  # noqa: E402
 
 OUVIDOR = _pessoa("P7", perfil_ouvidoria="ouvidor")
 OUVIDOR_DESLIGADO = _pessoa("P8", perfil_ouvidoria="ouvidor", ativo=False)
@@ -247,3 +250,49 @@ def test_so_a_presidencia_e_o_acesso_pleno_encaminham():
 
     assert resposta.status_code == 403
     assert banco.tabelas.get("nsp_encaminhamentos", []) == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. O kit de conhecimento
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_o_kit_diz_como_a_presidencia_encaminha():
+    no_ar = _secao_do_kit("O que já está no ar")
+    for termo in (
+        "**Encaminhar**",
+        "o protocolo continua o mesmo",
+        "e-mail ao ouvidor com o protocolo, o motivo e o relato",
+        "Canal de Conduta, nada é enviado",
+        "Fora de escopo encerra o caso",
+        "página de acompanhamento",
+        "continua na fila de triagem",
+    ):
+        assert termo in no_ar, termo
+    assert "encaminhamento a outro canal" not in _secao_do_kit("O que ele ainda não faz")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# A migration 205, lida como texto (a prova no Postgres está no PR)
+# ═══════════════════════════════════════════════════════════════════════════
+
+MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "205_nsp_encaminhamento.sql"
+
+
+def _sql() -> str:
+    return re.sub(r"--[^\n]*", "", MIGRATION.read_text(encoding="utf-8"))
+
+
+def test_a_migration_aceita_os_destinos_do_app_e_o_marco_do_email_ao_ouvidor():
+    sql = _sql()
+    [lista] = re.findall(r"destinos <@ ARRAY\[([^\]]+)\]", sql)
+    assert sorted(re.findall(r"'(\w+)'", lista)) == sorted(encaminhamento.DESTINOS)
+    assert f"''{encaminhamento.MARCO_DA_OUVIDORIA}''" in sql
+
+
+def test_a_tabela_nova_nasce_com_rls_sem_politica_e_o_recibo_e_o_205():
+    sql = _sql()
+    for tabela in re.findall(r"CREATE TABLE IF NOT EXISTS (\w+)", sql):
+        assert f"ALTER TABLE {tabela} ENABLE ROW LEVEL SECURITY;" in sql, tabela
+    assert "VALUES (205) ON CONFLICT" in sql
+    assert "CREATE POLICY" not in sql.upper()
