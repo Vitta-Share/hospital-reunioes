@@ -31,6 +31,7 @@ from app.routers import conduta_comite  # noqa: E402
 from app.services.conduta import agente_de_triagem as agente  # noqa: E402
 from app.services.conduta import casos, cifra  # noqa: E402
 from app.services.conduta.acesso import hoje_em_sao_paulo  # noqa: E402
+from app.services.prompt_loader import load_prompt  # noqa: E402
 
 BASE = "/api/comite-de-conduta"
 HOJE = hoje_em_sao_paulo()
@@ -320,6 +321,27 @@ class TestSemSugestao:
         assert "perguntas" in agente.validar_saida(quatro)
         sem_justificativa = resposta_valida(resumo=_item("Resumo.", justificativa=""))
         assert "formato:resumo" in agente.validar_saida(sem_justificativa)
+
+    def test_assunto_de_mais_de_oito_palavras_leva_o_caso_a_triagem_manual(self):
+        # Equivalente à resposta da rodada 1 do caso 7 do Anexo B, recusada no
+        # assunto: a de oito palavras é a da rodada 3, que passou.
+        oito = "Possível retaliação: horas extras cortadas após recusar convite"
+        dez = "Possível retaliação: horas extras cortadas após recusar convite do chefe"
+        assert agente.validar_saida(resposta_valida(assunto_para_lista=_item(oito))) == []
+        comite = Comite(modelo=Modelo(resposta=resposta_valida(assunto_para_lista=_item(dez))))
+        caso_id = comite.novo_caso()
+
+        assert comite.sugestoes(caso_id)[0]["motivo_manual"] == "validacao"
+        assert agente.validar_saida(resposta_valida(assunto_para_lista=_item(dez))) == ["assunto"]
+
+    def test_o_prompt_diz_o_limite_do_assunto_entre_as_regras_que_o_sistema_confere(self):
+        # O "até 8 palavras" só no molde do JSON não avisava o modelo de que a
+        # nona palavra derruba a resposta inteira (caso 7, rodada 1, do Anexo B).
+        prompt = load_prompt(agente.PROMPT)
+        regras = prompt.split("Regras de coerência, que o sistema confere:")[1].split("\n\n")[0]
+        [linha] = [linha for linha in regras.splitlines() if "`assunto_para_lista`" in linha]
+        assert "no máximo 8 palavras" in linha
+        assert "recusada" in linha
 
 
 # ═══════════════════════════════════════════════════════════════════════════
