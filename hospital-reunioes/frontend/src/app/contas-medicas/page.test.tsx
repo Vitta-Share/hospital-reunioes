@@ -1596,6 +1596,22 @@ describe("a área de envio pelo botão Enviar contas (issue #1954)", () => {
     expect(screen.getByRole("region", { name: "Envio de contas" }).textContent).not.toContain("Vários de uma vez");
   });
 
+  it("o botão tem Legenda ao lado com o que enviar e os limites, com a área fechada, e ela some com as Legendas desligadas", async () => {
+    const frase = "Os PDFs da conta e do prontuário do MV. Até 10 atendimentos e 30 arquivos por envio, 100 MB por arquivo.";
+    render(comLegendas(true, <ContasMedicasPage />));
+    await linhas();
+
+    expect(screen.queryByRole("region", { name: "Envio de contas" })).toBeNull();
+    const legenda = screen.getByText(frase);
+    expect(legenda.parentElement?.contains(botaoDeEnviar())).toBe(true);
+    cleanup();
+
+    render(comLegendas(false, <ContasMedicasPage />));
+    await linhas();
+    expect(botaoDeEnviar()).toBeTruthy();
+    expect(screen.queryByText(frase)).toBeNull();
+  });
+
   it("a pílula do cartão do envio é a etiqueta de situação da lista, no tom da situação", async () => {
     render(<ContasMedicasPage />);
     await linhas();

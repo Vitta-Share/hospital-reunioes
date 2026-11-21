@@ -44,6 +44,9 @@ const LIMITES_DO_ENVIO = "Até 10 atendimentos e 30 arquivos por envio, 100 MB p
 /** A Legenda da área de envio (issue #1954): o que enviar e os limites. */
 export const LEGENDA_DO_ENVIO = `Vários de uma vez, sem renomear: o app lê o tipo e o atendimento dentro de cada PDF. ${LIMITES_DO_ENVIO}`;
 
+/** A Legenda do botão "Enviar contas" da barra (issue #1954): o que enviar e os limites. */
+export const LEGENDA_DO_ENVIAR = `Os PDFs da conta e do prontuário do MV. ${LIMITES_DO_ENVIO}`;
+
 /** A dica do botão "Enviar contas" da barra (issue #1954). */
 export const DICA_DO_ENVIAR = `Abre a área para enviar a conta e o prontuário do MV, em PDF. Também dá para soltar os arquivos em qualquer ponto da tela. ${LIMITES_DO_ENVIO}`;
 

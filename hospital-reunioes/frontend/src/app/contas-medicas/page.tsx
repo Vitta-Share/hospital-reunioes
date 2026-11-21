@@ -54,6 +54,7 @@ import {
 } from "@/lib/contas-medicas/envio";
 import {
   DICA_DO_ENVIAR,
+  LEGENDA_DO_ENVIAR,
   LEGENDA_DO_ENVIO,
   SOLTE_PARA_ENVIAR,
   VAZIO_DA_ETAPA,
@@ -357,18 +358,21 @@ export default function ContasMedicasPage() {
 
       <BarraDeContas>
         {pode?.enviar && (
-          <Dica texto={DICA_DO_ENVIAR} abrePara="esquerda">
-            <button
-              type="button"
-              aria-expanded={areaAberta}
-              aria-controls={ID_DA_AREA}
-              onClick={() => setAreaAberta((aberta) => !aberta)}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium"
-            >
-              <Upload className="w-4 h-4" aria-hidden="true" />
-              Enviar contas
-            </button>
-          </Dica>
+          <div className="flex max-w-xs flex-col items-end text-right">
+            <Dica texto={DICA_DO_ENVIAR} abrePara="esquerda">
+              <button
+                type="button"
+                aria-expanded={areaAberta}
+                aria-controls={ID_DA_AREA}
+                onClick={() => setAreaAberta((aberta) => !aberta)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium"
+              >
+                <Upload className="w-4 h-4" aria-hidden="true" />
+                Enviar contas
+              </button>
+            </Dica>
+            <Legenda className="text-xs">{LEGENDA_DO_ENVIAR}</Legenda>
+          </div>
         )}
       </BarraDeContas>
 
