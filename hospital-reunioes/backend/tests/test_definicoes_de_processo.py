@@ -136,7 +136,7 @@ def _sb_com_lista():
     sb.reunioes = [
         _reuniao("R1", "Enfermagem semanal", "S-ENF", "P1"),
         _reuniao("R2", "Enfermagem mensal", "S-ENF", "P2"),
-        _reuniao("R3", "Faturamento", "S-FAT", "P3"),
+        _reuniao("R3", "Fechamento de contas", "S-FAT", "P3"),
         _reuniao("R4", "Reunião antiga", None, "P1"),
     ]
     sb.definicoes_processo = [
@@ -195,7 +195,7 @@ def test_a_lista_traz_o_setor_a_reuniao_e_o_trecho(cliente_da_lista):
     [item] = r.json()
     assert (item["setor_nome"], item["reuniao_titulo"], item["trecho"]) == (
         "Faturamento",
-        "Faturamento",
+        "Fechamento de contas",
         "Conta fecha em 48 horas",
     )
 
