@@ -17,6 +17,7 @@ e o e-mail é sempre dublado. As pessoas são de teste.
 
 from __future__ import annotations
 
+import ast
 import base64
 import inspect
 import os
@@ -163,3 +164,189 @@ class TestTarefaNova:
         monkeypatch.setattr(avisos, "tarefas_do_caso", _explode)
 
         assert comite.ok(COORDENACAO, caso_id, "triagem", DENTRO_RAPIDO)["etapa"] == "apuracao"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. O e-mail e o link não contêm protocolo, nome, rito nem trecho de relato
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestSemConteudo:
+    def test_o_email_leva_so_a_frase_fixa_e_o_link_da_minha_vez(self, comite, emails):
+        caso_id = comite.caso()
+        comite.ok(COORDENACAO, caso_id, "triagem", DENTRO_COMPLETO)
+        protocolo = next(c for c in comite.banco.tabelas["conduta_casos"] if c["id"] == caso_id)["protocolo"]
+
+        avisos.rodada_do_dia(comite.banco, HOJE)
+
+        assert emails, "o aviso tinha de sair"
+        for email in emails:
+            assert email["assunto"] == FRASE
+            assert email["texto"] == f"{FRASE}\n\nPara ver: https://app.hsm.test/comite-de-conduta\n"
+            assert email["endereco_fora_do_log"] is True
+            tudo = f"{email['assunto']}\n{email['texto']}\n{email['html']}"
+            for proibido in (protocolo, caso_id, "Pessoa", "Fulano", "almoxarifado", "Completo", "completo"):
+                assert proibido not in tudo, proibido
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. Caso do rito Completo ou da Rota Especial avisa na hora
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestNaHora:
+    def test_tarefa_do_rito_completo_sai_no_job_de_minuto_em_minuto(self, comite, emails):
+        caso_id = comite.caso()
+        comite.ok(COORDENACAO, caso_id, "triagem", DENTRO_COMPLETO)
+
+        avisos.despachar(comite.banco, HOJE, so_na_hora=True)
+
+        assert _para(emails) == [_email(SEGUNDO_LEITOR)]
+
+    def test_tarefa_do_rito_rapido_espera_a_rodada_do_dia(self, comite, emails):
+        caso_id = comite.caso()
+        comite.ok(COORDENACAO, caso_id, "triagem", DENTRO_RAPIDO)
+
+        avisos.despachar(comite.banco, HOJE, so_na_hora=True)
+        assert emails == []
+
+        avisos.rodada_do_dia(comite.banco, HOJE)
+        assert _para(emails) == [_email(SEGUNDO_LEITOR)]
+
+    def test_caso_da_rota_especial_avisa_o_grupo_na_hora(self, comite, emails):
+        from app.services.conduta import casos
+
+        caso_id = casos.registrar_caso(comite.banco, relato=RELATO, categoria=None, rota="especial")["id"]
+        comite.banco.tabelas.setdefault("conduta_atribuicoes", []).append(
+            {"id": "atr-1", "caso_id": caso_id, "participante_id": COORDENACAO, "motivo": "grupo_especial"}
+        )
+
+        avisos.avisar_tarefas_novas(comite.banco, caso_id, {})
+        avisos.despachar(comite.banco, HOJE, so_na_hora=True)
+
+        assert _para(emails) == [_email(COORDENACAO)]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. Os lembretes saem a cinco dias e a um dia do prazo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _com_prazo(comite: Comite, faltam: int, triagem: dict = FORA_DP) -> str:
+    """Um caso triado, com o prazo a `faltam` dias de HOJE."""
+    caso_id = comite.caso()
+    comite.ok(COORDENACAO, caso_id, "triagem", triagem)
+    linha = next(c for c in comite.banco.tabelas["conduta_casos"] if c["id"] == caso_id)
+    linha["prazo_em"] = (HOJE + timedelta(days=faltam)).isoformat()
+    return caso_id
+
+
+def _lembretes(comite: Comite) -> list[tuple[str, str]]:
+    return sorted(
+        (a["participante_id"], a["motivo"])
+        for a in comite.banco.tabelas.get("conduta_avisos", [])
+        if a["motivo"] != "tarefa"
+    )
+
+
+class TestLembretes:
+    @pytest.mark.parametrize("faltam, marco", [(5, "lembrete_5"), (1, "lembrete_1")])
+    def test_cinco_dias_e_um_dia_do_prazo_lembram_quem_tem_a_tarefa(self, comite, emails, faltam, marco):
+        _com_prazo(comite, faltam)
+
+        avisos.rodada_do_dia(comite.banco, HOJE)
+
+        assert _lembretes(comite) == [(SEGUNDO_LEITOR, marco)]
+        assert _email(SEGUNDO_LEITOR) in _para(emails)
+
+    @pytest.mark.parametrize("faltam", [6, -1])
+    def test_longe_do_prazo_ou_depois_dele_nao_ha_lembrete(self, comite, emails, faltam):
+        _com_prazo(comite, faltam)
+
+        avisos.rodada_do_dia(comite.banco, HOJE)
+
+        assert _lembretes(comite) == []
+
+    def test_cada_marco_lembra_uma_vez_so(self, comite, emails):
+        _com_prazo(comite, 5)
+        avisos.rodada_do_dia(comite.banco, HOJE)
+        emails.clear()
+
+        avisos.rodada_do_dia(comite.banco, HOJE)
+        avisos.rodada_do_dia(comite.banco, HOJE + timedelta(days=1))
+        assert emails == []
+
+        avisos.rodada_do_dia(comite.banco, HOJE + timedelta(days=4))
+        assert _lembretes(comite) == [(SEGUNDO_LEITOR, "lembrete_1"), (SEGUNDO_LEITOR, "lembrete_5")]
+        assert _para(emails) == [_email(SEGUNDO_LEITOR)]
+
+    def test_o_job_parado_uns_dias_manda_so_o_marco_mais_adiantado(self, comite, emails):
+        _com_prazo(comite, 1)
+
+        avisos.rodada_do_dia(comite.banco, HOJE)
+
+        assert _lembretes(comite) == [(SEGUNDO_LEITOR, "lembrete_1")]
+
+    def test_sem_ninguem_com_tarefa_o_lembrete_vai_a_coordenacao(self, comite, emails):
+        caso_id = _com_prazo(comite, 5, DENTRO_RAPIDO)
+        comite.ok(SEGUNDO_LEITOR, caso_id, "conferencia")
+
+        avisos.rodada_do_dia(comite.banco, HOJE)
+
+        assert _lembretes(comite) == [(COORDENACAO, "lembrete_5")]
+
+    def test_caso_encerrado_nao_lembra(self, comite, emails):
+        caso_id = _com_prazo(comite, 5)
+        comite.ok(SEGUNDO_LEITOR, caso_id, "conferencia")
+        comite.ok(COORDENACAO, caso_id, "encaminhamento")
+
+        avisos.rodada_do_dia(comite.banco, HOJE)
+
+        assert _lembretes(comite) == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. Nenhum e-mail é enviado a quem relatou
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestQuemRelatou:
+    def test_o_caso_inteiro_nunca_escreve_para_quem_esta_fora_do_comite(self, comite, emails):
+        """Quem relatou não está no Comitê do caso: a pessoa de fora faz o
+        papel dela, com e-mail no cadastro, e não recebe nada em etapa alguma."""
+        caso_id = _com_prazo(comite, 1, DENTRO_COMPLETO)
+        comite.ok(SEGUNDO_LEITOR, caso_id, "contestacao", {**FORA_DP, "motivo": "Não é do canal."})
+        for pid in (COORDENACAO, MEMBRO):
+            comite.ok(pid, caso_id, "contestacao/decisao", {"escolha": "acatar"})
+        comite.caso()
+
+        for dias in range(7):
+            avisos.despachar(comite.banco, HOJE + timedelta(days=dias), so_na_hora=True)
+            avisos.rodada_do_dia(comite.banco, HOJE + timedelta(days=dias))
+
+        assert emails, "o Comitê tinha de ser avisado"
+        assert _email(DE_FORA) not in _para(emails)
+        assert set(_para(emails)) <= {_email(p) for p in (COORDENACAO, SEGUNDO_LEITOR, MEMBRO)}
+
+    def test_o_citado_nao_e_avisado_do_caso_em_que_e_citado(self, comite, emails):
+        caso_id = comite.caso()
+        comite.banco.tabelas.setdefault("conduta_citados", []).append(
+            {"id": "cit-1", "caso_id": caso_id, "participante_id": COORDENACAO}
+        )
+        comite.banco.tabelas["conduta_avisos"] = []
+
+        avisos.avisar_tarefas_novas(comite.banco, caso_id, {})
+        avisos.rodada_do_dia(comite.banco, HOJE)
+
+        assert _email(COORDENACAO) not in _para(emails)
+
+    def test_os_avisos_nao_leem_o_relato_nem_o_codigo_de_quem_relatou(self):
+        """O caso é lido só pelos metadados da lista, e nada aqui decifra."""
+        arvore = ast.parse(inspect.getsource(avisos))
+        importados = {a.name for n in ast.walk(arvore) if isinstance(n, ast.Import | ast.ImportFrom) for a in n.names}
+        atributos = {n.attr for n in ast.walk(arvore) if isinstance(n, ast.Attribute)}
+        textos = {n.value for n in ast.walk(arvore) if isinstance(n, ast.Constant) and isinstance(n.value, str)}
+        assert "cifra" not in importados
+        assert "decifrar_texto" not in atributos
+        assert not {"relato_cifrado", "codigo_hash"} & textos
+        assert "CAMPOS_DA_LISTA" in importados
