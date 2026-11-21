@@ -13,7 +13,7 @@ import json
 import os
 import secrets
 import sys
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any
 
@@ -166,6 +166,9 @@ class Comite:
     def novo_caso(self, relato: str = RELATO) -> str:
         tarefas = Tarefas()
         caso = casos.registrar_caso(self.banco, relato=relato, categoria=None, tarefas=tarefas)
+        # O DEFAULT now() da migration 175.
+        linha = next(c for c in self.banco.tabelas["conduta_casos"] if c["id"] == caso["id"])
+        linha["recebido_em"] = datetime.now(UTC).isoformat()
         for funcao, argumentos in tarefas.agendadas:
             assert funcao is agente.triar_caso_fora_do_loop
             agente.triar_caso(*argumentos, cliente=self.modelo)
@@ -222,3 +225,98 @@ class TestSugestaoNaEntrada:
         assert len(comite.modelo.chamadas) == 1
         assert len(comite.sugestoes(caso_id)) == 1
         assert [a for a, _ in comite.trilha(caso_id)].count("sugestao_do_agente") == 1
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. O texto enviado ao modelo não contém nome, CPF, telefone nem e-mail
+# ═══════════════════════════════════════════════════════════════════════════
+
+RELATO_COM_DADOS = (
+    "Eu, Juliana Prado, CPF 529.982.247-25, telefone (21) 98765-4321, email juliana.prado@gmail.com, "
+    "relato que a supervisora Marcia Coelho grita comigo. O caso foi visto por rogério tavares lins."
+)
+
+
+class TestTextoSemNome:
+    def test_o_modelo_recebe_marcadores_no_lugar_de_nome_cpf_telefone_e_email(self):
+        comite = Comite()
+        comite.novo_caso(RELATO_COM_DADOS)
+
+        enviado = comite.modelo.texto_enviado()
+        for marcador in ("[NOME]", "[CPF]", "[TELEFONE]", "[EMAIL]"):
+            assert marcador in enviado
+        for dado in ("Juliana", "Prado", "529.982.247-25", "98765-4321", "juliana.prado", "Marcia", "Coelho"):
+            assert dado not in enviado
+
+    def test_o_nome_de_um_membro_do_comite_sai_mesmo_em_minusculas(self):
+        comite = Comite()
+        comite.novo_caso(RELATO_COM_DADOS)
+
+        enviado = comite.modelo.texto_enviado().lower()
+        assert "rogério" not in enviado and "tavares" not in enviado
+        assert "visto por [nome]" in enviado
+
+    def test_so_o_relato_a_categoria_e_os_casos_anteriores_vao_ao_modelo(self):
+        comite = Comite()
+        primeiro = comite.novo_caso()
+        linha = next(c for c in comite.banco.tabelas["conduta_casos"] if c["id"] == primeiro)
+        linha["recebido_em"] = "2026-11-01T10:00:00+00:00"
+        comite.novo_caso("Estão sumindo ampolas do carrinho do centro cirúrgico.")
+
+        segunda = comite.modelo.chamadas[1]["messages"][0]["content"]
+        assert linha["protocolo"] in segunda
+        assert "Humilhação pela chefia na frente da equipe" in segunda
+        assert "codigo_hash" not in segunda and linha["codigo_hash"] not in segunda
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. Passado o teto diário ou com falha do modelo, o caso entra na fila sem
+#    sugestão, e a trilha diz por quê
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestSemSugestao:
+    def test_passado_o_teto_o_modelo_nao_e_chamado_e_a_trilha_diz_por_que(self):
+        comite = Comite(teto_atingido=True)
+        caso_id = comite.novo_caso()
+
+        assert comite.modelo.chamadas == []
+        assert comite.banco.reservas == 1
+        [linha] = comite.sugestoes(caso_id)
+        assert linha["situacao"] == "manual" and linha["motivo_manual"] == "teto"
+        assert (
+            "triagem_manual",
+            "sem sugestão do agente: o teto diário de leituras do agente foi atingido",
+        ) in comite.trilha(caso_id)
+        assert comite.abrir(COORDENACAO, caso_id)["etapa"] == "triagem"
+
+    def test_com_o_modelo_fora_do_ar_o_caso_fica_para_triagem_manual(self):
+        comite = Comite(modelo=Modelo(falha=TimeoutError("sem resposta")))
+        caso_id = comite.novo_caso()
+
+        assert len(comite.modelo.chamadas) == 1
+        assert comite.sugestoes(caso_id)[0]["motivo_manual"] == "agente_fora"
+        assert ("triagem_manual", "sem sugestão do agente: o agente está fora do ar") in comite.trilha(caso_id)
+
+    def test_resposta_fora_do_formato_nao_vira_sugestao(self):
+        comite = Comite(modelo=Modelo(resposta=resposta_valida(rito=_item("ENCAMINHAMENTO"))))
+        caso_id = comite.novo_caso()
+
+        assert comite.sugestoes(caso_id)[0]["motivo_manual"] == "validacao"
+        assert (
+            "triagem_manual",
+            "sem sugestão do agente: a resposta do agente veio fora do formato",
+        ) in comite.trilha(caso_id)
+
+    def test_cada_quebra_de_coerencia_e_recusada(self):
+        assert agente.validar_saida(resposta_valida()) == []
+        fora_sem_destino = resposta_valida(
+            escopo=_item("FORA", destino=""), categoria=_item(""), rito=_item("ENCAMINHAMENTO")
+        )
+        assert "destino" in agente.validar_saida(fora_sem_destino)
+        especial_sem_rito = resposta_valida(especial=_item("SIM", citados="diretora"))
+        assert "especial" in agente.validar_saida(especial_sem_rito)
+        quatro = resposta_valida(perguntas_ao_denunciante=_item(["a?", "b?", "c?", "d?"]))
+        assert "perguntas" in agente.validar_saida(quatro)
+        sem_justificativa = resposta_valida(resumo=_item("Resumo.", justificativa=""))
+        assert "formato:resumo" in agente.validar_saida(sem_justificativa)
