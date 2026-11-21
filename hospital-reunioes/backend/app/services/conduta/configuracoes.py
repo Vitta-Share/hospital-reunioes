@@ -3,7 +3,7 @@ especificação seção 15).
 
 Cada item é uma lista de versões que só cresce: salvar grava a versão
 seguinte, com autor e data, e a anterior fica. A vigente é a de maior número.
-O banco (migration 180) recusa UPDATE, DELETE e TRUNCATE, então nenhum perfil
+O banco (migration 186) recusa UPDATE, DELETE e TRUNCATE, então nenhum perfil
 apaga uma versão.
 
 Não existe o item "E-mail do DP" da especificação: o encaminhamento ao DP não

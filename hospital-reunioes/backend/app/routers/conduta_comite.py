@@ -172,7 +172,7 @@ class NovaVersao(BaseModel):
     @field_validator("texto")
     @classmethod
     def _nao_em_branco(cls, texto: str) -> str:
-        # Só espaço cairia no CHECK da migration 180 (500); quebra de linha
+        # Só espaço cairia no CHECK da migration 186 (500); quebra de linha
         # passaria por ele e viraria versão vigente em branco na tela pública.
         if not texto.strip():
             raise ValueError("O texto não pode ficar em branco")

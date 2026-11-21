@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 180: Canal de Conduta, as configurações e os textos com versão
+-- Migration 186: Canal de Conduta, as configurações e os textos com versão
 -- (issue #1826, PRD #1786, especificação seção 15)
 -- =====================================================
 -- Cada alteração de um item vira uma linha nova, com autor e data, e a
@@ -72,4 +72,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (180) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (186) ON CONFLICT (numero) DO NOTHING;

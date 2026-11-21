@@ -1,4 +1,4 @@
-"""A migration 180 do Canal de Conduta num Postgres de verdade (issue #1826).
+"""A migration 186 do Canal de Conduta num Postgres de verdade (issue #1826).
 
 Sobe um Postgres descartável (o mesmo apoio da migration 169), monta o mínimo
 de antes, aplica a migration duas vezes e prova no banco:
@@ -22,9 +22,9 @@ from pathlib import Path
 import pytest
 from test_pendencia_historico_banco import _bin_do_postgres, _Postgres
 
-MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "180_conduta_configuracoes_com_versao.sql"
+MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "186_conduta_configuracoes_com_versao.sql"
 
-# O mínimo de antes da 180 (migrations 001 e 146).
+# O mínimo de antes da 186 (migrations 001 e 146).
 ESQUEMA_ANTERIOR = """
 CREATE ROLE anon NOLOGIN;
 CREATE ROLE authenticated NOLOGIN;
@@ -144,4 +144,4 @@ def test_a_migration_nao_grava_nenhum_texto(banco):
 
 
 def test_o_recibo_e_o_180(banco):
-    assert banco.ok("SELECT max(numero) FROM migracoes_aplicadas;") == "180"
+    assert banco.ok("SELECT max(numero) FROM migracoes_aplicadas;") == "186"
