@@ -139,6 +139,55 @@ export const ROTULO_NIVEL: Record<NonNullable<LinhaGuia["nivel_evidencia"]>, str
   POR_REGRA: "Por regra",
 };
 
+/** A dica do nível da Evidência, no Item da vez (issue #1952). */
+export const DICA_DO_NIVEL: Record<NonNullable<LinhaGuia["nivel_evidencia"]>, string> = {
+  REGISTRADO: "O prontuário registra o uso.",
+  PRESCRITO: "Prescrito em horário fixo, sem a checagem do uso.",
+  PRESCRITO_SN: "Prescrito se necessário, sem registro de uso.",
+  POR_REGRA: "Vem da regra da operadora, pelo tempo ou pelo teto.",
+};
+
+/** O estado da Linha na lista da Mesa de trabalho (issue #1952). */
+export const ROTULO_ESTADO: Record<EstadoLinha, string> = {
+  ABERTA: "Aberta",
+  FEITO: "Feito",
+  NAO_PROCEDE: "Não procede",
+  BLOQUEADO: "Bloqueado",
+  EM_VALIDACAO: "Em validação",
+  DECIDIDA: "Decidida",
+};
+
+/**
+ * A Linha que ainda espera a faturista: aberta, ou decidida pela Validação com
+ * uma ação para lançar no MV. A Validar nunca espera, porque não tem botão.
+ */
+export function esperaMarcacao(linha: LinhaGuia): boolean {
+  return linha.acao !== "VALIDAR" && (linha.estado === "ABERTA" || linha.estado === "DECIDIDA");
+}
+
+/** As Linhas na ordem da lista: dia e setor, como o servidor manda. */
+export function linhasEmOrdem(guia: Pick<Guia, "grupos">): LinhaGuia[] {
+  return guia.grupos.flatMap((grupo) => grupo.linhas);
+}
+
+/**
+ * O Item da vez depois de marcar (issue #1952): a próxima Linha que espera
+ * marcação depois de `aPartirDe`, na ordem da lista, voltando ao começo. Sem
+ * `aPartirDe` (ou com uma Linha que sumiu), a primeira. Nenhuma: nulo.
+ */
+export function proximaAberta(guia: Pick<Guia, "grupos">, aPartirDe: string | null): string | null {
+  const linhas = linhasEmOrdem(guia);
+  const inicio = linhas.findIndex((linha) => linha.id === aPartirDe) + 1;
+  const emVolta = [...linhas.slice(inicio), ...linhas.slice(0, inicio)];
+  return emVolta.find(esperaMarcacao)?.id ?? null;
+}
+
+/** "Faltam 3 itens para marcar", no rodapé fixo. */
+export function itensQueFaltam(semMarcacao: number): string {
+  if (semMarcacao <= 0) return "Nenhum item sem marcação";
+  return semMarcacao === 1 ? "Falta 1 item para marcar" : `Faltam ${semMarcacao} itens para marcar`;
+}
+
 /**
  * A etiqueta âmbar da linha "se necessário" sem registro de uso no MV (nível
  * PRESCRITO_SN, issue #1134). O texto para a faturista vem no motivo.

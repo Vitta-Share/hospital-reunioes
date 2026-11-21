@@ -1,27 +1,33 @@
 "use client";
 
 /**
- * O Guia da faturista (issue #1121, PRD #1113, ADR 0070).
+ * O Guia da faturista na Mesa de trabalho (issue #1952, PRD #1933; antes
+ * issue #1121, PRD #1113, ADR 0070).
  *
- * A tela que cabe ao lado do MV (720 px): cabeçalho da conta, os três números
- * (Nota de entrada, R$ a ajustar, Itens feitos), as linhas por dia e setor e o
- * rodapé com a observação e o "Concluir e abrir a próxima", sempre habilitado.
- * Na conta concluída, o rodapé tem o "Reenviar conta corrigida" (issue #1136):
- * a nota de saída vai ao lado da de entrada e cada linha Feito ganha a marca.
+ * A conta aberta ocupa o monitor inteiro, com o MV no outro: cabeçalho da
+ * conta, a faixa dos números (Nota de entrada, R$ a ajustar, Itens feitos) e
+ * a Mesa de trabalho, com a lista das Linhas por dia e setor de um lado e o
+ * Item da vez do outro. Abaixo de 1000 px a lista fica em cima do item. Depois
+ * de marcar, o Item da vez passa para a próxima Linha aberta. O rodapé fixo
+ * tem a observação e o "Concluir e abrir a próxima", sempre habilitado; na
+ * conta concluída, o "Reenviar conta corrigida" (issue #1136).
  *
  * Quem decide tudo é o servidor: a faturista só abre a própria conta, abrir
  * muda A fazer para Em correção, e concluída não aceita marcação. Depois de
  * cada clique a tela relê o Guia, para os números nunca saírem da conta.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, RefreshCw, Undo2, Upload } from "lucide-react";
 
 import { ConversaDaConta } from "@/components/contas-medicas/ConversaDaConta";
 import { Ditar, juntarDitado } from "@/components/contas-medicas/Ditar";
-import { LinhaDoGuia, type Marcacao } from "@/components/contas-medicas/LinhaDoGuia";
+import { ItemDaVez, type Marcacao } from "@/components/contas-medicas/ItemDaVez";
+import { ListaDoGuia } from "@/components/contas-medicas/ListaDoGuia";
+import { Dica } from "@/components/ui/Dica";
+import { Legenda } from "@/components/ui/Legenda";
 import { useToast } from "@/components/ui/Toast";
 import { diasDoPeriodo } from "@/lib/contas-medicas/faltouIsto";
 import {
@@ -31,7 +37,11 @@ import {
   type Guia,
   ROTULO_SITUACAO,
   dataCurta,
+  esperaMarcacao,
+  itensQueFaltam,
+  linhasEmOrdem,
   perguntaDeConclusao,
+  proximaAberta,
   reais,
   resumoDoReenvio,
   rotuloDoGrupo,
@@ -46,7 +56,13 @@ const COR_DA_SITUACAO: Record<string, string> = {
   RETORNO: "bg-[#FEF3C7] text-[#92400E]",
 };
 
+const DICA_DE_DEVOLVER = "A conta volta para a Fila, livre, com as marcações que você já fez.";
+const DICA_DE_REANALISAR =
+  "A conta volta para a análise com a memória e as tabelas de agora. As linhas já marcadas ficam como estão.";
+
 const TITULO = "text-xs font-semibold uppercase tracking-[0.04em] text-slate-500";
+const BOTAO_DO_TOPO =
+  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 hover:border-slate-300 disabled:opacity-50";
 
 function coluna(valor: string): string {
   return valor.charAt(0).toUpperCase() + valor.slice(1).toLowerCase();
@@ -59,7 +75,6 @@ function subtitulo(guia: Guia): string {
       ? `parcial de ${dataCurta(c.periodo_inicio)} a ${dataCurta(c.periodo_fim)}`
       : null;
   return [
-    c.paciente_rotulo,
     c.numero_conta ? `conta ${c.numero_conta}` : null,
     c.operadora,
     c.coluna_preco ? `coluna ${coluna(c.coluna_preco)}` : null,
@@ -74,10 +89,6 @@ function diasDoFaltouIsto(guia: Guia): string[] {
   const doPeriodo = diasDoPeriodo(guia.cabecalho.periodo_inicio, guia.cabecalho.periodo_fim);
   if (doPeriodo.length > 0) return doPeriodo;
   return [...new Set(guia.grupos.map((grupo) => grupo.data).filter((dia): dia is string => Boolean(dia)))].sort();
-}
-
-function temAberta(grupo: GrupoGuia): boolean {
-  return grupo.linhas.some((linha) => linha.estado === "ABERTA" && linha.acao !== "VALIDAR");
 }
 
 async function detalhe(resposta: Response, padrao: string): Promise<string> {
@@ -103,19 +114,22 @@ export default function GuiaPage() {
   const [observacao, setObservacao] = useState("");
   const [resultadoDoReenvio, setResultadoDoReenvio] = useState<string | null>(null);
   const [escolhaDoFaltouIsto, setEscolhaDoFaltouIsto] = useState<{ dia: string; vez: number } | null>(null);
+  const [idDaVez, setIdDaVez] = useState<string | null>(null);
   const seletorDoPdf = useRef<HTMLInputElement>(null);
 
   const base = `/api/contas-medicas/contas/${contaId}/guia`;
 
   const carregar = useCallback(
-    async (tk: string) => {
+    async (tk: string): Promise<Guia | null> => {
       const resposta = await fetch(base, { headers: { Authorization: `Bearer ${tk}` } });
       if (!resposta.ok) {
         setErro(await detalhe(resposta, "Não consegui abrir o guia desta conta."));
-        return;
+        return null;
       }
       setErro(null);
-      setGuia(await resposta.json());
+      const lido: Guia = await resposta.json();
+      setGuia(lido);
+      return lido;
     },
     [base],
   );
@@ -132,8 +146,12 @@ export default function GuiaPage() {
       setGuia(null);
       setObservacao("");
       setResultadoDoReenvio(null);
-      if (tk) await carregar(tk);
-      else setErro("Sessão expirada. Entre de novo.");
+      if (!tk) {
+        setErro("Sessão expirada. Entre de novo.");
+        return;
+      }
+      const lido = await carregar(tk);
+      if (lido && vivo) setIdDaVez(proximaAberta(lido, null));
     }
     iniciar();
     return () => {
@@ -164,7 +182,9 @@ export default function GuiaPage() {
   }
 
   async function marcar(linhaId: string, marcacao: Marcacao) {
-    if (await enviar(`/linhas/${linhaId}/marcacao`, "POST", marcacao)) await carregar(token as string);
+    if (!(await enviar(`/linhas/${linhaId}/marcacao`, "POST", marcacao))) return;
+    const lido = await carregar(token as string);
+    if (lido) setIdDaVez(proximaAberta(lido, linhaId));
   }
 
   async function desfazer(linhaId: string) {
@@ -172,9 +192,11 @@ export default function GuiaPage() {
   }
 
   async function marcarODia(grupo: GrupoGuia) {
-    if (await enviar("/dia/feito", "POST", { data: grupo.data, setor: grupo.setor })) {
-      await carregar(token as string);
-    }
+    if (!(await enviar("/dia/feito", "POST", { data: grupo.data, setor: grupo.setor }))) return;
+    const lido = await carregar(token as string);
+    if (!lido) return;
+    const atual = linhasEmOrdem(lido).find((linha) => linha.id === idDaVez);
+    if (!atual || !esperaMarcacao(atual)) setIdDaVez(proximaAberta(lido, idDaVez));
   }
 
   function copiar(codigo: string) {
@@ -285,14 +307,22 @@ export default function GuiaPage() {
     numeros.valor_em_validacao > 0
       ? `em ${numeros.itens_a_ajustar} itens, mais ${reais(numeros.valor_em_validacao)} em validação`
       : `em ${numeros.itens_a_ajustar} itens`;
+  const linhas = linhasEmOrdem(guia);
+  const posicao = linhas.findIndex((linha) => linha.id === idDaVez);
+  const daVez = posicao >= 0 ? linhas[posicao] : null;
+  const grupoDaVez = daVez ? guia.grupos.find((grupo) => grupo.linhas.includes(daVez)) : undefined;
+  const andamento = numeros.itens_total > 0 ? Math.round((100 * numeros.itens_feitos) / numeros.itens_total) : 0;
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5 min-w-0">
+    <div data-testid="guia" data-guia="" className="w-full min-w-0 overflow-x-clip space-y-4">
       <VoltarParaContas />
 
       <header className="space-y-1">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-bold text-slate-900">Atendimento {cabecalho.numero_atendimento}</h1>
+          <h1 className="flex flex-wrap items-baseline gap-x-3 font-bold text-slate-900">
+            <span className="text-3xl">{cabecalho.numero_atendimento}</span>{" "}
+            {cabecalho.paciente_rotulo && <span className="text-xl normal-case">{cabecalho.paciente_rotulo}</span>}
+          </h1>
           <span
             className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${
               COR_DA_SITUACAO[cabecalho.situacao] ?? "bg-[#F1F5F9] text-[#475569]"
@@ -307,31 +337,61 @@ export default function GuiaPage() {
           )}
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {cabecalho.situacao === "EM_CORRECAO" && (
-              <button
-                type="button"
-                onClick={devolver}
-                disabled={ocupado}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 hover:border-slate-300 disabled:opacity-50"
-              >
-                <Undo2 className="w-4 h-4" aria-hidden="true" />
-                Devolver à fila
-              </button>
+              <Dica texto={DICA_DE_DEVOLVER} abrePara="esquerda">
+                <button type="button" onClick={devolver} disabled={ocupado} className={BOTAO_DO_TOPO}>
+                  <Undo2 className="w-4 h-4" aria-hidden="true" />
+                  Devolver à fila
+                </button>
+              </Dica>
             )}
             {guia.pode_reanalisar && (
-              <button
-                type="button"
-                onClick={reanalisar}
-                disabled={ocupado}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 hover:border-slate-300 disabled:opacity-50"
-              >
-                <RefreshCw className="w-4 h-4" aria-hidden="true" />
-                {guia.regra_nova_desde_analise ? "Reanalisar com a regra nova" : "Reanalisar"}
-              </button>
+              <Dica texto={DICA_DE_REANALISAR} abrePara="esquerda">
+                <button type="button" onClick={reanalisar} disabled={ocupado} className={BOTAO_DO_TOPO}>
+                  <RefreshCw className="w-4 h-4" aria-hidden="true" />
+                  {guia.regra_nova_desde_analise ? "Reanalisar com a regra nova" : "Reanalisar"}
+                </button>
+              </Dica>
             )}
           </div>
         </div>
         <p className="text-sm text-slate-500 break-words">{subtitulo(guia)}</p>
       </header>
+
+      <section
+        aria-label="Números do guia"
+        className="bg-white rounded-2xl border border-border shadow-premium px-4 py-3 space-y-3"
+      >
+        <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
+          <Numero rotulo="Nota de entrada" dica="De 0 a 100, quanto a conta estava certa antes da correção.">
+            {numeros.nota_entrada}
+          </Numero>
+          {guia.reenvio?.nota_saida != null && (
+            <Numero rotulo="Nota de saída" dica="A mesma nota, feita sobre a conta corrigida que você reenviou.">
+              {guia.reenvio.nota_saida}
+            </Numero>
+          )}
+          <Numero
+            rotulo="R$ a ajustar"
+            dica="Quanto falta corrigir no MV. O que está em validação aparece à parte."
+            apoio={resumoDoAjuste}
+          >
+            R$ {reais(numeros.valor_a_ajustar)}
+          </Numero>
+          <Numero rotulo="Itens feitos" dica="Quantos itens você já marcou, de quantos a conta tem.">
+            {numeros.itens_feitos} de {numeros.itens_total}
+          </Numero>
+        </div>
+        <div
+          role="progressbar"
+          aria-label="Andamento da conta"
+          aria-valuemin={0}
+          aria-valuemax={numeros.itens_total}
+          aria-valuenow={numeros.itens_feitos}
+          className="h-2 w-full rounded-full bg-slate-100 overflow-hidden"
+        >
+          <div className="h-full bg-primary" style={{ width: `${andamento}%` }} />
+        </div>
+      </section>
 
       {cabecalho.parecer_parcial && (
         <div
@@ -368,82 +428,43 @@ export default function GuiaPage() {
         </div>
       )}
 
-      <section aria-label="Números do guia" className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="bg-white rounded-2xl border border-border shadow-premium p-4 flex flex-wrap gap-x-6 gap-y-2">
-          <div>
-            <p className={TITULO}>Nota de entrada</p>
-            <p className="text-3xl font-bold text-primary">{numeros.nota_entrada}</p>
-          </div>
-          {guia.reenvio?.nota_saida != null && (
-            <div>
-              <p className={TITULO}>Nota de saída</p>
-              <p className="text-3xl font-bold text-primary">{guia.reenvio.nota_saida}</p>
+      <section
+        aria-label="Mesa de trabalho"
+        className="grid grid-cols-1 min-[1000px]:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-4 items-start"
+      >
+        <ListaDoGuia
+          grupos={guia.grupos}
+          idDaVez={idDaVez}
+          concluida={concluida}
+          ocupado={ocupado}
+          onEscolher={setIdDaVez}
+          onFaltouIsto={(dia) => setEscolhaDoFaltouIsto({ dia, vez: Date.now() })}
+          onMarcarODia={marcarODia}
+        />
+        <section aria-label="Item da vez" className="min-w-0 bg-white rounded-2xl border border-border shadow-premium p-5">
+          {daVez ? (
+            <ItemDaVez
+              key={daVez.id}
+              linha={daVez}
+              posicao={posicao + 1}
+              total={linhas.length}
+              grupo={grupoDaVez ? rotuloDoGrupo(grupoDaVez) : ""}
+              concluida={concluida}
+              ocupado={ocupado}
+              onMarcar={(marcacao) => marcar(daVez.id, marcacao)}
+              onDesfazer={() => desfazer(daVez.id)}
+              onCopiar={copiar}
+            />
+          ) : linhas.length === 0 ? (
+            <p className="text-sm text-slate-500 text-center py-6">Nada a corrigir nesta conta.</p>
+          ) : (
+            <div className="text-center py-6 space-y-1">
+              <p className="text-sm font-semibold text-slate-700">Todos os itens estão marcados.</p>
+              <p className="text-sm text-slate-500">Clique num item da lista para ver de novo.</p>
             </div>
           )}
-        </div>
-        <div className="bg-white rounded-2xl border border-border shadow-premium p-4">
-          <p className={TITULO}>R$ a ajustar</p>
-          <p className="text-3xl font-bold text-primary">R$ {reais(numeros.valor_a_ajustar)}</p>
-          <p className="text-xs text-slate-500">{resumoDoAjuste}</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-border shadow-premium p-4">
-          <p className={TITULO}>Itens feitos</p>
-          <p className="text-3xl font-bold text-primary">
-            {numeros.itens_feitos} de {numeros.itens_total}
-          </p>
-        </div>
+        </section>
       </section>
-
-      {guia.grupos.length === 0 && (
-        <p className="bg-white rounded-2xl border border-border p-6 text-sm text-slate-500 text-center">
-          Nada a corrigir nesta conta.
-        </p>
-      )}
-
-      {guia.grupos.map((grupo) => {
-        const rotulo = rotuloDoGrupo(grupo);
-        return (
-          <section key={rotulo} aria-label={rotulo} className="space-y-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className={TITULO}>{rotulo}</h2>
-              <div className="flex flex-wrap items-center gap-3">
-                {grupo.data && (
-                  <button
-                    type="button"
-                    onClick={() => setEscolhaDoFaltouIsto({ dia: grupo.data as string, vez: Date.now() })}
-                    className="text-xs font-semibold text-primary hover:underline"
-                  >
-                    Faltou isto
-                  </button>
-                )}
-                {!concluida && temAberta(grupo) && (
-                  <button
-                    type="button"
-                    onClick={() => marcarODia(grupo)}
-                    disabled={ocupado}
-                    className="text-xs font-semibold text-primary hover:underline disabled:opacity-50"
-                  >
-                    Marcar o dia como feito
-                  </button>
-                )}
-              </div>
-            </div>
-            <div className="space-y-2">
-              {grupo.linhas.map((linha) => (
-                <LinhaDoGuia
-                  key={linha.id}
-                  linha={linha}
-                  concluida={concluida}
-                  ocupado={ocupado}
-                  onMarcar={(marcacao) => marcar(linha.id, marcacao)}
-                  onDesfazer={() => desfazer(linha.id)}
-                  onCopiar={copiar}
-                />
-              ))}
-            </div>
-          </section>
-        );
-      })}
 
       <ConversaDaConta
         contaId={contaId}
@@ -453,70 +474,94 @@ export default function GuiaPage() {
         escolha={escolhaDoFaltouIsto}
       />
 
-      {concluida ? (
-        <footer className="bg-white rounded-2xl border border-border p-4 space-y-3">
-          <p className="text-sm text-slate-600">Conta concluída. As marcações não mudam mais.</p>
-          {guia.pode_reenviar && (
-            <div className="space-y-2">
-              <input
-                ref={seletorDoPdf}
-                type="file"
-                accept="application/pdf"
-                aria-label="PDF da conta corrigida"
-                className="hidden"
-                onChange={(evento) => reenviar(evento.target.files?.[0])}
+      <footer className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] md:bottom-0 z-10bg-white rounded-2xl border border-border shadow-premium p-4 space-y-3">
+        {concluida ? (
+          <>
+            <p className="text-sm text-slate-600">Conta concluída. As marcações não mudam mais.</p>
+            {guia.pode_reenviar && (
+              <div className="space-y-2">
+                <input
+                  ref={seletorDoPdf}
+                  type="file"
+                  accept="application/pdf"
+                  aria-label="PDF da conta corrigida"
+                  className="hidden"
+                  onChange={(evento) => reenviar(evento.target.files?.[0])}
+                />
+                <button
+                  type="button"
+                  onClick={() => seletorDoPdf.current?.click()}
+                  disabled={ocupado}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:border-slate-300 disabled:opacity-50"
+                >
+                  <Upload className="w-4 h-4" aria-hidden="true" />
+                  Reenviar conta corrigida
+                </button>
+                {resultadoDoReenvio && (
+                  <p role="status" className="text-sm font-semibold text-slate-700">
+                    {resultadoDoReenvio}
+                  </p>
+                )}
+                <Legenda className="text-xs">
+                  Opcional. Depois de corrigir no MV, envie só o PDF da conta para ver se a correção pegou. A conta já
+                  está na sua produção.
+                </Legenda>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex flex-col min-[1000px]:flex-row min-[1000px]:items-start gap-3">
+            <p className="text-sm font-semibold text-slate-700 min-[1000px]:w-48 shrink-0">
+              {itensQueFaltam(numeros.itens_sem_marcacao)}
+            </p>
+            <div className="flex-1 min-w-0 space-y-1">
+              <label htmlFor="observacao-gestao" className={`block ${TITULO}`}>
+                Observação para a gestão de contas médicas
+              </label>
+              <textarea
+                id="observacao-gestao"
+                value={observacao}
+                onChange={(evento) => setObservacao(evento.target.value)}
+                rows={1}
+                placeholder="Opcional"
+                className="w-full rounded-lg border border-border px-3 py-2 text-sm"
               />
+              <Ditar
+                campo="Observação para a gestão de contas médicas"
+                aoTranscrever={(ditado) => setObservacao((atual) => juntarDitado(atual, ditado))}
+              />
+            </div>
+            <div className="min-[1000px]:w-72 shrink-0">
               <button
                 type="button"
-                onClick={() => seletorDoPdf.current?.click()}
-                disabled={ocupado}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:border-slate-300 disabled:opacity-50"
+                onClick={concluir}
+                className="w-full px-4 py-2 rounded-xl bg-primary text-white text-sm font-semibold uppercase tracking-[0.04em]"
               >
-                <Upload className="w-4 h-4" aria-hidden="true" />
-                Reenviar conta corrigida
+                Concluir e abrir a próxima
               </button>
-              {resultadoDoReenvio && (
-                <p role="status" className="text-sm font-semibold text-slate-700">
-                  {resultadoDoReenvio}
-                </p>
-              )}
-              <p className="text-xs text-slate-500">
-                Opcional. Depois de corrigir no MV, envie só o PDF da conta para ver se a correção pegou. A conta já
-                está na sua produção.
-              </p>
+              <Legenda className="text-xs">
+                Você pode concluir com pendência. Os itens em validação e os bloqueados seguem para a gestão, e a
+                conta já entra na sua produção.
+              </Legenda>
             </div>
-          )}
-        </footer>
-      ) : (
-        <footer className="bg-white rounded-2xl border border-border shadow-premium p-4 space-y-3">
-          <label htmlFor="observacao-gestao" className={`block ${TITULO}`}>
-            Observação para a gestão de contas médicas
-          </label>
-          <textarea
-            id="observacao-gestao"
-            value={observacao}
-            onChange={(evento) => setObservacao(evento.target.value)}
-            rows={2}
-            placeholder="Opcional"
-            className="w-full rounded-lg border border-border px-3 py-2 text-sm"
-          />
-          <Ditar
-            campo="Observação para a gestão de contas médicas"
-            aoTranscrever={(ditado) => setObservacao((atual) => juntarDitado(atual, ditado))}
-          />
-          <button
-            type="button"
-            onClick={concluir}
-            className="w-full sm:w-auto px-4 py-2 rounded-xl bg-primary text-white text-sm font-semibold uppercase tracking-[0.04em]"
-          >
-            Concluir e abrir a próxima
-          </button>
-          <p className="text-xs text-slate-500">
-            Você pode concluir com pendência. Os itens em validação e os bloqueados seguem para a gestão, e a
-            conta já entra na sua produção.
-          </p>
-        </footer>
-      )}
+          </div>
+        )}
+      </footer>
+    </div>
+  );
+}
+
+/** Um número da faixa: o rótulo com a dica, o valor grande e, se houver, a linha de apoio. */
+function Numero({ rotulo, dica, apoio, children }: { rotulo: string; dica: string; apoio?: string; children: ReactNode }) {
+  return (
+    <div>
+      <Dica texto={dica}>
+        <span tabIndex={0} className={TITULO}>
+          {rotulo}
+        </span>
+      </Dica>
+      <p className="text-2xl font-bold text-primary">{children}</p>
+      {apoio && <p className="text-xs text-slate-500">{apoio}</p>}
     </div>
   );
 }

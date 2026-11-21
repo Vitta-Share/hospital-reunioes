@@ -140,8 +140,11 @@ h1, h2, h3, h4, h5, h6 {
    fica fixo no topo enquanto a página rola. O `overflow-auto` do <main> do
    AppShell prenderia o `sticky` a uma caixa que não rola; com o Quadro na
    tela, o <main> corta a sobra na horizontal sem virar caixa de rolagem.
-   O teste desta regra é `app/rolagem-do-quadro.test.ts`. */
-main:has([data-quadro]) {
+   O teste desta regra é `app/rolagem-do-quadro.test.ts`.
+   O Guia da faturista (issue #1952) usa a mesma regra para o rodapé fixo,
+   com a marca `data-guia`; o teste dele fica no `page.test.tsx` do Guia. */
+main:has([data-quadro]),
+main:has([data-guia]) {
   overflow-x: clip;
   overflow-y: visible;
 }

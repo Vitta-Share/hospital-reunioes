@@ -7,6 +7,12 @@ interface DicaProps {
   texto: string;
   /** O elemento que recebe o mouse e o foco: um link ou um botão. */
   children: ReactElement<{ "aria-describedby"?: string }>;
+  /**
+   * Para onde a frase cresce a partir do elemento. O padrão prende a dica na
+   * borda esquerda dele; "esquerda" a prende na borda direita, para o elemento
+   * colado na borda direita de uma caixa que corta a sobra (issue #1952).
+   */
+  abrePara?: "direita" | "esquerda";
 }
 
 /**
@@ -16,7 +22,7 @@ interface DicaProps {
  * junto com o nome. O Esc é ouvido no documento enquanto ela está aberta,
  * porque a dica aberta pelo mouse não tem o foco dentro dela.
  */
-export function Dica({ texto, children }: DicaProps) {
+export function Dica({ texto, children, abrePara = "direita" }: DicaProps) {
   const id = useId();
   const [aberta, setAberta] = useState(false);
 
@@ -42,7 +48,7 @@ export function Dica({ texto, children }: DicaProps) {
         <span
           role="tooltip"
           id={id}
-          className="pointer-events-none absolute left-0 top-full z-20 mt-1 w-max max-w-64 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-normal normal-case tracking-normal text-white shadow-lg"
+          className={`pointer-events-none absolute ${abrePara === "esquerda" ? "right-0" : "left-0"} top-full z-20 mt-1 w-max max-w-64 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-normal normal-case tracking-normal text-white shadow-lg`}
         >
           {texto}
         </span>
