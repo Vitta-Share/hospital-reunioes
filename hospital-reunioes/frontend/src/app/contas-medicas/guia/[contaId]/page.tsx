@@ -12,6 +12,10 @@
  * tem a observação e o "Concluir e abrir a próxima", sempre habilitado; na
  * conta concluída, o "Reenviar conta corrigida" (issue #1136).
  *
+ * A conversa com o Auditor abre num painel lateral (issue #1957), pelo botão
+ * do cabeçalho e pelo "Faltou isto" de cada dia. A partir de 1600 px a página
+ * guarda o lugar do painel, e o Item da vez fica à vista com ele aberto.
+ *
  * Quem decide tudo é o servidor: a faturista só abre a própria conta, abrir
  * muda A fazer para Em correção, e concluída não aceita marcação. Depois de
  * cada clique a tela relê o Guia, para os números nunca saírem da conta.
@@ -20,7 +24,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, RefreshCw, Undo2, Upload } from "lucide-react";
+import { ArrowLeft, MessageCircle, RefreshCw, Undo2, Upload } from "lucide-react";
 
 import { ConversaDaConta } from "@/components/contas-medicas/ConversaDaConta";
 import { Ditar, juntarDitado } from "@/components/contas-medicas/Ditar";
@@ -46,6 +50,7 @@ import {
   resumoDoReenvio,
   rotuloDoGrupo,
 } from "@/lib/contas-medicas/guia";
+import { LEGENDA_DO_AUDITOR } from "@/lib/contas-medicas/textos";
 import { createClient } from "@/lib/supabase/client";
 
 const COR_DA_SITUACAO: Record<string, string> = {
@@ -116,6 +121,8 @@ export default function GuiaPage() {
   const [escolhaDoFaltouIsto, setEscolhaDoFaltouIsto] = useState<{ dia: string; vez: number } | null>(null);
   const [idDaVez, setIdDaVez] = useState<string | null>(null);
   const [soOQueFalta, setSoOQueFalta] = useState(false);
+  const [conversaAberta, setConversaAberta] = useState(false);
+  const fecharConversa = useCallback(() => setConversaAberta(false), []);
   const seletorDoPdf = useRef<HTMLInputElement>(null);
 
   const base = `/api/contas-medicas/contas/${contaId}/guia`;
@@ -148,6 +155,7 @@ export default function GuiaPage() {
       setObservacao("");
       setResultadoDoReenvio(null);
       setSoOQueFalta(false);
+      setConversaAberta(false);
       if (!tk) {
         setErro("Sessão expirada. Entre de novo.");
         return;
@@ -316,7 +324,11 @@ export default function GuiaPage() {
   const andamento = numeros.itens_total > 0 ? Math.round((100 * numeros.itens_feitos) / numeros.itens_total) : 0;
 
   return (
-    <div data-testid="guia" data-guia="" className="w-full min-w-0 overflow-x-clip space-y-4">
+    <div
+      data-testid="guia"
+      data-guia=""
+      className={`w-full min-w-0 overflow-x-clip space-y-4${conversaAberta ? " min-[1600px]:pr-[24rem]" : ""}`}
+    >
       <VoltarParaContas />
 
       <header className="space-y-1">
@@ -337,7 +349,14 @@ export default function GuiaPage() {
               Regra nova desde a análise
             </span>
           )}
-          <div className="ml-auto flex flex-wrap items-center gap-2">
+          <div className="ml-auto flex flex-wrap items-start gap-2">
+            <div className="flex flex-col items-end">
+              <button type="button" onClick={() => setConversaAberta(true)} className={BOTAO_DO_TOPO}>
+                <MessageCircle className="w-4 h-4" aria-hidden="true" />
+                Falar com o auditor
+              </button>
+              <Legenda className="text-xs text-right max-w-[16rem]">{LEGENDA_DO_AUDITOR}</Legenda>
+            </div>
             {cabecalho.situacao === "EM_CORRECAO" && (
               <Dica texto={DICA_DE_DEVOLVER} abrePara="esquerda">
                 <button type="button" onClick={devolver} disabled={ocupado} className={BOTAO_DO_TOPO}>
@@ -442,7 +461,10 @@ export default function GuiaPage() {
           soOQueFalta={soOQueFalta}
           onAlternarSoOQueFalta={() => setSoOQueFalta((atual) => !atual)}
           onEscolher={setIdDaVez}
-          onFaltouIsto={(dia) => setEscolhaDoFaltouIsto({ dia, vez: Date.now() })}
+          onFaltouIsto={(dia) => {
+            setEscolhaDoFaltouIsto({ dia, vez: Date.now() });
+            setConversaAberta(true);
+          }}
           onMarcarODia={marcarODia}
         />
         <section aria-label="Item da vez" className="min-w-0 bg-white rounded-2xl border border-border shadow-premium p-5">
@@ -476,6 +498,8 @@ export default function GuiaPage() {
         dias={diasDoFaltouIsto(guia)}
         iniciais={guia.faltou_isto ?? []}
         escolha={escolhaDoFaltouIsto}
+        aberta={conversaAberta}
+        onFechar={fecharConversa}
       />
 
       <footer className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] md:bottom-0 z-10bg-white rounded-2xl border border-border shadow-premium p-4 space-y-3">

@@ -149,6 +149,22 @@ function guia(campos: Partial<Guia> = {}): Guia {
   };
 }
 
+/** O Faltou isto que o servidor devolve ao perguntar, com a resposta do Auditor. */
+function apontamentoDoTeste(corpo: { data: string; item: string }) {
+  return {
+    id: "f-1",
+    data: corpo.data,
+    item: corpo.item,
+    pagina: null,
+    texto: null,
+    origem: "PESSOA",
+    classificacao: "REGRA",
+    explicacao: "Nenhuma regra da memória cobra este item.",
+    pedido_aberto: false,
+    pode_abrir_pedido: false,
+  };
+}
+
 let chamadas: { url: string; metodo: string; corpo: unknown }[] = [];
 let respostaDoGuia: Guia;
 let respostaDaConclusao: Record<string, unknown>;
@@ -168,6 +184,8 @@ beforeEach(() => {
       chamadas.push({ url, metodo, corpo: corpoEnviado });
       const corpo = url.endsWith("/concluir")
         ? respostaDaConclusao
+        : url.endsWith("/faltou-isto")
+          ? { apontamento: apontamentoDoTeste(corpoEnviado as { data: string; item: string }) }
         : url.endsWith("/reenvio")
           ? { nota_saida: 86, corrigidas: 2, ainda_na_conta: 1, linhas: {} }
         : metodo === "GET"
@@ -647,13 +665,14 @@ describe("o cabeçalho de cada dia da lista", () => {
     expect(screen.getAllByRole("button", { name: "Faltou isto" })).toHaveLength(2);
   });
 
-  it("o Faltou isto leva o dia para a conversa com o Auditor, que oferece todos os dias do período", async () => {
+  it("o Faltou isto abre o painel do Auditor com o dia escolhido, e ele oferece todos os dias do período", async () => {
     await abrir();
+    expect(screen.queryByRole("dialog", { name: "Falar com o auditor" })).toBeNull();
 
     const dia = within(aLista()).getByRole("region", { name: "04/10 · ENFERMARIA" });
     fireEvent.click(within(dia).getByRole("button", { name: "Faltou isto" }));
 
-    const conversa = screen.getByRole("region", { name: "Falar com o auditor" });
+    const conversa = screen.getByRole("dialog", { name: "Falar com o auditor" });
     await waitFor(() =>
       expect((within(conversa).getByLabelText("Dia") as HTMLSelectElement).value).toBe("2026-10-04"),
     );
@@ -760,6 +779,64 @@ describe("Só o que falta (issue #1957)", () => {
     await abrir(false);
     expect(oInterruptor()).toBeTruthy();
     expect(within(aLista()).queryByText(LEGENDA_DO_SO_O_QUE_FALTA)).toBeNull();
+  });
+});
+
+describe("o Auditor em painel lateral (issue #1957)", () => {
+  function oPainel() {
+    return screen.getByRole("dialog", { name: "Falar com o auditor" });
+  }
+
+  it("Falar com o auditor no cabeçalho abre a conversa no painel; fechar e abrir de novo mantém as mensagens", async () => {
+    await abrir();
+    expect(screen.queryByRole("dialog", { name: "Falar com o auditor" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Falar com o auditor" }));
+    fireEvent.change(within(oPainel()).getByLabelText("Item que faltou"), { target: { value: "Equipo macrogotas" } });
+    fireEvent.click(within(oPainel()).getByRole("button", { name: "Perguntar ao auditor" }));
+    expect(await within(oPainel()).findByText("Nenhuma regra da memória cobra este item.")).toBeTruthy();
+    expect(chamadas.at(-1)).toEqual({
+      url: `/api/contas-medicas/contas/${CONTA}/guia/faltou-isto`,
+      metodo: "POST",
+      corpo: { data: "2026-10-03", item: "Equipo macrogotas", pagina: null, texto: null },
+    });
+
+    fireEvent.click(within(oPainel()).getByRole("button", { name: "Fechar a conversa" }));
+    expect(screen.queryByRole("dialog", { name: "Falar com o auditor" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Falar com o auditor" }));
+
+    expect(within(oPainel()).getByText("Nenhuma regra da memória cobra este item.")).toBeTruthy();
+  });
+
+  it("o Esc fecha o painel", async () => {
+    await abrir();
+    fireEvent.click(screen.getByRole("button", { name: "Falar com o auditor" }));
+    expect(oPainel()).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog", { name: "Falar com o auditor" })).toBeNull();
+  });
+
+  it("com o painel aberto, a página guarda o lugar dele a partir de 1600 px e o Item da vez fica à vista", async () => {
+    await abrir();
+    const RESERVA = "min-[1600px]:pr-[24rem]";
+    expect(screen.getByTestId("guia").className.split(" ")).not.toContain(RESERVA);
+
+    fireEvent.click(screen.getByRole("button", { name: "Falar com o auditor" }));
+
+    expect(screen.getByTestId("guia").className.split(" ")).toContain(RESERVA);
+    expect(oPainel().className.split(" ")).toContain("sm:w-96");
+  });
+
+  it("o botão do Auditor tem a Legenda, que some com as Legendas desligadas", async () => {
+    await abrir();
+    expect(screen.getByText(LEGENDA_DO_AUDITOR)).toBeTruthy();
+    cleanup();
+
+    await abrir(false);
+    expect(screen.getByRole("button", { name: "Falar com o auditor" })).toBeTruthy();
+    expect(screen.queryByText(LEGENDA_DO_AUDITOR)).toBeNull();
   });
 });
 
