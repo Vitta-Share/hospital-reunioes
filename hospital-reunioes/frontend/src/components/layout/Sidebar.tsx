@@ -27,6 +27,7 @@ import {
   Landmark,
   Siren,
   Inbox,
+  Repeat,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -458,6 +459,8 @@ export function itensDoMenu(participante: CurrentParticipante | null): NavItem[]
           { href: "/pendencias/kanban", label: "Kanban", icon: KanbanSquare },
         ],
       },
+      // A Rotina e a Verificação por ciclo (issue #1874, ADR 0098, decisão 9).
+      { href: "/rotinas", label: "Rotinas", icon: Repeat },
     ],
   };
 
