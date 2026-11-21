@@ -154,6 +154,10 @@ PARAMS_SEM_SEGREDO = {
     "manifestacao_id",
     "marco",
     "material_id",
+    # Mês da Competência de Contas médicas (issue #1958), como "2026-10". Não é
+    # credencial: a regex da rota só aceita AAAA-MM, "Arquivar o mês" exige
+    # "enviar e corrigir contas", e o mês sozinho não abre porta nenhuma.
+    "mes",
     "nome",
     "notificacao_id",
     # Número da issue-raiz no GitHub (issue #1805, ADR 0093), como 1805. Não é

@@ -570,7 +570,10 @@ def _decidir_as_linhas(supabase, tema: dict, autor_id: str | None, *, descartada
             campos["motivo"] = f"Regra {tema['regra_codigo']} {desfecho}. " + motivo[len(pendente) :]
         supabase.table("cm_guia_linha").update(campos).eq("id", linha["id"]).eq("acao", "VALIDAR").execute()
     if a_lancar:
-        supabase.table("cm_conta").update({"situacao": "RETORNO"}).in_("id", sorted(a_lancar)).in_(
+        # A arquivada volta sozinha para a Esteira: o carimbo sai no mesmo
+        # UPDATE (issue #1958, ADR 0105, decisão 9).
+        retorno = {"situacao": "RETORNO", "arquivada_em": None, "arquivada_por": None}
+        supabase.table("cm_conta").update(retorno).in_("id", sorted(a_lancar)).in_(
             "situacao", list(CONCLUIDAS)
         ).execute()
 

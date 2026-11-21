@@ -9,6 +9,7 @@ seja o `faturista_id`, e ganha dono quando uma faturista abre o Guia dela
 from __future__ import annotations
 
 from app.dependencies import selecionar_participantes
+from app.services.paginacao import ler_tudo
 
 # A conta com Guia pronto que ninguém puxou.
 LIVRE = "A_FAZER"
@@ -20,37 +21,35 @@ COM_A_FATURISTA = (EM_CORRECAO, "RETORNO")
 # As que ainda não ficaram prontas: ficam com quem enviou, que tem o PDF.
 NAO_PRONTAS = ("AGUARDANDO_ARQUIVO", "NA_FILA", "PROCESSANDO", "ERRO")
 CONCLUIDAS = ("CONCLUIDA", "CONCLUIDA_COM_PENDENCIA")
-# A aba Concluídas mostra as mais recentes; o resto fica no banco para o Painel.
-TETO_DE_CONCLUIDAS = 100
 
 
-def _contas(supabase, situacoes, *, de: str | None = None, recentes_primeiro: bool = False) -> list[dict]:
-    """As contas nas situações, em ordem de envio. Com `de`, só as em que a
-    pessoa é `faturista_id`; com `recentes_primeiro`, as mais recentes até o teto."""
-    consulta = supabase.table("cm_conta").select("*").in_("situacao", list(situacoes))
-    if de is not None:
-        consulta = consulta.eq("faturista_id", de)
-    consulta = consulta.order("ordem_fila", desc=recentes_primeiro)
-    if recentes_primeiro:
-        consulta = consulta.limit(TETO_DE_CONCLUIDAS)
-    return consulta.execute().data or []
+def _contas(supabase, situacoes) -> list[dict]:
+    """As contas nas situações, em ordem de envio."""
+    return (
+        supabase.table("cm_conta").select("*").in_("situacao", list(situacoes)).order("ordem_fila").execute().data or []
+    )
 
 
-def _concluidas(supabase, me: dict) -> list[dict]:
-    """As Concluídas mais recentes de todas e, junto, as mais recentes da
-    pessoa, para o filtro "Minhas" não ficar vazio quando as colegas
-    concluíram muitas depois dela (issue #1955)."""
-    de_todas = _contas(supabase, CONCLUIDAS, recentes_primeiro=True)
-    vistas = {c["id"] for c in de_todas}
-    dela = [c for c in _contas(supabase, CONCLUIDAS, de=me.get("id"), recentes_primeiro=True) if c["id"] not in vistas]
-    return sorted(de_todas + dela, key=lambda c: c.get("ordem_fila") or 0, reverse=True)
+def _concluidas(supabase, *, arquivadas: bool) -> list[dict]:
+    """As Concluídas fora do arquivo (a etapa Concluídas) ou as arquivadas (a
+    etapa Arquivadas), as mais recentes primeiro. Sem teto: quem limpa a
+    Esteira é o arquivar (issue #1958, ADR 0105). Lê em páginas, porque a
+    leitura volta cortada no `max_rows` do PostgREST, sem aviso."""
+
+    def consulta():
+        q = supabase.table("cm_conta").select("*").in_("situacao", list(CONCLUIDAS))
+        q = q.not_.is_("arquivada_em", "null") if arquivadas else q.is_("arquivada_em", "null")
+        return q.order("ordem_fila", desc=True).order("id")
+
+    return ler_tudo(consulta, rotulo="arquivadas" if arquivadas else "concluídas")
 
 
-def _quantas_concluidas(supabase, de: str | None = None) -> int:
-    """Todas as Concluídas, ou só as da pessoa com `de`, sem o teto da lista:
-    é o número da Esteira (issue #1951). Conta no banco: a leitura volta
-    cortada no `max_rows` do PostgREST, sem aviso."""
+def _quantas_concluidas(supabase, de: str | None = None, *, arquivadas: bool = False) -> int:
+    """As Concluídas fora do arquivo, ou as arquivadas, de todas ou só as da
+    pessoa com `de`: é o número da Esteira (issue #1951). Conta no banco: a
+    leitura volta cortada no `max_rows` do PostgREST, sem aviso."""
     consulta = supabase.table("cm_conta").select("id", count="exact").in_("situacao", list(CONCLUIDAS))
+    consulta = consulta.not_.is_("arquivada_em", "null") if arquivadas else consulta.is_("arquivada_em", "null")
     if de is not None:
         consulta = consulta.eq("faturista_id", de)
     return consulta.limit(1).execute().count or 0
@@ -75,7 +74,7 @@ def fila_da_pessoa(supabase, me: dict) -> dict:
     #1951), e a `contagem_minhas`, o de Em análise e Concluídas em "Minhas"."""
     livres = _contas(supabase, (LIVRE,))
     em_analise = _contas(supabase, COM_A_FATURISTA)
-    concluidas = _concluidas(supabase, me)
+    concluidas = _concluidas(supabase, arquivadas=False)
 
     for conta in livres:
         conta["com_quem"] = None
@@ -84,7 +83,12 @@ def fila_da_pessoa(supabase, me: dict) -> dict:
         conta["com_quem"] = conta.get("faturista_id")
         conta["minha"] = conta.get("faturista_id") == me.get("id")
     _trocar_id_por_nome(supabase, em_analise + concluidas)
-    contagem = {"fila": len(livres), "em_analise": len(em_analise), "concluidas": _quantas_concluidas(supabase)}
+    contagem = {
+        "fila": len(livres),
+        "em_analise": len(em_analise),
+        "concluidas": _quantas_concluidas(supabase),
+        "arquivadas": _quantas_concluidas(supabase, arquivadas=True),
+    }
     contagem_minhas = {
         "em_analise": sum(1 for conta in em_analise if conta["minha"]),
         "concluidas": _quantas_concluidas(supabase, me.get("id")),

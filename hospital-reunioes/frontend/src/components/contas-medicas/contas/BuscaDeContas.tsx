@@ -14,6 +14,7 @@ import {
   type ItemDaBusca,
   type RespostaDaBusca,
 } from "@/lib/contas-medicas/busca";
+import { tituloDaCompetencia } from "@/lib/contas-medicas/arquivo";
 import { rotuloDaSituacao } from "@/lib/contas-medicas/envio";
 import { NOME_DA_ETAPA } from "@/lib/contas-medicas/textos";
 
@@ -105,6 +106,12 @@ function ContaEmDestaque({ conta, marcar }: { conta: ItemDaBusca; marcar: string
             <>
               <dt className="text-slate-500">Com quem</dt>
               <dd className="text-slate-800">{comQuem}</dd>
+            </>
+          )}
+          {conta.arquivada_em && (
+            <>
+              <dt className="text-slate-500">Competência</dt>
+              <dd className="text-slate-800">{tituloDaCompetencia(conta.competencia)}</dd>
             </>
           )}
         </dl>

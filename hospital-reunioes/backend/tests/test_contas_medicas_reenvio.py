@@ -156,9 +156,16 @@ class _Consulta:
         self._filtros.append(lambda linha: linha.get(coluna) in valores)
         return self
 
+    @property
+    def not_(self):
+        """O `not.` do PostgREST: nega o filtro seguinte (só o `is_` usa)."""
+        self._negar_o_proximo = True
+        return self
+
     def is_(self, coluna, valor):
         assert valor == "null"
-        self._filtros.append(lambda linha: linha.get(coluna) is None)
+        negar, self._negar_o_proximo = getattr(self, "_negar_o_proximo", False), False
+        self._filtros.append(lambda linha: (linha.get(coluna) is None) != negar)
         return self
 
     def gt(self, coluna, valor):
@@ -171,6 +178,11 @@ class _Consulta:
 
     def limit(self, n):
         self._limite = n
+        return self
+
+    def range(self, inicio, fim):
+        """A página do PostgREST: de `inicio` a `fim`, os dois inclusive."""
+        self._inicio, self._limite = inicio, fim - inicio + 1
         return self
 
     def update(self, campos):
@@ -200,6 +212,7 @@ class _Consulta:
         for coluna, desc in reversed(self._ordem):
             casam.sort(key=lambda linha, c=coluna: (linha.get(c) is None, str(linha.get(c) or "")), reverse=desc)
         total = len(casam) if getattr(self, "_contar", False) else None
+        casam = casam[getattr(self, "_inicio", 0) :]
         if self._limite is not None:
             casam = casam[: self._limite]
         return SimpleNamespace(data=[dict(linha) for linha in casam], count=total)

@@ -6,15 +6,16 @@
  */
 
 /** As etapas da Esteira, na ordem do caminho da conta. */
-export type Etapa = "envios" | "fila" | "em_analise" | "concluidas";
+export type Etapa = "envios" | "fila" | "em_analise" | "concluidas" | "arquivadas";
 
-export const ETAPAS: Etapa[] = ["envios", "fila", "em_analise", "concluidas"];
+export const ETAPAS: Etapa[] = ["envios", "fila", "em_analise", "concluidas", "arquivadas"];
 
 export const NOME_DA_ETAPA: Record<Etapa, string> = {
   envios: "Envios",
   fila: "Fila",
   em_analise: "Em análise",
   concluidas: "Concluídas",
+  arquivadas: "Arquivadas",
 };
 
 /** A Legenda de uma frase da etapa aberta. */
@@ -22,14 +23,16 @@ export const LEGENDA_DA_ETAPA: Record<Etapa, string> = {
   envios: "As contas enviadas que ainda estão sendo lidas ou esperam um arquivo.",
   fila: "As contas prontas que ninguém pegou, na ordem de envio.",
   em_analise: "As contas que uma faturista pegou e ainda não concluiu.",
-  concluidas: "As contas que a faturista já concluiu.",
+  concluidas: "As contas que a faturista já concluiu e ainda não arquivou, por mês da conta.",
+  arquivadas: "As contas que já foram tratadas no MV e saíram da Esteira, por mês da conta.",
 };
 
 export const VAZIO_DA_ETAPA: Record<Etapa, string> = {
   envios: "Nenhum envio esperando o guia",
   fila: "Nenhuma conta livre na fila",
   em_analise: "Nenhuma conta em análise",
-  concluidas: "Nenhuma conta concluída ainda",
+  concluidas: "Nenhuma conta concluída fora do arquivo",
+  arquivadas: "Nenhuma conta arquivada",
 };
 
 /** A dica do botão da conta livre: pegar é virar dona (ADR 0105, decisão 3). */

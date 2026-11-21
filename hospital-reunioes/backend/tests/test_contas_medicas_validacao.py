@@ -358,6 +358,32 @@ class TestRegraPendente:
             ("70000010", "INCLUIR", "DECIDIDA")
         ]
 
+    def test_a_conta_arquivada_que_recebe_retorno_perde_o_carimbo_e_volta_para_em_analise(self, monkeypatch):
+        """Issue #1958, ADR 0105 decisão 9: o Retorno limpa o carimbo no mesmo
+        UPDATE da situação, e a conta volta sozinha para a Esteira."""
+        banco = _cenario()
+        banco.conta(C3).update(arquivada_em="2026-11-10T12:00:00+00:00", arquivada_por="F1")
+        _validar_em_tres_contas(banco)
+        [tema] = _fila_de_validacao(banco)["temas"]
+        escritas: list[dict] = []
+        update_original = _ConsultaDaValidacao.update
+
+        def _espiar(consulta, campos):
+            if consulta._nome == "cm_conta":
+                escritas.append(dict(campos))
+            return update_original(consulta, campos)
+
+        monkeypatch.setattr(_ConsultaDaValidacao, "update", _espiar)
+        resposta = _decidir(banco, tema["id"], {"decisao": "VALIDAR_REGRA", "texto": TEXTO_PENDENTE})
+
+        assert resposta.status_code == 200, resposta.text
+        conta = banco.conta(C3)
+        assert (conta["situacao"], conta["arquivada_em"], conta["arquivada_por"]) == ("RETORNO", None, None)
+        # Um UPDATE só: a situação e o carimbo juntos, sem janela de conta em Retorno arquivada.
+        assert {"situacao": "RETORNO", "arquivada_em": None, "arquivada_por": None} in escritas
+        fila = _cliente(banco, "faturista").get("/api/contas-medicas/fila").json()
+        assert C3 in {c["id"] for c in fila["minhas"]}
+
     def test_linha_decidida_e_pendencia_da_faturista_ate_ela_marcar_no_retorno(self):
         banco = _cenario()
         _validar_em_tres_contas(banco)

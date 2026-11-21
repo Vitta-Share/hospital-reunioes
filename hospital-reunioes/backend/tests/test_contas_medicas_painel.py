@@ -80,6 +80,11 @@ class _Consulta:
         self._filtros.append(lambda linha: linha.get(coluna) in valores)
         return self
 
+    def is_(self, coluna, valor):
+        assert valor == "null"
+        self._filtros.append(lambda linha: linha.get(coluna) is None)
+        return self
+
     def gte(self, coluna, valor):
         self._filtros.append(
             lambda linha: linha.get(coluna) is not None and _instante(linha[coluna]) >= _instante(valor)
@@ -628,6 +633,19 @@ class TestOsFiltros:
         assert parcial["nota_media"] == {"semana": 70.0, "anterior": 94.0}
         assert unica["contas_concluidas"] == {"total": 2}
         assert unica["nota_media"] == {"semana": 70.0, "anterior": 50.0}
+
+    def test_o_painel_devolve_os_mesmos_numeros_com_e_sem_contas_arquivadas(self):
+        """Issue #1958, ADR 0105 decisão 10: arquivar é um carimbo, e o Painel
+        soma pela data de conclusão, com ou sem ele."""
+        sem_arquivo = {semana: _painel(semana=semana) for semana in (SEMANA, SEMANA_ANTERIOR)}
+        contas = _contas()
+        for conta in contas:
+            if conta["id"] in ("C1", "C2", "C4"):
+                conta.update(arquivada_em="2026-10-20T12:00:00+00:00", arquivada_por="CO")
+
+        for semana, numeros in sem_arquivo.items():
+            assert _painel(banco=_cenario(contas), semana=semana) == numeros
+        assert sem_arquivo[SEMANA]["contas_concluidas"] == {"total": 3}
 
     def test_os_ids_vao_ao_banco_em_lotes(self):
         """Algumas centenas de UUIDs num `in_` estouram o header do proxy."""

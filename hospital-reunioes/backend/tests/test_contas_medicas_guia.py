@@ -162,9 +162,16 @@ class _Consulta:
         self._filtros.append(lambda linha: valor is not None and linha.get(coluna) == valor)
         return self
 
+    @property
+    def not_(self):
+        """O `not.` do PostgREST: nega o filtro seguinte (só o `is_` usa)."""
+        self._negar_o_proximo = True
+        return self
+
     def is_(self, coluna, valor):
         assert valor == "null", valor
-        self._filtros.append(lambda linha: linha.get(coluna) is None)
+        negar, self._negar_o_proximo = getattr(self, "_negar_o_proximo", False), False
+        self._filtros.append(lambda linha: (linha.get(coluna) is None) != negar)
         return self
 
     def in_(self, coluna, valores):
@@ -434,6 +441,19 @@ class TestAbrirOGuia:
 
         assert resposta.status_code == 200
         assert resposta.json()["cabecalho"]["numero_atendimento"] == "31245"
+
+    @pytest.mark.parametrize("situacao", ["CONCLUIDA", "CONCLUIDA_COM_PENDENCIA"])
+    @pytest.mark.parametrize(("quem", "abre"), [("dona", 200), ("coordenadora", 200), ("outra_faturista", 403)])
+    def test_a_conta_arquivada_abre_o_guia_para_quem_ja_abria_a_concluida(self, situacao, quem, abre):
+        """Issue #1958, ADR 0105: arquivar é um carimbo, não uma situação; o
+        Guia da arquivada abre para a dona e para o painel completo, e segue
+        recusado para a outra faturista."""
+        conta = _conta(situacao=situacao, arquivada_em="2026-11-10T12:00:00+00:00", arquivada_por="F1")
+        resposta = _cliente(quem, _cenario(conta=conta)).get(ROTA_GUIA)
+
+        assert resposta.status_code == abre, resposta.text
+        if abre == 200:
+            assert resposta.json()["cabecalho"]["situacao"] == situacao
 
     def test_conta_que_nao_existe_recebe_404(self):
         outra = "22222222-2222-2222-2222-222222222222"
