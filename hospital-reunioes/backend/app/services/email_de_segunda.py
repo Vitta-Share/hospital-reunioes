@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 
 from app.config import settings
 from app.dependencies import foi_desligado, is_secretaria, reunioes_ocultas
@@ -40,6 +40,9 @@ from app.services.seguranca_do_paciente.reunioes import reunioes_do_nucleo
 
 TABELA = "email_de_segunda"
 TEMPLATE = "email_resumo_de_segunda.html"
+_CAMPOS_DA_PENDENCIA = (
+    "id_acao, id_reuniao, descricao_acao, responsavel_id, co_responsavel_id, responsavel_nome, status, prazo"
+)
 
 # O evento do histórico e a parte do e-mail do Facilitador em que ele entra.
 _SECAO_DO_COMANDO = {
@@ -206,17 +209,16 @@ def _texto(nome: str, email: EmailDaPessoa, link: str) -> str:
 def montar_mensagem(nome: str, email: EmailDaPessoa) -> tuple[str, str, str]:
     """Assunto, HTML e texto do e-mail de uma pessoa."""
     link = f"{settings.frontend_url}/inicio"
-    html = jinja_env.get_template(TEMPLATE).render(
-        nome=nome, email=email, link=link, logo_base64=get_logo_data_uri()
-    )
+    html = jinja_env.get_template(TEMPLATE).render(nome=nome, email=email, link=link, logo_base64=get_logo_data_uri())
     return _assunto(email), html, _texto(nome, email, link)
 
 
 def _limites_da_semana(segunda: date) -> tuple[str, str]:
-    """A semana que passou, de segunda a domingo no fuso de São Paulo, em ISO."""
+    """A semana que passou, de segunda a domingo no fuso de São Paulo, em ISO
+    no UTC, como o banco devolve o `criado_em`."""
     fim = datetime.combine(segunda, time.min, tzinfo=FUSO)
     inicio = fim - timedelta(weeks=1)
-    return inicio.isoformat(), fim.isoformat()
+    return inicio.astimezone(UTC).isoformat(), fim.astimezone(UTC).isoformat()
 
 
 def _ocultas_por_pessoa(supabase) -> Callable[[dict], set[str]]:
@@ -259,12 +261,7 @@ def enviar_semana(supabase, *, hoje: date) -> int:
         rotulo="reuniões do e-mail de segunda",
     )
     pendencias = ler_tudo(
-        lambda: (
-            supabase.table("pendencias")
-            .select("id_acao, id_reuniao, descricao_acao, responsavel_id, co_responsavel_id, responsavel_nome, status, prazo")
-            .is_("deleted_at", "null")
-            .order("id_acao")
-        ),
+        lambda: supabase.table("pendencias").select(_CAMPOS_DA_PENDENCIA).is_("deleted_at", "null").order("id_acao"),
         rotulo="pendências do e-mail de segunda",
     )
     eventos = ler_tudo(
@@ -296,7 +293,11 @@ def enviar_semana(supabase, *, hoje: date) -> int:
             continue
         guarda = (
             supabase.table(TABELA)
-            .upsert([{"participante_id": pid, "semana": semana}], on_conflict="participante_id,semana", ignore_duplicates=True)
+            .upsert(
+                [{"participante_id": pid, "semana": semana}],
+                on_conflict="participante_id,semana",
+                ignore_duplicates=True,
+            )
             .execute()
         )
         if not guarda.data:

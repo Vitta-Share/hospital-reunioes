@@ -224,3 +224,240 @@ def test_rodar_o_job_varias_vezes_na_mesma_segunda_manda_um_email_so_por_pessoa(
     rodar()
     rodar()
     assert len(_para(estado, "P_BRUNO")) == 2
+
+
+def test_falha_no_envio_nao_marca_e_a_hora_seguinte_manda(job):
+    rodar, estado = job
+    _so_responsavel(estado["banco"])
+
+    estado["falhar"] = True
+    rodar()
+    assert estado["banco"].email_de_segunda == []
+
+    estado["falhar"] = False
+    rodar()
+    rodar()
+    assert len(_para(estado, "P_BRUNO")) == 2  # a que falhou e a que saiu
+    assert [linha["participante_id"] for linha in estado["banco"].email_de_segunda] == ["P_BRUNO"]
+
+
+def test_modo_de_teste_do_email_nao_marca_como_enviado(job):
+    rodar, estado = job
+    _so_responsavel(estado["banco"])
+    estado["transporte"] = False
+
+    rodar()
+    rodar()
+
+    # O e-mail vai para o log nas duas passadas, e nada fica marcado.
+    assert len(_para(estado, "P_BRUNO")) == 2
+    assert estado["banco"].email_de_segunda == []
+
+
+# ─── 2. Sem nada para mostrar, sem e-mail ────────────────────────────────────
+
+
+def test_pessoa_sem_nada_para_mostrar_nao_recebe_email(job):
+    rodar, estado = job
+    banco = _so_responsavel(estado["banco"])
+    banco.participantes += [_pessoa("P_CARLA", "Carla Dias"), _pessoa("P_DANI", "Dani Souza")]
+    # Carla facilita uma Reunião sem nada na semana e sem atrasada: a Pendência
+    # concluída fechou há duas semanas e a outra foi cancelada.
+    banco.reunioes.append(_reuniao("R2", "P_CARLA", "Reunião da Farmácia"))
+    banco.pendencias += [
+        _pendencia("A2", "Revisar o estoque", "P_DANI", id_reuniao="R2", status="CONCLUIDO", prazo=ATRASADA),
+        _pendencia("A3", "Contar os frascos", "P_DANI", id_reuniao="R2", status="CANCELADO", prazo=ATRASADA),
+    ]
+    banco.pendencia_historico.append(_evento("A2", "concluir", "2026-11-12T14:00:00+00:00"))
+
+    rodar()
+
+    assert _para(estado, "P_CARLA") == []
+    assert _para(estado, "P_DANI") == []
+    # Fábio facilita a R1, que só tem Pendência no prazo e nada na semana.
+    assert _para(estado, "P_FABIO") == []
+    assert len(_para(estado, "P_BRUNO")) == 1
+    assert {linha["participante_id"] for linha in banco.email_de_segunda} == {"P_BRUNO"}
+
+
+# ─── 3. O e-mail do Facilitador ──────────────────────────────────────────────
+
+_TITULOS = [
+    "Das reuniões que você facilita",
+    "Concluídas na semana",
+    "Atualizadas na semana",
+    "Repactuadas na semana",
+    "Seguem atrasadas",
+    "Suas pendências em aberto",
+    "Abrir o aplicativo",
+]
+
+
+def _secoes(html: str) -> dict[str, str]:
+    """O texto visível de cada parte do e-mail, do título até o próximo."""
+    texto = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html))
+    posicoes = sorted((texto.find(t), t) for t in _TITULOS if t in texto)
+    return {
+        titulo: texto[inicio : (posicoes[i + 1][0] if i + 1 < len(posicoes) else len(texto))]
+        for i, (inicio, titulo) in enumerate(posicoes)
+    }
+
+
+def _banco_do_facilitador(banco: _Banco) -> _Banco:
+    banco.participantes = [
+        _pessoa("P_FABIO", "Fábio Lima"),
+        _pessoa("P_BRUNO", "Bruno Reis"),
+        _pessoa("P_GIL", "Gil Rocha"),
+    ]
+    banco.reunioes = [_reuniao("R1", "P_FABIO", "Reunião da UTI"), _reuniao("R9", "P_GIL", "Reunião do RH")]
+    banco.pendencias = [
+        _pendencia("A1", "Trocar o monitor", "P_BRUNO", id_reuniao="R1", status="CONCLUIDO"),
+        _pendencia("A2", "Treinar a equipe", "P_BRUNO", id_reuniao="R1", status="EM_PROGRESSO"),
+        _pendencia("A3", "Comprar luvas", "P_BRUNO", id_reuniao="R1", prazo="2026-12-15"),
+        _pendencia("A4", "Pintar a sala", "P_BRUNO", id_reuniao="R1", prazo=ATRASADA),
+        _pendencia("A5", "Revisar a escala", "P_BRUNO", id_reuniao="R1"),
+        # De outra Reunião, de outro Facilitador.
+        _pendencia("A9", "Contratar o técnico", "P_BRUNO", id_reuniao="R9", status="CONCLUIDO"),
+    ]
+    banco.pendencia_historico = [
+        _evento("A1", "concluir", "2026-11-18T13:00:00+00:00", "Monitor trocado e testado."),
+        _evento("A2", "iniciar", "2026-11-17T12:00:00+00:00", "Começamos pela noite."),
+        _evento("A3", "repactuar", "2026-11-19T12:00:00+00:00", "O fornecedor atrasou.", prazo_depois="2026-12-15"),
+        # Na semana anterior (domingo, 15/11, 23h em São Paulo): não entra.
+        _evento("A5", "anotar", "2026-11-16T02:00:00+00:00", "Escala revista em parte."),
+        _evento("A9", "concluir", "2026-11-18T13:00:00+00:00", "Técnico contratado."),
+    ]
+    return banco
+
+
+def test_email_do_facilitador_traz_conclusoes_atualizacoes_repactuacoes_e_atrasadas_da_semana(job):
+    rodar, estado = job
+    _banco_do_facilitador(estado["banco"])
+
+    rodar()
+
+    (email,) = _para(estado, "P_FABIO")
+    assert email["assunto"] == "Resumo de segunda: a semana das suas reuniões"
+    secoes = _secoes(email["html"])
+    assert "Trocar o monitor" in secoes["Concluídas na semana"]
+    assert "Monitor trocado e testado." in secoes["Concluídas na semana"]
+    assert "Treinar a equipe" in secoes["Atualizadas na semana"]
+    assert "Comprar luvas" in secoes["Repactuadas na semana"]
+    assert "15/12/2026" in secoes["Repactuadas na semana"]
+    assert "O fornecedor atrasou." in secoes["Repactuadas na semana"]
+    assert "Pintar a sala" in secoes["Seguem atrasadas"]
+    assert "20/11/2026" in secoes["Seguem atrasadas"]
+    # A anotação da semana anterior e a Reunião de outro Facilitador ficam de fora.
+    assert "Revisar a escala" not in email["html"]
+    assert "Contratar o técnico" not in email["html"]
+    # Fábio não é responsável por nada: o e-mail não tem a parte do responsável.
+    assert "Suas pendências em aberto" not in secoes
+    # Gil recebe só a conclusão da Reunião dele.
+    (do_gil,) = _para(estado, "P_GIL")
+    assert "Contratar o técnico" in _secoes(do_gil["html"])["Concluídas na semana"]
+    assert "Trocar o monitor" not in do_gil["html"]
+
+
+# ─── 4. O e-mail do responsável ──────────────────────────────────────────────
+
+
+def test_email_do_responsavel_traz_so_as_pendencias_dele_em_aberto(job):
+    rodar, estado = job
+    banco = _banco_do_facilitador(estado["banco"])
+    banco.participantes.append(_pessoa("P_HELO", "Heloísa Melo"))
+    banco.pendencias += [
+        _pendencia("B1", "Ligar para o fornecedor", "P_HELO", id_reuniao="R9"),
+        _pendencia("B2", "Organizar o arquivo", "P_BRUNO", id_reuniao="R9", co="P_HELO", prazo=ATRASADA),
+        _pendencia("B3", "Fechar o relatório", "P_HELO", id_reuniao="R9", status="CONCLUIDO"),
+        _pendencia("B4", "Mandar o ofício", "P_HELO", id_reuniao="R9", status="CANCELADO"),
+    ]
+
+    rodar()
+
+    (email,) = _para(estado, "P_HELO")
+    assert email["assunto"] == "Resumo de segunda: suas pendências em aberto"
+    secoes = _secoes(email["html"])
+    assert set(secoes) == {"Suas pendências em aberto", "Abrir o aplicativo"}
+    abertas = secoes["Suas pendências em aberto"]
+    assert "Ligar para o fornecedor" in abertas
+    assert "Organizar o arquivo" in abertas  # co-responsável
+    assert "(atrasada)" in abertas
+    assert "Fechar o relatório" not in email["html"]
+    assert "Mandar o ofício" not in email["html"]
+    # Nenhuma Pendência de Bruno em que ela não está.
+    assert "Treinar a equipe" not in email["html"]
+
+
+def test_pendencia_de_reuniao_do_nucleo_fica_fora_para_quem_o_nucleo_nao_libera(job, monkeypatch):
+    rodar, estado = job
+    banco = _so_responsavel(estado["banco"])
+    banco.reunioes.append(_reuniao("R_NSP", "P_FABIO", "Reunião do Núcleo"))
+    banco.pendencias.append(_pendencia("N1", "Notificar o evento adverso", "P_BRUNO", id_reuniao="R_NSP"))
+    monkeypatch.setattr(email_de_segunda, "reunioes_do_nucleo", lambda _sb: ["R_NSP"])
+    monkeypatch.setattr(email_de_segunda, "reunioes_ocultas", lambda _sb, _pessoa: ["R_NSP"])
+
+    rodar()
+
+    (email,) = _para(estado, "P_BRUNO")
+    assert "Trocar o monitor do leito 4" in email["html"]
+    assert "Notificar o evento adverso" not in email["html"]
+    assert "Notificar o evento adverso" not in email["texto"]
+
+
+# ─── 5. As duas coisas, um e-mail ────────────────────────────────────────────
+
+
+def test_quem_e_facilitador_e_responsavel_recebe_um_email_com_as_duas_partes_separadas(job):
+    rodar, estado = job
+    banco = _banco_do_facilitador(estado["banco"])
+    # Fábio também é responsável por uma Pendência da Reunião de Gil.
+    banco.pendencias.append(_pendencia("C1", "Atualizar o protocolo", "P_FABIO", id_reuniao="R9"))
+
+    rodar()
+
+    (email,) = _para(estado, "P_FABIO")
+    assert email["assunto"] == "Resumo de segunda: suas reuniões e suas pendências"
+    secoes = _secoes(email["html"])
+    assert "Atualizar o protocolo" in secoes["Suas pendências em aberto"]
+    assert "Atualizar o protocolo" not in secoes["Seguem atrasadas"]
+    assert "Pintar a sala" in secoes["Seguem atrasadas"]
+    assert "Pintar a sala" not in secoes["Suas pendências em aberto"]
+    # A parte do Facilitador vem antes da do responsável.
+    html = email["html"]
+    assert html.index("Das reuniões que você facilita") < html.index("Suas pendências em aberto")
+
+
+# ─── 6. Sem travessão ────────────────────────────────────────────────────────
+
+_TRACOS = re.compile("[—–]")
+
+
+def test_template_e_email_de_segunda_sem_travessao_nem_meia_risca(job):
+    from app.services.email_service import TEMPLATES_DIR
+
+    rodar, estado = job
+    banco = _banco_do_facilitador(estado["banco"])
+    banco.pendencias.append(_pendencia("C1", "Atualizar o protocolo", "P_FABIO", id_reuniao="R9"))
+
+    rodar()
+
+    template = (TEMPLATES_DIR / email_de_segunda.TEMPLATE).read_text(encoding="utf-8")
+    assert not _TRACOS.search(template)
+    assert estado["enviados"]
+    for email in estado["enviados"]:
+        for parte in ("assunto", "html", "texto"):
+            assert not _TRACOS.search(email[parte]), (email["para"], parte)
+
+
+# ─── 7. O kit de conhecimento ────────────────────────────────────────────────
+
+
+def test_o_texto_de_reunioes_no_kit_diz_o_email_de_segunda():
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = (CONHECIMENTO_DIR / "reunioes.md").read_text(encoding="utf-8")
+    assert "Toda segunda-feira, a partir das 8h, cada pessoa recebe um e-mail" in texto
+    assert "o que foi concluído, atualizado e repactuado na semana" in texto
+    assert "só as pendências dele em aberto" in texto
+    assert "um e-mail só, com as duas partes separadas" in texto
+    assert "Quem não tem nada para ver não recebe e-mail" in texto
