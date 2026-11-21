@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T20:02:57-03:00",
+      "sha": "76c342d7046d84e3130b0bae9669cd9533e90d38",
+      "app_version": "0.355.0",
+      "subject": "Onda nsp2-onda7: Perguntas de esclarecimento do agente na confirmação e no acompanhamento",
+      "raw_subject": "chore(deploy): registro da onda nsp2-onda7 (#2094)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1979
+      ],
+      "result": "healthy",
+      "duration_seconds": 538,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "207_nsp_perguntas_de_esclarecimento.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp2-onda7: PR #2094 (issue #1991), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 21,
+          "frontend": 217
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T19:53:48-03:00",
       "sha": "37aee48f3770f28be82d63815fa78a840c51d669",
       "app_version": "0.354.0",
