@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T15:23+0000 -->
+<!-- last_update: 2026-11-21T15:28+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2384,7 +2384,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## conduta_casos
 
-> Origem: `175_conduta_fundacao.sql`
+> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2399,9 +2399,13 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `prazo_em` | `DATE` | — | — | — |
 | `relato_cifrado` | `TEXT` | NOT NULL | — | — |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `escopo` | `TEXT` | — | — | `participantes.id` |
 
 **Indexes:**
 - `idx_conduta_casos_rota_etapa` em `(rota, etapa, recebido_em DESC)` (de `175_conduta_fundacao.sql`)
+- `idx_conduta_casos_triagem_por` em `(triagem_por)` (de `185_conduta_triagem_e_ritos.sql`)
+- `idx_conduta_casos_conferida_por` em `(conferida_por)` (de `185_conduta_triagem_e_ritos.sql`)
+- `idx_conduta_casos_prorrogado_por` em `(prorrogado_por)` (de `185_conduta_triagem_e_ritos.sql`)
 
 ## conduta_atribuicoes
 
@@ -2517,6 +2521,54 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_conduta_registro_autor` em `(autor_id)` (de `184_conduta_membros_do_comite.sql`)
 - `idx_conduta_registro_participacao` em `(participacao_id)` (de `184_conduta_membros_do_comite.sql`)
 
+## conduta_contestacoes
+
+> Origem: `185_conduta_triagem_e_ritos.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | UNIQUE, NOT NULL | — | `conduta_casos.id` |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `motivo_cifrado` | `TEXT` | NOT NULL | — | — |
+| `escopo` | `TEXT` | NOT NULL | — | — |
+| `categoria` | `TEXT` | NOT NULL | — | — |
+| `rito` | `TEXT` | NOT NULL | — | — |
+| `destino` | `TEXT` | — | — | — |
+| `resultado` | `TEXT` | — | — | — |
+| `decidida_em` | `TIMESTAMPTZ` | — | — | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_contestacoes_autor` em `(autor_id)` (de `185_conduta_triagem_e_ritos.sql`)
+
+## conduta_contestacao_votos
+
+> Origem: `185_conduta_triagem_e_ritos.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `contestacao_id` | `UUID` | NOT NULL | — | `conduta_contestacoes.id` |
+| `participante_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `escolha` | `TEXT` | NOT NULL | — | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_contestacao_votos_pessoa` em `(participante_id)` (de `185_conduta_triagem_e_ritos.sql`)
+
+## conduta_prazos_vencidos
+
+> Origem: `185_conduta_triagem_e_ritos.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `rito` | `TEXT` | NOT NULL | — | — |
+| `prazo_em` | `DATE` | NOT NULL | — | — |
+| `registrado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
 ---
 
-**Resumo:** 123 tabelas vivas.
+**Resumo:** 126 tabelas vivas.

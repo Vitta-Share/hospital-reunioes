@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T15:23+0000 -->
+<!-- last_update: 2026-11-21T15:28+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -180,6 +180,7 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 182 | `182_nsp_caso_grave_e_confirmacao.sql` | o alerta de caso grave e a confirmação de recebimento | 0 | 0 | 1 | 0 |
 | 183 | `183_nsp_caso_vindo_da_ouvidoria.sql` | o caso que a Ouvidoria manda ao Núcleo vira notificação | 0 | 1 | 1 | 0 |
 | 184 | `184_conduta_membros_do_comite.sql` | Canal de Conduta, os membros do Comitê | 1 | 1 | 4 | 0 |
+| 185 | `185_conduta_triagem_e_ritos.sql` | Canal de Conduta, triagem, ritos e prazos | 3 | 1 | 5 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 174 migrations.
+**Total:** 175 migrations.

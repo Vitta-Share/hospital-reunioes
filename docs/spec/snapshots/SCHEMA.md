@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T15:23+0000 -->
+<!-- last_update: 2026-11-21T15:28+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -67,7 +67,10 @@ erDiagram
     colegiados ||--o{ reunioes : "colegiado_id"
     conduta_casos ||--o{ conduta_atribuicoes : "caso_id"
     conduta_casos ||--o{ conduta_citados : "caso_id"
+    conduta_casos ||--o{ conduta_contestacoes : "caso_id"
+    conduta_casos ||--o{ conduta_prazos_vencidos : "caso_id"
     conduta_casos ||--o{ conduta_trilha : "caso_id"
+    conduta_contestacoes ||--o{ conduta_contestacao_votos : "contestacao_id"
     nsp_agenda_regulatoria ||--o{ nsp_agenda_ocorrencias : "item_id"
     nsp_capacitacoes ||--o{ nsp_capacitacao_participantes : "capacitacao_id"
     nsp_documentos ||--o{ nsp_documentos_envios : "documento_id"
@@ -106,7 +109,10 @@ erDiagram
     participantes ||--o{ cm_validacao_tema : "decidido_por"
     participantes ||--o{ comentarios_pendencias : "autor_id"
     participantes ||--o{ conduta_atribuicoes : "participante_id"
+    participantes ||--o{ conduta_casos : "escopo"
     participantes ||--o{ conduta_citados : "participante_id"
+    participantes ||--o{ conduta_contestacao_votos : "participante_id"
+    participantes ||--o{ conduta_contestacoes : "autor_id"
     participantes ||--o{ conduta_registro : "autor_id"
     participantes ||--o{ conduta_registro : "ganhou"
     participantes ||--o{ conduta_trilha : "que"
@@ -1295,7 +1301,7 @@ erDiagram
         TEXT categoria
         TIMESTAMPTZ recebido_em
         DATE prazo_em
-        _ mais_colunas "+2"
+        _ mais_colunas "+3"
     }
     conduta_atribuicoes {
         UUID id PK
@@ -1350,6 +1356,31 @@ erDiagram
         UUID participacao_id FK
         VARCHAR autor_id FK
         TEXT detalhe
+        TIMESTAMPTZ registrado_em
+    }
+    conduta_contestacoes {
+        UUID id PK
+        UUID caso_id FK
+        VARCHAR autor_id FK
+        TEXT motivo_cifrado
+        TEXT escopo
+        TEXT categoria
+        TEXT rito
+        TEXT destino
+        _ mais_colunas "+3"
+    }
+    conduta_contestacao_votos {
+        UUID id PK
+        UUID contestacao_id FK
+        VARCHAR participante_id FK
+        TEXT escolha
+        TIMESTAMPTZ created_at
+    }
+    conduta_prazos_vencidos {
+        UUID id PK
+        UUID caso_id FK
+        TEXT rito
+        DATE prazo_em
         TIMESTAMPTZ registrado_em
     }
 ```
@@ -1564,6 +1595,9 @@ erDiagram
 | `nsp_notificacoes_trilha` | `idx_nsp_notificacoes_trilha_notificacao` | `notificacao_id, ocorrido_em DESC` | `174_nsp_notificacao_de_incidente.sql` |
 | `nsp_notificacoes_trilha` | `idx_nsp_notificacoes_trilha_autor` | `autor_id` | `174_nsp_notificacao_de_incidente.sql` |
 | `conduta_casos` | `idx_conduta_casos_rota_etapa` | `rota, etapa, recebido_em DESC` | `175_conduta_fundacao.sql` |
+| `conduta_casos` | `idx_conduta_casos_triagem_por` | `triagem_por` | `185_conduta_triagem_e_ritos.sql` |
+| `conduta_casos` | `idx_conduta_casos_conferida_por` | `conferida_por` | `185_conduta_triagem_e_ritos.sql` |
+| `conduta_casos` | `idx_conduta_casos_prorrogado_por` | `prorrogado_por` | `185_conduta_triagem_e_ritos.sql` |
 | `conduta_atribuicoes` | `idx_conduta_atribuicoes_pessoa` | `participante_id, caso_id` | `175_conduta_fundacao.sql` |
 | `conduta_atribuicoes` | `idx_conduta_atribuicoes_caso` | `caso_id` | `175_conduta_fundacao.sql` |
 | `conduta_citados` | `idx_conduta_citados_pessoa` | `participante_id, caso_id` | `175_conduta_fundacao.sql` |
@@ -1576,6 +1610,8 @@ erDiagram
 | `conduta_registro` | `idx_conduta_registro_pessoa` | `participante_id` | `184_conduta_membros_do_comite.sql` |
 | `conduta_registro` | `idx_conduta_registro_autor` | `autor_id` | `184_conduta_membros_do_comite.sql` |
 | `conduta_registro` | `idx_conduta_registro_participacao` | `participacao_id` | `184_conduta_membros_do_comite.sql` |
+| `conduta_contestacoes` | `idx_conduta_contestacoes_autor` | `autor_id` | `185_conduta_triagem_e_ritos.sql` |
+| `conduta_contestacao_votos` | `idx_conduta_contestacao_votos_pessoa` | `participante_id` | `185_conduta_triagem_e_ritos.sql` |
 
 ---
-**Resumo:** 123 tabelas · 188 relacionamentos FK detectados.
+**Resumo:** 126 tabelas · 194 relacionamentos FK detectados.
