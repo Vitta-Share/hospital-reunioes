@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T16:17+0000 -->
+<!-- last_update: 2026-11-21T16:45+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -143,6 +143,7 @@ erDiagram
     participantes ||--o{ ouvidoria_pontos : "criado_por"
     participantes ||--o{ ouvidoria_prorrogacoes : "decidida_por"
     participantes ||--o{ ouvidoria_tentativas_contato : "autor_id"
+    participantes ||--o{ painel_fotografias : "participante_id"
     participantes ||--o{ participacoes : "participante_id"
     participantes ||--o{ participacoes_trilha : "autor_id"
     participantes ||--o{ pendencias : "co_responsavel_id"
@@ -1433,6 +1434,17 @@ erDiagram
         DATE dia PK
         INTEGER chamadas
     }
+    painel_fotografias {
+        VARCHAR participante_id FK
+        DATE semana
+        INTEGER atas_paradas
+        INTEGER aguardam_assinatura
+        INTEGER atrasadas
+        INTEGER vencem_em_3_dias
+        INTEGER conformidade
+        INTEGER ativas
+        _ mais_colunas "+1"
+    }
 ```
 
 ## Indexes principais
@@ -1666,6 +1678,7 @@ erDiagram
 | `nsp_triagens` | `idx_nsp_triagens_notificacao` | `notificacao_id, versao DESC` | `188_nsp_agente_de_triagem.sql` |
 | `nsp_triagens` | `idx_nsp_triagens_categoria` | `categoria` | `188_nsp_agente_de_triagem.sql` |
 | `nsp_triagens` | `idx_nsp_triagens_evento_item` | `evento_item` | `188_nsp_agente_de_triagem.sql` |
+| `painel_fotografias` | `idx_painel_fotografias_semana` | `semana` | `189_fotografia_semanal_do_painel.sql` |
 
 ---
-**Resumo:** 132 tabelas · 199 relacionamentos FK detectados.
+**Resumo:** 133 tabelas · 200 relacionamentos FK detectados.

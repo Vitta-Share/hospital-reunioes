@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T16:17+0000 -->
+<!-- last_update: 2026-11-21T16:45+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2675,6 +2675,25 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `dia` | `DATE` | PK | — | — |
 | `chamadas` | `INTEGER` | NOT NULL | `0` | — |
 
+## painel_fotografias
+
+> Origem: `189_fotografia_semanal_do_painel.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `participante_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `semana` | `DATE` | NOT NULL | — | — |
+| `atas_paradas` | `INTEGER` | NOT NULL | `0` | — |
+| `aguardam_assinatura` | `INTEGER` | NOT NULL | `0` | — |
+| `atrasadas` | `INTEGER` | NOT NULL | `0` | — |
+| `vencem_em_3_dias` | `INTEGER` | NOT NULL | `0` | — |
+| `conformidade` | `INTEGER` | NOT NULL | `100` | — |
+| `ativas` | `INTEGER` | NOT NULL | `0` | — |
+| `fotografada_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_painel_fotografias_semana` em `(semana)` (de `189_fotografia_semanal_do_painel.sql`)
+
 ---
 
-**Resumo:** 132 tabelas vivas.
+**Resumo:** 133 tabelas vivas.
