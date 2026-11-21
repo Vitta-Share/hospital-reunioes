@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T00:20+0000 -->
+<!-- last_update: 2026-11-21T00:46+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -412,6 +412,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 |--------|------|-----------|------|
 | GET | `/pendencias` | Lista as pendências do recorte de quem pede (issue #1863): as dele, as das | ✅ |
 | GET | `/pendencias/minhas` | Lista apenas as pendências atreladas diretamente ao usuário autenticado. | ✅ |
+| GET | `/pendencias/painel` | O painel de Reuniões (issue #1868): os cards, as situações e as Atas dos | ✅ |
 | GET | `/pendencias/stats` | Retorna contadores de pendências agrupados por status para o dashboard. | ✅ |
 | GET | `/pendencias/{id_acao}` | Retorna uma pendência específica. | ✅ |
 | POST | `/pendencias/{id_acao}/acoes` | Iniciar, anotar, concluir, repactuar, cancelar ou reabrir, com anotação. | ✅ |
@@ -463,6 +464,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | PATCH | `/reunioes/{id_reuniao}/quadro-atribuicoes/{index}` | Edita um item do `json_ata.quadro_atribuicoes` antes da liberação de pendências. | ✅ |
 | POST | `/reunioes/{id_reuniao}/reprocessar` | Reprocessar reuniao | ✅ |
 | POST | `/reunioes/{id_reuniao}/resolver-participantes` | Resolve participantes não reconhecidos pela IA e retoma o pipeline. | ✅ |
+| POST | `/reunioes/{id_reuniao}/signatarios/cobrar` | O Cobrar da lista de Atas que aguardam assinatura, no painel (issue | ✅ |
 | POST | `/reunioes/{id_reuniao}/signatarios/sincronizar` | Botão "Sincronizar" do card de Signatários (issue #279, ADR 0030). | ✅ |
 | GET | `/reunioes/{id_reuniao}/signatarios/status` | Retorna lista live de signatarios do ClickSign pra essa reuniao. | ✅ |
 | POST | `/reunioes/{id_reuniao}/signatarios/{participante_id}/aceite-manual` | Botão "Registrar aceite manualmente" do card de Signatários (issue #278). | ✅ |
@@ -677,4 +679,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 386 endpoints em 57 routers · 94% exigem auth.
+**Totais:** 388 endpoints em 57 routers · 94% exigem auth.
