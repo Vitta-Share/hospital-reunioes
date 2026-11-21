@@ -468,6 +468,23 @@ describe("as tabelas e a largura estreita (issue #1953)", () => {
   });
 });
 
+describe("a Legenda dos filtros (issue #1953)", () => {
+  const LEGENDA = "Os números são das contas concluídas na semana escolhida, de segunda a domingo.";
+
+  it("diz que os números são das contas concluídas na semana, e some com as Legendas desligadas", async () => {
+    servidorResponde(PAINEL);
+    render(comLegendas(false, <PainelPage />));
+
+    await screen.findByRole("group", { name: "Nota média de entrada" });
+    expect(screen.queryByText(LEGENDA)).toBeNull();
+    cleanup();
+
+    render(comLegendas(true, <PainelPage />));
+
+    expect(await screen.findByText(LEGENDA)).toBeTruthy();
+  });
+});
+
 describe("o subtítulo da tela (issue #1950)", () => {
   it("é uma Legenda: some com as Legendas desligadas e volta com elas ligadas", async () => {
     servidorResponde(PAINEL);

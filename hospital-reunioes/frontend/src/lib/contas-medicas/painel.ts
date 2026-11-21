@@ -147,6 +147,9 @@ export const DICA_DO_NUMERO: Record<NumeroDoPainel, string> = {
     "O R$ que a coordenação incluiu na semana pelos lembretes da Conferência. Não entra na nota de entrada nem na produção.",
 };
 
+/** A Legenda embaixo dos filtros: de que contas são os números do Painel (issue #1953). */
+export const LEGENDA_DOS_FILTROS = "Os números são das contas concluídas na semana escolhida, de segunda a domingo.";
+
 /** A rota com os filtros: a semana sempre; operadora e tipo só quando escolhidos. */
 export function rotaDoPainel(filtros: FiltrosDoPainel): string {
   const params = new URLSearchParams({ semana: filtros.semana });

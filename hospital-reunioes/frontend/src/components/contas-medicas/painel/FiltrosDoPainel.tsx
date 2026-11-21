@@ -1,7 +1,9 @@
 "use client";
 
+import { Legenda } from "@/components/ui/Legenda";
 import { Select } from "@/components/ui/Select";
 import {
+  LEGENDA_DOS_FILTROS,
   ROTULO_TIPO,
   type FiltrosDoPainel as Filtros,
   type Painel,
@@ -19,6 +21,7 @@ const OPCOES_DE_TIPO = [
 /**
  * Os três filtros do Painel: a semana (qualquer dia dela; o servidor acha a
  * segunda), a operadora e o tipo de conta. Cada mudança pede o Painel de novo.
+ * Embaixo, a Legenda diz de que contas são os números (issue #1953).
  */
 export function FiltrosDoPainel({
   filtros,
@@ -30,29 +33,32 @@ export function FiltrosDoPainel({
   aoMudar: (filtros: Filtros) => void;
 }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
-      <label className="flex flex-col gap-1.5">
-        <span className="text-xs font-medium text-slate-500 uppercase">Semana</span>
-        <input
-          type="date"
-          aria-label="Semana"
-          className={CAMPO}
-          value={filtros.semana}
-          onChange={(e) => aoMudar({ ...filtros, semana: e.target.value })}
+    <div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <label className="flex flex-col gap-1.5">
+          <span className="text-xs font-medium text-slate-500 uppercase">Semana</span>
+          <input
+            type="date"
+            aria-label="Semana"
+            className={CAMPO}
+            value={filtros.semana}
+            onChange={(e) => aoMudar({ ...filtros, semana: e.target.value })}
+          />
+        </label>
+        <Select
+          label="Operadora"
+          value={filtros.operadora}
+          options={[{ value: "", label: "Todas" }, ...operadoras.map((o) => ({ value: o.id, label: o.sigla }))]}
+          onChange={(operadora) => aoMudar({ ...filtros, operadora })}
         />
-      </label>
-      <Select
-        label="Operadora"
-        value={filtros.operadora}
-        options={[{ value: "", label: "Todas" }, ...operadoras.map((o) => ({ value: o.id, label: o.sigla }))]}
-        onChange={(operadora) => aoMudar({ ...filtros, operadora })}
-      />
-      <Select
-        label="Tipo de conta"
-        value={filtros.tipo}
-        options={OPCOES_DE_TIPO}
-        onChange={(tipo) => aoMudar({ ...filtros, tipo: tipo as Filtros["tipo"] })}
-      />
+        <Select
+          label="Tipo de conta"
+          value={filtros.tipo}
+          options={OPCOES_DE_TIPO}
+          onChange={(tipo) => aoMudar({ ...filtros, tipo: tipo as Filtros["tipo"] })}
+        />
+      </div>
+      <Legenda className="mt-2">{LEGENDA_DOS_FILTROS}</Legenda>
     </div>
   );
 }
