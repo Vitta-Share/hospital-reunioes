@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T00:39+0000 -->
+<!-- last_update: 2026-11-21T02:06+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2291,6 +2291,24 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_pendencia_historico_acao` em `(id_acao, criado_em)` (de `169_ciclo_de_vida_da_pendencia.sql`)
 - `idx_pendencia_historico_repactuacao` em `(id_acao)` (de `169_ciclo_de_vida_da_pendencia.sql`)
 
+## pendencia_anexos
+
+> Origem: `174_anexo_da_conclusao_da_pendencia.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `BIGINT` | PK | — | — |
+| `id_acao` | `VARCHAR(10)` | NOT NULL | — | `pendencias.id_acao` |
+| `evento_id` | `BIGINT` | UNIQUE, NOT NULL | — | `pendencia_historico.id` |
+| `storage_path` | `TEXT` | NOT NULL | — | — |
+| `nome_original` | `TEXT` | NOT NULL | — | — |
+| `content_type` | `TEXT` | NOT NULL | — | — |
+| `tamanho_bytes` | `BIGINT` | NOT NULL | — | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_pendencia_anexos_acao` em `(id_acao)` (de `174_anexo_da_conclusao_da_pendencia.sql`)
+
 ---
 
-**Resumo:** 112 tabelas vivas.
+**Resumo:** 113 tabelas vivas.

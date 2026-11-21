@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T00:39+0000 -->
+<!-- last_update: 2026-11-21T02:06+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -151,9 +151,11 @@ erDiagram
     participantes ||--o{ tecnologia_planejamentos : "revisao_por"
     participantes ||--o{ tecnologia_produtos : "dono_id"
     participantes ||--o{ user_preferences : "participante_id"
+    pendencia_historico ||--o{ pendencia_anexos : "evento_id"
     pendencias ||--o{ agendamentos_email : "id_acao"
     pendencias ||--o{ comentarios_pendencias : "id_acao"
     pendencias ||--o{ nsp_agenda_ocorrencias : "pendencia_id"
+    pendencias ||--o{ pendencia_anexos : "id_acao"
     pendencias ||--o{ pendencia_historico : "id_acao"
     pops ||--o{ pops_versoes : "pop_id"
     pops_setores ||--o{ pops : "setor_id"
@@ -1232,6 +1234,16 @@ erDiagram
         DATE prazo_antes
         _ mais_colunas "+2"
     }
+    pendencia_anexos {
+        BIGINT id PK
+        VARCHAR id_acao FK
+        BIGINT evento_id FK
+        TEXT storage_path
+        TEXT nome_original
+        TEXT content_type
+        BIGINT tamanho_bytes
+        TIMESTAMPTZ criado_em
+    }
 ```
 
 ## Indexes principais
@@ -1432,6 +1444,7 @@ erDiagram
 | `registro_de_acesso` | `idx_registro_de_acesso_dia` | `dia` | `167_registro_de_acesso.sql` |
 | `pendencia_historico` | `idx_pendencia_historico_acao` | `id_acao, criado_em` | `169_ciclo_de_vida_da_pendencia.sql` |
 | `pendencia_historico` | `idx_pendencia_historico_repactuacao` | `id_acao` | `169_ciclo_de_vida_da_pendencia.sql` |
+| `pendencia_anexos` | `idx_pendencia_anexos_acao` | `id_acao` | `174_anexo_da_conclusao_da_pendencia.sql` |
 
 ---
-**Resumo:** 112 tabelas · 169 relacionamentos FK detectados.
+**Resumo:** 113 tabelas · 171 relacionamentos FK detectados.
