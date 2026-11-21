@@ -1007,7 +1007,8 @@ def start_scheduler() -> None:
         "retencao_contas_medicas (04:30), fila_contas_medicas (a cada 10s), contratos_contas_medicas (07:15), "
         "relatorio_quinzenal_ouvidoria (07:00 diário, email nos dias 1 e 16), "
         "reconciliacao_tecnologia (de hora em hora), nota_do_google (06:45, uma leitura por semana), "
-        "agenda_regulatoria_nsp (05:45), recalibracao_agente_nsp (05:55), avisos_termo_e_vigencia_nsp (08:00), emails_nsp (a cada 10min), "
+        "agenda_regulatoria_nsp (05:45), recalibracao_agente_nsp (05:55), "
+        "avisos_termo_e_vigencia_nsp (08:00), emails_nsp (a cada 10min), "
         "encerramento_atas_nsp (05:50), transcricoes_nsp (04:15), "
         "fotografia_painel_reunioes (segunda, 07h a 12h), email_de_segunda_reunioes (segunda, 08h a 12h)"
     )

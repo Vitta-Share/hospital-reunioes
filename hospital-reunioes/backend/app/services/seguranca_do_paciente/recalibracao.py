@@ -30,7 +30,8 @@ from app.services.pendencia_ciclo import Comando
 from app.services.pendencia_service import criar_pendencia_sem_reuniao
 from app.services.seguranca_do_paciente import agenda, triagem
 from app.services.seguranca_do_paciente.agente_de_triagem import BASE, PROMPT, versao
-from app.services.seguranca_do_paciente.permissao import PERFIL_ACESSO_PLENO
+from app.services.seguranca_do_paciente.permissao import PERFIL_ACESSO_PLENO, id_do_nucleo
+from app.services.seguranca_do_paciente.reunioes import TipoReuniaoNsp
 
 logger = logging.getLogger(__name__)
 
@@ -110,11 +111,11 @@ def _erros_para_baixo(supabase, pares: list[tuple[dict, dict]]) -> list[dict[str
         for decisao, sugestao in pares
         if _ORDEM_DO_DANO.get(decisao.get("grau_de_dano"), -1) > _ORDEM_DO_DANO.get(sugestao.get("grau_de_dano"), 99)
     ]
-    protocolos = _protocolos(supabase, [d["notificacao_id"] for d, _ in subidos])
+    casos = _notificacoes_por_id(supabase, [d["notificacao_id"] for d, _ in subidos])
     return [
         {
             "notificacao_id": decisao["notificacao_id"],
-            "protocolo": protocolos.get(decisao["notificacao_id"]),
+            "protocolo": casos.get(decisao["notificacao_id"], {}).get("protocolo"),
             "sugerido": sugestao["grau_de_dano"],
             "decidido": decisao["grau_de_dano"],
             "grave_ou_obito": decisao["grau_de_dano"] in ("grave", "obito"),
@@ -123,19 +124,23 @@ def _erros_para_baixo(supabase, pares: list[tuple[dict, dict]]) -> list[dict[str
     ]
 
 
-def _protocolos(supabase, ids: list[str]) -> dict[str, str]:
-    protocolos: dict[str, str] = {}
+def _notificacoes_por_id(supabase, ids: list[str]) -> dict[str, dict[str, Any]]:
+    """O protocolo e o envio de cada notificação, lidos em lotes de ids."""
+    casos: dict[str, dict[str, Any]] = {}
+    ids = sorted(set(ids))
     for inicio in range(0, len(ids), triagem.LOTE_DE_IDS):
         lote = ids[inicio : inicio + triagem.LOTE_DE_IDS]
-        for linha in supabase.table("nsp_notificacoes").select("id, protocolo").in_("id", lote).execute().data or []:
-            protocolos[linha["id"]] = linha["protocolo"]
-    return protocolos
+        consulta = supabase.table("nsp_notificacoes").select("id, protocolo, criado_em").in_("id", lote)
+        for linha in consulta.execute().data or []:
+            casos[linha["id"]] = linha
+    return casos
 
 
-def concordancia(supabase) -> dict[str, Any]:
+def concordancia(supabase, pares: list[tuple[dict, dict]] | None = None) -> dict[str, Any]:
     """A concordância por eixo desde o primeiro dia, os erros para baixo e as
     versões do prompt e da base em uso."""
-    pares = _com_sugestao(supabase, _decisoes(supabase))
+    if pares is None:
+        pares = _com_sugestao(supabase, _decisoes(supabase))
     return {
         "versoes": {"prompt": versao(PROMPT), "base": versao(BASE)},
         "casos": len(pares),
@@ -316,5 +321,236 @@ def tela(supabase, hoje: date) -> dict[str, Any]:
     return {
         "recalibracoes": recalibracoes(supabase),
         "decisoes": [{"valor": valor, "rotulo": rotulo} for valor, rotulo in DECISOES.items()],
-        "itens": [],
+        "itens": itens_do_anexo_f(supabase, hoje),
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Os itens do Anexo F, seções 4 e 5
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Número, seção, título e sinal de alerta, como o Anexo F diz.
+ITENS_DO_ANEXO_F: tuple[tuple[int, int, str, str], ...] = (
+    (1, 4, "Volume de notificações", "Setor assistencial com zero notificação"),
+    (2, 4, "Concordância agente e coordenação", "Abaixo de 85% em grau de dano"),
+    (3, 4, "Erros para baixo", "Qualquer caso grave ou óbito sugerido como menor"),
+    (4, 4, "Lista ANVISA", "Item da lista não reconhecido pelo agente"),
+    (5, 4, "Prazos legais", "Qualquer atraso"),
+    (6, 4, "Tempo de triagem", "Faixa A acima de 4 horas úteis"),
+    (7, 4, "Casos parados", "Mais de 10% vencidas"),
+    (8, 4, "Perguntas de esclarecimento", "Menos de 30% respondidas: rever a redação"),
+    (9, 4, "Roteamento", "Devoluções recorrentes do mesmo tipo"),
+    (10, 4, "Anônimas", "Acima de 60% indica medo de identificação"),
+    (11, 4, "Amostra de leitura", "Justificativa genérica ou fato inventado"),
+    (12, 5, "Tendência do volume", "Queda sem causa conhecida"),
+    (13, 5, "Aprovação em lote", "Abaixo de 90%: manter o lote desligado"),
+    (14, 5, "Planos de ação", "Mais de 50% dos planos só com ações fracas"),
+    (15, 5, "Sinais de conduta", "Queda de notificações após encaminhamento"),
+    (16, 5, "Reuniões", "Reunião mensal não realizada"),
+    (17, 5, "Efetividade", "Caso encerrado sem verificação quando exigida"),
+    (18, 5, "Dossiê", "Documento incompleto"),
+    (19, 5, "Carga da coordenação", "Acima do previsto: rever automações"),
+)
+
+_JANELA = 30
+_SEMANAS_DO_LOTE = 4
+_TAMANHO_DA_AMOSTRA = 15
+_HORAS_DA_FAIXA_A = 4
+_ROTULO_DO_DANO = {"nenhum": "nenhum", "leve": "leve", "moderado": "moderado", "grave": "grave", "obito": "óbito"}
+
+
+def _dia(instante: Any) -> date:
+    return datetime.fromisoformat(str(instante)).astimezone(_FUSO).date()
+
+
+def _plural(n: int, um: str, varios: str) -> str:
+    return f"{n} {um if n == 1 else varios}"
+
+
+def _notificacoes_recentes(supabase, hoje: date) -> list[dict[str, Any]]:
+    """As notificações dos últimos 60 dias (dois meses de 30), pelo dia em
+    Brasília."""
+    inicio = hoje - timedelta(days=2 * _JANELA - 1)
+    linhas = triagem._paginas(
+        lambda: (
+            supabase.table("nsp_notificacoes")
+            .select("id, setor_id, anonimo, criado_em")
+            .gte("criado_em", (inicio - timedelta(days=1)).isoformat())
+            .order("criado_em")
+        )
+    )
+    return [linha for linha in linhas if inicio <= _dia(linha["criado_em"]) <= hoje]
+
+
+def _volume(supabase, do_mes: list[dict]) -> tuple[list[str], bool]:
+    nomes = triagem._nomes_dos_setores(supabase, {n["setor_id"] for n in do_mes if n.get("setor_id")})
+    por_setor: dict[str, int] = {}
+    for linha in do_mes:
+        nome = nomes.get(linha.get("setor_id"), "Sem setor")
+        por_setor[nome] = por_setor.get(nome, 0) + 1
+    ordem = sorted(por_setor.items(), key=lambda par: (-par[1], par[0]))
+    return [f"{_plural(len(do_mes), 'notificação', 'notificações')} nos últimos 30 dias."] + [
+        f"{nome}: {total}" for nome, total in ordem
+    ], False
+
+
+def _linhas_da_concordancia(medida: dict[str, Any]) -> tuple[list[str], bool]:
+    if not medida["casos"]:
+        return ["Nenhum caso com sugestão do agente e decisão da Presidência ainda."], False
+    linhas = [f"{e['rotulo']}: {e['percentual']}% ({e['acatadas']} de {e['total']})" for e in medida["eixos"]]
+    dano = next(e for e in medida["eixos"] if e["eixo"] == "grau_de_dano")
+    return linhas, dano["percentual"] < 85
+
+
+def _linhas_dos_erros(medida: dict[str, Any]) -> tuple[list[str], bool]:
+    erros = medida["erros_para_baixo"]
+    linhas = [f"{_plural(len(erros), 'caso', 'casos')} com o grau de dano subido pela Presidência."]
+    linhas += [
+        f"{e['protocolo']}: sugerido {_ROTULO_DO_DANO[e['sugerido']]}, decidido {_ROTULO_DO_DANO[e['decidido']]}"
+        for e in erros
+    ]
+    return linhas, any(e["grave_ou_obito"] for e in erros)
+
+
+def _lista_anvisa(decisoes: list[dict], pares: list[tuple[dict, dict]]) -> tuple[list[str], bool]:
+    sim = sum(1 for _, s in pares if s.get("evento_situacao") == "sim")
+    possivel = sum(1 for _, s in pares if s.get("evento_situacao") == "possivel")
+    graves_sem_marca = sum(
+        1 for d in decisoes if d.get("grau_de_dano") in ("grave", "obito") and d.get("evento_situacao") == "nao"
+    )
+    nao_reconhecidos = sum(
+        1 for d, s in pares if d.get("evento_situacao") in ("sim", "possivel") and s.get("evento_situacao") == "nao"
+    )
+    return [
+        f"Marcados pelo agente como evento que nunca deveria ocorrer: {sim} sim e {possivel} possível.",
+        f"Graves ou com óbito sem marcação na decisão: {graves_sem_marca}.",
+        f"Marcados pela Presidência e não reconhecidos pelo agente: {nao_reconhecidos}.",
+    ], nao_reconhecidos > 0
+
+
+def _horas(valor: float) -> str:
+    texto = f"{valor:.1f}".replace(".", ",")
+    return f"{texto} {'hora corrida' if valor < 2 else 'horas corridas'}"
+
+
+def _tempo_de_triagem(supabase, decisoes: list[dict]) -> tuple[list[str], bool]:
+    casos = _notificacoes_por_id(supabase, [d["notificacao_id"] for d in decisoes])
+    por_faixa: dict[str, list[float]] = {}
+    for decisao in decisoes:
+        caso = casos.get(decisao["notificacao_id"])
+        if not caso or decisao.get("faixa") not in ("A", "B", "C", "D", "E"):
+            continue
+        espera = datetime.fromisoformat(str(decisao["criado_em"])) - datetime.fromisoformat(str(caso["criado_em"]))
+        por_faixa.setdefault(decisao["faixa"], []).append(espera.total_seconds() / 3600)
+    if not por_faixa:
+        return ["Nenhuma triagem confirmada ainda."], False
+    linhas = [
+        f"Faixa {faixa}: {_horas(sum(horas) / len(horas))} em média ({_plural(len(horas), 'caso', 'casos')})"
+        for faixa, horas in sorted(por_faixa.items())
+    ]
+    return linhas, any(h > _HORAS_DA_FAIXA_A for h in por_faixa.get("A", []))
+
+
+def _anonimas(do_mes: list[dict]) -> tuple[list[str], bool]:
+    if not do_mes:
+        return ["Nenhuma notificação nos últimos 30 dias."], False
+    anonimas = sum(1 for n in do_mes if n.get("anonimo"))
+    percentual = _percentual(anonimas, len(do_mes))
+    return [
+        f"{anonimas} de {_plural(len(do_mes), 'notificação', 'notificações')} sem identificação "
+        f"nos últimos 30 dias ({percentual}%)."
+    ], percentual > 60
+
+
+def _amostra(supabase, pares: list[tuple[dict, dict]]) -> tuple[list[str], bool]:
+    recentes = sorted(pares, key=lambda par: str(par[0]["criado_em"]), reverse=True)[:_TAMANHO_DA_AMOSTRA]
+    casos = _notificacoes_por_id(supabase, [d["notificacao_id"] for d, _ in recentes])
+    protocolos = sorted(casos[d["notificacao_id"]]["protocolo"] for d, _ in recentes if d["notificacao_id"] in casos)
+    return protocolos or ["Nenhum caso com sugestão do agente ainda."], False
+
+
+def _tendencia(do_mes: list[dict], do_mes_anterior: list[dict]) -> tuple[list[str], bool]:
+    return [f"Últimos 30 dias: {len(do_mes)}. Os 30 dias anteriores: {len(do_mes_anterior)}."], len(do_mes) < len(
+        do_mes_anterior
+    )
+
+
+def _lote(pares: list[tuple[dict, dict]], hoje: date) -> tuple[list[str], bool]:
+    inicio = hoje - timedelta(weeks=_SEMANAS_DO_LOTE)
+    leves = [d for d, _ in pares if d.get("faixa") in ("D", "E") and _dia(d["criado_em"]) > inicio]
+    if not leves:
+        return ["Nenhum caso leve confirmado nas últimas 4 semanas."], False
+    acatados = sum(1 for d in leves if not d["divergencias"])
+    percentual = _percentual(acatados, len(leves))
+    return [
+        f"Casos leves (faixas D e E) confirmados nas últimas 4 semanas: {acatados} de {len(leves)} "
+        f"sem ajuste ({percentual}%)."
+    ], percentual < 90
+
+
+def _reunioes(supabase, hoje: date) -> tuple[list[str], bool]:
+    nucleo_id = id_do_nucleo(supabase)
+    linhas = []
+    if nucleo_id:
+        linhas = (
+            supabase.table("reunioes")
+            .select("id_reuniao, tipo, data, status_ata")
+            .eq("colegiado_id", nucleo_id)
+            .gte("data", (hoje - timedelta(days=2 * _JANELA - 1)).isoformat())
+            .lte("data", hoje.isoformat())
+            .is_("deleted_at", "null")
+            .execute()
+            .data
+        ) or []
+    assinadas = sum(1 for r in linhas if r.get("status_ata") == "ASSINADA")
+    inicio_do_mes = hoje - timedelta(days=_JANELA - 1)
+    ordinarias = sum(
+        1
+        for r in linhas
+        if r.get("tipo") == TipoReuniaoNsp.ORDINARIA_MENSAL.value
+        and date.fromisoformat(str(r["data"])[:10]) >= inicio_do_mes
+    )
+    return [
+        f"{_plural(len(linhas), 'reunião', 'reuniões')} do Núcleo nos últimos 60 dias, {assinadas} com ata assinada.",
+        f"Ordinárias mensais nos últimos 30 dias: {ordinarias}.",
+    ], ordinarias == 0
+
+
+def itens_do_anexo_f(supabase, hoje: date) -> list[dict[str, Any]]:
+    """Os 19 itens das seções 4 e 5. O que tem dado nesta fase sai calculado,
+    com o sinal de alerta aceso quando o Anexo F pede; o resto sai sem linhas e
+    com `com_dados` falso, para a tela dizer "sem dados nesta fase"."""
+    decisoes = _decisoes(supabase)
+    pares = _com_sugestao(supabase, decisoes)
+    medida = concordancia(supabase, pares)
+    recentes = _notificacoes_recentes(supabase, hoje)
+    inicio_do_mes = hoje - timedelta(days=_JANELA - 1)
+    do_mes = [n for n in recentes if _dia(n["criado_em"]) >= inicio_do_mes]
+    do_mes_anterior = [n for n in recentes if _dia(n["criado_em"]) < inicio_do_mes]
+    calculados = {
+        1: lambda: _volume(supabase, do_mes),
+        2: lambda: _linhas_da_concordancia(medida),
+        3: lambda: _linhas_dos_erros(medida),
+        4: lambda: _lista_anvisa(decisoes, pares),
+        6: lambda: _tempo_de_triagem(supabase, decisoes),
+        10: lambda: _anonimas(do_mes),
+        11: lambda: _amostra(supabase, pares),
+        12: lambda: _tendencia(do_mes, do_mes_anterior),
+        13: lambda: _lote(pares, hoje),
+        16: lambda: _reunioes(supabase, hoje),
+    }
+    itens = []
+    for numero, secao, titulo, sinal in ITENS_DO_ANEXO_F:
+        linhas, alerta = calculados[numero]() if numero in calculados else ([], False)
+        itens.append(
+            {
+                "numero": numero,
+                "secao": secao,
+                "titulo": titulo,
+                "sinal": sinal,
+                "com_dados": numero in calculados,
+                "linhas": linhas,
+                "alerta": alerta,
+            }
+        )
+    return itens

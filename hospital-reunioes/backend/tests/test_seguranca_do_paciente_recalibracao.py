@@ -48,6 +48,8 @@ from test_seguranca_do_paciente_triagem import (  # noqa: E402
     GRAVE,
     MODERADO,
     OBITO,
+    OUTRO_SETOR,
+    QUASE_ERRO,
     _BancoDaTriagem,
     _ConsultaDaTriagem,
     _notificacao,
@@ -348,10 +350,176 @@ def test_o_job_nao_fala_com_ia_nem_com_email():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 4. Concluir exige uma das três decisões e grava quem decidiu e quando
+# 3. A tela dos itens do Anexo F
 # ═══════════════════════════════════════════════════════════════════════════
 
 TELA = "/api/nsp/recalibracao"
+HOJE_DA_AUDITORIA = date(2026, 11, 30)
+# Os itens que dependem das Fases 3 e 4 (investigação, plano de ação,
+# notificação externa, dossiê), das perguntas de esclarecimento e do
+# encaminhamento, que ainda não chegaram, e a carga que a coordenadora estima.
+SEM_DADOS = {5, 7, 8, 9, 14, 15, 17, 18, 19}
+
+
+def _decidida(notificacao: dict, divergencias: list[str], em: str, **campos) -> dict[str, Any]:
+    return {**_decisao(notificacao, divergencias, **campos), "criado_em": em}
+
+
+def _cenario_da_auditoria() -> _BancoDaRecalibracao:
+    """Quatro casos decididos e um esperando, em 30/11/2026."""
+    obito = _notificacao(1, estado="classificada", criado_em="2026-11-29T13:00:00+00:00")
+    subiu = _notificacao(2, estado="classificada", criado_em="2026-11-20T10:00:00+00:00", anonimo=True)
+    leve = _notificacao(3, estado="classificada", criado_em="2026-11-10T10:00:00+00:00", setor_id=OUTRO_SETOR["id"])
+    antigo = _notificacao(4, estado="em_analise_agregada", criado_em="2026-10-15T10:00:00+00:00")
+    esperando = _notificacao(5, criado_em="2026-11-25T10:00:00+00:00")
+    nucleo, outro = NUCLEO["id"], "col-outro"
+    return _banco(
+        [obito, subiu, leve, antigo, esperando],
+        [
+            _sugestao(obito, **OBITO),
+            _decidida(obito, [], "2026-11-29T18:00:00+00:00", **OBITO),
+            _sugestao(subiu, **MODERADO),
+            _decidida(subiu, ["grau_de_dano", "faixa"], "2026-11-20T12:00:00+00:00", **GRAVE),
+            _sugestao(leve),
+            _decidida(leve, [], "2026-11-10T11:00:00+00:00"),
+            _sugestao(antigo, **QUASE_ERRO),
+            _decidida(antigo, ["categoria"], "2026-10-15T10:30:00+00:00", categoria="MED", **QUASE_ERRO),
+            _sugestao(esperando, **QUASE_ERRO),
+        ],
+        setores=[dict(SETOR), dict(OUTRO_SETOR)],
+        reunioes=[
+            {
+                "id_reuniao": "R1",
+                "colegiado_id": nucleo,
+                "tipo": "Ordinária mensal",
+                "data": "2026-11-12",
+                "status_ata": "ASSINADA",
+                "deleted_at": None,
+            },
+            {
+                "id_reuniao": "R2",
+                "colegiado_id": nucleo,
+                "tipo": "Análise de evento",
+                "data": "2026-10-20",
+                "status_ata": "PROCESSANDO",
+                "deleted_at": None,
+            },
+            {
+                "id_reuniao": "R3",
+                "colegiado_id": nucleo,
+                "tipo": "Ordinária mensal",
+                "data": "2026-08-10",
+                "status_ata": "ASSINADA",
+                "deleted_at": None,
+            },
+            {
+                "id_reuniao": "R4",
+                "colegiado_id": outro,
+                "tipo": "Ordinária mensal",
+                "data": "2026-11-12",
+                "status_ata": "ASSINADA",
+                "deleted_at": None,
+            },
+            {
+                "id_reuniao": "R5",
+                "colegiado_id": None,
+                "tipo": "Mensal",
+                "data": "2026-11-12",
+                "status_ata": "ASSINADA",
+                "deleted_at": None,
+            },
+        ],
+    )
+
+
+def _itens() -> dict[int, dict]:
+    tela = recalibracao.tela(_cenario_da_auditoria(), HOJE_DA_AUDITORIA)
+    return {item["numero"]: item for item in tela["itens"]}
+
+
+def test_a_tela_traz_os_19_itens_e_marca_os_que_nao_tem_dados_nesta_fase():
+    itens = _itens()
+
+    assert sorted(itens) == list(range(1, 20))
+    assert {n for n, item in itens.items() if item["secao"] == 4} == set(range(1, 12))
+    assert {n for n, item in itens.items() if not item["com_dados"]} == SEM_DADOS
+    assert all(item["linhas"] == [] and not item["alerta"] for n, item in itens.items() if n in SEM_DADOS)
+    assert itens[2]["titulo"] == "Concordância agente e coordenação"
+    assert itens[2]["sinal"] == "Abaixo de 85% em grau de dano"
+
+
+def test_volume_anonimas_e_tendencia_contam_os_ultimos_30_dias():
+    itens = _itens()
+
+    assert itens[1]["linhas"] == ["4 notificações nos últimos 30 dias.", "UTI Adulto: 3", "Centro Cirúrgico: 1"]
+    assert itens[10]["linhas"] == ["1 de 4 notificações sem identificação nos últimos 30 dias (25%)."]
+    assert itens[10]["alerta"] is False
+    assert itens[12]["linhas"] == ["Últimos 30 dias: 4. Os 30 dias anteriores: 1."]
+    assert itens[12]["alerta"] is False
+
+
+def test_concordancia_e_erros_para_baixo_acendem_o_sinal_de_alerta():
+    itens = _itens()
+
+    assert "Grau de dano: 75% (3 de 4)" in itens[2]["linhas"]
+    assert itens[2]["alerta"] is True
+    assert itens[3]["linhas"] == [
+        "1 caso com o grau de dano subido pela Presidência.",
+        "NSP-2026-0002: sugerido moderado, decidido grave",
+    ]
+    assert itens[3]["alerta"] is True
+
+
+def test_lista_anvisa_tempo_de_triagem_e_amostra():
+    itens = _itens()
+
+    assert itens[4]["linhas"] == [
+        "Marcados pelo agente como evento que nunca deveria ocorrer: 0 sim e 0 possível.",
+        "Graves ou com óbito sem marcação na decisão: 2.",
+        "Marcados pela Presidência e não reconhecidos pelo agente: 0.",
+    ]
+    assert itens[6]["linhas"] == [
+        "Faixa A: 5,0 horas corridas em média (1 caso)",
+        "Faixa B: 2,0 horas corridas em média (1 caso)",
+        "Faixa D: 1,0 hora corrida em média (1 caso)",
+        "Faixa E: 0,5 hora corrida em média (1 caso)",
+    ]
+    assert itens[6]["alerta"] is True
+    assert itens[11]["linhas"] == ["NSP-2026-0001", "NSP-2026-0002", "NSP-2026-0003", "NSP-2026-0004"]
+
+
+def test_aprovacao_em_lote_mede_os_casos_leves_das_ultimas_4_semanas():
+    itens = _itens()
+
+    assert itens[13]["linhas"] == [
+        "Casos leves (faixas D e E) confirmados nas últimas 4 semanas: 1 de 1 sem ajuste (100%)."
+    ]
+    assert itens[13]["alerta"] is False
+
+
+def test_reunioes_do_nucleo_nos_ultimos_60_dias():
+    itens = _itens()
+
+    assert itens[16]["linhas"] == [
+        "2 reuniões do Núcleo nos últimos 60 dias, 1 com ata assinada.",
+        "Ordinárias mensais nos últimos 30 dias: 1.",
+    ]
+    assert itens[16]["alerta"] is False
+
+
+def test_a_tela_abre_pela_rota_com_os_itens():
+    banco = _cenario_da_auditoria()
+
+    corpo = _cliente(banco, DIRETOR_EXECUTIVO).get(TELA).json()
+
+    assert len(corpo["itens"]) == 19
+    assert [d["valor"] for d in corpo["decisoes"]] == ["manter", "ajustar", "ligar_lote"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. Concluir exige uma das três decisões e grava quem decidiu e quando
+# ═══════════════════════════════════════════════════════════════════════════
+
 AGORA = datetime(2026, 11, 2, 13, 0, tzinfo=UTC)
 
 
