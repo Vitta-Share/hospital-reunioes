@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T19:47:15-03:00",
+      "sha": "c7babfce08cab82c1401571f84040bf55e2ef3ec",
+      "app_version": "0.353.0",
+      "subject": "Onda ok-sesta-1786-onda4: Código de Conduta publicado pela coordenação, com versões",
+      "raw_subject": "chore(deploy): registro da onda ok-sesta-1786-onda4 (#2100)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 253,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "198_conduta_codigo_de_conduta.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta ok-sesta-1786-onda4: PR #2100 (issue #1841), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 6,
+        "build_s": {
+          "backend": 18,
+          "frontend": 206
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T19:31:43-03:00",
       "sha": "20da859c555b65b471d4e8686e2d2dc7e9175648",
       "app_version": "0.352.0",
