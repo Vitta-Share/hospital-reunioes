@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T19:06:10-03:00",
+      "sha": "bdd32a3972a187dca441c63f886f4937d579058e",
+      "app_version": "0.349.0",
+      "subject": "Onda sesta-1786-onda3: Assinaturas pela ClickSign e Termo de Confidencialidade e Posse",
+      "raw_subject": "chore(deploy): registro da onda sesta-1786-onda3 (#2091)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 280,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "192_conduta_assinaturas.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1786-onda3: PR #2091 (issue #1823), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 4,
+        "build_s": {
+          "backend": 32,
+          "frontend": 251
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T17:16:08-03:00",
       "sha": "b6eaab09009b2d115ad11e0a94d1a378d82931d9",
       "app_version": "0.348.0",
