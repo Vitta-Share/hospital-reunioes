@@ -290,3 +290,98 @@ class TestParticipanteMe:
 
         assert resposta.status_code == 200, resposta.text
         assert resposta.json()["recursos_nsp"] == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. O QR e o endereço da notificação na Configuração (issue #2046)
+# ═══════════════════════════════════════════════════════════════════════════
+
+ROTA_QR_DA_NOTIFICACAO = "/api/nsp/configuracao/qr-da-notificacao.png"
+APP = "https://app.hsm.test"
+
+
+def _ler_o_qr(png: bytes) -> list[list[bool]]:
+    """Lê a grade de módulos do PNG como um leitor de QR leria: acha o canto
+    do padrão de localização, mede o tamanho do módulo pelos 7 módulos dele e
+    amostra o centro de cada módulo. Não sabe a escala nem a borda que a rota
+    usou."""
+    import io
+
+    from PIL import Image
+
+    imagem = Image.open(io.BytesIO(png)).convert("L")
+    largura, altura = imagem.size
+    escuro = [[imagem.getpixel((x, y)) < 128 for x in range(largura)] for y in range(altura)]
+    topo = next(y for y in range(altura) if any(escuro[y]))
+    esquerda = next(x for x in range(largura) if escuro[topo][x])
+    direita = max(x for x in range(largura) if any(escuro[y][x] for y in range(altura)))
+    corrida = 0
+    while escuro[topo][esquerda + corrida]:
+        corrida += 1
+    modulo = corrida / 7
+    lado = round((direita - esquerda + 1) / modulo)
+    return [
+        [escuro[int(topo + (i + 0.5) * modulo)][int(esquerda + (j + 0.5) * modulo)] for j in range(lado)]
+        for i in range(lado)
+    ]
+
+
+def _o_qr_abre(png: bytes, url: str) -> bool:
+    """A grade lida bate com o QR desta URL em algum nível de correção."""
+    import segno
+
+    lida = _ler_o_qr(png)
+    for nivel in "lmqh":
+        esperado = segno.make(url, error=nivel, boost_error=False, micro=False)
+        if [[bool(m) for m in linha] for linha in esperado.matrix] == lida:
+            return True
+    return False
+
+
+class TestQrEEnderecoDaNotificacao:
+    """CA da issue #2046: a Configuração mostra o QR (imagem para baixar, que
+    abre `/notificar/qr`) e o endereço de `/notificar`, e só para quem vê a
+    Configuração."""
+
+    @pytest.fixture(autouse=True)
+    def _app(self, monkeypatch):
+        from app.config import settings
+
+        monkeypatch.setattr(settings, "frontend_url", f"{APP}/")
+
+    def test_a_imagem_baixada_abre_a_pagina_do_qr(self):
+        """Mutante: o QR apontar para `/notificar` (o endereço), e não para
+        `/notificar/qr`. A origem da notificação sairia errada."""
+        resposta = _cliente(_pessoa(**SUPER_ADMIN)).get(ROTA_QR_DA_NOTIFICACAO)
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.headers["content-type"] == "image/png"
+        assert resposta.headers["content-disposition"].startswith("attachment;")
+        assert _o_qr_abre(resposta.content, "https://app.hsm.test/notificar/qr")
+        assert not _o_qr_abre(resposta.content, "https://app.hsm.test/notificar")
+
+    def test_a_configuracao_traz_o_endereco_completo_da_notificacao(self):
+        """O endereço que a TI cola no ícone dos computadores: com o esquema e
+        o domínio do app, sem `/api`."""
+        resposta = _cliente(_pessoa(**SUPER_ADMIN)).get(ROTA_CONFIGURACAO)
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["endereco_da_notificacao"] == "https://app.hsm.test/notificar"
+
+    @pytest.mark.parametrize(
+        ("pessoa", "participacoes"),
+        [
+            pytest.param({}, [_participacao()], id="membro comum"),
+            pytest.param({"role": "diretor", "access_profile": "regular"}, [], id="diretoria"),
+            pytest.param({"access_profile": "regular"}, [], id="pessoa de fora"),
+        ],
+    )
+    def test_quem_nao_ve_a_configuracao_nao_baixa_o_qr(self, pessoa, participacoes):
+        """Mutante: a rota da imagem pedir `ver_modulo` em vez de
+        `configuracao`. O membro e a Diretoria baixariam."""
+        _assert_recusado(_cliente(_pessoa(**pessoa), participacoes).get(ROTA_QR_DA_NOTIFICACAO))
+
+    def test_a_presidencia_baixa_o_qr(self):
+        resposta = _cliente(_pessoa(), [_participacao(papel="presidencia")]).get(ROTA_QR_DA_NOTIFICACAO)
+
+        assert resposta.status_code == 200, resposta.text
