@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T15:56+0000 -->
+<!-- last_update: 2026-11-21T16:17+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2490,6 +2490,23 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_rotinas_responsavel` em `(responsavel_id)` (de `177_rotina_e_verificacao.sql`)
 
+## definicoes_processo
+
+> Origem: `178_definicoes_de_processo_do_setor.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `id_reuniao` | `VARCHAR(20)` | NOT NULL | — | `reunioes.id_reuniao` |
+| `quadro_pos` | `INTEGER` | NOT NULL | — | — |
+| `trecho` | `TEXT` | NOT NULL | — | — |
+| `objetivo` | `TEXT` | — | — | — |
+| `status` | `TEXT` | NOT NULL | `'ATIVA'` | — |
+| `retirada_em` | `TIMESTAMPTZ` | — | — | — |
+| `retirada_por_nome` | `TEXT` | — | — | — |
+| `anotacao_retirada` | `TEXT` | — | — | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
 ## nsp_notificacao_anexos
 
 > Origem: `181_nsp_anexos_da_notificacao.sql`
@@ -2574,6 +2591,19 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `prazo_em` | `DATE` | NOT NULL | — | — |
 | `registrado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
 
+## conduta_configuracoes
+
+> Origem: `186_conduta_configuracoes_com_versao.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `chave` | `TEXT` | NOT NULL | — | — |
+| `versao` | `INTEGER` | NOT NULL | — | — |
+| `texto` | `TEXT` | NOT NULL | — | — |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
 ## nsp_categorias
 
 > Origem: `188_nsp_agente_de_triagem.sql`
@@ -2647,4 +2677,4 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ---
 
-**Resumo:** 130 tabelas vivas.
+**Resumo:** 132 tabelas vivas.

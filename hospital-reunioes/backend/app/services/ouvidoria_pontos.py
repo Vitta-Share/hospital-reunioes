@@ -117,7 +117,13 @@ def endereco_impresso(codigo: str) -> str:
 
 
 def png_do_qr(codigo: str, escala: int = 8) -> bytes:
-    """O QR como PNG.
+    """O QR do cartaz como PNG (o desenho mora em `png_de_url`)."""
+    return png_de_url(url_do_cartaz(codigo), escala)
+
+
+def png_de_url(url: str, escala: int = 8) -> bytes:
+    """O QR de uma URL como PNG. O QR da notificação do Núcleo (issue #2046)
+    sai daqui também.
 
     `segno` é Python puro: não entra Pillow nem biblioteca de imagem nativa na
     imagem do backend (ADR 0036, decisão 9). A correção de erro fica no nível
@@ -129,7 +135,7 @@ def png_do_qr(codigo: str, escala: int = 8) -> bytes:
     import segno
 
     buffer = io.BytesIO()
-    segno.make(url_do_cartaz(codigo), error="h").save(buffer, kind="png", scale=escala, border=2)
+    segno.make(url, error="h").save(buffer, kind="png", scale=escala, border=2)
     return buffer.getvalue()
 
 

@@ -1,16 +1,21 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { ListChecks } from "lucide-react";
 
 import { NotificacoesDoNucleo } from "@/components/seguranca-do-paciente/NotificacoesDoNucleo";
+import { RegistroRapido } from "@/components/seguranca-do-paciente/RegistroRapido";
 import { TelaDoNucleo } from "@/components/seguranca-do-paciente/TelaDoNucleo";
 import { useCurrentParticipante } from "@/hooks/useCurrentParticipante";
 
-/** Notificações: os casos do Núcleo (issue #1987), com a entrada da fila de triagem (issue #1992). */
+/** Notificações: os casos do Núcleo (issue #1987), a entrada da fila de
+ * triagem (issue #1992) e, no alto, o registro rápido (issue #1998).
+ * Registrar recarrega a lista. */
 export default function NotificacoesPage() {
   const { participante } = useCurrentParticipante();
   const triagem = participante?.recursos_nsp?.includes("triagem") ?? false;
+  const [versaoDaLista, setVersaoDaLista] = useState(0);
   return (
     <TelaDoNucleo
       titulo="Notificações"
@@ -26,7 +31,10 @@ export default function NotificacoesPage() {
           Fila de triagem
         </Link>
       )}
-      <NotificacoesDoNucleo />
+      <div className="space-y-4">
+        <RegistroRapido aoRegistrar={() => setVersaoDaLista((n) => n + 1)} />
+        <NotificacoesDoNucleo key={versaoDaLista} />
+      </div>
     </TelaDoNucleo>
   );
 }

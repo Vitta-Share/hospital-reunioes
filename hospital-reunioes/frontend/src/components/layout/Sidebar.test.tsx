@@ -244,7 +244,7 @@ describe.each([
     [
       "padrão",
       { access_profile: "regular", perfil_ouvidoria: "ouvidor" },
-      ["Início", "Dashboard", "Calendário", "Rotinas", "Ouvidoria"],
+      ["Início", "Dashboard", "Calendário", "Definições de processo", "Rotinas", "Ouvidoria"],
     ],
     [
       "Secretária",
@@ -461,6 +461,16 @@ describe("Sidebar com o item Segurança do Paciente", () => {
     const semCasos = entrar({ access_profile: null, recursos_nsp: SEM_TERMO });
     expect(hrefs(semCasos)).toContain("/seguranca-do-paciente/membros");
     expect(hrefs(semCasos)).not.toContain("/seguranca-do-paciente/notificacoes");
+  });
+
+  it("o item Configuração aparece para quem tem o recurso da Configuração, e só para ele (issue #2046)", () => {
+    const comConfiguracao = entrar({ access_profile: null, recursos_nsp: [...SEM_TERMO, "configuracao"] });
+    expect(hrefs(comConfiguracao)).toContain("/seguranca-do-paciente/configuracao");
+    cleanup();
+
+    const semConfiguracao = entrar({ access_profile: null, recursos_nsp: [...SEM_TERMO, "casos"] });
+    expect(hrefs(semConfiguracao)).toContain("/seguranca-do-paciente/membros");
+    expect(hrefs(semConfiguracao)).not.toContain("/seguranca-do-paciente/configuracao");
   });
 
   it.each([

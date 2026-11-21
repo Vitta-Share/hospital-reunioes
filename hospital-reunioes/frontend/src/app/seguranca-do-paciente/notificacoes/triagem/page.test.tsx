@@ -28,6 +28,7 @@ vi.mock("@/components/seguranca-do-paciente/TriagemDoCaso", () => ({ TriagemDoCa
 vi.mock("@/components/seguranca-do-paciente/NotificacoesDoNucleo", () => ({
   NotificacoesDoNucleo: () => <p>Os casos</p>,
 }));
+vi.mock("@/components/seguranca-do-paciente/RegistroRapido", () => ({ RegistroRapido: () => <p>O registro</p> }));
 
 function entrar(recursos: string[]) {
   sessao.participante = { id: "p1", nome_completo: "Pessoa de Teste", email: "pessoa@hsm", recursos_nsp: recursos };
