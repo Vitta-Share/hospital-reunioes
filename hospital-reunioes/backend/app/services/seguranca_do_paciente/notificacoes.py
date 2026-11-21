@@ -70,8 +70,9 @@ def registrar(
     contato: str | None = None,
     notificante_id: str | None = None,
 ) -> dict[str, Any]:
-    """Grava a notificação e devolve o recibo: o protocolo e, na anônima, o
-    código de acompanhamento, que não fica guardado em lugar nenhum."""
+    """Grava a notificação e devolve o recibo: o id, o protocolo e, na
+    anônima, o código de acompanhamento, que não fica guardado em lugar
+    nenhum. O id é para ligar os anexos; quem notificou não o recebe."""
     if origem not in ORIGENS:
         raise ValueError(f"Origem desconhecida: {origem!r}")
     linha: dict[str, Any] = {campo: relato.get(campo) for campo in _CAMPOS_DO_RELATO}
@@ -86,7 +87,11 @@ def registrar(
         linha["notificante_nome"] = nome
         linha["notificante_contato"] = contato
     gravada = supabase.table("nsp_notificacoes").insert(linha).execute().data[0]
-    recibo: dict[str, Any] = {"protocolo": gravada["protocolo"], "criado_em": gravada.get("criado_em")}
+    recibo: dict[str, Any] = {
+        "id": gravada["id"],
+        "protocolo": gravada["protocolo"],
+        "criado_em": gravada.get("criado_em"),
+    }
     if codigo:
         recibo["codigo_acompanhamento"] = codigo
     return recibo

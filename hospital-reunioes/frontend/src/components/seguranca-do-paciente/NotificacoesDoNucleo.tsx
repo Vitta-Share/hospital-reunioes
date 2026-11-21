@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, Inbox, Loader2 } from "lucide-react";
+import { AlertCircle, FileText, Image as IconeDeFoto, Inbox, Loader2 } from "lucide-react";
 
+import { tamanhoLegivel } from "@/lib/seguranca-do-paciente/anexos";
 import { chamarNsp } from "@/lib/seguranca-do-paciente/membros";
+import { createClient } from "@/lib/supabase/client";
 import { CHEGOU_AO_PACIENTE, TURNOS } from "@/lib/seguranca-do-paciente/notificacao";
 
 const CARTAO = "bg-white rounded-2xl border border-border shadow-premium";
@@ -24,6 +26,14 @@ interface Caso {
   /** Só para a Presidência e o Acesso pleno: o servidor decide. */
   anonimo?: boolean;
   notificante?: { nome: string | null; contato: string | null } | null;
+  /** Os arquivos que vieram com a notificação (issue #1988), sem o nome original. */
+  anexos?: Anexo[];
+}
+
+interface Anexo {
+  id: string;
+  content_type: string;
+  tamanho_bytes: number;
 }
 
 const ESTADOS: Record<string, string> = {
@@ -63,6 +73,77 @@ function QuemNotificou({ caso }: { caso: Caso }) {
     <p className="text-sm text-slate-500">
       {`Notificado por ${nome ?? "pessoa sem nome"}${contato ? ` (${contato})` : ""}`}
     </p>
+  );
+}
+
+/** Os anexos do caso. O arquivo sai pelo backend, com a sessão de quem abre:
+ * não há link que valha fora do app. */
+function AnexosDoCaso({ caso }: { caso: Caso }) {
+  const [abrindo, setAbrindo] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  if (!caso.anexos?.length) return null;
+
+  async function abrir(anexo: Anexo) {
+    setAbrindo(anexo.id);
+    setErro(null);
+    try {
+      const {
+        data: { session },
+      } = await createClient().auth.getSession();
+      const res = await fetch(`/api/nsp/notificacoes/${caso.id}/anexos/${anexo.id}`, {
+        headers: { Authorization: `Bearer ${session?.access_token ?? ""}` },
+      });
+      if (!res.ok) {
+        const corpo = await res.json().catch(() => null);
+        setErro(typeof corpo?.detail === "string" ? corpo.detail : "Não foi possível abrir o arquivo. Tente de novo.");
+        return;
+      }
+      const url = URL.createObjectURL(await res.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.click();
+      // A aba nova precisa do endereço por um tempo antes de ele sair.
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      setErro("Não foi possível abrir o arquivo. Verifique sua conexão e tente de novo.");
+    } finally {
+      setAbrindo(null);
+    }
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <ul aria-label="Anexos" className="flex flex-wrap gap-2">
+        {caso.anexos.map((anexo, indice) => {
+          const foto = anexo.content_type.startsWith("image/");
+          const Icone = foto ? IconeDeFoto : FileText;
+          return (
+            <li key={anexo.id}>
+              <button
+                type="button"
+                onClick={() => abrir(anexo)}
+                disabled={abrindo !== null}
+                className="flex min-h-[44px] items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-2 text-sm font-semibold text-slate-600 hover:border-primary/40 disabled:opacity-50"
+              >
+                {abrindo === anexo.id ? (
+                  <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+                ) : (
+                  <Icone className="w-4 h-4" aria-hidden />
+                )}
+                {`${foto ? "Foto" : "PDF"} ${indice + 1} (${tamanhoLegivel(anexo.tamanho_bytes)})`}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {erro && (
+        <p role="alert" className="text-sm text-red-700">
+          {erro}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -135,6 +216,7 @@ export function NotificacoesDoNucleo() {
                 {chegou ? `. ${chegou}.` : "."}
               </p>
               <p className="text-sm text-slate-800 whitespace-pre-line line-clamp-4">{caso.relato}</p>
+              <AnexosDoCaso caso={caso} />
               <QuemNotificou caso={caso} />
             </article>
           </li>
