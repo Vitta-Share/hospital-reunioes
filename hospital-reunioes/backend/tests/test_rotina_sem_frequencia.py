@@ -165,3 +165,17 @@ def test_rotina_encerrada_nao_ganha_frequencia(cliente_das_rotinas, hoje):
 
     assert r.status_code == 409, r.text
     assert sb.rotinas[0]["frequencia"] is None
+
+
+# ─── O kit de conhecimento ───────────────────────────────────────────────────
+
+
+def test_o_texto_de_reunioes_no_kit_diz_o_que_aconteceu_com_o_fluxo_continuo_antigo():
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = (CONHECIMENTO_DIR / "reunioes.md").read_text(encoding="utf-8")
+    assert "virou rotina sem frequência" in texto
+    assert "a pendência original foi encerrada, com um registro no histórico que aponta para a rotina" in texto
+    assert "fica no Início do facilitador da reunião até ele escolher a frequência" in texto
+    assert "Até lá, nenhum ciclo é cobrado" in texto
+    assert "a tela Acertos de setor também lista as pendências abertas e sem prazo" in texto

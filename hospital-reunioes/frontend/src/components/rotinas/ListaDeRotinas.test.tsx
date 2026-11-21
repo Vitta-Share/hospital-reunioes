@@ -141,3 +141,58 @@ describe("a tela das Rotinas", () => {
     expect(screen.queryByRole("button", { name: "Encerrar a Rotina" })).toBeNull();
   });
 });
+
+// O fluxo contínuo antigo virou Rotina sem frequência (issue #1877).
+const SEM_FREQUENCIA = {
+  ...ROTINA,
+  frequencia: null,
+  comeca_em: null,
+  ciclos_em_aberto: [],
+  verificacoes: [],
+  pode_escolher_frequencia: true,
+};
+
+describe("a Rotina sem frequência", () => {
+  beforeEach(() => {
+    // O jsdom não implementa `scrollIntoView`, que o `Select` da casa chama ao abrir.
+    Element.prototype.scrollIntoView = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        chamadas.push({ url, init });
+        if (init?.method === "POST") return new Response("{}", { status: 200 });
+        return new Response(JSON.stringify([SEM_FREQUENCIA]), { status: 200 });
+      })
+    );
+  });
+
+  it("o Facilitador escolhe a frequência e salva", async () => {
+    render(<ListaDeRotinas />);
+
+    const escolha = await screen.findByRole("group", { name: "Frequência de Reunir a equipe" });
+    const salvar = within(escolha).getByRole("button", { name: "Salvar a frequência" });
+    expect((salvar as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(within(escolha).getByRole("combobox"));
+    fireEvent.click(await screen.findByRole("option", { name: "Quinzenal" }));
+    fireEvent.click(salvar);
+
+    await waitFor(() => expect(posts()).toHaveLength(1));
+    expect(posts()[0].url).toBe("/api/rotinas/RT1/frequencia");
+    expect(JSON.parse(String(posts()[0].init?.body))).toEqual({ frequencia: "QUINZENAL" });
+  });
+
+  it("quem não escolhe vê que a Rotina espera a frequência, sem o campo", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify([{ ...SEM_FREQUENCIA, pode_escolher_frequencia: false }]), { status: 200 })
+      )
+    );
+    render(<ListaDeRotinas />);
+
+    expect((await screen.findByText(/Rotina sem frequência/)).textContent).toContain("Ana Lima");
+    expect(screen.getByText(/o facilitador da reunião escolhe a frequência/)).toBeTruthy();
+    expect(screen.queryByRole("group", { name: "Frequência de Reunir a equipe" })).toBeNull();
+  });
+});
