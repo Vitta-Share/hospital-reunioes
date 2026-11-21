@@ -128,6 +128,7 @@ def _caso(numero: int = 7, **overrides) -> dict:
         "sigilo_reforcado": False,
         "categoria": "Demora",
         "setor": "Recepcao",
+        "setor_id": "s1",
         "resumo": "Paciente Joana relata espera acima de duas horas na recepcao.",
         "conversa_id": "conv-1",
         "gravidade": "medio",

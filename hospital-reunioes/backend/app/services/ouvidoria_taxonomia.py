@@ -170,6 +170,37 @@ def casar_setor(valor: str | None, nomes: Iterable[str]) -> str | None:
     return None
 
 
+class SetorDoCadastro(NamedTuple):
+    """A área como o cadastro a conhece: o nome canônico e o id da linha em
+    `setores` (ADR 0095, decisão 2)."""
+
+    nome: str
+    id: str | None
+
+
+def casar_setor_do_cadastro(valor: str | None, linhas: Iterable[dict]) -> SetorDoCadastro | None:
+    """O `casar_setor` que devolve também o id da linha que casou.
+
+    A regra de casar é a mesma, e o id sai da linha cujo nome é o canônico
+    devolvido: duas regras diferentes fariam o nome apontar para uma área e o
+    id para a gêmea de grafia diferente."""
+    linhas = list(linhas)
+    nome = casar_setor(valor, [str(linha.get("nome") or "") for linha in linhas])
+    if nome is None:
+        return None
+    setor_id = next((linha.get("id") for linha in linhas if str(linha.get("nome") or "").strip() == nome), None)
+    return SetorDoCadastro(nome, setor_id)
+
+
+def colunas_do_setor(setor: SetorDoCadastro | None) -> dict[str, str | None]:
+    """O par que toda porta grava na manifestação: o texto e o id juntos (issue
+    #1983). Sem área do cadastro, o caso entra com o marcador de pendente e o id
+    vazio, até o ouvidor classificar."""
+    if setor is None:
+        return {"setor": SETOR_PENDENTE, "setor_id": None}
+    return {"setor": setor.nome, "setor_id": setor.id}
+
+
 class PlanoBackfill(NamedTuple):
     """O que o backfill do histórico faz e o que ele devolve ao humano.
 

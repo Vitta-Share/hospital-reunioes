@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from app.dependencies import get_supabase_client, require_ana_api_key
 from app.limiter import limiter
 from app.services import ouvidoria_acuse, ouvidoria_agente_triagem
-from app.services.ouvidoria_taxonomia import SETOR_PENDENTE, nasce_sigilosa
+from app.services.ouvidoria_taxonomia import colunas_do_setor, nasce_sigilosa
 from app.utils.ana_resposta import filtrar_por_termo, montar_resposta
 from app.utils.text_sanitizer import sanitizar_travessao, texto_ou_nulo
 
@@ -371,9 +371,9 @@ async def registrar_protocolo(
     # Recepção no relatório da Diretoria, que é a causa que esta issue fecha.
     #
     # Import na função: `ouvidoria_publica` é o dono da resolução de setor.
-    from app.routers.ouvidoria_publica import _setor_da_taxonomia
+    from app.routers.ouvidoria_publica import _setor_do_cadastro
 
-    linha["setor"] = _setor_da_taxonomia(supabase, linha.get("setor")) or SETOR_PENDENTE
+    linha |= colunas_do_setor(_setor_do_cadastro(supabase, linha.get("setor")))
 
     try:
         result = supabase.table("ouvidoria_protocolos").insert(linha).execute()

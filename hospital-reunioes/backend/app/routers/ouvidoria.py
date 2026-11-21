@@ -121,9 +121,11 @@ from app.services.ouvidoria_responsaveis import (
 from app.services.ouvidoria_taxonomia import (
     LIMITE_SETOR,
     ROTULO_TIPO,
+    SetorDoCadastro,
     SigiloTravadoError,
     TipoManifestacao,
-    casar_setor,
+    casar_setor_do_cadastro,
+    colunas_do_setor,
     nasce_sigilosa,
     resolver_sigilo,
 )
@@ -970,7 +972,7 @@ async def registrar_manifestacao(
     contato = None if anonimo else registro.manifestante_contato
     # A área digitada no balcão passa pela mesma lista fechada do cadastro de
     # responsáveis, e o que é gravado é a grafia da taxonomia (issue #419).
-    setor = exigir_setor_da_taxonomia(supabase, registro.setor)
+    setor = exigir_setor_do_cadastro(supabase, registro.setor)
     if registro.email_recebido_id is not None:
         exigir_email_pendente(supabase, registro.email_recebido_id)
 
@@ -980,7 +982,7 @@ async def registrar_manifestacao(
         "data_abertura": registro.contato_em.astimezone(FUSO_HOSPITAL).date().isoformat(),
         "tipo_manifestacao": registro.tipo_manifestacao,
         "categoria": registro.categoria or ROTULO_TIPO[registro.tipo_manifestacao],
-        "setor": setor,
+        **colunas_do_setor(setor),
         "resumo": registro.resumo,
         "relato_integral": registro.relato_integral,
         "manifestante_nome": nome,
@@ -3417,8 +3419,14 @@ class EdicaoResponsavel(BaseModel):
 
 
 def exigir_setor_da_taxonomia(supabase, setor: str) -> str:
+    """A grafia canônica da área, para quem grava só o nome (o cadastro de
+    responsáveis e o setor do Núcleo)."""
+    return exigir_setor_do_cadastro(supabase, setor).nome
+
+
+def exigir_setor_do_cadastro(supabase, setor: str) -> SetorDoCadastro:
     """A área existe na taxonomia da casa (tabela `setores`, migration 027), e
-    devolve a grafia como a taxonomia a escreve.
+    devolve a grafia como a taxonomia a escreve, com o id da linha.
 
     Vale nas três portas que gravam setor: o cadastro de responsáveis, o
     registro manual da manifestação e a validação/acionamento. Sem isso o
@@ -3429,14 +3437,14 @@ def exigir_setor_da_taxonomia(supabase, setor: str) -> str:
     "recepcao" digitado no balcão não pode virar uma segunda Recepção no
     relatório da Diretoria (issue #419)."""
     try:
-        result = supabase.table("setores").select("nome").eq("ativo", True).order("nome").execute()
+        result = supabase.table("setores").select("id, nome").eq("ativo", True).order("nome").execute()
     except Exception:
         logger.warning("Falha ao conferir o setor na taxonomia")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Não foi possível conferir o setor agora. Tente de novo em instantes.",
         ) from None
-    canonico = casar_setor(setor, [linha.get("nome") or "" for linha in (result.data or [])])
+    canonico = casar_setor_do_cadastro(setor, result.data or [])
     if canonico is None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -4058,6 +4066,8 @@ class AreaAcionavel:
     não recusa mais por área, por responsável, por sigilo nem por extrato."""
 
     setor: str
+    # O id da mesma área no cadastro, gravado junto com o nome (issue #1983).
+    setor_id: str | None
     destinatario: Destinatario
     sigiloso: bool
     extrato: str
@@ -4117,7 +4127,8 @@ def conferir_o_acionamento(supabase, caso: dict, pedido: PedidoValidacao, hoje: 
     # A área é conferida contra a taxonomia antes de qualquer efeito, e o que
     # segue daqui é a grafia canônica: é ela que casa com o cadastro de
     # responsáveis e que o relatório da Diretoria agrupa (issue #419).
-    setor = exigir_setor_da_taxonomia(supabase, pedido.setor)
+    do_cadastro = exigir_setor_do_cadastro(supabase, pedido.setor)
+    setor = do_cadastro.nome
 
     destinatario = escolher_destinatario(carregar_responsaveis(supabase, setor), hoje)
     if destinatario is None:
@@ -4131,6 +4142,7 @@ def conferir_o_acionamento(supabase, caso: dict, pedido: PedidoValidacao, hoje: 
 
     return AreaAcionavel(
         setor=setor,
+        setor_id=do_cadastro.id,
         destinatario=destinatario,
         sigiloso=sigiloso,
         extrato=extrato,
@@ -4415,6 +4427,7 @@ def acionar_a_area(
         fechamento_do_despacho_anterior["area_estourou_em"] = None
     marcos_do_despacho = {
         "setor": setor,
+        "setor_id": area.setor_id,
         "prazo_area_em": vencimento.isoformat() if vencimento else None,
         "validada_em": agora.isoformat(),
         "validada_por": me["id"],
@@ -4633,6 +4646,7 @@ def acionar_a_ciencia_do_elogio(
     # elogio fora da cobrança e dos vencidos.
     marcos = {
         "setor": setor,
+        "setor_id": area.setor_id,
         "prazo_area_em": None,
         "validada_em": agora.isoformat(),
         "validada_por": me["id"],

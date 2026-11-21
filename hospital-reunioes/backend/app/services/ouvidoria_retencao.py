@@ -313,6 +313,9 @@ CAMPOS_ESTATISTICOS: tuple[str, ...] = (
     "tipo_manifestacao",
     "categoria",
     "setor",
+    # O id da mesma área no cadastro (issue #1983, migration 172): é por ele
+    # que o Núcleo de Segurança do Paciente conta, e fica como o `setor`.
+    "setor_id",
     "gravidade",
     "canal",
     "desfecho",
