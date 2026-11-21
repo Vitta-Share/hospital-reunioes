@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-20T23:10:11-03:00",
+      "sha": "044c5e44eaaa96c3c0ab362a4fb06b20bd4984a2",
+      "app_version": "0.332.0",
+      "subject": "Onda sesta-1757-onda3: Foto ou PDF anexado na conclusão da Pendência",
+      "raw_subject": "chore(deploy): registro da onda sesta-1757-onda3 (#2047)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1757
+      ],
+      "result": "healthy",
+      "duration_seconds": 3982,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "174_anexo_da_conclusao_da_pendencia.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1757-onda3: PR #2047 (issue #1865), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 4,
+        "build_s": {
+          "backend": 17,
+          "frontend": 200
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-20T23:03:32-03:00",
       "sha": "c7e89e7a40eb4d0a2b8306e07d9c993fdf3cacbe",
       "app_version": "0.331.0",
