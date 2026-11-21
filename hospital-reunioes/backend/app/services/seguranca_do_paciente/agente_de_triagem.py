@@ -56,6 +56,9 @@ TENTATIVAS = 2
 AGENTE_FORA = "agente_fora"
 TETO = "teto"
 VALIDACAO = "validacao"
+# Só da nova leitura com as respostas (issue #1991), que nunca marca a
+# notificação: ela não grava quando a confirmação ou outra resposta chegou.
+LEITURA_SUPERADA = "leitura_superada"
 
 # A resposta é um JSON de umas 600 palavras; o resto é folga para o raciocínio.
 MAX_TOKENS = 4096
@@ -172,6 +175,9 @@ def classificar_pelo_agente_do_nucleo(
     """A triagem de uma notificação já no formato de entrada do Anexo B. Cada
     tentativa pede uma vaga a `reservar` antes de chamar o modelo."""
     texto = triagem_do_agente.montar_notificacao(entrada)
+    # As guardas do sistema (menção a morte, instrução ao agente) leem o que
+    # o agente lê: o relato e as respostas de quem notificou (issue #1991).
+    lido = "\n".join(parte for parte in (entrada["relato"], entrada.get("esclarecimentos")) if parte)
     triagem = Triagem()
     for _ in range(TENTATIVAS):
         if not reservar():
@@ -184,11 +190,9 @@ def classificar_pelo_agente_do_nucleo(
             logger.warning("[NSP] Agente de triagem não respondeu (%s)", type(exc).__name__)
             triagem.motivo_manual = AGENTE_FORA
             return triagem
-        triagem.violacoes = (
-            ["formato:objeto"] if saida is None else triagem_do_agente.validar_saida(saida, entrada["relato"])
-        )
+        triagem.violacoes = ["formato:objeto"] if saida is None else triagem_do_agente.validar_saida(saida, lido)
         if not triagem.violacoes:
-            triagem.sugestao = _sugestao_final(saida, entrada["relato"])
+            triagem.sugestao = _sugestao_final(saida, lido)
             return triagem
     triagem.motivo_manual = VALIDACAO
     return triagem
@@ -287,9 +291,12 @@ def _ler_a_notificacao_do_nucleo(supabase, notificacao_id: str) -> dict | None:
     return linhas[0] if linhas else None
 
 
-def _rodar_o_agente_do_nucleo(supabase, linha: dict, texto_dos_esclarecimentos: str = "") -> str | None:
-    """Roda o agente na notificação e grava a linha de triagem dele. Devolve
-    None quando gravou, ou o motivo de não ter sugestão."""
+def _rodar_o_agente_do_nucleo(
+    supabase, linha: dict, texto_dos_esclarecimentos: str = "", ainda_vale: Callable[[], bool] = lambda: True
+) -> str | None:
+    """Roda o agente na notificação e grava a linha de triagem dele, se
+    `ainda_vale()` depois da resposta do modelo. Devolve None quando gravou,
+    ou o motivo de não ter gravado."""
     entrada = triagem_do_agente.entrada_da_notificacao(
         linha, setor=_nome_do_setor(supabase, linha.get("setor_id")), esclarecimentos=texto_dos_esclarecimentos
     )
@@ -299,6 +306,8 @@ def _rodar_o_agente_do_nucleo(supabase, linha: dict, texto_dos_esclarecimentos: 
     )
     if triagem.sugestao is None:
         return triagem.motivo_manual or AGENTE_FORA
+    if not ainda_vale():
+        return LEITURA_SUPERADA
     supabase.table("nsp_triagens").insert(_linha_de_triagem(linha["id"], triagem, modelo)).execute()
     return None
 
@@ -346,9 +355,20 @@ def triar_de_novo_com_esclarecimentos(supabase, notificacao_id: str) -> None:
         linha = _ler_a_notificacao_do_nucleo(supabase, notificacao_id)
         if not linha or not agente_ligado() or esclarecimentos.triagem_confirmada(linha):
             return
-        motivo = _rodar_o_agente_do_nucleo(
-            supabase, linha, esclarecimentos.texto_para_o_agente(supabase, notificacao_id)
-        )
+        texto = esclarecimentos.texto_para_o_agente(supabase, notificacao_id)
+
+        def _ainda_vale() -> bool:
+            # O modelo leva até dois minutos: a triagem pode ter sido
+            # confirmada, ou outra resposta ter chegado, e aí a leitura que
+            # roda por causa dela é a que vale.
+            atual = _ler_a_notificacao_do_nucleo(supabase, notificacao_id)
+            return (
+                atual is not None
+                and not esclarecimentos.triagem_confirmada(atual)
+                and esclarecimentos.texto_para_o_agente(supabase, notificacao_id) == texto
+            )
+
+        motivo = _rodar_o_agente_do_nucleo(supabase, linha, texto, _ainda_vale)
         if motivo is not None:
             logger.warning("[NSP] A nova leitura da notificação %s ficou sem sugestão (%s)", notificacao_id, motivo)
     except Exception as exc:
