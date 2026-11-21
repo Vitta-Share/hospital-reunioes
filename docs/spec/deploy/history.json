@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T19:53:48-03:00",
+      "sha": "37aee48f3770f28be82d63815fa78a840c51d669",
+      "app_version": "0.354.0",
+      "subject": "Onda sesta-1786-onda3: Impedimento, suplente convocado e Citado no Canal de Conduta",
+      "raw_subject": "chore(deploy): registro da onda sesta-1786-onda3 (#2089)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 407,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "191_conduta_impedimento_e_citado.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1786-onda3: PR #2089 (issue #1828), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 4,
+        "build_s": {
+          "backend": 21,
+          "frontend": 209
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T19:47:15-03:00",
       "sha": "c7babfce08cab82c1401571f84040bf55e2ef3ec",
       "app_version": "0.353.0",
