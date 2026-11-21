@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T14:57+0000 -->
+<!-- last_update: 2026-11-21T15:04+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -73,6 +73,7 @@ erDiagram
     nsp_documentos ||--o{ nsp_documentos_envios : "documento_id"
     nsp_documentos ||--o{ nsp_termos_envios : "regimento_id"
     nsp_documentos_envios ||--o{ nsp_documentos_signatarios : "envio_id"
+    nsp_notificacoes ||--o{ nsp_notificacao_anexos : "notificacao_id"
     nsp_notificacoes ||--o{ nsp_notificacoes_trilha : "notificacao_id"
     nsp_termos_envios ||--o{ nsp_documentos : "termo_envio_id"
     ouvidoria_pontos ||--o{ ouvidoria_avaliacoes : "ponto_id"
@@ -1331,6 +1332,14 @@ erDiagram
         DATE comeca_em
         _ mais_colunas "+6"
     }
+    nsp_notificacao_anexos {
+        UUID id PK
+        UUID notificacao_id FK
+        TEXT storage_path
+        TEXT content_type
+        BIGINT tamanho_bytes
+        TIMESTAMPTZ criado_em
+    }
 ```
 
 ## Indexes principais
@@ -1548,6 +1557,7 @@ erDiagram
 | `conduta_trilha` | `idx_conduta_trilha_caso` | `caso_id, seq DESC` | `175_conduta_fundacao.sql` |
 | `conduta_trilha` | `idx_conduta_trilha_autor` | `autor_id` | `175_conduta_fundacao.sql` |
 | `rotinas` | `idx_rotinas_responsavel` | `responsavel_id` | `177_rotina_e_verificacao.sql` |
+| `nsp_notificacao_anexos` | `idx_nsp_notificacao_anexos_notificacao` | `notificacao_id, criado_em` | `181_nsp_anexos_da_notificacao.sql` |
 
 ---
-**Resumo:** 121 tabelas · 184 relacionamentos FK detectados.
+**Resumo:** 122 tabelas · 185 relacionamentos FK detectados.

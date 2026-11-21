@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T14:57+0000 -->
+<!-- last_update: 2026-11-21T15:04+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2477,6 +2477,22 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_rotinas_responsavel` em `(responsavel_id)` (de `177_rotina_e_verificacao.sql`)
 
+## nsp_notificacao_anexos
+
+> Origem: `181_nsp_anexos_da_notificacao.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `notificacao_id` | `UUID` | NOT NULL | — | `nsp_notificacoes.id` |
+| `storage_path` | `TEXT` | UNIQUE, NOT NULL | — | — |
+| `content_type` | `TEXT` | NOT NULL | — | — |
+| `tamanho_bytes` | `BIGINT` | NOT NULL | — | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_notificacao_anexos_notificacao` em `(notificacao_id, criado_em)` (de `181_nsp_anexos_da_notificacao.sql`)
+
 ---
 
-**Resumo:** 121 tabelas vivas.
+**Resumo:** 122 tabelas vivas.

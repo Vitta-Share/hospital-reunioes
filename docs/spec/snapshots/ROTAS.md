@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T14:57+0000 -->
+<!-- last_update: 2026-11-21T15:04+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -572,6 +572,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 |--------|------|-----------|------|
 | GET | `/nsp/notificacoes` | Notificações: todos os casos, para quem tem o recurso de casos. Quem | ✅ |
 | POST | `/nsp/notificacoes` | O botão "Notificar incidente" do módulo: a identificação vem da sessão, | ✅ |
+| GET | `/nsp/notificacoes/{notificacao_id}/anexos/{anexo_id}` | O arquivo do caso, entregue pelo backend: sem URL assinada, que valeria | ✅ |
 | POST | `/nsp/publico/acompanhamento` | A página de acompanhamento: só o estado, em palavras simples. O limite | ❌ |
 | POST | `/nsp/publico/notificacoes` | O formulário público, pelo QR ou pelo endereço. | ❌ |
 | GET | `/nsp/publico/setores` | A lista de "Onde" do formulário: os setores ativos, pelo id. | ❌ |
@@ -718,4 +719,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 407 endpoints em 61 routers · 93% exigem auth.
+**Totais:** 408 endpoints em 61 routers · 93% exigem auth.
