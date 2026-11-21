@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 178: Canal de Conduta, os membros do Comitê
+-- Migration 184: Canal de Conduta, os membros do Comitê
 -- (issue #1822, PRD #1786, ADR 0097, decisão 3)
 -- =====================================================
 -- O que entra:
@@ -94,4 +94,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (178) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (184) ON CONFLICT (numero) DO NOTHING;

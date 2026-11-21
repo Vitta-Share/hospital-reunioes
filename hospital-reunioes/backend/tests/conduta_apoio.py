@@ -110,7 +110,7 @@ class Banco:
                 raise APIError({"code": "23514", "message": "A trilha do caso é uma cadeia"})
             linha = {**linha, "seq": next(self._seq)}
         elif nome == "conduta_registro":
-            # O DEFAULT now() da migration 178.
+            # O DEFAULT now() da migration 184.
             linha = {"id": str(uuid.uuid4()), "registrado_em": datetime.now(UTC).isoformat(), **linha}
         else:
             linha = {"id": str(uuid.uuid4()), **linha}

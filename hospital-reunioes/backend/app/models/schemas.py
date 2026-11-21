@@ -349,7 +349,7 @@ class TipoNotificacao(StrEnum):
     CONTAS_MEDICAS = "CONTAS_MEDICAS"
     # A Conversa da Demanda (129, issue #1537): a referencia e a Demanda.
     TECNOLOGIA = "TECNOLOGIA"
-    # A mudança no Comitê de Conduta (178, issue #1822): sem referência.
+    # A mudança no Comitê de Conduta (184, issue #1822): sem referência.
     CONDUTA = "CONDUTA"
 
 

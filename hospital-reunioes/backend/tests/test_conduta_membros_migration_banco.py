@@ -1,4 +1,4 @@
-"""A migration 178 dos membros do Comitê de Conduta num Postgres de verdade (issue #1822).
+"""A migration 184 dos membros do Comitê de Conduta num Postgres de verdade (issue #1822).
 
 Sobe um Postgres descartável (o mesmo apoio da migration 169), monta o mínimo
 das tabelas de antes, aplica a migration duas vezes e prova no banco:
@@ -23,7 +23,7 @@ import pytest
 from test_pendencia_historico_banco import _bin_do_postgres, _Postgres
 
 MIGRATIONS = Path(__file__).resolve().parents[2] / "supabase" / "migrations"
-MIGRATION = MIGRATIONS / "178_conduta_membros_do_comite.sql"
+MIGRATION = MIGRATIONS / "184_conduta_membros_do_comite.sql"
 
 TIPOS_ANTIGOS_DO_SINO = (
     "MENCAO",
@@ -36,7 +36,7 @@ TIPOS_ANTIGOS_DO_SINO = (
     "TECNOLOGIA",
 )
 
-# O mínimo de antes da 178 (migrations 001, 008, 129, 146, 150 e 175).
+# O mínimo de antes da 184 (migrations 001, 008, 129, 146, 150 e 175).
 ESQUEMA_ANTERIOR = """
 CREATE ROLE anon NOLOGIN;
 CREATE ROLE authenticated NOLOGIN;
@@ -204,5 +204,5 @@ def test_o_seed_nao_poe_ninguem_no_comite():
     assert "conduta" not in seed
 
 
-def test_o_recibo_e_o_178(banco):
-    assert banco.ok("SELECT max(numero) FROM migracoes_aplicadas;") == "178"
+def test_o_recibo_e_o_184(banco):
+    assert banco.ok("SELECT max(numero) FROM migracoes_aplicadas;") == "184"
