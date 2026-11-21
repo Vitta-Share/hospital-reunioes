@@ -393,9 +393,7 @@ def _ler(supabase, caso_id: str, cliente) -> tuple[Leitura, str]:
         anteriores=_casos_anteriores(supabase, caso_id),
         nomes_conhecidos=_nomes_dos_membros(supabase),
     )
-    leitura = ler_o_relato(
-        cliente or _cliente(), mensagem, modelo=modelo, reservar=lambda: _reservar_chamada(supabase)
-    )
+    leitura = ler_o_relato(cliente or _cliente(), mensagem, modelo=modelo, reservar=lambda: _reservar_chamada(supabase))
     return leitura, modelo
 
 
@@ -470,8 +468,7 @@ def sugestao_para_a_tela(supabase, caso: dict, relato: str, papel: str | None, h
     linha = linhas[0] if linhas else None
     respostas = {
         r["item"]: r
-        for r in supabase.table("conduta_sugestao_respostas").select("*").eq("caso_id", caso["id"]).execute().data
-        or []
+        for r in supabase.table("conduta_sugestao_respostas").select("*").eq("caso_id", caso["id"]).execute().data or []
     }
     itens = []
     if linha and linha.get("sugestao_cifrada"):
