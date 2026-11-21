@@ -86,3 +86,24 @@ describe("quem o servidor deixa entrar em Contas médicas", () => {
     expect(await tentarEntrar()).toBe("/login");
   });
 });
+
+describe("as permissões que a casca do módulo recebe (issue #1950)", () => {
+  it("devolve as permissões que o módulo resolveu para a pessoa", async () => {
+    backendResponde(200);
+
+    const { permissoes } = await requireContasMedicasAccess();
+
+    expect(permissoes).toEqual(["enviar_corrigir_contas"]);
+  });
+
+  it("resposta sem a lista de permissões vira lista vazia, e a pessoa entra assim mesmo", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ perfil: "faturista" }) })),
+    );
+
+    const { permissoes } = await requireContasMedicasAccess();
+
+    expect(permissoes).toEqual([]);
+  });
+});
