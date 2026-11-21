@@ -316,3 +316,58 @@ class TestMembrosPorColegiado:
         assert colegiados.vinculo_vigente(banco, COMITE, "P3", HOJE) == ("presidencia", True)
         assert colegiados.vinculo_vigente(banco, COMITE, "P1", HOJE) == (None, False)
         assert colegiados.vinculo_vigente(banco, NUCLEO, "P1", HOJE) == ("presidencia", True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# O Termo de Adesão
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _participacao_do_comite(banco, pid: str) -> dict:
+    return colegiados.participacao_do_colegiado(banco, "col-comite", f"part-col-comite-{pid}")
+
+
+class TestTermoPorColegiado:
+    def test_o_termo_do_segundo_colegiado_vai_para_as_tabelas_dele(self, assinatura, modelos):
+        banco = _banco()
+
+        envio = termo.novo_termo(banco, _participacao_do_comite(banco, "P4"), autor_id="P3", colegiado=COMITE)
+
+        assert envio["situacao"] == "enviado"
+        assert [e["id"] for e in banco.tabelas[COMITE.termos_envios]] == [envio["id"]]
+        assert banco.tabelas[NUCLEO.termos_envios] == []
+        assert envio["regimento_id"] == "regimento-comite"
+        assert assinatura.envelopes == [f"Termo de Adesão CT - {envio['id']}"]
+        assert assinatura.arquivos == [f"Termo_de_Adesao_CT_{envio['id']}.pdf"]
+        assert modelos == ["comite_termo_adesao.html"]
+        assert (settings.supabase_storage_bucket_anexos_tecnologia, f"termos/{envio['id']}.pdf") in banco.arquivos
+
+    def test_a_assinatura_do_termo_do_segundo_colegiado_fica_nos_documentos_dele(self):
+        banco = _banco()
+        participacao = _participacao_do_comite(banco, "P4")
+        envio = termo.novo_termo(banco, participacao, autor_id="P3", colegiado=COMITE)
+
+        termo.processar_evento(banco, envio, "sign", colegiado=COMITE)
+
+        assert banco.tabelas[COMITE.termos_envios][0]["situacao"] == "assinado"
+        termos = [d["termo_envio_id"] for d in banco.tabelas[COMITE.documentos] if d["tipo"] == "termo"]
+        assert termos == [envio["id"]]
+        assert [d["tipo"] for d in banco.tabelas[NUCLEO.documentos]] == ["regimento"]
+        assert termo.ultimo_envio(banco, participacao["id"], colegiado=COMITE)["id"] == envio["id"]
+        assert termo.ultimo_envio(banco, participacao["id"], colegiado=NUCLEO) is None
+
+    def test_a_revisao_material_do_segundo_colegiado_so_alcanca_os_membros_dele(self):
+        banco = _banco()
+
+        termo.termos_da_revisao_material(banco, autor_id="P3", colegiado=COMITE)
+
+        alcancados = {e["participacao_id"] for e in banco.tabelas[COMITE.termos_envios]}
+        assert alcancados == {"part-col-comite-P3", "part-col-comite-P4"}
+        assert banco.tabelas[NUCLEO.termos_envios] == []
+
+    def test_a_revisao_material_e_lida_dos_documentos_do_colegiado(self):
+        banco = _banco()
+        banco.tabelas[COMITE.documentos][0]["publicado_em"] = "2026-09-01T12:00:00+00:00"
+
+        assert termo.revisao_material_em(banco, colegiado=COMITE) == "2026-09-01T12:00:00+00:00"
+        assert termo.revisao_material_em(banco, colegiado=NUCLEO) == "2026-06-01T12:00:00+00:00"
