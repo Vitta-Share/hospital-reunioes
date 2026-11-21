@@ -33,7 +33,7 @@ from app.routers import conduta_comite, conduta_membros  # noqa: E402
 from app.routers.admin import usuarios  # noqa: E402
 from app.services.conduta import casos  # noqa: E402
 from app.services.conduta import membros as servico  # noqa: E402
-from app.services.conduta.acesso import hoje_em_sao_paulo  # noqa: E402
+from app.services.conduta.acesso import hoje_em_sao_paulo, pessoa_no_comite  # noqa: E402
 
 ROTA = "/api/comite-de-conduta/membros"
 RECUSA = {"detail": "Sem acesso a este conteúdo do Canal de Conduta"}
@@ -245,6 +245,36 @@ class TestQuemCadastra:
         assert len(cenario.tabela("participacoes")) == 3
         assert cenario.tabela("participacoes")[2]["encerrada_em"] is None
         assert cenario.tabela("conduta_registro") == []
+
+    def test_participacao_a_comecar_se_desfaz_e_a_pessoa_nunca_fica_no_comite(self, emails):
+        """Incluída por engano com início futuro: encerrar hoje desfaz a
+        inclusão. Ela não vale no primeiro dia, nem na composição, nem na fila
+        comum dos casos, e a pessoa pode ser incluída de novo."""
+        inicio = HOJE + timedelta(days=10)
+        futura = _participacao("N1", inicio=10, fim=740)
+        cenario = _Cenario(
+            _pessoa("C1", **CADASTRO), [*_membros_de_tres(), _pessoa("N1", "Nina Nova")], _comite_de_tres() + [futura]
+        )
+        cliente = cenario.cliente()
+
+        resposta = cliente.post(f"{ROTA}/part-N1-conduta/encerrar", json={})
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["situacao"] == "encerrada"
+        composicao = cliente.get(ROTA, params={"data": inicio.isoformat()}).json()["membros"]
+        assert "N1" not in [m["participante_id"] for m in composicao]
+        assert pessoa_no_comite(cenario.banco, "N1", inicio).na_fila_comum is False
+        assert "N1" not in servico.ids_dos_membros_vigentes(cenario.banco, inicio)
+        assert _incluir(cliente, "N1", vigencia_inicio=inicio.isoformat()).status_code == 201
+
+    def test_participacao_ja_comecada_nao_se_encerra_antes_do_inicio(self, emails):
+        cenario = _Cenario(_pessoa("C1", **CADASTRO), _membros_de_tres(), _comite_de_tres())
+        antes = (HOJE - timedelta(days=31)).isoformat()
+
+        resposta = cenario.cliente().post(f"{ROTA}/part-M3-conduta/encerrar", json={"data": antes})
+
+        assert resposta.status_code == 422
+        assert cenario.tabela("participacoes")[2]["encerrada_em"] is None
 
     def test_pessoa_com_participacao_aberta_nao_e_incluida_de_novo(self, emails):
         cenario = _Cenario(_pessoa("C1", **CADASTRO), _membros_de_tres(), _comite_de_tres())

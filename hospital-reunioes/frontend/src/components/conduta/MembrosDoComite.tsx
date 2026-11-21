@@ -186,6 +186,8 @@ function LinhaDoMembro({
   const [confirmando, setConfirmando] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  // Antes do início, encerrar desfaz a inclusão: a Participação nunca vale.
+  const aComecar = membro.situacao === "a_comecar";
 
   async function encerrar() {
     setEnviando(true);
@@ -222,7 +224,7 @@ function LinhaDoMembro({
             (confirmando ? (
               <span className="inline-flex gap-2">
                 <button type="button" className={BOTAO_LEVE} disabled={enviando} onClick={encerrar}>
-                  Confirmar o encerramento
+                  {aComecar ? "Confirmar e desfazer" : "Confirmar o encerramento"}
                 </button>
                 <button type="button" className={BOTAO_LEVE} onClick={() => setConfirmando(false)}>
                   Cancelar
@@ -230,7 +232,7 @@ function LinhaDoMembro({
               </span>
             ) : (
               <button type="button" className={BOTAO_LEVE} onClick={() => setConfirmando(true)}>
-                Encerrar
+                {aComecar ? "Desfazer a inclusão" : "Encerrar"}
               </button>
             ))}
           {erro && <p className="text-xs text-red-600 mt-1">{erro}</p>}

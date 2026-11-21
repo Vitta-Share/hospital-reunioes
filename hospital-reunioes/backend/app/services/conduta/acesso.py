@@ -71,7 +71,7 @@ def pessoa_no_comite(supabase, participante_id: str, hoje: date | None = None) -
     linhas = (
         (
             supabase.table("participacoes")
-            .select("papel, termo_assinado_em")
+            .select("papel, termo_assinado_em, encerrada_em")
             .eq("colegiado_id", comite[0]["id"])
             .eq("participante_id", participante_id)
             .lte("vigencia_inicio", hoje.isoformat())
@@ -82,6 +82,9 @@ def pessoa_no_comite(supabase, participante_id: str, hoje: date | None = None) -
         if comite
         else []
     ) or []
+    # A vigência termina no dia do encerramento: a desfeita antes do início
+    # nunca vale, nem no primeiro dia.
+    linhas = [x for x in linhas if not x.get("encerrada_em") or str(x["encerrada_em"])[:10] >= hoje.isoformat()]
     # Termo válido primeiro, depois o papel que lê a fila comum.
     melhor = min(
         linhas,

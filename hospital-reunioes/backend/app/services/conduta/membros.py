@@ -68,6 +68,11 @@ def situacao(participacao: dict[str, Any], hoje: date) -> str:
 
 
 def vigente_em(participacao: dict[str, Any], dia: date) -> bool:
+    """A vigência termina no dia do encerramento; a desfeita antes do início
+    (`encerrada_em` antes de `vigencia_inicio`) não vale em dia nenhum."""
+    encerrada = participacao.get("encerrada_em")
+    if encerrada and dia > _data(encerrada):
+        return False
     return _data(participacao["vigencia_inicio"]) <= dia <= _data(participacao["vigencia_fim"])
 
 

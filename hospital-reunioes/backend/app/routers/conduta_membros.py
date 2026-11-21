@@ -186,12 +186,17 @@ async def encerrar_membro(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Esta participação já foi encerrada")
     hoje = hoje_em_sao_paulo()
     dia = body.data or hoje
-    if dia.isoformat() < str(atual["vigencia_inicio"])[:10]:
+    inicio = str(atual["vigencia_inicio"])[:10]
+    # Antes do início, encerrar desfaz a inclusão: a Participação que ainda
+    # não começou nunca vale. O fim fica no início (o banco não deixa o fim
+    # antes dele) e o `encerrada_em` antes do início tira o primeiro dia.
+    desfeita = dia.isoformat() < inicio
+    if desfeita and hoje.isoformat() >= inicio:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="O encerramento não pode ser antes do início da vigência",
         )
-    novo_fim = min(dia.isoformat(), str(atual["vigencia_fim"])[:10])
+    novo_fim = inicio if desfeita else min(dia.isoformat(), str(atual["vigencia_fim"])[:10])
     supabase.table("participacoes").update({"encerrada_em": dia.isoformat(), "vigencia_fim": novo_fim}).eq(
         "id", participacao_id
     ).eq("colegiado_id", comite_id).execute()
@@ -203,8 +208,16 @@ async def encerrar_membro(
         participante_id=atual["participante_id"],
         participacao_id=participacao_id,
         autor_id=me["id"],
-        detalhe=f"{cadeira}, encerrada em {membros.data_br(dia)}",
-        mensagem=f"{nome} saiu do Comitê ({cadeira}) em {membros.data_br(dia)}.",
+        detalhe=(
+            f"{cadeira}, inclusão desfeita em {membros.data_br(dia)}, antes do início em {membros.data_br(inicio)}"
+            if desfeita
+            else f"{cadeira}, encerrada em {membros.data_br(dia)}"
+        ),
+        mensagem=(
+            f"{nome} não vai mais entrar no Comitê ({cadeira}). A inclusão foi desfeita antes do início."
+            if desfeita
+            else f"{nome} saiu do Comitê ({cadeira}) em {membros.data_br(dia)}."
+        ),
         hoje=hoje,
     )
     tarefas.add_task(membros.enviar_emails, supabase, avisados)

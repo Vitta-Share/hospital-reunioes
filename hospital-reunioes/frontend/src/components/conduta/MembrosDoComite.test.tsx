@@ -44,6 +44,7 @@ const MEMBROS = [
   membro({ id: "part-a", nome: "Pessoa A", papel: "coordenacao", cadeira: "Coordenação", e_diretor: true }),
   membro({ id: "part-b", nome: "Pessoa B", papel: "segundo_leitor", cadeira: "Membro e segundo leitor" }),
   membro({ id: "part-c", nome: "Pessoa C", situacao: "encerrada", encerrada_em: "2026-09-01", vigencia_fim: "2026-09-01" }),
+  membro({ id: "part-d", nome: "Pessoa D", situacao: "a_comecar", vigencia_inicio: "2026-12-01", vigencia_fim: "2028-11-30" }),
 ];
 
 const REGISTRO = {
@@ -178,6 +179,20 @@ describe("quem cadastra", () => {
 
     await waitFor(() =>
       expect(chamadas.some((c) => c.url === "/api/comite-de-conduta/membros/part-b/encerrar")).toBe(true)
+    );
+  });
+
+  it("com o perfil, a Participação a começar se desfaz depois de confirmar", async () => {
+    podeCadastrar = true;
+    await abrir();
+
+    const linhaD = within(tabela()).getByText("Pessoa D").closest("tr")!;
+    expect(within(linhaD).queryByRole("button", { name: "Encerrar" })).toBeNull();
+    fireEvent.click(within(linhaD).getByRole("button", { name: "Desfazer a inclusão" }));
+    fireEvent.click(within(linhaD).getByRole("button", { name: "Confirmar e desfazer" }));
+
+    await waitFor(() =>
+      expect(chamadas.some((c) => c.url === "/api/comite-de-conduta/membros/part-d/encerrar")).toBe(true)
     );
   });
 });
