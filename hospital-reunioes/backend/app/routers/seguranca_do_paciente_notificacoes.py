@@ -11,19 +11,27 @@ As rotas de envio e a de acompanhamento usam o limite sem IP (ADR 0107,
 decisão 6): a conta é pelo endereço, com chave embaralhada, e a linha do log
 sai sem endereço. Nada aqui lê IP ou identificador do aparelho para gravar.
 O botão do módulo conta também por pessoa (`LIMITE_POR_PESSOA`).
+
+Com arquivo (issue #1988), o envio vem em multipart: o relato em `dados`, como
+JSON, e até três arquivos em `anexos`. Sem arquivo, o JSON de sempre continua
+valendo. O arquivo só sai por `GET /nsp/notificacoes/{id}/anexos/{anexo}`, para
+quem tem o recurso de casos.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import date
 from typing import Literal
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi.exceptions import RequestValidationError
 from postgrest.exceptions import APIError
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
+from starlette.datastructures import UploadFile
 from supabase import Client
 
 from app.dependencies import (
@@ -35,7 +43,8 @@ from app.dependencies import (
 )
 from app.limiter import limiter
 from app.services import limite_sem_ip
-from app.services.seguranca_do_paciente import notificacoes
+from app.services.ouvidoria_anexos import AnexoGrandeDemaisError, AnexoRecusadoError, TipoNaoPermitidoError
+from app.services.seguranca_do_paciente import anexos, notificacoes
 from app.services.seguranca_do_paciente.permissao import hoje_em_sao_paulo
 
 logger = logging.getLogger(__name__)
@@ -53,6 +62,7 @@ LIMITE_POR_PESSOA = "5/minute;20/hour"
 
 SETOR_INVALIDO = "Escolha o setor na lista."
 FALHA_AO_REGISTRAR = "Não foi possível registrar a notificação agora. Tente de novo em instantes."
+FALHA_DOS_ANEXOS = "Não foi possível guardar os arquivos agora. Tente de novo em instantes."
 
 
 class RelatoDoIncidente(BaseModel):
@@ -111,33 +121,110 @@ class EnvioPublico(RelatoDoIncidente):
         return self
 
 
+def _ler_o_envio(modelo: type[RelatoDoIncidente]):
+    """O relato e os arquivos do envio. Multipart quando há arquivo: o relato
+    vem em `dados`, como JSON, e os arquivos em `anexos`; sem arquivo, o corpo
+    é o JSON de sempre. A recusa do relato é a mesma 422 nas duas formas."""
+
+    async def ler(request: Request) -> tuple[RelatoDoIncidente, list[anexos.ArquivoRecebido]]:
+        arquivos: list[anexos.ArquivoRecebido] = []
+        try:
+            if request.headers.get("content-type", "").startswith("multipart/form-data"):
+                # Folga acima do máximo: o quarto arquivo é recusado aqui, com
+                # a mensagem da regra, e não pelo teto do parser.
+                formulario = await request.form(max_files=anexos.MAXIMO_DE_ARQUIVOS * 3, max_fields=5)
+                dados = formulario.get("dados")
+                if not isinstance(dados, str):
+                    raise RequestValidationError(
+                        [{"type": "missing", "loc": ("body", "dados"), "msg": "Field required", "input": None}]
+                    )
+                envio = modelo.model_validate_json(dados)
+                for parte in formulario.getlist("anexos"):
+                    if isinstance(parte, UploadFile):
+                        arquivos.append(anexos.ArquivoRecebido(parte.filename or "", await parte.read()))
+            else:
+                envio = modelo.model_validate(await request.json())
+        except ValidationError as erro:
+            raise RequestValidationError(erro.errors(include_url=False)) from erro
+        except json.JSONDecodeError as erro:
+            raise RequestValidationError(
+                [{"type": "json_invalid", "loc": ("body",), "msg": "JSON decode error", "input": None}]
+            ) from erro
+        return envio, arquivos
+
+    return ler
+
+
+def _recusa_do_arquivo(erro: AnexoRecusadoError) -> HTTPException:
+    if isinstance(erro, TipoNaoPermitidoError):
+        codigo = status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
+    elif isinstance(erro, AnexoGrandeDemaisError):
+        codigo = status.HTTP_413_CONTENT_TOO_LARGE
+    else:
+        codigo = status.HTTP_422_UNPROCESSABLE_ENTITY
+    return HTTPException(status_code=codigo, detail=str(erro))
+
+
 def _setor_ativo(supabase, setor_id: str) -> bool:
     linhas = supabase.table("setores").select("id").eq("id", setor_id).eq("ativo", True).limit(1).execute().data
     return bool(linhas)
 
 
-def _gravar_notificacao(supabase, envio: RelatoDoIncidente, **identificacao) -> dict:
+def _gravar_notificacao(
+    supabase, envio: RelatoDoIncidente, arquivos: list[anexos.ArquivoRecebido], **identificacao
+) -> dict:
+    """Confere os arquivos, sobe ao bucket, grava a notificação e liga os
+    anexos a ela. Arquivo recusado não deixa rastro; falha depois da subida
+    tira do bucket o que subiu."""
+    try:
+        aceitos = anexos.conferir_os_arquivos(arquivos)
+    except AnexoRecusadoError as erro:
+        raise _recusa_do_arquivo(erro) from erro
     try:
         if not _setor_ativo(supabase, str(envio.setor_id)):
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=SETOR_INVALIDO)
+    except (APIError, httpx.HTTPError) as erro:
+        logger.error("Falha ao registrar a notificação de incidente: %s", type(erro).__name__)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=FALHA_AO_REGISTRAR) from erro
+    caminhos = anexos.subir_ao_bucket(supabase, aceitos)
+    if caminhos is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=FALHA_DOS_ANEXOS)
+    try:
         relato = envio.model_dump(mode="json")
-        return notificacoes.registrar(supabase, relato, anonimo=envio.anonimo, **identificacao)
+        recibo = notificacoes.registrar(supabase, relato, anonimo=envio.anonimo, **identificacao)
     except (APIError, httpx.HTTPError) as erro:
         # Detalhe do banco não vai para um canal aberto; quem notifica vê que
         # não deu e tenta de novo, com o relato ainda na tela.
+        anexos.tirar_do_bucket(supabase, caminhos)
         logger.error("Falha ao registrar a notificação de incidente: %s", type(erro).__name__)
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=FALHA_AO_REGISTRAR) from erro
+    notificacao_id = recibo.pop("id")
+    if caminhos:
+        try:
+            anexos.ligar_a_notificacao(supabase, notificacao_id, aceitos, caminhos)
+        except (APIError, httpx.HTTPError) as erro:
+            # A notificação já tem protocolo e não se desfaz: o relato vale
+            # mais que o arquivo. A tela diz que os arquivos não ficaram.
+            anexos.tirar_do_bucket(supabase, caminhos)
+            logger.error("Falha ao ligar os anexos à notificação %s: %s", recibo["protocolo"], type(erro).__name__)
+            recibo["anexos_guardados"] = False
+            return recibo
+        recibo["anexos_guardados"] = True
+    return recibo
 
 
 @router.post("/publico/notificacoes", status_code=status.HTTP_201_CREATED)
 @limite_sem_ip.limitar(LIMITE_DA_REDE)
 async def notificar_sem_login(
     request: Request,
-    envio: EnvioPublico,
+    pedido: tuple[EnvioPublico, list[anexos.ArquivoRecebido]] = Depends(_ler_o_envio(EnvioPublico)),
     supabase: Client = Depends(get_supabase_client),
 ) -> dict:
     """O formulário público, pelo QR ou pelo endereço."""
-    return _gravar_notificacao(supabase, envio, origem=envio.origem, nome=envio.nome, contato=envio.contato)
+    envio, arquivos = pedido
+    return _gravar_notificacao(
+        supabase, envio, arquivos, origem=envio.origem, nome=envio.nome, contato=envio.contato
+    )
 
 
 async def _quem_esta_logado(
@@ -166,15 +253,17 @@ def _chave_da_pessoa(request: Request) -> str:
 @limiter.limit(LIMITE_POR_PESSOA, key_func=_chave_da_pessoa)
 async def notificar_pelo_modulo(
     request: Request,
-    envio: RelatoDoIncidente,
+    pedido: tuple[RelatoDoIncidente, list[anexos.ArquivoRecebido]] = Depends(_ler_o_envio(RelatoDoIncidente)),
     me: dict = Depends(_quem_esta_logado),
     supabase: Client = Depends(get_supabase_client),
 ) -> dict:
     """O botão "Notificar incidente" do módulo: a identificação vem da sessão,
     e não do que a tela mandar."""
+    envio, arquivos = pedido
     return _gravar_notificacao(
         supabase,
         envio,
+        arquivos,
         origem=notificacoes.ORIGEM_MODULO,
         nome=me.get("nome_completo"),
         contato=me.get("email"),

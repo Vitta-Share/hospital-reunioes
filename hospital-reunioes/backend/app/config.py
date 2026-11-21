@@ -43,6 +43,8 @@ class Settings(BaseSettings):
     supabase_storage_bucket_nsp_documentos: str = "nsp-documentos"
     # Bucket privado do anexo da conclusão da Pendência (migration 174).
     supabase_storage_bucket_anexos_pendencias: str = "anexos-pendencias"
+    # Bucket privado dos anexos da Notificação de incidente (migration 181).
+    supabase_storage_bucket_nsp_anexos: str = "nsp-anexos"
 
     # IA de texto (issue #1302): API da Anthropic, um fornecedor e um modelo
     # para o app inteiro (Atas, POP, Ouvidoria, Assistente de Tecnologia e
