@@ -97,7 +97,10 @@ class Comite:
     def caso(self, direcao: str | None = None, *, dias_atras: int = 0) -> str:
         novo = casos.registrar_caso(self.banco, relato=RELATO, categoria=None, direcao_envolvida=direcao)
         quando = datetime.now().astimezone() - timedelta(days=dias_atras)
-        self.linha(novo["id"])["recebido_em"] = quando.isoformat()
+        linha = self.linha(novo["id"])
+        linha["recebido_em"] = quando.isoformat()
+        if linha["rota"] == "especial":
+            linha["prazo_em"] = (quando.date() + timedelta(days=60)).isoformat()
         return novo["id"]
 
     def linha(self, caso_id: str) -> dict:
@@ -198,3 +201,136 @@ class TestSimNoPasso3:
         assert caso_id in comite.lista(COORDENACAO)
         assert not comite.banco.tabelas.get("conduta_selos")
         assert comite.abre(COORDENACAO, caso_id).json()["aviso_de_rota_especial"] is None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. "Não sei" e o sinal do agente: fila comum com o aviso, e o desvio
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestNaoSeiESinalDoAgente:
+    def test_relato_com_nao_sei_entra_na_fila_comum_com_o_aviso(self, comite):
+        caso_id = comite.caso("nao_sei")
+
+        assert caso_id in comite.lista(COORDENACAO)
+        tela = comite.abre(COORDENACAO, caso_id).json()
+        assert tela["aviso_de_rota_especial"] == rota_especial.AVISO
+        assert tela["pode_desviar"] is True
+        assert not comite.banco.tabelas.get("conduta_selos")
+
+    def test_caso_com_sinal_do_agente_entra_na_fila_comum_com_o_aviso(self, comite):
+        caso_id = comite.caso("nao")
+        rota_especial.marcar_sinal_do_agente(comite.banco, caso_id)
+
+        assert caso_id in comite.lista(SEGUNDO_LEITOR)
+        assert comite.abre(SEGUNDO_LEITOR, caso_id).json()["aviso_de_rota_especial"] == rota_especial.AVISO
+
+    def test_um_membro_confirma_o_desvio_e_o_caso_sai_da_fila_comum(self, comite):
+        caso_id = comite.caso("nao_sei")
+
+        resposta = comite.agir(SEGUNDO_LEITOR, caso_id, "desvio-especial")
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["caso"]["rota"] == "especial"
+        assert caso_id not in comite.lista(COORDENACAO)
+        assert comite.abre(SEGUNDO_LEITOR, caso_id).status_code == 403
+        assert comite.grupo(caso_id) == GRUPO_CERTO
+        assert caso_id in comite.lista(MEMBRO)
+        assert "desvio_especial" in [linha["acao"] for linha in comite.trilha(caso_id)]
+        assert len(comite.banco.tabelas["conduta_selos"]) == 1
+
+    def test_o_desvio_conta_o_prazo_de_60_dias_do_envio(self, comite):
+        caso_id = comite.caso("nao_sei", dias_atras=10)
+
+        comite.agir(MEMBRO, caso_id, "desvio-especial")
+
+        envio = datetime.fromisoformat(comite.linha(caso_id)["recebido_em"]).date()
+        assert comite.linha(caso_id)["prazo_em"] == (envio + timedelta(days=60)).isoformat()
+
+    def test_caso_sem_o_aviso_nao_se_desvia(self, comite):
+        caso_id = comite.caso("nao")
+
+        resposta = comite.agir(COORDENACAO, caso_id, "desvio-especial")
+
+        assert resposta.status_code == 409
+        assert comite.linha(caso_id)["rota"] == "comum"
+
+    def test_quem_nao_e_membro_da_fila_comum_nao_desvia(self, comite):
+        caso_id = comite.caso("nao_sei")
+
+        assert comite.agir(SUPLENTE, caso_id, "desvio-especial").status_code == 403
+        assert comite.linha(caso_id)["rota"] == "comum"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. Só o Grupo Especial lista e abre, e nenhum diretor entra nele
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestSoOGrupoEspecial:
+    def test_o_grupo_e_o_membro_nao_diretor_e_um_suplente_nao_diretor(self, comite):
+        caso_id = comite.caso("sim")
+
+        assert comite.grupo(caso_id) == GRUPO_CERTO
+
+    @pytest.mark.parametrize("pid", [COORDENACAO, SEGUNDO_LEITOR, SUPLENTE_DIRETOR])
+    def test_nenhum_diretor_lista_nem_abre_o_caso_especial(self, comite, pid):
+        caso_id = comite.caso("sim")
+
+        resposta = comite.cliente(pid).get(f"{BASE}/casos")
+        assert resposta.status_code == 403 or caso_id not in [c["id"] for c in resposta.json()["casos"]]
+        assert comite.abre(pid, caso_id).status_code == 403
+
+    def test_o_impedido_do_grupo_nao_e_trocado_por_suplente_diretor(self, comite):
+        caso_id = comite.caso("sim")
+
+        resposta = comite.agir(MEMBRO, caso_id, "impedimento", {"motivo": "parentesco"})
+
+        assert resposta.status_code == 200, resposta.text
+        assert comite.abre(SUPLENTE_DIRETOR, caso_id).status_code == 403
+        convocados = [
+            a["participante_id"]
+            for a in comite.banco.tabelas["conduta_atribuicoes"]
+            if a["caso_id"] == caso_id and a["motivo"] == "suplente_convocado"
+        ]
+        assert SUPLENTE_DIRETOR not in convocados
+
+    def test_o_citado_nao_entra_no_grupo_pelo_desvio(self, comite):
+        caso_id = comite.caso("nao_sei")
+        comite.banco.tabelas.setdefault("conduta_citados", []).append(
+            {"id": "cit-1", "caso_id": caso_id, "participante_id": MEMBRO, "nome_cifrado": None}
+        )
+
+        comite.agir(COORDENACAO, caso_id, "desvio-especial")
+
+        assert comite.grupo(caso_id) == {SUPLENTE}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. Uma troca no Comitê não muda o grupo de um caso Especial aberto
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestGrupoFixo:
+    def test_mudar_a_composicao_nao_altera_o_grupo_do_caso_aberto(self, comite):
+        caso_id = comite.caso("sim")
+        participacoes = comite.banco.tabelas["participacoes"]
+        saida = next(p for p in participacoes if p["participante_id"] == MEMBRO)
+        saida["encerrada_em"] = (HOJE - timedelta(days=1)).isoformat()
+        participacoes.append(_participacao(NOVO_MEMBRO, "membro", diretor=False))
+
+        assert comite.grupo(caso_id) == GRUPO_CERTO
+        assert comite.abre(MEMBRO, caso_id).status_code == 200
+        assert comite.abre(NOVO_MEMBRO, caso_id).status_code == 403
+        assert caso_id not in comite.lista(NOVO_MEMBRO)
+
+    def test_o_caso_novo_ja_nasce_com_o_grupo_de_hoje(self, comite):
+        participacoes = comite.banco.tabelas["participacoes"]
+        next(p for p in participacoes if p["participante_id"] == MEMBRO)["encerrada_em"] = (
+            HOJE - timedelta(days=1)
+        ).isoformat()
+        participacoes.append(_participacao(NOVO_MEMBRO, "membro", diretor=False))
+
+        caso_id = comite.caso("sim")
+
+        assert comite.grupo(caso_id) == {NOVO_MEMBRO, SUPLENTE}
