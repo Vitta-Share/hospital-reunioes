@@ -38,7 +38,7 @@ export function BlocoFaltouIsto({ semanas }: { semanas: FaltouIstoNaSemana[] }) 
           </thead>
           <tbody>
             {daMaisNova.map((s) => (
-              <tr key={s.semana} className="border-t border-slate-100">
+              <tr key={s.semana} className="border-t border-slate-100 hover:bg-slate-50">
                 <td className="py-1.5 text-slate-800">{dataCurta(s.semana)}</td>
                 <td className="py-1.5 text-right font-semibold tabular-nums text-primary">{s.total}</td>
                 {CLASSIFICACOES_DO_FALTOU.map((c) => (

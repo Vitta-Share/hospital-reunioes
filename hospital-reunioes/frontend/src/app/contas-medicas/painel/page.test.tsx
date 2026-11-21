@@ -10,7 +10,7 @@
  * que aparece (os 4 cartões e os 7 blocos, com os números do payload), o que
  * some para a faturista e o que cada filtro pede ao servidor.
  */
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { cloneElement, type ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -179,18 +179,18 @@ describe("o Painel", () => {
 
     render(<PainelPage />);
 
-    await screen.findByRole("region", { name: "Nota média de entrada" });
-    for (const nome of [...CARTOES, ...BLOCOS]) {
-      expect(screen.getByRole("region", { name: nome }), nome).toBeTruthy();
-    }
-    const nota = screen.getByRole("region", { name: "Nota média de entrada" });
+    await screen.findByRole("group", { name: "Nota média de entrada" });
+    // Os números ficam na faixa do topo; os blocos, cada um na sua moldura.
+    for (const nome of CARTOES) expect(screen.getByRole("group", { name: nome }), nome).toBeTruthy();
+    for (const nome of BLOCOS) expect(screen.getByRole("region", { name: nome }), nome).toBeTruthy();
+    const nota = screen.getByRole("group", { name: "Nota média de entrada" });
     expect(nota.textContent).toContain("70");
     expect(nota.textContent).toContain("Semana anterior: 72");
-    expect(screen.getByRole("region", { name: "Contas concluídas" }).textContent).toContain("3");
-    const apontado = screen.getByRole("region", { name: "R$ apontado" });
+    expect(screen.getByRole("group", { name: "Contas concluídas" }).textContent).toContain("3");
+    const apontado = screen.getByRole("group", { name: "R$ apontado" });
     expect(apontado.textContent).toContain("R$ 315,00");
     expect(apontado.textContent).toContain("Já incluídos: R$ 250,00");
-    const naoProcede = screen.getByRole("region", { name: "Não procede" });
+    const naoProcede = screen.getByRole("group", { name: "Não procede" });
     expect(naoProcede.textContent).toContain("20%");
     expect(naoProcede.textContent).toContain("2 de 10 linhas");
 
@@ -237,7 +237,9 @@ describe("o Painel", () => {
 
     const producao = await screen.findByRole("region", { name: "Produção por faturista" });
     expect(within(producao).getAllByRole("row")).toHaveLength(2);
-    for (const nome of [...CARTOES, ...BLOCOS.filter((b) => b !== "Produção por faturista")]) {
+    expect(screen.queryByRole("region", { name: "Números da semana" })).toBeNull();
+    for (const nome of CARTOES) expect(screen.queryByRole("group", { name: nome }), nome).toBeNull();
+    for (const nome of BLOCOS.filter((b) => b !== "Produção por faturista")) {
       expect(screen.queryByRole("region", { name: nome }), nome).toBeNull();
     }
   });
@@ -246,7 +248,7 @@ describe("o Painel", () => {
     const fetch = servidorResponde(PAINEL);
 
     render(<PainelPage />);
-    await screen.findByRole("region", { name: "Nota média de entrada" });
+    await screen.findByRole("group", { name: "Nota média de entrada" });
     expect(pedidos(fetch)[0]).toMatch(/^\/api\/contas-medicas\/painel\?semana=\d{4}-\d{2}-\d{2}$/);
 
     fireEvent.change(screen.getByLabelText("Semana"), { target: { value: "2026-09-28" } });
@@ -326,7 +328,7 @@ describe("o botão do segundo agente (ADR 0082, issue #1523)", () => {
     const fetch = servidorResponde(PAINEL, agente);
     render(<PainelPage />);
     await screen.findByText("O segundo agente está relendo as contas.", { exact: false });
-    await screen.findByRole("region", { name: "Nota média de entrada" });
+    await screen.findByRole("group", { name: "Nota média de entrada" });
     const antes = pedidos(fetch).length;
 
     Object.assign(agente, { contas: 0, em_andamento: false });
@@ -334,6 +336,176 @@ describe("o botão do segundo agente (ADR 0082, issue #1523)", () => {
 
     await waitFor(() => expect(pedidos(fetch).length).toBe(antes + 1));
     await waitFor(() => expect(screen.queryByRole("region", { name: "Segundo agente" })).toBeNull());
+  });
+});
+
+describe("a faixa dos números (issue #1953)", () => {
+  const COORDENACAO = { valor_incluido: 1250.5, lembretes_incluidos: 4 };
+
+  it("junta os números numa faixa só, e cada um diz o que mede ao passar o mouse", async () => {
+    servidorResponde({ ...PAINEL, coordenacao: COORDENACAO });
+    render(<PainelPage />);
+
+    const faixa = await screen.findByRole("region", { name: "Números da semana" });
+    const dicas: [string, string][] = [
+      [
+        "Nota média de entrada",
+        "De 0 a 100, quanto as contas concluídas na semana estavam certas antes da correção. Sobe quando a ponta registra e dispensa melhor.",
+      ],
+      ["Contas concluídas", "Quantas contas as faturistas concluíram na semana, de segunda a domingo."],
+      [
+        "R$ apontado",
+        "O valor dos itens que o módulo apontou nas contas da semana. Já incluídos é o que já entrou no MV, as linhas Feito.",
+      ],
+      [
+        "Não procede",
+        "Quantas linhas apontadas a faturista marcou como Não procede, sem as de validação. Mede o acerto da IA e da memória.",
+      ],
+      [
+        "R$ incluído pela coordenação",
+        "O R$ que a coordenação incluiu na semana pelos lembretes da Conferência. Não entra na nota de entrada nem na produção.",
+      ],
+    ];
+    expect(within(faixa).getAllByRole("group")).toHaveLength(5);
+    for (const [nome, dica] of dicas) {
+      const numero = within(faixa).getByRole("group", { name: nome });
+      const rotulo = within(numero).getByText(nome);
+      expect(screen.queryByRole("tooltip"), nome).toBeNull();
+
+      fireEvent.mouseEnter(rotulo);
+      expect(screen.getByRole("tooltip").textContent, nome).toBe(dica);
+      fireEvent.mouseLeave(rotulo);
+    }
+  });
+
+  it("a dica do número da borda direita abre para dentro da faixa", async () => {
+    // O jsdom não mede layout. A dica tem 256 px e abre presa ao nome do
+    // número; na coluna da direita (duas colunas, celular) e no último número
+    // (uma linha só, computador) ela passaria da borda e a página rolaria de
+    // lado. Aqui se trava a regra: a dica se prende ao título inteiro da
+    // célula, e nessas células abre a partir da borda direita.
+    servidorResponde({ ...PAINEL, coordenacao: COORDENACAO });
+    render(<PainelPage />);
+
+    const faixa = await screen.findByRole("region", { name: "Números da semana" });
+    const numero = within(faixa).getByRole("group", { name: "Não procede" });
+    fireEvent.mouseEnter(within(numero).getByText("Não procede"));
+    const dica = screen.getByRole("tooltip");
+
+    const titulo = numero.querySelector("h3")!;
+    expect(titulo.classList.contains("relative")).toBe(true);
+    expect(dica.parentElement?.parentElement).toBe(titulo);
+    expect(titulo.className).toContain("[&>span]:static");
+    expect(numero.className).toContain("max-lg:even:[&_[role=tooltip]]:right-0");
+    expect(numero.className).toContain("max-lg:even:[&_[role=tooltip]]:left-auto");
+    expect(numero.className).toContain("lg:last:[&_[role=tooltip]]:right-0");
+    expect(numero.className).toContain("lg:last:[&_[role=tooltip]]:left-auto");
+  });
+
+  it("a dica do número também abre pelo teclado", async () => {
+    servidorResponde(PAINEL);
+    render(<PainelPage />);
+
+    const faixa = await screen.findByRole("region", { name: "Números da semana" });
+    const rotulo = within(within(faixa).getByRole("group", { name: "Contas concluídas" })).getByText(
+      "Contas concluídas",
+    );
+    act(() => rotulo.focus());
+
+    expect(document.activeElement).toBe(rotulo);
+    expect(screen.getByRole("tooltip").textContent).toBe(
+      "Quantas contas as faturistas concluíram na semana, de segunda a domingo.",
+    );
+  });
+});
+
+describe("o hover nos blocos (issue #1953)", () => {
+  it("o ponto do gráfico da nota mostra a semana e a nota", async () => {
+    servidorResponde(PAINEL);
+    render(<PainelPage />);
+
+    const bloco = await screen.findByRole("region", { name: "Nota média por semana" });
+    // 600 px de largura (o `ResponsiveContainer` do mock): o eixo da nota ocupa
+    // os primeiros 36 e a margem os últimos 12, então a semana de 05/10 fica em 588.
+    fireEvent.mouseMove(bloco.querySelector(".recharts-wrapper")!, { clientX: 580, clientY: 100 });
+
+    const dica = bloco.querySelector(".recharts-tooltip-wrapper")!;
+    expect(dica.textContent).toContain("Semana de 05/10");
+    expect(dica.textContent).toContain("Nota média : 70");
+  });
+
+  it("a barra do nível de evidência mostra o R$ de cada nível da semana", async () => {
+    servidorResponde(PAINEL);
+    render(<PainelPage />);
+
+    const bloco = await screen.findByRole("region", { name: "R$ incluído por nível de evidência" });
+    fireEvent.mouseMove(bloco.querySelector(".recharts-wrapper")!, { clientX: 500, clientY: 100 });
+
+    const dica = bloco.querySelector(".recharts-tooltip-wrapper")!;
+    expect(dica.textContent).toContain("Semana de 05/10");
+    expect(dica.textContent).toContain("Prescrito SN : R$ 60,00");
+  });
+
+  it("a barra da causa-raiz mostra o R$ e o percentual dela", async () => {
+    servidorResponde(PAINEL);
+    render(<PainelPage />);
+
+    const bloco = await screen.findByRole("region", { name: "R$ apontado por causa-raiz" });
+    expect(screen.queryByRole("tooltip")).toBeNull();
+
+    fireEvent.mouseEnter(within(bloco).getByRole("img", { name: "Regra automática" }));
+
+    expect(screen.getByRole("tooltip").textContent).toBe("Regra automática: R$ 50,00, 15,9% do R$ apontado");
+  });
+});
+
+describe("as tabelas e a largura estreita (issue #1953)", () => {
+  // O jsdom não mede layout: o que se trava aqui são as classes que seguram a
+  // largura. Bloco sem `min-w-0` cresce até a largura da tabela e a página
+  // inteira rola de lado; tabela fora de um `overflow-x-auto` faz o mesmo.
+  it("cada tabela rola dentro do próprio bloco, e nenhum bloco empurra a página", async () => {
+    servidorResponde(PAINEL);
+    render(<PainelPage />);
+    await screen.findByRole("region", { name: "Os dez itens que mais faltam" });
+
+    const tabelas = screen.getAllByRole("table");
+    expect(tabelas).toHaveLength(3);
+    for (const tabela of tabelas) {
+      const bloco = tabela.closest("section")!.getAttribute("aria-labelledby");
+      expect(tabela.parentElement?.classList.contains("overflow-x-auto"), bloco ?? "").toBe(true);
+    }
+    for (const nome of BLOCOS) {
+      expect(screen.getByRole("region", { name: nome }).classList.contains("min-w-0"), nome).toBe(true);
+    }
+  });
+
+  it("a linha da tabela se destaca ao passar o mouse", async () => {
+    servidorResponde(PAINEL);
+    render(<PainelPage />);
+    await screen.findByRole("region", { name: "Os dez itens que mais faltam" });
+
+    for (const tabela of screen.getAllByRole("table")) {
+      for (const linha of Array.from(tabela.querySelectorAll("tbody tr"))) {
+        expect(linha.classList.contains("hover:bg-slate-50"), linha.textContent ?? "").toBe(true);
+      }
+    }
+  });
+});
+
+describe("a Legenda dos filtros (issue #1953)", () => {
+  const LEGENDA = "Os números são das contas concluídas na semana escolhida, de segunda a domingo.";
+
+  it("diz que os números são das contas concluídas na semana, e some com as Legendas desligadas", async () => {
+    servidorResponde(PAINEL);
+    render(comLegendas(false, <PainelPage />));
+
+    await screen.findByRole("group", { name: "Nota média de entrada" });
+    expect(screen.queryByText(LEGENDA)).toBeNull();
+    cleanup();
+
+    render(comLegendas(true, <PainelPage />));
+
+    expect(await screen.findByText(LEGENDA)).toBeTruthy();
   });
 });
 

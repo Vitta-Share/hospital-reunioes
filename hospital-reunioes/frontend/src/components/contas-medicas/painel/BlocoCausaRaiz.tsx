@@ -1,3 +1,4 @@
+import { Dica } from "@/components/ui/Dica";
 import {
   QUEM_CORRIGE,
   ROTULO_CAUSA,
@@ -9,7 +10,10 @@ import {
 import { COR_DO_TRILHO, COR_PRIMARIA } from "./cores";
 import { Moldura } from "./Moldura";
 
-/** O R$ apontado por causa-raiz, com o percentual de cada uma e quem corrige. */
+/**
+ * O R$ apontado por causa-raiz, com o percentual de cada uma e quem corrige.
+ * O mouse ou o foco na barra mostra o R$ e o percentual dela (issue #1953).
+ */
 export function BlocoCausaRaiz({ causas }: { causas: NonNullable<Painel["causa_raiz"]> }) {
   return (
     <Moldura titulo="R$ apontado por causa-raiz" subtitulo="Onde o problema nasce e quem corrige">
@@ -22,8 +26,21 @@ export function BlocoCausaRaiz({ causas }: { causas: NonNullable<Painel["causa_r
               <span className="ml-auto font-semibold tabular-nums text-primary">{textoDoPercentual(c.percentual)}</span>
               <span className="w-28 text-right text-xs tabular-nums text-slate-500">{textoEmReais(c.valor)}</span>
             </div>
-            <div aria-hidden="true" className="h-2 overflow-hidden rounded-full" style={{ backgroundColor: COR_DO_TRILHO }}>
-              <div className="h-full rounded-full" style={{ width: `${c.percentual}%`, backgroundColor: COR_PRIMARIA }} />
+            {/* O grid estica a dica, que embrulha a barra, até a largura da linha. */}
+            <div className="grid">
+              <Dica
+                texto={`${ROTULO_CAUSA[c.causa]}: ${textoEmReais(c.valor)}, ${textoDoPercentual(c.percentual)} do R$ apontado`}
+              >
+                <div
+                  role="img"
+                  aria-label={ROTULO_CAUSA[c.causa]}
+                  tabIndex={0}
+                  className="h-2 w-full cursor-help overflow-hidden rounded-full"
+                  style={{ backgroundColor: COR_DO_TRILHO }}
+                >
+                  <div className="h-full rounded-full" style={{ width: `${c.percentual}%`, backgroundColor: COR_PRIMARIA }} />
+                </div>
+              </Dica>
             </div>
           </li>
         ))}

@@ -3,7 +3,8 @@ import { useId, type ReactNode } from "react";
 /**
  * A moldura de um cartão ou de um bloco do Painel (issue #1137): o título dá
  * o nome da região, para quem lê a tela pelo leitor e para o teste achar cada
- * cartão pelo nome.
+ * cartão pelo nome. O `min-w-0` deixa o bloco encolher na grade em tela
+ * estreita: a tabela larga rola dentro dele, e não a página (issue #1953).
  */
 export function Moldura({
   titulo,
@@ -18,7 +19,7 @@ export function Moldura({
 }) {
   const id = useId();
   return (
-    <section aria-labelledby={id} className={`bg-white rounded-2xl border border-border shadow-premium p-5 ${className}`}>
+    <section aria-labelledby={id} className={`min-w-0 bg-white rounded-2xl border border-border shadow-premium p-5 ${className}`}>
       <h2 id={id} className="text-sm font-semibold text-slate-700">
         {titulo}
       </h2>

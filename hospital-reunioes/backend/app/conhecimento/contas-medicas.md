@@ -228,7 +228,7 @@ No Painel, quem tem a permissão vê o cartão **R$ incluído pela coordenação
 
 O Painel mostra à diretoria onde a perda da conta nasce. Ele abre pela aba Painel. Os números são das contas concluídas, por semana de segunda a domingo, contada pelo dia em que a faturista concluiu a conta. A conta reenviada continua no Painel, contada pela nota de entrada e pela semana em que foi concluída. No topo ficam três filtros: a semana, a operadora e o tipo de conta (Parcial, quando o atendimento tem mais de uma conta, ou Única).
 
-Quatro cartões no topo:
+Embaixo dos filtros, uma Legenda lembra que os números são das contas concluídas na semana escolhida. No topo, uma faixa única com quatro números. Passar o mouse no nome de um número, ou chegar nele pelo teclado, mostra numa frase o que ele mede:
 
 - **Nota média de entrada** da semana, com a da semana anterior ao lado. Sobe quando a ponta registra e dispensa melhor.
 - **Contas concluídas** na semana.
@@ -244,6 +244,8 @@ E sete blocos:
 - o R$ incluído por nível de evidência (Registrado, Prescrito, Prescrito SN, Por regra), por semana, em barras: mostra quanto do valor incluído depende só de prescrição;
 - o custo de inteligência artificial da semana e o custo médio por conta, em dólar. O custo da semana soma a análise das contas concluídas nela e, em partes separadas, o que foi feito na semana: as conversas com o Auditor, as provas de regra e o agente que revisa as contas. O médio por conta é só o das análises;
 - os Faltou isto apontados por semana, nas oito semanas até a escolhida, contados pelo dia em que foram apontados: quantos o Auditor classificou como Regra, Leitura ou Defeito, quantos ainda esperam a classificação, e quem achou, a pessoa ou o agente. Com a operadora ou o tipo de conta escolhidos, entram só os das contas deles.
+
+Passar o mouse num ponto do gráfico da nota ou numa barra mostra o valor dela, e a linha de tabela embaixo do mouse fica destacada. Em tela estreita, como a do celular, a faixa quebra em duas colunas e a tabela larga rola dentro do próprio bloco.
 
 Quem tem o Painel completo (coordenadora de faturamento, gestão de contas médicas e as duas diretorias) vê tudo. A faturista vê só a própria linha de produção, e mais nenhum bloco.
 
