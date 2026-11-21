@@ -11,7 +11,7 @@ import { Legenda } from "@/components/ui/Legenda";
  */
 export function BarraDeContas({ children }: { children?: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3">
+    <div data-barra className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
         <h1 className="text-2xl font-bold text-slate-900">Contas médicas</h1>
         <Legenda>

@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { Lock } from "lucide-react";
 
 import { Dica } from "@/components/ui/Dica";
 import { detalheDaConta, rotuloDaSituacao, type ItemDaFila } from "@/lib/contas-medicas/envio";
 import { dataCurta } from "@/lib/contas-medicas/guia";
-import { COLUNAS, DICA_DO_PEGAR } from "@/lib/contas-medicas/textos";
+import { COLUNAS, DICA_DO_PEGAR, dicaDaContaAlheia } from "@/lib/contas-medicas/textos";
 
 import { COR_DO_TOM, tomDaSituacao } from "./situacao";
 
@@ -46,11 +47,12 @@ const BOTAO = "inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semi
 
 /**
  * A ação da linha. A conta livre tem "Pegar": abrir o Guia dela é pegar (ADR
- * 0105, decisão 3). A conta da própria pessoa tem a ação sempre visível; a de
- * outra faturista, que só quem tem o painel completo vê, mostra "Abrir" no
- * hover e no foco do teclado.
+ * 0105, decisão 3). A conta da própria pessoa tem a ação sempre visível. A de
+ * outra faturista mostra "Abrir" no hover e no foco do teclado para quem tem
+ * o painel completo; para quem não tem, não há ação, só a dica de com quem a
+ * conta está (ADR 0105, decisão 2, issue #1955).
  */
-function AcaoDaConta({ conta }: { conta: ItemDaFila }) {
+function AcaoDaConta({ conta, abreAlheias }: { conta: ItemDaFila; abreAlheias: boolean }) {
   const guia = `/contas-medicas/guia/${conta.id}`;
   if (conta.situacao === "A_FAZER") {
     return (
@@ -65,6 +67,22 @@ function AcaoDaConta({ conta }: { conta: ItemDaFila }) {
   }
   const emAnalise = conta.situacao === "EM_CORRECAO" || conta.situacao === "RETORNO";
   if (!emAnalise && !conta.situacao.startsWith("CONCLUIDA")) return null;
+  if (!conta.minha && !abreAlheias) {
+    return (
+      <span data-acao="nenhuma">
+        <Dica texto={dicaDaContaAlheia(conta.com)} abrePara="esquerda">
+          <span
+            tabIndex={0}
+            role="img"
+            aria-label="Conta de outra faturista"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <Lock className="h-4 w-4" aria-hidden="true" />
+          </span>
+        </Dica>
+      </span>
+    );
+  }
   if (!conta.minha) {
     return (
       <span
@@ -89,7 +107,7 @@ function AcaoDaConta({ conta }: { conta: ItemDaFila }) {
   );
 }
 
-function LinhaDaConta({ conta }: { conta: ItemDaFila }) {
+function LinhaDaConta({ conta, abreAlheias }: { conta: ItemDaFila; abreAlheias: boolean }) {
   // O valor da conta fica fora da lista (issue #1419): a Fila nunca anda por valor.
   const andamento = [detalheDaConta({ ...conta, valor_apontado: null }), contagensDaConta(conta)]
     .filter(Boolean)
@@ -114,13 +132,14 @@ function LinhaDaConta({ conta }: { conta: ItemDaFila }) {
       </div>
       <span className="min-w-0 text-sm text-slate-600">{conta.com ? `com ${conta.com}` : ""}</span>
       <div className="md:justify-self-end">
-        <AcaoDaConta conta={conta} />
+        <AcaoDaConta conta={conta} abreAlheias={abreAlheias} />
       </div>
     </li>
   );
 }
 
-export function ListaDeContas({ contas }: { contas: ItemDaFila[] }) {
+/** `abreAlheias`: a pessoa tem o painel completo e abre a conta de qualquer faturista. */
+export function ListaDeContas({ contas, abreAlheias }: { contas: ItemDaFila[]; abreAlheias: boolean }) {
   return (
     <div>
       <div
@@ -134,7 +153,7 @@ export function ListaDeContas({ contas }: { contas: ItemDaFila[] }) {
       </div>
       <ul className="divide-y divide-border">
         {contas.map((conta) => (
-          <LinhaDaConta key={conta.id} conta={conta} />
+          <LinhaDaConta key={conta.id} conta={conta} abreAlheias={abreAlheias} />
         ))}
       </ul>
     </div>

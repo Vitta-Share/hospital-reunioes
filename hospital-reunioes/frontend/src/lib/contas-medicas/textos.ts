@@ -55,3 +55,24 @@ export const SOLTE_PARA_ENVIAR = "Solte os PDFs para enviar";
 
 /** O cabeçalho das colunas da lista: a palavra "Atendimento" aparece só aqui. */
 export const COLUNAS = ["Atendimento", "Operadora", "Período", "Andamento", "Com quem", ""] as const;
+
+/**
+ * O filtro "Todas" e "Minhas" da barra (issue #1955, ADR 0105): recorta Em
+ * análise e Concluídas pelas contas da própria pessoa. Fila e Envios não mudam.
+ */
+export type Recorte = "todas" | "minhas";
+
+export const RECORTES: { valor: Recorte; rotulo: string }[] = [
+  { valor: "todas", rotulo: "Todas" },
+  { valor: "minhas", rotulo: "Minhas" },
+];
+
+/** As etapas que o filtro recorta. */
+export const ETAPAS_DO_RECORTE: Etapa[] = ["em_analise", "concluidas"];
+
+export const LEGENDA_DO_RECORTE = "Em Minhas, Em análise e Concluídas mostram só as contas que você pegou.";
+
+/** A dica da linha da conta de outra faturista, que a pessoa vê e não abre (ADR 0105, decisão 2). */
+export function dicaDaContaAlheia(nome: string | null | undefined): string {
+  return nome ? `Esta conta está com ${nome}.` : "Esta conta está com outra faturista.";
+}

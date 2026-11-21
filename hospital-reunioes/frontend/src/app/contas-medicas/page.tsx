@@ -22,6 +22,10 @@
  * Desde a issue #1954 a área de envio abre pelo botão "Enviar contas" da
  * barra: fechada para quem analisa, aberta para quem só envia. Soltar os PDFs
  * em qualquer ponto da tela inicia o envio, com os mesmos limites.
+ *
+ * Desde a issue #1955 (ADR 0105) Em análise e Concluídas trazem as contas de
+ * todas as faturistas, cada uma com quem está com ela, e o filtro "Todas" e
+ * "Minhas" da barra recorta essas duas etapas pelas contas da pessoa.
  */
 
 import { type DragEvent, useCallback, useEffect, useRef, useState } from "react";
@@ -31,6 +35,7 @@ import { BarraDeContas } from "@/components/contas-medicas/contas/BarraDeContas"
 import { BarraDeTempos, CartaoDoEnvio } from "@/components/contas-medicas/contas/CartaoDoEnvio";
 import { ContinueDeOndeParou } from "@/components/contas-medicas/contas/ContinueDeOndeParou";
 import { Esteira } from "@/components/contas-medicas/contas/Esteira";
+import { FiltroTodasMinhas, useRecorte } from "@/components/contas-medicas/contas/FiltroTodasMinhas";
 import { ListaDeContas } from "@/components/contas-medicas/contas/ListaDeContas";
 import { PainelDoProcessamento } from "@/components/contas-medicas/PainelDoProcessamento";
 import { Dica } from "@/components/ui/Dica";
@@ -54,6 +59,7 @@ import {
 } from "@/lib/contas-medicas/envio";
 import {
   DICA_DO_ENVIAR,
+  ETAPAS_DO_RECORTE,
   LEGENDA_DO_ENVIAR,
   LEGENDA_DO_ENVIO,
   SOLTE_PARA_ENVIAR,
@@ -152,6 +158,7 @@ export default function ContasMedicasPage() {
   const [fila, setFila] = useState<Fila | null>(null);
   const [erroDaFila, setErroDaFila] = useState<string | null>(null);
   const [etapa, setEtapa] = useState<Etapa>("fila");
+  const [recorte, setRecorte] = useRecorte();
   /** A área de envio: fechada para quem analisa, aberta para quem só envia (issue #1954). */
   const [areaAberta, setAreaAberta] = useState(false);
   const [arrastando, setArrastando] = useState(false);
@@ -188,6 +195,7 @@ export default function ContasMedicasPage() {
         concluidas: analise?.concluidas ?? [],
         barra: envios?.barra ?? null,
         contagem: { ...analise?.contagem, ...envios?.contagem },
+        contagem_minhas: analise?.contagem_minhas,
       });
     } catch {
       setErroDaFila("Não consegui carregar a fila.");
@@ -299,7 +307,13 @@ export default function ContasMedicasPage() {
     return recusa;
   }
 
-  const contas = fila?.[LISTA_DA_ETAPA[etapa]];
+  /** Em "Minhas", Em análise e Concluídas ficam só com as contas da pessoa; Fila e Envios não mudam. */
+  const recortada = (qual: Etapa) => recorte === "minhas" && ETAPAS_DO_RECORTE.includes(qual);
+  const listaDa = (qual: Etapa): ItemDaFila[] | undefined => {
+    const lista = fila?.[LISTA_DA_ETAPA[qual]];
+    return lista && recortada(qual) ? lista.filter((conta) => conta.minha) : lista;
+  };
+  const contas = listaDa(etapa);
   // A conta que ficou pronta sai dos envios, e o painel dela fecha junto.
   const contaDoPainel = painel ? envios.find((conta) => conta.id === painel) : undefined;
   const fecharOPainel = useCallback(() => setPainel(null), []);
@@ -307,8 +321,13 @@ export default function ContasMedicasPage() {
   // Sem nenhuma das duas permissões (o credenciamento), a tela fica só com as abas do módulo.
   const semListas = pode !== null && etapas.length === 0;
   /** O número da etapa vem do servidor; antes da primeira leitura, nenhum. */
-  const contagemDa = (qual: Etapa): number | null =>
-    fila ? (fila.contagem?.[qual] ?? fila[LISTA_DA_ETAPA[qual]].length) : null;
+  const contagemDa = (qual: Etapa): number | null => {
+    if (!fila) return null;
+    const doServidor = recortada(qual)
+      ? fila.contagem_minhas?.[qual as "em_analise" | "concluidas"]
+      : fila.contagem?.[qual];
+    return doServidor ?? listaDa(qual)?.length ?? 0;
+  };
   /** As contas em análise da própria pessoa, para o "Continue de onde parou". */
   const minhasEmAnalise = (fila?.minhas ?? []).filter((conta) => conta.minha);
 
@@ -357,6 +376,7 @@ export default function ContasMedicasPage() {
       )}
 
       <BarraDeContas>
+        {pode?.analisar && <FiltroTodasMinhas valor={recorte} onMudar={setRecorte} />}
         {pode?.enviar && (
           <div className="flex max-w-xs flex-col items-end text-right">
             <Dica texto={DICA_DO_ENVIAR} abrePara="esquerda">
@@ -474,7 +494,7 @@ export default function ContasMedicasPage() {
                   ))}
                 </ul>
               ) : contas && contas.length > 0 ? (
-                <ListaDeContas contas={contas} />
+                <ListaDeContas contas={contas} abreAlheias={fila.todas} />
               ) : (
                 <div className="p-10 text-center">
                   <ReceiptText className="w-8 h-8 text-slate-300 mx-auto mb-3" aria-hidden="true" />
