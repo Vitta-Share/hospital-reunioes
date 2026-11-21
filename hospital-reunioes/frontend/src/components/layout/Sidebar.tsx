@@ -29,6 +29,7 @@ import {
   Inbox,
   Repeat,
   Scale,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -393,6 +394,10 @@ export function itensDoMenu(participante: CurrentParticipante | null): NavItem[]
   const notificacoesItem: NavItem[] = participante?.recursos_nsp?.includes("casos")
     ? [{ href: `${HREF_DA_SEGURANCA_DO_PACIENTE}/notificacoes`, label: "Notificações", icon: Inbox }]
     : [];
+  // A Configuração do módulo (issue #2046): o QR e o endereço da notificação.
+  const configuracaoItem: NavItem[] = participante?.recursos_nsp?.includes("configuracao")
+    ? [{ href: `${HREF_DA_SEGURANCA_DO_PACIENTE}/configuracao`, label: "Configuração", icon: Settings }]
+    : [];
   const segurancaDoPacienteItens: NavItem[] = !participante
     ? []
     : !temAcessoSegurancaDoPaciente(participante)
@@ -437,6 +442,7 @@ export function itensDoMenu(participante: CurrentParticipante | null): NavItem[]
                 },
               ],
             },
+            ...configuracaoItem,
             ...ITENS_EM_BREVE_DO_NSP,
           ],
         },
