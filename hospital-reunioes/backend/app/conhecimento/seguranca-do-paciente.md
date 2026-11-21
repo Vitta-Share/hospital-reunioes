@@ -19,7 +19,10 @@ A notificação de incidente:
 - na página de acompanhamento, a pessoa informa o protocolo e o código (se notificou sem se identificar) ou o protocolo e o e-mail ou telefone que deixou, e vê só o estado, em palavras simples: Recebida, Em análise ou Concluída. Dado errado recebe sempre a mesma resposta, sem dizer qual parte errou;
 - o formulário sem login aceita até 30 envios por minuto e 300 por hora de uma mesma rede. A conta é pela rede, sem guardar o endereço, e os computadores e o Wi-Fi do hospital saem pela mesma rede; acima disso o envio é recusado com o pedido de tentar mais tarde, e quem tem login pode notificar pelo botão **Notificar incidente**, que conta por pessoa (5 por minuto, 20 por hora);
 - o item **Notificações**, dentro do módulo, lista todos os casos, do mais novo ao mais antigo, para quem abre os casos: a Presidência, o Acesso pleno e o membro com o Termo assinado. O nome e o contato de quem notificou aparecem só para a Presidência e o Acesso pleno; o membro vê o caso sem saber quem notificou;
-- nenhuma notificação é apagada, por ninguém: a correção é feita por edição, e cada edição fica registrada com quem fez, quando, o valor anterior e o novo.
+- nenhuma notificação é apagada, por ninguém: a correção é feita por edição, e cada edição fica registrada com quem fez, quando, o valor anterior e o novo;
+- quando quem notifica marca "grave ou houve morte", a Presidência do Núcleo, o suplente vigente, quem tem Acesso pleno e a Diretoria Executiva recebem um e-mail na hora, cada um com o próprio nome, a qualquer dia e horário, inclusive de madrugada e no fim de semana. O alerta sai antes de qualquer triagem e não depende do agente nem de IA. O assunto começa por "Caso grave ou com morte", com o protocolo e a data e a hora do recebimento; o e-mail traz o protocolo, o setor e o link para Notificações, e nunca o relato;
+- na página inicial do módulo, quem abre os casos vê em destaque, no topo, os casos graves ou com morte que ainda esperam a triagem, com o protocolo, o setor e a hora do recebimento;
+- quem notificou com o nome e deixou um e-mail recebe na hora a confirmação de recebimento, com o protocolo e o link da página de acompanhamento, o que cumpre o prazo de 24 horas do Regimento. Quem notificou sem se identificar, ou deixou só telefone, não recebe e-mail. A confirmação também não traz o relato.
 
 A fundação do módulo:
 
@@ -141,7 +144,7 @@ Membro nunca é apagado. Encerrar termina a vigência no dia escolhido e a parti
 
 ## O que ele ainda não faz
 
-Nas Capacitações, o profissional de fora do Núcleo que está na lista ainda não abre o módulo, então não confirma a presença por enquanto; a capacitação registrada também não se edita depois de salva. Nas reuniões, a ata própria do Núcleo também chega depois: por enquanto a ata segue o modelo das outras reuniões, e a pauta ainda não traz indicadores, casos, planos vencidos nem alertas, que dependem das próximas fases. Na notificação de incidente, ainda não chegaram o alerta imediato de caso grave, o e-mail de confirmação de recebimento, as perguntas de esclarecimento, a triagem, os prazos e o encaminhamento a outro canal: a notificação fica registrada como Recebida até essas partes entrarem. As notificações criadas a partir da reunião rápida chegam na segunda fase. Os casos que a Ouvidoria manda ao Núcleo também chegam depois.
+Nas Capacitações, o profissional de fora do Núcleo que está na lista ainda não abre o módulo, então não confirma a presença por enquanto; a capacitação registrada também não se edita depois de salva. Nas reuniões, a ata própria do Núcleo também chega depois: por enquanto a ata segue o modelo das outras reuniões, e a pauta ainda não traz indicadores, casos, planos vencidos nem alertas, que dependem das próximas fases. Na notificação de incidente, ainda não chegaram as perguntas de esclarecimento, a triagem, os prazos e o encaminhamento a outro canal: a notificação fica registrada como Recebida até essas partes entrarem. As notificações criadas a partir da reunião rápida chegam na segunda fase. Os casos que a Ouvidoria manda ao Núcleo também chegam depois.
 
 ## O que já foi decidido
 

@@ -60,9 +60,7 @@ def _agora() -> datetime:
 
 
 def _caso(supabase, notificacao_id: str) -> dict | None:
-    linhas = (
-        supabase.table("nsp_notificacoes").select(_CAMPOS_DO_CASO).eq("id", notificacao_id).limit(1).execute().data
-    )
+    linhas = supabase.table("nsp_notificacoes").select(_CAMPOS_DO_CASO).eq("id", notificacao_id).limit(1).execute().data
     return linhas[0] if linhas else None
 
 
