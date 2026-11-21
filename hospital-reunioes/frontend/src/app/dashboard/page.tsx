@@ -12,6 +12,8 @@ import type { AtaDoDashboard } from "@/lib/reunioes/atasDoDashboard";
 import DashboardFilters from "@/components/dashboard/DashboardFilters";
 import StatusPieChart from "@/components/dashboard/StatusPieChart";
 import SetorBarChart from "@/components/dashboard/SetorBarChart";
+import RankingDeAtrasos from "@/components/dashboard/RankingDeAtrasos";
+import type { LinhaDoRanking, SetorDosAtrasos } from "@/components/dashboard/RankingDeAtrasos";
 import type { SetorBarEntry } from "@/components/dashboard/SetorBarChart";
 import type { PieEntry } from "@/components/dashboard/StatusPieChart";
 
@@ -54,6 +56,9 @@ interface PainelDoServidor {
   }[];
   atas_paradas: AtaDoDashboard[];
   aguardam_assinatura: AtaDoDashboard[];
+  // Só para o Super admin e para quem facilita alguma Reunião (issue #1871).
+  atrasos_por_setor?: SetorDosAtrasos[] | null;
+  ranking?: LinhaDoRanking[] | null;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -93,6 +98,7 @@ export default function DashboardPage() {
   const [pieStats, setPieStats] = useState<PieEntry[]>([]);
   const [setorBarData, setSetorBarData] = useState<SetorBarEntry[]>([]);
   const [loadingCharts, setLoadingCharts] = useState(false);
+  const [atrasos, setAtrasos] = useState<{ porSetor: SetorDosAtrasos[]; ranking: LinhaDoRanking[] } | null>(null);
 
   // Atas que os cards contam, e qual lista está aberta no modal (issue #1055)
   const [listasDeAtas, setListasDeAtas] = useState<Record<ListaDoCard, AtaDoDashboard[]>>({
@@ -246,6 +252,12 @@ export default function DashboardPage() {
             Atrasado: linha.atrasado,
             Repactuada: linha.repactuada,
           }))
+        );
+
+        setAtrasos(
+          painel.ranking && painel.atrasos_por_setor
+            ? { porSetor: painel.atrasos_por_setor, ranking: painel.ranking }
+            : null
         );
       } catch (e) {
         console.error("Erro ao carregar dashboard:", e);
@@ -424,6 +436,9 @@ export default function DashboardPage() {
           }
         />
       </div>
+
+      {/* Atrasos por setor e ranking de 90 dias: só chegam para quem pode ver (issue #1871). */}
+      {atrasos && <RankingDeAtrasos porSetor={atrasos.porSetor} ranking={atrasos.ranking} />}
     </div>
   );
 }

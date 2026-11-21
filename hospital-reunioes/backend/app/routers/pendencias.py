@@ -224,11 +224,25 @@ async def get_painel(
 ):
     """O painel de Reuniões (issue #1868): os cards, as situações e as Atas dos
     cards, da base inteira e no recorte de quem pede. A Secretária não recebe
-    dado de Pendência (decisão 53 do diretor no PRD #1757)."""
+    dado de Pendência (decisão 53 do diretor no PRD #1757). O gráfico de
+    atrasos por setor e o ranking de 90 dias (issue #1871) vão só para o Super
+    admin e para quem facilita ao menos uma Reunião."""
     me = await get_participante_for_user(current_user, supabase)
     if is_secretaria(me):
         raise HTTPException(status_code=403, detail="Secretária não tem acesso a pendências")
     recorte = await get_recorte_das_pendencias(current_user, supabase)
+    super_admin = is_super_admin(me)
+    facilita_alguma = False
+    if me and not super_admin:
+        facilita_alguma = bool(
+            supabase.table("reunioes")
+            .select("id_reuniao")
+            .eq("facilitador_id", me["id"])
+            .is_("deleted_at", "null")
+            .limit(1)
+            .execute()
+            .data
+        )
     filtros = FiltrosDoPainel(
         responsaveis=frozenset(parse_csv_param(responsavel_id) or ()),
         setores=frozenset(parse_csv_param(setor) or ()),
@@ -241,6 +255,7 @@ async def get_painel(
         hoje=hoje_em_brasilia(),
         agora=painel_reunioes.agora_utc(),
         filtros=filtros,
+        com_ranking=painel_reunioes.ve_ranking(me, super_admin=super_admin, facilita_alguma=facilita_alguma),
     )
 
 

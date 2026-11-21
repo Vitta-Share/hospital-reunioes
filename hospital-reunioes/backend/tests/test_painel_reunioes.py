@@ -124,6 +124,14 @@ class _Consulta:
         self._filtros.append(lambda linha: linha.get(coluna) is None)
         return self
 
+    def gte(self, coluna, valor):
+        self._filtros.append(lambda linha: linha.get(coluna) is not None and str(linha.get(coluna)) >= str(valor))
+        return self
+
+    def limit(self, quantos):
+        self._recorte = (0, quantos - 1)
+        return self
+
     def or_(self, filtro):
         condicoes = [_condicao(p) for p in _partes_do_or(filtro)]
         self._filtros.append(lambda linha: any(c(linha) for c in condicoes))
@@ -340,7 +348,196 @@ def test_secretaria_nao_recebe_dado_de_pendencia(painel):
     assert "situacoes" not in resposta.json()
 
 
-# ─── 4. O kit de conhecimento ────────────────────────────────────────────────
+# ─── 4. O gráfico de atrasos por setor e o ranking de 90 dias (issue #1871) ──
+
+
+def _evento(id_acao, comando, criado_em, *, conta_atraso=False, status_antes="PENDENTE", prazo_antes=None) -> dict:
+    return {
+        "id_acao": id_acao,
+        "comando": comando,
+        "criado_em": criado_em,
+        "conta_atraso": conta_atraso,
+        "status_antes": status_antes,
+        "prazo_antes": prazo_antes,
+    }
+
+
+def _ranking(corpo) -> dict:
+    return {linha["responsavel_id"]: linha for linha in corpo["ranking"]}
+
+
+def test_ranking_so_para_super_admin_e_quem_facilita_alguma_reuniao(painel):
+    pedir, estado = painel
+    estado["banco"] = _banco_de_papeis()
+
+    # Fábio facilita a R1 e a R3; o Super admin vê; Ana só é responsável.
+    assert pedir("admin").json()["ranking"] is not None
+    assert pedir("fabio").json()["ranking"] is not None
+    corpo_da_ana = pedir("ana").json()
+    assert corpo_da_ana["ranking"] is None
+    assert corpo_da_ana["atrasos_por_setor"] is None
+
+
+# Ontem, no meio do dia em Brasília (UTC-3), dentro da janela.
+ONTEM_AS_15H = "2026-11-17T18:00:00+00:00"
+
+
+def _banco_do_ranking(pendencias, historico, participantes=None) -> _Banco:
+    """A R9 é de outra pessoa e Fábio facilita a R1: o ranking conta o hospital
+    inteiro, também para o Facilitador."""
+    return _Banco(
+        pendencias=pendencias,
+        reunioes=[_reuniao("R9", "P_OUTRO", "ASSINADA"), _reuniao("R1", "P_FABIO", "ASSINADA")],
+        participantes=participantes
+        if participantes is not None
+        else [
+            {"id": "P_ANA", "setor": "UTI", "nome_completo": "Ana"},
+            {"id": "P_BRUNO", "setor": "Farmácia", "nome_completo": "Bruno"},
+        ],
+        pendencia_historico=historico,
+    )
+
+
+def test_pendencia_cancelada_nao_entra_no_grafico_nem_no_ranking(painel):
+    pedir, estado = painel
+    estado["banco"] = _banco_do_ranking(
+        [_pendencia("C1", "P_ANA", id_reuniao="R9", status="CANCELADO", prazo=ONTEM)],
+        # Repactuada depois de vencer e reaberta, e cancelada depois.
+        [
+            _evento("C1", "repactuar", ONTEM_AS_15H, conta_atraso=True),
+            _evento("C1", "reabrir", ONTEM_AS_15H, status_antes="CONCLUIDO"),
+        ],
+    )
+
+    corpo = pedir("admin").json()
+
+    assert corpo["ranking"] == []
+    assert corpo["atrasos_por_setor"] == []
+
+
+def test_reabertura_e_repactuacao_vencida_entram_no_ranking_e_a_antes_do_vencimento_nao(painel):
+    pedir, estado = painel
+    estado["banco"] = _banco_do_ranking(
+        [
+            _pendencia("A1", "P_ANA", id_reuniao="R9"),
+            _pendencia("A2", "P_ANA", id_reuniao="R9"),
+            _pendencia("B1", "P_BRUNO", id_reuniao="R9"),
+        ],
+        [
+            # Ana: duas Repactuações depois do vencimento e uma Reabertura.
+            _evento("A1", "repactuar", ONTEM_AS_15H, conta_atraso=True),
+            _evento("A2", "repactuar", ONTEM_AS_15H, conta_atraso=True),
+            _evento("A1", "reabrir", ONTEM_AS_15H, status_antes="CONCLUIDO"),
+            # Bruno repactuou antes de vencer: não pesa.
+            _evento("B1", "repactuar", ONTEM_AS_15H, conta_atraso=False),
+        ],
+    )
+
+    ranking = _ranking(pedir("fabio").json())
+
+    assert ranking["P_ANA"]["repactuacoes_vencidas"] == 2
+    assert ranking["P_ANA"]["atrasos"] == 2
+    assert ranking["P_ANA"]["reaberturas"] == 1
+    assert ranking["P_ANA"]["nome"] == "Ana"
+    assert "P_BRUNO" not in ranking
+
+
+def test_atrasada_agora_e_conclusao_depois_do_prazo_contam_como_atraso(painel):
+    pedir, estado = painel
+    estado["banco"] = _banco_do_ranking(
+        [
+            _pendencia("B1", "P_BRUNO", id_reuniao="R9", prazo=ONTEM),
+            _pendencia("B2", "P_BRUNO", id_reuniao="R9", status="CONCLUIDO", prazo="2026-11-17"),
+            _pendencia("B3", "P_BRUNO", id_reuniao="R9", status="CONCLUIDO", prazo="2026-11-10"),
+            # Concluída antes do ciclo de vida novo: sem evento, não é medida.
+            _pendencia("B4", "P_BRUNO", id_reuniao="R9", status="CONCLUIDO", prazo="2026-11-10"),
+        ],
+        [
+            # Concluída no último dia do prazo: não pesa.
+            _evento("B2", "concluir", ONTEM_AS_15H, prazo_antes="2026-11-17"),
+            _evento("B3", "concluir", ONTEM_AS_15H, prazo_antes="2026-11-10"),
+        ],
+    )
+
+    bruno = _ranking(pedir("admin").json())["P_BRUNO"]
+
+    assert bruno["atrasadas"] == 1
+    assert bruno["concluidas_com_atraso"] == 1
+    assert bruno["atrasos"] == 2
+
+
+def test_conclusao_atrasada_e_reaberta_nao_perde_o_atraso(painel):
+    pedir, estado = painel
+    # Ana: prazo 01/11, concluiu em 05/11, a entrega foi reaberta em 06/11 com
+    # prazo 20/11 e concluída de novo em 10/11, dentro do prazo novo. A
+    # Reabertura apaga o `concluida_em` de 05/11, o histórico não.
+    reaberta = _pendencia("A1", "P_ANA", id_reuniao="R9", status="CONCLUIDO", prazo="2026-11-20")
+    reaberta["concluida_em"] = "2026-11-10T15:00:00+00:00"
+    # Bruno: prazo 01/11, concluiu em 05/11 e ficou assim.
+    so_atrasada = _pendencia("B1", "P_BRUNO", id_reuniao="R9", status="CONCLUIDO", prazo="2026-11-01")
+    so_atrasada["concluida_em"] = "2026-11-05T15:00:00+00:00"
+    estado["banco"] = _banco_do_ranking(
+        [reaberta, so_atrasada],
+        [
+            _evento("A1", "concluir", "2026-11-05T15:00:00+00:00", prazo_antes="2026-11-01"),
+            _evento("A1", "reabrir", "2026-11-06T15:00:00+00:00", status_antes="CONCLUIDO", conta_atraso=True),
+            _evento("A1", "concluir", "2026-11-10T15:00:00+00:00", prazo_antes="2026-11-20"),
+            _evento("B1", "concluir", "2026-11-05T15:00:00+00:00", prazo_antes="2026-11-01"),
+        ],
+    )
+
+    corpo = pedir("admin").json()
+    ranking = _ranking(corpo)
+
+    assert ranking["P_ANA"]["concluidas_com_atraso"] == 1
+    assert ranking["P_ANA"]["atrasos"] == 1
+    assert ranking["P_ANA"]["reaberturas"] == 1
+    assert ranking["P_BRUNO"]["atrasos"] == 1
+    # Mesmo atraso, e a Reabertura pesa: Ana fica acima de Bruno.
+    assert [linha["responsavel_id"] for linha in corpo["ranking"]] == ["P_ANA", "P_BRUNO"]
+
+
+def test_janela_de_90_dias_nas_bordas(painel):
+    pedir, estado = painel
+    # Hoje é 18/11/2026: a janela vai de 21/08 a 18/11, no fuso de Brasília.
+    estado["banco"] = _banco_do_ranking(
+        [_pendencia("A1", "P_ANA", id_reuniao="R9"), _pendencia("B1", "P_BRUNO", id_reuniao="R9")],
+        [
+            # 21/08 à meia-noite em Brasília: primeiro instante da janela.
+            _evento("A1", "repactuar", "2026-08-21T03:00:00+00:00", conta_atraso=True),
+            # 18/11 às 23h59 em Brasília: último instante da janela.
+            _evento("A1", "reabrir", "2026-11-19T02:59:00+00:00", status_antes="CONCLUIDO"),
+            # 20/08 às 23h59 em Brasília: um minuto antes da janela.
+            _evento("B1", "repactuar", "2026-08-21T02:59:00+00:00", conta_atraso=True),
+            _evento("B1", "reabrir", "2026-08-21T02:59:00+00:00", status_antes="CONCLUIDO"),
+        ],
+    )
+
+    ranking = _ranking(pedir("admin").json())
+
+    assert ranking["P_ANA"]["repactuacoes_vencidas"] == 1
+    assert ranking["P_ANA"]["reaberturas"] == 1
+    assert "P_BRUNO" not in ranking
+
+
+def test_responsavel_sem_setor_aparece_como_sem_setor(painel):
+    pedir, estado = painel
+    estado["banco"] = _banco_do_ranking(
+        [_pendencia("D1", "P_DORA", id_reuniao="R9", prazo=ONTEM), _pendencia("A1", "P_ANA", id_reuniao="R9")],
+        [_evento("A1", "repactuar", ONTEM_AS_15H, conta_atraso=True)],
+        participantes=[
+            {"id": "P_DORA", "setor": None, "nome_completo": "Dora"},
+            {"id": "P_ANA", "setor": "UTI", "nome_completo": "Ana"},
+        ],
+    )
+
+    corpo = pedir("admin").json()
+
+    assert _ranking(corpo)["P_DORA"]["setor"] == "Sem Setor"
+    assert {s["setor"]: s["atrasos"] for s in corpo["atrasos_por_setor"]} == {"Sem Setor": 1, "UTI": 1}
+
+
+# ─── 5. O kit de conhecimento ────────────────────────────────────────────────
 
 
 def test_o_texto_de_reunioes_no_kit_diz_o_painel_novo():
@@ -352,3 +549,14 @@ def test_o_texto_de_reunioes_no_kit_diz_o_painel_novo():
     assert "O facilitador conta também as reuniões que conduz e as pendências delas" in texto
     assert "manda de novo o pedido de assinatura da ClickSign só para quem não assinou" in texto
     assert "O painel não tem alerta de prazo nem lista do que depende de cada um" in texto
+
+
+def test_o_texto_de_reunioes_no_kit_diz_o_ranking_de_90_dias():
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = (CONHECIMENTO_DIR / "reunioes.md").read_text(encoding="utf-8")
+    assert "o gráfico de atrasos por setor e o ranking dos responsáveis dos últimos 90 dias" in texto
+    assert "só para quem administra o aplicativo e para quem facilitou ao menos uma reunião" in texto
+    assert "conta no setor do responsável pela pendência" in texto
+    assert "A pendência cancelada não entra em nenhuma dessas contas" in texto
+    assert "a repactuação feita antes de o prazo vencer não pesa" in texto
