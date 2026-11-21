@@ -1,0 +1,29 @@
+"""Canal de Conduta, o lado público (issue #1820, ADR 0097, decisões 10 e 11).
+
+Sem login. O canal nasce fechado: com `CONDUTA_CANAL_ABERTO` desligada, toda
+rota daqui responde 404, como se não existisse. A chave fica no Coolify, e
+quem abre é o Pedro, depois do aditivo de sigilo assinado, do layout aprovado
+e do teste de anonimato.
+
+A trava vale para o router inteiro (`dependencies`), então rota nova aqui
+nasce fechada sem depender de quem a escreve. O log das rotas do módulo sai
+sem IP (`app.middleware.request_context`).
+"""
+
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from app.config import settings
+
+
+def exigir_canal_aberto() -> None:
+    if not settings.conduta_canal_aberto:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found")
+
+
+router = APIRouter(prefix="/conduta", tags=["canal-de-conduta-publico"], dependencies=[Depends(exigir_canal_aberto)])
+
+
+@router.get("/abertura")
+async def abertura() -> dict:
+    """Se o canal está aberto. Fechado, a rota nem aparece (404)."""
+    return {"aberto": True}

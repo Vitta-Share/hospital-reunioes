@@ -238,6 +238,22 @@ def _e_canal_anonimo_da_ouvidoria(path: str) -> bool:
     return any(normalizado == prefixo or normalizado.startswith(prefixo + "/") for prefixo in PREFIXOS_DO_CANAL_ANONIMO)
 
 
+# O Canal de Conduta (ADR 0097, decisão 10; especificação, regra C2): as rotas
+# do módulo, a pública e a do Comitê, saem sem endereço nenhum, nem a rede.
+# Quem relata não pode ser ligado a uma origem, e quem lê um caso já fica na
+# trilha do caso. A trava contra rota do módulo fora destes prefixos é
+# `tests/test_conduta_varredura.py`.
+PREFIXOS_DO_CANAL_DE_CONDUTA = ("/api/conduta", "/api/comite-de-conduta")
+
+
+def _e_rota_do_canal_de_conduta(path: str) -> bool:
+    """Por segmento, como `_e_canal_anonimo_da_ouvidoria`."""
+    normalizado = _BARRAS_REPETIDAS.sub("/", path).lower()
+    return any(
+        normalizado == prefixo or normalizado.startswith(prefixo + "/") for prefixo in PREFIXOS_DO_CANAL_DE_CONDUTA
+    )
+
+
 def _truncar_na_rede(ip: str) -> str:
     """Zera o que individualiza e mantém a rede, para o canal anônimo.
 
@@ -275,9 +291,11 @@ def _ip_do_cliente(request: Request) -> str:
 
     No canal anônimo da Ouvidoria o endereço sai truncado na rede: lá a linha do
     log liga uma manifestação anônima a uma origem, e IP é dado pessoal (LGPD
-    art. 5, I). Fora dele o endereço vai inteiro, que é o que serve para
-    investigar abuso.
+    art. 5, I). No Canal de Conduta não sai endereço nenhum. Fora dos dois o
+    endereço vai inteiro, que é o que serve para investigar abuso.
     """
+    if _e_rota_do_canal_de_conduta(request.scope.get("path", "")):
+        return ""
     cliente = request.client
     ip = cliente.host if cliente else ""
     # Rota com limite de envios sem IP (issue #1986, ADR 0107 decisão 6): nada

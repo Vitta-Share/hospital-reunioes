@@ -5,6 +5,7 @@ from fastapi import APIRouter, Response
 
 from app.config import settings
 from app.dependencies import get_supabase_client
+from app.services.conduta.cifra import chave_configurada
 
 router = APIRouter(tags=["health"])
 _logger = logging.getLogger("app.health")
@@ -46,5 +47,8 @@ async def health_check(response: Response):
         "db": "healthy" if db_ok else "degraded",
         "app": settings.app_name,
         "version": settings.app_version,
+        # Só se a chave está lá, nunca o valor (ADR 0097, decisão 1).
+        "cifra_do_canal_de_conduta": "configurada" if chave_configurada() else "ausente",
+        # `migracao` fica por último: a subida confere o corpo pelo regex.
         "migracao": migracao,
     }

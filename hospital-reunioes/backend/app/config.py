@@ -237,6 +237,13 @@ class Settings(BaseSettings):
     # uma variável e um restart, sem esperar deploy de código.
     ouvidoria_retencao_ativa: bool = True
 
+    # Canal de Conduta (ADR 0097, decisões 1 e 11). A chave da cifra do
+    # conteúdo dos casos: 32 bytes em base64. Vazia ou malformada, o módulo
+    # recusa gravar e ler caso e o resto do app sobe normal. A chave de
+    # abertura mantém a rota pública em 404 até o Pedro abrir o canal.
+    conduta_chave_cifra: str = ""
+    conduta_canal_aberto: bool = False
+
     # Geral
     diretor_email: str = ""
     frontend_url: str = "http://localhost:3000"
