@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 205: encaminhar da tela de triagem do Núcleo
+-- Migration 209: encaminhar da tela de triagem do Núcleo
 -- (issue #1995, PRD #1979, ADR 0095 decisão 11 e ADR 0107 decisão 8)
 -- =====================================================
 -- O que entra:
@@ -73,4 +73,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (205) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (209) ON CONFLICT (numero) DO NOTHING;

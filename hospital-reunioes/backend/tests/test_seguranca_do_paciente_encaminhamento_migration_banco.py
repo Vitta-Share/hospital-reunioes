@@ -1,7 +1,7 @@
-"""A migration 205, o encaminhamento da triagem do Núcleo, num Postgres de
+"""A migration 209, o encaminhamento da triagem do Núcleo, num Postgres de
 verdade (issue #1995).
 
-Sobe um Postgres descartável, aplica a 205 duas vezes sobre o mínimo de antes
+Sobe um Postgres descartável, aplica a 209 duas vezes sobre o mínimo de antes
 e prova no banco:
 
 - o marco do e-mail ao ouvidor entra somado aos que a constraint já aceitava,
@@ -25,10 +25,10 @@ from test_pendencia_historico_banco import _bin_do_postgres, _Postgres
 
 from app.services.seguranca_do_paciente import encaminhamento
 
-MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "205_nsp_encaminhamento.sql"
+MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "209_nsp_encaminhamento.sql"
 NOTIFICACAO = "00000000-0000-0000-0000-000000000001"
 
-# O mínimo de antes: as tabelas que a 205 referencia e o registro de e-mail
+# O mínimo de antes: as tabelas que a 209 referencia e o registro de e-mail
 # com a constraint de marcos da 182, mais um marco que outra migration da
 # mesma leva teria somado antes desta.
 ESQUEMA_ANTERIOR = """
@@ -58,7 +58,7 @@ def banco():
             pytest.fail("O CI precisa do initdb para provar o encaminhamento no banco.")
         pytest.skip("Sem initdb nesta máquina.")
     pg = _Postgres(bindir)
-    pg.porta = "54205"
+    pg.porta = "54209"
     pg.subir()
     try:
         pg.ok(ESQUEMA_ANTERIOR)
@@ -136,5 +136,5 @@ def test_o_anon_nao_le(banco, papel):
     assert "permission denied" in banco.sql("SELECT * FROM nsp_encaminhamentos;", papel=papel).stderr
 
 
-def test_o_recibo_e_o_205(banco):
-    assert banco.ok("SELECT numero FROM migracoes_aplicadas;") == "205"
+def test_o_recibo_e_o_209(banco):
+    assert banco.ok("SELECT numero FROM migracoes_aplicadas;") == "209"

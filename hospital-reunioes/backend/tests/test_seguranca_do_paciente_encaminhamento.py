@@ -273,10 +273,10 @@ def test_o_kit_diz_como_a_presidencia_encaminha():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# A migration 205, lida como texto (a prova no Postgres está no PR)
+# A migration 209, lida como texto (a prova no Postgres está no PR)
 # ═══════════════════════════════════════════════════════════════════════════
 
-MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "205_nsp_encaminhamento.sql"
+MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "209_nsp_encaminhamento.sql"
 
 
 def _sql() -> str:
@@ -290,9 +290,9 @@ def test_a_migration_aceita_os_destinos_do_app_e_o_marco_do_email_ao_ouvidor():
     assert f"''{encaminhamento.MARCO_DA_OUVIDORIA}''" in sql
 
 
-def test_a_tabela_nova_nasce_com_rls_sem_politica_e_o_recibo_e_o_205():
+def test_a_tabela_nova_nasce_com_rls_sem_politica_e_o_recibo_e_o_209():
     sql = _sql()
     for tabela in re.findall(r"CREATE TABLE IF NOT EXISTS (\w+)", sql):
         assert f"ALTER TABLE {tabela} ENABLE ROW LEVEL SECURITY;" in sql, tabela
-    assert "VALUES (205) ON CONFLICT" in sql
+    assert "VALUES (209) ON CONFLICT" in sql
     assert "CREATE POLICY" not in sql.upper()
