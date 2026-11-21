@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T12:00:57-03:00",
+      "sha": "21d3fb3b28dc685a77b9b7ce59cc2447dc26760c",
+      "app_version": "0.338.0",
+      "subject": "Onda sesta-1757-onda6: Gráfico de atrasos por setor e ranking de 90 dias no painel; Rotina e Verificação por ciclo de calendário",
+      "raw_subject": "chore(deploy): registro da onda sesta-1757-onda6 (#2064 #2068)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1757
+      ],
+      "result": "healthy",
+      "duration_seconds": 43839,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "177_rotina_e_verificacao.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1757-onda6: PR #2064 (issue #1871), PR #2068 (issue #1874), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 5,
+        "build_s": {
+          "backend": 22,
+          "frontend": 227
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T11:53:44-03:00",
       "sha": "ac7046b58d99da8e7c18c7e6675fdde8a44833ae",
       "app_version": "0.337.0",
