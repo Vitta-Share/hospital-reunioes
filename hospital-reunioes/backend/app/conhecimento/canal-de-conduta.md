@@ -65,6 +65,16 @@ Quem não é da coordenação do Comitê, o super admin inclusive, não abre a t
 
 Não existe e-mail do DP nas configurações: o encaminhamento ao DP não sai por e-mail, e a página só mostra o contato dele.
 
+## O Código de Conduta
+
+A coordenação do Comitê publica o Código de Conduta em PDF, e só ela. Cada publicação vira uma versão nova, com quem publicou, quando e a data em que passa a valer. A data de vigência pode ser hoje ou depois, nunca antes de hoje nem antes da vigência da última versão: assim nenhuma publicação muda o Código que valia num dia que já passou.
+
+Nenhuma versão é apagada ou trocada, e a própria base de dados recusa essa alteração. A coordenação lista todas as versões e baixa qualquer uma delas.
+
+Dada uma data, o aplicativo diz qual versão valia naquele dia: a de vigência mais recente até a data. Se duas versões começam no mesmo dia, vale a publicada depois. É por ela que cada punição cita o item do Código que valia na data do fato.
+
+A versão vigente tem um endereço público estável, sem login, que a página do canal usa quando abrir. O endereço é sempre o mesmo, de uma versão para a outra, e mostra o PDF da versão que vale hoje. Versão com vigência futura só aparece nele a partir do dia dela. Com o canal fechado, o endereço responde como se não existisse.
+
 ## A tela Membros
 
 A tela Membros diz quem compõe o Comitê e até quando. Cada linha mostra a pessoa, a cadeira, se ela é diretor, a vigência e a situação: vigente, a começar, vencida ou encerrada. Escolhendo uma data passada, a tela mostra a composição daquele dia.
@@ -89,6 +99,23 @@ A tela Membros diz quem compõe o Comitê e até quando. Cada linha mostra a pes
 - Quem está no Comitê e ainda não assinou o Termo vê a tela inicial, mas não abre caso: a tela inicial diz que falta assinar o Termo que chegou no e-mail.
 - Reconsultar e reenviar o Termo é de quem tem o perfil de cadastro de membros.
 - Os outros documentos do Canal que vão à ClickSign, como a ata e o relatório de apuração, vão usar o mesmo registro de assinaturas.
+
+## Impedimento, suplente e Citado
+
+Ninguém julga um caso em que é parte, chefe, parente ou interessado. Na tela do caso:
+
+- cada membro tem o botão Declarar impedimento, com o motivo: parte no caso, chefia direta de envolvido, parentesco, relação pessoal ou interesse no resultado. Declarado, o membro perde o acesso àquele caso na hora: o caso some da lista dele, e abrir o endereço dá a mesma recusa de quem nunca teve acesso. Os outros casos continuam com ele;
+- um membro pode contestar a participação de outro no mesmo caso, com um desses motivos. Os demais membros decidem, sem o contestado: ele não vota na própria contestação. Vale a maioria de quem decide, e quem contestou já conta como um voto para confirmar. Confirmada, o contestado fica impedido. Rejeitada, ele segue no caso;
+- quando quem fica impedido votava no caso, um suplente vigente, com o Termo assinado, é convocado no lugar dele e avisado no sino. O suplente convocado vê só aquele caso e faz o que o substituído fazia: se substitui a coordenação, confirma a triagem; se substitui o segundo leitor, confere. Sem suplente livre, o impedimento vale do mesmo jeito, e a trilha registra que ninguém foi convocado;
+- o suplente sem convocação não vê caso nenhum.
+
+O Citado é a pessoa nomeada no caso como envolvida. Qualquer membro do caso marca um Citado, em qualquer etapa, até depois de encerrado, porque nomes novos aparecem nos depoimentos:
+
+- buscando pelo nome no cadastro do hospital, a marcação se liga à pessoa. Ligada, ela recebe a recusa naquele caso em qualquer perfil, mesmo designada como apuradora;
+- se a pessoa citada é do Comitê, ela fica impedida na hora, sem ato de ninguém, e um suplente é convocado no lugar quando ela votava no caso;
+- o nome que não está no cadastro fica como texto, guardado cifrado.
+
+Cada declaração de impedimento, contestação, voto, decisão, convocação e marcação de Citado entra na trilha do caso, com quem fez e quando. A trilha não leva o nome do Citado.
 
 ## Quem vê
 
@@ -137,5 +164,8 @@ O formulário público de relato, as páginas públicas que vão mostrar os text
 - Pedido para prorrogar de novo um caso do rito Completo, ou prorrogar um caso do rito Rápido: o rito Completo prorroga uma vez só, e os outros não prorrogam.
 - A coordenação que não consegue encerrar um Encaminhamento: costuma faltar a conferência do segundo leitor.
 - Pedido para apagar ou corrigir uma versão antiga de um texto: não existe; salva-se uma versão nova, e a antiga fica.
+- Pedido para publicar o Código de Conduta com vigência numa data passada: não existe; a versão nova vale de hoje ou de uma data futura, e a que valia antes continua valendo para os dias que já passaram.
 - Pedido de um item novo nas configurações: entra por Demanda, porque a lista de itens é fixa.
 - Pedido para ver de novo os cinco cartões do primeiro acesso: eles aparecem uma vez só por pessoa; o Guia do rito fica sempre disponível.
+- Um membro que deixou de ver um caso: ele se declarou impedido, teve a participação contestada e confirmada, ou foi marcado como Citado. A trilha do caso diz qual.
+- Um impedimento sem suplente convocado: não havia suplente vigente com o Termo assinado e livre naquele caso.

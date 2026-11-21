@@ -1,6 +1,7 @@
 ---
 status: accepted
 amends: 0093, 0096
+amended_by: 0109
 ---
 
 # Pergunta da Vitta na Conversa da Demanda: avisa o Destinatário com o Assunto, em qualquer Projeto

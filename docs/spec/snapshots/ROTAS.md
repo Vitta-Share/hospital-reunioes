@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T22:28+0000 -->
+<!-- last_update: 2026-11-21T22:59+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -70,16 +70,30 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | DELETE | `/pendencias/{id_acao}/comentarios/{comentario_id}` | Exclui um comentário. Apenas o autor pode excluir. | ✅ |
 | GET | `/pendencias/{id_acao}/mencionaveis` | Lista participantes mencionáveis no chat da Pendência (quem enxerga a Pendência). | ✅ |
 
+## canal-de-conduta (`app/routers/conduta_codigo.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| GET | `/comite-de-conduta/codigo-de-conduta` | Listar versoes | ✅ |
+| POST | `/comite-de-conduta/codigo-de-conduta` | Publicar versao | ✅ |
+| GET | `/comite-de-conduta/codigo-de-conduta/arquivo` | Baixar versao | ✅ |
+| GET | `/comite-de-conduta/codigo-de-conduta/vigente` | A versão que valia na data, ou `null` se nenhuma valia ainda. | ✅ |
+
 ## canal-de-conduta (`app/routers/conduta_comite.py`)
 
 | Método | Rota | O que faz | Auth |
 |--------|------|-----------|------|
 | GET | `/comite-de-conduta/casos` | Listar casos | ✅ |
 | GET | `/comite-de-conduta/casos/{caso_id}` | Abrir caso | ✅ |
+| GET | `/comite-de-conduta/casos/{caso_id}/cadastro` | Para ligar o Citado ao cadastro: só id e nome. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/citados` | Marcar citado | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/conferencia` | Conferir triagem | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/contestacao` | Contestar triagem | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/contestacao/decisao` | Decidir contestacao | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/contestacoes-de-participacao` | Contestar participacao | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/contestacoes-de-participacao/{contestacao_id}/decisao` | Decidir participacao | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/encaminhamento` | Enviar orientacao | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/impedimento` | Declarar impedimento | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/nota-ao-nsp` | Sinalizar ao NSP (issue #1850): um membro escreve a nota ao Núcleo. | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/nota-ao-nsp/envio` | A coordenação envia ao Núcleo a nota escrita, e só ela (issue #1850). | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/prorrogacao` | Prorrogar prazo | ✅ |
@@ -105,6 +119,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | Método | Rota | O que faz | Auth |
 |--------|------|-----------|------|
 | GET | `/conduta/abertura` | Se o canal está aberto. Fechado, a rota nem aparece (404). | ❌ |
+| GET | `/conduta/codigo-de-conduta` | O PDF do Código de Conduta vigente hoje (issue #1841), num endereço que | ❌ |
 | GET | `/conduta/textos` | Os textos vigentes das telas públicas (issue #1826), cada um com o | ❌ |
 
 ## conector-mcp (`app/routers/conector_mcp.py`)
@@ -614,6 +629,8 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | GET | `/nsp/notificacoes/{notificacao_id}/anexos/{anexo_id}` | O arquivo do caso, entregue pelo backend: sem URL assinada, que valeria | ✅ |
 | POST | `/nsp/publico/acompanhamento` | A página de acompanhamento: só o estado, em palavras simples. O limite | ❌ |
 | POST | `/nsp/publico/notificacoes` | O formulário público, pelo QR ou pelo endereço. | ❌ |
+| POST | `/nsp/publico/perguntas` | As perguntas do agente que ainda esperam resposta (issue #1991), com a | ❌ |
+| POST | `/nsp/publico/respostas` | Quem notificou responde as perguntas, na confirmação ou no | ❌ |
 | GET | `/nsp/publico/setores` | A lista de "Onde" do formulário: os setores ativos, pelo id. | ❌ |
 
 ## seguranca-do-paciente (`app/routers/seguranca_do_paciente_reunioes.py`)
@@ -769,4 +786,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 443 endpoints em 64 routers · 93% exigem auth.
+**Totais:** 455 endpoints em 65 routers · 93% exigem auth.

@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T22:28+0000 -->
+<!-- last_update: 2026-11-21T22:59+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2419,7 +2419,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## conduta_atribuicoes
 
-> Origem: `175_conduta_fundacao.sql`
+> Origem: `175_conduta_fundacao.sql` (alterada em: 191_conduta_impedimento_e_citado.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2431,10 +2431,12 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `impedido_em` | `TIMESTAMPTZ` | — | — | — |
 | `revogada_em` | `TIMESTAMPTZ` | — | — | — |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `impedimento_motivo` | `TEXT` | — | — | `participantes.id` |
 
 **Indexes:**
 - `idx_conduta_atribuicoes_pessoa` em `(participante_id, caso_id)` (de `175_conduta_fundacao.sql`)
 - `idx_conduta_atribuicoes_caso` em `(caso_id)` (de `175_conduta_fundacao.sql`)
+- `idx_conduta_atribuicoes_substitui` em `(substitui_id)` (de `191_conduta_impedimento_e_citado.sql`)
 
 ## conduta_citados
 
@@ -2707,6 +2709,42 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_painel_fotografias_semana` em `(semana)` (de `189_fotografia_semanal_do_painel.sql`)
 
+## conduta_contestacoes_de_participacao
+
+> Origem: `191_conduta_impedimento_e_citado.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `contestado_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `motivo` | `TEXT` | NOT NULL | — | — |
+| `resultado` | `TEXT` | — | — | — |
+| `decidida_em` | `TIMESTAMPTZ` | — | — | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_contestacoes_de_participacao_aberta` em `(caso_id, contestado_id)` (de `191_conduta_impedimento_e_citado.sql`)
+- `idx_conduta_contestacoes_de_participacao_caso` em `(caso_id)` (de `191_conduta_impedimento_e_citado.sql`)
+- `idx_conduta_contestacoes_de_participacao_contestado` em `(contestado_id)` (de `191_conduta_impedimento_e_citado.sql`)
+- `idx_conduta_contestacoes_de_participacao_autor` em `(autor_id)` (de `191_conduta_impedimento_e_citado.sql`)
+
+## conduta_participacao_votos
+
+> Origem: `191_conduta_impedimento_e_citado.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `contestacao_id` | `UUID` | NOT NULL | — | `conduta_contestacoes_de_participacao.id` |
+| `participante_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `escolha` | `TEXT` | NOT NULL | — | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_participacao_votos_pessoa` em `(participante_id)` (de `191_conduta_impedimento_e_citado.sql`)
+
 ## conduta_assinaturas
 
 > Origem: `192_conduta_assinaturas.sql`
@@ -2762,6 +2800,21 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_nsp_cortes_de_frequencia_atualizado_por` em `(atualizado_por)` (de `197_nsp_tela_de_triagem.sql`)
 
+## conduta_codigo_versoes
+
+> Origem: `198_conduta_codigo_de_conduta.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `versao` | `INTEGER` | NOT NULL | — | — |
+| `vigente_desde` | `DATE` | NOT NULL | — | — |
+| `storage_path` | `TEXT` | NOT NULL | — | — |
+| `nome_arquivo` | `TEXT` | NOT NULL | — | — |
+| `tamanho_bytes` | `INTEGER` | NOT NULL | — | — |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
 ## conduta_avisos
 
 > Origem: `199_conduta_avisos_por_email.sql`
@@ -2814,6 +2867,22 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_nsp_notas_do_comite_enviada_em` em `(enviada_em DESC)` (de `203_conduta_nota_ao_nucleo.sql`)
 
+## nsp_esclarecimentos
+
+> Origem: `207_nsp_perguntas_de_esclarecimento.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `notificacao_id` | `UUID` | NOT NULL | — | `nsp_notificacoes.id` |
+| `triagem_id` | `UUID` | NOT NULL | — | `nsp_triagens.id` |
+| `pergunta` | `TEXT` | NOT NULL | — | — |
+| `resposta` | `TEXT` | NOT NULL | — | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_esclarecimentos_triagem` em `(triagem_id)` (de `207_nsp_perguntas_de_esclarecimento.sql`)
+
 ---
 
-**Resumo:** 139 tabelas vivas.
+**Resumo:** 143 tabelas vivas.

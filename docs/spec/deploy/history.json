@@ -2,6 +2,156 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T20:02:57-03:00",
+      "sha": "76c342d7046d84e3130b0bae9669cd9533e90d38",
+      "app_version": "0.355.0",
+      "subject": "Onda nsp2-onda7: Perguntas de esclarecimento do agente na confirmação e no acompanhamento",
+      "raw_subject": "chore(deploy): registro da onda nsp2-onda7 (#2094)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1979
+      ],
+      "result": "healthy",
+      "duration_seconds": 538,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "207_nsp_perguntas_de_esclarecimento.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp2-onda7: PR #2094 (issue #1991), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 21,
+          "frontend": 217
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
+      "at": "2026-11-21T19:53:48-03:00",
+      "sha": "37aee48f3770f28be82d63815fa78a840c51d669",
+      "app_version": "0.354.0",
+      "subject": "Onda sesta-1786-onda3: Impedimento, suplente convocado e Citado no Canal de Conduta",
+      "raw_subject": "chore(deploy): registro da onda sesta-1786-onda3 (#2089)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 407,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "191_conduta_impedimento_e_citado.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1786-onda3: PR #2089 (issue #1828), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 4,
+        "build_s": {
+          "backend": 21,
+          "frontend": 209
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
+      "at": "2026-11-21T19:47:15-03:00",
+      "sha": "c7babfce08cab82c1401571f84040bf55e2ef3ec",
+      "app_version": "0.353.0",
+      "subject": "Onda ok-sesta-1786-onda4: Código de Conduta publicado pela coordenação, com versões",
+      "raw_subject": "chore(deploy): registro da onda ok-sesta-1786-onda4 (#2100)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 253,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "198_conduta_codigo_de_conduta.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta ok-sesta-1786-onda4: PR #2100 (issue #1841), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 6,
+        "build_s": {
+          "backend": 18,
+          "frontend": 206
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T19:31:43-03:00",
       "sha": "20da859c555b65b471d4e8686e2d2dc7e9175648",
       "app_version": "0.352.0",
