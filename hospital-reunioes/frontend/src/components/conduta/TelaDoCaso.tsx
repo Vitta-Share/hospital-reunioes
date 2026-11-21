@@ -8,6 +8,7 @@ import { ConvidarAoCaso } from "@/components/conduta/ConvidarAoCaso";
 import { DepoimentosDaApuracao } from "@/components/conduta/DepoimentosDaApuracao";
 import { ImpedimentoECitados } from "@/components/conduta/ImpedimentoECitados";
 import { OQueFazerAgora } from "@/components/conduta/OQueFazerAgora";
+import { RelatorioDaApuracao } from "@/components/conduta/RelatorioDaApuracao";
 import { SinalizarAoNsp } from "@/components/conduta/SinalizarAoNsp";
 import {
   CATEGORIAS,
@@ -178,6 +179,7 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
   const aoAgir = (acao: string) => {
     if (acao === "conferir_triagem") return void enviar("conferencia");
     if (acao === "enviar_orientacao") return void enviar("encaminhamento");
+    if (acao === "enviar_para_voto") return void enviar("envio-para-voto");
     setPasso(acao);
   };
 
@@ -310,6 +312,14 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
         bloqueioDoAvanco={caso.avanco_da_apuracao ?? null}
         adicionando={passo === "adicionar_pessoa"}
         aoFecharAdicionar={() => setPasso(null)}
+        aoMudar={carregar}
+      />
+
+      <RelatorioDaApuracao
+        casoId={casoId}
+        relatorio={caso.relatorio ?? null}
+        cronologia={caso.cronologia ?? null}
+        podeRedigir={Boolean(caso.pode_redigir_relatorio) && !encerrado}
         aoMudar={carregar}
       />
 
