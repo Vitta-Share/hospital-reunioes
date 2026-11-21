@@ -40,19 +40,19 @@ describe("o cartão da coordenação no Painel", () => {
   it("aparece com o R$ incluído quando o servidor manda a chave", () => {
     render(<TelaDoPainel painel={{ ...BASE, coordenacao: { valor_incluido: 1250.5, lembretes_incluidos: 4 } }} />);
 
-    const cartao = screen.getByRole("region", { name: "R$ incluído pela coordenação" });
+    const cartao = screen.getByRole("group", { name: "R$ incluído pela coordenação" });
     expect(cartao.textContent).toContain("R$ 1.250,50");
     expect(cartao.textContent).toContain("4 lembretes incluídos");
     // Fora do R$ apontado: o cartão dele continua com os números do servidor.
-    expect(screen.getByRole("region", { name: "R$ apontado" }).textContent).toContain("Já incluídos: R$ 250,00");
+    expect(screen.getByRole("group", { name: "R$ apontado" }).textContent).toContain("Já incluídos: R$ 250,00");
   });
 
   it("não aparece sem a chave, nem para quem vê só a produção", () => {
     render(<TelaDoPainel painel={BASE} />);
-    expect(screen.queryByRole("region", { name: "R$ incluído pela coordenação" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "R$ incluído pela coordenação" })).toBeNull();
     cleanup();
 
     render(<TelaDoPainel painel={{ semana: BASE.semana, filtros: BASE.filtros, producao: [] }} />);
-    expect(screen.queryByRole("region", { name: "R$ incluído pela coordenação" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "R$ incluído pela coordenação" })).toBeNull();
   });
 });

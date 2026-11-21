@@ -12,6 +12,7 @@ import { CartaoCoordenacao } from "./CartaoCoordenacao";
 import { CartaoNaoProcede } from "./CartaoNaoProcede";
 import { CartaoNotaMedia } from "./CartaoNotaMedia";
 import { CartaoValorApontado } from "./CartaoValorApontado";
+import { FaixaDosNumeros } from "./FaixaDosNumeros";
 
 /**
  * Os cartões e os blocos do Painel (issue #1137). Cada um aparece quando a
@@ -24,13 +25,13 @@ export function TelaDoPainel({ painel }: { painel: Painel }) {
   return (
     <div className="space-y-4">
       {temCartoes && (
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <FaixaDosNumeros>
           {painel.nota_media && <CartaoNotaMedia nota={painel.nota_media} />}
           {painel.contas_concluidas && <CartaoContasConcluidas contas={painel.contas_concluidas} />}
           {painel.valor_apontado && <CartaoValorApontado valor={painel.valor_apontado} />}
           {painel.nao_procede && <CartaoNaoProcede naoProcede={painel.nao_procede} />}
           {painel.coordenacao && <CartaoCoordenacao coordenacao={painel.coordenacao} />}
-        </div>
+        </FaixaDosNumeros>
       )}
       <div className="grid gap-4 lg:grid-cols-2">
         {painel.nota_por_semana && <BlocoNotaPorSemana pontos={painel.nota_por_semana} />}

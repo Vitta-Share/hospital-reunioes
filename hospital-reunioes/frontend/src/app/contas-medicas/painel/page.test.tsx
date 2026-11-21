@@ -10,7 +10,7 @@
  * que aparece (os 4 cartões e os 7 blocos, com os números do payload), o que
  * some para a faturista e o que cada filtro pede ao servidor.
  */
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { cloneElement, type ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -179,18 +179,18 @@ describe("o Painel", () => {
 
     render(<PainelPage />);
 
-    await screen.findByRole("region", { name: "Nota média de entrada" });
-    for (const nome of [...CARTOES, ...BLOCOS]) {
-      expect(screen.getByRole("region", { name: nome }), nome).toBeTruthy();
-    }
-    const nota = screen.getByRole("region", { name: "Nota média de entrada" });
+    await screen.findByRole("group", { name: "Nota média de entrada" });
+    // Os números ficam na faixa do topo; os blocos, cada um na sua moldura.
+    for (const nome of CARTOES) expect(screen.getByRole("group", { name: nome }), nome).toBeTruthy();
+    for (const nome of BLOCOS) expect(screen.getByRole("region", { name: nome }), nome).toBeTruthy();
+    const nota = screen.getByRole("group", { name: "Nota média de entrada" });
     expect(nota.textContent).toContain("70");
     expect(nota.textContent).toContain("Semana anterior: 72");
-    expect(screen.getByRole("region", { name: "Contas concluídas" }).textContent).toContain("3");
-    const apontado = screen.getByRole("region", { name: "R$ apontado" });
+    expect(screen.getByRole("group", { name: "Contas concluídas" }).textContent).toContain("3");
+    const apontado = screen.getByRole("group", { name: "R$ apontado" });
     expect(apontado.textContent).toContain("R$ 315,00");
     expect(apontado.textContent).toContain("Já incluídos: R$ 250,00");
-    const naoProcede = screen.getByRole("region", { name: "Não procede" });
+    const naoProcede = screen.getByRole("group", { name: "Não procede" });
     expect(naoProcede.textContent).toContain("20%");
     expect(naoProcede.textContent).toContain("2 de 10 linhas");
 
@@ -237,7 +237,9 @@ describe("o Painel", () => {
 
     const producao = await screen.findByRole("region", { name: "Produção por faturista" });
     expect(within(producao).getAllByRole("row")).toHaveLength(2);
-    for (const nome of [...CARTOES, ...BLOCOS.filter((b) => b !== "Produção por faturista")]) {
+    expect(screen.queryByRole("region", { name: "Números da semana" })).toBeNull();
+    for (const nome of CARTOES) expect(screen.queryByRole("group", { name: nome }), nome).toBeNull();
+    for (const nome of BLOCOS.filter((b) => b !== "Produção por faturista")) {
       expect(screen.queryByRole("region", { name: nome }), nome).toBeNull();
     }
   });
@@ -246,7 +248,7 @@ describe("o Painel", () => {
     const fetch = servidorResponde(PAINEL);
 
     render(<PainelPage />);
-    await screen.findByRole("region", { name: "Nota média de entrada" });
+    await screen.findByRole("group", { name: "Nota média de entrada" });
     expect(pedidos(fetch)[0]).toMatch(/^\/api\/contas-medicas\/painel\?semana=\d{4}-\d{2}-\d{2}$/);
 
     fireEvent.change(screen.getByLabelText("Semana"), { target: { value: "2026-09-28" } });
@@ -326,7 +328,7 @@ describe("o botão do segundo agente (ADR 0082, issue #1523)", () => {
     const fetch = servidorResponde(PAINEL, agente);
     render(<PainelPage />);
     await screen.findByText("O segundo agente está relendo as contas.", { exact: false });
-    await screen.findByRole("region", { name: "Nota média de entrada" });
+    await screen.findByRole("group", { name: "Nota média de entrada" });
     const antes = pedidos(fetch).length;
 
     Object.assign(agente, { contas: 0, em_andamento: false });
@@ -334,6 +336,62 @@ describe("o botão do segundo agente (ADR 0082, issue #1523)", () => {
 
     await waitFor(() => expect(pedidos(fetch).length).toBe(antes + 1));
     await waitFor(() => expect(screen.queryByRole("region", { name: "Segundo agente" })).toBeNull());
+  });
+});
+
+describe("a faixa dos números (issue #1953)", () => {
+  const COORDENACAO = { valor_incluido: 1250.5, lembretes_incluidos: 4 };
+
+  it("junta os números numa faixa só, e cada um diz o que mede ao passar o mouse", async () => {
+    servidorResponde({ ...PAINEL, coordenacao: COORDENACAO });
+    render(<PainelPage />);
+
+    const faixa = await screen.findByRole("region", { name: "Números da semana" });
+    const dicas: [string, string][] = [
+      [
+        "Nota média de entrada",
+        "De 0 a 100, quanto as contas concluídas na semana estavam certas antes da correção. Sobe quando a ponta registra e dispensa melhor.",
+      ],
+      ["Contas concluídas", "Quantas contas as faturistas concluíram na semana, de segunda a domingo."],
+      [
+        "R$ apontado",
+        "O valor dos itens que o módulo apontou nas contas da semana. Já incluídos é o que já entrou no MV, as linhas Feito.",
+      ],
+      [
+        "Não procede",
+        "Quantas linhas apontadas a faturista marcou como Não procede, sem as de validação. Mede o acerto da IA e da memória.",
+      ],
+      [
+        "R$ incluído pela coordenação",
+        "O R$ que a coordenação incluiu na semana pelos lembretes da Conferência. Não entra na nota de entrada nem na produção.",
+      ],
+    ];
+    expect(within(faixa).getAllByRole("group")).toHaveLength(5);
+    for (const [nome, dica] of dicas) {
+      const numero = within(faixa).getByRole("group", { name: nome });
+      const rotulo = within(numero).getByText(nome);
+      expect(screen.queryByRole("tooltip"), nome).toBeNull();
+
+      fireEvent.mouseEnter(rotulo);
+      expect(screen.getByRole("tooltip").textContent, nome).toBe(dica);
+      fireEvent.mouseLeave(rotulo);
+    }
+  });
+
+  it("a dica do número também abre pelo teclado", async () => {
+    servidorResponde(PAINEL);
+    render(<PainelPage />);
+
+    const faixa = await screen.findByRole("region", { name: "Números da semana" });
+    const rotulo = within(within(faixa).getByRole("group", { name: "Contas concluídas" })).getByText(
+      "Contas concluídas",
+    );
+    act(() => rotulo.focus());
+
+    expect(document.activeElement).toBe(rotulo);
+    expect(screen.getByRole("tooltip").textContent).toBe(
+      "Quantas contas as faturistas concluíram na semana, de segunda a domingo.",
+    );
   });
 });
 

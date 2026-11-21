@@ -129,6 +129,24 @@ export const ROTULO_TIPO: Record<TipoDeConta, string> = {
   unica: "Única",
 };
 
+/**
+ * Os números da faixa do topo do Painel (issue #1953) e a dica de cada um: o
+ * que o número mede, numa frase que o teste e o manual leem daqui.
+ */
+export type NumeroDoPainel = "nota_media" | "contas_concluidas" | "valor_apontado" | "nao_procede" | "coordenacao";
+
+export const DICA_DO_NUMERO: Record<NumeroDoPainel, string> = {
+  nota_media:
+    "De 0 a 100, quanto as contas concluídas na semana estavam certas antes da correção. Sobe quando a ponta registra e dispensa melhor.",
+  contas_concluidas: "Quantas contas as faturistas concluíram na semana, de segunda a domingo.",
+  valor_apontado:
+    "O valor dos itens que o módulo apontou nas contas da semana. Já incluídos é o que já entrou no MV, as linhas Feito.",
+  nao_procede:
+    "Quantas linhas apontadas a faturista marcou como Não procede, sem as de validação. Mede o acerto da IA e da memória.",
+  coordenacao:
+    "O R$ que a coordenação incluiu na semana pelos lembretes da Conferência. Não entra na nota de entrada nem na produção.",
+};
+
 /** A rota com os filtros: a semana sempre; operadora e tipo só quando escolhidos. */
 export function rotaDoPainel(filtros: FiltrosDoPainel): string {
   const params = new URLSearchParams({ semana: filtros.semana });
