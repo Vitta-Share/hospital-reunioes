@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, Check, Loader2 } from "lucide-react";
 
 import { OQueFazerAgora } from "@/components/conduta/OQueFazerAgora";
+import { SinalizarAoNsp } from "@/components/conduta/SinalizarAoNsp";
 import {
   CATEGORIAS,
   DESTINOS,
@@ -150,7 +151,7 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
     carregar();
   }, [carregar]);
 
-  const enviar = async (caminho: string, body?: unknown) => {
+  const enviar = async (caminho: string, body?: unknown): Promise<boolean> => {
     setOcupado(true);
     setAviso(null);
     try {
@@ -160,8 +161,10 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
       setMotivo("");
       setJustificativa("");
       carregar();
+      return true;
     } catch (e) {
       setAviso((e as Error).message);
+      return false;
     } finally {
       setOcupado(false);
     }
@@ -360,6 +363,8 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
           )}
         </section>
       )}
+
+      <SinalizarAoNsp notas={caso.notas_ao_nsp ?? []} papel={caso.papel} ocupado={ocupado} enviar={enviar} />
 
       <section aria-label="Relato original" className={`${CARTAO} px-4 py-4 space-y-1`}>
         <h2 className="text-base font-semibold text-slate-900">Relato original</h2>
