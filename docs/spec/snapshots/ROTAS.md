@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T02:33+0000 -->
+<!-- last_update: 2026-11-21T03:39+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -140,7 +140,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/contas-medicas/contas/{conta_id}/descartar` | A conta em Erro ou Aguardando arquivo sai do banco, e os PDFs dela, do | ✅ |
 | GET | `/contas-medicas/contas/{conta_id}/processamento` | O painel lateral do cartão do envio (issue #1418): as cinco etapas com o | ✅ |
 | POST | `/contas-medicas/envios` | Um lote de PDFs de um envio. Sem `envio_id`, abre um envio novo; com | ✅ |
-| GET | `/contas-medicas/fila` | A Fila, "Minhas" e as Concluídas da pessoa. Quem tem "painel completo" | ✅ |
+| GET | `/contas-medicas/fila` | A Fila, as Em análise e as Concluídas de todas, com quem está com cada | ✅ |
 | GET | `/contas-medicas/meus-envios` | As contas que a pessoa enviou e ainda não ficaram prontas. Quem tem | ✅ |
 
 ## contas-medicas (`app/routers/contas_medicas_guia.py`)
