@@ -350,3 +350,91 @@ def test_a_lista_traz_os_ciclos_em_aberto_e_o_que_cada_um_pode_fazer(cliente_das
     [da_ana] = cliente_das_rotinas(sb, ANA).get("/api/rotinas").json()
     assert da_ana["pode_encerrar"] is False
     assert cliente_das_rotinas(sb, OUTRO).get("/api/rotinas").json() == []
+
+
+# ─── 3. A Verificação na Minha Fila do responsável ───────────────────────────
+
+
+@pytest.fixture
+def fila(monkeypatch):
+    """O Início só com a fonte das Rotinas, pelo nome dela em `FONTES`."""
+    from datetime import datetime
+
+    from app.services import inicio
+    from app.services.inicio import fonte_rotinas
+    from app.services.inicio.regras import FUSO
+
+    estado = {"ocultas": []}
+    monkeypatch.setattr(fonte_rotinas, "reunioes_ocultas", lambda _sb, _me: list(estado["ocultas"]))
+
+    def _montar(sb, quem: dict, dia: str):
+        agora = datetime.fromisoformat(f"{dia}T10:00:00").replace(tzinfo=FUSO)
+        fontes = tuple(f for f in inicio.FONTES if f.nome == "rotinas")
+        assert fontes, "a fonte das Rotinas não está no Início"
+        return inicio.montar_inicio(sb, quem, agora, fontes=fontes, filas_do_papel=())
+
+    _montar.estado = estado
+    return _montar
+
+
+def _verificacoes(resposta) -> list[tuple]:
+    return [
+        (i.titulo, i.prazo.isoformat(), i.grupo, i.acao_de_um_clique.endpoint if i.acao_de_um_clique else None)
+        for i in resposta.itens
+        if i.tipo == "verificacao_da_rotina"
+    ]
+
+
+def test_a_verificacao_do_ciclo_aparece_na_minha_fila_do_responsavel(fila):
+    sb = _sb_com_rotina()
+
+    resposta = fila(sb, ANA, "2026-11-25")
+
+    # O trilho lê tabelas que este banco de mentira não tem; a fonte das
+    # Rotinas não pode falhar.
+    assert [a for a in resposta.avisos if a.fonte == "rotinas"] == []
+    assert _verificacoes(resposta) == [
+        ("Reunir a equipe", "2026-11-29", "proximos_7_dias", "/api/rotinas/RT1/ciclos/2026-11-23/realizada"),
+    ]
+    [item] = resposta.itens
+    assert item.acao_de_um_clique.rotulo == "Realizada"
+    assert item.destino == "/rotinas"
+    assert "Rotina semanal" in item.origem
+
+
+def test_o_ciclo_que_fechou_sem_marcacao_fica_atrasado_na_fila(fila):
+    sb = _sb_com_rotina()
+
+    resposta = fila(sb, ANA, "2026-12-02")
+
+    assert [(t, p, g) for t, p, g, _e in _verificacoes(resposta)] == [
+        ("Reunir a equipe", "2026-11-29", "passou_do_prazo"),
+        ("Reunir a equipe", "2026-12-06", "proximos_7_dias"),
+    ]
+
+
+def test_o_ciclo_marcado_sai_da_fila(fila, cliente_das_rotinas, hoje):
+    hoje["valor"] = D("2026-11-25")
+    sb = _sb_com_rotina()
+    assert cliente_das_rotinas(sb, ANA).post("/api/rotinas/RT1/ciclos/2026-11-23/realizada").status_code == 201
+
+    assert _verificacoes(fila(sb, ANA, "2026-11-25")) == []
+
+
+def test_a_verificacao_nao_aparece_na_fila_de_quem_nao_e_o_responsavel(fila):
+    sb = _sb_com_rotina()
+
+    assert _verificacoes(fila(sb, PEDRO, "2026-11-25")) == []
+
+
+def test_rotina_encerrada_nao_cobra_o_ciclo_em_curso_na_fila(fila):
+    sb = _sb_com_rotina(status="ENCERRADA", encerrada_em="2026-11-25", anotacao_encerramento="Acabou.")
+
+    assert _verificacoes(fila(sb, ANA, "2026-11-25")) == []
+
+
+def test_rotina_de_reuniao_do_nucleo_oculta_nao_aparece_na_fila(fila):
+    sb = _sb_com_rotina()
+    fila.estado["ocultas"] = ["R1"]
+
+    assert _verificacoes(fila(sb, ANA, "2026-11-25")) == []
