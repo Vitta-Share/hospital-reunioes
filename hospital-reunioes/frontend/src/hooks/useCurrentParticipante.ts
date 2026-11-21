@@ -35,6 +35,9 @@ export interface CurrentParticipante {
   // O papel na Ouvidoria (ADR 0099): decide o item do menu e a rota. Nulo
   // quando o servidor não conseguiu ler o cadastro de responsáveis.
   papel_ouvidoria?: PapelOuvidoria | null;
+  // A tela Membros do Comitê de Conduta (issue #1822): quem está no Comitê
+  // hoje ou tem o perfil de cadastro de membros. Calculado no servidor.
+  ve_membros_do_comite?: boolean;
 }
 
 interface State {

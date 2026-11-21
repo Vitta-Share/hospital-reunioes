@@ -25,8 +25,9 @@ from zoneinfo import ZoneInfo
 # O slug do Comitê na tabela `colegiados` (a migration 175 o cria).
 SLUG_DO_COMITE = "conduta"
 
-# Quem lê a fila comum pela Participação. O suplente só pela convocação.
-PAPEIS_DA_FILA_COMUM = ("coordenacao", "membro")
+# Quem lê a fila comum pela Participação, o segundo leitor inclusive
+# (especificação, 3.2). O suplente só pela convocação.
+PAPEIS_DA_FILA_COMUM = ("coordenacao", "segundo_leitor", "membro")
 
 # O que a lista mostra: metadados em claro, nunca o conteúdo cifrado.
 CAMPOS_DA_LISTA = ("id", "protocolo", "rota", "etapa", "categoria", "recebido_em", "prazo_em")
@@ -70,7 +71,7 @@ def pessoa_no_comite(supabase, participante_id: str, hoje: date | None = None) -
     linhas = (
         (
             supabase.table("participacoes")
-            .select("papel, termo_assinado_em")
+            .select("papel, termo_assinado_em, encerrada_em")
             .eq("colegiado_id", comite[0]["id"])
             .eq("participante_id", participante_id)
             .lte("vigencia_inicio", hoje.isoformat())
@@ -81,6 +82,9 @@ def pessoa_no_comite(supabase, participante_id: str, hoje: date | None = None) -
         if comite
         else []
     ) or []
+    # A vigência termina no dia do encerramento: a desfeita antes do início
+    # nunca vale, nem no primeiro dia.
+    linhas = [x for x in linhas if not x.get("encerrada_em") or str(x["encerrada_em"])[:10] >= hoje.isoformat()]
     # Termo válido primeiro, depois o papel que lê a fila comum.
     melhor = min(
         linhas,

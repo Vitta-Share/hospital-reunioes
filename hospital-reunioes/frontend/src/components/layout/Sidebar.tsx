@@ -28,6 +28,7 @@ import {
   Siren,
   Inbox,
   Repeat,
+  Scale,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -441,6 +442,12 @@ export function itensDoMenu(participante: CurrentParticipante | null): NavItem[]
         },
       ];
 
+  // Comitê de Conduta (issue #1822): a tela Membros, para quem está no
+  // Comitê hoje ou tem o perfil de cadastro. Quem decide é o servidor.
+  const comiteDeCondutaItens: NavItem[] = participante?.ve_membros_do_comite
+    ? [{ href: "/comite-de-conduta/membros", label: "Comitê de Conduta", icon: Scale }]
+    : [];
+
   // Grupo colapsável que reúne todo o tema Reuniões (Dashboard, Calendário,
   // Pendências). "Metas" é só o rótulo, não há feature nova.
   const reunioesMetasGroup: NavItem = {
@@ -469,7 +476,14 @@ export function itensDoMenu(participante: CurrentParticipante | null): NavItem[]
   const inicioItem: NavItem = { href: "/inicio", label: "Início", icon: Home };
 
   return popsOnly
-    ? [inicioItem, popsItem, ...ouvidoriaItens, ...contasMedicasItens, ...segurancaDoPacienteItens]
+    ? [
+        inicioItem,
+        popsItem,
+        ...ouvidoriaItens,
+        ...contasMedicasItens,
+        ...segurancaDoPacienteItens,
+        ...comiteDeCondutaItens,
+      ]
     : isSec
     ? [
         { href: "/secretaria", label: "Início", icon: Home },
@@ -479,6 +493,7 @@ export function itensDoMenu(participante: CurrentParticipante | null): NavItem[]
         ...(showPops ? [popsItem] : []),
         ...contasMedicasItens,
         ...segurancaDoPacienteItens,
+        ...comiteDeCondutaItens,
         ...(showAdmin
           ? [{ href: "/admin", label: "Admin", icon: ShieldCheck }]
           : []),
@@ -490,6 +505,7 @@ export function itensDoMenu(participante: CurrentParticipante | null): NavItem[]
         ...(showPops ? [popsItem] : []),
         ...contasMedicasItens,
         ...segurancaDoPacienteItens,
+        ...comiteDeCondutaItens,
         ...(showAdmin
           ? [{ href: "/admin", label: "Admin", icon: ShieldCheck }]
           : []),

@@ -127,6 +127,22 @@ describe("aviso da Conversa da Demanda no sino (#1537)", () => {
     await waitFor(() => expect(navegacao.push).toHaveBeenCalledWith("/admin/tecnologia?demanda=d-42"));
     expect(navegacao.push).toHaveBeenCalledTimes(1);
   });
+
+  it("leva o aviso do Comitê de Conduta, que não tem referência, à tela Membros", async () => {
+    notificacoes = [
+      aviso({
+        tipo: "CONDUTA",
+        titulo: "Mudança no Comitê de Conduta",
+        mensagem: "Pessoa X entrou no Comitê como Membro",
+        referencia_id: undefined,
+      }),
+    ];
+
+    await clicarNoAviso("Mudança no Comitê de Conduta");
+
+    await waitFor(() => expect(navegacao.push).toHaveBeenCalledWith("/comite-de-conduta/membros"));
+    expect(navegacao.push).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("painel do sino quando a lista falha (#1430)", () => {

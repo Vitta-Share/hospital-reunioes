@@ -25,7 +25,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { CurrentParticipante } from "@/hooks/useCurrentParticipante";
 import { CSS_DO_ORCAMENTO } from "@/lib/ouvidoria/atalhos";
-import { Sidebar } from "./Sidebar";
+import { Sidebar, itensDoMenu, type NavItem } from "./Sidebar";
 
 const sessao = vi.hoisted(() => ({
   participante: null as CurrentParticipante | null,
@@ -619,5 +619,27 @@ describe("Sidebar com o item Início", () => {
 
     const logo = screen.getAllByRole("link").find((link) => !link.closest("nav"));
     expect(logo?.getAttribute("href")).toBe("/secretaria");
+  });
+});
+
+describe("Comitê de Conduta no menu (issue #1822)", () => {
+  const folhas = (item: NavItem): string[] =>
+    item.subItems?.length ? item.subItems.flatMap(folhas) : [item.href];
+  const links = (papeis: Partial<CurrentParticipante>) =>
+    itensDoMenu({ id: "p1", nome_completo: "Pessoa de Teste", email: "p@hsm", ...papeis } as CurrentParticipante).flatMap(
+      folhas
+    );
+
+  it.each([
+    ["membro do Comitê sem papel nas Reuniões", { access_profile: null, ve_membros_do_comite: true }],
+    ["quem tem o perfil de cadastro", { access_profile: "regular", ve_membros_do_comite: true }],
+  ] as const)("a tela Membros aparece para %s", (_nome, papeis) => {
+    expect(links(papeis as Partial<CurrentParticipante>)).toContain("/comite-de-conduta/membros");
+  });
+
+  it("o super admin sem o perfil nem participação não vê a tela", () => {
+    expect(
+      links({ access_profile: "super_admin", is_super_admin: true, ve_membros_do_comite: false })
+    ).not.toContain("/comite-de-conduta/membros");
   });
 });

@@ -19,6 +19,9 @@ AccessProfile = Literal["regular", "secretaria", "super_admin"]
 # Segurança do Paciente (ADR 0095, decisão 4): o perfil do módulo no cadastro.
 PerfilNsp = Literal["acesso_pleno"]
 
+# Canal de Conduta (ADR 0097, decisão 3): quem cadastra membros do Comitê.
+PerfilConduta = Literal["cadastro_de_membros"]
+
 
 class RegistroProfissional(BaseModel):
     """Conselho, número de registro e UF no cadastro da pessoa (issue #1765).
@@ -120,6 +123,8 @@ class AdminUsuarioResponse(BaseModel):
     conselho_profissional: str | None = None
     registro_profissional: str | None = None
     registro_uf: str | None = None
+    # Canal de Conduta (issue #1822): o perfil de cadastro de membros.
+    perfil_conduta: PerfilConduta | None = None
     auth_user_id: str | None = None
     data_cadastro: date | None = None
 
@@ -170,6 +175,8 @@ class AdminUsuarioUpdate(RegistroProfissional):
     github_login: str | None = Field(None, max_length=39)
     # `null` explícito tira o Acesso pleno. O router recusa dar a si mesmo.
     perfil_nsp: PerfilNsp | None = None
+    # `null` explícito tira o perfil de cadastro. Dar ou tirar avisa o Comitê.
+    perfil_conduta: PerfilConduta | None = None
     reason: str | None = Field(None, max_length=1000)
 
 

@@ -74,8 +74,8 @@ async def get_current_user(
 
 _PARTICIPANTE_FULL_FIELDS = (
     "id, nome_completo, cargo, email, role, setor, area, ativo, is_externo, "
-    "is_super_admin, access_profile, perfil_pop, perfil_ouvidoria, perfil_contas_medicas, perfil_nsp, github_login, "
-    "auth_user_id, data_cadastro"
+    "is_super_admin, access_profile, perfil_pop, perfil_ouvidoria, perfil_contas_medicas, perfil_nsp, perfil_conduta, "
+    "github_login, auth_user_id, data_cadastro"
 )
 
 
@@ -99,6 +99,8 @@ _COLUNAS_OPCIONAIS = (
     "conselho_profissional",
     "registro_profissional",
     "registro_uf",
+    # Canal de Conduta (migration 175): quem cadastra membros do Comitê.
+    "perfil_conduta",
 )
 
 _COLUNA_INEXISTENTE = "42703"

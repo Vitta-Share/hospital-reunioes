@@ -14,6 +14,7 @@ import {
   PenLine,
   Receipt,
   Cpu,
+  Scale,
   X,
 } from "lucide-react";
 import { Notificacao } from "@/types";
@@ -27,6 +28,7 @@ const TIPO_CONFIG: Record<string, { icon: typeof Bell; color: string; bg: string
   ACEITE_INTERNO: { icon: PenLine, color: "text-amber-600", bg: "bg-amber-50" },
   CONTAS_MEDICAS: { icon: Receipt, color: "text-emerald-600", bg: "bg-emerald-50" },
   TECNOLOGIA: { icon: Cpu, color: "text-primary", bg: "bg-primary/10" },
+  CONDUTA: { icon: Scale, color: "text-slate-700", bg: "bg-slate-100" },
 };
 
 const POLL_INTERVAL_MS = 30000;
@@ -143,8 +145,12 @@ export function NotificacoesDropdown() {
     // guarda o envio e leva à fila de contas, onde estão os guias (#1124);
     // o aviso de reajuste guarda "contrato:<aviso>" e leva à tela Contratos
     // (#1144), que o credenciamento abre e a fila não. O aviso da Conversa da
-    // Demanda guarda a Demanda e a abre na aba Tecnologia (#1537).
-    if (notif.referencia_id) {
+    // Demanda guarda a Demanda e a abre na aba Tecnologia (#1537). O aviso do
+    // Comitê de Conduta não tem referência e leva à tela Membros (#1822).
+    if (notif.tipo === "CONDUTA") {
+      setOpen(false);
+      router.push("/comite-de-conduta/membros");
+    } else if (notif.referencia_id) {
       setOpen(false);
       if (notif.tipo === "CONTAS_MEDICAS" && notif.referencia_id.startsWith("contrato:")) {
         router.push("/contas-medicas/contratos");

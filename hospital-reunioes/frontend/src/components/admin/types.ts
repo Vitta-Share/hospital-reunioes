@@ -24,6 +24,8 @@ export interface AdminUsuario {
   github_login?: string | null;
   /** Acesso pleno à Segurança do Paciente (ADR 0095, decisão 4). */
   perfil_nsp?: "acesso_pleno" | null;
+  /** Cadastro de membros do Comitê de Conduta (ADR 0097, decisão 3). */
+  perfil_conduta?: "cadastro_de_membros" | null;
   /** O registro profissional (issue #1765). */
   conselho_profissional?: string | null;
   registro_profissional?: string | null;
@@ -70,6 +72,8 @@ export interface AdminUsuarioPayload {
   registro_uf?: string | null;
   /** `null` explícito tira o Acesso pleno; campo ausente não mexe nele. */
   perfil_nsp?: "acesso_pleno" | null;
+  /** `null` explícito tira o perfil de cadastro do Comitê de Conduta. */
+  perfil_conduta?: "cadastro_de_membros" | null;
   reason?: string;
 }
 

@@ -1,7 +1,8 @@
 """Dublê do banco para os testes do Canal de Conduta (issue #1820).
 
-Um PostgREST em memória com o que o módulo usa: select, eq, in_, order,
-limit e insert. O `insert` da trilha confere a cadeia como o trigger da
+Um PostgREST em memória com o que o módulo usa: select, eq, in_, is_,
+order, limit, insert e update (recusado na trilha, como o banco). O `insert`
+da trilha confere a cadeia como o trigger da
 migration 175 (a linha nova aponta para a última do caso), para o serviço ser
 exercitado contra a mesma recusa que o banco faz.
 """
@@ -10,6 +11,7 @@ from __future__ import annotations
 
 import itertools
 import uuid
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any
 
@@ -24,6 +26,7 @@ class _Consulta:
         self._ordem: tuple[str, bool] | None = None
         self._teto: int | None = None
         self._inserir: list[dict] | None = None
+        self._atualizar: dict | None = None
 
     def select(self, *_a, **_kw):
         return self
@@ -45,6 +48,11 @@ class _Consulta:
         self._filtros.append(lambda linha: str(linha.get(coluna)) >= str(valor))
         return self
 
+    def is_(self, coluna, valor):
+        esperado = None if valor == "null" else valor
+        self._filtros.append(lambda linha: linha.get(coluna) is esperado)
+        return self
+
     def ilike(self, *_a):
         return self
 
@@ -60,13 +68,21 @@ class _Consulta:
         self._inserir = [dict(linhas)] if isinstance(linhas, dict) else [dict(linha) for linha in linhas]
         return self
 
-    def update(self, *_a, **_kw):
-        raise AssertionError(f"o módulo não atualiza {self._nome} nesta fatia")
+    def update(self, valores):
+        if self._nome == "conduta_trilha":
+            raise AssertionError("a trilha do caso não se atualiza")
+        self._atualizar = dict(valores)
+        return self
 
     def execute(self):
         tabela = self._banco.tabelas.setdefault(self._nome, [])
         if self._inserir is not None:
             return SimpleNamespace(data=[self._banco.gravar(self._nome, linha) for linha in self._inserir])
+        if self._atualizar is not None:
+            alvos = [linha for linha in tabela if all(f(linha) for f in self._filtros)]
+            for linha in alvos:
+                linha.update(self._atualizar)
+            return SimpleNamespace(data=[dict(linha) for linha in alvos])
         linhas = [dict(linha) for linha in tabela if all(f(linha) for f in self._filtros)]
         if self._ordem:
             coluna, desc = self._ordem
@@ -93,6 +109,9 @@ class Banco:
             if linha.get("codigo_anterior") != ultimo:
                 raise APIError({"code": "23514", "message": "A trilha do caso é uma cadeia"})
             linha = {**linha, "seq": next(self._seq)}
+        elif nome == "conduta_registro":
+            # O DEFAULT now() da migration 184.
+            linha = {"id": str(uuid.uuid4()), "registrado_em": datetime.now(UTC).isoformat(), **linha}
         else:
             linha = {"id": str(uuid.uuid4()), **linha}
         self.tabelas.setdefault(nome, []).append(linha)
