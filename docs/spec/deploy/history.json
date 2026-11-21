@@ -2,6 +2,57 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T13:07:11-03:00",
+      "sha": "7199a46df41c9741d5dd90d7136a811071ecc138",
+      "app_version": "0.342.0",
+      "subject": "Onda nsp2-onda4: Agente de triagem do Núcleo e teste de aceite dos 144 casos; Registro rápido da Presidência e dos membros em Notificações",
+      "raw_subject": "chore(deploy): registro da onda nsp2-onda4 (#2077 #2074)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1979
+      ],
+      "result": "healthy",
+      "duration_seconds": 1638,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "188_nsp_agente_de_triagem.sql",
+        "188_nsp_agente_de_triagem.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp2-onda4: PR #2077 (issue #1990), PR #2074 (issue #1998), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 6,
+        "build_s": {
+          "backend": 17,
+          "frontend": 215
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T12:53:18-03:00",
       "sha": "130363335e4d2993c13dac215d200b1ecd737651",
       "app_version": "0.341.0",
