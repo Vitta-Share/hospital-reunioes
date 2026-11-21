@@ -81,6 +81,13 @@ describe("o que o middleware NÃO pode interceptar", () => {
     expect(interceptado("/ouvidoria-setor/um-token-qualquer")).toBe(false);
   });
 
+  it("não alcança o link pessoal das pendências de quem nunca entrou", () => {
+    // Issue #1878: a pessoa chega pelo e-mail de segunda, sem senha. Mandar
+    // para o login quem nunca entrou fecharia a única porta dela.
+    expect(interceptado("/minhas-pendencias/um-token-qualquer")).toBe(false);
+    expect(isProtectedPath("/minhas-pendencias/um-token-qualquer")).toBe(false);
+  });
+
   it("não alcança o formulário público de manifestação", () => {
     expect(interceptado("/manifestacao")).toBe(false);
   });
