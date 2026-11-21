@@ -27,7 +27,7 @@ from typing import Literal
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from postgrest.exceptions import APIError
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
@@ -44,7 +44,7 @@ from app.dependencies import (
 from app.limiter import limiter
 from app.services import limite_sem_ip
 from app.services.ouvidoria_anexos import AnexoGrandeDemaisError, AnexoRecusadoError, TipoNaoPermitidoError
-from app.services.seguranca_do_paciente import anexos, notificacoes
+from app.services.seguranca_do_paciente import anexos, caso_grave, notificacoes
 from app.services.seguranca_do_paciente.permissao import hoje_em_sao_paulo
 
 logger = logging.getLogger(__name__)
@@ -170,12 +170,30 @@ def _setor_ativo(supabase, setor_id: str) -> bool:
     return bool(linhas)
 
 
+def _avisar_a_chegada(supabase, tarefas: BackgroundTasks, notificacao_id: str) -> None:
+    """O alerta de caso grave e a confirmação de recebimento (issue #1989):
+    registrados aqui, no envio, antes de qualquer triagem; entregues logo
+    depois da resposta. A notificação já está gravada: falha aqui não a
+    desfaz, e o caso grave segue destacado no início do módulo."""
+    try:
+        registros, agora = caso_grave.avisar_a_chegada(supabase, notificacao_id)
+    except Exception as erro:  # noqa: BLE001 (o protocolo já saiu para quem notificou)
+        logger.error("Falha ao registrar os avisos da chegada da notificação: %s", type(erro).__name__)
+        return
+    if registros:
+        tarefas.add_task(caso_grave.entregar_os_avisos_da_chegada, supabase, registros, agora)
+
+
 def _gravar_notificacao(
-    supabase, envio: RelatoDoIncidente, arquivos: list[anexos.ArquivoRecebido], **identificacao
+    supabase,
+    tarefas: BackgroundTasks,
+    envio: RelatoDoIncidente,
+    arquivos: list[anexos.ArquivoRecebido],
+    **identificacao,
 ) -> dict:
     """Confere os arquivos, sobe ao bucket, grava a notificação e liga os
-    anexos a ela. Arquivo recusado não deixa rastro; falha depois da subida
-    tira do bucket o que subiu."""
+    anexos a ela, e registra os avisos da chegada. Arquivo recusado não
+    deixa rastro; falha depois da subida tira do bucket o que subiu."""
     try:
         aceitos = anexos.conferir_os_arquivos(arquivos)
     except AnexoRecusadoError as erro:
@@ -199,6 +217,7 @@ def _gravar_notificacao(
         logger.error("Falha ao registrar a notificação de incidente: %s", type(erro).__name__)
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=FALHA_AO_REGISTRAR) from erro
     notificacao_id = recibo.pop("id")
+    _avisar_a_chegada(supabase, tarefas, notificacao_id)
     if caminhos:
         try:
             anexos.ligar_a_notificacao(supabase, notificacao_id, aceitos, caminhos)
@@ -217,12 +236,15 @@ def _gravar_notificacao(
 @limite_sem_ip.limitar(LIMITE_DA_REDE)
 async def notificar_sem_login(
     request: Request,
+    tarefas: BackgroundTasks,
     pedido: tuple[EnvioPublico, list[anexos.ArquivoRecebido]] = Depends(_ler_o_envio(EnvioPublico)),
     supabase: Client = Depends(get_supabase_client),
 ) -> dict:
     """O formulário público, pelo QR ou pelo endereço."""
     envio, arquivos = pedido
-    return _gravar_notificacao(supabase, envio, arquivos, origem=envio.origem, nome=envio.nome, contato=envio.contato)
+    return _gravar_notificacao(
+        supabase, tarefas, envio, arquivos, origem=envio.origem, nome=envio.nome, contato=envio.contato
+    )
 
 
 async def _quem_esta_logado(
@@ -251,6 +273,7 @@ def _chave_da_pessoa(request: Request) -> str:
 @limiter.limit(LIMITE_POR_PESSOA, key_func=_chave_da_pessoa)
 async def notificar_pelo_modulo(
     request: Request,
+    tarefas: BackgroundTasks,
     pedido: tuple[RelatoDoIncidente, list[anexos.ArquivoRecebido]] = Depends(_ler_o_envio(RelatoDoIncidente)),
     me: dict = Depends(_quem_esta_logado),
     supabase: Client = Depends(get_supabase_client),
@@ -260,6 +283,7 @@ async def notificar_pelo_modulo(
     envio, arquivos = pedido
     return _gravar_notificacao(
         supabase,
+        tarefas,
         envio,
         arquivos,
         origem=notificacoes.ORIGEM_MODULO,

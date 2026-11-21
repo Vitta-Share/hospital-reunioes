@@ -33,6 +33,7 @@ from postgrest.exceptions import APIError
 from app.dependencies import selecionar_participantes
 from app.services.email_constants import get_logo_data_uri
 from app.services.email_service import _enviar_email, jinja_env
+from app.services.ouvidoria_contato import email_utilizavel
 from app.services.ouvidoria_notificacoes import avisar_admins_tecnicos, proxima_tentativa
 from app.services.ouvidoria_prazos import inicio_da_contagem
 from app.services.paginacao import ler_tudo
@@ -73,7 +74,7 @@ def registrar(
     *,
     marco: str,
     referencia: str,
-    destinatario_id: str,
+    destinatario_id: str | None,
     assunto: str,
     texto: str,
     modelo: str,
@@ -130,6 +131,24 @@ def _email_de(supabase, pessoa_id: str) -> str:
     return ((pessoas[0].get("email") if pessoas else None) or "").strip()
 
 
+def _email_de_quem_notificou(supabase, caso_id: str | None) -> str:
+    """A confirmação de recebimento vai a quem notificou, que não precisa ter
+    cadastro: o endereço sai da notificação, e não fica no registro."""
+    if not caso_id:
+        return ""
+    linhas = (
+        supabase.table("nsp_notificacoes")
+        .select("id, anonimo, notificante_contato")
+        .eq("id", caso_id)
+        .limit(1)
+        .execute()
+        .data
+    ) or []
+    if not linhas or linhas[0].get("anonimo"):
+        return ""
+    return email_utilizavel(linhas[0].get("notificante_contato")) or ""
+
+
 def _alertar_admin_tecnico(supabase, registro: dict, erro: str | None) -> None:
     """Sem nada do conteúdo do e-mail: só o que o admin precisa para achar a linha."""
     avisar_admins_tecnicos(
@@ -153,7 +172,11 @@ def despachar(supabase, registro: dict, agora: datetime) -> str | None:
         return None
     tentativas = (registro.get("tentativas") or 0) + 1
     try:
-        email = _email_de(supabase, registro["destinatario_id"])
+        email = (
+            _email_de(supabase, registro["destinatario_id"])
+            if registro.get("destinatario_id")
+            else _email_de_quem_notificou(supabase, registro.get("caso_id"))
+        )
         if not email:
             supabase.table(TABELA).update({"situacao": FALHOU, "erro": SEM_EMAIL, "tentativas": tentativas}).eq(
                 "id", registro["id"]

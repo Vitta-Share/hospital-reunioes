@@ -11,6 +11,7 @@ from supabase import Client
 
 from app.dependencies import get_supabase_client, require_recurso_nsp
 from app.limiter import limiter
+from app.services.seguranca_do_paciente import caso_grave
 from app.services.seguranca_do_paciente.permissao import (
     SLUG_DO_NUCLEO,
     hoje_em_sao_paulo,
@@ -35,7 +36,8 @@ async def pagina_inicial(
     supabase: Client = Depends(get_supabase_client),
 ) -> dict:
     """A página inicial do módulo: o Núcleo, quantos membros estão com a
-    vigência em dia e o que a pessoa alcança. Nenhum nome de pessoa."""
+    vigência em dia, o que a pessoa alcança e, para quem abre os casos, os
+    casos graves que esperam a triagem (issue #1989). Nenhum nome de pessoa."""
     nucleo = _nucleo(supabase)
     vigentes = (
         (participacoes_vigentes(supabase, nucleo["id"], hoje_em_sao_paulo()).execute().data or []) if nucleo else []
@@ -44,6 +46,7 @@ async def pagina_inicial(
         "nucleo": nucleo["nome"] if nucleo else None,
         "membros_vigentes": len({linha["participante_id"] for linha in vigentes}),
         "recursos": me["recursos_nsp"],
+        "casos_graves": caso_grave.casos_graves_em_espera(supabase) if "casos" in me["recursos_nsp"] else [],
     }
 
 
