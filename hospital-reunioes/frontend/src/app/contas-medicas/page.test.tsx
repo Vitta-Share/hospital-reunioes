@@ -1267,3 +1267,27 @@ describe("o subtítulo da tela (issue #1950)", () => {
     expect(await screen.findByText(/^Envie a conta e o prontuário do MV/)).toBeTruthy();
   });
 });
+
+describe("os botões das outras telas (issue #1950)", () => {
+  it("saem da tela de contas, porque as abas da casca do módulo levam a elas", async () => {
+    permissoes = [
+      ENVIAR,
+      ANALISAR,
+      "painel_completo",
+      "decidir_validacao",
+      "conferencia_coordenacao",
+      "contratos_avisos",
+      "regra_contratual_tabelas",
+      "habilitar_pessoas",
+    ];
+    render(<ContasMedicasPage />);
+
+    await linhas();
+
+    const destinos = screen.getAllByRole("link").map((link) => link.getAttribute("href"));
+    expect(destinos.length).toBeGreaterThan(0);
+    for (const tela of ["painel", "validacao", "coordenacao", "contratos", "operadoras", "habilitacao"]) {
+      expect(destinos).not.toContain(`/contas-medicas/${tela}`);
+    }
+  });
+});

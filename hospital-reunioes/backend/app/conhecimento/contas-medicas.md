@@ -11,17 +11,18 @@ Toda Demanda sobre uma tela de Contas médicas, uma conta mal lida, um preço ou
 A primeira etapa inteira: a fundação do módulo, a carga das operadoras, o envio das contas, a análise e o Guia:
 
 - o item **Contas médicas** no menu lateral, que aparece só para quem tem perfil no módulo;
+- as abas no topo de todas as telas do módulo, descritas em "As abas e as Legendas";
 - a tela de contas, com o envio dos PDFs, o "Último envio" e a fila, descritos abaixo;
 - a análise da conta, que roda sozinha em segundo plano e avisa no sino quando o Guia fica pronto;
 - os perfis e as permissões de cada um, já gravados no banco;
 - o lugar seguro onde os PDFs ficam guardados por sete dias;
-- a tela Operadoras, aberta a partir da tela de contas para quem tem a permissão de regra contratual e tabelas (gestão de contas médicas e as duas diretorias);
+- a tela Operadoras, aberta pela aba Operadoras para quem tem a permissão de regra contratual e tabelas (gestão de contas médicas e as duas diretorias);
 - a tela Memória da operadora, aberta pela operadora na tela Operadoras, descrita abaixo;
-- a tela de Habilitação, aberta a partir da tela de contas para quem tem a permissão de habilitar pessoas (as duas diretorias), descrita em "Quem vê";
-- a tela Contratos, aberta a partir da tela de contas para quem tem a permissão de contratos e avisos (credenciamento, gestão de contas médicas e as duas diretorias), com o aviso de reajuste no sino, descrita em "Contratos e aviso de reajuste";
-- o Painel, aberto a partir da tela de contas, descrito em "O Painel";
-- a fila de Validação, aberta a partir da tela de contas para quem tem a permissão de decidir na validação (gestão de contas médicas e as duas diretorias), que chega com a recomendação do Auditor em cada cartão e é aprovada em lote, descrita em "A Validação";
-- a tela Coordenação, aberta a partir da tela de contas para quem tem a permissão de Conferência da coordenação (coordenadora de faturamento, gestão de contas médicas e as duas diretorias), com o número de lembretes abertos no botão, descrita em "A Conferência da coordenação";
+- a tela de Habilitação, aberta pela aba Habilitação para quem tem a permissão de habilitar pessoas (as duas diretorias), descrita em "Quem vê";
+- a tela Contratos, aberta pela aba Contratos para quem tem a permissão de contratos e avisos (credenciamento, gestão de contas médicas e as duas diretorias), com o aviso de reajuste no sino, descrita em "Contratos e aviso de reajuste";
+- o Painel, aberto pela aba Painel, descrito em "O Painel";
+- a fila de Validação, aberta pela aba Validação para quem tem a permissão de decidir na validação (gestão de contas médicas e as duas diretorias), que chega com a recomendação do Auditor em cada cartão e é aprovada em lote, descrita em "A Validação";
+- a tela Coordenação, aberta pela aba Coordenação para quem tem a permissão de Conferência da coordenação (coordenadora de faturamento, gestão de contas médicas e as duas diretorias), descrita em "A Conferência da coordenação";
 - o "Faltou isto" no Guia, com a conversa com o Auditor e o pedido para a Tecnologia, descrito em "O Faltou isto e o Auditor";
 - o segundo agente, que relê algumas contas concluídas atrás do que não foi cobrado quando alguém pede no Painel, descrito logo abaixo.
 
@@ -46,6 +47,12 @@ A tela Operadoras abre com o mapa: uma linha por operadora, com a situação, a 
 Na mesma tela entra o dicionário de itens do hospital: o nome do produto na prescrição e na ficha anestésica, com os sinônimos, ligado ao código da conta (por exemplo, rocurônio e Esmeron caem no mesmo código). Termo que já existe é atualizado. Quando o nome não está no dicionário, o sistema tenta casar pela marca e pela concentração; só pela marca, o casamento sai com confiança média.
 
 Na conferência, um preço que não pode ser comparado com a tabela sai como "Não conferido", e nunca como erro de preço: tabela não carregada para a categoria, nenhuma versão vigente na data do atendimento, preço zero na tabela, item que a tabela marca como pacote, código que aparece repetido na tabela sem a especialidade que desempata, e honorário.
+
+## As abas e as Legendas
+
+Toda tela do módulo tem, no topo, as abas Contas, Painel, Validação, Coordenação, Contratos, Operadoras e Habilitação, e a aba da tela aberta fica marcada. No Guia de uma conta, a marcada é Contas. Cada pessoa vê só as abas das telas que pode abrir, pela mesma permissão que abre a tela; quem não tem nenhuma delas vê só Contas. Passar o mouse numa aba, ou chegar nela pelo teclado, mostra numa frase para que a tela serve. Em tela estreita, como a do celular, as abas quebram linha.
+
+O subtítulo de cada tela é uma Legenda, a frase curta que explica a tela. Ao lado das abas fica o interruptor "Legendas": desligado, nenhuma Legenda aparece no módulo. A escolha fica guardada no computador da pessoa e continua valendo depois de recarregar a página. Se o navegador não deixa guardar a escolha, as Legendas aparecem ligadas.
 
 ## O envio e a fila
 
@@ -217,7 +224,7 @@ No Painel, quem tem a permissão vê o cartão **R$ incluído pela coordenação
 
 ## O Painel
 
-O Painel mostra à diretoria onde a perda da conta nasce. Ele abre a partir da tela de contas, pelo botão Painel. Os números são das contas concluídas, por semana de segunda a domingo, contada pelo dia em que a faturista concluiu a conta. A conta reenviada continua no Painel, contada pela nota de entrada e pela semana em que foi concluída. No topo ficam três filtros: a semana, a operadora e o tipo de conta (Parcial, quando o atendimento tem mais de uma conta, ou Única).
+O Painel mostra à diretoria onde a perda da conta nasce. Ele abre pela aba Painel. Os números são das contas concluídas, por semana de segunda a domingo, contada pelo dia em que a faturista concluiu a conta. A conta reenviada continua no Painel, contada pela nota de entrada e pela semana em que foi concluída. No topo ficam três filtros: a semana, a operadora e o tipo de conta (Parcial, quando o atendimento tem mais de uma conta, ou Única).
 
 Quatro cartões no topo:
 
@@ -240,7 +247,7 @@ Quem tem o Painel completo (coordenadora de faturamento, gestão de contas médi
 
 ## A Validação
 
-A Validação é a fila em que a diretoria e a gestão decidem o que a faturista não decide. Ela abre a partir da tela de contas, pelo botão Validação, para quem tem a permissão de decidir na validação (gestão de contas médicas e as duas diretorias). A fila agrupa por tema, não por conta: um cartão junta todas as contas que esperam a mesma decisão.
+A Validação é a fila em que a diretoria e a gestão decidem o que a faturista não decide. Ela abre pela aba Validação, para quem tem a permissão de decidir na validação (gestão de contas médicas e as duas diretorias). A fila agrupa por tema, não por conta: um cartão junta todas as contas que esperam a mesma decisão.
 
 No topo ficam três números: quantos temas estão aguardando decisão, quantas contas afetadas eles somam e o R$ em jogo. Os cartões vêm do maior R$ em jogo para o menor, cada um com a operadora, quantas contas, desde quando espera e o R$.
 
