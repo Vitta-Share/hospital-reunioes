@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T15:11+0000 -->
+<!-- last_update: 2026-11-21T15:17+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2326,7 +2326,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## nsp_notificacoes
 
-> Origem: `174_nsp_notificacao_de_incidente.sql`
+> Origem: `174_nsp_notificacao_de_incidente.sql` (alterada em: 183_nsp_caso_vindo_da_ouvidoria.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2353,12 +2353,14 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `editado_por` | `VARCHAR(10)` | — | — | `participantes.id` |
 | `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
 | `atualizado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `manifestacao_id` | `UUID` | — | — | `ouvidoria_protocolos.id` |
 
 **Indexes:**
 - `idx_nsp_notificacoes_criado_em` em `(criado_em DESC)` (de `174_nsp_notificacao_de_incidente.sql`)
 - `idx_nsp_notificacoes_setor` em `(setor_id)` (de `174_nsp_notificacao_de_incidente.sql`)
 - `idx_nsp_notificacoes_notificante` em `(notificante_id)` (de `174_nsp_notificacao_de_incidente.sql`)
 - `idx_nsp_notificacoes_editado_por` em `(editado_por)` (de `174_nsp_notificacao_de_incidente.sql`)
+- `uq_nsp_notificacoes_manifestacao` em `(manifestacao_id)` (de `183_nsp_caso_vindo_da_ouvidoria.sql`)
 
 ## nsp_notificacoes_trilha
 

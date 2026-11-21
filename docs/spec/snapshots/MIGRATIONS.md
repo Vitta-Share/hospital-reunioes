@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T15:11+0000 -->
+<!-- last_update: 2026-11-21T15:17+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -178,6 +178,7 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 177 | `177_rotina_e_verificacao.sql` | Rotina e Verificacao (ADR 0098, decisao 9; issue #1874) | 1 | 0 | 1 | 0 |
 | 181 | `181_nsp_anexos_da_notificacao.sql` | os anexos da Notificação de incidente | 1 | 0 | 1 | 0 |
 | 182 | `182_nsp_caso_grave_e_confirmacao.sql` | o alerta de caso grave e a confirmação de recebimento | 0 | 0 | 1 | 0 |
+| 183 | `183_nsp_caso_vindo_da_ouvidoria.sql` | o caso que a Ouvidoria manda ao Núcleo vira notificação | 0 | 1 | 1 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 172 migrations.
+**Total:** 173 migrations.

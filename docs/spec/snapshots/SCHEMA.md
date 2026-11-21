@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T15:11+0000 -->
+<!-- last_update: 2026-11-21T15:17+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -1271,7 +1271,7 @@ erDiagram
         TEXT estado
         TEXT relato
         TEXT leito_ou_atendimento
-        _ mais_colunas "+15"
+        _ mais_colunas "+16"
     }
     nsp_notificacoes_trilha {
         UUID id PK
@@ -1548,6 +1548,7 @@ erDiagram
 | `nsp_notificacoes` | `idx_nsp_notificacoes_setor` | `setor_id` | `174_nsp_notificacao_de_incidente.sql` |
 | `nsp_notificacoes` | `idx_nsp_notificacoes_notificante` | `notificante_id` | `174_nsp_notificacao_de_incidente.sql` |
 | `nsp_notificacoes` | `idx_nsp_notificacoes_editado_por` | `editado_por` | `174_nsp_notificacao_de_incidente.sql` |
+| `nsp_notificacoes` | `uq_nsp_notificacoes_manifestacao` | `manifestacao_id` | `183_nsp_caso_vindo_da_ouvidoria.sql` |
 | `nsp_notificacoes_trilha` | `idx_nsp_notificacoes_trilha_notificacao` | `notificacao_id, ocorrido_em DESC` | `174_nsp_notificacao_de_incidente.sql` |
 | `nsp_notificacoes_trilha` | `idx_nsp_notificacoes_trilha_autor` | `autor_id` | `174_nsp_notificacao_de_incidente.sql` |
 | `conduta_casos` | `idx_conduta_casos_rota_etapa` | `rota, etapa, recebido_em DESC` | `175_conduta_fundacao.sql` |
