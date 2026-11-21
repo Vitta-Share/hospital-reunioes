@@ -81,9 +81,9 @@ export const CARTOES_DO_PRIMEIRO_ACESSO: CartaoDoPrimeiroAcesso[] = [
       "Cada caso segue um rito: Encaminhamento, Rápido, Completo ou Especial. O Guia do rito explica cada um e abre de qualquer tela do Comitê.",
   },
   {
-    titulo: "Sempre em dupla, sempre com prazo",
+    titulo: "Ninguém apura sozinho",
     texto:
-      "Ninguém apura sozinho. O prazo do caso aparece em todas as telas, e prazo vencido fica registrado para sempre.",
+      "Quem apura vai sempre em dupla. O prazo do caso aparece em todas as telas, e prazo vencido fica registrado para sempre.",
   },
   {
     titulo: "Sigilo e registro",

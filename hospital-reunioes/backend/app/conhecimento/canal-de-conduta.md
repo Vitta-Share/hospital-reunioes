@@ -24,6 +24,12 @@ As telas do Comitê, em Comitê de Conduta:
 - Casos: todos os casos a que a pessoa tem acesso, com filtro por situação (em triagem, em andamento, encerrado) e por rito. As duas listas não mostram nome nem trecho de relato;
 - a tela do caso: o trilho do rito no topo (Triagem, Apuração, Voto, Ata, Medida, Acompanhamento), o prazo sempre visível, a triagem, o relato original e a caixa "O QUE FAZER AGORA", com uma frase, um botão e o "Como fazer" em três linhas que abrem ao toque. Quando o botão está bloqueado, a caixa diz o motivo numa linha, como "Só a coordenação confirma a triagem." ou "Falta o segundo leitor conferir a triagem.".
 
+O Guia do rito e o primeiro acesso:
+
+- o Guia do rito é uma página com os quatro ritos (Encaminhamento, Rápido, Completo e Rota Especial): quando cada um vale, o prazo e o que cada pessoa faz nele. O botão "Guia do rito" aparece em toda tela do Comitê: MINHA VEZ, Casos, a tela do caso, Membros e Configurações;
+- o membro que ainda não assinou o Termo também abre o guia, assim como o apurador designado e quem tem o perfil de cadastro de membros. Quem não é do Comitê não abre;
+- na primeira vez que a pessoa entra em qualquer tela do Comitê, aparecem cinco cartões apresentando o módulo, um de cada vez. Eles não voltam depois, nem em outro aparelho, porque a marca fica no cadastro de login da pessoa. Quem quiser rever o funcionamento usa o Guia do rito.
+
 A triagem e os ritos:
 
 - a triagem é manual: a coordenação diz se o caso é do canal (dentro, fora ou misto), a categoria (A a F), o rito e, quando parte do assunto é de fora, para onde ele vai (Departamento Pessoal, Ouvidoria, Núcleo de Segurança do Paciente ou a liderança);
@@ -111,3 +117,4 @@ O formulário público de relato, as páginas públicas que vão mostrar os text
 - A coordenação que não consegue encerrar um Encaminhamento: costuma faltar a conferência do segundo leitor.
 - Pedido para apagar ou corrigir uma versão antiga de um texto: não existe; salva-se uma versão nova, e a antiga fica.
 - Pedido de um item novo nas configurações: entra por Demanda, porque a lista de itens é fixa.
+- Pedido para ver de novo os cinco cartões do primeiro acesso: eles aparecem uma vez só por pessoa; o Guia do rito fica sempre disponível.
