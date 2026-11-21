@@ -1,5 +1,7 @@
+import { ApresentacaoDoComite } from "@/components/conduta/ApresentacaoDoComite";
 import { AppShell } from "@/components/layout/AppShell";
 import { requireGuiaDoRitoAccess } from "@/lib/conduta/guard";
+import { precisaDaApresentacao } from "@/lib/conduta/guia";
 
 /**
  * Layout do Guia do rito do Comitê de Conduta (issue #1842): AppShell e o
@@ -15,6 +17,7 @@ export default async function GuiaDoRitoLayout({ children }: { children: React.R
   return (
     <AppShell userName={nome} userEmail={user.email}>
       {children}
+      {precisaDaApresentacao(user) && <ApresentacaoDoComite />}
     </AppShell>
   );
 }

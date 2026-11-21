@@ -1,5 +1,7 @@
+import { ApresentacaoDoComite } from "@/components/conduta/ApresentacaoDoComite";
 import { AppShell } from "@/components/layout/AppShell";
 import { requireConfiguracoesDoCanalAccess } from "@/lib/conduta/guard";
+import { precisaDaApresentacao } from "@/lib/conduta/guia";
 
 /**
  * Layout da tela Configurações do Canal de Conduta (issue #1826): AppShell e
@@ -17,6 +19,7 @@ export default async function ConfiguracoesDoCanalLayout({ children }: { childre
   return (
     <AppShell userName={nome} userEmail={user.email}>
       {children}
+      {precisaDaApresentacao(user) && <ApresentacaoDoComite />}
     </AppShell>
   );
 }

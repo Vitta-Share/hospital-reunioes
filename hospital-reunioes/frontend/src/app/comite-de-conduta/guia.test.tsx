@@ -1,6 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
+/// <reference types="vite/client" />
 
 /**
  * O Guia do rito e o primeiro acesso do Comitê de Conduta (issue #1842,
@@ -141,5 +142,60 @@ describe("o guia abre de qualquer tela do Comitê", () => {
 
     const link = screen.getByRole("link", { name: "Guia do rito" });
     expect(link.getAttribute("href")).toBe("/comite-de-conduta/guia");
+  });
+});
+
+/** Toda área do Comitê, cada uma com o seu layout e o seu portão. */
+const AREAS = Object.entries(
+  import.meta.glob<{ default: (p: { children: React.ReactNode }) => Promise<React.ReactElement> }>("./**/layout.tsx", {
+    eager: true,
+  })
+);
+
+const TUDO_ABRE = {
+  "/comite-de-conduta/minha-vez": 200,
+  "/comite-de-conduta/membros": 200,
+  "/comite-de-conduta/configuracoes": 200,
+};
+
+describe("os cinco cartões do primeiro acesso", () => {
+  it("o detector acha as áreas do Comitê (piso)", () => {
+    expect(AREAS.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it.each(AREAS)("%s mostra os cinco cartões no primeiro acesso e marca a pessoa", async (_caminho, modulo) => {
+    metadados.atual = { nome: "Ana" };
+    portao = TUDO_ABRE;
+    const Layout = modulo.default;
+
+    render(await Layout({ children: <p>{CONTEUDO}</p> }));
+
+    const dialogo = screen.getByRole("dialog", { name: "Bem-vindo ao Comitê de Conduta" });
+    const titulos: string[] = [];
+    for (let n = 1; n <= 5; n++) {
+      expect(within(dialogo).getByText(`${n} de 5`)).toBeTruthy();
+      titulos.push(within(dialogo).getByRole("heading", { level: 3 }).textContent ?? "");
+      if (n < 5) fireEvent.click(within(dialogo).getByRole("button", { name: "Próximo" }));
+    }
+    expect(new Set(titulos).size).toBe(5);
+    expect(within(dialogo).queryByRole("button", { name: "Próximo" })).toBeNull();
+
+    expect(updateUser).toHaveBeenCalledTimes(1);
+    expect(updateUser).toHaveBeenCalledWith({ data: { conduta_apresentacao_vista_em: expect.any(String) } });
+
+    fireEvent.click(within(dialogo).getByRole("button", { name: "Começar" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByText(CONTEUDO)).toBeTruthy();
+  });
+
+  it.each(AREAS)("%s não mostra os cartões a quem já os viu", async (_caminho, modulo) => {
+    portao = TUDO_ABRE;
+    const Layout = modulo.default;
+
+    render(await Layout({ children: <p>{CONTEUDO}</p> }));
+
+    expect(screen.getByText(CONTEUDO)).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(updateUser).not.toHaveBeenCalled();
   });
 });
