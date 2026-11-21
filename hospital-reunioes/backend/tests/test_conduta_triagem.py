@@ -399,6 +399,7 @@ class TestPrazo:
     def test_o_prazo_vencido_fica_registrado_e_a_prorrogacao_nao_o_apaga(self, comite):
         caso = comite.caso(dias_atras=31)
         comite.ok(COORDENACAO, caso, "triagem", DENTRO_COMPLETO)
+        comite.ok(SEGUNDO_LEITOR, caso, "conferencia")
 
         assert comite.abrir(MEMBRO, caso)["prazo_vencido"] is True
         comite.ok(COORDENACAO, caso, "prorrogacao", {"justificativa": "Faltam dois depoimentos."})
@@ -434,7 +435,31 @@ class TestProrrogacao:
     def _completo(self, comite) -> str:
         caso = comite.caso()
         comite.ok(COORDENACAO, caso, "triagem", DENTRO_COMPLETO)
+        comite.ok(SEGUNDO_LEITOR, caso, "conferencia")
         return caso
+
+    def test_nao_prorroga_antes_da_conferencia(self, comite):
+        caso = comite.caso()
+        comite.ok(COORDENACAO, caso, "triagem", DENTRO_COMPLETO)
+
+        falta = "Falta o segundo leitor conferir a triagem."
+        assert comite.abrir(COORDENACAO, caso)["prorrogacao"]["bloqueio"] == falta
+        resposta = comite.agir(COORDENACAO, caso, "prorrogacao", {"justificativa": "Faltam dois depoimentos."})
+        assert resposta.status_code == 409
+        assert resposta.json()["detail"] == falta
+
+    def test_nao_prorroga_com_a_contestacao_aberta_e_o_rito_acatado_vale_sem_prorrogacao(self, comite):
+        caso = comite.caso()
+        comite.ok(COORDENACAO, caso, "triagem", DENTRO_COMPLETO)
+        comite.ok(SEGUNDO_LEITOR, caso, "contestacao", {"motivo": "Cabe o rito rápido.", **DENTRO_RAPIDO})
+
+        resposta = comite.agir(COORDENACAO, caso, "prorrogacao", {"justificativa": "Faltam dois depoimentos."})
+        assert resposta.status_code == 409
+        assert comite.trilha(caso).count("prorrogacao") == 0
+
+        comite.ok(MEMBRO, caso, "contestacao/decisao", {"escolha": "acatar"})
+        decidido = comite.ok(SEGUNDO_LEITOR, caso, "contestacao/decisao", {"escolha": "acatar"})
+        assert (decidido["rito"], decidido["etapa"], decidido.get("prorrogado_em")) == ("rapido", "apuracao", None)
 
     def test_prorroga_por_trinta_dias_uma_vez_so(self, comite):
         caso = self._completo(comite)

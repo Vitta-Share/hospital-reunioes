@@ -280,6 +280,10 @@ def pode_prorrogar(caso: dict[str, Any], olhar: Olhar) -> str | None:
         return "O caso já foi encerrado."
     if olhar.papel != "coordenacao":
         return "Só a coordenação prorroga o prazo."
+    if not caso.get("conferida_em"):
+        # Antes da conferência o rito ainda pode mudar pela contestação, e o
+        # banco recusa prorrogação em rito que não é o Completo.
+        return "Falta o segundo leitor conferir a triagem."
     return None
 
 
