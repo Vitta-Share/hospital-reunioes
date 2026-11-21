@@ -9,13 +9,23 @@ As listas levam só metadados: nenhum nome e nenhum trecho de relato.
 """
 
 from typing import Literal
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field, field_validator
 from supabase import Client
 
 from app.dependencies import get_supabase_client
-from app.services.conduta import agente_de_triagem, cifra, configuracoes, triagem
+from app.services.conduta import (
+    agente_de_triagem,
+    avisos,
+    cifra,
+    configuracoes,
+    depoimentos,
+    impedimento,
+    nota_ao_nucleo,
+    triagem,
+)
 from app.services.conduta.acesso import CAMPOS_DA_LISTA, hoje_em_sao_paulo
 from app.services.conduta.portao import (
     INDISPONIVEL,
@@ -24,6 +34,7 @@ from app.services.conduta.portao import (
     portao_da_acao,
     portao_da_coordenacao,
     portao_da_lista,
+    portao_da_tela_inicial,
     portao_do_caso,
 )
 from app.services.conduta.ritos import (
@@ -56,6 +67,23 @@ class Prorrogacao(BaseModel):
     justificativa: str = Field(default="", max_length=4000)
 
 
+class Impedimento(BaseModel):
+    motivo: str = Field(default="", max_length=40)
+
+
+class ContestacaoDeParticipacao(Impedimento):
+    contestado_id: str = Field(max_length=10)
+
+
+class Citado(BaseModel):
+    participante_id: str | None = Field(default=None, max_length=10)
+    nome: str | None = Field(default=None, max_length=400)
+
+
+class DecisaoDeParticipacao(BaseModel):
+    escolha: Literal["confirmar", "manter"]
+
+
 def _indisponivel(erro: Exception) -> HTTPException:
     return HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=INDISPONIVEL)
 
@@ -66,9 +94,14 @@ def _metadados(caso: dict) -> dict:
 
 @router.get("/minha-vez")
 async def minha_vez(
-    comite: NoComite = Depends(portao_da_lista), supabase: Client = Depends(get_supabase_client)
+    comite: NoComite = Depends(portao_da_tela_inicial), supabase: Client = Depends(get_supabase_client)
 ) -> dict:
-    return {"itens": triagem.minha_vez(supabase, comite, hoje_em_sao_paulo())}
+    """`termo_pendente`: a pessoa está no Comitê e ainda não assinou o Termo
+    de Confidencialidade e Posse; a tela diz isso no lugar dos casos."""
+    return {
+        "itens": triagem.minha_vez(supabase, comite, hoje_em_sao_paulo()),
+        "termo_pendente": comite.termo_pendente,
+    }
 
 
 @router.get("/casos")
@@ -93,6 +126,11 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         sugestao = agente_de_triagem.sugestao_para_a_tela(
             supabase, caso, relato, aberto.pessoa.papel, hoje_em_sao_paulo()
         )
+        notas_ao_nsp = nota_ao_nucleo.notas_do_caso(supabase, caso["id"])
+        impedimentos = impedimento.para_a_tela(
+            supabase, caso["id"], aberto.autor_id, impedimento.membros_do_caso(supabase, caso)
+        )
+        cartoes = depoimentos.para_a_tela(supabase, caso)
     except cifra.CifraIndisponivelError as erro:
         raise _indisponivel(erro) from erro
     vencidos = triagem.registrar_vencidos(supabase, [caso], hoje_em_sao_paulo())
@@ -100,6 +138,7 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
     if orientacao is None and caso.get("rito") == "encaminhamento" and caso.get("destino"):
         orientacao = orientacao_do_encaminhamento(caso["destino"])
     return {
+        **impedimentos,
         **_metadados(caso),
         "relato": relato,
         "situacao": situacao(caso),
@@ -115,16 +154,24 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         else None,
         "orientacao": orientacao,
         "sugestao_do_agente": sugestao,
+        "notas_ao_nsp": notas_ao_nsp,
+        **cartoes,
     }
 
 
-def _agir(funcao, supabase, aberto: CasoAberto, **argumentos) -> dict:
+def _executar(funcao, supabase, aberto: CasoAberto, **argumentos):
     try:
-        caso = funcao(supabase, aberto, **argumentos)
+        return funcao(supabase, aberto, **argumentos)
     except triagem.AcaoRecusadaError as recusa:
         raise HTTPException(status_code=recusa.status, detail=recusa.mensagem) from recusa
     except cifra.CifraIndisponivelError as erro:
         raise _indisponivel(erro) from erro
+
+
+def _agir(funcao, supabase, aberto: CasoAberto, **argumentos) -> dict:
+    antes = avisos.tarefas_antes(supabase, aberto.caso["id"])
+    caso = _executar(funcao, supabase, aberto, **argumentos)
+    avisos.avisar_tarefas_novas(supabase, aberto.caso["id"], antes)
     return {"caso": _metadados(caso)}
 
 
@@ -191,6 +238,77 @@ async def responder_sugestao(
     except cifra.CifraIndisponivelError as erro:
         raise _indisponivel(erro) from erro
     return {"caso": _metadados(caso)}
+
+
+class NotaAoNucleo(BaseModel):
+    texto: str = Field(default="", max_length=nota_ao_nucleo.TAMANHO_DA_NOTA)
+
+
+@router.post("/casos/{caso_id}/nota-ao-nsp")
+async def escrever_nota_ao_nucleo(
+    corpo: NotaAoNucleo, aberto: CasoAberto = Depends(portao_da_acao), supabase: Client = Depends(get_supabase_client)
+) -> dict:
+    """Sinalizar ao NSP (issue #1850): um membro escreve a nota ao Núcleo."""
+    return _agir(nota_ao_nucleo.escrever_nota, supabase, aberto, texto=corpo.texto)
+
+
+@router.post("/casos/{caso_id}/nota-ao-nsp/envio")
+async def enviar_nota_ao_nucleo(
+    aberto: CasoAberto = Depends(portao_da_acao), supabase: Client = Depends(get_supabase_client)
+) -> dict:
+    """A coordenação envia ao Núcleo a nota escrita, e só ela (issue #1850)."""
+    return _agir(nota_ao_nucleo.enviar_nota, supabase, aberto)
+
+
+@router.post("/casos/{caso_id}/impedimento")
+async def declarar_impedimento(
+    corpo: Impedimento, aberto: CasoAberto = Depends(portao_da_acao), supabase: Client = Depends(get_supabase_client)
+) -> dict:
+    return _agir(impedimento.declarar_impedimento, supabase, aberto, motivo=corpo.motivo)
+
+
+@router.get("/casos/{caso_id}/cadastro")
+async def buscar_no_cadastro(
+    busca: str = Query("", max_length=80),
+    aberto: CasoAberto = Depends(portao_da_acao),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """Para ligar o Citado ao cadastro: só id e nome."""
+    return {"pessoas": impedimento.buscar_no_cadastro(supabase, busca)}
+
+
+@router.post("/casos/{caso_id}/citados")
+async def marcar_citado(
+    corpo: Citado, aberto: CasoAberto = Depends(portao_da_acao), supabase: Client = Depends(get_supabase_client)
+) -> dict:
+    return _agir(impedimento.marcar_citado, supabase, aberto, **corpo.model_dump())
+
+
+def _contestacao(linha: dict) -> dict:
+    return {"contestacao": {"id": linha["id"], "resultado": linha.get("resultado")}}
+
+
+@router.post("/casos/{caso_id}/contestacoes-de-participacao")
+async def contestar_participacao(
+    corpo: ContestacaoDeParticipacao,
+    aberto: CasoAberto = Depends(portao_da_acao),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    linha = _executar(impedimento.contestar_participacao, supabase, aberto, **corpo.model_dump())
+    return _contestacao(linha)
+
+
+@router.post("/casos/{caso_id}/contestacoes-de-participacao/{contestacao_id}/decisao")
+async def decidir_participacao(
+    contestacao_id: UUID,
+    corpo: DecisaoDeParticipacao,
+    aberto: CasoAberto = Depends(portao_da_acao),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    linha = _executar(
+        impedimento.decidir_participacao, supabase, aberto, contestacao_id=str(contestacao_id), escolha=corpo.escolha
+    )
+    return _contestacao(linha)
 
 
 class NovaVersao(BaseModel):

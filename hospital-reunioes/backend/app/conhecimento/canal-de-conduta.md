@@ -24,6 +24,12 @@ As telas do Comitê, em Comitê de Conduta:
 - Casos: todos os casos a que a pessoa tem acesso, com filtro por situação (em triagem, em andamento, encerrado) e por rito. As duas listas não mostram nome nem trecho de relato;
 - a tela do caso: o trilho do rito no topo (Triagem, Apuração, Voto, Ata, Medida, Acompanhamento), o prazo sempre visível, a triagem, o relato original e a caixa "O QUE FAZER AGORA", com uma frase, um botão e o "Como fazer" em três linhas que abrem ao toque. Quando o botão está bloqueado, a caixa diz o motivo numa linha, como "Só a coordenação confirma a triagem." ou "Falta o segundo leitor conferir a triagem.".
 
+O Guia do rito e o primeiro acesso:
+
+- o Guia do rito é uma página com os quatro ritos (Encaminhamento, Rápido, Completo e Rota Especial): quando cada um vale, o prazo e o que cada pessoa faz nele. O botão "Guia do rito" aparece em toda tela do Comitê: MINHA VEZ, Casos, a tela do caso, Membros e Configurações;
+- o membro que ainda não assinou o Termo também abre o guia, assim como o apurador designado e quem tem o perfil de cadastro de membros. Quem não é do Comitê não abre;
+- na primeira vez que a pessoa entra em qualquer tela do Comitê, aparecem cinco cartões apresentando o módulo, um de cada vez. Eles não voltam depois, nem em outro aparelho, porque a marca fica no cadastro de login da pessoa. Quem quiser rever o funcionamento usa o Guia do rito.
+
 A triagem e os ritos:
 
 - a triagem é manual: a coordenação diz se o caso é do canal (dentro, fora ou misto), a categoria (A a F), o rito e, quando parte do assunto é de fora, para onde ele vai (Departamento Pessoal, Ouvidoria, Núcleo de Segurança do Paciente ou a liderança);
@@ -32,6 +38,35 @@ A triagem e os ritos:
 - prazo vencido fica registrado para sempre: nenhum perfil apaga o registro, e prorrogar depois não o tira;
 - o rito Completo prorroga uma única vez, por mais 30 dias, com justificativa escrita, que fica guardada cifrada;
 - no Encaminhamento (assunto fora do canal), depois da conferência do segundo leitor, a coordenação confirma a resposta padrão num clique e o caso encerra como "Encaminhado". A resposta diz ao relator que o assunto não é tratado no canal, para onde ele deve ir e que assédio, ameaça ou retaliação viram um novo relato.
+
+Os avisos por e-mail:
+
+- quem passa a ter uma tarefa num caso (confirmar a triagem, conferir, decidir a contestação, enviar a orientação) recebe um e-mail no endereço do cadastro, com a frase "Há uma tarefa no Canal de Conduta." e o link para MINHA VEZ. O e-mail não diz o protocolo, nenhum nome, o rito nem nada do relato;
+- o rito Completo e a Rota Especial avisam na hora, em até um minuto. Os outros casos avisam às 8h do dia seguinte, num e-mail só por pessoa, por mais tarefas que ela tenha. Se a tarefa já foi feita antes do e-mail sair, ele não sai;
+- lembretes a cinco dias e a um dia do prazo, às 8h, a quem tem tarefa no caso. Se ninguém tem tarefa naquela etapa (como na apuração), o lembrete vai à coordenação. Cada lembrete sai uma vez só, e a prorrogação recomeça os lembretes do prazo novo;
+- quem é citado ou está impedido não recebe aviso do caso;
+- quem relatou não recebe aviso por nenhum meio: o retorno a ele é só pela página de acompanhamento;
+- os avisos são feitos por uma rotina automática, sem IA.
+
+## Os depoimentos
+
+Na etapa Apuração, o botão "ADICIONAR PESSOA A OUVIR" cria um cartão para cada pessoa ouvida, com o nome, o cargo e o papel: acusado, testemunha ou denunciante identificado. A gravação e a transcrição são feitas fora do aplicativo, na plataforma de gravação do hospital, e o cartão recebe os arquivos depois.
+
+- Cada arquivo tem o seu botão, sem escolher o tipo: "ANEXAR TRANSCRIÇÃO DO DEPOIMENTO" (TXT, VTT, DOCX ou PDF), "ANEXAR ÁUDIO DO DEPOIMENTO" (MP3, M4A ou OGG, até 300 MB, o que cabe um depoimento de duas horas) e "ANEXAR TERMO ASSINADO" (PDF ou foto).
+- O termo assinado também sobe pela câmera do celular: "FOTOGRAFAR TERMO ASSINADO" abre a câmera, uma foto por página, e as páginas vão juntas.
+- Mandar um arquivo de novo cria uma versão nova, e a anterior continua guardada. O cartão mostra todas as versões, com quem enviou e quando.
+- Os arquivos ficam cifrados e só abrem pelo aplicativo, para quem abre o caso. Não existe link para baixar direto. O áudio toca na própria tela. Cada abertura de arquivo fica registrada.
+- O nome e o cargo da pessoa ouvida ficam guardados cifrados.
+- O cartão mostra "Aguardando assinatura" até o termo assinado chegar.
+
+"CONCLUIR DEPOIMENTO" só libera com os sete itens da lista de conferência marcados. Enquanto falta algum, o botão fica bloqueado e a tela diz o que falta.
+
+- Três itens se marcam sozinhos quando o arquivo chega: transcrição, áudio e termo assinado.
+- Quatro são declarações de quem conduziu: "Abri os arquivos na aplicação e estão corretos", "Apaguei a gravação de áudio da plataforma de gravação", "Apaguei os arquivos do computador e do celular" e "Guardei o original assinado no envelope do caso". Cada uma guarda quem marcou e quando, e não se desmarca.
+- Quando a pessoa não aceita gravação, quem conduz toca em "A PESSOA NÃO ACEITOU GRAVAÇÃO", escreve o motivo e digita os pontos da conversa, que fazem as vezes da transcrição. Os itens de transcrição e de áudio ficam "Não se aplica", com o motivo, e o termo assinado continua obrigatório.
+- O depoimento concluído não muda mais.
+
+A etapa Apuração só avança com todos os depoimentos concluídos. Com algum em aberto, a tela diz quantos faltam.
 
 ## O agente de triagem
 
@@ -62,6 +97,16 @@ Quem não é da coordenação do Comitê, o super admin inclusive, não abre a t
 
 Não existe e-mail do DP nas configurações: o encaminhamento ao DP não sai por e-mail, e a página só mostra o contato dele.
 
+## O Código de Conduta
+
+A coordenação do Comitê publica o Código de Conduta em PDF, e só ela. Cada publicação vira uma versão nova, com quem publicou, quando e a data em que passa a valer. A data de vigência pode ser hoje ou depois, nunca antes de hoje nem antes da vigência da última versão: assim nenhuma publicação muda o Código que valia num dia que já passou.
+
+Nenhuma versão é apagada ou trocada, e a própria base de dados recusa essa alteração. A coordenação lista todas as versões e baixa qualquer uma delas.
+
+Dada uma data, o aplicativo diz qual versão valia naquele dia: a de vigência mais recente até a data. Se duas versões começam no mesmo dia, vale a publicada depois. É por ela que cada punição cita o item do Código que valia na data do fato.
+
+A versão vigente tem um endereço público estável, sem login, que a página do canal usa quando abrir. O endereço é sempre o mesmo, de uma versão para a outra, e mostra o PDF da versão que vale hoje. Versão com vigência futura só aparece nele a partir do dia dela. Com o canal fechado, o endereço responde como se não existisse.
+
 ## A tela Membros
 
 A tela Membros diz quem compõe o Comitê e até quando. Cada linha mostra a pessoa, a cadeira, se ela é diretor, a vigência e a situação: vigente, a começar, vencida ou encerrada. Escolhendo uma data passada, a tela mostra a composição daquele dia.
@@ -75,6 +120,34 @@ A tela Membros diz quem compõe o Comitê e até quando. Cada linha mostra a pes
 - Encerrar não apaga: a participação fica na lista como encerrada, para a composição das datas em que valia.
 - Toda inclusão ou saída de membro, e todo perfil de cadastro dado ou tirado, avisa os membros vigentes do Comitê no sino do aplicativo e por e-mail. O e-mail diz só que houve mudança, sem nomes e sem nada de caso, e leva à tela Membros.
 - Cada uma dessas mudanças fica no registro do Comitê, com quem fez e quando, e o registro não se altera nem se apaga.
+
+## O Termo de Confidencialidade e Posse
+
+- Ao incluir um membro ou suplente, o aplicativo gera o Termo de Confidencialidade e Posse, um documento só com o Regimento do Comitê de Conduta como parte integrante, e ele chega à ClickSign no e-mail profissional do membro, para a assinatura eletrônica.
+- A tela Membros mostra, em cada linha, se o Termo foi assinado, se espera a assinatura ou se não foi enviado.
+- Quando o membro assina, a ClickSign avisa o aplicativo sozinha, e a participação passa a valer para abrir caso. O botão "Reconsultar status", na linha do membro, pergunta à ClickSign na hora, sem esperar esse aviso.
+- Se a ClickSign estiver fora do ar no cadastro, ou se a pessoa não tiver e-mail no cadastro, o membro fica incluído e a tela avisa. O botão "Reenviar o Termo" manda outro documento e cancela o anterior, cujo link para de valer.
+- O aplicativo guarda uma cópia do PDF assinado, com o histórico das assinaturas na última página, cifrada, na área própria do Canal. A prova não depende da conta da ClickSign.
+- Quem está no Comitê e ainda não assinou o Termo vê a tela inicial, mas não abre caso: a tela inicial diz que falta assinar o Termo que chegou no e-mail.
+- Reconsultar e reenviar o Termo é de quem tem o perfil de cadastro de membros.
+- Os outros documentos do Canal que vão à ClickSign, como a ata e o relatório de apuração, vão usar o mesmo registro de assinaturas.
+
+## Impedimento, suplente e Citado
+
+Ninguém julga um caso em que é parte, chefe, parente ou interessado. Na tela do caso:
+
+- cada membro tem o botão Declarar impedimento, com o motivo: parte no caso, chefia direta de envolvido, parentesco, relação pessoal ou interesse no resultado. Declarado, o membro perde o acesso àquele caso na hora: o caso some da lista dele, e abrir o endereço dá a mesma recusa de quem nunca teve acesso. Os outros casos continuam com ele;
+- um membro pode contestar a participação de outro no mesmo caso, com um desses motivos. Os demais membros decidem, sem o contestado: ele não vota na própria contestação. Vale a maioria de quem decide, e quem contestou já conta como um voto para confirmar. Confirmada, o contestado fica impedido. Rejeitada, ele segue no caso;
+- quando quem fica impedido votava no caso, um suplente vigente, com o Termo assinado, é convocado no lugar dele e avisado no sino. O suplente convocado vê só aquele caso e faz o que o substituído fazia: se substitui a coordenação, confirma a triagem; se substitui o segundo leitor, confere. Sem suplente livre, o impedimento vale do mesmo jeito, e a trilha registra que ninguém foi convocado;
+- o suplente sem convocação não vê caso nenhum.
+
+O Citado é a pessoa nomeada no caso como envolvida. Qualquer membro do caso marca um Citado, em qualquer etapa, até depois de encerrado, porque nomes novos aparecem nos depoimentos:
+
+- buscando pelo nome no cadastro do hospital, a marcação se liga à pessoa. Ligada, ela recebe a recusa naquele caso em qualquer perfil, mesmo designada como apuradora;
+- se a pessoa citada é do Comitê, ela fica impedida na hora, sem ato de ninguém, e um suplente é convocado no lugar quando ela votava no caso;
+- o nome que não está no cadastro fica como texto, guardado cifrado.
+
+Cada declaração de impedimento, contestação, voto, decisão, convocação e marcação de Citado entra na trilha do caso, com quem fez e quando. A trilha não leva o nome do Citado.
 
 ## Quem vê
 
@@ -100,7 +173,7 @@ Quem não tem acesso recebe a mesma recusa, exista o caso ou não.
 
 ## O que ele ainda não faz
 
-O formulário público de relato, as páginas públicas que vão mostrar os textos das configurações, a página de acompanhamento, a Rota Especial, as perguntas ao relator, os depoimentos, o voto, a ata, o dossiê e o Termo de Confidencialidade e Posse do membro chegam nas próximas entregas. Na apuração, o botão "ADICIONAR PESSOA A OUVIR" aparece bloqueado até os depoimentos chegarem. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. Por enquanto ninguém relata pelo Canal: os relatos continuam chegando pela Ouvidoria.
+O formulário público de relato, as páginas públicas que vão mostrar os textos das configurações, a página de acompanhamento, a Rota Especial, as perguntas ao relator, o roteiro de perguntas e o termo de declaração redigidos pelo agente, o voto, a ata e o dossiê chegam nas próximas entregas. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. Por enquanto ninguém relata pelo Canal: os relatos continuam chegando pela Ouvidoria.
 
 ## O que já foi decidido
 
@@ -114,6 +187,7 @@ O formulário público de relato, as páginas públicas que vão mostrar os text
 ## O que costuma virar Demanda
 
 - Um membro do Comitê que não abre caso: costuma ser o Termo ainda não assinado ou a participação fora da vigência.
+- Membro que assinou o Termo e a tela ainda diz que falta: use "Reconsultar status" na linha dele, na tela Membros.
 - O super admin que não consegue incluir membro: falta o perfil de cadastro de membros no cadastro dele.
 - Pedido para o super admin ler um caso: não é atendido, por decisão da Diretoria.
 - A página pública que não abre: o canal ainda está fechado.
@@ -121,5 +195,14 @@ O formulário público de relato, as páginas públicas que vão mostrar os text
 - Pedido para tirar o prazo vencido de um caso: não existe; o vencido fica registrado mesmo depois da prorrogação.
 - Pedido para prorrogar de novo um caso do rito Completo, ou prorrogar um caso do rito Rápido: o rito Completo prorroga uma vez só, e os outros não prorrogam.
 - A coordenação que não consegue encerrar um Encaminhamento: costuma faltar a conferência do segundo leitor.
+- "CONCLUIR DEPOIMENTO" que não libera: falta algum dos sete itens da lista; a tela diz qual.
+- Pedido para trocar ou apagar um arquivo do depoimento: não existe; mande a versão nova, e a anterior fica guardada.
+- Pedido para desmarcar uma declaração da lista ou reabrir um depoimento concluído: não existe; a declaração e o depoimento concluído ficam como estão.
+- Áudio que não sobe: o botão aceita MP3, M4A ou OGG de até 300 MB.
+- A Apuração que não avança: há depoimento em aberto.
 - Pedido para apagar ou corrigir uma versão antiga de um texto: não existe; salva-se uma versão nova, e a antiga fica.
+- Pedido para publicar o Código de Conduta com vigência numa data passada: não existe; a versão nova vale de hoje ou de uma data futura, e a que valia antes continua valendo para os dias que já passaram.
 - Pedido de um item novo nas configurações: entra por Demanda, porque a lista de itens é fixa.
+- Pedido para ver de novo os cinco cartões do primeiro acesso: eles aparecem uma vez só por pessoa; o Guia do rito fica sempre disponível.
+- Um membro que deixou de ver um caso: ele se declarou impedido, teve a participação contestada e confirmada, ou foi marcado como Citado. A trilha do caso diz qual.
+- Um impedimento sem suplente convocado: não havia suplente vigente com o Termo assinado e livre naquele caso.

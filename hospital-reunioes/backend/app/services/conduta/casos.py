@@ -16,11 +16,15 @@ from typing import Any
 
 from postgrest.exceptions import APIError
 
-from app.services.conduta import agente_de_triagem, cifra, trilha
+from app.services.conduta import agente_de_triagem, avisos, cifra, trilha
 from app.services.ouvidoria_acompanhamento import ALFABETO, gerar_codigo, hash_do_codigo
 
 _VIOLACAO_DE_UNICIDADE = "23505"
 _TENTATIVAS_DO_PROTOCOLO = 3
+
+# De onde o caso veio (migration 202): a página pública ou a sinalização do
+# ouvidor.
+ORIGEM_OUVIDORIA = "ouvidoria"
 
 
 def novo_protocolo() -> str:
@@ -29,10 +33,20 @@ def novo_protocolo() -> str:
 
 
 def registrar_caso(
-    supabase, *, relato: str, categoria: str | None, rota: str = "comum", tarefas=None
+    supabase,
+    *,
+    relato: str,
+    categoria: str | None,
+    rota: str = "comum",
+    manifestacao_id: str | None = None,
+    tarefas=None,
 ) -> dict[str, Any]:
     """Grava o caso e a linha de recebimento na trilha. Devolve o id, o
     protocolo e o código de acompanhamento, que não fica guardado.
+
+    Com `manifestacao_id`, o caso é o que a Ouvidoria sinalizou (issue #1849,
+    ADR 0097 decisão 14): origem `ouvidoria`, ligado à manifestação. Ninguém
+    acompanha esse caso pelo código, que é descartado.
 
     Com `tarefas` (o `BackgroundTasks` da rota que recebe o relato), o agente
     de triagem lê o caso depois da resposta, sem clique de ninguém (issue
@@ -49,6 +63,8 @@ def registrar_caso(
         "categoria": categoria,
         "relato_cifrado": relato_cifrado,
     }
+    if manifestacao_id is not None:
+        linha |= {"origem": ORIGEM_OUVIDORIA, "manifestacao_id": manifestacao_id}
     for tentativa in range(1, _TENTATIVAS_DO_PROTOCOLO + 1):
         try:
             caso = supabase.table("conduta_casos").insert({**linha, "protocolo": novo_protocolo()}).execute().data[0]
@@ -56,7 +72,9 @@ def registrar_caso(
         except APIError as erro:
             if tentativa == _TENTATIVAS_DO_PROTOCOLO or getattr(erro, "code", None) != _VIOLACAO_DE_UNICIDADE:
                 raise
-    trilha.registrar(supabase, caso["id"], None, "recebimento", "caso recebido")
+    detalhe = "caso sinalizado pela Ouvidoria" if manifestacao_id is not None else "caso recebido"
+    trilha.registrar(supabase, caso["id"], None, "recebimento", detalhe)
+    avisos.avisar_tarefas_novas(supabase, caso["id"], {})
     if tarefas is not None:
         agente_de_triagem.agendar_triagem_do_caso(tarefas, supabase, caso["id"])
     return {"id": caso["id"], "protocolo": caso["protocolo"], "codigo": codigo}

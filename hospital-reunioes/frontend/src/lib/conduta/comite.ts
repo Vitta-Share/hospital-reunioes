@@ -5,6 +5,7 @@
  * Quem decide o que cada pessoa pode fazer é o servidor: a caixa "O QUE FAZER
  * AGORA" chega pronta, com o motivo do botão bloqueado.
  */
+import type { Depoimento } from "@/lib/conduta/depoimentos";
 import { createClient } from "@/lib/supabase/client";
 import type { SugestaoDoAgente } from "@/lib/conduta/sugestao";
 
@@ -33,6 +34,8 @@ export interface CasoDaLista {
   prazo_em: string | null;
   prazo_vencido: boolean;
   faltam_dias: number | null;
+  /** De onde o caso veio: a página pública ou a sinalização do ouvidor (issue #1849). */
+  origem?: "canal" | "ouvidoria" | null;
 }
 
 export interface Caixa {
@@ -53,7 +56,40 @@ export interface Contestacao {
   resultado: "mantida" | "acatada" | null;
 }
 
+/** A nota do Comitê ao Núcleo de Segurança do Paciente (issue #1850). */
+export interface NotaAoNucleo {
+  texto: string;
+  escrita_em: string | null;
+  /** Sem data, a nota espera a coordenação enviar. */
+  enviada_em: string | null;
+}
+
+export interface MembroDoCaso {
+  id: string;
+  nome: string | null;
+  papel: string;
+}
+
+export interface ContestacaoDeParticipacao {
+  id: string;
+  contestado: string | null;
+  motivo: string;
+  votos: number;
+  resultado: "confirmada" | "rejeitada" | null;
+  pode_decidir: boolean;
+}
+
+export interface Citado {
+  id: string;
+  nome: string | null;
+  ligado: boolean;
+}
+
 export interface CasoAberto extends CasoDaLista {
+  membros_do_caso: MembroDoCaso[];
+  pode_contestar_participacao: boolean;
+  contestacoes_de_participacao: ContestacaoDeParticipacao[];
+  citados: Citado[];
   relato: string;
   escopo: Escopo | null;
   destino: string | null;
@@ -69,6 +105,10 @@ export interface CasoAberto extends CasoDaLista {
   encerrado_em: string | null;
   desfecho: string | null;
   sugestao_do_agente?: SugestaoDoAgente;
+  notas_ao_nsp?: NotaAoNucleo[];
+  /** Os cartões da Apuração (issue #1830). */
+  depoimentos: Depoimento[];
+  avanco_da_apuracao: string | null;
 }
 
 export const RITOS: { valor: Rito; rotulo: string; prazo: string }[] = [
@@ -99,7 +139,16 @@ export const DESTINOS: { valor: string; rotulo: string }[] = [
   { valor: "gestor", rotulo: "Liderança direta ou DP" },
 ];
 
-export const SITUACOES: { valor: Situacao; rotulo: string }[] = [
+/** Os motivos de impedimento da especificação (seção 3.3). */
+export const MOTIVOS_DE_IMPEDIMENTO: { valor: string; rotulo: string }[] = [
+  { valor: "parte", rotulo: "Parte do caso" },
+  { valor: "chefia_direta", rotulo: "Chefia direta de envolvido" },
+  { valor: "parentesco", rotulo: "Parentesco" },
+  { valor: "relacao_pessoal", rotulo: "Relação pessoal" },
+  { valor: "interesse", rotulo: "Interesse no resultado" },
+];
+
+export const SITUACOES:{ valor: Situacao; rotulo: string }[] = [
   { valor: "em_triagem", rotulo: "Em triagem" },
   { valor: "em_andamento", rotulo: "Em andamento" },
   { valor: "encerrado", rotulo: "Encerrado" },

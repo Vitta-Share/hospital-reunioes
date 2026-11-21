@@ -69,6 +69,11 @@ RECURSOS_NSP = (
     "casos",
     # Quem notificou: só a Presidência e o Acesso pleno (seção 3).
     "identidade_notificante",
+    # Confirmar ou ajustar a triagem: só a Presidência e o Acesso pleno (issue #1992).
+    "triagem",
+    # As notas do Comitê de Conduta ao Núcleo (issue #1850): só a Presidência
+    # e o Acesso pleno.
+    "notas_do_comite",
     # Cadastrar membro, publicar documento, validar ata.
     "gerir_nucleo",
     # A configuração técnica do módulo, a única coisa que o super admin alcança.

@@ -76,6 +76,19 @@ Jobs:
      #1873). Alimenta a evolução de 8 semanas e a seta dos cards. Idempotente
      por semana: quem já tem a fotografia da semana não é fotografado de novo,
      e a chave da tabela garante uma por pessoa e semana. Sem IA.
+ 20. enviar_email_de_segunda: segunda-feira, de hora em hora das 08h às 12h, manda
+     o e-mail de segunda de Reuniões, um por pessoa: ao Facilitador, o que foi
+     concluído, atualizado e repactuado na semana nas Reuniões dele e o que segue
+     atrasado; ao responsável, as Pendências dele em aberto (issue #1876). Quem
+     não tem nada para ver não recebe. Idempotente por semana: a linha em
+     `email_de_segunda` é gravada antes do envio, e o modo de teste do e-mail
+     não grava. Sem IA.
+ 21. avisar_na_hora_conduta: a cada minuto, entrega o aviso da tarefa nova em caso
+     do rito Completo ou da Rota Especial do Canal de Conduta (issue #1840). O
+     e-mail não leva nada do caso. Idempotente: o aviso entregue sai da fila. Sem IA.
+ 22. rodada_de_avisos_conduta: 08:00 diário, grava os lembretes a cinco dias e a um
+     dia do prazo dos casos do Canal de Conduta e entrega todo aviso pendente, um
+     e-mail por pessoa (issue #1840). Cada marco é gravado uma vez por prazo. Sem IA.
 
 Nenhum job dispara IA por conta própria (ADR 0082): a recomendação da Validação
 e o segundo agente de Contas médicas rodam só pelo botão da tela. A fila de
@@ -540,6 +553,21 @@ def avisar_termo_e_vigencia_nsp() -> None:
         )
 
 
+def enviar_email_de_segunda() -> None:
+    """O e-mail de segunda de Reuniões (issue #1876). Roda na segunda, de hora
+    em hora das 08h às 12h, como a fotografia: um deploy às 08h não perde a
+    semana, e as passadas seguintes só pegam quem faltou. Sem IA."""
+    from app.services import email_de_segunda
+
+    try:
+        enviados = email_de_segunda.enviar_semana(_supabase(), hoje=_hoje())
+    except Exception as e:
+        logger.error(f"[Cron] Erro em enviar_email_de_segunda: {type(e).__name__}")
+        return
+    if enviados:
+        logger.info(f"[Cron] E-mail de segunda de Reuniões: {enviados} pessoa(s).")
+
+
 def despachar_emails_nsp() -> None:
     """A fila de e-mails do Núcleo (issue #1985). A janela, a retentativa e a
     reivindicação vivem no serviço; aqui, só o relógio."""
@@ -555,6 +583,36 @@ def despachar_emails_nsp() -> None:
             f"[Cron] E-mails do Núcleo: {resultado.get('enviados', 0)} enviado(s), "
             f"{resultado.get('falhas', 0)} com falha."
         )
+
+
+def avisar_na_hora_conduta() -> None:
+    """Os avisos do Canal de Conduta que saem na hora: a tarefa nova em caso do
+    rito Completo ou da Rota Especial (issue #1840). Quem tem tarefa, a guarda e
+    o e-mail sem conteúdo vivem no serviço; aqui, só o relógio. Sem IA."""
+    from app.services.conduta import avisos
+
+    try:
+        resultado = avisos.despachar(_supabase(), _hoje_em_sao_paulo(), so_na_hora=True)
+    except Exception as e:
+        logger.error(f"[Cron] Erro em avisar_na_hora_conduta: {type(e).__name__}")
+        return
+    if resultado.get("enviados") or resultado.get("falhas"):
+        logger.info(f"[Cron] Avisos do Canal de Conduta na hora: {resultado.get('enviados', 0)} enviado(s).")
+
+
+def rodada_de_avisos_conduta() -> None:
+    """A rodada diária dos avisos do Canal de Conduta (issue #1840): os
+    lembretes a cinco dias e a um dia do prazo e a tarefa nova dos outros
+    casos. Sem IA."""
+    from app.services.conduta import avisos
+
+    try:
+        resultado = avisos.rodada_do_dia(_supabase(), _hoje_em_sao_paulo())
+    except Exception as e:
+        logger.error(f"[Cron] Erro em rodada_de_avisos_conduta: {type(e).__name__}")
+        return
+    if resultado.get("enviados") or resultado.get("falhas"):
+        logger.info(f"[Cron] Avisos do Canal de Conduta: {resultado.get('enviados', 0)} enviado(s).")
 
 
 def encerrar_atas_do_nucleo() -> None:
@@ -834,11 +892,40 @@ def start_scheduler() -> None:
         id="fotografia_painel_reunioes",
         replace_existing=True,
     )
+    # Segunda, 08h a 12h: o e-mail sai na primeira passada, e as outras só
+    # pegam quem faltou (issue #1876).
+    scheduler.add_job(
+        enviar_email_de_segunda,
+        "cron",
+        day_of_week="mon",
+        hour="8-12",
+        minute=0,
+        id="email_de_segunda_reunioes",
+        replace_existing=True,
+    )
     scheduler.add_job(
         despachar_emails_nsp,
         "interval",
         minutes=10,
         id="emails_nsp",
+        replace_existing=True,
+    )
+    # Canal de Conduta (issue #1840): o Completo e a Rota Especial avisam na
+    # hora, de minuto em minuto; o resto e os lembretes saem às 08:00. Nada
+    # sai duas vezes (a linha em `conduta_avisos`).
+    scheduler.add_job(
+        avisar_na_hora_conduta,
+        "interval",
+        minutes=1,
+        id="avisos_na_hora_conduta",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        rodada_de_avisos_conduta,
+        "cron",
+        hour=8,
+        minute=0,
+        id="avisos_conduta",
         replace_existing=True,
     )
     # 05:50, depois do reconciliar_clicksign. Dia
@@ -894,7 +981,7 @@ def start_scheduler() -> None:
         "reconciliacao_tecnologia (de hora em hora), nota_do_google (06:45, uma leitura por semana), "
         "agenda_regulatoria_nsp (05:45), avisos_termo_e_vigencia_nsp (08:00), emails_nsp (a cada 10min), "
         "encerramento_atas_nsp (05:50), transcricoes_nsp (04:15), "
-        "fotografia_painel_reunioes (segunda, 07h a 12h)"
+        "fotografia_painel_reunioes (segunda, 07h a 12h), email_de_segunda_reunioes (segunda, 08h a 12h)"
     )
 
 

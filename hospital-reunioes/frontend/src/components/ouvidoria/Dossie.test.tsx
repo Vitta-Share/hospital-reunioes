@@ -18,6 +18,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { TITULO_DO_CASO_APAGADO } from "@/lib/ouvidoria/apagamento";
 import { SUGESTAO_NAO_E_CLASSIFICACAO } from "@/lib/ouvidoria/natureza-informada";
 import { Dossie } from "./Dossie";
 
@@ -435,5 +436,36 @@ describe("o Dossiê e o aviso do acompanhante sem nome do paciente (issue #662)"
     fireEvent.click(screen.getByText("Validar e acionar"));
 
     await waitFor(() => expect(screen.getByText(/Validar e acionar 2026-0012/)).toBeTruthy());
+  });
+});
+
+/**
+ * O botão Sinalizar ao Canal de Conduta no Dossiê (issue #1849, ADR 0097
+ * decisão 14). O Dossiê só abre para quem tem o Perfil da Ouvidoria; aqui se
+ * prova a fiação: o bloco está na página do caso vivo, e o caso apagado não vai
+ * a lugar nenhum.
+ */
+describe("o Dossiê e a sinalização ao Canal de Conduta (issue #1849)", () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  it("o botão aparece no Dossiê do caso que ainda não foi sinalizado", async () => {
+    montarComDossie(dossie({ conduta_sinalizada_em: null }));
+
+    expect(await screen.findByRole("button", { name: "Sinalizar ao Canal de Conduta" })).toBeTruthy();
+  });
+
+  it("o caso apagado não oferece a sinalização", async () => {
+    montarComDossie(dossie({ anonimizada_em: "2026-10-01T12:00:00+00:00" }));
+
+    // Espera o caso carregar: antes disso a ausência do botão não prova nada.
+    expect(await screen.findByRole("note", { name: TITULO_DO_CASO_APAGADO })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Sinalizar ao Canal de Conduta" })).toBeNull();
   });
 });
