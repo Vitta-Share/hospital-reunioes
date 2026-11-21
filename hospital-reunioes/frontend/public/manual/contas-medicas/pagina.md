@@ -128,7 +128,7 @@ A busca procura em todas as etapas, inclusive nas Arquivadas, e diz onde a conta
 1. Na tela de contas, clique no campo **Número do atendimento ou nome do paciente**, no alto.
 2. Digite o número do atendimento ou o nome do paciente. A busca começa no segundo caractere, sem precisar de acento nem de maiúscula.
 3. As contas achadas aparecem no lugar da Esteira, com o trecho que você digitou marcado em amarelo.
-4. Quando só uma conta casa, ela aparece em destaque, com **Onde está** e **Com quem**, e o botão que cabe a você: **Pegar** na conta livre, **Continuar** na sua em análise, **Abrir** na que você pode abrir. A conta de outra faturista aparece sem botão, porque só ela abre a conta.
+4. Quando só uma conta casa, ela aparece em destaque, com **Onde está** e **Com quem**, e o botão que cabe a você: **Pegar** na conta livre, **Continuar** na sua em análise, **Abrir** na que você pode abrir. A conta que está com outra faturista aparece sem botão, porque só ela pode abrir.
 
 ![A busca com uma conta em destaque](busca.png)
 
