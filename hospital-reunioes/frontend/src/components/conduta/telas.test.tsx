@@ -122,6 +122,23 @@ describe("Casos", () => {
     const caso = await screen.findByRole("link", { name: /CC-AB12-CD34/ });
     expect(caso.textContent).toBe("CC-AB12-CD34Venceu há 3 diasRápido, apuraçãoPrazo vencido registrado");
   });
+
+  it("o caso sinalizado pela Ouvidoria diz a origem, e o do canal não (issue #1849)", async () => {
+    const base = { etapa: "triagem", rito: null, categoria: null, situacao: "em_triagem", prazo_em: null, prazo_vencido: false, faltam_dias: null };
+    respostas = {
+      "/casos": {
+        casos: [
+          { ...base, id: "c1", protocolo: "CC-AB12-CD34", origem: "ouvidoria" },
+          { ...base, id: "c2", protocolo: "CC-EF56-GH78", origem: "canal" },
+        ],
+      },
+    };
+    render(<CasosDoComite />);
+
+    const daOuvidoria = await screen.findByRole("link", { name: /CC-AB12-CD34/ });
+    expect(daOuvidoria.textContent).toContain("Origem: Ouvidoria");
+    expect(screen.getByRole("link", { name: /CC-EF56-GH78/ }).textContent).not.toContain("Origem");
+  });
 });
 
 describe("a caixa O QUE FAZER AGORA", () => {

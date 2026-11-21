@@ -32,6 +32,8 @@ export interface CasoDaLista {
   prazo_em: string | null;
   prazo_vencido: boolean;
   faltam_dias: number | null;
+  /** De onde o caso veio: a página pública ou a sinalização do ouvidor (issue #1849). */
+  origem?: "canal" | "ouvidoria" | null;
 }
 
 export interface Caixa {
