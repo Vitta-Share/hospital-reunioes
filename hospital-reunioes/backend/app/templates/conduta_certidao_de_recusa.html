@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Certidão de recusa de assinatura</title>
+    <style>
+        {% if font_path %}
+        @font-face {
+            font-family: "HP Simplified";
+            src: url("{{ font_path }}") format("truetype");
+            font-weight: 400;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: "HP Simplified";
+            src: url("{{ font_path }}") format("truetype");
+            font-weight: 700;
+            font-style: normal;
+        }
+        {% endif %}
+
+        @page {
+            size: A4;
+            margin: 2cm 1.8cm 1.8cm 1.8cm;
+            @bottom-left {
+                content: "Certidão de recusa de assinatura · Documento {{ documento.identificador }}";
+                font-family: "HP Simplified", sans-serif;
+                font-size: 8pt;
+                color: #64748B;
+            }
+        }
+
+        body {
+            font-family: "HP Simplified", sans-serif;
+            font-synthesis: weight style;
+            color: #1E293B;
+            line-height: 1.55;
+            margin: 0;
+            font-size: 10.5pt;
+        }
+
+        .header { display: table; width: 100%; border-bottom: 1px solid #E2E8F0; padding-bottom: 16px; margin-bottom: 14px; }
+        .header-logo { display: table-cell; vertical-align: middle; width: 110px; }
+        .header-logo img { max-width: 96px; height: auto; }
+        .header-title { display: table-cell; vertical-align: middle; padding-left: 12px; }
+        .header-title h1 { color: #2B2E7E; margin: 0 0 4px 0; font-size: 17pt; text-transform: uppercase; line-height: 1.15; }
+        .header-title p { margin: 0; font-size: 10.5pt; font-weight: 700; }
+
+        p { margin: 0 0 8px 0; text-align: justify; }
+        .assinatura { border: 1px solid #E2E8F0; border-radius: 6px; padding: 10px 12px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        {% if logo_path %}<div class="header-logo"><img src="{{ logo_path }}" alt="Hospital São Matheus"></div>{% endif %}
+        <div class="header-title">
+            <h1>Certidão de recusa de assinatura</h1>
+            <p>Hospital São Matheus · Comitê de Conduta</p>
+        </div>
+    </div>
+
+    <p>Certificamos que {{ declarante }}, ouvido(a) pelo Comitê de Conduta do Hospital São Matheus, leu ou ouviu a leitura do termo de declaração (versão {{ versao }}) e recusou-se a assiná-lo em {{ data }}.</p>
+    <p>A gravação e a transcrição do depoimento, quando houve, permanecem guardadas no caso.</p>
+    <p>Assinamos esta certidão eletronicamente, por meio da plataforma de assinatura eletrônica contratada pelo Hospital São Matheus, nos termos da Lei nº 14.063/2020.</p>
+
+    {% for membro in membros %}
+    <div class="assinatura">
+        <p><strong>Membro do Comitê:</strong> {{ membro }}</p>
+        <p><strong>Data e hora:</strong> registradas pela plataforma de assinatura eletrônica</p>
+    </div>
+    {% endfor %}
+</body>
+</html>

@@ -26,7 +26,8 @@ from datetime import date
 from typing import Any
 
 from app.services import ai_processor, storage
-from app.services.conduta import cifra, depoimentos, impedimento, membros, trilha
+from app.services.conduta import assinaturas, cifra, depoimentos, impedimento, membros, trilha
+from app.services.conduta.acesso import hoje_em_sao_paulo
 from app.services.conduta.depoimentos import DepoimentoRecusadoError
 from app.services.conduta.marcadores import Marcacao
 from app.services.conduta.portao import CasoAberto
@@ -372,3 +373,49 @@ def imprimir_termo(supabase, aberto: CasoAberto, depoimento_id: str) -> tuple[by
         f"imprimiu o termo de declaração, versão {versao['versao']}",
     )
     return gerar_pdf_do_termo(dados), f"Termo_de_declaracao_versao_{versao['versao']}.pdf"
+
+
+# ── A certidão de recusa ────────────────────────────────────────────────────
+
+
+def registrar_recusa(supabase, aberto: CasoAberto, depoimento_id: str, membro_id: str) -> dict:
+    """A pessoa se recusou a assinar: quem registra e outro membro do caso
+    assinam a certidão de recusa na ClickSign. Assinada, ela volta à trilha e
+    vale pelo termo assinado na lista de conferência."""
+    caso = aberto.caso
+    depoimento = depoimentos._depoimento(supabase, caso["id"], depoimento_id)
+    depoimentos._exigir_aberto(caso, depoimento)
+    versao = _ultima_versao(supabase, depoimento["id"])
+    if any(a["tipo"] == "termo_assinado" for a in depoimentos._arquivos(supabase, [depoimento["id"]])):
+        raise DepoimentoRecusadoError(409, "O termo assinado já foi anexado.")
+    certidoes = assinaturas.certidoes_dos_depoimentos(supabase, [depoimento["id"]])
+    if any(c["situacao"] == "assinado" for c in certidoes):
+        raise DepoimentoRecusadoError(409, "A certidão de recusa já foi assinada.")
+    do_caso = impedimento.membros_do_caso(supabase, caso)
+    if aberto.autor_id not in do_caso:
+        raise DepoimentoRecusadoError(403, "Só membro do Comitê neste caso registra a certidão de recusa.")
+    if membro_id == aberto.autor_id or membro_id not in do_caso:
+        raise DepoimentoRecusadoError(422, "Escolha outro membro do Comitê neste caso para assinar com você.")
+    pessoas = (
+        supabase.table("participantes")
+        .select("id, nome_completo, email")
+        .in_("id", [aberto.autor_id, membro_id])
+        .execute()
+        .data
+    ) or []
+    if len(pessoas) != 2 or not all(p.get("email") for p in pessoas):
+        raise DepoimentoRecusadoError(422, "Os dois membros precisam de e-mail no cadastro para assinar a certidão.")
+    trilha.registrar(
+        supabase,
+        caso["id"],
+        aberto.autor_id,
+        "enviou_certidao_de_recusa",
+        f"certidão de recusa de assinatura do termo, versão {versao['versao']}, enviada a dois membros",
+    )
+    dados = {
+        "declarante": cifra.decifrar_texto(depoimento["nome_cifrado"]),
+        "versao": versao["versao"],
+        "data": hoje_em_sao_paulo().strftime("%d/%m/%Y"),
+    }
+    enviada = assinaturas.enviar_certidao_de_recusa(supabase, caso["id"], depoimento["id"], pessoas, dados)
+    return {"situacao": enviada["situacao"], "erro": enviada.get("erro")}

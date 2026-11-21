@@ -8,6 +8,8 @@ sairia para o modelo e escolhe o que ele responde.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import io
 import json
 import re
@@ -16,6 +18,9 @@ from typing import Any
 import pdfplumber
 import pytest
 from anthropic_apoio import ClienteFalso
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from test_conduta_convites import _ClickSign
 from test_conduta_depoimentos import (  # noqa: F401  (a fixture da chave vale aqui)
     BASE,
     COORDENACAO,
@@ -24,6 +29,11 @@ from test_conduta_depoimentos import (  # noqa: F401  (a fixture da chave vale a
     _chave,
 )
 
+from app.config import settings
+from app.dependencies import get_current_user, get_supabase_client
+from app.limiter import limiter
+from app.routers import conduta_comite, conduta_depoimentos, webhooks
+from app.services import clicksign_service
 from app.services.conduta import cifra, termo_de_declaracao
 
 TRANSCRICAO = (
@@ -394,3 +404,127 @@ class TestSemTravessao:
 
         assert "naquele dia" in texto and "Escala de novembro" in texto and "térreo" in texto
         assert not any(traco in texto for traco in TRACOS)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. A certidão de recusa vai à ClickSign para dois membros e volta à trilha
+# ═══════════════════════════════════════════════════════════════════════════
+
+SEGREDO_DO_WEBHOOK = "segredo-de-teste-do-webhook"
+
+
+@pytest.fixture
+def clicksign(monkeypatch) -> _ClickSign:
+    dubla = _ClickSign()
+    for nome in (
+        "create_envelope",
+        "add_document",
+        "add_signer",
+        "create_qualification_requirement",
+        "create_auth_requirement",
+        "activate_envelope",
+        "notify_signers",
+        "cancel_envelope",
+        "get_envelope_status",
+        "get_signed_document",
+    ):
+        monkeypatch.setattr(clicksign_service, nome, getattr(dubla, nome))
+    monkeypatch.setattr(settings, "clicksign_webhook_secret", SEGREDO_DO_WEBHOOK)
+    return dubla
+
+
+class ComiteComWebhook(Comite):
+    def cliente(self, pid: str) -> TestClient:
+        app = FastAPI()
+        app.state.limiter = limiter
+        for router in (conduta_comite.router, conduta_depoimentos.router, webhooks.router):
+            app.include_router(router, prefix="/api")
+        pessoa = next(p for p in self.banco.tabelas["participantes"] if p["id"] == pid)
+
+        async def _usuario() -> dict[str, Any]:
+            return {"id": pessoa["auth_user_id"], "email": pessoa["email"], "metadata": {}}
+
+        app.dependency_overrides[get_current_user] = _usuario
+        app.dependency_overrides[get_supabase_client] = lambda: self.banco
+        return TestClient(app)
+
+    def assinar(self, documento_key: str):
+        corpo = json.dumps({"event": {"name": "auto_close"}, "document": {"key": documento_key}}).encode()
+        carimbo = hmac.new(SEGREDO_DO_WEBHOOK.encode(), corpo, hashlib.sha256).hexdigest()
+        return self.cliente(MEMBRO).post(
+            "/api/webhooks/clicksign",
+            content=corpo,
+            headers={"content-hmac": f"sha256={carimbo}", "content-type": "application/json"},
+        )
+
+
+def _recusar(comite: Comite, caso: str, dep: str, pid: str = MEMBRO, membro: str = COORDENACAO):
+    return comite.cliente(pid).post(f"{BASE}/casos/{caso}/depoimentos/{dep}/recusa", json={"membro_id": membro})
+
+
+def _certidoes(comite: Comite) -> list[dict]:
+    return [a for a in comite.banco.tabelas.get("conduta_assinaturas", []) if a["tipo"] == "certidao_de_recusa"]
+
+
+def _acoes(comite: Comite, caso: str) -> list[str]:
+    return [linha["acao"] for linha in comite.banco.tabelas["conduta_trilha"] if linha["caso_id"] == caso]
+
+
+class TestCertidaoDeRecusa:
+    def test_a_certidao_vai_a_clicksign_para_dois_membros(self, agente, clicksign):
+        comite = ComiteComWebhook()
+        caso, dep = _termo_redigido(comite)
+
+        resposta = _recusar(comite, caso, dep)
+
+        assert resposta.status_code == 200, resposta.text
+        assert sorted(email for *_, email in clicksign.signatarios()) == ["coord@hsm.test", "memb@hsm.test"]
+        [certidao] = _certidoes(comite)
+        assert (certidao["caso_id"], certidao["depoimento_id"], certidao["situacao"]) == (caso, dep, "enviado")
+        assert sorted(certidao["signatarios"]) == sorted([COORDENACAO, MEMBRO])
+        assert _acoes(comite, caso)[-1] == "enviou_certidao_de_recusa"
+        assert _cartao(comite, caso, dep)["recusa"]["situacao"] == "enviado"
+
+    def test_assinada_pelos_dois_a_certidao_volta_para_a_trilha_e_vale_pelo_termo_assinado(self, agente, clicksign):
+        comite = ComiteComWebhook()
+        caso, dep = _termo_redigido(comite)
+        _recusar(comite, caso, dep)
+        [certidao] = _certidoes(comite)
+
+        resposta = comite.assinar(certidao["documento_key"])
+
+        assert resposta.status_code == 200, resposta.text
+        assert _acoes(comite, caso)[-1] == "certidao_de_recusa_assinada"
+        cartao = _cartao(comite, caso, dep)
+        assert cartao["recusa"]["situacao"] == "assinado"
+        [item] = [i for i in cartao["lista"] if i["item"] == "termo_assinado"]
+        assert item["estado"] == "nao_se_aplica"
+        assert "certidão de recusa" in item["motivo"]
+        assert cartao["situacao"] != "Aguardando assinatura"
+
+    def test_a_certidao_nao_leva_o_protocolo_para_a_clicksign(self, agente, clicksign):
+        comite = ComiteComWebhook()
+        caso, dep = _termo_redigido(comite)
+        protocolo = comite.abrir(MEMBRO, caso)["protocolo"]
+
+        _recusar(comite, caso, dep)
+
+        texto = _texto_do_pdf(clicksign.documentos[-1])
+        assert "Certidão de recusa de assinatura" in texto
+        assert "Fulano de Tal" in texto
+        assert protocolo not in texto
+
+    def test_o_segundo_membro_tem_que_ser_outro_membro_do_caso(self, agente, clicksign):
+        comite = ComiteComWebhook()
+        caso, dep = _termo_redigido(comite)
+
+        assert _recusar(comite, caso, dep, membro=MEMBRO).status_code == 422
+        assert _recusar(comite, caso, dep, membro="FORA").status_code == 422
+        assert clicksign.signatarios() == []
+
+    def test_sem_termo_redigido_nao_ha_certidao(self, agente, clicksign):
+        comite = ComiteComWebhook()
+        caso, dep = _com_transcricao(comite)
+
+        assert _recusar(comite, caso, dep).status_code == 409
+        assert clicksign.signatarios() == []

@@ -54,6 +54,10 @@ class Identificacao(BaseModel):
     cpf: str = Field(default="", max_length=20)
 
 
+class Recusa(BaseModel):
+    membro_id: str = Field(default="", max_length=10)
+
+
 class TermoCorrigido(BaseModel):
     """O termo inteiro, como ficou depois das correções do depoente."""
 
@@ -327,3 +331,15 @@ async def imprimir_termo(
         media_type="application/pdf",
         headers={"Cache-Control": "no-store", "Content-Disposition": f'inline; filename="{nome}"'},
     )
+
+
+@router.post("/casos/{caso_id}/depoimentos/{depoimento_id}/recusa")
+async def registrar_recusa_de_assinatura(
+    depoimento_id: UUID,
+    corpo: Recusa,
+    aberto: CasoAberto = Depends(portao_da_acao),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """A pessoa se recusou a assinar: a certidão vai à ClickSign para quem
+    registra e outro membro do caso."""
+    return _agir(termo_de_declaracao.registrar_recusa, supabase, aberto, str(depoimento_id), corpo.membro_id)
