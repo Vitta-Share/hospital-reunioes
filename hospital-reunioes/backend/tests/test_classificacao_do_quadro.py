@@ -200,3 +200,18 @@ def test_tipo_ou_frequencia_fora_da_lista_e_recusado(cliente):
     assert client.patch("/api/reunioes/R1/quadro-atribuicoes/0", json={"tipo": "META"}).status_code == 422
     assert client.patch("/api/reunioes/R1/quadro-atribuicoes/0", json={"frequencia": "ANUAL"}).status_code == 422
     assert "tipo" not in sb.reunioes[0]["json_ata"]["quadro_atribuicoes"][0]
+
+
+# ─── 4. O kit de conhecimento ────────────────────────────────────────────────
+
+
+def test_o_texto_de_reunioes_no_kit_diz_acao_rotina_e_processo():
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = (CONHECIMENTO_DIR / "reunioes.md").read_text(encoding="utf-8")
+    assert "Ação, Rotina ou Processo" in texto
+    assert "só a Ação vira pendência" in texto
+    assert "toda Rotina precisa de responsável e frequência" in texto
+    assert "linha sem tipo vale como Ação" in texto
+    # A frase antiga dizia que toda ação combinada vira pendência.
+    assert "Cada ação combinada vira uma pendência" not in texto
