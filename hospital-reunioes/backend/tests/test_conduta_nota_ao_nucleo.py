@@ -23,8 +23,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
+from postgrest.exceptions import APIError
 from test_conduta_triagem import (
-    BASE,
     COORDENACAO,
     DE_FORA,
     HOJE,
@@ -155,6 +155,25 @@ class TestMembroEscreveCoordenacaoEnvia:
         assert comite.enviar(COORDENACAO, caso).status_code == 409
         assert len(comite.notas_no_nucleo().json()["notas"]) == 1
 
+    def test_se_o_nucleo_nao_recebe_a_nota_volta_a_esperar_o_envio(self, comite, monkeypatch):
+        caso = comite.caso()
+        comite.escrever(MEMBRO, caso)
+        gravar = comite.banco.gravar
+
+        def _nucleo_fora(nome, linha):
+            if nome == "nsp_notas_do_comite":
+                raise APIError({"code": "08006", "message": "conexão perdida"})
+            return gravar(nome, linha)
+
+        monkeypatch.setattr(comite.banco, "gravar", _nucleo_fora)
+        assert comite.enviar(COORDENACAO, caso).status_code == 503
+        monkeypatch.setattr(comite.banco, "gravar", gravar)
+
+        (nota,) = comite.abrir(MEMBRO, caso)["notas_ao_nsp"]
+        assert nota["enviada_em"] is None
+        assert comite.enviar(COORDENACAO, caso).status_code == 200
+        assert len(comite.notas_no_nucleo().json()["notas"]) == 1
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 2. A Presidência do Núcleo lê a nota na lista de Segurança do Paciente
@@ -186,3 +205,84 @@ class TestPresidenciaLeANota:
 
         for pid in (MEMBRO_DO_NUCLEO, COORDENACAO, DE_FORA):
             assert comite.notas_no_nucleo(pid).status_code == 403, pid
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. A nota não leva protocolo, relato, anexo nem quem relatou, e nada liga a
+#    nota ao caso do lado do Núcleo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestANotaNaoLevaOCaso:
+    def _enviada(self, comite) -> tuple[str, dict]:
+        caso = comite.caso()
+        comite.escrever(MEMBRO, caso)
+        comite.enviar(COORDENACAO, caso)
+        (nota,) = comite.notas_no_nucleo().json()["notas"]
+        return caso, nota
+
+    def test_o_nucleo_recebe_so_o_texto_e_a_data(self, comite):
+        caso, nota = self._enviada(comite)
+        protocolo = comite._linha(caso)["protocolo"]
+
+        assert set(nota) == {"id", "texto", "enviada_em"}
+        corpo = comite.notas_no_nucleo().text
+        assert protocolo not in corpo
+        assert caso not in corpo
+        assert RELATO[:40] not in corpo
+
+    def test_a_linha_do_nucleo_nao_aponta_para_o_caso_nem_para_quem_agiu(self, comite):
+        caso, nota = self._enviada(comite)
+
+        (linha,) = comite.banco.tabelas["nsp_notas_do_comite"]
+        assert set(linha) <= {"id", "texto", "enviada_em"}
+        assert caso not in linha.values()
+        (do_comite,) = comite.banco.tabelas["conduta_notas_nsp"]
+        assert nota["id"] not in do_comite.values()
+
+    def test_a_nota_com_o_protocolo_e_recusada(self, comite):
+        caso = comite.caso()
+        protocolo = comite._linha(caso)["protocolo"]
+
+        resposta = comite.escrever(MEMBRO, caso, f"Sobre o caso {protocolo.lower()}: risco de queda.")
+
+        assert resposta.status_code == 422
+        assert resposta.json()["detail"] == "A nota não leva o protocolo do caso."
+        assert comite.banco.tabelas.get("conduta_notas_nsp", []) == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. Quem lê a nota recebe 403 em qualquer rota de caso do Canal
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _rotas_de_caso() -> list[tuple[str, str]]:
+    rotas = []
+    for rota in conduta_comite.router.routes:
+        if isinstance(rota, APIRoute) and "{caso_id}" in rota.path:
+            rotas += [(metodo, rota.path) for metodo in sorted(rota.methods)]
+    return rotas
+
+
+ROTAS_DE_CASO = _rotas_de_caso()
+
+
+def test_a_varredura_acha_as_rotas_de_caso():
+    """Piso do detector: sem rota achada, o teste abaixo passaria sobre nada."""
+    assert ("GET", "/comite-de-conduta/casos/{caso_id}") in ROTAS_DE_CASO
+    assert ("POST", "/comite-de-conduta/casos/{caso_id}/nota-ao-nsp/envio") in ROTAS_DE_CASO
+
+
+@pytest.mark.parametrize("metodo,caminho", ROTAS_DE_CASO, ids=[f"{m} {c}" for m, c in ROTAS_DE_CASO])
+@pytest.mark.parametrize("quem", [PRESIDENCIA, MEMBRO_DO_NUCLEO])
+def test_quem_le_a_nota_nao_abre_caso_do_canal(comite, metodo, caminho, quem):
+    caso = comite.caso()
+    comite.escrever(MEMBRO, caso)
+    comite.enviar(COORDENACAO, caso)
+    assert comite.notas_no_nucleo().status_code == 200
+
+    url = "/api" + caminho.replace("{caso_id}", caso)
+    resposta = comite.cliente(quem).request(metodo, url, json={})
+
+    assert resposta.status_code == 403, resposta.text
+    assert RELATO[:40] not in resposta.text

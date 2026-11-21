@@ -95,9 +95,7 @@ def enviar_nota(supabase, aberto: CasoAberto) -> dict:
         supabase.table(_DO_NUCLEO).insert({"texto": texto}).execute()
     except (APIError, httpx.HTTPError) as erro:
         # Sem a nota do lado do Núcleo, a do caso volta a esperar o envio.
-        supabase.table(_DO_COMITE).update({"enviada_por": None, "enviada_em": None}).eq(
-            "id", pendente["id"]
-        ).execute()
+        supabase.table(_DO_COMITE).update({"enviada_por": None, "enviada_em": None}).eq("id", pendente["id"]).execute()
         logger.error("Nota do Comitê não chegou ao Núcleo; volta a esperar o envio: %s", erro)
         raise AcaoRecusadaError(503, "A nota não chegou ao Núcleo. Tente de novo.") from erro
     return caso
