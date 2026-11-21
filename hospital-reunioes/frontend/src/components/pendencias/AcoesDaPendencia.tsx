@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { History, Loader2 } from "lucide-react";
+import { History, Loader2, Paperclip } from "lucide-react";
 
 import type { ComandoPendencia, EventoPendencia, HistoricoPendencia, Pendencia } from "@/types";
 
@@ -35,6 +35,20 @@ const ROTULO_DO_EVENTO: Record<EventoPendencia["comando"], string> = {
 
 const PEDE_PRAZO: ComandoPendencia[] = ["repactuar", "reabrir"];
 
+// O anexo da conclusão (issue #1865): o mesmo teto e os mesmos tipos do
+// backend (`app/services/pendencia_anexo.py`), que confere de novo.
+const LIMITE_DO_ANEXO = 10 * 1024 * 1024;
+const EXTENSOES_DO_ANEXO = [".jpg", ".jpeg", ".png", ".webp", ".pdf"];
+const MOTIVO_TIPO = "O anexo precisa ser uma foto (JPG, PNG ou WEBP) ou um PDF. Escolha outro arquivo.";
+const MOTIVO_GRANDE = "O anexo passa de 10 MB. Mande uma foto menor ou um PDF mais leve.";
+
+function recusaDoAnexo(arquivo: File): string | null {
+  const nome = arquivo.name.toLowerCase();
+  if (!EXTENSOES_DO_ANEXO.some((ext) => nome.endsWith(ext))) return MOTIVO_TIPO;
+  if (arquivo.size > LIMITE_DO_ANEXO) return MOTIVO_GRANDE;
+  return null;
+}
+
 function dataBr(iso?: string | null): string {
   if (!iso) return "";
   const [ano, mes, dia] = iso.slice(0, 10).split("-");
@@ -65,6 +79,9 @@ export function AcoesDaPendencia({ idAcao, token, acaoInicial, onAtualizada }: P
   const [acao, setAcao] = useState<ComandoPendencia | null>(null);
   const [anotacao, setAnotacao] = useState("");
   const [prazo, setPrazo] = useState("");
+  const [anexo, setAnexo] = useState<File | null>(null);
+  const [erroDoAnexo, setErroDoAnexo] = useState<string | null>(null);
+  const [erroDoLink, setErroDoLink] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -74,7 +91,11 @@ export function AcoesDaPendencia({ idAcao, token, acaoInicial, onAtualizada }: P
     });
     if (!res.ok) return setHistorico({ eventos: [], acoes_permitidas: [] });
     const dados = await res.json();
-    setHistorico({ eventos: dados?.eventos ?? [], acoes_permitidas: dados?.acoes_permitidas ?? [] });
+    setHistorico({
+      eventos: dados?.eventos ?? [],
+      acoes_permitidas: dados?.acoes_permitidas ?? [],
+      pode_abrir_anexos: dados?.pode_abrir_anexos === true,
+    });
   }, [idAcao, token]);
 
   useEffect(() => {
@@ -96,27 +117,69 @@ export function AcoesDaPendencia({ idAcao, token, acaoInicial, onAtualizada }: P
     setAcao(comando);
     setAnotacao("");
     setPrazo("");
+    setAnexo(null);
+    setErroDoAnexo(null);
     setErro(null);
   }
 
+  function escolherAnexo(arquivo: File | null) {
+    setAnexo(arquivo);
+    setErroDoAnexo(arquivo ? recusaDoAnexo(arquivo) : null);
+  }
+
   const pedePrazo = acao !== null && PEDE_PRAZO.includes(acao);
-  const pronto = anotacao.trim().length > 0 && (!pedePrazo || prazo !== "");
+  const aceitaAnexo = acao === "concluir";
+  const pronto = anotacao.trim().length > 0 && (!pedePrazo || prazo !== "") && !erroDoAnexo;
+
+  function enviar(comando: ComandoPendencia): Promise<Response> {
+    const autorizacao: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+    if (comando === "concluir" && anexo) {
+      // A conclusão com anexo (issue #1865): anotação e arquivo juntos.
+      const corpo = new FormData();
+      corpo.append("anotacao", anotacao.trim());
+      corpo.append("arquivo", anexo);
+      return fetch(`/api/pendencias/${idAcao}/conclusao`, { method: "POST", headers: autorizacao, body: corpo });
+    }
+    const corpo: Record<string, string> = { comando, anotacao: anotacao.trim() };
+    if (pedePrazo) corpo.prazo = prazo;
+    return fetch(`/api/pendencias/${idAcao}/acoes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...autorizacao },
+      body: JSON.stringify(corpo),
+    });
+  }
+
+  async function abrirAnexo(anexoId: number) {
+    setErroDoLink(null);
+    // A aba abre no clique, antes do fetch: depois dele o navegador a trataria
+    // como pop-up (como nos Documentos do Núcleo).
+    const aba = window.open("", "_blank");
+    if (aba) aba.opener = null;
+    try {
+      const res = await fetch(`/api/pendencias/${idAcao}/anexos/${anexoId}/link`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const dados = await res.json().catch(() => ({}));
+      if (res.ok && typeof dados.url === "string" && aba) {
+        aba.location.href = dados.url;
+        return;
+      }
+      aba?.close();
+      setErroDoLink(
+        typeof dados.detail === "string" ? dados.detail : "Libere os pop-ups deste site para abrir o anexo."
+      );
+    } catch {
+      aba?.close();
+      setErroDoLink("Sem conexão. Tente de novo.");
+    }
+  }
 
   async function confirmar() {
     if (!acao || !pronto) return;
     setEnviando(true);
     setErro(null);
     try {
-      const corpo: Record<string, string> = { comando: acao, anotacao: anotacao.trim() };
-      if (pedePrazo) corpo.prazo = prazo;
-      const res = await fetch(`/api/pendencias/${idAcao}/acoes`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(corpo),
-      });
+      const res = await enviar(acao);
       const dados = await res.json().catch(() => ({}));
       if (!res.ok) {
         setErro(typeof dados.detail === "string" ? dados.detail : "Não foi possível registrar a ação. Tente de novo.");
@@ -126,6 +189,7 @@ export function AcoesDaPendencia({ idAcao, token, acaoInicial, onAtualizada }: P
       setAcao(null);
       setAnotacao("");
       setPrazo("");
+      setAnexo(null);
       await carregar();
     } catch {
       setErro("Sem conexão. Tente de novo.");
@@ -185,6 +249,27 @@ export function AcoesDaPendencia({ idAcao, token, acaoInicial, onAtualizada }: P
               />
             </label>
           )}
+          {aceitaAnexo && (
+            <label className="block">
+              <span className="text-xs font-semibold text-slate-600">Anexo (opcional)</span>
+              <input
+                type="file"
+                aria-label="Anexo (opcional)"
+                accept={EXTENSOES_DO_ANEXO.join(",")}
+                onChange={(e) => escolherAnexo(e.target.files?.[0] ?? null)}
+                className="mt-1 block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-700"
+              />
+              <span className="mt-1 block text-xs text-slate-500">
+                Foto ou PDF de até 10 MB, como prova da entrega. Não anexe foto com paciente nem documento interno
+                sensível.
+              </span>
+              {erroDoAnexo && (
+                <span role="alert" className="mt-1 block text-sm text-red-600">
+                  {erroDoAnexo}
+                </span>
+              )}
+            </label>
+          )}
           {erro && <p className="text-sm text-red-600">{erro}</p>}
           <div className="flex gap-2">
             <button
@@ -211,6 +296,7 @@ export function AcoesDaPendencia({ idAcao, token, acaoInicial, onAtualizada }: P
           <History className="w-3.5 h-3.5 text-slate-400" />
           <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Histórico</span>
         </div>
+        {erroDoLink && <p className="mb-2 text-sm text-red-600">{erroDoLink}</p>}
         {historico.eventos.length === 0 ? (
           <p className="text-sm text-slate-400">Nenhuma ação registrada ainda.</p>
         ) : (
@@ -228,6 +314,23 @@ export function AcoesDaPendencia({ idAcao, token, acaoInicial, onAtualizada }: P
                 )}
                 {evento.conta_atraso && <p className="text-xs text-red-600 mt-1">Depois do vencimento</p>}
                 <p className="text-sm text-slate-600 mt-1 whitespace-pre-wrap break-words">{evento.anotacao}</p>
+                {evento.anexo && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                    <Paperclip className="w-3.5 h-3.5" />
+                    <span className="break-all">Anexo: {evento.anexo.nome}</span>
+                    {historico.pode_abrir_anexos ? (
+                      <button
+                        type="button"
+                        onClick={() => abrirAnexo(evento.anexo!.id)}
+                        className="px-2 py-1 rounded-md border border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        Abrir anexo
+                      </button>
+                    ) : (
+                      <span>(abrem o responsável, o facilitador e quem administra o aplicativo)</span>
+                    )}
+                  </div>
+                )}
               </li>
             ))}
           </ol>

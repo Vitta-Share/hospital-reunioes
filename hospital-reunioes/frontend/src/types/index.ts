@@ -252,11 +252,22 @@ export interface EventoPendencia {
   prazo_depois?: string | null;
   conta_atraso: boolean;
   criado_em: string;
+  // Foto ou PDF anexado na conclusão (issue #1865).
+  anexo?: AnexoDoEventoPendencia | null;
+}
+
+export interface AnexoDoEventoPendencia {
+  id: number;
+  nome: string;
+  tipo: string;
+  tamanho_bytes: number;
 }
 
 export interface HistoricoPendencia {
   eventos: EventoPendencia[];
   acoes_permitidas: ComandoPendencia[];
+  // Responsável, Facilitador ou Super admin abrem o anexo (issue #1865).
+  pode_abrir_anexos?: boolean;
 }
 
 export type TipoReuniao =
