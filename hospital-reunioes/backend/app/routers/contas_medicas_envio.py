@@ -17,12 +17,26 @@ from datetime import UTC, date, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
+from fastapi import Path as FastAPIPath
 from fastapi.concurrency import run_in_threadpool
 from supabase import Client
 
 from app.config import settings
 from app.dependencies import get_supabase_client, require_permissao_cm
 from app.limiter import limiter
+from app.services.contas_medicas.arquivo import (
+    ContaNaoEncontradaError as ContaAArquivarNaoEncontradaError,
+)
+from app.services.contas_medicas.arquivo import (
+    NaoArquivavelError,
+    arquivadas_da_pessoa,
+    arquivar,
+    arquivar_competencia,
+    desarquivar,
+)
+from app.services.contas_medicas.arquivo import (
+    SemPermissaoError as SemPermissaoDeArquivarError,
+)
 from app.services.contas_medicas.busca import MINIMO_DE_CARACTERES, buscar
 from app.services.contas_medicas.competencia import competencia
 from app.services.contas_medicas.descarte import (
@@ -375,6 +389,71 @@ async def ver_fila(
     listas = fila_da_pessoa(supabase, me)
     resposta = _itens(supabase, listas, ("fila", "minhas", "concluidas"))
     return resposta | {"contagem_minhas": listas["contagem_minhas"]}
+
+
+@router.get("/arquivadas")
+@limiter.limit("120/minute")
+async def ver_arquivadas(
+    request: Request,
+    me: dict = Depends(_PODE_ANALISAR),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """A etapa Arquivadas (issue #1958, ADR 0105): só quando a etapa é aberta,
+    as arquivadas de todas, cada uma com a Competência e com quem está."""
+    return _itens(supabase, arquivadas_da_pessoa(supabase, me), ("arquivadas",))
+
+
+def _sem_arquivar(acao, *args) -> None:
+    """As recusas do arquivar e do desarquivar viram 404, 403 e 409 com a frase."""
+    try:
+        acao(*args)
+    except ContaAArquivarNaoEncontradaError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conta não encontrada") from None
+    except SemPermissaoDeArquivarError as erro:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(erro)) from None
+    except NaoArquivavelError as erro:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(erro)) from None
+
+
+@router.post("/contas/{conta_id}/arquivar")
+@limiter.limit("60/minute")
+async def arquivar_conta(
+    request: Request,
+    conta_id: UUID,
+    me: dict = Depends(_PODE_ANALISAR),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """A conta concluída sai da Esteira com o carimbo de quando e quem
+    arquivou; a situação fica (issue #1958, ADR 0105, decisões 7 e 8)."""
+    _sem_arquivar(arquivar, supabase, str(conta_id), me, datetime.now(UTC).isoformat())
+    return {"arquivada": str(conta_id)}
+
+
+@router.post("/contas/{conta_id}/desarquivar")
+@limiter.limit("60/minute")
+async def desarquivar_conta(
+    request: Request,
+    conta_id: UUID,
+    me: dict = Depends(_PODE_ANALISAR),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """A conta arquivada volta para as Concluídas, com a mesma regra de quem pode."""
+    _sem_arquivar(desarquivar, supabase, str(conta_id), me)
+    return {"desarquivada": str(conta_id)}
+
+
+@router.post("/competencias/{mes}/arquivar")
+@limiter.limit("30/minute")
+async def arquivar_o_mes(
+    request: Request,
+    mes: str = FastAPIPath(pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
+    me: dict = Depends(_PODE_ANALISAR),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """ "Arquivar o mês": as Concluídas da pessoa naquela Competência, ou todas
+    para quem tem "painel completo", com as que têm pendência (decisão 9).
+    Devolve quantas arquivou e quantas tinham pendência."""
+    return arquivar_competencia(supabase, mes, me, datetime.now(UTC).isoformat())
 
 
 @router.get("/busca")

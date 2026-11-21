@@ -15,6 +15,7 @@ from __future__ import annotations
 import os
 import re
 import sys
+import uuid
 from pathlib import Path
 
 import pytest
@@ -94,9 +95,22 @@ class TestACompetencia:
 ARQUIVADA_EM = "2026-11-10T12:00:00+00:00"
 
 
-def _concluida(id_: str, ordem: int, fim: str | None, faturista="F1", situacao="CONCLUIDA", **campos) -> dict:
-    return _c(
-        id_,
+def _id(nome: str) -> str:
+    """A rota pede UUID no caminho: cada conta do teste tem um, tirado do nome."""
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, nome))
+
+
+def _nome(conta: dict) -> str:
+    return conta["numero_conta"].removeprefix("conta-")
+
+
+def _nomes(contas: list[dict]) -> list[str]:
+    return [_nome(c) for c in contas]
+
+
+def _concluida(nome: str, ordem: int, fim: str | None, faturista="F1", situacao="CONCLUIDA", **campos) -> dict:
+    conta = _c(
+        nome,
         situacao,
         ordem,
         faturista=faturista,
@@ -105,6 +119,7 @@ def _concluida(id_: str, ordem: int, fim: str | None, faturista="F1", situacao="
         concluida_em="2026-11-05T15:00:00+00:00",
         **campos,
     )
+    return conta | {"id": _id(nome)}
 
 
 def _esteira_com_arquivadas():
@@ -122,15 +137,15 @@ def _esteira_com_arquivadas():
     return _cenario(cm_conta=contas, cm_atendimento=atendimentos)
 
 
-def _conta(banco, id_: str) -> dict:
-    return next(c for c in banco.tabelas["cm_conta"] if c["id"] == id_)
+def _conta(banco, nome: str) -> dict:
+    return next(c for c in banco.tabelas["cm_conta"] if _nome(c) == nome)
 
 
 class TestAsConcluidasPorCompetencia:
     def test_vem_sem_as_arquivadas_cada_uma_com_a_competencia(self):
         corpo = _cliente("faturista", _esteira_com_arquivadas()).get(ROTA_FILA).json()
 
-        assert [(c["id"], c["competencia"]) for c in corpo["concluidas"]] == [
+        assert [(_nome(c), c["competencia"]) for c in corpo["concluidas"]] == [
             ("sem-periodo", "2026-11"),
             ("nov-f1", "2026-11"),
             ("out-f2-pendencia", "2026-10"),
@@ -169,5 +184,212 @@ class TestAsConcluidasPorCompetencia:
         resposta = _cliente("faturista", banco).get(ROTA_FILA)
 
         assert resposta.status_code == 200, resposta.text
-        numeros = {c["id"]: c["numero_atendimento"] for c in resposta.json()["concluidas"]}
+        numeros = {_nome(c): c["numero_atendimento"] for c in resposta.json()["concluidas"]}
         assert numeros["muitas-249"] == "50249"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. Arquivar uma conta
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _arquivar(quem: str, banco, nome: str):
+    return _cliente(quem, banco).post(f"/api/contas-medicas/contas/{_id(nome)}/arquivar")
+
+
+def _desarquivar(quem: str, banco, nome: str):
+    return _cliente(quem, banco).post(f"/api/contas-medicas/contas/{_id(nome)}/desarquivar")
+
+
+class TestArquivarUmaConta:
+    @pytest.mark.parametrize("nome", ["out-f1", "nov-f1"])
+    def test_a_faturista_arquiva_a_conta_concluida_em_que_e_a_faturista(self, nome):
+        banco = _esteira_com_arquivadas()
+
+        resposta = _arquivar("faturista", banco, nome)
+
+        assert resposta.status_code == 200, resposta.text
+        conta = _conta(banco, nome)
+        assert conta["arquivada_por"] == "F1"
+        assert conta["arquivada_em"]
+        # Arquivar é um carimbo, não uma situação (decisão 7).
+        assert conta["situacao"] == "CONCLUIDA"
+
+    def test_a_faturista_arquiva_a_concluida_com_pendencia_dela(self):
+        banco = _esteira_com_arquivadas()
+        _conta(banco, "out-f2-pendencia")["faturista_id"] = "F1"
+
+        assert _arquivar("faturista", banco, "out-f2-pendencia").status_code == 200
+        assert _conta(banco, "out-f2-pendencia")["situacao"] == "CONCLUIDA_COM_PENDENCIA"
+
+    def test_a_faturista_nao_arquiva_a_conta_de_outra_faturista_e_a_recusa_vem_com_uma_frase(self):
+        banco = _esteira_com_arquivadas()
+
+        resposta = _arquivar("faturista", banco, "out-f2-pendencia")
+
+        assert resposta.status_code == 403
+        assert resposta.json()["detail"] == "Esta conta é de outra faturista. Só quem tem o painel completo arquiva."
+        assert _conta(banco, "out-f2-pendencia").get("arquivada_em") is None
+
+    def test_quem_tem_o_painel_completo_arquiva_a_conta_de_qualquer_faturista(self):
+        banco = _esteira_com_arquivadas()
+
+        assert _arquivar("coordenadora", banco, "out-f2-pendencia").status_code == 200
+        assert _conta(banco, "out-f2-pendencia")["arquivada_por"] == "CO"
+
+    @pytest.mark.parametrize("situacao", ["EM_CORRECAO", "RETORNO", "A_FAZER"])
+    def test_so_a_conta_concluida_se_arquiva(self, situacao):
+        banco = _esteira_com_arquivadas()
+        _conta(banco, "out-f1")["situacao"] = situacao
+
+        resposta = _arquivar("coordenadora", banco, "out-f1")
+
+        assert resposta.status_code == 409
+        assert resposta.json()["detail"] == "Só a conta concluída se arquiva."
+        assert _conta(banco, "out-f1").get("arquivada_em") is None
+
+    def test_a_conta_ja_arquivada_nao_se_arquiva_de_novo(self):
+        banco = _esteira_com_arquivadas()
+
+        resposta = _arquivar("faturista", banco, "out-arquivada")
+
+        assert resposta.status_code == 409
+        assert resposta.json()["detail"] == "Esta conta já está arquivada."
+        assert _conta(banco, "out-arquivada")["arquivada_em"] == ARQUIVADA_EM
+
+    def test_a_conta_que_nao_existe_da_404(self):
+        assert _arquivar("faturista", _esteira_com_arquivadas(), "nao-existe").status_code == 404
+
+    def test_a_arquivada_sai_das_concluidas_e_entra_na_contagem_das_arquivadas(self):
+        banco = _esteira_com_arquivadas()
+        _arquivar("faturista", banco, "out-f1")
+
+        corpo = _cliente("faturista", banco).get(ROTA_FILA).json()
+
+        assert "out-f1" not in _nomes(corpo["concluidas"])
+        assert (corpo["contagem"]["concluidas"], corpo["contagem"]["arquivadas"]) == (3, 2)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. Arquivar o mês
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _arquivar_o_mes(quem: str, banco, mes: str):
+    return _cliente(quem, banco).post(f"/api/contas-medicas/competencias/{mes}/arquivar")
+
+
+def _arquivadas(banco) -> set[str]:
+    return {_nome(c) for c in banco.tabelas["cm_conta"] if c.get("arquivada_em")}
+
+
+class TestArquivarOMes:
+    def test_a_faturista_arquiva_so_as_dela_daquela_competencia(self):
+        banco = _esteira_com_arquivadas()
+        _conta(banco, "out-f2-pendencia")["faturista_id"] = "F2"
+
+        resposta = _arquivar_o_mes("faturista", banco, "2026-10")
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json() == {"arquivadas": 1, "com_pendencia": 0}
+        assert _arquivadas(banco) == {"out-arquivada", "out-f1"}
+        assert _conta(banco, "out-f1")["arquivada_por"] == "F1"
+
+    def test_quem_tem_o_painel_completo_arquiva_a_competencia_inteira_com_as_de_pendencia(self):
+        banco = _esteira_com_arquivadas()
+
+        resposta = _arquivar_o_mes("coordenadora", banco, "2026-10")
+
+        assert resposta.json() == {"arquivadas": 2, "com_pendencia": 1}
+        assert _arquivadas(banco) == {"out-arquivada", "out-f1", "out-f2-pendencia"}
+        # A situação fica: a de pendência segue Concluída com pendência.
+        assert _conta(banco, "out-f2-pendencia")["situacao"] == "CONCLUIDA_COM_PENDENCIA"
+
+    def test_a_conta_sem_periodo_entra_no_mes_da_conclusao(self):
+        banco = _esteira_com_arquivadas()
+
+        assert _arquivar_o_mes("coordenadora", banco, "2026-11").json() == {"arquivadas": 2, "com_pendencia": 0}
+        assert _arquivadas(banco) == {"out-arquivada", "nov-f1", "sem-periodo"}
+
+    def test_o_mes_sem_conta_arquiva_nenhuma(self):
+        banco = _esteira_com_arquivadas()
+
+        assert _arquivar_o_mes("faturista", banco, "2026-08").json() == {"arquivadas": 0, "com_pendencia": 0}
+        assert _arquivadas(banco) == {"out-arquivada"}
+
+    @pytest.mark.parametrize("mes", ["2026-13", "outubro", "2026-1"])
+    def test_a_competencia_fora_do_formato_e_recusada(self, mes):
+        assert _arquivar_o_mes("coordenadora", _esteira_com_arquivadas(), mes).status_code == 422
+
+    def test_o_mes_com_centenas_de_contas_arquiva_em_lotes_que_cabem_na_url(self):
+        banco = _esteira_com_arquivadas()
+        banco.tabelas["cm_conta"] += [_concluida(f"setembro-{n}", 100 + n, "2026-09-10") for n in range(250)]
+        banco.teto_do_in = 100
+
+        resposta = _arquivar_o_mes("faturista", banco, "2026-09")
+
+        assert resposta.json() == {"arquivadas": 250, "com_pendencia": 0}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. A etapa Arquivadas e o desarquivar
+# ═══════════════════════════════════════════════════════════════════════════
+
+ROTA_ARQUIVADAS = "/api/contas-medicas/arquivadas"
+
+
+class TestArquivadas:
+    def test_a_lista_traz_as_arquivadas_de_todas_com_a_competencia_e_com_quem_esta(self):
+        banco = _esteira_com_arquivadas()
+        _arquivar("coordenadora", banco, "out-f2-pendencia")
+
+        corpo = _cliente("faturista", banco).get(ROTA_ARQUIVADAS).json()
+
+        assert [(_nome(c), c["competencia"], c["com"], c["minha"]) for c in corpo["arquivadas"]] == [
+            ("out-arquivada", "2026-10", "Pessoa F1", True),
+            ("out-f2-pendencia", "2026-10", "Pessoa F2", False),
+        ]
+        assert corpo["todas"] is False
+
+    def test_a_faturista_desarquiva_a_dela_e_a_conta_volta_para_as_concluidas(self):
+        banco = _esteira_com_arquivadas()
+
+        resposta = _desarquivar("faturista", banco, "out-arquivada")
+
+        assert resposta.status_code == 200, resposta.text
+        conta = _conta(banco, "out-arquivada")
+        assert (conta["arquivada_em"], conta["arquivada_por"], conta["situacao"]) == (None, None, "CONCLUIDA")
+        assert "out-arquivada" in _nomes(_cliente("faturista", banco).get(ROTA_FILA).json()["concluidas"])
+
+    def test_a_faturista_nao_desarquiva_a_de_outra(self):
+        banco = _esteira_com_arquivadas()
+        _conta(banco, "out-arquivada")["faturista_id"] = "F2"
+
+        resposta = _desarquivar("faturista", banco, "out-arquivada")
+
+        assert resposta.status_code == 403
+        assert resposta.json()["detail"] == "Esta conta é de outra faturista. Só quem tem o painel completo desarquiva."
+        assert _conta(banco, "out-arquivada")["arquivada_em"] == ARQUIVADA_EM
+
+    def test_quem_tem_o_painel_completo_desarquiva_qualquer_uma(self):
+        banco = _esteira_com_arquivadas()
+        _conta(banco, "out-arquivada")["faturista_id"] = "F2"
+
+        assert _desarquivar("coordenadora", banco, "out-arquivada").status_code == 200
+        assert _conta(banco, "out-arquivada")["arquivada_em"] is None
+
+    def test_a_conta_que_nao_esta_arquivada_nao_se_desarquiva(self):
+        resposta = _desarquivar("faturista", _esteira_com_arquivadas(), "out-f1")
+
+        assert resposta.status_code == 409
+        assert resposta.json()["detail"] == "Esta conta não está arquivada."
+
+    @pytest.mark.parametrize("quem", ["credenciamento", "sem_eixo"])
+    def test_sem_analisar_contas_as_rotas_do_arquivar_dao_403(self, quem):
+        banco = _esteira_com_arquivadas()
+        cliente = _cliente(quem, banco)
+
+        assert cliente.get(ROTA_ARQUIVADAS).status_code == 403
+        assert cliente.post(f"/api/contas-medicas/contas/{_id('out-f1')}/arquivar").status_code == 403
+        assert cliente.post("/api/contas-medicas/competencias/2026-10/arquivar").status_code == 403
+        assert _arquivadas(banco) == {"out-arquivada"}
