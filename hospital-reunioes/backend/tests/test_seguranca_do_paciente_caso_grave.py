@@ -126,3 +126,75 @@ def test_caso_grave_alerta_presidencia_suplente_acesso_pleno_e_diretoria_na_madr
         assert datetime.fromisoformat(alerta["enviar_a_partir_de"]) == SABADO_3H
         assert alerta["situacao"] == emails.ENVIADO
     assert sorted(e["para"] for e in enviados) == ["p1@hsm.test", "p5@hsm.test", "p7@hsm.test", "p8@hsm.test"]
+
+
+def test_o_alerta_fica_registrado_no_envio_mesmo_sem_a_tarefa_de_fundo(monkeypatch, enviados):
+    """A tarefa de fundo é onde a triagem do agente roda: o alerta já está na
+    fila antes dela, e o job de 10 em 10 minutos o leva se a entrega não vier."""
+    monkeypatch.setattr(caso_grave, "entregar_os_avisos_da_chegada", lambda *_a, **_kw: None)
+    banco = _banco()
+
+    _cliente(banco).post(PUBLICO, json={**GRAVE, "anonimo": True, "origem": "endereco"})
+
+    alertas = _avisos(banco, caso_grave.MARCO_DO_ALERTA)
+    assert len(alertas) == 4
+    assert {a["situacao"] for a in alertas} == {emails.PENDENTE}
+    assert enviados == []
+
+
+@pytest.mark.parametrize(
+    "mudanca",
+    [{"chegou_ao_paciente": "com_dano", "grave_ou_morte": False}, {"chegou_ao_paciente": "sem_dano"}],
+    ids=["com dano, não grave", "sem dano"],
+)
+def test_caso_que_nao_e_grave_nao_alerta_ninguem(mudanca, enviados):
+    banco = _banco()
+
+    _cliente(banco).post(PUBLICO, json={**RELATO, **mudanca, "anonimo": True, "origem": "qr"})
+
+    assert len(banco.notificacoes) == 1
+    assert _avisos(banco, caso_grave.MARCO_DO_ALERTA) == []
+    assert enviados == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. Protocolo, setor e link, nunca o relato; 5. sem travessão
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_o_alerta_leva_protocolo_setor_e_link_e_nunca_o_relato(enviados):
+    banco = _banco()
+
+    resposta = _cliente(banco).post(PUBLICO, json={**GRAVE, "anonimo": True, "origem": "qr"})
+
+    protocolo = resposta.json()["protocolo"]
+    para_a_presidencia = next(e for e in enviados if e["para"] == "p1@hsm.test")
+    assert para_a_presidencia["assunto"] == (
+        f"Caso grave ou com morte: abra a notificação {protocolo}, recebida em 14/11/2026 às 03:00"
+    )
+    for parte in ("texto", "html"):
+        corpo = para_a_presidencia[parte]
+        assert protocolo in corpo
+        assert SETOR["nome"] in corpo
+        assert "/seguranca-do-paciente/notificacoes" in corpo
+        assert "Pessoa de Teste P1" in corpo
+    for envio in enviados:
+        for parte in ("assunto", "texto", "html"):
+            assert RELATO_GRAVE not in envio[parte]
+            assert "bomba de infusão" not in envio[parte]
+            assert GRAVE["leito_ou_atendimento"] not in envio[parte]
+
+
+def test_o_alerta_sai_sem_travessao_mesmo_com_setor_e_nome_que_tem(enviados):
+    banco = _banco()
+    banco.tabelas["setores"][0]["nome"] = "UTI — Adulto – Leste"
+    banco.tabelas["participantes"][0]["nome_completo"] = "Ana — Presidente"
+
+    _cliente(banco).post(PUBLICO, json={**GRAVE, "anonimo": True, "origem": "qr"})
+
+    assert len(enviados) == 4
+    for envio in enviados:
+        for parte in ("assunto", "texto", "html"):
+            assert "—" not in envio[parte]
+            assert "–" not in envio[parte]
+    assert any("UTI" in e["texto"] and "Leste" in e["texto"] for e in enviados)
