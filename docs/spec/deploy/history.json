@@ -2,6 +2,61 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T12:20:38-03:00",
+      "sha": "bec04a6667858e67b984f61490fc3e8b736b251c",
+      "app_version": "0.339.0",
+      "subject": "Onda nsp2-onda5: Anexos no formulário de notificação; Alerta imediato de caso grave e confirmação de recebimento; O caso que a Ouvidoria manda ao Núcleo vira notificação",
+      "raw_subject": "chore(deploy): registro da onda nsp2-onda5 (#2082 #2081 #2083)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1979
+      ],
+      "result": "healthy",
+      "duration_seconds": 34655,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "181_nsp_anexos_da_notificacao.sql",
+        "181_nsp_anexos_da_notificacao.sql",
+        "182_nsp_caso_grave_e_confirmacao.sql",
+        "181_nsp_anexos_da_notificacao.sql",
+        "182_nsp_caso_grave_e_confirmacao.sql",
+        "183_nsp_caso_vindo_da_ouvidoria.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp2-onda5: PR #2082 (issue #1988), PR #2081 (issue #1989), PR #2083 (issue #1997), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 9,
+        "build_s": {
+          "backend": 19,
+          "frontend": 202
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T12:00:57-03:00",
       "sha": "21d3fb3b28dc685a77b9b7ce59cc2447dc26760c",
       "app_version": "0.338.0",
