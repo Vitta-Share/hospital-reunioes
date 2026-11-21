@@ -128,6 +128,17 @@ class _Consulta:
         self._filtros.append(lambda linha: linha.get(coluna) is not None and str(linha.get(coluna)) >= str(valor))
         return self
 
+    def lte(self, coluna, valor):
+        self._filtros.append(lambda linha: linha.get(coluna) is not None and str(linha.get(coluna)) <= str(valor))
+        return self
+
+    def upsert(self, linhas, *, on_conflict, ignore_duplicates=False):
+        # Só o `ignore_duplicates` que a fotografia usa: a linha que já existe
+        # pela chave fica como estava (issue #1873).
+        assert ignore_duplicates
+        self._upsert = (linhas, on_conflict.split(","))
+        return self
+
     def limit(self, quantos):
         self._recorte = (0, quantos - 1)
         return self
@@ -145,6 +156,14 @@ class _Consulta:
         return self
 
     def execute(self):
+        if getattr(self, "_upsert", None) is not None:
+            novas, chave = self._upsert
+            gravadas = []
+            for nova in novas:
+                if not any(all(str(v.get(c)) == str(nova.get(c)) for c in chave) for v in self._linhas):
+                    self._linhas.append(dict(nova))
+                    gravadas.append(dict(nova))
+            return _Result(gravadas)
         linhas = [dict(linha) for linha in self._linhas if all(f(linha) for f in self._filtros)]
         if self._recorte is not None:
             inicio, fim = self._recorte
@@ -159,6 +178,7 @@ class _Banco:
     reunioes: list = field(default_factory=list)
     participantes: list = field(default_factory=list)
     pendencia_historico: list = field(default_factory=list)
+    painel_fotografias: list = field(default_factory=list)
 
     def table(self, nome):
         return _Consulta(self, getattr(self, nome))
@@ -560,3 +580,140 @@ def test_o_texto_de_reunioes_no_kit_diz_o_ranking_de_90_dias():
     assert "conta no setor do responsável pela pendência" in texto
     assert "A pendência cancelada não entra em nenhuma dessas contas" in texto
     assert "a repactuação feita antes de o prazo vencer não pesa" in texto
+
+
+def test_o_texto_de_reunioes_no_kit_diz_a_fotografia_semanal():
+    from app.services.conhecimento import CONHECIMENTO_DIR
+
+    texto = (CONHECIMENTO_DIR / "reunioes.md").read_text(encoding="utf-8")
+    assert "Toda segunda-feira, o aplicativo guarda os números do painel de cada pessoa" in texto
+    assert "a evolução das atrasadas nas últimas 8 semanas" in texto
+    assert "a seta só aparece quando existe a fotografia da semana anterior" in texto
+    assert "A semana sem fotografia não aparece, e nada é recalculado do passado" in texto
+
+
+# ─── 6. A fotografia semanal (issue #1873) ───────────────────────────────────
+
+# HOJE é quarta, 18/11/2026: a semana dele começa na segunda, 16/11.
+SEMANA = "2026-11-16"
+SEMANA_ANTERIOR = "2026-11-09"
+
+
+def _com_login(banco: _Banco) -> _Banco:
+    """O Super admin e Ana entram no app; a Secretária também, e não tem painel;
+    Bruno nunca entrou."""
+    banco.participantes = [
+        {"id": "P_ADMIN", "access_profile": "super_admin", "auth_user_id": "u-admin", "ativo": True},
+        {"id": "P_ANA", "access_profile": "regular", "auth_user_id": "u-ana", "ativo": True, "setor": "UTI"},
+        {"id": "P_SELMA", "access_profile": "secretaria", "auth_user_id": "u-selma", "ativo": True},
+        {"id": "P_BRUNO", "access_profile": "regular", "auth_user_id": None, "setor": "Farmácia"},
+    ]
+    return banco
+
+
+def _recorte_pelo_vinculo(sb, me):
+    facilitadas = [r["id_reuniao"] for r in sb.reunioes if r["facilitador_id"] == me["id"]]
+    return recorte_das_pendencias(
+        me["id"],
+        super_admin=me["access_profile"] == "super_admin",
+        facilitadas=facilitadas,
+        do_nucleo=[],
+        ocultas=[],
+    )
+
+
+def _foto(participante_id, semana, *, atrasadas=0, conformidade=100) -> dict:
+    return {
+        "participante_id": participante_id,
+        "semana": semana,
+        "atas_paradas": 0,
+        "aguardam_assinatura": 0,
+        "atrasadas": atrasadas,
+        "vencem_em_3_dias": 0,
+        "conformidade": conformidade,
+        "ativas": 4,
+    }
+
+
+def _atrasadas_da_semana(banco: _Banco, semana: str) -> dict:
+    return {f["participante_id"]: f["atrasadas"] for f in banco.painel_fotografias if str(f["semana"]) == semana}
+
+
+def test_rodar_o_job_duas_vezes_na_mesma_semana_grava_uma_fotografia_so(painel, monkeypatch):
+    from app.cron import scheduler as cron
+    from app.services import fotografia_do_painel
+
+    banco = _com_login(_banco_de_papeis())
+    dia = {"hoje": HOJE}
+    monkeypatch.setattr(cron, "_supabase", lambda: banco)
+    monkeypatch.setattr(cron, "_hoje", lambda: dia["hoje"])
+    monkeypatch.setattr(fotografia_do_painel, "recorte_das_pendencias_de", _recorte_pelo_vinculo)
+
+    cron.fotografar_painel_de_reunioes()
+    # Uma atrasada a mais no meio da semana, e o job roda de novo no domingo.
+    banco.pendencias.append(_pendencia("A9", "P_ANA", id_reuniao="R1", prazo=ONTEM))
+    dia["hoje"] = date(2026, 11, 22)
+    cron.fotografar_painel_de_reunioes()
+
+    fotos = {(f["participante_id"], str(f["semana"])): f for f in banco.painel_fotografias}
+    # Quem entra no app e vê o painel; a Secretária e quem nunca entrou, não.
+    assert set(fotos) == {("P_ADMIN", SEMANA), ("P_ANA", SEMANA)}
+    # Os números da primeira rodada, que a segunda não muda.
+    assert fotos[("P_ADMIN", SEMANA)]["atrasadas"] == 2
+    assert fotos[("P_ADMIN", SEMANA)]["ativas"] == 4
+    assert fotos[("P_ANA", SEMANA)]["atrasadas"] == 1
+
+    # A segunda seguinte é outra semana, e ganha a fotografia dela (a A3,
+    # que vencia em 20/11, também já está atrasada).
+    dia["hoje"] = date(2026, 11, 23)
+    cron.fotografar_painel_de_reunioes()
+    assert _atrasadas_da_semana(banco, "2026-11-23") == {"P_ADMIN": 4, "P_ANA": 2}
+
+
+def test_sem_fotografia_da_semana_anterior_o_card_nao_mostra_seta(painel):
+    pedir, estado = painel
+    banco = _banco_de_papeis()
+    # Só a fotografia desta semana, a da segunda 16/11.
+    banco.painel_fotografias = [_foto("P_ADMIN", SEMANA, atrasadas=9)]
+    estado["banco"] = banco
+
+    assert pedir("admin").json()["semana_anterior"] is None
+
+    banco.painel_fotografias.append(_foto("P_ADMIN", SEMANA_ANTERIOR, atrasadas=3, conformidade=70))
+    banco.painel_fotografias.append(_foto("P_ANA", "2026-11-02", atrasadas=1))
+    corpo = pedir("admin").json()
+
+    assert corpo["semana_anterior"]["atrasadas"] == 3
+    assert corpo["semana_anterior"]["conformidade"] == 70
+    # A fotografia é de cada pessoa: a de Ana é de duas semanas atrás.
+    assert pedir("ana").json()["semana_anterior"] is None
+    # Com filtro, o número do card não é o da fotografia: sem seta.
+    assert pedir("admin", responsavel_id="P_ANA").json()["semana_anterior"] is None
+
+
+def test_a_evolucao_mostra_no_maximo_8_semanas_so_as_fotografadas(painel):
+    pedir, estado = painel
+    banco = _banco_de_papeis()
+    segundas = [(date(2026, 11, 16) - timedelta(weeks=i)).isoformat() for i in range(10)]
+    # Dez segundas, menos a de 26/10, quando o job não rodou.
+    banco.painel_fotografias = [
+        _foto("P_ADMIN", s, atrasadas=i) for i, s in enumerate(segundas) if s != "2026-10-26"
+    ] + [_foto("P_ANA", SEMANA, atrasadas=50)]
+    estado["banco"] = banco
+
+    evolucao = pedir("admin").json()["evolucao"]
+
+    # As 8 semanas de 28/09 a 16/11, sem a que não tem fotografia, da mais antiga à mais nova.
+    assert evolucao == [
+        {"semana": "2026-09-28", "atrasadas": 7},
+        {"semana": "2026-10-05", "atrasadas": 6},
+        {"semana": "2026-10-12", "atrasadas": 5},
+        {"semana": "2026-10-19", "atrasadas": 4},
+        {"semana": "2026-11-02", "atrasadas": 2},
+        {"semana": "2026-11-09", "atrasadas": 1},
+        {"semana": "2026-11-16", "atrasadas": 0},
+    ]
+    assert pedir("ana").json()["evolucao"] == [{"semana": "2026-11-16", "atrasadas": 50}]
+
+    banco.painel_fotografias.append(_foto("P_ADMIN", "2026-10-26", atrasadas=3))
+    assert len(pedir("admin").json()["evolucao"]) == 8
