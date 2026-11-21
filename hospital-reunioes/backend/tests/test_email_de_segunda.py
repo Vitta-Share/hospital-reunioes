@@ -16,6 +16,7 @@ import re
 import sys
 from dataclasses import dataclass, field
 from datetime import date
+from types import SimpleNamespace
 
 import pytest
 
@@ -94,6 +95,9 @@ class _Consulta:
     def order(self, *_a, **_kw):
         return self
 
+    def limit(self, *_a, **_kw):
+        return self
+
     def range(self, inicio, fim):
         self._recorte = (inicio, fim)
         return self
@@ -107,7 +111,15 @@ class _Consulta:
         self._apagar = True
         return self
 
+    def insert(self, linha):
+        self._linhas.append(dict(linha))
+        self._upsert = None
+        self._inserida = dict(linha)
+        return self
+
     def execute(self):
+        if getattr(self, "_inserida", None) is not None:
+            return _Result([self._inserida])
         if self._upsert is not None:
             novas, chave = self._upsert
             gravadas = []
@@ -135,9 +147,35 @@ class _Banco:
     pendencias: list = field(default_factory=list)
     pendencia_historico: list = field(default_factory=list)
     email_de_segunda: list = field(default_factory=list)
+    pendencias_links_pessoais: list = field(default_factory=list)
+    # Quem nunca entrou no app; o resto do cadastro já entrou (issue #1878).
+    nunca_entraram: set = field(default_factory=set)
+    auth_fora_do_ar: bool = False
 
     def table(self, nome):
         return _Consulta(getattr(self, nome))
+
+    @property
+    def auth(self):
+        banco = self
+
+        class _Admin:
+            def list_users(self, page=None, per_page=None):
+                if banco.auth_fora_do_ar:
+                    raise RuntimeError("GoTrue fora do ar")
+                usuarios = [
+                    SimpleNamespace(
+                        id=f"auth-{p['id']}",
+                        email=p.get("email"),
+                        last_sign_in_at=None if p["id"] in banco.nunca_entraram else "2026-11-01T10:00:00Z",
+                    )
+                    for p in banco.participantes
+                    if p.get("email")
+                ]
+                inicio = ((page or 1) - 1) * (per_page or 50)
+                return usuarios[inicio : inicio + (per_page or 50)]
+
+        return SimpleNamespace(admin=_Admin())
 
 
 def _pessoa(pid, nome, *, perfil="regular", email=True, ativo=True, perfil_nsp=None) -> dict:
@@ -499,6 +537,70 @@ def test_quem_e_facilitador_e_responsavel_recebe_um_email_com_as_duas_partes_sep
     # A parte do Facilitador vem antes da do responsável.
     html = email["html"]
     assert html.index("Das reuniões que você facilita") < html.index("Suas pendências em aberto")
+
+
+# ─── 5b. O link pessoal de quem nunca entrou (issue #1878) ───────────────────
+
+_LINK_PESSOAL = re.compile(r"/minhas-pendencias/([A-Za-z0-9_-]+)")
+
+
+def _banco_com_quem_nunca_entrou(banco: _Banco) -> _Banco:
+    """Bruno nunca entrou; Carla já entrou. Os dois têm Pendência aberta."""
+    _so_responsavel(banco)
+    banco.participantes.append(_pessoa("P_CARLA", "Carla Dias"))
+    banco.pendencias.append(_pendencia("A2", "Revisar a escala", "P_CARLA", id_reuniao="R1"))
+    banco.nunca_entraram = {"P_BRUNO"}
+    return banco
+
+
+def test_quem_nunca_entrou_recebe_o_link_pessoal_que_abre_as_pendencias_dele(job):
+    import datetime as dt
+
+    from app.services import link_pessoal
+
+    rodar, estado = job
+    banco = _banco_com_quem_nunca_entrou(estado["banco"])
+
+    rodar()
+
+    (email,) = _para(estado, "P_BRUNO")
+    tokens = set(_LINK_PESSOAL.findall(email["html"]))
+    assert len(tokens) == 1
+    (token,) = tokens
+    assert f"/minhas-pendencias/{token}" in email["texto"]
+    assert "Atualizar minhas pendências" in email["html"]
+    assert "/inicio" not in email["html"]
+    # O token do e-mail é o da pessoa, e só dela.
+    vinculo = link_pessoal.carregar(banco, token, dt.datetime.now(dt.UTC))
+    assert vinculo["participante_id"] == "P_BRUNO"
+
+
+def test_quem_ja_entrou_no_app_recebe_o_link_comum(job):
+    rodar, estado = job
+    banco = _banco_com_quem_nunca_entrou(estado["banco"])
+
+    rodar()
+
+    (email,) = _para(estado, "P_CARLA")
+    assert "/inicio" in email["html"]
+    assert "/inicio" in email["texto"]
+    assert "Abrir o aplicativo" in email["html"]
+    assert not _LINK_PESSOAL.search(email["html"] + email["texto"])
+    # Só o Bruno ganhou link emitido no banco.
+    assert [linha["participante_id"] for linha in banco.pendencias_links_pessoais] == ["P_BRUNO"]
+
+
+def test_sem_saber_quem_entrou_todo_mundo_recebe_o_link_comum(job):
+    rodar, estado = job
+    banco = _banco_com_quem_nunca_entrou(estado["banco"])
+    banco.auth_fora_do_ar = True
+
+    rodar()
+
+    (email,) = _para(estado, "P_BRUNO")
+    assert "/inicio" in email["html"]
+    assert not _LINK_PESSOAL.search(email["html"])
+    assert banco.pendencias_links_pessoais == []
 
 
 # ─── 6. Sem travessão ────────────────────────────────────────────────────────

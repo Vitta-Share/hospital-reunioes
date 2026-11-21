@@ -78,6 +78,42 @@ def carregar(supabase, token: str, agora: dt.datetime) -> dict:
     return vinculo
 
 
+_POR_PAGINA = 1000
+
+
+def quem_nunca_entrou(supabase, pessoas: Iterable[dict]) -> set[str]:
+    """Os ids das pessoas que nunca entraram no app: sem conta no Auth, ou com
+    conta e sem nenhum login (`last_sign_in_at` vazio). A conta casa pelo
+    `auth_user_id` ou, sem ele, pelo e-mail.
+
+    Se o Auth não responde, ninguém ganha link pessoal: o e-mail sai com o
+    link comum, e um link com poder de escrita não sai por palpite."""
+    entraram_ids: set[str] = set()
+    entraram_emails: set[str] = set()
+    try:
+        pagina = 1
+        while True:
+            usuarios = supabase.auth.admin.list_users(page=pagina, per_page=_POR_PAGINA)
+            for u in usuarios:
+                if getattr(u, "last_sign_in_at", None):
+                    entraram_ids.add(str(u.id))
+                    if getattr(u, "email", None):
+                        entraram_emails.add(u.email.strip().lower())
+            if len(usuarios) < _POR_PAGINA:
+                break
+            pagina += 1
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[Link pessoal] Não leu os logins do Auth, todos recebem o link comum: %s", e)
+        return set()
+
+    def _entrou(p: dict) -> bool:
+        if p.get("auth_user_id") and str(p["auth_user_id"]) in entraram_ids:
+            return True
+        return (p.get("email") or "").strip().lower() in entraram_emails
+
+    return {p["id"] for p in pessoas if not _entrou(p)}
+
+
 def revogar_da_pessoa(supabase, participante_id: str, agora: dt.datetime) -> int:
     """Cancela todo link vivo da pessoa e devolve quantos caíram."""
     result = (
