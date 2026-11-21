@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Termo de Confidencialidade, {{ convidado.nome }}</title>
+    <style>
+        {% if font_path %}
+        @font-face {
+            font-family: "HP Simplified";
+            src: url("{{ font_path }}") format("truetype");
+            font-weight: 400;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: "HP Simplified";
+            src: url("{{ font_path }}") format("truetype");
+            font-weight: 700;
+            font-style: normal;
+        }
+        {% endif %}
+
+        @page {
+            size: A4;
+            margin: 2cm 1.8cm 1.8cm 1.8cm;
+            @bottom-right {
+                content: "Página " counter(page) " de " counter(pages);
+                font-family: "HP Simplified", sans-serif;
+                font-size: 8.5pt;
+                color: #64748B;
+            }
+            @bottom-left {
+                content: "Termo de Confidencialidade · Documento {{ documento.identificador }}";
+                font-family: "HP Simplified", sans-serif;
+                font-size: 8pt;
+                color: #64748B;
+            }
+        }
+
+        body {
+            font-family: "HP Simplified", sans-serif;
+            font-synthesis: weight style;
+            color: #1E293B;
+            line-height: 1.55;
+            margin: 0;
+            font-size: 10.5pt;
+        }
+
+        .header { display: table; width: 100%; border-bottom: 1px solid #E2E8F0; padding-bottom: 16px; margin-bottom: 14px; }
+        .header-logo { display: table-cell; vertical-align: middle; width: 110px; }
+        .header-logo img { max-width: 96px; height: auto; }
+        .header-title { display: table-cell; vertical-align: middle; padding-left: 12px; }
+        .header-title h1 { color: #2B2E7E; margin: 0 0 4px 0; font-size: 18pt; text-transform: uppercase; line-height: 1.15; }
+        .header-title p { margin: 0; font-size: 10.5pt; font-weight: 700; }
+        .header-title .instituicao { color: #64748B; font-size: 9pt; font-weight: 400; }
+
+        h2 { color: #2B2E7E; font-size: 11.5pt; text-transform: uppercase; margin: 18px 0 6px 0; break-after: avoid; }
+        p { margin: 0 0 6px 0; text-align: justify; }
+
+        table.identificacao { width: 100%; border-collapse: collapse; margin: 4px 0 8px 0; }
+        table.identificacao th, table.identificacao td { border: 1px solid #E2E8F0; padding: 5px 8px; text-align: left; vertical-align: top; }
+        table.identificacao th { background: #F8FAFC; width: 34%; font-weight: 700; }
+
+        .assinatura { border: 1px solid #E2E8F0; border-radius: 6px; padding: 10px 12px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        {% if logo_path %}<div class="header-logo"><img src="{{ logo_path }}" alt="Hospital São Matheus"></div>{% endif %}
+        <div class="header-title">
+            <h1>Termo de Confidencialidade</h1>
+            <p>{{ convidado.papel }}, Comitê de Conduta</p>
+            <p class="instituicao">Hospital São Matheus, AMA Assistência Médica</p>
+        </div>
+    </div>
+
+    <h2>1. Identificação</h2>
+    <table class="identificacao">
+        <tr><th>Nome</th><td>{{ convidado.nome }}</td></tr>
+        <tr><th>Papel no caso</th><td>{{ convidado.papel }}</td></tr>
+    </table>
+
+    <h2>2. Do acesso</h2>
+    <p>Declaro que fui convidado pelo Comitê de Conduta do Hospital São Matheus para atuar num caso do Canal de Conduta, no papel indicado acima, e que <strong>aceito o convite</strong>.</p>
+    <p>Sei que vejo <strong>só o caso para o qual fui convidado</strong>, e só depois de assinar este Termo. Não vejo a lista de casos do Comitê nem outro módulo do aplicativo, e cada acesso meu ao caso fica registrado, com quem, quando e o quê.</p>
+
+    <h2>3. Do compromisso de confidencialidade</h2>
+    <p>Comprometo-me a:</p>
+    <p><strong>3.1</strong> Manter sigilo absoluto sobre toda informação a que tiver acesso no caso, incluindo o relato, a identidade de quem relata, a identidade de quem é citado, depoimentos, deliberações e documentos.</p>
+    <p><strong>3.2</strong> Não reproduzir, transmitir, fotografar, gravar ou compartilhar, por qualquer meio, informação do caso com pessoa não autorizada, dentro ou fora do Hospital.</p>
+    <p><strong>3.3</strong> Nunca tentar identificar o autor de relato anônimo, nem cruzar o relato com dados de pessoal, escala ou acesso.</p>
+    <p><strong>3.4</strong> Utilizar a informação exclusivamente para a apuração do caso, observada a Lei nº 13.709/2018 e limitado ao mínimo necessário.</p>
+    <p><strong>3.5</strong> Manter o sigilo durante a apuração <strong>e após o seu término, por prazo indeterminado</strong>.</p>
+    <p><strong>3.6</strong> Comunicar imediatamente ao Comitê qualquer acesso indevido, perda, vazamento ou suspeita de comprometimento de informação.</p>
+
+    <h2>4. Do compromisso contra a retaliação</h2>
+    <p>Comprometo-me a não praticar, incentivar ou tolerar qualquer forma de retaliação contra quem relata de boa-fé ou contra testemunha, e a comunicar ao Comitê eventual retaliação de que tenha conhecimento.</p>
+
+    <h2>5. Do impedimento</h2>
+    <p>Comprometo-me a <strong>avisar o Comitê e a abster-me da apuração</strong> se eu for parte, chefia direta de envolvido, parente de envolvido, tiver relação pessoal com envolvido ou interesse no resultado.</p>
+
+    <h2>6. Da assinatura</h2>
+    <p>Assino este Termo eletronicamente, por meio da plataforma de assinatura eletrônica contratada pelo Hospital São Matheus, sendo a assinatura eletrônica reconhecida como manifestação válida de vontade, nos termos da Lei nº 14.063/2020.</p>
+    <div class="assinatura">
+        <p><strong>Signatário:</strong> {{ convidado.nome }}</p>
+        <p><strong>Data e hora:</strong> registradas pela plataforma de assinatura eletrônica</p>
+        <p><strong>Documento:</strong> {{ documento.identificador }}</p>
+    </div>
+</body>
+</html>

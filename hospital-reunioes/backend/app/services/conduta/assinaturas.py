@@ -12,6 +12,10 @@ aplicação, para a prova não depender da conta da ClickSign.
 O primeiro documento é o Termo de Confidencialidade e Posse do membro do
 Comitê, com o Regimento do Comitê como parte integrante. Assinado, ele carimba
 a Participação, e só então o membro abre caso (`acesso`).
+
+O segundo é o termo de confidencialidade de quem foi convidado para um caso,
+o apurador designado ou o membro da CIPA (issue #1825). Assinado, ele carimba
+a atribuição do convidado naquele caso, e a assinatura entra na trilha.
 """
 
 from __future__ import annotations
@@ -21,7 +25,7 @@ from datetime import UTC, date, datetime
 from typing import Any
 
 from app.services import clicksign_service, storage
-from app.services.conduta import cifra
+from app.services.conduta import cifra, trilha
 from app.services.conduta.membros import CADEIRAS
 from app.services.seguranca_do_paciente.termo import gerar_pdf_do_termo
 from app.utils.text_sanitizer import sanitizar_estrutura
@@ -35,6 +39,12 @@ TERMO_DE_POSSE = "termo_de_posse"
 MODELO_DO_TERMO = "conduta_termo_de_posse.html"
 # A versão do Regimento que o modelo do Termo traz no anexo.
 VERSAO_DO_REGIMENTO = 1
+
+# O termo de quem foi convidado para um caso (migration 192 já tem o tipo).
+TERMO_DO_CONVIDADO = "termo_do_apurador"
+MODELO_DO_TERMO_DO_CONVIDADO = "conduta_termo_do_convidado.html"
+# As atribuições que nascem do convite (migration 175).
+MOTIVOS_DO_CONVITE = ("apurador", "cipa")
 
 # O envelope fecha quando todos assinaram. `sign` não conta: num documento de
 # três signatários ele chega a cada assinatura.
@@ -241,17 +251,110 @@ def situacao_dos_termos(supabase, participacoes: list[dict]) -> dict[str, str]:
 
 
 # ---------------------------------------------------------------------------
+# O termo de confidencialidade do convidado (issue #1825)
+# ---------------------------------------------------------------------------
+
+
+def _abertas_do_convidado(supabase, caso_id: str, participante_id: str) -> list[dict]:
+    linhas = (
+        supabase.table(TABELA)
+        .select("*")
+        .eq("tipo", TERMO_DO_CONVIDADO)
+        .eq("caso_id", caso_id)
+        .in_("situacao", ["gerado", "enviado"])
+        .execute()
+        .data
+    ) or []
+    return [linha for linha in linhas if participante_id in (linha.get("signatarios") or [])]
+
+
+def enviar_termo_do_convidado(supabase, caso_id: str, pessoa: dict, papel: str) -> dict:
+    """Gera o termo do convidado e o envia ao e-mail dele, cancelando o envio
+    que ainda estava aberto (o link antigo morre). O documento não leva o
+    protocolo nem nada do caso: o identificador é o da própria assinatura.
+    Falha da ClickSign deixa a linha em "gerado", com o erro."""
+    for aberta in _abertas_do_convidado(supabase, caso_id, pessoa["id"]):
+        if aberta.get("envelope_id"):
+            clicksign_service.cancel_envelope(aberta["envelope_id"])
+        supabase.table(TABELA).update({"situacao": "cancelado", "cancelado_em": _agora()}).eq(
+            "id", aberta["id"]
+        ).execute()
+    assinatura = (
+        supabase.table(TABELA)
+        .insert(
+            {"tipo": TERMO_DO_CONVIDADO, "caso_id": caso_id, "signatarios": [pessoa["id"]], "situacao": "gerado"}
+        )
+        .execute()
+        .data
+    )[0]
+    dados = sanitizar_estrutura(
+        {
+            "convidado": {"nome": pessoa.get("nome_completo") or "Não informado", "papel": papel},
+            "documento": {"identificador": assinatura["id"]},
+        }
+    )
+    pdf = gerar_pdf_do_termo({**dados, "modelo": MODELO_DO_TERMO_DO_CONVIDADO})
+    resultado = enviar_a_clicksign(
+        pdf,
+        f"Termo de Confidencialidade CC - {assinatura['id']}",
+        f"Termo_de_Confidencialidade_{assinatura['id']}.pdf",
+        [pessoa],
+    )
+    return _registrar_envio(supabase, assinatura, resultado)
+
+
+def termos_enviados_do_caso(supabase, caso_id: str) -> set[str]:
+    """Quem do caso tem o termo de convidado enviado, esperando a assinatura."""
+    linhas = (
+        supabase.table(TABELA)
+        .select("signatarios")
+        .eq("tipo", TERMO_DO_CONVIDADO)
+        .eq("caso_id", caso_id)
+        .eq("situacao", "enviado")
+        .execute()
+        .data
+    ) or []
+    return {pid for linha in linhas for pid in linha.get("signatarios") or []}
+
+
+# ---------------------------------------------------------------------------
 # O retorno da assinatura: webhook e reconsulta
 # ---------------------------------------------------------------------------
 
 
 def _efeito_da_assinatura(supabase, assinatura: dict, assinado_em: str) -> None:
     """O que a assinatura muda fora da tabela. O Termo carimba a Participação,
-    só se ainda falta: o retorno repetido não acha mais nada."""
+    e o do convidado, a atribuição dele no caso, só se ainda falta: o retorno
+    repetido não acha mais nada."""
     if assinatura["tipo"] == TERMO_DE_POSSE:
         supabase.table("participacoes").update({"termo_assinado_em": assinado_em}).eq(
             "id", assinatura["participacao_id"]
         ).is_("termo_assinado_em", "null").execute()
+    elif assinatura["tipo"] == TERMO_DO_CONVIDADO:
+        _carimbar_o_convite(supabase, assinatura, assinado_em)
+
+
+def _carimbar_o_convite(supabase, assinatura: dict, assinado_em: str) -> None:
+    """A atribuição aberta do convidado naquele caso passa a valer. A linha da
+    trilha vem antes, como em toda ação do caso."""
+    [participante_id] = assinatura["signatarios"]
+    pendentes = (
+        supabase.table("conduta_atribuicoes")
+        .select("id")
+        .eq("caso_id", assinatura["caso_id"])
+        .eq("participante_id", participante_id)
+        .in_("motivo", list(MOTIVOS_DO_CONVITE))
+        .is_("revogada_em", "null")
+        .is_("termo_assinado_em", "null")
+        .execute()
+        .data
+    ) or []
+    if not pendentes:
+        return
+    trilha.registrar(supabase, assinatura["caso_id"], participante_id, "termo_assinado", "termo de confidencialidade")
+    supabase.table("conduta_atribuicoes").update({"termo_assinado_em": assinado_em}).in_(
+        "id", [linha["id"] for linha in pendentes]
+    ).execute()
 
 
 def _guardar_copia(supabase, assinatura: dict) -> None:
