@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T03:37+0000 -->
+<!-- last_update: 2026-11-22T03:43+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -3279,6 +3279,41 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_conduta_ciencias_do_codigo_enviado_por` em `(enviado_por)` (de `216_conduta_voto_e_trava_de_robustez.sql`)
 
+## conduta_afastamentos
+
+> Origem: `217_conduta_afastamento_cautelar.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `citado_id` | `UUID` | NOT NULL | — | `conduta_citados.id` |
+| `rota` | `TEXT` | NOT NULL | — | — |
+| `quem_cifrado` | `TEXT` | NOT NULL | — | — |
+| `motivo_cifrado` | `TEXT` | NOT NULL | — | — |
+| `registrado_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `registrado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `entregue_ao_dp_em` | `DATE` | — | — | — |
+| `entregue_ao_dp_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `entregue_ao_juridico_em` | `DATE` | — | — | — |
+| `entregue_ao_juridico_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `parecer_storage_path` | `TEXT` | — | — | — |
+| `parecer_tamanho_bytes` | `INTEGER` | — | — | — |
+| `parecer_anexado_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `parecer_anexado_em` | `TIMESTAMPTZ` | — | — | — |
+| `parecer_resultado` | `TEXT` | — | — | — |
+| `ciencia_de` | `TEXT[]` | — | — | — |
+| `ele` | `leva` | — | — | — |
+
+**Indexes:**
+- `idx_conduta_afastamentos_caso` em `(caso_id)` (de `217_conduta_afastamento_cautelar.sql`)
+- `idx_conduta_afastamentos_citado` em `(citado_id)` (de `217_conduta_afastamento_cautelar.sql`)
+- `idx_conduta_afastamentos_registrado_por` em `(registrado_por)` (de `217_conduta_afastamento_cautelar.sql`)
+- `idx_conduta_afastamentos_entregue_ao_dp_por` em `(entregue_ao_dp_por)` (de `217_conduta_afastamento_cautelar.sql`)
+- `idx_conduta_afastamentos_entregue_ao_juridico_por` em `(entregue_ao_juridico_por)` (de `217_conduta_afastamento_cautelar.sql`)
+- `idx_conduta_afastamentos_parecer_anexado_por` em `(parecer_anexado_por)` (de `217_conduta_afastamento_cautelar.sql`)
+- `idx_conduta_afastamentos_rota` em `(rota, registrado_em DESC)` (de `217_conduta_afastamento_cautelar.sql`)
+
 ---
 
-**Resumo:** 165 tabelas vivas.
+**Resumo:** 166 tabelas vivas.

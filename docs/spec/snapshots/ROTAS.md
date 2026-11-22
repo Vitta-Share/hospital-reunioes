@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T03:37+0000 -->
+<!-- last_update: 2026-11-22T03:43+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -69,6 +69,17 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/pendencias/{id_acao}/comentarios` | Cria um comentário na pendência e gera notificações de menção. | ✅ |
 | DELETE | `/pendencias/{id_acao}/comentarios/{comentario_id}` | Exclui um comentário. Apenas o autor pode excluir. | ✅ |
 | GET | `/pendencias/{id_acao}/mencionaveis` | Lista participantes mencionáveis no chat da Pendência (quem enxerga a Pendência). | ✅ |
+
+## canal-de-conduta (`app/routers/conduta_afastamento.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| GET | `/comite-de-conduta/afastamentos/pedidos` | Os pedidos de afastamento da Rota Especial, para a coordenação: sem | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/afastamentos` | No caso comum, a decisão do coordenador; na Rota Especial, o pedido do | ✅ |
+| GET | `/comite-de-conduta/casos/{caso_id}/afastamentos/{afastamento_id}` | O pedido ao DP e ao Jurídico: só quem afastar e o motivo. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/afastamentos/{afastamento_id}/entrega` | Registrar entrega | ✅ |
+| GET | `/comite-de-conduta/casos/{caso_id}/afastamentos/{afastamento_id}/parecer` | O parecer decifrado, entregue pelo backend. Nada de cache. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/afastamentos/{afastamento_id}/parecer` | O parecer do Jurídico em PDF. Na Rota Especial, com o resultado que ele | ✅ |
 
 ## canal-de-conduta (`app/routers/conduta_codigo.py`)
 
@@ -860,4 +871,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 499 endpoints em 71 routers · 93% exigem auth.
+**Totais:** 505 endpoints em 72 routers · 93% exigem auth.

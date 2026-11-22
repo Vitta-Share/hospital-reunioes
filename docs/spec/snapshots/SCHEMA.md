@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T03:37+0000 -->
+<!-- last_update: 2026-11-22T03:43+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -65,6 +65,7 @@ erDiagram
     colegiados ||--o{ nsp_reunioes_rapidas : "colegiado_id"
     colegiados ||--o{ participacoes : "colegiado_id"
     colegiados ||--o{ reunioes : "colegiado_id"
+    conduta_casos ||--o{ conduta_afastamentos : "caso_id"
     conduta_casos ||--o{ conduta_assinaturas : "caso_id"
     conduta_casos ||--o{ conduta_atribuicoes : "caso_id"
     conduta_casos ||--o{ conduta_avisos : "caso_id"
@@ -83,6 +84,7 @@ erDiagram
     conduta_casos ||--o{ conduta_trava_preenchimentos : "caso_id"
     conduta_casos ||--o{ conduta_trilha : "caso_id"
     conduta_casos ||--o{ conduta_votos : "caso_id"
+    conduta_citados ||--o{ conduta_afastamentos : "citado_id"
     conduta_contestacoes ||--o{ conduta_contestacao_votos : "contestacao_id"
     conduta_contestacoes_de_participacao ||--o{ conduta_participacao_votos : "contestacao_id"
     conduta_depoimentos ||--o{ conduta_assinaturas : "depoimento_id"
@@ -137,6 +139,10 @@ erDiagram
     participantes ||--o{ cm_tabela_preco : "autor_id"
     participantes ||--o{ cm_validacao_tema : "decidido_por"
     participantes ||--o{ comentarios_pendencias : "autor_id"
+    participantes ||--o{ conduta_afastamentos : "entregue_ao_dp_por"
+    participantes ||--o{ conduta_afastamentos : "entregue_ao_juridico_por"
+    participantes ||--o{ conduta_afastamentos : "parecer_anexado_por"
+    participantes ||--o{ conduta_afastamentos : "registrado_por"
     participantes ||--o{ conduta_atribuicoes : "impedimento_motivo"
     participantes ||--o{ conduta_atribuicoes : "participante_id"
     participantes ||--o{ conduta_avisos : "participante_id"
@@ -1786,6 +1792,17 @@ erDiagram
         VARCHAR enviado_por FK
         TIMESTAMPTZ enviado_em
     }
+    conduta_afastamentos {
+        UUID id PK
+        UUID caso_id FK
+        UUID citado_id FK
+        TEXT rota
+        TEXT quem_cifrado
+        TEXT motivo_cifrado
+        VARCHAR registrado_por FK
+        TIMESTAMPTZ registrado_em
+        _ mais_colunas "+11"
+    }
 ```
 
 ## Indexes principais
@@ -2073,6 +2090,13 @@ erDiagram
 | `conduta_trava_preenchimentos` | `idx_conduta_trava_preenchimentos_autor` | `autor_id` | `216_conduta_voto_e_trava_de_robustez.sql` |
 | `conduta_trava_confirmacoes` | `idx_conduta_trava_confirmacoes_participante` | `participante_id` | `216_conduta_voto_e_trava_de_robustez.sql` |
 | `conduta_ciencias_do_codigo` | `idx_conduta_ciencias_do_codigo_enviado_por` | `enviado_por` | `216_conduta_voto_e_trava_de_robustez.sql` |
+| `conduta_afastamentos` | `idx_conduta_afastamentos_caso` | `caso_id` | `217_conduta_afastamento_cautelar.sql` |
+| `conduta_afastamentos` | `idx_conduta_afastamentos_citado` | `citado_id` | `217_conduta_afastamento_cautelar.sql` |
+| `conduta_afastamentos` | `idx_conduta_afastamentos_registrado_por` | `registrado_por` | `217_conduta_afastamento_cautelar.sql` |
+| `conduta_afastamentos` | `idx_conduta_afastamentos_entregue_ao_dp_por` | `entregue_ao_dp_por` | `217_conduta_afastamento_cautelar.sql` |
+| `conduta_afastamentos` | `idx_conduta_afastamentos_entregue_ao_juridico_por` | `entregue_ao_juridico_por` | `217_conduta_afastamento_cautelar.sql` |
+| `conduta_afastamentos` | `idx_conduta_afastamentos_parecer_anexado_por` | `parecer_anexado_por` | `217_conduta_afastamento_cautelar.sql` |
+| `conduta_afastamentos` | `idx_conduta_afastamentos_rota` | `rota, registrado_em DESC` | `217_conduta_afastamento_cautelar.sql` |
 
 ---
-**Resumo:** 165 tabelas · 265 relacionamentos FK detectados.
+**Resumo:** 166 tabelas · 271 relacionamentos FK detectados.
