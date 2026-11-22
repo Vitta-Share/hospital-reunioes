@@ -125,7 +125,13 @@ A ata de deliberação nasce depois que os três votaram e houve maioria. A deli
 
 ![A ata de deliberação esperando a assinatura dos três](ata-de-deliberacao.png)
 
-Com a ata assinada pelos três, a coordenação clica em **CONCLUIR VOTAÇÃO**. A ata assinada não muda mais e abre pelo botão **Abrir a ata assinada**.
+No rito Completo, a votação só conclui com a reunião do Comitê concluída. Com a ata assinada pelos três, a coordenação faz isto no quadro **Reunião do Comitê**:
+
+1. Apague a gravação de áudio da reunião na plataforma de gravação do hospital e marque **Apaguei a gravação de áudio da plataforma de gravação**.
+2. Apague os arquivos da reunião do computador e do celular e marque **Apaguei os arquivos do computador e do celular**.
+3. Clique em **CONCLUIR REUNIÃO**. O aplicativo elimina a transcrição, e fica a ata assinada.
+
+Com a ata assinada pelos três e, no rito Completo, a reunião concluída, a coordenação clica em **CONCLUIR VOTAÇÃO**. A ata assinada não muda mais e abre pelo botão **Abrir a ata assinada**.
 
 ## Enviar à Direção
 

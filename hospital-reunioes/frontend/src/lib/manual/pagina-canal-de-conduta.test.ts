@@ -97,6 +97,16 @@ describe("a página do Canal de Conduta no manual", () => {
     expect(imagensCitadas(achada!.texto).length).toBeGreaterThan(0);
   });
 
+  it("no rito Completo, a tarefa Assinar a ata manda concluir a reunião antes de concluir a votação", () => {
+    const texto = secao("Assinar a ata")?.texto ?? "";
+    expect(texto).toContain("Apaguei a gravação de áudio da plataforma de gravação");
+    expect(texto).toContain("Apaguei os arquivos do computador e do celular");
+    const reuniao = texto.indexOf("**CONCLUIR REUNIÃO**");
+    const votacao = texto.indexOf("**CONCLUIR VOTAÇÃO**");
+    expect(reuniao, "a tarefa não manda clicar em CONCLUIR REUNIÃO").toBeGreaterThan(-1);
+    expect(votacao).toBeGreaterThan(reuniao);
+  });
+
   it("o fluxograma lê sem erro, começa no relato e chega ao fim de cada um dos quatro ritos", () => {
     const fluxo = fluxograma();
     const [primeiro] = ordemDoFluxo(fluxo);
