@@ -16,12 +16,21 @@ from typing import Any
 from app.dependencies import recursos_nsp_da_pessoa, reunioes_ocultas, tem_acesso_reunioes
 from app.services.inicio.regras import FUSO
 from app.services.pendencia_service import e_lembrete_do_nucleo
+from app.services.seguranca_do_paciente.recalibracao import e_recalibracao
 
 ROTULO = "as Pendências"
 
 STATUS_ABERTOS = ("PENDENTE", "EM_PROGRESSO", "ATRASADO", "REPACTUADA")
 
 _COLUNAS = "id_acao, descricao_acao, prazo, status, id_reuniao, responsavel_id, co_responsavel_id, created_at"
+
+
+_RECALIBRACAO = {
+    "tipo": "recalibracao_do_agente",
+    "origem": "Recalibração do agente de triagem do Núcleo.",
+    "acao": "Abrir a recalibração",
+    "destino": "/seguranca-do-paciente/recalibracao",
+}
 
 
 def _data(valor: Any) -> date | None:
@@ -140,6 +149,8 @@ def itens(supabase, me: dict, _agora: datetime | None = None) -> list[dict]:
                 "acao": "Abrir na agenda",
                 "destino": "/seguranca-do-paciente/agenda",
                 "contexto": _contexto(linha),
+                # A recalibração do agente (issue #2001) abre a tela do Anexo F.
+                **(_RECALIBRACAO if e_recalibracao(linha) else {}),
             }
         )
     return saida
