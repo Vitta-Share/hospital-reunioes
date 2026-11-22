@@ -67,6 +67,11 @@ O chat da aba (issues #1381, #1383 e #1384):
 - POST  /admin/tecnologia/chat/{id}/conversa/enviar  o "Enviar": abre o
                                                 Ajuste do plano e escreve a
                                                 linha do envio na conversa.
+- GET   /admin/tecnologia/perguntas/esperando   a lista Esperando sua
+                                                resposta: as Perguntas da
+                                                Vitta abertas de todos os
+                                                Projetos (issue #2118, ADR
+                                                0109).
 
 O print do chat (ADR 0056, decisao 4; ADR 0077, decisao 8):
 
@@ -118,6 +123,7 @@ from app.models.tecnologia_schemas import (
     MensagemDaConversaPayload,
     MensagemDaConversaResponse,
     ModeloDaDemanda,
+    PerguntaEsperandoResponse,
     QuemSouNaAbaResponse,
     RevisarPayload,
 )
@@ -1299,6 +1305,19 @@ async def escrever_na_conversa_da_demanda(
     )
     nome = ator.get("nome_completo") or ""
     return _mensagem_para_a_tela(linha, nomes={str(ator["id"]): nome}, ator=ator)
+
+
+# ─── A lista Esperando sua resposta (issue #2118, ADR 0109, decisao 5) ─────
+
+
+@router.get("/perguntas/esperando", response_model=list[PerguntaEsperandoResponse])
+async def listar_as_perguntas_esperando(
+    ator: dict = Depends(require_super_admin),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """As Perguntas da Vitta abertas de todos os Projetos, as do logado
+    primeiro e a mais antiga primeiro. Todo Super admin ve a lista inteira."""
+    return tecnologia_perguntas.esperando(supabase, ator_id=str(ator["id"]))
 
 
 # ─── O Envio aos desenvolvedores (issue #2011, ADR 0108, decisoes 3 a 5) ────

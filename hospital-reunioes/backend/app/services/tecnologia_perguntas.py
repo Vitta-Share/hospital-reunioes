@@ -27,7 +27,8 @@ from uuid import uuid4
 
 from app.dependencies import selecionar_participantes
 from app.services import tecnologia_conversa
-from app.services.tecnologia import TABELA_CONVERSA_DA_DEMANDA, nome_do_projeto
+from app.services.paginacao import ler_tudo
+from app.services.tecnologia import TABELA_CONVERSA_DA_DEMANDA, TABELA_DEMANDAS, nome_do_projeto
 
 TABELA_PERGUNTAS = "tecnologia_perguntas"
 
@@ -109,6 +110,9 @@ def criar(
     if not destinatario_id or not tecnologia_conversa.e_participante_ativo(supabase, destinatario_id):
         raise PerguntaRecusadaError(MOTIVO_DESTINATARIO)
 
+    # O id nasce aqui, como UUID: e com ele que a ponte le a Pergunta depois
+    # (o PedroOS o guarda, Vitta-Share/os#992), e o aviso leva a ele (#2118).
+    pergunta_id = str(uuid4())
     entrada = tecnologia_conversa.escrever(
         supabase,
         demanda,
@@ -117,14 +121,13 @@ def criar(
         origem=tecnologia_conversa.ORIGEM_TERMINAL,
         destinatario_id=destinatario_id,
         pede_resposta_sobre=assunto,
+        pergunta_id=pergunta_id,
     )
     [pergunta] = (
         supabase.table(TABELA_PERGUNTAS)
         .insert(
             {
-                # O id nasce aqui, como UUID: e com ele que a ponte le a
-                # Pergunta depois (o PedroOS o guarda, Vitta-Share/os#992).
-                "id": str(uuid4()),
+                "id": pergunta_id,
                 "demanda_id": demanda["id"],
                 "mensagem_id": entrada["id"],
                 "autor_id": autor["id"],
@@ -173,24 +176,55 @@ def cartoes_da_demanda(supabase, demanda: dict[str, Any]) -> dict[str, dict[str,
     opcoes, o estado e desde quando espera. A tela conta os dias."""
     linhas = supabase.table(TABELA_PERGUNTAS).select("*").eq("demanda_id", demanda["id"]).execute().data or []
     nomes = _nomes(supabase, {str(p.get("destinatario_id") or "") for p in linhas})
-    projeto = nome_do_projeto(demanda)
+    return {str(p["mensagem_id"]): _cartao(p, demanda, nomes) for p in linhas if p.get("mensagem_id")}
+
+
+def _cartao(p: dict[str, Any], demanda: dict[str, Any], nomes: dict[str, str]) -> dict[str, Any]:
     return {
-        str(p["mensagem_id"]): {
-            "id": str(p["id"]),
-            "projeto": projeto,
-            "assunto": p.get("assunto") or "",
-            "texto": p.get("texto") or "",
-            **{chave: p.get(chave) or "" for chave, _ in LINHAS_DO_CARTAO},
-            "opcoes": p.get("opcoes") or [],
-            "recomendada": p.get("recomendada"),
-            "porque": p.get("porque_da_recomendada"),
-            "estado": p.get("estado") or ESTADO_ABERTA,
-            "criado_em": p.get("criado_em"),
-            "destinatario": nomes.get(str(p.get("destinatario_id"))),
-        }
-        for p in linhas
-        if p.get("mensagem_id")
+        "id": str(p["id"]),
+        "projeto": nome_do_projeto(demanda),
+        "assunto": p.get("assunto") or "",
+        "texto": p.get("texto") or "",
+        **{chave: p.get(chave) or "" for chave, _ in LINHAS_DO_CARTAO},
+        "opcoes": p.get("opcoes") or [],
+        "recomendada": p.get("recomendada"),
+        "porque": p.get("porque_da_recomendada"),
+        "estado": p.get("estado") or ESTADO_ABERTA,
+        "criado_em": p.get("criado_em"),
+        "destinatario": nomes.get(str(p.get("destinatario_id"))),
     }
+
+
+def esperando(supabase, *, ator_id: str) -> list[dict[str, Any]]:
+    """A lista Esperando sua resposta (issue #2118, ADR 0109, decisao 5): as
+    Perguntas abertas de todos os Projetos, cada uma com o cartao e o nome da
+    Demanda. As de que `ator_id` e o Destinatario vem primeiro; em cada grupo,
+    a mais antiga primeiro. A Demanda apagada (lapide) nao entra."""
+    abertas = ler_tudo(
+        lambda: supabase.table(TABELA_PERGUNTAS).select("*").eq("estado", ESTADO_ABERTA).order("criado_em").order("id"),
+        rotulo="Perguntas da Vitta abertas",
+    )
+    if not abertas:
+        return []
+    ids = sorted({str(p["demanda_id"]) for p in abertas})
+    demandas = {
+        str(d["id"]): d
+        for d in supabase.table(TABELA_DEMANDAS).select("*").in_("id", ids).is_("apagada_em", "null").execute().data
+        or []
+    }
+    nomes = _nomes(supabase, {str(p.get("destinatario_id") or "") for p in abertas})
+    itens = [
+        {
+            **_cartao(p, demanda, nomes),
+            "demanda_id": str(demanda["id"]),
+            "demanda": str(demanda.get("titulo") or ""),
+            "minha": str(p.get("destinatario_id") or "") == str(ator_id),
+        }
+        for p in abertas
+        if (demanda := demandas.get(str(p["demanda_id"])))
+    ]
+    # `sorted` e estavel: dentro de cada grupo fica a ordem da leitura.
+    return sorted(itens, key=lambda item: not item["minha"])
 
 
 def resposta(supabase, pergunta: dict[str, Any]) -> dict[str, Any] | None:

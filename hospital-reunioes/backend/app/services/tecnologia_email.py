@@ -28,8 +28,21 @@ def link_da_demanda(demanda_id: str) -> str:
     return f"{settings.frontend_url}/admin/tecnologia?demanda={quote(str(demanda_id), safe='')}"
 
 
+def link_da_pergunta(pergunta_id: str) -> str:
+    """A aba Tecnologia com o cartão da Pergunta da Vitta em foco, o mesmo
+    endereço que o clique no aviso do sino dela abre (issue #2118)."""
+    return f"{settings.frontend_url}/admin/tecnologia?pergunta={quote(str(pergunta_id), safe='')}"
+
+
 def enviar_aviso_da_conversa(
-    supabase, *, destinatario_id: str, aviso: str, autor_nome: str, demanda: dict, assunto: str | None = None
+    supabase,
+    *,
+    destinatario_id: str,
+    aviso: str,
+    autor_nome: str,
+    demanda: dict,
+    assunto: str | None = None,
+    pergunta_id: str | None = None,
 ) -> bool:
     """Um e-mail para `destinatario_id` com o `aviso` do sino ("Fulano mencionou
     você" ou "Fulano escreveu na Demanda"). Com `assunto`, a mensagem pede
@@ -47,7 +60,8 @@ def enviar_aviso_da_conversa(
             return False
 
         titulo = str(demanda.get("titulo") or "Demanda sem título")
-        link = link_da_demanda(demanda["id"])
+        # O aviso da Pergunta da Vitta abre o cartão dela (issue #2118).
+        link = link_da_pergunta(pergunta_id) if pergunta_id else link_da_demanda(demanda["id"])
         html = jinja_env.get_template("email_tecnologia_conversa.html").render(
             destinatario_nome=destinatario.get("nome_completo") or "",
             aviso=aviso,
@@ -55,6 +69,7 @@ def enviar_aviso_da_conversa(
             titulo=titulo,
             assunto=assunto,
             link=link,
+            pergunta=bool(pergunta_id),
             logo_base64=get_logo_data_uri(),
         )
         linha_do_assunto = f"Assunto: {assunto}\n" if assunto else ""
