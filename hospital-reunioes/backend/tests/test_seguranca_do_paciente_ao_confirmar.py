@@ -426,7 +426,7 @@ def test_o_kit_diz_o_que_acontece_ao_confirmar():
         "a reunião de análise de evento já nasce programada na data-limite",
         "o protocolo do caso no bloco Casos da pauta",
         "entra na pauta da ordinária seguinte",
-        "comunicação à Direção",
+        "a comunicação à Direção: um e-mail com o nome de cada pessoa",
         "está em análise",
         "Confirmar de novo não cria outra reunião nem outro aviso",
     ):
