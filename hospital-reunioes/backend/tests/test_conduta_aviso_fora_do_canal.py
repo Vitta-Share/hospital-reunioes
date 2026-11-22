@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -37,6 +38,7 @@ from app.routers import conduta_publico  # noqa: E402
 from app.services.conduta import agente_de_triagem, aviso_fora_do_canal  # noqa: E402
 
 AVISO = "/api/conduta/relatos/aviso"
+KIT = Path(__file__).resolve().parents[1] / "app" / "conhecimento" / "canal-de-conduta.md"
 CONTRACHEQUE = "Meu contracheque veio sem o adicional noturno de outubro."
 EMERGENCIA = "Esperei quatro horas na emergência com minha mãe e ninguém deu informação."
 
@@ -267,3 +269,29 @@ def test_o_texto_do_relato_nao_vai_ao_log(banco, modelo, caplog):
         _aviso(banco, "Meu contracheque do mês de outubro veio sem o adicional noturno.")
 
     assert "contracheque" not in caplog.text
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 9. O texto do Produto Canal de Conduta no kit diz o comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.parametrize(
+    "frase",
+    [
+        "Ao abrir a revisão, o agente lê o texto uma vez",
+        "O relato nunca é bloqueado",
+        "Ver contato do DP mostra o contato salvo nas Configurações, sem enviar nada",
+        "Ir para a Ouvidoria abre o formulário da Ouvidoria com o texto já escrito",
+        "Se o texto fala de assédio, discriminação, ameaça, violência, retaliação, fraude, desvio ou falsificação",
+        "Com o teto de leituras do dia estourado ou o agente fora do ar, a revisão abre sem aviso",
+    ],
+)
+def test_o_kit_diz_o_que_o_aviso_na_revisao_faz(frase):
+    assert frase in KIT.read_text(encoding="utf-8")
+
+
+def test_o_kit_nao_diz_mais_que_o_aviso_chega_depois():
+    assert "o aviso de assunto fora do canal na revisão chegam numa próxima entrega" not in KIT.read_text(
+        encoding="utf-8"
+    )
