@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T10:34:16-03:00",
+      "sha": "344d4b8989beb1b4d4d4e6c9b431350f2869deb4",
+      "app_version": "0.374.0",
+      "subject": "Onda sesta-1757-onda10: Rotinas no ranking e no e-mail de segunda",
+      "raw_subject": "chore(deploy): registro da onda sesta-1757-onda10 (#2105)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1757
+      ],
+      "result": "healthy",
+      "duration_seconds": 263,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1757-onda10: PR #2105 (issue #1879), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 21,
+          "frontend": 225
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T10:21:15-03:00",
       "sha": "af045427221348c0b1cd46810bbe80dd93bf6036",
       "app_version": "0.373.0",

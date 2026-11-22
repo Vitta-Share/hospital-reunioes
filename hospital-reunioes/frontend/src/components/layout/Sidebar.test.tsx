@@ -667,20 +667,4 @@ describe("Comitê de Conduta no menu (issue #1822)", () => {
       links({ access_profile: "super_admin", is_super_admin: true, ve_membros_do_comite: false })
     ).not.toContain("/comite-de-conduta/membros");
   });
-
-  it.each(["presidente", "diretoria_executiva"] as const)(
-    "as Recomendações do Comitê aparecem para o perfil %s",
-    (perfil) => {
-      expect(links({ access_profile: null, perfil_conduta: perfil })).toContain("/comite-de-conduta/recomendacoes");
-    }
-  );
-
-  it("o perfil de cadastro e o super admin não veem as Recomendações do Comitê", () => {
-    expect(links({ access_profile: "regular", perfil_conduta: "cadastro_de_membros" })).not.toContain(
-      "/comite-de-conduta/recomendacoes"
-    );
-    expect(links({ access_profile: "super_admin", is_super_admin: true })).not.toContain(
-      "/comite-de-conduta/recomendacoes"
-    );
-  });
 });

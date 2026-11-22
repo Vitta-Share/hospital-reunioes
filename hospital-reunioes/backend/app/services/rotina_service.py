@@ -17,6 +17,7 @@ from app.services.pendencias_consulta import FUSO, as_data, hoje_em_brasilia
 from app.services.quadro_classificacao import ROTINA, frequencia_da_linha, tipo_da_linha
 from app.services.rotina_ciclo import (
     MENSAL,
+    NAO_REALIZADA,
     QUINZENAL,
     SEMANAL,
     Ciclo,
@@ -108,6 +109,24 @@ def ciclos_em_aberto(rotina: dict, marcadas: list[dict], hoje: date) -> list[Cic
     """Os ciclos devidos que ninguém marcou, do mais antigo ao de hoje."""
     feitos = {str(v.get("ciclo_inicio"))[:10] for v in marcadas}
     return [c for c in devidos(rotina, hoje) if c.inicio.isoformat() not in feitos]
+
+
+def ciclos_nao_cumpridos(rotina: dict, marcadas: list[dict], hoje: date) -> list[Ciclo]:
+    """Os ciclos que pesam no ranking do responsável (decisão 71 da #1757;
+    issue #1879): o marcado como Não realizada, o marcado depois do último
+    dia e o que terminou sem marcação. O ciclo em curso sem marcação ainda
+    não pesa. Encerrada a Rotina, o ciclo do encerramento e os seguintes
+    saem, porque deixam de ser devidos."""
+    por_ciclo = {str(v.get("ciclo_inicio"))[:10]: v for v in marcadas}
+    falhas: list[Ciclo] = []
+    for ciclo in devidos(rotina, hoje):
+        v = por_ciclo.get(ciclo.inicio.isoformat())
+        if v is None:
+            if ciclo.fim < hoje:
+                falhas.append(ciclo)
+        elif v.get("resultado") == NAO_REALIZADA or v.get("atrasada"):
+            falhas.append(ciclo)
+    return falhas
 
 
 # ─── A revisão do Facilitador (decisão 72 da #1757; issue #1944) ─────────────

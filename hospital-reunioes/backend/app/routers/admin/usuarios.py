@@ -590,14 +590,7 @@ async def update_usuario(
         ouvidoria_escalonamento.destravar_todos(supabase)
 
     if "perfil_conduta" in changes:
-        _avisar_o_comite_do_perfil(
-            supabase,
-            tarefas,
-            actor,
-            atualizado,
-            data["perfil_conduta"] or atual.get("perfil_conduta"),
-            bool(data["perfil_conduta"]),
-        )
+        _avisar_o_comite_do_perfil(supabase, tarefas, actor, atualizado, bool(data["perfil_conduta"]))
 
     audit.log_action(
         supabase,
@@ -613,30 +606,17 @@ async def update_usuario(
     return atualizado
 
 
-# O nome de cada perfil do Canal de Conduta no aviso ao Comitê (issue #1835).
-_PERFIS_DO_CANAL = {
-    "cadastro_de_membros": "de cadastro de membros do Comitê de Conduta",
-    "presidente": "de Presidente no Canal de Conduta, que lê a Recomendação do Comitê",
-    "diretoria_executiva": "de diretoria executiva no Canal de Conduta, que registra a decisão da medida",
-}
-
-
-def _avisar_o_comite_do_perfil(
-    supabase, tarefas: BackgroundTasks | None, actor: dict, pessoa: dict, perfil: str | None, deu: bool
-) -> None:
-    """Dar ou tirar um perfil do Canal de Conduta entra no registro do módulo
-    e avisa os membros do Comitê, como toda inclusão ou saída de membro (ADR
-    0097, decisão 3). `perfil` é o que a pessoa recebeu ou perdeu."""
+def _avisar_o_comite_do_perfil(supabase, tarefas: BackgroundTasks | None, actor: dict, pessoa: dict, deu: bool) -> None:
+    """Dar ou tirar o perfil de cadastro do Canal de Conduta entra no registro
+    do módulo e avisa os membros do Comitê, como toda inclusão ou saída de
+    membro (ADR 0097, decisão 3)."""
     nome = pessoa.get("nome_completo") or "Uma pessoa"
     avisados = membros_do_comite.mudanca_no_comite(
         supabase,
         acao="perfil_dado" if deu else "perfil_tirado",
         participante_id=pessoa["id"],
         autor_id=actor["id"],
-        mensagem=(
-            f"{nome} {'recebeu' if deu else 'perdeu'} o perfil "
-            f"{_PERFIS_DO_CANAL.get(perfil or '', 'do Canal de Conduta')}."
-        ),
+        mensagem=(f"{nome} {'recebeu' if deu else 'perdeu'} o perfil de cadastro de membros do Comitê de Conduta."),
         hoje=hoje_em_sao_paulo(),
     )
     if tarefas is None:

@@ -20,7 +20,7 @@ AccessProfile = Literal["regular", "secretaria", "super_admin"]
 PerfilNsp = Literal["acesso_pleno"]
 
 # Canal de Conduta (ADR 0097, decisão 3): quem cadastra membros do Comitê.
-PerfilConduta = Literal["cadastro_de_membros", "presidente", "diretoria_executiva"]
+PerfilConduta = Literal["cadastro_de_membros"]
 
 
 class RegistroProfissional(BaseModel):

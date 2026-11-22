@@ -9,7 +9,9 @@
  *
  * Atrasos são as abertas com o prazo vencido agora e, nos últimos 90 dias, as
  * Repactuações depois do vencimento e as conclusões depois do prazo. As
- * Reaberturas ficam ao lado, sem somar nos atrasos.
+ * Reaberturas ficam ao lado, sem somar nos atrasos, e as Rotinas não cumpridas
+ * também (issue #1879): o ciclo não realizado, marcado fora do ciclo ou
+ * fechado sem marcação.
  */
 
 export interface AtrasosDoPainel {
@@ -18,6 +20,7 @@ export interface AtrasosDoPainel {
   concluidas_com_atraso: number;
   atrasos: number;
   reaberturas: number;
+  rotinas_nao_cumpridas: number;
 }
 
 export interface SetorDosAtrasos extends AtrasosDoPainel {
@@ -63,7 +66,8 @@ export default function RankingDeAtrasos({ porSetor, ranking }: Props) {
                   <span className="text-text">{s.setor}</span>
                   <span className="text-text-secondary tabular-nums">
                     {s.atrasos} {s.atrasos === 1 ? "atraso" : "atrasos"}, {s.reaberturas}{" "}
-                    {s.reaberturas === 1 ? "reabertura" : "reaberturas"}
+                    {s.reaberturas === 1 ? "reabertura" : "reaberturas"}, {s.rotinas_nao_cumpridas}{" "}
+                    {s.rotinas_nao_cumpridas === 1 ? "rotina não cumprida" : "rotinas não cumpridas"}
                   </span>
                 </div>
                 <div className="h-2 rounded-full bg-border mt-1">
@@ -101,7 +105,8 @@ export default function RankingDeAtrasos({ porSetor, ranking }: Props) {
                   <th className="py-1 pr-2 font-medium text-right">Repactuadas depois do prazo</th>
                   <th className="py-1 pr-2 font-medium text-right">Concluídas com atraso</th>
                   <th className="py-1 pr-2 font-medium text-right">Atrasos</th>
-                  <th className="py-1 font-medium text-right">Reaberturas</th>
+                  <th className="py-1 pr-2 font-medium text-right">Reaberturas</th>
+                  <th className="py-1 font-medium text-right">Rotinas não cumpridas</th>
                 </tr>
               </thead>
               <tbody>
@@ -113,7 +118,8 @@ export default function RankingDeAtrasos({ porSetor, ranking }: Props) {
                     <td className="py-1 pr-2 text-right tabular-nums">{linha.repactuacoes_vencidas}</td>
                     <td className="py-1 pr-2 text-right tabular-nums">{linha.concluidas_com_atraso}</td>
                     <td className="py-1 pr-2 text-right tabular-nums font-semibold">{linha.atrasos}</td>
-                    <td className="py-1 text-right tabular-nums">{linha.reaberturas}</td>
+                    <td className="py-1 pr-2 text-right tabular-nums">{linha.reaberturas}</td>
+                    <td className="py-1 text-right tabular-nums">{linha.rotinas_nao_cumpridas}</td>
                   </tr>
                 ))}
               </tbody>
