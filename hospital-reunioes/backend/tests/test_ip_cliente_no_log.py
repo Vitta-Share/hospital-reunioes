@@ -450,6 +450,10 @@ SEM_ANONIMATO_A_PROTEGER = {
     # a resposta, não um visitante anônimo.
     "POST /api/automacao/tecnologia/demandas/{demanda_id}/perguntas",
     "GET /api/automacao/tecnologia/perguntas/{pergunta_id}",
+    # Resolver e cancelar a Pergunta (issue #2121, ADR 0109, decisão 6): mesma
+    # chave de máquina, quem chega é o PedroOS depois do ok da Vitta.
+    "POST /api/automacao/tecnologia/perguntas/{pergunta_id}/resolver",
+    "POST /api/automacao/tecnologia/perguntas/{pergunta_id}/cancelar",
     # A observação do Validar (issue #2013, ADR 0108, decisão 5): chave de
     # máquina própria (`PLANOS_HSM_API_KEY`); quem chega é a função da Vercel
     # da Apresentação do PRD, não um visitante anônimo.
