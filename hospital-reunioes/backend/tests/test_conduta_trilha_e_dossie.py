@@ -153,3 +153,59 @@ class TestLinhaDoTempo:
         assert ata["autor"] == ", ".join(NOMES[p] for p in (COORDENACAO, MEMBRO, LEITOR))
         assert ata["data"] == "2026-11-20T15:00:00+00:00"
         assert ata["codigo"] == _sha(pdf)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Cada rito cria as gavetas exigidas, com a situação de cada uma
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _gavetas(trilha: dict) -> dict[str, str]:
+    return {g["rotulo"]: g["situacao"] for g in trilha["gavetas"]}
+
+
+class TestGavetas:
+    def test_o_rito_rapido_cria_as_gavetas_do_termo_da_ciencia_e_da_ata(self, comite):
+        caso, _ = comite.caso_com_depoimento(termo=False)
+
+        assert _gavetas(comite.trilha_do_caso(caso)) == {
+            "Termo de declaração, Acusado 1": "Aguardando",
+            "Ciência do Código pelo acusado": "Aguardando",
+            "Ata de deliberação": "Aguardando",
+        }
+
+    def test_a_gaveta_muda_para_assinado_quando_o_documento_chega(self, comite):
+        caso, _ = comite.caso_com_depoimento(termo=True)
+        comite.anexar_ciencia(COORDENACAO, caso)
+        for pid in (MEMBRO, LEITOR, COORDENACAO):
+            comite.votar(pid, caso)
+        comite.ata_assinada(caso)
+
+        assert set(_gavetas(comite.trilha_do_caso(caso)).values()) == {"Assinado"}
+
+    def test_o_rito_completo_cria_tambem_a_do_relatorio_e_a_do_termo_do_apurador(self, comite):
+        caso, _ = comite.caso_com_depoimento()
+        comite.linha_do_caso(caso)["rito"] = "completo"
+        comite.banco.tabelas.setdefault("conduta_atribuicoes", []).append(
+            {"id": "atr-1", "caso_id": caso, "participante_id": "FORA", "motivo": "apurador", "termo_assinado_em": None}
+        )
+
+        gavetas = _gavetas(comite.trilha_do_caso(caso))
+
+        assert gavetas["Relatório de apuração"] == "Aguardando"
+        assert gavetas["Termo de confidencialidade, Apurador 1"] == "Aguardando"
+        assert gavetas["Termo de declaração, Acusado 1"] == "Assinado"
+
+    def test_o_encaminhamento_nao_cria_gaveta(self, comite):
+        caso = comite.caso(acusado_ouvido=False)
+        comite.linha_do_caso(caso).update({"rito": "encaminhamento", "etapa": "encaminhamento"})
+
+        assert comite.trilha_do_caso(caso)["gavetas"] == []
+
+    def test_toda_gaveta_do_rito_e_obrigatoria_e_diz_a_origem(self, comite):
+        caso, _ = comite.caso_com_depoimento()
+
+        origens = {g["rotulo"]: (g["obrigatoria"], g["origem"]) for g in comite.trilha_do_caso(caso)["gavetas"]}
+
+        assert origens["Termo de declaração, Acusado 1"] == (True, "Upload")
+        assert origens["Ata de deliberação"] == (True, "ClickSign")

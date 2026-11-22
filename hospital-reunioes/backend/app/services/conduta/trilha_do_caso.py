@@ -202,10 +202,70 @@ def linha_do_tempo(supabase, caso: dict) -> list[dict]:
     return sorted(itens, key=lambda i: (str(i["data"] or ""), i["tipo"] == "documento"))
 
 
+def _gaveta(rotulo: str, origem: str, cheia: bool) -> dict:
+    return {"rotulo": rotulo, "origem": origem, "obrigatoria": True, "situacao": ASSINADO if cheia else AGUARDANDO}
+
+
+def gavetas(supabase, caso: dict) -> list[dict]:
+    """As gavetas que o rito do caso exige, na ordem da tela. O Encaminhamento
+    não tem nenhuma. Cada pessoa ouvida pede o termo de declaração assinado
+    (ou a certidão de recusa, assinada por dois membros); cada convidado, o
+    termo de confidencialidade; o rito com voto, a ciência do Código e a ata;
+    o Completo, também o relatório assinado pelos apuradores."""
+    if caso.get("rito") == "encaminhamento":
+        return []
+    caso_id = caso["id"]
+    lista = depoimentos.do_caso(supabase, caso_id)
+    pessoas = _pessoas_ouvidas(lista)
+    ids = [d["id"] for d in lista]
+    com_termo = {a["depoimento_id"] for a in depoimentos._arquivos(supabase, ids) if a["tipo"] == "termo_assinado"}
+    com_certidao = {c["depoimento_id"] for c in depoimentos._certidoes(supabase, ids) if c["situacao"] == "assinado"}
+    saida = []
+    for depoimento in lista:
+        pela_certidao = depoimento["id"] in com_certidao and depoimento["id"] not in com_termo
+        saida.append(
+            _gaveta(
+                f"Termo de declaração, {pessoas[depoimento['id']]}",
+                CLICKSIGN if pela_certidao else UPLOAD,
+                depoimento["id"] in com_termo or pela_certidao,
+            )
+        )
+    convidados = sorted(
+        (
+            a
+            for a in supabase.table("conduta_atribuicoes").select("*").eq("caso_id", caso_id).execute().data or []
+            if a.get("motivo") in CONVIDADOS and not a.get("revogada_em")
+        ),
+        key=lambda a: str(a.get("created_at") or ""),
+    )
+    contagem: dict[str, int] = {}
+    for convidado in convidados:
+        contagem[convidado["motivo"]] = contagem.get(convidado["motivo"], 0) + 1
+        saida.append(
+            _gaveta(
+                f"Termo de confidencialidade, {CONVIDADOS[convidado['motivo']]} {contagem[convidado['motivo']]}",
+                CLICKSIGN,
+                bool(convidado.get("termo_assinado_em")),
+            )
+        )
+    if caso.get("rito") == "completo":
+        versoes = relatorio._versoes(supabase, caso_id, "relatorio")
+        assinatura = relatorio._assinatura_da_versao(supabase, caso_id, versoes[-1]["id"]) if versoes else None
+        saida.append(
+            _gaveta("Relatório de apuração", CLICKSIGN, bool(assinatura) and assinatura["situacao"] == "assinado")
+        )
+    if caso.get("rito") in RITOS_COM_VOTO:
+        ciencias = supabase.table("conduta_ciencias_do_codigo").select("id").eq("caso_id", caso_id).execute().data
+        saida.append(_gaveta("Ciência do Código pelo acusado", UPLOAD, bool(ciencias)))
+        saida.append(_gaveta("Ata de deliberação", CLICKSIGN, ata.ata_assinada(supabase, caso)))
+    return saida
+
+
 def para_a_tela(supabase, aberto: CasoAberto) -> dict:
     caso = aberto.caso
     return {
         "trilha": {
             "linha_do_tempo": linha_do_tempo(supabase, caso),
+            "gavetas": gavetas(supabase, caso),
         }
     }
