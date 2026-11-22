@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T13:28+0000 -->
+<!-- last_update: 2026-11-22T14:04+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -774,7 +774,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 | Método | Rota | O que faz | Auth |
 |--------|------|-----------|------|
-| GET | `/nsp/configuracao/cortes-de-frequencia` | Ler cortes de frequencia | ✅ |
+| GET | `/nsp/configuracao/cortes-de-frequencia` | Quem só alcança a configuração lê os cortes sem editar. | ✅ |
 | PUT | `/nsp/configuracao/cortes-de-frequencia` | Os cortes novos valem para o que for calculado daqui para a frente. | ✅ |
 | GET | `/nsp/triagem` | A fila de triagem: sem relato e sem quem notificou. | ✅ |
 | POST | `/nsp/triagem/lote` | Confirma a sugestão de cada caso como veio. Um caso fora das faixas D e | ✅ |
