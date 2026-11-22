@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T03:43+0000 -->
+<!-- last_update: 2026-11-22T04:01+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -830,6 +830,8 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/automacao/tecnologia/demandas/{demanda_id}/perguntas` | Cria a Pergunta da Vitta aberta na Demanda, com a entrada na Conversa, | ✅ |
 | GET | `/automacao/tecnologia/destinatarios` | Quem pode ser Destinatario de uma mensagem na Conversa da Demanda | ✅ |
 | GET | `/automacao/tecnologia/perguntas/{pergunta_id}` | O estado da Pergunta da Vitta e, quando houver, a resposta (o Checar | ✅ |
+| POST | `/automacao/tecnologia/perguntas/{pergunta_id}/cancelar` | A Pergunta deixou de ser necessaria: a aberta ou a respondida passa a | ✅ |
+| POST | `/automacao/tecnologia/perguntas/{pergunta_id}/resolver` | A Vitta leu a resposta e deu o ok: a Pergunta respondida passa a | ✅ |
 | GET | `/automacao/tecnologia/projetos/{projeto}/issues/{numero}/demanda` | O id da Demanda vinculada a esta issue-raiz (ADR 0093: projeto mais | ✅ |
 | POST | `/automacao/tecnologia/projetos/{projeto}/issues/{numero}/demanda` | A Demanda do PRD de um Projeto novo (issue #1967, PRD #1964): 201 quando | ✅ |
 | POST | `/automacao/tecnologia/validacoes` | Guarda a observacao original junto da Demanda do PRD e devolve so os | ✅ |
@@ -871,4 +873,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 505 endpoints em 72 routers · 93% exigem auth.
+**Totais:** 507 endpoints em 72 routers · 93% exigem auth.
