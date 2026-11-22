@@ -366,7 +366,7 @@ describe("Sidebar com o item Contas médicas", () => {
  * item aparece só com `ver_modulo` (Participação vigente no Núcleo, Acesso
  * pleno ou Diretoria). O super admin recebe só `configuracao` e não vê o item.
  */
-describe("Sidebar com o item Segurança do Paciente", () => {
+describe("Sidebar com o item NSP, o módulo Segurança do Paciente", () => {
   const SEM_TERMO = ["agenda", "calendario", "painel", "ver_modulo"];
 
   function entrar(papeis: Partial<CurrentParticipante>) {
@@ -387,13 +387,35 @@ describe("Sidebar com o item Segurança do Paciente", () => {
       .map((link) => link.getAttribute("href") ?? "");
   }
 
+  // O grupo se chama NSP no menu, com o nome por extenso no `title` e no
+  // leitor de tela (issue #1918, pedido do diretor em 18/11/2026).
+  const NOME_DO_NSP = "Núcleo de Segurança do Paciente";
+
+  function grupoDoNsp(menu: HTMLElement): HTMLElement {
+    return within(menu).getByRole("button", { name: NOME_DO_NSP });
+  }
+
+  it.each([
+    ["quem abre o módulo", { access_profile: null, recursos_nsp: SEM_TERMO }],
+    ["quem só tem o botão Notificar incidente", { access_profile: "regular", recursos_nsp: [] }],
+  ] as const)("para %s, o grupo mostra NSP com o ícone das duas mãos e o nome por extenso (issue #1918)", (_nome, papeis) => {
+    const menu = entrar(papeis as Partial<CurrentParticipante>);
+
+    const grupo = grupoDoNsp(menu);
+    expect(grupo.textContent?.trim()).toBe("NSP");
+    expect(grupo.getAttribute("title")).toBe(NOME_DO_NSP);
+    expect(grupo.querySelector("svg.lucide-handshake")).not.toBeNull();
+    expect(grupo.querySelector("svg.lucide-heart-pulse")).toBeNull();
+    expect(within(menu).queryByText("Segurança do Paciente")).toBeNull();
+  });
+
   it.each([
     ["membro do Núcleo sem papel nas Reuniões", { access_profile: null, recursos_nsp: SEM_TERMO }],
     ["diretor com papel nas Reuniões", { access_profile: "regular", recursos_nsp: SEM_TERMO }],
   ] as const)("aparece para %s, com as cinco telas da primeira fase", (_nome, papeis) => {
     const menu = entrar(papeis as Partial<CurrentParticipante>);
 
-    expect(within(menu).getByRole("button", { name: "Segurança do Paciente" })).toBeTruthy();
+    expect(grupoDoNsp(menu)).toBeTruthy();
     expect(hrefs(menu)).toEqual(
       expect.arrayContaining([
         "/seguranca-do-paciente",
@@ -427,7 +449,7 @@ describe("Sidebar com o item Segurança do Paciente", () => {
   ] as const)("para %s, o grupo aparece só com o botão Notificar incidente (issue #1987)", (_nome, papeis) => {
     const menu = entrar(papeis as Partial<CurrentParticipante>);
 
-    expect(within(menu).getByRole("button", { name: "Segurança do Paciente" })).toBeTruthy();
+    expect(grupoDoNsp(menu)).toBeTruthy();
     const doModulo = within(menu)
       .getAllByRole("link")
       .filter((link) => /^\/(seguranca-do-paciente|notificar)/.test(link.getAttribute("href") ?? ""));
@@ -525,7 +547,7 @@ describe("Sidebar com o item Segurança do Paciente", () => {
       const menu = entrar({ access_profile: null, recursos_nsp: SEM_TERMO });
       // Controle positivo: recolhido de fato, com os ícones do módulo.
       expect(hrefs(menu)).toContain("/seguranca-do-paciente/membros");
-      expect(within(menu).queryByRole("button", { name: "Segurança do Paciente" })).toBeNull();
+      expect(within(menu).queryByRole("button", { name: NOME_DO_NSP })).toBeNull();
       expect(hrefs(menu).filter((href) => href === "" || href === "#")).toEqual([]);
       expect(within(menu).queryByRole("link", { name: /Comissões/ })).toBeNull();
     } finally {
