@@ -12,8 +12,14 @@ Manual e fora do CI: o comando gasta dinheiro de verdade. Antes de chamar a
 IA ele mostra quantas chamadas faz e a estimativa de custo, e só segue se a
 pessoa digitar `rodar`. Toda mudança no prompt repete o teste.
 
+Com `--aviso` (issue #1848), o comando confere a coluna "Aviso em P5": a
+leitura da revisão do relato (`aviso_fora_do_canal.ler_aviso_do_relato`), com
+o prompt de saída reduzida, tem que dar o aviso certo nos 12 casos, em cada
+rodada, e nenhum caso com termo da regra de proteção pode ter aviso. O caso
+com a palavra da regra no texto nem chega ao modelo, como no app.
+
     cd hospital-reunioes/backend
-    uv run python -m scripts.conduta_teste_de_aceite [--modelo claude-sonnet-5-5] [--saida resultado.json]
+    uv run python -m scripts.conduta_teste_de_aceite [--aviso] [--modelo claude-sonnet-5-5] [--saida resultado.json]
 """
 
 from __future__ import annotations
@@ -27,6 +33,7 @@ from pathlib import Path
 
 from app.config import settings
 from app.services.conduta import agente_de_triagem as agente
+from app.services.conduta import aviso_fora_do_canal as aviso
 from app.services.ia_chaves import ClienteDaAnthropic
 from app.services.prompt_loader import load_prompt
 
@@ -43,6 +50,7 @@ PRECOS = {
 }
 CARACTERES_POR_TOKEN = 3.5
 TOKENS_DE_SAIDA = 1500
+TOKENS_DE_SAIDA_DO_AVISO = 40
 
 
 def carregar_casos() -> list[dict]:
@@ -53,18 +61,25 @@ def mensagem(caso: dict) -> str:
     return agente.montar_mensagem(caso["relato"], categoria=None, anteriores=[])
 
 
-def estimativa(casos: list[dict], modelo: str, vezes: int = VEZES) -> dict:
-    """Quantas chamadas e quanto custa, sem chamar ninguém."""
+def mensagem_do_aviso(caso: dict) -> str:
+    return aviso.montar_mensagem(caso["relato"])
+
+
+def estimativa(casos: list[dict], modelo: str, vezes: int = VEZES, *, do_aviso: bool = False) -> dict:
+    """Quantas chamadas e quanto custa, sem chamar ninguém. No aviso, é o
+    teto: o caso com a palavra da regra de proteção não chega ao modelo."""
     chamadas = len(casos) * vezes
-    sistema = len(load_prompt(agente.PROMPT)) / CARACTERES_POR_TOKEN
-    entrada = sum(len(mensagem(caso)) for caso in casos) * vezes / CARACTERES_POR_TOKEN
+    sistema = len(load_prompt(aviso.PROMPT if do_aviso else agente.PROMPT)) / CARACTERES_POR_TOKEN
+    montar = mensagem_do_aviso if do_aviso else mensagem
+    entrada = sum(len(montar(caso)) for caso in casos) * vezes / CARACTERES_POR_TOKEN
+    saida = TOKENS_DE_SAIDA_DO_AVISO if do_aviso else TOKENS_DE_SAIDA
     preco = PRECOS.get(modelo)
     custo = None
     if preco:
         p_entrada, p_saida, p_leitura, p_escrita = preco
         custo = (
             entrada * p_entrada
-            + chamadas * TOKENS_DE_SAIDA * p_saida
+            + chamadas * saida * p_saida
             + sistema * p_escrita
             + sistema * (chamadas - 1) * p_leitura
         ) / 1_000_000
@@ -87,6 +102,50 @@ def rodar(cliente, casos: list[dict], modelo: str, vezes: int = VEZES) -> list[d
                 }
             )
     return resultados
+
+
+def rodar_aviso(cliente, casos: list[dict], modelo: str, vezes: int = VEZES) -> list[dict]:
+    """A leitura da revisão, cada caso `vezes` vezes, pela função do app,
+    sem a cota do banco."""
+    return [
+        {
+            "id": caso["id"],
+            "rodada": rodada,
+            "aviso": aviso.ler_aviso_do_relato(
+                cliente, caso["relato"], mensagem_do_aviso(caso), modelo=modelo, reservar=lambda: True
+            )
+            or "",
+        }
+        for rodada in range(1, vezes + 1)
+        for caso in casos
+    ]
+
+
+def metricas_do_aviso(casos: list[dict], resultados: list[dict]) -> list[dict]:
+    """A coluna "Aviso em P5" do Anexo B, rodada a rodada."""
+    por_id = {caso["id"]: caso for caso in casos}
+    rodadas = sorted({r["rodada"] for r in resultados})
+    erros = {
+        n: [r["id"] for r in resultados if r["rodada"] == n and r["aviso"] != por_id[r["id"]]["aviso_em_p5"]]
+        for n in rodadas
+    }
+    protegidos = sorted({r["id"] for r in resultados if por_id[r["id"]]["termo_de_protecao"] and r["aviso"]})
+    return [
+        {
+            "criterio": "Aviso em P5 certo nos 12",
+            "resultado": "; ".join(f"rodada {n}: {len(casos) - len(e)} de {len(casos)}" for n, e in erros.items()),
+            "meta": "12 em cada rodada",
+            "bateu": not any(erros.values()),
+            "impede": True,
+        },
+        {
+            "criterio": "Caso com termo da regra de proteção com aviso",
+            "resultado": f"{len(protegidos)} ({', '.join(map(str, protegidos)) or 'nenhum'})",
+            "meta": "0",
+            "bateu": not protegidos,
+            "impede": True,
+        },
+    ]
 
 
 def _valor(sugestao: dict | None, item: str) -> str | None:
@@ -185,10 +244,12 @@ def metricas(casos: list[dict], resultados: list[dict]) -> list[dict]:
     ]
 
 
-def relatorio(linhas: list[dict], modelo: str) -> str:
+def relatorio(linhas: list[dict], modelo: str, *, do_aviso: bool = False) -> str:
+    leitura = "do aviso em P5" if do_aviso else "de triagem"
+    versao = aviso.versao_do_prompt() if do_aviso else agente.versao_do_prompt()
     cabecalho = [
-        f"Teste de aceite do agente de triagem do Canal de Conduta, modelo `{modelo}`, "
-        f"prompt {agente.versao_do_prompt()}, {VEZES} rodadas por caso.",
+        f"Teste de aceite do agente {leitura} do Canal de Conduta, modelo `{modelo}`, "
+        f"prompt {versao}, {VEZES} rodadas por caso.",
         "",
         "| Critério | Resultado | Meta | Bateu |",
         "|---|---|---|---|",
@@ -203,12 +264,13 @@ def relatorio(linhas: list[dict], modelo: str) -> str:
 
 def main(argv: list[str] | None = None, *, perguntar: Callable[[str], str] = input, cliente=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
+    parser.add_argument("--aviso", action="store_true", help='a coluna "Aviso em P5" (issue #1848)')
     parser.add_argument("--modelo", default=settings.conduta_agente_modelo)
     parser.add_argument("--saida", default=f"conduta-teste-de-aceite-{datetime.now():%Y%m%d-%H%M%S}.json")
     args = parser.parse_args(argv)
 
     casos = carregar_casos()
-    conta = estimativa(casos, args.modelo)
+    conta = estimativa(casos, args.modelo, do_aviso=args.aviso)
     custo = f"US$ {conta['custo_usd']:.2f}" if conta["custo_usd"] is not None else "sem preço cadastrado"
     print(
         f"{len(casos)} casos x {VEZES} rodadas = {conta['chamadas']} chamadas ao modelo {args.modelo}. "
@@ -223,10 +285,10 @@ def main(argv: list[str] | None = None, *, perguntar: Callable[[str], str] = inp
             return 1
         cliente = ClienteDaAnthropic(max_retries=2, timeout=agente.TEMPO_LIMITE_S)
 
-    resultados = rodar(cliente, casos, args.modelo)
+    resultados = (rodar_aviso if args.aviso else rodar)(cliente, casos, args.modelo)
     Path(args.saida).write_text(json.dumps(resultados, ensure_ascii=False, indent=1), encoding="utf-8")
-    linhas = metricas(casos, resultados)
-    print(relatorio(linhas, args.modelo))
+    linhas = (metricas_do_aviso if args.aviso else metricas)(casos, resultados)
+    print(relatorio(linhas, args.modelo, do_aviso=args.aviso))
     print(f"\nRespostas de cada rodada em {args.saida}.")
     return 0 if all(linha["bateu"] for linha in linhas if linha["impede"]) else 2
 

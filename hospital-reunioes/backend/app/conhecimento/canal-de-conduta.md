@@ -153,7 +153,7 @@ Quem trabalha no hospital relata pela página pública do Canal, sem login, em s
 - passo 2, anônimo ou com identificação. Quem se identifica escreve o nome, que fica cifrado, fora do relato, e aparece só para o Comitê, na tela do caso, como "Relatou com identificação". O nome nunca vai ao agente;
 - passo 3, sobre o quê: se o relato envolve a Direção, a Presidência ou a família proprietária (Sim, Não ou Não sei, a única pergunta obrigatória), o assunto, entre as seis categorias, e se a pessoa sofreu, presenciou ou ficou sabendo;
 - passo 4, o que aconteceu: o texto, com até 10.000 caracteres, e os campos opcionais (quando, se ainda está acontecendo, onde, quem, testemunhas, se alguma liderança já sabe e o que foi feito, evidências). No anônimo, a página lembra de evitar detalhes que só a pessoa saberia. Os campos opcionais entram no relato do caso, embaixo do texto, cada um com o seu rótulo;
-- passo 5, a revisão: o resumo do que foi preenchido, o lembrete de que o relato pode iniciar a apuração da conduta de uma pessoa e o botão Enviar;
+- passo 5, a revisão: o resumo do que foi preenchido, o lembrete de que o relato pode iniciar a apuração da conduta de uma pessoa e o botão Enviar. Quando o assunto parece de outro lugar do hospital, aparece o aviso de assunto fora do canal (abaixo), e o botão vira Registrar mesmo assim;
 - passo 6, o protocolo e o código, mostrados uma única vez, com o botão Copiar, o aviso "Anote agora. Não há como recuperar.", a data a partir da qual voltar à página (o fim dos 5 dias úteis de leitura do Comitê) e a pergunta opcional "De 1 a 5, quanto você confia neste canal?", que vale uma resposta por relato.
 
 A barra de progresso e o botão Voltar aparecem em todos os passos, e voltar não perde nada do que foi preenchido. Sair da página perde o rascunho: nada fica guardado no aparelho, nem no cache do aplicativo, e nada vai no endereço da página.
@@ -166,7 +166,16 @@ O que a página garante:
 - nenhuma mensagem de erro repete o protocolo, o código, o nome ou um trecho do relato: a recusa diz só quais campos conferir;
 - com o canal fechado, a página responde como se não existisse.
 
-O aviso de assunto fora do canal na revisão chega numa próxima entrega.
+### O aviso de assunto fora do canal na revisão
+
+Ao abrir a revisão, o agente lê o texto uma vez, não a cada tecla. Voltar e reabrir a revisão sem mudar o texto não gera leitura nova. O agente responde só se o assunto parece de fora, para onde ele vai e se há termo da regra de proteção; os textos do aviso são fixos, e o agente não escreve nada para a página.
+
+- Salário, contracheque, benefícios, férias, escala ou banco de horas: "Pelo que você escreveu, este assunto é do Departamento Pessoal. O Canal de Conduta não resolve esse tipo de questão.", com os botões Ver contato do DP e Registrar mesmo assim. Ver contato do DP mostra o contato salvo nas Configurações, sem enviar nada e sem guardar o texto, o nome ou o telefone de ninguém. O encaminhamento ao DP não sai por e-mail.
+- Atendimento a paciente ou acompanhante: "Pelo que você escreveu, este assunto é da Ouvidoria. O Canal de Conduta não trata de atendimento a pacientes.", com os botões Ir para a Ouvidoria e Registrar mesmo assim. Ir para a Ouvidoria abre o formulário da Ouvidoria com o texto já escrito, levado pela memória da aba do navegador, nunca pelo endereço da página.
+- Segurança do paciente: "Pelo que você escreveu, este é um assunto de segurança do paciente.", com a orientação do NSP das Configurações, e só Registrar mesmo assim.
+- Avaliação, decisão de gestão, sugestão ou queixa geral: "Pelo que você escreveu, este assunto é tratado com a sua liderança ou com o DP.", e só Registrar mesmo assim.
+
+O relato nunca é bloqueado: Registrar mesmo assim envia o relato como o Enviar de sempre. Se o texto fala de assédio, discriminação, ameaça, violência, retaliação, fraude, desvio ou falsificação, o aviso não aparece, mesmo que o assunto principal pareça de outro lugar. O aplicativo também confere essas palavras por conta própria, sem depender do agente. Antes de sair do aplicativo, o texto perde nome, CPF, telefone e e-mail, como na triagem. Cada leitura conta no teto de 100 leituras por dia do agente. Com o teto de leituras do dia estourado ou o agente fora do ar, a revisão abre sem aviso e o relato é enviado normalmente. Enquanto o agente estiver desligado, nenhum aviso aparece.
 
 ## Os anexos do relato
 

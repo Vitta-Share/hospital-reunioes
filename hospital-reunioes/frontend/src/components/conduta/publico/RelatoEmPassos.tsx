@@ -9,6 +9,12 @@
  * perde nada; sair da página perde tudo, de propósito. O protocolo e o código
  * aparecem uma vez, no P6, e o rascunho é apagado da memória no mesmo
  * instante em que o servidor responde.
+ *
+ * Ao abrir a revisão (P5), o agente lê o texto uma vez (issue #1848). Se o
+ * assunto parece de outro destino e não há termo da regra de proteção, a tela
+ * mostra o aviso fixo do destino. O relato nunca é bloqueado: o envio vira
+ * "Registrar mesmo assim". Ver o contato do DP não envia nem guarda nada; ir
+ * para a Ouvidoria leva o texto pela memória da aba, nunca pelo endereço.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -24,18 +30,23 @@ import {
   LINHA_DA_IA,
   MAXIMO_DE_ANEXOS,
   RASCUNHO_VAZIO,
+  TEXTOS_DO_AVISO,
   conferirAnexo,
   dataLegivel,
   enviarAnexo,
   enviarConfianca,
   enviarRelato,
+  lerAvisoDaRevisao,
   lerAvisos,
-  type AvisoDoPasso1,
+  type DestinoDoAviso,
   type Protocolo,
   type Rascunho,
   type SimNaoNaoSei,
+  type TextoDaTela,
   type TextoVigente,
 } from "@/lib/conduta/relato";
+import { ENDERECO_DA_OUVIDORIA } from "@/lib/conduta/publico";
+import { guardarTextoParaAOuvidoria } from "@/lib/ouvidoria/texto-do-canal";
 
 const TOTAL_DE_PASSOS = 6;
 
@@ -328,7 +339,7 @@ function Entrada({ aoComecar }: { aoComecar: () => void }) {
 export function RelatoEmPassos() {
   const [passo, setPasso] = useState(0);
   const [rascunho, setRascunho] = useState<Rascunho>(RASCUNHO_VAZIO);
-  const [avisos, setAvisos] = useState<Partial<Record<AvisoDoPasso1, TextoVigente>>>({});
+  const [avisos, setAvisos] = useState<Partial<Record<TextoDaTela, TextoVigente>>>({});
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [protocolo, setProtocolo] = useState<Protocolo | null>(null);
@@ -337,6 +348,10 @@ export function RelatoEmPassos() {
   const [anexosGuardados, setAnexosGuardados] = useState(0);
   const [anexosRecusados, setAnexosRecusados] = useState<string[]>([]);
   const titulo = useRef<HTMLHeadingElement>(null);
+  const [aviso, setAviso] = useState<DestinoDoAviso | null>(null);
+  const [contatoDoDp, setContatoDoDp] = useState(false);
+  // O texto da última leitura: reabrir a revisão sem mudar o texto não lê de novo.
+  const lido = useRef<string | null>(null);
 
   useEffect(() => {
     let vivo = true;
@@ -351,6 +366,18 @@ export function RelatoEmPassos() {
   useEffect(() => {
     titulo.current?.focus();
   }, [passo]);
+
+  // Uma leitura por abertura da revisão, nunca a cada tecla: o P5 não tem campo.
+  useEffect(() => {
+    const texto = rascunho.relato.trim();
+    if (passo !== 5 || lido.current === texto) return;
+    lido.current = texto;
+    setAviso(null);
+    setContatoDoDp(false);
+    lerAvisoDaRevisao(texto).then((destino) => {
+      if (lido.current === texto) setAviso(destino);
+    });
+  }, [passo, rascunho.relato]);
 
   const mudar = <K extends keyof Rascunho>(campo: K, valor: Rascunho[K]) =>
     setRascunho((atual) => ({ ...atual, [campo]: valor }));
@@ -655,9 +682,18 @@ export function RelatoEmPassos() {
                 {erro}
               </p>
             )}
+            {aviso && (
+              <AvisoForaDoCanal
+                destino={aviso}
+                contatoDoDp={contatoDoDp ? (avisos.contato_dp?.texto ?? null) : undefined}
+                orientacaoDoNsp={avisos.orientacao_nsp?.texto ?? null}
+                aoVerContatoDoDp={() => setContatoDoDp(true)}
+                aoIrParaAOuvidoria={() => guardarTextoParaAOuvidoria(rascunho.relato.trim())}
+              />
+            )}
             <button type="button" onClick={enviar} disabled={enviando} className={BOTAO_PRINCIPAL}>
               {enviando && <Loader2 className="w-4 h-4 animate-spin" aria-hidden />}
-              Enviar
+              {aviso ? "Registrar mesmo assim" : "Enviar"}
             </button>
             <p className="text-sm text-slate-500 text-center">Seu relato será lido pelo Comitê em até 5 dias úteis.</p>
           </>
@@ -737,6 +773,50 @@ export function RelatoEmPassos() {
         </button>
       )}
     </div>
+  );
+}
+
+/**
+ * O aviso de assunto fora do canal (seção 4.1), com o texto fixo do destino.
+ * `contatoDoDp` indefinido: o contato ainda não foi aberto; nulo: aberto, sem
+ * contato salvo nas Configurações.
+ */
+function AvisoForaDoCanal({
+  destino,
+  contatoDoDp,
+  orientacaoDoNsp,
+  aoVerContatoDoDp,
+  aoIrParaAOuvidoria,
+}: {
+  destino: DestinoDoAviso;
+  contatoDoDp: string | null | undefined;
+  orientacaoDoNsp: string | null;
+  aoVerContatoDoDp: () => void;
+  aoIrParaAOuvidoria: () => void;
+}) {
+  return (
+    <section aria-label="Aviso sobre o assunto" className="space-y-3 rounded-xl bg-amber-50 px-4 py-4">
+      <p className="text-base text-amber-900">{TEXTOS_DO_AVISO[destino]}</p>
+      {destino === "NSP" && orientacaoDoNsp && (
+        <p className="text-base text-amber-900 whitespace-pre-line">{orientacaoDoNsp}</p>
+      )}
+      {destino === "DP" &&
+        (contatoDoDp === undefined ? (
+          <button type="button" onClick={aoVerContatoDoDp} className={BOTAO_SECUNDARIO}>
+            Ver contato do DP
+          </button>
+        ) : (
+          <p className="rounded-xl bg-white px-4 py-3 text-base text-slate-800 whitespace-pre-line">
+            {contatoDoDp ?? "Procure o Departamento Pessoal do hospital."}
+          </p>
+        ))}
+      {destino === "OUVIDORIA" && (
+        // O texto vai pela memória da aba (issue #1847); o endereço é só o do formulário.
+        <a href={ENDERECO_DA_OUVIDORIA} onClick={aoIrParaAOuvidoria} className={`${BOTAO_SECUNDARIO} uppercase`}>
+          Ir para a Ouvidoria
+        </a>
+      )}
+    </section>
   );
 }
 
