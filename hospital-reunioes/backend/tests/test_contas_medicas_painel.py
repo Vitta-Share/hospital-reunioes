@@ -828,6 +828,13 @@ class TestOKitDescreveOPainel:
         ):
             assert trecho in painel, trecho
 
+    def test_a_secao_do_painel_diz_que_o_custo_de_ia_e_so_do_super_admin(self):
+        """A regra da #1919: quem tem o Painel completo e pergunta "cadê o custo
+        de IA?" acha a resposta aqui."""
+        painel = _secao("O Painel")
+
+        assert "O custo de inteligência artificial aparece só para o Super admin" in painel
+
     def test_o_que_ja_esta_no_ar_inclui_o_painel(self):
         assert "o Painel" in _secao("O que já está no ar")
 

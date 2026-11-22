@@ -244,6 +244,20 @@ describe("o Painel", () => {
     }
   });
 
+  it("sem o custo de IA no payload (quem não é Super admin), o bloco some e os outros ficam", async () => {
+    const semCusto: Painel = { ...PAINEL };
+    delete semCusto.custo_ia;
+    servidorResponde(semCusto);
+
+    render(<PainelPage />);
+
+    await screen.findByRole("group", { name: "Nota média de entrada" });
+    expect(screen.queryByRole("region", { name: "Custo de IA" })).toBeNull();
+    for (const nome of BLOCOS.filter((b) => b !== "Custo de IA")) {
+      expect(screen.getByRole("region", { name: nome }), nome).toBeTruthy();
+    }
+  });
+
   it("cada filtro pede o Painel de novo ao servidor", async () => {
     const fetch = servidorResponde(PAINEL);
 
