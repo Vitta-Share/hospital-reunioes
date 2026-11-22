@@ -161,7 +161,10 @@ class TestEliminacao:
 
         assert _eliminar(banco, caso).returncode == 0
 
-        assert banco.ok(f"SELECT participante_id, nome_cifrado IS NULL FROM conduta_citados WHERE caso_id = '{caso}';") == "P1|t"
+        assert (
+            banco.ok(f"SELECT participante_id, nome_cifrado IS NULL FROM conduta_citados WHERE caso_id = '{caso}';")
+            == "P1|t"
+        )
 
     def test_o_encaminhado_vence_em_um_ano(self, banco):
         caso = _caso(banco, encerrado_ha="1 year 2 days", desfecho="encaminhado")
@@ -259,7 +262,9 @@ class TestLacreECongelamento:
             papel="service_role",
         )
 
-        r = banco.sql(f"UPDATE conduta_casos SET papel_local = 'Outro lugar' WHERE id = '{caso}';", papel="service_role")
+        r = banco.sql(
+            f"UPDATE conduta_casos SET papel_local = 'Outro lugar' WHERE id = '{caso}';", papel="service_role"
+        )
 
         assert r.returncode != 0
         assert "não muda" in r.stderr

@@ -142,6 +142,22 @@ A trilha confere a própria corrente toda vez que a tela abre. Se alguém trocar
 
 Só baixa o Dossiê quem é do Comitê no caso: a coordenação, o membro e o segundo leitor, ou o suplente convocado no lugar de um deles. O apurador, o membro da CIPA, o Presidente, a diretoria executiva e o super admin recebem a recusa. Cada download entra na trilha com quem baixou e quando, e sem esse registro o pacote não sai.
 
+## O papel original e a guarda
+
+Os originais assinados à caneta (o termo de declaração de cada pessoa ouvida e a ciência do Código pelo acusado) ficam num envelope lacrado por caso.
+
+- Encerrado o caso, a etapa "ARQUIVAR PAPEL" da tela do caso lista os originais esperados, cada um "Aguardando" ou "Assinado".
+- "IMPRIMIR ETIQUETA" gera a folha A4 para colar no envelope, em PDF: o aviso de sigilo, o protocolo, o rito, as datas de abertura e de encerramento, a lista do que está dentro por tipo e quantidade e a data até quando guardar. A etiqueta não leva nome de pessoa, setor nem assunto; o espaço do lacre (nome, data e assinatura sobre o lacre) é preenchido à mão.
+- Lacrado o envelope, quem é do Comitê no caso registra quem lacrou, a data e o local de guarda. O local vem preenchido com o local padrão das Configurações. O registro é feito uma vez só e entra na trilha.
+
+A guarda vai até cinco anos depois do encerramento. O caso encerrado como Encaminhado é guardado por um ano.
+
+- "Congelar caso" é um botão que só a coordenação usa, para caso com processo judicial ou administrativo. Caso congelado não é eliminado nem gera aviso. "Descongelar" também é só da coordenação, e a guarda volta a contar. As duas ações entram na trilha.
+- Um job diário, às 07:40, elimina o conteúdo do caso com a guarda vencida: o relato, os depoimentos, os termos, os votos, a ata, o relatório, o retorno e todos os arquivos. Ficam o protocolo, o rito, as datas e a trilha do caso continua, com a linha da eliminação. A base de dados confere o prazo de novo e recusa eliminar caso congelado ou ainda na guarda.
+- Depois da eliminação, a coordenação recebe o e-mail "Venceu a guarda de um envelope do Canal de Conduta.", sem protocolo nem nada do caso, para eliminar o envelope de papel. O aviso sai uma vez por caso.
+- O caso eliminado continua na lista e abre só com os metadados, a guarda e a trilha. O Dossiê dele não sai mais.
+- O job não chama IA.
+
 ## O agente de triagem
 
 Cada relato novo é lido uma vez pelo agente de triagem, sozinho, logo que chega, sem ninguém precisar clicar. O agente sugere; quem decide é a coordenação.
