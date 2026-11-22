@@ -288,6 +288,69 @@ def ler_a_pergunta(pergunta_id: UUID, supabase=Depends(get_supabase_client)) -> 
     }
 
 
+# ─── Resolver e cancelar a Pergunta (issue #2121, ADR 0109, decisao 6) ───────
+
+# O teto das colunas da resolucao (CHECK da migration 211).
+LIMITE_DA_RESOLUCAO = 2000
+
+
+class ResolucaoDaPerguntaPayload(BaseModel):
+    """O ok da Vitta depois de ler a resposta: quem resolve (o login do
+    GitHub, como na criacao), o que foi decidido e o que destravou, em
+    palavras simples. O que falta e recusado pelo servico, com o motivo."""
+
+    github_login: str = Field(min_length=1, max_length=100)
+    decidido: str | None = Field(default=None, max_length=LIMITE_DA_RESOLUCAO)
+    destravou: str | None = Field(default=None, max_length=LIMITE_DA_RESOLUCAO)
+
+
+class CancelamentoDaPerguntaPayload(BaseModel):
+    """A Pergunta deixou de ser necessaria: quem cancela e o motivo."""
+
+    github_login: str = Field(min_length=1, max_length=100)
+    motivo: str | None = Field(default=None, max_length=LIMITE_DA_RESOLUCAO)
+
+
+def _para_fechar(supabase, pergunta_id: UUID, github_login: str) -> tuple[dict, dict, dict]:
+    """O autor (Desenvolvedor do login, ou 403), a Pergunta e a Demanda dela
+    (404 quando nao existe ou a Demanda foi apagada, como na leitura)."""
+    autor = tecnologia_conversa.desenvolvedor_do_login(supabase, github_login)
+    if autor is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=MOTIVO_LOGIN_RECUSADO)
+    pergunta = tecnologia_perguntas.buscar(supabase, str(pergunta_id))
+    if pergunta is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=MOTIVO_PERGUNTA_NAO_ENCONTRADA)
+    try:
+        demanda = _demanda_ou_404(supabase, id=str(pergunta["demanda_id"]))
+    except HTTPException as nao_achou:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=MOTIVO_PERGUNTA_NAO_ENCONTRADA) from nao_achou
+    return autor, pergunta, demanda
+
+
+def _recusa_do_fechamento(erro: ValueError) -> HTTPException:
+    if isinstance(erro, tecnologia_perguntas.PassagemRecusadaError):
+        return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(erro))
+    return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(erro))
+
+
+@router.post("/perguntas/{pergunta_id}/resolver")
+def resolver_a_pergunta(
+    pergunta_id: UUID, payload: ResolucaoDaPerguntaPayload, supabase=Depends(get_supabase_client)
+) -> dict:
+    """A Vitta leu a resposta e deu o ok: a Pergunta respondida passa a
+    resolvida, e a Conversa ganha a linha de sistema com o que foi decidido e
+    o que destravou. A aberta, a resolvida e a cancelada sao 409 com o motivo;
+    sem decisao ou sem o que destravou e 422. Nada muda na recusa."""
+    autor, pergunta, demanda = _para_fechar(supabase, pergunta_id, payload.github_login)
+    try:
+        resolvida = tecnologia_perguntas.resolver(
+            supabase, pergunta, demanda, autor=autor, decidido=payload.decidido, destravou=payload.destravou
+        )
+    except (tecnologia_perguntas.PassagemRecusadaError, tecnologia_perguntas.FechamentoIncompletoError) as recusa:
+        raise _recusa_do_fechamento(recusa) from recusa
+    return {"id": str(resolvida["id"]), "estado": resolvida["estado"], "resolvida_em": resolvida.get("resolvida_em")}
+
+
 @router.get("/demandas/{demanda_id}/conversa")
 def ler_pelo_terminal(
     demanda_id: UUID,
