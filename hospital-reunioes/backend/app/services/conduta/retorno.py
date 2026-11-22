@@ -17,7 +17,7 @@ mesmas conferências.
 O caso improcedente ou inconclusivo vai da Ata direto ao Retorno: ele não sai
 do Comitê. No procedente, o Retorno vem depois da decisão da medida, e o
 agente sugere de uma a três correções de processo; o Comitê escolhe, com
-responsável e prazo. O banco tem as mesmas travas (migration 222).
+responsável e prazo. O banco tem as mesmas travas (migration 223).
 """
 
 from __future__ import annotations

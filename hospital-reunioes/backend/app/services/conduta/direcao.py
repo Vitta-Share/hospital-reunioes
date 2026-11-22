@@ -13,7 +13,7 @@ Comitê, que as recusa. Cada leitura entra na trilha.
 A execução da medida é do DP, fora do módulo. A diretoria anexa a cópia da
 comunicação da medida, que fica cifrada no bucket do Canal e entra na trilha.
 Improcedente e inconclusivo nunca saem do Comitê. O banco tem as mesmas
-travas (migration 222).
+travas (migration 223).
 """
 
 from __future__ import annotations

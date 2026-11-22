@@ -1,8 +1,8 @@
-"""A migration 222, a Recomendação do Comitê, a decisão da medida e o retorno,
+"""A migration 223, a Recomendação do Comitê, a decisão da medida e o retorno,
 num Postgres de verdade (issue #1835).
 
 Sobe um Postgres descartável, aplica a 175, a 185, a 192, a 199, a 214, a
-216, a 221 e a 222 (a 222 duas vezes) sobre o mínimo de antes e prova no
+216, a 221 e a 223 (a 223 duas vezes) sobre o mínimo de antes e prova no
 banco:
 
 - só o caso procedente da fila comum, na etapa Ata, vai à Direção, e o envio
@@ -42,7 +42,7 @@ ANTERIORES = (
     "216_conduta_voto_e_trava_de_robustez.sql",
     "221_conduta_ata_de_deliberacao.sql",
 )
-MIGRATION = PASTA / "222_conduta_recomendacao_medida_e_retorno.sql"
+MIGRATION = PASTA / "223_conduta_recomendacao_medida_e_retorno.sql"
 TABELAS_NOVAS = (
     "conduta_retornos",
     "conduta_decisoes_da_medida",

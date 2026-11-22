@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 222: Canal de Conduta, a Recomendação do Comitê, a decisão da
+-- Migration 223: Canal de Conduta, a Recomendação do Comitê, a decisão da
 -- medida e o retorno (issue #1835, PRD #1786, ADR 0097; especificação, 6.8,
 -- 6.9 e 6.10)
 -- =====================================================
@@ -336,4 +336,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (222) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (223) ON CONFLICT (numero) DO NOTHING;
