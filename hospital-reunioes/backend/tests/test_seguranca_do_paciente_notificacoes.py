@@ -104,6 +104,23 @@ class _Consulta:
         self._filtros.append(lambda linha: linha.get(coluna) is not None and str(linha[coluna]) >= str(valor))
         return self
 
+    def lt(self, coluna, valor):
+        self._filtros.append(lambda linha: linha.get(coluna) is not None and str(linha[coluna]) < str(valor))
+        return self
+
+    def gt(self, coluna, valor):
+        self._filtros.append(lambda linha: linha.get(coluna) is not None and str(linha[coluna]) > str(valor))
+        return self
+
+    def neq(self, coluna, valor):
+        self._filtros.append(lambda linha: linha.get(coluna) != valor)
+        return self
+
+    def is_(self, coluna, valor):
+        assert valor == "null"
+        self._filtros.append(lambda linha: linha.get(coluna) is None)
+        return self
+
     def order(self, coluna, desc=False, **_kw):
         self._ordem = (coluna, desc)
         return self

@@ -29,7 +29,7 @@ from typing import Any
 
 from postgrest.exceptions import APIError
 
-from app.services.seguranca_do_paciente import notificacoes, prazos
+from app.services.seguranca_do_paciente import ao_confirmar, notificacoes, prazos
 from app.services.seguranca_do_paciente.triagem_do_agente import (
     CANAIS,
     CATEGORIAS,
@@ -684,11 +684,13 @@ def decidir(
 
 
 def _concluir(supabase, notificacao: dict[str, Any], decisao: dict[str, Any], autor_id: str) -> dict[str, Any]:
-    """Congela os prazos do caso e leva o caso ao estado que a decisão gravada
-    pede. Os prazos vêm antes do estado: se a mudança de estado cair, a nova
-    tentativa encontra os prazos já gravados e não grava de novo."""
+    """Congela os prazos do caso, cria a reunião de análise, registra os
+    avisos e leva o caso ao estado que a decisão gravada pede. Tudo vem antes
+    do estado: se a mudança de estado cair, a nova tentativa encontra o que já
+    foi gravado e não grava de novo."""
     notificacao_id = notificacao["id"]
     prazos.congelar_no_caso(supabase, notificacao, decisao)
+    ao_confirmar.ao_confirmar(supabase, notificacao, decisao, autor_id)
     estado = estado_depois_da_triagem(decisao["faixa"], decisao["grau_de_dano"])
     supabase.table("nsp_notificacoes").update({"estado": estado, "editado_por": autor_id}).eq("id", notificacao_id).in_(
         "estado", list(ESTADOS_DA_FILA)
