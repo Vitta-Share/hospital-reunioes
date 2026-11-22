@@ -47,11 +47,13 @@ from test_seguranca_do_paciente_prazos import (  # noqa: E402
     _ConsultaDoNucleo,
 )
 from test_seguranca_do_paciente_prazos import _banco as _banco_dos_prazos  # noqa: E402
+from test_seguranca_do_paciente_notificacoes import ANONIMO, DIRETOR, PUBLICO, _pessoa  # noqa: E402
 from test_seguranca_do_paciente_triagem import (  # noqa: E402
     GRAVE,
     MODERADO,
     OBITO,
     PRESIDENTE,
+    QUASE_ERRO,
     TODOS_OS_CAMPOS,
     _notificacao,
     _sugestao,
@@ -62,9 +64,11 @@ from app.limiter import limiter  # noqa: E402
 from app.routers import seguranca_do_paciente_notificacoes as notificacoes_router  # noqa: E402
 from app.routers import seguranca_do_paciente_reunioes as reunioes_router  # noqa: E402
 from app.routers import seguranca_do_paciente_triagem as triagem_router  # noqa: E402
-from app.services.seguranca_do_paciente import emails  # noqa: E402
+from app.services.seguranca_do_paciente import ao_confirmar, emails  # noqa: E402
 
 SP = ZoneInfo("America/Sao_Paulo")
+DIRETORIA_EXECUTIVA = _pessoa("P8", perfil_ouvidoria="diretoria_executiva")
+LEVE = {"natureza": "evento_adverso", "grau_de_dano": "leve", "faixa": "D"}
 ANALISE_DE_EVENTO = "Análise de evento"
 ORDINARIA = "Ordinária mensal"
 
@@ -117,7 +121,13 @@ class _Banco(_BancoDoNucleo):
 
 
 def _banco(notificacoes: list[dict], triagens: list[dict]) -> _Banco:
-    return _Banco(_banco_dos_prazos(notificacoes, triagens).tabelas)
+    banco = _Banco(_banco_dos_prazos(notificacoes, triagens).tabelas)
+    banco.tabelas["participantes"] += [dict(DIRETOR), dict(DIRETORIA_EXECUTIVA)]
+    return banco
+
+
+def _avisos(banco, marco: str) -> list[dict[str, Any]]:
+    return [a for a in banco.tabelas.get("nsp_avisos", []) if a["marco"] == marco]
 
 
 def _cliente(banco, pessoa: dict[str, Any] = PRESIDENTE) -> TestClient:
@@ -259,3 +269,144 @@ def test_a_lesao_por_pressao_com_obito_tem_a_reuniao_de_analise(com_as_ordinaria
     [reuniao] = _reunioes(banco)
     assert reuniao["data"] == "2026-11-23"
     assert not any(caso["protocolo"] in texto for texto in _textos_da_pauta(banco, "RD_dezembro"))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. A comunicação à Direção, na hora, só nas faixas A e B
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.parametrize("sugestao", [OBITO, GRAVE], ids=["faixa A", "faixa B"])
+def test_confirmar_a_ou_b_registra_o_aviso_a_diretoria_na_hora(enviados, sugestao):
+    banco, caso = _caso_confirmado(sugestao)
+
+    avisos = _avisos(banco, ao_confirmar.MARCO_DA_DIRECAO)
+    assert sorted(a["destinatario_id"] for a in avisos) == ["P6", "P8"]
+    for aviso in avisos:
+        assert aviso["caso_id"] == caso["id"]
+        assert aviso["urgente"] is True
+        assert aviso["situacao"] == emails.ENVIADO
+    para_a_direcao = [e for e in enviados if e["para"] in ("p6@hsm.test", "p8@hsm.test")]
+    assert len(para_a_direcao) == 2
+    for email in para_a_direcao:
+        assert caso["protocolo"] in email["assunto"]
+        assert caso["relato"] not in email["texto"]
+        assert caso["relato"] not in email["html"]
+
+
+@pytest.mark.parametrize("sugestao", [MODERADO, LEVE, QUASE_ERRO], ids=["faixa C", "faixa D", "faixa E"])
+def test_confirmar_c_d_ou_e_nao_registra_o_aviso_a_diretoria(enviados, sugestao):
+    banco, _ = _caso_confirmado(sugestao)
+
+    assert _avisos(banco, ao_confirmar.MARCO_DA_DIRECAO) == []
+    assert not [e for e in enviados if e["para"] in ("p6@hsm.test", "p8@hsm.test")]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. Quem notificou fica sabendo que o caso está em análise
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_o_identificado_com_email_recebe_o_aviso_de_que_o_caso_esta_em_analise(enviados):
+    banco, caso = _caso_confirmado(MODERADO)
+
+    [aviso] = _avisos(banco, ao_confirmar.MARCO_DO_EM_ANALISE)
+    assert aviso["caso_id"] == caso["id"]
+    assert aviso["destinatario_id"] is None
+    assert "notificante@hsm.test" not in str(aviso)
+    # O aviso não é urgente: se a confirmação foi fora do expediente, o job
+    # de 10 em 10 minutos o leva quando ele abre.
+    emails.despachar_pendentes(banco, datetime(2030, 1, 7, 10, 0, tzinfo=SP))
+    [email] = [e for e in enviados if e["para"] == "notificante@hsm.test"]
+    assert caso["protocolo"] in email["assunto"]
+    assert "em análise" in email["texto"]
+    assert caso["relato"] not in email["texto"]
+
+
+@pytest.mark.parametrize(
+    "campos",
+    [{"anonimo": True, "notificante_nome": None, "notificante_contato": None}, {"notificante_contato": "21 99999-0000"}],
+    ids=["anônimo", "só telefone"],
+)
+def test_quem_nao_deixou_email_nao_gera_o_aviso(campos):
+    banco, _ = _caso_confirmado(MODERADO, **campos)
+
+    assert _avisos(banco, ao_confirmar.MARCO_DO_EM_ANALISE) == []
+
+
+def test_o_anonimo_ve_o_estado_novo_na_pagina_de_acompanhamento():
+    banco = _banco([], [])
+    recibo = _cliente(banco).post(PUBLICO, json={**ANONIMO, "origem": "qr"}).json()
+    [caso] = banco.notificacoes
+    banco.tabelas["nsp_triagens"].append(_sugestao({**caso, "numero": 1}, **MODERADO))
+    acompanhar = {"protocolo": recibo["protocolo"], "codigo": recibo["codigo_acompanhamento"]}
+    assert _cliente(banco).post("/api/nsp/publico/acompanhamento", json=acompanhar).json()["estado"] == "Recebida"
+
+    _confirmar(banco, caso)
+
+    resposta = _cliente(banco).post("/api/nsp/publico/acompanhamento", json=acompanhar)
+    assert resposta.status_code == 200, resposta.text
+    assert resposta.json()["estado"] == "Em análise"
+    assert _avisos(banco, ao_confirmar.MARCO_DO_EM_ANALISE) == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. Confirmar duas vezes não cria segunda reunião nem segundo aviso
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _o_que_a_confirmacao_criou(banco) -> tuple[int, int, int]:
+    return (
+        len(_reunioes(banco)),
+        len(_avisos(banco, ao_confirmar.MARCO_DA_DIRECAO)),
+        len(_avisos(banco, ao_confirmar.MARCO_DO_EM_ANALISE)),
+    )
+
+
+def test_confirmar_de_novo_o_caso_ja_classificado_nao_cria_segunda_reuniao_nem_segundo_aviso(enviados):
+    banco, caso = _caso_confirmado(OBITO)
+    assert _o_que_a_confirmacao_criou(banco) == (1, 2, 1)
+    saidos = len(enviados)
+
+    resposta = _cliente(banco).post(f"/api/nsp/triagem/{caso['id']}", json={"conferidos": TODOS_OS_CAMPOS})
+
+    assert resposta.status_code == 409
+    assert _o_que_a_confirmacao_criou(banco) == (1, 2, 1)
+    assert len(enviados) == saidos
+
+
+def test_a_nova_tentativa_da_confirmacao_que_caiu_no_meio_nao_cria_segunda_reuniao_nem_segundo_aviso(enviados):
+    """A confirmação caiu antes de mudar o estado: a nova tentativa conclui
+    com a reunião, a pauta e os avisos que a primeira já gravou."""
+    banco, caso = _caso_confirmado(OBITO)
+    [reuniao] = _reunioes(banco)
+    saidos = len(enviados)
+    banco.notificacoes[0]["estado"] = "recebida"
+
+    _confirmar(banco, caso)
+
+    assert _o_que_a_confirmacao_criou(banco) == (1, 2, 1)
+    assert len(enviados) == saidos
+    textos = _textos_da_pauta(banco, reuniao["id_reuniao"])
+    assert sum(caso["protocolo"] in texto for texto in textos) == 1
+
+
+def test_a_confirmacao_que_chega_junto_com_outra_fica_com_a_reuniao_da_primeira(monkeypatch):
+    """Duas tentativas ao mesmo tempo: a segunda esbarra na reunião única por
+    caso do banco e segue com a reunião que a primeira criou."""
+    caso = _notificacao(1, **DO_CASO)
+    banco = _banco([caso], [_sugestao(caso, **OBITO)])
+    inserir = _Consulta._inserir
+
+    def _a_outra_criou_primeiro(self):
+        if self._nome == "reunioes" and not banco.tabelas.get("reunioes"):
+            inserir(self)
+            raise APIError({"code": "23505", "message": "duplicate key value"})
+        return inserir(self)
+
+    monkeypatch.setattr(_Consulta, "_inserir", _a_outra_criou_primeiro)
+
+    _confirmar(banco, caso)
+
+    [reuniao] = _reunioes(banco)
+    assert any(caso["protocolo"] in texto for texto in _textos_da_pauta(banco, reuniao["id_reuniao"]))

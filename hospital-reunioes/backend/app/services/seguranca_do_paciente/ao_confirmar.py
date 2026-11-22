@@ -23,7 +23,7 @@ destinatário (a chave do registro de e-mail).
 from __future__ import annotations
 
 import logging
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -154,6 +154,145 @@ def _levar_a_ordinaria_seguinte(supabase, caso: dict, confirmada_em: datetime) -
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Os avisos
+# ═══════════════════════════════════════════════════════════════════════════
+
+_FAIXA_POR_EXTENSO = {"A": "óbito ou evento que nunca deveria ocorrer", "B": "dano grave"}
+
+
+def _quando(agora: datetime) -> tuple[str, str]:
+    local = agora.astimezone(_FUSO)
+    return local.strftime("%d/%m/%Y"), local.strftime("%H:%M")
+
+
+def _a_direcao(supabase) -> list[dict]:
+    """A Diretoria (o cargo que lê os casos A e B no módulo) e a Diretoria
+    Executiva, ativas, cada pessoa uma vez só."""
+    diretoria = (
+        selecionar_participantes(
+            supabase,
+            "id, nome_completo, email",
+            lambda q: q.in_("role", list(ROLES_DA_DIRETORIA)).eq("ativo", True),
+        ).data
+        or []
+    )
+    executiva = ler_diretoria_executiva(supabase)
+    if executiva is None:
+        logger.error("[Confirmação NSP] Diretoria Executiva ilegível; a comunicação segue para a Diretoria.")
+    pessoas: dict[str, dict] = {}
+    for pessoa in [*diretoria, *(executiva or [])]:
+        pessoas.setdefault(pessoa["id"], pessoa)
+    return list(pessoas.values())
+
+
+def mensagem_a_direcao(nome: str, protocolo: str, faixa: str, agora: datetime) -> tuple[str, str, dict]:
+    """(assunto, texto, contexto do modelo) da comunicação à Direção. Sem o
+    relato: o protocolo, a faixa e o link."""
+    data, hora = _quando(agora)
+    link = f"{settings.frontend_url}/seguranca-do-paciente/notificacoes"
+    assunto = f"Comunicação à Direção: caso {protocolo} confirmado na faixa {faixa}"
+    paragrafos = [
+        f"O Núcleo de Segurança do Paciente confirmou em {data} às {hora} a triagem do caso {protocolo}, "
+        f"na faixa {faixa} ({_FAIXA_POR_EXTENSO.get(faixa, 'caso grave')}).",
+        "Esta é a comunicação à Direção que o Regimento pede para os casos das faixas A e B.",
+        "O relato não vai por e-mail. Abra o caso em Notificações, no módulo Segurança do Paciente.",
+    ]
+    assunto, nome, paragrafos = sanitizar_estrutura([assunto, nome, paragrafos])
+    texto = f"Olá, {nome}.\n\n" + "\n\n".join(paragrafos) + f"\n\nSegurança do Paciente, Notificações: {link}\n"
+    return assunto, texto, {"nome": nome, "paragrafos": paragrafos, "link": link, "botao": "Abrir Notificações"}
+
+
+def _comunicar_a_direcao(supabase, caso: dict, faixa: str, agora: datetime) -> None:
+    pessoas = _a_direcao(supabase)
+    if not pessoas:
+        logger.error("[Confirmação NSP] Caso %s sem ninguém da Direção para comunicar.", caso["id"])
+    for pessoa in pessoas:
+        assunto, texto, contexto = mensagem_a_direcao(pessoa.get("nome_completo") or "", caso["protocolo"], faixa, agora)
+        emails.registrar(
+            supabase,
+            caso_id=caso["id"],
+            marco=MARCO_DA_DIRECAO,
+            referencia=caso["protocolo"],
+            destinatario_id=pessoa["id"],
+            assunto=assunto,
+            texto=texto,
+            modelo=MODELO,
+            contexto=contexto,
+            agora=agora,
+            urgente=True,
+        )
+
+
+def mensagem_do_em_analise(nome: str, protocolo: str) -> tuple[str, str, dict]:
+    """(assunto, texto, contexto do modelo) do aviso a quem notificou, com o
+    protocolo e sem o relato."""
+    link = f"{settings.frontend_url}/notificar/acompanhar"
+    assunto = f"A sua notificação de incidente está em análise: protocolo {protocolo}"
+    paragrafos = [
+        f"O Núcleo de Segurança do Paciente leu a sua notificação {protocolo}, e ela está em análise.",
+        "Obrigado por notificar. Notificar não gera punição: serve para tornar o cuidado mais seguro.",
+        "Para acompanhar, abra a página de acompanhamento e informe o protocolo e o e-mail que você deixou.",
+    ]
+    assunto, nome, paragrafos = sanitizar_estrutura([assunto, nome, paragrafos])
+    texto = f"Olá, {nome}.\n\n" + "\n\n".join(paragrafos) + f"\n\nAcompanhar a notificação: {link}\n"
+    return assunto, texto, {"nome": nome, "paragrafos": paragrafos, "link": link, "botao": "Acompanhar a notificação"}
+
+
+def _avisar_quem_notificou(supabase, caso: dict, agora: datetime) -> None:
+    """Só quem se identificou com e-mail. O endereço não vai para o registro:
+    o envio o lê da notificação. Sem prazo do Regimento, o aviso espera o
+    expediente."""
+    if caso.get("anonimo") or not email_utilizavel(caso.get("notificante_contato")):
+        return
+    assunto, texto, contexto = mensagem_do_em_analise(caso.get("notificante_nome") or "", caso["protocolo"])
+    hoje = agora.astimezone(_FUSO).date()
+    emails.registrar(
+        supabase,
+        caso_id=caso["id"],
+        marco=MARCO_DO_EM_ANALISE,
+        referencia=caso["protocolo"],
+        destinatario_id=None,
+        assunto=assunto,
+        texto=texto,
+        modelo=MODELO,
+        contexto=contexto,
+        agora=agora,
+        feriados=pauta.feriados_entre(supabase, hoje, hoje + timedelta(days=_DIAS_DOS_FERIADOS)),
+    )
+
+
+_DIAS_DOS_FERIADOS = 30
+_CAMPOS_DO_REGISTRO = (
+    "id, participacao_id, caso_id, marco, referencia, destinatario_id, situacao, tentativas, "
+    "enviar_a_partir_de, urgente, assunto, texto, modelo, contexto"
+)
+
+
+def entregar_os_avisos(supabase, caso_id: str) -> None:
+    """A tarefa de fundo da confirmação: entrega o que já pode sair. O que
+    falhar ou esperar o expediente fica com o job de 10 em 10 minutos."""
+    agora = _agora()
+    try:
+        registros = (
+            supabase.table(emails.TABELA)
+            .select(_CAMPOS_DO_REGISTRO)
+            .eq("caso_id", caso_id)
+            .eq("situacao", emails.PENDENTE)
+            .in_("marco", list(MARCOS))
+            .execute()
+            .data
+        ) or []
+    except Exception as falha:  # noqa: BLE001 (o job leva o que ficou)
+        logger.error("[Confirmação NSP] Avisos de %s ilegíveis agora: %s", caso_id, type(falha).__name__)
+        return
+    for registro in registros:
+        try:
+            emails.despachar_se_puder(supabase, registro, agora)
+        except Exception as falha:  # noqa: BLE001 (o job de 10 em 10 minutos leva o resto)
+            logger.error("[Confirmação NSP] Registro %s não saiu agora: %s", registro.get("id"), type(falha).__name__)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # A operação
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -170,3 +309,6 @@ def ao_confirmar(supabase, notificacao: dict[str, Any], decisao: dict[str, Any],
         _levar_a_ordinaria_seguinte(supabase, caso, confirmada_em)
     else:
         _agendar_a_analise(supabase, caso, autor_id, agora)
+    if decisao.get("faixa") in FAIXAS_DA_DIRETORIA:
+        _comunicar_a_direcao(supabase, caso, decisao["faixa"], agora)
+    _avisar_quem_notificou(supabase, caso, agora)

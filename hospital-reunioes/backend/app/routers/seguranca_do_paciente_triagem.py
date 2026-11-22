@@ -23,14 +23,14 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from postgrest.exceptions import APIError
 from pydantic import BaseModel, Field
 from supabase import Client
 
 from app.dependencies import get_supabase_client, require_recurso_nsp
 from app.services import limite_sem_ip, ouvidoria_nucleo
-from app.services.seguranca_do_paciente import anexos, encaminhamento, notificacoes, triagem
+from app.services.seguranca_do_paciente import anexos, ao_confirmar, encaminhamento, notificacoes, triagem
 
 logger = logging.getLogger(__name__)
 
@@ -141,13 +141,15 @@ async def decidir_a_triagem(
     request: Request,
     notificacao_id: UUID,
     decisao: Decisao,
+    tarefas: BackgroundTasks,
     me: dict = Depends(require_recurso_nsp("triagem")),
     supabase: Client = Depends(get_supabase_client),
 ) -> dict:
     """Confirmar ou ajustar. Grava a linha da pessoa ao lado da sugestão e leva
-    o caso a Classificada, ou a Em análise agregada na faixa E e na D sem dano."""
+    o caso a Classificada, ou a Em análise agregada na faixa E e na D sem dano.
+    Os avisos da confirmação saem logo depois da resposta (issue #1994)."""
     try:
-        return triagem.decidir(
+        resultado = triagem.decidir(
             supabase,
             str(notificacao_id),
             autor_id=str(me["id"]),
@@ -162,6 +164,8 @@ async def decidir_a_triagem(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(erro)) from erro
     except (APIError, httpx.HTTPError) as erro:
         raise _indisponivel(erro, FALHA_DE_GRAVACAO) from erro
+    tarefas.add_task(ao_confirmar.entregar_os_avisos, supabase, str(notificacao_id))
+    return resultado
 
 
 class Encaminhamento(BaseModel):
