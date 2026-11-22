@@ -54,8 +54,12 @@ PARTES = (1758, 1759, 1760, 1761, 1762, 1763)
 TRAVADAS_PELO_AJUSTE = (1758, 1759, 1760, 1761)
 
 
-def _raiz(*, validada: bool = True) -> dict:
-    return _issue(RAIZ, labels=("validado:diretor",) if validada else ())
+def _raiz(*, validada: bool = True, ajuste: str = "open") -> dict:
+    # O resumo que o GitHub manda da raiz conta o Ajuste como sub-issue: sete
+    # ao todo, e o Ajuste fechado entra como concluido (a #1757 real responde
+    # `{"total": 24, "completed": 24}` com a #1911 contada).
+    resumo = {"total": len(PARTES) + 1, "completed": 1 if ajuste == "closed" else 0}
+    return _issue(RAIZ, labels=("validado:diretor",) if validada else (), resumo=resumo)
 
 
 def _ajuste(*, estado: str = "open") -> dict:
@@ -78,7 +82,7 @@ def _github_do_1757(
     bloqueadoras[1762] = [_bloqueio(1758)]
     bloqueadoras[1763] = [_bloqueio(1759)]
     return _GithubFalso(
-        {RAIZ: _raiz(validada=validada)},
+        {RAIZ: _raiz(validada=validada, ajuste=ajuste)},
         sub_issues={RAIZ: [*(_issue(n) for n in PARTES), _ajuste(estado=ajuste)]},
         bloqueadoras=bloqueadoras,
         validacoes={RAIZ: validacao},
@@ -266,7 +270,8 @@ class TestAApiDoDocumento:
             1762: 1,
             1763: 1,
         }
-        # Fechado, o Ajuste conta como entregue no GitHub: aqui nao conta.
+        # Fechado, o Ajuste conta como entregue no resumo do GitHub (1 de 7):
+        # aqui nao conta.
         assert (item["partes_entregues"], item["partes_total"]) == (0, 6)
 
     def test_sem_a_label_a_api_nao_manda_a_data(self, monkeypatch):
