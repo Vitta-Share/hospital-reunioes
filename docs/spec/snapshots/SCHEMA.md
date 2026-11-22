@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T02:59+0000 -->
+<!-- last_update: 2026-11-22T03:27+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -177,6 +177,7 @@ erDiagram
     participantes ||--o{ nsp_notificacoes : "notificante_id"
     participantes ||--o{ nsp_notificacoes_trilha : "autor_id"
     participantes ||--o{ nsp_pautas : "editada_por"
+    participantes ||--o{ nsp_recalibracoes : "decidido_por"
     participantes ||--o{ nsp_reunioes_rapidas : "criada_por"
     participantes ||--o{ nsp_tabela_de_prazos : "atualizado_por"
     participantes ||--o{ nsp_tabela_de_prazos_historico : "alterado_por"
@@ -1684,6 +1685,15 @@ erDiagram
         VARCHAR autor_id FK
         TIMESTAMPTZ criado_em
     }
+    nsp_recalibracoes {
+        SMALLINT marco PK
+        DATE devida_em
+        TEXT[] pendencias
+        TIMESTAMPTZ criada_em
+        TEXT decisao
+        VARCHAR decidido_por FK
+        TIMESTAMPTZ decidido_em
+    }
     tecnologia_perguntas {
         UUID id PK
         UUID demanda_id FK
@@ -2007,6 +2017,7 @@ erDiagram
 | `nsp_notificacoes_externas` | `idx_nsp_notificacoes_externas_prazo` | `estado, prazo_legal` | `208_nsp_prazos_do_caso.sql` |
 | `nsp_encaminhamentos` | `idx_nsp_encaminhamentos_notificacao` | `notificacao_id, criado_em` | `209_nsp_encaminhamento.sql` |
 | `nsp_encaminhamentos` | `idx_nsp_encaminhamentos_autor` | `autor_id` | `209_nsp_encaminhamento.sql` |
+| `nsp_recalibracoes` | `idx_nsp_recalibracoes_decidido_por` | `decidido_por` | `210_nsp_recalibracao_do_agente.sql` |
 | `tecnologia_perguntas` | `idx_tecnologia_perguntas_demanda` | `demanda_id, criado_em` | `211_tecnologia_pergunta_da_vitta.sql` |
 | `tecnologia_perguntas` | `idx_tecnologia_perguntas_abertas` | `criado_em` | `211_tecnologia_pergunta_da_vitta.sql` |
 | `tecnologia_perguntas` | `idx_tecnologia_perguntas_destinatario` | `destinatario_id` | `211_tecnologia_pergunta_da_vitta.sql` |
@@ -2017,4 +2028,4 @@ erDiagram
 | `conduta_entregas_do_parecer` | `idx_conduta_entregas_do_parecer_autor` | `autor_id` | `214_conduta_rota_especial.sql` |
 
 ---
-**Resumo:** 160 tabelas · 255 relacionamentos FK detectados.
+**Resumo:** 161 tabelas · 256 relacionamentos FK detectados.

@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T02:59+0000 -->
+<!-- last_update: 2026-11-22T03:27+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -3080,6 +3080,23 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_nsp_encaminhamentos_notificacao` em `(notificacao_id, criado_em)` (de `209_nsp_encaminhamento.sql`)
 - `idx_nsp_encaminhamentos_autor` em `(autor_id)` (de `209_nsp_encaminhamento.sql`)
 
+## nsp_recalibracoes
+
+> Origem: `210_nsp_recalibracao_do_agente.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `marco` | `SMALLINT` | PK | — | — |
+| `devida_em` | `DATE` | NOT NULL | — | — |
+| `pendencias` | `TEXT[]` | NOT NULL | `'{}'` | — |
+| `criada_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `decisao` | `TEXT` | — | — | — |
+| `decidido_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `decidido_em` | `TIMESTAMPTZ` | — | — | — |
+
+**Indexes:**
+- `idx_nsp_recalibracoes_decidido_por` em `(decidido_por)` (de `210_nsp_recalibracao_do_agente.sql`)
+
 ## tecnologia_perguntas
 
 > Origem: `211_tecnologia_pergunta_da_vitta.sql`
@@ -3197,4 +3214,4 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ---
 
-**Resumo:** 160 tabelas vivas.
+**Resumo:** 161 tabelas vivas.
