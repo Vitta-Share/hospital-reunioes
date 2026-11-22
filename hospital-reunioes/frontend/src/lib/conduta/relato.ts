@@ -227,11 +227,17 @@ export function conferirAnexo(arquivo: File): string | null {
 
 /** Um anexo do relato já registrado, com o protocolo e o código que a tela
  * ainda tem na memória. O nome do arquivo não sai do aparelho. Devolve nulo
- * quando o anexo foi guardado, ou o motivo da recusa. */
-export async function enviarAnexo(protocolo: Protocolo, arquivo: File): Promise<string | null> {
+ * quando o anexo foi guardado, ou o motivo da recusa. O complemento do
+ * acompanhamento usa a mesma rota, com origem "complemento" (issue #2187). */
+export async function enviarAnexo(
+  protocolo: Pick<Protocolo, "protocolo" | "codigo">,
+  arquivo: File,
+  origem: "relato" | "complemento" = "relato"
+): Promise<string | null> {
   const formulario = new FormData();
   formulario.append("protocolo", protocolo.protocolo);
   formulario.append("codigo", protocolo.codigo);
+  formulario.append("origem", origem);
   formulario.append("arquivo", arquivo, "anexo");
   let resposta: Response;
   try {

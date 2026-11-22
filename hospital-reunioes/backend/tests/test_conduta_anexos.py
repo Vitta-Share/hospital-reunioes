@@ -506,6 +506,13 @@ class TestNoComplemento:
         assert banco.tabelas.get(anexos.TABELA, []) == []
         assert banco.storage.objetos == {}
 
+    def test_na_tela_do_caso_o_anexo_do_complemento_vem_marcado_como_complemento(self):
+        comite = _ComOComite(_membro(), origem="complemento")
+
+        tela = comite.caso_na_tela().json()
+
+        assert [(a["id"], a["origem"]) for a in tela["anexos"]] == [(comite.anexo["id"], "complemento")]
+
     def test_origem_desconhecida_e_recusada_sem_gravar(self, cliente, banco, relatado):
         resposta = _anexar_no_complemento(cliente, relatado, FOTO, origem="comite")
 
@@ -521,7 +528,7 @@ class _ComOComite:
     """O relato e o anexo entram pela página pública; o Comitê abre pela
     rota dele, com a pessoa do cenário."""
 
-    def __init__(self, participacoes: list[dict], **campos_da_pessoa):
+    def __init__(self, participacoes: list[dict], origem: str = "relato", **campos_da_pessoa):
         from test_conduta_portao import _Cenario, _pessoa
 
         self.cenario = _Cenario(_pessoa(**campos_da_pessoa), participacoes)
@@ -530,7 +537,7 @@ class _ComOComite:
         publico.include_router(conduta_publico.router, prefix="/api")
         publico.dependency_overrides[get_supabase_client] = lambda: self.cenario.banco
         relatado = TestClient(publico).post(RELATOS, json=ENVIO).json()
-        assert _anexar(TestClient(publico), relatado, FOTO).status_code == 201
+        assert _anexar_no_complemento(TestClient(publico), relatado, FOTO, origem).status_code == 201
         (self.caso,) = self.cenario.banco.tabelas["conduta_casos"]
         (self.anexo,) = self.cenario.banco.tabelas[anexos.TABELA]
 
