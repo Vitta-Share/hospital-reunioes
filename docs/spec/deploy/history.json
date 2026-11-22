@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T00:30:45-03:00",
+      "sha": "377c578c10a2cf54d22e1787b2657e0a303b0a65",
+      "app_version": "0.366.0",
+      "subject": "Onda nsp2-onda8: Período de sombra e recalibração do agente",
+      "raw_subject": "chore(deploy): registro da onda nsp2-onda8 (#2114)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1979
+      ],
+      "result": "healthy",
+      "duration_seconds": 923,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "210_nsp_recalibracao_do_agente.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp2-onda8: PR #2114 (issue #2001), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 2,
+        "build_s": {
+          "backend": 20,
+          "frontend": 243
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T00:23:25-03:00",
       "sha": "4c14045eb9e27ccaaea16ddeb0aa02d618740fdc",
       "app_version": "0.365.0",
