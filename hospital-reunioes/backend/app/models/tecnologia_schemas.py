@@ -241,6 +241,33 @@ class QuemSouNaAbaResponse(BaseModel):
 # ─── A Conversa da Demanda (issue #1537, ADR 0083, decisao 8) ──────────────
 
 
+class OpcaoDaPerguntaResponse(BaseModel):
+    letra: str
+    texto: str
+
+
+class PerguntaDoCartaoResponse(BaseModel):
+    """O cartao da Pergunta da Vitta (issue #2116, ADR 0109, decisao 3): de
+    qual Projeto e, a pergunta, as quatro linhas em palavras simples, as
+    opcoes, o estado e desde quando espera (`criado_em`; a tela conta os
+    dias)."""
+
+    id: str
+    projeto: str
+    assunto: str
+    texto: str
+    por_que_precisa: str
+    o_que_esta_parado: str
+    o_que_anda_depois: str
+    ganho: str
+    opcoes: list[OpcaoDaPerguntaResponse] = []
+    recomendada: str | None = None
+    porque: str | None = None
+    estado: Literal["aberta", "respondida", "resolvida", "cancelada"]
+    criado_em: str | None = None
+    destinatario: str | None = None
+
+
 class MensagemDaConversaResponse(BaseModel):
     """Uma mensagem de gente na Conversa da Demanda. `autor` e o nome de quem
     escreveu; `minha` diz se foi quem esta logado."""
@@ -253,6 +280,9 @@ class MensagemDaConversaResponse(BaseModel):
     # A linha do Envio aos desenvolvedores (issue #2011, ADR 0108): a tela a
     # mostra como linha do sistema, e nao como bolha de alguem.
     sistema: bool = False
+    # A entrada que e Pergunta da Vitta (issue #2116): a tela desenha o cartao
+    # no lugar da bolha. Nula na mensagem comum.
+    pergunta: PerguntaDoCartaoResponse | None = None
 
 
 class MencionavelResponse(BaseModel):

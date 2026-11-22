@@ -186,6 +186,10 @@ PARAMS_SEM_SEGREDO = {
     # credencial: é público no repositório, e a rota da ponte exige a chave
     # `TECNOLOGIA_AUTOMACAO_API_KEY`.
     "numero",
+    # UUID da Pergunta da Vitta (issue #2116, ADR 0109). Não é credencial: a
+    # rota da ponte exige a chave `TECNOLOGIA_AUTOMACAO_API_KEY`, e o id
+    # sozinho não abre porta nenhuma.
+    "pergunta_id",
     "plano_id",
     "ponto_id",
     "pop_id",

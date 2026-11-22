@@ -21,6 +21,7 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, Send } from "lucide-react";
 
 import { LIMITE_DA_MENSAGEM } from "./assistente";
+import { CartaoDaPergunta, type PerguntaDaVitta, perguntaValida } from "./CartaoDaPergunta";
 import { BASE_TECNOLOGIA, FALHA_DE_CONEXAO, motivoDaRecusa } from "./demandas";
 
 type Mensagem = {
@@ -31,6 +32,8 @@ type Mensagem = {
   minha: boolean;
   /** A linha do Envio aos desenvolvedores, que não é bolha de ninguém. */
   sistema?: boolean;
+  /** A entrada que é Pergunta da Vitta (issue #2116): o cartão no lugar da bolha. */
+  pergunta?: PerguntaDaVitta | null;
 };
 type Mencionavel = { id: string; nome: string };
 /** O botão do envio: nulo quando ele não aparece (Desenvolvedor, ou pedido sem card). */
@@ -273,7 +276,11 @@ export function ConversaDaDemanda({
       {mensagens !== null && mensagens.length > 0 && (
         <ul className="space-y-3">
           {mensagens.map((mensagem) =>
-            mensagem.sistema ? (
+            perguntaValida(mensagem.pergunta) ? (
+              <li key={mensagem.id}>
+                <CartaoDaPergunta pergunta={mensagem.pergunta} />
+              </li>
+            ) : mensagem.sistema ? (
               <li key={mensagem.id} className="flex justify-center">
                 <p className="normal-case max-w-[90%] whitespace-pre-wrap rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-800">
                   {mensagem.texto}
