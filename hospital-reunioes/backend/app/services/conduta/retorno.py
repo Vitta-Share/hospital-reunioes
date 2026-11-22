@@ -98,14 +98,20 @@ def _normal(texto: str) -> str:
     return " ".join(sem_acento.casefold().split())
 
 
-def _cita(texto_normal: str, nome: str) -> bool:
+def _palavra_em(forma: str, texto_normal: str) -> bool:
+    return re.search(rf"(?<!\w){re.escape(forma)}(?!\w)", texto_normal) is not None
+
+
+def _cita(texto_normal: str, nome: str, exceto: str = "") -> bool:
     """O nome inteiro, ou qualquer palavra dele que identifica (três letras ou
-    mais, fora os conectivos), como palavra inteira do texto."""
-    nome = _normal(nome)
+    mais, fora os conectivos), como palavra inteira do texto. A forma que
+    também está no nome `exceto` (o acusado, na comunicação a ele) não conta:
+    o sobrenome que os dois dividem é dele também."""
+    nome, exceto = _normal(nome), _normal(exceto)
     if len(nome) < 2:
         return False
     formas = {nome} | {p for p in nome.split(" ") if len(p) >= 3 and p not in _CONECTIVOS}
-    return any(re.search(rf"(?<!\w){re.escape(forma)}(?!\w)", texto_normal) for forma in formas)
+    return any(_palavra_em(forma, texto_normal) for forma in formas if not (exceto and _palavra_em(forma, exceto)))
 
 
 def problema_da_resposta(texto: str, nomes: list[str] | set[str]) -> str | None:
@@ -120,12 +126,12 @@ def problema_da_resposta(texto: str, nomes: list[str] | set[str]) -> str | None:
     return None
 
 
-def problema_da_comunicacao(texto: str, quem_relatou: list[str] | set[str]) -> str | None:
+def problema_da_comunicacao(texto: str, quem_relatou: list[str] | set[str], acusado: str | None = None) -> str | None:
     """A comunicação ao acusado não cita quem relatou."""
     normal = _normal(texto)
     if not normal:
         return "Escreva a comunicação ao acusado."
-    if _MARCADOR.search(texto) or any(_cita(normal, nome) for nome in quem_relatou):
+    if _MARCADOR.search(texto) or any(_cita(normal, nome, acusado or "") for nome in quem_relatou):
         return "A comunicação ao acusado não cita quem relatou."
     return None
 
@@ -150,7 +156,7 @@ def _acusado(supabase, caso_id: str) -> str | None:
 def _conferir(supabase, caso: dict, denunciante: str, acusado: str) -> str | None:
     quem_relatou = _quem_relatou(supabase, caso)
     return problema_da_resposta(denunciante, [*_nomes_do_caso(supabase, caso), *quem_relatou]) or (
-        problema_da_comunicacao(acusado, quem_relatou)
+        problema_da_comunicacao(acusado, quem_relatou, _acusado(supabase, caso["id"]))
     )
 
 

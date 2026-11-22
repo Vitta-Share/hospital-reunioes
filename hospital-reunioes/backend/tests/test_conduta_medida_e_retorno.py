@@ -581,6 +581,27 @@ class TestOQueORetornoNaoCita:
         assert editada.status_code == 422
         assert "quem relatou" in editada.json()["detail"]
 
+    @pytest.mark.parametrize("quem_relatou", ["Maria Valente", "Rogério Valente Souza"])
+    def test_o_nome_do_acusado_passa_mesmo_com_palavra_em_comum_com_quem_relatou(self, comite, modelo, quem_relatou):
+        """O sobrenome ou prenome que os dois dividem é do acusado também: a
+        comunicação com o nome dele grava, a do agente e a editada."""
+        caso = _no_retorno(comite, "improcedente")
+        _denunciante_ouvido(comite, caso, quem_relatou)
+
+        assert comite.post(COORDENACAO, f"/casos/{caso}/retorno").status_code == 200
+        editada = _editar(comite, caso, acusado="Prezado Rogério Valente, o caso concluiu.")
+        assert editada.status_code == 200
+        assert comite.post(COORDENACAO, f"/casos/{caso}/retorno/aprovacao").status_code == 200
+
+    def test_a_palavra_so_de_quem_relatou_continua_recusada(self, comite):
+        caso = _no_retorno(comite)
+        _denunciante_ouvido(comite, caso, "Maria Valente")
+
+        editada = _editar(comite, caso, acusado="Rogério Valente, o relato de Maria foi apurado.")
+
+        assert editada.status_code == 422
+        assert "quem relatou" in editada.json()["detail"]
+
     def test_o_agente_que_escreve_a_medida_nao_grava_versao(self, comite, modelo):
         caso = _no_retorno(comite)
         modelo.molde = _do_agente(resposta="O caso concluiu com suspensão de cinco dias.")
