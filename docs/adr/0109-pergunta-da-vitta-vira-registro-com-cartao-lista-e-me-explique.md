@@ -1,6 +1,7 @@
 ---
 status: accepted
 amends: 0077, 0083, 0096, 0106
+amended_by: 0110
 ---
 
 # Pergunta da Vitta vira registro: cartão, lista Esperando sua resposta, Me explique e a Conversa da Demanda reformada
