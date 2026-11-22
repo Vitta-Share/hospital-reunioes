@@ -23,6 +23,8 @@ TEXTO_PARA_FORA = {
     "divulgar",
     # A Apresentação do PRD, que o diretor lê para validar o plano (issue #1891).
     "apresentar-prd",
+    # O Guia passo a passo do card humano, que o Pedro lê como leigo.
+    "guia-humano",
     "mensagem-prd",
     "to-prd",
     "to-issues",
@@ -62,6 +64,7 @@ def passos_do_humanizer(trecho: str) -> list[str]:
     [
         ("divulgar", "A página"),
         ("apresentar-prd", "Passo a passo"),
+        ("guia-humano", "Passo a passo"),
         ("mensagem-prd", "Fluxo"),
         ("to-prd", "Process"),
         ("grill-with-docs", "Fim"),
