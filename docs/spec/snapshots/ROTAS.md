@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T04:01+0000 -->
+<!-- last_update: 2026-11-22T04:08+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -817,6 +817,8 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | GET | `/admin/tecnologia/entregas` | A aba Entregas como ritmo semanal (issue #1701, ADR 0092, decisoes 1 e 7). | ✅ |
 | GET | `/admin/tecnologia/eu` | Se quem esta logado e Desenvolvedor (ADR 0083, decisao 2). | ✅ |
 | GET | `/admin/tecnologia/perguntas/esperando` | As Perguntas da Vitta abertas de todos os Projetos, as do logado | ✅ |
+| GET | `/admin/tecnologia/perguntas/{pergunta_id}/me-explique` | A conversa do Me explique de quem esta logado, e so a dele. Nao chama a IA. | ✅ |
+| POST | `/admin/tecnologia/perguntas/{pergunta_id}/me-explique` | O clique no Me explique (sem `texto`) ou a pergunta da pessoa (com ele). | ✅ |
 | POST | `/admin/tecnologia/perguntas/{pergunta_id}/resposta` | A resposta da Pergunta da Vitta, pelo cartao: a opcao, o texto livre | ✅ |
 | GET | `/admin/tecnologia/projetos` | As opcoes do filtro Projeto do Quadro e das Entregas (issue #1967): o | ✅ |
 
@@ -873,4 +875,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 507 endpoints em 72 routers · 93% exigem auth.
+**Totais:** 509 endpoints em 72 routers · 93% exigem auth.
