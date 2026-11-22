@@ -307,16 +307,58 @@ _DOCX = b"PK\x03\x04" + b"\x00" * 26 + b"word/document.xml" + b"\x00" * 64
 
 
 def _mp4_com_video() -> bytes:
-    hdlr = _caixa(b"hdlr", b"\x00" * 8 + b"vide" + b"\x00" * 12)
-    trak = _caixa(b"trak", _caixa(b"mdia", hdlr))
-    return _caixa(b"ftyp", b"isom\x00\x00\x00\x00isom") + _caixa(b"moov", trak) + _caixa(b"mdat", SOM)
+    """Como o vídeo do celular: uma trilha de imagem e uma de som. Sem a de
+    som, a recusa viria por falta de som e não provaria a recusa do vídeo."""
+    trilhas = b""
+    for trilha in (b"vide", b"soun"):
+        hdlr = _caixa(b"hdlr", b"\x00" * 8 + trilha + b"\x00" * 12)
+        trilhas += _caixa(b"trak", _caixa(b"mdia", hdlr))
+    return _caixa(b"ftyp", b"isom\x00\x00\x00\x00isom") + _caixa(b"moov", trilhas) + _caixa(b"mdat", SOM)
+
+
+def _comentario_vorbis(prefixo: bytes, comentario: bytes) -> bytes:
+    return prefixo + struct.pack("<I", 4) + b"vend" + struct.pack("<II", 1, len(comentario)) + comentario
+
+
+def _ogg_com_video() -> bytes:
+    """Um OGG com vídeo Theora e som Vorbis. O cabeçalho do Vorbis cabe nos
+    primeiros bytes, logo depois do Theora, e o leitor de áudio o acha; o
+    lugar da gravação fica no comentário do Theora."""
+    theora = b"\x80theora" + bytes([3, 2, 1]) + b"\x00" * 31
+    vorbis = b"\x01vorbis" + struct.pack("<IBIiiiBB", 0, 1, 44100, 0, 128000, 0, 0xB8, 1)
+    pacotes = [
+        (1, theora, True),
+        (2, vorbis, True),
+        (1, _comentario_vorbis(b"\x81theora", b"LOCATION=Joana em casa"), False),
+        (2, _comentario_vorbis(b"\x03vorbis", b"ARTIST=Joana Prudente") + b"\x01", False),
+        (2, b"\x05vorbis" + SOM[:64], False),
+        (1, SOM, False),
+    ]
+    paginas = []
+    sequencias = {1: 0, 2: 0}
+    for serial, pacote, primeira in pacotes:
+        pagina = OggPage()
+        pagina.packets = [pacote]
+        pagina.serial = serial
+        pagina.sequence = sequencias[serial]
+        sequencias[serial] += 1
+        pagina.position = 0
+        pagina.first = primeira
+        paginas.append(pagina.write())
+    return b"".join(paginas)
 
 
 class TestFormatoForaDaLista:
     @pytest.mark.parametrize(
         ("conteudo", "nome"),
-        [(_HEIC, "IMG_0042.HEIC"), (_DOCX, "relato.docx"), (_mp4_com_video(), "video.mp4"), (b"texto solto", "a.txt")],
-        ids=["heic", "docx", "video", "texto"],
+        [
+            (_HEIC, "IMG_0042.HEIC"),
+            (_DOCX, "relato.docx"),
+            (_mp4_com_video(), "video.mp4"),
+            (_ogg_com_video(), "video.ogv"),
+            (b"texto solto", "a.txt"),
+        ],
+        ids=["heic", "docx", "video", "video-ogg", "texto"],
     )
     def test_o_formato_fora_da_lista_e_recusado_com_mensagem_clara(self, cliente, banco, relatado, conteudo, nome):
         resposta = _anexar(cliente, relatado, conteudo, nome, "application/octet-stream")

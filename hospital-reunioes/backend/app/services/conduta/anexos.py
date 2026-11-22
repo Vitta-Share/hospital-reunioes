@@ -28,6 +28,7 @@ from typing import Any
 import mutagen
 from mutagen import apev2, id3
 from mutagen.mp3 import MP3
+from mutagen.ogg import OggPage
 from mutagen.oggflac import OggFLAC
 from mutagen.oggopus import OggOpus
 from mutagen.oggspeex import OggSpeex
@@ -184,9 +185,22 @@ def _limpar_mp3(dados: bytes) -> bytes:
     return arquivo.getvalue()
 
 
+def _trilhas_do_ogg(dados: bytes) -> int:
+    """Quantas trilhas lógicas o OGG abre (páginas de início)."""
+    arquivo = io.BytesIO(dados)
+    trilhas = 0
+    while arquivo.tell() < len(dados):
+        if OggPage(arquivo).first:
+            trilhas += 1
+    return trilhas
+
+
 def _limpar_ogg(dados: bytes) -> bytes:
     """Os comentários do Opus, do Vorbis, do FLAC ou do Speex esvaziados.
-    Vídeo em OGG (Theora) não é aceito."""
+    Só entra OGG de uma trilha: o leitor de áudio limpa uma trilha só, e o
+    vídeo (Theora) com som, ou um OGG encadeado, deixaria o resto intacto."""
+    if _trilhas_do_ogg(dados) != 1:
+        raise AnexoRecusadoError(415, RECUSA_DO_FORMATO)
     arquivo = io.BytesIO(dados)
     audio = mutagen.File(arquivo, options=[OggOpus, OggVorbis, OggFLAC, OggSpeex])
     if audio is None:
