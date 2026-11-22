@@ -54,6 +54,11 @@ MOTIVOS_DO_CONVITE = ("apurador", "cipa")
 RELATORIO_DE_APURACAO = "relatorio_de_apuracao"
 MODELO_DO_RELATORIO = "conduta_relatorio_de_apuracao.html"
 
+# A certidão de recusa de assinatura do termo de declaração (issue #1831):
+# dois membros certificam que o depoente se recusou a assinar.
+CERTIDAO_DE_RECUSA = "certidao_de_recusa"
+MODELO_DA_CERTIDAO = "conduta_certidao_de_recusa.html"
+
 # O envelope fecha quando todos assinaram. `sign` não conta: num documento de
 # três signatários ele chega a cada assinatura.
 EVENTOS_DE_FECHAMENTO = frozenset({"auto_close", "close", "AutoClose", "Close"})
@@ -401,6 +406,68 @@ def _registrar_relatorio_assinado(supabase, assinatura: dict) -> None:
 
 
 # ---------------------------------------------------------------------------
+# A certidão de recusa de assinatura (issue #1831)
+# ---------------------------------------------------------------------------
+
+
+def certidoes_dos_depoimentos(supabase, depoimento_ids: list[str]) -> list[dict]:
+    if not depoimento_ids:
+        return []
+    return (
+        supabase.table(TABELA)
+        .select("*")
+        .eq("tipo", CERTIDAO_DE_RECUSA)
+        .in_("depoimento_id", depoimento_ids)
+        .execute()
+        .data
+    ) or []
+
+
+def enviar_certidao_de_recusa(supabase, caso_id: str, depoimento_id: str, pessoas: list[dict], dados: dict) -> dict:
+    """Gera a certidão e a envia aos dois membros, cancelando o envio que
+    ainda estava aberto. Como o termo do convidado, o documento não leva o
+    protocolo nem nada do caso: o identificador é o da própria assinatura.
+    Falha da ClickSign deixa a linha em "gerado", com o erro, para o reenvio."""
+    for aberta in certidoes_dos_depoimentos(supabase, [depoimento_id]):
+        if aberta["situacao"] not in ("gerado", "enviado"):
+            continue
+        if aberta.get("envelope_id"):
+            clicksign_service.cancel_envelope(aberta["envelope_id"])
+        supabase.table(TABELA).update({"situacao": "cancelado", "cancelado_em": _agora()}).eq(
+            "id", aberta["id"]
+        ).execute()
+    assinatura = (
+        supabase.table(TABELA)
+        .insert(
+            {
+                "tipo": CERTIDAO_DE_RECUSA,
+                "caso_id": caso_id,
+                "depoimento_id": depoimento_id,
+                "signatarios": [p["id"] for p in pessoas],
+                "situacao": "gerado",
+            }
+        )
+        .execute()
+        .data
+    )[0]
+    dados = sanitizar_estrutura(
+        {
+            **dados,
+            "membros": [p.get("nome_completo") or "Não informado" for p in pessoas],
+            "documento": {"identificador": assinatura["id"]},
+        }
+    )
+    pdf = gerar_pdf_do_termo({**dados, "modelo": MODELO_DA_CERTIDAO})
+    resultado = enviar_a_clicksign(
+        pdf,
+        f"Certidão de recusa de assinatura CC - {assinatura['id']}",
+        f"Certidao_de_recusa_{assinatura['id']}.pdf",
+        pessoas,
+    )
+    return _registrar_envio(supabase, assinatura, resultado)
+
+
+# ---------------------------------------------------------------------------
 # O retorno da assinatura: webhook e reconsulta
 # ---------------------------------------------------------------------------
 
@@ -417,6 +484,41 @@ def _efeito_da_assinatura(supabase, assinatura: dict, assinado_em: str) -> None:
         _carimbar_o_convite(supabase, assinatura, assinado_em)
     elif assinatura["tipo"] == RELATORIO_DE_APURACAO:
         _registrar_relatorio_assinado(supabase, assinatura)
+    elif assinatura["tipo"] == CERTIDAO_DE_RECUSA:
+        _certidao_na_trilha(supabase, assinatura["caso_id"])
+
+
+def _certidao_na_trilha(supabase, caso_id: str) -> None:
+    """A certidão não carimba nada: a linha da trilha é o retorno dela. O caso
+    tem uma linha por certidão assinada; se falta, ela é gravada. Assim o
+    reenvio da ClickSign grava a linha que a primeira tentativa não gravou, e
+    o retorno repetido não grava outra."""
+    assinadas = (
+        supabase.table(TABELA)
+        .select("id")
+        .eq("tipo", CERTIDAO_DE_RECUSA)
+        .eq("caso_id", caso_id)
+        .eq("situacao", "assinado")
+        .execute()
+        .data
+    ) or []
+    gravadas = (
+        supabase.table("conduta_trilha")
+        .select("seq")
+        .eq("caso_id", caso_id)
+        .eq("acao", "certidao_de_recusa_assinada")
+        .execute()
+        .data
+    ) or []
+    if len(gravadas) >= len(assinadas):
+        return
+    trilha.registrar(
+        supabase,
+        caso_id,
+        None,
+        "certidao_de_recusa_assinada",
+        "certidão de recusa de assinatura do termo de declaração, assinada por dois membros",
+    )
 
 
 def _carimbar_o_convite(supabase, assinatura: dict, assinado_em: str) -> None:

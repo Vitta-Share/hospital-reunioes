@@ -318,6 +318,7 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
         adicionando={passo === "adicionar_pessoa"}
         aoFecharAdicionar={() => setPasso(null)}
         aoMudar={carregar}
+        membros={caso.membros_do_caso ?? []}
       />
 
       <RelatorioDaApuracao

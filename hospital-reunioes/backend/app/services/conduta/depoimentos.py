@@ -19,6 +19,7 @@ não leva nome de pessoa ouvida.
 
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 from dataclasses import dataclass
@@ -36,6 +37,8 @@ logger = logging.getLogger(__name__)
 TABELA = "conduta_depoimentos"
 ARQUIVOS = "conduta_depoimento_arquivos"
 CONFERENCIA = "conduta_depoimento_conferencia"
+# As versões do termo de declaração (migration 215, issue #1831).
+TERMOS = "conduta_depoimento_termos"
 # O bucket privado do Canal (migration 175), sem policy e sem URL.
 BUCKET = "conduta-arquivos"
 
@@ -142,21 +145,31 @@ def conferir_arquivo(tipo: str, nome: str, tamanho: int) -> str:
     return regra.content_types[extensao]
 
 
-def situacao(depoimento: dict, arquivos: list[dict]) -> str:
-    """O cartão mostra "Aguardando assinatura" até o termo assinado chegar."""
+def situacao(depoimento: dict, arquivos: list[dict], recusa_assinada: bool = False) -> str:
+    """O cartão mostra "Aguardando assinatura" até o termo assinado chegar,
+    ou a certidão de recusa ser assinada."""
     if depoimento.get("concluido_em"):
         return "Concluído"
-    if not any(a["tipo"] == "termo_assinado" for a in arquivos):
+    if not recusa_assinada and not any(a["tipo"] == "termo_assinado" for a in arquivos):
         return "Aguardando assinatura"
     return "Falta a lista de conferência"
 
 
+RECUSA_ASSINADA = "A pessoa se recusou a assinar: certidão de recusa assinada por dois membros."
+
+
 def lista_de_conferencia(
-    depoimento: dict, arquivos: list[dict], marcas: list[dict], nomes: dict[str, str], motivo: str | None
+    depoimento: dict,
+    arquivos: list[dict],
+    marcas: list[dict],
+    nomes: dict[str, str],
+    motivo: str | None,
+    recusa_assinada: bool = False,
 ) -> list[dict[str, Any]]:
     """Os sete itens, cada um `feito`, `pendente` ou `nao_se_aplica`. O feito
     diz quem e quando: o último envio, nos automáticos; a declaração, nos
-    outros. `motivo` é o de sem gravação, já decifrado."""
+    outros. `motivo` é o de sem gravação, já decifrado. Com a certidão de
+    recusa assinada (issue #1831), o termo assinado não se aplica."""
     por_item = {m["item"]: m for m in marcas}
     lista = []
     for item, rotulo in ITENS:
@@ -165,6 +178,8 @@ def lista_de_conferencia(
             enviados = sorted((a for a in arquivos if a["tipo"] == item), key=lambda a: a["versao"])
             if item != "termo_assinado" and depoimento.get("sem_gravacao_em"):
                 linha.update(estado="nao_se_aplica", motivo=motivo)
+            elif item == "termo_assinado" and recusa_assinada and not enviados:
+                linha.update(estado="nao_se_aplica", motivo=RECUSA_ASSINADA)
             elif enviados:
                 ultimo = enviados[-1]
                 linha.update(
@@ -260,6 +275,56 @@ def _marcas(supabase, depoimento_ids: list[str]) -> list[dict]:
     return supabase.table(CONFERENCIA).select("*").in_("depoimento_id", depoimento_ids).execute().data or []
 
 
+def _termos(supabase, depoimento_ids: list[str]) -> list[dict]:
+    if not depoimento_ids:
+        return []
+    return supabase.table(TERMOS).select("*").in_("depoimento_id", depoimento_ids).execute().data or []
+
+
+def _termo(versoes: list[dict], nomes: dict[str, str]) -> dict[str, Any] | None:
+    """A última versão do termo, decifrada, e as Notas para quem apura, que
+    são Sugestão e nunca vão ao PDF."""
+    if not versoes:
+        return None
+    ultima = max(versoes, key=lambda v: v["versao"])
+    notas = json.loads(cifra.decifrar_texto(ultima["notas_cifradas"])) if ultima.get("notas_cifradas") else []
+    return {
+        **json.loads(cifra.decifrar_texto(ultima["termo_cifrado"])),
+        "versao": ultima["versao"],
+        "origem": ultima["origem"],
+        "criado_em": ultima["criado_em"],
+        "criado_por": nomes.get(ultima["criado_por"], ""),
+        "notas": {"rotulo": "Sugestão", "itens": notas},
+    }
+
+
+def _certidoes(supabase, depoimento_ids: list[str]) -> list[dict]:
+    """As certidões de recusa (migration 215), sem as canceladas."""
+    if not depoimento_ids:
+        return []
+    linhas = (
+        supabase.table("conduta_assinaturas")
+        .select("*")
+        .eq("tipo", "certidao_de_recusa")
+        .in_("depoimento_id", depoimento_ids)
+        .execute()
+        .data
+    ) or []
+    return [linha for linha in linhas if linha["situacao"] != "cancelado"]
+
+
+def _recusa(certidoes: list[dict]) -> dict[str, Any] | None:
+    if not certidoes:
+        return None
+    ultima = max(certidoes, key=lambda c: str(c.get("created_at") or ""))
+    return {
+        "situacao": ultima["situacao"],
+        "enviado_em": ultima.get("enviado_em"),
+        "assinado_em": ultima.get("assinado_em"),
+        "erro": ultima.get("erro"),
+    }
+
+
 def _sem_gravacao(depoimento: dict, nomes: dict[str, str]) -> dict[str, str] | None:
     if not depoimento.get("sem_gravacao_em"):
         return None
@@ -270,21 +335,40 @@ def _sem_gravacao(depoimento: dict, nomes: dict[str, str]) -> dict[str, str] | N
     }
 
 
-def _cartao(depoimento: dict, arquivos: list[dict], marcas: list[dict], nomes: dict[str, str]) -> dict[str, Any]:
+def _cartao(
+    depoimento: dict,
+    arquivos: list[dict],
+    marcas: list[dict],
+    nomes: dict[str, str],
+    termos: list[dict],
+    certidoes: list[dict],
+) -> dict[str, Any]:
     sem_gravacao = _sem_gravacao(depoimento, nomes)
-    lista = lista_de_conferencia(depoimento, arquivos, marcas, nomes, sem_gravacao and sem_gravacao["motivo"])
+    recusa = _recusa(certidoes)
+    assinada = bool(recusa) and recusa["situacao"] == "assinado"
+    lista = lista_de_conferencia(
+        depoimento, arquivos, marcas, nomes, sem_gravacao and sem_gravacao["motivo"], recusa_assinada=assinada
+    )
     return {
         "id": depoimento["id"],
         "nome": cifra.decifrar_texto(depoimento["nome_cifrado"]),
         "cargo": cifra.decifrar_texto(depoimento["cargo_cifrado"]),
         "papel": depoimento["papel"],
-        "situacao": situacao(depoimento, arquivos),
+        "situacao": situacao(depoimento, arquivos, recusa_assinada=assinada),
         "arquivos": _versoes(arquivos, nomes),
         "sem_gravacao": sem_gravacao,
         "lista": lista,
         "bloqueio_da_conclusao": None if depoimento.get("concluido_em") else bloqueio_da_conclusao(lista),
         "concluido_em": depoimento.get("concluido_em"),
         "concluido_por": nomes.get(depoimento.get("concluido_por") or "", "") or None,
+        "termo": _termo(termos, nomes),
+        "recusa": recusa,
+        "roteiro": {
+            "rotulo": "Sugestão",
+            "perguntas": json.loads(cifra.decifrar_texto(depoimento["roteiro_cifrado"])),
+        }
+        if depoimento.get("roteiro_cifrado")
+        else None,
     }
 
 
@@ -293,11 +377,13 @@ def para_a_tela(supabase, caso: dict) -> dict[str, Any]:
     Levanta `CifraIndisponivelError` se a chave não abre."""
     lista = _do_caso(supabase, caso["id"])
     ids = [d["id"] for d in lista]
-    arquivos, marcas = _arquivos(supabase, ids), _marcas(supabase, ids)
+    arquivos, marcas, termos = _arquivos(supabase, ids), _marcas(supabase, ids), _termos(supabase, ids)
+    certidoes = _certidoes(supabase, ids)
     nomes = _nomes(
         supabase,
         {a["enviado_por"] for a in arquivos}
         | {m["marcado_por"] for m in marcas}
+        | {t["criado_por"] for t in termos}
         | {d.get("sem_gravacao_por") for d in lista}
         | {d.get("concluido_por") for d in lista},
     )
@@ -307,6 +393,8 @@ def para_a_tela(supabase, caso: dict) -> dict[str, Any]:
             [a for a in arquivos if a["depoimento_id"] == d["id"]],
             [m for m in marcas if m["depoimento_id"] == d["id"]],
             nomes,
+            [t for t in termos if t["depoimento_id"] == d["id"]],
+            [c for c in certidoes if c["depoimento_id"] == d["id"]],
         )
         for d in lista
     ]
@@ -573,8 +661,14 @@ def concluir(supabase, aberto: CasoAberto, depoimento_id: str) -> dict:
     motivo = (
         cifra.decifrar_texto(depoimento["sem_gravacao_motivo_cifrado"]) if depoimento.get("sem_gravacao_em") else None
     )
+    recusa = _recusa(_certidoes(supabase, [depoimento["id"]]))
     lista = lista_de_conferencia(
-        depoimento, _arquivos(supabase, [depoimento["id"]]), _marcas(supabase, [depoimento["id"]]), {}, motivo
+        depoimento,
+        _arquivos(supabase, [depoimento["id"]]),
+        _marcas(supabase, [depoimento["id"]]),
+        {},
+        motivo,
+        recusa_assinada=bool(recusa) and recusa["situacao"] == "assinado",
     )
     bloqueio = bloqueio_da_conclusao(lista)
     if bloqueio:

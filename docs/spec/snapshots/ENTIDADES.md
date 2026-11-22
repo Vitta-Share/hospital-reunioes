@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T02:32+0000 -->
+<!-- last_update: 2026-11-22T02:52+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2749,7 +2749,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## conduta_assinaturas
 
-> Origem: `192_conduta_assinaturas.sql` (alterada em: 213_conduta_relatorio_de_apuracao.sql)
+> Origem: `192_conduta_assinaturas.sql` (alterada em: 213_conduta_relatorio_de_apuracao.sql, 215_conduta_termo_de_declaracao.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2768,15 +2768,17 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `cancelado_em` | `TIMESTAMPTZ` | — | — | — |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
 | `relatorio_id` | `UUID` | — | — | `conduta_relatorios.id` |
+| `depoimento_id` | `UUID` | — | — | `conduta_depoimentos.id` |
 
 **Indexes:**
 - `idx_conduta_assinaturas_participacao` em `(participacao_id, created_at DESC)` (de `192_conduta_assinaturas.sql`)
 - `idx_conduta_assinaturas_caso` em `(caso_id)` (de `192_conduta_assinaturas.sql`)
 - `idx_conduta_assinaturas_relatorio` em `(relatorio_id)` (de `213_conduta_relatorio_de_apuracao.sql`)
+- `idx_conduta_assinaturas_depoimento` em `(depoimento_id)` (de `215_conduta_termo_de_declaracao.sql`)
 
 ## conduta_depoimentos
 
-> Origem: `193_conduta_depoimentos.sql`
+> Origem: `193_conduta_depoimentos.sql` (alterada em: 215_conduta_termo_de_declaracao.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2793,6 +2795,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `pontos_cifrados` | `TEXT` | — | — | — |
 | `concluido_em` | `TIMESTAMPTZ` | — | — | — |
 | `concluido_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `roteiro_cifrado` | `TEXT` | — | — | — |
 
 **Indexes:**
 - `idx_conduta_depoimentos_caso` em `(caso_id)` (de `193_conduta_depoimentos.sql`)

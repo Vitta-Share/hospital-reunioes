@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, Lock, Minus } from "lucide-react";
 
-import { chamarComite } from "@/lib/conduta/comite";
+import { TermoDeDeclaracao } from "@/components/conduta/TermoDeDeclaracao";
+import { chamarComite, type MembroDoCaso } from "@/lib/conduta/comite";
 import {
   BOTOES,
   LIMITE_DO_AUDIO,
@@ -391,11 +392,13 @@ function Cartao({
   casoId,
   depoimento,
   emApuracao,
+  membros,
   aoMudar,
 }: {
   casoId: string;
   depoimento: Depoimento;
   emApuracao: boolean;
+  membros: MembroDoCaso[];
   aoMudar: () => void;
 }) {
   const [aviso, setAviso] = useState<string | null>(null);
@@ -435,13 +438,17 @@ function Cartao({
         </section>
       )}
 
-      {(["transcricao", "audio", "termo_assinado"] as const).map((tipo) => (
+      {(["transcricao", "audio"] as const).map((tipo) => (
         <Arquivo key={tipo} casoId={casoId} depoimento={depoimento} tipo={tipo} podeAgir={podeAgir} aoMudar={aoMudar} />
       ))}
 
       {podeAgir && !depoimento.sem_gravacao && !temGravacao && (
         <SemGravacao casoId={casoId} depoimentoId={depoimento.id} aoMudar={aoMudar} />
       )}
+
+      <TermoDeDeclaracao casoId={casoId} depoimento={depoimento} podeAgir={podeAgir} membros={membros} aoMudar={aoMudar} />
+
+      <Arquivo casoId={casoId} depoimento={depoimento} tipo="termo_assinado" podeAgir={podeAgir} aoMudar={aoMudar} />
 
       <ListaDeConferencia depoimento={depoimento} podeAgir={podeAgir && !ocupado} aoMarcar={(item) => void agir("conferencia", { item })} />
 
@@ -486,6 +493,7 @@ export function DepoimentosDaApuracao({
   adicionando,
   aoFecharAdicionar,
   aoMudar,
+  membros = [],
 }: {
   casoId: string;
   depoimentos: Depoimento[];
@@ -494,6 +502,8 @@ export function DepoimentosDaApuracao({
   adicionando: boolean;
   aoFecharAdicionar: () => void;
   aoMudar: () => void;
+  /** Os outros membros do caso, para a certidão de recusa (issue #1831). */
+  membros?: MembroDoCaso[];
 }) {
   if (!adicionando && depoimentos.length === 0) return null;
   return (
@@ -501,7 +511,7 @@ export function DepoimentosDaApuracao({
       <h2 className="text-base font-semibold text-slate-900">Depoimentos</h2>
       {adicionando && emApuracao && <NovaPessoa casoId={casoId} aoFechar={aoFecharAdicionar} aoMudar={aoMudar} />}
       {depoimentos.map((d) => (
-        <Cartao key={d.id} casoId={casoId} depoimento={d} emApuracao={emApuracao} aoMudar={aoMudar} />
+        <Cartao key={d.id} casoId={casoId} depoimento={d} emApuracao={emApuracao} membros={membros} aoMudar={aoMudar} />
       ))}
       {bloqueioDoAvanco && <p className="text-sm text-slate-700">{bloqueioDoAvanco}</p>}
     </section>

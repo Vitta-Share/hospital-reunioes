@@ -18,7 +18,8 @@ from supabase import Client
 
 from app.dependencies import get_supabase_client
 from app.services import ai_processor
-from app.services.conduta import assinaturas, cifra, depoimentos, relatorio
+from app.services.ai_processor import chamar_ia_fora_do_loop
+from app.services.conduta import assinaturas, cifra, depoimentos, relatorio, termo_de_declaracao
 from app.services.conduta.portao import INDISPONIVEL, CasoAberto, portao_da_acao
 
 router = APIRouter(prefix="/comite-de-conduta", tags=["canal-de-conduta"])
@@ -43,6 +44,30 @@ class VersaoDoTexto(BaseModel):
     texto: str = Field(default="", max_length=20000)
 
 
+class Identificacao(BaseModel):
+    """O que o sistema põe na identificação do termo (Anexo E.1)."""
+
+    data: str = Field(default="", max_length=20)
+    hora: str = Field(default="", max_length=10)
+    local: str = Field(default="", max_length=400)
+    conduziram: list[str] = Field(default_factory=list, max_length=8)
+    cpf: str = Field(default="", max_length=20)
+
+
+class Recusa(BaseModel):
+    membro_id: str = Field(default="", max_length=10)
+
+
+class TermoCorrigido(BaseModel):
+    """O termo inteiro, como ficou depois das correções do depoente."""
+
+    identificacao: Identificacao
+    gravacao: str = Field(default="", max_length=8000)
+    declaracoes: list[str] = Field(default_factory=list, max_length=120)
+    documentos: list[str] = Field(default_factory=list, max_length=120)
+    lido_em_voz_alta: bool = False
+
+
 def _agir(funcao, *argumentos, **nomeados):
     try:
         return funcao(*argumentos, **nomeados)
@@ -58,6 +83,20 @@ async def adicionar_pessoa_a_ouvir(
 ) -> dict:
     depoimento = _agir(depoimentos.adicionar_pessoa, supabase, aberto, **corpo.model_dump())
     return {"depoimento": {"id": depoimento["id"]}}
+
+
+async def _pelo_agente(funcao, *argumentos):
+    """A ação que chama o agente, no executor da IA (issue #773)."""
+    try:
+        return await chamar_ia_fora_do_loop(funcao, *argumentos)
+    except termo_de_declaracao.AgenteIndisponivelError as erro:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=termo_de_declaracao.AGENTE_FORA
+        ) from erro
+    except depoimentos.DepoimentoRecusadoError as recusa:
+        raise HTTPException(status_code=recusa.status, detail=recusa.mensagem) from recusa
+    except cifra.CifraIndisponivelError as erro:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=INDISPONIVEL) from erro
 
 
 async def _ler(tipo: str, enviados: list[UploadFile]) -> list[depoimentos.ArquivoRecebido]:
@@ -249,3 +288,70 @@ async def enviar_para_voto(
     """ENVIAR PARA VOTO: fecha a Apuração."""
     caso = _agir(relatorio.enviar_para_voto, supabase, aberto)
     return {"caso": {"id": caso["id"], "etapa": caso["etapa"]}}
+
+
+@router.post("/casos/{caso_id}/depoimentos/{depoimento_id}/termo")
+async def redigir_termo(
+    depoimento_id: UUID,
+    corpo: Identificacao,
+    aberto: CasoAberto = Depends(portao_da_acao),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """O clique que pede ao agente o termo de declaração (Anexo C)."""
+    return await _pelo_agente(
+        termo_de_declaracao.redigir_termo_de_declaracao_conduta,
+        supabase,
+        aberto,
+        str(depoimento_id),
+        corpo.model_dump(),
+    )
+
+
+@router.post("/casos/{caso_id}/depoimentos/{depoimento_id}/termo/correcoes")
+async def lancar_correcoes_do_termo(
+    depoimento_id: UUID,
+    corpo: TermoCorrigido,
+    aberto: CasoAberto = Depends(portao_da_acao),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """Cada correção lançada é uma versão nova do termo."""
+    return _agir(termo_de_declaracao.lancar_correcoes, supabase, aberto, str(depoimento_id), corpo.model_dump())
+
+
+@router.get("/casos/{caso_id}/depoimentos/{depoimento_id}/termo/pdf")
+async def imprimir_termo(
+    depoimento_id: UUID,
+    aberto: CasoAberto = Depends(portao_da_acao),
+    supabase: Client = Depends(get_supabase_client),
+) -> Response:
+    """IMPRIMIR TERMO: o PDF da última versão, no modelo do Anexo E.1."""
+    pdf, nome = _agir(termo_de_declaracao.imprimir_termo, supabase, aberto, str(depoimento_id))
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Cache-Control": "no-store", "Content-Disposition": f'inline; filename="{nome}"'},
+    )
+
+
+@router.post("/casos/{caso_id}/depoimentos/{depoimento_id}/recusa")
+async def registrar_recusa_de_assinatura(
+    depoimento_id: UUID,
+    corpo: Recusa,
+    aberto: CasoAberto = Depends(portao_da_acao),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """A pessoa se recusou a assinar: a certidão vai à ClickSign para quem
+    registra e outro membro do caso."""
+    return _agir(termo_de_declaracao.registrar_recusa, supabase, aberto, str(depoimento_id), corpo.membro_id)
+
+
+@router.post("/casos/{caso_id}/depoimentos/{depoimento_id}/roteiro")
+async def sugerir_roteiro(
+    depoimento_id: UUID,
+    aberto: CasoAberto = Depends(portao_da_acao),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """O clique que pede ao agente o roteiro de perguntas."""
+    return await _pelo_agente(
+        termo_de_declaracao.sugerir_roteiro_do_depoimento_conduta, supabase, aberto, str(depoimento_id)
+    )

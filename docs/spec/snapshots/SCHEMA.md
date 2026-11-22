@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T02:32+0000 -->
+<!-- last_update: 2026-11-22T02:52+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -81,6 +81,7 @@ erDiagram
     conduta_casos ||--o{ conduta_trilha : "caso_id"
     conduta_contestacoes ||--o{ conduta_contestacao_votos : "contestacao_id"
     conduta_contestacoes_de_participacao ||--o{ conduta_participacao_votos : "contestacao_id"
+    conduta_depoimentos ||--o{ conduta_assinaturas : "depoimento_id"
     conduta_depoimentos ||--o{ conduta_depoimento_arquivos : "depoimento_id"
     conduta_depoimentos ||--o{ conduta_depoimento_conferencia : "depoimento_id"
     conduta_relatorios ||--o{ conduta_assinaturas : "relatorio_id"
@@ -1524,7 +1525,7 @@ erDiagram
         TEXT situacao
         TEXT envelope_id
         TEXT documento_key
-        _ mais_colunas "+7"
+        _ mais_colunas "+8"
     }
     conduta_depoimentos {
         UUID id PK
@@ -1535,7 +1536,7 @@ erDiagram
         VARCHAR criado_por FK
         TIMESTAMPTZ criado_em
         TIMESTAMPTZ sem_gravacao_em
-        _ mais_colunas "+5"
+        _ mais_colunas "+6"
     }
     conduta_depoimento_arquivos {
         UUID id PK
@@ -1971,6 +1972,7 @@ erDiagram
 | `conduta_assinaturas` | `idx_conduta_assinaturas_participacao` | `participacao_id, created_at DESC` | `192_conduta_assinaturas.sql` |
 | `conduta_assinaturas` | `idx_conduta_assinaturas_caso` | `caso_id` | `192_conduta_assinaturas.sql` |
 | `conduta_assinaturas` | `idx_conduta_assinaturas_relatorio` | `relatorio_id` | `213_conduta_relatorio_de_apuracao.sql` |
+| `conduta_assinaturas` | `idx_conduta_assinaturas_depoimento` | `depoimento_id` | `215_conduta_termo_de_declaracao.sql` |
 | `conduta_depoimentos` | `idx_conduta_depoimentos_caso` | `caso_id` | `193_conduta_depoimentos.sql` |
 | `conduta_depoimentos` | `idx_conduta_depoimentos_criado_por` | `criado_por` | `193_conduta_depoimentos.sql` |
 | `conduta_depoimentos` | `idx_conduta_depoimentos_sem_gravacao_por` | `sem_gravacao_por` | `193_conduta_depoimentos.sql` |
@@ -2002,4 +2004,4 @@ erDiagram
 | `conduta_entregas_do_parecer` | `idx_conduta_entregas_do_parecer_autor` | `autor_id` | `214_conduta_rota_especial.sql` |
 
 ---
-**Resumo:** 159 tabelas · 252 relacionamentos FK detectados.
+**Resumo:** 159 tabelas · 253 relacionamentos FK detectados.
