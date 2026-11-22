@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T17:49+0000 -->
+<!-- last_update: 2026-11-22T18:35+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2394,7 +2394,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## conduta_casos
 
-> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql, 202_conduta_sinalizacao_da_ouvidoria.sql, 214_conduta_rota_especial.sql, 216_conduta_voto_e_trava_de_robustez.sql, 221_conduta_ata_de_deliberacao.sql, 223_conduta_recomendacao_medida_e_retorno.sql, 229_conduta_verificacao_de_retaliacao.sql)
+> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql, 202_conduta_sinalizacao_da_ouvidoria.sql, 214_conduta_rota_especial.sql, 216_conduta_voto_e_trava_de_robustez.sql, 221_conduta_ata_de_deliberacao.sql, 223_conduta_recomendacao_medida_e_retorno.sql, 229_conduta_verificacao_de_retaliacao.sql, 230_conduta_relato_em_passos.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2416,6 +2416,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `reuniao_concluida_em` | `TIMESTAMPTZ` | — | — | `participantes.id` |
 | `enviado_a_direcao_em` | `TIMESTAMPTZ` | — | — | `participantes.id` |
 | `denunciante_informou_em` | `TIMESTAMPTZ` | — | — | — |
+| `relator_nome_cifrado` | `TEXT` | — | — | — |
 
 **Indexes:**
 - `idx_conduta_casos_rota_etapa` em `(rota, etapa, recebido_em DESC)` (de `175_conduta_fundacao.sql`)
