@@ -920,3 +920,40 @@ class TestSetorDaReuniaoNoKit:
         ):
             assert termo in setor, termo
         assert "Toda reunião nova tem setor" in _secao(texto, "O que já foi decidido")
+
+
+class TestItemNspDoMenuNoKit:
+    """Issue #1918: o item do menu passou a se chamar NSP. O Assistente leva ao
+    Produto certo a Demanda sobre o item NSP e explica onde fica cada tela, então
+    o kit cita o item pelo nome novo e não pelo antigo."""
+
+    @pytest.fixture
+    def texto(self) -> str:
+        return _texto("seguranca-do-paciente.md")
+
+    def test_a_demanda_sobre_o_item_nsp_pertence_ao_produto(self, texto):
+        """Mutante: devolver a frase de roteamento para o nome antigo."""
+        assert "Toda Demanda sobre o item NSP do menu" in texto
+        assert "item Segurança do Paciente do menu" not in texto
+
+    def test_no_ar_diz_o_item_nsp_no_menu_lateral(self, texto):
+        no_ar = _secao(texto, "O que já está no ar")
+        for termo in (
+            "o item **NSP** no menu lateral",
+            "o nome por extenso, Núcleo de Segurança do Paciente, ao passar o mouse",
+            "**Notificar incidente**, dentro do grupo NSP do menu",
+            "**Notas do Comitê de Conduta**, dentro do grupo NSP do menu",
+        ):
+            assert termo in no_ar, termo
+        assert "o item **Segurança do Paciente**" not in texto
+        assert "grupo Segurança do Paciente do menu" not in texto
+        assert "dentro de Segurança do Paciente" not in texto
+
+    def test_quem_ve_diz_o_item_nsp_do_menu(self, texto):
+        quem_ve = _secao(texto, "Quem vê")
+        assert "O item NSP do menu aparece para todo usuário logado" in quem_ve
+        assert "O item Segurança do Paciente aparece" not in texto
+
+    def test_reunioes_diz_que_as_reunioes_do_nucleo_ficam_no_item_nsp(self):
+        nucleo = _secao(_texto("reunioes.md"), "As reuniões do Núcleo de Segurança do Paciente")
+        assert "(no menu, o item NSP)" in nucleo
