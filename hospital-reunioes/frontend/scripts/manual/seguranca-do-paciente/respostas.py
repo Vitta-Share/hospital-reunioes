@@ -828,6 +828,21 @@ def recalibracao() -> dict:
     }
 
 
+def idades_da_fila(fila: list[dict]) -> list[dict]:
+    """As triagens pendentes por idade, contadas como o servidor conta, da mais velha à mais nova."""
+    agora = datetime.now(FUSO)
+    contagem = [0, 0, 0]
+    for c in fila:
+        idade = agora - datetime.fromisoformat(c["criado_em"])
+        contagem[0 if idade > timedelta(days=3) else 1 if idade >= timedelta(days=1) else 2] += 1
+    rotulos = [("há mais de 3 dias", True), ("de 1 a 3 dias", False), ("há menos de 1 dia", False)]
+    return [
+        {"rotulo": f"{quantos} {rotulo}", "link": "/seguranca-do-paciente/notificacoes/triagem", "urgente": urgente}
+        for quantos, (rotulo, urgente) in zip(contagem, rotulos)
+        if quantos
+    ]
+
+
 def notificacoes() -> dict:
     lista = casos()
     presidencia = SEED["presidencia"]
@@ -862,14 +877,8 @@ def notificacoes() -> dict:
             {"chave": "casos_abertos", "titulo": "Casos A e B abertos", "link": "/seguranca-do-paciente/notificacoes",
              "ilegivel": False, "total": 0, "itens": []},
             {"chave": "triagens_pendentes", "titulo": "Triagens pendentes",
-             "link": "/seguranca-do-paciente/notificacoes/triagem", "ilegivel": False, "total": len(fila), "itens": [
-                 {"rotulo": "1 há mais de 3 dias", "link": "/seguranca-do-paciente/notificacoes/triagem",
-                  "urgente": True},
-                 {"rotulo": "2 de 1 a 3 dias", "link": "/seguranca-do-paciente/notificacoes/triagem",
-                  "urgente": False},
-                 {"rotulo": "1 há menos de 1 dia", "link": "/seguranca-do-paciente/notificacoes/triagem",
-                  "urgente": False},
-             ]},
+             "link": "/seguranca-do-paciente/notificacoes/triagem", "ilegivel": False, "total": len(fila),
+             "itens": idades_da_fila(fila)},
             {"chave": "prazos_legais", "titulo": "Prazos legais a vencer", "link": "/seguranca-do-paciente/notificacoes",
              "ilegivel": False, "total": 1, "itens": [
                  {"rotulo": f"{classificado['protocolo']}, VigiMed até o 15º dia útil: vence em "

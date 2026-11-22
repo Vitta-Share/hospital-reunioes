@@ -135,7 +135,7 @@ A transcrição anexada é apagada 30 dias depois de a ata ser assinada. Para um
 
    ![O protocolo e o código de acompanhamento, logo depois do envio](notificar-protocolo.png)
 
-Notificar não gera punição. Quando quem notifica marca que foi grave ou houve morte, a Presidência, o suplente, quem tem Acesso pleno e a Diretoria Executiva recebem um e-mail na hora, a qualquer dia e horário, com o protocolo e o setor, sem o relato. Quem se identificou e deixou um e-mail recebe a confirmação de recebimento com o protocolo. O QR e o endereço ficam em **Configuração**, na seção **QR e endereço da notificação**: o botão **Baixar o QR** baixa a imagem para o cartaz, e o botão **Copiar** copia o endereço para a TI criar o ícone nos computadores.
+O rodapé de toda tela do formulário lembra que notificar não gera punição. Quando quem notifica marca que foi grave ou houve morte, a Presidência, o suplente, quem tem Acesso pleno e a Diretoria Executiva recebem um e-mail na hora, a qualquer dia e horário, com o protocolo e o setor, sem o relato. Quem se identificou e deixou um e-mail recebe a confirmação de recebimento com o protocolo. O QR e o endereço ficam em **Configuração**, na seção **QR e endereço da notificação**: o botão **Baixar o QR** baixa a imagem para o cartaz, e o botão **Copiar** copia o endereço para a TI criar o ícone nos computadores.
 
 ## Acompanhar uma notificação
 
