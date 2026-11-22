@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T02:52+0000 -->
+<!-- last_update: 2026-11-22T02:59+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -723,6 +723,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | GET | `/nsp/triagem/{notificacao_id}` | A tela única: o caso, com os anexos, a sugestão (ou nenhuma) e o que o | ✅ |
 | POST | `/nsp/triagem/{notificacao_id}` | Confirmar ou ajustar. Grava a linha da pessoa ao lado da sugestão e leva | ✅ |
 | GET | `/nsp/triagem/{notificacao_id}/contexto` | A recorrência, os casos parecidos, a frequência e a prioridade para a | ✅ |
+| POST | `/nsp/triagem/{notificacao_id}/encaminhamento` | Grava o encaminhamento, preservando o protocolo. Sem o Núcleo entre os | ✅ |
 
 ## pops (`app/routers/pops/setores.py`)
 
@@ -838,4 +839,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 487 endpoints em 69 routers · 93% exigem auth.
+**Totais:** 488 endpoints em 69 routers · 93% exigem auth.

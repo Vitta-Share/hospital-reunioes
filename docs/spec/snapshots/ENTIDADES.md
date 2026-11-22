@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T02:52+0000 -->
+<!-- last_update: 2026-11-22T02:59+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -3062,6 +3062,24 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_nsp_notificacoes_externas_prazo` em `(estado, prazo_legal)` (de `208_nsp_prazos_do_caso.sql`)
 
+## nsp_encaminhamentos
+
+> Origem: `209_nsp_encaminhamento.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `notificacao_id` | `UUID` | NOT NULL | — | `nsp_notificacoes.id` |
+| `destinos` | `TEXT[]` | NOT NULL | — | — |
+| `motivo` | `TEXT` | NOT NULL | — | — |
+| `orientacao` | `TEXT` | — | — | — |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_encaminhamentos_notificacao` em `(notificacao_id, criado_em)` (de `209_nsp_encaminhamento.sql`)
+- `idx_nsp_encaminhamentos_autor` em `(autor_id)` (de `209_nsp_encaminhamento.sql`)
+
 ## tecnologia_perguntas
 
 > Origem: `211_tecnologia_pergunta_da_vitta.sql`
@@ -3179,4 +3197,4 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ---
 
-**Resumo:** 159 tabelas vivas.
+**Resumo:** 160 tabelas vivas.

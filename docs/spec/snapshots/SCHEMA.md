@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T02:52+0000 -->
+<!-- last_update: 2026-11-22T02:59+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -93,6 +93,7 @@ erDiagram
     nsp_documentos ||--o{ nsp_termos_envios : "regimento_id"
     nsp_documentos_envios ||--o{ nsp_documentos_signatarios : "envio_id"
     nsp_eventos_que_nunca_deveriam_ocorrer ||--o{ nsp_triagens : "evento_item"
+    nsp_notificacoes ||--o{ nsp_encaminhamentos : "notificacao_id"
     nsp_notificacoes ||--o{ nsp_esclarecimentos : "notificacao_id"
     nsp_notificacoes ||--o{ nsp_notificacao_anexos : "notificacao_id"
     nsp_notificacoes ||--o{ nsp_notificacoes_externas : "notificacao_id"
@@ -171,6 +172,7 @@ erDiagram
     participantes ||--o{ nsp_documentos : "publicado_por"
     participantes ||--o{ nsp_documentos_envios : "autor_id"
     participantes ||--o{ nsp_documentos_signatarios : "participante_id"
+    participantes ||--o{ nsp_encaminhamentos : "autor_id"
     participantes ||--o{ nsp_notificacoes : "editado_por"
     participantes ||--o{ nsp_notificacoes : "notificante_id"
     participantes ||--o{ nsp_notificacoes_trilha : "autor_id"
@@ -1673,6 +1675,15 @@ erDiagram
         TEXT estado
         TIMESTAMPTZ criado_em
     }
+    nsp_encaminhamentos {
+        UUID id PK
+        UUID notificacao_id FK
+        TEXT[] destinos
+        TEXT motivo
+        TEXT orientacao
+        VARCHAR autor_id FK
+        TIMESTAMPTZ criado_em
+    }
     tecnologia_perguntas {
         UUID id PK
         UUID demanda_id FK
@@ -1994,6 +2005,8 @@ erDiagram
 | `nsp_tabela_de_prazos_historico` | `idx_nsp_tabela_de_prazos_historico_alterado_por` | `alterado_por` | `208_nsp_prazos_do_caso.sql` |
 | `nsp_prazos_do_caso` | `idx_nsp_prazos_do_caso_vence_em` | `vence_em` | `208_nsp_prazos_do_caso.sql` |
 | `nsp_notificacoes_externas` | `idx_nsp_notificacoes_externas_prazo` | `estado, prazo_legal` | `208_nsp_prazos_do_caso.sql` |
+| `nsp_encaminhamentos` | `idx_nsp_encaminhamentos_notificacao` | `notificacao_id, criado_em` | `209_nsp_encaminhamento.sql` |
+| `nsp_encaminhamentos` | `idx_nsp_encaminhamentos_autor` | `autor_id` | `209_nsp_encaminhamento.sql` |
 | `tecnologia_perguntas` | `idx_tecnologia_perguntas_demanda` | `demanda_id, criado_em` | `211_tecnologia_pergunta_da_vitta.sql` |
 | `tecnologia_perguntas` | `idx_tecnologia_perguntas_abertas` | `criado_em` | `211_tecnologia_pergunta_da_vitta.sql` |
 | `tecnologia_perguntas` | `idx_tecnologia_perguntas_destinatario` | `destinatario_id` | `211_tecnologia_pergunta_da_vitta.sql` |
@@ -2004,4 +2017,4 @@ erDiagram
 | `conduta_entregas_do_parecer` | `idx_conduta_entregas_do_parecer_autor` | `autor_id` | `214_conduta_rota_especial.sql` |
 
 ---
-**Resumo:** 159 tabelas · 253 relacionamentos FK detectados.
+**Resumo:** 160 tabelas · 255 relacionamentos FK detectados.
