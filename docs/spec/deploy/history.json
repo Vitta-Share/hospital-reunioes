@@ -2,6 +2,58 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T12:58:54-03:00",
+      "sha": "2af2586b207a0deec99bac47b027ed1c1c17a8cd",
+      "app_version": "0.376.0",
+      "subject": "Onda sesta-1786-onda10: Recomendação do Comitê, decisão da medida e retorno; Trilha com gavetas e Dossiê do caso",
+      "raw_subject": "chore(deploy): registro da onda sesta-1786-onda10 (#2151 #2152)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 509,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "223_conduta_recomendacao_medida_e_retorno.sql",
+        "223_conduta_recomendacao_medida_e_retorno.sql",
+        "224_conduta_trilha_e_dossie.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1786-onda10: PR #2151 (issue #1835), PR #2152 (issue #1837), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 6,
+        "build_s": {
+          "backend": 17,
+          "frontend": 191
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T12:45:38-03:00",
       "sha": "ef159e9cc1f1c8f1d9564d4e0fdefa0fe63fd1c9",
       "app_version": "0.375.1",
