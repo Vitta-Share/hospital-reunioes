@@ -13,7 +13,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Check, Copy, Loader2, ShieldCheck } from "lucide-react";
-import { Logo } from "@/components/ui/Logo";
 import {
   ASSUNTOS,
   AVISOS_DO_PASSO_1,
@@ -317,334 +316,318 @@ export function RelatoEmPassos() {
     4: { ok: rascunho.relato.trim() !== "", falta: "Conte o que aconteceu para continuar." },
   };
 
-  const cabecalho = (
-    <div className="flex items-center justify-center">
-      <Logo variant="default" size="sm" />
-    </div>
-  );
-
-  if (passo === 0) {
-    return (
-      <main className="min-h-screen bg-bg">
-        <div className="max-w-lg mx-auto px-4 py-8 space-y-6">
-          {cabecalho}
-          <Entrada aoComecar={() => setPasso(1)} />
-        </div>
-      </main>
-    );
-  }
+  // O logo, o <main> e a largura da tela vêm da MolduraDoCanal do layout
+  // (issue #1846): aqui fica só o conteúdo do passo.
+  if (passo === 0) return <Entrada aoComecar={() => setPasso(1)} />;
 
   const seguir = podeSeguir[passo];
 
   return (
-    <main className="min-h-screen bg-bg">
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-5">
-        {cabecalho}
-        <Progresso passo={passo} />
-        <div className={CARTAO}>
-          {passo === 1 && (
-            <>
-              <h1 ref={titulo} tabIndex={-1} className="text-xl font-bold text-slate-900 outline-none">
-                Antes de começar
-              </h1>
-              <ol aria-label="Avisos" className="space-y-3">
-                {AVISOS_DO_PASSO_1.map((chave) => (
-                  <li key={chave} className="rounded-xl bg-slate-50 px-4 py-3 text-base text-slate-800">
-                    {avisos[chave]?.texto ?? AVISOS_PADRAO[chave]}
-                  </li>
-                ))}
-              </ol>
-              <p className="text-sm text-slate-600">{LINHA_DA_IA}</p>
-              <label className="flex items-start gap-3 rounded-xl border border-border px-4 py-3 normal-case font-normal">
-                <input
-                  type="checkbox"
-                  className="mt-1 h-5 w-5 shrink-0"
-                  checked={rascunho.ciente}
-                  onChange={(e) => marcarCiencia(e.target.checked)}
-                />
-                <span className="text-base text-slate-800">Li as orientações. Relato o que acredito ser verdade.</span>
-              </label>
-              <details className="text-sm text-slate-600">
-                <summary className="cursor-pointer font-semibold text-primary">Ler o aviso de privacidade completo</summary>
-                <div className="mt-2 space-y-2">
-                  <p>Não guardamos IP, identificação do aparelho nem localização de quem relata ou acompanha.</p>
-                  <p>Os dados de origem dos anexos são apagados antes de o arquivo ser guardado.</p>
-                  <p>
-                    O texto do relato passa por um serviço de inteligência artificial que ajuda a organizá-lo. Esse
-                    serviço guarda o texto por até 30 dias e não o usa para treinar a IA. Nenhuma decisão é tomada por
-                    IA.
-                  </p>
-                </div>
-              </details>
-            </>
-          )}
-
-          {passo === 2 && (
-            <>
-              <h1 ref={titulo} tabIndex={-1} className="text-xl font-bold text-slate-900 outline-none">
-                Como você quer relatar?
-              </h1>
-              <Escolhas
-                id="identificacao"
-                rotulo="Identificação"
-                colunas="grid-cols-1"
-                escolhida={rascunho.identificacao}
-                aoEscolher={(v) => v && mudar("identificacao", v)}
-                opcoes={[
-                  {
-                    valor: "anonimo",
-                    rotulo: "Anônimo",
-                    detalhe: "Você acompanha pelo protocolo e pelo código. Ninguém saberá quem relatou.",
-                  },
-                  {
-                    valor: "identificado",
-                    rotulo: "Com identificação",
-                    detalhe: "O Comitê pode conversar com você pessoalmente. Sua identidade fica restrita ao Comitê.",
-                  },
-                ]}
+    <div className="space-y-5">
+      <Progresso passo={passo} />
+      <div className={CARTAO}>
+        {passo === 1 && (
+          <>
+            <h1 ref={titulo} tabIndex={-1} className="text-xl font-bold text-slate-900 outline-none">
+              Antes de começar
+            </h1>
+            <ol aria-label="Avisos" className="space-y-3">
+              {AVISOS_DO_PASSO_1.map((chave) => (
+                <li key={chave} className="rounded-xl bg-slate-50 px-4 py-3 text-base text-slate-800">
+                  {avisos[chave]?.texto ?? AVISOS_PADRAO[chave]}
+                </li>
+              ))}
+            </ol>
+            <p className="text-sm text-slate-600">{LINHA_DA_IA}</p>
+            <label className="flex items-start gap-3 rounded-xl border border-border px-4 py-3 normal-case font-normal">
+              <input
+                type="checkbox"
+                className="mt-1 h-5 w-5 shrink-0"
+                checked={rascunho.ciente}
+                onChange={(e) => marcarCiencia(e.target.checked)}
               />
-              {rascunho.identificacao === "identificado" && (
-                <div className="space-y-1.5">
-                  <label htmlFor="nome" className={ROTULO}>
-                    Seu nome
-                  </label>
-                  <input
-                    id="nome"
-                    className={`${CAMPO} normal-case`}
-                    value={rascunho.nome}
-                    maxLength={200}
-                    autoComplete="off"
-                    onChange={(e) => mudar("nome", e.target.value)}
-                  />
-                </div>
-              )}
-            </>
-          )}
-
-          {passo === 3 && (
-            <>
-              <h1 ref={titulo} tabIndex={-1} className="text-xl font-bold text-slate-900 outline-none">
-                Sobre o quê
-              </h1>
-              <div className="space-y-1.5">
-                <Escolhas
-                  id="direcao"
-                  rotulo="O relato envolve a Direção, a Presidência ou a família proprietária?"
-                  escolhida={rascunho.direcao}
-                  aoEscolher={(v) => v && mudar("direcao", v)}
-                  opcoes={SIM_NAO_NAO_SEI}
-                />
-                <p className="text-sm text-slate-500">Se sim, seu relato não passa pelo Comitê comum.</p>
-              </div>
-              <Escolhas
-                id="assunto"
-                rotulo="Assunto"
-                opcional
-                colunas="grid-cols-1"
-                escolhida={rascunho.assunto}
-                aoEscolher={(v) => mudar("assunto", v)}
-                opcoes={ASSUNTOS.map((a) => ({ valor: a.codigo, rotulo: a.nome, detalhe: a.exemplos || undefined }))}
-              />
-              <Escolhas
-                id="posicao"
-                rotulo="Você"
-                opcional
-                escolhida={rascunho.posicao}
-                aoEscolher={(v) => mudar("posicao", v)}
-                opcoes={[
-                  { valor: "sofreu", rotulo: "Sofreu" },
-                  { valor: "presenciou", rotulo: "Presenciou" },
-                  { valor: "ficou_sabendo", rotulo: "Ficou sabendo" },
-                ]}
-              />
-            </>
-          )}
-
-          {passo === 4 && (
-            <>
-              <div className="space-y-1">
-                <h1 ref={titulo} tabIndex={-1} className="text-xl font-bold text-slate-900 outline-none">
-                  O que aconteceu
-                </h1>
-                <p className="text-base text-slate-700">Conte com suas palavras. Não precisa ter provas nem certeza.</p>
-              </div>
-              {rascunho.identificacao === "anonimo" && (
-                <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                  Evite detalhes que só você saberia.
+              <span className="text-base text-slate-800">Li as orientações. Relato o que acredito ser verdade.</span>
+            </label>
+            <details className="text-sm text-slate-600">
+              <summary className="cursor-pointer font-semibold text-primary">Ler o aviso de privacidade completo</summary>
+              <div className="mt-2 space-y-2">
+                <p>Não guardamos IP, identificação do aparelho nem localização de quem relata ou acompanha.</p>
+                <p>Os dados de origem dos anexos são apagados antes de o arquivo ser guardado.</p>
+                <p>
+                  O texto do relato passa por um serviço de inteligência artificial que ajuda a organizá-lo. Esse
+                  serviço guarda o texto por até 30 dias e não o usa para treinar a IA. Nenhuma decisão é tomada por
+                  IA.
                 </p>
-              )}
+              </div>
+            </details>
+          </>
+        )}
+
+        {passo === 2 && (
+          <>
+            <h1 ref={titulo} tabIndex={-1} className="text-xl font-bold text-slate-900 outline-none">
+              Como você quer relatar?
+            </h1>
+            <Escolhas
+              id="identificacao"
+              rotulo="Identificação"
+              colunas="grid-cols-1"
+              escolhida={rascunho.identificacao}
+              aoEscolher={(v) => v && mudar("identificacao", v)}
+              opcoes={[
+                {
+                  valor: "anonimo",
+                  rotulo: "Anônimo",
+                  detalhe: "Você acompanha pelo protocolo e pelo código. Ninguém saberá quem relatou.",
+                },
+                {
+                  valor: "identificado",
+                  rotulo: "Com identificação",
+                  detalhe: "O Comitê pode conversar com você pessoalmente. Sua identidade fica restrita ao Comitê.",
+                },
+              ]}
+            />
+            {rascunho.identificacao === "identificado" && (
               <div className="space-y-1.5">
-                <label htmlFor="relato" className={ROTULO}>
-                  O que aconteceu?
+                <label htmlFor="nome" className={ROTULO}>
+                  Seu nome
                 </label>
-                <p id="relato-guia" className="text-sm text-slate-500">
-                  O que aconteceu? Quem estava envolvido? Quando e onde? Ainda acontece?
-                </p>
-                <textarea
-                  id="relato"
-                  aria-describedby="relato-guia"
-                  className={`${CAMPO} min-h-[160px]`}
-                  value={rascunho.relato}
-                  maxLength={LIMITE_DO_RELATO}
-                  onChange={(e) => mudar("relato", e.target.value)}
-                />
-                <p className="text-sm text-slate-400 text-right">
-                  {rascunho.relato.length.toLocaleString("pt-BR")} de {LIMITE_DO_RELATO.toLocaleString("pt-BR")}
-                </p>
-              </div>
-              <CampoDeTexto
-                id="quando"
-                rotulo="Quando"
-                valor={rascunho.quando}
-                aoMudar={(v) => mudar("quando", v)}
-                limite={200}
-                placeholder="Data ou período"
-              />
-              <label className="flex items-center gap-3 normal-case font-normal text-base text-slate-700">
                 <input
-                  type="checkbox"
-                  className="h-5 w-5"
-                  checked={rascunho.ainda_acontece}
-                  onChange={(e) => mudar("ainda_acontece", e.target.checked)}
+                  id="nome"
+                  className={`${CAMPO} normal-case`}
+                  value={rascunho.nome}
+                  maxLength={200}
+                  autoComplete="off"
+                  onChange={(e) => mudar("nome", e.target.value)}
                 />
-                Ainda está acontecendo
-              </label>
-              <CampoDeTexto
-                id="onde"
-                rotulo="Onde"
-                valor={rascunho.onde}
-                aoMudar={(v) => mudar("onde", v)}
-                limite={200}
-                placeholder="Setor ou local"
-              />
-              <CampoDeTexto
-                id="quem"
-                rotulo="Quem"
-                valor={rascunho.quem}
-                aoMudar={(v) => mudar("quem", v)}
-                limite={500}
-                placeholder="Nome ou cargo, se souber"
-              />
-              <CampoDeTexto
-                id="testemunhas"
-                rotulo="Testemunhas"
-                valor={rascunho.testemunhas}
-                aoMudar={(v) => mudar("testemunhas", v)}
-                limite={500}
-              />
+              </div>
+            )}
+          </>
+        )}
+
+        {passo === 3 && (
+          <>
+            <h1 ref={titulo} tabIndex={-1} className="text-xl font-bold text-slate-900 outline-none">
+              Sobre o quê
+            </h1>
+            <div className="space-y-1.5">
               <Escolhas
-                id="lideranca"
-                rotulo="Alguma liderança já sabe?"
-                opcional
-                escolhida={rascunho.lideranca_sabe}
-                aoEscolher={(v) => mudar("lideranca_sabe", v)}
+                id="direcao"
+                rotulo="O relato envolve a Direção, a Presidência ou a família proprietária?"
+                escolhida={rascunho.direcao}
+                aoEscolher={(v) => v && mudar("direcao", v)}
                 opcoes={SIM_NAO_NAO_SEI}
               />
-              {rascunho.lideranca_sabe === "sim" && (
-                <CampoDeTexto
-                  id="o-que-foi-feito"
-                  rotulo="O que foi feito?"
-                  valor={rascunho.o_que_foi_feito}
-                  aoMudar={(v) => mudar("o_que_foi_feito", v)}
-                  limite={1000}
-                />
-              )}
-              <CampoDeTexto
-                id="evidencias"
-                rotulo="Evidências"
-                valor={rascunho.evidencias}
-                aoMudar={(v) => mudar("evidencias", v)}
-                limite={1000}
-                placeholder="Existe algo que comprove? Onde pode ser encontrado?"
-              />
-            </>
-          )}
-
-          {passo === 5 && (
-            <>
-              <h1 ref={titulo} tabIndex={-1} className="text-xl font-bold text-slate-900 outline-none">
-                Revisão
-              </h1>
-              <Resumo rascunho={rascunho} />
-              <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                Seu relato pode iniciar a apuração da conduta de uma pessoa. Confira se descreve o que você viu, viveu ou
-                soube.
-              </p>
-              {erro && (
-                <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">
-                  {erro}
-                </p>
-              )}
-              <button type="button" onClick={enviar} disabled={enviando} className={BOTAO_PRINCIPAL}>
-                {enviando && <Loader2 className="w-4 h-4 animate-spin" aria-hidden />}
-                Enviar
-              </button>
-              <p className="text-sm text-slate-500 text-center">Seu relato será lido pelo Comitê em até 5 dias úteis.</p>
-            </>
-          )}
-
-          {passo === 6 && protocolo && (
-            <>
-              <h1 ref={titulo} tabIndex={-1} className="text-xl font-bold text-slate-900 outline-none">
-                Relato registrado
-              </h1>
-              <p role="alert" className="rounded-xl bg-amber-50 px-4 py-3 text-base font-semibold text-amber-900">
-                Anote agora. Não há como recuperar.
-              </p>
-              <Copiar rotulo="Protocolo" valor={protocolo.protocolo} />
-              <Copiar rotulo="Código" valor={protocolo.codigo} />
-              <p className="text-base text-slate-700">
-                Volte a esta página a partir de {dataLegivel(protocolo.voltar_a_partir_de)}. É por aqui que o Comitê fala
-                com você.
-              </p>
-              <div className="space-y-1.5">
-                <p id="confianca" className={`etiqueta ${ROTULO}`}>
-                  De 1 a 5, quanto você confia neste canal?
-                  <Opcional />
-                </p>
-                <div role="group" aria-labelledby="confianca" className="grid grid-cols-5 gap-2">
-                  {[1, 2, 3, 4, 5].map((valor) => (
-                    <button
-                      key={valor}
-                      type="button"
-                      aria-pressed={nota === valor}
-                      disabled={nota !== null}
-                      onClick={() => responderConfianca(valor)}
-                      className={opcao(nota === valor) + " text-center"}
-                    >
-                      {valor}
-                    </button>
-                  ))}
-                </div>
-                {nota !== null && <p className="text-sm text-slate-500">Obrigado pela resposta.</p>}
-              </div>
-              <a href="/conduta/acompanhar" className={BOTAO_SECUNDARIO}>
-                Acompanhar relato
-              </a>
-            </>
-          )}
-
-          {passo >= 1 && passo <= 4 && (
-            <div className="space-y-2">
-              <button
-                type="button"
-                disabled={!seguir.ok}
-                onClick={() => setPasso(passo + 1)}
-                className={BOTAO_PRINCIPAL}
-              >
-                Continuar
-              </button>
-              {!seguir.ok && <p className="text-sm text-slate-500 text-center">{seguir.falta}</p>}
+              <p className="text-sm text-slate-500">Se sim, seu relato não passa pelo Comitê comum.</p>
             </div>
-          )}
-        </div>
-        {passo >= 1 && passo <= 5 && (
-          <button type="button" onClick={() => setPasso(passo - 1)} disabled={enviando} className={BOTAO_SECUNDARIO}>
-            Voltar
-          </button>
+            <Escolhas
+              id="assunto"
+              rotulo="Assunto"
+              opcional
+              colunas="grid-cols-1"
+              escolhida={rascunho.assunto}
+              aoEscolher={(v) => mudar("assunto", v)}
+              opcoes={ASSUNTOS.map((a) => ({ valor: a.codigo, rotulo: a.nome, detalhe: a.exemplos || undefined }))}
+            />
+            <Escolhas
+              id="posicao"
+              rotulo="Você"
+              opcional
+              escolhida={rascunho.posicao}
+              aoEscolher={(v) => mudar("posicao", v)}
+              opcoes={[
+                { valor: "sofreu", rotulo: "Sofreu" },
+                { valor: "presenciou", rotulo: "Presenciou" },
+                { valor: "ficou_sabendo", rotulo: "Ficou sabendo" },
+              ]}
+            />
+          </>
+        )}
+
+        {passo === 4 && (
+          <>
+            <div className="space-y-1">
+              <h1 ref={titulo} tabIndex={-1} className="text-xl font-bold text-slate-900 outline-none">
+                O que aconteceu
+              </h1>
+              <p className="text-base text-slate-700">Conte com suas palavras. Não precisa ter provas nem certeza.</p>
+            </div>
+            {rascunho.identificacao === "anonimo" && (
+              <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                Evite detalhes que só você saberia.
+              </p>
+            )}
+            <div className="space-y-1.5">
+              <label htmlFor="relato" className={ROTULO}>
+                O que aconteceu?
+              </label>
+              <p id="relato-guia" className="text-sm text-slate-500">
+                O que aconteceu? Quem estava envolvido? Quando e onde? Ainda acontece?
+              </p>
+              <textarea
+                id="relato"
+                aria-describedby="relato-guia"
+                className={`${CAMPO} min-h-[160px]`}
+                value={rascunho.relato}
+                maxLength={LIMITE_DO_RELATO}
+                onChange={(e) => mudar("relato", e.target.value)}
+              />
+              <p className="text-sm text-slate-400 text-right">
+                {rascunho.relato.length.toLocaleString("pt-BR")} de {LIMITE_DO_RELATO.toLocaleString("pt-BR")}
+              </p>
+            </div>
+            <CampoDeTexto
+              id="quando"
+              rotulo="Quando"
+              valor={rascunho.quando}
+              aoMudar={(v) => mudar("quando", v)}
+              limite={200}
+              placeholder="Data ou período"
+            />
+            <label className="flex items-center gap-3 normal-case font-normal text-base text-slate-700">
+              <input
+                type="checkbox"
+                className="h-5 w-5"
+                checked={rascunho.ainda_acontece}
+                onChange={(e) => mudar("ainda_acontece", e.target.checked)}
+              />
+              Ainda está acontecendo
+            </label>
+            <CampoDeTexto
+              id="onde"
+              rotulo="Onde"
+              valor={rascunho.onde}
+              aoMudar={(v) => mudar("onde", v)}
+              limite={200}
+              placeholder="Setor ou local"
+            />
+            <CampoDeTexto
+              id="quem"
+              rotulo="Quem"
+              valor={rascunho.quem}
+              aoMudar={(v) => mudar("quem", v)}
+              limite={500}
+              placeholder="Nome ou cargo, se souber"
+            />
+            <CampoDeTexto
+              id="testemunhas"
+              rotulo="Testemunhas"
+              valor={rascunho.testemunhas}
+              aoMudar={(v) => mudar("testemunhas", v)}
+              limite={500}
+            />
+            <Escolhas
+              id="lideranca"
+              rotulo="Alguma liderança já sabe?"
+              opcional
+              escolhida={rascunho.lideranca_sabe}
+              aoEscolher={(v) => mudar("lideranca_sabe", v)}
+              opcoes={SIM_NAO_NAO_SEI}
+            />
+            {rascunho.lideranca_sabe === "sim" && (
+              <CampoDeTexto
+                id="o-que-foi-feito"
+                rotulo="O que foi feito?"
+                valor={rascunho.o_que_foi_feito}
+                aoMudar={(v) => mudar("o_que_foi_feito", v)}
+                limite={1000}
+              />
+            )}
+            <CampoDeTexto
+              id="evidencias"
+              rotulo="Evidências"
+              valor={rascunho.evidencias}
+              aoMudar={(v) => mudar("evidencias", v)}
+              limite={1000}
+              placeholder="Existe algo que comprove? Onde pode ser encontrado?"
+            />
+          </>
+        )}
+
+        {passo === 5 && (
+          <>
+            <h1 ref={titulo} tabIndex={-1} className="text-xl font-bold text-slate-900 outline-none">
+              Revisão
+            </h1>
+            <Resumo rascunho={rascunho} />
+            <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              Seu relato pode iniciar a apuração da conduta de uma pessoa. Confira se descreve o que você viu, viveu ou
+              soube.
+            </p>
+            {erro && (
+              <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">
+                {erro}
+              </p>
+            )}
+            <button type="button" onClick={enviar} disabled={enviando} className={BOTAO_PRINCIPAL}>
+              {enviando && <Loader2 className="w-4 h-4 animate-spin" aria-hidden />}
+              Enviar
+            </button>
+            <p className="text-sm text-slate-500 text-center">Seu relato será lido pelo Comitê em até 5 dias úteis.</p>
+          </>
+        )}
+
+        {passo === 6 && protocolo && (
+          <>
+            <h1 ref={titulo} tabIndex={-1} className="text-xl font-bold text-slate-900 outline-none">
+              Relato registrado
+            </h1>
+            <p role="alert" className="rounded-xl bg-amber-50 px-4 py-3 text-base font-semibold text-amber-900">
+              Anote agora. Não há como recuperar.
+            </p>
+            <Copiar rotulo="Protocolo" valor={protocolo.protocolo} />
+            <Copiar rotulo="Código" valor={protocolo.codigo} />
+            <p className="text-base text-slate-700">
+              Volte a esta página a partir de {dataLegivel(protocolo.voltar_a_partir_de)}. É por aqui que o Comitê fala
+              com você.
+            </p>
+            <div className="space-y-1.5">
+              <p id="confianca" className={`etiqueta ${ROTULO}`}>
+                De 1 a 5, quanto você confia neste canal?
+                <Opcional />
+              </p>
+              <div role="group" aria-labelledby="confianca" className="grid grid-cols-5 gap-2">
+                {[1, 2, 3, 4, 5].map((valor) => (
+                  <button
+                    key={valor}
+                    type="button"
+                    aria-pressed={nota === valor}
+                    disabled={nota !== null}
+                    onClick={() => responderConfianca(valor)}
+                    className={opcao(nota === valor) + " text-center"}
+                  >
+                    {valor}
+                  </button>
+                ))}
+              </div>
+              {nota !== null && <p className="text-sm text-slate-500">Obrigado pela resposta.</p>}
+            </div>
+            <a href="/conduta/acompanhar" className={BOTAO_SECUNDARIO}>
+              Acompanhar relato
+            </a>
+          </>
+        )}
+
+        {passo >= 1 && passo <= 4 && (
+          <div className="space-y-2">
+            <button
+              type="button"
+              disabled={!seguir.ok}
+              onClick={() => setPasso(passo + 1)}
+              className={BOTAO_PRINCIPAL}
+            >
+              Continuar
+            </button>
+            {!seguir.ok && <p className="text-sm text-slate-500 text-center">{seguir.falta}</p>}
+          </div>
         )}
       </div>
-    </main>
+      {passo >= 1 && passo <= 5 && (
+        <button type="button" onClick={() => setPasso(passo - 1)} disabled={enviando} className={BOTAO_SECUNDARIO}>
+          Voltar
+        </button>
+      )}
+    </div>
   );
 }
 
