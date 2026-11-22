@@ -43,6 +43,7 @@ def enviar_aviso_da_conversa(
     demanda: dict,
     assunto: str | None = None,
     pergunta_id: str | None = None,
+    acao: bool = False,
 ) -> bool:
     """Um e-mail para `destinatario_id` com o `aviso` do sino ("Fulano mencionou
     você" ou "Fulano escreveu na Demanda"). Com `assunto`, a mensagem pede
@@ -70,12 +71,14 @@ def enviar_aviso_da_conversa(
             assunto=assunto,
             link=link,
             pergunta=bool(pergunta_id),
+            # O Passo a passo da Vitta (ADR 0110): pede que a pessoa faça.
+            acao=acao,
             logo_base64=get_logo_data_uri(),
         )
         linha_do_assunto = f"Assunto: {assunto}\n" if assunto else ""
         texto = (
             f"{aviso}.\n\n{linha_do_assunto}Demanda: {titulo}\nQuem escreveu: {autor_nome}\n\n"
-            f"Para ler e responder: {link}\n"
+            f"{'Para ver os passos' if acao else 'Para ler e responder'}: {link}\n"
         )
         return _enviar_email(destinatario["email"], f"{aviso}: {assunto or titulo}", html, texto)
     except Exception as e:  # noqa: BLE001 (e-mail nunca desfaz a mensagem nem o sino)
@@ -239,7 +242,7 @@ def enviar_card_novo(supabase, *, demanda: dict, resumo: dict | None) -> bool:
 
 
 def enviar_lembrete_da_pergunta(
-    supabase, *, destinatario_id: str, assunto: str, dias: int, autor_nome: str, demanda: dict
+    supabase, *, destinatario_id: str, assunto: str, dias: int, autor_nome: str, demanda: dict, acao: bool = False
 ) -> bool:
     """O lembrete unico da Pergunta da Vitta (issue #2120, ADR 0109, decisao
     7): o Assunto, ha quantos dias a Pergunta espera e o link que abre a
@@ -257,8 +260,10 @@ def enviar_lembrete_da_pergunta(
 
         titulo = str(demanda.get("titulo") or "Demanda sem título")
         link = link_da_demanda(demanda["id"])
-        espera = f"Sua resposta espera há {dias} dias"
+        # O Passo a passo da Vitta (ADR 0110) tem o mesmo lembrete unico.
+        espera = f"Seu passo a passo espera há {dias} dias" if acao else f"Sua resposta espera há {dias} dias"
         html = jinja_env.get_template("email_tecnologia_lembrete_da_pergunta.html").render(
+            acao=acao,
             destinatario_nome=destinatario.get("nome_completo") or "",
             espera=espera,
             dias=dias,
@@ -269,8 +274,9 @@ def enviar_lembrete_da_pergunta(
             logo_base64=get_logo_data_uri(),
         )
         texto = (
-            f"{espera}.\n\nAssunto: {assunto}\nDemanda: {titulo}\nQuem perguntou: {autor_nome}\n\n"
-            f"Para ler e responder: {link}\n"
+            f"{espera}.\n\nAssunto: {assunto}\nDemanda: {titulo}\n"
+            f"{'Quem pediu' if acao else 'Quem perguntou'}: {autor_nome}\n\n"
+            f"{'Para ver os passos' if acao else 'Para ler e responder'}: {link}\n"
         )
         return _enviar_email(destinatario["email"], f"{espera}: {assunto}", html, texto)
     except Exception as e:  # noqa: BLE001 (o e-mail nunca desfaz o sino)

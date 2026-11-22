@@ -71,7 +71,7 @@ describe("A página da aba Tecnologia", () => {
       </ToastProvider>,
     );
 
-    const lista = await screen.findByRole("region", { name: "Esperando sua resposta" });
+    const lista = await screen.findByRole("region", { name: "Esperando você" });
     const [primeiro, segundo] = within(lista).getAllByRole("listitem");
     await waitFor(() => expect(document.activeElement).toBe(segundo));
     expect(segundo.getAttribute("aria-current")).toBe("true");

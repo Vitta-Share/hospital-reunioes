@@ -21,13 +21,37 @@
  */
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, MessageCircle } from "lucide-react";
 
 import { BASE_TECNOLOGIA, FALHA_DE_CONEXAO, motivoDaRecusa } from "./demandas";
 import { MeExplique } from "./MeExplique";
 import { OpcoesEmCartao } from "./OpcoesEmCartao";
 
-export type EstadoDaPergunta = "aberta" | "respondida" | "resolvida" | "cancelada";
+export type EstadoDaPergunta = "aberta" | "respondida" | "resolvida" | "cancelada" | "concluida";
+
+/** O tipo do Pedido da Vitta (issue #2176, ADR 0110): Pergunta, que se responde, ou Passo a passo, que se conclui. */
+export type TipoDoPedido = "pergunta" | "passo_a_passo";
+
+/** Um passo do Passo a passo, com o check e quem marcou. */
+export type PassoDoPedido = {
+  texto: string;
+  marcado: boolean;
+  por?: string | null;
+  em_nome_de?: string | null;
+  em?: string | null;
+};
+
+/** A conclusão do Passo a passo: quando, como, quem e a anotação (fica só no app). */
+export type ConclusaoDoPedido = {
+  concluida_em: string | null;
+  como: "app" | "github" | null;
+  por: string | null;
+  em_nome_de: string | null;
+  anotacao: string | null;
+};
+
+/** O fechamento do card pelo app: "falhou" mostra "Não chegou ao GitHub". */
+export type FechamentoNoGithub = { estado: "pendente" | "fechado" | "falhou"; motivo: string | null };
 
 export type RespostaDaPergunta = {
   opcao: string | null;
@@ -74,6 +98,12 @@ export type PerguntaDaVitta = {
   resolucao?: ResolucaoDaPergunta | null;
   cancelamento?: CancelamentoDaPergunta | null;
   pode_responder?: boolean;
+  /** O Passo a passo (issue #2176): sem `tipo`, é Pergunta. */
+  tipo?: TipoDoPedido;
+  passos?: PassoDoPedido[];
+  conclusao?: ConclusaoDoPedido | null;
+  fechamento?: FechamentoNoGithub | null;
+  pode_reenviar?: boolean;
 };
 
 const NOME_DO_ESTADO: Record<EstadoDaPergunta, string> = {
@@ -81,12 +111,13 @@ const NOME_DO_ESTADO: Record<EstadoDaPergunta, string> = {
   respondida: "Respondida",
   resolvida: "Resolvida",
   cancelada: "Cancelada",
+  concluida: "Concluída",
 };
 
 const UM_DIA = 24 * 60 * 60 * 1000;
 
-/** Os dias inteiros desde que a Pergunta nasceu, como no lembrete de 3 dias. */
-function espera(criadoEm: string | null, agora: Date): string | null {
+/** Os dias inteiros desde que o Pedido nasceu, como no lembrete de 3 dias. */
+export function espera(criadoEm: string | null, agora: Date): string | null {
   if (!criadoEm) return null;
   const desde = new Date(criadoEm).getTime();
   if (Number.isNaN(desde)) return null;
@@ -201,6 +232,7 @@ export function CartaoDaPergunta({
       }`}
     >
       <div className="flex flex-wrap items-center gap-2 text-xs">
+        <MessageCircle role="img" aria-label="Pergunta" className="w-4 h-4 text-amber-700" />
         <span className="font-bold text-slate-900">Pergunta da Vitta</span>
         <span className="normal-case rounded-full bg-white border border-slate-200 px-2 py-0.5 text-slate-700">
           {pergunta.projeto}

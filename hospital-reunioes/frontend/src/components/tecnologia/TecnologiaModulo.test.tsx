@@ -118,7 +118,7 @@ describe("A aba abre no chat, com Conversas e Entregas (issues #1386 e #1556)", 
 
     // `eu` diz se quem está logado é Desenvolvedor (issue #1531, ADR 0083),
     // `projetos` dá as opções do filtro Projeto (issue #1967) e
-    // `perguntas/esperando` é a lista Esperando sua resposta (issue #2118).
+    // `perguntas/esperando` é a lista Esperando você (issues #2118 e #2176).
     await waitFor(() => expect(pedidos.length).toBe(4));
     expect([...pedidos].sort()).toEqual([
       "/api/admin/tecnologia/chat",
@@ -169,7 +169,7 @@ describe("A aba abre no chat, com Conversas e Entregas (issues #1386 e #1556)", 
     expect(quadro.closest("[hidden]")).not.toBeNull();
   });
 
-  it("a lista Esperando sua resposta fica no topo da aba, antes das abas, com o cartão do aviso em foco (issue #2118)", async () => {
+  it("a lista Esperando você fica no topo da aba, antes das abas, com o cartão do aviso em foco (issue #2118)", async () => {
     const pergunta = {
       id: "p-9",
       demanda_id: "d-9",
@@ -188,7 +188,7 @@ describe("A aba abre no chat, com Conversas e Entregas (issues #1386 e #1556)", 
     Element.prototype.scrollIntoView = vi.fn();
     montar({ esperando: [pergunta], perguntaInicial: "p-9" });
 
-    const lista = await screen.findByRole("region", { name: "Esperando sua resposta" });
+    const lista = await screen.findByRole("region", { name: "Esperando você" });
 
     const abas = screen.getByRole("tablist", { name: "Tecnologia" });
     expect(lista.compareDocumentPosition(abas) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

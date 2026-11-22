@@ -146,6 +146,33 @@ def pedido(demanda: dict[str, Any], pergunta: dict[str, Any], mensagens: list[di
         recuar_continuacao(f"{'Pessoa' if m.get('papel') == PAPEL_PESSOA else 'Assistente'}: {m.get('texto') or ''}")
         for m in mensagens
     ] or ["(a conversa começa agora: explique a Demanda e a Pergunta e proponha um rascunho)"]
+    if pergunta.get("tipo") == "passo_a_passo":
+        # O Passo a passo da Vitta (issue #2176, ADR 0110): no lugar das
+        # opcoes, os passos; o rascunho e o da anotacao opcional.
+        return "\n".join(
+            [
+                "PEDIDO: ME EXPLIQUE",
+                "",
+                "A DEMANDA",
+                recuar_continuacao(f"Projeto: {nome_do_projeto(demanda)}"),
+                recuar_continuacao(f"Título: {demanda.get('titulo') or ''}"),
+                recuar_continuacao(f"O que muda: {demanda.get('o_que_muda') or '(sem texto)'}"),
+                "",
+                "O PASSO A PASSO DA VITTA",
+                recuar_continuacao(f"Assunto: {pergunta.get('assunto') or ''}"),
+                recuar_continuacao(f"O que pede: {pergunta.get('texto') or ''}"),
+                recuar_continuacao(f"Por que precisa da pessoa: {pergunta.get('por_que_precisa') or ''}"),
+                recuar_continuacao(f"O que está parado: {pergunta.get('o_que_esta_parado') or ''}"),
+                recuar_continuacao(f"O que anda depois: {pergunta.get('o_que_anda_depois') or ''}"),
+                recuar_continuacao(f"O que o hospital ganha: {pergunta.get('ganho') or ''}"),
+                "Passos:",
+                *[recuar_continuacao(f"{i}. {passo}") for i, passo in enumerate(pergunta.get("passos") or [], 1)],
+                "(o rascunho, se houver, é o da anotação opcional ao concluir)",
+                "",
+                "A CONVERSA ATÉ AQUI",
+                *conversa,
+            ]
+        )
     return "\n".join(
         [
             "PEDIDO: ME EXPLIQUE",

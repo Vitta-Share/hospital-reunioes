@@ -54,9 +54,13 @@ ROTAS_DO_CHAT = {
     "/api/admin/tecnologia/chat/{demanda_id}/modelo",
     # As opções do filtro Projeto, com os projetos novos da Vitta (issue #1967).
     "/api/admin/tecnologia/projetos",
-    # A lista Esperando sua resposta, as Perguntas da Vitta abertas de todos
-    # os Projetos (issue #2118, ADR 0109, decisão 5).
+    # A lista Esperando você, os Pedidos da Vitta abertos de todos os
+    # Projetos (issue #2118, ADR 0109, decisão 5; ADR 0110).
     "/api/admin/tecnologia/perguntas/esperando",
+    # O Passo a passo da Vitta: o check, o Concluir e o Reenviar (issue #2176, ADR 0110).
+    "/api/admin/tecnologia/perguntas/{pergunta_id}/checks",
+    "/api/admin/tecnologia/perguntas/{pergunta_id}/concluir",
+    "/api/admin/tecnologia/perguntas/{pergunta_id}/reenviar",
     # A resposta à Pergunta da Vitta no cartão (issue #2119, ADR 0109).
     "/api/admin/tecnologia/perguntas/{pergunta_id}/resposta",
     # O Me explique no cartão da Pergunta (issue #2122, ADR 0109, decisão 8).

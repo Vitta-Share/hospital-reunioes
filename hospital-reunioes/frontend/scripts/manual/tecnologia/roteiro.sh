@@ -121,15 +121,15 @@ print "$(bloco "Documento do card")" "partes-por-onda.png"
 pw run-code "async page => { await page.getByRole('button', { name: 'Fechar o pedido' }).click() }"
 
 # Responder uma pergunta da Vitta (issues #1968 e #2123): o aviso Pede sua
-# resposta no sino, o clique que abre a lista Esperando sua resposta no cartão
+# resposta no sino, o clique que abre a lista Esperando você no cartão
 # da pergunta, o pedido do projeto novo com o Plano do projeto, o cartão da
 # pergunta na Conversa da Demanda e o Me explique aberto nele.
 pw run-code "async page => { await page.getByRole('button', { name: 'Notificações' }).click() }"
 esperar "Pede sua resposta"
 print "getByRole('heading', { name: 'Notificações', exact: true }).locator('xpath=../..')" "aviso-pede-resposta.png"
-pw run-code "async page => { await page.getByText('Pede sua resposta', { exact: true }).click(); await page.waitForURL(u => u.searchParams.has('pergunta')); await page.getByRole('region', { name: 'Esperando sua resposta', exact: true }).locator('li[aria-current=true]').waitFor() }"
+pw run-code "async page => { await page.getByText('Pede sua resposta', { exact: true }).click(); await page.waitForURL(u => u.searchParams.has('pergunta')); await page.getByRole('region', { name: 'Esperando você', exact: true }).locator('li[aria-current=true]').waitFor() }"
 esperar "A troca entre dois plantonistas precisa da aprovação da coordenação, ou vale assim que os dois confirmam?"
-print "$(bloco "Esperando sua resposta")" "esperando-sua-resposta.png"
+print "$(bloco "Esperando você")" "esperando-sua-resposta.png"
 pw run-code "async page => { await page.getByRole('button', { name: /Troca de plantão pelo aplicativo/ }).click() }"
 esperar "Plano do projeto"
 print "$(bloco "Documento do card")" "projeto-novo.png"

@@ -21,7 +21,9 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { Loader2, Send } from "lucide-react";
 
 import { LIMITE_DA_MENSAGEM } from "./assistente";
-import { CartaoDaPergunta, type PerguntaDaVitta, type PerguntaRespondida, perguntaValida } from "./CartaoDaPergunta";
+import { type PerguntaDaVitta, type PerguntaRespondida, perguntaValida } from "./CartaoDaPergunta";
+import { CartaoDoPedido } from "./CartaoDoPedido";
+import type { PassoAPassoConcluido } from "./CartaoDoPassoAPasso";
 import { BASE_TECNOLOGIA, FALHA_DE_CONEXAO, motivoDaRecusa } from "./demandas";
 import { SeparadorDeDia, diaDaMensagem } from "./SeparadorDeDia";
 import { TextoDaMensagem } from "./TextoDaMensagem";
@@ -34,7 +36,7 @@ type Mensagem = {
   minha: boolean;
   /** A linha do Envio aos desenvolvedores, que não é bolha de ninguém. */
   sistema?: boolean;
-  /** A entrada que é Pergunta da Vitta (issue #2116): o cartão no lugar da bolha. */
+  /** A entrada que é Pedido da Vitta (issues #2116 e #2176): o cartão no lugar da bolha. */
   pergunta?: PerguntaDaVitta | null;
 };
 type Mencionavel = { id: string; nome: string };
@@ -269,6 +271,15 @@ export function ConversaDaDemanda({
     setEnvio((atual) => (atual ? { mensagens_novas: atual.mensagens_novas + 1 } : atual));
   }
 
+  /** O Passo a passo concluído (issue #2176): o cartão concluído e, se houve anotação, a mensagem dela. */
+  function aoConcluir({ pergunta, mensagem }: PassoAPassoConcluido) {
+    setMensagens((atuais) => [
+      ...(atuais ?? []).map((m) => (m.pergunta?.id === pergunta.id ? { ...m, pergunta } : m)),
+      ...(mensagem ? [mensagem] : []),
+    ]);
+    if (mensagem) setEnvio((atual) => (atual ? { mensagens_novas: atual.mensagens_novas + 1 } : atual));
+  }
+
   function corrigir() {
     setEntendi(null);
     setFalhou(null);
@@ -312,7 +323,12 @@ export function ConversaDaDemanda({
                 )}
                 {perguntaValida(mensagem.pergunta) ? (
                   <li key={mensagem.id}>
-                    <CartaoDaPergunta pergunta={mensagem.pergunta} token={token} onRespondida={aoResponder} />
+                    <CartaoDoPedido
+                      pedido={mensagem.pergunta}
+                      token={token}
+                      onRespondida={aoResponder}
+                      onConcluido={aoConcluir}
+                    />
                   </li>
                 ) : mensagem.sistema ? (
                   <li key={mensagem.id} className="flex justify-center">

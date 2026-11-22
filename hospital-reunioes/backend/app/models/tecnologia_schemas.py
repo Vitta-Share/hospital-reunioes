@@ -275,6 +275,37 @@ class CancelamentoDaPerguntaResponse(BaseModel):
     cancelada_em: str | None = None
 
 
+class PassoDoCartaoResponse(BaseModel):
+    """Um passo do Passo a passo da Vitta (issue #2176, ADR 0110, decisao 4):
+    o texto e o check, com quem marcou e quando (o estado e a ultima linha do
+    historico do passo)."""
+
+    texto: str
+    marcado: bool = False
+    por: str | None = None
+    em_nome_de: str | None = None
+    em: str | None = None
+
+
+class ConclusaoDoPassoAPassoResponse(BaseModel):
+    """A conclusao do Passo a passo: quando, como (no app ou pelo GitHub),
+    quem e em nome de quem, e a anotacao (fica so no app)."""
+
+    concluida_em: str | None = None
+    como: Literal["app", "github"] | None = None
+    por: str | None = None
+    em_nome_de: str | None = None
+    anotacao: str | None = None
+
+
+class FechamentoNoGithubResponse(BaseModel):
+    """O fechamento do card pelo app (ADR 0110, decisao 8): `falhou` traz o
+    motivo, e o cartao mostra "Não chegou ao GitHub" com o Reenviar."""
+
+    estado: Literal["pendente", "fechado", "falhou"]
+    motivo: str | None = None
+
+
 class PerguntaDoCartaoResponse(BaseModel):
     """O cartao da Pergunta da Vitta (issue #2116, ADR 0109, decisao 3): de
     qual Projeto e, a pergunta, as quatro linhas em palavras simples, as
@@ -282,6 +313,8 @@ class PerguntaDoCartaoResponse(BaseModel):
     dias)."""
 
     id: str
+    # O tipo do Pedido da Vitta (issue #2176, ADR 0110, decisao 1).
+    tipo: Literal["pergunta", "passo_a_passo"] = "pergunta"
     projeto: str
     assunto: str
     texto: str
@@ -292,7 +325,7 @@ class PerguntaDoCartaoResponse(BaseModel):
     opcoes: list[OpcaoDaPerguntaResponse] = []
     recomendada: str | None = None
     porque: str | None = None
-    estado: Literal["aberta", "respondida", "resolvida", "cancelada"]
+    estado: Literal["aberta", "respondida", "resolvida", "cancelada", "concluida"]
     criado_em: str | None = None
     destinatario: str | None = None
     # A resposta (issue #2119): nula enquanto a Pergunta espera.
@@ -302,16 +335,24 @@ class PerguntaDoCartaoResponse(BaseModel):
     cancelamento: CancelamentoDaPerguntaResponse | None = None
     # O campo de resposta aparece so a quem responde: o Destinatario, ou o
     # Desenvolvedor no lugar dele, e so na Pergunta aberta (ADR 0109, decisao 5).
+    # No Passo a passo, o mesmo diz quem marca os checks e conclui.
     pode_responder: bool = False
+    # O Passo a passo (issue #2176): vazios e nulos na Pergunta.
+    passos: list[PassoDoCartaoResponse] = []
+    conclusao: ConclusaoDoPassoAPassoResponse | None = None
+    fechamento: FechamentoNoGithubResponse | None = None
+    pode_reenviar: bool = False
 
 
 class PerguntaEsperandoResponse(PerguntaDoCartaoResponse):
-    """Um item da lista Esperando sua resposta (issue #2118, ADR 0109,
-    decisao 5): o cartao, de qual Demanda e, e se espera quem esta logado."""
+    """Um item da lista Esperando você (issue #2118, ADR 0109, decisao 5;
+    ADR 0110): o cartao, de qual Demanda e, se espera quem esta logado e se
+    esta com a Vitta (o Destinatario e Desenvolvedor)."""
 
     demanda_id: str
     demanda: str
     minha: bool = False
+    com_a_vitta: bool = False
 
 
 class MensagemDaConversaResponse(BaseModel):
@@ -678,6 +719,31 @@ class RespostaDaPerguntaRespondidaResponse(BaseModel):
 
     pergunta: PerguntaDoCartaoResponse
     mensagem: MensagemDaConversaResponse
+
+
+# ─── O Passo a passo da Vitta (issue #2176, ADR 0110) ───────────────────────
+
+
+class CheckDoPassoPayload(BaseModel):
+    """Corpo do POST /admin/tecnologia/perguntas/{id}/checks: o indice do
+    passo (a partir de 0) e se fica marcado."""
+
+    passo: int = Field(ge=0, le=14)
+    marcado: bool
+
+
+class ConclusaoDoPassoAPassoPayload(BaseModel):
+    """Corpo do POST /admin/tecnologia/perguntas/{id}/concluir: a anotacao
+    opcional, que fica so no app e nunca vai para a issue."""
+
+    anotacao: str | None = Field(default=None, max_length=LIMITE_DA_RESPOSTA)
+
+
+class PassoAPassoConcluidoResponse(BaseModel):
+    """O cartao concluido e, quando houve anotacao, a mensagem dela na Conversa."""
+
+    pergunta: PerguntaDoCartaoResponse
+    mensagem: MensagemDaConversaResponse | None = None
 
 
 # ─── O Me explique (issue #2122, ADR 0109, decisao 8) ───────────────────────

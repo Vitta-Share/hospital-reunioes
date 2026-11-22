@@ -295,7 +295,7 @@ class TestOKit:
         texto = (CONHECIMENTO_DIR / "tecnologia.md").read_text(encoding="utf-8")
 
         for trecho in (
-            'a lista "Esperando sua resposta"',
+            'a lista "Esperando você"',
             "as perguntas abertas de todos os projetos",
             "As suas vêm primeiro",
             "a mais antiga primeiro",

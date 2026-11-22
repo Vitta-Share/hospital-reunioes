@@ -3,7 +3,7 @@
  */
 
 /**
- * A lista Esperando sua resposta (issue #2118, PRD #2112, ADR 0109, decisão 5).
+ * A lista Esperando você (issue #2118, PRD #2112, ADR 0109, decisão 5; ADR 0110, issue #2176).
  *
  * No topo da aba Tecnologia, as Perguntas da Vitta abertas de todos os
  * Projetos, no cartão da Pergunta, com o nome da Demanda. A ordem vem do
@@ -18,7 +18,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { EsperandoSuaResposta, URL_DA_LISTA_ESPERANDO } from "./EsperandoSuaResposta";
+import { EsperandoVoce, URL_DA_LISTA_ESPERANDO } from "./EsperandoVoce";
 
 afterEach(() => {
   cleanup();
@@ -71,16 +71,16 @@ function montar(corpo: unknown, { status = 200, perguntaEmFoco = null }: { statu
     }),
   );
   const { container, rerender } = render(
-    <EsperandoSuaResposta token="token-de-teste" perguntaEmFoco={perguntaEmFoco} agora={AGORA} />,
+    <EsperandoVoce token="token-de-teste" perguntaEmFoco={perguntaEmFoco} agora={AGORA} />,
   );
   return { pedidos, container, rerender };
 }
 
 function lista() {
-  return screen.findByRole("region", { name: "Esperando sua resposta" });
+  return screen.findByRole("region", { name: "Esperando você" });
 }
 
-describe("A lista Esperando sua resposta", () => {
+describe("A lista Esperando você", () => {
   it("pede as Perguntas abertas com o token e mostra cada uma no cartão, com a Demanda, o Projeto e os dias", async () => {
     const { pedidos } = montar([MINHA, DE_OUTRO]);
 
@@ -118,7 +118,7 @@ describe("A lista Esperando sua resposta", () => {
 
     await waitFor(() => expect(pedidos).toHaveLength(1));
 
-    expect(screen.queryByRole("region", { name: "Esperando sua resposta" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Esperando você" })).toBeNull();
     expect(container.innerHTML).toBe("");
   });
 
@@ -154,12 +154,12 @@ describe("A lista Esperando sua resposta", () => {
         return { ok: true, status: 200, json: async () => corpo } as unknown as Response;
       }),
     );
-    const { rerender } = render(<EsperandoSuaResposta token="token-de-teste" agora={AGORA} />);
+    const { rerender } = render(<EsperandoVoce token="token-de-teste" agora={AGORA} />);
     await waitFor(() => expect(pedidos).toHaveLength(1));
-    expect(screen.queryByRole("region", { name: "Esperando sua resposta" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Esperando você" })).toBeNull();
 
     respostas = [[], [MINHA]];
-    rerender(<EsperandoSuaResposta token="token-de-teste" perguntaEmFoco="p-1" agora={AGORA} />);
+    rerender(<EsperandoVoce token="token-de-teste" perguntaEmFoco="p-1" agora={AGORA} />);
 
     const [item] = within(await lista()).getAllByRole("listitem");
     expect(pedidos).toHaveLength(2);
@@ -172,7 +172,7 @@ describe("A lista Esperando sua resposta", () => {
     const { pedidos, rerender } = montar([MINHA, DE_OUTRO]);
     await lista();
 
-    rerender(<EsperandoSuaResposta token="token-de-teste" perguntaEmFoco="p-2" agora={AGORA} />);
+    rerender(<EsperandoVoce token="token-de-teste" perguntaEmFoco="p-2" agora={AGORA} />);
 
     const [, segundo] = within(await lista()).getAllByRole("listitem");
     await waitFor(() => expect(document.activeElement).toBe(segundo));
@@ -226,7 +226,7 @@ describe("Responder no cartão da lista (issue #2145)", () => {
         return { ok: true, status: 200, json: async () => corpo } as unknown as Response;
       }),
     );
-    render(<EsperandoSuaResposta token="token-de-teste" agora={AGORA} />);
+    render(<EsperandoVoce token="token-de-teste" agora={AGORA} />);
     return pedidos;
   }
 
@@ -280,7 +280,78 @@ describe("Responder no cartão da lista (issue #2145)", () => {
     });
     fireEvent.click(within(cartao).getByRole("button", { name: "Responder" }));
 
-    await waitFor(() => expect(screen.queryByRole("region", { name: "Esperando sua resposta" })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Esperando você" })).toBeNull());
     expect(pedidos.find((p) => p.metodo === "POST")?.corpo).toEqual({ texto: "Quem estiver de plantão." });
+  });
+});
+
+// ─── Os dois tipos de Pedido da Vitta (issue #2176, ADR 0110) ──────────────
+
+const PASSO_A_PASSO = {
+  ...MINHA,
+  id: "pp-1",
+  tipo: "passo_a_passo",
+  assunto: "publicar o Regimento do NSP",
+  texto: "Publique o Regimento do NSP no app.",
+  passos: [
+    { texto: "Abra a aba Segurança do Paciente.", marcado: true, por: "Diretora Clínica" },
+    { texto: "Como saber que acabou: o Regimento aparece como Publicado.", marcado: true, por: "Diretora Clínica" },
+  ],
+  pode_responder: true,
+};
+
+const COM_A_VITTA = {
+  ...PASSO_A_PASSO,
+  id: "pp-2",
+  assunto: "rodar a migration 232",
+  texto: "Aplique a migration 232 no Studio.",
+  destinatario: "Pedro Rezende",
+  minha: false,
+  com_a_vitta: true,
+  pode_responder: false,
+};
+
+describe("Esperando você junta a Pergunta e o Passo a passo", () => {
+  it("cada tipo aparece com o seu ícone", async () => {
+    montar([MINHA, PASSO_A_PASSO]);
+
+    const regiao = await lista();
+
+    const pergunta = within(regiao).getByRole("article", { name: "Pergunta da Vitta" });
+    const passo = within(regiao).getByRole("article", { name: "Passo a passo da Vitta" });
+    expect(within(pergunta).getByRole("img", { name: "Pergunta" })).toBeTruthy();
+    expect(within(passo).getByRole("img", { name: "Passo a passo" })).toBeTruthy();
+    expect(within(pergunta).queryByRole("img", { name: "Passo a passo" })).toBeNull();
+  });
+
+  it("o que está com a Vitta fica no grupo Com a Vitta, separado dos seus", async () => {
+    montar([PASSO_A_PASSO, COM_A_VITTA]);
+
+    const regiao = await lista();
+
+    const daVitta = within(regiao).getByRole("list", { name: "Com a Vitta" });
+    expect(within(daVitta).getByText("Aplique a migration 232 no Studio.")).toBeTruthy();
+    const seus = within(regiao).getByRole("list", { name: "Pedidos da Vitta" });
+    expect(within(seus).queryByText("Aplique a migration 232 no Studio.")).toBeNull();
+  });
+
+  it("o Passo a passo concluído sai da lista na hora", async () => {
+    const concluido = { ...PASSO_A_PASSO, estado: "concluida", pode_responder: false };
+    const pedidos: { url: string; metodo: string }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        pedidos.push({ url, metodo: init?.method ?? "GET" });
+        const corpo = init?.method === "POST" ? { pergunta: concluido, mensagem: null } : [PASSO_A_PASSO];
+        return { ok: true, status: 200, json: async () => corpo } as unknown as Response;
+      }),
+    );
+    render(<EsperandoVoce token="token-de-teste" agora={AGORA} />);
+    const regiao = await lista();
+
+    fireEvent.click(within(regiao).getByRole("button", { name: "Concluir" }));
+
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Esperando você" })).toBeNull());
+    expect(pedidos.find((p) => p.metodo === "POST")?.url).toBe("/api/admin/tecnologia/perguntas/pp-1/concluir");
   });
 });

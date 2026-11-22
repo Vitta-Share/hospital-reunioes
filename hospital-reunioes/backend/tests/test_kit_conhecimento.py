@@ -382,7 +382,8 @@ APOSENTADOS_DA_ABA = (
     "Levar para desenvolvimento",
     "Minha vez",
     "Histórico",
-    "Concluir",
+    # "Concluir" voltou com a ADR 0110 (issue #2176): o botao do cartao do
+    # Passo a passo da Vitta, e nao o da Demanda de antes.
     "Cancelar",
     "Mover",
     "raia",
