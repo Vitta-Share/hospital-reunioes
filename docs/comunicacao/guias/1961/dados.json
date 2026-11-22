@@ -1,0 +1,118 @@
+{
+  "issue": 1961,
+  "contexto": "Segurança do Paciente",
+  "titulo_aba": "Passo a passo: Regimento, ato e suplente do Núcleo",
+  "descricao": "Como publicar o Regimento e o ato de designação no app e cadastrar a suplente da Presidência do Núcleo de Segurança do Paciente.",
+  "estado": "Depende do hospital",
+  "selo": "Passo a passo · Núcleo de Segurança do Paciente",
+  "titulo": "Deixar o Núcleo pronto",
+  "destaque": "para o uso de verdade",
+  "resumo": "O Núcleo só começa a funcionar com três coisas formais no app: o Regimento aprovado, o ato que nomeia os membros e a suplente da Presidência cadastrada. Você publica, o Felipe e a Simone assinam pelo e-mail. A suplente só entra depois que os dois documentos estiverem valendo, porque o Termo que ela assina leva os dois.",
+  "numeros": [
+    { "valor": "7", "rotulo": "passos" },
+    { "valor": "2", "rotulo": "esperas pelo Felipe e pela Simone" },
+    { "valor": "15 min", "rotulo": "do seu tempo, sem contar as esperas" }
+  ],
+  "quem": [
+    { "nome": "Você", "faz": "Avisa o Felipe, publica os dois documentos e cadastra a suplente." },
+    { "nome": "Felipe", "faz": "Manda o texto do ato de designação e assina os dois documentos pela Diretoria." },
+    { "nome": "Simone", "faz": "Assina o Regimento pela Presidência do Núcleo." },
+    { "nome": "O agente", "faz": "Confere no app cada passo que você disser que fez e fecha o card no fim." }
+  ],
+  "passos": [
+    {
+      "titulo": "Avise o Felipe",
+      "texto": [
+        "Mande esta mensagem no WhatsApp do Felipe. Ela avisa que vai chegar um e-mail para assinar e pede o texto do ato de designação, que só ele tem."
+      ],
+      "copias": [
+        {
+          "rotulo": "Mensagem para o Felipe",
+          "copiar": "Fala Felipe, os 17 temas já tão no app 🙌\n\nPra fechar a parte formal do NSP faltam duas coisas suas.\n\nVou publicar o Regimento no app. Vai chegar um email da Clicksign pra você e pra Simone assinarem, e essa assinatura de vocês dois já vale como a aprovação.\n\nMe manda o texto do ato de designação dos membros, com a suplente da Simone que você indicou. Eu publico e chega pra você assinar também.\n\nQualquer coisa me chama."
+        }
+      ]
+    },
+    {
+      "titulo": "Copie o texto do Regimento",
+      "texto": [
+        "O texto do Regimento fica guardado no seu Mac, fora da internet. Este comando copia ele inteiro para você colar no app no passo 4."
+      ],
+      "copias": [
+        {
+          "rotulo": "Comando para o Terminal",
+          "comando": true,
+          "copiar": "pbcopy < ~/PedroDev/Hospital/local/nsp/regimento-anexo-d-v1.1-para-colar.md",
+          "como": "Abra o Terminal: aperte Cmd + Espaço, digite Terminal e aperte Enter. Cole o comando com Cmd + V e aperte Enter. Não aparece nada na tela, e está certo assim: o texto já foi copiado."
+        }
+      ]
+    },
+    {
+      "titulo": "Abra a tela de Documentos do Núcleo",
+      "texto": [
+        "Clique no botão abaixo e entre com o seu login de sempre do app.",
+        "Se a tela disser que você não tem acesso, falta o seu cadastro como Presidência do Núcleo ou com Acesso pleno. Só ser super admin não abre esta tela."
+      ],
+      "abrir": { "rotulo": "Abrir Documentos do Núcleo", "url": "https://hospitalsaomatheus.cloud/seguranca-do-paciente/documentos" },
+      "ver": "A tela Documentos, com o botão [[Publicar versão nova]] no alto."
+    },
+    {
+      "titulo": "Publique o Regimento",
+      "texto": [
+        "Clique em [[Publicar versão nova]]. Abre um formulário.",
+        "Em Tipo, troque para [[Regimento]]. O formulário já vem com Ato de designação escolhido, então confira.",
+        "Em Título, cole o título abaixo. Clique na caixa Texto e cole com Cmd + V o Regimento que você copiou no passo 2.",
+        "Em Natureza da revisão, marque [[Material (pede nova assinatura do Termo)]].",
+        "Clique em [[Enviar para assinatura]]. Não clique em [[Publicar]]: esse botão põe o Regimento valendo sem a assinatura do Felipe e da Simone."
+      ],
+      "copias": [
+        { "rotulo": "Título do Regimento", "copiar": "Regimento Interno do Núcleo de Segurança do Paciente, versão 1.1" }
+      ],
+      "ver": "O Regimento aparece no alto da lista com o aviso [[Aguardando assinatura]]. O Felipe e a Simone recebem um e-mail da Clicksign para assinar."
+    },
+    {
+      "titulo": "Publique o ato de designação",
+      "espera": "Este passo espera o Felipe mandar o texto do ato. Enquanto não chegar, pule para o passo 6.",
+      "texto": [
+        "Quando o texto chegar, copie a mensagem do Felipe inteira. Volte em Documentos e clique em [[Publicar versão nova]].",
+        "Em Tipo, deixe [[Ato de designação]], que já vem escolhido. Em Título, cole o título abaixo. Na caixa Texto, cole o texto do Felipe.",
+        "Natureza da revisão pode ficar em branco. Clique em [[Enviar para assinatura]]. O ato vai só para o Felipe assinar."
+      ],
+      "copias": [
+        { "rotulo": "Título do ato", "copiar": "Ato de designação dos membros do Núcleo de Segurança do Paciente" }
+      ],
+      "ver": "O ato aparece na lista com o aviso [[Aguardando assinatura]]."
+    },
+    {
+      "titulo": "Espere as assinaturas",
+      "espera": "Aqui quem age é o Felipe e a Simone: cada um assina pelo e-mail da Clicksign. Se passar uns dias sem assinatura, lembre os dois.",
+      "texto": [
+        "Você não precisa fazer nada no app. Quando os dois assinarem, o app troca o aviso sozinho.",
+        "Para conferir, abra Documentos de novo pelo botão do passo 3."
+      ],
+      "ver": "O Regimento versão 1.1 e o ato de designação aparecem com o selo [[Vigente]]. Só siga para o passo 7 quando os dois estiverem assim."
+    },
+    {
+      "titulo": "Cadastre a suplente da Presidência",
+      "texto": [
+        "Clique no botão abaixo para abrir Membros e depois em [[Cadastrar membro]].",
+        "Em Pessoa, escolha a suplente que o Felipe indicou. O nome está na especificação dele, seção 16.2, item 1. O comando abaixo abre esse arquivo no seu Mac, do mesmo jeito do passo 2. Se o nome dela não aparece na lista, ela ainda não tem cadastro de pessoa no app: conte ao agente.",
+        "Em Papel, escolha [[Suplente da Presidência]]. Em Área, digite Diretoria Médica. Preencha Conselho, Número do registro e UF do registro com os dados do conselho dela, e as datas de Início da vigência e Fim da vigência que o ato definiu.",
+        "Clique em [[Salvar cadastro]]."
+      ],
+      "copias": [
+        {
+          "rotulo": "Comando para abrir a especificação",
+          "comando": true,
+          "copiar": "open -a CotEditor ~/PedroDev/Hospital/local/nsp/email-2026-11-18/especificacao-modulo-nsp-hsm.md"
+        }
+      ],
+      "abrir": { "rotulo": "Abrir Membros do Núcleo", "url": "https://hospitalsaomatheus.cloud/seguranca-do-paciente/membros" },
+      "ver": "Ela aparece na lista de membros e recebe por e-mail o Termo para assinar. Quando ela assinar, o estado vira Ativo e a data aparece na coluna Termo."
+    }
+  ],
+  "acabou": [
+    "Em Documentos, o Regimento versão 1.1 e o ato de designação aparecem com o selo [[Vigente]].",
+    "Em Membros, a suplente aparece como Suplente da Presidência, com o estado Ativo e a data na coluna Termo."
+  ],
+  "ajuda": "Travou em algum passo ou a tela mostrou algo diferente daqui? Abra o card no PedroOS e conte o que apareceu. O agente confere no app e diz o que fazer. Quando tudo estiver pronto, ele fecha o card."
+}

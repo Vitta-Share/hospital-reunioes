@@ -24,6 +24,8 @@ on:
       - '.claude/skills/pegar-issue/**'
       - '.claude/skills/apresentar-prd/**'
       - 'docs/comunicacao/planos/**'
+      - '.claude/skills/guia-humano/**'
+      - 'docs/comunicacao/guias/**'
       - '.github/workflows/ferramentas.yml'
       - '.github/workflows/ci.yml'
       - '.github/workflows/pos-merge.yml'
@@ -59,6 +61,9 @@ on:
       # skill e a função de validar da pasta dos planos no Node.
       - '.claude/skills/apresentar-prd/**'
       - 'docs/comunicacao/planos/**'
+      # O Guia passo a passo do card humano: o teste em tools/ monta todo guia.
+      - '.claude/skills/guia-humano/**'
+      - 'docs/comunicacao/guias/**'
       - '.github/workflows/ferramentas.yml'
       # O ruleset da main exige os jobs do ci.yml pelo nome (issue #910): o
       # teste em tools/ que amarra os dois roda quando qualquer um muda.

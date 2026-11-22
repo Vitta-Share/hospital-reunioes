@@ -55,6 +55,7 @@ O diretor faz a metade de negócio do grill no app (ADR 0075). No card aberto de
 - Melhorar arquitetura → `/improve-codebase-architecture` (relatório HTML); sanity-check de design → `/prototype`. Vocabulário de módulos em `codebase-design`; glossário e ADRs em `domain-modeling`; RLS, índice e migration pelo checklist da Supabase em `supabase-postgres-best-practices` (skill de referência, cópia fiel do upstream, só travessão trocado).
 
 - PRD fatiado que o diretor precisa validar antes do trabalho → `/apresentar-prd <PRD>`: a Apresentação do PRD, o plano em etapas com o botão Validar, publicada em `https://planos-hsm.vercel.app/<PRD>`; o Validar grava a label `validado:diretor` e um comentário no PRD. Republicar tira a label. O texto do e-mail (link com o código) fica fora do repositório, e a sessão envia o e-mail ao diretor pelo Gmail. Fonte em `docs/comunicacao/planos/` (o segredo fica só no Mac e na Vercel).
+- Card humano (`ready-for-human`) que depende de gente do hospital (assinar, mandar texto, aprovar) → `/guia-humano <N>`: o Guia passo a passo, uma página para leigo no design do app com botão Copiar em toda mensagem, título e comando, publicada em `https://guias-hsm.vercel.app/<N>`; o marcador `<!-- guia: <url> -->` no corpo da issue dá ao card do PedroOS o status Guia pronto e o botão Abrir guia, e a sessão do card oferece abrir. Fonte em `docs/comunicacao/guias/`.
 
 ## Pós-entrega
 

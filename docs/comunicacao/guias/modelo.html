@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{{titulo_aba}}</title>
+<meta name="description" content="{{descricao}}" />
+<meta name="robots" content="noindex" />
+<style>
+  /* Design system do app (globals.css do Hospital Reuniões), o mesmo da Apresentação do PRD */
+  @font-face{font-family:"HP Simplified";src:url("/HPSimplified_Rg.ttf") format("truetype");font-weight:400;font-style:normal;font-display:swap}
+  :root{
+    --color-primary:#2B2E7E;--color-primary-light:#3B6FB6;--color-primary-dark:#1A1C4E;
+    --color-secondary:#88D7A4;--color-accent:#FFC067;
+    --color-bg:#ffffff;--color-surface:#ffffff;--color-soft:#EEF2FA;
+    --color-text:#1E293B;--color-text-secondary:#64748B;--color-border:#E2E8F0;
+    --color-shadow:rgba(0,0,0,.08);--color-shadow-strong:rgba(0,0,0,.12);
+    --shadow-premium:0 10px 25px -5px var(--color-shadow),0 8px 10px -6px var(--color-shadow);
+    --shadow-premium-strong:0 20px 25px -5px var(--color-shadow-strong),0 8px 10px -6px var(--color-shadow-strong);
+    --radius-2xl:8px;--radius-3xl:12px;
+    --font-app:"HP Simplified",system-ui,-apple-system,sans-serif;
+    --ok:#1d7a45;
+  }
+  *{box-sizing:border-box}
+  em,i,cite{font-style:normal}
+  b,strong,h1,h2,h3{font-weight:400}
+  html{font-size:17px;scroll-behavior:smooth}
+  body{margin:0;background:var(--color-bg);color:var(--color-text);font-family:var(--font-app);line-height:1.6;-webkit-font-smoothing:antialiased}
+  button{font-family:inherit;font-size:inherit;color:inherit}
+  .wrap{max-width:880px;margin:0 auto;padding:0 24px}
+  @media(max-width:600px){.wrap{padding:0 16px}}
+
+  /* cabeçalho */
+  header.top{position:sticky;top:0;z-index:40;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--color-border)}
+  .top-in{display:flex;align-items:center;gap:14px;padding:10px 0}
+  .top-logo{height:40px;width:auto;display:block}
+  .top-t{font-size:16px;color:var(--color-primary-dark)}
+  .estado{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--color-text-secondary);white-space:nowrap}
+  .ponto{width:8px;height:8px;border-radius:50%;background:var(--color-accent);animation:pulso 2.2s infinite}
+  .estado.ok .ponto{background:var(--color-secondary);animation:none}
+  @keyframes pulso{0%{box-shadow:0 0 0 0 rgba(255,192,103,.6)}70%{box-shadow:0 0 0 8px rgba(255,192,103,0)}100%{box-shadow:0 0 0 0 rgba(255,192,103,0)}}
+  .barra{height:3px;background:var(--color-border)}
+  .barra i{display:block;height:3px;width:0;background:var(--color-secondary);transition:width .5s ease}
+
+  /* hero */
+  .hero{padding:48px 0 8px}
+  .eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--color-text-secondary)}
+  h1{font-size:clamp(28px,4.4vw,42px);line-height:1.14;margin:14px 0 16px;color:var(--color-primary-dark)}
+  h1 .hi{color:var(--color-primary-light)}
+  .dek{font-size:18px;color:var(--color-text-secondary);margin:0}
+  .numeros{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:28px 0 0}
+  .num{background:var(--color-soft);border-radius:var(--radius-3xl);padding:16px 18px}
+  .num .v{font-size:34px;line-height:1;color:var(--color-primary)}
+  .num .r{font-size:14px;color:var(--color-text-secondary);margin-top:6px}
+  @media(max-width:600px){.numeros{grid-template-columns:1fr}.num{display:flex;align-items:baseline;gap:12px}.num .r{margin:0}}
+
+  /* seções */
+  section{padding:40px 0 8px}
+  .mark{display:flex;align-items:center;gap:12px;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-text-secondary)}
+  .mark::before{content:"";width:34px;height:2px;background:var(--color-primary);border-radius:2px}
+  h2{font-size:clamp(22px,3vw,28px);margin:12px 0 10px;line-height:1.2;color:var(--color-primary-dark)}
+  .lede{color:var(--color-text-secondary);margin:0 0 20px}
+
+  /* quem faz o quê */
+  .quem{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  @media(max-width:600px){.quem{grid-template-columns:1fr}}
+  .pessoa{border:1px solid var(--color-border);border-radius:var(--radius-3xl);padding:16px 18px;background:var(--color-surface)}
+  .pessoa .n{font-size:17px;color:var(--color-primary-dark)}
+  .pessoa .p{font-size:15px;color:var(--color-text-secondary);margin-top:4px}
+
+  /* os passos */
+  .faixa{background:var(--color-soft);margin-top:40px;padding:40px 0 48px}
+  .faixa section{padding-top:0}
+  .passos{display:grid;gap:16px;counter-reset:passo}
+  .passo{display:grid;grid-template-columns:48px minmax(0,1fr);gap:16px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-3xl);box-shadow:var(--shadow-premium);padding:22px 22px 20px;transition:opacity .3s,box-shadow .3s}
+  @media(max-width:600px){.passo{grid-template-columns:1fr;padding:18px 16px}}
+  .bola{width:42px;height:42px;border-radius:50%;border:2px solid var(--color-primary);color:var(--color-primary);display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .3s}
+  .passo.feito{opacity:.62;box-shadow:none}
+  .passo.feito .bola{background:var(--color-secondary);border-color:var(--color-secondary);color:#fff}
+  .p-tit{font-size:20px;line-height:1.3;color:var(--color-primary-dark);margin:6px 0 10px}
+  .p-txt{margin:0 0 10px;font-size:16px}
+  .ui{display:inline-block;border:1px solid var(--color-primary-light);color:var(--color-primary);background:#fff;border-radius:9999px;padding:0 10px;font-size:.92em;line-height:1.55;white-space:nowrap}
+  .espera{display:flex;gap:10px;align-items:flex-start;background:rgba(255,192,103,.18);border:1px solid rgba(255,192,103,.7);border-radius:var(--radius-2xl);padding:10px 14px;margin:4px 0 12px;font-size:15px;color:var(--color-primary-dark)}
+  .espera .ic{flex-shrink:0;width:22px;height:22px;border-radius:50%;background:var(--color-accent);color:var(--color-primary-dark);display:flex;align-items:center;justify-content:center;font-size:13px;margin-top:1px}
+  .copia{margin:12px 0;border:1px solid var(--color-border);border-radius:var(--radius-2xl);overflow:hidden}
+  .copia-top{display:flex;align-items:center;gap:10px;background:var(--color-soft);padding:8px 10px 8px 14px}
+  .copia-r{font-size:13px;letter-spacing:.06em;color:var(--color-text-secondary);flex:1}
+  .copia pre{margin:0;padding:14px;white-space:pre-wrap;word-break:break-word;font-family:var(--font-app);font-size:15px;line-height:1.5;max-height:340px;overflow:auto;background:#fff}
+  .copia.cmd pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px}
+  .copia-como{font-size:14px;color:var(--color-text-secondary);padding:0 14px 12px;margin:0;background:#fff}
+  .btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--color-primary);background:var(--color-primary);color:#fff;border-radius:9999px;padding:8px 18px;cursor:pointer;text-decoration:none;font-size:15px;transition:background .2s,box-shadow .2s,transform .2s}
+  .btn:hover{background:var(--color-primary-dark);box-shadow:0 6px 16px -4px rgba(43,46,126,.45)}
+  .btn:active{transform:scale(.98)}
+  .btn.peq{padding:4px 14px;font-size:14px}
+  .btn.copiado{background:var(--ok);border-color:var(--ok)}
+  .btn.claro{background:#fff;color:var(--color-primary)}
+  .btn.claro:hover{color:var(--color-primary-dark)}
+  .abrir{margin:6px 0 12px}
+  .ver{display:grid;grid-template-columns:24px 1fr;gap:10px;background:rgba(59,111,182,.08);border-radius:var(--radius-2xl);padding:10px 14px;font-size:15px;margin:8px 0 12px}
+  .ver .ic{width:22px;height:22px;border-radius:50%;background:var(--color-primary-light);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;margin-top:2px}
+  .ver .r{display:block;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--color-primary-light)}
+  .marcar{display:inline-flex;align-items:center;gap:10px;margin-top:8px;cursor:pointer;font-size:15px;color:var(--color-text-secondary);user-select:none}
+  .marcar input{width:20px;height:20px;accent-color:var(--ok);cursor:pointer}
+
+  /* acabou */
+  .acabou{border:1px solid var(--color-border);border-radius:var(--radius-3xl);box-shadow:var(--shadow-premium-strong);padding:24px;background:linear-gradient(180deg,#fff,var(--color-soft))}
+  .acabou ul{margin:0;padding:0;list-style:none;display:grid;gap:10px}
+  .acabou li{display:grid;grid-template-columns:26px 1fr;gap:10px;font-size:16px}
+  .acabou .ck{width:22px;height:22px;border-radius:50%;background:rgba(136,215,164,.45);color:var(--ok);display:flex;align-items:center;justify-content:center;font-size:12px;margin-top:2px}
+  .ajuda{margin:18px 0 0;font-size:15px;color:var(--color-text-secondary)}
+
+  footer{padding:34px 0 28px;color:var(--color-text-secondary);font-size:13px}
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top-in">
+    <img class="top-logo" src="/logo-hsm.png" alt="Hospital São Matheus" />
+    <div class="top-t">{{contexto}}</div>
+    <div class="estado" id="estado"><span class="ponto"></span><span id="estado-t">{{estado}}</span></div>
+  </div>
+  <div class="barra" aria-hidden="true"><i id="barra"></i></div>
+</header>
+
+<div class="wrap">
+  <div class="hero">
+    <div class="eyebrow">{{selo}}</div>
+    <h1>{{titulo}} <span class="hi">{{destaque}}</span></h1>
+    <p class="dek">{{resumo}}</p>
+    <div class="numeros">
+{{numeros}}
+    </div>
+  </div>
+
+  <section>
+    <div class="mark">Quem faz o quê</div>
+    <h2>Cada um tem a sua parte</h2>
+    <div class="quem">
+{{quem}}
+    </div>
+  </section>
+</div>
+
+<div class="faixa">
+  <div class="wrap">
+    <section>
+      <div class="mark">Passo a passo</div>
+      <h2>Faça um passo de cada vez</h2>
+      <p class="lede">Os botões azuis copiam o texto para você colar. Quando terminar um passo, marque "Já fiz este passo". Esta página guarda o que você marcou neste navegador.</p>
+      <div class="passos">
+{{passos}}
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="wrap">
+  <section>
+    <div class="acabou">
+      <div class="mark">Como saber que acabou</div>
+      <h2>Está pronto quando</h2>
+      <ul>
+{{acabou}}
+      </ul>
+      <p class="ajuda">{{ajuda}}</p>
+    </div>
+  </section>
+
+  <footer>{{rodape}}</footer>
+</div>
+
+<script>
+(function(){
+  const CHAVE = 'guia-hsm-{{chave}}';
+  const feitos = new Set(JSON.parse(localStorage.getItem(CHAVE) || '[]'));
+  const caixas = [...document.querySelectorAll('.marcar input')];
+  const total = caixas.length;
+  function pinta(){
+    caixas.forEach(c => { c.checked = feitos.has(c.dataset.passo); c.closest('.passo').classList.toggle('feito', c.checked); });
+    document.getElementById('barra').style.width = (total ? 100 * feitos.size / total : 0) + '%';
+    const tudo = total && feitos.size === total;
+    document.getElementById('estado').classList.toggle('ok', !!tudo);
+    document.getElementById('estado-t').textContent = tudo ? 'Tudo feito' : feitos.size + ' de ' + total + ' passos feitos';
+  }
+  caixas.forEach(c => c.addEventListener('change', () => {
+    c.checked ? feitos.add(c.dataset.passo) : feitos.delete(c.dataset.passo);
+    localStorage.setItem(CHAVE, JSON.stringify([...feitos]));
+    pinta();
+  }));
+  document.querySelectorAll('[data-copiar]').forEach(b => b.addEventListener('click', async () => {
+    const texto = document.getElementById(b.dataset.copiar).textContent;
+    try { await navigator.clipboard.writeText(texto); } catch (e) {
+      const r = document.createRange(); r.selectNodeContents(document.getElementById(b.dataset.copiar));
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r); document.execCommand('copy');
+    }
+    const antes = b.textContent; b.textContent = 'Copiado'; b.classList.add('copiado');
+    setTimeout(() => { b.textContent = antes; b.classList.remove('copiado'); }, 1800);
+  }));
+  pinta();
+})();
+</script>
+</body>
+</html>
