@@ -221,9 +221,9 @@ def pergunta_do_diretor(pode_responder: bool) -> dict:
 
 def perguntas() -> dict:
     """A lista Esperando sua resposta (issue #2118) e o Me explique da Pergunta do diretor
-    (issue #2122). A lista só lê, como a rota: ninguém responde por ela. A do diretor vem
-    primeiro, a de outra pessoa depois."""
-    minha = pergunta_do_diretor(pode_responder=False)
+    (issue #2122). A do diretor vem primeiro e se responde no cartão da lista (issue #2145);
+    a de outra pessoa depois, só para ler."""
+    minha = pergunta_do_diretor(pode_responder=True)
     demanda, _ = _projeto_da(SEED["abrir"]["projeto_novo"])
     outra = SEED["outra_pergunta"]
     da_outra, projeto = _projeto_da(outra["demanda"])

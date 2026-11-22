@@ -69,7 +69,7 @@ A pergunta da Vitta fica guardada num cartão até alguém responder. A lista **
 4. Leia o cartão. Em cima dele vem o nome do pedido, em **Demanda**. No cartão aparecem o projeto, o estado **Aberta**, há quantos dias a pergunta espera, a pergunta e quatro quadros: **Por que precisa de você**, **O que está parado**, **O que anda quando você responder** e **O que o hospital ganha**. Quando a Vitta já preparou opções, elas vêm embaixo, com a recomendada em destaque e o porquê.
 5. Clique no aviso do sino ou no link do e-mail de uma pergunta: a aba abre com o cartão dela em destaque, com uma borda em volta.
 
-Na lista, o cartão serve para ler. Para responder, abra o pedido, como em **Responder uma pergunta da Vitta**, logo abaixo. A pergunta respondida sai da lista na próxima vez que a aba abre.
+Se a pergunta espera você, responda ali mesmo, no cartão da lista: as opções, o campo da resposta e o **Me explique** aparecem nele, como em **Responder uma pergunta da Vitta**, logo abaixo. Quando a pergunta espera outra pessoa da diretoria, o cartão é só para ler. A pergunta respondida sai da lista na hora.
 
 ## Responder uma pergunta da Vitta
 
@@ -80,17 +80,16 @@ Na lista, o cartão serve para ler. Para responder, abra o pedido, como em **Res
    ![O aviso Pede sua resposta no sino, com o assunto embaixo](aviso-pede-resposta.png)
 
 2. No e-mail, o assunto diz quem pergunta e sobre o quê, por exemplo "Clara Nogueira pede sua resposta: aprovação da troca de plantão". Dentro dele vêm o assunto, o nome do pedido e o link.
-3. Clique no aviso do sino ou no link do e-mail. A aba Tecnologia abre com o cartão da pergunta em destaque, na lista **Esperando sua resposta**. Em cima do cartão está o nome do pedido.
-4. No Quadro, clique no card desse pedido. Ele abre no painel à direita.
-5. Clique em **Conversar**, no alto do painel. O cartão da pergunta aparece na Conversa da Demanda: leia e responda ali mesmo, no cartão.
+3. Clique no aviso do sino ou no link do e-mail. A aba Tecnologia abre com o cartão da pergunta em destaque, na lista **Esperando sua resposta**. Em cima do cartão está o nome do pedido. Leia e responda ali mesmo, no cartão da lista, sem abrir o pedido.
+4. O mesmo cartão aparece na Conversa da Demanda do pedido. Para responder por lá, clique no card do pedido, no Quadro, e depois em **Conversar**, no alto do painel: responda ali mesmo, no cartão.
 
    ![O cartão da pergunta na Conversa da Demanda, com as opções e o campo da resposta](cartao-da-pergunta.png)
 
-6. Se a pergunta traz opções, clique na opção que você escolhe: o clique já envia a resposta. A opção **Recomendada** vem em destaque, com o porquê embaixo. Se nenhuma opção serve, escreva no campo embaixo delas e clique em **Responder**. Se tiver dúvida antes de responder, veja **Pedir explicação ao assistente (Me explique)**, logo abaixo.
-7. Depois de responder, o cartão passa a **Respondida** e mostra a sua resposta e o seu nome. A resposta também entra na Conversa da Demanda. A pergunta sai da lista **Esperando sua resposta** na próxima vez que a aba abre: até lá, o cartão dela continua na lista como **Aberta**, mas a sua resposta já foi.
-8. A Vitta lê a sua resposta e dá o ok. Só então o trabalho anda: o cartão passa a **Resolvida**, com **O que foi decidido** e **O que destravou**, e a conversa ganha uma linha com a decisão. Quando a pergunta deixa de ser necessária, o cartão passa a **Cancelada**, com o motivo.
+5. Se a pergunta traz opções, clique na opção que você escolhe: o clique já envia a resposta. A opção **Recomendada** vem em destaque, com o porquê embaixo. Se nenhuma opção serve, escreva no campo embaixo delas e clique em **Responder**. Se tiver dúvida antes de responder, veja **Pedir explicação ao assistente (Me explique)**, logo abaixo.
+6. Depois de responder, a pergunta sai da lista **Esperando sua resposta** na hora. Na Conversa da Demanda, o cartão passa a **Respondida** e mostra a sua resposta e o seu nome, e a resposta entra também como mensagem.
+7. A Vitta lê a sua resposta e dá o ok. Só então o trabalho anda: o cartão passa a **Resolvida**, com **O que foi decidido** e **O que destravou**, e a conversa ganha uma linha com a decisão. Quando a pergunta deixa de ser necessária, o cartão passa a **Cancelada**, com o motivo.
 
-Só a pessoa que a pergunta espera responde. Outro Super admin vê o cartão sem as opções clicáveis e sem o campo da resposta. Um desenvolvedor da Vitta pode registrar a resposta no seu lugar, e o cartão mostra os dois nomes, como "Registrada por Rafael Moura em nome de Henrique Bastos".
+Só a pessoa que a pergunta espera responde. Outro Super admin vê o cartão, na lista e na Conversa, sem as opções clicáveis, sem o campo da resposta e sem o **Me explique**. Um desenvolvedor da Vitta pode registrar a resposta no seu lugar, e o cartão mostra os dois nomes, como "Registrada por Rafael Moura em nome de Henrique Bastos".
 
 Se a pergunta fica sem resposta, o aplicativo lembra você uma vez só, depois de 3 dias, no sino e por e-mail, com quantos dias ela espera, como **Sua resposta espera há 3 dias**.
 
@@ -104,7 +103,7 @@ Quando a Vitta só dá um recado, sem pergunta, o sino mostra o aviso de sempre,
 
 Quando a pergunta não está clara, o **Me explique** abre, dentro do cartão, uma conversa só sua com o Assistente de Tecnologia. Ele já conhece o pedido e a pergunta. Ninguém mais vê essa conversa, e nada do Me explique vai para a Conversa da Demanda.
 
-1. Abra o cartão da pergunta na Conversa da Demanda, como nos passos 3 a 5 de **Responder uma pergunta da Vitta**.
+1. Abra o cartão da pergunta, na lista **Esperando sua resposta** ou na Conversa da Demanda, como nos passos 3 e 4 de **Responder uma pergunta da Vitta**.
 2. No cartão, clique em **Me explique**. O botão só aparece para a pessoa que a pergunta espera.
 3. Leia a explicação. O Assistente começa explicando a pergunta e o que cada opção muda. Se você fechar e abrir de novo, a conversa continua de onde parou.
 

@@ -231,14 +231,15 @@ describe("a Pergunta da Vitta, a lista Esperando sua resposta e o Me explique na
   const lista = () => T["perguntas/esperando"] as Item[];
   const doDiretor = () => lista().find((p) => p.minha)!;
 
-  it("a lista tem as Perguntas abertas no formato que a tela aceita, as do diretor primeiro, e nenhuma se responde por ela", () => {
+  it("a lista tem as Perguntas abertas no formato que a tela aceita, as do diretor primeiro, e só a dele se responde no cartão da lista", () => {
     const itens = lista();
     expect(Array.isArray(itens)).toBe(true);
     for (const p of itens) {
       expect(perguntaValida(p), `a Pergunta ${p.id} não serve`).toBe(true);
       expect(typeof p.demanda).toBe("string");
       expect(p.estado).toBe("aberta");
-      expect(p.pode_responder ?? false).toBe(false);
+      // Desde a issue #2145 o cartão da lista responde: o print mostra o campo na do diretor.
+      expect(p.pode_responder ?? false).toBe(p.minha);
     }
     const minhas = itens.map((p) => p.minha);
     expect(minhas).toContain(true);

@@ -300,6 +300,8 @@ class TestOKit:
             "As suas vêm primeiro",
             "a mais antiga primeiro",
             "abrem a aba Tecnologia já no cartão da pergunta",
+            "responde ali mesmo, no cartão da lista",
+            "sai da lista na hora",
         ):
             assert trecho in texto, trecho
         assert "Pendência da Vitta" not in texto

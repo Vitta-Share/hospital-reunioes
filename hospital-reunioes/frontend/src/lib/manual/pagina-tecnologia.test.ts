@@ -168,9 +168,14 @@ describe("o aviso Pede sua resposta e o pedido de projeto novo (issue #1968, PRD
     expect(passo, "nenhum passo diz o assunto do e-mail").toBeDefined();
   });
 
-  it("o passo de responder traz o print do cartão da pergunta na Conversa da Demanda (issue #2123)", () => {
-    const passo = passosDa(TAREFA).find((p) => /responda ali mesmo/.test(p));
-    expect(imagensCitadas(passo ?? "")).toContain("cartao-da-pergunta.png");
+  it("responder no cartão da lista vem primeiro, e a Conversa da Demanda depois, com o print do cartão (issues #2123 e #2145)", () => {
+    const passos = passosDa(TAREFA).filter((p) => /responda ali mesmo/.test(p));
+    expect(passos.length, "faltam os passos de responder na lista e na Conversa").toBeGreaterThanOrEqual(2);
+    const [naLista, naConversa] = passos;
+    expect(naLista).toMatch(/no cartão da lista/);
+    expect(naLista).toMatch(/sem abrir o pedido/);
+    expect(naConversa).toMatch(/Conversa da Demanda/);
+    expect(imagensCitadas(naConversa)).toContain("cartao-da-pergunta.png");
   });
 
   it("a tarefa Acompanhar o pedido no Quadro manda para a tarefa nova, sem repetir os passos", () => {
@@ -238,17 +243,20 @@ describe("a lista Esperando sua resposta, o cartão e o Me explique (issue #2123
     expect(noCartao).toMatch(/\*\*Responder\*\*/);
   });
 
-  it("a resposta deixa a pergunta Respondida, sai da lista, e só destrava com o ok da Vitta", () => {
+  it("a resposta deixa a pergunta Respondida, sai da lista na hora, e só destrava com o ok da Vitta", () => {
     const passo = passosDa(RESPONDER).find((p) => /\*\*Respondida\*\*/.test(p));
     expect(passo, "nenhum passo diz o que acontece depois de responder").toBeDefined();
-    // A lista só relê quando a aba abre: o manual não pode prometer que ela some na
-    // hora, senão quem responde vê o cartão Aberta e responde de novo (revisão do PR #2143).
-    expect(passo).toMatch(/sai da lista \*\*Esperando sua resposta\*\* na próxima vez que a aba abre/);
-    expect(passo).toMatch(/continua na lista como \*\*Aberta\*\*/);
+    // Desde a issue #2145 a lista tira a Pergunta respondida na hora, sem reler a aba.
+    expect(passo).toMatch(/sai da lista \*\*Esperando sua resposta\*\* na hora/);
     const daLista = secao(LISTA).texto.split(/\n\s*\n/).find((p) => /sai da lista/.test(p));
     expect(daLista, "a tarefa da lista não diz quando a pergunta respondida sai").toBeDefined();
-    expect(daLista).toMatch(/na próxima vez que a aba abre/);
-    expect(secao(LISTA).texto + secao(RESPONDER).texto).not.toMatch(/assim que alguém responde/);
+    expect(daLista).toMatch(/responda ali mesmo, no cartão da lista/);
+    expect(daLista).toMatch(/\*\*Me explique\*\*/);
+    expect(daLista).toMatch(/sai da lista na hora/);
+    const tudo = secao(LISTA).texto + secao(RESPONDER).texto;
+    expect(tudo).not.toMatch(/na próxima vez que a aba abre/);
+    expect(tudo).not.toMatch(/serve para ler\. Para responder, abra o pedido/);
+    expect(tudo).not.toMatch(/continua na lista como \*\*Aberta\*\*/);
     const { texto } = secao(RESPONDER);
     expect(texto).toMatch(/\*\*Resolvida\*\*/);
     expect(texto).toMatch(/\*\*O que foi decidido\*\*/);
