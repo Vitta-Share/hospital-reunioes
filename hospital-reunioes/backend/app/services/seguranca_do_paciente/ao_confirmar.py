@@ -32,7 +32,7 @@ from postgrest.exceptions import APIError
 from app.config import settings
 from app.dependencies import selecionar_participantes
 from app.services.ouvidoria_contato import email_utilizavel
-from app.services.ouvidoria_notificacoes import ler_diretoria_executiva
+from app.services.ouvidoria_notificacoes import avisar_admins_tecnicos, ler_diretoria_executiva
 from app.services.seguranca_do_paciente import emails, pauta, prazos
 from app.services.seguranca_do_paciente.permissao import FAIXAS_DA_DIRETORIA, ROLES_DA_DIRETORIA, id_do_nucleo
 from app.services.seguranca_do_paciente.reunioes import TipoReuniaoNsp
@@ -167,7 +167,24 @@ def _quando(agora: datetime) -> tuple[str, str]:
     return local.strftime("%d/%m/%Y"), local.strftime("%H:%M")
 
 
-def _a_direcao(supabase) -> list[dict]:
+def _avisar_o_admin_da_executiva_ilegivel(supabase, protocolo: str) -> None:
+    """A Executiva que ficou de fora só fica sabendo por aqui: a confirmação
+    já terminou e confirmar de novo dá 409 (como o alerta de caso grave, #373).
+    Sem o relato."""
+    try:
+        avisar_admins_tecnicos(
+            supabase,
+            "Núcleo de Segurança do Paciente: comunicação à Direção incompleta",
+            (
+                f"A comunicação à Direção do caso {protocolo} saiu sem chegar à Diretoria Executiva.\n"
+                "A leitura de quem recebe falhou no banco. Avise a Diretoria Executiva e confira o banco.\n"
+            ),
+        )
+    except Exception as falha:  # noqa: BLE001 (o aviso ao admin não segura a confirmação)
+        logger.error("[Confirmação NSP] Aviso ao admin técnico de %s falhou: %s", protocolo, type(falha).__name__)
+
+
+def _a_direcao(supabase, protocolo: str) -> list[dict]:
     """A Diretoria (o cargo que lê os casos A e B no módulo) e a Diretoria
     Executiva, ativas, cada pessoa uma vez só."""
     diretoria = (
@@ -181,6 +198,7 @@ def _a_direcao(supabase) -> list[dict]:
     executiva = ler_diretoria_executiva(supabase)
     if executiva is None:
         logger.error("[Confirmação NSP] Diretoria Executiva ilegível; a comunicação segue para a Diretoria.")
+        _avisar_o_admin_da_executiva_ilegivel(supabase, protocolo)
     pessoas: dict[str, dict] = {}
     for pessoa in [*diretoria, *(executiva or [])]:
         pessoas.setdefault(pessoa["id"], pessoa)
@@ -205,7 +223,7 @@ def mensagem_a_direcao(nome: str, protocolo: str, faixa: str, agora: datetime) -
 
 
 def _comunicar_a_direcao(supabase, caso: dict, faixa: str, agora: datetime) -> None:
-    pessoas = _a_direcao(supabase)
+    pessoas = _a_direcao(supabase, caso["protocolo"])
     if not pessoas:
         logger.error("[Confirmação NSP] Caso %s sem ninguém da Direção para comunicar.", caso["id"])
     for pessoa in pessoas:

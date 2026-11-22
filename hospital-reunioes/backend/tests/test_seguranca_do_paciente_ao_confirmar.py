@@ -300,6 +300,32 @@ def test_confirmar_c_d_ou_e_nao_registra_o_aviso_a_diretoria(enviados, sugestao)
     assert not [e for e in enviados if e["para"] in ("p6@hsm.test", "p8@hsm.test")]
 
 
+def test_a_diretoria_executiva_ilegivel_avisa_o_admin_tecnico_e_a_diretoria_recebe(monkeypatch):
+    """A leitura da Executiva que falha (timeout, PostgREST) não pode virar
+    caso confirmado sem a comunicação e sem ninguém saber (#373)."""
+    avisos_ao_admin: list[tuple[str, str]] = []
+    monkeypatch.setattr(ao_confirmar, "ler_diretoria_executiva", lambda _s: None)
+    monkeypatch.setattr(ao_confirmar, "avisar_admins_tecnicos", lambda _s, a, t: avisos_ao_admin.append((a, t)) or 1)
+
+    banco, caso = _caso_confirmado(OBITO)
+
+    assert [a["destinatario_id"] for a in _avisos(banco, ao_confirmar.MARCO_DA_DIRECAO)] == ["P6"]
+    assert len(avisos_ao_admin) == 1
+    assunto, texto = avisos_ao_admin[0]
+    assert "Diretoria Executiva" in texto
+    assert caso["protocolo"] in texto
+    assert caso["relato"] not in assunto + texto
+
+
+def test_a_diretoria_executiva_legivel_nao_avisa_o_admin_tecnico(monkeypatch):
+    avisos_ao_admin: list[tuple[str, str]] = []
+    monkeypatch.setattr(ao_confirmar, "avisar_admins_tecnicos", lambda _s, a, t: avisos_ao_admin.append((a, t)) or 1)
+
+    _caso_confirmado(OBITO)
+
+    assert avisos_ao_admin == []
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # 4. Quem notificou fica sabendo que o caso está em análise
 # ═══════════════════════════════════════════════════════════════════════════
