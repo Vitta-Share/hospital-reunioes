@@ -15,6 +15,9 @@
  * aparecem a quem o servidor diz que responde (`pode_responder`): o
  * Destinatário, ou o Desenvolvedor no lugar dele. A Pergunta respondida
  * mostra a resposta e quem respondeu.
+ *
+ * O estado final (issue #2121, ADR 0109, decisão 6): a resolvida mostra o que
+ * foi decidido e o que destravou; a cancelada, o motivo.
  */
 
 import { useState } from "react";
@@ -33,6 +36,10 @@ export type RespostaDaPergunta = {
   respondida_por: string | null;
   em_nome_de: string | null;
 };
+
+/** O estado final (issue #2121): a Vitta leu a resposta e resolveu, ou a Pergunta deixou de ser necessária. */
+export type ResolucaoDaPergunta = { decidido: string | null; destravou: string | null; resolvida_em: string | null };
+export type CancelamentoDaPergunta = { motivo: string | null; cancelada_em: string | null };
 
 /** O que a rota da resposta devolve: o cartão respondido e a mensagem da Conversa. */
 export type PerguntaRespondida = {
@@ -63,6 +70,8 @@ export type PerguntaDaVitta = {
   criado_em: string | null;
   destinatario?: string | null;
   resposta?: RespostaDaPergunta | null;
+  resolucao?: ResolucaoDaPergunta | null;
+  cancelamento?: CancelamentoDaPergunta | null;
   pode_responder?: boolean;
 };
 
@@ -112,6 +121,20 @@ function RespostaGravada({ resposta }: { resposta: RespostaDaPergunta }) {
       {resposta.texto && <p className="normal-case whitespace-pre-wrap text-sm text-slate-800">{resposta.texto}</p>}
       <p className="normal-case text-xs text-text-secondary">{quem}</p>
     </div>
+  );
+}
+
+/** O estado final, com a decisão e o que destravou, ou com o motivo (ADR 0109, decisão 6). */
+function EstadoFinal({ nome, linhas }: { nome: string; linhas: [string, string | null][] }) {
+  return (
+    <dl role="group" aria-label={nome} className="rounded-xl bg-white border border-slate-200 px-3 py-2 space-y-1">
+      {linhas.map(([rotulo, valor]) => (
+        <div key={rotulo}>
+          <dt className="text-xs font-semibold text-slate-700">{rotulo}</dt>
+          <dd className="normal-case whitespace-pre-wrap text-sm text-slate-800">{valor ?? ""}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -241,6 +264,18 @@ export function CartaoDaPergunta({
         </p>
       )}
       {pergunta.resposta && <RespostaGravada resposta={pergunta.resposta} />}
+      {pergunta.estado === "resolvida" && pergunta.resolucao && (
+        <EstadoFinal
+          nome="Resolvida"
+          linhas={[
+            ["O que foi decidido", pergunta.resolucao.decidido],
+            ["O que destravou", pergunta.resolucao.destravou],
+          ]}
+        />
+      )}
+      {pergunta.estado === "cancelada" && pergunta.cancelamento && (
+        <EstadoFinal nome="Cancelada" linhas={[["Motivo", pergunta.cancelamento.motivo]]} />
+      )}
     </article>
   );
 }
