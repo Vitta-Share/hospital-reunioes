@@ -2,6 +2,58 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T16:58:45-03:00",
+      "sha": "314857126f99a79997418477e5154bb6378bf9ce",
+      "app_version": "0.384.0",
+      "subject": "Onda sesta-1786-onda13: Anexos do relato sem metadados; Acompanhar o relato e conversar com o Comitê",
+      "raw_subject": "chore(deploy): registro da onda sesta-1786-onda13 (#2189 #2188)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 744,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "233_conduta_anexos_do_relato.sql",
+        "233_conduta_anexos_do_relato.sql",
+        "234_conduta_acompanhamento_e_mensagens.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1786-onda13: PR #2189 (issue #1844), PR #2188 (issue #1845), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 5,
+        "build_s": {
+          "backend": 25,
+          "frontend": 210
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T16:05:48-03:00",
       "sha": "dbbaa03d123c45047c91910205ba5eec3d63f3fb",
       "app_version": "0.383.0",
