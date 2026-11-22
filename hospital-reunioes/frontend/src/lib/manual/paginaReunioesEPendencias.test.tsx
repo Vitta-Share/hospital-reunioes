@@ -114,10 +114,12 @@ describe("as tarefas da página", () => {
 describe("as reuniões do Núcleo de Segurança do Paciente (issue #1781)", () => {
   const listaDeReunioes = secoes(PAGINA.corpo).find((s) => s.titulo === "Ver as reuniões do mês")!;
 
-  it("a seção da lista de reuniões diz que as do Núcleo ficam no módulo Segurança do Paciente", () => {
+  it("a seção da lista de reuniões diz que as do Núcleo ficam no módulo Segurança do Paciente, o NSP do menu (issue #1918)", () => {
     const linha = listaDeReunioes.texto.split("\n").find((l) => /Núcleo de Segurança do Paciente/.test(l)) ?? "";
 
-    expect(linha).toMatch(/módulo \*\*Segurança do Paciente\*\*/);
+    expect(linha).toMatch(/módulo Segurança do Paciente/);
+    expect(linha).toMatch(/\*\*NSP\*\*/);
+    expect(linha).not.toMatch(/\*\*Segurança do Paciente\*\*/);
     expect(linha).toMatch(/\*\*Reuniões\*\*/);
   });
 
