@@ -2,6 +2,49 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T14:33:57-03:00",
+      "sha": "1a4ac67bd6b98057df5a76321861e96d011fa588",
+      "app_version": "0.378.1",
+      "subject": "Onda nsp-1931-onda1: Manual cita a formação do instrutor na capacitação",
+      "raw_subject": "chore(deploy): registro da onda nsp-1931-onda1 (#2173)",
+      "scope": [
+        "frontend"
+      ],
+      "prds": [],
+      "result": "healthy",
+      "duration_seconds": 251,
+      "services_touched": [
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp-1931-onda1: PR #2173 (issue #1931), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 2,
+        "build_s": {
+          "frontend": 205
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T14:27:35-03:00",
       "sha": "769aaa203c449c5aa04532fafd385e04b4014db6",
       "app_version": "0.378.0",
