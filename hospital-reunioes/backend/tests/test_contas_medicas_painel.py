@@ -161,6 +161,8 @@ PESSOAS = {
     "bia": _pessoa("F2", "faturista", "Bia Faturista"),
     "coordenadora": _pessoa("CO", "coordenadora", "Carla Coordenadora"),
     "sem_eixo": _pessoa("RG", None, "Rui Sem Eixo", access_profile="regular"),
+    # O diretor entra como Super admin, sem perfil de Contas médicas (#1919).
+    "diretor": _pessoa("SA", None, "Davi Diretor", access_profile="super_admin", is_super_admin=True),
 }
 
 
@@ -452,7 +454,7 @@ class TestOsBlocos:
 
     def test_custo_de_ia_do_periodo_e_medio_por_conta(self):
         """0,40 + 0,20 + 0,60 dólares em 3 contas."""
-        assert _painel()["custo_ia"] == _custo(1.2, analise=1.2, medio=0.4, contas=3)
+        assert _painel("diretor")["custo_ia"] == _custo(1.2, analise=1.2, medio=0.4, contas=3)
 
     def test_as_provas_da_regra_da_semana_entram_no_custo(self):
         """A prova de regra (#1488, fora do app desde a #1920) gravou cada
@@ -468,9 +470,11 @@ class TestOsBlocos:
             _chamada("B", "C1", "at-1", 0.40, "2026-10-06T13:00:00+00:00"),
         ]
 
-        assert _painel(banco=banco)["custo_ia"] == _custo(1.55, analise=1.2, provas=0.35, medio=0.4, contas=3)
+        assert _painel("diretor", banco=banco)["custo_ia"] == _custo(
+            1.55, analise=1.2, provas=0.35, medio=0.4, contas=3
+        )
         # Com a operadora escolhida, só as provas dela (at-1 é da ASSIM, at-3 da UNIMED).
-        assert _painel(banco=banco, operadora_id=ASSIM)["custo_ia"] == _custo(
+        assert _painel("diretor", banco=banco, operadora_id=ASSIM)["custo_ia"] == _custo(
             1.3, analise=1.0, provas=0.3, medio=0.5, contas=2
         )
 
@@ -497,11 +501,11 @@ class TestOsBlocos:
         ]
         banco.tabelas["cm_conta"][2]["custo_usd"] = 0.67  # C3: 0,60 da análise + 0,07 do revisor
 
-        assert _painel(banco=banco)["custo_ia"] == _custo(
+        assert _painel("diretor", banco=banco)["custo_ia"] == _custo(
             1.7, analise=1.05, conversa=0.25, provas=0.3, revisor=0.1, medio=0.35, contas=3
         )
         # Só a ASSIM (at-1, at-2): a conversa da C4 e o revisor do at-3 são da UNIMED.
-        assert _painel(banco=banco, operadora_id=ASSIM)["custo_ia"] == _custo(
+        assert _painel("diretor", banco=banco, operadora_id=ASSIM)["custo_ia"] == _custo(
             1.37, analise=0.85, conversa=0.15, provas=0.3, revisor=0.07, medio=0.425, contas=2
         )
 
@@ -586,7 +590,7 @@ def _semana_do_faltou(semana: str, **contagem: int) -> dict:
 class TestOsFiltros:
     def test_filtro_por_operadora(self):
         """Só ASSIM: C1 e C3 na semana, C5 na anterior."""
-        painel = _painel(operadora_id=ASSIM)
+        painel = _painel("diretor", operadora_id=ASSIM)
 
         assert painel["nota_media"] == {"semana": 75.0, "anterior": 94.0}
         assert painel["contas_concluidas"] == {"total": 2}
@@ -611,7 +615,7 @@ class TestOsFiltros:
 
     def test_filtro_por_semana(self):
         """A semana anterior: C4 e C5."""
-        painel = _painel(semana=SEMANA_ANTERIOR)
+        painel = _painel("diretor", semana=SEMANA_ANTERIOR)
 
         assert painel["semana"] == {"inicio": "2026-09-28", "fim": "2026-10-04"}
         assert painel["nota_media"] == {"semana": 72.0, "anterior": None}
@@ -699,6 +703,48 @@ class TestQuemVe:
         resposta = _cliente("sem_eixo", _cenario()).get(ROTA, params={"semana": SEMANA})
 
         assert resposta.status_code == 403
+
+
+BLOCOS_DO_PAINEL_COMPLETO = {
+    "semana",
+    "filtros",
+    "nota_media",
+    "contas_concluidas",
+    "valor_apontado",
+    "nao_procede",
+    "nota_por_semana",
+    "causa_raiz",
+    "itens_que_faltam",
+    "producao",
+    "nivel_evidencia",
+    "faltou_isto",
+    "coordenacao",
+}
+
+
+class TestQuemVeOCustoDeIa:
+    """O custo de IA é assunto da direção (#1919): a chave só vem para o
+    Super admin. O filtro é no servidor, então o número nem trafega para quem
+    não deve ver."""
+
+    def test_o_super_admin_recebe_o_custo_de_ia_e_o_painel_completo(self):
+        painel = _painel("diretor")
+
+        assert set(painel) == BLOCOS_DO_PAINEL_COMPLETO | {"custo_ia"}
+        assert painel["custo_ia"] == _custo(1.2, analise=1.2, medio=0.4, contas=3)
+
+    def test_o_painel_completo_sem_super_admin_vem_inteiro_menos_o_custo_de_ia(self):
+        painel = _painel("coordenadora")
+
+        assert "custo_ia" not in painel
+        assert set(painel) == BLOCOS_DO_PAINEL_COMPLETO
+        assert painel["contas_concluidas"] == {"total": 3}
+
+    def test_sem_painel_completo_vem_so_a_propria_producao_e_nada_do_custo(self):
+        painel = _painel("ana")
+
+        assert "custo_ia" not in painel
+        assert set(painel) == {"semana", "filtros", "producao"}
 
 
 # ═══════════════════════════════════════════════════════════════════════════

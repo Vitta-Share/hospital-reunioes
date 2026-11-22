@@ -16,7 +16,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 
-from app.dependencies import get_supabase_client, require_permissao_cm
+from app.dependencies import get_supabase_client, is_super_admin, require_permissao_cm
 from app.limiter import limiter
 from app.services.contas_medicas import revisor
 from app.services.contas_medicas.coordenacao import incluido_pela_coordenacao
@@ -41,7 +41,8 @@ async def painel(
     tipo de conta, quando vierem.
 
     Basta ter o eixo do módulo. Quem não tem "painel completo" recebe só a
-    própria linha de produção, filtrada no servidor.
+    própria linha de produção, filtrada no servidor. O custo de IA vem só
+    para o Super admin (#1919).
     """
     completo = "painel_completo" in me["permissoes_cm"]
     operadora = str(operadora_id) if operadora_id else None
@@ -51,6 +52,7 @@ async def painel(
         operadora_id=operadora,
         tipo=tipo,
         so_da_faturista=None if completo else me["id"],
+        com_custo_ia=is_super_admin(me),
     )
     # O cartão da coordenação (#1143): só com a permissão, fora da nota e da produção.
     if "conferencia_coordenacao" in me["permissoes_cm"]:
