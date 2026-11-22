@@ -19,6 +19,7 @@ from app.routers import (
     ana,
     auth,
     comentarios,
+    conduta_acompanhamento,
     conduta_afastamento,
     conduta_ata,
     conduta_codigo,
@@ -27,6 +28,7 @@ from app.routers import (
     conduta_depoimentos,
     conduta_direcao,
     conduta_membros,
+    conduta_mensagens,
     conduta_publico,
     conduta_retaliacao,
     conduta_retorno,
@@ -213,6 +215,7 @@ app.include_router(seguranca_do_paciente_recalibracao.router, prefix=settings.ap
 app.include_router(seguranca_do_paciente_recebimento.router, prefix=settings.api_prefix)
 # Canal de Conduta (PRD #1786, ADR 0097): o Comitê em /comite-de-conduta,
 # atrás do portão; o lado público em /conduta, em 404 até a chave de abertura.
+app.include_router(conduta_acompanhamento.router, prefix=settings.api_prefix)
 app.include_router(conduta_afastamento.router, prefix=settings.api_prefix)
 app.include_router(conduta_ata.router, prefix=settings.api_prefix)
 app.include_router(conduta_comite.router, prefix=settings.api_prefix)
@@ -221,6 +224,7 @@ app.include_router(conduta_convites.router, prefix=settings.api_prefix)
 app.include_router(conduta_depoimentos.router, prefix=settings.api_prefix)
 app.include_router(conduta_direcao.router, prefix=settings.api_prefix)
 app.include_router(conduta_membros.router, prefix=settings.api_prefix)
+app.include_router(conduta_mensagens.router, prefix=settings.api_prefix)
 app.include_router(conduta_publico.router, prefix=settings.api_prefix)
 app.include_router(conduta_retaliacao.router, prefix=settings.api_prefix)
 app.include_router(conduta_retorno.router, prefix=settings.api_prefix)

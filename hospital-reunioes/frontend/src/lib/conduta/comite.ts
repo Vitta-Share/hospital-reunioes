@@ -9,6 +9,7 @@ import type { Afastamento } from "@/lib/conduta/afastamento";
 import type { AnexoDoRelato } from "@/lib/conduta/anexos";
 import type { AtaDoCaso, ReuniaoDoComite } from "@/lib/conduta/ata";
 import type { Depoimento } from "@/lib/conduta/depoimentos";
+import type { MensagensDoCaso } from "@/lib/conduta/mensagens";
 import type { TextoDaApuracao } from "@/lib/conduta/relatorio";
 import type { VerificacaoDeRetaliacao } from "@/lib/conduta/retaliacao";
 import type { MedidaERetorno } from "@/lib/conduta/retorno";
@@ -154,6 +155,8 @@ export interface CasoAberto extends CasoDaLista {
   verificacao_de_retaliacao?: VerificacaoDeRetaliacao | null;
   /** A trilha do caso com as gavetas e o Dossiê (issue #1837). */
   trilha?: TrilhaDoCaso | null;
+  /** A conversa com quem relatou pela página de acompanhamento (issue #1845). */
+  mensagens?: MensagensDoCaso | null;
 }
 
 /** O que o Grupo Especial vê do caso dele (issue #1829). */
