@@ -69,7 +69,7 @@ A pergunta da Vitta fica guardada num cartão até alguém responder. A lista **
 4. Leia o cartão. Em cima dele vem o nome do pedido, em **Demanda**. No cartão aparecem o projeto, o estado **Aberta**, há quantos dias a pergunta espera, a pergunta e quatro quadros: **Por que precisa de você**, **O que está parado**, **O que anda quando você responder** e **O que o hospital ganha**. Quando a Vitta já preparou opções, elas vêm embaixo, com a recomendada em destaque e o porquê.
 5. Clique no aviso do sino ou no link do e-mail de uma pergunta: a aba abre com o cartão dela em destaque, com uma borda em volta.
 
-Na lista, o cartão serve para ler. Para responder, abra o pedido, como em **Responder uma pergunta da Vitta**, logo abaixo. A pergunta sai da lista assim que alguém responde.
+Na lista, o cartão serve para ler. Para responder, abra o pedido, como em **Responder uma pergunta da Vitta**, logo abaixo. A pergunta respondida sai da lista na próxima vez que a aba abre.
 
 ## Responder uma pergunta da Vitta
 
@@ -87,7 +87,7 @@ Na lista, o cartão serve para ler. Para responder, abra o pedido, como em **Res
    ![O cartão da pergunta na Conversa da Demanda, com as opções e o campo da resposta](cartao-da-pergunta.png)
 
 6. Se a pergunta traz opções, clique na opção que você escolhe: o clique já envia a resposta. A opção **Recomendada** vem em destaque, com o porquê embaixo. Se nenhuma opção serve, escreva no campo embaixo delas e clique em **Responder**. Se tiver dúvida antes de responder, veja **Pedir explicação ao assistente (Me explique)**, logo abaixo.
-7. Depois de responder, o cartão passa a **Respondida** e mostra a sua resposta e o seu nome. A resposta também entra na Conversa da Demanda, e a pergunta sai da lista **Esperando sua resposta**.
+7. Depois de responder, o cartão passa a **Respondida** e mostra a sua resposta e o seu nome. A resposta também entra na Conversa da Demanda. A pergunta sai da lista **Esperando sua resposta** na próxima vez que a aba abre: até lá, o cartão dela continua na lista como **Aberta**, mas a sua resposta já foi.
 8. A Vitta lê a sua resposta e dá o ok. Só então o trabalho anda: o cartão passa a **Resolvida**, com **O que foi decidido** e **O que destravou**, e a conversa ganha uma linha com a decisão. Quando a pergunta deixa de ser necessária, o cartão passa a **Cancelada**, com o motivo.
 
 Só a pessoa que a pergunta espera responde. Outro Super admin vê o cartão sem as opções clicáveis e sem o campo da resposta. Um desenvolvedor da Vitta pode registrar a resposta no seu lugar, e o cartão mostra os dois nomes, como "Registrada por Rafael Moura em nome de Henrique Bastos".

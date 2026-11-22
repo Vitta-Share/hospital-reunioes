@@ -241,7 +241,14 @@ describe("a lista Esperando sua resposta, o cartão e o Me explique (issue #2123
   it("a resposta deixa a pergunta Respondida, sai da lista, e só destrava com o ok da Vitta", () => {
     const passo = passosDa(RESPONDER).find((p) => /\*\*Respondida\*\*/.test(p));
     expect(passo, "nenhum passo diz o que acontece depois de responder").toBeDefined();
-    expect(passo).toMatch(/sai da lista \*\*Esperando sua resposta\*\*/);
+    // A lista só relê quando a aba abre: o manual não pode prometer que ela some na
+    // hora, senão quem responde vê o cartão Aberta e responde de novo (revisão do PR #2143).
+    expect(passo).toMatch(/sai da lista \*\*Esperando sua resposta\*\* na próxima vez que a aba abre/);
+    expect(passo).toMatch(/continua na lista como \*\*Aberta\*\*/);
+    const daLista = secao(LISTA).texto.split(/\n\s*\n/).find((p) => /sai da lista/.test(p));
+    expect(daLista, "a tarefa da lista não diz quando a pergunta respondida sai").toBeDefined();
+    expect(daLista).toMatch(/na próxima vez que a aba abre/);
+    expect(secao(LISTA).texto + secao(RESPONDER).texto).not.toMatch(/assim que alguém responde/);
     const { texto } = secao(RESPONDER);
     expect(texto).toMatch(/\*\*Resolvida\*\*/);
     expect(texto).toMatch(/\*\*O que foi decidido\*\*/);
