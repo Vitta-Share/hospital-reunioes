@@ -18,7 +18,7 @@ nomes viram marcadores na ida e voltam aqui (`marcadores`).
 A ata vai à ClickSign para os três votantes, e a cópia assinada volta para a
 trilha (`assinaturas`). No Completo, "CONCLUIR REUNIÃO" só libera com os quatro
 itens da lista, e ao concluir a transcrição sai do banco e do bucket, com a
-eliminação na trilha. O banco tem as mesmas travas (migration 218).
+eliminação na trilha. O banco tem as mesmas travas (migration 221).
 """
 
 from __future__ import annotations
@@ -115,7 +115,7 @@ def _assinatura_da_versao(supabase, caso_id: str, ata_id: str) -> dict | None:
 def _vale(versao: dict, situacao_do_voto) -> bool:
     """A versão saiu dos votos que contam hoje: a mesma rodada, fechada, e os
     mesmos três votantes. Impedimento ou Citado depois dos votos, ou a
-    rodada que muda, tiram a ata de valer (migration 218)."""
+    rodada que muda, tiram a ata de valer (migration 221)."""
     return (
         situacao_do_voto.fechada
         and versao.get("rodada") == situacao_do_voto.rodada

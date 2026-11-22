@@ -18,7 +18,7 @@ leva o caso à etapa Ata. Só conclui com a ata assinada pelos três votantes e,
 no rito Completo, com a reunião do Comitê concluída (`ata`, issue #1834).
 Procedente ou parcialmente procedente só concluem com a trava de robustez
 inteira confirmada (`trava.bloqueio`), e o banco tem as mesmas travas
-(migrations 216 e 218).
+(migrations 216 e 221).
 """
 
 from __future__ import annotations

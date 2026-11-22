@@ -1,8 +1,8 @@
-"""A migration 218, a ata de deliberação e a reunião do Comitê, num Postgres
+"""A migration 221, a ata de deliberação e a reunião do Comitê, num Postgres
 de verdade (issue #1834).
 
 Sobe um Postgres descartável, aplica a 175, a 185, a 192, a 199, a 214, a 216
-e a 218 (a 218 duas vezes) sobre o mínimo de antes e prova no banco:
+e a 221 (a 221 duas vezes) sobre o mínimo de antes e prova no banco:
 
 - a versão da ata não se altera nem se apaga, nasce só na etapa Voto, e a ata
   assinada não ganha versão nova;
@@ -42,7 +42,7 @@ ANTERIORES = (
     "214_conduta_rota_especial.sql",
     "216_conduta_voto_e_trava_de_robustez.sql",
 )
-MIGRATION = PASTA / "218_conduta_ata_de_deliberacao.sql"
+MIGRATION = PASTA / "221_conduta_ata_de_deliberacao.sql"
 TABELAS_NOVAS = ("conduta_atas", "conduta_reuniao_conferencia", "conduta_reuniao_transcricoes")
 
 
@@ -54,7 +54,7 @@ def banco():
             pytest.fail("O CI precisa do initdb para provar a ata e a reunião no banco.")
         pytest.skip("Sem initdb nesta máquina.")
     pg = _Postgres(bindir)
-    pg.porta = "54218"
+    pg.porta = "54221"
     pg.subir()
     try:
         pg.ok(ESQUEMA_ANTERIOR)

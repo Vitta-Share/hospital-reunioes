@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 218: Canal de Conduta, a ata de deliberação e a reunião do Comitê
+-- Migration 221: Canal de Conduta, a ata de deliberação e a reunião do Comitê
 -- (issue #1834, PRD #1786, ADR 0097, decisão 7; especificação, 6.7, 7.3, 8
 -- e Anexo D)
 -- =====================================================
@@ -334,4 +334,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (218) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (221) ON CONFLICT (numero) DO NOTHING;
