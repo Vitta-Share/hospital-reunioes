@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T23:56:07-03:00",
+      "sha": "00118f4383ffa396f73b3a30a8823558e740c878",
+      "app_version": "0.363.0",
+      "subject": "Onda conduta-1831-liberado: Termo de declaração redigido pelo agente",
+      "raw_subject": "chore(deploy): registro da onda conduta-1831-liberado (#2128)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 311,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "215_conduta_termo_de_declaracao.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta conduta-1831-liberado: PR #2128 (issue #1831), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 2,
+        "build_s": {
+          "backend": 21,
+          "frontend": 225
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T23:35:35-03:00",
       "sha": "477386d00bd71f778df9ea8463fae151371179c3",
       "app_version": "0.362.0",
