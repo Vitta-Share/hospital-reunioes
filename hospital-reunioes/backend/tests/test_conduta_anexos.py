@@ -14,12 +14,17 @@ import base64
 import io
 import os
 import secrets
+import struct
 import sys
+import wave
 
+import mutagen
 import pytest
 from conduta_apoio import Banco
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from mutagen.id3 import ID3, TPE1
+from mutagen.ogg import OggPage
 from PIL import Image
 from pypdf import PdfReader, PdfWriter
 from pypdf.generic import DecodedStreamObject, NameObject
@@ -182,3 +187,106 @@ class TestPdf:
             assert marca not in guardado
         assert linha["tipo"] == "pdf"
         assert linha["content_type"] == "application/pdf"
+
+
+# ── Áudio ───────────────────────────────────────────────────────────────────
+# Cada áudio de entrada carrega o nome "Joana Prudente" numa etiqueta (e o M4A,
+# o lugar da gravação). O som em si é um padrão de bytes que tem que chegar
+# inteiro ao arquivo guardado.
+
+SOM = bytes(range(16, 240)) * 4
+
+
+def _caixa(tipo: bytes, corpo: bytes) -> bytes:
+    return struct.pack(">I", 8 + len(corpo)) + tipo + corpo
+
+
+def _m4a() -> bytes:
+    """Um M4A mínimo, como o gravador do celular: a etiqueta de artista no
+    `ilst` e o lugar da gravação (`©xyz`) no `udta`, antes do som."""
+    mvhd = _caixa(b"mvhd", b"\x00" * 4 + struct.pack(">IIII", 3_700_000_000, 3_700_000_000, 1000, 5000) + b"\x00" * 80)
+    artista = _caixa(b"\xa9ART", _caixa(b"data", struct.pack(">II", 1, 0) + "Joana Prudente".encode()))
+    hdlr = _caixa(b"hdlr", b"\x00" * 8 + b"mdirappl" + b"\x00" * 9)
+    meta = _caixa(b"meta", b"\x00" * 4 + hdlr + _caixa(b"ilst", artista))
+    udta = _caixa(b"udta", meta + _caixa(b"\xa9xyz", b"+22.8712-043.4601/"))
+    return _caixa(b"ftyp", b"M4A \x00\x00\x00\x00M4A isom") + _caixa(b"moov", mvhd + udta) + _caixa(b"mdat", SOM)
+
+
+def _mp3() -> bytes:
+    quadro = b"\xff\xfb\x90\x64" + SOM[:413]
+    arquivo = io.BytesIO(quadro * 10)
+    etiquetas = ID3()
+    etiquetas.add(TPE1(encoding=3, text="Joana Prudente"))
+    etiquetas.save(arquivo)
+    return arquivo.getvalue() + b"TAG" + b"Joana na v1".ljust(125, b"\x00")
+
+
+def _ogg() -> bytes:
+    cabeca = b"OpusHead" + bytes([1, 1]) + struct.pack("<HIhB", 312, 48000, 0, 0)
+    comentario = b"ARTIST=Joana Prudente"
+    etiquetas = b"OpusTags" + struct.pack("<I", 4) + b"vend" + struct.pack("<II", 1, len(comentario)) + comentario
+    paginas = []
+    for sequencia, (pacote, posicao) in enumerate([(cabeca, 0), (etiquetas, 0), (SOM, 960)]):
+        pagina = OggPage()
+        pagina.packets = [pacote]
+        pagina.serial = 7
+        pagina.sequence = sequencia
+        pagina.position = posicao
+        pagina.first = sequencia == 0
+        pagina.last = sequencia == 2
+        paginas.append(pagina.write())
+    return b"".join(paginas)
+
+
+def _wav() -> bytes:
+    saida = io.BytesIO()
+    with wave.open(saida, "wb") as gravador:
+        gravador.setnchannels(1)
+        gravador.setsampwidth(1)
+        gravador.setframerate(8000)
+        gravador.writeframes(SOM)
+    nome = b"Joana Prudente\x00"
+    info = _caixa_riff(b"LIST", b"INFO" + _caixa_riff(b"IART", nome))
+    corpo = saida.getvalue()[12:] + info
+    return b"RIFF" + struct.pack("<I", 4 + len(corpo)) + b"WAVE" + corpo
+
+
+def _caixa_riff(tipo: bytes, corpo: bytes) -> bytes:
+    return tipo + struct.pack("<I", len(corpo)) + corpo + (b"\x00" if len(corpo) % 2 else b"")
+
+
+AUDIOS = {
+    "m4a": (_m4a, "audio/mp4"),
+    "mp3": (_mp3, "audio/mpeg"),
+    "ogg": (_ogg, "audio/ogg"),
+    "wav": (_wav, "audio/wav"),
+}
+
+
+class TestAudio:
+    @pytest.mark.parametrize("formato", sorted(AUDIOS))
+    def test_o_audio_com_etiquetas_e_gravado_sem_elas(self, cliente, banco, relatado, formato):
+        fabricar, content_type = AUDIOS[formato]
+        audio = fabricar()
+        assert b"Joana" in audio, "controle: o áudio de entrada carrega a etiqueta"
+
+        resposta = _anexar(cliente, relatado, audio, f"Gravacao da Joana.{formato}", content_type)
+
+        assert resposta.status_code == 201, resposta.text
+        linha, guardado = _guardado(banco)
+        assert b"Joana" not in guardado
+        assert b"+22.87" not in guardado
+        assert SOM in guardado or SOM[:413] in guardado
+        lido = mutagen.File(io.BytesIO(guardado))
+        assert lido is not None, "o arquivo guardado continua sendo um áudio que o leitor abre"
+        assert not lido.tags
+        assert linha["tipo"] == "audio"
+        assert linha["content_type"] == content_type
+
+    def test_o_wav_guardado_continua_tocando_o_mesmo_som(self, cliente, banco, relatado):
+        _anexar(cliente, relatado, _wav(), "gravacao.wav", "audio/wav")
+
+        _, guardado = _guardado(banco)
+        assert b"LIST" not in guardado
+        with wave.open(io.BytesIO(guardado)) as leitor:
+            assert leitor.readframes(leitor.getnframes()) == SOM

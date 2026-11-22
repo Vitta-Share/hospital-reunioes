@@ -19,11 +19,19 @@ from __future__ import annotations
 
 import io
 import logging
+import struct
 import uuid
 import warnings
 from dataclasses import dataclass
 from typing import Any
 
+import mutagen
+from mutagen import apev2, id3
+from mutagen.mp3 import MP3
+from mutagen.oggflac import OggFLAC
+from mutagen.oggopus import OggOpus
+from mutagen.oggspeex import OggSpeex
+from mutagen.oggvorbis import OggVorbis
 from PIL import Image, ImageOps
 from postgrest.exceptions import APIError
 from pypdf import PdfReader, PdfWriter
@@ -147,6 +155,111 @@ def _limpar_pdf(dados: bytes) -> bytes:
     return saida.getvalue()
 
 
+# ── Áudio ───────────────────────────────────────────────────────────────────
+
+_AUDIOS = {"MP3": "audio/mpeg", "M4A": "audio/mp4", "OGG": "audio/ogg", "WAV": "audio/wav"}
+
+
+def _formato_do_audio(dados: bytes) -> str | None:
+    if dados.startswith(b"ID3") or (len(dados) > 1 and dados[0] == 0xFF and dados[1] & 0xE0 == 0xE0):
+        return "MP3"
+    if dados[4:8] == b"ftyp":
+        return "M4A"
+    if dados.startswith(b"OggS"):
+        return "OGG"
+    if dados[:4] == b"RIFF" and dados[8:12] == b"WAVE":
+        return "WAV"
+    return None
+
+
+def _limpar_mp3(dados: bytes) -> bytes:
+    """Sem ID3 (do começo e do fim) e sem APE."""
+    arquivo = io.BytesIO(dados)
+    MP3(arquivo)  # é MP3 mesmo, ou o leitor recusa
+    id3.delete(arquivo)
+    apev2.delete(arquivo)
+    return arquivo.getvalue()
+
+
+def _limpar_ogg(dados: bytes) -> bytes:
+    """Os comentários do Opus, do Vorbis, do FLAC ou do Speex esvaziados.
+    Vídeo em OGG (Theora) não é aceito."""
+    arquivo = io.BytesIO(dados)
+    audio = mutagen.File(arquivo, options=[OggOpus, OggVorbis, OggFLAC, OggSpeex])
+    if audio is None:
+        raise AnexoRecusadoError(415, RECUSA_DO_FORMATO)
+    audio.delete(arquivo)
+    return arquivo.getvalue()
+
+
+def _caixas(dados: bytes, inicio: int, fim: int):
+    """As caixas do MP4 entre `inicio` e `fim`: tipo, começo, começo do
+    corpo e fim de cada uma."""
+    posicao = inicio
+    while posicao + 8 <= fim:
+        tamanho, tipo = struct.unpack(">I4s", dados[posicao : posicao + 8])
+        corpo = posicao + 8
+        if tamanho == 1:
+            (tamanho,) = struct.unpack(">Q", dados[corpo : corpo + 8])
+            corpo += 8
+        elif tamanho == 0:
+            tamanho = fim - posicao
+        if tamanho < corpo - posicao or posicao + tamanho > fim:
+            raise ValueError("caixa do MP4 fora do arquivo")
+        yield tipo, posicao, corpo, posicao + tamanho
+        posicao += tamanho
+
+
+# As caixas que guardam etiqueta e lugar da gravação (`udta` e `meta`, que
+# levam o `ilst` e o `©xyz`) e as de dados próprios (`uuid`, onde fica o XMP).
+_ORIGEM_NO_MP4 = {b"udta", b"meta", b"uuid"}
+_CONTEINERES_DO_MP4 = {b"moov", b"trak", b"mdia", b"minf"}
+
+
+def _limpar_m4a(dados: bytes) -> bytes:
+    """As caixas de etiqueta viram `free`, com o conteúdo zerado e o mesmo
+    tamanho: nenhum deslocamento do som muda, então o arquivo toca igual.
+    MP4 com vídeo não é aceito."""
+    saida = bytearray(dados)
+
+    def percorrer(inicio: int, fim: int) -> None:
+        for tipo, comeco, corpo, final in _caixas(dados, inicio, fim):
+            if tipo in _ORIGEM_NO_MP4:
+                saida[comeco + 4 : comeco + 8] = b"free"
+                saida[corpo:final] = bytes(final - corpo)
+            elif tipo in _CONTEINERES_DO_MP4:
+                percorrer(corpo, final)
+            elif tipo == b"hdlr" and dados[corpo + 8 : corpo + 12] == b"vide":
+                raise AnexoRecusadoError(415, RECUSA_DO_FORMATO)
+
+    percorrer(0, len(dados))
+    return bytes(saida)
+
+
+_PEDACOS_DO_SOM = {b"fmt ", b"fact", b"data"}
+
+
+def _limpar_wav(dados: bytes) -> bytes:
+    """Só o formato e o som: os outros pedaços do RIFF (LIST/INFO, id3, bext,
+    iXML) ficam para trás."""
+    fim = min(len(dados), 8 + struct.unpack("<I", dados[4:8])[0])
+    pedacos = []
+    posicao = 12
+    while posicao + 8 <= fim:
+        tipo, tamanho = struct.unpack("<4sI", dados[posicao : posicao + 8])
+        final = posicao + 8 + tamanho + (tamanho % 2)
+        if tipo in _PEDACOS_DO_SOM:
+            pedacos.append(dados[posicao : min(final, fim)])
+        posicao = final
+    if not any(p.startswith(b"data") for p in pedacos) or not any(p.startswith(b"fmt ") for p in pedacos):
+        raise ValueError("WAV sem formato ou sem som")
+    corpo = b"WAVE" + b"".join(pedacos)
+    return b"RIFF" + struct.pack("<I", len(corpo)) + corpo
+
+
+_LIMPEZA_DO_AUDIO = {"MP3": _limpar_mp3, "M4A": _limpar_m4a, "OGG": _limpar_ogg, "WAV": _limpar_wav}
+
+
 # ── A entrada ───────────────────────────────────────────────────────────────
 
 
@@ -157,6 +270,9 @@ def _reconhecer(dados: bytes) -> tuple[str, str] | None:
         return "imagem", formato
     if dados.startswith(b"%PDF-"):
         return "pdf", "PDF"
+    formato = _formato_do_audio(dados)
+    if formato is not None:
+        return "audio", formato
     return None
 
 
@@ -174,7 +290,9 @@ def limpar(dados: bytes) -> Limpo:
     try:
         if tipo == "imagem":
             return Limpo(tipo, _IMAGENS[formato], _limpar_imagem(dados, formato))
-        return Limpo(tipo, "application/pdf", _limpar_pdf(dados))
+        if tipo == "pdf":
+            return Limpo(tipo, "application/pdf", _limpar_pdf(dados))
+        return Limpo(tipo, _AUDIOS[formato], _LIMPEZA_DO_AUDIO[formato](dados))
     except AnexoRecusadoError:
         raise
     except Exception as erro:  # noqa: BLE001 - arquivo de fora: qualquer falha do leitor é recusa
