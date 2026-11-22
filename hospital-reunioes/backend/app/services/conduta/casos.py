@@ -41,6 +41,7 @@ def registrar_caso(
     manifestacao_id: str | None = None,
     tarefas=None,
     direcao_envolvida: str | None = None,
+    extras: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Grava o caso e a linha de recebimento na trilha. Devolve o id, o
     protocolo e o código de acompanhamento, que não fica guardado.
@@ -56,6 +57,9 @@ def registrar_caso(
     `direcao_envolvida` é a resposta do passo 3 sobre a Direção (issue #1829):
     com "sim", o caso nunca entra na fila comum e nasce na Rota Especial, com
     o relato selado; "nao_sei" fica na fila comum com o aviso.
+
+    `extras` são as colunas que só a página pública preenche (issue #1843): a
+    ciência do passo 1 e o nome cifrado de quem relata com identificação.
 
     Sem a chave de cifra levanta `CifraIndisponivelError` antes de gravar qualquer
     coisa."""
@@ -75,6 +79,8 @@ def registrar_caso(
         linha |= {"origem": ORIGEM_OUVIDORIA, "manifestacao_id": manifestacao_id}
     if direcao_envolvida is not None:
         linha["direcao_envolvida"] = direcao_envolvida
+    if extras:
+        linha |= extras
     if especial:
         linha |= rota_especial.campos_da_entrada(rota_especial.agora_utc())
     for tentativa in range(1, _TENTATIVAS_DO_PROTOCOLO + 1):

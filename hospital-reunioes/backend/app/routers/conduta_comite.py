@@ -33,7 +33,7 @@ from app.services.conduta import (
     trilha_do_caso,
     voto,
 )
-from app.services.conduta.acesso import CAMPOS_DA_LISTA, hoje_em_sao_paulo
+from app.services.conduta.acesso import CAMPOS_DA_LISTA, PAPEIS_DA_FILA_COMUM, hoje_em_sao_paulo
 from app.services.conduta.portao import (
     INDISPONIVEL,
     CasoAberto,
@@ -127,6 +127,14 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
     caso = aberto.caso
     try:
         relato = cifra.decifrar_texto(caso["relato_cifrado"])
+        # Quem relatou com identificação (issue #1843): o nome fica só com o
+        # Comitê, pelo papel no caso (o suplente convocado herda o do
+        # substituído). O apurador convidado e a CIPA abrem o caso sem ele.
+        relator_nome = (
+            cifra.decifrar_texto(caso["relator_nome_cifrado"])
+            if caso.get("relator_nome_cifrado") and aberto.pessoa.papel in PAPEIS_DA_FILA_COMUM
+            else None
+        )
         contestacao = triagem.contestacao_para_a_tela(supabase, caso["id"])
         prorrogacao = cifra.decifrar_texto(caso["prorrogacao_cifrada"]) if caso.get("prorrogacao_cifrada") else None
         orientacao = cifra.decifrar_texto(caso["orientacao_cifrada"]) if caso.get("orientacao_cifrada") else None
@@ -155,6 +163,7 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         **impedimentos,
         **_metadados(caso),
         "relato": relato,
+        "relator_nome": relator_nome,
         "situacao": situacao(caso),
         "papel": aberto.pessoa.papel,
         "trilho": trilho(caso),
