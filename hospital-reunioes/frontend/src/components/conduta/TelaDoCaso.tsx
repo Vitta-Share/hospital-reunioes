@@ -12,6 +12,7 @@ import { RelatorioDaApuracao } from "@/components/conduta/RelatorioDaApuracao";
 import { RotaEspecial } from "@/components/conduta/RotaEspecial";
 import { SinalizarAoNsp } from "@/components/conduta/SinalizarAoNsp";
 import { SugestaoDoAgente } from "@/components/conduta/SugestaoDoAgente";
+import { VotoETrava } from "@/components/conduta/VotoETrava";
 import {
   CATEGORIAS,
   DESTINOS,
@@ -325,6 +326,14 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
         relatorio={caso.relatorio ?? null}
         cronologia={caso.cronologia ?? null}
         podeRedigir={Boolean(caso.pode_redigir_relatorio) && !encerrado}
+        aoMudar={carregar}
+      />
+
+      <VotoETrava
+        casoId={casoId}
+        votacao={caso.votacao ?? null}
+        trava={caso.trava ?? null}
+        votando={passo === "votar"}
         aoMudar={carregar}
       />
 

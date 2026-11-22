@@ -91,6 +91,11 @@ def _olhar(supabase, pessoa_id: str, papel: str | None, atribuicoes, contestacao
 def olhar_do_caso(supabase, aberto: CasoAberto) -> Olhar:
     contestacao = _contestacoes(supabase, [aberto.caso["id"]]).get(aberto.caso["id"])
     olhar = _olhar(supabase, aberto.autor_id, aberto.pessoa.papel, aberto.atribuicoes, contestacao)
+    if aberto.caso.get("etapa") == "voto":
+        # O voto (issue #1833). Import aqui, como o do relatório.
+        from app.services.conduta import voto
+
+        return replace(olhar, **voto.olhar_do_voto(supabase, aberto))
     if aberto.caso.get("etapa") != "apuracao":
         return olhar
     # O relatório e o envio para voto (issue #1832). Import aqui: o módulo do
