@@ -29,8 +29,11 @@ import { OpcoesEmCartao } from "./OpcoesEmCartao";
 
 export type EstadoDaPergunta = "aberta" | "respondida" | "resolvida" | "cancelada" | "concluida";
 
-/** O tipo do Pedido da Vitta (issue #2176, ADR 0110): Pergunta, que se responde, ou Passo a passo, que se conclui. */
-export type TipoDoPedido = "pergunta" | "passo_a_passo";
+/**
+ * O tipo do Pedido da Vitta (issue #2176, ADR 0110): Pergunta, que se responde, ou Passo a passo, que se conclui.
+ * O Pedido de implantação (issue #2207, ADR 0111) é o que o hospital faz depois que a entrega sobe, no cartão do Passo a passo.
+ */
+export type TipoDoPedido = "pergunta" | "passo_a_passo" | "implantacao";
 
 /** Um passo do Passo a passo, com o check e quem marcou. */
 export type PassoDoPedido = {
