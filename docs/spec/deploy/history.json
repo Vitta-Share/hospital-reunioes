@@ -2,6 +2,52 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T18:06:42-03:00",
+      "sha": "705752c2c6a6b98dea1dacd52a3b85ec5dee31e5",
+      "app_version": "0.387.1",
+      "subject": "Onda onda-ata-2085-onda1: O Atualizar conclui a ata assinada por todos e cria as pendências que faltam",
+      "raw_subject": "chore(deploy): registro da onda onda-ata-2085-onda1 (#2201)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [],
+      "result": "healthy",
+      "duration_seconds": 553,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta onda-ata-2085-onda1: PR #2201 (issue #2085), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 23,
+          "frontend": 244
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T17:59:35-03:00",
       "sha": "ccf1127a74dca4386c1692b7542b7992f53aa97e",
       "app_version": "0.387.0",
