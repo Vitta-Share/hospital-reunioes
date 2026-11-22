@@ -41,6 +41,20 @@ COMMENT ON COLUMN conduta_casos.sinal_especial IS
 
 CREATE INDEX IF NOT EXISTS idx_conduta_casos_desviado_por ON conduta_casos (desviado_por);
 
+-- O Completo prorrogado na fila comum ainda se desvia: a prorrogação gravada
+-- não muda (trigger da 185) e o rito passa a especial. Só o caso desviado leva
+-- a prorrogação para a Rota Especial; o que nasce nela não prorroga.
+ALTER TABLE conduta_casos DROP CONSTRAINT IF EXISTS conduta_casos_prorrogacao_check;
+ALTER TABLE conduta_casos
+  ADD CONSTRAINT conduta_casos_prorrogacao_check
+  CHECK (
+    prorrogado_em IS NULL
+    OR (
+      prorrogacao_cifrada LIKE 'v1:%'
+      AND (rito = 'completo' OR (rito = 'especial' AND desviado_em IS NOT NULL))
+    )
+  );
+
 -- ---------- 2. O desfecho da Rota Especial ----------
 ALTER TABLE conduta_casos DROP CONSTRAINT IF EXISTS conduta_casos_desfecho_check;
 ALTER TABLE conduta_casos

@@ -32,6 +32,7 @@ from app.dependencies import get_current_user, get_supabase_client  # noqa: E402
 from app.routers import conduta_comite, conduta_rota_especial  # noqa: E402
 from app.services.conduta import avisos, casos, cifra, rota_especial  # noqa: E402
 from app.services.conduta.acesso import hoje_em_sao_paulo  # noqa: E402
+from app.services.conduta.ritos import FUSO  # noqa: E402
 
 BASE = "/api/comite-de-conduta"
 RELATO = "A diretora contratou a empresa do marido para a reforma da ala B sem cotação."
@@ -96,7 +97,8 @@ class Comite:
 
     def caso(self, direcao: str | None = None, *, dias_atras: int = 0) -> str:
         novo = casos.registrar_caso(self.banco, relato=RELATO, categoria=None, direcao_envolvida=direcao)
-        quando = datetime.now().astimezone() - timedelta(days=dias_atras)
+        # No fuso do código: no CI em UTC, das 21h às 24h de São Paulo já é outro dia.
+        quando = datetime.now(FUSO) - timedelta(days=dias_atras)
         linha = self.linha(novo["id"])
         linha["recebido_em"] = quando.isoformat()
         if linha["rota"] == "especial":
@@ -305,6 +307,36 @@ class TestSoOGrupoEspecial:
 
         assert comite.grupo(caso_id) == {SUPLENTE}
 
+    def test_o_desvio_tira_quem_a_fila_comum_tinha_posto_no_caso(self, comite):
+        caso_id = comite.caso("nao_sei")
+        assert comite.agir(COORDENACAO, caso_id, "impedimento", {"motivo": "parentesco"}).status_code == 200
+        comite.banco.tabelas["participantes"].append(_pessoa("APUR"))
+        for pid, motivo in (("APUR", "apurador"), (NOVO_MEMBRO, "cipa")):
+            comite.banco.tabelas["conduta_atribuicoes"].append(
+                {
+                    "id": f"atr-{pid}",
+                    "caso_id": caso_id,
+                    "participante_id": pid,
+                    "motivo": motivo,
+                    "termo_assinado_em": "2026-10-01T12:00:00+00:00",
+                    "impedido_em": None,
+                    "revogada_em": None,
+                }
+            )
+        assert comite.abre(SUPLENTE_DIRETOR, caso_id).status_code == 200
+
+        assert comite.agir(MEMBRO, caso_id, "desvio-especial").status_code == 200
+
+        for pid in (SUPLENTE_DIRETOR, "APUR", NOVO_MEMBRO, COORDENACAO):
+            assert comite.abre(pid, caso_id).status_code == 403, pid
+            lista = comite.cliente(pid).get(f"{BASE}/casos")
+            assert lista.status_code == 403 or caso_id not in [c["id"] for c in lista.json()["casos"]], pid
+        assert comite.abre(MEMBRO, caso_id).status_code == 200
+        resposta = comite.agir(
+            SUPLENTE_DIRETOR, caso_id, "entrega-do-parecer", {"destinatario": "Conselho", "entregue_em": str(HOJE)}
+        )
+        assert resposta.status_code == 403
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 4. Uma troca no Comitê não muda o grupo de um caso Especial aberto
@@ -406,6 +438,18 @@ class TestMarcosEPrazo:
         avisos.rodada_do_dia(comite.banco, HOJE)
 
         assert not comite.banco.tabelas.get("conduta_prazos_vencidos")
+        assert comite.abre(MEMBRO, caso_id).json()["rota_especial"]["nao_respondido_no_prazo"] is False
+
+    def test_o_prazo_que_venceu_na_fila_comum_nao_vira_nao_respondido(self, comite, emails):
+        caso_id = comite.caso("nao_sei", dias_atras=25)
+        linha = comite.linha(caso_id)
+        envio = datetime.fromisoformat(linha["recebido_em"]).date()
+        linha.update({"rito": "rapido", "etapa": "apuracao", "prazo_em": (envio + timedelta(days=20)).isoformat()})
+        assert comite.abre(COORDENACAO, caso_id).status_code == 200
+        assert len(comite.banco.tabelas["conduta_prazos_vencidos"]) == 1
+
+        assert comite.agir(MEMBRO, caso_id, "desvio-especial").status_code == 200
+
         assert comite.abre(MEMBRO, caso_id).json()["rota_especial"]["nao_respondido_no_prazo"] is False
 
     def test_caso_com_o_parecer_entregue_nao_vira_nao_respondido(self, comite, emails):

@@ -197,3 +197,42 @@ def test_o_aviso_recusa_motivo_desconhecido(banco):
         f"VALUES ('{caso}', 'P1', 'marco_45', '2026-11-01');"
     )
     assert r.returncode != 0
+
+
+# ── O desvio de um Completo prorrogado ──────────────────────────────────────
+
+
+def _completo_prorrogado(banco) -> str:
+    protocolo = f"CC-{os.urandom(2).hex().upper()}-{os.urandom(2).hex().upper()}"
+    return banco.ok(
+        "INSERT INTO conduta_casos (protocolo, codigo_hash, relato_cifrado, rota, rito, prorrogado_em, "
+        "prorrogacao_cifrada) "
+        f"VALUES ('{protocolo}', 'hash', 'v1:AAAA', 'comum', 'completo', now(), 'v1:BBBB') RETURNING id;",
+        papel="service_role",
+    ).splitlines()[-1]
+
+
+def test_o_completo_prorrogado_se_desvia_para_a_rota_especial(banco):
+    caso = _completo_prorrogado(banco)
+
+    r = banco.sql(
+        "UPDATE conduta_casos SET rota = 'especial', rito = 'especial', etapa = 'apuracao', "
+        f"desviado_em = now() WHERE id = '{caso}';",
+        papel="service_role",
+    )
+
+    assert r.returncode == 0, r.stderr
+    assert banco.ok(f"SELECT rota || ' ' || prorrogacao_cifrada FROM conduta_casos WHERE id = '{caso}';") == (
+        "especial v1:BBBB"
+    )
+
+
+def test_o_caso_especial_que_nao_veio_do_desvio_nao_prorroga(banco):
+    caso = _caso(banco)
+
+    r = banco.sql(
+        f"UPDATE conduta_casos SET prorrogado_em = now(), prorrogacao_cifrada = 'v1:BBBB' WHERE id = '{caso}';",
+        papel="service_role",
+    )
+
+    assert r.returncode != 0

@@ -169,9 +169,23 @@ def confirmar_desvio(supabase, aberto: CasoAberto) -> dict:
     if not tem_aviso(caso):
         raise AcaoRecusadaError(409, "Este caso não tem o aviso de Rota Especial.")
     relato = cifra.decifrar_texto(caso["relato_cifrado"])
-    trilha.registrar(
-        supabase, caso["id"], aberto.autor_id, "desvio_especial", "confirmou o desvio para a Rota Especial"
+    # Quem a fila comum pôs no caso (o suplente convocado, que pode ser
+    # diretor, o apurador e a CIPA convidados) sai: o caso Especial é só do
+    # grupo. O impedimento fica, porque ele barra a pessoa.
+    da_fila_comum = (
+        supabase.table("conduta_atribuicoes")
+        .select("id")
+        .eq("caso_id", caso["id"])
+        .is_("revogada_em", "null")
+        .is_("impedido_em", "null")
+        .execute()
+        .data
+        or []
     )
+    detalhe = "confirmou o desvio para a Rota Especial"
+    if da_fila_comum:
+        detalhe += f"; {len(da_fila_comum)} atribuição(ões) da fila comum revogada(s)"
+    trilha.registrar(supabase, caso["id"], aberto.autor_id, "desvio_especial", detalhe)
     mudado = _mudar(
         supabase,
         caso,
@@ -182,6 +196,9 @@ def confirmar_desvio(supabase, aberto: CasoAberto) -> dict:
             "desviado_em": agora_utc().isoformat(),
         },
     )
+    revogada_em = agora_utc().isoformat()
+    for atribuicao in da_fila_comum:
+        supabase.table("conduta_atribuicoes").update({"revogada_em": revogada_em}).eq("id", atribuicao["id"]).execute()
     entrar(supabase, caso["id"], relato, None, "entrou na Rota Especial pelo desvio")
     return mudado
 
@@ -245,7 +262,16 @@ def para_a_tela(supabase, aberto: CasoAberto) -> dict[str, Any]:
     if caso.get("rota") != "especial":
         return saida
     selos = supabase.table("conduta_selos").select("*").eq("caso_id", caso["id"]).execute().data or []
-    vencidos = supabase.table("conduta_prazos_vencidos").select("id").eq("caso_id", caso["id"]).execute().data
+    # Só o prazo da Rota Especial: o Rápido ou o Completo que venceu ainda na
+    # fila comum, antes do desvio, não é "Caso não respondido no prazo".
+    vencidos = (
+        supabase.table("conduta_prazos_vencidos")
+        .select("id")
+        .eq("caso_id", caso["id"])
+        .eq("prazo_em", str(caso.get("prazo_em"))[:10])
+        .execute()
+        .data
+    )
     entrega = _entrega(supabase, caso["id"])
     saida["rota_especial"] = {
         "selo": {"selado_em": selos[0]["selado_em"], "codigo": selos[0]["codigo"], "confere": selo_confere(selos[0])}
