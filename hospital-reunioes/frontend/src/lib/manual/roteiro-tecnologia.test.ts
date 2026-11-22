@@ -17,7 +17,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { perguntaValida, type PerguntaDaVitta } from "@/components/tecnologia/CartaoDaPergunta";
 import { conversaValida } from "@/components/tecnologia/chat";
+import type { FalaDoMeExplique } from "@/components/tecnologia/MeExplique";
 import { colunasDoQuadro, linkDoPlano, type Demanda } from "@/components/tecnologia/demandas";
 import { carregarPaginasDoManual } from "./carregar";
 import { imagensCitadas } from "./paginas";
@@ -207,7 +209,11 @@ describe("a pergunta da Vitta e o pedido de projeto novo na tabela (issue #1968,
     expect(aviso!.tipo).toBe("TECNOLOGIA");
     expect(aviso!.lida).toBe(false);
     expect(aviso!.mensagem.length).toBeGreaterThan(0);
-    expect(aviso!.referencia_id).toBe(novo!.id);
+    // Desde a issue #2118 o aviso guarda a Pergunta e abre a aba no cartão dela.
+    const esperando = T["perguntas/esperando"] as { id: string; demanda_id: string }[];
+    const pergunta = esperando.find((p) => aviso!.referencia_id === `pergunta:${p.id}`);
+    expect(pergunta, "o aviso não abre uma Pergunta da lista").toBeDefined();
+    expect(pergunta!.demanda_id).toBe(novo!.id);
     const conversa = T[`chat/${novo!.id}/conversa`] as { mensagens: { texto: string; minha: boolean }[] };
     const ultima = conversa.mensagens.at(-1)!;
     expect(ultima.minha).toBe(false);
@@ -216,6 +222,53 @@ describe("a pergunta da Vitta e o pedido de projeto novo na tabela (issue #1968,
 
   it("o roteiro serve o sino no lugar do backend", () => {
     expect(readFileSync(ROTEIRO, "utf8")).toMatch(/respostas\.py" --sino/);
+  });
+});
+
+describe("a Pergunta da Vitta, a lista Esperando sua resposta e o Me explique na tabela (issue #2123, PRD #2112)", () => {
+  const T = tabela();
+  type Item = PerguntaDaVitta & { demanda_id: string; demanda: string; minha: boolean };
+  const lista = () => T["perguntas/esperando"] as Item[];
+  const doDiretor = () => lista().find((p) => p.minha)!;
+
+  it("a lista tem as Perguntas abertas no formato que a tela aceita, as do diretor primeiro, e nenhuma se responde por ela", () => {
+    const itens = lista();
+    expect(Array.isArray(itens)).toBe(true);
+    for (const p of itens) {
+      expect(perguntaValida(p), `a Pergunta ${p.id} não serve`).toBe(true);
+      expect(typeof p.demanda).toBe("string");
+      expect(p.estado).toBe("aberta");
+      expect(p.pode_responder ?? false).toBe(false);
+    }
+    const minhas = itens.map((p) => p.minha);
+    expect(minhas).toContain(true);
+    expect(minhas).toContain(false);
+    expect(minhas).toEqual([...minhas].sort((a, b) => Number(b) - Number(a)));
+  });
+
+  it("a Conversa do pedido da Pergunta do diretor traz o mesmo cartão, com opções, a recomendada e o porquê, para responder", () => {
+    const pergunta = doDiretor();
+    const conversa = T[`chat/${pergunta.demanda_id}/conversa`] as { mensagens: { pergunta?: PerguntaDaVitta | null }[] };
+    const cartao = conversa.mensagens.map((m) => m.pergunta).find((p) => p?.id === pergunta.id);
+    expect(cartao, "a Conversa não tem o cartão da Pergunta").toBeDefined();
+    expect(cartao!.estado).toBe("aberta");
+    expect(cartao!.pode_responder).toBe(true);
+    const letras = (cartao!.opcoes ?? []).map((o) => o.letra);
+    expect(letras.length).toBeGreaterThanOrEqual(2);
+    expect(letras).toContain(cartao!.recomendada);
+    expect(cartao!.porque).toEqual(expect.any(String));
+  });
+
+  it("o Me explique da Pergunta começa pela explicação do Assistente e traz um rascunho de resposta", () => {
+    const conversa = T[`perguntas/${doDiretor().id}/me-explique`] as { mensagens: FalaDoMeExplique[] };
+    expect(conversa?.mensagens?.[0]?.papel).toBe("assistente");
+    expect(conversa.mensagens.some((m) => m.papel === "pessoa")).toBe(true);
+    expect(conversa.mensagens.some((m) => m.papel === "assistente" && typeof m.rascunho === "string")).toBe(true);
+  });
+
+  it("nenhum texto da Pergunta chama ela de Pendência (ADR 0109, decisão 2)", () => {
+    const textos = [lista(), T[`perguntas/${doDiretor().id}/me-explique`]].flatMap(folhas);
+    expect(textos.filter((t) => /pend[êe]ncia/i.test(t))).toEqual([]);
   });
 });
 
