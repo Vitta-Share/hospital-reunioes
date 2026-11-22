@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T18:35+0000 -->
+<!-- last_update: 2026-11-22T18:47+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -3116,7 +3116,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## tecnologia_perguntas
 
-> Origem: `211_tecnologia_pergunta_da_vitta.sql`
+> Origem: `211_tecnologia_pergunta_da_vitta.sql` (alterada em: 232_pedido_da_vitta_passo_a_passo.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -3146,11 +3146,13 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `cancelada_em` | `TIMESTAMPTZ` | — | — | — |
 | `lembrete_enviado_em` | `TIMESTAMPTZ` | — | — | — |
 | `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `tipo` | `TEXT` | NOT NULL | `'pergunta'` | `participantes.id` |
 
 **Indexes:**
 - `idx_tecnologia_perguntas_demanda` em `(demanda_id, criado_em)` (de `211_tecnologia_pergunta_da_vitta.sql`)
 - `idx_tecnologia_perguntas_abertas` em `(criado_em)` (de `211_tecnologia_pergunta_da_vitta.sql`)
 - `idx_tecnologia_perguntas_destinatario` em `(destinatario_id)` (de `211_tecnologia_pergunta_da_vitta.sql`)
+- `idx_tecnologia_perguntas_card` em `(card_projeto, card_numero)` (de `232_pedido_da_vitta_passo_a_passo.sql`)
 
 ## tecnologia_conversas_do_me_explique
 
@@ -3531,6 +3533,23 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_conduta_verificacoes_de_retaliacao_verificada_por` em `(verificada_por)` (de `229_conduta_verificacao_de_retaliacao.sql`)
 - `idx_conduta_verificacoes_de_retaliacao_caso_novo` em `(caso_novo_id)` (de `229_conduta_verificacao_de_retaliacao.sql`)
 
+## tecnologia_checks_do_pedido
+
+> Origem: `232_pedido_da_vitta_passo_a_passo.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `pedido_id` | `UUID` | NOT NULL | — | `tecnologia_perguntas.id` |
+| `passo` | `SMALLINT` | NOT NULL | — | — |
+| `marcado` | `BOOLEAN` | NOT NULL | — | — |
+| `por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `em_nome_de` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_tecnologia_checks_do_pedido_pedido` em `(pedido_id, criado_em)` (de `232_pedido_da_vitta_passo_a_passo.sql`)
+
 ---
 
-**Resumo:** 177 tabelas vivas.
+**Resumo:** 178 tabelas vivas.
