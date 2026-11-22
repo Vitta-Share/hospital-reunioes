@@ -2,6 +2,57 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T22:46:47-03:00",
+      "sha": "a52ea114c0cbb54f3d32e7cd8b11d406fa40a3c6",
+      "app_version": "0.359.0",
+      "subject": "Onda pergunta-da-vitta-2112-onda1: Pergunta da Vitta nasce pela ponte e aparece como cartão na Conversa da Demanda; Conversa da Demanda com negrito, lista, link, separador por dia e linha de Em produç",
+      "raw_subject": "chore(deploy): registro da onda pergunta-da-vitta-2112-onda1 (#2126 #2124)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        2112
+      ],
+      "result": "healthy",
+      "duration_seconds": 3192,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "211_tecnologia_pergunta_da_vitta.sql",
+        "211_tecnologia_pergunta_da_vitta.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta pergunta-da-vitta-2112-onda1: PR #2126 (issue #2116), PR #2124 (issue #2117), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 8,
+        "build_s": {
+          "backend": 92,
+          "frontend": 361
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T20:40:03-03:00",
       "sha": "a9aa609393ba3e2463c05c2153a477e89c7bfc6f",
       "app_version": "0.358.0",
