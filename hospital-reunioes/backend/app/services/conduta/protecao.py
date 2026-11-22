@@ -16,9 +16,13 @@ de qualquer dia é refeita a partir delas: é esse o arquivo por data.
 
 from __future__ import annotations
 
+from datetime import date, datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from app.services.conduta import configuracoes
+
+SAO_PAULO = ZoneInfo("America/Sao_Paulo")
 
 TEXTO_INICIAL: dict[str, str] = {
     "protecao_abertura": (
@@ -51,12 +55,21 @@ TEXTO_INICIAL: dict[str, str] = {
 BLOCOS: tuple[str, ...] = tuple(TEXTO_INICIAL)
 
 
-def pagina(supabase) -> dict[str, Any]:
-    """A página como ela está hoje."""
+def _dia(linha: dict) -> date:
+    """O dia da versão em São Paulo (o CI roda em UTC)."""
+    return datetime.fromisoformat(linha["criado_em"]).astimezone(SAO_PAULO).date()
+
+
+def pagina(supabase, em: date | None = None) -> dict[str, Any]:
+    """A página como ela está hoje, ou como estava no fim do dia `em`.
+
+    `versoes` são os dias em que a página mudou, do mais novo ao mais antigo:
+    cada um é uma versão arquivada, que se abre passando o dia em `em`."""
     por_chave = configuracoes._todas_as_versoes(supabase, list(BLOCOS))
+    dias = {_dia(linha) for versoes in por_chave.values() for linha in versoes}
     blocos = []
     for chave in BLOCOS:
-        versoes = por_chave[chave]
+        versoes = [linha for linha in por_chave[chave] if em is None or _dia(linha) <= em]
         vigente = versoes[0] if versoes else None
         blocos.append(
             {
@@ -67,4 +80,8 @@ def pagina(supabase) -> dict[str, Any]:
                 "versao_id": vigente["id"] if vigente else None,
             }
         )
-    return {"blocos": blocos}
+    return {
+        "em": em.isoformat() if em else None,
+        "blocos": blocos,
+        "versoes": [dia.isoformat() for dia in sorted(dias, reverse=True)],
+    }
