@@ -104,3 +104,97 @@ class TestTarefasNasDatasCertas:
         assert item["etapa"] == "acompanhamento"
         assert item["faltam_dias"] == 0
         assert item["prazo_vencido"] is False
+
+    def test_a_de_90_e_a_de_180_aparecem_cada_uma_no_seu_dia(self, comite):
+        caso = comite.encerrado(ha_dias=30)
+        assert comite.verificar(caso, 30).status_code == 200
+        assert comite.da_verificacao(caso) == []
+
+        comite.recuar(caso, 89)
+        assert comite.da_verificacao(caso) == []
+        comite.recuar(caso, 90)
+        assert [i["acao"] for i in comite.da_verificacao(caso)] == [f"{ACAO} (90 dias)"]
+        assert comite.verificar(caso, 90).status_code == 200
+
+        comite.recuar(caso, 179)
+        assert comite.da_verificacao(caso) == []
+        comite.recuar(caso, 180)
+        assert [i["acao"] for i in comite.da_verificacao(caso)] == [f"{ACAO} (180 dias)"]
+        assert comite.verificar(caso, 180).status_code == 200
+        comite.recuar(caso, 400)
+        assert comite.da_verificacao(caso) == []
+
+    def test_a_verificacao_atrasada_continua_na_lista_com_o_prazo_vencido_contado(self, comite):
+        caso = comite.encerrado(ha_dias=95)
+
+        (item,) = comite.da_verificacao(caso)
+
+        assert item["acao"] == f"{ACAO} (30 dias)"
+        assert item["faltam_dias"] == -65
+
+    def test_so_a_coordenacao_tem_a_tarefa(self, comite):
+        caso = comite.encerrado(ha_dias=30)
+
+        assert comite.da_verificacao(caso, MEMBRO) == []
+        caixa = comite.abrir(MEMBRO, caso)["o_que_fazer_agora"]
+        assert caixa["botao"] == "REGISTRAR VERIFICAÇÃO"
+        assert caixa["bloqueio"] == "Só a coordenação registra a verificação."
+
+    def test_a_caixa_do_caso_pede_a_verificacao_no_dia(self, comite):
+        caso = comite.encerrado(ha_dias=30)
+
+        caixa = comite.abrir(COORDENACAO, caso)["o_que_fazer_agora"]
+
+        assert caixa["frase"] == "Verifique se houve mudança desfavorável para quem relatou."
+        assert caixa["botao"] == "REGISTRAR VERIFICAÇÃO"
+        assert caixa["bloqueio"] is None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# A verificação é registrada com um clique e observação opcional
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestRegistroComUmClique:
+    def test_um_clique_sem_observacao_registra(self, comite):
+        caso = comite.encerrado(ha_dias=30)
+
+        resposta = comite.verificar(caso, 30, houve=False)
+
+        assert resposta.status_code == 200, resposta.text
+        (linha,) = comite.banco.tabelas[TABELA]
+        assert (linha["caso_id"], linha["marco"], linha["houve"]) == (caso, 30, False)
+        assert linha["observacao_cifrada"] is None
+        assert linha["verificada_por"] == COORDENACAO
+        assert comite.trilha(caso)[-1]["acao"] == "verificou_retaliacao"
+
+    def test_a_observacao_fica_cifrada_e_aparece_na_tela(self, comite):
+        caso = comite.encerrado(ha_dias=30)
+        observacao = "Consultei o DP: mesma escala e mesmo setor."
+
+        assert comite.verificar(caso, 30, observacao=observacao).status_code == 200
+
+        (linha,) = comite.banco.tabelas[TABELA]
+        assert observacao not in str(linha)
+        assert cifra.decifrar_texto(linha["observacao_cifrada"]) == observacao
+        marcos = comite.abrir(COORDENACAO, caso)["verificacao_de_retaliacao"]["marcos"]
+        assert [(m["marco"], m["situacao"], m["houve"], m["observacao"]) for m in marcos] == [
+            (30, "verificada", False, observacao),
+            (90, "aguardando", None, None),
+            (180, "aguardando", None, None),
+        ]
+        assert marcos[0]["verificada_por"] == "Ana Coordenadora"
+
+    def test_so_a_coordenacao_registra(self, comite):
+        caso = comite.encerrado(ha_dias=30)
+
+        assert comite.verificar(caso, 30, pid=MEMBRO).status_code == 403
+        assert comite.banco.tabelas.get(TABELA, []) == []
+
+    def test_antes_do_dia_e_depois_de_registrada_e_recusada(self, comite):
+        caso = comite.encerrado(ha_dias=30)
+
+        assert comite.verificar(caso, 90).status_code == 409
+        assert comite.verificar(caso, 30).status_code == 200
+        assert comite.verificar(caso, 30, houve=True).status_code == 409
+        assert len(comite.banco.tabelas[TABELA]) == 1

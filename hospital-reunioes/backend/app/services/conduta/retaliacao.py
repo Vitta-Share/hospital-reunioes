@@ -95,3 +95,114 @@ def pendente(supabase, caso: dict[str, Any], hoje: date) -> int | None:
         return None
     feitas = _feitas(supabase, caso["id"])
     return next((m for m in chegaram if m not in feitas), None)
+
+
+def _exigir_coordenacao(aberto: CasoAberto) -> None:
+    if aberto.pessoa.papel != "coordenacao":
+        raise VerificacaoRecusadaError(403, "Só a coordenação registra a verificação.")
+
+
+def _exigir_acompanhamento(supabase, caso: dict[str, Any]) -> None:
+    if not acompanha(supabase, caso):
+        raise VerificacaoRecusadaError(409, "Este caso não tem verificação de retaliação.")
+
+
+def registrar(supabase, aberto: CasoAberto, *, marco: int, houve: bool, observacao: str, hoje: date) -> dict:
+    """REGISTRAR VERIFICAÇÃO: houve ou não houve mudança desfavorável para
+    quem relatou, com a observação se a coordenação quiser."""
+    _exigir_coordenacao(aberto)
+    caso = aberto.caso
+    if marco not in MARCOS:
+        raise VerificacaoRecusadaError(422, "A verificação é de 30, 90 ou 180 dias.")
+    _exigir_acompanhamento(supabase, caso)
+    if data_da_verificacao(caso["encerrado_em"], marco) > hoje:
+        raise VerificacaoRecusadaError(409, f"A verificação de {marco} dias ainda não chegou.")
+    if marco in _feitas(supabase, caso["id"]):
+        raise VerificacaoRecusadaError(409, f"A verificação de {marco} dias já foi registrada.")
+    observacao = (observacao or "").strip()
+    if len(observacao) > TAMANHO_DA_OBSERVACAO:
+        raise VerificacaoRecusadaError(422, f"A observação cabe em {TAMANHO_DA_OBSERVACAO} caracteres.")
+    trilha.registrar(
+        supabase, caso["id"], aberto.autor_id, "verificou_retaliacao", f"registrou a verificação de {marco} dias"
+    )
+    try:
+        return (
+            supabase.table(TABELA)
+            .insert(
+                {
+                    "caso_id": caso["id"],
+                    "marco": marco,
+                    "houve": houve,
+                    "observacao_cifrada": cifra.cifrar_texto(observacao) if observacao else None,
+                    "verificada_por": aberto.autor_id,
+                    "verificada_em": agora_utc().isoformat(),
+                }
+            )
+            .execute()
+            .data[0]
+        )
+    except APIError as erro:
+        if getattr(erro, "code", None) == "23505":
+            raise VerificacaoRecusadaError(409, f"A verificação de {marco} dias já foi registrada.") from erro
+        raise
+
+
+def _protocolos(supabase, ids: list[str]) -> dict[str, str]:
+    if not ids:
+        return {}
+    linhas = supabase.table("conduta_casos").select("id, protocolo").in_("id", ids).execute().data or []
+    return {linha["id"]: linha["protocolo"] for linha in linhas}
+
+
+def _marco_na_tela(marco: int, dia: date, hoje: date, feita: dict | None, autores, novos, coordena: bool) -> dict:
+    if feita is None:
+        return {
+            "marco": marco,
+            "data": dia.isoformat(),
+            "situacao": "pendente" if dia <= hoje else "aguardando",
+            "houve": None,
+            "observacao": None,
+            "verificada_por": None,
+            "verificada_em": None,
+            "caso_novo": None,
+            "pode_abrir_caso_novo": False,
+        }
+    novo = feita.get("caso_novo_id")
+    observacao = feita.get("observacao_cifrada")
+    return {
+        "marco": marco,
+        "data": dia.isoformat(),
+        "situacao": "verificada",
+        "houve": feita["houve"],
+        "observacao": cifra.decifrar_texto(observacao) if observacao else None,
+        "verificada_por": autores.get(feita["verificada_por"], ""),
+        "verificada_em": feita.get("verificada_em"),
+        "caso_novo": {"id": novo, "protocolo": novos.get(novo, "")} if novo else None,
+        "pode_abrir_caso_novo": coordena and feita["houve"] and not novo,
+    }
+
+
+def para_a_tela(supabase, aberto: CasoAberto, hoje: date) -> dict[str, Any]:
+    """A área "Acompanhamento" da tela do caso concluído: as três
+    verificações, cada uma aguardando o dia, pendente ou verificada."""
+    caso = aberto.caso
+    if not acompanha(supabase, caso):
+        return {"verificacao_de_retaliacao": None}
+    coordena = aberto.pessoa.papel == "coordenacao"
+    feitas = _feitas(supabase, caso["id"])
+    autores = membros.nomes(supabase, sorted({f["verificada_por"] for f in feitas.values()}))
+    novos = _protocolos(supabase, [f["caso_novo_id"] for f in feitas.values() if f.get("caso_novo_id")])
+    marcos = [
+        _marco_na_tela(
+            marco, data_da_verificacao(caso["encerrado_em"], marco), hoje, feitas.get(marco), autores, novos, coordena
+        )
+        for marco in MARCOS
+    ]
+    proximo = next((m["marco"] for m in marcos if m["situacao"] == "pendente"), None)
+    return {
+        "verificacao_de_retaliacao": {
+            "marcos": marcos,
+            "marco_pendente": proximo,
+            "pode_registrar": coordena and proximo is not None,
+        }
+    }
