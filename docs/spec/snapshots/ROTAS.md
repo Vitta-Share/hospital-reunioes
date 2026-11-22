@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T01:33+0000 -->
+<!-- last_update: 2026-11-22T01:50+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -635,6 +635,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/nsp/membros` | Cadastrar membro | ✅ |
 | GET | `/nsp/membros/pessoas` | As pessoas ativas do cadastro, só id e nome, para escolher no cadastro. | ✅ |
 | PATCH | `/nsp/membros/{participacao_id}` | Editar membro | ✅ |
+| POST | `/nsp/membros/{participacao_id}/ausencia-da-presidencia` | Na ficha do suplente: o período em que ele responde pela Presidência. | ✅ |
 | POST | `/nsp/membros/{participacao_id}/encerrar` | Encerra sem apagar: a vigência termina no dia (inclusive) e a linha | ✅ |
 | POST | `/nsp/membros/{participacao_id}/renovar` | Estende o fim da vigência. A mesma Participação segue, com a trilha | ✅ |
 | GET | `/nsp/membros/{participacao_id}/trilha` | Trilha do membro | ✅ |
@@ -809,4 +810,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 468 endpoints em 67 routers · 93% exigem auth.
+**Totais:** 469 endpoints em 67 routers · 93% exigem auth.

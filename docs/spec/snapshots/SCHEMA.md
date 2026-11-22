@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T01:33+0000 -->
+<!-- last_update: 2026-11-22T01:50+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -97,6 +97,7 @@ erDiagram
     ouvidoria_pontos ||--o{ ouvidoria_avaliacoes : "ponto_id"
     participacoes ||--o{ conduta_assinaturas : "participacao_id"
     participacoes ||--o{ conduta_registro : "participacao_id"
+    participacoes ||--o{ nsp_ausencias_da_presidencia : "participacao_id"
     participacoes ||--o{ nsp_avisos : "participacao_id"
     participacoes ||--o{ nsp_termos_envios : "participacao_id"
     participacoes ||--o{ participacoes_trilha : "participacao_id"
@@ -150,6 +151,7 @@ erDiagram
     participantes ||--o{ email_de_segunda : "participante_id"
     participantes ||--o{ notificacoes : "destinatario_id"
     participantes ||--o{ nsp_agenda_ocorrencias : "registrado_por"
+    participantes ||--o{ nsp_ausencias_da_presidencia : "autor_id"
     participantes ||--o{ nsp_avisos : "destinatario_id"
     participantes ||--o{ nsp_capacitacao_participantes : "participante_id"
     participantes ||--o{ nsp_capacitacoes : "criado_por"
@@ -1640,6 +1642,14 @@ erDiagram
         TIMESTAMPTZ criado_em
         TIMESTAMPTZ atualizado_em
     }
+    nsp_ausencias_da_presidencia {
+        UUID id PK
+        UUID participacao_id FK
+        DATE inicio
+        DATE fim
+        VARCHAR autor_id FK
+        TIMESTAMPTZ criado_em
+    }
 ```
 
 ## Indexes principais
@@ -1907,6 +1917,8 @@ erDiagram
 | `tecnologia_perguntas` | `idx_tecnologia_perguntas_abertas` | `criado_em` | `211_tecnologia_pergunta_da_vitta.sql` |
 | `tecnologia_perguntas` | `idx_tecnologia_perguntas_destinatario` | `destinatario_id` | `211_tecnologia_pergunta_da_vitta.sql` |
 | `tecnologia_conversas_do_me_explique` | `idx_tecnologia_conversas_do_me_explique_participante` | `participante_id` | `211_tecnologia_pergunta_da_vitta.sql` |
+| `nsp_ausencias_da_presidencia` | `idx_nsp_ausencias_da_presidencia_participacao` | `participacao_id, inicio, fim` | `212_nsp_suplente_em_exercicio.sql` |
+| `nsp_ausencias_da_presidencia` | `idx_nsp_ausencias_da_presidencia_autor` | `autor_id` | `212_nsp_suplente_em_exercicio.sql` |
 
 ---
-**Resumo:** 151 tabelas · 239 relacionamentos FK detectados.
+**Resumo:** 152 tabelas · 241 relacionamentos FK detectados.

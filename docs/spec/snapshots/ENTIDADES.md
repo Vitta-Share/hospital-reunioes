@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T01:33+0000 -->
+<!-- last_update: 2026-11-22T01:50+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -3038,6 +3038,23 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_tecnologia_conversas_do_me_explique_participante` em `(participante_id)` (de `211_tecnologia_pergunta_da_vitta.sql`)
 
+## nsp_ausencias_da_presidencia
+
+> Origem: `212_nsp_suplente_em_exercicio.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `participacao_id` | `UUID` | NOT NULL | — | `participacoes.id` |
+| `inicio` | `DATE` | NOT NULL | — | — |
+| `fim` | `DATE` | NOT NULL | — | — |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_ausencias_da_presidencia_participacao` em `(participacao_id, inicio, fim)` (de `212_nsp_suplente_em_exercicio.sql`)
+- `idx_nsp_ausencias_da_presidencia_autor` em `(autor_id)` (de `212_nsp_suplente_em_exercicio.sql`)
+
 ---
 
-**Resumo:** 151 tabelas vivas.
+**Resumo:** 152 tabelas vivas.
