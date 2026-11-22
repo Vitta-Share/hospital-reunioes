@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2, Loader2, Megaphone, Paperclip, Trash2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Info, Loader2, Megaphone, Paperclip, Trash2 } from "lucide-react";
 import { AdminModal } from "@/components/admin/AdminModal";
+import { useCanalDeCondutaAberto } from "@/hooks/useCanalDeCondutaAberto";
 import {
   agoraParaCampoLocal,
   CANAIS,
@@ -20,6 +21,9 @@ import {
   TIPOS_MANIFESTACAO,
   type TipoManifestacao,
 } from "@/lib/ouvidoria/taxonomia";
+
+const ORIENTACAO_DO_CANAL =
+  "Colaborador que quer relatar uma conduta: indique o Canal de Conduta. Lá ele pode ficar anônimo e acompanhar o relato pelo código.";
 
 const LIMITE_MB = 20;
 const LIMITE_BYTES = LIMITE_MB * 1024 * 1024;
@@ -90,6 +94,7 @@ export function NovaManifestacaoModal({
   const [avisoAnexos, setAvisoAnexos] = useState<string | null>(null);
   const [setores, setSetores] = useState<string[]>([]);
   const [listaFalhou, setListaFalhou] = useState(false);
+  const canalDeCondutaAberto = useCanalDeCondutaAberto(aberto);
 
   // A área é lista fechada desde a issue #419: texto livre aqui criava uma
   // Recepção nova a cada erro de digitação, e o relatório da Diretoria contava
@@ -287,6 +292,18 @@ export function NovaManifestacaoModal({
             <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               {erro}
+            </div>
+          )}
+
+          {/* Decisão 2 do diretor no PRD #1786 (issue #1847): o colaborador
+              que liga ou vem ao balcão para relatar conduta é orientado a
+              relatar no Canal. Só com o canal aberto (ADR 0097, decisão 11):
+              fechado, a orientação mandaria a pessoa a uma página que não
+              existe. */}
+          {canalDeCondutaAberto && (
+            <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-sky-50 border border-sky-200 text-sky-900 text-sm">
+              <Info className="w-4 h-4 shrink-0 mt-0.5 text-sky-600" />
+              <p>{ORIENTACAO_DO_CANAL}</p>
             </div>
           )}
 
