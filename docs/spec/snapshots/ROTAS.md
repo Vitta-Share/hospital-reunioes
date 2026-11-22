@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T18:47+0000 -->
+<!-- last_update: 2026-11-22T19:47+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -108,6 +108,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 |--------|------|-----------|------|
 | GET | `/comite-de-conduta/casos` | Listar casos | ✅ |
 | GET | `/comite-de-conduta/casos/{caso_id}` | Abrir caso | ✅ |
+| GET | `/comite-de-conduta/casos/{caso_id}/anexos/{anexo_id}` | Um anexo do relato (issue #1844), decifrado e entregue pelo backend, | ✅ |
 | GET | `/comite-de-conduta/casos/{caso_id}/cadastro` | Para ligar o Citado ao cadastro: só id e nome. | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/citados` | Marcar citado | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/conferencia` | Conferir triagem | ✅ |
@@ -189,6 +190,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | GET | `/conduta/codigo-de-conduta` | O PDF do Código de Conduta vigente hoje (issue #1841), num endereço que | ❌ |
 | GET | `/conduta/protecao` | A página "Como este canal protege você" (issue #1846), bloco a bloco, | ❌ |
 | POST | `/conduta/relatos` | Recebe o relato inteiro, do passo 1 ao 5, e devolve o protocolo e o | ❌ |
+| POST | `/conduta/relatos/anexos` | Um anexo do relato: imagem, PDF ou áudio. O backend apaga os dados de | ❌ |
 | POST | `/conduta/relatos/confianca` | A pergunta opcional do P6, de 1 a 5. Vale uma vez por relato. Código | ❌ |
 | GET | `/conduta/textos` | Os textos vigentes das telas públicas (issue #1826), cada um com o | ❌ |
 
@@ -945,4 +947,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 544 endpoints em 79 routers · 93% exigem auth.
+**Totais:** 546 endpoints em 79 routers · 92% exigem auth.
