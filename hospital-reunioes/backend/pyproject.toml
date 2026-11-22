@@ -61,6 +61,12 @@ dependencies = [
     # Planilha .xlsx no chat da Tecnologia (issue #1521). Python puro; roda só
     # no processo filho do extrator, com teto de memória e prazo (issue #758).
     "openpyxl>=3.1.5",
+    # Os anexos do relato do Canal de Conduta (issue #1844): o PDF é regravado
+    # sem as informações de documento e sem o XMP. Python puro, BSD.
+    "pypdf>=6.0.0",
+    # As etiquetas do áudio anexado ao relato (issue #1844): ID3 do MP3 e
+    # comentários do OGG. Python puro; roda só no servidor.
+    "mutagen>=1.47.0",
 ]
 
 [project.optional-dependencies]

@@ -187,28 +187,36 @@ def validar_nota(dados: Any) -> NotaDeConfianca:
         raise EnvioRecusadoError("Escolha uma nota de 1 a 5.") from None
 
 
-def registrar_confianca(supabase, nota: NotaDeConfianca) -> bool:
-    """Grava a nota no caso, se o código confere e se ainda não há nota.
-    Devolve se o relato foi achado com aquele código."""
+def caso_pelo_codigo(supabase, protocolo: str, codigo: str) -> str | None:
+    """O id do caso, se o código confere com o protocolo. Protocolo que não
+    existe gasta o mesmo tempo de um código errado, para a resposta não dizer
+    se ele existe."""
     linhas = (
         supabase.table("conduta_casos")
         .select("id, codigo_hash")
-        .eq("protocolo", nota.protocolo.upper())
+        .eq("protocolo", protocolo.strip().upper())
         .limit(1)
         .execute()
         .data
     ) or []
     if not linhas:
-        # O mesmo tempo de um código errado, para a resposta não dizer se o
-        # protocolo existe.
-        _gastar_o_tempo_de_uma_conferencia(nota.codigo)
-        return False
-    if not codigo_confere(nota.codigo, linhas[0]["codigo_hash"]):
+        _gastar_o_tempo_de_uma_conferencia(codigo)
+        return None
+    if not codigo_confere(codigo, linhas[0]["codigo_hash"]):
+        return None
+    return linhas[0]["id"]
+
+
+def registrar_confianca(supabase, nota: NotaDeConfianca) -> bool:
+    """Grava a nota no caso, se o código confere e se ainda não há nota.
+    Devolve se o relato foi achado com aquele código."""
+    caso_id = caso_pelo_codigo(supabase, nota.protocolo, nota.codigo)
+    if caso_id is None:
         return False
     (
         supabase.table("conduta_casos")
         .update({"confianca": nota.nota})
-        .eq("id", linhas[0]["id"])
+        .eq("id", caso_id)
         .is_("confianca", "null")
         .execute()
     )
