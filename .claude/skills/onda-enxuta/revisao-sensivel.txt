@@ -25,6 +25,7 @@ hospital-reunioes/backend/app/routers/conector_mcp.py
 # Canal de Conduta público, link pessoal das Pendências, notificação e
 # Recebido do NSP (o gate de cada um vive no próprio router)
 hospital-reunioes/backend/app/routers/conduta_publico.py
+hospital-reunioes/backend/app/routers/conduta_acompanhamento.py
 hospital-reunioes/backend/app/routers/pendencias_link_pessoal.py
 hospital-reunioes/backend/app/routers/seguranca_do_paciente_notificacoes.py
 hospital-reunioes/backend/app/routers/seguranca_do_paciente_recebimento.py

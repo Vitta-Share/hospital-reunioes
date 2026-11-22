@@ -64,6 +64,7 @@ O diretor faz a metade de negócio do grill no app (ADR 0075). No card aberto de
 - `/snapshot`: mapa factual da app (roda sozinho numa Action no push da `main`, depois do registro da subida, ADR 0068).
 - `/atualizar-app`: rebuild local docker-compose (não toca produção).
 - **Pendência humana pós-ciclo** (import na virada, credencial, ato externo): vira issue `ready-for-human` ligada ao PRD (`/ship` Passo 10); o Pedro acompanha pelo label `ready-for-human` (`/minhas-issues`) e fecha a issue ao concluir.
+- **Pedido de implantação** (ADR 0111): o card humano que vem depois do código e não segura nenhuma fatia (teste de aceite, configuração, abertura, treinamento) leva a label `implantacao`, posta pelo `/to-issues` ao criar a fatia ou pelo `/triage` (regra em `docs/agents/triage-labels.md`). O PRD fecha com a última fatia de código, sem esperar esse card. O Pedro clica "Mandar ao hospital" no PedroOS, que cria o Pedido de implantação no card da Demanda e fecha a issue; quem faz é a gente do hospital, pelo app.
 
 ## Máquina nova
 

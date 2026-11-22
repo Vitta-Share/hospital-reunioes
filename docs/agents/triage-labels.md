@@ -36,6 +36,19 @@ Aplicada automaticamente pela Action de higiene (`.github/workflows/higiene-issu
 
 Descreve de onde a issue veio, não o estado dela: convive com as labels de triagem e de tipo, e ninguém a tira na curadoria.
 
+## Label de implantação (ADR 0111)
+
+| Label | Significado |
+| --- | --- |
+| `implantacao` | Card humano que vem depois do código e não segura nenhuma fatia: teste de aceite, configuração, abertura, treinamento. Vira Pedido de implantação pelo "Mandar ao hospital" do PedroOS |
+
+A regra (ADR 0111, decisão 2): a label vai só no card humano que vem depois do código e não segura nenhuma fatia. O card humano que segura código continua sem ela e é o Passo a passo da ADR 0110: chave no Coolify, decisão sobre migration, layout aprovado antes do desenvolvimento. Na dúvida, pergunte se alguma fatia espera esse card (o `blocked_by` nativo de uma fatia aponta para ele): se espera, não é implantação.
+
+- Vai: "Testar o acesso e o anonimato do Canal de Conduta", depois que as fatias do canal subiram e nenhuma espera o teste.
+- Não vai: "Criar a chave da API no Coolify", que a fatia de integração espera para subir.
+
+Quem põe é o `/to-issues`, ao criar a fatia humana, e o `/triage`, que põe ou tira pela mesma regra. O PedroOS só lê a label. Ela convive com `ready-for-human` e com as labels de tipo; o PRD pai não espera o card com ela para fechar (ADR 0111, decisão 5).
+
 ## Labels de tamanho de fatia (Plano vivo)
 
 Família **descritiva de tamanho** (não de estado), aplicada pelo `/to-issues` no momento da quebra do PRD — uma por fatia, nunca no PRD pai:
