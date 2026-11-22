@@ -39,7 +39,7 @@ TEMPO_LIMITE_S = 20.0
 DESTINOS = agente.DESTINOS
 
 # A regra de proteção da seção 4.1, pelas raízes das palavras, sem acento.
-_TERMOS_DE_PROTECAO = re.compile(r"\b(assedi|discrimin|amea[cç]|violen|retalia|fraud|desvi|falsific)")
+_TERMOS_DE_PROTECAO = re.compile(r"\b(assedi|discrimin|amea[cç]|violen|retali|fraud|desvi|falsific)")
 
 
 def tem_termo_de_protecao(relato: str) -> bool:

@@ -185,6 +185,28 @@ def test_cada_termo_da_regra_de_protecao_e_reconhecido_pelo_app(palavra):
     assert not aviso_fora_do_canal.tem_termo_de_protecao(CONTRACHEQUE)
 
 
+@pytest.mark.parametrize(
+    "verbo",
+    [
+        "assediou",
+        "discriminou",
+        "ameaçou",
+        "violentou",
+        "retaliou",
+        "retaliei",
+        "retaliem",
+        "retaliar",
+        "fraudou",
+        "desviou",
+        "falsificou",
+    ],
+)
+def test_o_verbo_da_regra_de_protecao_tambem_e_reconhecido_pelo_app(verbo):
+    """O relato conta o fato com o verbo, não com o substantivo: "o chefe
+    retaliou" tem de calar o aviso como "houve retaliação"."""
+    assert aviso_fora_do_canal.tem_termo_de_protecao(f"O chefe {verbo} cortando meu plantão.")
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # 6. Teto estourado, agente fora do ar ou desligado: sem aviso, sem erro
 # ═══════════════════════════════════════════════════════════════════════════
