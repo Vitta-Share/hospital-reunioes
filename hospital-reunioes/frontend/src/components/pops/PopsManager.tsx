@@ -9,6 +9,7 @@ import { isSuperadminPops } from "@/lib/auth";
 import { useToast } from "@/components/ui/Toast";
 import { Select } from "@/components/ui/Select";
 import { AdminModal } from "@/components/admin/AdminModal";
+import { ModalPortal } from "@/components/ui/ModalPortal";
 import { DataTable, type Column } from "@/components/admin/DataTable";
 import {
   CRITICIDADE_POP_LABELS,
@@ -384,30 +385,36 @@ export function PopsManager() {
         }}
       />
 
+      {/* Portal no body (issue #2044): o miolo de /pops anima com transform,
+          e o fixed dos dois modais se ancorava nele, abrindo lá embaixo. */}
       {showCriar && (
-        <CriarPopModal
-          setores={setores}
-          designaveis={designaveis}
-          onClose={() => setShowCriar(false)}
-          onCreated={async (pop) => {
-            setShowCriar(false);
-            toast(`POP ${pop.codigo} criado. Elaborador notificado por email`, "success");
-            await fetchRows();
-          }}
-        />
+        <ModalPortal>
+          <CriarPopModal
+            setores={setores}
+            designaveis={designaveis}
+            onClose={() => setShowCriar(false)}
+            onCreated={async (pop) => {
+              setShowCriar(false);
+              toast(`POP ${pop.codigo} criado. Elaborador notificado por email`, "success");
+              await fetchRows();
+            }}
+          />
+        </ModalPortal>
       )}
 
       {editando && (
-        <EditarPapeisModal
-          pop={editando}
-          designaveis={designaveis}
-          onClose={() => setEditando(null)}
-          onSaved={async (pop) => {
-            setEditando(null);
-            toast(`Papéis do POP ${pop.codigo} atualizados`, "success");
-            await fetchRows();
-          }}
-        />
+        <ModalPortal>
+          <EditarPapeisModal
+            pop={editando}
+            designaveis={designaveis}
+            onClose={() => setEditando(null)}
+            onSaved={async (pop) => {
+              setEditando(null);
+              toast(`Papéis do POP ${pop.codigo} atualizados`, "success");
+              await fetchRows();
+            }}
+          />
+        </ModalPortal>
       )}
 
       {excluindo && (
