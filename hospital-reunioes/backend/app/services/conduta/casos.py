@@ -16,7 +16,7 @@ from typing import Any
 
 from postgrest.exceptions import APIError
 
-from app.services.conduta import avisos, cifra, trilha
+from app.services.conduta import agente_de_triagem, avisos, cifra, trilha
 from app.services.ouvidoria_acompanhamento import ALFABETO, gerar_codigo, hash_do_codigo
 
 _VIOLACAO_DE_UNICIDADE = "23505"
@@ -39,6 +39,7 @@ def registrar_caso(
     categoria: str | None,
     rota: str = "comum",
     manifestacao_id: str | None = None,
+    tarefas=None,
 ) -> dict[str, Any]:
     """Grava o caso e a linha de recebimento na trilha. Devolve o id, o
     protocolo e o código de acompanhamento, que não fica guardado.
@@ -46,6 +47,10 @@ def registrar_caso(
     Com `manifestacao_id`, o caso é o que a Ouvidoria sinalizou (issue #1849,
     ADR 0097 decisão 14): origem `ouvidoria`, ligado à manifestação. Ninguém
     acompanha esse caso pelo código, que é descartado.
+
+    Com `tarefas` (o `BackgroundTasks` da rota que recebe o relato), o agente
+    de triagem lê o caso depois da resposta, sem clique de ninguém (issue
+    #1827, ADR 0097, decisão 6).
 
     Sem a chave de cifra levanta `CifraIndisponivelError` antes de gravar qualquer
     coisa."""
@@ -70,4 +75,6 @@ def registrar_caso(
     detalhe = "caso sinalizado pela Ouvidoria" if manifestacao_id is not None else "caso recebido"
     trilha.registrar(supabase, caso["id"], None, "recebimento", detalhe)
     avisos.avisar_tarefas_novas(supabase, caso["id"], {})
+    if tarefas is not None:
+        agente_de_triagem.agendar_triagem_do_caso(tarefas, supabase, caso["id"])
     return {"id": caso["id"], "protocolo": caso["protocolo"], "codigo": codigo}

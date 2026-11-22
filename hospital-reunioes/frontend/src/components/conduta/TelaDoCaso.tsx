@@ -9,6 +9,7 @@ import { DepoimentosDaApuracao } from "@/components/conduta/DepoimentosDaApuraca
 import { ImpedimentoECitados } from "@/components/conduta/ImpedimentoECitados";
 import { OQueFazerAgora } from "@/components/conduta/OQueFazerAgora";
 import { SinalizarAoNsp } from "@/components/conduta/SinalizarAoNsp";
+import { SugestaoDoAgente } from "@/components/conduta/SugestaoDoAgente";
 import {
   CATEGORIAS,
   DESTINOS,
@@ -390,6 +391,8 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
           )}
         </section>
       )}
+
+      {caso.sugestao_do_agente && <SugestaoDoAgente casoId={casoId} sugestao={caso.sugestao_do_agente} aoResponder={carregar} />}
 
       <SinalizarAoNsp notas={caso.notas_ao_nsp ?? []} papel={caso.papel} ocupado={ocupado} enviar={enviar} />
 

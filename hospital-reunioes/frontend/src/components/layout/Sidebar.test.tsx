@@ -463,6 +463,11 @@ describe("Sidebar com o item Segurança do Paciente", () => {
     expect(hrefs(semCasos)).not.toContain("/seguranca-do-paciente/notificacoes");
   });
 
+  it("a Diretoria vê o item Notificações pelo recurso dos casos graves (issue #1999)", () => {
+    const diretoria = entrar({ access_profile: null, recursos_nsp: [...SEM_TERMO, "membros", "casos_graves"] });
+    expect(hrefs(diretoria)).toContain("/seguranca-do-paciente/notificacoes");
+  });
+
   it("o item Configuração aparece para quem tem o recurso da Configuração, e só para ele (issue #2046)", () => {
     const comConfiguracao = entrar({ access_profile: null, recursos_nsp: [...SEM_TERMO, "configuracao"] });
     expect(hrefs(comConfiguracao)).toContain("/seguranca-do-paciente/configuracao");

@@ -2,6 +2,205 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T22:53:36-03:00",
+      "sha": "bcfd3bebb8d8f179a44e3039a4931d9082ed25e9",
+      "app_version": "0.360.0",
+      "subject": "Onda nsp2-onda9: Suplente em exercício, Diretoria nos casos A e B e teste de varredura",
+      "raw_subject": "chore(deploy): registro da onda nsp2-onda9 (#2129)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1979
+      ],
+      "result": "healthy",
+      "duration_seconds": 1156,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "212_nsp_suplente_em_exercicio.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp2-onda9: PR #2129 (issue #1999), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 2,
+        "build_s": {
+          "backend": 25,
+          "frontend": 213
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
+      "at": "2026-11-21T22:46:47-03:00",
+      "sha": "a52ea114c0cbb54f3d32e7cd8b11d406fa40a3c6",
+      "app_version": "0.359.0",
+      "subject": "Onda pergunta-da-vitta-2112-onda1: Pergunta da Vitta nasce pela ponte e aparece como cartão na Conversa da Demanda; Conversa da Demanda com negrito, lista, link, separador por dia e linha de Em produç",
+      "raw_subject": "chore(deploy): registro da onda pergunta-da-vitta-2112-onda1 (#2126 #2124)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        2112
+      ],
+      "result": "healthy",
+      "duration_seconds": 3192,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "211_tecnologia_pergunta_da_vitta.sql",
+        "211_tecnologia_pergunta_da_vitta.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta pergunta-da-vitta-2112-onda1: PR #2126 (issue #2116), PR #2124 (issue #2117), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 8,
+        "build_s": {
+          "backend": 92,
+          "frontend": 361
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
+      "at": "2026-11-21T20:40:03-03:00",
+      "sha": "a9aa609393ba3e2463c05c2153a477e89c7bfc6f",
+      "app_version": "0.358.0",
+      "subject": "Onda sesta-1786-onda4: Agente de triagem do Canal e teste do Anexo B",
+      "raw_subject": "chore(deploy): registro da onda sesta-1786-onda4 (#2104)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 259,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "200_conduta_agente_de_triagem.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1786-onda4: PR #2104 (issue #1827), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 19,
+          "frontend": 205
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
+      "at": "2026-11-21T20:26:32-03:00",
+      "sha": "225cd9be236d70813f6f07834fc23e19ddfad395",
+      "app_version": "0.357.0",
+      "subject": "Onda sesta-1786-onda6: Convite de apurador e de membro da CIPA dentro do caso",
+      "raw_subject": "chore(deploy): registro da onda sesta-1786-onda6 (#2111)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 267,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1786-onda6: PR #2111 (issue #1825), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 19,
+          "frontend": 234
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T20:15:59-03:00",
       "sha": "cb4d1f0d1faccdb2984fe2dc2e13ff5669e74938",
       "app_version": "0.356.0",

@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T23:12+0000 -->
+<!-- last_update: 2026-11-22T01:50+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -74,11 +74,13 @@ erDiagram
     conduta_casos ||--o{ conduta_depoimentos : "caso_id"
     conduta_casos ||--o{ conduta_notas_nsp : "caso_id"
     conduta_casos ||--o{ conduta_prazos_vencidos : "caso_id"
+    conduta_casos ||--o{ conduta_sugestoes : "caso_id"
     conduta_casos ||--o{ conduta_trilha : "caso_id"
     conduta_contestacoes ||--o{ conduta_contestacao_votos : "contestacao_id"
     conduta_contestacoes_de_participacao ||--o{ conduta_participacao_votos : "contestacao_id"
     conduta_depoimentos ||--o{ conduta_depoimento_arquivos : "depoimento_id"
     conduta_depoimentos ||--o{ conduta_depoimento_conferencia : "depoimento_id"
+    conduta_sugestoes ||--o{ conduta_sugestao_respostas : "caso_id"
     nsp_agenda_regulatoria ||--o{ nsp_agenda_ocorrencias : "item_id"
     nsp_capacitacoes ||--o{ nsp_capacitacao_participantes : "capacitacao_id"
     nsp_categorias ||--o{ nsp_triagens : "categoria"
@@ -95,6 +97,7 @@ erDiagram
     ouvidoria_pontos ||--o{ ouvidoria_avaliacoes : "ponto_id"
     participacoes ||--o{ conduta_assinaturas : "participacao_id"
     participacoes ||--o{ conduta_registro : "participacao_id"
+    participacoes ||--o{ nsp_ausencias_da_presidencia : "participacao_id"
     participacoes ||--o{ nsp_avisos : "participacao_id"
     participacoes ||--o{ nsp_termos_envios : "participacao_id"
     participacoes ||--o{ participacoes_trilha : "participacao_id"
@@ -143,10 +146,12 @@ erDiagram
     participantes ||--o{ conduta_participacao_votos : "participante_id"
     participantes ||--o{ conduta_registro : "autor_id"
     participantes ||--o{ conduta_registro : "ganhou"
+    participantes ||--o{ conduta_sugestao_respostas : "autor_id"
     participantes ||--o{ conduta_trilha : "que"
     participantes ||--o{ email_de_segunda : "participante_id"
     participantes ||--o{ notificacoes : "destinatario_id"
     participantes ||--o{ nsp_agenda_ocorrencias : "registrado_por"
+    participantes ||--o{ nsp_ausencias_da_presidencia : "autor_id"
     participantes ||--o{ nsp_avisos : "destinatario_id"
     participantes ||--o{ nsp_capacitacao_participantes : "participante_id"
     participantes ||--o{ nsp_capacitacoes : "criado_por"
@@ -195,6 +200,7 @@ erDiagram
     participantes ||--o{ tecnologia_anexos : "anexado_por"
     participantes ||--o{ tecnologia_conversa_da_demanda : "autor_id"
     participantes ||--o{ tecnologia_conversas : "autor_id"
+    participantes ||--o{ tecnologia_conversas_do_me_explique : "participante_id"
     participantes ||--o{ tecnologia_demandas : "apagada_por"
     participantes ||--o{ tecnologia_demandas : "autor_id"
     participantes ||--o{ tecnologia_demandas : "cancelada_por"
@@ -202,6 +208,10 @@ erDiagram
     participantes ||--o{ tecnologia_demandas : "responsavel_id"
     participantes ||--o{ tecnologia_demandas : "vinculado_por"
     participantes ||--o{ tecnologia_envios_aos_desenvolvedores : "enviado_por"
+    participantes ||--o{ tecnologia_perguntas : "autor_id"
+    participantes ||--o{ tecnologia_perguntas : "destinatario_id"
+    participantes ||--o{ tecnologia_perguntas : "respondida_em_nome_de"
+    participantes ||--o{ tecnologia_perguntas : "respondida_por"
     participantes ||--o{ tecnologia_planejamentos : "revisao_por"
     participantes ||--o{ tecnologia_produtos : "dono_id"
     participantes ||--o{ user_preferences : "participante_id"
@@ -227,13 +237,16 @@ erDiagram
     reunioes ||--o{ rotinas : "id_reuniao"
     reunioes ||--o{ tokens_validacao : "id_reuniao"
     rotinas ||--o{ pendencia_historico : "rotina_id"
+    tecnologia_conversa_da_demanda ||--o{ tecnologia_perguntas : "mensagem_id"
     tecnologia_conversas ||--o{ tecnologia_anexos : "conversa_id"
     tecnologia_demandas ||--o{ tecnologia_anexos : "demanda_id"
     tecnologia_demandas ||--o{ tecnologia_chamadas_ia : "demanda_id"
     tecnologia_demandas ||--o{ tecnologia_conversa_da_demanda : "demanda_id"
     tecnologia_demandas ||--o{ tecnologia_conversas : "demanda_id"
     tecnologia_demandas ||--o{ tecnologia_envios_aos_desenvolvedores : "demanda_id"
+    tecnologia_demandas ||--o{ tecnologia_perguntas : "demanda_id"
     tecnologia_demandas ||--o{ tecnologia_planejamentos : "demanda_id"
+    tecnologia_perguntas ||--o{ tecnologia_conversas_do_me_explique : "pergunta_id"
     tecnologia_produtos ||--o{ tecnologia_demandas : "produto_id"
     tipos_reuniao ||--o{ reunioes : "tipo_id"
 
@@ -1566,6 +1579,28 @@ erDiagram
         TIMESTAMPTZ criado_em
         _ mais_colunas "+1"
     }
+    conduta_sugestoes {
+        UUID caso_id PK
+        TEXT situacao
+        TEXT motivo_manual
+        TEXT sugestao_cifrada
+        TEXT modelo
+        TEXT prompt_versao
+        TIMESTAMPTZ criada_em
+    }
+    conduta_sugestao_respostas {
+        UUID id PK
+        UUID caso_id FK
+        TEXT item
+        TEXT resposta
+        TEXT motivo_cifrado
+        VARCHAR autor_id FK
+        TIMESTAMPTZ respondida_em
+    }
+    conduta_agente_cota {
+        DATE dia PK
+        INTEGER chamadas
+    }
     conduta_notas_nsp {
         UUID id PK
         UUID caso_id FK
@@ -1586,6 +1621,33 @@ erDiagram
         UUID triagem_id FK
         TEXT pergunta
         TEXT resposta
+        TIMESTAMPTZ criado_em
+    }
+    tecnologia_perguntas {
+        UUID id PK
+        UUID demanda_id FK
+        UUID mensagem_id FK
+        VARCHAR autor_id FK
+        VARCHAR destinatario_id FK
+        TEXT assunto
+        TEXT texto
+        TEXT por_que_precisa
+        _ mais_colunas "+18"
+    }
+    tecnologia_conversas_do_me_explique {
+        UUID id PK
+        UUID pergunta_id FK
+        VARCHAR participante_id FK
+        JSONB mensagens
+        TIMESTAMPTZ criado_em
+        TIMESTAMPTZ atualizado_em
+    }
+    nsp_ausencias_da_presidencia {
+        UUID id PK
+        UUID participacao_id FK
+        DATE inicio
+        DATE fim
+        VARCHAR autor_id FK
         TIMESTAMPTZ criado_em
     }
 ```
@@ -1844,12 +1906,19 @@ erDiagram
 | `email_de_segunda` | `idx_email_de_segunda_semana` | `semana` | `196_email_de_segunda.sql` |
 | `nsp_cortes_de_frequencia` | `idx_nsp_cortes_de_frequencia_atualizado_por` | `atualizado_por` | `197_nsp_tela_de_triagem.sql` |
 | `conduta_avisos` | `idx_conduta_avisos_pendentes` | `na_hora, criado_em` | `199_conduta_avisos_por_email.sql` |
+| `conduta_sugestao_respostas` | `idx_conduta_sugestao_respostas_autor` | `autor_id` | `200_conduta_agente_de_triagem.sql` |
 | `conduta_notas_nsp` | `uq_conduta_notas_nsp_pendente` | `caso_id` | `203_conduta_nota_ao_nucleo.sql` |
 | `conduta_notas_nsp` | `idx_conduta_notas_nsp_caso` | `caso_id` | `203_conduta_nota_ao_nucleo.sql` |
 | `conduta_notas_nsp` | `idx_conduta_notas_nsp_escrita_por` | `escrita_por` | `203_conduta_nota_ao_nucleo.sql` |
 | `conduta_notas_nsp` | `idx_conduta_notas_nsp_enviada_por` | `enviada_por` | `203_conduta_nota_ao_nucleo.sql` |
 | `nsp_notas_do_comite` | `idx_nsp_notas_do_comite_enviada_em` | `enviada_em DESC` | `203_conduta_nota_ao_nucleo.sql` |
 | `nsp_esclarecimentos` | `idx_nsp_esclarecimentos_triagem` | `triagem_id` | `207_nsp_perguntas_de_esclarecimento.sql` |
+| `tecnologia_perguntas` | `idx_tecnologia_perguntas_demanda` | `demanda_id, criado_em` | `211_tecnologia_pergunta_da_vitta.sql` |
+| `tecnologia_perguntas` | `idx_tecnologia_perguntas_abertas` | `criado_em` | `211_tecnologia_pergunta_da_vitta.sql` |
+| `tecnologia_perguntas` | `idx_tecnologia_perguntas_destinatario` | `destinatario_id` | `211_tecnologia_pergunta_da_vitta.sql` |
+| `tecnologia_conversas_do_me_explique` | `idx_tecnologia_conversas_do_me_explique_participante` | `participante_id` | `211_tecnologia_pergunta_da_vitta.sql` |
+| `nsp_ausencias_da_presidencia` | `idx_nsp_ausencias_da_presidencia_participacao` | `participacao_id, inicio, fim` | `212_nsp_suplente_em_exercicio.sql` |
+| `nsp_ausencias_da_presidencia` | `idx_nsp_ausencias_da_presidencia_autor` | `autor_id` | `212_nsp_suplente_em_exercicio.sql` |
 
 ---
-**Resumo:** 146 tabelas · 228 relacionamentos FK detectados.
+**Resumo:** 152 tabelas · 241 relacionamentos FK detectados.

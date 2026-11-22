@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T23:22+0000 -->
+<!-- last_update: 2026-11-22T01:50+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -97,6 +97,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/comite-de-conduta/casos/{caso_id}/nota-ao-nsp` | Sinalizar ao NSP (issue #1850): um membro escreve a nota ao Núcleo. | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/nota-ao-nsp/envio` | A coordenação envia ao Núcleo a nota escrita, e só ela (issue #1850). | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/prorrogacao` | Prorrogar prazo | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/sugestao` | A coordenação confirma ou discorda de um item da sugestão do agente | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/triagem` | Confirmar triagem | ✅ |
 | GET | `/comite-de-conduta/configuracoes` | Listar configuracoes | ✅ |
 | POST | `/comite-de-conduta/configuracoes/{chave}` | Salvar configuracao | ✅ |
@@ -634,6 +635,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/nsp/membros` | Cadastrar membro | ✅ |
 | GET | `/nsp/membros/pessoas` | As pessoas ativas do cadastro, só id e nome, para escolher no cadastro. | ✅ |
 | PATCH | `/nsp/membros/{participacao_id}` | Editar membro | ✅ |
+| POST | `/nsp/membros/{participacao_id}/ausencia-da-presidencia` | Na ficha do suplente: o período em que ele responde pela Presidência. | ✅ |
 | POST | `/nsp/membros/{participacao_id}/encerrar` | Encerra sem apagar: a vigência termina no dia (inclusive) e a linha | ✅ |
 | POST | `/nsp/membros/{participacao_id}/renovar` | Estende o fim da vigência. A mesma Participação segue, com a trilha | ✅ |
 | GET | `/nsp/membros/{participacao_id}/trilha` | Trilha do membro | ✅ |
@@ -764,7 +766,9 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | GET | `/automacao/tecnologia/demandas/{demanda_id}/anexos` | Nome, tipo e URL assinada de cada anexo não apagado da Demanda. | ✅ |
 | GET | `/automacao/tecnologia/demandas/{demanda_id}/conversa` | A resposta do diretor (ADR 0096, decisao 6): as mensagens da Conversa | ✅ |
 | POST | `/automacao/tecnologia/demandas/{demanda_id}/conversa` | A Mensagem pelo terminal (ADR 0096): grava no perfil do Desenvolvedor | ✅ |
+| POST | `/automacao/tecnologia/demandas/{demanda_id}/perguntas` | Cria a Pergunta da Vitta aberta na Demanda, com a entrada na Conversa, | ✅ |
 | GET | `/automacao/tecnologia/destinatarios` | Quem pode ser Destinatario de uma mensagem na Conversa da Demanda | ✅ |
+| GET | `/automacao/tecnologia/perguntas/{pergunta_id}` | O estado da Pergunta da Vitta e, quando houver, a resposta (o Checar | ✅ |
 | GET | `/automacao/tecnologia/projetos/{projeto}/issues/{numero}/demanda` | O id da Demanda vinculada a esta issue-raiz (ADR 0093: projeto mais | ✅ |
 | POST | `/automacao/tecnologia/projetos/{projeto}/issues/{numero}/demanda` | A Demanda do PRD de um Projeto novo (issue #1967, PRD #1964): 201 quando | ✅ |
 | POST | `/automacao/tecnologia/validacoes` | Guarda a observacao original junto da Demanda do PRD e devolve so os | ✅ |
@@ -806,4 +810,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 465 endpoints em 67 routers · 93% exigem auth.
+**Totais:** 469 endpoints em 67 routers · 93% exigem auth.

@@ -164,6 +164,17 @@ def _vigente(linhas: list[dict[str, Any]]) -> dict[str, Any] | None:
     return _decisao(linhas) or _sugestao(linhas)
 
 
+def faixas_vigentes(supabase, notificacao_ids: list[str]) -> dict[str, str]:
+    """A faixa que vale para cada notificação: a da decisão, ou a da sugestão
+    enquanto não há decisão. Sem triagem, a notificação fica de fora."""
+    faixas: dict[str, str] = {}
+    for notificacao_id, linhas in _triagens_por_notificacao(supabase, notificacao_ids).items():
+        vigente = _vigente(linhas)
+        if vigente and vigente.get("faixa"):
+            faixas[notificacao_id] = vigente["faixa"]
+    return faixas
+
+
 def _nomes_dos_setores(supabase, setor_ids: set[str]) -> dict[str, str]:
     if not setor_ids:
         return {}

@@ -285,3 +285,173 @@ describe("O Envio aos desenvolvedores", () => {
     expect(chamadas.filter((c) => c.url === `${URL}/enviar`)).toHaveLength(2);
   });
 });
+
+/**
+ * A Pergunta da Vitta (issue #2116, ADR 0109): a entrada que é Pergunta
+ * desenha o cartão no lugar da bolha, e a linha de sistema "Pergunta aberta"
+ * aparece como a do Envio.
+ */
+describe("A Pergunta da Vitta na Conversa", () => {
+  const COM_PERGUNTA = {
+    mensagens: [
+      {
+        id: "m-1",
+        autor: "Pedro Vitta",
+        texto: "Quem assina a Ata em nome da diretoria quando a senhora não está?",
+        criado_em: "2026-11-18T10:00:00Z",
+        minha: false,
+        sistema: false,
+        pergunta: {
+          id: "p-1",
+          projeto: "Aplicativo do Hospital",
+          assunto: "quem assina a Ata pela diretoria",
+          texto: "Quem assina a Ata em nome da diretoria quando a senhora não está?",
+          por_que_precisa: "Só a diretoria decide quem assina a ata.",
+          o_que_esta_parado: "A tela de assinatura da Ata.",
+          o_que_anda_depois: "A Vitta termina a tela.",
+          ganho: "A ata sai assinada no mesmo dia.",
+          opcoes: [],
+          estado: "aberta",
+          criado_em: "2026-11-18T10:00:00Z",
+          destinatario: "Diretora Clínica",
+        },
+      },
+      {
+        id: "m-2",
+        autor: "Pedro Vitta",
+        texto: "Pergunta aberta: quem assina a Ata pela diretoria",
+        criado_em: "2026-11-18T10:00:01Z",
+        minha: false,
+        sistema: true,
+        pergunta: null,
+      },
+      {
+        id: "m-3",
+        autor: "Diretora Clínica",
+        texto: "Vou pensar e respondo amanhã.",
+        criado_em: "2026-11-18T11:00:00Z",
+        minha: true,
+        pergunta: null,
+      },
+    ],
+    mencionaveis: [],
+  };
+
+  it("desenha a Pergunta como cartão em destaque, com a linha de sistema e as mensagens comuns em volta", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, status: 200, json: async () => COM_PERGUNTA }) as unknown as Response),
+    );
+    render(<ConversaDaDemanda demandaId="d-1" token="token-de-teste" />);
+
+    const cartao = await within(area()).findByRole("article", { name: "Pergunta da Vitta" });
+    expect(within(cartao).getByText("Quem assina a Ata em nome da diretoria quando a senhora não está?")).toBeTruthy();
+    expect(within(cartao).getByText("A tela de assinatura da Ata.")).toBeTruthy();
+    expect(within(cartao).getByText("Aberta")).toBeTruthy();
+    expect(within(cartao).getByText(/^Esperando há/)).toBeTruthy();
+    // O texto da Pergunta aparece uma vez só: no cartão, e não também numa bolha.
+    expect(within(area()).getAllByText("Quem assina a Ata em nome da diretoria quando a senhora não está?")).toHaveLength(1);
+    expect(within(area()).getByText("Pergunta aberta: quem assina a Ata pela diretoria")).toBeTruthy();
+    expect(within(area()).getByText("Vou pensar e respondo amanhã.")).toBeTruthy();
+    expect(within(area()).getAllByRole("article", { name: "Pergunta da Vitta" })).toHaveLength(1);
+  });
+});
+
+/**
+ * A mensagem formatada e o separador por dia (issue #2117, PRD #2112, ADR 0109,
+ * decisão 9): negrito, lista e link na bolha, para quem envia e para quem lê;
+ * o HTML digitado aparece como texto; um traço com a data na troca de dia.
+ */
+describe("A mensagem formatada e o separador por dia", () => {
+  function montarCom(mensagens: unknown[]) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        const metodo = init?.method ?? "GET";
+        const corpo = init?.body ? JSON.parse(String(init.body)) : null;
+        const resposta =
+          metodo === "POST"
+            ? {
+                id: "m-novo",
+                autor: "Diretor do Hospital",
+                texto: corpo.texto,
+                criado_em: "2026-11-20T15:00:00Z",
+                minha: true,
+              }
+            : { ...GUARDADA, mensagens };
+        return { ok: true, status: metodo === "POST" ? 201 : 200, json: async () => resposta } as unknown as Response;
+      }),
+    );
+    render(<ConversaDaDemanda demandaId="d-1" token="token-de-teste" />);
+  }
+
+  const DE_ONTEM = {
+    id: "m-1",
+    autor: "Pedro Vitta",
+    texto: "Já olhei. Falta **a escala**:\n- da enfermagem\n- do plantão\n\nVeja [o card](https://github.com/x/y/issues/9).",
+    criado_em: "2026-11-19T13:00:00Z",
+    minha: false,
+  };
+
+  it("quem lê vê o negrito, a lista e o link da mensagem formatados", async () => {
+    montarCom([DE_ONTEM]);
+
+    const negrito = await within(area()).findByText("a escala");
+    expect(negrito.tagName).toBe("STRONG");
+    expect(within(area()).getByText("da enfermagem").tagName).toBe("LI");
+    const link = within(area()).getByRole("link", { name: "o card" });
+    expect(link.getAttribute("href")).toBe("https://github.com/x/y/issues/9");
+    expect(link.getAttribute("target")).toBe("_blank");
+  });
+
+  it("quem envia vê a própria mensagem formatada, e o HTML digitado aparece como texto", async () => {
+    montarCom([DE_ONTEM]);
+    await within(area()).findByText("a escala");
+
+    fireEvent.change(within(area()).getByRole("textbox", { name: "Mensagem para a Conversa" }), {
+      target: { value: "Ficou **ótimo** <script>alert(1)</script>" },
+    });
+    fireEvent.click(within(area()).getByRole("button", { name: "Enviar na Conversa" }));
+
+    const negrito = await within(area()).findByText("ótimo");
+    expect(negrito.tagName).toBe("STRONG");
+    expect(area().querySelector("script")).toBeNull();
+    expect(negrito.parentElement?.textContent).toContain("<script>alert(1)</script>");
+  });
+
+  it("o separador com a data entra na troca de dia, uma vez por dia", async () => {
+    montarCom([
+      DE_ONTEM,
+      { id: "m-2", autor: "Diretor do Hospital", texto: "Obrigado.", criado_em: "2026-11-19T20:00:00Z", minha: true },
+      { id: "m-3", autor: "Diretor do Hospital", texto: "E hoje?", criado_em: "2026-11-20T12:00:00Z", minha: true },
+    ]);
+    await within(area()).findByText("E hoje?");
+
+    const separadores = within(area())
+      .getAllByRole("separator")
+      .map((s) => s.getAttribute("aria-label"));
+    expect(separadores).toEqual(["19 de novembro de 2026", "20 de novembro de 2026"]);
+    // O separador do dia 20 vem entre a última mensagem do dia 19 e a primeira do dia 20.
+    const ordem = [...area().querySelectorAll("[role=separator], li p")].map(
+      (n) => n.getAttribute("aria-label") ?? n.textContent,
+    );
+    expect(ordem.indexOf("20 de novembro de 2026")).toBeGreaterThan(ordem.indexOf("Obrigado."));
+    expect(ordem.indexOf("20 de novembro de 2026")).toBeLessThan(ordem.indexOf("E hoje?"));
+  });
+
+  it("a linha de sistema de Em produção aparece na conversa", async () => {
+    montarCom([
+      DE_ONTEM,
+      {
+        id: "m-4",
+        autor: null,
+        texto: "Entrou no ar na versão v0.360.0, em 20/11/2026.",
+        criado_em: "2026-11-20T18:00:00Z",
+        minha: false,
+        sistema: true,
+      },
+    ]);
+
+    expect(await within(area()).findByText("Entrou no ar na versão v0.360.0, em 20/11/2026.")).toBeTruthy();
+  });
+});

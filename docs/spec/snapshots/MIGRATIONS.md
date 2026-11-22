@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T23:12+0000 -->
+<!-- last_update: 2026-11-22T01:50+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -195,9 +195,12 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 197 | `197_nsp_tela_de_triagem.sql` | a tela de triagem do Núcleo | 1 | 4 | 3 | 0 |
 | 198 | `198_conduta_codigo_de_conduta.sql` | Canal de Conduta, o Código de Conduta com versões | 1 | 0 | 0 | 0 |
 | 199 | `199_conduta_avisos_por_email.sql` | Avisos por e-mail do Canal de Conduta (PRD #1786; issue #1840) | 1 | 0 | 2 | 0 |
+| 200 | `200_conduta_agente_de_triagem.sql` | Canal de Conduta, o agente de triagem | 3 | 0 | 1 | 0 |
 | 202 | `202_conduta_sinalizacao_da_ouvidoria.sql` | o caso que a Ouvidoria sinaliza ao Canal de Conduta | 0 | 2 | 1 | 0 |
 | 203 | `203_conduta_nota_ao_nucleo.sql` | Canal de Conduta, a nota do Comitê ao Núcleo de Segurança | 2 | 0 | 5 | 0 |
 | 207 | `207_nsp_perguntas_de_esclarecimento.sql` | as respostas às perguntas de esclarecimento do Núcleo | 1 | 0 | 1 | 0 |
+| 211 | `211_tecnologia_pergunta_da_vitta.sql` | a Pergunta da Vitta e a conversa do Me explique | 2 | 0 | 4 | 0 |
+| 212 | `212_nsp_suplente_em_exercicio.sql` | o suplente em exercício do Núcleo | 1 | 0 | 2 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 192 migrations.
+**Total:** 195 migrations.
