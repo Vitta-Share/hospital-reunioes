@@ -285,3 +285,74 @@ describe("O Envio aos desenvolvedores", () => {
     expect(chamadas.filter((c) => c.url === `${URL}/enviar`)).toHaveLength(2);
   });
 });
+
+/**
+ * A Pergunta da Vitta (issue #2116, ADR 0109): a entrada que é Pergunta
+ * desenha o cartão no lugar da bolha, e a linha de sistema "Pergunta aberta"
+ * aparece como a do Envio.
+ */
+describe("A Pergunta da Vitta na Conversa", () => {
+  const COM_PERGUNTA = {
+    mensagens: [
+      {
+        id: "m-1",
+        autor: "Pedro Vitta",
+        texto: "Quem assina a Ata em nome da diretoria quando a senhora não está?",
+        criado_em: "2026-11-18T10:00:00Z",
+        minha: false,
+        sistema: false,
+        pergunta: {
+          id: "p-1",
+          projeto: "Aplicativo do Hospital",
+          assunto: "quem assina a Ata pela diretoria",
+          texto: "Quem assina a Ata em nome da diretoria quando a senhora não está?",
+          por_que_precisa: "Só a diretoria decide quem assina a ata.",
+          o_que_esta_parado: "A tela de assinatura da Ata.",
+          o_que_anda_depois: "A Vitta termina a tela.",
+          ganho: "A ata sai assinada no mesmo dia.",
+          opcoes: [],
+          estado: "aberta",
+          criado_em: "2026-11-18T10:00:00Z",
+          destinatario: "Diretora Clínica",
+        },
+      },
+      {
+        id: "m-2",
+        autor: "Pedro Vitta",
+        texto: "Pergunta aberta: quem assina a Ata pela diretoria",
+        criado_em: "2026-11-18T10:00:01Z",
+        minha: false,
+        sistema: true,
+        pergunta: null,
+      },
+      {
+        id: "m-3",
+        autor: "Diretora Clínica",
+        texto: "Vou pensar e respondo amanhã.",
+        criado_em: "2026-11-18T11:00:00Z",
+        minha: true,
+        pergunta: null,
+      },
+    ],
+    mencionaveis: [],
+  };
+
+  it("desenha a Pergunta como cartão em destaque, com a linha de sistema e as mensagens comuns em volta", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, status: 200, json: async () => COM_PERGUNTA }) as unknown as Response),
+    );
+    render(<ConversaDaDemanda demandaId="d-1" token="token-de-teste" />);
+
+    const cartao = await within(area()).findByRole("article", { name: "Pergunta da Vitta" });
+    expect(within(cartao).getByText("Quem assina a Ata em nome da diretoria quando a senhora não está?")).toBeTruthy();
+    expect(within(cartao).getByText("A tela de assinatura da Ata.")).toBeTruthy();
+    expect(within(cartao).getByText("Aberta")).toBeTruthy();
+    expect(within(cartao).getByText(/^Esperando há/)).toBeTruthy();
+    // O texto da Pergunta aparece uma vez só: no cartão, e não também numa bolha.
+    expect(within(area()).getAllByText("Quem assina a Ata em nome da diretoria quando a senhora não está?")).toHaveLength(1);
+    expect(within(area()).getByText("Pergunta aberta: quem assina a Ata pela diretoria")).toBeTruthy();
+    expect(within(area()).getByText("Vou pensar e respondo amanhã.")).toBeTruthy();
+    expect(within(area()).getAllByRole("article", { name: "Pergunta da Vitta" })).toHaveLength(1);
+  });
+});
