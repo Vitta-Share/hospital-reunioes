@@ -101,6 +101,10 @@ IMUTAVEIS = (
     "conduta_relatorios",
     "conduta_selos",
     "conduta_entregas_do_parecer",
+    "conduta_votos",
+    "conduta_trava_preenchimentos",
+    "conduta_trava_confirmacoes",
+    "conduta_ciencias_do_codigo",
 )
 
 # As chaves únicas que o módulo usa para não gravar duas vezes (migrations 185, 193 e 214).
@@ -114,6 +118,10 @@ UNICAS = {
     "conduta_relatorios": ("caso_id", "tipo", "versao"),
     "conduta_selos": ("caso_id",),
     "conduta_entregas_do_parecer": ("caso_id",),
+    "conduta_votos": ("caso_id", "rodada", "participante_id"),
+    "conduta_trava_preenchimentos": ("caso_id", "versao"),
+    "conduta_trava_confirmacoes": ("caso_id", "item", "participante_id"),
+    "conduta_ciencias_do_codigo": ("caso_id", "versao"),
 }
 
 

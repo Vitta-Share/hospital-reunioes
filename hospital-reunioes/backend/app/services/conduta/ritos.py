@@ -50,7 +50,7 @@ ETAPA_DO_RITO = {"encaminhamento": "encaminhamento", "rapido": "apuracao", "comp
 TRILHO = ("Triagem", "Apuração", "Voto", "Ata", "Medida", "Acompanhamento")
 TRILHO_DO_ENCAMINHAMENTO = ("Triagem", "Encaminhado")
 TRILHO_DA_ROTA_ESPECIAL = ("Apuração", "Parecer entregue")
-_POSICAO_NO_TRILHO = {"triagem": 0, "contestada": 0, "encaminhamento": 0, "apuracao": 1, "voto": 2}
+_POSICAO_NO_TRILHO = {"triagem": 0, "contestada": 0, "encaminhamento": 0, "apuracao": 1, "voto": 2, "ata": 3}
 
 
 def orientacao_do_encaminhamento(destino: str) -> str:
@@ -131,6 +131,10 @@ class Olhar:
     fase_do_relatorio: bool = False
     envia_para_voto: bool = False
     bloqueio_do_voto: str | None = None
+    # A etapa Voto (issue #1833): se a pessoa vota no caso e se já votou na
+    # rodada (`voto.olhar_do_voto`).
+    vota: bool = False
+    ja_votou: bool = False
 
 
 def trilho(caso: dict[str, Any]) -> list[dict[str, str]]:
@@ -276,12 +280,24 @@ def o_que_fazer_agora(caso: dict[str, Any], olhar: Olhar) -> dict[str, Any]:
             bloqueio,
         )
     if etapa == "voto":
+        bloqueio = None
+        if not olhar.vota:
+            bloqueio = "Só os três membros votantes votam."
+        elif olhar.ja_votou:
+            bloqueio = "Você já votou. Seu voto fica oculto até todos votarem."
         return _caixa(
             "Leia o dossiê e vote. Seu voto fica oculto até todos votarem.",
             "VOTAR",
             _COMO_VOTO,
             "votar",
-            "A votação chega numa próxima etapa do aplicativo.",
+            bloqueio,
+        )
+    if etapa == "ata":
+        return _caixa(
+            "A votação foi concluída. A ata é gerada a partir dos votos registrados.",
+            None,
+            ("Confira os votos registrados", "A ata sai dos votos", "Os três votantes assinam a ata"),
+            None,
         )
     if olhar.fase_do_relatorio:
         return _caixa(

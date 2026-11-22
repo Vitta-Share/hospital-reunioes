@@ -27,6 +27,7 @@ from app.services.conduta import (
     relatorio,
     rota_especial,
     triagem,
+    voto,
 )
 from app.services.conduta.acesso import CAMPOS_DA_LISTA, hoje_em_sao_paulo
 from app.services.conduta.portao import (
@@ -135,6 +136,7 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         cartoes = depoimentos.para_a_tela(supabase, caso)
         relatorios = relatorio.para_a_tela(supabase, aberto)
         especial = rota_especial.para_a_tela(supabase, aberto)
+        votacao = voto.para_a_tela(supabase, aberto)
     except cifra.CifraIndisponivelError as erro:
         raise _indisponivel(erro) from erro
     vencidos = triagem.registrar_vencidos(supabase, [caso], hoje_em_sao_paulo())
@@ -162,6 +164,7 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         **cartoes,
         **relatorios,
         **especial,
+        **votacao,
     }
 
 
