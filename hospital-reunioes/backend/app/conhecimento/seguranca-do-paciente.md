@@ -137,8 +137,8 @@ A Agenda regulatória do Núcleo:
 
 A tela Núcleo, Capacitações:
 
-- mostra cada capacitação com título, data, carga horária, instrutor, público (membros do Núcleo ou profissionais), os temas tratados e a lista de participantes, com quem já confirmou a presença e quando;
-- a Presidência e o Acesso pleno registram a capacitação pelo botão Registrar capacitação, escolhendo os temas tratados e os participantes. Os demais que abrem a tela só leem;
+- mostra cada capacitação com título, data, carga horária, instrutor e a formação dele, público (membros do Núcleo ou profissionais), os temas tratados e a lista de participantes, com quem já confirmou a presença e quando;
+- a Presidência e o Acesso pleno registram a capacitação pelo botão Registrar capacitação, escolhendo os temas tratados e os participantes. A formação do instrutor é obrigatória na capacitação nova, porque o comprovante de capacitação do caderno nº 6 da ANVISA pede o nome e a formação de quem deu o treinamento. A capacitação registrada antes desse campo existir mostra "Formação não informada". Os demais que abrem a tela só leem;
 - quem está na lista de uma capacitação vê o botão **Confirmar minha presença** no cartão dela e confirma com um toque. O aplicativo grava a data e a hora. Ninguém confirma pelo outro, nem a Presidência;
 - a seção Temas mínimos por membro mostra, para cada membro com participação vigente, quantos temas mínimos já cobriu e quais. Conta só a capacitação com presença confirmada: estar na lista sem confirmar não cobre o tema;
 - a lista de temas mínimos fica no fim da tela. A Presidência e o Acesso pleno incluem, renomeiam e desativam os temas. A lista vem com os 17 temas mínimos do caderno nº 6 da ANVISA. Tema desativado sai da cobertura e da escolha no cadastro, mas continua aparecendo nas capacitações antigas.

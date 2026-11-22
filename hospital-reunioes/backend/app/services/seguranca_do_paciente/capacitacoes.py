@@ -127,6 +127,8 @@ def listar(supabase, hoje: date) -> dict[str, Any]:
                 "data": c["data"],
                 "carga_horaria": c["carga_horaria"],
                 "instrutor": c["instrutor"],
+                # Nula nas capacitações de antes da migration 228 (issue #1927).
+                "instrutor_formacao": c.get("instrutor_formacao"),
                 "publico": c["publico"],
                 "tema_ids": c.get("tema_ids") or [],
                 "participantes": sorted(

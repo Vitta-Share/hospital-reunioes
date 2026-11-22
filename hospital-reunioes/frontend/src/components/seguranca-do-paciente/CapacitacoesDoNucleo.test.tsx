@@ -40,6 +40,7 @@ function resposta(campos: Partial<RespostaDasCapacitacoes> = {}): RespostaDasCap
         data: "2026-10-20",
         carga_horaria: 1.5,
         instrutor: "Instrutor de Teste",
+        instrutor_formacao: "Enfermeira de Teste",
         publico: "membros",
         tema_ids: ["t-maos"],
         participantes: [
@@ -57,6 +58,8 @@ function resposta(campos: Partial<RespostaDasCapacitacoes> = {}): RespostaDasCap
         data: "2026-09-10",
         carga_horaria: 2,
         instrutor: "Outra Instrutora",
+        // Capacitação de antes da migration 228: sem a formação (issue #1927).
+        instrutor_formacao: null,
         publico: "profissionais",
         tema_ids: [],
         participantes: [{ participante_id: "p3", nome: "Pessoa de Teste Três", presenca_confirmada_em: null }],
@@ -122,6 +125,18 @@ describe("o que a pessoa vê", () => {
     const segunda = within(await cartao("Cirurgia segura"));
     expect(segunda.getByText("Profissionais")).toBeTruthy();
     expect(segunda.getByText("2 h")).toBeTruthy();
+  });
+
+  it("a formação aparece junto do nome do instrutor, e a capacitação antiga diz que não foi informada", async () => {
+    render(<CapacitacoesDoNucleo />);
+
+    const primeira = await cartao("Higiene das mãos na prática");
+    const instrutor = within(primeira).getByText("Instrutor de Teste").closest("dd") as HTMLElement;
+    expect(within(instrutor).getByText("Enfermeira de Teste")).toBeTruthy();
+
+    const segunda = await cartao("Cirurgia segura");
+    const antiga = within(segunda).getByText("Outra Instrutora").closest("dd") as HTMLElement;
+    expect(within(antiga).getByText("Formação não informada")).toBeTruthy();
   });
 
   it("a cobertura mostra, por membro, quantos temas mínimos já foram cobertos e quais", async () => {
@@ -211,6 +226,7 @@ describe("a Presidência", () => {
     fireEvent.change(form.getByLabelText("Data"), { target: { value: "2026-11-05" } });
     fireEvent.change(form.getByLabelText("Carga horária (horas)"), { target: { value: "1.5" } });
     fireEvent.change(form.getByLabelText("Instrutor"), { target: { value: "Instrutor de Teste" } });
+    fireEvent.change(form.getByLabelText("Formação do instrutor"), { target: { value: " Enfermeira de Teste " } });
     fireEvent.change(form.getByLabelText("Público"), { target: { value: "profissionais" } });
     fireEvent.click(form.getByRole("checkbox", { name: "Identificação do paciente" }));
     fireEvent.click(await form.findByRole("checkbox", { name: "Pessoa de Teste Quatro" }));
@@ -225,12 +241,22 @@ describe("a Presidência", () => {
           data: "2026-11-05",
           carga_horaria: 1.5,
           instrutor: "Instrutor de Teste",
+          instrutor_formacao: "Enfermeira de Teste",
           publico: "profissionais",
           tema_ids: ["t-id"],
           participantes: ["p4"],
         },
       })
     );
+  });
+
+  it("a formação do instrutor é obrigatória na capacitação nova", async () => {
+    lista = resposta({ pode_editar: true });
+    render(<CapacitacoesDoNucleo />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Registrar capacitação" }));
+    const form = within(screen.getByRole("form", { name: "Nova capacitação" }));
+    expect((form.getByLabelText("Formação do instrutor") as HTMLInputElement).required).toBe(true);
   });
 
   it("o tema desativado não aparece para escolher no cadastro", async () => {
