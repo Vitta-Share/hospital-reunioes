@@ -2,6 +2,58 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T15:44:02-03:00",
+      "sha": "f82d5f8a61e1ddabcd85bcfb47a6cf54ba5e89e8",
+      "app_version": "0.381.0",
+      "subject": "Onda sesta-1786-onda12: Relato em passos, do início ao protocolo; Página de proteção e portas \"Não é aqui\"",
+      "raw_subject": "chore(deploy): registro da onda sesta-1786-onda12 (#2178 #2177)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 2136,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "230_conduta_relato_em_passos.sql",
+        "230_conduta_relato_em_passos.sql",
+        "231_conduta_pagina_de_protecao.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1786-onda12: PR #2178 (issue #1843), PR #2177 (issue #1846), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 6,
+        "build_s": {
+          "backend": 22,
+          "frontend": 215
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T14:53:19-03:00",
       "sha": "ff096ec37580d5f6bb506811922e644c1eae3eec",
       "app_version": "0.380.0",
