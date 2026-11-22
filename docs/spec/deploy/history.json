@@ -2,6 +2,52 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T14:46:09-03:00",
+      "sha": "1042390ef7279a32b35b62fd5c62a8098bcdf7df",
+      "app_version": "0.379.0",
+      "subject": "Onda menu-nsp-1918-onda1: Segurança do Paciente vira NSP, com o ícone das duas mãos",
+      "raw_subject": "chore(deploy): registro da onda menu-nsp-1918-onda1 (#2175)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [],
+      "result": "healthy",
+      "duration_seconds": 258,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta menu-nsp-1918-onda1: PR #2175 (issue #1918), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 21,
+          "frontend": 229
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T14:33:57-03:00",
       "sha": "1a4ac67bd6b98057df5a76321861e96d011fa588",
       "app_version": "0.378.1",
