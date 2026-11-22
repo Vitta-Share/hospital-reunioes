@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T18:35+0000 -->
+<!-- last_update: 2026-11-22T18:40+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -187,6 +187,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 |--------|------|-----------|------|
 | GET | `/conduta/abertura` | Se o canal está aberto. Fechado, a rota nem aparece (404). | ❌ |
 | GET | `/conduta/codigo-de-conduta` | O PDF do Código de Conduta vigente hoje (issue #1841), num endereço que | ❌ |
+| GET | `/conduta/protecao` | A página "Como este canal protege você" (issue #1846), bloco a bloco, | ❌ |
 | POST | `/conduta/relatos` | Recebe o relato inteiro, do passo 1 ao 5, e devolve o protocolo e o | ❌ |
 | POST | `/conduta/relatos/confianca` | A pergunta opcional do P6, de 1 a 5. Vale uma vez por relato. Código | ❌ |
 | GET | `/conduta/textos` | Os textos vigentes das telas públicas (issue #1826), cada um com o | ❌ |
@@ -941,4 +942,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 540 endpoints em 79 routers · 93% exigem auth.
+**Totais:** 541 endpoints em 79 routers · 92% exigem auth.
