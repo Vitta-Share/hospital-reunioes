@@ -79,6 +79,15 @@ Quando a seção "Manual: páginas que mudam" do PRD lista alguma página, o PRD
 
 PRD com "Nenhuma: este PRD não muda tela", ou sem a seção, não ganha a fatia.
 
+#### A fatia humana depois do código (label `implantacao`)
+
+A fatia HITL que vem depois do código e não segura nenhuma fatia (teste de aceite, configuração, abertura, treinamento) nasce com a label `implantacao` junto com `ready-for-human` (ADR 0111, decisões 2 e 3). Ela vira Pedido de implantação pelo "Mandar ao hospital" do PedroOS, e o PRD fecha sem esperar por ela. A fatia HITL que segura código (alguma fatia tem o `blocked_by` dela) não ganha a label: é o Passo a passo da ADR 0110. A regra vive em `docs/agents/triage-labels.md`.
+
+- **Ganha:** "Teste de aceite do Canal de Conduta: acesso e anonimato", depois da última fatia do canal, sem nenhuma fatia esperando por ela.
+- **Não ganha:** "Criar a chave da API no Coolify", que a fatia de integração espera (`blocked_by`) para subir.
+
+Na lista do passo 4, a fatia mostra "Implantação: sim" ao lado do Tipo. No passo 5, acrescente `--label implantacao` ao `gh issue create` dela, no lugar do `--label ready-for-agent` vai `--label ready-for-human`.
+
 ### 4. Quiz the user
 
 Apresente a divisão como uma **lista numerada em pt-BR**. Para cada fatia, mostre:

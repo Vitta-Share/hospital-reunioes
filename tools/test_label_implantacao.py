@@ -45,3 +45,19 @@ def test_triage_labels_descreve_a_label_implantacao_com_a_regra() -> None:
     for uso in ("teste de aceite", "configuração", "abertura", "treinamento"):
         assert uso in regra, f"a regra não cita {uso} como exemplo de implantação"
     assert "chave no Coolify" in regra, "a regra não mostra o card humano que segura código"
+
+
+def exemplo(trecho: str, rotulo: str) -> str:
+    linhas = [li for li in trecho.splitlines() if li.startswith(f"- **{rotulo}:**")]
+    assert linhas, f"falta o exemplo '{rotulo}'"
+    return linhas[0]
+
+
+def test_to_issues_diz_quando_a_fatia_humana_ganha_a_label() -> None:
+    fatia = secao(ler("to-issues"), "A fatia humana depois do código (label `implantacao`)")
+
+    assert "--label implantacao" in fatia, "a seção não mostra o comando que aplica a label"
+    assert "docs/agents/triage-labels.md" in fatia, "a seção não aponta a regra da label"
+    assert "não segura nenhuma fatia" in fatia, "a seção não diz a regra"
+    assert "teste de aceite" in exemplo(fatia, "Ganha").lower(), "o exemplo que ganha não é de uso"
+    assert "espera" in exemplo(fatia, "Não ganha"), "o exemplo que não ganha não diz que segura código"
