@@ -15,6 +15,7 @@ pessoas não agirem sobre o mesmo passo.
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 from datetime import date, timedelta
 from typing import Any
 
@@ -88,7 +89,14 @@ def _olhar(supabase, pessoa_id: str, papel: str | None, atribuicoes, contestacao
 
 def olhar_do_caso(supabase, aberto: CasoAberto) -> Olhar:
     contestacao = _contestacoes(supabase, [aberto.caso["id"]]).get(aberto.caso["id"])
-    return _olhar(supabase, aberto.autor_id, aberto.pessoa.papel, aberto.atribuicoes, contestacao)
+    olhar = _olhar(supabase, aberto.autor_id, aberto.pessoa.papel, aberto.atribuicoes, contestacao)
+    if aberto.caso.get("etapa") != "apuracao":
+        return olhar
+    # O relatório e o envio para voto (issue #1832). Import aqui: o módulo do
+    # relatório chega à triagem pelo impedimento.
+    from app.services.conduta import relatorio
+
+    return replace(olhar, **relatorio.olhar_do_envio(supabase, aberto))
 
 
 def registrar_vencidos(supabase, casos: list[dict], hoje: date) -> set[str]:

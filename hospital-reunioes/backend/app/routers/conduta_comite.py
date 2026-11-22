@@ -24,6 +24,7 @@ from app.services.conduta import (
     depoimentos,
     impedimento,
     nota_ao_nucleo,
+    relatorio,
     triagem,
 )
 from app.services.conduta.acesso import CAMPOS_DA_LISTA, hoje_em_sao_paulo
@@ -131,6 +132,7 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
             supabase, caso["id"], aberto.autor_id, impedimento.membros_do_caso(supabase, caso)
         )
         cartoes = depoimentos.para_a_tela(supabase, caso)
+        relatorios = relatorio.para_a_tela(supabase, aberto)
     except cifra.CifraIndisponivelError as erro:
         raise _indisponivel(erro) from erro
     vencidos = triagem.registrar_vencidos(supabase, [caso], hoje_em_sao_paulo())
@@ -156,6 +158,7 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         "sugestao_do_agente": sugestao,
         "notas_ao_nsp": notas_ao_nsp,
         **cartoes,
+        **relatorios,
     }
 
 

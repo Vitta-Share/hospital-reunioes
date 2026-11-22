@@ -6,6 +6,7 @@
  * AGORA" chega pronta, com o motivo do botão bloqueado.
  */
 import type { Depoimento } from "@/lib/conduta/depoimentos";
+import type { TextoDaApuracao } from "@/lib/conduta/relatorio";
 import { createClient } from "@/lib/supabase/client";
 import type { SugestaoDoAgente } from "@/lib/conduta/sugestao";
 
@@ -118,6 +119,10 @@ export interface CasoAberto extends CasoDaLista {
   /** Os cartões da Apuração (issue #1830). */
   depoimentos: Depoimento[];
   avanco_da_apuracao: string | null;
+  /** O relatório de apuração e a cronologia dos fatos (issue #1832). */
+  relatorio?: TextoDaApuracao | null;
+  cronologia?: TextoDaApuracao | null;
+  pode_redigir_relatorio?: boolean;
 }
 
 export const RITOS: { valor: Rito; rotulo: string; prazo: string }[] = [
@@ -168,6 +173,7 @@ const ETAPAS: Record<string, string> = {
   contestada: "Triagem contestada",
   encaminhamento: "Encaminhamento",
   apuracao: "Apuração",
+  voto: "Voto",
   encerrado: "Encerrado",
 };
 

@@ -68,6 +68,15 @@ Na etapa Apuração, o botão "ADICIONAR PESSOA A OUVIR" cria um cartão para ca
 
 A etapa Apuração só avança com todos os depoimentos concluídos. Com algum em aberto, a tela diz quantos faltam.
 
+## O relatório da apuração
+
+No fim da Apuração, o botão "GERAR RELATÓRIO" pede ao agente o rascunho do relatório: fatos, provas, versão do acusado e a regra do Código de Conduta envolvida. O relatório cabe em uma página. O botão "MONTAR CRONOLOGIA" pede ao agente a lista dos fatos em ordem de data. Os dois só saem depois do clique de quem apura: no rito Rápido, a coordenação e o membro; no Completo, os apuradores.
+
+- Nenhum nome vai ao agente: cada pessoa do caso vira um marcador ("[PESSOA_1]") na ida, e o nome volta dentro do aplicativo.
+- Quem apurou revisa e edita o texto. Cada edição vira versão nova, e a anterior continua guardada, com quem fez e quando.
+- No rito Completo, "ENVIAR PARA ASSINATURA" manda a última versão aos apuradores pela ClickSign, no e-mail profissional. A cópia assinada volta sozinha para a trilha do caso e abre pela tela. Editar depois pede a assinatura de novo.
+- "ENVIAR PARA VOTO" leva o caso à etapa Voto. Ele fica bloqueado, com o motivo, enquanto houver depoimento em aberto, enquanto não houver relatório e, no Completo, enquanto falta a assinatura dos apuradores.
+
 ## O agente de triagem
 
 Cada relato novo é lido uma vez pelo agente de triagem, sozinho, logo que chega, sem ninguém precisar clicar. O agente sugere; quem decide é a coordenação.

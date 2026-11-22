@@ -16,6 +16,10 @@ a Participação, e só então o membro abre caso (`acesso`).
 O segundo é o termo de confidencialidade de quem foi convidado para um caso,
 o apurador designado ou o membro da CIPA (issue #1825). Assinado, ele carimba
 a atribuição do convidado naquele caso, e a assinatura entra na trilha.
+
+O terceiro é o relatório de apuração do rito Completo, assinado pelos
+apuradores (issue #1832). A linha aponta para a versão que foi assinada, e a
+assinatura entra na trilha do caso.
 """
 
 from __future__ import annotations
@@ -45,6 +49,10 @@ TERMO_DO_CONVIDADO = "termo_do_apurador"
 MODELO_DO_TERMO_DO_CONVIDADO = "conduta_termo_do_convidado.html"
 # As atribuições que nascem do convite (migration 175).
 MOTIVOS_DO_CONVITE = ("apurador", "cipa")
+
+# O relatório de apuração do rito Completo (issue #1832).
+RELATORIO_DE_APURACAO = "relatorio_de_apuracao"
+MODELO_DO_RELATORIO = "conduta_relatorio_de_apuracao.html"
 
 # O envelope fecha quando todos assinaram. `sign` não conta: num documento de
 # três signatários ele chega a cada assinatura.
@@ -316,6 +324,83 @@ def termos_enviados_do_caso(supabase, caso_id: str) -> set[str]:
 
 
 # ---------------------------------------------------------------------------
+# O relatório de apuração do rito Completo (issue #1832)
+# ---------------------------------------------------------------------------
+
+
+def enviar_relatorio_de_apuracao(supabase, caso_id: str, relatorio: dict, texto: str, pessoas: list[dict]) -> dict:
+    """Gera o PDF da versão `relatorio` e o envia aos apuradores, cancelando o
+    envio do relatório que ainda estava aberto no caso (o link antigo morre).
+    O documento não leva o protocolo: o identificador é o da assinatura.
+    Falha da ClickSign deixa a linha em "gerado", com o erro."""
+    abertas = (
+        supabase.table(TABELA)
+        .select("*")
+        .eq("tipo", RELATORIO_DE_APURACAO)
+        .eq("caso_id", caso_id)
+        .in_("situacao", ["gerado", "enviado"])
+        .execute()
+        .data
+    ) or []
+    for aberta in abertas:
+        if aberta.get("envelope_id"):
+            clicksign_service.cancel_envelope(aberta["envelope_id"])
+        supabase.table(TABELA).update({"situacao": "cancelado", "cancelado_em": _agora()}).eq(
+            "id", aberta["id"]
+        ).execute()
+    assinatura = (
+        supabase.table(TABELA)
+        .insert(
+            {
+                "tipo": RELATORIO_DE_APURACAO,
+                "caso_id": caso_id,
+                "relatorio_id": relatorio["id"],
+                "signatarios": [p["id"] for p in pessoas],
+                "situacao": "gerado",
+            }
+        )
+        .execute()
+        .data
+    )[0]
+    dados = sanitizar_estrutura(
+        {
+            "relatorio": {"texto": texto, "versao": relatorio["versao"]},
+            "apuradores": [p.get("nome_completo") or "Não informado" for p in pessoas],
+            "documento": {"identificador": assinatura["id"]},
+        }
+    )
+    pdf = gerar_pdf_do_termo({**dados, "modelo": MODELO_DO_RELATORIO})
+    resultado = enviar_a_clicksign(
+        pdf,
+        f"Relatório de Apuração CC - {assinatura['id']}",
+        f"Relatorio_de_Apuracao_{assinatura['id']}.pdf",
+        pessoas,
+    )
+    return _registrar_envio(supabase, assinatura, resultado)
+
+
+def _registrar_relatorio_assinado(supabase, assinatura: dict) -> None:
+    """A assinatura dos apuradores entra na trilha do caso, uma vez só: o
+    retorno repetido (fechamento e documento pronto) acha a linha já lá."""
+    linhas = (
+        supabase.table("conduta_relatorios").select("versao").eq("id", assinatura["relatorio_id"]).limit(1).execute()
+    ).data or []
+    versao = linhas[0]["versao"] if linhas else "?"
+    detalhe = f"relatório de apuração, versão {versao}, assinado pelos apuradores"
+    ja = (
+        supabase.table("conduta_trilha")
+        .select("id")
+        .eq("caso_id", assinatura["caso_id"])
+        .eq("acao", "relatorio_assinado")
+        .eq("detalhe", detalhe)
+        .limit(1)
+        .execute()
+    ).data
+    if not ja:
+        trilha.registrar(supabase, assinatura["caso_id"], None, "relatorio_assinado", detalhe)
+
+
+# ---------------------------------------------------------------------------
 # O retorno da assinatura: webhook e reconsulta
 # ---------------------------------------------------------------------------
 
@@ -330,6 +415,8 @@ def _efeito_da_assinatura(supabase, assinatura: dict, assinado_em: str) -> None:
         ).is_("termo_assinado_em", "null").execute()
     elif assinatura["tipo"] == TERMO_DO_CONVIDADO:
         _carimbar_o_convite(supabase, assinatura, assinado_em)
+    elif assinatura["tipo"] == RELATORIO_DE_APURACAO:
+        _registrar_relatorio_assinado(supabase, assinatura)
 
 
 def _carimbar_o_convite(supabase, assinatura: dict, assinado_em: str) -> None:
