@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T23:35:35-03:00",
+      "sha": "477386d00bd71f778df9ea8463fae151371179c3",
+      "app_version": "0.362.0",
+      "subject": "Onda nsp2-onda8: Prazos do caso e tabela de prazos do Núcleo",
+      "raw_subject": "chore(deploy): registro da onda nsp2-onda8 (#2115)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1979
+      ],
+      "result": "healthy",
+      "duration_seconds": 1020,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "208_nsp_prazos_do_caso.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp2-onda8: PR #2115 (issue #1993), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 17,
+          "frontend": 223
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T23:28:55-03:00",
       "sha": "008537e162821525769f6dd6fbde9ffea3e6b619",
       "app_version": "0.361.0",
