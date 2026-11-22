@@ -337,7 +337,7 @@ describe("a tela a 375 px", () => {
   });
 
   it("sem travessão nem meia-risca", () => {
-    expect(FONTE).not.toMatch(/[–—]/);
+    expect(FONTE).not.toMatch(/[\u2013\u2014]/);
   });
 });
 
