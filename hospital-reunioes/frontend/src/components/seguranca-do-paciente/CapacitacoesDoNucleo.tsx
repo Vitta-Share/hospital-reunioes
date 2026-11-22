@@ -26,6 +26,8 @@ export interface Capacitacao {
   data: string;
   carga_horaria: number;
   instrutor: string;
+  /** Nula nas capacitações de antes da migration 228 (issue #1927). */
+  instrutor_formacao: string | null;
   publico: Publico;
   tema_ids: string[];
   participantes: ParticipanteDaCapacitacao[];
@@ -104,6 +106,7 @@ interface Rascunho {
   data: string;
   carga_horaria: string;
   instrutor: string;
+  instrutor_formacao: string;
   publico: Publico;
   tema_ids: string[];
   participantes: string[];
@@ -114,6 +117,7 @@ const RASCUNHO_VAZIO: Rascunho = {
   data: "",
   carga_horaria: "",
   instrutor: "",
+  instrutor_formacao: "",
   publico: "membros",
   tema_ids: [],
   participantes: [],
@@ -205,6 +209,19 @@ function FormularioDaCapacitacao({
             className={CAMPO}
             value={rascunho.instrutor}
             onChange={mudar("instrutor")}
+            required
+          />
+        </div>
+        <div>
+          <label htmlFor={`${id}-instrutor-formacao`} className="text-xs font-medium text-slate-600">
+            Formação do instrutor
+          </label>
+          <input
+            id={`${id}-instrutor-formacao`}
+            className={CAMPO}
+            value={rascunho.instrutor_formacao}
+            onChange={mudar("instrutor_formacao")}
+            maxLength={200}
             required
           />
         </div>
@@ -375,6 +392,7 @@ export function CapacitacoesDoNucleo() {
       data: rascunho.data,
       carga_horaria: Number(rascunho.carga_horaria),
       instrutor: rascunho.instrutor.trim(),
+      instrutor_formacao: rascunho.instrutor_formacao.trim(),
       publico: rascunho.publico,
       tema_ids: rascunho.tema_ids,
       participantes: rascunho.participantes,
@@ -457,7 +475,12 @@ export function CapacitacoesDoNucleo() {
                 </div>
                 <div>
                   <dt className="text-xs text-slate-500">Instrutor</dt>
-                  <dd className="text-slate-900 break-words">{cap.instrutor}</dd>
+                  <dd className="text-slate-900 break-words">
+                    <span className="block">{cap.instrutor}</span>
+                    <span className="block text-xs text-slate-500">
+                      {cap.instrutor_formacao || "Formação não informada"}
+                    </span>
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-xs text-slate-500">Público</dt>
