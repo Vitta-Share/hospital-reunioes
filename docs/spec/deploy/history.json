@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T22:53:36-03:00",
+      "sha": "bcfd3bebb8d8f179a44e3039a4931d9082ed25e9",
+      "app_version": "0.360.0",
+      "subject": "Onda nsp2-onda9: Suplente em exercício, Diretoria nos casos A e B e teste de varredura",
+      "raw_subject": "chore(deploy): registro da onda nsp2-onda9 (#2129)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1979
+      ],
+      "result": "healthy",
+      "duration_seconds": 1156,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "212_nsp_suplente_em_exercicio.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp2-onda9: PR #2129 (issue #1999), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 2,
+        "build_s": {
+          "backend": 25,
+          "frontend": 213
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T22:46:47-03:00",
       "sha": "a52ea114c0cbb54f3d32e7cd8b11d406fa40a3c6",
       "app_version": "0.359.0",
