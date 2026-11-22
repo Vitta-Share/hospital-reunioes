@@ -2,6 +2,52 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T13:58:25-03:00",
+      "sha": "a5e354a1ea0433157b72c15b46bf20a21290753b",
+      "app_version": "0.377.0",
+      "subject": "Onda onda-a-onda1: Custo de IA do Painel só para o Super admin",
+      "raw_subject": "chore(deploy): registro da onda onda-a-onda1 (#2172)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [],
+      "result": "healthy",
+      "duration_seconds": 266,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta onda-a-onda1: PR #2172 (issue #1919), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 20,
+          "frontend": 236
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T12:58:54-03:00",
       "sha": "2af2586b207a0deec99bac47b027ed1c1c17a8cd",
       "app_version": "0.376.0",
