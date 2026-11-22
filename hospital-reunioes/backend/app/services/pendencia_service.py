@@ -39,14 +39,21 @@ def extrair_quadro(json_ata: dict | None) -> list:
 
 
 def _get_last_id_num(supabase) -> int:
-    """Retorna o número do último ID de ação (ex: 9 para 'A009')."""
-    result = supabase.table("pendencias").select("id_acao").order("id_acao", desc=True).limit(1).execute()
-    if result.data:
-        last_id = result.data[0]["id_acao"]
-        # Extrair apenas os números
-        nums = re.sub(r"[^0-9]", "", last_id)
-        return int(nums) if nums else 0
-    return 0
+    """Retorna o maior número entre os IDs `A###` (ex: 9 para 'A009').
+
+    A comparação é por número, não por texto: em texto "A999" vem depois de
+    "A1000", e o `order desc` do banco devolvia A999 para sempre depois da
+    milésima Pendência; todo lote novo colidia na chave e nenhuma Pendência
+    nascia mais (issue #1914). Lê todos os IDs em páginas, inclusive os
+    apagados, que continuam ocupando a chave."""
+    from app.services.paginacao import ler_tudo
+
+    linhas = ler_tudo(
+        lambda: supabase.table("pendencias").select("id_acao").order("id_acao"),
+        rotulo="numeração das pendências",
+    )
+    numeros = [int(m.group(1)) for r in linhas if (m := re.fullmatch(r"A(\d+)", r.get("id_acao") or ""))]
+    return max(numeros, default=0)
 
 
 def _normalizar_prazo(prazo_raw: str | None) -> str | None:

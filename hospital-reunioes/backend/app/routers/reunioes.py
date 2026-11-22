@@ -734,16 +734,25 @@ async def sincronizar_signatarios(
             status_code=429,
             detail="Sincronização feita há pouco. Aguarde um instante antes de tentar de novo.",
         )
-    _sync_recent[id_reuniao] = time.monotonic()
 
     from app.services import reconciliacao_service
 
-    desfecho = reconciliacao_service.reconciliar_reuniao(supabase, reuniao)
+    # O cooldown só vale para a consulta que deu resposta: a que falhou não
+    # pode trancar o próximo clique no aviso de espera (issue #1914).
+    try:
+        desfecho = reconciliacao_service.reconciliar_reuniao(supabase, reuniao)
+    except Exception as e:
+        logger.error(f"[Sincronizar] Falha ao reconciliar {id_reuniao}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Não foi possível finalizar a ata agora. Tente sincronizar de novo em instantes.",
+        )
     if desfecho == reconciliacao_service.DESFECHO_INDISPONIVEL:
         raise HTTPException(
             status_code=503,
             detail="Não foi possível consultar a ClickSign agora. Tente novamente em instantes.",
         )
+    _sync_recent[id_reuniao] = time.monotonic()
     return {"desfecho": desfecho}
 
 

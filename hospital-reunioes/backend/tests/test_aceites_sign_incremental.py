@@ -80,6 +80,7 @@ class _TableQuery:
         self._is_filters: dict = {}
         self._order: tuple[str, bool] | None = None
         self._limit: int | None = None
+        self._range: tuple[int, int] | None = None
         self._insert_payload: list[dict] | None = None
         self._update_payload: dict | None = None
 
@@ -105,6 +106,10 @@ class _TableQuery:
 
     def limit(self, n):
         self._limit = n
+        return self
+
+    def range(self, inicio, fim):
+        self._range = (inicio, fim)
         return self
 
     def insert(self, payload: dict | list):
@@ -149,6 +154,9 @@ class _TableQuery:
             filtered = sorted(filtered, key=lambda r: r.get(col) or "", reverse=desc)
         if self._limit is not None:
             filtered = filtered[: self._limit]
+        if self._range is not None:
+            inicio, fim = self._range
+            filtered = filtered[inicio : fim + 1]
         return _Result(data=[dict(r) for r in filtered])
 
 
