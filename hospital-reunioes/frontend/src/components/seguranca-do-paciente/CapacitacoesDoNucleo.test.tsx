@@ -259,6 +259,36 @@ describe("a Presidência", () => {
     expect((form.getByLabelText("Formação do instrutor") as HTMLInputElement).required).toBe(true);
   });
 
+  it("a formação só com espaços volta da API recusada, e a tela mostra a mensagem dela (#1931)", async () => {
+    lista = resposta({ pode_editar: true });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const metodo = init?.method ?? "GET";
+        if (metodo === "POST")
+          return new Response(JSON.stringify({ detail: "Diga a formação de quem deu a capacitação." }), {
+            status: 422,
+            headers: { "Content-Type": "application/json" },
+          });
+        const corpo = url === "/api/nsp/capacitacoes" ? lista : { pessoas: [{ id: "p4", nome: "Pessoa de Teste Quatro" }] };
+        return new Response(JSON.stringify(corpo), { status: 200, headers: { "Content-Type": "application/json" } });
+      })
+    );
+    render(<CapacitacoesDoNucleo />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Registrar capacitação" }));
+    const form = within(screen.getByRole("form", { name: "Nova capacitação" }));
+    fireEvent.change(form.getByLabelText("Título"), { target: { value: "Prevenção de quedas" } });
+    fireEvent.change(form.getByLabelText("Data"), { target: { value: "2026-11-05" } });
+    fireEvent.change(form.getByLabelText("Carga horária (horas)"), { target: { value: "1.5" } });
+    fireEvent.change(form.getByLabelText("Instrutor"), { target: { value: "Instrutor de Teste" } });
+    fireEvent.change(form.getByLabelText("Formação do instrutor"), { target: { value: "   " } });
+    fireEvent.click(await form.findByRole("checkbox", { name: "Pessoa de Teste Quatro" }));
+    fireEvent.submit(screen.getByRole("form", { name: "Nova capacitação" }));
+
+    expect((await screen.findByRole("alert")).textContent).toBe("Diga a formação de quem deu a capacitação.");
+  });
+
   it("o tema desativado não aparece para escolher no cadastro", async () => {
     lista = resposta({ pode_editar: true });
     render(<CapacitacoesDoNucleo />);

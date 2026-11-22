@@ -144,6 +144,12 @@ describe("a página de Segurança do Paciente do manual", () => {
     expect(PAGINA!.corpo).not.toMatch(/\*\*Início\*\*/);
   });
 
+  it("o registro da capacitação pede a formação do instrutor e diz o que aparece nas antigas (#1931)", () => {
+    const { texto } = secao(TAREFAS[3]);
+    expect(texto).toContain("**Formação do instrutor**");
+    expect(texto).toContain('"Formação não informada"');
+  });
+
   it("não traz travessão nem meia-risca", () => {
     expect(PAGINA!.corpo).not.toMatch(/[\u2013\u2014]/);
   });
