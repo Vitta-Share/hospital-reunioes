@@ -106,7 +106,9 @@ def test_a_correcao_e_versao_nova_e_a_anterior_nao_muda_nem_some(banco):
         f"DELETE FROM conduta_depoimento_termos WHERE depoimento_id = '{depoimento}';", papel="service_role"
     )
 
-    assert alterar.returncode != 0 and apagar.returncode != 0
+    esvaziar = banco.sql("TRUNCATE conduta_depoimento_termos;", papel="service_role")
+
+    assert alterar.returncode != 0 and apagar.returncode != 0 and esvaziar.returncode != 0
     assert banco.ok(f"SELECT count(*) FROM conduta_depoimento_termos WHERE depoimento_id = '{depoimento}';") == "2"
     assert _versao(banco, depoimento, 2).returncode != 0  # a mesma versão não entra duas vezes
 

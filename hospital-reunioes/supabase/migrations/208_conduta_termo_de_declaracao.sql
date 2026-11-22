@@ -50,6 +50,11 @@ CREATE TRIGGER trg_conduta_depoimento_termos_imutavel
   BEFORE UPDATE OR DELETE ON conduta_depoimento_termos
   FOR EACH ROW EXECUTE FUNCTION conduta_depoimento_registro_imutavel();
 
+DROP TRIGGER IF EXISTS trg_conduta_depoimento_termos_sem_truncate ON conduta_depoimento_termos;
+CREATE TRIGGER trg_conduta_depoimento_termos_sem_truncate
+  BEFORE TRUNCATE ON conduta_depoimento_termos
+  FOR EACH STATEMENT EXECUTE FUNCTION conduta_depoimento_registro_imutavel();
+
 DROP TRIGGER IF EXISTS trg_conduta_depoimento_termos_em_aberto ON conduta_depoimento_termos;
 CREATE TRIGGER trg_conduta_depoimento_termos_em_aberto
   BEFORE INSERT ON conduta_depoimento_termos

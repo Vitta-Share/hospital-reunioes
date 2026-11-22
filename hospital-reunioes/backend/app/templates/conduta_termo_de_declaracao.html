@@ -133,6 +133,6 @@
         {% endfor %}
     </div>
 
-    <p class="rodape">Texto elaborado com apoio de inteligência artificial a partir da gravação e revisado por quem conduziu a conversa.</p>
+    <p class="rodape">Texto elaborado com apoio de inteligência artificial a partir {% if houve_gravacao %}da gravação{% else %}dos pontos da conversa{% endif %} e revisado por quem conduziu a conversa.</p>
 </body>
 </html>

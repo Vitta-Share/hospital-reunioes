@@ -331,10 +331,11 @@ def _dia_legivel(iso: str) -> str:
     return date.fromisoformat(iso).strftime("%d/%m/%Y")
 
 
-def dados_do_pdf(caso: dict, versao: dict) -> dict[str, Any]:
+def dados_do_pdf(caso: dict, depoimento: dict, versao: dict) -> dict[str, Any]:
     """O que preenche o modelo do termo. As Notas para quem apura não entram:
-    elas nem chegam ao modelo. Passa pelo sanitizador, para o PDF não sair com
-    travessão."""
+    elas nem chegam ao modelo. O rodapé diz de onde o texto saiu: da gravação,
+    ou dos pontos digitados quando não houve gravação. Passa pelo sanitizador,
+    para o PDF não sair com travessão."""
     termo = json.loads(cifra.decifrar_texto(versao["termo_cifrado"]))
     ident = termo["identificacao"]
     return sanitizar_estrutura(
@@ -351,6 +352,7 @@ def dados_do_pdf(caso: dict, versao: dict) -> dict[str, Any]:
             "declaracoes": termo["declaracoes"],
             "documentos": termo["documentos"],
             "lido_em_voz_alta": termo["lido_em_voz_alta"],
+            "houve_gravacao": not depoimento.get("sem_gravacao_em"),
             "modelo": MODELO_DO_PDF,
         }
     )
@@ -364,7 +366,7 @@ def imprimir_termo(supabase, aberto: CasoAberto, depoimento_id: str) -> tuple[by
     caso = aberto.caso
     depoimento = depoimentos._depoimento(supabase, caso["id"], depoimento_id)
     versao = _ultima_versao(supabase, depoimento["id"])
-    dados = dados_do_pdf(caso, versao)
+    dados = dados_do_pdf(caso, depoimento, versao)
     trilha.registrar(
         supabase,
         caso["id"],

@@ -15,6 +15,7 @@ import json
 import re
 from typing import Any
 
+import httpx
 import pdfplumber
 import pytest
 from anthropic_apoio import ClienteFalso
@@ -34,7 +35,7 @@ from app.dependencies import get_current_user, get_supabase_client
 from app.limiter import limiter
 from app.routers import conduta_comite, conduta_depoimentos, webhooks
 from app.services import clicksign_service
-from app.services.conduta import cifra, termo_de_declaracao
+from app.services.conduta import cifra, termo_de_declaracao, trilha
 from app.services.conhecimento import CONHECIMENTO_DIR
 
 TRANSCRICAO = (
@@ -155,6 +156,13 @@ class TestOTermoNasceDeUmClique:
         assert "no almoxarifado" in _enviado(agente)
         termo = _cartao(comite, caso, dep)["termo"]
         assert termo["gravacao"] == "Não houve gravação. Os pontos da conversa foram registrados por quem conduziu."
+        texto = _texto_do_pdf(_imprimir(comite, caso, dep).content)
+        assert "Não houve gravação." in texto
+        assert (
+            "Texto elaborado com apoio de inteligência artificial a partir dos pontos da conversa e revisado por "
+            "quem conduziu a conversa." in texto
+        )
+        assert "a partir da gravação" not in texto
 
     def test_sem_transcricao_nem_pontos_o_clique_e_recusado_sem_chamar_o_agente(self, agente):
         comite = Comite()
@@ -502,6 +510,29 @@ class TestCertidaoDeRecusa:
         assert item["estado"] == "nao_se_aplica"
         assert "certidão de recusa" in item["motivo"]
         assert cartao["situacao"] != "Aguardando assinatura"
+
+    def test_se_a_trilha_falha_no_fechamento_o_reenvio_da_clicksign_grava_a_linha(self, agente, clicksign, monkeypatch):
+        comite = ComiteComWebhook()
+        caso, dep = _termo_redigido(comite)
+        _recusar(comite, caso, dep)
+        [certidao] = _certidoes(comite)
+        registrar_de_verdade = trilha.registrar
+        falhas = []
+
+        def registrar_que_cai_uma_vez(supabase, caso_id, autor_id, acao, detalhe=""):
+            if acao == "certidao_de_recusa_assinada" and not falhas:
+                falhas.append(acao)
+                raise httpx.ReadTimeout("trilha fora do ar")
+            return registrar_de_verdade(supabase, caso_id, autor_id, acao, detalhe)
+
+        monkeypatch.setattr(trilha, "registrar", registrar_que_cai_uma_vez)
+
+        assert comite.assinar(certidao["documento_key"]).status_code == 500
+        assert "certidao_de_recusa_assinada" not in _acoes(comite, caso)
+
+        assert comite.assinar(certidao["documento_key"]).status_code == 200
+        assert comite.assinar(certidao["documento_key"]).status_code == 200
+        assert _acoes(comite, caso).count("certidao_de_recusa_assinada") == 1
 
     def test_a_certidao_nao_leva_o_protocolo_para_a_clicksign(self, agente, clicksign):
         comite = ComiteComWebhook()

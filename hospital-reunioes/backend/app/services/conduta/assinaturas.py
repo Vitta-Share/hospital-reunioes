@@ -472,7 +472,7 @@ def enviar_certidao_de_recusa(supabase, caso_id: str, depoimento_id: str, pessoa
 # ---------------------------------------------------------------------------
 
 
-def _efeito_da_assinatura(supabase, assinatura: dict, assinado_em: str, *, agora_fechou: bool) -> None:
+def _efeito_da_assinatura(supabase, assinatura: dict, assinado_em: str) -> None:
     """O que a assinatura muda fora da tabela. O Termo carimba a Participação,
     e o do convidado, a atribuição dele no caso, só se ainda falta: o retorno
     repetido não acha mais nada."""
@@ -484,16 +484,41 @@ def _efeito_da_assinatura(supabase, assinatura: dict, assinado_em: str, *, agora
         _carimbar_o_convite(supabase, assinatura, assinado_em)
     elif assinatura["tipo"] == RELATORIO_DE_APURACAO:
         _registrar_relatorio_assinado(supabase, assinatura)
-    elif assinatura["tipo"] == CERTIDAO_DE_RECUSA and agora_fechou:
-        # A certidão não carimba nada: a linha da trilha é o retorno dela, uma
-        # vez só, no fechamento do envelope.
-        trilha.registrar(
-            supabase,
-            assinatura["caso_id"],
-            None,
-            "certidao_de_recusa_assinada",
-            "certidão de recusa de assinatura do termo de declaração, assinada por dois membros",
-        )
+    elif assinatura["tipo"] == CERTIDAO_DE_RECUSA:
+        _certidao_na_trilha(supabase, assinatura["caso_id"])
+
+
+def _certidao_na_trilha(supabase, caso_id: str) -> None:
+    """A certidão não carimba nada: a linha da trilha é o retorno dela. O caso
+    tem uma linha por certidão assinada; se falta, ela é gravada. Assim o
+    reenvio da ClickSign grava a linha que a primeira tentativa não gravou, e
+    o retorno repetido não grava outra."""
+    assinadas = (
+        supabase.table(TABELA)
+        .select("id")
+        .eq("tipo", CERTIDAO_DE_RECUSA)
+        .eq("caso_id", caso_id)
+        .eq("situacao", "assinado")
+        .execute()
+        .data
+    ) or []
+    gravadas = (
+        supabase.table("conduta_trilha")
+        .select("seq")
+        .eq("caso_id", caso_id)
+        .eq("acao", "certidao_de_recusa_assinada")
+        .execute()
+        .data
+    ) or []
+    if len(gravadas) >= len(assinadas):
+        return
+    trilha.registrar(
+        supabase,
+        caso_id,
+        None,
+        "certidao_de_recusa_assinada",
+        "certidão de recusa de assinatura do termo de declaração, assinada por dois membros",
+    )
 
 
 def _carimbar_o_convite(supabase, assinatura: dict, assinado_em: str) -> None:
@@ -542,7 +567,6 @@ def _guardar_copia(supabase, assinatura: dict) -> None:
 
 def processar_evento(supabase, assinatura: dict, evento: str) -> None:
     """O mesmo tratamento para o webhook e para a reconsulta."""
-    agora_fechou = False
     if assinatura.get("situacao") == "enviado" and evento in EVENTOS_DE_FECHAMENTO:
         agora = _agora()
         trocadas = (
@@ -556,14 +580,13 @@ def processar_evento(supabase, assinatura: dict, evento: str) -> None:
         if not trocadas:
             return
         assinatura = {**assinatura, "situacao": "assinado", "assinado_em": agora}
-        agora_fechou = True
     elif not (
         assinatura.get("situacao") == "assinado"
         and (evento in EVENTOS_DE_FECHAMENTO or evento == EVENTO_DOCUMENTO_PRONTO)
     ):
         logger.info("Evento %r da assinatura %s do Canal sem efeito", evento, assinatura.get("id"))
         return
-    _efeito_da_assinatura(supabase, assinatura, assinatura.get("assinado_em") or _agora(), agora_fechou=agora_fechou)
+    _efeito_da_assinatura(supabase, assinatura, assinatura.get("assinado_em") or _agora())
     _guardar_copia(supabase, assinatura)
 
 
