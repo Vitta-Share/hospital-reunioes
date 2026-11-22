@@ -72,6 +72,16 @@ describe("MINHA VEZ", () => {
     expect(await screen.findByText("Nada depende de você agora.")).toBeTruthy();
   });
 
+  it("sem o Termo assinado, diz que falta assinar e não oferece caso (issue #1823)", async () => {
+    respostas = { "/minha-vez": { itens: [], termo_pendente: true } };
+    render(<MinhaVez />);
+
+    expect(await screen.findByText("Falta assinar o Termo de Confidencialidade e Posse.")).toBeTruthy();
+    expect(screen.getByText(/chegou no seu e-mail profissional pela ClickSign/)).toBeTruthy();
+    expect(screen.queryByText("Nada depende de você agora.")).toBeNull();
+    expect(screen.queryByRole("link", { name: "ABRIR O MAIS URGENTE" })).toBeNull();
+  });
+
   it("mostra protocolo, etapa, ação e prazo, na ordem do servidor", async () => {
     respostas = {
       "/minha-vez": {
@@ -121,6 +131,23 @@ describe("Casos", () => {
 
     const caso = await screen.findByRole("link", { name: /CC-AB12-CD34/ });
     expect(caso.textContent).toBe("CC-AB12-CD34Venceu há 3 diasRápido, apuraçãoPrazo vencido registrado");
+  });
+
+  it("o caso sinalizado pela Ouvidoria diz a origem, e o do canal não (issue #1849)", async () => {
+    const base = { etapa: "triagem", rito: null, categoria: null, situacao: "em_triagem", prazo_em: null, prazo_vencido: false, faltam_dias: null };
+    respostas = {
+      "/casos": {
+        casos: [
+          { ...base, id: "c1", protocolo: "CC-AB12-CD34", origem: "ouvidoria" },
+          { ...base, id: "c2", protocolo: "CC-EF56-GH78", origem: "canal" },
+        ],
+      },
+    };
+    render(<CasosDoComite />);
+
+    const daOuvidoria = await screen.findByRole("link", { name: /CC-AB12-CD34/ });
+    expect(daOuvidoria.textContent).toContain("Origem: Ouvidoria");
+    expect(screen.getByRole("link", { name: /CC-EF56-GH78/ }).textContent).not.toContain("Origem");
   });
 });
 
@@ -203,6 +230,22 @@ describe("a tela do caso", () => {
     expect(screen.getByText(CASO.relato)).toBeTruthy();
   });
 
+  it("declarado o impedimento, o caso sai da tela e ela leva de volta aos casos (#1828)", async () => {
+    respostas = { "/casos/c1": CASO, "/casos/c1/impedimento": { caso: {} } };
+    render(<TelaDoCaso casoId="c1" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "DECLARAR IMPEDIMENTO" }));
+    fireEvent.click(screen.getByLabelText("Relação pessoal"));
+    fireEvent.click(screen.getByRole("button", { name: "CONFIRMAR IMPEDIMENTO" }));
+
+    const aviso = await screen.findByRole("status");
+    expect(aviso.textContent).toContain("Você se declarou impedido neste caso e não tem mais acesso a ele.");
+    expect(screen.queryByText(CASO.relato)).toBeNull();
+    expect(within(aviso).getByRole("link", { name: "Voltar aos casos" }).getAttribute("href")).toBe(
+      "/comite-de-conduta/casos"
+    );
+  });
+
   it("no Encaminhamento, um clique envia a orientação e encerra", async () => {
     respostas = { "/casos/c1": CASO, "/casos/c1/encaminhamento": { caso: {} } };
     render(<TelaDoCaso casoId="c1" />);
@@ -259,6 +302,181 @@ describe("a tela do caso", () => {
     const botao = (await screen.findByRole("button", { name: "PRORROGAR PRAZO" })) as HTMLButtonElement;
     expect(botao.disabled).toBe(true);
     expect(screen.getByText("Só a coordenação prorroga o prazo.")).toBeTruthy();
+  });
+
+  it("na Apuração, ADICIONAR PESSOA A OUVIR abre o cartão novo, e a tela mostra os depoimentos", async () => {
+    respostas = {
+      "/casos/c1": {
+        ...CASO,
+        rito: "rapido",
+        etapa: "apuracao",
+        orientacao: null,
+        o_que_fazer_agora: {
+          ...CASO.o_que_fazer_agora,
+          botao: "ADICIONAR PESSOA A OUVIR",
+          acao: "adicionar_pessoa",
+          bloqueio: null,
+        },
+        depoimentos: [],
+        avanco_da_apuracao: null,
+      },
+    };
+    render(<TelaDoCaso casoId="c1" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "ADICIONAR PESSOA A OUVIR" }));
+
+    expect(screen.getByRole("form", { name: "Adicionar pessoa a ouvir" })).toBeTruthy();
+  });
+
+  it("no Voto, VOTAR da caixa abre o formulário do voto (#1833)", async () => {
+    respostas = {
+      "/casos/c1": {
+        ...CASO,
+        rito: "rapido",
+        etapa: "voto",
+        orientacao: null,
+        o_que_fazer_agora: {
+          frase: "Leia o dossiê e vote. Seu voto fica oculto até todos votarem.",
+          botao: "VOTAR",
+          como_fazer: ["a", "b", "c"],
+          acao: "votar",
+          bloqueio: null,
+        },
+        votacao: {
+          rodada: 1,
+          votantes: 3,
+          votaram: 0,
+          meu_voto: null,
+          pode_votar: true,
+          bloqueio_do_voto: null,
+          reuniao_curta_convocada: false,
+          rodadas: [],
+          resultado: null,
+          concluida: null,
+          pode_concluir: false,
+          bloqueio_da_conclusao: "Só a coordenação conclui a votação.",
+        },
+        trava: { itens: [], preenchida_em: null, pode_preencher: true, ciencia: [] },
+      },
+    };
+    render(<TelaDoCaso casoId="c1" />);
+
+    const caixa = await screen.findByRole("region", { name: "O que fazer agora" });
+    expect(screen.queryByRole("form", { name: "Seu voto" })).toBeNull();
+    fireEvent.click(within(caixa).getByRole("button", { name: "VOTAR" }));
+
+    const voto = screen.getByRole("form", { name: "Seu voto" });
+    expect(within(voto).getByLabelText("Procedente")).toBeTruthy();
+  });
+});
+
+describe("Sinalizar ao NSP (issue #1850)", () => {
+  const NOTA = "Risco de queda no corredor da ala B: piso molhado sem sinalização à noite.";
+  const PENDENTE = { texto: NOTA, escrita_em: "2026-11-20T10:00:00+00:00", enviada_em: null };
+
+  it("o membro escreve a nota e a tela a manda ao servidor", async () => {
+    respostas = { "/casos/c1": { ...CASO, papel: "membro", notas_ao_nsp: [] }, "/casos/c1/nota-ao-nsp": { caso: {} } };
+    render(<TelaDoCaso casoId="c1" />);
+
+    const lateral = await screen.findByRole("region", { name: "Sinalizar ao NSP" });
+    fireEvent.click(within(lateral).getByRole("button", { name: "SINALIZAR AO NSP" }));
+    fireEvent.change(within(lateral).getByLabelText("Nota ao Núcleo"), { target: { value: NOTA } });
+    fireEvent.click(within(lateral).getByRole("button", { name: "SALVAR A NOTA" }));
+
+    await waitFor(() =>
+      expect(chamadas.find((c) => c.method === "POST" && c.url === "/api/comite-de-conduta/casos/c1/nota-ao-nsp")?.body).toEqual({
+        texto: NOTA,
+      })
+    );
+  });
+
+  it("para o membro, o envio fica bloqueado com o motivo", async () => {
+    respostas = { "/casos/c1": { ...CASO, papel: "membro", notas_ao_nsp: [PENDENTE] } };
+    render(<TelaDoCaso casoId="c1" />);
+
+    const lateral = await screen.findByRole("region", { name: "Sinalizar ao NSP" });
+    expect(within(lateral).getByText(NOTA)).toBeTruthy();
+    const enviar = within(lateral).getByRole("button", { name: "ENVIAR AO NSP" }) as HTMLButtonElement;
+    expect(enviar.disabled).toBe(true);
+    expect(within(lateral).getByText("Só a coordenação envia a nota ao Núcleo.")).toBeTruthy();
+  });
+
+  it("a coordenação envia a nota que espera", async () => {
+    respostas = {
+      "/casos/c1": { ...CASO, papel: "coordenacao", notas_ao_nsp: [PENDENTE] },
+      "/casos/c1/nota-ao-nsp/envio": { caso: {} },
+    };
+    render(<TelaDoCaso casoId="c1" />);
+
+    const lateral = await screen.findByRole("region", { name: "Sinalizar ao NSP" });
+    fireEvent.click(within(lateral).getByRole("button", { name: "ENVIAR AO NSP" }));
+
+    await waitFor(() =>
+      expect(
+        chamadas.some((c) => c.method === "POST" && c.url === "/api/comite-de-conduta/casos/c1/nota-ao-nsp/envio")
+      ).toBe(true)
+    );
+  });
+
+  it("a nota enviada mostra a data do envio", async () => {
+    respostas = {
+      "/casos/c1": { ...CASO, notas_ao_nsp: [{ ...PENDENTE, enviada_em: "2026-11-21T13:00:00+00:00" }] },
+    };
+    render(<TelaDoCaso casoId="c1" />);
+
+    const lateral = await screen.findByRole("region", { name: "Sinalizar ao NSP" });
+    expect(within(lateral).getByText("Enviada ao Núcleo em 21/11/2026")).toBeTruthy();
+    expect(within(lateral).queryByRole("button", { name: "ENVIAR AO NSP" })).toBeNull();
+  });
+});
+
+describe("Convidar para o caso (issue #1825)", () => {
+  it("a coordenação convida o apurador pelo e-mail", async () => {
+    respostas = { "/casos/c1": CASO, "/casos/c1/convites": { pode_convidar: true, convites: [] } };
+    render(<TelaDoCaso casoId="c1" />);
+
+    const convite = await screen.findByRole("region", { name: "Convidar para o caso" });
+    fireEvent.click(within(convite).getByLabelText("Apurador designado"));
+    fireEvent.change(within(convite).getByLabelText("E-mail"), { target: { value: "ana@hsm.com.br" } });
+    fireEvent.change(within(convite).getByLabelText(/Nome completo/), { target: { value: "Ana Apuradora" } });
+    fireEvent.click(within(convite).getByRole("button", { name: "CONVIDAR" }));
+
+    await waitFor(() =>
+      expect(chamadas.find((c) => c.method === "POST" && c.url === "/api/comite-de-conduta/casos/c1/convites")?.body).toEqual({
+        email: "ana@hsm.com.br",
+        nome: "Ana Apuradora",
+        motivo: "apurador",
+      })
+    );
+  });
+
+  it("mostra cada convidado e em que pé está o termo", async () => {
+    respostas = {
+      "/casos/c1": CASO,
+      "/casos/c1/convites": {
+        pode_convidar: true,
+        convites: [
+          { participante_id: "A1", nome: "Ana Apuradora", motivo: "apurador", papel: "Apurador designado", termo: "assinado" },
+          { participante_id: "B1", nome: "Beto da CIPA", motivo: "cipa", papel: "Membro da CIPA", termo: "aguardando_assinatura" },
+        ],
+      },
+    };
+    render(<TelaDoCaso casoId="c1" />);
+
+    const lista = await screen.findByRole("list", { name: "Convidados" });
+    expect(within(lista).getAllByRole("listitem").map((l) => l.textContent)).toEqual([
+      "Ana Apuradora, Apurador designadoTermo assinado",
+      "Beto da CIPA, Membro da CIPAEsperando a assinatura do termo",
+    ]);
+  });
+
+  it("quem não pode convidar não vê o convite", async () => {
+    respostas = { "/casos/c1": CASO, "/casos/c1/convites": { pode_convidar: false, convites: [] } };
+    render(<TelaDoCaso casoId="c1" />);
+
+    await screen.findByText(CASO.relato);
+    await waitFor(() => expect(chamadas.some((c) => c.url.endsWith("/casos/c1/convites"))).toBe(true));
+    expect(screen.queryByRole("region", { name: "Convidar para o caso" })).toBeNull();
   });
 });
 

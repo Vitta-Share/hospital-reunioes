@@ -13,7 +13,8 @@ from app.config import settings
 from app.dependencies import get_supabase_client, require_recurso_nsp
 from app.limiter import limiter
 from app.services import ouvidoria_pontos
-from app.services.seguranca_do_paciente import caso_grave
+from app.services.conduta import nota_ao_nucleo
+from app.services.seguranca_do_paciente import acao_de_hoje, caso_grave
 from app.services.seguranca_do_paciente.permissao import (
     SLUG_DO_NUCLEO,
     hoje_em_sao_paulo,
@@ -61,6 +62,20 @@ async def pagina_inicial(
     }
 
 
+@router.get("/acao-de-hoje")
+@limiter.limit("60/minute")
+async def faixa_do_que_exige_acao_hoje(
+    request: Request,
+    _: dict = Depends(require_recurso_nsp("casos")),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """A faixa "o que exige ação hoje" do início do módulo (issue #2000): casos
+    A e B abertos, triagens pendentes por idade, prazos legais a vencer e
+    Termos pendentes, cada grupo com a contagem e o link. Só para quem abre os
+    casos, e sem nome de paciente nem de profissional."""
+    return acao_de_hoje.faixa_de_hoje(supabase)
+
+
 @router.get("/configuracao")
 @limiter.limit("60/minute")
 async def configuracao_tecnica(
@@ -91,3 +106,16 @@ async def baixar_qr_da_notificacao(
         media_type="image/png",
         headers={"Content-Disposition": 'attachment; filename="qr-notificacao-nsp.png"'},
     )
+
+
+@router.get("/notas-do-comite")
+@limiter.limit("60/minute")
+async def notas_do_comite_de_conduta(
+    request: Request,
+    _: dict = Depends(require_recurso_nsp("notas_do_comite")),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """As notas que o Comitê de Conduta mandou ao Núcleo (issue #1850): só o
+    texto e a data do envio. Sem protocolo, sem relato e sem quem relatou, e
+    nada que leve ao caso do Canal."""
+    return {"notas": nota_ao_nucleo.notas_para_o_nucleo(supabase)}

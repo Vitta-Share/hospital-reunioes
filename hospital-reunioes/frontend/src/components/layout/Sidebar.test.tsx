@@ -463,6 +463,11 @@ describe("Sidebar com o item Segurança do Paciente", () => {
     expect(hrefs(semCasos)).not.toContain("/seguranca-do-paciente/notificacoes");
   });
 
+  it("a Diretoria vê o item Notificações pelo recurso dos casos graves (issue #1999)", () => {
+    const diretoria = entrar({ access_profile: null, recursos_nsp: [...SEM_TERMO, "membros", "casos_graves"] });
+    expect(hrefs(diretoria)).toContain("/seguranca-do-paciente/notificacoes");
+  });
+
   it("o item Configuração aparece para quem tem o recurso da Configuração, e só para ele (issue #2046)", () => {
     const comConfiguracao = entrar({ access_profile: null, recursos_nsp: [...SEM_TERMO, "configuracao"] });
     expect(hrefs(comConfiguracao)).toContain("/seguranca-do-paciente/configuracao");
@@ -471,6 +476,16 @@ describe("Sidebar com o item Segurança do Paciente", () => {
     const semConfiguracao = entrar({ access_profile: null, recursos_nsp: [...SEM_TERMO, "casos"] });
     expect(hrefs(semConfiguracao)).toContain("/seguranca-do-paciente/membros");
     expect(hrefs(semConfiguracao)).not.toContain("/seguranca-do-paciente/configuracao");
+  });
+
+  it("o item Notas do Comitê de Conduta aparece para quem tem o recurso das notas, e só para ele (issue #1850)", () => {
+    const comNotas = entrar({ access_profile: null, recursos_nsp: [...SEM_TERMO, "notas_do_comite"] });
+    expect(hrefs(comNotas)).toContain("/seguranca-do-paciente/notas-do-comite");
+    cleanup();
+
+    const membro = entrar({ access_profile: null, recursos_nsp: [...SEM_TERMO, "casos"] });
+    expect(hrefs(membro)).toContain("/seguranca-do-paciente/notificacoes");
+    expect(hrefs(membro)).not.toContain("/seguranca-do-paciente/notas-do-comite");
   });
 
   it.each([

@@ -41,7 +41,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
-from app.services import github_client, tecnologia_avisos
+from app.services import github_client, tecnologia_avisos, tecnologia_envio_aos_desenvolvedores
 from app.services.github_client import PROJETO_HOSPITAL
 from app.services.registro_do_deploy import subida_de_cada_issue
 from app.services.tecnologia import (
@@ -614,6 +614,20 @@ def _carimbar_em_producao(supabase, demanda: dict[str, Any], *, versao: str, dat
     # Etapa avisa, e o webhook repetido ou a reconciliacao que chega depois
     # nao avisam de novo.
     tecnologia_avisos.avisar(supabase, demanda, aviso=tecnologia_avisos.AVISO_EM_PRODUCAO)
+    # A linha de Em producao na Conversa (issue #2117) mora atras do mesmo
+    # compare-and-swap, e por isso sai uma vez so. Best-effort, como o aviso:
+    # a falha nao desfaz a Etapa.
+    try:
+        tecnologia_envio_aos_desenvolvedores.gravar_linha_do_sistema(
+            supabase,
+            demanda_id,
+            tecnologia_envio_aos_desenvolvedores.texto_da_linha_em_producao(versao=versao, data=data),
+            autor_id=None,
+        )
+    except Exception:
+        logger.warning(
+            "[tecnologia] A linha de Em produção não entrou na Conversa da Demanda %s.", demanda_id, exc_info=True
+        )
     return True
 
 

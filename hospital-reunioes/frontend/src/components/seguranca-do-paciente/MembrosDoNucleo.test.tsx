@@ -240,6 +240,47 @@ describe("quem gere o Núcleo", () => {
   });
 });
 
+describe("a ausência da Presidência na ficha do suplente (issue #1999)", () => {
+  it("a Presidência registra o primeiro e o último dia da ausência", async () => {
+    entrar(["membros", "gerir_nucleo", "ausencia_da_presidencia"]);
+    await abrir();
+
+    fireEvent.click(screen.getByRole("button", { name: "Pessoa B" }));
+    const detalhes = await screen.findByRole("region", { name: "Detalhes de Pessoa B" });
+    const registrar = within(detalhes).getByRole("button", { name: "Registrar ausência" });
+    expect(registrar).toHaveProperty("disabled", true);
+    fireEvent.change(within(detalhes).getByLabelText("Primeiro dia da ausência"), { target: { value: "2026-12-01" } });
+    expect(registrar).toHaveProperty("disabled", true);
+    fireEvent.change(within(detalhes).getByLabelText("Último dia da ausência"), { target: { value: "2026-12-15" } });
+    fireEvent.click(registrar);
+
+    const caminho = "/api/nsp/membros/part-b/ausencia-da-presidencia";
+    await waitFor(() => expect(chamadas.some((c) => c.url === caminho)).toBe(true));
+    const post = chamadas.find((c) => c.url === caminho)!;
+    expect(post.init?.method).toBe("POST");
+    expect(JSON.parse(String(post.init!.body))).toEqual({ inicio: "2026-12-01", fim: "2026-12-15" });
+  });
+
+  it("só aparece na ficha do suplente", async () => {
+    entrar(["membros", "gerir_nucleo", "ausencia_da_presidencia"]);
+    await abrir();
+
+    fireEvent.click(screen.getByRole("button", { name: "Pessoa A" }));
+    const detalhes = await screen.findByRole("region", { name: "Detalhes de Pessoa A" });
+    expect(within(detalhes).queryByRole("button", { name: "Registrar ausência" })).toBeNull();
+  });
+
+  it("o suplente em exercício gere o Núcleo e não registra a ausência", async () => {
+    entrar(["membros", "gerir_nucleo"]);
+    await abrir();
+
+    fireEvent.click(screen.getByRole("button", { name: "Pessoa B" }));
+    const detalhes = await screen.findByRole("region", { name: "Detalhes de Pessoa B" });
+    expect(within(detalhes).getByRole("button", { name: "Renovar" })).toBeTruthy();
+    expect(within(detalhes).queryByRole("button", { name: "Registrar ausência" })).toBeNull();
+  });
+});
+
 describe("o Termo de Adesão na seção do membro", () => {
   async function abrirPessoaB() {
     entrar(["membros", "gerir_nucleo"]);

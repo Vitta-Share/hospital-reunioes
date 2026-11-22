@@ -675,15 +675,21 @@ def recursos_nsp_da_pessoa(supabase, participante: dict[str, Any] | None) -> fro
 RECUSA_DO_NSP = "Conteúdo restrito ao Núcleo de Segurança do Paciente"
 
 
-def require_recurso_nsp(recurso: str):
-    """Gate das rotas de Segurança do Paciente: 403 sem o recurso.
+def require_recurso_nsp(recurso: str, *outros: str):
+    """Gate das rotas de Segurança do Paciente: 403 sem o recurso (ou sem
+    nenhum dos recursos, quando a rota aceita mais de um).
 
     Ao contrário de POPs, Ouvidoria e Contas médicas, o super admin NÃO passa
     por cima: só chega à `configuracao` (ADR 0095, decisão 4). A recusa não diz
     nada do Núcleo além do nome. Devolve o participante com `recursos_nsp`.
+
+    O gate leva a marca `recursos_do_gate`, que a varredura das rotas do
+    módulo procura (issue #1999).
     """
-    if recurso not in RECURSOS_NSP:
-        raise ValueError(f"Recurso de Segurança do Paciente desconhecido: {recurso!r}")
+    aceitos = (recurso, *outros)
+    for um in aceitos:
+        if um not in RECURSOS_NSP:
+            raise ValueError(f"Recurso de Segurança do Paciente desconhecido: {um!r}")
 
     async def checker(
         current_user: dict = Depends(get_current_user),
@@ -692,10 +698,11 @@ def require_recurso_nsp(recurso: str):
         me = await get_participante_for_user(current_user, supabase)
         barrar_desligado(me)
         recursos = recursos_nsp_da_pessoa(supabase, me)
-        if not me or recurso not in recursos:
+        if not me or not recursos.intersection(aceitos):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=RECUSA_DO_NSP)
         return {**me, "recursos_nsp": sorted(recursos)}
 
+    checker.recursos_do_gate = aceitos
     return checker
 
 

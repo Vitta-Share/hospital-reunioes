@@ -32,6 +32,7 @@ from app.services.inicio.registro_de_acesso import TABELA as TABELA_DO_REGISTRO
 from app.services.inicio.regras import FUSO, dias_de_atraso
 from app.services.paginacao import ler_tudo
 from app.services.pendencia_service import e_lembrete_do_nucleo
+from app.services.seguranca_do_paciente.recalibracao import e_recalibracao
 
 _COLUNAS = "id_acao, descricao_acao, prazo, id_reuniao, responsavel_id, co_responsavel_id"
 
@@ -107,6 +108,8 @@ def _abertas(supabase, reunioes: list[str] | None) -> list[dict]:
 
 def _origem(linha: dict, reunioes: dict[str, dict]) -> str:
     if e_lembrete_do_nucleo(linha):
+        if e_recalibracao(linha):
+            return "Recalibração do agente de triagem do Núcleo."
         return "Lembrete da Agenda regulatória do Núcleo."
     reuniao = reunioes.get(linha["id_reuniao"])
     if not reuniao:

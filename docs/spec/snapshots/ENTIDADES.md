@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T20:15+0000 -->
+<!-- last_update: 2026-11-22T06:00+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -51,7 +51,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## reunioes
 
-> Origem: `002_create_reunioes.sql` (alterada em: 016_importacao_ata_legada.sql, 020_historico_importacao.sql, 028_add_taxonomy_fks.sql, 030_add_soft_delete.sql, 032_drop_local_reuniao.sql, 035_add_lembrete_24h_reunioes.sql, 036_add_access_profile.sql, 039_add_envelope_id_clicksign.sql, 044_add_metodo_geracao_reunioes.sql, 056_add_falha_envio_assinatura.sql, 058_finalizacao_envelope_contagem.sql, 059_modo_interno_reuniao.sql, 148_nsp_reunioes_do_nucleo.sql, 153_nsp_presenca_e_quorum.sql, 168_reunioes_setor_obrigatorio.sql)
+> Origem: `002_create_reunioes.sql` (alterada em: 016_importacao_ata_legada.sql, 020_historico_importacao.sql, 028_add_taxonomy_fks.sql, 030_add_soft_delete.sql, 032_drop_local_reuniao.sql, 035_add_lembrete_24h_reunioes.sql, 036_add_access_profile.sql, 039_add_envelope_id_clicksign.sql, 044_add_metodo_geracao_reunioes.sql, 056_add_falha_envio_assinatura.sql, 058_finalizacao_envelope_contagem.sql, 059_modo_interno_reuniao.sql, 148_nsp_reunioes_do_nucleo.sql, 153_nsp_presenca_e_quorum.sql, 168_reunioes_setor_obrigatorio.sql, 218_nsp_reuniao_de_analise_e_avisos_da_confirmacao.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -95,6 +95,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `colegiado_id` | `UUID` | — | — | `colegiados.id` |
 | `reagendada_de` | `VARCHAR(20)` | — | — | `reunioes.id_reuniao` |
 | `setor_id` | `UUID` | — | — | `setores.id` |
+| `nsp_caso_id` | `UUID` | — | — | `nsp_notificacoes.id` |
 
 **Indexes:**
 - `idx_reunioes_status` em `(status_ata)` (de `002_create_reunioes.sql`)
@@ -113,6 +114,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_reunioes_colegiado` em `(colegiado_id)` (de `148_nsp_reunioes_do_nucleo.sql`)
 - `idx_reunioes_reagendada_de` em `(reagendada_de)` (de `153_nsp_presenca_e_quorum.sql`)
 - `idx_reunioes_setor_id` em `(setor_id)` (de `168_reunioes_setor_obrigatorio.sql`)
+- `uq_reunioes_nsp_caso` em `(nsp_caso_id)` (de `218_nsp_reuniao_de_analise_e_avisos_da_confirmacao.sql`)
 
 ## reuniao_participantes
 
@@ -2391,7 +2393,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## conduta_casos
 
-> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql)
+> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql, 202_conduta_sinalizacao_da_ouvidoria.sql, 214_conduta_rota_especial.sql, 216_conduta_voto_e_trava_de_robustez.sql, 221_conduta_ata_de_deliberacao.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2407,16 +2409,25 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `relato_cifrado` | `TEXT` | NOT NULL | — | — |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
 | `escopo` | `TEXT` | — | — | `participantes.id` |
+| `origem` | `TEXT` | NOT NULL | — | `ouvidoria_protocolos.id` |
+| `direcao_envolvida` | `TEXT` | NOT NULL | — | `participantes.id` |
+| `rodada_do_voto` | `INTEGER` | NOT NULL | — | `participantes.id` |
+| `reuniao_concluida_em` | `TIMESTAMPTZ` | — | — | `participantes.id` |
 
 **Indexes:**
 - `idx_conduta_casos_rota_etapa` em `(rota, etapa, recebido_em DESC)` (de `175_conduta_fundacao.sql`)
 - `idx_conduta_casos_triagem_por` em `(triagem_por)` (de `185_conduta_triagem_e_ritos.sql`)
 - `idx_conduta_casos_conferida_por` em `(conferida_por)` (de `185_conduta_triagem_e_ritos.sql`)
 - `idx_conduta_casos_prorrogado_por` em `(prorrogado_por)` (de `185_conduta_triagem_e_ritos.sql`)
+- `idx_conduta_casos_abertos_prazo` em `(prazo_em)` (de `199_conduta_avisos_por_email.sql`)
+- `uq_conduta_casos_manifestacao` em `(manifestacao_id)` (de `202_conduta_sinalizacao_da_ouvidoria.sql`)
+- `idx_conduta_casos_desviado_por` em `(desviado_por)` (de `214_conduta_rota_especial.sql`)
+- `idx_conduta_casos_votacao_concluida_por` em `(votacao_concluida_por)` (de `216_conduta_voto_e_trava_de_robustez.sql`)
+- `idx_conduta_casos_reuniao_concluida_por` em `(reuniao_concluida_por)` (de `221_conduta_ata_de_deliberacao.sql`)
 
 ## conduta_atribuicoes
 
-> Origem: `175_conduta_fundacao.sql`
+> Origem: `175_conduta_fundacao.sql` (alterada em: 191_conduta_impedimento_e_citado.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2428,10 +2439,12 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `impedido_em` | `TIMESTAMPTZ` | — | — | — |
 | `revogada_em` | `TIMESTAMPTZ` | — | — | — |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `impedimento_motivo` | `TEXT` | — | — | `participantes.id` |
 
 **Indexes:**
 - `idx_conduta_atribuicoes_pessoa` em `(participante_id, caso_id)` (de `175_conduta_fundacao.sql`)
 - `idx_conduta_atribuicoes_caso` em `(caso_id)` (de `175_conduta_fundacao.sql`)
+- `idx_conduta_atribuicoes_substitui` em `(substitui_id)` (de `191_conduta_impedimento_e_citado.sql`)
 
 ## conduta_citados
 
@@ -2631,7 +2644,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## nsp_triagens
 
-> Origem: `188_nsp_agente_de_triagem.sql`
+> Origem: `188_nsp_agente_de_triagem.sql` (alterada em: 197_nsp_tela_de_triagem.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2664,11 +2677,17 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `modelo` | `TEXT` | — | — | — |
 | `tentativas` | `SMALLINT` | — | — | — |
 | `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `autor_id` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `divergencias` | `TEXT[]` | — | — | — |
+| `frequencia` | `TEXT` | — | — | — |
+| `prioridade` | `TEXT` | — | — | — |
 
 **Indexes:**
 - `idx_nsp_triagens_notificacao` em `(notificacao_id, versao DESC)` (de `188_nsp_agente_de_triagem.sql`)
 - `idx_nsp_triagens_categoria` em `(categoria)` (de `188_nsp_agente_de_triagem.sql`)
 - `idx_nsp_triagens_evento_item` em `(evento_item)` (de `188_nsp_agente_de_triagem.sql`)
+- `idx_nsp_triagens_autor` em `(autor_id)` (de `197_nsp_tela_de_triagem.sql`)
+- `uq_nsp_triagens_uma_decisao_por_notificacao` em `(notificacao_id)` (de `197_nsp_tela_de_triagem.sql`)
 
 ## nsp_agente_cota
 
@@ -2698,6 +2717,135 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_painel_fotografias_semana` em `(semana)` (de `189_fotografia_semanal_do_painel.sql`)
 
+## conduta_contestacoes_de_participacao
+
+> Origem: `191_conduta_impedimento_e_citado.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `contestado_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `motivo` | `TEXT` | NOT NULL | — | — |
+| `resultado` | `TEXT` | — | — | — |
+| `decidida_em` | `TIMESTAMPTZ` | — | — | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_contestacoes_de_participacao_aberta` em `(caso_id, contestado_id)` (de `191_conduta_impedimento_e_citado.sql`)
+- `idx_conduta_contestacoes_de_participacao_caso` em `(caso_id)` (de `191_conduta_impedimento_e_citado.sql`)
+- `idx_conduta_contestacoes_de_participacao_contestado` em `(contestado_id)` (de `191_conduta_impedimento_e_citado.sql`)
+- `idx_conduta_contestacoes_de_participacao_autor` em `(autor_id)` (de `191_conduta_impedimento_e_citado.sql`)
+
+## conduta_participacao_votos
+
+> Origem: `191_conduta_impedimento_e_citado.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `contestacao_id` | `UUID` | NOT NULL | — | `conduta_contestacoes_de_participacao.id` |
+| `participante_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `escolha` | `TEXT` | NOT NULL | — | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_participacao_votos_pessoa` em `(participante_id)` (de `191_conduta_impedimento_e_citado.sql`)
+
+## conduta_assinaturas
+
+> Origem: `192_conduta_assinaturas.sql` (alterada em: 213_conduta_relatorio_de_apuracao.sql, 215_conduta_termo_de_declaracao.sql, 221_conduta_ata_de_deliberacao.sql)
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `tipo` | `TEXT` | NOT NULL | — | — |
+| `caso_id` | `UUID` | — | — | `conduta_casos.id` |
+| `participacao_id` | `UUID` | — | — | `participacoes.id` |
+| `na` | `ordem` | NOT NULL | — | — |
+| `situacao` | `TEXT` | NOT NULL | `'gerado'` | — |
+| `envelope_id` | `TEXT` | — | — | — |
+| `documento_key` | `TEXT` | UNIQUE | — | — |
+| `cifrada` | `pela` | — | — | — |
+| `erro` | `TEXT` | — | — | — |
+| `enviado_em` | `TIMESTAMPTZ` | — | — | — |
+| `assinado_em` | `TIMESTAMPTZ` | — | — | — |
+| `cancelado_em` | `TIMESTAMPTZ` | — | — | — |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `relatorio_id` | `UUID` | — | — | `conduta_relatorios.id` |
+| `depoimento_id` | `UUID` | — | — | `conduta_depoimentos.id` |
+| `ata_id` | `UUID` | — | — | `conduta_atas.id` |
+
+**Indexes:**
+- `idx_conduta_assinaturas_participacao` em `(participacao_id, created_at DESC)` (de `192_conduta_assinaturas.sql`)
+- `idx_conduta_assinaturas_caso` em `(caso_id)` (de `192_conduta_assinaturas.sql`)
+- `idx_conduta_assinaturas_relatorio` em `(relatorio_id)` (de `213_conduta_relatorio_de_apuracao.sql`)
+- `idx_conduta_assinaturas_depoimento` em `(depoimento_id)` (de `215_conduta_termo_de_declaracao.sql`)
+- `idx_conduta_assinaturas_ata` em `(ata_id)` (de `221_conduta_ata_de_deliberacao.sql`)
+
+## conduta_depoimentos
+
+> Origem: `193_conduta_depoimentos.sql` (alterada em: 215_conduta_termo_de_declaracao.sql)
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `nome_cifrado` | `TEXT` | NOT NULL | — | — |
+| `cargo_cifrado` | `TEXT` | NOT NULL | — | — |
+| `papel` | `TEXT` | NOT NULL | — | — |
+| `criado_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `sem_gravacao_em` | `TIMESTAMPTZ` | — | — | — |
+| `sem_gravacao_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `sem_gravacao_motivo_cifrado` | `TEXT` | — | — | — |
+| `pontos_cifrados` | `TEXT` | — | — | — |
+| `concluido_em` | `TIMESTAMPTZ` | — | — | — |
+| `concluido_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `roteiro_cifrado` | `TEXT` | — | — | — |
+
+**Indexes:**
+- `idx_conduta_depoimentos_caso` em `(caso_id)` (de `193_conduta_depoimentos.sql`)
+- `idx_conduta_depoimentos_criado_por` em `(criado_por)` (de `193_conduta_depoimentos.sql`)
+- `idx_conduta_depoimentos_sem_gravacao_por` em `(sem_gravacao_por)` (de `193_conduta_depoimentos.sql`)
+- `idx_conduta_depoimentos_concluido_por` em `(concluido_por)` (de `193_conduta_depoimentos.sql`)
+
+## conduta_depoimento_arquivos
+
+> Origem: `193_conduta_depoimentos.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `depoimento_id` | `UUID` | NOT NULL | — | `conduta_depoimentos.id` |
+| `tipo` | `TEXT` | NOT NULL | — | — |
+| `versao` | `INTEGER` | NOT NULL | — | — |
+| `pagina` | `INTEGER` | NOT NULL | `1` | — |
+| `storage_path` | `TEXT` | UNIQUE, NOT NULL | — | — |
+| `content_type` | `TEXT` | NOT NULL | — | — |
+| `tamanho_bytes` | `BIGINT` | NOT NULL | — | — |
+| `enviado_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `enviado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_depoimento_arquivos_enviado_por` em `(enviado_por)` (de `193_conduta_depoimentos.sql`)
+
+## conduta_depoimento_conferencia
+
+> Origem: `193_conduta_depoimentos.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `depoimento_id` | `UUID` | NOT NULL | — | `conduta_depoimentos.id` |
+| `item` | `TEXT` | NOT NULL | — | — |
+| `marcado_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `marcado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_depoimento_conferencia_marcado_por` em `(marcado_por)` (de `193_conduta_depoimentos.sql`)
+
 ## email_de_segunda
 
 > Origem: `196_email_de_segunda.sql`
@@ -2711,6 +2859,544 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_email_de_segunda_semana` em `(semana)` (de `196_email_de_segunda.sql`)
 
+## nsp_cortes_de_frequencia
+
+> Origem: `197_nsp_tela_de_triagem.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `BOOLEAN` | PK | `true` | — |
+| `janela_meses` | `SMALLINT` | NOT NULL | `12` | — |
+| `incomum_a_partir` | `SMALLINT` | NOT NULL | `1` | — |
+| `ocasional_a_partir` | `SMALLINT` | NOT NULL | `2` | — |
+| `frequente_a_partir` | `SMALLINT` | NOT NULL | `4` | — |
+| `atualizado_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `atualizado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_cortes_de_frequencia_atualizado_por` em `(atualizado_por)` (de `197_nsp_tela_de_triagem.sql`)
+
+## conduta_codigo_versoes
+
+> Origem: `198_conduta_codigo_de_conduta.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `versao` | `INTEGER` | NOT NULL | — | — |
+| `vigente_desde` | `DATE` | NOT NULL | — | — |
+| `storage_path` | `TEXT` | NOT NULL | — | — |
+| `nome_arquivo` | `TEXT` | NOT NULL | — | — |
+| `tamanho_bytes` | `INTEGER` | NOT NULL | — | — |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+## conduta_avisos
+
+> Origem: `199_conduta_avisos_por_email.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `participante_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `motivo` | `TEXT` | NOT NULL | — | — |
+| `referencia` | `TEXT` | NOT NULL | — | — |
+| `na_hora` | `BOOLEAN` | NOT NULL | `false` | — |
+| `situacao` | `TEXT` | NOT NULL | `'pendente'` | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `enviado_em` | `TIMESTAMPTZ` | — | — | — |
+
+**Indexes:**
+- `idx_conduta_avisos_pendentes` em `(na_hora, criado_em)` (de `199_conduta_avisos_por_email.sql`)
+
+## conduta_sugestoes
+
+> Origem: `200_conduta_agente_de_triagem.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `caso_id` | `UUID` | PK | — | `conduta_casos.id` |
+| `situacao` | `TEXT` | NOT NULL | — | — |
+| `motivo_manual` | `TEXT` | — | — | — |
+| `sugestao_cifrada` | `TEXT` | — | — | — |
+| `modelo` | `TEXT` | NOT NULL | — | — |
+| `prompt_versao` | `TEXT` | NOT NULL | — | — |
+| `criada_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+## conduta_sugestao_respostas
+
+> Origem: `200_conduta_agente_de_triagem.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_sugestoes.caso_id` |
+| `item` | `TEXT` | NOT NULL | — | — |
+| `resposta` | `TEXT` | NOT NULL | — | — |
+| `motivo_cifrado` | `TEXT` | — | — | — |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `respondida_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_sugestao_respostas_autor` em `(autor_id)` (de `200_conduta_agente_de_triagem.sql`)
+
+## conduta_agente_cota
+
+> Origem: `200_conduta_agente_de_triagem.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `dia` | `DATE` | PK | — | — |
+| `chamadas` | `INTEGER` | NOT NULL | `0` | — |
+
+## conduta_notas_nsp
+
+> Origem: `203_conduta_nota_ao_nucleo.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `texto_cifrado` | `TEXT` | NOT NULL | — | — |
+| `escrita_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `escrita_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `enviada_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `enviada_em` | `TIMESTAMPTZ` | — | — | — |
+
+**Indexes:**
+- `uq_conduta_notas_nsp_pendente` em `(caso_id)` (de `203_conduta_nota_ao_nucleo.sql`)
+- `idx_conduta_notas_nsp_caso` em `(caso_id)` (de `203_conduta_nota_ao_nucleo.sql`)
+- `idx_conduta_notas_nsp_escrita_por` em `(escrita_por)` (de `203_conduta_nota_ao_nucleo.sql`)
+- `idx_conduta_notas_nsp_enviada_por` em `(enviada_por)` (de `203_conduta_nota_ao_nucleo.sql`)
+
+## nsp_notas_do_comite
+
+> Origem: `203_conduta_nota_ao_nucleo.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `texto` | `TEXT` | NOT NULL | — | — |
+| `enviada_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_notas_do_comite_enviada_em` em `(enviada_em DESC)` (de `203_conduta_nota_ao_nucleo.sql`)
+
+## nsp_esclarecimentos
+
+> Origem: `207_nsp_perguntas_de_esclarecimento.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `notificacao_id` | `UUID` | NOT NULL | — | `nsp_notificacoes.id` |
+| `triagem_id` | `UUID` | NOT NULL | — | `nsp_triagens.id` |
+| `pergunta` | `TEXT` | NOT NULL | — | — |
+| `resposta` | `TEXT` | NOT NULL | — | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_esclarecimentos_triagem` em `(triagem_id)` (de `207_nsp_perguntas_de_esclarecimento.sql`)
+
+## nsp_tabela_de_prazos
+
+> Origem: `208_nsp_prazos_do_caso.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `faixa` | `TEXT` | NOT NULL | — | — |
+| `marco` | `TEXT` | NOT NULL | — | — |
+| `valor` | `SMALLINT` | — | — | — |
+| `unidade` | `TEXT` | — | — | — |
+| `atualizado_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `atualizado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_tabela_de_prazos_atualizado_por` em `(atualizado_por)` (de `208_nsp_prazos_do_caso.sql`)
+
+## nsp_tabela_de_prazos_historico
+
+> Origem: `208_nsp_prazos_do_caso.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `faixa` | `TEXT` | NOT NULL | — | — |
+| `marco` | `TEXT` | NOT NULL | — | — |
+| `de_valor` | `SMALLINT` | — | — | — |
+| `de_unidade` | `TEXT` | — | — | — |
+| `para_valor` | `SMALLINT` | — | — | — |
+| `para_unidade` | `TEXT` | — | — | — |
+| `alterado_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `alterado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_tabela_de_prazos_historico_alterado_em` em `(alterado_em DESC)` (de `208_nsp_prazos_do_caso.sql`)
+- `idx_nsp_tabela_de_prazos_historico_alterado_por` em `(alterado_por)` (de `208_nsp_prazos_do_caso.sql`)
+
+## nsp_prazos_do_caso
+
+> Origem: `208_nsp_prazos_do_caso.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `notificacao_id` | `UUID` | NOT NULL | — | `nsp_notificacoes.id` |
+| `marco` | `TEXT` | NOT NULL | — | — |
+| `tipo` | `TEXT` | NOT NULL | — | — |
+| `valor` | `SMALLINT` | NOT NULL | — | — |
+| `unidade` | `TEXT` | NOT NULL | — | — |
+| `contado_de` | `TIMESTAMPTZ` | NOT NULL | — | — |
+| `vence_em` | `TIMESTAMPTZ` | NOT NULL | — | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_prazos_do_caso_vence_em` em `(vence_em)` (de `208_nsp_prazos_do_caso.sql`)
+
+## nsp_notificacoes_externas
+
+> Origem: `208_nsp_prazos_do_caso.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `notificacao_id` | `UUID` | UNIQUE, NOT NULL | — | `nsp_notificacoes.id` |
+| `sistema` | `TEXT` | NOT NULL | — | — |
+| `prazo_legal` | `TIMESTAMPTZ` | NOT NULL | — | — |
+| `estado` | `TEXT` | NOT NULL | `'pendente'` | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_notificacoes_externas_prazo` em `(estado, prazo_legal)` (de `208_nsp_prazos_do_caso.sql`)
+
+## nsp_encaminhamentos
+
+> Origem: `209_nsp_encaminhamento.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `notificacao_id` | `UUID` | NOT NULL | — | `nsp_notificacoes.id` |
+| `destinos` | `TEXT[]` | NOT NULL | — | — |
+| `motivo` | `TEXT` | NOT NULL | — | — |
+| `orientacao` | `TEXT` | — | — | — |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_encaminhamentos_notificacao` em `(notificacao_id, criado_em)` (de `209_nsp_encaminhamento.sql`)
+- `idx_nsp_encaminhamentos_autor` em `(autor_id)` (de `209_nsp_encaminhamento.sql`)
+
+## nsp_recalibracoes
+
+> Origem: `210_nsp_recalibracao_do_agente.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `marco` | `SMALLINT` | PK | — | — |
+| `devida_em` | `DATE` | NOT NULL | — | — |
+| `pendencias` | `TEXT[]` | NOT NULL | `'{}'` | — |
+| `criada_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `decisao` | `TEXT` | — | — | — |
+| `decidido_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `decidido_em` | `TIMESTAMPTZ` | — | — | — |
+
+**Indexes:**
+- `idx_nsp_recalibracoes_decidido_por` em `(decidido_por)` (de `210_nsp_recalibracao_do_agente.sql`)
+
+## tecnologia_perguntas
+
+> Origem: `211_tecnologia_pergunta_da_vitta.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `demanda_id` | `UUID` | NOT NULL | — | `tecnologia_demandas.id` |
+| `mensagem_id` | `UUID` | UNIQUE | — | `tecnologia_conversa_da_demanda.id` |
+| `autor_id` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `destinatario_id` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `assunto` | `TEXT` | NOT NULL | — | — |
+| `texto` | `TEXT` | NOT NULL | — | — |
+| `por_que_precisa` | `TEXT` | NOT NULL | — | — |
+| `o_que_esta_parado` | `TEXT` | NOT NULL | — | — |
+| `o_que_anda_depois` | `TEXT` | NOT NULL | — | — |
+| `ganho` | `TEXT` | NOT NULL | — | — |
+| `opcoes` | `JSONB` | NOT NULL | `'[]'::jsonb` | — |
+| `recomendada` | `TEXT` | — | — | — |
+| `porque_da_recomendada` | `TEXT` | — | — | — |
+| `estado` | `TEXT` | NOT NULL | `'aberta'` | — |
+| `resposta_opcao` | `TEXT` | — | — | — |
+| `resposta_texto` | `TEXT` | — | — | — |
+| `respondida_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `respondida_em_nome_de` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `respondida_em` | `TIMESTAMPTZ` | — | — | — |
+| `resolucao_decidido` | `TEXT` | — | — | — |
+| `resolucao_destravou` | `TEXT` | — | — | — |
+| `resolvida_em` | `TIMESTAMPTZ` | — | — | — |
+| `cancelada_em` | `TIMESTAMPTZ` | — | — | — |
+| `lembrete_enviado_em` | `TIMESTAMPTZ` | — | — | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_tecnologia_perguntas_demanda` em `(demanda_id, criado_em)` (de `211_tecnologia_pergunta_da_vitta.sql`)
+- `idx_tecnologia_perguntas_abertas` em `(criado_em)` (de `211_tecnologia_pergunta_da_vitta.sql`)
+- `idx_tecnologia_perguntas_destinatario` em `(destinatario_id)` (de `211_tecnologia_pergunta_da_vitta.sql`)
+
+## tecnologia_conversas_do_me_explique
+
+> Origem: `211_tecnologia_pergunta_da_vitta.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `pergunta_id` | `UUID` | NOT NULL | — | `tecnologia_perguntas.id` |
+| `participante_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `mensagens` | `JSONB` | NOT NULL | `'[]'::jsonb` | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `atualizado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_tecnologia_conversas_do_me_explique_participante` em `(participante_id)` (de `211_tecnologia_pergunta_da_vitta.sql`)
+
+## nsp_ausencias_da_presidencia
+
+> Origem: `212_nsp_suplente_em_exercicio.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `participacao_id` | `UUID` | NOT NULL | — | `participacoes.id` |
+| `inicio` | `DATE` | NOT NULL | — | — |
+| `fim` | `DATE` | NOT NULL | — | — |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_ausencias_da_presidencia_participacao` em `(participacao_id, inicio, fim)` (de `212_nsp_suplente_em_exercicio.sql`)
+- `idx_nsp_ausencias_da_presidencia_autor` em `(autor_id)` (de `212_nsp_suplente_em_exercicio.sql`)
+
+## conduta_relatorios
+
+> Origem: `213_conduta_relatorio_de_apuracao.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `tipo` | `TEXT` | NOT NULL | — | — |
+| `versao` | `INTEGER` | NOT NULL | — | — |
+| `texto_cifrado` | `TEXT` | NOT NULL | — | — |
+| `origem` | `TEXT` | NOT NULL | — | — |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_relatorios_autor` em `(autor_id)` (de `213_conduta_relatorio_de_apuracao.sql`)
+
+## conduta_selos
+
+> Origem: `214_conduta_rota_especial.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `caso_id` | `UUID` | PK | — | `conduta_casos.id` |
+| `relato_cifrado` | `TEXT` | NOT NULL | — | — |
+| `selado_em` | `TIMESTAMPTZ` | NOT NULL | — | — |
+| `codigo` | `TEXT` | NOT NULL | — | — |
+
+## conduta_entregas_do_parecer
+
+> Origem: `214_conduta_rota_especial.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `caso_id` | `UUID` | PK | — | `conduta_casos.id` |
+| `destinatario_cifrado` | `TEXT` | NOT NULL | — | — |
+| `entregue_em` | `DATE` | NOT NULL | — | — |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `registrado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_entregas_do_parecer_autor` em `(autor_id)` (de `214_conduta_rota_especial.sql`)
+
+## conduta_votos
+
+> Origem: `216_conduta_voto_e_trava_de_robustez.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `rodada` | `INTEGER` | NOT NULL | — | — |
+| `participante_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `voto_cifrado` | `TEXT` | NOT NULL | — | — |
+| `votado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_votos_participante` em `(participante_id)` (de `216_conduta_voto_e_trava_de_robustez.sql`)
+
+## conduta_trava_preenchimentos
+
+> Origem: `216_conduta_voto_e_trava_de_robustez.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `versao` | `INTEGER` | NOT NULL | — | — |
+| `itens_cifrado` | `TEXT` | NOT NULL | — | — |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_trava_preenchimentos_autor` em `(autor_id)` (de `216_conduta_voto_e_trava_de_robustez.sql`)
+
+## conduta_trava_confirmacoes
+
+> Origem: `216_conduta_voto_e_trava_de_robustez.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `item` | `TEXT` | NOT NULL | — | — |
+| `participante_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `confirmado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_trava_confirmacoes_participante` em `(participante_id)` (de `216_conduta_voto_e_trava_de_robustez.sql`)
+
+## conduta_ciencias_do_codigo
+
+> Origem: `216_conduta_voto_e_trava_de_robustez.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `versao` | `INTEGER` | NOT NULL | — | — |
+| `storage_path` | `TEXT` | NOT NULL | — | — |
+| `content_type` | `TEXT` | NOT NULL | — | — |
+| `tamanho_bytes` | `BIGINT` | NOT NULL | — | — |
+| `enviado_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `enviado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_ciencias_do_codigo_enviado_por` em `(enviado_por)` (de `216_conduta_voto_e_trava_de_robustez.sql`)
+
+## conduta_afastamentos
+
+> Origem: `217_conduta_afastamento_cautelar.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `citado_id` | `UUID` | NOT NULL | — | `conduta_citados.id` |
+| `rota` | `TEXT` | NOT NULL | — | — |
+| `quem_cifrado` | `TEXT` | NOT NULL | — | — |
+| `motivo_cifrado` | `TEXT` | NOT NULL | — | — |
+| `registrado_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `registrado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `entregue_ao_dp_em` | `DATE` | — | — | — |
+| `entregue_ao_dp_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `entregue_ao_juridico_em` | `DATE` | — | — | — |
+| `entregue_ao_juridico_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `parecer_storage_path` | `TEXT` | — | — | — |
+| `parecer_tamanho_bytes` | `INTEGER` | — | — | — |
+| `parecer_anexado_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `parecer_anexado_em` | `TIMESTAMPTZ` | — | — | — |
+| `parecer_resultado` | `TEXT` | — | — | — |
+| `ciencia_de` | `TEXT[]` | — | — | — |
+| `ele` | `leva` | — | — | — |
+
+**Indexes:**
+- `idx_conduta_afastamentos_caso` em `(caso_id)` (de `217_conduta_afastamento_cautelar.sql`)
+- `idx_conduta_afastamentos_citado` em `(citado_id)` (de `217_conduta_afastamento_cautelar.sql`)
+- `idx_conduta_afastamentos_registrado_por` em `(registrado_por)` (de `217_conduta_afastamento_cautelar.sql`)
+- `idx_conduta_afastamentos_entregue_ao_dp_por` em `(entregue_ao_dp_por)` (de `217_conduta_afastamento_cautelar.sql`)
+- `idx_conduta_afastamentos_entregue_ao_juridico_por` em `(entregue_ao_juridico_por)` (de `217_conduta_afastamento_cautelar.sql`)
+- `idx_conduta_afastamentos_parecer_anexado_por` em `(parecer_anexado_por)` (de `217_conduta_afastamento_cautelar.sql`)
+- `idx_conduta_afastamentos_rota` em `(rota, registrado_em DESC)` (de `217_conduta_afastamento_cautelar.sql`)
+
+## nsp_recebimentos
+
+> Origem: `220_nsp_recebido_do_setor.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `encaminhamento_id` | `UUID` | NOT NULL | — | `nsp_encaminhamentos.id` |
+| `notificacao_id` | `UUID` | NOT NULL | — | `nsp_notificacoes.id` |
+| `destino` | `TEXT` | NOT NULL | — | — |
+| `setor` | `TEXT` | NOT NULL | — | — |
+| `destinatario_nome` | `TEXT` | NOT NULL | — | — |
+| `destinatario_email` | `TEXT` | NOT NULL | — | — |
+| `papel` | `TEXT` | NOT NULL | — | — |
+| `token_hash` | `TEXT` | UNIQUE | — | — |
+| `expira_em` | `TIMESTAMPTZ` | — | — | — |
+| `enviado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `reenviado_em` | `TIMESTAMPTZ` | — | — | — |
+| `recebido_em` | `TIMESTAMPTZ` | — | — | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_recebimentos_notificacao` em `(notificacao_id, enviado_em)` (de `220_nsp_recebido_do_setor.sql`)
+- `idx_nsp_recebimentos_sem_clique` em `(enviado_em)` (de `220_nsp_recebido_do_setor.sql`)
+
+## conduta_atas
+
+> Origem: `221_conduta_ata_de_deliberacao.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `versao` | `INTEGER` | NOT NULL | — | — |
+| `rodada` | `INTEGER` | NOT NULL | — | — |
+| `votantes` | `VARCHAR(10)[]` | NOT NULL | — | — |
+| `ata_cifrada` | `TEXT` | NOT NULL | — | — |
+| `pontos_cifrados` | `TEXT` | — | — | — |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_atas_autor` em `(autor_id)` (de `221_conduta_ata_de_deliberacao.sql`)
+
+## conduta_reuniao_transcricoes
+
+> Origem: `221_conduta_ata_de_deliberacao.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `versao` | `INTEGER` | NOT NULL | — | — |
+| `storage_path` | `TEXT` | NOT NULL | — | — |
+| `content_type` | `TEXT` | NOT NULL | — | — |
+| `tamanho_bytes` | `BIGINT` | NOT NULL | — | — |
+| `enviado_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `enviado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_reuniao_transcricoes_enviado_por` em `(enviado_por)` (de `221_conduta_ata_de_deliberacao.sql`)
+
+## conduta_reuniao_conferencia
+
+> Origem: `221_conduta_ata_de_deliberacao.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `item` | `TEXT` | NOT NULL | — | — |
+| `marcado_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `marcado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_reuniao_conferencia_marcado_por` em `(marcado_por)` (de `221_conduta_ata_de_deliberacao.sql`)
+
 ---
 
-**Resumo:** 134 tabelas vivas.
+**Resumo:** 170 tabelas vivas.

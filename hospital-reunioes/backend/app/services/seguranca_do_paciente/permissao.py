@@ -69,18 +69,38 @@ RECURSOS_NSP = (
     "casos",
     # Quem notificou: só a Presidência e o Acesso pleno (seção 3).
     "identidade_notificante",
+    # Confirmar ou ajustar a triagem: só a Presidência e o Acesso pleno (issue #1992).
+    "triagem",
+    # As notas do Comitê de Conduta ao Núcleo (issue #1850): só a Presidência
+    # e o Acesso pleno.
+    "notas_do_comite",
     # Cadastrar membro, publicar documento, validar ata.
     "gerir_nucleo",
     # A configuração técnica do módulo, a única coisa que o super admin alcança.
     "configuracao",
+    # Editar os prazos internos da tabela do Núcleo: só a Presidência e o
+    # Acesso pleno (issue #1993). O super admin lê a tabela na configuração.
+    "tabela_de_prazos",
+    # A leitura dos casos das faixas A e B, sem quem notificou e sem editar:
+    # a Diretoria (ADR 0107, decisão 5).
+    "casos_graves",
+    # Registrar a ausência da Presidência, que põe o suplente em exercício: só
+    # a Presidência e o Acesso pleno (ADR 0107, decisão 4).
+    "ausencia_da_presidencia",
 )
+
+# As faixas dos casos que a Diretoria lê (ADR 0107, decisão 5).
+FAIXAS_DA_DIRETORIA = frozenset({"A", "B"})
 
 # Membro sem Termo válido vê painel, calendário e agenda (glossário, "Membro do
 # Núcleo"), e nada sobre casos, investigações ou atas.
 _SEM_TERMO = frozenset({"ver_modulo", "painel", "calendario", "agenda"})
 _MEMBRO = _SEM_TERMO | {"membros", "documentos", "capacitacoes", "reunioes", "casos"}
-_DIRETORIA = _SEM_TERMO | {"membros"}
+_DIRETORIA = _SEM_TERMO | {"membros", "casos_graves"}
 _TUDO = frozenset(RECURSOS_NSP)
+# O suplente em exercício responde pela Presidência, mas não estende o próprio
+# período: quem registra a ausência é a Presidência ou o Acesso pleno.
+_EM_EXERCICIO = _TUDO - {"ausencia_da_presidencia"}
 
 
 @dataclass(frozen=True)
@@ -90,6 +110,8 @@ class SituacaoNsp:
     termo_valido: bool
     diretoria: bool
     super_admin: bool
+    # O suplente dentro de um período de ausência da Presidência registrado.
+    em_exercicio: bool = False
 
 
 def recursos_nsp(situacao: SituacaoNsp) -> frozenset[str]:
@@ -102,6 +124,8 @@ def recursos_nsp(situacao: SituacaoNsp) -> frozenset[str]:
             recursos |= _SEM_TERMO
         elif situacao.papel_vigente == "presidencia":
             recursos |= _TUDO
+        elif situacao.papel_vigente == "suplente" and situacao.em_exercicio:
+            recursos |= _EM_EXERCICIO
         else:
             recursos |= _MEMBRO
     if situacao.diretoria:
@@ -145,4 +169,46 @@ def situacao_da_pessoa(
         termo_valido=termo,
         diretoria=participante.get("role") in ROLES_DA_DIRETORIA,
         super_admin=super_admin,
+        em_exercicio=papel == "suplente" and termo and suplente_em_exercicio(supabase, participante["id"], hoje),
     )
+
+
+def suplente_em_exercicio(supabase, participante_id: str, hoje: date) -> bool:
+    """Se hoje cai numa ausência da Presidência registrada na Participação
+    vigente de suplente da pessoa (ADR 0107, decisão 4).
+
+    Ausência ilegível (a tabela que ainda não existe entre o deploy e a
+    migration 212, ou o PostgREST fora do ar) vale como "fora do período": o
+    suplente segue membro.
+    """
+    try:
+        nucleo_id = id_do_nucleo(supabase)
+        if not nucleo_id:
+            return False
+        suplencias = [
+            linha["id"]
+            for linha in (
+                participacoes_vigentes(supabase, nucleo_id, hoje)
+                .eq("participante_id", participante_id)
+                .eq("papel", "suplente")
+                .execute()
+                .data
+            )
+            or []
+        ]
+        if not suplencias:
+            return False
+        no_periodo = (
+            supabase.table("nsp_ausencias_da_presidencia")
+            .select("id")
+            .in_("participacao_id", suplencias)
+            .lte("inicio", hoje.isoformat())
+            .gte("fim", hoje.isoformat())
+            .limit(1)
+            .execute()
+            .data
+        )
+    except (APIError, httpx.HTTPError) as erro:
+        logger.warning("Ausência da Presidência ilegível; o suplente segue membro: %s", type(erro).__name__)
+        return False
+    return bool(no_periodo)

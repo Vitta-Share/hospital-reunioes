@@ -60,6 +60,7 @@ from app.middleware.request_context import (  # noqa: E402
 from app.routers import aceite as aceite_router  # noqa: E402
 from app.routers import ouvidoria_setor as ouvidoria_setor_router  # noqa: E402
 from app.routers import pendencias_link_pessoal as link_pessoal_router  # noqa: E402
+from app.routers import seguranca_do_paciente_recebimento as recebimento_router  # noqa: E402
 
 # No formato real: `secrets.token_urlsafe(32)` gera 43 caracteres url-safe.
 TOKEN = "kzN7Vv2r0QhTf3lXqB9dJm4sPcW8yAeR1uGhOiZbNxE"
@@ -79,6 +80,10 @@ ROTAS_TOKENIZADAS = [
     # Recebido pelo NSP levam o token no path, e a tela mostra o relato inteiro.
     ("GET", f"/api/ouvidoria-setor/nsp/{TOKEN}", "/api/ouvidoria-setor/nsp/{token}"),
     ("POST", f"/api/ouvidoria-setor/nsp/{TOKEN}/recebido", "/api/ouvidoria-setor/nsp/{token}/recebido"),
+    # O link de uso único do Núcleo ao setor (issue #1996): o resumo e o botão
+    # Recebido levam o token no path.
+    ("GET", f"/api/nsp/recebimento/{TOKEN}", "/api/nsp/recebimento/{token}"),
+    ("POST", f"/api/nsp/recebimento/{TOKEN}/recebido", "/api/nsp/recebimento/{token}/recebido"),
     ("GET", f"/api/aceite/{TOKEN}", "/api/aceite/{token}"),
     ("POST", f"/api/aceite/{TOKEN}/aceitar", "/api/aceite/{token}/aceitar"),
     # O link pessoal das Pendências de quem nunca entrou (issue #1878).
@@ -95,7 +100,16 @@ ROTAS_TOKENIZADAS = [
 # varredura da issue #465 continua valendo depois que ela fecha.
 PARAMS_DE_SEGREDO = {"token"}
 PARAMS_SEM_SEGREDO = {
+    # UUID do afastamento cautelar do Canal de Conduta (issue #1836). Não é
+    # credencial: a rota passa pelo portão do afastamento, que confere o acesso
+    # ao caso (ou, na Rota Especial, a coordenação), e o id só vale dentro do
+    # caso_id do mesmo path.
+    "afastamento_id",
     "anexo_id",
+    # UUID de um arquivo do depoimento do Canal de Conduta (issue #1830). Não é
+    # credencial: a rota passa pelo portão do caso, e o arquivo só sai se for
+    # do depoimento daquele caso, com a abertura gravada na trilha.
+    "arquivo_id",
     # Caminho de um arquivo do Retrato da Ana dentro de `retrato/` (issue
     # #1720), como `assets/retrato.css`. Não é credencial: a rota exige
     # require_super_admin e só aceita a página, os assets e os dados.
@@ -125,12 +139,19 @@ PARAMS_SEM_SEGREDO = {
     # exige "enviar e corrigir contas" e ser a faturista da Conta (ou ter o
     # painel completo), entao o id sozinho nao abre porta nenhuma.
     "conta_id",
+    # UUID da contestação da participação no Canal de Conduta (issue #1828).
+    # Não é credencial: a decisão passa pelo portão do caso, e o id só vale
+    # dentro do caso_id do mesmo path.
+    "contestacao_id",
     "convenio_id",
     "data",
     # UUID da Demanda da aba Tecnologia (issue #637). Nao e credencial: quem
     # abre a rota passa pelo `require_super_admin`, e o id sozinho nao da
     # acesso a nada, como o `produto_id` ao lado.
     "demanda_id",
+    # UUID do depoimento do Canal de Conduta (issue #1830). Não é credencial: a
+    # rota passa pelo portão do caso e só acha o depoimento daquele caso.
+    "depoimento_id",
     # UUID de uma versão de documento do Núcleo (issue #1767). Não é
     # credencial: a rota exige `require_recurso_nsp("documentos")`.
     "documento_id",
@@ -139,6 +160,10 @@ PARAMS_SEM_SEGREDO = {
     # abre porta nenhuma, como o `manifestacao_id`.
     "email_id",
     "especialidade_id",
+    # Faixa de gravidade do prazo interno do Núcleo (issue #1993), de "A" a "E".
+    # Não é credencial: vem de uma lista fixa (`FAIXAS`), fora dela a rota
+    # responde 422, e mudar o prazo exige o recurso de edição do Núcleo.
+    "faixa",
     # UUID do Faltou isto do Guia de Contas médicas (issue #1489). Nao e
     # credencial: a rota exige "enviar e corrigir contas", ver o Guia da Conta
     # do caminho e ser quem apontou, entao o id sozinho nao abre porta nenhuma.
@@ -183,6 +208,10 @@ PARAMS_SEM_SEGREDO = {
     # credencial: é público no repositório, e a rota da ponte exige a chave
     # `TECNOLOGIA_AUTOMACAO_API_KEY`.
     "numero",
+    # UUID da Pergunta da Vitta (issue #2116, ADR 0109). Não é credencial: a
+    # rota da ponte exige a chave `TECNOLOGIA_AUTOMACAO_API_KEY`, e o id
+    # sozinho não abre porta nenhuma.
+    "pergunta_id",
     "plano_id",
     "ponto_id",
     "pop_id",
@@ -229,6 +258,8 @@ ROTAS_COM_SEGREDO_NO_PATH = {
     "/api/ouvidoria-setor/nsp/{token}/recebido",
     "/api/minhas-pendencias/{token}",
     "/api/minhas-pendencias/{token}/pendencias/{id_acao}/acoes",
+    "/api/nsp/recebimento/{token}",
+    "/api/nsp/recebimento/{token}/recebido",
 }
 
 
@@ -304,6 +335,7 @@ def _app() -> FastAPI:
     app.include_router(ouvidoria_setor_router.router, prefix="/api")
     app.include_router(aceite_router.router, prefix="/api")
     app.include_router(link_pessoal_router.router, prefix="/api")
+    app.include_router(recebimento_router.router, prefix="/api")
     app.dependency_overrides[get_supabase_client] = lambda: _SupabaseVazio()
     return app
 
@@ -394,6 +426,10 @@ CAMINHOS_DEFORMADOS = [
     f"/api/Aceite/{TOKEN}",
     f"/api/minhas-pendencias//{TOKEN}",
     f"/api/minhas-pendencias/{TOKEN}/inexistente",
+    # O link do Recebido do Núcleo (issue #1996).
+    f"/api/nsp/recebimento/{TOKEN}/inexistente",
+    f"/api/nsp/recebimento//{TOKEN}",
+    f"/api/NSP/recebimento/{TOKEN}",
 ]
 
 

@@ -50,6 +50,7 @@ from app.services import (
     ouvidoria_acuse,
     ouvidoria_agente_triagem,
     ouvidoria_avaliacoes,
+    ouvidoria_canal_de_conduta,
     ouvidoria_convite_google,
     ouvidoria_encerramento,
     ouvidoria_escalonamento,
@@ -72,6 +73,7 @@ from app.services import (
     ouvidoria_trilha,
     storage,
 )
+from app.services.conduta import cifra as cifra_do_canal
 from app.services.feriados import carregar_feriados, carregar_feriados_ou_degradado
 from app.services.ouvidoria_anexos import (
     AnexoGrandeDemaisError,
@@ -633,6 +635,9 @@ _CAMPOS_DOSSIE_TUPLA = _CAMPOS_PROTOCOLO_TUPLA + (
     "nsp_decisao",
     "nsp_decisao_motivo",
     "nsp_decidido_em",
+    # Quando o ouvidor sinalizou o caso ao Canal de Conduta (issue #1849,
+    # migration 202). Só o carimbo: nada do caso do Canal volta para cá.
+    "conduta_sinalizada_em",
 )
 _CAMPOS_DOSSIE = ", ".join(_CAMPOS_DOSSIE_TUPLA)
 
@@ -4898,6 +4903,46 @@ async def enviar_ao_nucleo(
         "setor": nucleo.setor,
         "prazo": ciencia.get("prazo"),
     }
+
+
+CANAL_JA_SINALIZADO = "Este caso já foi sinalizado ao Canal de Conduta."
+CANAL_INDISPONIVEL = "O Canal de Conduta está indisponível no momento. Tente de novo mais tarde."
+
+
+@router.post("/manifestacoes/{manifestacao_id}/canal-de-conduta")
+@limiter.limit("30/minute")
+async def sinalizar_ao_canal_de_conduta(
+    request: Request,
+    manifestacao_id: str,
+    me: dict = Depends(require_perfil_ouvidoria),
+    supabase=Depends(get_supabase_client),
+):
+    """O botão Sinalizar ao Canal de Conduta do Dossiê (issue #1849, ADR 0097
+    decisão 14). Abre um caso no Canal com o relato integral, sem o nome nem o
+    contato de quem manifestou, e a manifestação continua no estado em que
+    estava. Nada do caso do Canal volta ao ouvidor."""
+    try:
+        atual = (
+            supabase.table("ouvidoria_protocolos")
+            .select("id, status, relato_integral, conduta_sinalizada_em, anonimizada_em, apagamento_pedido_em")
+            .eq("id", manifestacao_id)
+            .execute()
+        )
+    except APIError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Manifestação não encontrada") from exc
+    if not atual.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Manifestação não encontrada")
+    caso = atual.data[0]
+    barrar_caso_apagado(caso, "sinalizado ao Canal de Conduta")
+    agora = agora_utc()
+    try:
+        ouvidoria_canal_de_conduta.sinalizar(supabase, manifestacao=caso, autor=me, agora=agora)
+    except ouvidoria_canal_de_conduta.JaSinalizadaError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=CANAL_JA_SINALIZADO) from exc
+    except cifra_do_canal.CifraIndisponivelError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=CANAL_INDISPONIVEL) from exc
+    registrar_acesso(supabase, me, manifestacao_id, "sinalizar_ao_canal_de_conduta")
+    return {"conduta_sinalizada_em": agora.isoformat()}
 
 
 class PedidoSalvaguarda(BaseModel):

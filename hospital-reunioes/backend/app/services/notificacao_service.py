@@ -87,15 +87,21 @@ def criar_notificacao_aceite_interno(
         logger.error(f"[Notificacao] Erro ao criar notificação de aceite interno: {e}")
 
 
+# A referência do aviso da Pergunta da Vitta (issue #2118): o sino abre o cartão.
+PREFIXO_DA_PERGUNTA = "pergunta:"
+
+
 def criar_notificacao_tecnologia(
     supabase,
     destinatario_id: str,
     titulo: str,
     mensagem: str,
     demanda_id: str,
+    pergunta_id: str | None = None,
 ) -> None:
     """Aviso da aba Tecnologia (issue #1537, ADR 0083): a referência é a
-    Demanda, e o clique no sino a abre na aba."""
+    Demanda, e o clique no sino a abre na aba. O aviso da Pergunta da Vitta
+    guarda "pergunta:<id>" e abre a aba no cartão dela (issue #2118)."""
     try:
         supabase.table("notificacoes").insert(
             {
@@ -103,7 +109,7 @@ def criar_notificacao_tecnologia(
                 "tipo": "TECNOLOGIA",
                 "titulo": titulo,
                 "mensagem": mensagem,
-                "referencia_id": demanda_id,
+                "referencia_id": f"{PREFIXO_DA_PERGUNTA}{pergunta_id}" if pergunta_id else demanda_id,
             }
         ).execute()
         logger.info(f"[Notificacao] Tecnologia: {destinatario_id} na Demanda {demanda_id}")

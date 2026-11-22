@@ -226,8 +226,8 @@ async def get_painel(
     """O painel de Reuniões (issue #1868): os cards, as situações e as Atas dos
     cards, da base inteira e no recorte de quem pede. A Secretária não recebe
     dado de Pendência (decisão 53 do diretor no PRD #1757). O gráfico de
-    atrasos por setor e o ranking de 90 dias (issue #1871) vão só para o Super
-    admin e para quem facilita ao menos uma Reunião. A evolução de 8 semanas e
+    atrasos por setor (issue #1871) vai para o Super admin e para quem facilita
+    ao menos uma Reunião; o ranking de 90 dias, com nomes, só para o Super admin. A evolução de 8 semanas e
     a seta dos cards vêm da fotografia de segunda de quem pede (issue #1873)."""
     me = await get_participante_for_user(current_user, supabase)
     if is_secretaria(me):
@@ -258,7 +258,10 @@ async def get_painel(
         hoje=hoje,
         agora=painel_reunioes.agora_utc(),
         filtros=filtros,
-        com_ranking=painel_reunioes.ve_ranking(me, super_admin=super_admin, facilita_alguma=facilita_alguma),
+        com_atrasos_por_setor=painel_reunioes.ve_atrasos_por_setor(
+            me, super_admin=super_admin, facilita_alguma=facilita_alguma
+        ),
+        com_ranking=painel_reunioes.ve_ranking(me, super_admin=super_admin),
     )
     if me:
         # A fotografia de segunda (issue #1873) é dos cards sem filtro: com

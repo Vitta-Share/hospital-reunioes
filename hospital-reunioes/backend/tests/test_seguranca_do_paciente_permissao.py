@@ -36,8 +36,13 @@ TODOS = {
     "reunioes",
     "casos",
     "identidade_notificante",
+    "triagem",
+    "notas_do_comite",
     "gerir_nucleo",
     "configuracao",
+    "tabela_de_prazos",
+    "casos_graves",
+    "ausencia_da_presidencia",
 }
 
 # Membro sem Termo válido: painel, calendário e agenda (seção 3 e glossário).
@@ -45,7 +50,13 @@ SEM_TERMO = {"ver_modulo", "painel", "calendario", "agenda"}
 
 MEMBRO = SEM_TERMO | {"membros", "documentos", "capacitacoes", "reunioes", "casos"}
 
-DIRETORIA = SEM_TERMO | {"membros"}
+# A Diretoria lê os casos das faixas A e B, sem quem notificou e sem editar
+# (ADR 0107, decisão 5).
+DIRETORIA = SEM_TERMO | {"membros", "casos_graves"}
+
+# O suplente em exercício responde pela Presidência no período registrado
+# (ADR 0107, decisão 4), menos registrar a própria ausência da Presidência.
+EM_EXERCICIO = TODOS - {"ausencia_da_presidencia"}
 
 
 def _situacao(**campos) -> SituacaoNsp:
@@ -55,6 +66,7 @@ def _situacao(**campos) -> SituacaoNsp:
         "termo_valido": False,
         "diretoria": False,
         "super_admin": False,
+        "em_exercicio": False,
     }
     return SituacaoNsp(**{**base, **campos})
 
@@ -70,6 +82,17 @@ CASOS = [
     ("presidência com Termo", _situacao(papel_vigente="presidencia", termo_valido=True), TODOS),
     ("membro com Termo", _situacao(papel_vigente="membro", termo_valido=True), MEMBRO),
     ("suplente com Termo", _situacao(papel_vigente="suplente", termo_valido=True), MEMBRO),
+    (
+        "suplente em exercício",
+        _situacao(papel_vigente="suplente", termo_valido=True, em_exercicio=True),
+        EM_EXERCICIO,
+    ),
+    ("suplente em exercício sem Termo", _situacao(papel_vigente="suplente", em_exercicio=True), SEM_TERMO),
+    (
+        "membro marcado em exercício",
+        _situacao(papel_vigente="membro", termo_valido=True, em_exercicio=True),
+        MEMBRO,
+    ),
     ("membro sem Termo", _situacao(papel_vigente="membro"), SEM_TERMO),
     ("presidência sem Termo", _situacao(papel_vigente="presidencia"), SEM_TERMO),
     ("diretoria", _situacao(diretoria=True), DIRETORIA),

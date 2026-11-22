@@ -123,14 +123,20 @@ _GRUPOS_DO_ALERTA = (
 )
 
 
-def quem_recebe_o_alerta(supabase, hoje: date) -> tuple[list[dict], list[str]]:
+# Quem responde pelo prazo legal de 72 horas (issue #2000): o alerta de caso
+# grave sem a Diretoria Executiva.
+GRUPOS_DO_PRAZO_LEGAL = _GRUPOS_DO_ALERTA[:2]
+
+
+def quem_recebe_o_alerta(supabase, hoje: date, grupos=_GRUPOS_DO_ALERTA) -> tuple[list[dict], list[str]]:
     """A Presidência e o suplente vigentes, o Acesso pleno e a Diretoria
-    Executiva, cada pessoa uma vez só, e os grupos que não deu para ler.
+    Executiva (ou só os `grupos` pedidos), cada pessoa uma vez só, e os grupos
+    que não deu para ler.
 
     Cada grupo é lido por si: um timeout em um não tira o alerta dos outros."""
     ids: list[str] = []
     ilegiveis: list[str] = []
-    for grupo, ler in _GRUPOS_DO_ALERTA:
+    for grupo, ler in grupos:
         try:
             lidos = ler(supabase, hoje)
         except (APIError, httpx.HTTPError) as erro:

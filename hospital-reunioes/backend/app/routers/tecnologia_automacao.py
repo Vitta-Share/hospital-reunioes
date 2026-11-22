@@ -19,6 +19,7 @@ interpretacao, que e o que vai para o GitHub.
 """
 
 from datetime import datetime
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response, status
@@ -37,6 +38,7 @@ from app.services import (
     tecnologia_conversa,
     tecnologia_envio_aos_desenvolvedores,
     tecnologia_espelho,
+    tecnologia_perguntas,
 )
 from app.services.conhecimento import carregar_kit
 from app.services.github_client import FORMATO_DO_PROJETO, PROJETO_HOSPITAL
@@ -48,6 +50,7 @@ MOTIVO_LOGIN_RECUSADO = "Este login do GitHub não é de um Desenvolvedor ativo 
 MOTIVO_DEMANDA_NAO_ENCONTRADA = "Demanda não encontrada."
 MOTIVO_DESTINATARIO_RECUSADO = "O Destinatário não é um participante ativo do aplicativo."
 MOTIVO_SEM_ASSUNTO = "A mensagem que pede resposta precisa do Assunto."
+MOTIVO_PERGUNTA_NAO_ENCONTRADA = "Pergunta não encontrada."
 # O Assunto vai na linha do sino e no assunto do e-mail: texto curto.
 LIMITE_DO_ASSUNTO = 120
 
@@ -204,6 +207,164 @@ def escrever_pelo_terminal(
         pede_resposta_sobre=assunto if payload.pede_resposta else None,
     )
     return {"id": str(linha["id"]), "criado_em": linha.get("criado_em")}
+
+
+# ─── A Pergunta da Vitta (issue #2116, PRD #2112, ADR 0109) ──────────────────
+
+# Cada linha do cartao e uma frase em palavras simples (ADR 0109, decisao 3).
+LIMITE_DA_LINHA_DO_CARTAO = 500
+LIMITE_DA_OPCAO = 300
+
+
+class PerguntaDaVittaPayload(BaseModel):
+    """A Pergunta da Vitta: quem a manda (o login do GitHub, como na Mensagem
+    pelo terminal), o Destinatario, o Assunto, o texto, as quatro linhas do
+    cartao e, se houver, as opcoes com a letra da recomendada e o porque. O
+    que falta e recusado pelo servico, com o motivo em palavras; aqui so os
+    tetos de tamanho."""
+
+    github_login: str = Field(min_length=1, max_length=100)
+    destinatario_id: str | None = Field(default=None, max_length=10)
+    assunto: str | None = Field(default=None, max_length=LIMITE_DO_ASSUNTO)
+    texto: str | None = Field(default=None, max_length=LIMITE_DA_MENSAGEM)
+    por_que_precisa: str | None = Field(default=None, max_length=LIMITE_DA_LINHA_DO_CARTAO)
+    o_que_esta_parado: str | None = Field(default=None, max_length=LIMITE_DA_LINHA_DO_CARTAO)
+    o_que_anda_depois: str | None = Field(default=None, max_length=LIMITE_DA_LINHA_DO_CARTAO)
+    ganho: str | None = Field(default=None, max_length=LIMITE_DA_LINHA_DO_CARTAO)
+    opcoes: list[Annotated[str, Field(max_length=LIMITE_DA_OPCAO)]] = Field(
+        default_factory=list, max_length=len(tecnologia_perguntas.LETRAS)
+    )
+    recomendada: str | None = Field(default=None, max_length=1)
+    porque: str | None = Field(default=None, max_length=LIMITE_DA_LINHA_DO_CARTAO)
+
+
+@router.post("/demandas/{demanda_id}/perguntas", status_code=status.HTTP_201_CREATED)
+def criar_a_pergunta(demanda_id: UUID, payload: PerguntaDaVittaPayload, supabase=Depends(get_supabase_client)) -> dict:
+    """Cria a Pergunta da Vitta aberta na Demanda, com a entrada na Conversa,
+    a linha de sistema e o aviso so ao Destinatario. Falta de Destinatario
+    ativo, de Assunto, de texto ou de uma das quatro linhas e 422 com o
+    motivo, e nada fica gravado."""
+    autor = tecnologia_conversa.desenvolvedor_do_login(supabase, payload.github_login)
+    if autor is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=MOTIVO_LOGIN_RECUSADO)
+    demanda = _demanda_ou_404(supabase, id=str(demanda_id))
+    try:
+        pergunta = tecnologia_perguntas.criar(
+            supabase,
+            demanda,
+            autor=autor,
+            destinatario_id=payload.destinatario_id,
+            assunto=payload.assunto,
+            texto=payload.texto,
+            linhas={chave: getattr(payload, chave) for chave, _ in tecnologia_perguntas.LINHAS_DO_CARTAO},
+            opcoes=payload.opcoes,
+            recomendada=payload.recomendada,
+            porque=payload.porque,
+        )
+    except tecnologia_perguntas.PerguntaRecusadaError as recusa:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(recusa)) from recusa
+    return {"id": str(pergunta["id"]), "estado": pergunta["estado"], "criado_em": pergunta.get("criado_em")}
+
+
+@router.get("/perguntas/{pergunta_id}")
+def ler_a_pergunta(pergunta_id: UUID, supabase=Depends(get_supabase_client)) -> dict:
+    """O estado da Pergunta da Vitta e, quando houver, a resposta (o Checar
+    respostas do PedroOS). Pergunta que nao existe, ou de Demanda apagada, e
+    404. So le."""
+    pergunta = tecnologia_perguntas.buscar(supabase, str(pergunta_id))
+    if pergunta is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=MOTIVO_PERGUNTA_NAO_ENCONTRADA)
+    try:
+        _demanda_ou_404(supabase, id=str(pergunta["demanda_id"]))
+    except HTTPException as nao_achou:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=MOTIVO_PERGUNTA_NAO_ENCONTRADA) from nao_achou
+    return {
+        "id": str(pergunta["id"]),
+        "demanda_id": str(pergunta["demanda_id"]),
+        "estado": pergunta["estado"],
+        "assunto": pergunta.get("assunto"),
+        "criado_em": pergunta.get("criado_em"),
+        "resposta": tecnologia_perguntas.resposta(supabase, pergunta),
+    }
+
+
+# ─── Resolver e cancelar a Pergunta (issue #2121, ADR 0109, decisao 6) ───────
+
+# O teto das colunas da resolucao (CHECK da migration 211).
+LIMITE_DA_RESOLUCAO = 2000
+
+
+class ResolucaoDaPerguntaPayload(BaseModel):
+    """O ok da Vitta depois de ler a resposta: quem resolve (o login do
+    GitHub, como na criacao), o que foi decidido e o que destravou, em
+    palavras simples. O que falta e recusado pelo servico, com o motivo."""
+
+    github_login: str = Field(min_length=1, max_length=100)
+    decidido: str | None = Field(default=None, max_length=LIMITE_DA_RESOLUCAO)
+    destravou: str | None = Field(default=None, max_length=LIMITE_DA_RESOLUCAO)
+
+
+class CancelamentoDaPerguntaPayload(BaseModel):
+    """A Pergunta deixou de ser necessaria: quem cancela e o motivo."""
+
+    github_login: str = Field(min_length=1, max_length=100)
+    motivo: str | None = Field(default=None, max_length=LIMITE_DA_RESOLUCAO)
+
+
+def _para_fechar(supabase, pergunta_id: UUID, github_login: str) -> tuple[dict, dict, dict]:
+    """O autor (Desenvolvedor do login, ou 403), a Pergunta e a Demanda dela
+    (404 quando nao existe ou a Demanda foi apagada, como na leitura)."""
+    autor = tecnologia_conversa.desenvolvedor_do_login(supabase, github_login)
+    if autor is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=MOTIVO_LOGIN_RECUSADO)
+    pergunta = tecnologia_perguntas.buscar(supabase, str(pergunta_id))
+    if pergunta is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=MOTIVO_PERGUNTA_NAO_ENCONTRADA)
+    try:
+        demanda = _demanda_ou_404(supabase, id=str(pergunta["demanda_id"]))
+    except HTTPException as nao_achou:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=MOTIVO_PERGUNTA_NAO_ENCONTRADA) from nao_achou
+    return autor, pergunta, demanda
+
+
+def _recusa_do_fechamento(erro: ValueError) -> HTTPException:
+    if isinstance(erro, tecnologia_perguntas.PassagemRecusadaError):
+        return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(erro))
+    return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(erro))
+
+
+@router.post("/perguntas/{pergunta_id}/resolver")
+def resolver_a_pergunta(
+    pergunta_id: UUID, payload: ResolucaoDaPerguntaPayload, supabase=Depends(get_supabase_client)
+) -> dict:
+    """A Vitta leu a resposta e deu o ok: a Pergunta respondida passa a
+    resolvida, e a Conversa ganha a linha de sistema com o que foi decidido e
+    o que destravou. A aberta, a resolvida e a cancelada sao 409 com o motivo;
+    sem decisao ou sem o que destravou e 422. Nada muda na recusa."""
+    autor, pergunta, demanda = _para_fechar(supabase, pergunta_id, payload.github_login)
+    try:
+        resolvida = tecnologia_perguntas.resolver(
+            supabase, pergunta, demanda, autor=autor, decidido=payload.decidido, destravou=payload.destravou
+        )
+    except (tecnologia_perguntas.PassagemRecusadaError, tecnologia_perguntas.FechamentoIncompletoError) as recusa:
+        raise _recusa_do_fechamento(recusa) from recusa
+    return {"id": str(resolvida["id"]), "estado": resolvida["estado"], "resolvida_em": resolvida.get("resolvida_em")}
+
+
+@router.post("/perguntas/{pergunta_id}/cancelar")
+def cancelar_a_pergunta(
+    pergunta_id: UUID, payload: CancelamentoDaPerguntaPayload, supabase=Depends(get_supabase_client)
+) -> dict:
+    """A Pergunta deixou de ser necessaria: a aberta ou a respondida passa a
+    cancelada, sai da lista Esperando sua resposta, e a Conversa ganha a linha
+    de sistema com o motivo. A resolvida e a cancelada sao 409 com o motivo;
+    sem motivo e 422. Nada muda na recusa."""
+    autor, pergunta, demanda = _para_fechar(supabase, pergunta_id, payload.github_login)
+    try:
+        cancelada = tecnologia_perguntas.cancelar(supabase, pergunta, demanda, autor=autor, motivo=payload.motivo)
+    except (tecnologia_perguntas.PassagemRecusadaError, tecnologia_perguntas.FechamentoIncompletoError) as recusa:
+        raise _recusa_do_fechamento(recusa) from recusa
+    return {"id": str(cancelada["id"]), "estado": cancelada["estado"], "cancelada_em": cancelada.get("cancelada_em")}
 
 
 @router.get("/demandas/{demanda_id}/conversa")

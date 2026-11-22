@@ -38,6 +38,8 @@ Jobs:
      Por fim, apaga o print (Anexo da Demanda) 30 dias depois de Em produção, ou
      já na rodada em que a Etapa é Não será feita (issue #1382, ADR 0077), e
      deixa o registro marcado apagado. Idempotente: o apagado sai da varredura.
+     E lembra, uma vez só, o Destinatário da Pergunta da Vitta aberta há 3 dias
+     (issue #2120). Idempotente: o lembrete gravado na Pergunta não sai de novo.
  10. expurgar_arquivos_contas_medicas: 04:30 diário, tira do bucket `contas-medicas`
      o PDF e o texto extraído de todo arquivo com `apagar_em` vencido e carimba
      `apagado_em` (issue #1125). Idempotente: o carimbo tira a linha da varredura.
@@ -83,6 +85,21 @@ Jobs:
      não tem nada para ver não recebe. Idempotente por semana: a linha em
      `email_de_segunda` é gravada antes do envio, e o modo de teste do e-mail
      não grava. Sem IA.
+ 21. avisar_na_hora_conduta: a cada minuto, entrega o aviso da tarefa nova em caso
+     do rito Completo ou da Rota Especial do Canal de Conduta (issue #1840). O
+     e-mail não leva nada do caso. Idempotente: o aviso entregue sai da fila. Sem IA.
+ 22. rodada_de_avisos_conduta: 08:00 diário, grava os lembretes a cinco dias e a um
+     dia do prazo dos casos do Canal de Conduta e entrega todo aviso pendente, um
+     e-mail por pessoa (issue #1840). Cada marco é gravado uma vez por prazo. Sem IA.
+ 23. lembrar_recalibracao_do_agente: 05:55 diário, cria a Pendência "Recalibrar o
+     agente do NSP" para quem tem Acesso pleno aos 30 e aos 60 dias da primeira
+     notificação do Núcleo (issue #2001). Idempotente: cada marco nasce uma vez
+     (a chave de `nsp_recalibracoes`). Sem IA e sem e-mail.
+ 24. alertar_prazos_de_72_horas_nsp: de hora em hora, registra e entrega o e-mail
+     urgente à Presidência, ao suplente e ao Acesso pleno quando o prazo legal de 72
+     horas de um caso A, ainda não notificado à vigilância, está a menos de 24 horas
+     do fim (issue #2000). Idempotente: cada pessoa recebe uma vez por caso (a linha
+     em `nsp_avisos`). Sem IA.
 
 Nenhum job dispara IA por conta própria (ADR 0082): a recomendação da Validação
 e o segundo agente de Contas médicas rodam só pelo botão da tela. A fila de
@@ -277,6 +294,18 @@ def reconciliar_vinculos_tecnologia() -> None:
         tecnologia_anexos.apagar_vencidos(_supabase())
     except Exception as e:
         logger.error(f"[Cron] Erro em apagar os anexos vencidos da Tecnologia: {e}", exc_info=True)
+
+    # E o lembrete unico da Pergunta da Vitta aberta ha 3 dias (issue #2120,
+    # ADR 0109, decisao 7), em separado: nao depende do GitHub.
+    from app.services import tecnologia_perguntas
+
+    try:
+        lembradas = tecnologia_perguntas.lembrar(_supabase(), datetime.now(tz=ZoneInfo("UTC")))
+    except Exception as e:
+        logger.error(f"[Cron] Erro no lembrete das Perguntas da Vitta: {e}", exc_info=True)
+    else:
+        if lembradas:
+            logger.info(f"[Cron] {lembradas} Pergunta(s) da Vitta lembrada(s) depois de 3 dias.")
 
 
 def despachar_notificacoes_ouvidoria() -> None:
@@ -520,6 +549,35 @@ def lembrar_agenda_regulatoria() -> None:
         logger.info(f"[Cron] Agenda regulatória: {criados} lembrete(s) como Pendência da Presidência.")
 
 
+def lembrar_recalibracao_do_agente() -> None:
+    """A pendência de recalibração do agente do Núcleo aos 30 e aos 60 dias
+    (issue #2001). A regra e a guarda de uma por marco vivem no serviço."""
+    from app.services.seguranca_do_paciente import recalibracao
+
+    try:
+        criadas = recalibracao.lembrar(_supabase(), _hoje_em_sao_paulo())
+    except Exception as e:
+        logger.error(f"[Cron] Erro em lembrar_recalibracao_do_agente: {type(e).__name__}")
+        return
+    if criadas:
+        logger.info(f"[Cron] Recalibração do agente: {criadas} pendência(s) para o Acesso pleno.")
+
+
+def alertar_prazos_de_72_horas_nsp() -> None:
+    """O e-mail urgente do prazo de 72 horas a menos de 24 horas do fim (issue
+    #2000). A regra e a guarda de um e-mail por pessoa vivem no serviço; aqui,
+    só o relógio."""
+    from app.services.seguranca_do_paciente import acao_de_hoje
+
+    try:
+        registrados = acao_de_hoje.alertar_os_prazos_de_72_horas(_supabase(), datetime.now(tz=ZoneInfo("UTC")))
+    except Exception as e:
+        logger.error(f"[Cron] Erro em alertar_prazos_de_72_horas_nsp: {type(e).__name__}")
+        return
+    if registrados:
+        logger.info(f"[Cron] Prazo de 72 horas do Núcleo: {registrados} e-mail(s) urgente(s).")
+
+
 def avisar_termo_e_vigencia_nsp() -> None:
     """Os avisos do Termo sem assinatura e do fim da vigência do Núcleo (issue
     #1770). Os marcos, os destinatários e a guarda de um aviso por marco vivem
@@ -564,11 +622,20 @@ def enviar_email_de_segunda() -> None:
 
 def despachar_emails_nsp() -> None:
     """A fila de e-mails do Núcleo (issue #1985). A janela, a retentativa e a
-    reivindicação vivem no serviço; aqui, só o relógio."""
-    from app.services.seguranca_do_paciente import emails
+    reivindicação vivem no serviço; aqui, só o relógio. Antes da fila, o
+    reenvio único do encaminhamento sem Recebido (issue #1996)."""
+    from app.services.seguranca_do_paciente import emails, recebimento
 
+    agora = datetime.now(tz=ZoneInfo("UTC"))
     try:
-        resultado = emails.despachar_pendentes(_supabase(), datetime.now(tz=ZoneInfo("UTC")))
+        reenviados = recebimento.reenviar_os_esquecidos(_supabase(), agora)
+    except Exception as e:
+        logger.error(f"[Cron] Erro no reenvio do Recebido do Núcleo: {type(e).__name__}")
+    else:
+        if reenviados:
+            logger.info(f"[Cron] {reenviados} encaminhamento(s) do Núcleo sem Recebido reenviado(s).")
+    try:
+        resultado = emails.despachar_pendentes(_supabase(), agora)
     except Exception as e:
         logger.error(f"[Cron] Erro em despachar_emails_nsp: {type(e).__name__}")
         return
@@ -577,6 +644,36 @@ def despachar_emails_nsp() -> None:
             f"[Cron] E-mails do Núcleo: {resultado.get('enviados', 0)} enviado(s), "
             f"{resultado.get('falhas', 0)} com falha."
         )
+
+
+def avisar_na_hora_conduta() -> None:
+    """Os avisos do Canal de Conduta que saem na hora: a tarefa nova em caso do
+    rito Completo ou da Rota Especial (issue #1840). Quem tem tarefa, a guarda e
+    o e-mail sem conteúdo vivem no serviço; aqui, só o relógio. Sem IA."""
+    from app.services.conduta import avisos
+
+    try:
+        resultado = avisos.despachar(_supabase(), _hoje_em_sao_paulo(), so_na_hora=True)
+    except Exception as e:
+        logger.error(f"[Cron] Erro em avisar_na_hora_conduta: {type(e).__name__}")
+        return
+    if resultado.get("enviados") or resultado.get("falhas"):
+        logger.info(f"[Cron] Avisos do Canal de Conduta na hora: {resultado.get('enviados', 0)} enviado(s).")
+
+
+def rodada_de_avisos_conduta() -> None:
+    """A rodada diária dos avisos do Canal de Conduta (issue #1840): os
+    lembretes a cinco dias e a um dia do prazo e a tarefa nova dos outros
+    casos. Sem IA."""
+    from app.services.conduta import avisos
+
+    try:
+        resultado = avisos.rodada_do_dia(_supabase(), _hoje_em_sao_paulo())
+    except Exception as e:
+        logger.error(f"[Cron] Erro em rodada_de_avisos_conduta: {type(e).__name__}")
+        return
+    if resultado.get("enviados") or resultado.get("falhas"):
+        logger.info(f"[Cron] Avisos do Canal de Conduta: {resultado.get('enviados', 0)} enviado(s).")
 
 
 def encerrar_atas_do_nucleo() -> None:
@@ -834,6 +931,26 @@ def start_scheduler() -> None:
         id="agenda_regulatoria_nsp",
         replace_existing=True,
     )
+    # 05:55. Disparo perdido num deploy sai no dia seguinte (o marco continua
+    # alcançado) e nunca duas vezes (a linha do marco).
+    scheduler.add_job(
+        lembrar_recalibracao_do_agente,
+        "cron",
+        hour=5,
+        minute=55,
+        id="recalibracao_agente_nsp",
+        replace_existing=True,
+    )
+    # De hora em hora, e não uma vez por dia: o caso confirmado com menos de 24
+    # horas de prazo não espera a passada do dia seguinte. Nada repete (a linha
+    # em `nsp_avisos`).
+    scheduler.add_job(
+        alertar_prazos_de_72_horas_nsp,
+        "cron",
+        minute=5,
+        id="prazos_de_72_horas_nsp",
+        replace_existing=True,
+    )
     # 08:00, no começo do expediente: o e-mail chega quando a pessoa está no
     # hospital. Disparo perdido num deploy sai no dia seguinte (o marco
     # continua alcançado) e nunca duas vezes (a linha em `nsp_avisos`).
@@ -872,6 +989,24 @@ def start_scheduler() -> None:
         "interval",
         minutes=10,
         id="emails_nsp",
+        replace_existing=True,
+    )
+    # Canal de Conduta (issue #1840): o Completo e a Rota Especial avisam na
+    # hora, de minuto em minuto; o resto e os lembretes saem às 08:00. Nada
+    # sai duas vezes (a linha em `conduta_avisos`).
+    scheduler.add_job(
+        avisar_na_hora_conduta,
+        "interval",
+        minutes=1,
+        id="avisos_na_hora_conduta",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        rodada_de_avisos_conduta,
+        "cron",
+        hour=8,
+        minute=0,
+        id="avisos_conduta",
         replace_existing=True,
     )
     # 05:50, depois do reconciliar_clicksign. Dia
@@ -925,7 +1060,8 @@ def start_scheduler() -> None:
         "retencao_contas_medicas (04:30), fila_contas_medicas (a cada 10s), contratos_contas_medicas (07:15), "
         "relatorio_quinzenal_ouvidoria (07:00 diário, email nos dias 1 e 16), "
         "reconciliacao_tecnologia (de hora em hora), nota_do_google (06:45, uma leitura por semana), "
-        "agenda_regulatoria_nsp (05:45), avisos_termo_e_vigencia_nsp (08:00), emails_nsp (a cada 10min), "
+        "agenda_regulatoria_nsp (05:45), recalibracao_agente_nsp (05:55), prazos_de_72_horas_nsp (de hora em hora), "
+        "avisos_termo_e_vigencia_nsp (08:00), emails_nsp (a cada 10min), "
         "encerramento_atas_nsp (05:50), transcricoes_nsp (04:15), "
         "fotografia_painel_reunioes (segunda, 07h a 12h), email_de_segunda_reunioes (segunda, 08h a 12h)"
     )

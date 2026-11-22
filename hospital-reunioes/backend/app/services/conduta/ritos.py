@@ -4,8 +4,9 @@
 Regras puras: nada aqui lê ou grava o banco. Quem age é `triagem.py`.
 
 O prazo conta do envio do relato (`recebido_em`, no fuso de São Paulo), nunca
-da triagem. A Rota Especial e o agente entram em outras fatias: a triagem desta
-fatia é manual e oferece só Encaminhamento, Rápido e Completo.
+da triagem. A triagem é manual e oferece só Encaminhamento, Rápido e Completo:
+a Rota Especial não se escolhe na triagem, o caso chega a ela pelo passo 3 ou
+pelo desvio (issue #1829, `rota_especial.py`).
 """
 
 from __future__ import annotations
@@ -48,7 +49,8 @@ ETAPA_DO_RITO = {"encaminhamento": "encaminhamento", "rapido": "apuracao", "comp
 
 TRILHO = ("Triagem", "Apuração", "Voto", "Ata", "Medida", "Acompanhamento")
 TRILHO_DO_ENCAMINHAMENTO = ("Triagem", "Encaminhado")
-_POSICAO_NO_TRILHO = {"triagem": 0, "contestada": 0, "encaminhamento": 0, "apuracao": 1}
+TRILHO_DA_ROTA_ESPECIAL = ("Apuração", "Parecer entregue")
+_POSICAO_NO_TRILHO = {"triagem": 0, "contestada": 0, "encaminhamento": 0, "apuracao": 1, "voto": 2, "ata": 3}
 
 
 def orientacao_do_encaminhamento(destino: str) -> str:
@@ -124,11 +126,22 @@ class Olhar:
     votante: bool
     contestacao: dict[str, Any] | None = None
     ja_votou_na_contestacao: bool = False
+    # A Apuração chegou ao relatório (issue #1832): quem pode enviar para voto
+    # e o que ainda falta, numa linha (`relatorio.olhar_do_envio`).
+    fase_do_relatorio: bool = False
+    envia_para_voto: bool = False
+    bloqueio_do_voto: str | None = None
+    # A etapa Voto (issue #1833): se a pessoa vota no caso e se já votou na
+    # rodada (`voto.olhar_do_voto`).
+    vota: bool = False
+    ja_votou: bool = False
 
 
 def trilho(caso: dict[str, Any]) -> list[dict[str, str]]:
     if caso.get("rito") == "encaminhamento":
         nomes, atual = TRILHO_DO_ENCAMINHAMENTO, (1 if caso.get("encerrado_em") else 0)
+    elif caso.get("rota") == "especial":
+        nomes, atual = TRILHO_DA_ROTA_ESPECIAL, (1 if caso.get("encerrado_em") else 0)
     else:
         nomes, atual = TRILHO, _POSICAO_NO_TRILHO.get(caso.get("etapa") or "triagem", 0)
     encerrado = bool(caso.get("encerrado_em"))
@@ -160,6 +173,21 @@ _COMO_APURACAO = (
     "Grave e diga o consentimento no início",
     "Siga os passos do cartão até concluir o depoimento",
 )
+_COMO_RELATORIO = (
+    "Confira fatos e datas",
+    "Confira a versão do acusado",
+    "Confira a regra do Código indicada",
+)
+_COMO_VOTO = (
+    "Escolha o resultado",
+    "Escolha a medida da Matriz",
+    "Escreva sua justificativa em até três linhas",
+)
+_COMO_ESPECIAL = (
+    "Convide o membro eleito da CIPA indicado pelos eleitos",
+    "Ouça as pessoas e delibere sem nenhum diretor",
+    "Entregue o parecer fora do aplicativo e registre a entrega",
+)
 _COMO_CONFERIR = (
     "Leia o relato original",
     "Confira a triagem da coordenação",
@@ -188,6 +216,21 @@ def o_que_fazer_agora(caso: dict[str, Any], olhar: Olhar) -> dict[str, Any]:
     etapa = caso.get("etapa") or "triagem"
     coordena = olhar.papel == "coordenacao"
 
+    if caso.get("rota") == "especial":
+        # O grupo da Rota Especial (issue #1829): só ele abre o caso.
+        if caso.get("encerrado_em"):
+            return _caixa(
+                "Este caso da Rota Especial foi encerrado. A entrega do parecer está registrada.",
+                None,
+                ("Consulte a trilha do caso", "O relato selado fica guardado", "Novo assunto vira novo relato"),
+                None,
+            )
+        return _caixa(
+            "Caso da Rota Especial. Apure sem nenhum diretor e registre a quem o parecer foi entregue.",
+            None,
+            _COMO_ESPECIAL,
+            "apurar_rota_especial",
+        )
     if caso.get("encerrado_em"):
         return _caixa(
             "Este caso foi encerrado como Encaminhado. A orientação já foi enviada.",
@@ -236,12 +279,39 @@ def o_que_fazer_agora(caso: dict[str, Any], olhar: Olhar) -> dict[str, Any]:
             "enviar_orientacao",
             bloqueio,
         )
+    if etapa == "voto":
+        bloqueio = None
+        if not olhar.vota:
+            bloqueio = "Só os três membros votantes votam."
+        elif olhar.ja_votou:
+            bloqueio = "Você já votou. Seu voto fica oculto até todos votarem."
+        return _caixa(
+            "Leia o dossiê e vote. Seu voto fica oculto até todos votarem.",
+            "VOTAR",
+            _COMO_VOTO,
+            "votar",
+            bloqueio,
+        )
+    if etapa == "ata":
+        return _caixa(
+            "A votação foi concluída, com a ata assinada pelos três votantes.",
+            None,
+            ("Abra a ata assinada", "Consulte a trilha do caso", "A medida é da Direção"),
+            None,
+        )
+    if olhar.fase_do_relatorio:
+        return _caixa(
+            "Revise o relatório de uma página antes de enviar para voto.",
+            "ENVIAR PARA VOTO",
+            _COMO_RELATORIO,
+            "enviar_para_voto",
+            olhar.bloqueio_do_voto if olhar.envia_para_voto else "Só quem apurou ou a coordenação envia para voto.",
+        )
     return _caixa(
         "Ouça o acusado e até duas pessoas. Sempre em dupla.",
         "ADICIONAR PESSOA A OUVIR",
         _COMO_APURACAO,
         "adicionar_pessoa",
-        "O registro dos depoimentos ainda não está disponível no aplicativo.",
     )
 
 
@@ -250,6 +320,7 @@ ACOES_DA_MINHA_VEZ = {
     "conferir_triagem": "Conferir a triagem",
     "decidir_contestacao": "Decidir a contestação da triagem",
     "enviar_orientacao": "Enviar a orientação",
+    "apurar_rota_especial": "Apurar o caso da Rota Especial",
 }
 
 
