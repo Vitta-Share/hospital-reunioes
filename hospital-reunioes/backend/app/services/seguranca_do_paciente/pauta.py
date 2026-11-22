@@ -18,6 +18,7 @@ mesma do Calendário útil.
 from __future__ import annotations
 
 import logging
+import re
 from datetime import date, datetime, time, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -288,6 +289,30 @@ def garantir_pauta(supabase, reuniao: dict, agora: datetime) -> dict:
             raise
         return pauta_gravada(supabase, reuniao["id_reuniao"]) or linha
     return linha
+
+
+CASOS = "casos"
+_TITULO_DOS_CASOS = "Casos"
+
+
+def _cita(blocos: list[dict], protocolo: str) -> bool:
+    padrao = re.compile(rf"(?<![\w-]){re.escape(protocolo)}(?![\w-])")
+    return any(padrao.search(item.get("texto") or "") for bloco in blocos for item in bloco.get("itens", []))
+
+
+def incluir_caso(supabase, pauta_da_reuniao: dict, protocolo: str, texto: str) -> None:
+    """Põe o caso no bloco Casos de uma pauta já gravada, uma vez só. Se a
+    Presidência tirou o bloco, ele volta com o caso."""
+    blocos = [dict(bloco) for bloco in pauta_da_reuniao.get("blocos") or []]
+    if _cita(blocos, protocolo):
+        return
+    bloco = next((b for b in blocos if b.get("chave") == CASOS), None)
+    if bloco is None:
+        bloco = {"chave": CASOS, "titulo": _TITULO_DOS_CASOS, "sem_dados": False, "itens": []}
+        blocos.append(bloco)
+    bloco["itens"] = [*bloco.get("itens", []), {"texto": texto}]
+    bloco["sem_dados"] = False
+    supabase.table(TABELA_PAUTAS).update({"blocos": blocos}).eq("id_reuniao", pauta_da_reuniao["id_reuniao"]).execute()
 
 
 def com_situacao_atual(supabase, blocos: list[dict]) -> list[dict]:
