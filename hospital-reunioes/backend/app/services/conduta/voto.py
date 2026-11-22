@@ -14,9 +14,11 @@ aplicativo convoca uma reunião curta: avisa os votantes e abre a rodada
 seguinte. Os votos da rodada anterior ficam.
 
 "CONCLUIR VOTAÇÃO" é da coordenação: grava o resultado da maioria no caso e
-leva o caso à etapa Ata. Procedente ou parcialmente procedente só concluem
-com a trava de robustez inteira confirmada (`trava.bloqueio`), e o banco tem
-a mesma trava (migration 216).
+leva o caso à etapa Ata. Só conclui com a ata assinada pelos três votantes e,
+no rito Completo, com a reunião do Comitê concluída (`ata`, issue #1834).
+Procedente ou parcialmente procedente só concluem com a trava de robustez
+inteira confirmada (`trava.bloqueio`), e o banco tem as mesmas travas
+(migrations 216 e 221).
 """
 
 from __future__ import annotations
@@ -190,11 +192,11 @@ def _rotulo_da_medida(medida: str | None, dias: int | None) -> str | None:
 def para_a_tela(supabase, aberto: CasoAberto) -> dict:
     """A votação do caso para quem abre. Enquanto a rodada não fecha, só o
     próprio voto e a contagem: o voto dos outros não sai, nem pela API."""
-    from app.services.conduta import trava
+    from app.services.conduta import ata, trava
 
     caso = aberto.caso
     if caso.get("etapa") != "voto" and not caso.get("resultado"):
-        return {"votacao": None, "trava": None}
+        return {"votacao": None, "trava": None, "ata": None, "reuniao": None}
     atual = situacao_em_dia(supabase, caso)
     nomes = membros.nomes(supabase, sorted({v["participante_id"] for v in atual.votos}))
     meu = next(
@@ -243,6 +245,7 @@ def para_a_tela(supabase, aberto: CasoAberto) -> dict:
             "bloqueio_da_conclusao": bloqueio_da_conclusao(supabase, aberto) if em_voto else None,
         },
         "trava": trava.para_a_tela(supabase, aberto, atual),
+        **ata.para_a_tela(supabase, aberto, atual),
     }
 
 
@@ -347,7 +350,7 @@ def votar(
 
 def bloqueio_da_conclusao(supabase, aberto: CasoAberto) -> str | None:
     """O motivo de a votação ainda não concluir, numa linha, ou None."""
-    from app.services.conduta import trava
+    from app.services.conduta import ata, trava
 
     caso = aberto.caso
     if aberto.pessoa.papel != "coordenacao":
@@ -360,6 +363,10 @@ def bloqueio_da_conclusao(supabase, aberto: CasoAberto) -> str | None:
     apuracao = apurar([_conteudo(v) for v in atual.da_rodada(atual.rodada)])
     if not apuracao.tem_maioria:
         return "Não houve maioria. A reunião curta foi convocada."
+    if not ata.ata_assinada(supabase, caso, atual):
+        return "Falta a ata assinada pelos três votantes."
+    if caso.get("rito") == "completo" and not caso.get("reuniao_concluida_em"):
+        return "Falta concluir a reunião do Comitê."
     if apuracao.resultado in COM_MEDIDA:
         return trava.bloqueio(supabase, caso, atual)
     return None

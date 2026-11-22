@@ -294,9 +294,9 @@ def o_que_fazer_agora(caso: dict[str, Any], olhar: Olhar) -> dict[str, Any]:
         )
     if etapa == "ata":
         return _caixa(
-            "A votação foi concluída. A ata é gerada a partir dos votos registrados.",
+            "A votação foi concluída, com a ata assinada pelos três votantes.",
             None,
-            ("Confira os votos registrados", "A ata sai dos votos", "Os três votantes assinam a ata"),
+            ("Abra a ata assinada", "Consulte a trilha do caso", "A medida é da Direção"),
             None,
         )
     if olhar.fase_do_relatorio:

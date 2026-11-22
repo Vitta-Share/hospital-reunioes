@@ -1,7 +1,7 @@
 """Dublê do banco para os testes do Canal de Conduta (issue #1820).
 
 Um PostgREST em memória com o que o módulo usa: select, eq, in_, is_, order,
-limit, insert e update (recusado nas tabelas imutáveis, como o banco faz). O
+limit, insert, update e delete (recusados nas tabelas imutáveis, como o banco faz). O
 `insert` confere as chaves únicas, e o da trilha confere a cadeia como o
 trigger da migration 175 (a linha nova aponta para a última do caso), para o serviço ser
 exercitado contra a mesma recusa que o banco faz.
@@ -27,6 +27,7 @@ class _Consulta:
         self._teto: int | None = None
         self._inserir: list[dict] | None = None
         self._atualizar: dict | None = None
+        self._apagar = False
 
     def select(self, *_a, **_kw):
         return self
@@ -76,8 +77,18 @@ class _Consulta:
         self._atualizar = dict(campos)
         return self
 
+    def delete(self):
+        if self._nome in IMUTAVEIS:
+            raise AssertionError(f"o banco recusa DELETE em {self._nome}")
+        self._apagar = True
+        return self
+
     def execute(self):
         tabela = self._banco.tabelas.setdefault(self._nome, [])
+        if self._apagar:
+            alvos = [linha for linha in tabela if all(f(linha) for f in self._filtros)]
+            tabela[:] = [linha for linha in tabela if linha not in alvos]
+            return SimpleNamespace(data=[dict(linha) for linha in alvos])
         if self._inserir is not None:
             return SimpleNamespace(data=[self._banco.gravar(self._nome, linha) for linha in self._inserir])
         if self._atualizar is not None:
@@ -105,6 +116,8 @@ IMUTAVEIS = (
     "conduta_trava_preenchimentos",
     "conduta_trava_confirmacoes",
     "conduta_ciencias_do_codigo",
+    "conduta_atas",
+    "conduta_reuniao_conferencia",
 )
 
 # As chaves únicas que o módulo usa para não gravar duas vezes (migrations 185, 193 e 214).
@@ -122,6 +135,9 @@ UNICAS = {
     "conduta_trava_preenchimentos": ("caso_id", "versao"),
     "conduta_trava_confirmacoes": ("caso_id", "item", "participante_id"),
     "conduta_ciencias_do_codigo": ("caso_id", "versao"),
+    "conduta_atas": ("caso_id", "versao"),
+    "conduta_reuniao_transcricoes": ("caso_id", "versao"),
+    "conduta_reuniao_conferencia": ("caso_id", "item"),
 }
 
 

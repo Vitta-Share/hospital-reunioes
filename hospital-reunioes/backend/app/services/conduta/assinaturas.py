@@ -20,6 +20,9 @@ a atribuição do convidado naquele caso, e a assinatura entra na trilha.
 O terceiro é o relatório de apuração do rito Completo, assinado pelos
 apuradores (issue #1832). A linha aponta para a versão que foi assinada, e a
 assinatura entra na trilha do caso.
+
+O quarto é a ata de deliberação, assinada pelos três votantes (issue #1834).
+A linha aponta para a versão da ata, e a assinatura entra na trilha.
 """
 
 from __future__ import annotations
@@ -53,6 +56,10 @@ MOTIVOS_DO_CONVITE = ("apurador", "cipa")
 # O relatório de apuração do rito Completo (issue #1832).
 RELATORIO_DE_APURACAO = "relatorio_de_apuracao"
 MODELO_DO_RELATORIO = "conduta_relatorio_de_apuracao.html"
+
+# A ata de deliberação, assinada pelos três votantes (issue #1834).
+ATA_DE_DELIBERACAO = "ata_de_deliberacao"
+MODELO_DA_ATA = "conduta_ata_de_deliberacao.html"
 
 # A certidão de recusa de assinatura do termo de declaração (issue #1831):
 # dois membros certificam que o depoente se recusou a assinar.
@@ -406,6 +413,88 @@ def _registrar_relatorio_assinado(supabase, assinatura: dict) -> None:
 
 
 # ---------------------------------------------------------------------------
+# A ata de deliberação (issue #1834)
+# ---------------------------------------------------------------------------
+
+
+def cancelar_atas_abertas(supabase, caso_id: str) -> None:
+    """O envio da ata que ainda estava aberto no caso é cancelado na ClickSign
+    e na tabela: o link antigo morre, e a assinatura que chegar dele não vale."""
+    abertas = (
+        supabase.table(TABELA)
+        .select("*")
+        .eq("tipo", ATA_DE_DELIBERACAO)
+        .eq("caso_id", caso_id)
+        .in_("situacao", ["gerado", "enviado"])
+        .execute()
+        .data
+    ) or []
+    for aberta in abertas:
+        if aberta.get("envelope_id"):
+            clicksign_service.cancel_envelope(aberta["envelope_id"])
+        supabase.table(TABELA).update({"situacao": "cancelado", "cancelado_em": _agora()}).eq(
+            "id", aberta["id"]
+        ).execute()
+
+
+def enviar_ata_de_deliberacao(supabase, caso_id: str, versao: dict, ata: dict, pessoas: list[dict]) -> dict:
+    """Gera o PDF da versão da ata e o envia aos três votantes, cancelando o
+    envio da ata que ainda estava aberto no caso (`cancelar_atas_abertas`).
+    Como o relatório, o documento não leva o protocolo: o identificador é o
+    da assinatura. Os Pontos a confirmar não entram: nem chegam ao modelo.
+    Falha da ClickSign deixa a linha em "gerado", com o erro."""
+    cancelar_atas_abertas(supabase, caso_id)
+    assinatura = (
+        supabase.table(TABELA)
+        .insert(
+            {
+                "tipo": ATA_DE_DELIBERACAO,
+                "caso_id": caso_id,
+                "ata_id": versao["id"],
+                "signatarios": [p["id"] for p in pessoas],
+                "situacao": "gerado",
+            }
+        )
+        .execute()
+        .data
+    )[0]
+    dados = sanitizar_estrutura(
+        {
+            "ata": {**ata, "versao": versao["versao"]},
+            "votantes": [p.get("nome_completo") or "Não informado" for p in pessoas],
+            "documento": {"identificador": assinatura["id"]},
+        }
+    )
+    pdf = gerar_pdf_do_termo({**dados, "modelo": MODELO_DA_ATA})
+    resultado = enviar_a_clicksign(
+        pdf,
+        f"Ata de Deliberação CC - {assinatura['id']}",
+        f"Ata_de_Deliberacao_{assinatura['id']}.pdf",
+        pessoas,
+    )
+    return _registrar_envio(supabase, assinatura, resultado)
+
+
+def _registrar_ata_assinada(supabase, assinatura: dict) -> None:
+    """A assinatura dos três entra na trilha do caso, uma vez por versão: o
+    retorno repetido (fechamento e documento pronto) acha a linha já lá."""
+    linhas = (supabase.table("conduta_atas").select("versao").eq("id", assinatura["ata_id"]).limit(1).execute()).data
+    versao = linhas[0]["versao"] if linhas else "?"
+    detalhe = f"ata de deliberação, versão {versao}, assinada pelos três votantes"
+    ja = (
+        supabase.table("conduta_trilha")
+        .select("id")
+        .eq("caso_id", assinatura["caso_id"])
+        .eq("acao", "ata_assinada")
+        .eq("detalhe", detalhe)
+        .limit(1)
+        .execute()
+    ).data
+    if not ja:
+        trilha.registrar(supabase, assinatura["caso_id"], None, "ata_assinada", detalhe)
+
+
+# ---------------------------------------------------------------------------
 # A certidão de recusa de assinatura (issue #1831)
 # ---------------------------------------------------------------------------
 
@@ -486,6 +575,8 @@ def _efeito_da_assinatura(supabase, assinatura: dict, assinado_em: str) -> None:
         _registrar_relatorio_assinado(supabase, assinatura)
     elif assinatura["tipo"] == CERTIDAO_DE_RECUSA:
         _certidao_na_trilha(supabase, assinatura["caso_id"])
+    elif assinatura["tipo"] == ATA_DE_DELIBERACAO:
+        _registrar_ata_assinada(supabase, assinatura)
 
 
 def _certidao_na_trilha(supabase, caso_id: str) -> None:
