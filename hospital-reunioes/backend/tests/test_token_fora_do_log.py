@@ -256,10 +256,10 @@ ROTAS_COM_SEGREDO_NO_PATH = {
     "/api/ouvidoria-setor/elogio/{token}/recebido",
     "/api/ouvidoria-setor/nsp/{token}",
     "/api/ouvidoria-setor/nsp/{token}/recebido",
-    "/api/minhas-pendencias/{token}",
-    "/api/minhas-pendencias/{token}/pendencias/{id_acao}/acoes",
     "/api/nsp/recebimento/{token}",
     "/api/nsp/recebimento/{token}/recebido",
+    "/api/minhas-pendencias/{token}",
+    "/api/minhas-pendencias/{token}/pendencias/{id_acao}/acoes",
 }
 
 
@@ -334,8 +334,8 @@ def _app() -> FastAPI:
     app.add_middleware(RequestContextMiddleware)
     app.include_router(ouvidoria_setor_router.router, prefix="/api")
     app.include_router(aceite_router.router, prefix="/api")
-    app.include_router(link_pessoal_router.router, prefix="/api")
     app.include_router(recebimento_router.router, prefix="/api")
+    app.include_router(link_pessoal_router.router, prefix="/api")
     app.dependency_overrides[get_supabase_client] = lambda: _SupabaseVazio()
     return app
 
@@ -424,12 +424,12 @@ CAMINHOS_DEFORMADOS = [
     f"/API/ouvidoria-setor/{TOKEN}",
     f"/api/aceite//{TOKEN}",
     f"/api/Aceite/{TOKEN}",
-    f"/api/minhas-pendencias//{TOKEN}",
-    f"/api/minhas-pendencias/{TOKEN}/inexistente",
     # O link do Recebido do Núcleo (issue #1996).
     f"/api/nsp/recebimento/{TOKEN}/inexistente",
     f"/api/nsp/recebimento//{TOKEN}",
     f"/api/NSP/recebimento/{TOKEN}",
+    f"/api/minhas-pendencias//{TOKEN}",
+    f"/api/minhas-pendencias/{TOKEN}/inexistente",
 ]
 
 

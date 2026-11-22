@@ -65,8 +65,8 @@ _BARRAS_REPETIDAS = re.compile(r"/{2,}")
 _PREFIXOS_COM_TOKEN_NO_PATH = (
     "/api/aceite/",
     "/api/ouvidoria-setor/",
-    "/api/minhas-pendencias/",
     "/api/nsp/recebimento/",
+    "/api/minhas-pendencias/",
 )
 
 

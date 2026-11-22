@@ -133,12 +133,12 @@ describe("dado de cidadão não fica gravado no aparelho (issue #483, ADR 0041)"
       "/api/aceite/",
       "/api/ouvidoria-setor/",
       "/api/ouvidoria/",
-      "/api/minhas-pendencias/",
       "/api/nsp/recebimento/",
+      "/api/minhas-pendencias/",
       "/aceite/",
       "/ouvidoria-setor",
-      "/minhas-pendencias/",
       "/notificar/recebido/",
+      "/minhas-pendencias/",
     ]);
   });
 
