@@ -1,15 +1,15 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, RenderSurface } from 'claude-code'
 
-import type { Agente, CardCitado, Ci, Coleta, Encerrar, EstadoOnda, Faixa, FatiaDaFaixa, Fase, Issue, Migration, Prd, SubAgente, Subida, Tarefa } from '../types'
+import type { Agente, Ci, Coleta, Encerrar, Faixa, FatiaDaFaixa, Fase, Issue, Migration, Prd, SubAgente, Subida, Tarefa } from '../types'
 
 // Torre das ondas: só leitura. A coleta (hooks/coletar.sh) junta o coletor do PedroOS,
 // o `claude agents`, as migrations que a subida pediu e o /api/health.
 // O relógio só olha o que é local (sessões, agentes, subidas, migrations); o GitHub e o OS
 // são buscados quando um evento do workflow acontece: agente que começa ou termina, sessão
 // que nasce ou para, subida que fecha, migration nova, ou um gh/fechar_onda nesta sessão.
-// É um painel de monitoramento, sem link: cada Fatia mostra o tempo de cada etapa, e cada item do
-// "Precisa de você" tem o botão resolver, que abre no Claude Agents uma sessão só daquele item.
+// É um painel de monitoramento, sem link: cada Fatia mostra o tempo de cada etapa, e o "Precisa de você"
+// lista só as migrations que esperam você aplicar.
 // Vale para todo Projeto com o Pacote do fluxo (o coletar.sh lê o .claude/fluxo.json dele).
 
 const PANE = 'ondas'
@@ -31,7 +31,6 @@ const erro = atom({ plugin: 'hr-ondas', key: 'erro' } as const, null)
 const todos = atom({ plugin: 'hr-ondas', key: 'todos' } as const, false)
 const faixa = atom({ plugin: 'hr-ondas', key: 'faixa' } as const, null)
 const relogio = atom({ plugin: 'hr-ondas', key: 'relogio' } as const, 0)
-const cards = atom({ plugin: 'hr-ondas', key: 'cards' } as const, {})
 const verDetalhe = atom({ plugin: 'hr-ondas', key: 'verDetalhe' } as const, false)
 
 const COR: Record<Fase, string> = {
@@ -141,128 +140,6 @@ export const detalhe = (i: Issue, comEspera = true): string => {
   if (i.versao) partes.push(i.versao)
   if (comEspera && i.por.length) partes.push(`espera ${i.por.map(n => `#${n}`).join(' ')}`)
   return partes.join(' · ')
-}
-
-/** Um card que a pendência manda olhar; `feito` quando já fechou. */
-export type CardPendente = { n: number; texto: string; feito: boolean }
-
-/**
- * A sessão que o botão resolver abre no Claude Agents: o nome e o pedido. Com `viva`, a sessão que já cuida do
- * item (a da própria Onda) está rodando: o botão só traz o Claude Agents, sem lançar outra.
- */
-export type PedidoDeSessao = { nome: string; prompt: string; viva: string | null }
-
-/** Uma linha do bloco "Precisa de você", com a sessão que o botão resolver abre. */
-export type Pendencia = {
-  chave: string
-  cor: 'error' | 'warning'
-  marca: string
-  rotulo: string
-  texto: string
-  /** o motivo por extenso, como a Onda gravou */
-  detalhe?: string | null
-  cards?: CardPendente[]
-  sessao: PedidoDeSessao | null
-}
-
-const NOME_DE_SESSAO = /^\w[\w.-]*$/
-const ESTADO_ONDA_PY = 'python3 .claude/skills/onda-enxuta/scripts/estado_onda.py'
-const ORIGEM = 'Esta sessão foi aberta pelo botão resolver do painel das Ondas (mod hr-ondas).'
-
-/**
- * O pedido do Fechar a Onda do PedroOS (app/server/sessao-de-onda.js, promptDoFechamento): lê o Estado da Onda,
- * faz a parte do agente, guia a do humano e grava o `resolvido`. Sem linhagem e número válidos, null.
- */
-export const pedidoDaOnda = (o: EstadoOnda, vivas: string[]): PedidoDeSessao | null => {
-  const m = /^(.+)-onda(\d+)$/.exec(o.id)
-  const sessao = o.sessao ?? m?.[1] ?? ''
-  const numero = o.onda ?? Number(m?.[2])
-  if (![o.id, sessao].every(s => NOME_DE_SESSAO.test(s)) || !Number.isInteger(numero) || numero <= 0) return null
-  const alvo = `--sessao ${sessao} --onda ${numero}`
-  return {
-    nome: `fechar-${o.id}`,
-    viva: vivas.includes(o.id) ? o.id : null,
-    prompt: `Feche a Onda ${o.id}: ela ${o.estado === 'erro' ? 'quebrou' : 'está em "espera você"'}.
-1. Leia o Estado da Onda: ${ESTADO_ONDA_PY} ler ${alvo}. O que falta são os eventos pronto-para-voce e erro depois do último resolvido, e as issues em baixa.
-2. Mostre ao Pedro, uma linha por pendência, o que cada uma pede. Leia o que precisar no GitHub (gh issue view --comments, gh pr view) e confira se já foi feito antes de pedir alguma coisa.
-3. Faça a parte do agente. O que é só do Pedro (mandar uma mensagem, aplicar uma migration, decidir algo de produto) vira passo a passo, um passo por vez; mensagem para ele mandar vai pronta num bloco de código. Espere o "feito" e confira.
-4. Com tudo resolvido, rode: ${ESTADO_ONDA_PY} resolvido ${alvo} --texto "<o que foi feito, numa frase>". Issue em baixa só sai quando o PR dela entra pela subida (fechar_onda.py), que já marca a Onda.
-${ORIGEM} Merge, deploy ou migration só com o "pode" do Pedro aqui.`,
-  }
-}
-
-/** O pedido do "acompanhar" do PedroOS: a issue humana que o Pedro faz agora, um passo por vez, e fecha no fim. */
-export const pedidoDaHumana = (n: number): PedidoDeSessao => ({
-  nome: `acompanhar-${n}`,
-  viva: null,
-  prompt: `A issue #${n} é humana e o Pedro vai fazer agora. Leia o card com gh issue view ${n} --comments e acompanhe o Passo a passo dele, um passo por vez: mostre o passo e o link, ofereça fazer pelo playwright-cli ou pelo gh o que der, espere o "feito" e confira antes de passar ao próximo. Login, senha, pagamento e segredo ficam com o Pedro.
-${ORIGEM} No fim, comente na issue o que foi feito e feche.`,
-})
-
-/** O PR com CI vermelho: a sessão lê a falha, conserta na branch do PR e leva até o verde. */
-export const pedidoDoCi = (n: number, pr: number): PedidoDeSessao => ({
-  nome: `ci-pr-${pr}`,
-  viva: null,
-  prompt: `O PR #${pr} da issue #${n} está com o CI vermelho. Leia a falha (gh pr checks ${pr}, gh run view <id> --log-failed), conserte na branch do PR num worktree, rode as conferências locais e leve até o CI verde. Mostre ao Pedro a causa numa linha antes de mexer.
-${ORIGEM} Merge, deploy ou migration só com o "pode" do Pedro aqui.`,
-})
-
-/** Os cards que uma Onda cita no motivo (#N, fora o PRD dela) mais as issues dela em baixa. */
-export const cardsDaOnda = (o: EstadoOnda): number[] => {
-  const citados = [...(o.texto ?? '').matchAll(/#(\d+)/g)].map(m => Number(m[1])).filter(n => n !== o.prd)
-  return [...new Set([...(o.baixas ?? []), ...citados])]
-}
-
-/** Os números que as Ondas citam e que o OS não traz: o mod busca o título deles no GitHub. */
-export const cardsSemTitulo = (c: Coleta): number[] => {
-  const doOs = new Set([...(c.os?.prds ?? []).flatMap(p => [p.n, ...p.issues.map(i => i.n)]), ...(c.os?.soltas ?? []).map(i => i.n)])
-  const todos = (c.ondasEstado ?? []).flatMap(o => [...(o.prd ? [o.prd] : []), ...cardsDaOnda(o)])
-  return [...new Set(todos)].filter(n => !doOs.has(n))
-}
-
-/**
- * O que espera você, fora as migrations (que têm botão próprio): Onda que quebrou ou espera você,
- * Fatia humana aberta e PR com CI vermelho, cada um com a sessão do botão resolver. A Onda traz o motivo
- * por extenso e os cards que ele cita (o PRD e as issues); a Fatia citada por uma Onda não se repete.
- */
-export const precisaDeVoce = (c: Coleta, citados: Record<string, CardCitado> = {}): Pendencia[] => {
-  const issues = new Map([...(c.os?.prds ?? []).flatMap(p => p.issues), ...(c.os?.soltas ?? [])].map(i => [i.n, i]))
-  const prds = new Map((c.os?.prds ?? []).map(p => [p.n, p]))
-  const vivas = c.agentes.map(a => a.nome)
-  const card = (n: number): CardPendente => {
-    const i = issues.get(n)
-    const titulo = i?.titulo ?? prds.get(n)?.titulo ?? (citados[n]?.titulo || null)
-    const aberto = i ? i.estado === 'OPEN' : (citados[n]?.aberto ?? true)
-    return { n, texto: `#${n}${i?.fase === 'humana' ? ' é sua' : ''}${titulo ? ` · ${titulo}` : ''}`, feito: !aberto }
-  }
-  const ondas = [...(c.ondasEstado ?? [])]
-    .sort((a, b) => Number(b.estado === 'erro') - Number(a.estado === 'erro'))
-    .map(o => ({
-      chave: `o${o.id}`,
-      cor: o.estado === 'erro' ? ('error' as const) : ('warning' as const),
-      marca: o.estado === 'erro' ? '✗' : '!',
-      rotulo: `Onda ${o.id}`,
-      texto: o.estado === 'erro' ? 'quebrou' : 'espera você',
-      detalhe: o.texto,
-      cards: [...(o.prd ? [{ ...card(o.prd), texto: card(o.prd).texto.replace(/^#/, 'PRD #') }] : []), ...cardsDaOnda(o).map(card)],
-      sessao: pedidoDaOnda(o, vivas),
-    }))
-  const naOnda = new Set(ondas.flatMap(o => o.cards.map(k => k.n)))
-  const fatias = new Map<number, Pendencia>()
-  for (const i of (c.os?.prds ?? []).flatMap(p => p.issues)) {
-    if (i.estado !== 'OPEN' || fatias.has(i.n) || naOnda.has(i.n)) continue
-    const humana = i.fase === 'humana'
-    if (!humana && !(i.fase === 'pr_aberto' && i.ci === 'vermelho')) continue
-    fatias.set(i.n, {
-      chave: `i${i.n}`,
-      cor: humana ? 'warning' : 'error',
-      marca: humana ? '!' : '✗',
-      rotulo: `#${i.n}`,
-      texto: `${humana ? 'é sua' : 'CI vermelho'} · ${i.titulo}`,
-      sessao: humana ? pedidoDaHumana(i.n) : i.pr ? pedidoDoCi(i.n, i.pr) : null,
-    })
-  }
-  return [...ondas, ...fatias.values()]
 }
 
 const corDaIssue = (i: Issue) =>
@@ -895,49 +772,6 @@ async function copiarSql($: EngineInterface, m: Migration, surface: RenderSurfac
   }
 }
 
-const abrindo = new Set<string>()
-
-/**
- * O botão resolver: lança a sessão daquele item em segundo plano (hooks/resolver.sh, pelo lancar_sessao.sh da
- * onda) e traz para a frente o Claude Agents da pasta do Projeto, onde ela aparece. Sessão com o nome já viva
- * (ou a `viva` do pedido): não lança outra.
- */
-async function resolver($: EngineInterface, p: PedidoDeSessao) {
-  if (abrindo.has(p.nome)) return
-  abrindo.add(p.nome)
-  $.ui.toast(`Abrindo ${p.viva ?? p.nome} no Claude Agents…`)
-  try {
-    const r = await $.process.run(
-      ['/bin/bash', `${$.plugin.root}/hooks/resolver.sh`, p.nome, ...(p.viva ? ['--viva', p.viva] : [])],
-      { stdin: p.prompt, timeoutMs: 120_000 },
-    )
-    if (r.exitCode !== 0) throw new Error(r.stderr.trim().slice(0, 200) || `saída ${r.exitCode}`)
-    $.ui.toast(r.stdout.trim().split('\n').pop() || `Sessão ${p.nome} no Claude Agents`)
-  } catch (falha) {
-    $.ui.toast(`Não abri a sessão ${p.nome}: ${String(falha).slice(0, 160)}`)
-  } finally {
-    abrindo.delete(p.nome)
-  }
-}
-
-const CARD_VALE_MS = 10 * 60_000
-
-/** Título e estado dos cards que as Ondas citam e o OS não traz (REST, até 10 por coleta, vale 10 min). */
-async function buscarCards($: EngineInterface, c: Coleta) {
-  const agora = await $.clock.now()
-  const ja = await read($, cards)
-  const faltam = cardsSemTitulo(c).filter(n => !ja[n] || agora - ja[n]!.em > CARD_VALE_MS).slice(0, 10)
-  if (!faltam.length || !repoDa(c)) return
-  const novos: Record<string, CardCitado> = {}
-  for (const n of faltam) {
-    const r = await $.process.run(['gh', 'api', `repos/${repoDa(c)}/issues/${n}`, '--jq', '[.state, .title] | @tsv'], { timeoutMs: 15_000 })
-    const [estado, ...titulo] = r.exitCode === 0 ? r.stdout.trim().split('\t') : []
-    // falhou: guarda o que tinha, para não bater no GitHub a cada 10 s
-    novos[n] = estado ? { titulo: titulo.join(' '), aberto: estado === 'open', em: agora } : { ...(ja[n] ?? { titulo: '', aberto: true }), em: agora }
-  }
-  await update($, cards, v => ({ ...v, ...novos }))
-}
-
 async function coletar($: EngineInterface, fresco = false) {
   if (rodando) {
     frescoPendente ||= fresco
@@ -965,7 +799,6 @@ async function coletar($: EngineInterface, fresco = false) {
     ultimaAssinatura = a
     await update($, coleta, () => c)
     await update($, erro, () => (c.os ? null : 'Coletor do PedroOS sem resposta'))
-    await buscarCards($, c).catch(() => {})
 
     const novasSessoes = c.agentes.filter(a => !sessoesVistas.has(a.nome))
     novasSessoes.forEach(a => sessoesVistas.add(a.nome))
@@ -1163,7 +996,6 @@ export const register: Register = on => {
 
     const p = pendentes(c)
     const recentes = aplicadasRecentes(c)
-    const pendencias = precisaDeVoce(c, await read($, cards))
     const prds = prdsVisiveis(c, mostrarTodos)
     const editor = editorDa(c)
     const tituloDa = (i: Issue) => i.titulo.replace(/^Contas médicas: /, '')
@@ -1276,44 +1108,7 @@ export const register: Register = on => {
               </Text>
             </Box>
           ))}
-          {/* O botão vem antes do texto: a linha longa corta o fim, nunca o botão. */}
-          {pendencias.map(x => (
-            <Box key={x.chave} flexDirection="column">
-              <Box flexDirection="row">
-                <Text color={x.cor}>
-                  {'  '}
-                  {x.marca}{' '}
-                </Text>
-                {x.sessao ? (
-                  <Button key={`resolver-${x.chave}`} label="resolver" onPress={() => void resolver($, x.sessao!)} />
-                ) : null}
-                <Text wrap="truncate-end">
-                  {' '}
-                  <Text bold>{x.rotulo}</Text>
-                  <Text color={x.cor}> {x.texto}</Text>
-                </Text>
-              </Box>
-              {x.detalhe ? (
-                <Box paddingLeft={4}>
-                  <Text wrap="wrap">{x.detalhe}</Text>
-                </Box>
-              ) : null}
-              {(x.cards ?? []).map(k => (
-                <Box key={`${x.chave}-${k.n}`} paddingLeft={4}>
-                  <Text wrap="truncate-end" dimColor={k.feito}>
-                    → {k.feito ? '✓ fechado · ' : ''}
-                    {k.texto}
-                  </Text>
-                </Box>
-              ))}
-            </Box>
-          ))}
-          {pendencias.some(x => x.sessao) && (
-            <Text key="resolver" dimColor wrap="truncate-end">
-              {'  '}resolver abre no Claude Agents uma sessão só daquele item: ela faz a parte do agente, guia a sua e fecha no fim
-            </Text>
-          )}
-          {p.length === 0 && pendencias.length === 0 && <Text color="success">{'  '}✓ Nada espera você</Text>}
+          {p.length === 0 && <Text color="success">{'  '}✓ Nada espera você</Text>}
           {recentes.length > 0 && (
             <Text key="aplicadas" color="success" dimColor wrap="truncate-end">
               {'  '}✓ aplicada na última hora: migration {[...new Set(recentes.map(m => m.numero))].join(', ')}
