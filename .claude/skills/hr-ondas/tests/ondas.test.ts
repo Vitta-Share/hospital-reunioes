@@ -3,7 +3,7 @@ import { expect, mock, test } from 'claude-code/testing'
 import {
   agentesDoPrd, alvo, assinatura, atividadeDaSessao, comSemPrd, corDaDuracao, declaradasAplicadas, detalhe, duracaoDaOnda, etapas, focoDaSessao, linhagem,
   nomeCurtoDaSessao, ondasDoPrd, pendentes, prdsVisiveis, esperaDeFora, rotuloDoAlvo, rotuloDoShell, SEM_PRD, sessoesDoPrd,
-  prontasDoPrd, situacaoDaOnda, subidaDoPr, precisaDeVoce, agentesDaFatia, temposDaFatia, tempoCurto, pedidoDaOnda,
+  prontasDoPrd, situacaoDaOnda, subidaDoPr, agentesDaFatia, temposDaFatia, tempoCurto,
 } from '../hooks/register'
 import type { Coleta, SubAgente } from '../types'
 
@@ -270,15 +270,14 @@ for (const surface of ['terminal', 'desktop'] as const) {
     for (const t of [/^22 min$/, /^5 min$/, /^4 min$/, /^9 min$/]) expect(await pane.find({ text: t })).toBeTruthy()
   })
 
-  test(`bloco "Precisa de você" junta migration, Onda parada, Fatia humana e CI vermelho (${surface})`, async ($, on) => {
-    await montar($, on, { ondasEstado: [{ id: 'hsm-ouv-onda2', estado: 'erro', prd: 1128, texto: 'health falhou' }] })
+  test(`bloco "Precisa de você" lista só as migrations, sem Onda, Fatia humana nem CI vermelho (${surface})`, async ($, on) => {
+    // a #1132 da coleta está com o CI vermelho
+    await montar($, on)
     const pane = await $.ui.mount({ plugin: 'hr-ondas', surface, component: 'Pane', requestId: 'ondas', props: {} as any })
     expect(await pane.find({ text: /^Precisa de você/ })).toBeTruthy()
     expect(await pane.find({ text: /migration 117 cole no Studio/ })).toBeTruthy()
-    // o motivo vai inteiro na linha de baixo, sem a URL no meio
-    expect(await pane.find({ text: / quebrou$/ })).toBeTruthy()
-    expect(await pane.find({ text: /^health falhou$/ })).toBeTruthy()
-    expect(await pane.find({ text: /CI vermelho · / })).toBeTruthy()
+    expect(await pane.find({ text: /CI vermelho · / })).toBeUndefined()
+    expect(await pane.find({ text: /resolver abre no Claude Agents/ })).toBeUndefined()
     expect(await pane.find({ text: /Nada espera você/ })).toBeUndefined()
   })
 
@@ -465,37 +464,6 @@ test('agentes onda-* contam como hr-*; o histórico entra sem repetir o vivo; a 
   expect(lista.map(s => s.estado)).toEqual(['feita', 'feita', 'feita', 'feita', 'feita', 'feita'])
 })
 
-test('botão resolver: lança a sessão daquele item pelo resolver.sh, com o pedido pela entrada padrão', async ($, on) => {
-  const chamadas: { argv: string[]; stdin?: string }[] = []
-  const avisos: string[] = []
-  mock.clock(on, { now: AGORA })
-  on('process.run', (_$: any, e: any) => {
-    const argv = [...e.argv] as string[]
-    if (argv[1]?.endsWith('resolver.sh')) {
-      chamadas.push({ argv: argv.slice(2), stdin: e.init?.stdin })
-      return { value: { exitCode: 0, stdout: 'Sessão acompanhar-1137 aberta: entre nela no Claude Agents\n', stderr: '' } }
-    }
-    const prd = COLETA.os.prds.find(p => p.n === 1128)!
-    const os = { ...COLETA.os, prds: [{ ...prd, issues: prd.issues.map(i => (i.n === 1137 ? { ...i, fase: 'humana' } : i)) }] }
-    return { value: { exitCode: 0, stdout: JSON.stringify({ ...COLETA, os, migrations: [] }), stderr: '' } }
-  })
-  on('command.register', () => ({ value: undefined }))
-  on('ui.open', () => ({ value: { isPlaced: true } }))
-  on('ui.toast', (_$: any, e: any) => { avisos.push(e.text ?? e); return { value: undefined } })
-  on('ui.status', () => ({ value: undefined }))
-  on('command.run', () => ({ text: '' }))
-  on('ui.render', (_$: any, e: any, next: any) => (e.component === 'Pane' ? null : next(e)))
-  await $.command.run({ command: 'ondas', args: '', origin: 'user', presentation: 'text' } as any)
-  const pane = await $.ui.mount({ plugin: 'hr-ondas', surface: 'terminal', component: 'Pane', requestId: 'ondas', props: {} as any })
-  expect(await pane.find({ text: /resolver abre no Claude Agents uma sessão só daquele item/ })).toBeTruthy()
-  await pane.press({ key: 'resolver-i1137' })
-  expect(chamadas).toHaveLength(1)
-  expect(chamadas[0]!.argv).toEqual(['acompanhar-1137'])
-  expect(chamadas[0]!.stdin).toMatch(/A issue #1137 é humana/)
-  expect(avisos.at(-1)).toMatch(/Sessão acompanhar-1137 aberta/)
-  await pane.unmount()
-})
-
 test('atividade da sessão: subida em curso ganha do shell; tempo da onda do primeiro agente até agora', () => {
   const c = comEm({ ...COLETA, subAgentes: AGENTES, subidas: SUBIDA_EM_CURSO } as typeof COLETA)
   const s = { ...c.agentes[0]!, shell: { descricao: 'Comenta', comando: 'gh', inicio: AGORA - 5000 } }
@@ -582,41 +550,4 @@ test('/ondas todos pede o OS inteiro; /ondas ativos volta ao recorte', async ($,
   await $.command.run({ command: 'ondas', args: 'todos', origin: 'user', presentation: 'text' })
   await $.command.run({ command: 'ondas', args: 'ativos', origin: 'user', presentation: 'text' })
   expect(chamadas.map(c => c.slice(2))).toEqual([['--fresco', '--todos'], ['--fresco']])
-})
-
-test('precisa de você: Onda em erro primeiro, depois a que espera, a Fatia humana e o CI vermelho, cada um com a sua sessão', () => {
-  const c = comEm(COLETA)
-  const prd = c.os!.prds.find(p => p.n === 1128)!
-  const humana = { ...prd.issues.find(i => i.n === 1137)!, fase: 'humana' as const }
-  const os = { ...c.os!, prds: [{ ...prd, issues: prd.issues.map(i => (i.n === 1137 ? humana : i)) }] }
-  const lista = precisaDeVoce({
-    ...c,
-    os,
-    ondasEstado: [
-      { id: 'a-onda1', estado: 'pronto-para-voce', prd: 1128, texto: null },
-      { id: 'b-onda2', estado: 'erro', prd: null, texto: 'rollback' },
-    ],
-  })
-  const textos = lista.map(x => `${x.rotulo} ${x.texto}`)
-  expect(textos.slice(0, 2)).toEqual(['Onda b-onda2 quebrou', 'Onda a-onda1 espera você'])
-  expect(lista[0]!.detalhe).toBe('rollback')
-  expect(textos.slice(2).sort()).toEqual([
-    `#1132 CI vermelho · ${prd.issues.find(i => i.n === 1132)!.titulo}`,
-    `#1137 é sua · ${humana.titulo}`,
-  ])
-  // cada item abre a sua sessão: a Onda pelo Fechar a Onda, a humana pelo acompanhar, o CI vermelho pelo conserto
-  expect(lista.slice(0, 2).map(x => x.sessao?.nome)).toEqual(['fechar-b-onda2', 'fechar-a-onda1'])
-  expect(lista.slice(2).map(x => x.sessao?.nome).sort()).toEqual(['acompanhar-1137', 'ci-pr-1150'])
-  expect(lista[0]!.sessao!.prompt).toMatch(/estado_onda\.py ler --sessao b --onda 2/)
-  expect(lista[0]!.sessao!.prompt).toMatch(/estado_onda\.py resolvido --sessao b --onda 2/)
-  expect(lista.find(x => x.rotulo === '#1137')!.sessao!.prompt).toMatch(/gh issue view 1137 --comments[\s\S]*feche/)
-  expect(lista.find(x => x.rotulo === '#1132')!.sessao!.prompt).toMatch(/PR #1150 da issue #1132 está com o CI vermelho/)
-  // a sessão da própria Onda viva: o botão só traz o Claude Agents
-  expect(lista[0]!.sessao!.viva).toBeNull()
-  expect(pedidoDaOnda({ id: 'b-onda2', estado: 'erro', prd: null, texto: null }, ['b-onda2'])!.viva).toBe('b-onda2')
-  // linhagem e número do Estado da Onda valem mais que o nome; nome que não vira comando, sem sessão
-  expect(pedidoDaOnda({ id: 'x-onda9', estado: 'erro', prd: null, texto: null, sessao: 'hsm-x', onda: 9 }, [])!.prompt).toMatch(/--sessao hsm-x --onda 9/)
-  expect(pedidoDaOnda({ id: 'a; rm -rf ~', estado: 'erro', prd: null, texto: null }, [])).toBeNull()
-  // nada pendente: lista vazia, e o painel diz "Nada espera você"
-  expect(precisaDeVoce({ ...c, os: { ...c.os!, prds: [] } })).toEqual([])
 })

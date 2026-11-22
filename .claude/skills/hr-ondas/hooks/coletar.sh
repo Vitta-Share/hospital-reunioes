@@ -11,6 +11,7 @@
 # check-runs de cada PR aberto (REST, não a cota do GraphQL): início e fim do CI ·
 # hooks/historico.py: os sub-agentes de toda sessão recente do Projeto, viva ou não (o tempo de cada etapa
 # da Fatia) · CI de PR já mergeado (cache durável) · docs/spec/deploy/history.json da main: o tempo de cada subida.
+# As Mensagens a enviar não entram: moram no Card de comunicação, na Ala Projetos do PedroOS (#920).
 #
 # Vale para todo Projeto com o Pacote do fluxo: o slug, as migrations e o editor vêm do .claude/fluxo.json,
 # o health do docs/spec/deploy/project.json.
@@ -263,16 +264,6 @@ declarada=$(awk '/^[0-9]+ /{ if ($1+0 > m) m = $1+0 } END { print (m ? m : "null
 [ -n "$declarada" ] || declarada=null
 remoto=$(echo "$remoto" | jq -c --argjson d "$declarada" '.aplicada = ([.aplicada, $d] | map(select(. != null)) | max)')
 
-# Ondas que quebraram ou esperam o humano: o Estado da Onda que a sessão grava
-# (docs/estado-da-onda.md do PedroOS), com o texto do último evento daquele estado
-ESTADOS="${HR_ONDAS_ESTADOS:-$HOME/.pedroos/ondas/$SLUG}"
-ondas_estado=$(cat "$ESTADOS"/*.json 2>/dev/null | jq -s -c '
-  [ .[] | select(.contrato == 1 and (.estado == "erro" or .estado == "pronto-para-voce")) | . as $o
-    | {id: $o.id, estado: $o.estado, prd: $o.prd, sessao: ($o.sessao // null), onda: ($o.onda // null),
-       texto: ([$o.eventos[]? | select(.tipo == $o.estado)] | last | .texto // null),
-       baixas: [$o.issues[]? | select(.status == "baixa") | .numero]} ]' 2>/dev/null)
-[ -n "$ondas_estado" ] || ondas_estado='[]'
-
 # Sub-agentes de toda sessão recente do Projeto, viva ou encerrada, que citam uma issue ou PR do painel
 numeros=$(echo "$remoto" | jq -r '[.os.prds[]?.issues[]?, .os.soltas[]? | .n, .pr] | map(select(. != null)) | unique | join(",")' 2>/dev/null)
 # shellcheck disable=SC2046
@@ -283,10 +274,10 @@ subidas_feitas=$(cat "$CACHE_DIR/subidas-feitas.json" 2>/dev/null); [ -n "$subid
 
 jq -n -c --argjson r "$remoto" --argjson agentes "$agentes" --argjson prdSessoes "$prd_sessoes" \
   --argjson subAgentes "$sub_agentes" --argjson subidas "$subidas" --argjson migs "$migs" \
-  --argjson passagens "$passagens" --argjson ondasEstado "$ondas_estado" \
+  --argjson passagens "$passagens" \
   --argjson historico "$historico" --argjson subidasFeitas "$subidas_feitas" --argjson migracoes "$MIGRACOES" \
   --arg repo "$REPO" \
   '{os: $r.os, osEm: $r.osEm, remotoEm: $r.em, ci: $r.ci, aplicada: $r.aplicada, agentes: $agentes,
     prdSessoes: $prdSessoes, subAgentes: $subAgentes, subidas: $subidas, migrations: $migs, passagens: $passagens,
-    ondasEstado: $ondasEstado, historico: $historico, subidasFeitas: $subidasFeitas, migracoes: $migracoes,
+    historico: $historico, subidasFeitas: $subidasFeitas, migracoes: $migracoes,
     repo: (if $repo == "" then null else $repo end)}'
