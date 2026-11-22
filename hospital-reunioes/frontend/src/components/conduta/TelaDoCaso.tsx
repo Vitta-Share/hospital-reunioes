@@ -16,6 +16,7 @@ import { RotaEspecial } from "@/components/conduta/RotaEspecial";
 import { SinalizarAoNsp } from "@/components/conduta/SinalizarAoNsp";
 import { SugestaoDoAgente } from "@/components/conduta/SugestaoDoAgente";
 import { TrilhaDoCaso } from "@/components/conduta/TrilhaDoCaso";
+import { VerificacaoDeRetaliacao } from "@/components/conduta/VerificacaoDeRetaliacao";
 import { VotoETrava } from "@/components/conduta/VotoETrava";
 import {
   CATEGORIAS,
@@ -355,6 +356,13 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
       <AtaEReuniao casoId={casoId} ata={caso.ata ?? null} reuniao={caso.reuniao ?? null} aoMudar={carregar} />
 
       <MedidaERetorno casoId={casoId} dados={caso.medida_e_retorno ?? null} aoMudar={carregar} />
+
+      <VerificacaoDeRetaliacao
+        casoId={casoId}
+        dados={caso.verificacao_de_retaliacao ?? null}
+        registrando={passo === "registrar_verificacao"}
+        aoMudar={carregar}
+      />
 
       {caso.triagem_em && (
         <section aria-label="Triagem" className={`${CARTAO} px-4 py-4 space-y-1`}>

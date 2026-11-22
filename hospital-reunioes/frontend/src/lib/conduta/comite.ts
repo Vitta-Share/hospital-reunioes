@@ -9,6 +9,7 @@ import type { Afastamento } from "@/lib/conduta/afastamento";
 import type { AtaDoCaso, ReuniaoDoComite } from "@/lib/conduta/ata";
 import type { Depoimento } from "@/lib/conduta/depoimentos";
 import type { TextoDaApuracao } from "@/lib/conduta/relatorio";
+import type { VerificacaoDeRetaliacao } from "@/lib/conduta/retaliacao";
 import type { MedidaERetorno } from "@/lib/conduta/retorno";
 import type { TrilhaDoCaso } from "@/lib/conduta/trilha";
 import type { Trava, Votacao } from "@/lib/conduta/voto";
@@ -144,6 +145,8 @@ export interface CasoAberto extends CasoDaLista {
   pode_registrar_afastamento?: boolean;
   /** A decisão da Direção, o retorno e a correção de processo (issue #1835). */
   medida_e_retorno?: MedidaERetorno | null;
+  /** A verificação de retaliação do caso concluído (issue #1839). */
+  verificacao_de_retaliacao?: VerificacaoDeRetaliacao | null;
   /** A trilha do caso com as gavetas e o Dossiê (issue #1837). */
   trilha?: TrilhaDoCaso | null;
 }
@@ -216,6 +219,7 @@ const ETAPAS: Record<string, string> = {
   medida: "Medida",
   retorno: "Retorno",
   encerrado: "Encerrado",
+  acompanhamento: "Acompanhamento",
 };
 
 export function rotuloDaEtapa(etapa: string | null): string {
