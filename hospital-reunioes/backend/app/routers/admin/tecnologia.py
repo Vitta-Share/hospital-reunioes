@@ -1321,8 +1321,9 @@ async def listar_as_perguntas_esperando(
     supabase: Client = Depends(get_supabase_client),
 ):
     """As Perguntas da Vitta abertas de todos os Projetos, as do logado
-    primeiro e a mais antiga primeiro. Todo Super admin ve a lista inteira."""
-    return tecnologia_perguntas.esperando(supabase, ator_id=str(ator["id"]))
+    primeiro e a mais antiga primeiro. Todo Super admin ve a lista inteira;
+    o cartao diz se quem esta logado pode responder (issue #2145)."""
+    return tecnologia_perguntas.esperando(supabase, ator=ator)
 
 
 # ─── Responder a Pergunta da Vitta (issue #2119, ADR 0109, decisoes 4 e 5) ──

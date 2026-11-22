@@ -264,11 +264,16 @@ def cartoes_da_demanda(
     }
 
 
-def esperando(supabase, *, ator_id: str) -> list[dict[str, Any]]:
+def esperando(supabase, *, ator: dict[str, Any]) -> list[dict[str, Any]]:
     """A lista Esperando sua resposta (issue #2118, ADR 0109, decisao 5): as
     Perguntas abertas de todos os Projetos, cada uma com o cartao e o nome da
-    Demanda. As de que `ator_id` e o Destinatario vem primeiro; em cada grupo,
-    a mais antiga primeiro. A Demanda apagada (lapide) nao entra."""
+    Demanda. As de que `ator` e o Destinatario vem primeiro; em cada grupo,
+    a mais antiga primeiro. A Demanda apagada (lapide) nao entra.
+
+    O cartao da lista diz se `ator` pode responder, pelas mesmas regras da
+    Conversa (issue #2145): o Destinatario responde, o Desenvolvedor registra
+    no lugar dele, outro Super admin so le."""
+    ator_id = str(ator.get("id") or "")
     abertas = ler_tudo(
         lambda: supabase.table(TABELA_PERGUNTAS).select("*").eq("estado", ESTADO_ABERTA).order("criado_em").order("id"),
         rotulo="Perguntas da Vitta abertas",
@@ -284,10 +289,10 @@ def esperando(supabase, *, ator_id: str) -> list[dict[str, Any]]:
     nomes = _nomes(supabase, {str(p.get("destinatario_id") or "") for p in abertas})
     itens = [
         {
-            **_cartao(p, projeto=nome_do_projeto(demanda), nomes=nomes, ator=None),
+            **_cartao(p, projeto=nome_do_projeto(demanda), nomes=nomes, ator=ator),
             "demanda_id": str(demanda["id"]),
             "demanda": str(demanda.get("titulo") or ""),
-            "minha": str(p.get("destinatario_id") or "") == str(ator_id),
+            "minha": str(p.get("destinatario_id") or "") == ator_id,
         }
         for p in abertas
         if (demanda := demandas.get(str(p["demanda_id"])))
