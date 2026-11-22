@@ -35,7 +35,11 @@ export function EsperandoSuaResposta({
   perguntaEmFoco?: string | null;
   agora?: Date;
 }) {
-  const [itens, setItens] = useState<PerguntaEsperando[]>([]);
+  const [itens, setItens] = useState<PerguntaEsperando[] | null>(null);
+  /** Muda para reler a lista. */
+  const [leitura, setLeitura] = useState(0);
+  /** A Pergunta do endereço que a última leitura já cobriu. */
+  const coberta = useRef<string | null>(perguntaEmFoco);
   const emFoco = useRef<HTMLLIElement | null>(null);
 
   useEffect(() => {
@@ -54,7 +58,15 @@ export function EsperandoSuaResposta({
     return () => {
       vivo = false;
     };
-  }, [token]);
+  }, [token, leitura]);
+
+  // Com a aba já aberta, o sino de uma Pergunta que nasceu depois da leitura só
+  // troca o `?pergunta=` (o Next não remonta a página): fora da lista, relê uma vez.
+  useEffect(() => {
+    if (!perguntaEmFoco || perguntaEmFoco === coberta.current || itens === null) return;
+    coberta.current = perguntaEmFoco;
+    if (!itens.some((item) => item.id === perguntaEmFoco)) setLeitura((n) => n + 1);
+  }, [perguntaEmFoco, itens]);
 
   useEffect(() => {
     const alvo = emFoco.current;
@@ -63,7 +75,7 @@ export function EsperandoSuaResposta({
     alvo.focus();
   }, [itens, perguntaEmFoco]);
 
-  if (itens.length === 0) return null;
+  if (!itens || itens.length === 0) return null;
 
   return (
     <section aria-label="Esperando sua resposta" className="min-w-0 space-y-3">

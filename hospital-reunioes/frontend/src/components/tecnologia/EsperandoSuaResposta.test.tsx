@@ -11,7 +11,7 @@
  * ocupa espaço, e o link do aviso põe o cartão em foco.
  */
 
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { EsperandoSuaResposta, URL_DA_LISTA_ESPERANDO } from "./EsperandoSuaResposta";
@@ -66,10 +66,10 @@ function montar(corpo: unknown, { status = 200, perguntaEmFoco = null }: { statu
       return { ok: status < 400, status, json: async () => corpo } as unknown as Response;
     }),
   );
-  const { container } = render(
+  const { container, rerender } = render(
     <EsperandoSuaResposta token="token-de-teste" perguntaEmFoco={perguntaEmFoco} agora={AGORA} />,
   );
-  return { pedidos, container };
+  return { pedidos, container, rerender };
 }
 
 function lista() {
@@ -136,6 +136,44 @@ describe("A lista Esperando sua resposta", () => {
     await waitFor(() => expect(document.activeElement).toBe(segundo));
     expect(rolar).toHaveBeenCalled();
     expect(segundo.getAttribute("aria-current")).toBe("true");
+  });
+
+  it("com a aba aberta, o sino de uma Pergunta que nasceu depois relê a lista e põe o cartão dela em foco", async () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    let respostas: unknown[] = [[]];
+    const pedidos: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        pedidos.push(url);
+        const corpo = respostas[Math.min(pedidos.length - 1, respostas.length - 1)];
+        return { ok: true, status: 200, json: async () => corpo } as unknown as Response;
+      }),
+    );
+    const { rerender } = render(<EsperandoSuaResposta token="token-de-teste" agora={AGORA} />);
+    await waitFor(() => expect(pedidos).toHaveLength(1));
+    expect(screen.queryByRole("region", { name: "Esperando sua resposta" })).toBeNull();
+
+    respostas = [[], [MINHA]];
+    rerender(<EsperandoSuaResposta token="token-de-teste" perguntaEmFoco="p-1" agora={AGORA} />);
+
+    const [item] = within(await lista()).getAllByRole("listitem");
+    expect(pedidos).toHaveLength(2);
+    await waitFor(() => expect(document.activeElement).toBe(item));
+    expect(item.getAttribute("aria-current")).toBe("true");
+  });
+
+  it("o sino de uma Pergunta que já está na lista põe o cartão em foco sem reler", async () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    const { pedidos, rerender } = montar([MINHA, DE_OUTRO]);
+    await lista();
+
+    rerender(<EsperandoSuaResposta token="token-de-teste" perguntaEmFoco="p-2" agora={AGORA} />);
+
+    const [, segundo] = within(await lista()).getAllByRole("listitem");
+    await waitFor(() => expect(document.activeElement).toBe(segundo));
+    await act(() => new Promise((pronto) => setTimeout(pronto, 50)));
+    expect(pedidos).toHaveLength(1);
   });
 
   it("no celular a lista cabe na tela, sem largura fixa que force rolagem lateral", async () => {

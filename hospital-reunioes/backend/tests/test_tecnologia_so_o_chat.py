@@ -54,6 +54,9 @@ ROTAS_DO_CHAT = {
     "/api/admin/tecnologia/chat/{demanda_id}/modelo",
     # As opções do filtro Projeto, com os projetos novos da Vitta (issue #1967).
     "/api/admin/tecnologia/projetos",
+    # A lista Esperando sua resposta, as Perguntas da Vitta abertas de todos
+    # os Projetos (issue #2118, ADR 0109, decisão 5).
+    "/api/admin/tecnologia/perguntas/esperando",
 }
 
 # O que fica de fora da aba e continua de pé (critério 2 da issue).
