@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T06:00+0000 -->
+<!-- last_update: 2026-11-22T13:06+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -73,13 +73,18 @@ erDiagram
     conduta_casos ||--o{ conduta_avisos : "caso_id"
     conduta_casos ||--o{ conduta_ciencias_do_codigo : "caso_id"
     conduta_casos ||--o{ conduta_citados : "caso_id"
+    conduta_casos ||--o{ conduta_comunicacoes_da_medida : "caso_id"
     conduta_casos ||--o{ conduta_contestacoes : "caso_id"
     conduta_casos ||--o{ conduta_contestacoes_de_participacao : "caso_id"
+    conduta_casos ||--o{ conduta_correcoes : "caso_id"
+    conduta_casos ||--o{ conduta_correcoes_sugeridas : "caso_id"
+    conduta_casos ||--o{ conduta_decisoes_da_medida : "caso_id"
     conduta_casos ||--o{ conduta_depoimentos : "caso_id"
     conduta_casos ||--o{ conduta_entregas_do_parecer : "caso_id"
     conduta_casos ||--o{ conduta_notas_nsp : "caso_id"
     conduta_casos ||--o{ conduta_prazos_vencidos : "caso_id"
     conduta_casos ||--o{ conduta_relatorios : "caso_id"
+    conduta_casos ||--o{ conduta_retornos : "caso_id"
     conduta_casos ||--o{ conduta_reuniao_conferencia : "caso_id"
     conduta_casos ||--o{ conduta_reuniao_transcricoes : "caso_id"
     conduta_casos ||--o{ conduta_selos : "caso_id"
@@ -155,17 +160,22 @@ erDiagram
     participantes ||--o{ conduta_atribuicoes : "participante_id"
     participantes ||--o{ conduta_avisos : "participante_id"
     participantes ||--o{ conduta_casos : "direcao_envolvida"
+    participantes ||--o{ conduta_casos : "enviado_a_direcao_em"
     participantes ||--o{ conduta_casos : "escopo"
     participantes ||--o{ conduta_casos : "reuniao_concluida_em"
     participantes ||--o{ conduta_casos : "rodada_do_voto"
     participantes ||--o{ conduta_ciencias_do_codigo : "enviado_por"
     participantes ||--o{ conduta_citados : "participante_id"
     participantes ||--o{ conduta_codigo_versoes : "autor_id"
+    participantes ||--o{ conduta_comunicacoes_da_medida : "enviado_por"
     participantes ||--o{ conduta_configuracoes : "autor_id"
     participantes ||--o{ conduta_contestacao_votos : "participante_id"
     participantes ||--o{ conduta_contestacoes : "autor_id"
     participantes ||--o{ conduta_contestacoes_de_participacao : "autor_id"
     participantes ||--o{ conduta_contestacoes_de_participacao : "contestado_id"
+    participantes ||--o{ conduta_correcoes : "escolhida_por"
+    participantes ||--o{ conduta_correcoes_sugeridas : "autor_id"
+    participantes ||--o{ conduta_decisoes_da_medida : "registrada_por"
     participantes ||--o{ conduta_depoimento_arquivos : "enviado_por"
     participantes ||--o{ conduta_depoimento_conferencia : "marcado_por"
     participantes ||--o{ conduta_depoimentos : "concluido_por"
@@ -178,6 +188,7 @@ erDiagram
     participantes ||--o{ conduta_registro : "autor_id"
     participantes ||--o{ conduta_registro : "ganhou"
     participantes ||--o{ conduta_relatorios : "autor_id"
+    participantes ||--o{ conduta_retornos : "autor_id"
     participantes ||--o{ conduta_reuniao_conferencia : "marcado_por"
     participantes ||--o{ conduta_reuniao_transcricoes : "enviado_por"
     participantes ||--o{ conduta_sugestao_respostas : "autor_id"
@@ -1389,7 +1400,7 @@ erDiagram
         TEXT categoria
         TIMESTAMPTZ recebido_em
         DATE prazo_em
-        _ mais_colunas "+7"
+        _ mais_colunas "+8"
     }
     conduta_atribuicoes {
         UUID id PK
@@ -1853,6 +1864,52 @@ erDiagram
         VARCHAR marcado_por FK
         TIMESTAMPTZ marcado_em
     }
+    conduta_retornos {
+        UUID id PK
+        UUID caso_id FK
+        INTEGER versao
+        TEXT denunciante_cifrado
+        TEXT acusado_cifrado
+        TEXT origem
+        VARCHAR autor_id FK
+        TIMESTAMPTZ criado_em
+    }
+    conduta_decisoes_da_medida {
+        UUID id PK
+        UUID caso_id FK
+        TEXT decisao
+        TEXT justificativa_cifrada
+        DATE decidida_em
+        VARCHAR registrada_por FK
+        TIMESTAMPTZ registrada_em
+    }
+    conduta_comunicacoes_da_medida {
+        UUID id PK
+        UUID caso_id FK
+        INTEGER versao
+        TEXT storage_path
+        TEXT content_type
+        BIGINT tamanho_bytes
+        VARCHAR enviado_por FK
+        TIMESTAMPTZ enviado_em
+    }
+    conduta_correcoes_sugeridas {
+        UUID id PK
+        UUID caso_id FK
+        INTEGER versao
+        TEXT itens_cifrado
+        VARCHAR autor_id FK
+        TIMESTAMPTZ criado_em
+    }
+    conduta_correcoes {
+        UUID id PK
+        UUID caso_id FK
+        TEXT texto_cifrado
+        TEXT responsavel_cifrado
+        DATE prazo_em
+        VARCHAR escolhida_por FK
+        TIMESTAMPTZ escolhida_em
+    }
 ```
 
 ## Indexes principais
@@ -2076,6 +2133,9 @@ erDiagram
 | `conduta_casos` | `idx_conduta_casos_desviado_por` | `desviado_por` | `214_conduta_rota_especial.sql` |
 | `conduta_casos` | `idx_conduta_casos_votacao_concluida_por` | `votacao_concluida_por` | `216_conduta_voto_e_trava_de_robustez.sql` |
 | `conduta_casos` | `idx_conduta_casos_reuniao_concluida_por` | `reuniao_concluida_por` | `221_conduta_ata_de_deliberacao.sql` |
+| `conduta_casos` | `idx_conduta_casos_enviado_a_direcao_por` | `enviado_a_direcao_por` | `223_conduta_recomendacao_medida_e_retorno.sql` |
+| `conduta_casos` | `idx_conduta_casos_retorno_aprovado_id` | `retorno_aprovado_id` | `223_conduta_recomendacao_medida_e_retorno.sql` |
+| `conduta_casos` | `idx_conduta_casos_retorno_aprovado_por` | `retorno_aprovado_por` | `223_conduta_recomendacao_medida_e_retorno.sql` |
 | `conduta_atribuicoes` | `idx_conduta_atribuicoes_pessoa` | `participante_id, caso_id` | `175_conduta_fundacao.sql` |
 | `conduta_atribuicoes` | `idx_conduta_atribuicoes_caso` | `caso_id` | `175_conduta_fundacao.sql` |
 | `conduta_atribuicoes` | `idx_conduta_atribuicoes_substitui` | `substitui_id` | `191_conduta_impedimento_e_citado.sql` |
@@ -2155,6 +2215,12 @@ erDiagram
 | `conduta_atas` | `idx_conduta_atas_autor` | `autor_id` | `221_conduta_ata_de_deliberacao.sql` |
 | `conduta_reuniao_transcricoes` | `idx_conduta_reuniao_transcricoes_enviado_por` | `enviado_por` | `221_conduta_ata_de_deliberacao.sql` |
 | `conduta_reuniao_conferencia` | `idx_conduta_reuniao_conferencia_marcado_por` | `marcado_por` | `221_conduta_ata_de_deliberacao.sql` |
+| `conduta_retornos` | `idx_conduta_retornos_autor` | `autor_id` | `223_conduta_recomendacao_medida_e_retorno.sql` |
+| `conduta_decisoes_da_medida` | `idx_conduta_decisoes_da_medida_registrada_por` | `registrada_por` | `223_conduta_recomendacao_medida_e_retorno.sql` |
+| `conduta_comunicacoes_da_medida` | `idx_conduta_comunicacoes_da_medida_enviado_por` | `enviado_por` | `223_conduta_recomendacao_medida_e_retorno.sql` |
+| `conduta_correcoes_sugeridas` | `idx_conduta_correcoes_sugeridas_autor` | `autor_id` | `223_conduta_recomendacao_medida_e_retorno.sql` |
+| `conduta_correcoes` | `idx_conduta_correcoes_caso` | `caso_id` | `223_conduta_recomendacao_medida_e_retorno.sql` |
+| `conduta_correcoes` | `idx_conduta_correcoes_escolhida_por` | `escolhida_por` | `223_conduta_recomendacao_medida_e_retorno.sql` |
 
 ---
-**Resumo:** 170 tabelas · 282 relacionamentos FK detectados.
+**Resumo:** 175 tabelas · 293 relacionamentos FK detectados.
