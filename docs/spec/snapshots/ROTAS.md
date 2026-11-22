@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T03:27+0000 -->
+<!-- last_update: 2026-11-22T03:37+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -163,6 +163,17 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/comite-de-conduta/casos/{caso_id}/desvio-especial` | Confirmar desvio | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/entrega-do-parecer` | Registrar entrega | ✅ |
 | GET | `/comite-de-conduta/rota-especial/contagem` | Casos da Rota Especial recebidos, concluídos e em aberto. Nada além. | ✅ |
+
+## canal-de-conduta (`app/routers/conduta_voto.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| POST | `/comite-de-conduta/casos/{caso_id}/conclusao-da-votacao` | CONCLUIR VOTAÇÃO: o resultado da maioria, e o caso vai à Ata. | ✅ |
+| GET | `/comite-de-conduta/casos/{caso_id}/trava/ciencia` | A ciência decifrada, entregue pelo backend, sem cache. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/trava/ciencia` | A ciência do Código que o DP registrou fora do aplicativo. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/trava/confirmacao` | Confirmar item da trava | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/trava/preenchimento` | PREENCHER TRAVA: o agente preenche a lista. Roda no executor da IA | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/voto` | VOTAR: o voto do membro, oculto até todos votarem. | ✅ |
 
 ## conector-mcp (`app/routers/conector_mcp.py`)
 
@@ -849,4 +860,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 493 endpoints em 70 routers · 93% exigem auth.
+**Totais:** 499 endpoints em 71 routers · 93% exigem auth.

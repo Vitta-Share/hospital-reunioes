@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T03:27+0000 -->
+<!-- last_update: 2026-11-22T03:37+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2391,7 +2391,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## conduta_casos
 
-> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql, 202_conduta_sinalizacao_da_ouvidoria.sql, 214_conduta_rota_especial.sql)
+> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql, 202_conduta_sinalizacao_da_ouvidoria.sql, 214_conduta_rota_especial.sql, 216_conduta_voto_e_trava_de_robustez.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2409,6 +2409,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `escopo` | `TEXT` | — | — | `participantes.id` |
 | `origem` | `TEXT` | NOT NULL | — | `ouvidoria_protocolos.id` |
 | `direcao_envolvida` | `TEXT` | NOT NULL | — | `participantes.id` |
+| `rodada_do_voto` | `INTEGER` | NOT NULL | — | `participantes.id` |
 
 **Indexes:**
 - `idx_conduta_casos_rota_etapa` em `(rota, etapa, recebido_em DESC)` (de `175_conduta_fundacao.sql`)
@@ -2418,6 +2419,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_conduta_casos_abertos_prazo` em `(prazo_em)` (de `199_conduta_avisos_por_email.sql`)
 - `uq_conduta_casos_manifestacao` em `(manifestacao_id)` (de `202_conduta_sinalizacao_da_ouvidoria.sql`)
 - `idx_conduta_casos_desviado_por` em `(desviado_por)` (de `214_conduta_rota_especial.sql`)
+- `idx_conduta_casos_votacao_concluida_por` em `(votacao_concluida_por)` (de `216_conduta_voto_e_trava_de_robustez.sql`)
 
 ## conduta_atribuicoes
 
@@ -3212,6 +3214,71 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_conduta_entregas_do_parecer_autor` em `(autor_id)` (de `214_conduta_rota_especial.sql`)
 
+## conduta_votos
+
+> Origem: `216_conduta_voto_e_trava_de_robustez.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `rodada` | `INTEGER` | NOT NULL | — | — |
+| `participante_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `voto_cifrado` | `TEXT` | NOT NULL | — | — |
+| `votado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_votos_participante` em `(participante_id)` (de `216_conduta_voto_e_trava_de_robustez.sql`)
+
+## conduta_trava_preenchimentos
+
+> Origem: `216_conduta_voto_e_trava_de_robustez.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `versao` | `INTEGER` | NOT NULL | — | — |
+| `itens_cifrado` | `TEXT` | NOT NULL | — | — |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_trava_preenchimentos_autor` em `(autor_id)` (de `216_conduta_voto_e_trava_de_robustez.sql`)
+
+## conduta_trava_confirmacoes
+
+> Origem: `216_conduta_voto_e_trava_de_robustez.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `item` | `TEXT` | NOT NULL | — | — |
+| `participante_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `confirmado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_trava_confirmacoes_participante` em `(participante_id)` (de `216_conduta_voto_e_trava_de_robustez.sql`)
+
+## conduta_ciencias_do_codigo
+
+> Origem: `216_conduta_voto_e_trava_de_robustez.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `versao` | `INTEGER` | NOT NULL | — | — |
+| `storage_path` | `TEXT` | NOT NULL | — | — |
+| `content_type` | `TEXT` | NOT NULL | — | — |
+| `tamanho_bytes` | `BIGINT` | NOT NULL | — | — |
+| `enviado_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `enviado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_ciencias_do_codigo_enviado_por` em `(enviado_por)` (de `216_conduta_voto_e_trava_de_robustez.sql`)
+
 ---
 
-**Resumo:** 161 tabelas vivas.
+**Resumo:** 165 tabelas vivas.

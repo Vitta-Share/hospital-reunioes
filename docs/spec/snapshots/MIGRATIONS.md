@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T03:27+0000 -->
+<!-- last_update: 2026-11-22T03:37+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -207,6 +207,7 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 213 | `213_conduta_relatorio_de_apuracao.sql` | Canal de Conduta, o relatório de apuração e o envio para voto | 1 | 1 | 2 | 0 |
 | 214 | `214_conduta_rota_especial.sql` | Canal de Conduta, a Rota Especial | 2 | 1 | 2 | 0 |
 | 215 | `215_conduta_termo_de_declaracao.sql` | Canal de Conduta, o termo de declaração redigido pelo agente | 0 | 2 | 2 | 0 |
+| 216 | `216_conduta_voto_e_trava_de_robustez.sql` | Canal de Conduta, o voto e a trava de robustez | 4 | 1 | 5 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 201 migrations.
+**Total:** 202 migrations.
