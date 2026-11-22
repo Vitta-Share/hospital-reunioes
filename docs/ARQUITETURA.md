@@ -68,7 +68,7 @@ sequenceDiagram
 ## 3. Rotas (API) (auto)
 
 <!-- AUTO:rotas:start -->
-**551 endpoints** em 30 áreas:
+**552 endpoints** em 30 áreas:
 
 | Área | Endpoints |
 |---|---|
@@ -78,7 +78,7 @@ sequenceDiagram
 | `auth` | 1 |
 | `automacao` | 11 |
 | `canal-de-conduta` | 95 |
-| `canal-de-conduta-publico` | 9 |
+| `canal-de-conduta-publico` | 10 |
 | `comentarios` | 4 |
 | `conector-mcp` | 2 |
 | `configuracoes` | 2 |
