@@ -11,6 +11,7 @@ import { ConvidarAoCaso } from "@/components/conduta/ConvidarAoCaso";
 import { DepoimentosDaApuracao } from "@/components/conduta/DepoimentosDaApuracao";
 import { ImpedimentoECitados } from "@/components/conduta/ImpedimentoECitados";
 import { MedidaERetorno } from "@/components/conduta/MedidaERetorno";
+import { MensagensDoCaso } from "@/components/conduta/MensagensDoCaso";
 import { OQueFazerAgora } from "@/components/conduta/OQueFazerAgora";
 import { RelatorioDaApuracao } from "@/components/conduta/RelatorioDaApuracao";
 import { RotaEspecial } from "@/components/conduta/RotaEspecial";
@@ -459,6 +460,8 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
         <p className="text-sm text-slate-800 whitespace-pre-line break-words">{caso.relato}</p>
         <AnexosDoRelato casoId={casoId} anexos={caso.anexos ?? []} />
       </section>
+
+      <MensagensDoCaso casoId={casoId} dados={caso.mensagens ?? null} aoMudar={carregar} />
 
       <TrilhaDoCaso casoId={casoId} protocolo={caso.protocolo} trilha={caso.trilha ?? null} />
     </div>
