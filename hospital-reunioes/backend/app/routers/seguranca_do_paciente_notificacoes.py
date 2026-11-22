@@ -35,6 +35,7 @@ from starlette.datastructures import UploadFile
 from supabase import Client
 
 from app.dependencies import (
+    RECUSA_DO_NSP,
     barrar_desligado,
     get_current_user,
     get_participante_for_user,
@@ -44,8 +45,15 @@ from app.dependencies import (
 from app.limiter import limiter
 from app.services import limite_sem_ip, ouvidoria_nucleo
 from app.services.ouvidoria_anexos import AnexoGrandeDemaisError, AnexoRecusadoError, TipoNaoPermitidoError
-from app.services.seguranca_do_paciente import agente_de_triagem, anexos, caso_grave, esclarecimentos, notificacoes
-from app.services.seguranca_do_paciente.permissao import hoje_em_sao_paulo
+from app.services.seguranca_do_paciente import (
+    agente_de_triagem,
+    anexos,
+    caso_grave,
+    esclarecimentos,
+    notificacoes,
+    triagem,
+)
+from app.services.seguranca_do_paciente.permissao import FAIXAS_DA_DIRETORIA, hoje_em_sao_paulo
 
 logger = logging.getLogger(__name__)
 
@@ -492,11 +500,20 @@ async def responder_as_perguntas(
 @limite_sem_ip.limitar("60/minute")
 async def lista_de_casos(
     request: Request,
-    me: dict = Depends(require_recurso_nsp("casos")),
+    me: dict = Depends(require_recurso_nsp("casos", "casos_graves")),
     supabase: Client = Depends(get_supabase_client),
 ) -> dict:
     """Notificações: todos os casos, para quem tem o recurso de casos. Quem
-    notificou só para a Presidência e o Acesso pleno."""
+    notificou só para a Presidência e o Acesso pleno. A Diretoria lê só os
+    casos das faixas A e B, sem quem notificou e sem os anexos (issue #1999)."""
+    if not _abre_todos_os_casos(me):
+        casos = notificacoes.listar(supabase, com_identidade=False)
+        faixas = triagem.faixas_vigentes(supabase, [caso["id"] for caso in casos])
+        return {
+            "notificacoes": [
+                {**caso, "anexos": []} for caso in casos if faixas.get(caso["id"]) in FAIXAS_DA_DIRETORIA
+            ]
+        }
     com_identidade = "identidade_notificante" in me["recursos_nsp"]
     casos = notificacoes.listar(supabase, com_identidade=com_identidade)
     por_caso = anexos.anexos_dos_casos(supabase, [caso["id"] for caso in casos])
@@ -547,15 +564,21 @@ def agora_utc() -> datetime:
 async def caso_do_nucleo(
     request: Request,
     caso_id: UUID,
-    me: dict = Depends(require_recurso_nsp("casos")),
+    me: dict = Depends(require_recurso_nsp("casos", "casos_graves")),
     supabase: Client = Depends(get_supabase_client),
 ) -> dict:
     """Um caso do Núcleo. O caso que veio da Ouvidoria traz o que ela apurou
     e o estado da manifestação, e abri-lo é o Recebido do Núcleo na
     Ouvidoria (issue #1997, ADR 0107 decisão 7): o e-mail de ciência traz o
-    endereço desta tela, que pede login."""
+    endereço desta tela, que pede login.
+
+    A Diretoria abre só o caso das faixas A e B, sem quem notificou, e a
+    leitura dela não marca o Recebido, que é do Núcleo (issue #1999)."""
+    todos = _abre_todos_os_casos(me)
     com_identidade = "identidade_notificante" in me["recursos_nsp"]
     try:
+        if not todos and triagem.faixas_vigentes(supabase, [str(caso_id)]).get(str(caso_id)) not in FAIXAS_DA_DIRETORIA:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=RECUSA_DO_NSP)
         caso = notificacoes.abrir(supabase, str(caso_id), com_identidade=com_identidade)
     except (APIError, httpx.HTTPError) as erro:
         logger.error("Falha ao abrir o caso do Núcleo: %s", type(erro).__name__)
@@ -565,9 +588,15 @@ async def caso_do_nucleo(
         ) from erro
     if caso is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Caso não encontrado.")
-    if caso.get("origem") == notificacoes.ORIGEM_OUVIDORIA:
+    if todos and caso.get("origem") == notificacoes.ORIGEM_OUVIDORIA:
         _marcar_o_recebido_na_ouvidoria(supabase, str(caso_id), me)
     return caso
+
+
+def _abre_todos_os_casos(me: dict) -> bool:
+    """Quem tem o recurso de casos lê todos; quem só tem o dos casos graves
+    (a Diretoria) lê os das faixas A e B."""
+    return "casos" in me["recursos_nsp"]
 
 
 def _marcar_o_recebido_na_ouvidoria(supabase, caso_id: str, me: dict) -> None:

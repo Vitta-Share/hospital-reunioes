@@ -637,10 +637,12 @@ def test_a_lista_traz_todos_os_casos_alem_de_uma_pagina(monkeypatch):
 
 @pytest.mark.parametrize(
     "pessoa",
-    [SUPER_ADMIN, SO_REUNIOES, DIRETOR],
-    ids=["super admin sem Acesso pleno", "só nas Reuniões", "diretoria"],
+    [SUPER_ADMIN, SO_REUNIOES],
+    ids=["super admin sem Acesso pleno", "só nas Reuniões"],
 )
 def test_quem_nao_tem_o_recurso_de_casos_recebe_recusa(pessoa):
+    """A Diretoria lê os casos das faixas A e B (issue #1999): o teste dela
+    mora em test_seguranca_do_paciente_suplente_em_exercicio."""
     resposta = _cliente(_com_duas_notificacoes(), pessoa).get(LISTA)
 
     assert resposta.status_code == 403

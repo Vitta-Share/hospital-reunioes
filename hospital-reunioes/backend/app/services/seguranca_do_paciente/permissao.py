@@ -86,6 +86,9 @@ RECURSOS_NSP = (
     "ausencia_da_presidencia",
 )
 
+# As faixas dos casos que a Diretoria lê (ADR 0107, decisão 5).
+FAIXAS_DA_DIRETORIA = frozenset({"A", "B"})
+
 # Membro sem Termo válido vê painel, calendário e agenda (glossário, "Membro do
 # Núcleo"), e nada sobre casos, investigações ou atas.
 _SEM_TERMO = frozenset({"ver_modulo", "painel", "calendario", "agenda"})
@@ -163,4 +166,46 @@ def situacao_da_pessoa(
         termo_valido=termo,
         diretoria=participante.get("role") in ROLES_DA_DIRETORIA,
         super_admin=super_admin,
+        em_exercicio=papel == "suplente" and termo and suplente_em_exercicio(supabase, participante["id"], hoje),
     )
+
+
+def suplente_em_exercicio(supabase, participante_id: str, hoje: date) -> bool:
+    """Se hoje cai numa ausência da Presidência registrada na Participação
+    vigente de suplente da pessoa (ADR 0107, decisão 4).
+
+    Ausência ilegível (a tabela que ainda não existe entre o deploy e a
+    migration 212, ou o PostgREST fora do ar) vale como "fora do período": o
+    suplente segue membro.
+    """
+    try:
+        nucleo_id = id_do_nucleo(supabase)
+        if not nucleo_id:
+            return False
+        suplencias = [
+            linha["id"]
+            for linha in (
+                participacoes_vigentes(supabase, nucleo_id, hoje)
+                .eq("participante_id", participante_id)
+                .eq("papel", "suplente")
+                .execute()
+                .data
+            )
+            or []
+        ]
+        if not suplencias:
+            return False
+        no_periodo = (
+            supabase.table("nsp_ausencias_da_presidencia")
+            .select("id")
+            .in_("participacao_id", suplencias)
+            .lte("inicio", hoje.isoformat())
+            .gte("fim", hoje.isoformat())
+            .limit(1)
+            .execute()
+            .data
+        )
+    except (APIError, httpx.HTTPError) as erro:
+        logger.warning("Ausência da Presidência ilegível; o suplente segue membro: %s", type(erro).__name__)
+        return False
+    return bool(no_periodo)

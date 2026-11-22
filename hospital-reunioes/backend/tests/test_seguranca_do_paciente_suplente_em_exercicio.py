@@ -42,6 +42,7 @@ from test_seguranca_do_paciente_notificacoes import (  # noqa: E402
     PRESIDENTE,
     SETOR,
     _pessoa,
+    _secao_do_kit,
 )
 from test_seguranca_do_paciente_triagem import (  # noqa: E402
     GRAVE,
@@ -220,6 +221,214 @@ def test_quem_nao_e_presidencia_nem_acesso_pleno_nao_registra_a_ausencia(pessoa,
     assert resposta.json() == RECUSA
     assert len(banco.tabelas["nsp_ausencias_da_presidencia"]) == len(ausencias)
     assert banco.tabelas["participacoes_trilha"] == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. O suplente dentro e fora do período
+# ═══════════════════════════════════════════════════════════════════════════
+
+CASO = _notificacao(1)
+NO_PERIODO = (_ausencia(HOJE - timedelta(days=2), HOJE + timedelta(days=2)),)
+FORA_DO_PERIODO = {
+    "sem ausência": (),
+    "ausência que já acabou": (_ausencia(HOJE - timedelta(days=10), HOJE - timedelta(days=1)),),
+    "ausência que ainda não começou": (_ausencia(HOJE + timedelta(days=1), HOJE + timedelta(days=10)),),
+}
+
+
+def _com_um_caso(ausencias) -> _BancoDaTriagem:
+    return _banco([CASO], [_sugestao(CASO, **SEM_DANO)], ausencias)
+
+
+def test_dentro_do_periodo_o_suplente_confirma_a_triagem():
+    banco = _com_um_caso(NO_PERIODO)
+
+    resposta = _cliente(banco, SUPLENTE).post(f"/api/nsp/triagem/{CASO['id']}", json={"conferidos": []})
+
+    assert resposta.status_code == 201, resposta.text
+    [decisao] = [t for t in banco.triagens if t["autor_tipo"] == "pessoa"]
+    assert decisao["autor_id"] == "P7"
+
+
+def test_dentro_do_periodo_o_suplente_ve_quem_notificou():
+    banco = _com_um_caso(NO_PERIODO)
+
+    resposta = _cliente(banco, SUPLENTE).get("/api/nsp/notificacoes")
+
+    assert resposta.status_code == 200, resposta.text
+    [caso] = resposta.json()["notificacoes"]
+    assert caso["notificante"] == {"nome": "Profissional Notificante", "contato": "notificante@hsm.test"}
+
+
+@pytest.mark.parametrize("ausencias", FORA_DO_PERIODO.values(), ids=FORA_DO_PERIODO.keys())
+def test_fora_do_periodo_o_suplente_nao_confirma_a_triagem(ausencias):
+    banco = _com_um_caso(ausencias)
+
+    resposta = _cliente(banco, SUPLENTE).post(f"/api/nsp/triagem/{CASO['id']}", json={"conferidos": []})
+
+    assert resposta.status_code == 403
+    assert resposta.json() == RECUSA
+    assert [t for t in banco.triagens if t["autor_tipo"] == "pessoa"] == []
+
+
+@pytest.mark.parametrize("ausencias", FORA_DO_PERIODO.values(), ids=FORA_DO_PERIODO.keys())
+def test_fora_do_periodo_o_suplente_nao_ve_quem_notificou(ausencias):
+    banco = _com_um_caso(ausencias)
+    cliente = _cliente(banco, SUPLENTE)
+
+    lista = cliente.get("/api/nsp/notificacoes")
+    tela = cliente.get(f"/api/nsp/triagem/{CASO['id']}")
+
+    assert lista.status_code == 200, lista.text
+    assert "notificante" not in lista.json()["notificacoes"][0]
+    assert "Profissional Notificante" not in lista.text
+    assert tela.status_code == 403
+    assert tela.json() == RECUSA
+
+
+def test_a_ausencia_de_outro_suplente_nao_poe_este_em_exercicio():
+    """A ausência vale para a Participação em que foi registrada."""
+    banco = _com_um_caso(({**NO_PERIODO[0], "participacao_id": "part-P2"},))
+
+    resposta = _cliente(banco, SUPLENTE).post(f"/api/nsp/triagem/{CASO['id']}", json={"conferidos": []})
+
+    assert resposta.status_code == 403
+    assert resposta.json() == RECUSA
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. A Diretoria nos casos das faixas A e B
+# ═══════════════════════════════════════════════════════════════════════════
+
+CASO_A, CASO_B, CASO_C, CASO_D, CASO_E = (_notificacao(n) for n in range(1, 6))
+# Confirmado como B depois de o agente sugerir D: vale a decisão.
+CASO_DECIDIDO_B = _notificacao(6)
+# Sugerido B e confirmado como C: vale a decisão, e a Diretoria não lê.
+CASO_DECIDIDO_C = _notificacao(7)
+SEM_TRIAGEM = _notificacao(8, classificar_manualmente=True, motivo_classificar_manualmente="agente_fora")
+DA_OUVIDORIA = _notificacao(9, origem="ouvidoria", manifestacao_id="man-1", notificante_nome=None)
+
+
+def _decisao_da_pessoa(notificacao: dict, **campos) -> dict:
+    return {**_sugestao(notificacao, versao=2, **campos), "autor_tipo": "pessoa", "autor_id": "P1", "divergencias": []}
+
+
+def _com_as_faixas() -> _BancoDaTriagem:
+    banco = _banco(
+        [CASO_A, CASO_B, CASO_C, CASO_D, CASO_E, CASO_DECIDIDO_B, CASO_DECIDIDO_C, SEM_TRIAGEM, DA_OUVIDORIA],
+        [
+            _sugestao(CASO_A, **OBITO),
+            _sugestao(CASO_B, **GRAVE),
+            _sugestao(CASO_C, **MODERADO),
+            _sugestao(CASO_D, **SEM_DANO),
+            _sugestao(CASO_E, **QUASE_ERRO),
+            _sugestao(CASO_DECIDIDO_B, **SEM_DANO),
+            _decisao_da_pessoa(CASO_DECIDIDO_B, **GRAVE),
+            _sugestao(CASO_DECIDIDO_C, **GRAVE),
+            _decisao_da_pessoa(CASO_DECIDIDO_C, **MODERADO),
+            _sugestao(DA_OUVIDORIA, **OBITO),
+        ],
+    )
+    banco.tabelas["ouvidoria_protocolos"] = [{"id": "man-1", "status": "em_analise"}]
+    return banco
+
+
+def test_a_diretoria_le_so_os_casos_das_faixas_a_e_b():
+    resposta = _cliente(_com_as_faixas(), DIRETOR).get("/api/nsp/notificacoes")
+
+    assert resposta.status_code == 200, resposta.text
+    protocolos = sorted(c["protocolo"] for c in resposta.json()["notificacoes"])
+    assert protocolos == ["NSP-2026-0001", "NSP-2026-0002", "NSP-2026-0006", "NSP-2026-0009"]
+
+
+def test_a_diretoria_le_os_casos_sem_quem_notificou():
+    resposta = _cliente(_com_as_faixas(), DIRETOR).get("/api/nsp/notificacoes")
+
+    assert resposta.status_code == 200, resposta.text
+    for caso in resposta.json()["notificacoes"]:
+        assert "notificante" not in caso
+        assert "anonimo" not in caso
+    assert "Profissional Notificante" not in resposta.text
+    assert "notificante@hsm.test" not in resposta.text
+
+
+@pytest.mark.parametrize("caso", [CASO_A, CASO_B, CASO_DECIDIDO_B], ids=["A", "B", "confirmado B"])
+def test_a_diretoria_abre_o_caso_a_ou_b_sem_quem_notificou(caso):
+    resposta = _cliente(_com_as_faixas(), DIRETOR).get(f"/api/nsp/notificacoes/{caso['id']}")
+
+    assert resposta.status_code == 200, resposta.text
+    assert resposta.json()["protocolo"] == caso["protocolo"]
+    assert "notificante" not in resposta.json()
+    assert "Profissional Notificante" not in resposta.text
+
+
+@pytest.mark.parametrize(
+    "caso",
+    [CASO_C, CASO_D, CASO_E, CASO_DECIDIDO_C, SEM_TRIAGEM],
+    ids=["C", "D", "E", "sugerido B e confirmado C", "sem triagem"],
+)
+def test_a_diretoria_nao_abre_o_caso_fora_das_faixas_a_e_b(caso):
+    resposta = _cliente(_com_as_faixas(), DIRETOR).get(f"/api/nsp/notificacoes/{caso['id']}")
+
+    assert resposta.status_code == 403
+    assert resposta.json() == RECUSA
+    assert caso["relato"] not in resposta.text
+
+
+def test_a_diretoria_abre_o_caso_da_ouvidoria_sem_marcar_o_recebido():
+    """O Recebido é do Núcleo: a leitura da Diretoria não escreve nada."""
+    banco = _com_as_faixas()
+
+    resposta = _cliente(banco, DIRETOR).get(f"/api/nsp/notificacoes/{DA_OUVIDORIA['id']}")
+
+    assert resposta.status_code == 200, resposta.text
+    assert banco.escritas == []
+
+
+EDICOES = [
+    ("post", "/api/nsp/notificacoes/registro-rapido", {"relato": "Teste", "setor_id": SETOR["id"]}),
+    ("post", f"/api/nsp/triagem/{CASO_A['id']}", {"conferidos": []}),
+    ("get", f"/api/nsp/triagem/{CASO_A['id']}", None),
+    ("get", f"/api/nsp/notificacoes/{CASO_A['id']}/anexos/00000000-0000-0000-0000-00000000000a", None),
+    ("patch", "/api/nsp/membros/part-P2", {"area": "UTI"}),
+]
+
+
+@pytest.mark.parametrize(("metodo", "caminho", "corpo"), EDICOES, ids=[f"{m} {c}" for m, c, _ in EDICOES])
+def test_a_diretoria_nao_edita_nem_tria(metodo, caminho, corpo):
+    banco = _com_as_faixas()
+    cliente = _cliente(banco, DIRETOR)
+
+    resposta = cliente.request(metodo.upper(), caminho, json=corpo)
+
+    assert resposta.status_code == 403
+    assert resposta.json() == RECUSA
+    assert banco.escritas == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. O texto do Produto no Kit de conhecimento
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestKitDeConhecimento:
+    def test_quem_ve_diz_o_suplente_em_exercicio_e_a_diretoria_nos_casos_graves(self):
+        secao = _secao_do_kit("Quem vê")
+        assert "**Suplente em exercício**" in secao
+        assert "período de ausência da Presidência" in secao
+        assert "Fora do período, volta a ser membro e não vê quem notificou" in secao
+        assert "casos das faixas A e B, sem quem notificou e sem editar nada" in secao
+        assert "- **Diretoria**: painel, calendário, agenda e a composição do Núcleo;" not in secao
+
+    def test_membros_diz_como_registrar_a_ausencia(self):
+        secao = _secao_do_kit("Membros e estados")
+        assert "**ausência da Presidência**" in secao
+        assert "Os dois dias são obrigatórios" in secao
+        assert "O suplente em exercício não registra a ausência" in secao
+
+    def test_o_que_ja_esta_no_ar_diz_o_que_a_diretoria_le_em_notificacoes(self):
+        secao = _secao_do_kit("O que já está no ar")
+        assert "a Diretoria também abre **Notificações**, mas só com os casos graves, das faixas A e B" in secao
 
 
 class TestMigration:
