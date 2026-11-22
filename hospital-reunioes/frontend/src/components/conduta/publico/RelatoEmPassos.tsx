@@ -14,14 +14,19 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, Copy, Loader2, ShieldCheck } from "lucide-react";
 import {
+  ACEITOS,
   ASSUNTOS,
+  AVISO_DOS_ANEXOS,
   AVISOS_DO_PASSO_1,
   AVISOS_PADRAO,
   FalhaDoEnvio,
   LIMITE_DO_RELATO,
   LINHA_DA_IA,
+  MAXIMO_DE_ANEXOS,
   RASCUNHO_VAZIO,
+  conferirAnexo,
   dataLegivel,
+  enviarAnexo,
   enviarConfianca,
   enviarRelato,
   lerAvisos,
@@ -148,6 +153,81 @@ function CampoDeTexto({
   );
 }
 
+/** Os anexos do passo 4 (issue #1844). O arquivo fora da lista nem entra na
+ * lista: o relato segue sem ele. O nome aparece só aqui, no aparelho. */
+function Anexos({ arquivos, aoMudar }: { arquivos: File[]; aoMudar: (arquivos: File[]) => void }) {
+  const [recusas, setRecusas] = useState<string[]>([]);
+
+  function escolher(escolhidos: FileList | null) {
+    const novos: File[] = [];
+    const recusados: string[] = [];
+    for (const arquivo of Array.from(escolhidos ?? [])) {
+      const motivo =
+        arquivos.length + novos.length >= MAXIMO_DE_ANEXOS
+          ? `O relato aceita até ${MAXIMO_DE_ANEXOS} anexos.`
+          : conferirAnexo(arquivo);
+      if (motivo) recusados.push(`${arquivo.name}: ${motivo}`);
+      else novos.push(arquivo);
+    }
+    setRecusas(recusados);
+    aoMudar([...arquivos, ...novos]);
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor="anexos" className={ROTULO}>
+        Anexos
+        <Opcional />
+      </label>
+      <p id="anexos-tipos" className="text-sm text-slate-500">
+        Foto (JPG, PNG ou WEBP), PDF ou áudio (MP3, M4A, OGG ou WAV).
+      </p>
+      <p id="anexos-aviso" className="text-sm text-slate-500">
+        {AVISO_DOS_ANEXOS}
+      </p>
+      <input
+        id="anexos"
+        type="file"
+        multiple
+        accept={ACEITOS}
+        aria-describedby="anexos-tipos anexos-aviso"
+        className="block w-full min-h-[44px] text-base text-slate-700"
+        onChange={(e) => {
+          escolher(e.target.files);
+          e.target.value = "";
+        }}
+      />
+      {recusas.length > 0 && (
+        <div role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800 space-y-1">
+          {recusas.map((recusa) => (
+            <p key={recusa}>{recusa}</p>
+          ))}
+        </div>
+      )}
+      {arquivos.length > 0 && (
+        <ul aria-label="Arquivos anexados" className="space-y-2">
+          {arquivos.map((arquivo, indice) => (
+            <li
+              key={`${indice}-${arquivo.name}`}
+              className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-4 py-2 text-base text-slate-800"
+            >
+              <span className="break-all normal-case">{arquivo.name}</span>
+              <button
+                type="button"
+                aria-label={`Remover ${arquivo.name}`}
+                onClick={() => aoMudar(arquivos.filter((_, outro) => outro !== indice))}
+                className="min-h-[44px] shrink-0 px-2 text-sm font-semibold text-primary"
+              >
+                Remover
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function Progresso({ passo }: { passo: number }) {
   return (
     <div className="space-y-1.5">
@@ -253,6 +333,9 @@ export function RelatoEmPassos() {
   const [erro, setErro] = useState<string | null>(null);
   const [protocolo, setProtocolo] = useState<Protocolo | null>(null);
   const [nota, setNota] = useState<number | null>(null);
+  const [anexos, setAnexos] = useState<File[]>([]);
+  const [anexosGuardados, setAnexosGuardados] = useState(0);
+  const [anexosRecusados, setAnexosRecusados] = useState<string[]>([]);
   const titulo = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
@@ -286,6 +369,18 @@ export function RelatoEmPassos() {
     try {
       const recebido = await enviarRelato(rascunho);
       setRascunho(RASCUNHO_VAZIO);
+      // Os anexos sobem um a um, depois do relato registrado: o que o
+      // servidor recusar aparece no protocolo, e o relato fica.
+      let guardados = 0;
+      const recusados: string[] = [];
+      for (const arquivo of anexos) {
+        const motivo = await enviarAnexo(recebido, arquivo);
+        if (motivo) recusados.push(`${arquivo.name}: ${motivo}`);
+        else guardados += 1;
+      }
+      setAnexos([]);
+      setAnexosGuardados(guardados);
+      setAnexosRecusados(recusados);
       setProtocolo(recebido);
       setPasso(6);
     } catch (falha) {
@@ -541,6 +636,7 @@ export function RelatoEmPassos() {
               limite={1000}
               placeholder="Existe algo que comprove? Onde pode ser encontrado?"
             />
+            <Anexos arquivos={anexos} aoMudar={setAnexos} />
           </>
         )}
 
@@ -549,7 +645,7 @@ export function RelatoEmPassos() {
             <h1 ref={titulo} tabIndex={-1} className="text-xl font-bold text-slate-900 outline-none">
               Revisão
             </h1>
-            <Resumo rascunho={rascunho} />
+            <Resumo rascunho={rascunho} anexos={anexos.length} />
             <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
               Seu relato pode iniciar a apuração da conduta de uma pessoa. Confira se descreve o que você viu, viveu ou
               soube.
@@ -577,6 +673,19 @@ export function RelatoEmPassos() {
             </p>
             <Copiar rotulo="Protocolo" valor={protocolo.protocolo} />
             <Copiar rotulo="Código" valor={protocolo.codigo} />
+            {anexosGuardados > 0 && (
+              <p className="text-sm text-slate-600">
+                {anexosGuardados === 1 ? "1 anexo guardado." : `${anexosGuardados} anexos guardados.`}
+              </p>
+            )}
+            {anexosRecusados.length > 0 && (
+              <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800 space-y-1">
+                <p className="font-semibold">O relato foi registrado, mas estes anexos não foram guardados:</p>
+                {anexosRecusados.map((recusa) => (
+                  <p key={recusa}>{recusa}</p>
+                ))}
+              </div>
+            )}
             <p className="text-base text-slate-700">
               Volte a esta página a partir de {dataLegivel(protocolo.voltar_a_partir_de)}. É por aqui que o Comitê fala
               com você.
@@ -635,7 +744,7 @@ const NOMES: Record<string, string> = { anonimo: "Anônimo", identificado: "Com 
 const POSICOES: Record<string, string> = { sofreu: "Sofreu", presenciou: "Presenciou", ficou_sabendo: "Ficou sabendo" };
 const RESPOSTAS: Record<string, string> = { sim: "Sim", nao: "Não", nao_sei: "Não sei" };
 
-function Resumo({ rascunho: r }: { rascunho: Rascunho }) {
+function Resumo({ rascunho: r, anexos }: { rascunho: Rascunho; anexos: number }) {
   const linhas: [string, string][] = [
     ["Como relata", r.identificacao === "identificado" ? `${NOMES.identificado}: ${r.nome.trim()}` : NOMES.anonimo],
     ["Envolve a Direção", r.direcao ? RESPOSTAS[r.direcao] : ""],
@@ -653,6 +762,7 @@ function Resumo({ rascunho: r }: { rascunho: Rascunho }) {
         : "",
     ],
     ["Evidências", r.evidencias.trim()],
+    ["Anexos", anexos === 0 ? "" : anexos === 1 ? "1 arquivo" : `${anexos} arquivos`],
   ];
   return (
     <dl aria-label="Resumo do relato" className="space-y-3">
