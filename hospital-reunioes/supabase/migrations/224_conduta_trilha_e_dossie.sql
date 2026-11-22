@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 223: Canal de Conduta, a trilha com gavetas e o Dossiê do caso
+-- Migration 224: Canal de Conduta, a trilha com gavetas e o Dossiê do caso
 -- (issue #1837, PRD #1786, ADR 0097, decisões 2 e 9; especificação, 9.1 e 9.2)
 -- =====================================================
 -- O que entra:
@@ -50,7 +50,7 @@ ALTER TABLE conduta_afastamentos
   CHECK (parecer_codigo_integridade IS NULL OR parecer_codigo_integridade ~ '^[0-9a-f]{64}$');
 
 COMMENT ON COLUMN conduta_depoimento_arquivos.codigo_integridade IS
-  'SHA-256 do arquivo decifrado, gravado no envio (issue #1837). Nulo no arquivo enviado antes da migration 223.';
+  'SHA-256 do arquivo decifrado, gravado no envio (issue #1837). Nulo no arquivo enviado antes da migration 224.';
 COMMENT ON COLUMN conduta_ciencias_do_codigo.codigo_integridade IS
   'SHA-256 do arquivo decifrado, gravado no envio (issue #1837).';
 COMMENT ON COLUMN conduta_assinaturas.codigo_integridade IS
@@ -85,4 +85,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (223) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (224) ON CONFLICT (numero) DO NOTHING;

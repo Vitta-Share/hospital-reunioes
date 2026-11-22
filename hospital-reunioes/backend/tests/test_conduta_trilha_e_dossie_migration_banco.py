@@ -1,8 +1,8 @@
-"""A migration 223, o código de integridade por arquivo, num Postgres de
+"""A migration 224, o código de integridade por arquivo, num Postgres de
 verdade (issue #1837).
 
-Sobe um Postgres descartável, aplica as migrations do Canal de que a 223
-depende e a 223 duas vezes, e prova no banco:
+Sobe um Postgres descartável, aplica as migrations do Canal de que a 224
+depende e a 224 duas vezes, e prova no banco:
 
 - o código de integridade só entra como SHA-256 em hexadecimal, nas quatro
   tabelas de arquivo do caso;
@@ -37,7 +37,7 @@ ANTERIORES = (
     "216_conduta_voto_e_trava_de_robustez.sql",
     "217_conduta_afastamento_cautelar.sql",
 )
-MIGRATION = PASTA / "223_conduta_trilha_e_dossie.sql"
+MIGRATION = PASTA / "224_conduta_trilha_e_dossie.sql"
 CODIGO = hashlib.sha256(b"arquivo").hexdigest()
 OUTRO = hashlib.sha256(b"outro").hexdigest()
 
