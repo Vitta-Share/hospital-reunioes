@@ -24,6 +24,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.config import settings  # noqa: E402
 from app.routers import conduta_depoimentos, conduta_trilha  # noqa: E402
+from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
 
 AUDIO = b"ID3 audio do depoimento do acusado" + bytes(range(256))
 TRANSCRICAO = "Rogério Valente: eu não ameacei ninguém, só levantei a voz.".encode()
@@ -550,3 +551,32 @@ class TestSoOComiteBaixa:
 
         assert dossie.abrir(MEMBRO, caso)["trilha"]["pode_baixar_dossie"] is True
         assert dossie.baixar(MEMBRO, caso).status_code == 200
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# O texto do Produto Canal de Conduta no kit de conhecimento diz o
+# comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestKitDeConhecimento:
+    @pytest.mark.parametrize(
+        "frase",
+        [
+            "## A trilha do caso e o Dossiê",
+            '"Aguardando" ou "Assinado"',
+            "código de integridade",
+            "Uma correção entra como versão nova",
+            "com uma vazia, o caso não conclui como procedente",
+            "BAIXAR DOSSIÊ",
+            "Cada download entra na trilha com quem baixou e quando",
+            "o Presidente, a diretoria executiva e o super admin recebem a recusa",
+            "A cadeia da trilha não confere na linha",
+        ],
+    )
+    def test_o_kit_diz_o_comportamento_novo(self, frase):
+        assert frase in (CONHECIMENTO_DIR / "canal-de-conduta.md").read_text(encoding="utf-8")
+
+    def test_o_kit_nao_diz_mais_que_o_dossie_ainda_nao_chegou(self):
+        texto = (CONHECIMENTO_DIR / "canal-de-conduta.md").read_text(encoding="utf-8")
+        assert "e o dossiê chegam nas próximas entregas" not in texto
