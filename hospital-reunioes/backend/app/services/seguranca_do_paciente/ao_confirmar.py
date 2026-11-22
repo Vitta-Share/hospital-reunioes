@@ -140,6 +140,19 @@ def _agendar_a_analise(supabase, caso: dict, autor_id: str, agora: datetime) -> 
     pauta.incluir_caso(supabase, gravada, caso["protocolo"], f"Análise do caso {caso['protocolo']}")
 
 
+def _levar_a_ordinaria_seguinte(supabase, caso: dict, confirmada_em: datetime) -> None:
+    """A lesão por pressão sem reunião própria entra na ordinária seguinte. Se
+    a pauta dela já foi montada, o caso entra agora; senão, a montagem o traz
+    (`pauta.montar`)."""
+    nucleo_id = id_do_nucleo(supabase)
+    if not nucleo_id:
+        return
+    seguinte = pauta.ordinaria_seguinte(supabase, nucleo_id, confirmada_em.astimezone(_FUSO).date())
+    gravada = pauta.pauta_gravada(supabase, seguinte["id_reuniao"]) if seguinte else None
+    if gravada:
+        pauta.incluir_caso(supabase, gravada, caso["protocolo"], pauta.texto_da_lesao_por_pressao(caso["protocolo"]))
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # A operação
 # ═══════════════════════════════════════════════════════════════════════════
@@ -152,4 +165,8 @@ def ao_confirmar(supabase, notificacao: dict[str, Any], decisao: dict[str, Any],
     if caso is None:
         return
     agora = _agora()
-    _agendar_a_analise(supabase, caso, autor_id, agora)
+    if prazos.sem_reuniao_extraordinaria(decisao.get("evento_item"), decisao.get("grau_de_dano")):
+        confirmada_em = _instante(decisao["criado_em"]) if decisao.get("criado_em") else agora
+        _levar_a_ordinaria_seguinte(supabase, caso, confirmada_em)
+    else:
+        _agendar_a_analise(supabase, caso, autor_id, agora)

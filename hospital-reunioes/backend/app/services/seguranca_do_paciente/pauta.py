@@ -28,7 +28,10 @@ from postgrest.exceptions import APIError
 
 from app.services import feriados as servico_de_feriados
 from app.services.pendencia_ciclo import situacao
+from app.services.paginacao import ler_tudo
 from app.services.pendencias_consulta import as_data, hoje_em_brasilia, ids_repactuados
+from app.services.seguranca_do_paciente import prazos
+from app.services.seguranca_do_paciente.notificacoes import LOTE_DE_IDS
 from app.services.seguranca_do_paciente.reunioes import TipoReuniaoNsp
 
 logger = logging.getLogger(__name__)
@@ -45,6 +48,9 @@ DIAS_DA_AGENDA_NA_PAUTA = 31
 ORDINARIA = TipoReuniaoNsp.ORDINARIA_MENSAL.value
 
 TABELA_PAUTAS = "nsp_pautas"
+
+CASOS = "casos"
+_TITULO_DOS_CASOS = "Casos"
 
 # Os blocos das fases seguintes: aparecem na pauta, vazios, até a fase que os
 # cria entrar.
@@ -251,8 +257,77 @@ def _itens_da_agenda(supabase, reuniao: dict) -> list[dict]:
     ]
 
 
+def texto_da_lesao_por_pressao(protocolo: str) -> str:
+    return f"Caso {protocolo}: lesão por pressão sem óbito, sem reunião extraordinária (art. 24, parágrafo único)"
+
+
+def _dia_em_sao_paulo(carimbo: Any) -> date:
+    momento = datetime.fromisoformat(str(carimbo).replace("Z", "+00:00"))
+    return (momento if momento.tzinfo else momento.replace(tzinfo=FUSO)).astimezone(FUSO).date()
+
+
+def _itens_dos_casos(supabase, reuniao: dict) -> list[dict]:
+    """Na ordinária, a lesão por pressão dos itens 8 a 10 sem óbito confirmada
+    desde a ordinária anterior (inclusive o dia dela) até a véspera desta: a
+    ordinária seguinte à confirmação (art. 24, parágrafo único)."""
+    if reuniao.get("tipo") != ORDINARIA:
+        return []
+    anterior = _reuniao_anterior(supabase, reuniao)
+    inicio = _data(anterior["data"]) if anterior else None
+    fim = _data(reuniao["data"])
+    decisoes = ler_tudo(
+        lambda: (
+            supabase.table("nsp_triagens")
+            .select("id, notificacao_id, evento_item, grau_de_dano, criado_em")
+            .eq("autor_tipo", "pessoa")
+            .in_("evento_item", sorted(prazos.ITENS_DA_LESAO_POR_PRESSAO))
+            .order("id")
+        ),
+        rotulo="lesões por pressão da pauta do Núcleo",
+    )
+    ids = sorted(
+        {
+            d["notificacao_id"]
+            for d in decisoes
+            if prazos.sem_reuniao_extraordinaria(d.get("evento_item"), d.get("grau_de_dano"))
+            and d.get("criado_em")
+            and (inicio is None or inicio <= _dia_em_sao_paulo(d["criado_em"]))
+            and _dia_em_sao_paulo(d["criado_em"]) < fim
+        }
+    )
+    protocolos = []
+    for comeco in range(0, len(ids), LOTE_DE_IDS):
+        lote = ids[comeco : comeco + LOTE_DE_IDS]
+        protocolos += [
+            linha["protocolo"]
+            for linha in supabase.table("nsp_notificacoes").select("id, protocolo").in_("id", lote).execute().data
+            or []
+        ]
+    return [{"texto": texto_da_lesao_por_pressao(p)} for p in sorted(protocolos)]
+
+
+def ordinaria_seguinte(supabase, nucleo_id: str, dia: date) -> dict | None:
+    """A primeira ordinária do Núcleo depois do dia, sem as canceladas."""
+    linhas = (
+        supabase.table("reunioes")
+        .select("id_reuniao, data, tipo, colegiado_id, status_ata")
+        .eq("colegiado_id", nucleo_id)
+        .eq("tipo", ORDINARIA)
+        .gt("data", dia.isoformat())
+        .is_("deleted_at", "null")
+        .neq("status_ata", "CANCELADA")
+        .order("data")
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+    return linhas[0] if linhas else None
+
+
 def montar(supabase, reuniao: dict) -> list[dict]:
     """Os blocos da pauta, montados pelo sistema a partir do banco."""
+    casos = _itens_dos_casos(supabase, reuniao)
     return [
         {
             "chave": "pendencias",
@@ -266,7 +341,12 @@ def montar(supabase, reuniao: dict) -> list[dict]:
             "sem_dados": False,
             "itens": _itens_da_agenda(supabase, reuniao),
         },
-        *({"chave": chave, "titulo": titulo, "sem_dados": True, "itens": []} for chave, titulo in BLOCOS_SEM_DADOS),
+        *(
+            {"chave": chave, "titulo": titulo, "sem_dados": not casos, "itens": casos}
+            if chave == CASOS
+            else {"chave": chave, "titulo": titulo, "sem_dados": True, "itens": []}
+            for chave, titulo in BLOCOS_SEM_DADOS
+        ),
     ]
 
 
@@ -289,10 +369,6 @@ def garantir_pauta(supabase, reuniao: dict, agora: datetime) -> dict:
             raise
         return pauta_gravada(supabase, reuniao["id_reuniao"]) or linha
     return linha
-
-
-CASOS = "casos"
-_TITULO_DOS_CASOS = "Casos"
 
 
 def _cita(blocos: list[dict], protocolo: str) -> bool:

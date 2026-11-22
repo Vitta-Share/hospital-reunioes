@@ -48,6 +48,8 @@ from test_seguranca_do_paciente_prazos import (  # noqa: E402
 )
 from test_seguranca_do_paciente_prazos import _banco as _banco_dos_prazos  # noqa: E402
 from test_seguranca_do_paciente_triagem import (  # noqa: E402
+    GRAVE,
+    MODERADO,
     OBITO,
     PRESIDENTE,
     TODOS_OS_CAMPOS,
@@ -161,12 +163,99 @@ def _textos_da_pauta(banco, id_reuniao: str) -> list[str]:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-def test_confirmar_um_caso_a_cria_a_reuniao_de_analise_programada_na_data_limite_com_o_protocolo_na_pauta():
-    banco, caso = _caso_confirmado(OBITO)
+@pytest.mark.parametrize(
+    ("sugestao", "data_limite"),
+    [(OBITO, "2026-11-23"), (GRAVE, "2026-12-03")],
+    ids=["faixa A, 7 dias úteis", "faixa B, 15 dias úteis"],
+)
+def test_confirmar_um_caso_a_cria_a_reuniao_de_analise_programada_na_data_limite_com_o_protocolo_na_pauta(
+    sugestao, data_limite
+):
+    banco, caso = _caso_confirmado(sugestao)
 
     [reuniao] = _reunioes(banco)
     assert reuniao["status_ata"] == "PROGRAMADA"
-    assert reuniao["data"] == "2026-11-23"
+    assert reuniao["data"] == data_limite
     assert reuniao["colegiado_id"] == "col-nsp"
     assert reuniao["nsp_caso_id"] == caso["id"]
     assert any(caso["protocolo"] in texto for texto in _textos_da_pauta(banco, reuniao["id_reuniao"]))
+
+
+@pytest.mark.parametrize("sugestao", [MODERADO], ids=["faixa C"])
+def test_o_caso_sem_prazo_de_reuniao_de_analise_nao_cria_reuniao(sugestao):
+    banco, _ = _caso_confirmado(sugestao)
+
+    assert banco.tabelas.get("reunioes", []) == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. A lesão por pressão sem óbito vai para a ordinária seguinte
+# ═══════════════════════════════════════════════════════════════════════════
+
+# A ordinária de novembro já passou quando a triagem é confirmada (12/11); a
+# seguinte é a de dezembro, e a de janeiro vem depois dela.
+ORDINARIAS = {"novembro": "2026-11-05", "dezembro": "2026-12-03", "janeiro": "2027-01-07"}
+# Segunda 30/11, dentro dos 5 dias úteis antes da ordinária de dezembro.
+DIA_DA_PAUTA = datetime(2026, 11, 30, 10, 0, tzinfo=SP)
+
+
+def _ordinaria(mes: str) -> dict[str, Any]:
+    return {
+        "id_reuniao": f"RD_{mes}",
+        "titulo": f"Reunião ordinária de {mes}",
+        "data": ORDINARIAS[mes],
+        "hora_inicio": "14:00:00",
+        "hora_fim": None,
+        "tipo": ORDINARIA,
+        "objetivo": None,
+        "status_ata": "PROGRAMADA",
+        "colegiado_id": "col-nsp",
+        "deleted_at": None,
+    }
+
+
+@pytest.fixture
+def com_as_ordinarias(monkeypatch):
+    monkeypatch.setattr(reunioes_router, "_agora", lambda: datetime(2027, 1, 4, 10, 0, tzinfo=SP))
+
+    def _cenario(item: int = 9, **sugestao) -> tuple[_Banco, dict]:
+        caso = _notificacao(3, **DO_CASO)
+        banco = _banco([caso], [_sugestao(caso, **{**LESAO_POR_PRESSAO, "evento_item": item, **sugestao})])
+        banco.tabelas["reunioes"] = [_ordinaria(mes) for mes in ORDINARIAS]
+        return banco, caso
+
+    return _cenario
+
+
+@pytest.mark.parametrize("item", [8, 9, 10])
+def test_a_lesao_por_pressao_sem_obito_nao_cria_reuniao_e_entra_na_pauta_da_ordinaria_seguinte(
+    com_as_ordinarias, item
+):
+    banco, caso = com_as_ordinarias(item)
+
+    _confirmar(banco, caso)
+
+    assert _reunioes(banco) == []
+    assert any(caso["protocolo"] in texto for texto in _textos_da_pauta(banco, "RD_dezembro"))
+    assert not any(caso["protocolo"] in texto for texto in _textos_da_pauta(banco, "RD_janeiro"))
+    assert not any(caso["protocolo"] in texto for texto in _textos_da_pauta(banco, "RD_novembro"))
+
+
+def test_a_lesao_por_pressao_entra_na_pauta_da_ordinaria_seguinte_ja_montada(com_as_ordinarias):
+    banco, caso = com_as_ordinarias()
+    assert not any(caso["protocolo"] in texto for texto in _textos_da_pauta(banco, "RD_dezembro"))
+
+    _confirmar(banco, caso)
+
+    assert any(caso["protocolo"] in texto for texto in _textos_da_pauta(banco, "RD_dezembro"))
+    assert not any(caso["protocolo"] in texto for texto in _textos_da_pauta(banco, "RD_janeiro"))
+
+
+def test_a_lesao_por_pressao_com_obito_tem_a_reuniao_de_analise(com_as_ordinarias):
+    banco, caso = com_as_ordinarias(grau_de_dano="obito")
+
+    _confirmar(banco, caso)
+
+    [reuniao] = _reunioes(banco)
+    assert reuniao["data"] == "2026-11-23"
+    assert not any(caso["protocolo"] in texto for texto in _textos_da_pauta(banco, "RD_dezembro"))
