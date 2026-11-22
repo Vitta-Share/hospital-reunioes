@@ -36,6 +36,44 @@ export interface ItemDaLista {
   motivo?: string | null;
 }
 
+/** O que vem do agente marcado como Sugestão: nunca vai ao termo impresso. */
+export interface Sugestao {
+  rotulo: string;
+  itens: string[];
+}
+
+/** A identificação do termo (Anexo E.1). O nome e o cargo são os do cartão. */
+export interface IdentificacaoDoTermo {
+  nome: string;
+  cargo: string;
+  cpf: string;
+  data: string;
+  hora: string;
+  local: string;
+  conduziram: string[];
+}
+
+/** A última versão do termo de declaração (issue #1831). */
+export interface TermoDeDeclaracao {
+  versao: number;
+  origem: "agente" | "correcao";
+  criado_em: string;
+  criado_por: string;
+  identificacao: IdentificacaoDoTermo;
+  gravacao: string;
+  declaracoes: string[];
+  documentos: string[];
+  lido_em_voz_alta: boolean;
+  notas: Sugestao;
+}
+
+export interface RecusaDeAssinatura {
+  situacao: "gerado" | "enviado" | "assinado";
+  enviado_em: string | null;
+  assinado_em: string | null;
+  erro: string | null;
+}
+
 export interface Depoimento {
   id: string;
   nome: string;
@@ -48,6 +86,9 @@ export interface Depoimento {
   bloqueio_da_conclusao: string | null;
   concluido_em: string | null;
   concluido_por: string | null;
+  termo?: TermoDeDeclaracao | null;
+  roteiro?: { rotulo: string; perguntas: string[] } | null;
+  recusa?: RecusaDeAssinatura | null;
 }
 
 export const PAPEIS: { valor: Papel; rotulo: string }[] = [
@@ -126,6 +167,16 @@ export async function enviarArquivos(casoId: string, depoimentoId: string, tipo:
  * chama solta o endereço (`URL.revokeObjectURL`) quando fecha. */
 export async function abrirArquivo(casoId: string, depoimentoId: string, arquivoId: string): Promise<string> {
   const res = await fetch(`/api/comite-de-conduta/casos/${casoId}/depoimentos/${depoimentoId}/arquivos/${arquivoId}`, {
+    headers: await cabecalho(),
+  });
+  if (!res.ok) throw await falha(res);
+  return URL.createObjectURL(await res.blob());
+}
+
+/** IMPRIMIR TERMO: o PDF da última versão do termo, como endereço local do
+ * navegador. Quem chama solta o endereço quando fecha. */
+export async function abrirTermoImpresso(casoId: string, depoimentoId: string): Promise<string> {
+  const res = await fetch(`/api/comite-de-conduta/casos/${casoId}/depoimentos/${depoimentoId}/termo/pdf`, {
     headers: await cabecalho(),
   });
   if (!res.ok) throw await falha(res);

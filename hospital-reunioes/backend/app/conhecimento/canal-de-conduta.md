@@ -68,6 +68,21 @@ Na etapa Apuração, o botão "ADICIONAR PESSOA A OUVIR" cria um cartão para ca
 
 A etapa Apuração só avança com todos os depoimentos concluídos. Com algum em aberto, a tela diz quantos faltam.
 
+## O termo de declaração
+
+Antes da conversa, "SUGERIR ROTEIRO DE PERGUNTAS" pede ao agente um roteiro a partir do relato e do papel da pessoa ouvida. O roteiro aparece no cartão marcado como "Sugestão", e quem conduz decide o que perguntar.
+
+Depois da conversa, quem conduziu toca em "REDIGIR TERMO", diz a data, a hora, o local e as duas pessoas que conduziram (o CPF é opcional e pode ser preenchido à caneta), e o agente redige o termo de declaração a partir da transcrição, ou dos pontos digitados quando não houve gravação.
+
+- O agente não recebe nenhum nome: antes de o texto sair do aplicativo, os nomes viram marcadores numerados, e o termo exibido traz os nomes de volta. CPF, telefone e e-mail também viram marcador.
+- O termo registra só o que a pessoa disse, em parágrafos numerados, sem conclusão nem interpretação. Trecho duvidoso aparece como "[confirmar: ...]" para o depoente corrigir na leitura.
+- Quando o relato é anônimo, o termo não cita quem relatou, nem o nome que o depoente supuser. O relato deixa de ser anônimo quando o caso tem uma pessoa ouvida como denunciante identificado.
+- Junto do termo sai a lista "Notas para quem apura", marcada como "Sugestão": pontos sem resposta, pessoas e documentos ainda fora do caso e trechos a confirmar. As notas nunca entram no PDF.
+- Quem conduziu revisa o termo na tela e lança as correções do depoente. Cada correção lançada gera uma versão nova, e a anterior continua guardada. Quando o termo foi lido em voz alta para o depoente, a marcação "Termo lido em voz alta" fica registrada no próprio termo.
+- "IMPRIMIR TERMO" gera o PDF da última versão, no modelo do hospital: cabeçalho com o protocolo, identificação, gravação, declarações, documentos, encerramento, compromissos, a nota de que o texto foi elaborado com apoio de inteligência artificial e revisado por quem conduziu, e os campos de assinatura, com rubrica em todas as páginas.
+- Se a pessoa se recusa a assinar, "REGISTRAR RECUSA DE ASSINATURA" manda a certidão de recusa à assinatura eletrônica para quem registra e mais um membro do Comitê no caso. Assinada pelos dois, ela volta para a trilha do caso e vale pelo termo assinado na lista de conferência. A certidão não leva o protocolo nem nada do relato. O áudio e a transcrição continuam guardados.
+- O agente só roda depois de um clique, e toda ação (roteiro, termo redigido, correção, impressão e certidão) fica na trilha do caso.
+
 ## O relatório da apuração
 
 No fim da Apuração, o botão "GERAR RELATÓRIO" pede ao agente o rascunho do relatório: fatos, provas, versão do acusado e a regra do Código de Conduta envolvida. O relatório cabe em uma página. O botão "MONTAR CRONOLOGIA" pede ao agente a lista dos fatos em ordem de data. Os dois só saem depois do clique de quem apura: no rito Rápido, a coordenação e o membro; no Completo, os apuradores.
