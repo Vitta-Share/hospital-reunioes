@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T02:56:57-03:00",
+      "sha": "e0723e40e1c2ccc5443217955765d182e0a30ce1",
+      "app_version": "0.370.0",
+      "subject": "Onda nsp2-onda11: Aprovação em lote das faixas D e E na triagem",
+      "raw_subject": "chore(deploy): registro da onda nsp2-onda11 (#2146)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1979
+      ],
+      "result": "healthy",
+      "duration_seconds": 241,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp2-onda11: PR #2146 (issue #2002), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 2,
+        "build_s": {
+          "backend": 20,
+          "frontend": 218
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T02:16:49-03:00",
       "sha": "cf9dff1fc61ef0475bc400eed6dc52f23d95bd59",
       "app_version": "0.369.1",
