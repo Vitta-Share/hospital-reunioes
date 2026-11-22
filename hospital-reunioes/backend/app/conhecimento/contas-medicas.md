@@ -255,7 +255,7 @@ E sete blocos:
 
 Passar o mouse num ponto do gráfico da nota ou numa barra mostra o valor dela, e a linha de tabela embaixo do mouse fica destacada. Em tela estreita, como a do celular, a faixa quebra em duas colunas e a tabela larga rola dentro do próprio bloco.
 
-Quem tem o Painel completo (coordenadora de faturamento, gestão de contas médicas e as duas diretorias) vê tudo. A faturista vê só a própria linha de produção, e mais nenhum bloco.
+Quem tem o Painel completo (coordenadora de faturamento, gestão de contas médicas e as duas diretorias) vê tudo, menos o bloco do custo de IA. O custo de inteligência artificial aparece só para o Super admin, que é o perfil do diretor: para os outros, o servidor nem manda esse número, e o bloco não aparece. A faturista vê só a própria linha de produção, e mais nenhum bloco.
 
 ## A Validação
 
