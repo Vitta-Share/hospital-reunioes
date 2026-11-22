@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T01:50+0000 -->
+<!-- last_update: 2026-11-22T02:19+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2747,7 +2747,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## conduta_assinaturas
 
-> Origem: `192_conduta_assinaturas.sql`
+> Origem: `192_conduta_assinaturas.sql` (alterada em: 213_conduta_relatorio_de_apuracao.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2765,10 +2765,12 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `assinado_em` | `TIMESTAMPTZ` | — | — | — |
 | `cancelado_em` | `TIMESTAMPTZ` | — | — | — |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `relatorio_id` | `UUID` | — | — | `conduta_relatorios.id` |
 
 **Indexes:**
 - `idx_conduta_assinaturas_participacao` em `(participacao_id, created_at DESC)` (de `192_conduta_assinaturas.sql`)
 - `idx_conduta_assinaturas_caso` em `(caso_id)` (de `192_conduta_assinaturas.sql`)
+- `idx_conduta_assinaturas_relatorio` em `(relatorio_id)` (de `213_conduta_relatorio_de_apuracao.sql`)
 
 ## conduta_depoimentos
 
@@ -3055,6 +3057,24 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_nsp_ausencias_da_presidencia_participacao` em `(participacao_id, inicio, fim)` (de `212_nsp_suplente_em_exercicio.sql`)
 - `idx_nsp_ausencias_da_presidencia_autor` em `(autor_id)` (de `212_nsp_suplente_em_exercicio.sql`)
 
+## conduta_relatorios
+
+> Origem: `213_conduta_relatorio_de_apuracao.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `tipo` | `TEXT` | NOT NULL | — | — |
+| `versao` | `INTEGER` | NOT NULL | — | — |
+| `texto_cifrado` | `TEXT` | NOT NULL | — | — |
+| `origem` | `TEXT` | NOT NULL | — | — |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_relatorios_autor` em `(autor_id)` (de `213_conduta_relatorio_de_apuracao.sql`)
+
 ---
 
-**Resumo:** 152 tabelas vivas.
+**Resumo:** 153 tabelas vivas.

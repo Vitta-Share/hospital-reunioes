@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T01:50+0000 -->
+<!-- last_update: 2026-11-22T02:19+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -74,12 +74,14 @@ erDiagram
     conduta_casos ||--o{ conduta_depoimentos : "caso_id"
     conduta_casos ||--o{ conduta_notas_nsp : "caso_id"
     conduta_casos ||--o{ conduta_prazos_vencidos : "caso_id"
+    conduta_casos ||--o{ conduta_relatorios : "caso_id"
     conduta_casos ||--o{ conduta_sugestoes : "caso_id"
     conduta_casos ||--o{ conduta_trilha : "caso_id"
     conduta_contestacoes ||--o{ conduta_contestacao_votos : "contestacao_id"
     conduta_contestacoes_de_participacao ||--o{ conduta_participacao_votos : "contestacao_id"
     conduta_depoimentos ||--o{ conduta_depoimento_arquivos : "depoimento_id"
     conduta_depoimentos ||--o{ conduta_depoimento_conferencia : "depoimento_id"
+    conduta_relatorios ||--o{ conduta_assinaturas : "relatorio_id"
     conduta_sugestoes ||--o{ conduta_sugestao_respostas : "caso_id"
     nsp_agenda_regulatoria ||--o{ nsp_agenda_ocorrencias : "item_id"
     nsp_capacitacoes ||--o{ nsp_capacitacao_participantes : "capacitacao_id"
@@ -146,6 +148,7 @@ erDiagram
     participantes ||--o{ conduta_participacao_votos : "participante_id"
     participantes ||--o{ conduta_registro : "autor_id"
     participantes ||--o{ conduta_registro : "ganhou"
+    participantes ||--o{ conduta_relatorios : "autor_id"
     participantes ||--o{ conduta_sugestao_respostas : "autor_id"
     participantes ||--o{ conduta_trilha : "que"
     participantes ||--o{ email_de_segunda : "participante_id"
@@ -1513,7 +1516,7 @@ erDiagram
         TEXT situacao
         TEXT envelope_id
         TEXT documento_key
-        _ mais_colunas "+6"
+        _ mais_colunas "+7"
     }
     conduta_depoimentos {
         UUID id PK
@@ -1647,6 +1650,16 @@ erDiagram
         UUID participacao_id FK
         DATE inicio
         DATE fim
+        VARCHAR autor_id FK
+        TIMESTAMPTZ criado_em
+    }
+    conduta_relatorios {
+        UUID id PK
+        UUID caso_id FK
+        TEXT tipo
+        INTEGER versao
+        TEXT texto_cifrado
+        TEXT origem
         VARCHAR autor_id FK
         TIMESTAMPTZ criado_em
     }
@@ -1897,6 +1910,7 @@ erDiagram
 | `conduta_participacao_votos` | `idx_conduta_participacao_votos_pessoa` | `participante_id` | `191_conduta_impedimento_e_citado.sql` |
 | `conduta_assinaturas` | `idx_conduta_assinaturas_participacao` | `participacao_id, created_at DESC` | `192_conduta_assinaturas.sql` |
 | `conduta_assinaturas` | `idx_conduta_assinaturas_caso` | `caso_id` | `192_conduta_assinaturas.sql` |
+| `conduta_assinaturas` | `idx_conduta_assinaturas_relatorio` | `relatorio_id` | `213_conduta_relatorio_de_apuracao.sql` |
 | `conduta_depoimentos` | `idx_conduta_depoimentos_caso` | `caso_id` | `193_conduta_depoimentos.sql` |
 | `conduta_depoimentos` | `idx_conduta_depoimentos_criado_por` | `criado_por` | `193_conduta_depoimentos.sql` |
 | `conduta_depoimentos` | `idx_conduta_depoimentos_sem_gravacao_por` | `sem_gravacao_por` | `193_conduta_depoimentos.sql` |
@@ -1919,6 +1933,7 @@ erDiagram
 | `tecnologia_conversas_do_me_explique` | `idx_tecnologia_conversas_do_me_explique_participante` | `participante_id` | `211_tecnologia_pergunta_da_vitta.sql` |
 | `nsp_ausencias_da_presidencia` | `idx_nsp_ausencias_da_presidencia_participacao` | `participacao_id, inicio, fim` | `212_nsp_suplente_em_exercicio.sql` |
 | `nsp_ausencias_da_presidencia` | `idx_nsp_ausencias_da_presidencia_autor` | `autor_id` | `212_nsp_suplente_em_exercicio.sql` |
+| `conduta_relatorios` | `idx_conduta_relatorios_autor` | `autor_id` | `213_conduta_relatorio_de_apuracao.sql` |
 
 ---
-**Resumo:** 152 tabelas · 241 relacionamentos FK detectados.
+**Resumo:** 153 tabelas · 244 relacionamentos FK detectados.
