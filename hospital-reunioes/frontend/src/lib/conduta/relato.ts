@@ -183,6 +183,74 @@ export async function enviarConfianca(protocolo: Protocolo, nota: number): Promi
   }
 }
 
+// ── Os anexos do passo 4 (issue #1844) ─────────────────────────────────────
+
+export const AVISO_DOS_ANEXOS = "Os dados de origem do arquivo são apagados automaticamente.";
+export const MAXIMO_DE_ANEXOS = 10;
+export const RECUSA_DO_FORMATO =
+  "Este arquivo não pode ser anexado. O canal aceita foto (JPG, PNG ou WEBP), PDF e áudio (MP3, M4A, OGG ou WAV).";
+
+const MB = 1024 * 1024;
+type TipoDeAnexo = "imagem" | "pdf" | "audio";
+const TIPOS_POR_EXTENSAO: Record<string, TipoDeAnexo> = {
+  jpg: "imagem",
+  jpeg: "imagem",
+  png: "imagem",
+  webp: "imagem",
+  pdf: "pdf",
+  mp3: "audio",
+  m4a: "audio",
+  ogg: "audio",
+  oga: "audio",
+  opus: "audio",
+  wav: "audio",
+};
+const LIMITES: Record<TipoDeAnexo, { bytes: number; recusa: string }> = {
+  imagem: { bytes: 20 * MB, recusa: "A imagem passa de 20 MB." },
+  pdf: { bytes: 20 * MB, recusa: "O PDF passa de 20 MB." },
+  audio: { bytes: 50 * MB, recusa: "O áudio passa de 50 MB." },
+};
+
+/** O que o seletor de arquivo do celular mostra. O servidor confere de novo, pelo conteúdo. */
+export const ACEITOS = Object.keys(TIPOS_POR_EXTENSAO)
+  .map((extensao) => `.${extensao}`)
+  .join(",");
+
+/** O motivo de recusa do arquivo, ou nulo se ele pode ir. */
+export function conferirAnexo(arquivo: File): string | null {
+  const extensao = /\.([^.]+)$/.exec(arquivo.name)?.[1]?.toLowerCase() ?? "";
+  const tipo = TIPOS_POR_EXTENSAO[extensao];
+  if (!tipo) return RECUSA_DO_FORMATO;
+  if (arquivo.size > LIMITES[tipo].bytes) return LIMITES[tipo].recusa;
+  return null;
+}
+
+/** Um anexo do relato já registrado, com o protocolo e o código que a tela
+ * ainda tem na memória. O nome do arquivo não sai do aparelho. Devolve nulo
+ * quando o anexo foi guardado, ou o motivo da recusa. */
+export async function enviarAnexo(protocolo: Protocolo, arquivo: File): Promise<string | null> {
+  const formulario = new FormData();
+  formulario.append("protocolo", protocolo.protocolo);
+  formulario.append("codigo", protocolo.codigo);
+  formulario.append("arquivo", arquivo, "anexo");
+  let resposta: Response;
+  try {
+    resposta = await fetch("/api/conduta/relatos/anexos", {
+      method: "POST",
+      body: formulario,
+      credentials: "omit",
+      cache: "no-store",
+      referrerPolicy: "no-referrer",
+    });
+  } catch {
+    return "Sem conexão. O anexo não foi enviado.";
+  }
+  if (resposta.ok) return null;
+  if (resposta.status === 429) return "Muitos envios deste aparelho em pouco tempo. O anexo não foi enviado.";
+  const corpo = (await resposta.json().catch(() => null)) as { detail?: unknown } | null;
+  return typeof corpo?.detail === "string" ? corpo.detail : "Não deu para guardar o anexo agora.";
+}
+
 /** "2026-11-27" vira "27/11/2026", sem passar por fuso. */
 export function dataLegivel(iso: string): string {
   const [ano, mes, dia] = iso.split("-");

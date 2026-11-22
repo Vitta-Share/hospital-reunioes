@@ -118,6 +118,7 @@ IMUTAVEIS = (
     "conduta_ciencias_do_codigo",
     "conduta_atas",
     "conduta_reuniao_conferencia",
+    "conduta_relato_anexos",
 )
 
 # As chaves únicas que o módulo usa para não gravar duas vezes (migrations 185, 193 e 214).

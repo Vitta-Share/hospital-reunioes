@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, Check, Loader2 } from "lucide-react";
 
 import { AfastamentoCautelar } from "@/components/conduta/AfastamentoCautelar";
+import { AnexosDoRelato } from "@/components/conduta/AnexosDoRelato";
 import { AtaEReuniao } from "@/components/conduta/AtaEReuniao";
 import { ConvidarAoCaso } from "@/components/conduta/ConvidarAoCaso";
 import { DepoimentosDaApuracao } from "@/components/conduta/DepoimentosDaApuracao";
@@ -456,6 +457,7 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
           <p className="text-sm text-slate-600">Relatou com identificação: {caso.relator_nome}</p>
         )}
         <p className="text-sm text-slate-800 whitespace-pre-line break-words">{caso.relato}</p>
+        <AnexosDoRelato casoId={casoId} anexos={caso.anexos ?? []} />
       </section>
 
       <TrilhaDoCaso casoId={casoId} protocolo={caso.protocolo} trilha={caso.trilha ?? null} />

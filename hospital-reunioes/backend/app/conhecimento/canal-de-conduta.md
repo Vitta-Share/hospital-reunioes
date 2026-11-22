@@ -166,7 +166,15 @@ O que a página garante:
 - nenhuma mensagem de erro repete o protocolo, o código, o nome ou um trecho do relato: a recusa diz só quais campos conferir;
 - com o canal fechado, a página responde como se não existisse.
 
-Anexos e o aviso de assunto fora do canal na revisão chegam numa próxima entrega.
+O aviso de assunto fora do canal na revisão chega numa próxima entrega.
+
+## Os anexos do relato
+
+No passo 4, quem relata pode anexar até 10 arquivos: foto em JPG, PNG ou WEBP, PDF, e áudio em MP3, M4A, OGG ou WAV. A foto e o PDF vão até 20 MB, e o áudio até 50 MB. Ao lado do botão, a página avisa: "Os dados de origem do arquivo são apagados automaticamente."
+
+Antes de guardar, o aplicativo regrava o arquivo sem o que ele carrega escondido: da foto saem o EXIF e a localização (GPS), o modelo do celular e a data em que foi tirada; do PDF saem o autor e o programa que gerou o PDF, as datas e o XMP; e saem as etiquetas do áudio (nome, artista, lugar da gravação). O tipo do arquivo é reconhecido pelo conteúdo, não pelo nome. Formato fora da lista (foto HEIC do iPhone, documento do Word, vídeo) é recusado com a lista do que o canal aceita, e o relato segue sem ele: a pessoa pode enviar assim mesmo ou trocar o arquivo. A foto HEIC entra se for salva como JPG antes.
+
+O nome original do arquivo não é guardado, nem na base de dados nem no registro de funcionamento do servidor. O arquivo fica cifrado e só sai para quem abre o caso, pela tela do caso, em "Anexos do relato": cada abertura fica na trilha. O super admin, o impedido e o Citado não abrem.
 
 ## O agente de triagem
 
@@ -355,7 +363,7 @@ Quem não tem acesso recebe a mesma recusa, exista o caso ou não.
 
 ## O que ele ainda não faz
 
-A página de acompanhamento, os anexos do relato, as perguntas ao relator, o roteiro de perguntas e o termo de declaração redigidos pelo agente chegam nas próximas entregas. A decisão da Direção e a conversa com o denunciante entram no Dossiê quando chegarem. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. O relato em passos já existe, mas o canal segue fechado até a abertura: enquanto isso, os relatos continuam chegando pela Ouvidoria.
+A página de acompanhamento (com o anexo no complemento), as perguntas ao relator, o roteiro de perguntas e o termo de declaração redigidos pelo agente chegam nas próximas entregas. A decisão da Direção e a conversa com o denunciante entram no Dossiê quando chegarem. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. O relato em passos já existe, mas o canal segue fechado até a abertura: enquanto isso, os relatos continuam chegando pela Ouvidoria.
 
 ## O que já foi decidido
 
