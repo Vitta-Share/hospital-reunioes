@@ -169,9 +169,8 @@ def _linhas(supabase, caso_id: str) -> list[dict]:
     return sorted(linhas, key=lambda x: x["seq"])
 
 
-def linha_do_tempo(supabase, caso: dict) -> list[dict]:
+def linha_do_tempo(supabase, caso: dict, linhas: list[dict]) -> list[dict]:
     """Os atos da trilha e os documentos, juntos, na ordem do tempo."""
-    linhas = _linhas(supabase, caso["id"])
     nomes = membros.nomes(supabase, sorted({x["autor_id"] for x in linhas if x.get("autor_id")}))
     itens = [
         {
@@ -199,7 +198,28 @@ def linha_do_tempo(supabase, caso: dict) -> list[dict]:
         }
         for d in documentos_do_caso(supabase, caso)
     ]
-    return sorted(itens, key=lambda i: (str(i["data"] or ""), i["tipo"] == "documento"))
+    return sorted(itens, key=lambda i: (_momento(i["data"]), i["tipo"] == "documento"))
+
+
+def _momento(valor: str | None) -> str:
+    """A data na mesma escrita, para ordenar: o banco devolve no fuso dele."""
+    try:
+        return trilha._data_canonica(valor) if valor else ""
+    except ValueError:
+        return str(valor)
+
+
+def conferencia(linhas: list[dict]) -> dict:
+    """A cadeia refeita linha a linha. Linha trocada ou apagada por quem tem o
+    banco aparece aqui, pelo número da linha."""
+    quebradas = trilha.linhas_adulteradas(linhas)
+    if not quebradas:
+        texto = "A cadeia da trilha confere."
+    elif len(quebradas) == 1:
+        texto = f"A cadeia da trilha não confere na linha {quebradas[0]}."
+    else:
+        texto = f"A cadeia da trilha não confere nas linhas {', '.join(str(n) for n in quebradas)}."
+    return {"intacta": not quebradas, "linhas_adulteradas": quebradas, "texto": texto}
 
 
 def _gaveta(rotulo: str, origem: str, cheia: bool) -> dict:
@@ -272,9 +292,11 @@ def bloqueio(supabase, caso: dict) -> str | None:
 
 def para_a_tela(supabase, aberto: CasoAberto) -> dict:
     caso = aberto.caso
+    linhas = _linhas(supabase, caso["id"])
     return {
         "trilha": {
-            "linha_do_tempo": linha_do_tempo(supabase, caso),
+            "linha_do_tempo": linha_do_tempo(supabase, caso, linhas),
             "gavetas": gavetas(supabase, caso),
+            "conferencia": conferencia(linhas),
         }
     }

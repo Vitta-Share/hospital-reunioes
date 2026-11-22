@@ -248,9 +248,64 @@ class TestGavetaVaziaBloqueia:
         assert comite.post(COORDENACAO, f"/casos/{caso}/conclusao-da-votacao").status_code == 200
         assert comite.linha_do_caso(caso)["resultado"] == "procedente"
 
+    def test_a_gaveta_pela_certidao_de_recusa_conta_como_assinada(self, comite):
+        caso, depoimento = comite.caso_com_depoimento(termo=False)
+        comite.banco.tabelas.setdefault("conduta_assinaturas", []).append(
+            {
+                "id": "certidao-1",
+                "tipo": "certidao_de_recusa",
+                "caso_id": caso,
+                "depoimento_id": depoimento,
+                "signatarios": [COORDENACAO, MEMBRO],
+                "situacao": "assinado",
+            }
+        )
+
+        gaveta = next(g for g in comite.trilha_do_caso(caso)["gavetas"] if g["rotulo"].startswith("Termo de declaração"))
+
+        assert (gaveta["situacao"], gaveta["origem"]) == ("Assinado", "ClickSign")
+
     def test_improcedente_conclui_com_gaveta_vazia(self, comite):
         caso, _ = comite.caso_com_depoimento(termo=False)
         self._pronto_para_concluir(comite, caso, "improcedente")
 
         assert comite.post(COORDENACAO, f"/casos/{caso}/conclusao-da-votacao").status_code == 200
         assert comite.linha_do_caso(caso)["resultado"] == "improcedente"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# A conferência da cadeia da trilha acusa linha adulterada
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestConferenciaDaCadeia:
+    def _linhas(self, comite, caso: str) -> list[dict]:
+        return sorted((t for t in comite.banco.tabelas["conduta_trilha"] if t["caso_id"] == caso), key=lambda t: t["seq"])
+
+    def test_a_trilha_intacta_confere(self, comite):
+        caso, _ = comite.caso_com_depoimento()
+
+        conferencia = comite.trilha_do_caso(caso)["conferencia"]
+
+        assert conferencia == {"intacta": True, "linhas_adulteradas": [], "texto": "A cadeia da trilha confere."}
+
+    def test_a_linha_trocada_no_banco_aparece_na_conferencia(self, comite):
+        caso, _ = comite.caso_com_depoimento()
+        trocada = next(t for t in self._linhas(comite, caso) if t["acao"] == "adicionou_pessoa_a_ouvir")
+        trocada["detalhe"] = "nada aconteceu"
+
+        conferencia = comite.trilha_do_caso(caso)["conferencia"]
+
+        assert conferencia["intacta"] is False
+        assert conferencia["linhas_adulteradas"] == [trocada["seq"]]
+        assert conferencia["texto"] == f"A cadeia da trilha não confere na linha {trocada['seq']}."
+
+    def test_a_linha_apagada_no_banco_aparece_na_conferencia(self, comite):
+        caso, _ = comite.caso_com_depoimento()
+        linhas = self._linhas(comite, caso)
+        apagada = linhas[2]
+        comite.banco.tabelas["conduta_trilha"].remove(apagada)
+
+        conferencia = comite.trilha_do_caso(caso)["conferencia"]
+
+        assert conferencia["linhas_adulteradas"] == [linhas[3]["seq"]]
