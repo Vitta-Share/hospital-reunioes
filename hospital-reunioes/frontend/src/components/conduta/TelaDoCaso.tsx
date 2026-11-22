@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, Check, Loader2 } from "lucide-react";
 
+import { AfastamentoCautelar } from "@/components/conduta/AfastamentoCautelar";
 import { ConvidarAoCaso } from "@/components/conduta/ConvidarAoCaso";
 import { DepoimentosDaApuracao } from "@/components/conduta/DepoimentosDaApuracao";
 import { ImpedimentoECitados } from "@/components/conduta/ImpedimentoECitados";
@@ -247,6 +248,15 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
       <OQueFazerAgora caixa={caso.o_que_fazer_agora} aoAgir={aoAgir} ocupado={ocupado} />
 
       <RotaEspecial caso={caso} ocupado={ocupado} enviar={enviar} />
+
+      <AfastamentoCautelar
+        casoId={casoId}
+        rota={caso.rota ?? null}
+        citados={caso.citados ?? []}
+        afastamentos={caso.afastamentos ?? []}
+        podeRegistrar={Boolean(caso.pode_registrar_afastamento)}
+        aoMudar={carregar}
+      />
 
       {aviso && (
         <p role="alert" className="text-sm text-red-700">

@@ -5,6 +5,7 @@
  * Quem decide o que cada pessoa pode fazer é o servidor: a caixa "O QUE FAZER
  * AGORA" chega pronta, com o motivo do botão bloqueado.
  */
+import type { Afastamento } from "@/lib/conduta/afastamento";
 import type { Depoimento } from "@/lib/conduta/depoimentos";
 import type { TextoDaApuracao } from "@/lib/conduta/relatorio";
 import type { Trava, Votacao } from "@/lib/conduta/voto";
@@ -131,6 +132,10 @@ export interface CasoAberto extends CasoDaLista {
   /** O voto e a trava de robustez (issue #1833). */
   votacao?: Votacao | null;
   trava?: Trava | null;
+  /** O afastamento cautelar (issue #1836). */
+  rota?: "comum" | "especial" | null;
+  afastamentos?: Afastamento[];
+  pode_registrar_afastamento?: boolean;
 }
 
 /** O que o Grupo Especial vê do caso dele (issue #1829). */

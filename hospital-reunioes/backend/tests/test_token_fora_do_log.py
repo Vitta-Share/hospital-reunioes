@@ -87,6 +87,11 @@ ROTAS_TOKENIZADAS = [
 # varredura da issue #465 continua valendo depois que ela fecha.
 PARAMS_DE_SEGREDO = {"token"}
 PARAMS_SEM_SEGREDO = {
+    # UUID do afastamento cautelar do Canal de Conduta (issue #1836). Não é
+    # credencial: a rota passa pelo portão do afastamento, que confere o acesso
+    # ao caso (ou, na Rota Especial, a coordenação), e o id só vale dentro do
+    # caso_id do mesmo path.
+    "afastamento_id",
     "anexo_id",
     # UUID de um arquivo do depoimento do Canal de Conduta (issue #1830). Não é
     # credencial: a rota passa pelo portão do caso, e o arquivo só sai se for

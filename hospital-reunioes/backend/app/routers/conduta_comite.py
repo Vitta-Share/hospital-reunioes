@@ -17,6 +17,7 @@ from supabase import Client
 
 from app.dependencies import get_supabase_client
 from app.services.conduta import (
+    afastamento,
     agente_de_triagem,
     avisos,
     cifra,
@@ -137,6 +138,7 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         relatorios = relatorio.para_a_tela(supabase, aberto)
         especial = rota_especial.para_a_tela(supabase, aberto)
         votacao = voto.para_a_tela(supabase, aberto)
+        afastamentos = afastamento.para_a_tela(supabase, aberto)
     except cifra.CifraIndisponivelError as erro:
         raise _indisponivel(erro) from erro
     vencidos = triagem.registrar_vencidos(supabase, [caso], hoje_em_sao_paulo())
@@ -165,6 +167,7 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         **relatorios,
         **especial,
         **votacao,
+        **afastamentos,
     }
 
 

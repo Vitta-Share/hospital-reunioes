@@ -33,6 +33,7 @@ from app.services.conduta.portao import (  # noqa: E402
     portao_da_coordenacao,
     portao_da_lista,
     portao_da_tela_inicial,
+    portao_do_afastamento,
     portao_do_cadastro,
     portao_do_caso,
     portao_dos_membros,
@@ -48,6 +49,9 @@ PORTOES_DO_COMITE = {
     portao_dos_membros,
     portao_do_cadastro,
     portao_da_coordenacao,
+    # O afastamento cautelar (issue #1836): quem abre o caso e, na Rota
+    # Especial, a coordenação, que abre só o pedido.
+    portao_do_afastamento,
 }
 PREFIXO_PUBLICO = "/conduta"
 # A porta da Ouvidoria para o Canal (issue #1849, ADR 0097 decisão 14): o
