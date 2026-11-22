@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 201: Link pessoal das Pendencias (PRD #1757; issue #1878; ADR 0098 decisao 8)
+-- Migration 222: Link pessoal das Pendencias (PRD #1757; issue #1878; ADR 0098 decisao 8)
 -- =====================================================
 -- Quem nunca entrou no app recebe, no e-mail de segunda, um link com token
 -- para atualizar as proprias Pendencias sem senha, no padrao do portal do
@@ -53,4 +53,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (201) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (222) ON CONFLICT (numero) DO NOTHING;
