@@ -2,6 +2,58 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-21T23:28:55-03:00",
+      "sha": "008537e162821525769f6dd6fbde9ffea3e6b619",
+      "app_version": "0.361.0",
+      "subject": "Onda sesta-1786-onda7: Relatório de apuração e envio para voto; Rota Especial, com grupo sem diretor, relato selado e entrega do parecer",
+      "raw_subject": "chore(deploy): registro da onda sesta-1786-onda7 (#2125 #2127)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 768,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "213_conduta_relatorio_de_apuracao.sql",
+        "213_conduta_relatorio_de_apuracao.sql",
+        "214_conduta_rota_especial.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1786-onda7: PR #2125 (issue #1832), PR #2127 (issue #1829), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 6,
+        "build_s": {
+          "backend": 20,
+          "frontend": 196
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T22:53:36-03:00",
       "sha": "bcfd3bebb8d8f179a44e3039a4931d9082ed25e9",
       "app_version": "0.360.0",
