@@ -573,3 +573,68 @@ class TestAtualizarComTodosAssinados:
 
         assert client.get("/api/reunioes/R1/signatarios/status").status_code == 200
         assert client.post("/api/reunioes/R1/signatarios/sincronizar").status_code == 200
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Regressão (issue #1904): a Reunião da tela do diretor. 2 de 2 assinaram, o
+# Envelope fechou, o quadro tem 20 ações e o card mostrava "Pendências
+# criadas: 0 de 20". Atualizar ou Sincronizar levam a Ata a ASSINADA e criam
+# as 20 Pendências, cada uma com responsável e prazo.
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+_RESPONSAVEIS_1904 = [
+    ("Ana Lima", "P_ANA"),
+    ("Bruno Costa", "P_BRUNO"),
+    ("Fabio Facilitador", "P_FAC"),
+]
+
+
+def _ata_da_issue_1904() -> _SupabaseMock:
+    quadro = [
+        {
+            "acao": f"Ação {n + 1} da reunião",
+            "responsavel": _RESPONSAVEIS_1904[n % 3][0],
+            "prazo": f"2026-12-{n + 1:02d}",
+        }
+        for n in range(20)
+    ]
+    sb = _sb(json_ata={"quadro_atribuicoes": quadro})
+    _numeracao_passou_de_mil(sb)
+    return sb
+
+
+def _confere_as_20_pendencias(sb: _SupabaseMock) -> None:
+    da_ata = sorted((p for p in _pendencias(sb) if p["id_reuniao"] == "R1"), key=lambda p: p["quadro_pos"])
+    assert [p["quadro_pos"] for p in da_ata] == list(range(20))
+    assert [p["responsavel_id"] for p in da_ata] == [_RESPONSAVEIS_1904[n % 3][1] for n in range(20)]
+    assert [p["prazo"] for p in da_ata] == [f"2026-12-{n + 1:02d}" for n in range(20)]
+
+
+class TestAtaDaIssue1904:
+    def test_atualizar_na_ata_assinada_por_todos_cria_as_20_pendencias(self, clicksign, make_client):
+        clicksign.status[ENVELOPE_ID] = "closed"
+        clicksign.signers[ENVELOPE_ID] = _todos_assinaram()
+        sb = _ata_da_issue_1904()
+
+        res = make_client(sb).get("/api/reunioes/R1/signatarios/status")
+
+        assert res.status_code == 200
+        corpo = res.json()
+        assert (corpo["assinaram"], corpo["total"]) == (2, 2)
+        assert corpo["finalizada"] is True
+        assert (corpo["pendencias_criadas"], corpo["total_acoes"]) == (20, 20)
+        assert _reuniao(sb)["status_ata"] == "ASSINADA"
+        _confere_as_20_pendencias(sb)
+
+    def test_sincronizar_na_ata_assinada_por_todos_cria_as_20_pendencias(self, clicksign, make_client):
+        clicksign.status[ENVELOPE_ID] = "closed"
+        clicksign.signers[ENVELOPE_ID] = _todos_assinaram()
+        sb = _ata_da_issue_1904()
+
+        res = make_client(sb).post("/api/reunioes/R1/signatarios/sincronizar")
+
+        assert res.status_code == 200
+        assert res.json()["desfecho"] == "finalizada"
+        assert _reuniao(sb)["status_ata"] == "ASSINADA"
+        _confere_as_20_pendencias(sb)
