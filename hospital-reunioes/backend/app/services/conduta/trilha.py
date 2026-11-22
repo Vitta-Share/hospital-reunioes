@@ -81,13 +81,6 @@ def registrar(supabase, caso_id: str, autor_id: str | None, acao: str, detalhe: 
     raise AssertionError("inalcançável")
 
 
-def codigo_de_integridade(conteudo: bytes) -> str:
-    """O código de integridade de um arquivo do caso: o SHA-256 do arquivo
-    decifrado, em hexadecimal (issue #1837). Gravado no envio, ele mostra se o
-    arquivo entregue depois é o mesmo."""
-    return hashlib.sha256(conteudo).hexdigest()
-
-
 def linhas_adulteradas(linhas: list[dict[str, Any]]) -> list[int]:
     """As `seq` das linhas em que a cadeia quebra, na ordem da trilha.
 

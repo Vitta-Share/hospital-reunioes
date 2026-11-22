@@ -653,9 +653,7 @@ def _guardar_copia(supabase, assinatura: dict) -> None:
     caminho = f"assinaturas/{assinatura['id']}.pdf.cifrado"
     if not storage.upload_private(supabase, BUCKET, caminho, cifrado, "application/octet-stream"):
         return
-    supabase.table(TABELA).update(
-        {"arquivo_assinado_path": caminho, "codigo_integridade": trilha.codigo_de_integridade(pdf)}
-    ).eq("id", assinatura["id"]).execute()
+    supabase.table(TABELA).update({"arquivo_assinado_path": caminho}).eq("id", assinatura["id"]).execute()
 
 
 def processar_evento(supabase, assinatura: dict, evento: str) -> None:

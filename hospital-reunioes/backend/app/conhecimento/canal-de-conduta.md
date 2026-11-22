@@ -107,7 +107,7 @@ A trava de robustez tem sete itens: fato com data e local, prova além do relato
 - Sem o depoimento do acusado concluído, a recusa da defesa precisa ser certificada por dois membros.
 - O item "Votos registrados e ata assinada" só se confirma depois que os três votarem e assinarem a ata.
 
-"CONCLUIR VOTAÇÃO" é da coordenação: grava o resultado da maioria e leva o caso à etapa Ata. Ela só libera com a ata assinada pelos três votantes e, no rito Completo, com a reunião do Comitê concluída. Com algum item da trava em aberto, a votação não conclui como procedente nem como parcialmente procedente, e a tela diz qual item falta. Com uma gaveta obrigatória da trilha vazia, também não, e a tela diz qual gaveta falta. Improcedente e inconclusivo concluem sem a trava e sem as gavetas.
+"CONCLUIR VOTAÇÃO" é da coordenação: grava o resultado da maioria e leva o caso à etapa Ata. Ela só libera com a ata assinada pelos três votantes e, no rito Completo, com a reunião do Comitê concluída. Com algum item da trava em aberto, a votação não conclui como procedente nem como parcialmente procedente, e a tela diz qual item falta. Improcedente e inconclusivo concluem sem a trava.
 
 ## A ata de deliberação e a reunião do Comitê
 
@@ -121,26 +121,6 @@ A ata de deliberação registra a decisão do Comitê e o fundamento dela. Ela n
 - A coordenação envia a ata à ClickSign para os três votantes. A assinatura volta sozinha para a trilha, e a cópia do PDF assinado fica no aplicativo. O botão "Reconsultar status" pergunta à ClickSign sem esperar o retorno. A ata assinada não muda mais.
 
 No rito Completo, a lista de conferência da reunião tem quatro itens: transcrição anexada e ata assinada pelos três, que o aplicativo marca sozinho, e as duas declarações da coordenação, "Apaguei a gravação de áudio da plataforma de gravação" e "Apaguei os arquivos do computador e do celular", com quem marcou e quando. "CONCLUIR REUNIÃO" só libera com os quatro. Ao concluir a reunião, a transcrição é eliminada do banco e do bucket, e a eliminação fica na trilha do caso. Fica a ata assinada. O áudio da reunião não é anexado em nenhum momento: o botão da transcrição recusa arquivo de áudio.
-
-## A trilha do caso e o Dossiê
-
-A área "Trilha do caso" da tela do caso mostra tudo o que foi feito e assinado nele, numa linha do tempo:
-
-- cada ato, com quem fez, quando, a origem (o próprio aplicativo) e o código da linha na corrente da trilha;
-- cada documento, com quem enviou, quando, a origem, ClickSign ou upload (arquivo ou câmera do celular), e o código de integridade do arquivo, a impressão digital que mostra se o arquivo é o mesmo que entrou. Uma correção entra como versão nova, e a anterior continua na linha do tempo.
-
-Cada rito cria as gavetas dos documentos que ele exige, cada uma "Aguardando" ou "Assinado": o termo de declaração de cada pessoa ouvida (ou a certidão de recusa assinada por dois membros), o termo de confidencialidade de cada apurador ou membro da CIPA convidado, a ciência do Código pelo acusado e a ata de deliberação e, no rito Completo, o relatório de apuração assinado. O Encaminhamento não tem gaveta. Toda gaveta do rito é obrigatória: com uma vazia, o caso não conclui como procedente nem como parcialmente procedente.
-
-A trilha confere a própria corrente toda vez que a tela abre. Se alguém trocar ou apagar uma linha direto na base, a área diz "A cadeia da trilha não confere na linha" e o número dela.
-
-"BAIXAR DOSSIÊ" monta o Dossiê do caso, um pacote ZIP com tudo decifrado:
-
-- o índice, com cada arquivo, quem enviou, quando, a origem e o código de integridade, e o aviso quando o arquivo não confere com o código gravado no envio;
-- o relato original, os documentos, os áudios e as transcrições dos depoimentos;
-- os votos das rodadas já fechadas (o voto de quem já votou continua oculto até os três votarem), a ata de deliberação e a decisão da Direção;
-- as mensagens trocadas com o denunciante e o registro de acessos, que é a trilha inteira do caso com a conferência da corrente.
-
-Só baixa o Dossiê quem é do Comitê no caso: a coordenação, o membro e o segundo leitor, ou o suplente convocado no lugar de um deles. O apurador, o membro da CIPA, o Presidente, a diretoria executiva e o super admin recebem a recusa. Cada download entra na trilha com quem baixou e quando, e sem esse registro o pacote não sai.
 
 ## O agente de triagem
 
@@ -307,7 +287,7 @@ Quem não tem acesso recebe a mesma recusa, exista o caso ou não.
 
 ## O que ele ainda não faz
 
-O formulário público de relato, as páginas públicas que vão mostrar os textos das configurações, a página de acompanhamento, as perguntas ao relator, o roteiro de perguntas e o termo de declaração redigidos pelo agente chegam nas próximas entregas. A decisão da Direção e a conversa com o denunciante entram no Dossiê quando chegarem. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. Por enquanto ninguém relata pelo Canal: os relatos continuam chegando pela Ouvidoria.
+O formulário público de relato, as páginas públicas que vão mostrar os textos das configurações, a página de acompanhamento, as perguntas ao relator, o roteiro de perguntas e o termo de declaração redigidos pelo agente e o dossiê chegam nas próximas entregas. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. Por enquanto ninguém relata pelo Canal: os relatos continuam chegando pela Ouvidoria.
 
 ## O que já foi decidido
 
