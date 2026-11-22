@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T11:38:54-03:00",
+      "sha": "e2d2736c63d42676f6e29360b026cd2d2167bb95",
+      "app_version": "0.375.0",
+      "subject": "Onda vitta-2145-onda1: Responder a Pergunta da Vitta no cartão da lista Esperando sua resposta",
+      "raw_subject": "chore(deploy): registro da onda vitta-2145-onda1 (#2160)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        2112
+      ],
+      "result": "healthy",
+      "duration_seconds": 258,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta vitta-2145-onda1: PR #2160 (issue #2145), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 2,
+        "build_s": {
+          "backend": 24,
+          "frontend": 225
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T11:14:08-03:00",
       "sha": "f97d8cfff50fca87f52c8c6d004feb460b9d2516",
       "app_version": "0.374.2",
