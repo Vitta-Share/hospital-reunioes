@@ -106,6 +106,9 @@ Quando a Vitta só dá um recado, sem pergunta, o sino mostra o aviso de sempre,
 1. Quando a Vitta precisa que você faça alguma coisa, o cartão **Passo a passo da Vitta** chega na lista **Esperando você** e na Conversa da Demanda do pedido, e você recebe o aviso no sino e por e-mail. O aviso do sino diz **Pede sua ação** e traz o assunto embaixo.
 2. Clique no aviso do sino ou no link do e-mail. A aba Tecnologia abre com o cartão em destaque. Leia os passos: cada um diz onde clicar e traz o link quando precisa.
 3. Faça o primeiro passo e marque o check ao lado dele. O cartão mostra o seu nome e a hora embaixo do passo. Marcou errado? Clique de novo para desmarcar.
+
+   ![O cartão Passo a passo da Vitta, com os checks, a anotação e o Concluir](concluir-passo-a-passo.png)
+
 4. Faça os outros passos e marque um por um. O último é o **Como saber que acabou**: confira o que ele diz antes de marcar.
 5. Se quiser deixar algo registrado para a Vitta, escreva no campo **Sua anotação (opcional)**. A anotação fica só no aplicativo.
 6. Clique em **Concluir**. O botão só libera com todos os checks marcados.
