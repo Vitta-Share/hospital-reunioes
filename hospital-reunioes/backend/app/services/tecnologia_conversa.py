@@ -96,6 +96,7 @@ def escrever(
     mencoes: Sequence[str] = (),
     destinatario_id: str | None = None,
     pede_resposta_sobre: str | None = None,
+    pergunta_id: str | None = None,
 ) -> dict[str, Any]:
     """Grava a mensagem de `autor` na Demanda e avisa quem a regra da `origem`
     manda. Devolve a linha gravada. Quem e avisado se calcula antes de gravar:
@@ -133,6 +134,7 @@ def escrever(
             titulo=titulo_do_sino,
             mensagem=linha_do_sino,
             demanda_id=str(demanda["id"]),
+            pergunta_id=pergunta_id,
         )
         # O mesmo aviso, por e-mail (issue #1538): o diretor não fica com o app aberto.
         tecnologia_email.enviar_aviso_da_conversa(
@@ -142,6 +144,7 @@ def escrever(
             autor_nome=nome,
             demanda=demanda,
             assunto=pede_resposta_sobre,
+            pergunta_id=pergunta_id,
         )
     return linha
 

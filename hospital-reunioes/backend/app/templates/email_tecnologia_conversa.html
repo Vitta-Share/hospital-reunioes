@@ -50,6 +50,6 @@
   </table>
 
   <p style="color:#94a3b8;font-size:12px;line-height:1.6;margin:0;text-align:center;">
-    O link abre a Demanda na aba Tecnologia, com a conversa embaixo.
+    {% if pergunta %}O link abre a aba Tecnologia no cartão da pergunta.{% else %}O link abre a Demanda na aba Tecnologia, com a conversa embaixo.{% endif %}
   </p>
 {% endblock %}

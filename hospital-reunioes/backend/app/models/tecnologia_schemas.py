@@ -268,6 +268,15 @@ class PerguntaDoCartaoResponse(BaseModel):
     destinatario: str | None = None
 
 
+class PerguntaEsperandoResponse(PerguntaDoCartaoResponse):
+    """Um item da lista Esperando sua resposta (issue #2118, ADR 0109,
+    decisao 5): o cartao, de qual Demanda e, e se espera quem esta logado."""
+
+    demanda_id: str
+    demanda: str
+    minha: bool = False
+
+
 class MensagemDaConversaResponse(BaseModel):
     """Uma mensagem de gente na Conversa da Demanda. `autor` e o nome de quem
     escreveu; `minha` diz se foi quem esta logado."""
