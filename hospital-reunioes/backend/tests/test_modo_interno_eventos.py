@@ -25,6 +25,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.dirname(__file__))
+
+from like_apoio import casa_like  # noqa: E402
 
 from app.config import settings  # noqa: E402
 from app.dependencies import get_supabase_client  # noqa: E402
@@ -71,6 +74,10 @@ class _TableQuery:
         self._is_filters[col] = None if value in ("null", None) else value
         return self
 
+    def like(self, col, pattern):
+        self._likes = [*getattr(self, "_likes", []), (col, pattern)]
+        return self
+
     def order(self, *_a, **_kw):
         return self
 
@@ -100,6 +107,7 @@ class _TableQuery:
             if all(r.get(c) == v for c, v in self._filters.items())
             and all(r.get(c) in vs for c, vs in self._in_filters.items())
             and all(r.get(c) == v for c, v in self._is_filters.items())
+            and all(casa_like(r.get(c), p) for c, p in getattr(self, "_likes", []))
         ]
         if self._update_payload is not None:
             for row in filtered:

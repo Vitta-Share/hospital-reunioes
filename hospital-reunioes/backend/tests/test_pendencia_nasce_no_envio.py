@@ -23,6 +23,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.dirname(__file__))
+
+from like_apoio import casa_like  # noqa: E402
 
 from app.dependencies import get_current_user, get_supabase_client  # noqa: E402
 from app.routers import reunioes as reunioes_router  # noqa: E402
@@ -68,6 +71,10 @@ class _TableQuery:
 
     def delete(self):
         self._op = "delete"
+        return self
+
+    def like(self, col, pattern):
+        self._filtros.append(lambda r, c=col: casa_like(r.get(c), pattern))
         return self
 
     def eq(self, col, value):

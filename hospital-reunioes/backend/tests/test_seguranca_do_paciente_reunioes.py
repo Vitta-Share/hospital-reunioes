@@ -26,6 +26,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.dirname(__file__))
+
+from like_apoio import casa_like  # noqa: E402
 
 from app.dependencies import get_current_user, get_supabase_client  # noqa: E402
 from app.limiter import limiter  # noqa: E402
@@ -141,6 +144,9 @@ class _Consulta:
         if colunas != "*" and "(" not in colunas:
             self._colunas = [c.strip() for c in colunas.split(",")]
         return self
+
+    def like(self, coluna, padrao):
+        return self._filtro(lambda linha: casa_like(_valor(linha, coluna), padrao))
 
     def eq(self, coluna, valor):
         return self._filtro(lambda linha: _valor(linha, coluna) == valor)

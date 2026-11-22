@@ -24,6 +24,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.dirname(__file__))
+
+from like_apoio import casa_like  # noqa: E402
 
 from app.dependencies import (  # noqa: E402
     get_current_user,
@@ -78,6 +81,10 @@ class _TableQuery:
         self._in_filters.append((col, list(values)))
         return self
 
+    def like(self, col, pattern):
+        self._likes = [*getattr(self, "_likes", []), (col, pattern)]
+        return self
+
     def ilike(self, col, pattern):
         self._ilike = (col, pattern)
         return self
@@ -91,6 +98,8 @@ class _TableQuery:
         return self
 
     def _matches(self, r: dict) -> bool:
+        if not all(casa_like(r.get(col), pattern) for col, pattern in getattr(self, "_likes", [])):
+            return False
         for col, value in self._filters:
             if r.get(col) != value:
                 return False
