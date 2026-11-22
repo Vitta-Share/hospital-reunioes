@@ -86,7 +86,9 @@ def _perguntar_o_aviso(cliente, modelo: str, mensagem: str):
         return None
 
 
-def ler_aviso_do_relato(cliente, relato: str, mensagem: str, *, modelo: str, reservar: Callable[[], bool]) -> str | None:
+def ler_aviso_do_relato(
+    cliente, relato: str, mensagem: str, *, modelo: str, reservar: Callable[[], bool]
+) -> str | None:
     """Uma leitura do agente, com uma vaga da cota antes. É a mesma função que
     o comando do teste de aceite usa (`scripts/conduta_teste_de_aceite.py
     --aviso`). Nunca levanta."""
@@ -100,6 +102,13 @@ def ler_aviso_do_relato(cliente, relato: str, mensagem: str, *, modelo: str, res
     except Exception as exc:
         logger.warning("[CONDUTA] Leitura do aviso na revisão falhou (%s)", type(exc).__name__)
         return None
+
+
+def versao_do_prompt() -> str:
+    achada = re.search(r"^Versão (\d+(?:\.\d+)*)", load_prompt(PROMPT), re.MULTILINE)
+    if not achada:
+        raise ValueError("o prompt do aviso do Canal não diz a versão")
+    return achada.group(1)
 
 
 def _cliente() -> ClienteDaAnthropic:

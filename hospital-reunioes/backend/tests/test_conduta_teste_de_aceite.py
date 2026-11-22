@@ -140,6 +140,81 @@ def test_dois_ritos_errados_numa_rodada_ainda_batem_e_tres_nao():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# A coluna "Aviso em P5" do Anexo B (issue #1848), pelo mesmo comando
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class ModeloDoAviso:
+    """Responde à leitura da revisão com a coluna "Aviso em P5" do gabarito,
+    menos as trocas pedidas."""
+
+    def __init__(self, trocas: dict[int, dict] | None = None):
+        self.trocas = trocas or {}
+        self.chamadas = 0
+        self.messages = self
+        self._por_mensagem = {comando.mensagem_do_aviso(caso): caso for caso in comando.carregar_casos()}
+
+    def create(self, **argumentos):
+        self.chamadas += 1
+        caso = self._por_mensagem[argumentos["messages"][0]["content"]]
+        destino = caso["aviso_em_p5"]
+        saida = {
+            "parece_fora": "SIM" if destino else "NAO",
+            "destino": destino,
+            "tem_termo_de_protecao": "SIM" if caso["termo_de_protecao"] else "NAO",
+            **self.trocas.get(caso["id"], {}),
+        }
+        return SimpleNamespace(stop_reason="end_turn", content=[SimpleNamespace(type="text", text=json.dumps(saida))])
+
+
+def test_a_coluna_aviso_em_p5_do_anexo_b_esta_no_repositorio():
+    """O gabarito da coluna, caso a caso: só o 1 (DP), o 6 (Ouvidoria) e o 9
+    (gestão, sem botão de encaminhar) mostram aviso."""
+    avisos = {caso["id"]: caso["aviso_em_p5"] for caso in comando.carregar_casos()}
+    assert avisos == {1: "DP", 6: "OUVIDORIA", 9: "GESTAO"} | {n: "" for n in (2, 3, 4, 5, 7, 8, 10, 11, 12)}
+
+
+def test_com_o_gabarito_o_aviso_em_p5_confere_nos_12(tmp_path, capsys):
+    modelo = ModeloDoAviso()
+
+    saida = comando.main(["--aviso", "--saida", str(tmp_path / "r.json")], perguntar=lambda _p: "rodar", cliente=modelo)
+
+    impresso = capsys.readouterr().out
+    assert saida == 0
+    assert 0 < modelo.chamadas <= 36
+    assert (
+        "| Aviso em P5 certo nos 12 | rodada 1: 12 de 12; rodada 2: 12 de 12; rodada 3: 12 de 12 "
+        "| 12 em cada rodada | sim |" in impresso
+    )
+    assert "Metas do Anexo B: batidas." in impresso
+
+
+def test_caso_11_com_aviso_derruba_a_meta_do_aviso_em_p5(tmp_path, capsys):
+    """Caso 11: o vale-transporte parece de DP, mas há ameaça. Aviso aqui reprova."""
+    modelo = ModeloDoAviso({11: {"parece_fora": "SIM", "destino": "DP", "tem_termo_de_protecao": "NAO"}})
+
+    saida = comando.main(["--aviso", "--saida", str(tmp_path / "r.json")], perguntar=lambda _p: "rodar", cliente=modelo)
+
+    impresso = capsys.readouterr().out
+    assert saida == 2
+    assert "| Caso com termo da regra de proteção com aviso | 1 (11) | 0 | não |" in impresso
+    assert "Metas do Anexo B: NÃO batidas." in impresso
+
+
+def test_sem_a_confirmacao_o_comando_do_aviso_nao_chama_a_ia(monkeypatch, capsys):
+    def _nao_pode(*_a, **_kw):
+        raise AssertionError("o cliente da IA foi criado sem confirmação")
+
+    monkeypatch.setattr(comando, "ClienteDaAnthropic", _nao_pode)
+    monkeypatch.setattr(comando.settings, "anthropic_api_key", "chave-de-teste")
+
+    assert comando.main(["--aviso"], perguntar=lambda _pergunta: "sim") == 1
+    impresso = capsys.readouterr().out
+    assert "Estimativa: US$" in impresso
+    assert "Nada foi chamado." in impresso
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # 8. Nenhuma chamada de IA roda no CI
 # ═══════════════════════════════════════════════════════════════════════════
 

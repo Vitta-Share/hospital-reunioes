@@ -129,3 +129,141 @@ def _aviso(banco, relato: str) -> dict:
 def test_relato_de_assunto_de_dp_recebe_o_aviso_do_dp(banco, modelo):
     assert _aviso(banco, CONTRACHEQUE) == {"aviso": "DP"}
     assert len(modelo.chamadas) == 1
+
+
+def test_relato_de_atendimento_a_paciente_recebe_o_aviso_da_ouvidoria(banco, modelo):
+    modelo.resposta = saida(destino="OUVIDORIA")
+
+    assert _aviso(banco, EMERGENCIA) == {"aviso": "OUVIDORIA"}
+
+
+@pytest.mark.parametrize("destino", ["NSP", "GESTAO"])
+def test_os_outros_destinos_tambem_viram_aviso(banco, modelo, destino):
+    modelo.resposta = saida(destino=destino)
+
+    assert _aviso(banco, "Não concordo com minha avaliação de desempenho.") == {"aviso": destino}
+
+
+def test_o_que_parece_do_canal_nao_tem_aviso(banco, modelo):
+    modelo.resposta = saida(parece_fora="NAO", destino="")
+
+    assert _aviso(banco, "Minha coordenadora me chama de incompetente na frente da equipe.") == {"aviso": None}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. Termo da regra de proteção: sem aviso (casos 7 e 11 do Anexo B)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_caso_7_com_o_agente_vendo_retaliacao_nao_tem_aviso(banco, modelo):
+    """Caso 7: o assunto aparente é de DP, mas há retaliação pelos fatos."""
+    modelo.resposta = saida(parece_fora="SIM", destino="DP", termo="SIM")
+
+    relato = "Cortaram minhas horas extras depois que recusei um convite do meu chefe para jantar."
+    assert _aviso(banco, relato) == {"aviso": None}
+
+
+def test_caso_11_com_a_palavra_da_regra_nao_tem_aviso_nem_se_o_agente_errar(banco, modelo):
+    """O app confere os termos da regra por conta própria: com "ameaçou" no
+    texto, nem uma resposta errada do agente vira aviso, e a cota não é gasta."""
+    modelo.resposta = saida(parece_fora="SIM", destino="DP", termo="NAO")
+
+    relato = "Meu vale-transporte não foi creditado e o supervisor ameaçou me mandar embora se eu reclamar."
+    assert _aviso(banco, relato) == {"aviso": None}
+    assert modelo.chamadas == []
+    assert banco.reservas == 0
+
+
+@pytest.mark.parametrize(
+    "palavra",
+    ["assédio", "discriminação", "ameaça", "violência", "retaliação", "fraude", "desvio", "falsificação"],
+)
+def test_cada_termo_da_regra_de_protecao_e_reconhecido_pelo_app(palavra):
+    assert aviso_fora_do_canal.tem_termo_de_protecao(f"Meu contracheque veio errado e houve {palavra.upper()}.")
+    assert not aviso_fora_do_canal.tem_termo_de_protecao(CONTRACHEQUE)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. Teto estourado, agente fora do ar ou desligado: sem aviso, sem erro
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_com_o_teto_estourado_nao_ha_aviso_e_o_modelo_nao_e_chamado(modelo):
+    banco = BancoComCota(teto_atingido=True)
+
+    assert _aviso(banco, CONTRACHEQUE) == {"aviso": None}
+    assert banco.reservas == 1
+    assert modelo.chamadas == []
+
+
+def test_com_o_agente_fora_do_ar_nao_ha_aviso(banco, modelo):
+    modelo.falha = TimeoutError("o provedor não respondeu")
+
+    assert _aviso(banco, CONTRACHEQUE) == {"aviso": None}
+
+
+@pytest.mark.parametrize("resposta", ["não sei dizer", {"parece_fora": "TALVEZ", "destino": "DP"}, saida(destino="RH")])
+def test_resposta_fora_do_formato_nao_vira_aviso(banco, modelo, resposta):
+    modelo.resposta = resposta
+
+    assert _aviso(banco, CONTRACHEQUE) == {"aviso": None}
+
+
+def test_com_o_agente_desligado_nao_ha_leitura_nem_aviso(banco, modelo, monkeypatch):
+    monkeypatch.setattr(settings, "conduta_agente_ligado", False)
+
+    assert _aviso(banco, CONTRACHEQUE) == {"aviso": None}
+    assert modelo.chamadas == []
+    assert banco.reservas == 0
+
+
+def test_com_o_canal_fechado_a_rota_nao_existe(banco, modelo, monkeypatch):
+    monkeypatch.setattr(settings, "conduta_canal_aberto", False)
+
+    assert _cliente(banco).post(AVISO, json={"relato": CONTRACHEQUE}).status_code == 404
+    assert modelo.chamadas == []
+
+
+@pytest.mark.parametrize("corpo", [{}, {"relato": "   "}, {"relato": 42}, {"relato": "x" * 10_001}])
+def test_envio_sem_texto_e_recusado_sem_chamar_o_agente(banco, modelo, corpo):
+    resposta = _cliente(banco).post(AVISO, json=corpo)
+
+    assert resposta.status_code == 422
+    assert modelo.chamadas == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# A leitura conta no teto e manda o texto pseudonimizado; nada fica gravado
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_a_leitura_gasta_uma_vaga_do_teto_do_agente(banco, modelo):
+    _aviso(banco, CONTRACHEQUE)
+
+    assert banco.reservas == 1
+    assert modelo.chamadas[0]["model"] == settings.conduta_agente_modelo
+
+
+def test_o_modelo_recebe_o_texto_pseudonimizado(banco, modelo):
+    relato = "Sou Joana Prudente, telefone (21) 98765-4321, e meu contracheque veio sem o adicional noturno."
+
+    _aviso(banco, relato)
+
+    enviado = modelo.texto_enviado()
+    assert "contracheque veio sem o adicional noturno" in enviado
+    assert "Joana" not in enviado and "Prudente" not in enviado
+    assert "98765" not in enviado
+
+
+def test_nenhum_texto_fica_gravado_pela_leitura(banco, modelo):
+    _aviso(banco, "Sou Joana Prudente e meu contracheque veio sem o adicional noturno.")
+
+    assert all(linhas == [] for linhas in banco.tabelas.values())
+
+
+def test_o_texto_do_relato_nao_vai_ao_log(banco, modelo, caplog):
+    modelo.falha = TimeoutError("o provedor não respondeu")
+    with caplog.at_level("DEBUG"):
+        _aviso(banco, "Meu contracheque do mês de outubro veio sem o adicional noturno.")
+
+    assert "contracheque" not in caplog.text
