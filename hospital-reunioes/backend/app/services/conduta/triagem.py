@@ -20,7 +20,7 @@ from datetime import date, timedelta
 from typing import Any
 
 from app.services.conduta import cifra, trilha
-from app.services.conduta.acesso import _atribuicoes_e_citacoes, papel_no_caso
+from app.services.conduta.acesso import _atribuicoes_e_citacoes, hoje_em_sao_paulo, papel_no_caso
 from app.services.conduta.portao import CasoAberto, NoComite
 from app.services.conduta.ritos import (
     CATEGORIAS,
@@ -88,9 +88,20 @@ def _olhar(supabase, pessoa_id: str, papel: str | None, atribuicoes, contestacao
     )
 
 
+def _com_a_verificacao(supabase, olhar: Olhar, caso: dict, hoje: date) -> Olhar:
+    """O caso concluído ganha a verificação de retaliação que chegou (issue
+    #1839). Import aqui, como o do relatório."""
+    if not (caso.get("encerrado_em") and caso.get("desfecho") == "concluido"):
+        return olhar
+    from app.services.conduta import retaliacao
+
+    return replace(olhar, verificacao_pendente=retaliacao.pendente(supabase, caso, hoje))
+
+
 def olhar_do_caso(supabase, aberto: CasoAberto) -> Olhar:
     contestacao = _contestacoes(supabase, [aberto.caso["id"]]).get(aberto.caso["id"])
     olhar = _olhar(supabase, aberto.autor_id, aberto.pessoa.papel, aberto.atribuicoes, contestacao)
+    olhar = _com_a_verificacao(supabase, olhar, aberto.caso, hoje_em_sao_paulo())
     if aberto.caso.get("etapa") == "voto":
         # O voto (issue #1833). Import aqui, como o do relatório.
         from app.services.conduta import voto
@@ -134,6 +145,25 @@ def _no_dia(hoje: date, caso: dict) -> dict:
     return {"faltam_dias": faltam}
 
 
+def _item_da_verificacao(caso: dict, acao: str, marco: int, hoje: date) -> dict:
+    """A verificação de retaliação na MINHA VEZ (issue #1839): o prazo é o dia
+    dela, e o prazo do rito, já encerrado, não conta."""
+    from app.services.conduta import retaliacao
+
+    dia = retaliacao.data_da_verificacao(caso["encerrado_em"], marco).isoformat()
+    return {
+        "id": caso["id"],
+        "protocolo": caso["protocolo"],
+        "etapa": "acompanhamento",
+        "rito": caso.get("rito"),
+        "acao": f"{acao} ({marco} dias)",
+        "prazo_em": dia,
+        "prazo_vencido": False,
+        **_no_dia(hoje, {"prazo_em": dia}),
+        "_urgencia": (dia, str(caso.get("recebido_em") or "")),
+    }
+
+
 def minha_vez(supabase, comite: NoComite, hoje: date) -> list[dict]:
     """Só o que depende da pessoa, do mais urgente ao menos urgente."""
     vencidos = registrar_vencidos(supabase, comite.casos, hoje)
@@ -149,8 +179,13 @@ def minha_vez(supabase, comite: NoComite, hoje: date) -> list[dict]:
             do_caso,
             contestacoes.get(caso["id"]),
         )
+        if olhar.papel == "coordenacao":
+            olhar = _com_a_verificacao(supabase, olhar, caso, hoje)
         acao = acao_pendente(caso, olhar)
         if acao is None:
+            continue
+        if olhar.verificacao_pendente:
+            itens.append(_item_da_verificacao(caso, acao, olhar.verificacao_pendente, hoje))
             continue
         itens.append(
             {

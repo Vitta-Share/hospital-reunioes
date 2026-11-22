@@ -28,6 +28,7 @@ from app.routers import (
     conduta_direcao,
     conduta_membros,
     conduta_publico,
+    conduta_retaliacao,
     conduta_retorno,
     conduta_rota_especial,
     conduta_trilha,
@@ -221,6 +222,7 @@ app.include_router(conduta_depoimentos.router, prefix=settings.api_prefix)
 app.include_router(conduta_direcao.router, prefix=settings.api_prefix)
 app.include_router(conduta_membros.router, prefix=settings.api_prefix)
 app.include_router(conduta_publico.router, prefix=settings.api_prefix)
+app.include_router(conduta_retaliacao.router, prefix=settings.api_prefix)
 app.include_router(conduta_retorno.router, prefix=settings.api_prefix)
 app.include_router(conduta_rota_especial.router, prefix=settings.api_prefix)
 app.include_router(conduta_trilha.router, prefix=settings.api_prefix)
