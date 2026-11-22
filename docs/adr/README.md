@@ -68,6 +68,7 @@ Só `status: accepted` vale como decisão; `superseded` é histórico (CLAUDE.md
 | [0103](0103-modelo-da-tecnologia-escolhido-por-demanda.md) | accepted | O diretor escolhe o modelo de cada Demanda da Tecnologia: Sonnet 5.5 ou Opus 5.5 (emenda 0075 e 0077) |
 | [0106](0106-pergunta-da-vitta-avisa-o-destinatario-com-o-assunto-em-qualquer-projeto.md) | accepted | Pergunta da Vitta na Conversa da Demanda: avisa o Destinatário com o Assunto, em qualquer Projeto (emenda 0093 e 0096) |
 | [0108](0108-apresentacao-com-estado-real-e-envio-aos-desenvolvedores.md) | accepted | Apresentação do PRD com o estado real e link no card, e Envio aos desenvolvedores pela Conversa da Demanda (emenda 0083 e 0096) |
+| [0109](0109-pergunta-da-vitta-vira-registro-com-cartao-lista-e-me-explique.md) | accepted | Pergunta da Vitta vira registro: cartão, lista Esperando sua resposta, Me explique e a Conversa da Demanda reformada (emenda 0077, 0083, 0096 e 0106) |
 
 ## Central de Comando (números do ecossistema digital)
 

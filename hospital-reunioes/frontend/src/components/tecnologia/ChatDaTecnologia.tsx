@@ -70,6 +70,7 @@ import {
 } from "./chat";
 import { FALHA_DE_CONEXAO, motivoDaRecusa } from "./demandas";
 import { FraseEOQueMuda } from "./DocumentoDoCard";
+import { OpcoesEmCartao } from "./OpcoesEmCartao";
 
 // A mesma pergunta que o backend guarda como primeira fala da conversa.
 export const ABERTURA = "Isso é um bug, algo que não funciona como deveria, ou uma melhoria?";
@@ -214,57 +215,12 @@ function PerguntaEmCartao({
         <h3 className="normal-case text-[16px] font-bold leading-snug text-slate-900">{cartao.titulo}</h3>
       )}
       <p className="text-[16px] leading-relaxed text-slate-800 whitespace-pre-line">{fala.texto}</p>
-      <div role="group" aria-label="Opções" className="flex flex-col gap-2">
-        {fala.opcoes.map((opcao, i) => {
-          const letra = LETRAS[i];
-          const destaque = letra === fala.recomendada;
-          const conteudo = (
-            <>
-              <span
-                className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
-                  destaque ? "bg-primary text-white" : "bg-slate-100 text-slate-700"
-                }`}
-              >
-                {letra}
-              </span>
-              <span className="flex-1 space-y-1">
-                <span className="block normal-case text-[16px] font-semibold leading-snug text-slate-900">{opcao}</span>
-                {naPratica[i] && (
-                  <span className="block normal-case text-sm leading-relaxed text-text-secondary">
-                    {`Na prática: ${naPratica[i]}`}
-                  </span>
-                )}
-              </span>
-              {destaque && (
-                <span className="flex-shrink-0 px-2 py-0.5 rounded-full bg-primary text-white text-xs font-semibold">
-                  Recomendada
-                </span>
-              )}
-            </>
-          );
-          const classe = `flex items-start gap-3 w-full text-left px-4 py-3 rounded-xl border transition-colors ${
-            destaque ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border"
-          }`;
-          if (!onEscolher) {
-            return (
-              <div key={letra} className={classe}>
-                {conteudo}
-              </div>
-            );
-          }
-          return (
-            <button
-              key={letra}
-              type="button"
-              onClick={() => onEscolher(letra)}
-              disabled={desabilitado}
-              className={`${classe} disabled:opacity-60 ${destaque ? "" : "hover:border-primary"}`}
-            >
-              {conteudo}
-            </button>
-          );
-        })}
-      </div>
+      <OpcoesEmCartao
+        opcoes={fala.opcoes.map((texto, i) => ({ letra: LETRAS[i], texto, naPratica: naPratica[i] }))}
+        recomendada={fala.recomendada}
+        desabilitado={desabilitado}
+        onEscolher={onEscolher && ((letra) => onEscolher(letra as LetraDaOpcao))}
+      />
       {cartao.porque && fala.recomendada && (
         <p className="text-sm leading-relaxed text-slate-700">{`Por que recomendo a ${fala.recomendada}: ${cartao.porque}`}</p>
       )}

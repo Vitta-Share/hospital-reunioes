@@ -388,13 +388,18 @@ def _ranking(corpo) -> dict:
     return {linha["responsavel_id"]: linha for linha in corpo["ranking"]}
 
 
-def test_ranking_so_para_super_admin_e_quem_facilita_alguma_reuniao(painel):
+def test_ranking_so_para_super_admin_e_o_grafico_tambem_para_quem_facilita(painel):
     pedir, estado = painel
     estado["banco"] = _banco_de_papeis()
 
-    # Fábio facilita a R1 e a R3; o Super admin vê; Ana só é responsável.
-    assert pedir("admin").json()["ranking"] is not None
-    assert pedir("fabio").json()["ranking"] is not None
+    # O Super admin vê os dois; Fábio facilita a R1 e a R3 e vê só o gráfico
+    # por setor, sem nome de ninguém; Ana só é responsável e não vê nada.
+    corpo_do_admin = pedir("admin").json()
+    assert corpo_do_admin["ranking"] is not None
+    assert corpo_do_admin["atrasos_por_setor"] is not None
+    corpo_do_fabio = pedir("fabio").json()
+    assert corpo_do_fabio["ranking"] is None
+    assert corpo_do_fabio["atrasos_por_setor"] is not None
     corpo_da_ana = pedir("ana").json()
     assert corpo_da_ana["ranking"] is None
     assert corpo_da_ana["atrasos_por_setor"] is None
@@ -405,8 +410,8 @@ ONTEM_AS_15H = "2026-11-17T18:00:00+00:00"
 
 
 def _banco_do_ranking(pendencias, historico, participantes=None) -> _Banco:
-    """A R9 é de outra pessoa e Fábio facilita a R1: o ranking conta o hospital
-    inteiro, também para o Facilitador."""
+    """A R9 é de outra pessoa e Fábio facilita a R1: o gráfico por setor conta
+    o hospital inteiro, também para o Facilitador."""
     return _Banco(
         pendencias=pendencias,
         reunioes=[_reuniao("R9", "P_OUTRO", "ASSINADA"), _reuniao("R1", "P_FABIO", "ASSINADA")],
@@ -455,7 +460,7 @@ def test_reabertura_e_repactuacao_vencida_entram_no_ranking_e_a_antes_do_vencime
         ],
     )
 
-    ranking = _ranking(pedir("fabio").json())
+    ranking = _ranking(pedir("admin").json())
 
     assert ranking["P_ANA"]["repactuacoes_vencidas"] == 2
     assert ranking["P_ANA"]["atrasos"] == 2
@@ -655,7 +660,8 @@ def test_o_texto_de_reunioes_no_kit_diz_o_ranking_de_90_dias():
 
     texto = (CONHECIMENTO_DIR / "reunioes.md").read_text(encoding="utf-8")
     assert "o gráfico de atrasos por setor e o ranking dos responsáveis dos últimos 90 dias" in texto
-    assert "só para quem administra o aplicativo e para quem facilitou ao menos uma reunião" in texto
+    assert "O ranking, com o nome de cada responsável, aparece só para quem administra o aplicativo" in texto
+    assert "quem facilitou ao menos uma reunião vê só o gráfico por setor" in texto
     assert "conta no setor do responsável pela pendência" in texto
     assert "A pendência cancelada não entra em nenhuma dessas contas" in texto
     assert "a repactuação feita antes de o prazo vencer não pesa" in texto

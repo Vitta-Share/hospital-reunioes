@@ -19,9 +19,16 @@ from app.routers import (
     ana,
     auth,
     comentarios,
+    conduta_afastamento,
+    conduta_ata,
+    conduta_codigo,
     conduta_comite,
+    conduta_convites,
+    conduta_depoimentos,
     conduta_membros,
     conduta_publico,
+    conduta_rota_especial,
+    conduta_voto,
     conector_mcp,
     configuracoes,
     contas_medicas,
@@ -57,8 +64,12 @@ from app.routers import (
     seguranca_do_paciente_documentos_assinatura,
     seguranca_do_paciente_membros,
     seguranca_do_paciente_notificacoes,
+    seguranca_do_paciente_prazos,
+    seguranca_do_paciente_recalibracao,
+    seguranca_do_paciente_recebimento,
     seguranca_do_paciente_reunioes,
     seguranca_do_paciente_termo,
+    seguranca_do_paciente_triagem,
     tecnologia_automacao,
     transcricao,
     webhooks,
@@ -190,13 +201,24 @@ app.include_router(seguranca_do_paciente_documentos.router, prefix=settings.api_
 app.include_router(seguranca_do_paciente_documentos_assinatura.router, prefix=settings.api_prefix)
 app.include_router(seguranca_do_paciente_membros.router, prefix=settings.api_prefix)
 app.include_router(seguranca_do_paciente_notificacoes.router, prefix=settings.api_prefix)
+app.include_router(seguranca_do_paciente_prazos.router, prefix=settings.api_prefix)
 app.include_router(seguranca_do_paciente_reunioes.router, prefix=settings.api_prefix)
 app.include_router(seguranca_do_paciente_termo.router, prefix=settings.api_prefix)
+app.include_router(seguranca_do_paciente_triagem.router, prefix=settings.api_prefix)
+app.include_router(seguranca_do_paciente_recalibracao.router, prefix=settings.api_prefix)
+app.include_router(seguranca_do_paciente_recebimento.router, prefix=settings.api_prefix)
 # Canal de Conduta (PRD #1786, ADR 0097): o Comitê em /comite-de-conduta,
 # atrás do portão; o lado público em /conduta, em 404 até a chave de abertura.
+app.include_router(conduta_afastamento.router, prefix=settings.api_prefix)
+app.include_router(conduta_ata.router, prefix=settings.api_prefix)
 app.include_router(conduta_comite.router, prefix=settings.api_prefix)
+app.include_router(conduta_codigo.router, prefix=settings.api_prefix)
+app.include_router(conduta_convites.router, prefix=settings.api_prefix)
+app.include_router(conduta_depoimentos.router, prefix=settings.api_prefix)
 app.include_router(conduta_membros.router, prefix=settings.api_prefix)
 app.include_router(conduta_publico.router, prefix=settings.api_prefix)
+app.include_router(conduta_rota_especial.router, prefix=settings.api_prefix)
+app.include_router(conduta_voto.router, prefix=settings.api_prefix)
 app.include_router(admin.router, prefix=settings.api_prefix)
 app.include_router(admin_super_admins.router, prefix=settings.api_prefix)
 app.include_router(admin_usuarios.router, prefix=settings.api_prefix)

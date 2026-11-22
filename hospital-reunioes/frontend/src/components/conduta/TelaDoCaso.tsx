@@ -1,9 +1,20 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, Check, Loader2 } from "lucide-react";
 
+import { AfastamentoCautelar } from "@/components/conduta/AfastamentoCautelar";
+import { AtaEReuniao } from "@/components/conduta/AtaEReuniao";
+import { ConvidarAoCaso } from "@/components/conduta/ConvidarAoCaso";
+import { DepoimentosDaApuracao } from "@/components/conduta/DepoimentosDaApuracao";
+import { ImpedimentoECitados } from "@/components/conduta/ImpedimentoECitados";
 import { OQueFazerAgora } from "@/components/conduta/OQueFazerAgora";
+import { RelatorioDaApuracao } from "@/components/conduta/RelatorioDaApuracao";
+import { RotaEspecial } from "@/components/conduta/RotaEspecial";
+import { SinalizarAoNsp } from "@/components/conduta/SinalizarAoNsp";
+import { SugestaoDoAgente } from "@/components/conduta/SugestaoDoAgente";
+import { VotoETrava } from "@/components/conduta/VotoETrava";
 import {
   CATEGORIAS,
   DESTINOS,
@@ -136,6 +147,7 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
   const [triagem, setTriagem] = useState<TriagemDoFormulario>(VAZIA);
   const [motivo, setMotivo] = useState("");
   const [justificativa, setJustificativa] = useState("");
+  const [impedido, setImpedido] = useState(false);
 
   const carregar = useCallback(() => {
     chamarComite<CasoAberto>(`/casos/${casoId}`)
@@ -150,7 +162,7 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
     carregar();
   }, [carregar]);
 
-  const enviar = async (caminho: string, body?: unknown) => {
+  const enviar = async (caminho: string, body?: unknown): Promise<boolean> => {
     setOcupado(true);
     setAviso(null);
     try {
@@ -160,8 +172,10 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
       setMotivo("");
       setJustificativa("");
       carregar();
+      return true;
     } catch (e) {
       setAviso((e as Error).message);
+      return false;
     } finally {
       setOcupado(false);
     }
@@ -170,9 +184,22 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
   const aoAgir = (acao: string) => {
     if (acao === "conferir_triagem") return void enviar("conferencia");
     if (acao === "enviar_orientacao") return void enviar("encaminhamento");
+    if (acao === "enviar_para_voto") return void enviar("envio-para-voto");
     setPasso(acao);
   };
 
+  if (impedido) {
+    return (
+      <div role="status" className={`${CARTAO} px-4 py-4 space-y-2`}>
+        <p className="text-sm text-slate-800">
+          Você se declarou impedido neste caso e não tem mais acesso a ele. Um suplente é convocado no seu lugar.
+        </p>
+        <Link href="/comite-de-conduta/casos" className="text-sm font-semibold text-[#282760] underline">
+          Voltar aos casos
+        </Link>
+      </div>
+    );
+  }
   if (erro) {
     return (
       <div role="alert" className={`${CARTAO} flex gap-2 items-start px-4 py-4`}>
@@ -220,6 +247,17 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
       </ol>
 
       <OQueFazerAgora caixa={caso.o_que_fazer_agora} aoAgir={aoAgir} ocupado={ocupado} />
+
+      <RotaEspecial caso={caso} ocupado={ocupado} enviar={enviar} />
+
+      <AfastamentoCautelar
+        casoId={casoId}
+        rota={caso.rota ?? null}
+        citados={caso.citados ?? []}
+        afastamentos={caso.afastamentos ?? []}
+        podeRegistrar={Boolean(caso.pode_registrar_afastamento)}
+        aoMudar={carregar}
+      />
 
       {aviso && (
         <p role="alert" className="text-sm text-red-700">
@@ -282,6 +320,35 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
           </div>
         </div>
       )}
+
+      <DepoimentosDaApuracao
+        casoId={casoId}
+        depoimentos={caso.depoimentos ?? []}
+        emApuracao={caso.etapa === "apuracao" && !encerrado}
+        bloqueioDoAvanco={caso.avanco_da_apuracao ?? null}
+        adicionando={passo === "adicionar_pessoa"}
+        aoFecharAdicionar={() => setPasso(null)}
+        aoMudar={carregar}
+        membros={caso.membros_do_caso ?? []}
+      />
+
+      <RelatorioDaApuracao
+        casoId={casoId}
+        relatorio={caso.relatorio ?? null}
+        cronologia={caso.cronologia ?? null}
+        podeRedigir={Boolean(caso.pode_redigir_relatorio) && !encerrado}
+        aoMudar={carregar}
+      />
+
+      <VotoETrava
+        casoId={casoId}
+        votacao={caso.votacao ?? null}
+        trava={caso.trava ?? null}
+        votando={passo === "votar"}
+        aoMudar={carregar}
+      />
+
+      <AtaEReuniao casoId={casoId} ata={caso.ata ?? null} reuniao={caso.reuniao ?? null} aoMudar={carregar} />
 
       {caso.triagem_em && (
         <section aria-label="Triagem" className={`${CARTAO} px-4 py-4 space-y-1`}>
@@ -360,6 +427,14 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
           )}
         </section>
       )}
+
+      {caso.sugestao_do_agente && <SugestaoDoAgente casoId={casoId} sugestao={caso.sugestao_do_agente} aoResponder={carregar} />}
+
+      <SinalizarAoNsp notas={caso.notas_ao_nsp ?? []} papel={caso.papel} ocupado={ocupado} enviar={enviar} />
+
+      <ImpedimentoECitados casoId={casoId} caso={caso} aoMudar={carregar} aoImpedir={() => setImpedido(true)} />
+
+      <ConvidarAoCaso casoId={casoId} />
 
       <section aria-label="Relato original" className={`${CARTAO} px-4 py-4 space-y-1`}>
         <h2 className="text-base font-semibold text-slate-900">Relato original</h2>

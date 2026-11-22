@@ -1,7 +1,7 @@
 """Dublê do banco para os testes do Canal de Conduta (issue #1820).
 
 Um PostgREST em memória com o que o módulo usa: select, eq, in_, is_, order,
-limit, insert e update (recusado nas tabelas imutáveis, como o banco faz). O
+limit, insert, update e delete (recusados nas tabelas imutáveis, como o banco faz). O
 `insert` confere as chaves únicas, e o da trilha confere a cadeia como o
 trigger da migration 175 (a linha nova aponta para a última do caso), para o serviço ser
 exercitado contra a mesma recusa que o banco faz.
@@ -27,6 +27,7 @@ class _Consulta:
         self._teto: int | None = None
         self._inserir: list[dict] | None = None
         self._atualizar: dict | None = None
+        self._apagar = False
 
     def select(self, *_a, **_kw):
         return self
@@ -53,7 +54,9 @@ class _Consulta:
         self._filtros.append(lambda linha: linha.get(coluna) is esperado)
         return self
 
-    def ilike(self, *_a):
+    def ilike(self, coluna, padrao):
+        trecho = padrao.strip("%").lower()
+        self._filtros.append(lambda linha: trecho in str(linha.get(coluna) or "").lower())
         return self
 
     def order(self, coluna, desc=False):
@@ -74,8 +77,18 @@ class _Consulta:
         self._atualizar = dict(campos)
         return self
 
+    def delete(self):
+        if self._nome in IMUTAVEIS:
+            raise AssertionError(f"o banco recusa DELETE em {self._nome}")
+        self._apagar = True
+        return self
+
     def execute(self):
         tabela = self._banco.tabelas.setdefault(self._nome, [])
+        if self._apagar:
+            alvos = [linha for linha in tabela if all(f(linha) for f in self._filtros)]
+            tabela[:] = [linha for linha in tabela if linha not in alvos]
+            return SimpleNamespace(data=[dict(linha) for linha in alvos])
         if self._inserir is not None:
             return SimpleNamespace(data=[self._banco.gravar(self._nome, linha) for linha in self._inserir])
         if self._atualizar is not None:
@@ -90,15 +103,80 @@ class _Consulta:
         return SimpleNamespace(data=linhas[: self._teto] if self._teto is not None else linhas)
 
 
-# As tabelas que o banco não deixa alterar (migrations 175 e 185).
-IMUTAVEIS = ("conduta_trilha", "conduta_prazos_vencidos")
+# As tabelas que o banco não deixa alterar (migrations 175, 185, 193 e 214).
+IMUTAVEIS = (
+    "conduta_trilha",
+    "conduta_prazos_vencidos",
+    "conduta_depoimento_arquivos",
+    "conduta_depoimento_conferencia",
+    "conduta_relatorios",
+    "conduta_selos",
+    "conduta_entregas_do_parecer",
+    "conduta_votos",
+    "conduta_trava_preenchimentos",
+    "conduta_trava_confirmacoes",
+    "conduta_ciencias_do_codigo",
+    "conduta_atas",
+    "conduta_reuniao_conferencia",
+)
 
-# As chaves únicas que o módulo usa para não gravar duas vezes (migration 185).
+# As chaves únicas que o módulo usa para não gravar duas vezes (migrations 185, 193 e 214).
 UNICAS = {
     "conduta_prazos_vencidos": ("caso_id", "prazo_em"),
     "conduta_contestacoes": ("caso_id",),
     "conduta_contestacao_votos": ("contestacao_id", "participante_id"),
+    "conduta_participacao_votos": ("contestacao_id", "participante_id"),
+    "conduta_depoimento_arquivos": ("depoimento_id", "tipo", "versao", "pagina"),
+    "conduta_depoimento_conferencia": ("depoimento_id", "item"),
+    "conduta_relatorios": ("caso_id", "tipo", "versao"),
+    "conduta_selos": ("caso_id",),
+    "conduta_entregas_do_parecer": ("caso_id",),
+    "conduta_votos": ("caso_id", "rodada", "participante_id"),
+    "conduta_trava_preenchimentos": ("caso_id", "versao"),
+    "conduta_trava_confirmacoes": ("caso_id", "item", "participante_id"),
+    "conduta_ciencias_do_codigo": ("caso_id", "versao"),
+    "conduta_atas": ("caso_id", "versao"),
+    "conduta_reuniao_transcricoes": ("caso_id", "versao"),
+    "conduta_reuniao_conferencia": ("caso_id", "item"),
 }
+
+
+class _Bucket:
+    def __init__(self, armazem: Armazem, nome: str):
+        self._armazem = armazem
+        self._nome = nome
+
+    def upload(self, caminho, conteudo, opcoes=None):
+        self._armazem.objetos[(self._nome, caminho)] = bytes(conteudo)
+        return {"Key": caminho}
+
+    def download(self, caminho):
+        return self._armazem.objetos[(self._nome, caminho)]
+
+    def remove(self, caminhos):
+        for caminho in caminhos:
+            self._armazem.objetos.pop((self._nome, caminho), None)
+        return [{"name": c} for c in caminhos]
+
+    def create_signed_url(self, caminho, *_a, **_kw):
+        self._armazem.urls_assinadas.append((self._nome, caminho))
+        return {"signedURL": f"https://bucket.test/{self._nome}/{caminho}?token=assinado"}
+
+    def get_public_url(self, caminho):
+        self._armazem.urls_assinadas.append((self._nome, caminho))
+        return f"https://bucket.test/{self._nome}/{caminho}"
+
+
+class Armazem:
+    """O Storage em memória: guarda os bytes como chegaram e anota todo pedido
+    de URL (assinada ou pública), que o Canal nunca deve fazer."""
+
+    def __init__(self):
+        self.objetos: dict[tuple[str, str], bytes] = {}
+        self.urls_assinadas: list[tuple[str, str]] = []
+
+    def from_(self, nome: str) -> _Bucket:
+        return _Bucket(self, nome)
 
 
 class Banco:
@@ -106,6 +184,7 @@ class Banco:
         self.tabelas: dict[str, list[dict]] = tabelas or {}
         self._seq = itertools.count(1)
         self.falhas_da_trilha = 0
+        self.storage = Armazem()
 
     def table(self, nome: str) -> _Consulta:
         return _Consulta(self, nome)

@@ -5,9 +5,15 @@
  * Quem decide o que cada pessoa pode fazer é o servidor: a caixa "O QUE FAZER
  * AGORA" chega pronta, com o motivo do botão bloqueado.
  */
+import type { Afastamento } from "@/lib/conduta/afastamento";
+import type { AtaDoCaso, ReuniaoDoComite } from "@/lib/conduta/ata";
+import type { Depoimento } from "@/lib/conduta/depoimentos";
+import type { TextoDaApuracao } from "@/lib/conduta/relatorio";
+import type { Trava, Votacao } from "@/lib/conduta/voto";
 import { createClient } from "@/lib/supabase/client";
+import type { SugestaoDoAgente } from "@/lib/conduta/sugestao";
 
-export type Rito = "encaminhamento" | "rapido" | "completo";
+export type Rito = "encaminhamento" | "rapido" | "completo" | "especial";
 export type Escopo = "dentro" | "fora" | "misto";
 export type Situacao = "em_triagem" | "em_andamento" | "encerrado";
 
@@ -32,6 +38,8 @@ export interface CasoDaLista {
   prazo_em: string | null;
   prazo_vencido: boolean;
   faltam_dias: number | null;
+  /** De onde o caso veio: a página pública ou a sinalização do ouvidor (issue #1849). */
+  origem?: "canal" | "ouvidoria" | null;
 }
 
 export interface Caixa {
@@ -52,7 +60,49 @@ export interface Contestacao {
   resultado: "mantida" | "acatada" | null;
 }
 
+/** A nota do Comitê ao Núcleo de Segurança do Paciente (issue #1850). */
+export interface NotaAoNucleo {
+  texto: string;
+  escrita_em: string | null;
+  /** Sem data, a nota espera a coordenação enviar. */
+  enviada_em: string | null;
+}
+
+/** Quem foi convidado para o caso e o termo dele (issue #1825). */
+export interface Convidado {
+  participante_id: string;
+  nome: string | null;
+  motivo: "apurador" | "cipa";
+  papel: string;
+  termo: "assinado" | "aguardando_assinatura" | "nao_enviado";
+}
+
+export interface MembroDoCaso {
+  id: string;
+  nome: string | null;
+  papel: string;
+}
+
+export interface ContestacaoDeParticipacao {
+  id: string;
+  contestado: string | null;
+  motivo: string;
+  votos: number;
+  resultado: "confirmada" | "rejeitada" | null;
+  pode_decidir: boolean;
+}
+
+export interface Citado {
+  id: string;
+  nome: string | null;
+  ligado: boolean;
+}
+
 export interface CasoAberto extends CasoDaLista {
+  membros_do_caso: MembroDoCaso[];
+  pode_contestar_participacao: boolean;
+  contestacoes_de_participacao: ContestacaoDeParticipacao[];
+  citados: Citado[];
   relato: string;
   escopo: Escopo | null;
   destino: string | null;
@@ -67,6 +117,44 @@ export interface CasoAberto extends CasoDaLista {
   conferida_em: string | null;
   encerrado_em: string | null;
   desfecho: string | null;
+  sugestao_do_agente?: SugestaoDoAgente;
+  notas_ao_nsp?: NotaAoNucleo[];
+  /** Os cartões da Apuração (issue #1830). */
+  depoimentos: Depoimento[];
+  avanco_da_apuracao: string | null;
+  /** O relatório de apuração e a cronologia dos fatos (issue #1832). */
+  relatorio?: TextoDaApuracao | null;
+  cronologia?: TextoDaApuracao | null;
+  pode_redigir_relatorio?: boolean;
+  /** O "Não sei" no passo 3 ou o sinal do agente, num caso da fila comum (issue #1829). */
+  aviso_de_rota_especial?: string | null;
+  pode_desviar?: boolean;
+  rota_especial?: RotaEspecialDoCaso | null;
+  /** O voto e a trava de robustez (issue #1833). */
+  votacao?: Votacao | null;
+  trava?: Trava | null;
+  /** A ata de deliberação e a reunião do Comitê (issue #1834). */
+  ata?: AtaDoCaso | null;
+  reuniao?: ReuniaoDoComite | null;
+  /** O afastamento cautelar (issue #1836). */
+  rota?: "comum" | "especial" | null;
+  afastamentos?: Afastamento[];
+  pode_registrar_afastamento?: boolean;
+}
+
+/** O que o Grupo Especial vê do caso dele (issue #1829). */
+export interface RotaEspecialDoCaso {
+  selo: { selado_em: string; codigo: string; confere: boolean } | null;
+  nao_respondido_no_prazo: boolean;
+  entrega: { destinatario: string; entregue_em: string } | null;
+  pode_registrar_entrega: boolean;
+}
+
+/** O que se vê da Rota Especial de fora do grupo: só a contagem (issue #1829). */
+export interface ContagemDaRotaEspecial {
+  recebidos: number;
+  concluidos: number;
+  em_aberto: number;
 }
 
 export const RITOS: { valor: Rito; rotulo: string; prazo: string }[] = [
@@ -97,7 +185,16 @@ export const DESTINOS: { valor: string; rotulo: string }[] = [
   { valor: "gestor", rotulo: "Liderança direta ou DP" },
 ];
 
-export const SITUACOES: { valor: Situacao; rotulo: string }[] = [
+/** Os motivos de impedimento da especificação (seção 3.3). */
+export const MOTIVOS_DE_IMPEDIMENTO: { valor: string; rotulo: string }[] = [
+  { valor: "parte", rotulo: "Parte do caso" },
+  { valor: "chefia_direta", rotulo: "Chefia direta de envolvido" },
+  { valor: "parentesco", rotulo: "Parentesco" },
+  { valor: "relacao_pessoal", rotulo: "Relação pessoal" },
+  { valor: "interesse", rotulo: "Interesse no resultado" },
+];
+
+export const SITUACOES:{ valor: Situacao; rotulo: string }[] = [
   { valor: "em_triagem", rotulo: "Em triagem" },
   { valor: "em_andamento", rotulo: "Em andamento" },
   { valor: "encerrado", rotulo: "Encerrado" },
@@ -108,6 +205,8 @@ const ETAPAS: Record<string, string> = {
   contestada: "Triagem contestada",
   encaminhamento: "Encaminhamento",
   apuracao: "Apuração",
+  voto: "Voto",
+  ata: "Ata",
   encerrado: "Encerrado",
 };
 
@@ -116,6 +215,7 @@ export function rotuloDaEtapa(etapa: string | null): string {
 }
 
 export function rotuloDoRito(rito: Rito | null): string {
+  if (rito === "especial") return "Rota Especial";
   return RITOS.find((r) => r.valor === rito)?.rotulo ?? "Rito ainda não definido";
 }
 

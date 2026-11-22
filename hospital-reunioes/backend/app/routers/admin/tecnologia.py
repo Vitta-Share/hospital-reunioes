@@ -67,6 +67,11 @@ O chat da aba (issues #1381, #1383 e #1384):
 - POST  /admin/tecnologia/chat/{id}/conversa/enviar  o "Enviar": abre o
                                                 Ajuste do plano e escreve a
                                                 linha do envio na conversa.
+- GET   /admin/tecnologia/perguntas/esperando   a lista Esperando sua
+                                                resposta: as Perguntas da
+                                                Vitta abertas de todos os
+                                                Projetos (issue #2118, ADR
+                                                0109).
 
 O print do chat (ADR 0056, decisao 4; ADR 0077, decisao 8):
 
@@ -108,6 +113,7 @@ from app.models.tecnologia_schemas import (
     ChatResponse,
     ChatTurnoPayload,
     ConversaDaDemandaResponse,
+    ConversaDoMeExpliqueResponse,
     CriarOCardPayload,
     DemandaResponse,
     DesenvolvedorResponse,
@@ -115,10 +121,14 @@ from app.models.tecnologia_schemas import (
     EnviarAosDesenvolvedoresPayload,
     EstimativaDaRevisao,
     InterpretacaoDoEnvioResponse,
+    MeExpliquePayload,
     MensagemDaConversaPayload,
     MensagemDaConversaResponse,
     ModeloDaDemanda,
+    PerguntaEsperandoResponse,
     QuemSouNaAbaResponse,
+    RespostaDaPerguntaPayload,
+    RespostaDaPerguntaRespondidaResponse,
     RevisarPayload,
 )
 from app.services import (
@@ -135,6 +145,8 @@ from app.services import (
     tecnologia_entregas,
     tecnologia_envio,
     tecnologia_envio_aos_desenvolvedores,
+    tecnologia_me_explique,
+    tecnologia_perguntas,
     tecnologia_revisao,
     tecnologia_sincronizacao,
 )
@@ -1226,7 +1238,9 @@ def _mencionaveis(supabase: Client, demanda: dict) -> list[dict]:
     return sorted(pessoas.values(), key=lambda p: (p.get("nome_completo") or "").casefold())
 
 
-def _mensagem_para_a_tela(linha: dict, *, nomes: dict[str, str], ator: dict) -> dict:
+def _mensagem_para_a_tela(
+    linha: dict, *, nomes: dict[str, str], ator: dict, cartoes: dict[str, dict] | None = None
+) -> dict:
     return {
         "id": str(linha["id"]),
         "autor": nomes.get(str(linha.get("autor_id"))),
@@ -1234,6 +1248,8 @@ def _mensagem_para_a_tela(linha: dict, *, nomes: dict[str, str], ator: dict) -> 
         "criado_em": linha.get("criado_em"),
         "minha": linha.get("autor_id") == ator["id"],
         "sistema": linha.get("origem") == tecnologia_envio_aos_desenvolvedores.ORIGEM_SISTEMA,
+        # A entrada da Pergunta da Vitta (issue #2116) vem com o cartao.
+        "pergunta": (cartoes or {}).get(str(linha["id"])),
     }
 
 
@@ -1259,8 +1275,9 @@ async def ler_a_conversa_da_demanda(
     envio = None
     if not e_desenvolvedor(ator) and demanda.get("github_issue_numero"):
         envio = {"mensagens_novas": tecnologia_envio_aos_desenvolvedores.mensagens_novas(supabase, demanda_id)}
+    cartoes = tecnologia_perguntas.cartoes_da_demanda(supabase, demanda, ator=ator)
     return {
-        "mensagens": [_mensagem_para_a_tela(linha, nomes=nomes, ator=ator) for linha in linhas],
+        "mensagens": [_mensagem_para_a_tela(linha, nomes=nomes, ator=ator, cartoes=cartoes) for linha in linhas],
         "mencionaveis": [
             {"id": str(p["id"]), "nome": p.get("nome_completo") or ""} for p in _mencionaveis(supabase, demanda)
         ],
@@ -1293,6 +1310,104 @@ async def escrever_na_conversa_da_demanda(
     )
     nome = ator.get("nome_completo") or ""
     return _mensagem_para_a_tela(linha, nomes={str(ator["id"]): nome}, ator=ator)
+
+
+# ─── A lista Esperando sua resposta (issue #2118, ADR 0109, decisao 5) ─────
+
+
+@router.get("/perguntas/esperando", response_model=list[PerguntaEsperandoResponse])
+async def listar_as_perguntas_esperando(
+    ator: dict = Depends(require_super_admin),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """As Perguntas da Vitta abertas de todos os Projetos, as do logado
+    primeiro e a mais antiga primeiro. Todo Super admin ve a lista inteira."""
+    return tecnologia_perguntas.esperando(supabase, ator_id=str(ator["id"]))
+
+
+# ─── Responder a Pergunta da Vitta (issue #2119, ADR 0109, decisoes 4 e 5) ──
+
+
+@router.post("/perguntas/{pergunta_id}/resposta", response_model=RespostaDaPerguntaRespondidaResponse)
+async def responder_a_pergunta(
+    pergunta_id: str,
+    payload: RespostaDaPerguntaPayload,
+    ator: dict = Depends(require_super_admin),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """A resposta da Pergunta da Vitta, pelo cartao: a opcao, o texto livre
+    ou os dois. Responde o Destinatario, ou o Desenvolvedor no lugar dele;
+    outro Super admin e 403. A Pergunta que ja nao esta aberta e 409. A
+    resposta entra na Conversa da Demanda e nada vai para o GitHub."""
+    pergunta = tecnologia_perguntas.buscar(supabase, pergunta_id)
+    if pergunta is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pergunta não encontrada.")
+    demanda = _buscar_demanda(supabase, str(pergunta["demanda_id"]))
+    try:
+        cartao, linha = tecnologia_perguntas.responder(
+            supabase, pergunta, demanda, ator=ator, opcao=payload.opcao, texto=payload.texto
+        )
+    except tecnologia_perguntas.RespostaProibidaError as recusa:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(recusa)) from recusa
+    except tecnologia_perguntas.PerguntaFechadaError as recusa:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(recusa)) from recusa
+    except tecnologia_perguntas.RespostaRecusadaError as recusa:
+        _recusar(str(recusa))
+    nome = ator.get("nome_completo") or ""
+    return {"pergunta": cartao, "mensagem": _mensagem_para_a_tela(linha, nomes={str(ator["id"]): nome}, ator=ator)}
+
+
+# ─── O Me explique (issue #2122, ADR 0109, decisao 8) ───────────────────────
+
+
+def _pergunta_do_me_explique(supabase: Client, pergunta_id: str, ator: dict) -> tuple[dict, dict]:
+    """A Pergunta e a Demanda dela, se quem pede ve o cartao: quem ve a
+    Demanda, ou o Destinatario. Senao 404, sem dizer que existe."""
+    pergunta = tecnologia_perguntas.buscar(supabase, pergunta_id)
+    if pergunta is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pergunta não encontrada.")
+    demanda = _buscar_demanda(supabase, str(pergunta["demanda_id"]))
+    if not (pode_ver(ator, demanda) or str(ator["id"]) == str(pergunta.get("destinatario_id"))):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pergunta não encontrada.")
+    return pergunta, demanda
+
+
+@router.get("/perguntas/{pergunta_id}/me-explique", response_model=ConversaDoMeExpliqueResponse)
+async def ler_o_me_explique(
+    pergunta_id: str,
+    ator: dict = Depends(require_super_admin),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """A conversa do Me explique de quem esta logado, e so a dele. Nao chama a IA."""
+    pergunta, _ = _pergunta_do_me_explique(supabase, pergunta_id, ator)
+    return {"mensagens": tecnologia_me_explique.ler(supabase, str(pergunta["id"]), str(ator["id"]))}
+
+
+@router.post("/perguntas/{pergunta_id}/me-explique", response_model=ConversaDoMeExpliqueResponse)
+@limiter.limit(LIMITE_DO_ASSISTENTE)
+async def conversar_no_me_explique(
+    request: Request,
+    pergunta_id: str,
+    payload: MeExpliquePayload,
+    ator: dict = Depends(require_super_admin),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """O clique no Me explique (sem `texto`) ou a pergunta da pessoa (com ele).
+    A IA so roda aqui, pelo clique, e o custo entra na conta do Assistente.
+    Nada vai para a Conversa da Demanda nem para o GitHub."""
+    pergunta, demanda = _pergunta_do_me_explique(supabase, pergunta_id, ator)
+    mensagens = await ai_processor.chamar_ia_fora_do_loop(
+        tecnologia_me_explique.conversar,
+        supabase,
+        pergunta,
+        demanda,
+        ator=ator,
+        texto=payload.texto,
+        kit=carregar_kit(),
+    )
+    if mensagens is None:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=tecnologia_me_explique.MOTIVO_FALHOU)
+    return {"mensagens": mensagens}
 
 
 # ─── O Envio aos desenvolvedores (issue #2011, ADR 0108, decisoes 3 a 5) ────

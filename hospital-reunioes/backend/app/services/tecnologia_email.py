@@ -28,8 +28,21 @@ def link_da_demanda(demanda_id: str) -> str:
     return f"{settings.frontend_url}/admin/tecnologia?demanda={quote(str(demanda_id), safe='')}"
 
 
+def link_da_pergunta(pergunta_id: str) -> str:
+    """A aba Tecnologia com o cartão da Pergunta da Vitta em foco, o mesmo
+    endereço que o clique no aviso do sino dela abre (issue #2118)."""
+    return f"{settings.frontend_url}/admin/tecnologia?pergunta={quote(str(pergunta_id), safe='')}"
+
+
 def enviar_aviso_da_conversa(
-    supabase, *, destinatario_id: str, aviso: str, autor_nome: str, demanda: dict, assunto: str | None = None
+    supabase,
+    *,
+    destinatario_id: str,
+    aviso: str,
+    autor_nome: str,
+    demanda: dict,
+    assunto: str | None = None,
+    pergunta_id: str | None = None,
 ) -> bool:
     """Um e-mail para `destinatario_id` com o `aviso` do sino ("Fulano mencionou
     você" ou "Fulano escreveu na Demanda"). Com `assunto`, a mensagem pede
@@ -47,7 +60,8 @@ def enviar_aviso_da_conversa(
             return False
 
         titulo = str(demanda.get("titulo") or "Demanda sem título")
-        link = link_da_demanda(demanda["id"])
+        # O aviso da Pergunta da Vitta abre o cartão dela (issue #2118).
+        link = link_da_pergunta(pergunta_id) if pergunta_id else link_da_demanda(demanda["id"])
         html = jinja_env.get_template("email_tecnologia_conversa.html").render(
             destinatario_nome=destinatario.get("nome_completo") or "",
             aviso=aviso,
@@ -55,6 +69,7 @@ def enviar_aviso_da_conversa(
             titulo=titulo,
             assunto=assunto,
             link=link,
+            pergunta=bool(pergunta_id),
             logo_base64=get_logo_data_uri(),
         )
         linha_do_assunto = f"Assunto: {assunto}\n" if assunto else ""
@@ -220,4 +235,44 @@ def enviar_card_novo(supabase, *, demanda: dict, resumo: dict | None) -> bool:
         return _enviar_email(destinatario["email"], f"{ASSUNTO_DO_CARD_NOVO}: {titulo}", html, texto)
     except Exception as e:  # noqa: BLE001 (email nunca desfaz o card)
         logger.warning(f"[tecnologia_card_novo] Falha no email do card da Demanda {demanda_id}: {e}")
+        return False
+
+
+def enviar_lembrete_da_pergunta(
+    supabase, *, destinatario_id: str, assunto: str, dias: int, autor_nome: str, demanda: dict
+) -> bool:
+    """O lembrete unico da Pergunta da Vitta (issue #2120, ADR 0109, decisao
+    7): o Assunto, ha quantos dias a Pergunta espera e o link que abre a
+    Demanda com o cartao na Conversa. `False` quando nao saiu."""
+    try:
+        from app.services.email_constants import get_logo_data_uri
+
+        linhas = (
+            supabase.table("participantes").select("id, nome_completo, email").eq("id", destinatario_id).execute().data
+        )
+        destinatario = linhas[0] if linhas else None
+        if not destinatario or not destinatario.get("email"):
+            logger.warning(f"[tecnologia_lembrete] {destinatario_id} sem e-mail: lembrete por e-mail pulado")
+            return False
+
+        titulo = str(demanda.get("titulo") or "Demanda sem título")
+        link = link_da_demanda(demanda["id"])
+        espera = f"Sua resposta espera há {dias} dias"
+        html = jinja_env.get_template("email_tecnologia_lembrete_da_pergunta.html").render(
+            destinatario_nome=destinatario.get("nome_completo") or "",
+            espera=espera,
+            dias=dias,
+            autor_nome=autor_nome,
+            assunto=assunto,
+            titulo=titulo,
+            link=link,
+            logo_base64=get_logo_data_uri(),
+        )
+        texto = (
+            f"{espera}.\n\nAssunto: {assunto}\nDemanda: {titulo}\nQuem perguntou: {autor_nome}\n\n"
+            f"Para ler e responder: {link}\n"
+        )
+        return _enviar_email(destinatario["email"], f"{espera}: {assunto}", html, texto)
+    except Exception as e:  # noqa: BLE001 (o e-mail nunca desfaz o sino)
+        logger.warning(f"[tecnologia_lembrete] Falha no e-mail para {destinatario_id}: {e}")
         return False

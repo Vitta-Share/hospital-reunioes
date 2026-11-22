@@ -15,11 +15,12 @@ pessoas não agirem sobre o mesmo passo.
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 from datetime import date, timedelta
 from typing import Any
 
 from app.services.conduta import cifra, trilha
-from app.services.conduta.acesso import _atribuicoes_e_citacoes
+from app.services.conduta.acesso import _atribuicoes_e_citacoes, papel_no_caso
 from app.services.conduta.portao import CasoAberto, NoComite
 from app.services.conduta.ritos import (
     CATEGORIAS,
@@ -45,6 +46,7 @@ logger = logging.getLogger(__name__)
 NOMES_DOS_RITOS = {"encaminhamento": "Encaminhamento", "rapido": "Rápido", "completo": "Completo"}
 _TAMANHO_DO_MOTIVO = 500
 _TAMANHO_DA_JUSTIFICATIVA = 2000
+NAO_RESPONDIDO = "Caso não respondido no prazo"
 
 
 class AcaoRecusadaError(Exception):
@@ -88,7 +90,19 @@ def _olhar(supabase, pessoa_id: str, papel: str | None, atribuicoes, contestacao
 
 def olhar_do_caso(supabase, aberto: CasoAberto) -> Olhar:
     contestacao = _contestacoes(supabase, [aberto.caso["id"]]).get(aberto.caso["id"])
-    return _olhar(supabase, aberto.autor_id, aberto.pessoa.papel, aberto.atribuicoes, contestacao)
+    olhar = _olhar(supabase, aberto.autor_id, aberto.pessoa.papel, aberto.atribuicoes, contestacao)
+    if aberto.caso.get("etapa") == "voto":
+        # O voto (issue #1833). Import aqui, como o do relatório.
+        from app.services.conduta import voto
+
+        return replace(olhar, **voto.olhar_do_voto(supabase, aberto))
+    if aberto.caso.get("etapa") != "apuracao":
+        return olhar
+    # O relatório e o envio para voto (issue #1832). Import aqui: o módulo do
+    # relatório chega à triagem pelo impedimento.
+    from app.services.conduta import relatorio
+
+    return replace(olhar, **relatorio.olhar_do_envio(supabase, aberto))
 
 
 def registrar_vencidos(supabase, casos: list[dict], hoje: date) -> set[str]:
@@ -104,7 +118,9 @@ def registrar_vencidos(supabase, casos: list[dict], hoje: date) -> set[str]:
         if not prazo_venceu(caso, hoje) or (caso["id"], str(caso["prazo_em"])[:10]) in registrados:
             continue
         prazo = str(caso["prazo_em"])[:10]
-        trilha.registrar(supabase, caso["id"], None, "prazo_vencido", f"prazo do rito venceu em {prazo}")
+        # Na Rota Especial, o registro permanente tem nome próprio (issue #1829).
+        detalhe = NAO_RESPONDIDO if caso.get("rota") == "especial" else f"prazo do rito venceu em {prazo}"
+        trilha.registrar(supabase, caso["id"], None, "prazo_vencido", detalhe)
         supabase.table("conduta_prazos_vencidos").insert(
             {"caso_id": caso["id"], "rito": caso.get("rito") or "", "prazo_em": prazo}
         ).execute()
@@ -125,11 +141,12 @@ def minha_vez(supabase, comite: NoComite, hoje: date) -> list[dict]:
     contestacoes = _contestacoes(supabase, [c["id"] for c in comite.casos if c.get("etapa") == "contestada"])
     itens = []
     for caso in comite.casos:
+        do_caso = atribuicoes.get(caso["id"], [])
         olhar = _olhar(
             supabase,
             comite.autor_id,
-            comite.pessoa.papel,
-            atribuicoes.get(caso["id"], []),
+            papel_no_caso(comite.pessoa.papel, do_caso),
+            do_caso,
             contestacoes.get(caso["id"]),
         )
         acao = acao_pendente(caso, olhar)

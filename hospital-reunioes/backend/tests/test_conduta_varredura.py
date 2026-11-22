@@ -32,22 +32,32 @@ from app.services.conduta.portao import (  # noqa: E402
     portao_da_acao,
     portao_da_coordenacao,
     portao_da_lista,
+    portao_da_tela_inicial,
+    portao_do_afastamento,
     portao_do_cadastro,
     portao_do_caso,
     portao_dos_membros,
 )
 
-# Os do caso e, para a tela Membros (issue #1822) e as configurações do módulo
-# (issue #1826), os que não abrem caso.
+# Os do caso, o da tela inicial (issue #1823) e, para a tela Membros (issue
+# #1822) e as configurações do módulo (issue #1826), os que não abrem caso.
 PORTOES_DO_COMITE = {
     portao_da_lista,
     portao_do_caso,
     portao_da_acao,
+    portao_da_tela_inicial,
     portao_dos_membros,
     portao_do_cadastro,
     portao_da_coordenacao,
+    # O afastamento cautelar (issue #1836): quem abre o caso e, na Rota
+    # Especial, a coordenação, que abre só o pedido.
+    portao_do_afastamento,
 }
 PREFIXO_PUBLICO = "/conduta"
+# A porta da Ouvidoria para o Canal (issue #1849, ADR 0097 decisão 14): o
+# ouvidor abre um caso com o relato da manifestação e não lê caso nenhum. Fica
+# no router da Ouvidoria, com o gate do perfil dela, e o teste abaixo confere.
+PORTAS_DE_FORA_DO_MODULO = {"/api/ouvidoria/manifestacoes/{manifestacao_id}/canal-de-conduta"}
 IP_DE_QUEM_RELATA = "203.0.113.45"
 
 
@@ -120,11 +130,26 @@ class TestVarredura:
 
         assert rotas_sem_trava([router]) == ["['POST'] /conduta/relatos"]
 
+    def test_as_portas_de_fora_do_modulo_so_gravam_e_pedem_o_perfil_da_ouvidoria(self):
+        """A exceção da varredura é uma porta só, e ela não abre caso: o
+        detector confere o gate e o método de cada uma."""
+        from app.routers.ouvidoria import require_perfil_ouvidoria
+        from app.routers.ouvidoria import router as router_da_ouvidoria
+
+        for caminho in PORTAS_DE_FORA_DO_MODULO:
+            (rota,) = [
+                r
+                for r in router_da_ouvidoria.routes
+                if isinstance(r, APIRoute) and f"{settings.api_prefix}{r.path}" == caminho
+            ]
+            assert rota.methods == {"POST"}
+            assert require_perfil_ouvidoria in [d.call for d in rota.dependant.dependencies]
+
     def test_toda_rota_com_conduta_no_app_e_de_um_router_do_modulo(self):
         """Uma rota do módulo escrita noutro router escaparia da varredura."""
         from app.main import app
 
-        do_app = {caminho for caminho in app.openapi()["paths"] if "conduta" in caminho}
+        do_app = {caminho for caminho in app.openapi()["paths"] if "conduta" in caminho} - PORTAS_DE_FORA_DO_MODULO
         do_modulo = {
             f"{settings.api_prefix}{rota.path}"
             for router in _routers_do_modulo()

@@ -12,11 +12,25 @@
 import { useState } from "react";
 import { AlertCircle, Loader2, Search, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
+import {
+  PerguntasDeEsclarecimento,
+  usePerguntasDeEsclarecimento,
+  type ChaveDoAcompanhamento,
+} from "@/components/seguranca-do-paciente/PerguntasDeEsclarecimento";
 import { SEM_PUNICAO } from "@/lib/seguranca-do-paciente/notificacao";
 
 interface Situacao {
   protocolo: string;
   estado: string;
+  // Só no caso fora de escopo: a orientação de uma frase do Núcleo (issue #1995).
+  orientacao?: string | null;
+}
+
+/** As perguntas do agente que esperam resposta (issue #1991), com a chave
+ * que acabou de conferir. */
+function PerguntasEmAberto({ chave }: { chave: ChaveDoAcompanhamento }) {
+  const perguntas = usePerguntasDeEsclarecimento(chave);
+  return <PerguntasDeEsclarecimento chave={chave} perguntas={perguntas} emCartao />;
 }
 
 type Caminho = "anonimo" | "identificado";
@@ -51,6 +65,7 @@ export default function AcompanharNotificacaoPage() {
   const [consultando, setConsultando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [situacao, setSituacao] = useState<Situacao | null>(null);
+  const [chaveConferida, setChaveConferida] = useState<ChaveDoAcompanhamento | null>(null);
 
   const podeConsultar = caminho !== null && protocolo.trim() !== "" && chave.trim() !== "";
 
@@ -66,6 +81,7 @@ export default function AcompanharNotificacaoPage() {
     setConsultando(true);
     setErro(null);
     setSituacao(null);
+    setChaveConferida(null);
     const corpo =
       caminho === "anonimo"
         ? { protocolo: protocolo.trim(), codigo: chave.trim() }
@@ -90,6 +106,7 @@ export default function AcompanharNotificacaoPage() {
         return;
       }
       setSituacao((await res.json()) as Situacao);
+      setChaveConferida(corpo);
     } catch {
       setErro("Não foi possível falar com o hospital agora. Verifique sua conexão e tente de novo.");
     } finally {
@@ -197,8 +214,11 @@ export default function AcompanharNotificacaoPage() {
               <span aria-hidden="true" className={`h-3 w-3 rounded-full ${corDoEstado(situacao.estado)}`} />
               <span role="status">{situacao.estado}</span>
             </p>
+            {situacao.orientacao && <p className="pt-2 text-sm text-slate-700">{situacao.orientacao}</p>}
           </section>
         )}
+
+        {chaveConferida && <PerguntasEmAberto chave={chaveConferida} />}
 
         <section aria-labelledby="legenda" className="space-y-2">
           <h2 id="legenda" className="text-sm font-semibold text-slate-700">

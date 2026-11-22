@@ -48,6 +48,8 @@ const COLUNAS = ["Membro", "Papel", "Área", "Registro", "Vigência", "Estado", 
 export function MembrosDoNucleo() {
   const { participante } = useCurrentParticipante();
   const gere = participante?.recursos_nsp?.includes("gerir_nucleo") ?? false;
+  // Só a Presidência e o Acesso pleno registram a ausência (issue #1999).
+  const registraAusencia = participante?.recursos_nsp?.includes("ausencia_da_presidencia") ?? false;
 
   const [membros, setMembros] = useState<Membro[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -171,7 +173,13 @@ export function MembrosDoNucleo() {
                     {expandido && (
                       <tr>
                         <td colSpan={COLUNAS.length} className="px-3 pb-4 bg-slate-50/60">
-                          <DetalhesDoMembro membro={m} nome={nome} gere={gere} aoMudar={carregar} />
+                          <DetalhesDoMembro
+                            membro={m}
+                            nome={nome}
+                            gere={gere}
+                            registraAusencia={registraAusencia}
+                            aoMudar={carregar}
+                          />
                         </td>
                       </tr>
                     )}
@@ -429,11 +437,13 @@ function DetalhesDoMembro({
   membro,
   nome,
   gere,
+  registraAusencia,
   aoMudar,
 }: {
   membro: Membro;
   nome: string;
   gere: boolean;
+  registraAusencia: boolean;
   aoMudar: () => Promise<void>;
 }) {
   const setores = useSetores();
@@ -450,15 +460,19 @@ function DetalhesDoMembro({
   const [novoFim, setNovoFim] = useState("");
   const [encerrarEm, setEncerrarEm] = useState(hojeLocal());
   const [confirmando, setConfirmando] = useState(false);
+  const [ausenciaInicio, setAusenciaInicio] = useState("");
+  const [ausenciaFim, setAusenciaFim] = useState("");
   const [trilha, setTrilha] = useState<LinhaDaTrilha[] | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+
+  const [versaoDaTrilha, setVersaoDaTrilha] = useState(0);
 
   useEffect(() => {
     chamarNsp<{ trilha: LinhaDaTrilha[] }>(`/api/nsp/membros/${membro.id}/trilha`)
       .then((corpo) => setTrilha(corpo.trilha))
       .catch(() => setTrilha([]));
-  }, [membro.id]);
+  }, [membro.id, versaoDaTrilha]);
 
   async function enviar(caminho: string, method: string, body?: unknown) {
     setOcupado(true);
@@ -467,6 +481,7 @@ function DetalhesDoMembro({
       const corpo = await chamarNsp<Partial<Membro>>(caminho, { method, body });
       if (corpo?.aviso_termo) setErro(corpo.aviso_termo);
       await aoMudar();
+      setVersaoDaTrilha((n) => n + 1);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não foi possível concluir.");
     } finally {
@@ -569,6 +584,54 @@ function DetalhesDoMembro({
         </>
       )}
 
+      {registraAusencia && membro.papel === "suplente" && !membro.encerrada_em && (
+        <div>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Ausência da Presidência</h3>
+          <p className="text-xs text-slate-500 mb-2">
+            Nesses dias, contando os dois, o suplente responde pela Presidência no módulo. O registro não se desfaz.
+          </p>
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className={ROTULO} htmlFor={`nsp-ausencia-inicio-${membro.id}`}>
+                Primeiro dia da ausência
+              </label>
+              <input
+                id={`nsp-ausencia-inicio-${membro.id}`}
+                type="date"
+                className={CAMPO}
+                value={ausenciaInicio}
+                onChange={(e) => setAusenciaInicio(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className={ROTULO} htmlFor={`nsp-ausencia-fim-${membro.id}`}>
+                Último dia da ausência
+              </label>
+              <input
+                id={`nsp-ausencia-fim-${membro.id}`}
+                type="date"
+                className={CAMPO}
+                value={ausenciaFim}
+                onChange={(e) => setAusenciaFim(e.target.value)}
+              />
+            </div>
+            <button
+              type="button"
+              className={BOTAO_LEVE}
+              disabled={!ausenciaInicio || !ausenciaFim || ocupado}
+              onClick={() =>
+                enviar(`/api/nsp/membros/${membro.id}/ausencia-da-presidencia`, "POST", {
+                  inicio: ausenciaInicio,
+                  fim: ausenciaFim,
+                })
+              }
+            >
+              Registrar ausência
+            </button>
+          </div>
+        </div>
+      )}
+
       <div>
         <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Histórico de mudanças</h3>
         {trilha === null ? (
@@ -581,7 +644,9 @@ function DetalhesDoMembro({
               <li key={`${t.created_at}-${i}`}>
                 {new Date(t.created_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })},{" "}
                 {t.autor ?? "autor desconhecido"}: {LABEL_ACAO[t.acao] ?? t.acao}
-                {ACOES_DO_TERMO.has(t.acao) ? (
+                {t.acao === "ausencia_da_presidencia" ? (
+                  t.valor_novo ? `, ${t.valor_novo}` : ""
+                ) : ACOES_DO_TERMO.has(t.acao) ? (
                   t.motivo ? `, justificativa: ${t.motivo}` : ""
                 ) : (
                   <>

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Ata de Deliberação, versão {{ ata.versao }}</title>
+    <style>
+        {% if font_path %}
+        @font-face {
+            font-family: "HP Simplified";
+            src: url("{{ font_path }}") format("truetype");
+            font-weight: 400;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: "HP Simplified";
+            src: url("{{ font_path }}") format("truetype");
+            font-weight: 700;
+            font-style: normal;
+        }
+        {% endif %}
+
+        @page {
+            size: A4;
+            margin: 2cm 1.8cm 1.8cm 1.8cm;
+            @bottom-right {
+                content: "Página " counter(page) " de " counter(pages);
+                font-family: "HP Simplified", sans-serif;
+                font-size: 8.5pt;
+                color: #64748B;
+            }
+            @bottom-left {
+                content: "Ata de Deliberação · Documento {{ documento.identificador }}";
+                font-family: "HP Simplified", sans-serif;
+                font-size: 8pt;
+                color: #64748B;
+            }
+        }
+
+        body {
+            font-family: "HP Simplified", sans-serif;
+            font-synthesis: weight style;
+            color: #1E293B;
+            line-height: 1.55;
+            margin: 0;
+            font-size: 10.5pt;
+        }
+
+        .header { display: table; width: 100%; border-bottom: 1px solid #E2E8F0; padding-bottom: 16px; margin-bottom: 14px; }
+        .header-logo { display: table-cell; vertical-align: middle; width: 110px; }
+        .header-logo img { max-width: 96px; height: auto; }
+        .header-title { display: table-cell; vertical-align: middle; padding-left: 12px; }
+        .header-title h1 { color: #2B2E7E; margin: 0 0 4px 0; font-size: 18pt; text-transform: uppercase; line-height: 1.15; }
+        .header-title p { margin: 0; font-size: 10.5pt; font-weight: 700; }
+        .header-title .instituicao { color: #64748B; font-size: 9pt; font-weight: 400; }
+
+        h2 { color: #2B2E7E; font-size: 11.5pt; text-transform: uppercase; margin: 18px 0 6px 0; break-after: avoid; }
+        p { margin: 0 0 6px 0; text-align: justify; }
+
+        table.identificacao { width: 100%; border-collapse: collapse; margin: 4px 0 8px 0; }
+        table.identificacao th, table.identificacao td { border: 1px solid #E2E8F0; padding: 5px 8px; text-align: left; vertical-align: top; }
+        table.identificacao th { background: #F8FAFC; width: 34%; font-weight: 700; }
+
+        .texto { white-space: pre-line; text-align: left; }
+        ul { margin: 0 0 6px 0; padding-left: 18px; }
+        li { margin: 0 0 3px 0; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        {% if logo_path %}<div class="header-logo"><img src="{{ logo_path }}" alt="Hospital São Matheus"></div>{% endif %}
+        <div class="header-title">
+            <h1>Ata de Deliberação</h1>
+            <p>Comitê de Conduta, versão {{ ata.versao }}</p>
+            <p class="instituicao">Hospital São Matheus, AMA Assistência Médica</p>
+        </div>
+    </div>
+
+    <h2>1. Identificação</h2>
+    <table class="identificacao">
+        <tr><th>Rito</th><td>{{ ata.identificacao.rito }}</td></tr>
+        <tr><th>Data</th><td>{{ ata.identificacao.data }}</td></tr>
+        <tr><th>Presentes</th><td>{{ ata.identificacao.presentes | join(", ") }}</td></tr>
+        <tr><th>Impedimentos</th><td>{{ ata.identificacao.impedimentos | join(", ") if ata.identificacao.impedimentos else "Nenhum" }}</td></tr>
+        <tr><th>Suplentes</th><td>{{ ata.identificacao.suplentes | join(", ") if ata.identificacao.suplentes else "Nenhum" }}</td></tr>
+    </table>
+
+    <h2>2. Resumo do caso</h2>
+    <p class="texto">{{ ata.resumo }}</p>
+
+    <h2>3. Provas consideradas</h2>
+    {% if ata.provas %}<ul>{% for prova in ata.provas %}<li>{{ prova }}</li>{% endfor %}</ul>{% else %}<p>Nenhuma prova listada.</p>{% endif %}
+
+    <h2>4. Defesa</h2>
+    <p class="texto">{{ ata.defesa or "Não registrada." }}</p>
+
+    <h2>5. Deliberação</h2>
+    <p>{{ ata.deliberacao }}</p>
+
+    <h2>6. Fundamentos</h2>
+    <p class="texto">{{ ata.fundamentos }}</p>
+
+    <h2>7. Medida recomendada à Direção</h2>
+    <p>{{ ata.medida or "Sem medida: o resultado não pede medida." }}</p>
+
+    <h2>8. Votos</h2>
+    <table class="identificacao">
+        <tr><th>Membro</th><th>Voto e justificativa registrada</th></tr>
+        {% for voto in ata.votos %}
+        <tr><td>{{ voto.membro }}</td><td>{{ voto.resultado }}{% if voto.medida %}, {{ voto.medida }}{% endif %}<br><span class="texto">{{ voto.justificativa }}</span></td></tr>
+        {% endfor %}
+    </table>
+
+    <h2>9. Correção de processo</h2>
+    {% if ata.correcao %}<ul>{% for item in ata.correcao %}<li>{{ item }}</li>{% endfor %}</ul>{% else %}<p>Nenhuma.</p>{% endif %}
+
+    <h2>10. Encaminhamentos</h2>
+    {% if ata.encaminhamentos %}<ul>{% for item in ata.encaminhamentos %}<li>{{ item }}</li>{% endfor %}</ul>{% else %}<p>Nenhum.</p>{% endif %}
+
+    <h2>Assinatura dos votantes</h2>
+    <p>Os membros votantes abaixo declaram que esta ata registra a deliberação do Comitê de Conduta e os votos registrados no aplicativo, e a assinam eletronicamente, por meio da plataforma de assinatura eletrônica contratada pelo Hospital São Matheus, nos termos da Lei nº 14.063/2020.</p>
+    <table class="identificacao">
+        <tr><th>Membro votante</th><th>Data e hora</th></tr>
+        {% for nome in votantes %}
+        <tr><td>{{ nome }}</td><td>registradas pela plataforma de assinatura eletrônica</td></tr>
+        {% endfor %}
+    </table>
+    <p><strong>Documento:</strong> {{ documento.identificador }}</p>
+</body>
+</html>

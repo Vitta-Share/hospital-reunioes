@@ -122,6 +122,29 @@ describe("ranking de atrasos no painel", () => {
     ]);
   });
 
+  it("mostra só os atrasos por setor quando o servidor não manda o ranking (o facilitador)", async () => {
+    servir({
+      ...BASE,
+      atrasos_por_setor: [
+        {
+          setor: "Farmácia",
+          atrasadas: 1,
+          repactuacoes_vencidas: 2,
+          concluidas_com_atraso: 0,
+          atrasos: 3,
+          reaberturas: 1,
+          rotinas_nao_cumpridas: 2,
+        },
+      ],
+      ranking: null,
+    });
+    render(<DashboardPage />);
+
+    const setores = await screen.findByRole("region", { name: "Atrasos por setor" });
+    expect(within(setores).getByText("3 atrasos, 1 reabertura, 2 rotinas não cumpridas")).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Ranking de atrasos" })).toBeNull();
+  });
+
   it("não mostra ranking quando o servidor não manda (o responsável)", async () => {
     servir({ ...BASE, atrasos_por_setor: null, ranking: null });
     render(<DashboardPage />);

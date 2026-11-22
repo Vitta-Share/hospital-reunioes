@@ -119,7 +119,9 @@ export default function DashboardPage() {
   const [pieStats, setPieStats] = useState<PieEntry[]>([]);
   const [setorBarData, setSetorBarData] = useState<SetorBarEntry[]>([]);
   const [loadingCharts, setLoadingCharts] = useState(false);
-  const [atrasos, setAtrasos] = useState<{ porSetor: SetorDosAtrasos[]; ranking: LinhaDoRanking[] } | null>(null);
+  const [atrasos, setAtrasos] = useState<{ porSetor: SetorDosAtrasos[]; ranking: LinhaDoRanking[] | null } | null>(
+    null
+  );
 
   // Atas que os cards contam, e qual lista está aberta no modal (issue #1055)
   const [listasDeAtas, setListasDeAtas] = useState<Record<ListaDoCard, AtaDoDashboard[]>>({
@@ -271,8 +273,8 @@ export default function DashboardPage() {
         );
 
         setAtrasos(
-          painel.ranking && painel.atrasos_por_setor
-            ? { porSetor: painel.atrasos_por_setor, ranking: painel.ranking }
+          painel.atrasos_por_setor
+            ? { porSetor: painel.atrasos_por_setor, ranking: painel.ranking ?? null }
             : null
         );
       } catch (e) {
@@ -457,7 +459,7 @@ export default function DashboardPage() {
       {/* A evolução das semanas fotografadas (issue #1873). */}
       <EvolucaoSemanal semanas={evolucao} loading={loadingCharts} />
 
-      {/* Atrasos por setor e ranking de 90 dias: só chegam para quem pode ver (issue #1871). */}
+      {/* Atrasos por setor e ranking de 90 dias: só chegam para quem pode ver (issue #1871); o ranking, só para o Super admin. */}
       {atrasos && <RankingDeAtrasos porSetor={atrasos.porSetor} ranking={atrasos.ranking} />}
     </div>
   );

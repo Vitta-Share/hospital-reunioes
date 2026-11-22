@@ -393,10 +393,16 @@ def calcular_ranking(
     return RankingDoPainel(ranking=ranking, atrasos_por_setor=por_setor)
 
 
-def ve_ranking(me: dict | None, *, super_admin: bool, facilita_alguma: bool) -> bool:
-    """O ranking e o gráfico de atrasos aparecem para o Super admin e para quem
-    facilita ao menos uma Reunião (Refino da #1757, item 1)."""
+def ve_atrasos_por_setor(me: dict | None, *, super_admin: bool, facilita_alguma: bool) -> bool:
+    """O gráfico de atrasos por setor, sem nome de ninguém, aparece para o Super
+    admin e para quem facilita ao menos uma Reunião (Refino da #1757, item 1)."""
     return me is not None and (super_admin or facilita_alguma)
+
+
+def ve_ranking(me: dict | None, *, super_admin: bool) -> bool:
+    """O ranking, com o nome de cada responsável, aparece só para o Super admin:
+    o Facilitador não vê os atrasos de colegas de outros setores pelo nome."""
+    return me is not None and super_admin
 
 
 def _montar_ranking(supabase, recorte: RecorteDasPendencias, *, hoje: date, participantes: list[dict]):
@@ -467,10 +473,12 @@ def montar_painel(
     hoje: date,
     agora: datetime,
     filtros: FiltrosDoPainel | None = None,
+    com_atrasos_por_setor: bool = False,
     com_ranking: bool = False,
 ) -> PainelDeReunioes:
-    """Lê a base inteira em páginas e faz a conta. Com `com_ranking`, junta o
-    gráfico de atrasos por setor e o ranking de 90 dias do hospital inteiro."""
+    """Lê a base inteira em páginas e faz a conta. Com `com_atrasos_por_setor`,
+    junta o gráfico de atrasos por setor do hospital inteiro; com `com_ranking`,
+    também o ranking de 90 dias, com o nome de cada responsável."""
 
     def _consulta_de_pendencias():
         return no_recorte(
@@ -515,8 +523,9 @@ def montar_painel(
         agora=agora,
         filtros=filtros,
     )
-    if com_ranking:
+    if com_atrasos_por_setor or com_ranking:
         ranking = _montar_ranking(supabase, recorte, hoje=hoje, participantes=participantes)
-        painel.ranking = ranking.ranking
         painel.atrasos_por_setor = ranking.atrasos_por_setor
+        if com_ranking:
+            painel.ranking = ranking.ranking
     return painel

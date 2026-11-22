@@ -168,10 +168,88 @@ def conversas(lista: list[dict]) -> dict:
         "envio": {"mensagens_novas": novas},
     }
     # A pergunta da Vitta que pede a resposta do diretor, no pedido do projeto novo (issue #1968).
-    tabela[f"chat/{abrir['projeto_novo']}/conversa"] = conversa_da_demanda(
-        SEED["pergunta_do_projeto_novo"]["falas"], prefixo="exemplo-pergunta"
-    )
+    # Desde a issue #2116 ela chega como o cartão da Pergunta, no lugar da bolha, e o
+    # diretor, que é o Destinatário, responde nele (issue #2123).
+    da_pergunta = conversa_da_demanda(SEED["pergunta_do_projeto_novo"]["falas"], prefixo="exemplo-pergunta")
+    da_pergunta["mensagens"][-1]["pergunta"] = pergunta_do_diretor(pode_responder=True)
+    tabela[f"chat/{abrir['projeto_novo']}/conversa"] = da_pergunta
     return tabela
+
+
+def _projeto_da(demanda_id: str) -> tuple[dict, str]:
+    d = next(d for d in SEED["demandas"] if d["id"] == demanda_id)
+    return d, PROJETOS_CONHECIDOS.get(d["projeto"]) or d["projeto_nome"]
+
+
+def cartao(p: dict, *, projeto: str, criado_em: str, destinatario: str, pode_responder: bool) -> dict:
+    """O cartão da Pergunta da Vitta como a rota o manda (issue #2116, ADR 0109, decisão 3)."""
+    return {
+        "id": p["id"],
+        "projeto": projeto,
+        "assunto": p["assunto"],
+        "texto": p["texto"],
+        "por_que_precisa": p["por_que_precisa"],
+        "o_que_esta_parado": p["o_que_esta_parado"],
+        "o_que_anda_depois": p["o_que_anda_depois"],
+        "ganho": p["ganho"],
+        "opcoes": p.get("opcoes", []),
+        "recomendada": p.get("recomendada"),
+        "porque": p.get("porque"),
+        "estado": "aberta",
+        "criado_em": criado_em,
+        "destinatario": destinatario,
+        "resposta": None,
+        "resolucao": None,
+        "cancelamento": None,
+        "pode_responder": pode_responder,
+    }
+
+
+def pergunta_do_diretor(pode_responder: bool) -> dict:
+    """A Pergunta do pedido do projeto novo, para o diretor: a última fala da conversa dele."""
+    seed = SEED["pergunta_do_projeto_novo"]
+    _, projeto = _projeto_da(SEED["abrir"]["projeto_novo"])
+    ultima = conversa_da_demanda(seed["falas"])["mensagens"][-1]
+    return cartao(
+        {**seed["pergunta"], "assunto": seed["assunto"], "texto": ultima["texto"]},
+        projeto=projeto,
+        criado_em=ultima["criado_em"],
+        destinatario=SEED["admin"]["nome"],
+        pode_responder=pode_responder,
+    )
+
+
+def perguntas() -> dict:
+    """A lista Esperando sua resposta (issue #2118) e o Me explique da Pergunta do diretor
+    (issue #2122). A lista só lê, como a rota: ninguém responde por ela. A do diretor vem
+    primeiro, a de outra pessoa depois."""
+    minha = pergunta_do_diretor(pode_responder=False)
+    demanda, _ = _projeto_da(SEED["abrir"]["projeto_novo"])
+    outra = SEED["outra_pergunta"]
+    da_outra, projeto = _projeto_da(outra["demanda"])
+    return {
+        "perguntas/esperando": [
+            {**minha, "demanda_id": demanda["id"], "demanda": demanda["titulo"], "minha": True},
+            {
+                **cartao(
+                    outra,
+                    projeto=projeto,
+                    criado_em=instante(outra["dias"], "15:40"),
+                    destinatario=outra["destinatario"],
+                    pode_responder=False,
+                ),
+                "demanda_id": da_outra["id"],
+                "demanda": da_outra["titulo"],
+                "minha": False,
+            },
+        ],
+        f"perguntas/{minha['id']}/me-explique": {
+            "mensagens": [
+                {"papel": f["papel"], "texto": f["texto"], "rascunho": f.get("rascunho")}
+                for f in SEED["pergunta_do_projeto_novo"]["me_explique"]
+            ]
+        },
+    }
 
 
 def conversa_da_demanda(falas: list[dict], prefixo: str = "exemplo-mensagem") -> dict:
@@ -273,6 +351,7 @@ def tabela() -> dict:
         "projetos": [{"valor": v, "nome": n} for v, n in PROJETOS_CONHECIDOS.items()]
         + [{"valor": d["projeto"], "nome": d["projeto_nome"]} for d in lista if d["projeto"] not in PROJETOS_CONHECIDOS],
         **conversas(lista),
+        **perguntas(),
         "entregas": entregas(lista),
     }
 
@@ -292,7 +371,8 @@ def sino() -> dict:
                 "tipo": "TECNOLOGIA",
                 "titulo": "Pede sua resposta",
                 "mensagem": pergunta["assunto"],
-                "referencia_id": SEED["abrir"]["projeto_novo"],
+                # O aviso da Pergunta guarda "pergunta:<id>" e abre a aba no cartão dela (issue #2118).
+                "referencia_id": f"pergunta:{pergunta['pergunta']['id']}",
                 "lida": False,
                 "created_at": (agora - timedelta(minutes=5)).isoformat(),
             },

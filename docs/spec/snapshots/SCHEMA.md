@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T20:15+0000 -->
+<!-- last_update: 2026-11-22T06:00+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -65,25 +65,60 @@ erDiagram
     colegiados ||--o{ nsp_reunioes_rapidas : "colegiado_id"
     colegiados ||--o{ participacoes : "colegiado_id"
     colegiados ||--o{ reunioes : "colegiado_id"
+    conduta_atas ||--o{ conduta_assinaturas : "ata_id"
+    conduta_casos ||--o{ conduta_afastamentos : "caso_id"
+    conduta_casos ||--o{ conduta_assinaturas : "caso_id"
+    conduta_casos ||--o{ conduta_atas : "caso_id"
     conduta_casos ||--o{ conduta_atribuicoes : "caso_id"
+    conduta_casos ||--o{ conduta_avisos : "caso_id"
+    conduta_casos ||--o{ conduta_ciencias_do_codigo : "caso_id"
     conduta_casos ||--o{ conduta_citados : "caso_id"
     conduta_casos ||--o{ conduta_contestacoes : "caso_id"
+    conduta_casos ||--o{ conduta_contestacoes_de_participacao : "caso_id"
+    conduta_casos ||--o{ conduta_depoimentos : "caso_id"
+    conduta_casos ||--o{ conduta_entregas_do_parecer : "caso_id"
+    conduta_casos ||--o{ conduta_notas_nsp : "caso_id"
     conduta_casos ||--o{ conduta_prazos_vencidos : "caso_id"
+    conduta_casos ||--o{ conduta_relatorios : "caso_id"
+    conduta_casos ||--o{ conduta_reuniao_conferencia : "caso_id"
+    conduta_casos ||--o{ conduta_reuniao_transcricoes : "caso_id"
+    conduta_casos ||--o{ conduta_selos : "caso_id"
+    conduta_casos ||--o{ conduta_sugestoes : "caso_id"
+    conduta_casos ||--o{ conduta_trava_confirmacoes : "caso_id"
+    conduta_casos ||--o{ conduta_trava_preenchimentos : "caso_id"
     conduta_casos ||--o{ conduta_trilha : "caso_id"
+    conduta_casos ||--o{ conduta_votos : "caso_id"
+    conduta_citados ||--o{ conduta_afastamentos : "citado_id"
     conduta_contestacoes ||--o{ conduta_contestacao_votos : "contestacao_id"
+    conduta_contestacoes_de_participacao ||--o{ conduta_participacao_votos : "contestacao_id"
+    conduta_depoimentos ||--o{ conduta_assinaturas : "depoimento_id"
+    conduta_depoimentos ||--o{ conduta_depoimento_arquivos : "depoimento_id"
+    conduta_depoimentos ||--o{ conduta_depoimento_conferencia : "depoimento_id"
+    conduta_relatorios ||--o{ conduta_assinaturas : "relatorio_id"
+    conduta_sugestoes ||--o{ conduta_sugestao_respostas : "caso_id"
     nsp_agenda_regulatoria ||--o{ nsp_agenda_ocorrencias : "item_id"
     nsp_capacitacoes ||--o{ nsp_capacitacao_participantes : "capacitacao_id"
     nsp_categorias ||--o{ nsp_triagens : "categoria"
     nsp_documentos ||--o{ nsp_documentos_envios : "documento_id"
     nsp_documentos ||--o{ nsp_termos_envios : "regimento_id"
     nsp_documentos_envios ||--o{ nsp_documentos_signatarios : "envio_id"
+    nsp_encaminhamentos ||--o{ nsp_recebimentos : "encaminhamento_id"
     nsp_eventos_que_nunca_deveriam_ocorrer ||--o{ nsp_triagens : "evento_item"
+    nsp_notificacoes ||--o{ nsp_encaminhamentos : "notificacao_id"
+    nsp_notificacoes ||--o{ nsp_esclarecimentos : "notificacao_id"
     nsp_notificacoes ||--o{ nsp_notificacao_anexos : "notificacao_id"
+    nsp_notificacoes ||--o{ nsp_notificacoes_externas : "notificacao_id"
     nsp_notificacoes ||--o{ nsp_notificacoes_trilha : "notificacao_id"
+    nsp_notificacoes ||--o{ nsp_prazos_do_caso : "notificacao_id"
+    nsp_notificacoes ||--o{ nsp_recebimentos : "notificacao_id"
     nsp_notificacoes ||--o{ nsp_triagens : "notificacao_id"
+    nsp_notificacoes ||--o{ reunioes : "nsp_caso_id"
     nsp_termos_envios ||--o{ nsp_documentos : "termo_envio_id"
+    nsp_triagens ||--o{ nsp_esclarecimentos : "triagem_id"
     ouvidoria_pontos ||--o{ ouvidoria_avaliacoes : "ponto_id"
+    participacoes ||--o{ conduta_assinaturas : "participacao_id"
     participacoes ||--o{ conduta_registro : "participacao_id"
+    participacoes ||--o{ nsp_ausencias_da_presidencia : "participacao_id"
     participacoes ||--o{ nsp_avisos : "participacao_id"
     participacoes ||--o{ nsp_termos_envios : "participacao_id"
     participacoes ||--o{ participacoes_trilha : "participacao_id"
@@ -111,31 +146,68 @@ erDiagram
     participantes ||--o{ cm_tabela_preco : "autor_id"
     participantes ||--o{ cm_validacao_tema : "decidido_por"
     participantes ||--o{ comentarios_pendencias : "autor_id"
+    participantes ||--o{ conduta_afastamentos : "entregue_ao_dp_por"
+    participantes ||--o{ conduta_afastamentos : "entregue_ao_juridico_por"
+    participantes ||--o{ conduta_afastamentos : "parecer_anexado_por"
+    participantes ||--o{ conduta_afastamentos : "registrado_por"
+    participantes ||--o{ conduta_atas : "autor_id"
+    participantes ||--o{ conduta_atribuicoes : "impedimento_motivo"
     participantes ||--o{ conduta_atribuicoes : "participante_id"
+    participantes ||--o{ conduta_avisos : "participante_id"
+    participantes ||--o{ conduta_casos : "direcao_envolvida"
     participantes ||--o{ conduta_casos : "escopo"
+    participantes ||--o{ conduta_casos : "reuniao_concluida_em"
+    participantes ||--o{ conduta_casos : "rodada_do_voto"
+    participantes ||--o{ conduta_ciencias_do_codigo : "enviado_por"
     participantes ||--o{ conduta_citados : "participante_id"
+    participantes ||--o{ conduta_codigo_versoes : "autor_id"
     participantes ||--o{ conduta_configuracoes : "autor_id"
     participantes ||--o{ conduta_contestacao_votos : "participante_id"
     participantes ||--o{ conduta_contestacoes : "autor_id"
+    participantes ||--o{ conduta_contestacoes_de_participacao : "autor_id"
+    participantes ||--o{ conduta_contestacoes_de_participacao : "contestado_id"
+    participantes ||--o{ conduta_depoimento_arquivos : "enviado_por"
+    participantes ||--o{ conduta_depoimento_conferencia : "marcado_por"
+    participantes ||--o{ conduta_depoimentos : "concluido_por"
+    participantes ||--o{ conduta_depoimentos : "criado_por"
+    participantes ||--o{ conduta_depoimentos : "sem_gravacao_por"
+    participantes ||--o{ conduta_entregas_do_parecer : "autor_id"
+    participantes ||--o{ conduta_notas_nsp : "enviada_por"
+    participantes ||--o{ conduta_notas_nsp : "escrita_por"
+    participantes ||--o{ conduta_participacao_votos : "participante_id"
     participantes ||--o{ conduta_registro : "autor_id"
     participantes ||--o{ conduta_registro : "ganhou"
+    participantes ||--o{ conduta_relatorios : "autor_id"
+    participantes ||--o{ conduta_reuniao_conferencia : "marcado_por"
+    participantes ||--o{ conduta_reuniao_transcricoes : "enviado_por"
+    participantes ||--o{ conduta_sugestao_respostas : "autor_id"
+    participantes ||--o{ conduta_trava_confirmacoes : "participante_id"
+    participantes ||--o{ conduta_trava_preenchimentos : "autor_id"
     participantes ||--o{ conduta_trilha : "que"
+    participantes ||--o{ conduta_votos : "participante_id"
     participantes ||--o{ email_de_segunda : "participante_id"
     participantes ||--o{ notificacoes : "destinatario_id"
     participantes ||--o{ nsp_agenda_ocorrencias : "registrado_por"
+    participantes ||--o{ nsp_ausencias_da_presidencia : "autor_id"
     participantes ||--o{ nsp_avisos : "destinatario_id"
     participantes ||--o{ nsp_capacitacao_participantes : "participante_id"
     participantes ||--o{ nsp_capacitacoes : "criado_por"
     participantes ||--o{ nsp_convocados : "convocado_por"
     participantes ||--o{ nsp_convocados : "participante_id"
+    participantes ||--o{ nsp_cortes_de_frequencia : "atualizado_por"
     participantes ||--o{ nsp_documentos : "publicado_por"
     participantes ||--o{ nsp_documentos_envios : "autor_id"
     participantes ||--o{ nsp_documentos_signatarios : "participante_id"
+    participantes ||--o{ nsp_encaminhamentos : "autor_id"
     participantes ||--o{ nsp_notificacoes : "editado_por"
     participantes ||--o{ nsp_notificacoes : "notificante_id"
     participantes ||--o{ nsp_notificacoes_trilha : "autor_id"
     participantes ||--o{ nsp_pautas : "editada_por"
+    participantes ||--o{ nsp_recalibracoes : "decidido_por"
     participantes ||--o{ nsp_reunioes_rapidas : "criada_por"
+    participantes ||--o{ nsp_tabela_de_prazos : "atualizado_por"
+    participantes ||--o{ nsp_tabela_de_prazos_historico : "alterado_por"
+    participantes ||--o{ nsp_triagens : "autor_id"
     participantes ||--o{ ouvidoria_acessos : "ator_id"
     participantes ||--o{ ouvidoria_anexos : "enviado_por"
     participantes ||--o{ ouvidoria_avaliacoes : "revisada_por"
@@ -169,6 +241,7 @@ erDiagram
     participantes ||--o{ tecnologia_anexos : "anexado_por"
     participantes ||--o{ tecnologia_conversa_da_demanda : "autor_id"
     participantes ||--o{ tecnologia_conversas : "autor_id"
+    participantes ||--o{ tecnologia_conversas_do_me_explique : "participante_id"
     participantes ||--o{ tecnologia_demandas : "apagada_por"
     participantes ||--o{ tecnologia_demandas : "autor_id"
     participantes ||--o{ tecnologia_demandas : "cancelada_por"
@@ -176,6 +249,10 @@ erDiagram
     participantes ||--o{ tecnologia_demandas : "responsavel_id"
     participantes ||--o{ tecnologia_demandas : "vinculado_por"
     participantes ||--o{ tecnologia_envios_aos_desenvolvedores : "enviado_por"
+    participantes ||--o{ tecnologia_perguntas : "autor_id"
+    participantes ||--o{ tecnologia_perguntas : "destinatario_id"
+    participantes ||--o{ tecnologia_perguntas : "respondida_em_nome_de"
+    participantes ||--o{ tecnologia_perguntas : "respondida_por"
     participantes ||--o{ tecnologia_planejamentos : "revisao_por"
     participantes ||--o{ tecnologia_produtos : "dono_id"
     participantes ||--o{ user_preferences : "participante_id"
@@ -201,13 +278,16 @@ erDiagram
     reunioes ||--o{ rotinas : "id_reuniao"
     reunioes ||--o{ tokens_validacao : "id_reuniao"
     rotinas ||--o{ pendencia_historico : "rotina_id"
+    tecnologia_conversa_da_demanda ||--o{ tecnologia_perguntas : "mensagem_id"
     tecnologia_conversas ||--o{ tecnologia_anexos : "conversa_id"
     tecnologia_demandas ||--o{ tecnologia_anexos : "demanda_id"
     tecnologia_demandas ||--o{ tecnologia_chamadas_ia : "demanda_id"
     tecnologia_demandas ||--o{ tecnologia_conversa_da_demanda : "demanda_id"
     tecnologia_demandas ||--o{ tecnologia_conversas : "demanda_id"
     tecnologia_demandas ||--o{ tecnologia_envios_aos_desenvolvedores : "demanda_id"
+    tecnologia_demandas ||--o{ tecnologia_perguntas : "demanda_id"
     tecnologia_demandas ||--o{ tecnologia_planejamentos : "demanda_id"
+    tecnologia_perguntas ||--o{ tecnologia_conversas_do_me_explique : "pergunta_id"
     tecnologia_produtos ||--o{ tecnologia_demandas : "produto_id"
     tipos_reuniao ||--o{ reunioes : "tipo_id"
 
@@ -231,7 +311,7 @@ erDiagram
         TEXT tipo
         VARCHAR facilitador_id FK
         TEXT setor
-        _ mais_colunas "+32"
+        _ mais_colunas "+33"
     }
     reuniao_participantes {
         UUID id PK
@@ -1309,7 +1389,7 @@ erDiagram
         TEXT categoria
         TIMESTAMPTZ recebido_em
         DATE prazo_em
-        _ mais_colunas "+3"
+        _ mais_colunas "+7"
     }
     conduta_atribuicoes {
         UUID id PK
@@ -1320,6 +1400,7 @@ erDiagram
         TIMESTAMPTZ impedido_em
         TIMESTAMPTZ revogada_em
         TIMESTAMPTZ created_at
+        _ mais_colunas "+1"
     }
     conduta_citados {
         UUID id PK
@@ -1430,7 +1511,7 @@ erDiagram
         TEXT natureza
         TEXT grau_de_dano
         TEXT categoria FK
-        _ mais_colunas "+21"
+        _ mais_colunas "+25"
     }
     nsp_agente_cota {
         DATE dia PK
@@ -1447,10 +1528,330 @@ erDiagram
         INTEGER ativas
         _ mais_colunas "+1"
     }
+    conduta_contestacoes_de_participacao {
+        UUID id PK
+        UUID caso_id FK
+        VARCHAR contestado_id FK
+        VARCHAR autor_id FK
+        TEXT motivo
+        TEXT resultado
+        TIMESTAMPTZ decidida_em
+        TIMESTAMPTZ created_at
+    }
+    conduta_participacao_votos {
+        UUID id PK
+        UUID contestacao_id FK
+        VARCHAR participante_id FK
+        TEXT escolha
+        TIMESTAMPTZ created_at
+    }
+    conduta_assinaturas {
+        UUID id PK
+        TEXT tipo
+        UUID caso_id FK
+        UUID participacao_id FK
+        ordem na
+        TEXT situacao
+        TEXT envelope_id
+        TEXT documento_key
+        _ mais_colunas "+9"
+    }
+    conduta_depoimentos {
+        UUID id PK
+        UUID caso_id FK
+        TEXT nome_cifrado
+        TEXT cargo_cifrado
+        TEXT papel
+        VARCHAR criado_por FK
+        TIMESTAMPTZ criado_em
+        TIMESTAMPTZ sem_gravacao_em
+        _ mais_colunas "+6"
+    }
+    conduta_depoimento_arquivos {
+        UUID id PK
+        UUID depoimento_id FK
+        TEXT tipo
+        INTEGER versao
+        INTEGER pagina
+        TEXT storage_path
+        TEXT content_type
+        BIGINT tamanho_bytes
+        _ mais_colunas "+2"
+    }
+    conduta_depoimento_conferencia {
+        UUID id PK
+        UUID depoimento_id FK
+        TEXT item
+        VARCHAR marcado_por FK
+        TIMESTAMPTZ marcado_em
+    }
     email_de_segunda {
         VARCHAR participante_id FK
         DATE semana
         TIMESTAMPTZ enviado_em
+    }
+    nsp_cortes_de_frequencia {
+        BOOLEAN id PK
+        SMALLINT janela_meses
+        SMALLINT incomum_a_partir
+        SMALLINT ocasional_a_partir
+        SMALLINT frequente_a_partir
+        VARCHAR atualizado_por FK
+        TIMESTAMPTZ atualizado_em
+    }
+    conduta_codigo_versoes {
+        UUID id PK
+        INTEGER versao
+        DATE vigente_desde
+        TEXT storage_path
+        TEXT nome_arquivo
+        INTEGER tamanho_bytes
+        VARCHAR autor_id FK
+        TIMESTAMPTZ criado_em
+    }
+    conduta_avisos {
+        UUID id PK
+        UUID caso_id FK
+        VARCHAR participante_id FK
+        TEXT motivo
+        TEXT referencia
+        BOOLEAN na_hora
+        TEXT situacao
+        TIMESTAMPTZ criado_em
+        _ mais_colunas "+1"
+    }
+    conduta_sugestoes {
+        UUID caso_id PK
+        TEXT situacao
+        TEXT motivo_manual
+        TEXT sugestao_cifrada
+        TEXT modelo
+        TEXT prompt_versao
+        TIMESTAMPTZ criada_em
+    }
+    conduta_sugestao_respostas {
+        UUID id PK
+        UUID caso_id FK
+        TEXT item
+        TEXT resposta
+        TEXT motivo_cifrado
+        VARCHAR autor_id FK
+        TIMESTAMPTZ respondida_em
+    }
+    conduta_agente_cota {
+        DATE dia PK
+        INTEGER chamadas
+    }
+    conduta_notas_nsp {
+        UUID id PK
+        UUID caso_id FK
+        TEXT texto_cifrado
+        VARCHAR escrita_por FK
+        TIMESTAMPTZ escrita_em
+        VARCHAR enviada_por FK
+        TIMESTAMPTZ enviada_em
+    }
+    nsp_notas_do_comite {
+        UUID id PK
+        TEXT texto
+        TIMESTAMPTZ enviada_em
+    }
+    nsp_esclarecimentos {
+        UUID id PK
+        UUID notificacao_id FK
+        UUID triagem_id FK
+        TEXT pergunta
+        TEXT resposta
+        TIMESTAMPTZ criado_em
+    }
+    nsp_tabela_de_prazos {
+        TEXT faixa
+        TEXT marco
+        SMALLINT valor
+        TEXT unidade
+        VARCHAR atualizado_por FK
+        TIMESTAMPTZ atualizado_em
+    }
+    nsp_tabela_de_prazos_historico {
+        UUID id PK
+        TEXT faixa
+        TEXT marco
+        SMALLINT de_valor
+        TEXT de_unidade
+        SMALLINT para_valor
+        TEXT para_unidade
+        VARCHAR alterado_por FK
+        _ mais_colunas "+1"
+    }
+    nsp_prazos_do_caso {
+        UUID id PK
+        UUID notificacao_id FK
+        TEXT marco
+        TEXT tipo
+        SMALLINT valor
+        TEXT unidade
+        TIMESTAMPTZ contado_de
+        TIMESTAMPTZ vence_em
+        _ mais_colunas "+1"
+    }
+    nsp_notificacoes_externas {
+        UUID id PK
+        UUID notificacao_id FK
+        TEXT sistema
+        TIMESTAMPTZ prazo_legal
+        TEXT estado
+        TIMESTAMPTZ criado_em
+    }
+    nsp_encaminhamentos {
+        UUID id PK
+        UUID notificacao_id FK
+        TEXT[] destinos
+        TEXT motivo
+        TEXT orientacao
+        VARCHAR autor_id FK
+        TIMESTAMPTZ criado_em
+    }
+    nsp_recalibracoes {
+        SMALLINT marco PK
+        DATE devida_em
+        TEXT[] pendencias
+        TIMESTAMPTZ criada_em
+        TEXT decisao
+        VARCHAR decidido_por FK
+        TIMESTAMPTZ decidido_em
+    }
+    tecnologia_perguntas {
+        UUID id PK
+        UUID demanda_id FK
+        UUID mensagem_id FK
+        VARCHAR autor_id FK
+        VARCHAR destinatario_id FK
+        TEXT assunto
+        TEXT texto
+        TEXT por_que_precisa
+        _ mais_colunas "+18"
+    }
+    tecnologia_conversas_do_me_explique {
+        UUID id PK
+        UUID pergunta_id FK
+        VARCHAR participante_id FK
+        JSONB mensagens
+        TIMESTAMPTZ criado_em
+        TIMESTAMPTZ atualizado_em
+    }
+    nsp_ausencias_da_presidencia {
+        UUID id PK
+        UUID participacao_id FK
+        DATE inicio
+        DATE fim
+        VARCHAR autor_id FK
+        TIMESTAMPTZ criado_em
+    }
+    conduta_relatorios {
+        UUID id PK
+        UUID caso_id FK
+        TEXT tipo
+        INTEGER versao
+        TEXT texto_cifrado
+        TEXT origem
+        VARCHAR autor_id FK
+        TIMESTAMPTZ criado_em
+    }
+    conduta_selos {
+        UUID caso_id PK
+        TEXT relato_cifrado
+        TIMESTAMPTZ selado_em
+        TEXT codigo
+    }
+    conduta_entregas_do_parecer {
+        UUID caso_id PK
+        TEXT destinatario_cifrado
+        DATE entregue_em
+        VARCHAR autor_id FK
+        TIMESTAMPTZ registrado_em
+    }
+    conduta_votos {
+        UUID id PK
+        UUID caso_id FK
+        INTEGER rodada
+        VARCHAR participante_id FK
+        TEXT voto_cifrado
+        TIMESTAMPTZ votado_em
+    }
+    conduta_trava_preenchimentos {
+        UUID id PK
+        UUID caso_id FK
+        INTEGER versao
+        TEXT itens_cifrado
+        VARCHAR autor_id FK
+        TIMESTAMPTZ criado_em
+    }
+    conduta_trava_confirmacoes {
+        UUID id PK
+        UUID caso_id FK
+        TEXT item
+        VARCHAR participante_id FK
+        TIMESTAMPTZ confirmado_em
+    }
+    conduta_ciencias_do_codigo {
+        UUID id PK
+        UUID caso_id FK
+        INTEGER versao
+        TEXT storage_path
+        TEXT content_type
+        BIGINT tamanho_bytes
+        VARCHAR enviado_por FK
+        TIMESTAMPTZ enviado_em
+    }
+    conduta_afastamentos {
+        UUID id PK
+        UUID caso_id FK
+        UUID citado_id FK
+        TEXT rota
+        TEXT quem_cifrado
+        TEXT motivo_cifrado
+        VARCHAR registrado_por FK
+        TIMESTAMPTZ registrado_em
+        _ mais_colunas "+11"
+    }
+    nsp_recebimentos {
+        UUID id PK
+        UUID encaminhamento_id FK
+        UUID notificacao_id FK
+        TEXT destino
+        TEXT setor
+        TEXT destinatario_nome
+        TEXT destinatario_email
+        TEXT papel
+        _ mais_colunas "+6"
+    }
+    conduta_atas {
+        UUID id PK
+        UUID caso_id FK
+        INTEGER versao
+        INTEGER rodada
+        VARCHAR votantes
+        TEXT ata_cifrada
+        TEXT pontos_cifrados
+        VARCHAR autor_id FK
+        _ mais_colunas "+1"
+    }
+    conduta_reuniao_transcricoes {
+        UUID id PK
+        UUID caso_id FK
+        INTEGER versao
+        TEXT storage_path
+        TEXT content_type
+        BIGINT tamanho_bytes
+        VARCHAR enviado_por FK
+        TIMESTAMPTZ enviado_em
+    }
+    conduta_reuniao_conferencia {
+        UUID id PK
+        UUID caso_id FK
+        TEXT item
+        VARCHAR marcado_por FK
+        TIMESTAMPTZ marcado_em
     }
 ```
 
@@ -1486,6 +1887,7 @@ erDiagram
 | `reunioes` | `idx_reunioes_colegiado` | `colegiado_id` | `148_nsp_reunioes_do_nucleo.sql` |
 | `reunioes` | `idx_reunioes_reagendada_de` | `reagendada_de` | `153_nsp_presenca_e_quorum.sql` |
 | `reunioes` | `idx_reunioes_setor_id` | `setor_id` | `168_reunioes_setor_obrigatorio.sql` |
+| `reunioes` | `uq_reunioes_nsp_caso` | `nsp_caso_id` | `218_nsp_reuniao_de_analise_e_avisos_da_confirmacao.sql` |
 | `reuniao_participantes` | `idx_reuniao_part_reuniao` | `id_reuniao` | `002_create_reunioes.sql` |
 | `reuniao_participantes` | `idx_reuniao_part_participante` | `participante_id` | `002_create_reunioes.sql` |
 | `pendencias` | `idx_pendencias_reuniao` | `id_reuniao` | `003_create_pendencias.sql` |
@@ -1669,8 +2071,14 @@ erDiagram
 | `conduta_casos` | `idx_conduta_casos_triagem_por` | `triagem_por` | `185_conduta_triagem_e_ritos.sql` |
 | `conduta_casos` | `idx_conduta_casos_conferida_por` | `conferida_por` | `185_conduta_triagem_e_ritos.sql` |
 | `conduta_casos` | `idx_conduta_casos_prorrogado_por` | `prorrogado_por` | `185_conduta_triagem_e_ritos.sql` |
+| `conduta_casos` | `idx_conduta_casos_abertos_prazo` | `prazo_em` | `199_conduta_avisos_por_email.sql` |
+| `conduta_casos` | `uq_conduta_casos_manifestacao` | `manifestacao_id` | `202_conduta_sinalizacao_da_ouvidoria.sql` |
+| `conduta_casos` | `idx_conduta_casos_desviado_por` | `desviado_por` | `214_conduta_rota_especial.sql` |
+| `conduta_casos` | `idx_conduta_casos_votacao_concluida_por` | `votacao_concluida_por` | `216_conduta_voto_e_trava_de_robustez.sql` |
+| `conduta_casos` | `idx_conduta_casos_reuniao_concluida_por` | `reuniao_concluida_por` | `221_conduta_ata_de_deliberacao.sql` |
 | `conduta_atribuicoes` | `idx_conduta_atribuicoes_pessoa` | `participante_id, caso_id` | `175_conduta_fundacao.sql` |
 | `conduta_atribuicoes` | `idx_conduta_atribuicoes_caso` | `caso_id` | `175_conduta_fundacao.sql` |
+| `conduta_atribuicoes` | `idx_conduta_atribuicoes_substitui` | `substitui_id` | `191_conduta_impedimento_e_citado.sql` |
 | `conduta_citados` | `idx_conduta_citados_pessoa` | `participante_id, caso_id` | `175_conduta_fundacao.sql` |
 | `conduta_citados` | `idx_conduta_citados_caso` | `caso_id` | `175_conduta_fundacao.sql` |
 | `conduta_trilha` | `idx_conduta_trilha_caso` | `caso_id, seq DESC` | `175_conduta_fundacao.sql` |
@@ -1686,8 +2094,67 @@ erDiagram
 | `nsp_triagens` | `idx_nsp_triagens_notificacao` | `notificacao_id, versao DESC` | `188_nsp_agente_de_triagem.sql` |
 | `nsp_triagens` | `idx_nsp_triagens_categoria` | `categoria` | `188_nsp_agente_de_triagem.sql` |
 | `nsp_triagens` | `idx_nsp_triagens_evento_item` | `evento_item` | `188_nsp_agente_de_triagem.sql` |
+| `nsp_triagens` | `idx_nsp_triagens_autor` | `autor_id` | `197_nsp_tela_de_triagem.sql` |
+| `nsp_triagens` | `uq_nsp_triagens_uma_decisao_por_notificacao` | `notificacao_id` | `197_nsp_tela_de_triagem.sql` |
 | `painel_fotografias` | `idx_painel_fotografias_semana` | `semana` | `189_fotografia_semanal_do_painel.sql` |
+| `conduta_contestacoes_de_participacao` | `idx_conduta_contestacoes_de_participacao_aberta` | `caso_id, contestado_id` | `191_conduta_impedimento_e_citado.sql` |
+| `conduta_contestacoes_de_participacao` | `idx_conduta_contestacoes_de_participacao_caso` | `caso_id` | `191_conduta_impedimento_e_citado.sql` |
+| `conduta_contestacoes_de_participacao` | `idx_conduta_contestacoes_de_participacao_contestado` | `contestado_id` | `191_conduta_impedimento_e_citado.sql` |
+| `conduta_contestacoes_de_participacao` | `idx_conduta_contestacoes_de_participacao_autor` | `autor_id` | `191_conduta_impedimento_e_citado.sql` |
+| `conduta_participacao_votos` | `idx_conduta_participacao_votos_pessoa` | `participante_id` | `191_conduta_impedimento_e_citado.sql` |
+| `conduta_assinaturas` | `idx_conduta_assinaturas_participacao` | `participacao_id, created_at DESC` | `192_conduta_assinaturas.sql` |
+| `conduta_assinaturas` | `idx_conduta_assinaturas_caso` | `caso_id` | `192_conduta_assinaturas.sql` |
+| `conduta_assinaturas` | `idx_conduta_assinaturas_relatorio` | `relatorio_id` | `213_conduta_relatorio_de_apuracao.sql` |
+| `conduta_assinaturas` | `idx_conduta_assinaturas_depoimento` | `depoimento_id` | `215_conduta_termo_de_declaracao.sql` |
+| `conduta_assinaturas` | `idx_conduta_assinaturas_ata` | `ata_id` | `221_conduta_ata_de_deliberacao.sql` |
+| `conduta_depoimentos` | `idx_conduta_depoimentos_caso` | `caso_id` | `193_conduta_depoimentos.sql` |
+| `conduta_depoimentos` | `idx_conduta_depoimentos_criado_por` | `criado_por` | `193_conduta_depoimentos.sql` |
+| `conduta_depoimentos` | `idx_conduta_depoimentos_sem_gravacao_por` | `sem_gravacao_por` | `193_conduta_depoimentos.sql` |
+| `conduta_depoimentos` | `idx_conduta_depoimentos_concluido_por` | `concluido_por` | `193_conduta_depoimentos.sql` |
+| `conduta_depoimento_arquivos` | `idx_conduta_depoimento_arquivos_enviado_por` | `enviado_por` | `193_conduta_depoimentos.sql` |
+| `conduta_depoimento_conferencia` | `idx_conduta_depoimento_conferencia_marcado_por` | `marcado_por` | `193_conduta_depoimentos.sql` |
 | `email_de_segunda` | `idx_email_de_segunda_semana` | `semana` | `196_email_de_segunda.sql` |
+| `nsp_cortes_de_frequencia` | `idx_nsp_cortes_de_frequencia_atualizado_por` | `atualizado_por` | `197_nsp_tela_de_triagem.sql` |
+| `conduta_avisos` | `idx_conduta_avisos_pendentes` | `na_hora, criado_em` | `199_conduta_avisos_por_email.sql` |
+| `conduta_sugestao_respostas` | `idx_conduta_sugestao_respostas_autor` | `autor_id` | `200_conduta_agente_de_triagem.sql` |
+| `conduta_notas_nsp` | `uq_conduta_notas_nsp_pendente` | `caso_id` | `203_conduta_nota_ao_nucleo.sql` |
+| `conduta_notas_nsp` | `idx_conduta_notas_nsp_caso` | `caso_id` | `203_conduta_nota_ao_nucleo.sql` |
+| `conduta_notas_nsp` | `idx_conduta_notas_nsp_escrita_por` | `escrita_por` | `203_conduta_nota_ao_nucleo.sql` |
+| `conduta_notas_nsp` | `idx_conduta_notas_nsp_enviada_por` | `enviada_por` | `203_conduta_nota_ao_nucleo.sql` |
+| `nsp_notas_do_comite` | `idx_nsp_notas_do_comite_enviada_em` | `enviada_em DESC` | `203_conduta_nota_ao_nucleo.sql` |
+| `nsp_esclarecimentos` | `idx_nsp_esclarecimentos_triagem` | `triagem_id` | `207_nsp_perguntas_de_esclarecimento.sql` |
+| `nsp_tabela_de_prazos` | `idx_nsp_tabela_de_prazos_atualizado_por` | `atualizado_por` | `208_nsp_prazos_do_caso.sql` |
+| `nsp_tabela_de_prazos_historico` | `idx_nsp_tabela_de_prazos_historico_alterado_em` | `alterado_em DESC` | `208_nsp_prazos_do_caso.sql` |
+| `nsp_tabela_de_prazos_historico` | `idx_nsp_tabela_de_prazos_historico_alterado_por` | `alterado_por` | `208_nsp_prazos_do_caso.sql` |
+| `nsp_prazos_do_caso` | `idx_nsp_prazos_do_caso_vence_em` | `vence_em` | `208_nsp_prazos_do_caso.sql` |
+| `nsp_notificacoes_externas` | `idx_nsp_notificacoes_externas_prazo` | `estado, prazo_legal` | `208_nsp_prazos_do_caso.sql` |
+| `nsp_encaminhamentos` | `idx_nsp_encaminhamentos_notificacao` | `notificacao_id, criado_em` | `209_nsp_encaminhamento.sql` |
+| `nsp_encaminhamentos` | `idx_nsp_encaminhamentos_autor` | `autor_id` | `209_nsp_encaminhamento.sql` |
+| `nsp_recalibracoes` | `idx_nsp_recalibracoes_decidido_por` | `decidido_por` | `210_nsp_recalibracao_do_agente.sql` |
+| `tecnologia_perguntas` | `idx_tecnologia_perguntas_demanda` | `demanda_id, criado_em` | `211_tecnologia_pergunta_da_vitta.sql` |
+| `tecnologia_perguntas` | `idx_tecnologia_perguntas_abertas` | `criado_em` | `211_tecnologia_pergunta_da_vitta.sql` |
+| `tecnologia_perguntas` | `idx_tecnologia_perguntas_destinatario` | `destinatario_id` | `211_tecnologia_pergunta_da_vitta.sql` |
+| `tecnologia_conversas_do_me_explique` | `idx_tecnologia_conversas_do_me_explique_participante` | `participante_id` | `211_tecnologia_pergunta_da_vitta.sql` |
+| `nsp_ausencias_da_presidencia` | `idx_nsp_ausencias_da_presidencia_participacao` | `participacao_id, inicio, fim` | `212_nsp_suplente_em_exercicio.sql` |
+| `nsp_ausencias_da_presidencia` | `idx_nsp_ausencias_da_presidencia_autor` | `autor_id` | `212_nsp_suplente_em_exercicio.sql` |
+| `conduta_relatorios` | `idx_conduta_relatorios_autor` | `autor_id` | `213_conduta_relatorio_de_apuracao.sql` |
+| `conduta_entregas_do_parecer` | `idx_conduta_entregas_do_parecer_autor` | `autor_id` | `214_conduta_rota_especial.sql` |
+| `conduta_votos` | `idx_conduta_votos_participante` | `participante_id` | `216_conduta_voto_e_trava_de_robustez.sql` |
+| `conduta_trava_preenchimentos` | `idx_conduta_trava_preenchimentos_autor` | `autor_id` | `216_conduta_voto_e_trava_de_robustez.sql` |
+| `conduta_trava_confirmacoes` | `idx_conduta_trava_confirmacoes_participante` | `participante_id` | `216_conduta_voto_e_trava_de_robustez.sql` |
+| `conduta_ciencias_do_codigo` | `idx_conduta_ciencias_do_codigo_enviado_por` | `enviado_por` | `216_conduta_voto_e_trava_de_robustez.sql` |
+| `conduta_afastamentos` | `idx_conduta_afastamentos_caso` | `caso_id` | `217_conduta_afastamento_cautelar.sql` |
+| `conduta_afastamentos` | `idx_conduta_afastamentos_citado` | `citado_id` | `217_conduta_afastamento_cautelar.sql` |
+| `conduta_afastamentos` | `idx_conduta_afastamentos_registrado_por` | `registrado_por` | `217_conduta_afastamento_cautelar.sql` |
+| `conduta_afastamentos` | `idx_conduta_afastamentos_entregue_ao_dp_por` | `entregue_ao_dp_por` | `217_conduta_afastamento_cautelar.sql` |
+| `conduta_afastamentos` | `idx_conduta_afastamentos_entregue_ao_juridico_por` | `entregue_ao_juridico_por` | `217_conduta_afastamento_cautelar.sql` |
+| `conduta_afastamentos` | `idx_conduta_afastamentos_parecer_anexado_por` | `parecer_anexado_por` | `217_conduta_afastamento_cautelar.sql` |
+| `conduta_afastamentos` | `idx_conduta_afastamentos_rota` | `rota, registrado_em DESC` | `217_conduta_afastamento_cautelar.sql` |
+| `nsp_recebimentos` | `idx_nsp_recebimentos_notificacao` | `notificacao_id, enviado_em` | `220_nsp_recebido_do_setor.sql` |
+| `nsp_recebimentos` | `idx_nsp_recebimentos_sem_clique` | `enviado_em` | `220_nsp_recebido_do_setor.sql` |
+| `conduta_atas` | `idx_conduta_atas_autor` | `autor_id` | `221_conduta_ata_de_deliberacao.sql` |
+| `conduta_reuniao_transcricoes` | `idx_conduta_reuniao_transcricoes_enviado_por` | `enviado_por` | `221_conduta_ata_de_deliberacao.sql` |
+| `conduta_reuniao_conferencia` | `idx_conduta_reuniao_conferencia_marcado_por` | `marcado_por` | `221_conduta_ata_de_deliberacao.sql` |
 
 ---
-**Resumo:** 134 tabelas · 202 relacionamentos FK detectados.
+**Resumo:** 170 tabelas · 282 relacionamentos FK detectados.

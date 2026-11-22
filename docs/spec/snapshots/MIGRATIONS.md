@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T20:15+0000 -->
+<!-- last_update: 2026-11-22T06:00+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -187,8 +187,32 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 188 | `188_nsp_agente_de_triagem.sql` | o agente de triagem do Núcleo | 4 | 2 | 3 | 0 |
 | 189 | `189_fotografia_semanal_do_painel.sql` | Fotografia semanal do painel de Reunioes (PRD #1757; issue #1873) | 1 | 0 | 1 | 0 |
 | 190 | `190_fluxo_continuo_vira_rotina.sql` | o fluxo continuo antigo vira Rotina (ADR 0098, decisao 9; issue #1877) | 0 | 1 | 1 | 0 |
+| 191 | `191_conduta_impedimento_e_citado.sql` | Canal de Conduta, impedimento, suplente convocado e Citado | 2 | 1 | 6 | 0 |
+| 192 | `192_conduta_assinaturas.sql` | Canal de Conduta, as assinaturas pela ClickSign | 1 | 0 | 2 | 0 |
+| 193 | `193_conduta_depoimentos.sql` | Canal de Conduta, o depoimento da Apuração | 3 | 0 | 6 | 0 |
 | 194 | `194_revisao_da_rotina.sql` | a revisao de 90 dias da Rotina (issue #1944; decisao 72 da #1757) | 0 | 2 | 0 | 0 |
 | 196 | `196_email_de_segunda.sql` | Guarda do e-mail de segunda de Reunioes (PRD #1757; issue #1876) | 1 | 0 | 1 | 0 |
+| 197 | `197_nsp_tela_de_triagem.sql` | a tela de triagem do Núcleo | 1 | 4 | 3 | 0 |
+| 198 | `198_conduta_codigo_de_conduta.sql` | Canal de Conduta, o Código de Conduta com versões | 1 | 0 | 0 | 0 |
+| 199 | `199_conduta_avisos_por_email.sql` | Avisos por e-mail do Canal de Conduta (PRD #1786; issue #1840) | 1 | 0 | 2 | 0 |
+| 200 | `200_conduta_agente_de_triagem.sql` | Canal de Conduta, o agente de triagem | 3 | 0 | 1 | 0 |
+| 202 | `202_conduta_sinalizacao_da_ouvidoria.sql` | o caso que a Ouvidoria sinaliza ao Canal de Conduta | 0 | 2 | 1 | 0 |
+| 203 | `203_conduta_nota_ao_nucleo.sql` | Canal de Conduta, a nota do Comitê ao Núcleo de Segurança | 2 | 0 | 5 | 0 |
+| 207 | `207_nsp_perguntas_de_esclarecimento.sql` | as respostas às perguntas de esclarecimento do Núcleo | 1 | 0 | 1 | 0 |
+| 208 | `208_nsp_prazos_do_caso.sql` | os prazos do caso e a tabela de prazos do Núcleo | 4 | 0 | 5 | 0 |
+| 209 | `209_nsp_encaminhamento.sql` | encaminhar da tela de triagem do Núcleo | 1 | 0 | 2 | 0 |
+| 210 | `210_nsp_recalibracao_do_agente.sql` | a recalibração do agente do Núcleo | 1 | 0 | 1 | 0 |
+| 211 | `211_tecnologia_pergunta_da_vitta.sql` | a Pergunta da Vitta e a conversa do Me explique | 2 | 0 | 4 | 0 |
+| 212 | `212_nsp_suplente_em_exercicio.sql` | o suplente em exercício do Núcleo | 1 | 0 | 2 | 0 |
+| 213 | `213_conduta_relatorio_de_apuracao.sql` | Canal de Conduta, o relatório de apuração e o envio para voto | 1 | 1 | 2 | 0 |
+| 214 | `214_conduta_rota_especial.sql` | Canal de Conduta, a Rota Especial | 2 | 1 | 2 | 0 |
+| 215 | `215_conduta_termo_de_declaracao.sql` | Canal de Conduta, o termo de declaração redigido pelo agente | 0 | 2 | 2 | 0 |
+| 216 | `216_conduta_voto_e_trava_de_robustez.sql` | Canal de Conduta, o voto e a trava de robustez | 4 | 1 | 5 | 0 |
+| 217 | `217_conduta_afastamento_cautelar.sql` | Canal de Conduta, o afastamento cautelar | 1 | 0 | 7 | 0 |
+| 218 | `218_nsp_reuniao_de_analise_e_avisos_da_confirmacao.sql` | a reunião de análise e os avisos da confirmação da triagem | 0 | 1 | 1 | 0 |
+| 219 | `219_nsp_alerta_das_72_horas.sql` | o alerta do prazo de 72 horas (issue #2000, PRD #1979) | 0 | 0 | 0 | 0 |
+| 220 | `220_nsp_recebido_do_setor.sql` | encaminhar à Segurança do Trabalho e à queixa técnica, | 1 | 0 | 2 | 0 |
+| 221 | `221_conduta_ata_de_deliberacao.sql` | Canal de Conduta, a ata de deliberação e a reunião do Comitê | 3 | 2 | 5 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 183 migrations.
+**Total:** 207 migrations.

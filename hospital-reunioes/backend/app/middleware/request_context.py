@@ -62,7 +62,12 @@ _BARRAS_REPETIDAS = re.compile(r"/{2,}")
 # path cru voltaria ao log com o token inteiro. Nesses prefixos tudo que vem
 # depois é potencialmente o token, então some inteiro: sem rota casada não há
 # diagnóstico a preservar ali.
-_PREFIXOS_COM_TOKEN_NO_PATH = ("/api/aceite/", "/api/ouvidoria-setor/", "/api/minhas-pendencias/")
+_PREFIXOS_COM_TOKEN_NO_PATH = (
+    "/api/aceite/",
+    "/api/ouvidoria-setor/",
+    "/api/minhas-pendencias/",
+    "/api/nsp/recebimento/",
+)
 
 
 def _mascarar_por_prefixo(path: str) -> str:

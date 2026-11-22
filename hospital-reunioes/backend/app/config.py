@@ -251,6 +251,12 @@ class Settings(BaseSettings):
     # abertura mantém a rota pública em 404 até o Pedro abrir o canal.
     conduta_chave_cifra: str = ""
     conduta_canal_aberto: bool = False
+    # O agente de triagem do Canal (issue #1827, ADR 0097, decisões 6 e 15).
+    # Nasce desligado: liga depois de o teste do Anexo B bater as metas
+    # (`scripts/conduta_teste_de_aceite.py`). Desligado, todo caso entra
+    # para triagem manual, e a trilha diz por quê.
+    conduta_agente_ligado: bool = False
+    conduta_agente_modelo: str = "claude-sonnet-5-5"
 
     # Geral
     diretor_email: str = ""

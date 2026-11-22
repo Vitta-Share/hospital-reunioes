@@ -29,7 +29,11 @@ vi.mock("@/hooks/useAuth", () => ({
 
 let pedidos: string[] = [];
 
-function montar({ desenvolvedor = false }: { desenvolvedor?: boolean } = {}) {
+function montar({
+  desenvolvedor = false,
+  esperando = [],
+  perguntaInicial = null,
+}: { desenvolvedor?: boolean; esperando?: unknown[]; perguntaInicial?: string | null } = {}) {
   pedidos = [];
   vi.stubGlobal(
     "fetch",
@@ -37,7 +41,9 @@ function montar({ desenvolvedor = false }: { desenvolvedor?: boolean } = {}) {
       pedidos.push(url);
       const corpo = url.endsWith("/eu")
         ? { desenvolvedor }
-        : url.includes("/entregas")
+        : url.endsWith("/perguntas/esperando")
+          ? esperando
+          : url.includes("/entregas")
           ? {
               topo: {
                 pedidos: { total: 0, anteriores: 0, bugs: 0, melhorias: 0 },
@@ -53,7 +59,7 @@ function montar({ desenvolvedor = false }: { desenvolvedor?: boolean } = {}) {
   );
   render(
     <ToastProvider>
-      <TecnologiaModulo />
+      <TecnologiaModulo perguntaInicial={perguntaInicial} />
     </ToastProvider>,
   );
 }
@@ -110,12 +116,14 @@ describe("A aba abre no chat, com Conversas e Entregas (issues #1386 e #1556)", 
   it("só pede ao servidor a lista das conversas e quem está logado: nada de Produtos, pessoas ou Vínculo", async () => {
     montar();
 
-    // `eu` diz se quem está logado é Desenvolvedor (issue #1531, ADR 0083), e
-    // `projetos` dá as opções do filtro Projeto (issue #1967).
-    await waitFor(() => expect(pedidos.length).toBe(3));
+    // `eu` diz se quem está logado é Desenvolvedor (issue #1531, ADR 0083),
+    // `projetos` dá as opções do filtro Projeto (issue #1967) e
+    // `perguntas/esperando` é a lista Esperando sua resposta (issue #2118).
+    await waitFor(() => expect(pedidos.length).toBe(4));
     expect([...pedidos].sort()).toEqual([
       "/api/admin/tecnologia/chat",
       "/api/admin/tecnologia/eu",
+      "/api/admin/tecnologia/perguntas/esperando",
       "/api/admin/tecnologia/projetos",
     ]);
   });
@@ -159,6 +167,33 @@ describe("A aba abre no chat, com Conversas e Entregas (issues #1386 e #1556)", 
     expect(await screen.findByText("Nenhuma entrega com esses filtros.")).toBeTruthy();
     // O Quadro fica montado atrás da aba, escondido.
     expect(quadro.closest("[hidden]")).not.toBeNull();
+  });
+
+  it("a lista Esperando sua resposta fica no topo da aba, antes das abas, com o cartão do aviso em foco (issue #2118)", async () => {
+    const pergunta = {
+      id: "p-9",
+      demanda_id: "d-9",
+      demanda: "A Ata assinada no app",
+      projeto: "Aplicativo do Hospital",
+      assunto: "quem assina a Ata",
+      texto: "Quem assina a Ata em nome da diretoria?",
+      por_que_precisa: "Só a diretoria decide.",
+      o_que_esta_parado: "A tela de assinatura.",
+      o_que_anda_depois: "A tela sai.",
+      ganho: "A ata sai no mesmo dia.",
+      estado: "aberta",
+      criado_em: "2026-11-18T10:00:00Z",
+      minha: true,
+    };
+    Element.prototype.scrollIntoView = vi.fn();
+    montar({ esperando: [pergunta], perguntaInicial: "p-9" });
+
+    const lista = await screen.findByRole("region", { name: "Esperando sua resposta" });
+
+    const abas = screen.getByRole("tablist", { name: "Tecnologia" });
+    expect(lista.compareDocumentPosition(abas) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const [item] = within(lista).getAllByRole("listitem");
+    await waitFor(() => expect(document.activeElement).toBe(item));
   });
 
   it("a área da Tecnologia só tem a página da aba", () => {

@@ -241,6 +241,79 @@ class QuemSouNaAbaResponse(BaseModel):
 # ─── A Conversa da Demanda (issue #1537, ADR 0083, decisao 8) ──────────────
 
 
+class OpcaoDaPerguntaResponse(BaseModel):
+    letra: str
+    texto: str
+
+
+class RespostaDaPerguntaResponse(BaseModel):
+    """A resposta da Pergunta da Vitta (issue #2119): a opcao escolhida (a
+    letra e o texto), o texto livre, quando, quem registrou e, quando foi um
+    Desenvolvedor no lugar do Destinatario, em nome de quem."""
+
+    opcao: str | None = None
+    opcao_texto: str | None = None
+    texto: str | None = None
+    respondida_em: str | None = None
+    respondida_por: str | None = None
+    em_nome_de: str | None = None
+
+
+class ResolucaoDaPerguntaResponse(BaseModel):
+    """A Pergunta resolvida pela ponte (issue #2121, ADR 0109, decisao 6): o
+    que foi decidido e o que destravou, em palavras simples."""
+
+    decidido: str | None = None
+    destravou: str | None = None
+    resolvida_em: str | None = None
+
+
+class CancelamentoDaPerguntaResponse(BaseModel):
+    """A Pergunta cancelada pela ponte (issue #2121): o motivo."""
+
+    motivo: str | None = None
+    cancelada_em: str | None = None
+
+
+class PerguntaDoCartaoResponse(BaseModel):
+    """O cartao da Pergunta da Vitta (issue #2116, ADR 0109, decisao 3): de
+    qual Projeto e, a pergunta, as quatro linhas em palavras simples, as
+    opcoes, o estado e desde quando espera (`criado_em`; a tela conta os
+    dias)."""
+
+    id: str
+    projeto: str
+    assunto: str
+    texto: str
+    por_que_precisa: str
+    o_que_esta_parado: str
+    o_que_anda_depois: str
+    ganho: str
+    opcoes: list[OpcaoDaPerguntaResponse] = []
+    recomendada: str | None = None
+    porque: str | None = None
+    estado: Literal["aberta", "respondida", "resolvida", "cancelada"]
+    criado_em: str | None = None
+    destinatario: str | None = None
+    # A resposta (issue #2119): nula enquanto a Pergunta espera.
+    resposta: RespostaDaPerguntaResponse | None = None
+    # O estado final (issue #2121): so na resolvida e so na cancelada.
+    resolucao: ResolucaoDaPerguntaResponse | None = None
+    cancelamento: CancelamentoDaPerguntaResponse | None = None
+    # O campo de resposta aparece so a quem responde: o Destinatario, ou o
+    # Desenvolvedor no lugar dele, e so na Pergunta aberta (ADR 0109, decisao 5).
+    pode_responder: bool = False
+
+
+class PerguntaEsperandoResponse(PerguntaDoCartaoResponse):
+    """Um item da lista Esperando sua resposta (issue #2118, ADR 0109,
+    decisao 5): o cartao, de qual Demanda e, e se espera quem esta logado."""
+
+    demanda_id: str
+    demanda: str
+    minha: bool = False
+
+
 class MensagemDaConversaResponse(BaseModel):
     """Uma mensagem de gente na Conversa da Demanda. `autor` e o nome de quem
     escreveu; `minha` diz se foi quem esta logado."""
@@ -253,6 +326,9 @@ class MensagemDaConversaResponse(BaseModel):
     # A linha do Envio aos desenvolvedores (issue #2011, ADR 0108): a tela a
     # mostra como linha do sistema, e nao como bolha de alguem.
     sistema: bool = False
+    # A entrada que e Pergunta da Vitta (issue #2116): a tela desenha o cartao
+    # no lugar da bolha. Nula na mensagem comum.
+    pergunta: PerguntaDoCartaoResponse | None = None
 
 
 class MencionavelResponse(BaseModel):
@@ -580,3 +656,50 @@ class MensagemDaConversaPayload(BaseModel):
     mencao vai no proprio texto, como "@Nome Completo"."""
 
     texto: str = Field(min_length=1, max_length=LIMITE_DA_MENSAGEM)
+
+
+# A resposta entra na Conversa com "Resposta em nome de <Nome>: X) <opcao>"
+# na frente, e a mensagem da Conversa tem o teto de LIMITE_DA_MENSAGEM.
+LIMITE_DA_RESPOSTA = 4000
+
+
+class RespostaDaPerguntaPayload(BaseModel):
+    """Corpo do POST /admin/tecnologia/perguntas/{id}/resposta (issue #2119):
+    a letra da opcao, o texto livre, ou os dois. A falta dos dois e a opcao
+    que a Pergunta nao tem sao recusadas pelo servico, com o motivo."""
+
+    opcao: str | None = Field(default=None, max_length=1)
+    texto: str | None = Field(default=None, max_length=LIMITE_DA_RESPOSTA)
+
+
+class RespostaDaPerguntaRespondidaResponse(BaseModel):
+    """O cartao da Pergunta ja respondida e a mensagem da resposta na
+    Conversa, para a tela trocar os dois sem reler a Conversa."""
+
+    pergunta: PerguntaDoCartaoResponse
+    mensagem: MensagemDaConversaResponse
+
+
+# ─── O Me explique (issue #2122, ADR 0109, decisao 8) ───────────────────────
+
+
+class MeExpliquePayload(BaseModel):
+    """Corpo do POST /admin/tecnologia/perguntas/{id}/me-explique: sem
+    `texto`, abre a conversa; com ele, a pergunta da pessoa ao Assistente."""
+
+    texto: str | None = Field(default=None, max_length=LIMITE_DA_RESPOSTA)
+
+
+class FalaDoMeExplique(BaseModel):
+    """Uma fala da conversa particular: da pessoa ou do Assistente, que pode
+    trazer o rascunho de resposta."""
+
+    papel: Literal["pessoa", "assistente"]
+    texto: str
+    rascunho: str | None = None
+
+
+class ConversaDoMeExpliqueResponse(BaseModel):
+    """A conversa de quem esta logado sobre a Pergunta, e so a dele."""
+
+    mensagens: list[FalaDoMeExplique] = []

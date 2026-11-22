@@ -14,6 +14,10 @@
  * as Demandas em colunas pela Etapa (issue #1642, ADR 0090, decisão 1). No
  * celular ela continua a lista de antes, com o nome de antes. O "Ver todos nas
  * Entregas", no pé da coluna Entregue, troca para a aba Entregas (issue #1644).
+ *
+ * No topo, acima das abas, fica a lista Esperando sua resposta, com as
+ * Perguntas da Vitta abertas de todos os Projetos (issue #2118, ADR 0109,
+ * decisão 5). `perguntaInicial` é o `?pergunta=` do aviso: o cartão em foco.
  */
 
 import { useState } from "react";
@@ -24,10 +28,17 @@ import { useTelaLarga } from "@/hooks/useTelaLarga";
 
 import { ConversasDaTecnologia } from "./ConversasDaTecnologia";
 import { EntregasDaTecnologia } from "./EntregasDaTecnologia";
+import { EsperandoSuaResposta } from "./EsperandoSuaResposta";
 
 type Aba = "conversas" | "entregas";
 
-export function TecnologiaModulo({ demandaInicial = null }: { demandaInicial?: string | null }) {
+export function TecnologiaModulo({
+  demandaInicial = null,
+  perguntaInicial = null,
+}: {
+  demandaInicial?: string | null;
+  perguntaInicial?: string | null;
+}) {
   const { token } = useAuth();
   const largo = useTelaLarga();
   const rotuloDasConversas = largo ? "Quadro" : "Conversas";
@@ -57,6 +68,8 @@ export function TecnologiaModulo({ demandaInicial = null }: { demandaInicial?: s
           </p>
         </div>
       </div>
+
+      <EsperandoSuaResposta token={token} perguntaEmFoco={perguntaInicial} />
 
       <div className="flex flex-wrap gap-1 border-b border-border" role="tablist" aria-label="Tecnologia">
         {abas.map((a) => (

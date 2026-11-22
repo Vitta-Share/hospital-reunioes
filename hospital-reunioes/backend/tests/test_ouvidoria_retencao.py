@@ -130,6 +130,9 @@ def _manifestacao(numero: int = 7, **overrides) -> dict:
         "nsp_decisao": "descartado",
         "nsp_decidido_por": "P10",
         "nsp_decidido_em": "2020-08-02T10:00:00+00:00",
+        # A sinalização ao Canal de Conduta (issue #1849, migration 202): só o
+        # instante.
+        "conduta_sinalizada_em": "2020-08-03T10:00:00+00:00",
         # As justificativas e o motivo descrevem o incidente: saem com o Dossiê.
         "nsp_justificativa_simples": "Relato de queda da paciente Maria Aparecida no leito 12.",
         "nsp_justificativa_tecnica": "Queda do leito, Clinica Medica, 30/07/2020, escoriacao no braco.",

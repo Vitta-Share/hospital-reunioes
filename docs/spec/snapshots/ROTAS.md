@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T20:08+0000 -->
+<!-- last_update: 2026-11-22T06:00+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -70,21 +70,94 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | DELETE | `/pendencias/{id_acao}/comentarios/{comentario_id}` | Exclui um comentário. Apenas o autor pode excluir. | ✅ |
 | GET | `/pendencias/{id_acao}/mencionaveis` | Lista participantes mencionáveis no chat da Pendência (quem enxerga a Pendência). | ✅ |
 
+## canal-de-conduta (`app/routers/conduta_afastamento.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| GET | `/comite-de-conduta/afastamentos/pedidos` | Os pedidos de afastamento da Rota Especial, para a coordenação: sem | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/afastamentos` | No caso comum, a decisão do coordenador; na Rota Especial, o pedido do | ✅ |
+| GET | `/comite-de-conduta/casos/{caso_id}/afastamentos/{afastamento_id}` | O pedido ao DP e ao Jurídico: só quem afastar e o motivo. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/afastamentos/{afastamento_id}/entrega` | Registrar entrega | ✅ |
+| GET | `/comite-de-conduta/casos/{caso_id}/afastamentos/{afastamento_id}/parecer` | O parecer decifrado, entregue pelo backend. Nada de cache. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/afastamentos/{afastamento_id}/parecer` | O parecer do Jurídico em PDF. Na Rota Especial, com o resultado que ele | ✅ |
+
+## canal-de-conduta (`app/routers/conduta_ata.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| POST | `/comite-de-conduta/casos/{caso_id}/ata` | GERAR ATA: o agente do Anexo D redige. Roda no executor da IA (issue #773). | ✅ |
+| GET | `/comite-de-conduta/casos/{caso_id}/ata/assinada` | A cópia da ata assinada, entregue pelo backend, sem cache. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/ata/assinatura` | A última versão da ata vai à ClickSign para os três votantes. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/ata/reconsulta` | Reconsultar status: pergunta à ClickSign sem depender do webhook. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/reuniao/conclusao` | CONCLUIR REUNIÃO: com os quatro itens, e a transcrição é eliminada. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/reuniao/conferencia` | Marcar item da reuniao | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/reuniao/transcricao` | ANEXAR TRANSCRIÇÃO DA REUNIÃO DO COMITÊ, na etapa Voto do rito Completo. | ✅ |
+
+## canal-de-conduta (`app/routers/conduta_codigo.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| GET | `/comite-de-conduta/codigo-de-conduta` | Listar versoes | ✅ |
+| POST | `/comite-de-conduta/codigo-de-conduta` | Publicar versao | ✅ |
+| GET | `/comite-de-conduta/codigo-de-conduta/arquivo` | Baixar versao | ✅ |
+| GET | `/comite-de-conduta/codigo-de-conduta/vigente` | A versão que valia na data, ou `null` se nenhuma valia ainda. | ✅ |
+
 ## canal-de-conduta (`app/routers/conduta_comite.py`)
 
 | Método | Rota | O que faz | Auth |
 |--------|------|-----------|------|
 | GET | `/comite-de-conduta/casos` | Listar casos | ✅ |
 | GET | `/comite-de-conduta/casos/{caso_id}` | Abrir caso | ✅ |
+| GET | `/comite-de-conduta/casos/{caso_id}/cadastro` | Para ligar o Citado ao cadastro: só id e nome. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/citados` | Marcar citado | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/conferencia` | Conferir triagem | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/contestacao` | Contestar triagem | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/contestacao/decisao` | Decidir contestacao | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/contestacoes-de-participacao` | Contestar participacao | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/contestacoes-de-participacao/{contestacao_id}/decisao` | Decidir participacao | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/encaminhamento` | Enviar orientacao | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/impedimento` | Declarar impedimento | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/nota-ao-nsp` | Sinalizar ao NSP (issue #1850): um membro escreve a nota ao Núcleo. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/nota-ao-nsp/envio` | A coordenação envia ao Núcleo a nota escrita, e só ela (issue #1850). | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/prorrogacao` | Prorrogar prazo | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/sugestao` | A coordenação confirma ou discorda de um item da sugestão do agente | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/triagem` | Confirmar triagem | ✅ |
 | GET | `/comite-de-conduta/configuracoes` | Listar configuracoes | ✅ |
 | POST | `/comite-de-conduta/configuracoes/{chave}` | Salvar configuracao | ✅ |
-| GET | `/comite-de-conduta/minha-vez` | Minha vez | ✅ |
+| GET | `/comite-de-conduta/minha-vez` | `termo_pendente`: a pessoa está no Comitê e ainda não assinou o Termo | ✅ |
+
+## canal-de-conduta (`app/routers/conduta_convites.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| GET | `/comite-de-conduta/casos/{caso_id}/convites` | Quem foi convidado e o termo de cada um, para quem pode convidar. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/convites` | Convidar | ✅ |
+
+## canal-de-conduta (`app/routers/conduta_depoimentos.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| POST | `/comite-de-conduta/casos/{caso_id}/cronologia` | MONTAR CRONOLOGIA: o agente monta a cronologia dos fatos. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/cronologia/versoes` | Editar cronologia | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/depoimentos` | Adicionar pessoa a ouvir | ✅ |
+| GET | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/arquivos/{arquivo_id}` | O arquivo decifrado, entregue pelo backend. Nada de cache no navegador | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/audio` | Anexar audio | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/conclusao` | Concluir depoimento | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/conferencia` | Marcar item da lista | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/recusa` | A pessoa se recusou a assinar: a certidão vai à ClickSign para quem | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/roteiro` | O clique que pede ao agente o roteiro de perguntas. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/sem-gravacao` | Registrar sem gravacao | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/termo` | O clique que pede ao agente o termo de declaração (Anexo C). | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/termo-assinado` | Arquivo ou câmera do celular: uma foto por página, até cinco. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/termo/correcoes` | Cada correção lançada é uma versão nova do termo. | ✅ |
+| GET | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/termo/pdf` | IMPRIMIR TERMO: o PDF da última versão, no modelo do Anexo E.1. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/transcricao` | Anexar transcricao | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/envio-para-voto` | ENVIAR PARA VOTO: fecha a Apuração. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/relatorio` | GERAR RELATÓRIO: o agente redige o relatório de uma página. | ✅ |
+| GET | `/comite-de-conduta/casos/{caso_id}/relatorio/assinado` | A cópia do relatório assinado, entregue pelo backend. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/relatorio/assinatura` | No rito Completo, a última versão vai à ClickSign para os apuradores. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/relatorio/reconsulta` | Reconsultar status: pergunta à ClickSign sem depender do webhook. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/relatorio/versoes` | Editar relatorio | ✅ |
 
 ## canal-de-conduta (`app/routers/conduta_membros.py`)
 
@@ -95,13 +168,35 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | GET | `/comite-de-conduta/membros/pessoas` | As pessoas ativas do cadastro, só id e nome. | ✅ |
 | GET | `/comite-de-conduta/membros/registro` | Quem entrou, saiu, ganhou ou perdeu o perfil de cadastro, por quem e quando. | ✅ |
 | POST | `/comite-de-conduta/membros/{participacao_id}/encerrar` | Encerra sem apagar: a vigência termina no dia (inclusive) e a linha | ✅ |
+| POST | `/comite-de-conduta/membros/{participacao_id}/termo/reconsultar` | Pergunta à ClickSign e aplica o mesmo tratamento do webhook. | ✅ |
+| POST | `/comite-de-conduta/membros/{participacao_id}/termo/reenviar` | Cancela o envio aberto e manda outro Termo, com outro identificador. | ✅ |
 
 ## canal-de-conduta-publico (`app/routers/conduta_publico.py`)
 
 | Método | Rota | O que faz | Auth |
 |--------|------|-----------|------|
 | GET | `/conduta/abertura` | Se o canal está aberto. Fechado, a rota nem aparece (404). | ❌ |
+| GET | `/conduta/codigo-de-conduta` | O PDF do Código de Conduta vigente hoje (issue #1841), num endereço que | ❌ |
 | GET | `/conduta/textos` | Os textos vigentes das telas públicas (issue #1826), cada um com o | ❌ |
+
+## canal-de-conduta (`app/routers/conduta_rota_especial.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| POST | `/comite-de-conduta/casos/{caso_id}/desvio-especial` | Confirmar desvio | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/entrega-do-parecer` | Registrar entrega | ✅ |
+| GET | `/comite-de-conduta/rota-especial/contagem` | Casos da Rota Especial recebidos, concluídos e em aberto. Nada além. | ✅ |
+
+## canal-de-conduta (`app/routers/conduta_voto.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| POST | `/comite-de-conduta/casos/{caso_id}/conclusao-da-votacao` | CONCLUIR VOTAÇÃO: o resultado da maioria, e o caso vai à Ata. | ✅ |
+| GET | `/comite-de-conduta/casos/{caso_id}/trava/ciencia` | A ciência decifrada, entregue pelo backend, sem cache. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/trava/ciencia` | A ciência do Código que o DP registrou fora do aplicativo. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/trava/confirmacao` | Confirmar item da trava | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/trava/preenchimento` | PREENCHER TRAVA: o agente preenche a lista. Roda no executor da IA | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/voto` | VOTAR: o voto do membro, oculto até todos votarem. | ✅ |
 
 ## conector-mcp (`app/routers/conector_mcp.py`)
 
@@ -353,6 +448,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/ouvidoria/manifestacoes/{manifestacao_id}/apagamento` | Apaga hoje o Dossiê de um caso encerrado, por ato da Diretoria. | ✅ |
 | DELETE | `/ouvidoria/manifestacoes/{manifestacao_id}/arquivo` | Devolve o caso à lista, limpando os dois carimbos. | ✅ |
 | POST | `/ouvidoria/manifestacoes/{manifestacao_id}/arquivo` | Tira da vista da lista um caso que já acabou (ADR 0047, decisão 3). | ✅ |
+| POST | `/ouvidoria/manifestacoes/{manifestacao_id}/canal-de-conduta` | O botão Sinalizar ao Canal de Conduta do Dossiê (issue #1849, ADR 0097 | ✅ |
 | POST | `/ouvidoria/manifestacoes/{manifestacao_id}/classificacao` | Classifica a manifestação e, no mesmo ato, resolve o sigilo dela. | ✅ |
 | POST | `/ouvidoria/manifestacoes/{manifestacao_id}/cobrar-setor` | Acorda de novo a área que está devendo resposta, pelo botão da fila. | ✅ |
 | POST | `/ouvidoria/manifestacoes/{manifestacao_id}/devolucoes` | Devolve ao setor a resposta que não resolve, com meio prazo novo. | ✅ |
@@ -544,9 +640,11 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 | Método | Rota | O que faz | Auth |
 |--------|------|-----------|------|
+| GET | `/nsp/acao-de-hoje` | A faixa "o que exige ação hoje" do início do módulo (issue #2000): casos | ✅ |
 | GET | `/nsp/configuracao` | A configuração técnica do módulo, a única parte que o super admin | ✅ |
 | GET | `/nsp/configuracao/qr-da-notificacao.png` | O QR único da notificação (issue #2046), para o cartaz e o papel de | ✅ |
 | GET | `/nsp/inicio` | A página inicial do módulo: o Núcleo, quantos membros estão com a | ✅ |
+| GET | `/nsp/notas-do-comite` | As notas que o Comitê de Conduta mandou ao Núcleo (issue #1850): só o | ✅ |
 
 ## seguranca-do-paciente (`app/routers/seguranca_do_paciente_agenda.py`)
 
@@ -593,6 +691,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/nsp/membros` | Cadastrar membro | ✅ |
 | GET | `/nsp/membros/pessoas` | As pessoas ativas do cadastro, só id e nome, para escolher no cadastro. | ✅ |
 | PATCH | `/nsp/membros/{participacao_id}` | Editar membro | ✅ |
+| POST | `/nsp/membros/{participacao_id}/ausencia-da-presidencia` | Na ficha do suplente: o período em que ele responde pela Presidência. | ✅ |
 | POST | `/nsp/membros/{participacao_id}/encerrar` | Encerra sem apagar: a vigência termina no dia (inclusive) e a linha | ✅ |
 | POST | `/nsp/membros/{participacao_id}/renovar` | Estende o fim da vigência. A mesma Participação segue, com a trilha | ✅ |
 | GET | `/nsp/membros/{participacao_id}/trilha` | Trilha do membro | ✅ |
@@ -608,7 +707,31 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | GET | `/nsp/notificacoes/{notificacao_id}/anexos/{anexo_id}` | O arquivo do caso, entregue pelo backend: sem URL assinada, que valeria | ✅ |
 | POST | `/nsp/publico/acompanhamento` | A página de acompanhamento: só o estado, em palavras simples. O limite | ❌ |
 | POST | `/nsp/publico/notificacoes` | O formulário público, pelo QR ou pelo endereço. | ❌ |
+| POST | `/nsp/publico/perguntas` | As perguntas do agente que ainda esperam resposta (issue #1991), com a | ❌ |
+| POST | `/nsp/publico/respostas` | Quem notificou responde as perguntas, na confirmação ou no | ❌ |
 | GET | `/nsp/publico/setores` | A lista de "Onde" do formulário: os setores ativos, pelo id. | ❌ |
+
+## seguranca-do-paciente (`app/routers/seguranca_do_paciente_prazos.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| GET | `/nsp/configuracao/prazos` | A tabela inteira: quem só alcança a configuração lê sem editar. | ✅ |
+| PUT | `/nsp/configuracao/prazos/{faixa}/{marco}` | Vale para os casos confirmados daqui para a frente. | ✅ |
+
+## seguranca-do-paciente (`app/routers/seguranca_do_paciente_recalibracao.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| GET | `/nsp/configuracao/concordancia` | Concordancia do agente | ✅ |
+| GET | `/nsp/recalibracao` | Tela da recalibracao | ✅ |
+| POST | `/nsp/recalibracao/{marco}` | Grava a decisão, quem decidiu e quando, e conclui as pendências do marco. | ✅ |
+
+## seguranca-do-paciente (`app/routers/seguranca_do_paciente_recebimento.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| GET | `/nsp/recebimento/{token}` | O resumo do caso encaminhado ao setor. | ❌ |
+| POST | `/nsp/recebimento/{token}/recebido` | O clique em Recebido. O segundo clique, ou o que cruza com outro, é 410. | ❌ |
 
 ## seguranca-do-paciente (`app/routers/seguranca_do_paciente_reunioes.py`)
 
@@ -639,6 +762,19 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/nsp/membros/{participacao_id}/termo/reconsultar` | Pergunta à assinatura eletrônica e aplica o mesmo tratamento do | ✅ |
 | POST | `/nsp/membros/{participacao_id}/termo/reenviar` | Cancela o envio anterior e gera outro documento, com outro identificador. | ✅ |
 | GET | `/nsp/meu-termo` | Para a faixa das telas bloqueadas: a pessoa tem Termo pendente numa | ✅ |
+
+## seguranca-do-paciente (`app/routers/seguranca_do_paciente_triagem.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| GET | `/nsp/configuracao/cortes-de-frequencia` | Ler cortes de frequencia | ✅ |
+| PUT | `/nsp/configuracao/cortes-de-frequencia` | Os cortes novos valem para o que for calculado daqui para a frente. | ✅ |
+| GET | `/nsp/triagem` | A fila de triagem: sem relato e sem quem notificou. | ✅ |
+| POST | `/nsp/triagem/lote` | Confirma a sugestão de cada caso como veio. Um caso fora das faixas D e | ✅ |
+| GET | `/nsp/triagem/{notificacao_id}` | A tela única: o caso, com os anexos, a sugestão (ou nenhuma) e o que o | ✅ |
+| POST | `/nsp/triagem/{notificacao_id}` | Confirmar ou ajustar. Grava a linha da pessoa ao lado da sugestão e leva | ✅ |
+| GET | `/nsp/triagem/{notificacao_id}/contexto` | A recorrência, os casos parecidos, a frequência e a prioridade para a | ✅ |
+| POST | `/nsp/triagem/{notificacao_id}/encaminhamento` | Grava o encaminhamento, preservando o protocolo. Sem o Núcleo entre os | ✅ |
 
 ## pops (`app/routers/pops/setores.py`)
 
@@ -701,6 +837,10 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | GET | `/admin/tecnologia/desenvolvedores` | O "Quem cuida disto?" do resumo (ADR 0083, decisao 5). `padrao` marca | ✅ |
 | GET | `/admin/tecnologia/entregas` | A aba Entregas como ritmo semanal (issue #1701, ADR 0092, decisoes 1 e 7). | ✅ |
 | GET | `/admin/tecnologia/eu` | Se quem esta logado e Desenvolvedor (ADR 0083, decisao 2). | ✅ |
+| GET | `/admin/tecnologia/perguntas/esperando` | As Perguntas da Vitta abertas de todos os Projetos, as do logado | ✅ |
+| GET | `/admin/tecnologia/perguntas/{pergunta_id}/me-explique` | A conversa do Me explique de quem esta logado, e so a dele. Nao chama a IA. | ✅ |
+| POST | `/admin/tecnologia/perguntas/{pergunta_id}/me-explique` | O clique no Me explique (sem `texto`) ou a pergunta da pessoa (com ele). | ✅ |
+| POST | `/admin/tecnologia/perguntas/{pergunta_id}/resposta` | A resposta da Pergunta da Vitta, pelo cartao: a opcao, o texto livre | ✅ |
 | GET | `/admin/tecnologia/projetos` | As opcoes do filtro Projeto do Quadro e das Entregas (issue #1967): o | ✅ |
 
 ## automacao (`app/routers/tecnologia_automacao.py`)
@@ -710,7 +850,11 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | GET | `/automacao/tecnologia/demandas/{demanda_id}/anexos` | Nome, tipo e URL assinada de cada anexo não apagado da Demanda. | ✅ |
 | GET | `/automacao/tecnologia/demandas/{demanda_id}/conversa` | A resposta do diretor (ADR 0096, decisao 6): as mensagens da Conversa | ✅ |
 | POST | `/automacao/tecnologia/demandas/{demanda_id}/conversa` | A Mensagem pelo terminal (ADR 0096): grava no perfil do Desenvolvedor | ✅ |
+| POST | `/automacao/tecnologia/demandas/{demanda_id}/perguntas` | Cria a Pergunta da Vitta aberta na Demanda, com a entrada na Conversa, | ✅ |
 | GET | `/automacao/tecnologia/destinatarios` | Quem pode ser Destinatario de uma mensagem na Conversa da Demanda | ✅ |
+| GET | `/automacao/tecnologia/perguntas/{pergunta_id}` | O estado da Pergunta da Vitta e, quando houver, a resposta (o Checar | ✅ |
+| POST | `/automacao/tecnologia/perguntas/{pergunta_id}/cancelar` | A Pergunta deixou de ser necessaria: a aberta ou a respondida passa a | ✅ |
+| POST | `/automacao/tecnologia/perguntas/{pergunta_id}/resolver` | A Vitta leu a resposta e deu o ok: a Pergunta respondida passa a | ✅ |
 | GET | `/automacao/tecnologia/projetos/{projeto}/issues/{numero}/demanda` | O id da Demanda vinculada a esta issue-raiz (ADR 0093: projeto mais | ✅ |
 | POST | `/automacao/tecnologia/projetos/{projeto}/issues/{numero}/demanda` | A Demanda do PRD de um Projeto novo (issue #1967, PRD #1964): 201 quando | ✅ |
 | POST | `/automacao/tecnologia/validacoes` | Guarda a observacao original junto da Demanda do PRD e devolve so os | ✅ |
@@ -752,4 +896,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 431 endpoints em 63 routers · 93% exigem auth.
+**Totais:** 520 endpoints em 74 routers · 93% exigem auth.
