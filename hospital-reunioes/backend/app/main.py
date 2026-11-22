@@ -25,6 +25,7 @@ from app.routers import (
     conduta_depoimentos,
     conduta_membros,
     conduta_publico,
+    conduta_rota_especial,
     conector_mcp,
     configuracoes,
     contas_medicas,
@@ -202,6 +203,7 @@ app.include_router(conduta_convites.router, prefix=settings.api_prefix)
 app.include_router(conduta_depoimentos.router, prefix=settings.api_prefix)
 app.include_router(conduta_membros.router, prefix=settings.api_prefix)
 app.include_router(conduta_publico.router, prefix=settings.api_prefix)
+app.include_router(conduta_rota_especial.router, prefix=settings.api_prefix)
 app.include_router(admin.router, prefix=settings.api_prefix)
 app.include_router(admin_super_admins.router, prefix=settings.api_prefix)
 app.include_router(admin_usuarios.router, prefix=settings.api_prefix)

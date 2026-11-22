@@ -53,16 +53,22 @@ def _impedir(supabase, caso_id: str, pessoa_id: str, motivo: str) -> None:
 
 def _suplente_livre(supabase, caso_id: str) -> str | None:
     """O primeiro suplente vigente, com o Termo assinado, que ainda não tem
-    nada no caso (convocação, impedimento) e não é Citado nele."""
+    nada no caso (convocação, impedimento) e não é Citado nele. No caso da
+    Rota Especial, nunca um diretor (issue #1829)."""
     comite_id = membros.id_do_comite(supabase)
     if not comite_id:
         return None
     hoje = hoje_em_sao_paulo()
+    caso = supabase.table("conduta_casos").select("rota").eq("id", caso_id).limit(1).execute().data or []
+    sem_diretor = bool(caso) and caso[0].get("rota") == "especial"
     candidatos = sorted(
         (
             p
             for p in membros.participacoes(supabase, comite_id)
-            if p["papel"] == "suplente" and p.get("termo_assinado_em") and membros.vigente_em(p, hoje)
+            if p["papel"] == "suplente"
+            and p.get("termo_assinado_em")
+            and membros.vigente_em(p, hoje)
+            and not (sem_diretor and p.get("e_diretor"))
         ),
         key=lambda p: (str(p["vigencia_inicio"]), p["participante_id"]),
     )

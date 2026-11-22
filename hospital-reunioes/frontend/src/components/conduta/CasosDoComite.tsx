@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { AlertCircle, Inbox, Loader2 } from "lucide-react";
 
 import { OQueFazerAgora } from "@/components/conduta/OQueFazerAgora";
+import { ContagemDaRotaEspecialNaLista } from "@/components/conduta/RotaEspecial";
 import {
   RITOS,
   SITUACOES,
@@ -58,6 +59,7 @@ export function CasosDoComite() {
   return (
     <div className="space-y-4">
       <OQueFazerAgora caixa={CAIXA_DOS_CASOS} href="/comite-de-conduta" />
+      <ContagemDaRotaEspecialNaLista />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <label className="text-sm font-semibold text-slate-700 space-y-1">
           <span>Situação</span>

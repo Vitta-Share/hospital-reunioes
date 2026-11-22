@@ -25,6 +25,7 @@ from app.services.conduta import (
     impedimento,
     nota_ao_nucleo,
     relatorio,
+    rota_especial,
     triagem,
 )
 from app.services.conduta.acesso import CAMPOS_DA_LISTA, hoje_em_sao_paulo
@@ -110,7 +111,7 @@ async def listar_casos(
     comite: NoComite = Depends(portao_da_lista),
     supabase: Client = Depends(get_supabase_client),
     situacao_pedida: Literal["em_triagem", "em_andamento", "encerrado"] | None = Query(None, alias="situacao"),
-    rito: Literal["encaminhamento", "rapido", "completo", "sem_rito"] | None = None,
+    rito: Literal["encaminhamento", "rapido", "completo", "especial", "sem_rito"] | None = None,
 ) -> dict:
     casos = triagem.lista_de_casos(supabase, comite, hoje_em_sao_paulo(), situacao_pedida=situacao_pedida, rito=rito)
     return {"casos": casos}
@@ -133,6 +134,7 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         )
         cartoes = depoimentos.para_a_tela(supabase, caso)
         relatorios = relatorio.para_a_tela(supabase, aberto)
+        especial = rota_especial.para_a_tela(supabase, aberto)
     except cifra.CifraIndisponivelError as erro:
         raise _indisponivel(erro) from erro
     vencidos = triagem.registrar_vencidos(supabase, [caso], hoje_em_sao_paulo())
@@ -159,6 +161,7 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         "notas_ao_nsp": notas_ao_nsp,
         **cartoes,
         **relatorios,
+        **especial,
     }
 
 

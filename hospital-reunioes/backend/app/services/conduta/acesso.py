@@ -49,6 +49,11 @@ CAMPOS_DA_LISTA = (
     # De onde o caso veio: `canal` ou `ouvidoria`, a sinalização do ouvidor
     # (issue #1849). A lista diz a origem, nunca quem manifestou.
     "origem",
+    # A resposta do passo 3 sobre a Direção e o sinal do agente: com "Não sei"
+    # ou o sinal, o caso da fila comum mostra o aviso de Rota Especial
+    # (issue #1829).
+    "direcao_envolvida",
+    "sinal_especial",
 )
 
 
