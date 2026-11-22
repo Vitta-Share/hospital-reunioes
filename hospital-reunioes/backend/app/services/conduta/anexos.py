@@ -43,6 +43,9 @@ from app.services.conduta.portao import CasoAberto
 from app.services.conduta.ritos import agora_utc
 
 logger = logging.getLogger(__name__)
+# O Pillow escreve no log, em DEBUG, cada etiqueta EXIF que lê: o fabricante,
+# o modelo e o GPS da foto de quem relata não podem ir parar lá.
+logging.getLogger("PIL").setLevel(logging.INFO)
 
 TABELA = "conduta_relato_anexos"
 # O bucket privado do Canal (migration 175), sem policy e sem URL.
@@ -219,8 +222,10 @@ _CONTEINERES_DO_MP4 = {b"moov", b"trak", b"mdia", b"minf"}
 def _limpar_m4a(dados: bytes) -> bytes:
     """As caixas de etiqueta viram `free`, com o conteúdo zerado e o mesmo
     tamanho: nenhum deslocamento do som muda, então o arquivo toca igual.
-    MP4 com vídeo não é aceito."""
+    Só entra MP4 com trilha de som e sem vídeo (a foto HEIC do iPhone também
+    começa por `ftyp`, e não tem trilha nenhuma)."""
     saida = bytearray(dados)
+    trilhas: set[bytes] = set()
 
     def percorrer(inicio: int, fim: int) -> None:
         for tipo, comeco, corpo, final in _caixas(dados, inicio, fim):
@@ -229,10 +234,12 @@ def _limpar_m4a(dados: bytes) -> bytes:
                 saida[corpo:final] = bytes(final - corpo)
             elif tipo in _CONTEINERES_DO_MP4:
                 percorrer(corpo, final)
-            elif tipo == b"hdlr" and dados[corpo + 8 : corpo + 12] == b"vide":
-                raise AnexoRecusadoError(415, RECUSA_DO_FORMATO)
+            elif tipo == b"hdlr":
+                trilhas.add(dados[corpo + 8 : corpo + 12])
 
     percorrer(0, len(dados))
+    if b"soun" not in trilhas or b"vide" in trilhas:
+        raise AnexoRecusadoError(415, RECUSA_DO_FORMATO)
     return bytes(saida)
 
 
@@ -302,6 +309,9 @@ def limpar(dados: bytes) -> Limpo:
 def guardar(supabase, caso_id: str, dados: bytes, origem: str = "relato") -> dict[str, Any]:
     """Limpa, cifra e guarda o anexo no caso. A entrada única do relato e do
     complemento. Recusa antes de gravar qualquer coisa."""
+    ja_tem = supabase.table(TABELA).select("id").eq("caso_id", caso_id).execute().data or []
+    if len(ja_tem) >= ANEXOS_POR_CASO:
+        raise AnexoRecusadoError(409, f"Este relato já tem {ANEXOS_POR_CASO} anexos, o máximo.")
     limpo = limpar(dados)
     cifrado = cifra.cifrar_arquivo(limpo.conteudo)
     caminho = f"anexos/{uuid.uuid4().hex}"

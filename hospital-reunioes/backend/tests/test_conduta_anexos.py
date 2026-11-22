@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import base64
 import io
+import logging
 import os
 import secrets
 import struct
@@ -36,7 +37,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from app.config import settings  # noqa: E402
 from app.dependencies import get_supabase_client  # noqa: E402
 from app.limiter import limiter  # noqa: E402
-from app.middleware.request_context import RequestContextMiddleware  # noqa: E402
+from app.middleware.request_context import JsonFormatter, RequestContextMiddleware  # noqa: E402
 from app.routers import conduta_publico  # noqa: E402
 from app.services.conduta import agente_de_triagem, anexos, cifra  # noqa: E402
 
@@ -202,14 +203,18 @@ def _caixa(tipo: bytes, corpo: bytes) -> bytes:
 
 
 def _m4a() -> bytes:
-    """Um M4A mínimo, como o gravador do celular: a etiqueta de artista no
-    `ilst` e o lugar da gravação (`©xyz`) no `udta`, antes do som."""
+    """Um M4A mínimo, como o gravador do celular: uma trilha de som, a
+    etiqueta de artista no `ilst` e o lugar da gravação (`©xyz`) no `udta`,
+    antes do som."""
     mvhd = _caixa(b"mvhd", b"\x00" * 4 + struct.pack(">IIII", 3_700_000_000, 3_700_000_000, 1000, 5000) + b"\x00" * 80)
+    mdhd = _caixa(b"mdhd", b"\x00" * 4 + struct.pack(">IIIIHH", 0, 0, 44100, 44100, 0x55C4, 0))
+    som = _caixa(b"hdlr", b"\x00" * 8 + b"soun" + b"\x00" * 12)
+    trak = _caixa(b"trak", _caixa(b"mdia", mdhd + som))
     artista = _caixa(b"\xa9ART", _caixa(b"data", struct.pack(">II", 1, 0) + "Joana Prudente".encode()))
     hdlr = _caixa(b"hdlr", b"\x00" * 8 + b"mdirappl" + b"\x00" * 9)
     meta = _caixa(b"meta", b"\x00" * 4 + hdlr + _caixa(b"ilst", artista))
     udta = _caixa(b"udta", meta + _caixa(b"\xa9xyz", b"+22.8712-043.4601/"))
-    return _caixa(b"ftyp", b"M4A \x00\x00\x00\x00M4A isom") + _caixa(b"moov", mvhd + udta) + _caixa(b"mdat", SOM)
+    return _caixa(b"ftyp", b"M4A \x00\x00\x00\x00M4A isom") + _caixa(b"moov", mvhd + trak + udta) + _caixa(b"mdat", SOM)
 
 
 def _mp3() -> bytes:
@@ -290,3 +295,134 @@ class TestAudio:
         assert b"LIST" not in guardado
         with wave.open(io.BytesIO(guardado)) as leitor:
             assert leitor.readframes(leitor.getnframes()) == SOM
+
+
+# ── Formato fora da lista ───────────────────────────────────────────────────
+
+# Um HEIC do iPhone, um documento do Word e um vídeo: o canal não sabe tirar
+# os dados de origem deles, então não entram.
+_HEIC = b"\x00\x00\x00\x18ftypheic\x00\x00\x00\x00mif1heic" + b"\x00" * 64
+_DOCX = b"PK\x03\x04" + b"\x00" * 26 + b"word/document.xml" + b"\x00" * 64
+
+
+def _mp4_com_video() -> bytes:
+    hdlr = _caixa(b"hdlr", b"\x00" * 8 + b"vide" + b"\x00" * 12)
+    trak = _caixa(b"trak", _caixa(b"mdia", hdlr))
+    return _caixa(b"ftyp", b"isom\x00\x00\x00\x00isom") + _caixa(b"moov", trak) + _caixa(b"mdat", SOM)
+
+
+class TestFormatoForaDaLista:
+    @pytest.mark.parametrize(
+        ("conteudo", "nome"),
+        [(_HEIC, "IMG_0042.HEIC"), (_DOCX, "relato.docx"), (_mp4_com_video(), "video.mp4"), (b"texto solto", "a.txt")],
+        ids=["heic", "docx", "video", "texto"],
+    )
+    def test_o_formato_fora_da_lista_e_recusado_com_mensagem_clara(self, cliente, banco, relatado, conteudo, nome):
+        resposta = _anexar(cliente, relatado, conteudo, nome, "application/octet-stream")
+
+        assert resposta.status_code == 415
+        assert resposta.json() == {"detail": anexos.RECUSA_DO_FORMATO}
+        assert "JPG, PNG ou WEBP" in anexos.RECUSA_DO_FORMATO
+        assert banco.tabelas.get(anexos.TABELA, []) == []
+        assert banco.storage.objetos == {}
+
+    def test_o_nome_ou_o_tipo_que_o_navegador_diz_nao_enganam(self, cliente, banco, relatado):
+        """O tipo vem do conteúdo: um documento chamado .jpg é recusado."""
+        resposta = _anexar(cliente, relatado, _DOCX, "foto.jpg", "image/jpeg")
+
+        assert resposta.status_code == 415
+        assert banco.tabelas.get(anexos.TABELA, []) == []
+
+    def test_o_relato_fica_registrado_e_aceita_outro_anexo_depois_da_recusa(self, cliente, banco, relatado):
+        _anexar(cliente, relatado, _DOCX, "relato.docx")
+
+        resposta = _anexar(cliente, relatado, _foto_com_exif_e_gps())
+
+        assert len(banco.tabelas["conduta_casos"]) == 1
+        assert resposta.status_code == 201
+        assert len(banco.tabelas[anexos.TABELA]) == 1
+
+    def test_arquivo_corrompido_e_recusado_sem_gravar(self, cliente, banco, relatado):
+        resposta = _anexar(cliente, relatado, b"\xff\xd8\xff\xe0" + b"lixo" * 50)
+
+        assert resposta.status_code == 422
+        assert resposta.json() == {"detail": anexos.RECUSA_ILEGIVEL}
+        assert banco.storage.objetos == {}
+
+
+# ── Quem pode anexar ────────────────────────────────────────────────────────
+
+
+class TestQuemAnexa:
+    def test_codigo_errado_nao_grava_e_nao_diz_se_o_protocolo_existe(self, cliente, banco, relatado):
+        errado = {**relatado, "codigo": "AAAAAAAAAA"}
+
+        resposta = _anexar(cliente, errado, _foto_com_exif_e_gps())
+
+        assert resposta.status_code == 404
+        assert relatado["protocolo"] not in resposta.text
+        assert banco.tabelas.get(anexos.TABELA, []) == []
+        assert banco.storage.objetos == {}
+
+    def test_o_caso_aceita_ate_10_anexos(self, cliente, banco, relatado):
+        respostas = []
+        for _ in range(anexos.ANEXOS_POR_CASO + 1):
+            limiter._storage.reset()  # o teto aqui é o do caso, não o da rajada
+            respostas.append(_anexar(cliente, relatado, FOTO).status_code)
+
+        assert respostas == [201] * 10 + [409]
+        assert len(banco.tabelas[anexos.TABELA]) == 10
+
+    def test_com_o_canal_fechado_a_rota_responde_404(self, cliente, banco, relatado, monkeypatch):
+        monkeypatch.setattr(settings, "conduta_canal_aberto", False)
+
+        assert _anexar(cliente, relatado, _foto_com_exif_e_gps()).status_code == 404
+
+
+# ── O nome original ─────────────────────────────────────────────────────────
+
+
+class _Captura(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__()
+        self.setFormatter(JsonFormatter())
+        self.linhas: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.linhas.append(self.format(record))
+
+
+@pytest.fixture
+def log():
+    """Tudo o que o app escreve no log, já como sai no stdout do container."""
+    captura = _Captura()
+    raiz = logging.getLogger()
+    nivel = raiz.level
+    raiz.addHandler(captura)
+    raiz.setLevel(logging.DEBUG)
+    yield captura
+    raiz.removeHandler(captura)
+    raiz.setLevel(nivel)
+
+
+# Feita fora da captura do log: o que interessa é o que o app escreve.
+FOTO = _foto_com_exif_e_gps()
+
+
+class TestNomeOriginal:
+    @pytest.mark.parametrize("aceito", [True, False], ids=["aceito", "recusado"])
+    def test_o_nome_original_do_arquivo_nao_fica_em_tabela_nem_em_log(self, cliente, banco, relatado, log, aceito):
+        conteudo = FOTO if aceito else _DOCX
+
+        resposta = _anexar(cliente, relatado, conteudo, NOME_DO_ARQUIVO)
+
+        assert resposta.status_code == (201 if aceito else 415)
+        assert log.linhas, "controle: o log da requisição tem que ter sido escrito"
+        rastro = "\n".join([repr(banco.tabelas), repr(list(banco.storage.objetos)), *log.linhas, resposta.text])
+        for trecho in ("Prudente", "estacionamento", "Foto da"):
+            assert trecho not in rastro
+
+    def test_nem_o_que_o_arquivo_carregava_vai_ao_log(self, cliente, relatado, log):
+        _anexar(cliente, relatado, FOTO)
+
+        assert "Celular da Joana" not in "\n".join(log.linhas)
