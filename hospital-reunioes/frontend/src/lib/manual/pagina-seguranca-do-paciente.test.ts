@@ -1,10 +1,11 @@
 /**
- * A página de Segurança do Paciente do manual (issue #1780, PRD #1764).
+ * A página de Segurança do Paciente do manual (issue #1780, PRD #1764, e
+ * issue #2003, PRD #1979).
  *
  * Lê o Markdown de verdade, em `public/manual/seguranca-do-paciente/pagina.md`,
- * e prova o que a issue promete dele: só quem tem o módulo no menu vê a página,
- * cada uma das seis tarefas tem passos numerados e print, e os dois
- * fluxogramas, o do membro e o da reunião, desenham o processo como ele ficou.
+ * e prova o que as issues prometem dele: só quem tem o módulo no menu vê a
+ * página, cada tarefa tem passos numerados e print, e os fluxogramas, o do
+ * membro, o da reunião e o da notificação, desenham o processo como ele ficou.
  */
 
 import { renderToStaticMarkup } from "react-dom/server";
@@ -25,6 +26,15 @@ const TAREFAS = [
   "Registrar uma capacitação e confirmar presença",
   "Acompanhar a agenda regulatória",
   "Fazer a reunião do Núcleo, da pauta à ata assinada",
+  // A notificação de incidente, a triagem e os prazos (issue #2003, PRD #1979).
+  "Notificar um incidente pelo QR, pelo endereço ou pelo botão do módulo",
+  "Acompanhar uma notificação",
+  "Fazer a triagem de uma notificação",
+  "Encaminhar uma notificação a outro canal",
+  "Fazer um registro rápido",
+  "Registrar a ausência da Presidência",
+  "Ajustar a tabela de prazos",
+  "Recalibrar o agente",
 ];
 
 function pessoa(campos: Partial<CurrentParticipante>): CurrentParticipante {
@@ -252,5 +262,51 @@ describe("o fluxograma do ciclo da reunião", () => {
     expect(reenvio.detalhe).toMatch(/todos os presentes/);
     expect(f.ligacoes.filter((l) => l.de === reenvio.id).map((l) => l.para)).toEqual([assinatura.id]);
     expect(f.ligacoes.some((l) => l.de === reenvio.id && l.para === encerrada.id)).toBe(false);
+  });
+});
+
+describe("o fluxograma do ciclo da notificação (#2003)", () => {
+  const TITULO = "O ciclo da notificação";
+
+  it("lê sem erro e começa num só lugar, a notificação", () => {
+    expect(inicioDe(fluxoDa(TITULO)).rotulo).toMatch(/Notificação/);
+  });
+
+  it("o protocolo sai antes de qualquer triagem, e o alerta do caso grave também", () => {
+    const f = fluxoDa(TITULO);
+    const inicio = inicioDe(f);
+    const triagem = passoPorRotulo(f, /^Triagem da Presidência$/);
+    const protocolo = passoPorRotulo(f, /^Protocolo na hora$/);
+    const alerta = passoPorRotulo(f, /^Alerta por e-mail$/);
+    const antesDaTriagem = alcancaveis(f, inicio.id, new Set([triagem.id]));
+    expect(antesDaTriagem.has(protocolo.id)).toBe(true);
+    expect(antesDaTriagem.has(alerta.id)).toBe(true);
+  });
+
+  it("só se chega a Classificada passando pela triagem da Presidência", () => {
+    const f = fluxoDa(TITULO);
+    const inicio = inicioDe(f);
+    const triagem = passoPorRotulo(f, /^Triagem da Presidência$/);
+    const classificada = passoPorRotulo(f, /^Classificada$/);
+    expect(alcancaveis(f, inicio.id).has(classificada.id)).toBe(true);
+    expect(alcancaveis(f, inicio.id, new Set([triagem.id])).has(classificada.id)).toBe(false);
+  });
+
+  it("fora de escopo encerra o caso, e as faixas A e B levam à reunião de análise", () => {
+    const f = fluxoDa(TITULO);
+    const inicio = inicioDe(f);
+    const fora = passoPorRotulo(f, /^Fora de escopo$/);
+    const reuniao = passoPorRotulo(f, /^Reunião de análise$/);
+    expect(fora.forma).toBe("fim");
+    expect(alcancaveis(f, inicio.id).has(fora.id)).toBe(true);
+    expect(f.ligacoes.filter((l) => l.para === reuniao.id).map((l) => l.rotulo).join(" ")).toMatch(/A ou B/);
+  });
+});
+
+describe("a triagem com o agente desligado (#2003)", () => {
+  it("ensina a classificar à mão, a tela que toda notificação abre enquanto o agente está desligado", () => {
+    const { texto } = secao("Fazer a triagem de uma notificação");
+    expect(texto).toMatch(/\*\*Classificar manualmente\*\*/);
+    expect(texto).toMatch(/\*\*Confirmar a classificação\*\*/);
   });
 });

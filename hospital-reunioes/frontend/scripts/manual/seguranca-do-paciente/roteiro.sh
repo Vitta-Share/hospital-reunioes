@@ -11,7 +11,9 @@
 # respostas.py. Rota do módulo fora da tabela recebe 404, e pedido que grava
 # (cadastrar, publicar, validar, convocar) recebe 403: nenhum e-mail sai,
 # nenhum envelope vai para assinatura, nenhuma ata chega à IA e nenhum dado
-# de verdade entra no print.
+# de verdade entra no print. Os únicos POST respondidos são os da tabela
+# (issue #2003, PRD #1979): o envio do formulário de notificação, que devolve
+# um protocolo de exemplo, e a consulta do acompanhamento.
 
 set -euo pipefail
 
@@ -97,10 +99,14 @@ pw run-code "async page => {
   const chaveDe = (url) => decodeURIComponent(url.pathname.replace(/^\/api\//, '') + url.search);
   await page.route(u => u.pathname.startsWith('/api/nsp/') || (u.pathname.startsWith('/api/') && chaveDe(u) in tabela), route => {
     const pedido = route.request();
-    if (pedido.method() !== 'GET') {
+    const url = new URL(pedido.url());
+    // O POST só ganha resposta quando a tabela tem a dele: o envio e a consulta de exemplo (#2003).
+    const post = 'POST ' + chaveDe(url);
+    const deExemplo = pedido.method() === 'POST' && post in tabela;
+    if (pedido.method() !== 'GET' && !deExemplo) {
       return route.fulfill({ status: 403, json: { detail: 'O roteiro do manual não grava nada.' } });
     }
-    const chave = chaveDe(new URL(pedido.url()));
+    const chave = pedido.method() === 'GET' ? chaveDe(url) : post;
     if (!(chave in tabela)) {
       return route.fulfill({ status: 404, json: { detail: 'Sem resposta de exemplo para ' + chave } });
     }
@@ -199,5 +205,114 @@ print "getByRole('region', { name: 'Ata do Núcleo' })" "ata-do-nucleo.png"
 pw goto "$BASE/reunioes/exemplo-reuniao-assinada"
 esperar "Baixar a ata assinada"
 print_topo "getByRole('region', { name: 'Ata do Núcleo' })" 330 "ata-assinada.png"
+
+# Notificar um incidente (#2003): o formulário sem login, da primeira tela ao
+# protocolo. O envio recebe o protocolo de exemplo da tabela, e nada se grava.
+pw goto "$BASE/notificar"
+esperar "O que aconteceu"
+pw run-code "async page => {
+  await page.locator('#nsp-relato').fill('O paciente do leito 9 recebeu a dieta pastosa no lugar da dieta zero do jejum. A copa percebeu antes da primeira colherada.');
+  await page.locator('#nsp-leito').fill('Leito 9');
+}"
+print "getByRole('form', { name: 'Notificação de incidente' })" "notificar-o-que-aconteceu.png"
+pw run-code "async page => {
+  const form = page.getByRole('form', { name: 'Notificação de incidente' });
+  await form.getByRole('button', { name: 'Continuar' }).click();
+  await page.locator('#nsp-setor').selectOption({ label: 'Nutrição' });
+  await form.getByRole('button', { name: 'Manhã' }).click();
+  await form.getByRole('button', { name: 'Continuar' }).click();
+  await form.getByRole('button', { name: 'Não chegou' }).click();
+  await form.getByRole('button', { name: 'Continuar' }).click();
+  await form.getByRole('button', { name: 'Sem me identificar' }).click();
+  await form.getByRole('button', { name: 'Enviar notificação' }).click();
+}"
+esperar "Notificação registrada"
+print "locator('div').filter({ has: page.getByRole('heading', { name: 'Notificação registrada' }) }).last()" "notificar-protocolo.png"
+
+# Acompanhar uma notificação: a consulta de quem notificou com o nome.
+pw goto "$BASE/notificar/acompanhar"
+esperar "Acompanhar notificação"
+pw run-code "async page => {
+  await page.getByRole('button', { name: 'Notifiquei com o meu nome' }).click();
+  await page.locator('#protocolo').fill('$(roteiro protocolo_classificado)');
+  await page.locator('#chave').fill('$(roteiro contato_classificado)');
+  await page.getByRole('button', { name: 'Consultar' }).click();
+  await page.getByRole('status').filter({ hasText: 'Em análise' }).waitFor();
+}"
+print "locator('main > div')" "acompanhar.png"
+
+# Fazer um registro rápido: o formulário no alto de Notificações.
+pw goto "$MODULO/notificacoes"
+esperar "Registro rápido"
+pw run-code "async page => {
+  const registro = page.getByRole('region', { name: 'Registro rápido' });
+  await registro.locator('#nsp-rr-relato').fill('Na ronda da noite, dois frascos de cloreto de potássio estavam fora da caixa de alta vigilância no posto de enfermagem.');
+  await registro.locator('#nsp-rr-setor').selectOption({ label: 'CTI Adulto' });
+  await registro.getByRole('button', { name: 'Ronda' }).click();
+}"
+print "getByRole('region', { name: 'Registro rápido' })" "registro-rapido.png"
+
+# Fazer a triagem: a faixa do que exige ação hoje, a fila, a classificação
+# manual (o agente está desligado) e os prazos de um caso classificado.
+pw goto "$MODULO"
+esperar "O que exige ação hoje"
+print "getByRole('region', { name: 'O que exige ação hoje' })" "acao-de-hoje.png"
+pw goto "$MODULO/notificacoes/triagem"
+esperar "$(roteiro protocolo_da_triagem)"
+print_tela "fila-de-triagem.png"
+pw goto "$MODULO/notificacoes/$(roteiro caso_da_triagem)/triagem"
+esperar "Classificar manualmente"
+pw run-code "async page => {
+  await page.locator('#triagem-assunto').fill('Queda ao levantar sozinho para ir ao banheiro');
+  await page.locator('#triagem-natureza').selectOption('evento_adverso');
+  await page.locator('#triagem-dano').selectOption('leve');
+  await page.locator('#triagem-categoria').selectOption('QUE');
+  await page.locator('#triagem-incidente').fill('Queda do leito');
+  await page.locator('#triagem-evento').selectOption('nao');
+  await page.locator('#triagem-protocolo').selectOption('quedas');
+  await page.getByText('3ª ocorrência desta categoria neste setor em 60 dias').waitFor();
+  await page.evaluate(() => window.scrollTo(0, 0));
+}"
+print_topo "locator('div.grid').filter({ has: page.getByRole('region', { name: 'Classificar manualmente' }) }).last()" 1150 "triagem-manual.png"
+pw goto "$MODULO/notificacoes/$(roteiro caso_classificado)"
+esperar "Prazos"
+print "locator('article')" "prazos-do-caso.png"
+
+# Encaminhar uma notificação: o formulário e o Recebido do setor.
+pw goto "$MODULO/notificacoes/$(roteiro caso_encaminhado)/triagem"
+esperar "Encaminhamentos"
+print "getByRole('region', { name: 'Encaminhamentos' })" "encaminhamentos.png"
+clicar "getByRole('button', { name: 'Encaminhar', exact: true })"
+pw run-code "async page => {
+  const secao = page.getByRole('region', { name: 'Encaminhar' });
+  await secao.getByLabel('Segurança do Trabalho', { exact: true }).check();
+  await secao.locator('#setor-do-seguranca_do_trabalho').selectOption({ label: 'Segurança do Trabalho' });
+  await secao.locator('#motivo-do-encaminhamento').fill('Acidente com perfurocortante na equipe, que é da Segurança do Trabalho.');
+}"
+print "getByRole('region', { name: 'Encaminhar' })" "encaminhar.png"
+
+# Registrar a ausência da Presidência: a ficha do suplente.
+pw goto "$MODULO/membros"
+esperar "Juliana Prado"
+clicar "getByRole('button', { name: 'Rodrigo Teixeira', exact: true })"
+esperar "Ausência da Presidência"
+pw run-code "async page => {
+  const ficha = page.getByRole('region', { name: 'Detalhes de Rodrigo Teixeira' });
+  const dia = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+  await ficha.getByLabel('Primeiro dia da ausência').fill(dia(7));
+  await ficha.getByLabel('Último dia da ausência').fill(dia(21));
+}"
+print "getByRole('region', { name: 'Detalhes de Rodrigo Teixeira' }).locator('div').filter({ has: page.getByRole('heading', { name: 'Ausência da Presidência' }) }).last()" "ausencia-da-presidencia.png"
+
+# Ajustar a tabela de prazos: a Configuração.
+pw goto "$MODULO/configuracao"
+esperar "Prazos internos"
+print_topo "getByRole('region', { name: 'Tabela de prazos' })" 900 "tabela-de-prazos.png"
+
+# Recalibrar o agente: a recalibração de 30 dias, com a decisão escolhida.
+pw goto "$MODULO/recalibracao"
+esperar "Recalibrações"
+clicar "getByLabel('Manter o agente como está')"
+print_topo "locator('div.space-y-4').filter({ has: page.getByRole('heading', { name: 'Recalibrações' }) }).last()" 1000 "recalibracao.png"
 
 pw close

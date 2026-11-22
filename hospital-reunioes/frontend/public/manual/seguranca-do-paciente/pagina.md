@@ -3,11 +3,13 @@ modulo: seguranca-do-paciente
 titulo: Segurança do Paciente
 ---
 
-O módulo Segurança do Paciente é onde o Núcleo de Segurança do Paciente funciona dentro do aplicativo: quem faz parte dele, os documentos, as capacitações, a agenda regulatória e as reuniões.
+O módulo Segurança do Paciente é onde o Núcleo de Segurança do Paciente funciona dentro do aplicativo: quem faz parte dele, os documentos, as capacitações, a agenda regulatória, as reuniões e as notificações de incidente, da chegada à triagem.
 
 Ele fica no menu da esquerda, em **Segurança do Paciente**, com os itens **Visão geral**, **Reuniões** e **Núcleo**. Dentro de **Núcleo** ficam **Membros**, **Documentos**, **Capacitações** e **Agenda regulatória**.
 
 A Presidência do Núcleo e quem tem Acesso pleno fazem tudo o que esta página descreve. O membro com o Termo de Adesão assinado abre as telas e as atas; cadastrar, publicar e validar ficam com a Presidência e com quem tem Acesso pleno. Quem ainda não assinou o Termo vê o calendário e a agenda; nas outras telas aparece a faixa **Assine o Termo de Adesão para liberar este acesso**, com o botão **Abrir o Termo de Adesão**.
+
+Notificar um incidente é para qualquer profissional, com ou sem login, e todo usuário logado vê o botão **Notificar incidente** no alto do grupo Segurança do Paciente. Quem abre os casos (a Presidência, quem tem Acesso pleno e o membro com o Termo assinado) vê também o item **Notificações**. A triagem, o encaminhamento e a **Configuração** ficam com a Presidência e com quem tem Acesso pleno.
 
 ## Cadastrar um membro e acompanhar o Termo
 
@@ -119,6 +121,120 @@ Nenhuma versão se apaga nem se edita: a correção é sempre uma versão nova. 
 
 A transcrição anexada é apagada 30 dias depois de a ata ser assinada. Para uma conversa curta de segurança num setor, escolha o tipo **Reunião rápida de segurança** em **Nova reunião**: ela não tem ata nem assinatura, só o setor, quem participou e até três linhas do que foi conversado.
 
+## Notificar um incidente pelo QR, pelo endereço ou pelo botão do módulo
+
+1. Abra o formulário por uma das três portas: o QR do Núcleo, no cartaz ou no celular; o endereço da página, pelo ícone nos computadores do hospital; ou, com login, o botão **Notificar incidente**, no alto do grupo **Segurança do Paciente** do menu. Pelo QR e pelo endereço não precisa de login. Pelo botão, a identificação já vem com o seu nome e o seu e-mail.
+2. Na tela **O que aconteceu**, conte com as suas palavras, sem classificar nada. Não escreva o nome do paciente: se precisar, informe o **Leito ou atendimento**. Em **Fotos ou PDF**, anexe até 3 arquivos, somando menos de 9 MB. Clique em **Continuar**.
+
+   ![A primeira tela da notificação, com o relato](notificar-o-que-aconteceu.png)
+
+3. Em **Onde e quando**, escolha o **Setor**, confira a **Data**, que já vem com o dia de hoje, e marque o **Turno**. A **Hora aproximada** é opcional.
+4. Em **O paciente foi atingido**, diga se o incidente chegou ao paciente. Se chegou com dano, ou se você não sabe, a tela pergunta também se foi grave ou se houve morte.
+5. Em **Identificação**, escolha **Com o meu nome** ou **Sem me identificar**. O nome aparece só para a Presidência do Núcleo e para o Diretor Executivo. Quem não se identifica não deixa nome nem contato.
+6. Clique em **Enviar notificação**. O protocolo aparece na hora, no formato NSP-2026-0042. Quem notificou sem se identificar recebe também um código de acompanhamento: anote ou copie, porque ele aparece só nessa tela e ninguém consegue recuperá-lo depois.
+
+   ![O protocolo e o código de acompanhamento, logo depois do envio](notificar-protocolo.png)
+
+Notificar não gera punição. Quando quem notifica marca que foi grave ou houve morte, a Presidência, o suplente, quem tem Acesso pleno e a Diretoria Executiva recebem um e-mail na hora, a qualquer dia e horário, com o protocolo e o setor, sem o relato. Quem se identificou e deixou um e-mail recebe a confirmação de recebimento com o protocolo. O QR e o endereço ficam em **Configuração**, na seção **QR e endereço da notificação**: o botão **Baixar o QR** baixa a imagem para o cartaz, e o botão **Copiar** copia o endereço para a TI criar o ícone nos computadores.
+
+## Acompanhar uma notificação
+
+1. Na tela do protocolo, clique em **Acompanhar a notificação**. A página de acompanhamento também abre pelo endereço da notificação com /acompanhar no fim, sem login.
+2. Em **Como você notificou?**, escolha **Notifiquei sem me identificar** ou **Notifiquei com o meu nome**.
+3. Digite o **Protocolo** e, conforme a escolha, o **Código de acompanhamento** ou o **E-mail ou telefone** que você deixou.
+4. Clique em **Consultar**. A página mostra o estado da notificação: Recebida, Em análise ou Concluída. Se o Núcleo marcou o caso como fora de escopo, aparece também a orientação que ele deixou para você.
+
+   ![O acompanhamento de uma notificação em análise](acompanhar.png)
+
+Se algum dado estiver errado, a resposta é sempre a mesma, sem dizer qual parte errou. A página não mostra o relato nem quem notificou.
+
+## Fazer um registro rápido
+
+1. No menu da esquerda, em **Segurança do Paciente**, clique em **Notificações**.
+2. No alto da tela, em **Registro rápido**, escreva **O que foi encontrado** e escolha o **Setor** e a **Data**.
+3. Em **Origem**, escolha de onde veio: **Busca ativa**, **Ronda**, **Reunião rápida**, **Auditoria** ou **Outra**.
+
+   ![O registro rápido de um incidente que o Núcleo encontrou](registro-rapido.png)
+
+4. Clique em **Registrar**. A tela mostra o protocolo, e a notificação entra na lista e na fila de triagem como qualquer outra. Você fica como autor, com o nome e o e-mail da sua conta.
+
+O registro rápido é da Presidência e do membro com o Termo assinado, para o incidente que o próprio Núcleo encontra. Quem ainda não assinou o Termo, e quem é de fora do Núcleo, notifica pelo botão **Notificar incidente**.
+
+## Fazer a triagem de uma notificação
+
+1. No menu da esquerda, em **Segurança do Paciente**, clique em **Visão geral**. Os casos graves que esperam a triagem aparecem em destaque no alto. Logo abaixo, a faixa **O que exige ação hoje** mostra os casos das faixas A e B abertos, as triagens pendentes por idade, os prazos legais a vencer e os Termos pendentes. Cada grupo leva à tela onde se resolve, e o que está mais perto de vencer aparece em destaque.
+
+   ![A faixa do que exige ação hoje, na Visão geral do módulo](acao-de-hoje.png)
+
+2. Clique em **Notificações** e depois em **Fila de triagem**. A fila traz as notificações que esperam a triagem, da mais antiga para a mais nova, com o protocolo, o setor, a data e há quantos dias cada uma chegou. Ela não mostra o relato nem quem notificou.
+
+   ![A fila de triagem](fila-de-triagem.png)
+
+3. Clique no protocolo. A tela da triagem abre com o relato, as respostas de quem notificou e os anexos à esquerda.
+4. Enquanto o agente de triagem estiver desligado, toda notificação chega em **Classificar manualmente**, com os campos em branco. Preencha o **Assunto**, a **Natureza**, o **Grau de dano**, a **Categoria**, o **Incidente**, o **Evento que nunca deveria ocorrer**, o **Protocolo básico** e o **Canal**, e marque **IRAS** ou **Risco de imagem** quando for o caso. A **Faixa calculada** sai sozinha da natureza e do grau de dano. Em **Calculado pelo sistema**, a tela mostra quantas vezes a mesma categoria aconteceu no setor em 60 dias, a frequência, a prioridade e os casos parecidos.
+
+   ![A triagem de uma notificação que chegou para classificar manualmente](triagem-manual.png)
+
+5. Quando o caso pede conferência (faixa A ou B, relato que fala em morte, ou quem notificou marcou grave), o alto da tela mostra **Caso grave: confirme cada campo. O prazo legal já está correndo.** Marque a caixa **Conferi** de cada campo: a confirmação só libera com todas marcadas.
+6. Clique em **Confirmar a classificação**. O caso passa a Classificada, ou a Em análise agregada quando é quase erro, circunstância de risco ou incidente sem dano.
+7. Clique em **Ver os prazos do caso**. Cada prazo do Regimento aparece com a data e a hora, e o alto mostra até quando notificar à vigilância sanitária: no VigiMed, quando é erro de medicação, e no NOTIVISA nos outros casos.
+
+   ![Os prazos de um caso classificado](prazos-do-caso.png)
+
+Nas faixas A e B, a confirmação já programa a reunião de análise de evento na data-limite (7 dias úteis na faixa A, 15 na faixa B) e manda na hora o e-mail à Direção, sem o relato. Quem notificou com o nome e deixou um e-mail recebe o aviso de que a notificação está em análise. Faltando 24 horas para o fim do prazo de 72 horas de um caso da faixa A que ainda não foi notificado, a Presidência, o suplente e quem tem Acesso pleno recebem um e-mail urgente. Quando o agente for ligado, a tela mostra à direita a **Sugestão** dele: **Confirmar** aceita como veio, e **Ajustar** abre os campos para mudar o que discordar. Se a aprovação em lote estiver ligada, a fila ganha uma caixa de marcar nos casos sugeridos nas faixas D e E, e o botão **Confirmar em lote** confirma todos os marcados de uma vez.
+
+## Encaminhar uma notificação a outro canal
+
+1. Na tela da triagem, clique em **Encaminhar**.
+2. Marque um ou mais destinos. **Núcleo** mantém o caso na triagem, junto do outro destino. **Ouvidoria** manda ao ouvidor um e-mail com o protocolo, o motivo e o relato. **Canal de Conduta** não envia nada: a tela mostra como orientar quem notificou. **Segurança do Trabalho** e **Queixa técnica** mandam ao titular do setor um e-mail com o resumo do caso e o botão **Recebido**. **Fora de escopo** vai sozinho e encerra o caso.
+3. Para a Segurança do Trabalho e a queixa técnica, escolha o setor em **Setor que recebe**.
+4. Escreva o **Motivo, em uma frase**. No fora de escopo, escreva também a **Orientação para quem notificou**, que a pessoa vê na página de acompanhamento.
+
+   ![O encaminhamento de um caso à Segurança do Trabalho](encaminhar.png)
+
+5. Clique em **Registrar o encaminhamento**. O protocolo continua o mesmo. Com o Núcleo marcado, o caso segue na fila de triagem; sem ele, sai da fila como Encaminhada ou Fora de escopo.
+6. Acompanhe em **Encaminhamentos**, na mesma tela, para quem o caso foi e quando o setor clicou em **Recebido**, com a data e a hora.
+
+   ![Os encaminhamentos de um caso, com o Recebido do setor](encaminhamentos.png)
+
+O e-mail ao setor não traz o relato nem quem notificou, e o link dele vale uma vez só, por 30 dias. Sem o clique em 2 dias úteis, o e-mail é reenviado uma única vez. Se o setor está sem titular, o e-mail vai ao gestor e a Presidência é avisada; sem titular e sem gestor, o encaminhamento é recusado.
+
+## Registrar a ausência da Presidência
+
+1. Em **Núcleo**, clique em **Membros** e no nome do suplente. A ficha abre embaixo da linha dele.
+2. Em **Ausência da Presidência**, escolha o **Primeiro dia da ausência** e o **Último dia da ausência**.
+
+   ![A ausência da Presidência, na ficha do suplente](ausencia-da-presidencia.png)
+
+3. Clique em **Registrar ausência**. O registro entra no **Histórico de mudanças** do suplente, com quem registrou e o período, e depois não se edita nem se apaga.
+4. Nesses dias, contando os dois, o suplente responde pela Presidência no módulo: confirma a triagem e vê quem notificou. Fora do período, ele volta a ser membro.
+
+Só a Presidência e quem tem Acesso pleno registram a ausência. O suplente em exercício não registra nenhuma, nem a dele. Na reunião, continua valendo a regra da ata: quando a Presidência falta, o suplente presente conduz.
+
+## Ajustar a tabela de prazos
+
+1. No menu da esquerda, em **Segurança do Paciente**, clique em **Configuração**.
+2. Em **Tabela de prazos**, os **Prazos internos** aparecem por etapa, com um prazo para cada faixa: a confirmação a quem notificou, a comunicação à Direção, a triagem e classificação, o início e a conclusão da investigação e a reunião de análise.
+
+   ![A tabela de prazos do Núcleo, na Configuração](tabela-de-prazos.png)
+
+3. Para mudar um prazo, digite o número, escolha a unidade (horas corridas, horas úteis, dias corridos ou dias úteis) e clique em **Salvar**, na linha da faixa. Para deixar a faixa sem prazo, escolha **sem prazo próprio**.
+4. A tela mostra **Prazo salvo. Vale para os casos confirmados daqui para a frente.**, e a mudança entra no **Histórico**, no fim da tabela, com quem mudou, quando, o valor antigo e o novo.
+
+O caso já classificado guarda os prazos do dia em que foi confirmado. Os **Prazos legais** vêm da norma e aparecem só para leitura: 72 horas corridas do incidente na faixa A, até o 15º dia útil do mês seguinte nos outros casos, e 60 dias corridos para completar a notificação da faixa A. Só a Presidência e quem tem Acesso pleno mudam a tabela.
+
+## Recalibrar o agente
+
+1. Aos 30 e aos 60 dias da primeira notificação registrada, quem tem Acesso pleno recebe no Início do aplicativo a pendência **Recalibrar o agente do NSP**, com prazo de uma semana. Clique em **Abrir a recalibração**. A mesma tela abre pela **Configuração**, no link **Abrir a recalibração do agente**.
+2. Leia os itens da **Auditoria de 30 dias** e da **Auditoria de 60 dias**. O que já tem dado sai calculado pelo aplicativo, e o item com número fora do esperado mostra **Sinal de alerta aceso**. O resto aparece como **Sem dados nesta fase**.
+3. Em **Recalibrações**, escolha a decisão: **Manter o agente como está**, **Ajustar o prompt e a base** ou **Ligar a aprovação em lote**.
+
+   ![A recalibração de 30 dias, com a decisão escolhida](recalibracao.png)
+
+4. Clique em **Registrar a decisão**. A decisão fica gravada com o nome de quem decidiu e o dia, e não muda depois.
+
+A Presidência lê a tela, mas quem decide é quem tem Acesso pleno. Ligar a aprovação em lote só é aceito com concordância de 90% ou mais nas últimas 4 semanas, nos casos das faixas D e E confirmados. Enquanto o agente estiver desligado, não há sugestão para comparar: a **Concordância do agente**, na Configuração, fica sem casos, e o aplicativo recusa ligar o lote.
+
 ## O ciclo do membro
 
 ```fluxograma
@@ -178,4 +294,34 @@ assinatura -> cancelado
 cancelado -> encerrada: não
 cancelado -> reenvio: sim
 reenvio -> assinatura
+```
+
+## O ciclo da notificação
+
+```fluxograma
+inicio notificacao 1,1: Notificação | Pelo QR, pelo endereço, pelo botão do módulo, pelo registro rápido ou vinda da Ouvidoria.
+passo protocolo 2,1: Protocolo na hora | Sai antes de qualquer triagem. Quem não se identificou recebe também o código de acompanhamento.
+decisao grave 3,1: Grave ou houve morte?
+passo alerta 3,2: Alerta por e-mail | Na hora, a qualquer dia e horário, para a Presidência, o suplente, o Acesso pleno e a Diretoria Executiva.
+passo fila 4,1: Fila de triagem | Enquanto o agente estiver desligado, a notificação chega para classificar manualmente.
+decisao encaminhar 5,1: Encaminhar?
+passo outro 5,2: Outro canal | Ouvidoria, Canal de Conduta, Segurança do Trabalho ou queixa técnica, com o mesmo protocolo.
+fim fora 6,2: Fora de escopo | O caso se encerra com uma orientação, que quem notificou vê no acompanhamento.
+passo triagem 6,1: Triagem da Presidência | Classifica, confere campo a campo no caso grave e confirma.
+fim agregada 7,2: Em análise agregada | Quase erro, circunstância de risco ou incidente sem dano.
+passo classificada 7,1: Classificada | O caso ganha os prazos do Regimento e o prazo da notificação à vigilância sanitária.
+fim reuniao 8,1: Reunião de análise | Programada na data-limite, com o e-mail à Direção na hora.
+notificacao -> protocolo
+protocolo -> grave
+grave -> alerta: sim
+grave -> fila: não
+alerta -> fila
+fila -> encaminhar
+encaminhar -> triagem: não
+encaminhar -> outro: sim
+encaminhar -> fora: fora de escopo
+outro -> fila: com o Núcleo marcado
+triagem -> agregada: quase erro, risco ou sem dano
+triagem -> classificada: os demais
+classificada -> reuniao: faixa A ou B
 ```

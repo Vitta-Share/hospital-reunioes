@@ -38,8 +38,14 @@ function rodar(...args: string[]): string {
 
 /** A tabela que o roteiro serve no lugar do backend: a rota (depois de `/api/`) e o corpo. */
 const tabela = (): Record<string, unknown> => JSON.parse(rodar());
-/** O que o roteiro lê para clicar: o dia da composição e o título da reunião do dia. */
-const doRoteiro = (): { composicao: string; reuniao_do_dia: string } => JSON.parse(rodar("--roteiro"));
+/** O que o roteiro lê para clicar: o dia da composição, o título da reunião do dia e os casos que abre. */
+const doRoteiro = (): {
+  composicao: string;
+  reuniao_do_dia: string;
+  caso_da_triagem: string;
+  caso_encaminhado: string;
+  caso_classificado: string;
+} => JSON.parse(rodar("--roteiro"));
 
 /** Todo texto de um valor JSON, folha por folha. */
 function folhas(valor: unknown): string[] {
@@ -60,7 +66,10 @@ function dadoReal(texto: string): string[] {
   const emails = (dobrado.match(EMAIL) ?? []).filter((e) => !e.endsWith("@exemplo.local"));
   const enderecos = (dobrado.match(ENDERECO) ?? []).filter((u) => !/^https:\/\/[\w.-]*exemplo\.local(\/|$)/.test(u));
   // Data e hora (2026-11-12, 2026-11-12T12:00:00-03:00) são do calendário, não de gente.
-  const semDatas = texto.replace(/\b\d{4}-\d{2}-\d{2}(?:T[\d:.]+(?:Z|[+-]\d{2}:\d{2})?)?\b/g, "");
+  // O protocolo (NSP-2026-0042) é do aplicativo, como a data (#2003).
+  const semDatas = texto
+    .replace(/\b\d{4}-\d{2}-\d{2}(?:T[\d:.]+(?:Z|[+-]\d{2}:\d{2})?)?\b/g, "")
+    .replace(/\bNSP-\d{4}-\d{4}\b/g, "");
   const numeros = NUMERO_LONGO.test(semDatas) ? [texto] : [];
   const nomes = NOMES_REAIS.filter((nome) => dobrado.includes(nome));
   return [...emails, ...enderecos, ...numeros, ...nomes];
@@ -101,6 +110,8 @@ describe("o roteiro dos prints da página de Segurança do Paciente", () => {
     const texto = readFileSync(ROTEIRO, "utf8");
     expect(texto).toMatch(/page\.route\(/);
     expect(texto).toMatch(/method\(\) !== 'GET'[\s\S]{0,80}status: 403/);
+    // O POST só ganha resposta quando a tabela tem a dele (#2003): o envio e a consulta de exemplo.
+    expect(texto).toMatch(/'POST ' \+ chave/);
     // Fora da tabela e fora do GET, a resposta é do próprio roteiro, nunca do backend.
     expect(texto).not.toMatch(/route\.(continue|fallback)\(/);
   });
@@ -121,6 +132,23 @@ describe("a tabela de respostas do módulo", () => {
       "nsp/capacitacoes",
       "nsp/agenda",
       "nsp/reunioes",
+      // A notificação, a triagem e os prazos (#2003).
+      "participantes/me",
+      "nsp/inicio",
+      "nsp/acao-de-hoje",
+      "nsp/publico/setores",
+      "nsp/notificacoes",
+      `nsp/notificacoes/${R.caso_classificado}`,
+      "nsp/triagem",
+      `nsp/triagem/${R.caso_da_triagem}`,
+      `nsp/triagem/${R.caso_encaminhado}`,
+      "nsp/configuracao",
+      "nsp/configuracao/prazos",
+      "nsp/configuracao/cortes-de-frequencia",
+      "nsp/configuracao/concordancia",
+      "nsp/recalibracao",
+      "POST nsp/publico/notificacoes",
+      "POST nsp/publico/acompanhamento",
     ]) {
       expect(T[rota], `falta a resposta de ${rota}`).toBeDefined();
     }
@@ -169,6 +197,27 @@ describe("a tabela de respostas do módulo", () => {
       expect(leitura.status_ata).toBe(status);
       expect(leitura.ata.blocos).toHaveLength(10);
     }
+  });
+
+  it("com o agente desligado, toda notificação chega para classificar manualmente, sem sugestão (#2003)", () => {
+    const { fila, lote_ligado } = T["nsp/triagem"] as {
+      fila: { classificar_manualmente: boolean; faixa: string | null; cabe_no_lote: boolean }[];
+      lote_ligado: boolean;
+    };
+    expect(fila.length).toBeGreaterThan(0);
+    for (const item of fila) {
+      expect(item).toMatchObject({ classificar_manualmente: true, faixa: null, cabe_no_lote: false });
+    }
+    expect(lote_ligado).toBe(false);
+    for (const caso of [R.caso_da_triagem, R.caso_encaminhado]) {
+      expect(T[`nsp/triagem/${caso}`]).toMatchObject({ sugestao: null, classificar_manualmente: true, pendente: true });
+    }
+    expect(T["nsp/configuracao/concordancia"]).toMatchObject({ casos: 0, erros_para_baixo: [] });
+  });
+
+  it("o POST só responde o envio e a consulta de exemplo; o resto que grava fica recusado (#2003)", () => {
+    const posts = Object.keys(T).filter((k) => !/^[a-z]/.test(k));
+    expect(posts.sort()).toEqual(["POST nsp/publico/acompanhamento", "POST nsp/publico/notificacoes"]);
   });
 
   it("a ata só cita membro pelo nome nas presenças e nas assinaturas, como a validação da minuta exige", () => {
@@ -228,5 +277,7 @@ describe("os detectores do roteiro e do dado real", () => {
     expect(dadoReal("MARINA.COUTO.NUCLEO@EXEMPLO.LOCAL")).toEqual([]);
     expect(dadoReal("COREN 214587/RJ")).toEqual([]);
     expect(dadoReal("2026-11-12T12:00:00-03:00")).toEqual([]);
+    expect(dadoReal("Protocolo NSP-2026-0042")).toEqual([]);
+    expect(dadoReal("NSP-2026-0042, ligue (21) 99876-5432")).not.toEqual([]);
   });
 });
