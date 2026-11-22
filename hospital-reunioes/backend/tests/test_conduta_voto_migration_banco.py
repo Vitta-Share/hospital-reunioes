@@ -107,7 +107,9 @@ def test_o_voto_registrado_nao_se_altera_nem_se_apaga(banco):
     caso = _caso(banco)
     assert _votar(banco, caso).returncode == 0
 
-    troca = banco.sql(f"UPDATE conduta_votos SET voto_cifrado = 'v1:OUTRO' WHERE caso_id = '{caso}';", papel="service_role")
+    troca = banco.sql(
+        f"UPDATE conduta_votos SET voto_cifrado = 'v1:OUTRO' WHERE caso_id = '{caso}';", papel="service_role"
+    )
     apaga = banco.sql(f"DELETE FROM conduta_votos WHERE caso_id = '{caso}';", papel="service_role")
 
     assert "fica guardado" in troca.stderr

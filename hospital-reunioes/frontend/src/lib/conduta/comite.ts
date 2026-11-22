@@ -7,6 +7,7 @@
  */
 import type { Depoimento } from "@/lib/conduta/depoimentos";
 import type { TextoDaApuracao } from "@/lib/conduta/relatorio";
+import type { Trava, Votacao } from "@/lib/conduta/voto";
 import { createClient } from "@/lib/supabase/client";
 import type { SugestaoDoAgente } from "@/lib/conduta/sugestao";
 
@@ -127,6 +128,9 @@ export interface CasoAberto extends CasoDaLista {
   aviso_de_rota_especial?: string | null;
   pode_desviar?: boolean;
   rota_especial?: RotaEspecialDoCaso | null;
+  /** O voto e a trava de robustez (issue #1833). */
+  votacao?: Votacao | null;
+  trava?: Trava | null;
 }
 
 /** O que o Grupo Especial vê do caso dele (issue #1829). */
@@ -193,6 +197,7 @@ const ETAPAS: Record<string, string> = {
   encaminhamento: "Encaminhamento",
   apuracao: "Apuração",
   voto: "Voto",
+  ata: "Ata",
   encerrado: "Encerrado",
 };
 
