@@ -20,23 +20,30 @@ passada manda. Se o envio falha, a linha sai e a hora seguinte tenta de novo.
 No modo de teste do e-mail (sem Resend nem SMTP), o e-mail vai para o log e
 nada é marcado. Sem IA (ADR 0082).
 
-O link é o comum do app; o link pessoal de quem nunca entrou vem em outro card.
+O link é o comum do app, menos para quem nunca entrou e tem Pendência em aberto:
+esse recebe o link pessoal (issue #1878; ADR 0098, decisão 8), que abre as
+Pendências dele sem senha. O link pessoal nasce depois da guarda, um por
+e-mail que sai.
 """
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, time, timedelta
 
 from app.config import settings
 from app.dependencies import _PARTICIPANTE_FULL_FIELDS, foi_desligado, is_secretaria, reunioes_ocultas
+from app.services import link_pessoal
 from app.services.email_constants import get_logo_data_uri
 from app.services.email_service import _enviar_email, jinja_env, transporte_configurado
 from app.services.paginacao import ler_tudo
 from app.services.pendencia_ciclo import ABERTOS, esta_atrasada
 from app.services.pendencias_consulta import FUSO, as_data
 from app.services.seguranca_do_paciente.reunioes import reunioes_do_nucleo
+
+logger = logging.getLogger(__name__)
 
 TABELA = "email_de_segunda"
 TEMPLATE = "email_resumo_de_segunda.html"
@@ -182,7 +189,7 @@ def _assunto(email: EmailDaPessoa) -> str:
     return "Resumo de segunda: suas pendências em aberto"
 
 
-def _texto(nome: str, email: EmailDaPessoa, link: str) -> str:
+def _texto(nome: str, email: EmailDaPessoa, link: str, *, pessoal: bool) -> str:
     linhas = [f"Olá, {nome}.", ""]
 
     def _bloco(titulo: str, itens: list[ItemDoEmail]):
@@ -202,15 +209,34 @@ def _texto(nome: str, email: EmailDaPessoa, link: str) -> str:
     if email.do_responsavel:
         linhas += ["SUAS PENDÊNCIAS EM ABERTO", ""]
         _bloco("Em aberto:", email.abertas)
-    linhas.append(f"Acesse o sistema em {link}")
+    if pessoal:
+        linhas.append(f"Atualize as suas pendências por este link, sem senha: {link}")
+        linhas.append(AVISO_DO_LINK_PESSOAL)
+    else:
+        linhas.append(f"Acesse o sistema em {link}")
     return "\n".join(linhas)
 
 
-def montar_mensagem(nome: str, email: EmailDaPessoa) -> tuple[str, str, str]:
-    """Assunto, HTML e texto do e-mail de uma pessoa."""
-    link = f"{settings.frontend_url}/inicio"
-    html = jinja_env.get_template(TEMPLATE).render(nome=nome, email=email, link=link, logo_base64=get_logo_data_uri())
-    return _assunto(email), html, _texto(nome, email, link)
+AVISO_DO_LINK_PESSOAL = (
+    "Este link é só seu e vale por 14 dias. Por ele você inicia, anota, conclui e repactua "
+    "as suas pendências, sempre com uma anotação. Não encaminhe este e-mail."
+)
+
+
+def montar_mensagem(nome: str, email: EmailDaPessoa, *, token: str | None = None) -> tuple[str, str, str]:
+    """Assunto, HTML e texto do e-mail de uma pessoa. Com `token`, o link é o
+    pessoal de quem nunca entrou; sem ele, o comum do app."""
+    pessoal = token is not None
+    link = f"{settings.frontend_url}{link_pessoal.CAMINHO}/{token}" if pessoal else f"{settings.frontend_url}/inicio"
+    html = jinja_env.get_template(TEMPLATE).render(
+        nome=nome,
+        email=email,
+        link=link,
+        pessoal=pessoal,
+        aviso_do_link_pessoal=AVISO_DO_LINK_PESSOAL,
+        logo_base64=get_logo_data_uri(),
+    )
+    return _assunto(email), html, _texto(nome, email, link, pessoal=pessoal)
 
 
 def _limites_da_semana(segunda: date) -> tuple[str, str]:
@@ -282,6 +308,9 @@ def enviar_semana(supabase, *, hoje: date) -> int:
         rotulo="eventos da semana",
     )
     ocultas_de = _ocultas_por_pessoa(supabase)
+    # Quem nunca entrou, lido do Auth só quando o primeiro e-mail com
+    # Pendência em aberto vai sair.
+    nunca_entraram: set[str] | None = None
 
     enviados = 0
     emails = montar_emails(reunioes=reunioes, pendencias=pendencias, eventos=eventos, hoje=hoje)
@@ -292,24 +321,43 @@ def enviar_semana(supabase, *, hoje: date) -> int:
         email = email.sem(ocultas_de(pessoa))
         if not (email.do_facilitador or email.do_responsavel):
             continue
-        assunto, html, texto = montar_mensagem(pessoa.get("nome_completo") or "", email)
-        if not transporte_configurado():
+        com_transporte = transporte_configurado()
+        if com_transporte:
+            guarda = (
+                supabase.table(TABELA)
+                .upsert(
+                    [{"participante_id": pid, "semana": semana}],
+                    on_conflict="participante_id,semana",
+                    ignore_duplicates=True,
+                )
+                .execute()
+            )
+            if not guarda.data:
+                continue
+        token = None
+        if email.do_responsavel:
+            if nunca_entraram is None:
+                nunca_entraram = link_pessoal.quem_nunca_entrou(supabase, pessoas.values())
+            if pid in nunca_entraram:
+                try:
+                    token = link_pessoal.emitir(supabase, pid, datetime.now(UTC))
+                except Exception as e:  # noqa: BLE001
+                    # Sem o link, a guarda sai e a hora seguinte tenta de novo.
+                    logger.warning("[E-mail de segunda] Link pessoal não gravou para %s: %s", pid, type(e).__name__)
+                    if com_transporte:
+                        _soltar_guarda(supabase, pid, semana)
+                    continue
+        assunto, html, texto = montar_mensagem(pessoa.get("nome_completo") or "", email, token=token)
+        if not com_transporte:
             # Modo de teste: o e-mail vai para o log e nada é marcado.
             _enviar_email(pessoa["email"], assunto, html, texto)
-            continue
-        guarda = (
-            supabase.table(TABELA)
-            .upsert(
-                [{"participante_id": pid, "semana": semana}],
-                on_conflict="participante_id,semana",
-                ignore_duplicates=True,
-            )
-            .execute()
-        )
-        if not guarda.data:
             continue
         if _enviar_email(pessoa["email"], assunto, html, texto):
             enviados += 1
         else:
-            supabase.table(TABELA).delete().eq("participante_id", pid).eq("semana", semana).execute()
+            _soltar_guarda(supabase, pid, semana)
     return enviados
+
+
+def _soltar_guarda(supabase, pid: str, semana: str) -> None:
+    supabase.table(TABELA).delete().eq("participante_id", pid).eq("semana", semana).execute()

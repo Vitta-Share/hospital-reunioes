@@ -134,9 +134,11 @@ describe("dado de cidadão não fica gravado no aparelho (issue #483, ADR 0041)"
       "/api/ouvidoria-setor/",
       "/api/ouvidoria/",
       "/api/nsp/recebimento/",
+      "/api/minhas-pendencias/",
       "/aceite/",
       "/ouvidoria-setor",
       "/notificar/recebido/",
+      "/minhas-pendencias/",
     ]);
   });
 
@@ -145,6 +147,21 @@ describe("dado de cidadão não fica gravado no aparelho (issue #483, ADR 0041)"
     expect(modulo.podeGuardarNoAparelho("/notificar/recebido/token-opaco-do-email")).toBe(false);
     expect(regraQueVence("/api/nsp/recebimento/token-opaco-do-email")).toBe(modulo.runtimeCaching[0]);
     expect(modulo.podeGuardarNoAparelho("/notificar/acompanhar")).toBe(true);
+  });
+});
+
+describe("o link pessoal das pendências não fica no aparelho (issue #1878)", () => {
+  it("o GET e a tela do link pessoal caem em NetworkOnly", () => {
+    // O token é a credencial de quem nunca entrou: gravar a resposta ou a
+    // casca no Cache Storage deixaria as pendências dela no aparelho.
+    for (const caminho of ["/api/minhas-pendencias/token-opaco-do-email", "/minhas-pendencias/token-opaco-do-email"]) {
+      expect(modulo.podeGuardarNoAparelho(caminho), caminho).toBe(false);
+      expect(regraQueVence(caminho), caminho).toBe(modulo.runtimeCaching[0]);
+    }
+  });
+
+  it("as pendências do app logado seguem como antes", () => {
+    expect(modulo.podeGuardarNoAparelho("/api/pendencias/stats")).toBe(true);
   });
 });
 

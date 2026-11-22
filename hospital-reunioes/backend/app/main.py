@@ -56,6 +56,7 @@ from app.routers import (
     ouvidoria_triagem_email,
     participantes,
     pendencias,
+    pendencias_link_pessoal,
     perfil,
     reunioes,
     rotinas,
@@ -157,6 +158,8 @@ app.include_router(transcricao.router, prefix=settings.api_prefix)
 # As Definições de processo do setor (ADR 0098, decisão 9).
 app.include_router(definicoes_processo.router, prefix=settings.api_prefix)
 app.include_router(pendencias.router, prefix=settings.api_prefix)
+# O link pessoal de quem nunca entrou (sem login, link do e-mail de segunda; issue #1878).
+app.include_router(pendencias_link_pessoal.router, prefix=settings.api_prefix)
 # A Rotina e a Verificação por ciclo de calendário (ADR 0098, decisão 9).
 app.include_router(rotinas.router, prefix=settings.api_prefix)
 # O Início de cada pessoa (ADR 0104): a Minha Fila de todos os módulos.

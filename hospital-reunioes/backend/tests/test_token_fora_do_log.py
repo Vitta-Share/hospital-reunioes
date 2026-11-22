@@ -59,6 +59,7 @@ from app.middleware.request_context import (  # noqa: E402
 )
 from app.routers import aceite as aceite_router  # noqa: E402
 from app.routers import ouvidoria_setor as ouvidoria_setor_router  # noqa: E402
+from app.routers import pendencias_link_pessoal as link_pessoal_router  # noqa: E402
 from app.routers import seguranca_do_paciente_recebimento as recebimento_router  # noqa: E402
 
 # No formato real: `secrets.token_urlsafe(32)` gera 43 caracteres url-safe.
@@ -85,6 +86,13 @@ ROTAS_TOKENIZADAS = [
     ("POST", f"/api/nsp/recebimento/{TOKEN}/recebido", "/api/nsp/recebimento/{token}/recebido"),
     ("GET", f"/api/aceite/{TOKEN}", "/api/aceite/{token}"),
     ("POST", f"/api/aceite/{TOKEN}/aceitar", "/api/aceite/{token}/aceitar"),
+    # O link pessoal das Pendências de quem nunca entrou (issue #1878).
+    ("GET", f"/api/minhas-pendencias/{TOKEN}", "/api/minhas-pendencias/{token}"),
+    (
+        "POST",
+        f"/api/minhas-pendencias/{TOKEN}/pendencias/A1/acoes",
+        "/api/minhas-pendencias/{token}/pendencias/A1/acoes",
+    ),
 ]
 
 # Os nomes de parâmetro de path do app inteiro, classificados um a um. Qualquer
@@ -250,6 +258,8 @@ ROTAS_COM_SEGREDO_NO_PATH = {
     "/api/ouvidoria-setor/nsp/{token}/recebido",
     "/api/nsp/recebimento/{token}",
     "/api/nsp/recebimento/{token}/recebido",
+    "/api/minhas-pendencias/{token}",
+    "/api/minhas-pendencias/{token}/pendencias/{id_acao}/acoes",
 }
 
 
@@ -325,6 +335,7 @@ def _app() -> FastAPI:
     app.include_router(ouvidoria_setor_router.router, prefix="/api")
     app.include_router(aceite_router.router, prefix="/api")
     app.include_router(recebimento_router.router, prefix="/api")
+    app.include_router(link_pessoal_router.router, prefix="/api")
     app.dependency_overrides[get_supabase_client] = lambda: _SupabaseVazio()
     return app
 
@@ -417,6 +428,8 @@ CAMINHOS_DEFORMADOS = [
     f"/api/nsp/recebimento/{TOKEN}/inexistente",
     f"/api/nsp/recebimento//{TOKEN}",
     f"/api/NSP/recebimento/{TOKEN}",
+    f"/api/minhas-pendencias//{TOKEN}",
+    f"/api/minhas-pendencias/{TOKEN}/inexistente",
 ]
 
 
