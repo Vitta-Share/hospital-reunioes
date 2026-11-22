@@ -21,7 +21,7 @@ const TECNOLOGIA = PAGINAS.find((p) => p.modulo === "tecnologia");
 const TAREFAS = [
   "Pedir um bug ou uma melhoria ao Assistente",
   "Acompanhar o pedido no Quadro",
-  "Ver o que espera sua resposta",
+  "Ver o que espera você",
   "Responder uma pergunta da Vitta",
   "Pedir explicação ao assistente (Me explique)",
   "Mandar o que você escreveu aos desenvolvedores",
@@ -206,15 +206,38 @@ describe("o aviso Pede sua resposta e o pedido de projeto novo (issue #1968, PRD
   });
 });
 
-describe("a lista Esperando sua resposta, o cartão e o Me explique (issue #2123, PRD #2112, ADR 0109)", () => {
-  const LISTA = "Ver o que espera sua resposta";
+describe("concluir um passo a passo da Vitta (issue #2176, ADR 0110)", () => {
+  const CONCLUIR = "Concluir um passo a passo";
+
+  it("a tarefa marca os checks, anota, conclui e diz o que acontece depois", () => {
+    const passos = passosDa(CONCLUIR);
+    expect(passos.some((p) => /\*\*Pede sua ação\*\*/.test(p))).toBe(true);
+    expect(passos.some((p) => /marque o check/.test(p))).toBe(true);
+    expect(passos.some((p) => /\*\*Como saber que acabou\*\*/.test(p))).toBe(true);
+    expect(passos.some((p) => /\*\*Sua anotação \(opcional\)\*\*/.test(p) && /fica só no aplicativo/.test(p))).toBe(true);
+    const concluir = passos.find((p) => /Clique em \*\*Concluir\*\*/.test(p));
+    expect(concluir, "nenhum passo manda clicar em Concluir").toBeDefined();
+    expect(concluir).toMatch(/só libera com todos os checks marcados/);
+    expect(passos.some((p) => /sai da lista \*\*Esperando você\*\* na hora/.test(p) && /segue sozinho/.test(p))).toBe(true);
+  });
+
+  it("Não chegou ao GitHub tem o motivo e o Reenviar, nunca sozinho", () => {
+    const passo = passosDa(CONCLUIR).find((p) => /\*\*Não chegou ao GitHub\*\*/.test(p));
+    expect(passo, "nenhum passo explica o Não chegou ao GitHub").toBeDefined();
+    expect(passo).toMatch(/\*\*Reenviar\*\*/);
+    expect(passo).toMatch(/nunca tenta sozinho/);
+  });
+});
+
+describe("a lista Esperando você, o cartão e o Me explique (issue #2123, PRD #2112, ADR 0109; issue #2176, ADR 0110)", () => {
+  const LISTA = "Ver o que espera você";
   const RESPONDER = "Responder uma pergunta da Vitta";
   const ME_EXPLIQUE = "Pedir explicação ao assistente (Me explique)";
 
-  it("a lista Esperando sua resposta fica no alto da aba, com as suas perguntas primeiro e o cartão em destaque pelo aviso", () => {
+  it("a lista Esperando você fica no alto da aba, com as suas perguntas primeiro e o cartão em destaque pelo aviso", () => {
     const passos = passosDa(LISTA);
-    const daLista = passos.find((p) => /\*\*Esperando sua resposta\*\*/.test(p));
-    expect(daLista, "nenhum passo mostra a lista Esperando sua resposta").toBeDefined();
+    const daLista = passos.find((p) => /\*\*Esperando você\*\*/.test(p));
+    expect(daLista, "nenhum passo mostra a lista Esperando você").toBeDefined();
     expect(daLista).toMatch(/no alto da aba/);
     expect(imagensCitadas(daLista!)).toContain("esperando-sua-resposta.png");
     expect(passos.some((p) => /as suas vêm primeiro/.test(p))).toBe(true);
@@ -247,7 +270,7 @@ describe("a lista Esperando sua resposta, o cartão e o Me explique (issue #2123
     const passo = passosDa(RESPONDER).find((p) => /\*\*Respondida\*\*/.test(p));
     expect(passo, "nenhum passo diz o que acontece depois de responder").toBeDefined();
     // Desde a issue #2145 a lista tira a Pergunta respondida na hora, sem reler a aba.
-    expect(passo).toMatch(/sai da lista \*\*Esperando sua resposta\*\* na hora/);
+    expect(passo).toMatch(/sai da lista \*\*Esperando você\*\* na hora/);
     const daLista = secao(LISTA).texto.split(/\n\s*\n/).find((p) => /sai da lista/.test(p));
     expect(daLista, "a tarefa da lista não diz quando a pergunta respondida sai").toBeDefined();
     expect(daLista).toMatch(/responda ali mesmo, no cartão da lista/);
@@ -483,10 +506,10 @@ describe("o fluxograma do caminho de um pedido", () => {
     expect(enviado.detalhe).toMatch(/só o resumo que você aprovou/);
   });
 
-  it("a pergunta da Vitta entra pela lista Esperando sua resposta, e o trabalho só anda depois da resposta e do ok da Vitta (issue #2123)", () => {
+  it("a pergunta da Vitta entra pela lista Esperando você, e o trabalho só anda depois da resposta e do ok da Vitta (issue #2123)", () => {
     const f = fluxo();
     const inicio = f.passos.find((p) => p.forma === "inicio")!;
-    const lista = passoPorRotulo(f, /^Esperando sua resposta$/);
+    const lista = passoPorRotulo(f, /^Esperando você$/);
     const responder = passoPorRotulo(f, /^Responder no cartão$/);
     const resolvida = passoPorRotulo(f, /^Resolvida$/);
     const desenvolvimento = passoPorRotulo(f, /^Em desenvolvimento$/);

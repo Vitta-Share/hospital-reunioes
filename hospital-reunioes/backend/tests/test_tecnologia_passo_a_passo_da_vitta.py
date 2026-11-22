@@ -384,6 +384,7 @@ class TestNaoChegouAoGithub:
             "estado": "falhou",
             "motivo": "O GitHub não aceitou (GitHub respondeu 403).",
         }
+        assert resposta.json()["pergunta"]["pode_reenviar"] is True
 
     def test_reenviar_tenta_de_novo_e_fecha(self, monkeypatch, github):
         _, sb, pedido_id = _um_passo_a_passo()

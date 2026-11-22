@@ -408,6 +408,13 @@ def _cartao(
         "passos": _passos(p, historico or [], nomes) if passo_a_passo else [],
         "conclusao": _conclusao(p, nomes),
         "fechamento": _fechamento(p),
+        # O Reenviar do "Não chegou ao GitHub": quem pode agir no Pedido.
+        "pode_reenviar": (
+            ator is not None
+            and p.get("fechamento_github") == FECHAMENTO_FALHOU
+            and estado == ESTADO_CONCLUIDA
+            and pode_responder(p, ator)
+        ),
         "projeto": projeto,
         "assunto": p.get("assunto") or "",
         "texto": p.get("texto") or "",
@@ -816,7 +823,7 @@ def cancelar(
 ) -> dict[str, Any]:
     """A Pergunta deixou de ser necessaria (ADR 0109, decisao 6): a aberta ou
     a respondida passa a cancelada, com o motivo, e a Conversa ganha a linha
-    de sistema com ele. A aberta sai da lista Esperando sua resposta, que so
+    de sistema com ele. A aberta sai da lista Esperando voce, que so
     le as abertas. A migration 211 nao tem coluna propria para o motivo: ele
     fica em `resolucao_decidido`, que na cancelada e o que se decidiu (que a
     Pergunta nao precisa mais). Devolve a linha gravada."""

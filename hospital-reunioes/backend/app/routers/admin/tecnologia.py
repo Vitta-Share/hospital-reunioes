@@ -1322,7 +1322,7 @@ async def escrever_na_conversa_da_demanda(
     return _mensagem_para_a_tela(linha, nomes={str(ator["id"]): nome}, ator=ator)
 
 
-# ─── A lista Esperando sua resposta (issue #2118, ADR 0109, decisao 5) ─────
+# ─── A lista Esperando voce (issue #2118, ADR 0109, decisao 5; ADR 0110) ──
 
 
 @router.get("/perguntas/esperando", response_model=list[PerguntaEsperandoResponse])

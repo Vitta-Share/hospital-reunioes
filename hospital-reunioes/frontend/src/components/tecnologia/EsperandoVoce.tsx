@@ -1,7 +1,14 @@
 "use client";
 
 /**
- * A lista Esperando sua resposta (issue #2118, PRD #2112, ADR 0109, decisão 5).
+ * A lista Esperando você (issue #2118, PRD #2112, ADR 0109, decisão 5; desde
+ * a issue #2176, ADR 0110). Antes se chamava Esperando sua resposta.
+ *
+ * Junta os dois tipos de Pedido da Vitta, a Pergunta e o Passo a passo, cada
+ * um com o seu ícone no cartão. O que está com a própria Vitta (o
+ * Destinatário é Desenvolvedor) vem por último, no grupo "Com a Vitta", para
+ * o diretor ver o que anda do lado de lá. O Passo a passo concluído sai da
+ * lista na hora, como a Pergunta respondida.
  *
  * No topo da aba Tecnologia, as Perguntas da Vitta abertas de todos os
  * Projetos, cada uma no cartão da Pergunta, com o nome da Demanda. A ordem é a
@@ -20,23 +27,26 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import {
-  CartaoDaPergunta,
-  perguntaValida,
-  type PerguntaDaVitta,
-  type PerguntaRespondida,
-} from "./CartaoDaPergunta";
+import { perguntaValida, type PerguntaDaVitta, type PerguntaRespondida } from "./CartaoDaPergunta";
+import { CartaoDoPedido } from "./CartaoDoPedido";
+import type { PassoAPassoConcluido } from "./CartaoDoPassoAPasso";
 import { BASE_TECNOLOGIA } from "./demandas";
 
 export const URL_DA_LISTA_ESPERANDO = `${BASE_TECNOLOGIA}/perguntas/esperando`;
 
-type PerguntaEsperando = PerguntaDaVitta & { demanda_id: string; demanda: string; minha: boolean };
+type PerguntaEsperando = PerguntaDaVitta & {
+  demanda_id: string;
+  demanda: string;
+  minha: boolean;
+  /** O Destinatário é Desenvolvedor: o Pedido está com a Vitta (ADR 0110, decisão 2). */
+  com_a_vitta?: boolean;
+};
 
 function itemValido(item: unknown): item is PerguntaEsperando {
   return perguntaValida(item) && typeof (item as Record<string, unknown>).demanda === "string";
 }
 
-export function EsperandoSuaResposta({
+export function EsperandoVoce({
   token,
   perguntaEmFoco = null,
   agora,
@@ -85,19 +95,19 @@ export function EsperandoSuaResposta({
     alvo.focus();
   }, [itens, perguntaEmFoco]);
 
-  function aoResponder({ pergunta }: PerguntaRespondida) {
+  function sair({ pergunta }: PerguntaRespondida | PassoAPassoConcluido) {
     setItens((atuais) => (atuais ?? []).filter((item) => item.id !== pergunta.id));
   }
 
   if (!itens || itens.length === 0) return null;
 
-  return (
-    <section aria-label="Esperando sua resposta" className="min-w-0 space-y-3">
-      <h2 className="text-lg font-bold text-text">
-        Esperando sua resposta <span className="text-sm font-medium text-text-secondary">({itens.length})</span>
-      </h2>
-      <ul className="min-w-0 space-y-3">
-        {itens.map((item) => {
+  const daqui = itens.filter((item) => !item.com_a_vitta);
+  const comAVitta = itens.filter((item) => item.com_a_vitta);
+
+  function lista(grupo: PerguntaEsperando[], rotulo: string) {
+    return (
+      <ul aria-label={rotulo} className="min-w-0 space-y-3">
+        {grupo.map((item) => {
           const focado = item.id === perguntaEmFoco;
           return (
             <li
@@ -112,11 +122,27 @@ export function EsperandoSuaResposta({
               <p className="normal-case text-xs text-text-secondary">
                 Demanda: <span className="font-semibold text-text">{item.demanda}</span>
               </p>
-              <CartaoDaPergunta pergunta={item} agora={agora} token={token} onRespondida={aoResponder} />
+              <CartaoDoPedido pedido={item} agora={agora} token={token} onRespondida={sair} onConcluido={sair} />
             </li>
           );
         })}
       </ul>
+    );
+  }
+
+  return (
+    <section aria-label="Esperando você" className="min-w-0 space-y-3">
+      <h2 className="text-lg font-bold text-text">
+        Esperando você <span className="text-sm font-medium text-text-secondary">({itens.length})</span>
+      </h2>
+      {daqui.length > 0 && lista(daqui, "Pedidos da Vitta")}
+      {comAVitta.length > 0 && (
+        <div className="min-w-0 space-y-2">
+          <h3 className="text-sm font-bold text-text">Com a Vitta</h3>
+          <p className="normal-case text-xs text-text-secondary">O que a própria Vitta precisa fazer, para você acompanhar.</p>
+          {lista(comAVitta, "Com a Vitta")}
+        </div>
+      )}
     </section>
   );
 }

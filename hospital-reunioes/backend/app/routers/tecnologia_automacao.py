@@ -377,7 +377,7 @@ def cancelar_a_pergunta(
     pergunta_id: UUID, payload: CancelamentoDaPerguntaPayload, supabase=Depends(get_supabase_client)
 ) -> dict:
     """A Pergunta deixou de ser necessaria: a aberta ou a respondida passa a
-    cancelada, sai da lista Esperando sua resposta, e a Conversa ganha a linha
+    cancelada, sai da lista Esperando voce, e a Conversa ganha a linha
     de sistema com o motivo. A resolvida e a cancelada sao 409 com o motivo;
     sem motivo e 422. Nada muda na recusa."""
     autor, pergunta, demanda = _para_fechar(supabase, pergunta_id, payload.github_login)

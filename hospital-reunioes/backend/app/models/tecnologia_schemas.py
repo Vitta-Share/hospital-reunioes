@@ -341,6 +341,7 @@ class PerguntaDoCartaoResponse(BaseModel):
     passos: list[PassoDoCartaoResponse] = []
     conclusao: ConclusaoDoPassoAPassoResponse | None = None
     fechamento: FechamentoNoGithubResponse | None = None
+    pode_reenviar: bool = False
 
 
 class PerguntaEsperandoResponse(PerguntaDoCartaoResponse):

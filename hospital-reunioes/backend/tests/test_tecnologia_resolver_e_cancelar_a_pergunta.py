@@ -373,7 +373,7 @@ class TestOKit:
             "a pergunta passa a Resolvida",
             "o que foi decidido e o que destravou",
             "a pergunta passa a Cancelada",
-            "sai da lista Esperando sua resposta",
+            "sai da lista Esperando você",
             "não muda mais",
         ):
             assert trecho in texto, trecho
