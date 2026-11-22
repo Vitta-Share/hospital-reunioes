@@ -1,6 +1,6 @@
-"""A migration 208 do Canal de Conduta num Postgres de verdade (issue #1831).
+"""A migration 215 do Canal de Conduta num Postgres de verdade (issue #1831).
 
-Sobe um Postgres descartável, aplica a 175, a 192, a 193 e a 208 (a 208 duas
+Sobe um Postgres descartável, aplica a 175, a 192, a 193 e a 215 (a 215 duas
 vezes) sobre o mínimo de antes e prova no banco:
 
 - a versão do termo só entra cifrada, e uma correção não apaga a anterior: a
@@ -26,7 +26,7 @@ from test_conduta_migration_banco import MIGRATION as MIGRATION_175
 from test_pendencia_historico_banco import _bin_do_postgres, _Postgres
 
 PASTA = Path(__file__).resolve().parents[2] / "supabase" / "migrations"
-MIGRATION = PASTA / "208_conduta_termo_de_declaracao.sql"
+MIGRATION = PASTA / "215_conduta_termo_de_declaracao.sql"
 ANTERIORES = (PASTA / "192_conduta_assinaturas.sql", PASTA / "193_conduta_depoimentos.sql")
 
 
@@ -38,7 +38,7 @@ def banco():
             pytest.fail("O CI precisa do initdb para provar as travas do termo no banco.")
         pytest.skip("Sem initdb nesta máquina.")
     pg = _Postgres(bindir)
-    pg.porta = "54208"
+    pg.porta = "54215"
     pg.subir()
     try:
         pg.ok(ESQUEMA_ANTERIOR)
@@ -156,5 +156,5 @@ def test_a_certidao_de_recusa_exige_o_depoimento(banco):
     assert certidao(f"'{depoimento}'").returncode == 0
 
 
-def test_o_recibo_e_o_208(banco):
-    assert banco.ok("SELECT max(numero) FROM migracoes_aplicadas;") == "208"
+def test_o_recibo_e_o_215(banco):
+    assert banco.ok("SELECT max(numero) FROM migracoes_aplicadas;") == "215"

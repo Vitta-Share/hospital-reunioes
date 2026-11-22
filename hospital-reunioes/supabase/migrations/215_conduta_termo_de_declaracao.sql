@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 208: Canal de Conduta, o termo de declaração redigido pelo agente
+-- Migration 215: Canal de Conduta, o termo de declaração redigido pelo agente
 -- (issue #1831, PRD #1786, ADR 0097, decisão 7; especificação, 7.1 e Anexos C
 -- e E.1)
 -- =====================================================
@@ -89,4 +89,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (208) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (215) ON CONFLICT (numero) DO NOTHING;

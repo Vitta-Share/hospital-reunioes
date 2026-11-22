@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 TABELA = "conduta_depoimentos"
 ARQUIVOS = "conduta_depoimento_arquivos"
 CONFERENCIA = "conduta_depoimento_conferencia"
-# As versões do termo de declaração (migration 208, issue #1831).
+# As versões do termo de declaração (migration 215, issue #1831).
 TERMOS = "conduta_depoimento_termos"
 # O bucket privado do Canal (migration 175), sem policy e sem URL.
 BUCKET = "conduta-arquivos"
@@ -299,7 +299,7 @@ def _termo(versoes: list[dict], nomes: dict[str, str]) -> dict[str, Any] | None:
 
 
 def _certidoes(supabase, depoimento_ids: list[str]) -> list[dict]:
-    """As certidões de recusa (migration 208), sem as canceladas."""
+    """As certidões de recusa (migration 215), sem as canceladas."""
     if not depoimento_ids:
         return []
     linhas = (
