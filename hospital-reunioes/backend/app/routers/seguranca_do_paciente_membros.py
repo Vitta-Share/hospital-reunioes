@@ -505,3 +505,64 @@ async def encerrar_membro(
         _mudancas(atual, {"encerrada_em": dia.isoformat(), "vigencia_fim": novo_fim}),
     )
     return _responder(supabase, participacao_id, nucleo_id)
+
+
+# ---------------------------------------------------------------------------
+# A ausência da Presidência (issue #1999, ADR 0107, decisão 4)
+# ---------------------------------------------------------------------------
+
+
+class AusenciaDaPresidencia(BaseModel):
+    inicio: date
+    fim: date
+
+
+def _dia(valor: date) -> str:
+    return valor.strftime("%d/%m/%Y")
+
+
+@router.post("/{participacao_id}/ausencia-da-presidencia", status_code=status.HTTP_201_CREATED)
+@limiter.limit("30/minute")
+async def registrar_ausencia_da_presidencia(
+    request: Request,
+    participacao_id: str,
+    body: AusenciaDaPresidencia,
+    me: dict = Depends(require_recurso_nsp("ausencia_da_presidencia")),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """Na ficha do suplente: o período em que ele responde pela Presidência.
+    Dentro dele, a permissão do módulo dá ao suplente os recursos da
+    Presidência; fora, ele é membro. O registro não muda depois, e a trilha
+    da Participação guarda quem registrou e o período."""
+    if body.fim < body.inicio:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="O fim da ausência não pode ser antes do início",
+        )
+    nucleo_id = _nucleo_id(supabase)
+    atual = _participacao(supabase, nucleo_id, participacao_id)
+    if atual.get("papel") != "suplente":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="A ausência da Presidência se registra na ficha do suplente",
+        )
+    _aberta(atual)
+    supabase.table("nsp_ausencias_da_presidencia").insert(
+        {
+            "participacao_id": participacao_id,
+            "inicio": body.inicio.isoformat(),
+            "fim": body.fim.isoformat(),
+            "autor_id": me["id"],
+        }
+    ).execute()
+    _gravar_trilha(
+        supabase,
+        participacao_id,
+        me["id"],
+        "ausencia_da_presidencia",
+        [(None, None, f"de {_dia(body.inicio)} a {_dia(body.fim)}")],
+    )
+    return {
+        **_responder(supabase, participacao_id, nucleo_id),
+        "ausencia": {"inicio": body.inicio.isoformat(), "fim": body.fim.isoformat()},
+    }
