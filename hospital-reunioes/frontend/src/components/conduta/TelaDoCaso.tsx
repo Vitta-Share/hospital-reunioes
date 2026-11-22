@@ -9,6 +9,7 @@ import { DepoimentosDaApuracao } from "@/components/conduta/DepoimentosDaApuraca
 import { ImpedimentoECitados } from "@/components/conduta/ImpedimentoECitados";
 import { OQueFazerAgora } from "@/components/conduta/OQueFazerAgora";
 import { RelatorioDaApuracao } from "@/components/conduta/RelatorioDaApuracao";
+import { RotaEspecial } from "@/components/conduta/RotaEspecial";
 import { SinalizarAoNsp } from "@/components/conduta/SinalizarAoNsp";
 import { SugestaoDoAgente } from "@/components/conduta/SugestaoDoAgente";
 import {
@@ -243,6 +244,8 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
       </ol>
 
       <OQueFazerAgora caixa={caso.o_que_fazer_agora} aoAgir={aoAgir} ocupado={ocupado} />
+
+      <RotaEspecial caso={caso} ocupado={ocupado} enviar={enviar} />
 
       {aviso && (
         <p role="alert" className="text-sm text-red-700">

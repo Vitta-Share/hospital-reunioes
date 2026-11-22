@@ -478,12 +478,13 @@ class TestContagem:
         aberto = comite.caso("sim")
         concluido = comite.caso("sim", dias_atras=10)
         comite.agir(MEMBRO, concluido, "entrega-do-parecer", {"destinatario": DESTINATARIO, "entregue_em": str(HOJE)})
+        comite.caso("sim")
         comite.caso("nao")
 
         resposta = comite.cliente(COORDENACAO).get(f"{BASE}/rota-especial/contagem")
 
         assert resposta.status_code == 200, resposta.text
-        assert resposta.json() == {"recebidos": 2, "concluidos": 1, "em_aberto": 1}
+        assert resposta.json() == {"recebidos": 3, "concluidos": 1, "em_aberto": 2}
         ids = comite.lista(COORDENACAO)
         assert aberto not in ids and concluido not in ids
 
@@ -525,3 +526,25 @@ class TestTelaDoGrupo:
         assert "parecer" in tela["o_que_fazer_agora"]["frase"]
         assert "Encaminhado" not in tela["o_que_fazer_agora"]["frase"]
         assert tela["rota_especial"]["pode_registrar_entrega"] is False
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 8. O kit de conhecimento diz o comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_o_kit_do_canal_diz_a_rota_especial():
+    from pathlib import Path
+
+    kit = (Path(__file__).resolve().parents[1] / "app" / "conhecimento" / "canal-de-conduta.md").read_text(
+        encoding="utf-8"
+    )
+    assert "## A Rota Especial" in kit
+    assert "nunca entra na fila comum, e nem a coordenação o vê" in kit
+    assert "qualquer membro do Comitê confirma o desvio para a Rota Especial" in kit
+    assert "não muda até o fim" in kit
+    assert "aos 15, aos 30 e aos 60 dias" in kit
+    assert '"Caso não respondido no prazo"' in kit
+    assert "registra na tela do caso a quem entregou e em que data" in kit
+    assert "vê só a contagem" in kit
+    assert "a Rota Especial, as perguntas ao relator" not in kit

@@ -10,7 +10,7 @@ import type { TextoDaApuracao } from "@/lib/conduta/relatorio";
 import { createClient } from "@/lib/supabase/client";
 import type { SugestaoDoAgente } from "@/lib/conduta/sugestao";
 
-export type Rito = "encaminhamento" | "rapido" | "completo";
+export type Rito = "encaminhamento" | "rapido" | "completo" | "especial";
 export type Escopo = "dentro" | "fora" | "misto";
 export type Situacao = "em_triagem" | "em_andamento" | "encerrado";
 
@@ -123,6 +123,25 @@ export interface CasoAberto extends CasoDaLista {
   relatorio?: TextoDaApuracao | null;
   cronologia?: TextoDaApuracao | null;
   pode_redigir_relatorio?: boolean;
+  /** O "Não sei" no passo 3 ou o sinal do agente, num caso da fila comum (issue #1829). */
+  aviso_de_rota_especial?: string | null;
+  pode_desviar?: boolean;
+  rota_especial?: RotaEspecialDoCaso | null;
+}
+
+/** O que o Grupo Especial vê do caso dele (issue #1829). */
+export interface RotaEspecialDoCaso {
+  selo: { selado_em: string; codigo: string; confere: boolean } | null;
+  nao_respondido_no_prazo: boolean;
+  entrega: { destinatario: string; entregue_em: string } | null;
+  pode_registrar_entrega: boolean;
+}
+
+/** O que se vê da Rota Especial de fora do grupo: só a contagem (issue #1829). */
+export interface ContagemDaRotaEspecial {
+  recebidos: number;
+  concluidos: number;
+  em_aberto: number;
 }
 
 export const RITOS: { valor: Rito; rotulo: string; prazo: string }[] = [
@@ -182,6 +201,7 @@ export function rotuloDaEtapa(etapa: string | null): string {
 }
 
 export function rotuloDoRito(rito: Rito | null): string {
+  if (rito === "especial") return "Rota Especial";
   return RITOS.find((r) => r.valor === rito)?.rotulo ?? "Rito ainda não definido";
 }
 

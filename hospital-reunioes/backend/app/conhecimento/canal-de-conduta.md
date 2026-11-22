@@ -169,6 +169,21 @@ O Citado é a pessoa nomeada no caso como envolvida. Qualquer membro do caso mar
 
 Cada declaração de impedimento, contestação, voto, decisão, convocação e marcação de Citado entra na trilha do caso, com quem fez e quando. A trilha não leva o nome do Citado.
 
+## A Rota Especial
+
+O relato que envolve a Direção, a Presidência ou a família proprietária é apurado por um grupo sem nenhum diretor:
+
+- quem responde "Sim" na pergunta sobre a Direção, no passo 3 do relato, vai direto à Rota Especial. O caso nunca entra na fila comum, e nem a coordenação o vê;
+- o "Não sei" e a sugestão do agente entram na fila comum com um aviso, e qualquer membro do Comitê confirma o desvio para a Rota Especial na tela do caso. Confirmado o desvio, o caso sai da fila comum;
+- o Grupo Especial é o membro do Comitê que não é diretor (a coordenação fica de fora) e um suplente que não é diretor. O membro eleito da CIPA, indicado pelos eleitos, entra por convite do grupo, dentro do caso. Se alguém do grupo se declara impedido, o suplente que entra no lugar também não é diretor;
+- o grupo é montado quando o caso entra na Rota Especial e não muda até o fim: uma troca no Comitê depois disso não tira nem põe ninguém no caso;
+- na entrada, o relato é selado, com data, hora e código de integridade. Nenhum perfil altera nem apaga o selo, e a tela do caso diz se o relato ainda confere com o código;
+- o prazo é de 60 dias, contados do envio do relato. O grupo recebe um aviso por e-mail, sem conteúdo do caso, aos 15, aos 30 e aos 60 dias. Vencido o prazo sem o parecer, fica o registro permanente "Caso não respondido no prazo";
+- o parecer é entregue fora do aplicativo, à autoridade não envolvida que o grupo escolhe. No encerramento, o grupo registra na tela do caso a quem entregou e em que data, e o caso fica encerrado;
+- quem não é do grupo vê só a contagem, na tela Casos: casos da Rota Especial recebidos, concluídos e em aberto.
+
+Por enquanto o formulário público ainda não está no ar, então a pergunta sobre a Direção chega com ele, numa próxima entrega.
+
 ## Quem vê
 
 Ninguém vê um caso por ter um cargo. Vê quem está designado naquele caso:
@@ -193,7 +208,7 @@ Quem não tem acesso recebe a mesma recusa, exista o caso ou não.
 
 ## O que ele ainda não faz
 
-O formulário público de relato, as páginas públicas que vão mostrar os textos das configurações, a página de acompanhamento, a Rota Especial, as perguntas ao relator, o roteiro de perguntas e o termo de declaração redigidos pelo agente, o voto, a ata e o dossiê chegam nas próximas entregas. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. Por enquanto ninguém relata pelo Canal: os relatos continuam chegando pela Ouvidoria.
+O formulário público de relato, as páginas públicas que vão mostrar os textos das configurações, a página de acompanhamento, as perguntas ao relator, o roteiro de perguntas e o termo de declaração redigidos pelo agente, o voto, a ata e o dossiê chegam nas próximas entregas. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. Por enquanto ninguém relata pelo Canal: os relatos continuam chegando pela Ouvidoria.
 
 ## O que já foi decidido
 
