@@ -27,8 +27,8 @@ import httpx
 from postgrest.exceptions import APIError
 
 from app.services import feriados as servico_de_feriados
-from app.services.pendencia_ciclo import situacao
 from app.services.paginacao import ler_tudo
+from app.services.pendencia_ciclo import situacao
 from app.services.pendencias_consulta import as_data, hoje_em_brasilia, ids_repactuados
 from app.services.seguranca_do_paciente import prazos
 from app.services.seguranca_do_paciente.notificacoes import LOTE_DE_IDS
@@ -300,8 +300,7 @@ def _itens_dos_casos(supabase, reuniao: dict) -> list[dict]:
         lote = ids[comeco : comeco + LOTE_DE_IDS]
         protocolos += [
             linha["protocolo"]
-            for linha in supabase.table("nsp_notificacoes").select("id, protocolo").in_("id", lote).execute().data
-            or []
+            for linha in supabase.table("nsp_notificacoes").select("id, protocolo").in_("id", lote).execute().data or []
         ]
     return [{"texto": texto_da_lesao_por_pressao(p)} for p in sorted(protocolos)]
 

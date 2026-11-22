@@ -40,6 +40,7 @@ from slowapi.errors import RateLimitExceeded
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from test_seguranca_do_paciente_notificacoes import ANONIMO, DIRETOR, PUBLICO, _pessoa  # noqa: E402
 from test_seguranca_do_paciente_prazos import (  # noqa: E402
     DO_CASO,
     LESAO_POR_PRESSAO,
@@ -47,7 +48,6 @@ from test_seguranca_do_paciente_prazos import (  # noqa: E402
     _ConsultaDoNucleo,
 )
 from test_seguranca_do_paciente_prazos import _banco as _banco_dos_prazos  # noqa: E402
-from test_seguranca_do_paciente_notificacoes import ANONIMO, DIRETOR, PUBLICO, _pessoa  # noqa: E402
 from test_seguranca_do_paciente_triagem import (  # noqa: E402
     GRAVE,
     MODERADO,
@@ -238,9 +238,7 @@ def com_as_ordinarias(monkeypatch):
 
 
 @pytest.mark.parametrize("item", [8, 9, 10])
-def test_a_lesao_por_pressao_sem_obito_nao_cria_reuniao_e_entra_na_pauta_da_ordinaria_seguinte(
-    com_as_ordinarias, item
-):
+def test_a_lesao_por_pressao_sem_obito_nao_cria_reuniao_e_entra_na_pauta_da_ordinaria_seguinte(com_as_ordinarias, item):
     banco, caso = com_as_ordinarias(item)
 
     _confirmar(banco, caso)
@@ -325,7 +323,10 @@ def test_o_identificado_com_email_recebe_o_aviso_de_que_o_caso_esta_em_analise(e
 
 @pytest.mark.parametrize(
     "campos",
-    [{"anonimo": True, "notificante_nome": None, "notificante_contato": None}, {"notificante_contato": "21 99999-0000"}],
+    [
+        {"anonimo": True, "notificante_nome": None, "notificante_contato": None},
+        {"notificante_contato": "21 99999-0000"},
+    ],
     ids=["anônimo", "só telefone"],
 )
 def test_quem_nao_deixou_email_nao_gera_o_aviso(campos):
@@ -410,3 +411,24 @@ def test_a_confirmacao_que_chega_junto_com_outra_fica_com_a_reuniao_da_primeira(
 
     [reuniao] = _reunioes(banco)
     assert any(caso["protocolo"] in texto for texto in _textos_da_pauta(banco, reuniao["id_reuniao"]))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. O kit de conhecimento diz o comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_o_kit_diz_o_que_acontece_ao_confirmar():
+    from test_seguranca_do_paciente_prazos import _secao_do_kit
+
+    no_ar = _secao_do_kit("O que já está no ar")
+    for termo in (
+        "a reunião de análise de evento já nasce programada na data-limite",
+        "o protocolo do caso no bloco Casos da pauta",
+        "entra na pauta da ordinária seguinte",
+        "comunicação à Direção",
+        "está em análise",
+        "Confirmar de novo não cria outra reunião nem outro aviso",
+    ):
+        assert termo in no_ar, termo
+    assert "a reunião de análise e o chamado" not in _secao_do_kit("O que ele ainda não faz")

@@ -120,7 +120,9 @@ def _criar_a_reuniao(supabase, caso: dict, dia: date, nucleo_id: str, autor_id: 
         if existente is None:
             raise
         return existente
-    supabase.table("reuniao_participantes").insert([{"id_reuniao": linha["id_reuniao"], "participante_id": autor_id}]).execute()
+    supabase.table("reuniao_participantes").insert(
+        [{"id_reuniao": linha["id_reuniao"], "participante_id": autor_id}]
+    ).execute()
     logger.info("Reunião de análise %s do caso %s criada na confirmação", linha["id_reuniao"], caso["id"])
     return linha
 
@@ -207,7 +209,9 @@ def _comunicar_a_direcao(supabase, caso: dict, faixa: str, agora: datetime) -> N
     if not pessoas:
         logger.error("[Confirmação NSP] Caso %s sem ninguém da Direção para comunicar.", caso["id"])
     for pessoa in pessoas:
-        assunto, texto, contexto = mensagem_a_direcao(pessoa.get("nome_completo") or "", caso["protocolo"], faixa, agora)
+        assunto, texto, contexto = mensagem_a_direcao(
+            pessoa.get("nome_completo") or "", caso["protocolo"], faixa, agora
+        )
         emails.registrar(
             supabase,
             caso_id=caso["id"],

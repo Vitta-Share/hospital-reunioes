@@ -117,9 +117,12 @@ def test_o_resto_continua_com_destinatario(banco, marco):
 
 
 def test_a_reuniao_de_analise_e_uma_por_caso(banco):
-    assert banco.sql(
-        f"INSERT INTO reunioes (id_reuniao, nsp_caso_id) VALUES ('RD_1', '{CASO}');", papel="service_role"
-    ).returncode == 0
+    assert (
+        banco.sql(
+            f"INSERT INTO reunioes (id_reuniao, nsp_caso_id) VALUES ('RD_1', '{CASO}');", papel="service_role"
+        ).returncode
+        == 0
+    )
     assert banco.sql("INSERT INTO reunioes (id_reuniao) VALUES ('RD_2');", papel="service_role").returncode == 0
     assert banco.sql("INSERT INTO reunioes (id_reuniao) VALUES ('RD_3');", papel="service_role").returncode == 0
     repetida = banco.sql(
