@@ -15,6 +15,7 @@ import os
 import secrets
 import sys
 from datetime import UTC, date, datetime
+from pathlib import Path
 
 import pytest
 from conduta_apoio import Banco
@@ -400,3 +401,19 @@ class TestOComiteLe:
         aberto = self._aberto(envio(nome=NOME))
 
         assert aberto["relator_nome"] is None
+
+
+def test_o_kit_de_conhecimento_conta_o_relato_em_passos():
+    """O agente de Tecnologia responde sobre o Produto pelo kit."""
+    kit = (Path(__file__).resolve().parents[1] / "app" / "conhecimento" / "canal-de-conduta.md").read_text("utf-8")
+    secao = kit.split("## O relato em passos", 1)[1].split("\n## ", 1)[0]
+
+    for promessa in (
+        "guarda o texto por até 30 dias e não o usa para treino",
+        "a versão de cada aviso que a pessoa leu",
+        "mostrados uma única vez",
+        "não guarda IP, identificação do aparelho nem localização",
+        "com o canal fechado, a página responde como se não existisse",
+    ):
+        assert promessa in secao
+    assert "Por enquanto ninguém relata pelo Canal" not in kit

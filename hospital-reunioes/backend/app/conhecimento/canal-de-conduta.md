@@ -142,6 +142,30 @@ A trilha confere a própria corrente toda vez que a tela abre. Se alguém trocar
 
 Só baixa o Dossiê quem é do Comitê no caso: a coordenação, o membro e o segundo leitor, ou o suplente convocado no lugar de um deles. O apurador, o membro da CIPA, o Presidente, a diretoria executiva e o super admin recebem a recusa. Cada download entra na trilha com quem baixou e quando, e sem esse registro o pacote não sai.
 
+## O relato em passos
+
+Quem trabalha no hospital relata pela página pública do Canal, sem login, em seis passos. A página funciona no celular e o relato completo leva poucos minutos:
+
+- a entrada cita o propósito AGIR CERTO, diz que dá para relatar sem dizer quem é, mostra os selos "Sem login", "Sem registro de IP" e "Só o Comitê lê", o que é assunto do canal e os botões Fazer relato e Acompanhar relato;
+- passo 1, antes de começar: os três avisos das Configurações (ou o texto padrão, enquanto a coordenação não salvou o dela), a linha que diz que a inteligência artificial organiza o relato, guarda o texto por até 30 dias e não o usa para treino, e a caixa "Li as orientações. Relato o que acredito ser verdade.". Sem a caixa marcada não se continua. O aplicativo grava a data, a hora e a versão de cada aviso que a pessoa leu, sem nada que a identifique;
+- passo 2, anônimo ou com identificação. Quem se identifica escreve o nome, que fica cifrado, fora do relato, e aparece só para o Comitê, na tela do caso, como "Relatou com identificação". O nome nunca vai ao agente;
+- passo 3, sobre o quê: se o relato envolve a Direção, a Presidência ou a família proprietária (Sim, Não ou Não sei, a única pergunta obrigatória), o assunto, entre as seis categorias, e se a pessoa sofreu, presenciou ou ficou sabendo;
+- passo 4, o que aconteceu: o texto, com até 10.000 caracteres, e os campos opcionais (quando, se ainda está acontecendo, onde, quem, testemunhas, se alguma liderança já sabe e o que foi feito, evidências). No anônimo, a página lembra de evitar detalhes que só a pessoa saberia. Os campos opcionais entram no relato do caso, embaixo do texto, cada um com o seu rótulo;
+- passo 5, a revisão: o resumo do que foi preenchido, o lembrete de que o relato pode iniciar a apuração da conduta de uma pessoa e o botão Enviar;
+- passo 6, o protocolo e o código, mostrados uma única vez, com o botão Copiar, o aviso "Anote agora. Não há como recuperar.", a data a partir da qual voltar à página (o fim dos 5 dias úteis de leitura do Comitê) e a pergunta opcional "De 1 a 5, quanto você confia neste canal?", que vale uma resposta por relato.
+
+A barra de progresso e o botão Voltar aparecem em todos os passos, e voltar não perde nada do que foi preenchido. Sair da página perde o rascunho: nada fica guardado no aparelho, nem no cache do aplicativo, e nada vai no endereço da página.
+
+O que a página garante:
+
+- não pede login, não manda o login de quem esqueceu o aplicativo aberto no mesmo navegador, não grava cookie de rastreio e não carrega nada de fora do aplicativo;
+- não guarda IP, identificação do aparelho nem localização, nem na base de dados nem no registro de funcionamento do servidor;
+- segura a rajada de envios do mesmo aparelho sem guardar o endereço dele; quem passa do limite vê o aviso para esperar alguns minutos;
+- nenhuma mensagem de erro repete o protocolo, o código, o nome ou um trecho do relato: a recusa diz só quais campos conferir;
+- com o canal fechado, a página responde como se não existisse.
+
+Anexos e o aviso de assunto fora do canal na revisão chegam numa próxima entrega.
+
 ## O agente de triagem
 
 Cada relato novo é lido uma vez pelo agente de triagem, sozinho, logo que chega, sem ninguém precisar clicar. O agente sugere; quem decide é a coordenação.
@@ -247,7 +271,7 @@ O relato que envolve a Direção, a Presidência ou a família proprietária é 
 - o parecer é entregue fora do aplicativo, à autoridade não envolvida que o grupo escolhe. No encerramento, o grupo registra na tela do caso a quem entregou e em que data, e o caso fica encerrado;
 - quem não é do grupo vê só a contagem, na tela Casos: casos da Rota Especial recebidos, concluídos e em aberto.
 
-Por enquanto o formulário público ainda não está no ar, então a pergunta sobre a Direção chega com ele, numa próxima entrega.
+A pergunta sobre a Direção é o passo 3 do relato em passos, e é a única obrigatória dele.
 
 ## O afastamento cautelar
 
@@ -307,7 +331,7 @@ Quem não tem acesso recebe a mesma recusa, exista o caso ou não.
 
 ## O que ele ainda não faz
 
-O formulário público de relato, as páginas públicas que vão mostrar os textos das configurações, a página de acompanhamento, as perguntas ao relator, o roteiro de perguntas e o termo de declaração redigidos pelo agente chegam nas próximas entregas. A decisão da Direção e a conversa com o denunciante entram no Dossiê quando chegarem. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. Por enquanto ninguém relata pelo Canal: os relatos continuam chegando pela Ouvidoria.
+A página "Como este canal protege você", a página de acompanhamento, os anexos do relato, as perguntas ao relator, o roteiro de perguntas e o termo de declaração redigidos pelo agente chegam nas próximas entregas. A decisão da Direção e a conversa com o denunciante entram no Dossiê quando chegarem. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. O relato em passos já existe, mas o canal segue fechado até a abertura: enquanto isso, os relatos continuam chegando pela Ouvidoria.
 
 ## O que já foi decidido
 
