@@ -2,6 +2,51 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T11:14:08-03:00",
+      "sha": "f97d8cfff50fca87f52c8c6d004feb460b9d2516",
+      "app_version": "0.374.2",
+      "subject": "Onda sesta-1757-onda11: Reuniões e Pendências com o ciclo de vida, o painel e a Rotina",
+      "raw_subject": "chore(deploy): registro da onda sesta-1757-onda11 (#2156)",
+      "scope": [
+        "frontend"
+      ],
+      "prds": [
+        1757
+      ],
+      "result": "healthy",
+      "duration_seconds": 297,
+      "services_touched": [
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1757-onda11: PR #2156 (issue #1880), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 2,
+        "build_s": {
+          "frontend": 187
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T11:07:47-03:00",
       "sha": "136cbe9bd972bd94bb670c5d4205049a91ca8f63",
       "app_version": "0.374.1",
