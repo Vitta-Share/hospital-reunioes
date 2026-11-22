@@ -405,6 +405,14 @@ async def editar_membro(
     nucleo_id = _nucleo_id(supabase)
     atual = _participacao(supabase, nucleo_id, participacao_id)
     _aberta(atual)
+    # O suplente em exercício gere o Núcleo, mas não a própria ficha: senão ele
+    # se faz Presidência e leva os poderes para depois do período (ADR 0107,
+    # decisão 4). Só a Presidência e o Acesso pleno registram a ausência.
+    if atual["participante_id"] == me["id"] and "ausencia_da_presidencia" not in me["recursos_nsp"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Quem está em exercício pela Presidência não edita a própria participação",
+        )
     pedido = body.model_dump(exclude_unset=True)
     da_participacao = {campo: pedido[campo] for campo in CAMPOS_DA_PARTICIPACAO if campo in pedido}
     if any(da_participacao.get(campo, "") is None for campo in ("papel", "vigencia_inicio", "vigencia_fim")):

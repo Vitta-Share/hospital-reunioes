@@ -286,6 +286,45 @@ def test_fora_do_periodo_o_suplente_nao_ve_quem_notificou(ausencias):
     assert tela.json() == RECUSA
 
 
+@pytest.mark.parametrize(
+    "corpo",
+    [{"papel": "presidencia"}, {"vigencia_fim": (HOJE + timedelta(days=900)).isoformat()}, {"area": "UTI"}],
+    ids=["papel", "vigência", "área"],
+)
+def test_o_suplente_em_exercicio_nao_edita_a_propria_participacao(corpo):
+    """Senão ele se faz Presidência e leva os poderes para depois do período."""
+    banco = _com_um_caso(NO_PERIODO)
+    cliente = _cliente(banco, SUPLENTE)
+
+    resposta = cliente.patch("/api/nsp/membros/part-P7", json=corpo)
+
+    assert resposta.status_code == 403
+    assert resposta.json() == {"detail": "Quem está em exercício pela Presidência não edita a própria participação"}
+    assert banco.escritas == []
+    [propria] = [p for p in banco.tabelas["participacoes"] if p["id"] == "part-P7"]
+    assert propria["papel"] == "suplente"
+
+
+def test_o_suplente_em_exercicio_edita_a_participacao_de_outro_membro():
+    banco = _com_um_caso(NO_PERIODO)
+
+    resposta = _cliente(banco, SUPLENTE).patch("/api/nsp/membros/part-P2", json={"area": "UTI"})
+
+    assert resposta.status_code == 200, resposta.text
+    [outra] = [p for p in banco.tabelas["participacoes"] if p["id"] == "part-P2"]
+    assert outra["area"] == "UTI"
+
+
+def test_a_presidencia_edita_a_propria_participacao():
+    banco = _com_um_caso(NO_PERIODO)
+
+    resposta = _cliente(banco, PRESIDENTE).patch("/api/nsp/membros/part-P1", json={"area": "UTI"})
+
+    assert resposta.status_code == 200, resposta.text
+    [propria] = [p for p in banco.tabelas["participacoes"] if p["id"] == "part-P1"]
+    assert propria["area"] == "UTI"
+
+
 def test_a_ausencia_de_outro_suplente_nao_poe_este_em_exercicio():
     """A ausência vale para a Participação em que foi registrada."""
     banco = _com_um_caso(({**NO_PERIODO[0], "participacao_id": "part-P2"},))
@@ -375,13 +414,38 @@ def test_a_diretoria_nao_abre_o_caso_fora_das_faixas_a_e_b(caso):
     assert caso["relato"] not in resposta.text
 
 
+def _com_a_ciencia_pendente() -> _BancoDaTriagem:
+    """A ciência do Núcleo esperando o Recebido do caso que veio da Ouvidoria."""
+    banco = _com_as_faixas()
+    banco.tabelas["ouvidoria_acionamentos"] = [
+        {"id": "ciencia-1", "manifestacao_id": "man-1", "motivo_ciencia": "nsp", "status": "pendente"}
+    ]
+    banco.tabelas["ouvidoria_movimentos"] = []
+    return banco
+
+
+def test_a_presidencia_abre_o_caso_da_ouvidoria_e_marca_o_recebido():
+    """O controle: com a ciência pendente, quem é do Núcleo grava o Recebido."""
+    banco = _com_a_ciencia_pendente()
+
+    resposta = _cliente(banco, PRESIDENTE).get(f"/api/nsp/notificacoes/{DA_OUVIDORIA['id']}")
+
+    assert resposta.status_code == 200, resposta.text
+    assert banco.tabelas["ouvidoria_acionamentos"][0]["status"] == "ciente"
+    [movimento] = banco.tabelas["ouvidoria_movimentos"]
+    assert movimento["autor_id"] == PRESIDENTE["id"]
+
+
 def test_a_diretoria_abre_o_caso_da_ouvidoria_sem_marcar_o_recebido():
     """O Recebido é do Núcleo: a leitura da Diretoria não escreve nada."""
-    banco = _com_as_faixas()
+    banco = _com_a_ciencia_pendente()
 
     resposta = _cliente(banco, DIRETOR).get(f"/api/nsp/notificacoes/{DA_OUVIDORIA['id']}")
 
     assert resposta.status_code == 200, resposta.text
+    assert banco.tabelas["ouvidoria_acionamentos"][0]["status"] == "pendente"
+    assert banco.tabelas["ouvidoria_movimentos"] == []
+    assert DIRETOR["nome_completo"] not in str(banco.escritas)
     assert banco.escritas == []
 
 
