@@ -175,13 +175,14 @@ def despachar(supabase, registro: dict, agora: datetime) -> str | None:
     if not _reivindicar(supabase, registro["id"]):
         return None
     tentativas = (registro.get("tentativas") or 0) + 1
+    token = ""
     try:
         if registro.get("marco") == MARCO_DO_SETOR:
             # O e-mail com Recebido (issue #1996): o endereço é o do
             # responsável do setor, e o link de uso único nasce agora.
             from app.services.seguranca_do_paciente import recebimento
 
-            email, registro = recebimento.com_o_link(supabase, registro, agora)
+            email, registro, token = recebimento.com_o_link(supabase, registro, agora)
             if email is None:
                 supabase.table(TABELA).update({"situacao": FALHOU, "erro": JA_RECEBIDO, "tentativas": tentativas}).eq(
                     "id", registro["id"]
@@ -201,6 +202,9 @@ def despachar(supabase, registro: dict, agora: datetime) -> str | None:
             **(registro.get("contexto") or {}), logo_base64=get_logo_data_uri()
         )
         erro = None if _enviar_email(email, registro["assunto"], html, registro["texto"]) else FALHA_DO_ENVIO
+        if erro is None and token:
+            # Só o envio aceito troca o link: o que falha deixa valer o anterior.
+            recebimento.gravar_o_link(supabase, registro, token, agora)
     except Exception as falha:  # noqa: BLE001 (a falha devolve a linha à fila)
         erro = f"Falha no envio: {type(falha).__name__}"
 

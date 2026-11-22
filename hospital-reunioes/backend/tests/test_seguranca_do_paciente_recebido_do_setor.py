@@ -28,6 +28,7 @@ from typing import Any
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from postgrest.exceptions import APIError
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -71,6 +72,12 @@ def _responsavel(rid: str, setor: str, papel: str, **campos) -> dict[str, Any]:
 
 
 class _ConsultaComIs(_ConsultaDaTriagem):
+    def eq(self, coluna, valor):
+        # O PostgREST responde 400 a `id=eq.null` numa coluna UUID.
+        if valor is None:
+            raise APIError({"code": "22P02", "message": 'invalid input syntax for type uuid: "null"'})
+        return super().eq(coluna, valor)
+
     def is_(self, coluna, valor):
         assert valor == "null"
         self._filtros.append(lambda linha: linha.get(coluna) is None)
@@ -285,6 +292,20 @@ def test_o_link_abre_o_resumo_sem_o_relato(enviados):
     assert "Profissional Notificante" not in resposta.text
 
 
+def test_o_caso_sem_setor_abre_o_resumo_sem_o_setor_do_incidente(enviados):
+    banco, caso = _cenario()
+    # O caso que veio pela ponte da Ouvidoria herda o setor nulo do protocolo.
+    [linha] = banco.tabelas["nsp_notificacoes"]
+    linha["setor_id"] = None
+    token = _link_enviado(banco, caso, enviados)
+
+    resposta = _publico(banco).get(f"/api/nsp/recebimento/{token}")
+
+    assert resposta.status_code == 200, resposta.text
+    assert resposta.json()["protocolo"] == "NSP-2026-0001"
+    assert resposta.json()["setor_do_incidente"] is None
+
+
 def test_depois_do_recebido_o_link_recusa_nova_abertura(enviados):
     banco, caso = _cenario()
     token = _link_enviado(banco, caso, enviados)
@@ -365,6 +386,47 @@ def test_sem_o_clique_no_prazo_o_email_e_reenviado_uma_unica_vez(enviados):
     assert segundo != primeiro
     assert MOTIVO in enviados[1]["texto"]
     assert _publico(banco).get(f"/api/nsp/recebimento/{segundo}").status_code == 200
+
+
+def _o_reenvio_falha_nas_tres_tentativas(banco, monkeypatch) -> None:
+    """O provedor recusa o reenvio em todas as tentativas da fila."""
+    monkeypatch.setattr(emails, "_enviar_email", lambda para, assunto, html, texto: False)
+    monkeypatch.setattr(emails, "avisar_admins_tecnicos", lambda *args, **kwargs: None)
+    assert recebimento.reenviar_os_esquecidos(banco, NA_SEGUNDA, frozenset()) == 1
+    for dia in range(6):
+        emails.despachar_pendentes(banco, NA_SEGUNDA + timedelta(days=dia))
+    [reenvio] = [a for a in _do_setor(banco) if a["referencia"].endswith(recebimento.SUFIXO_DO_REENVIO)]
+    assert reenvio["situacao"] == emails.FALHOU
+
+
+def test_o_reenvio_que_o_provedor_recusou_nao_derruba_o_link_ja_entregue(enviados, monkeypatch):
+    banco, caso = _cenario()
+    primeiro = _link_enviado(banco, caso, enviados)
+
+    _o_reenvio_falha_nas_tres_tentativas(banco, monkeypatch)
+
+    assert _publico(banco).get(f"/api/nsp/recebimento/{primeiro}").status_code == 200
+
+
+def test_o_caso_nao_diz_reenviado_quando_o_reenvio_nao_saiu(enviados, monkeypatch):
+    banco, caso = _cenario()
+    _link_enviado(banco, caso, enviados)
+
+    _o_reenvio_falha_nas_tres_tentativas(banco, monkeypatch)
+
+    [envio] = recebimento.recebimentos_do_caso(banco, caso["id"])
+    assert envio["reenviado_em"] is None
+
+
+def test_o_caso_diz_reenviado_quando_o_reenvio_saiu(enviados):
+    banco, caso = _cenario()
+    _link_enviado(banco, caso, enviados)
+    recebimento.reenviar_os_esquecidos(banco, NA_SEGUNDA, frozenset())
+    emails.despachar_pendentes(banco, NA_SEGUNDA)
+
+    [envio] = recebimento.recebimentos_do_caso(banco, caso["id"])
+    assert len(enviados) == 2
+    assert envio["reenviado_em"] is not None
 
 
 def test_com_o_clique_nao_ha_reenvio(enviados):

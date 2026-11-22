@@ -10,8 +10,9 @@ o encaminhamento é recusado em vez de mandar o caso para o vazio.
 O link é de uso único e próprio do Núcleo: o token aleatório só existe dentro
 do e-mail que saiu, e o banco guarda o hash (`nsp_recebimentos.token_hash`). O
 token nasce na hora do envio, e não no registro, para o texto guardado na fila
-não carregar o link em claro. Cada envio emite um token novo por cima do
-anterior: vale o link do e-mail mais recente, até a validade.
+não carregar o link em claro. O hash só entra depois que o provedor aceita o
+e-mail: cada envio aceito troca o link pelo novo, e o envio que falha deixa
+valendo o link do e-mail anterior, até a validade.
 
 Abrir o link não confirma nada (leitor de e-mail que abre link sozinho
 gastaria o uso único): é o botão "Recebido" da tela que carimba
@@ -229,25 +230,32 @@ def _linha(supabase, recebimento_id: str) -> dict | None:
     return linhas[0] if linhas else None
 
 
-def com_o_link(supabase, registro: dict, agora: datetime) -> tuple[str | None, dict]:
-    """O endereço e o registro com o link novo, na hora do envio. O token nasce
-    aqui, e só o hash fica no banco. None no endereço quando o setor já
-    confirmou: o e-mail não sai."""
+def com_o_link(supabase, registro: dict, agora: datetime) -> tuple[str | None, dict, str]:
+    """O endereço, o registro com o link novo e o token, na hora do envio. O
+    token nasce aqui e só vai ao banco, em hash, depois que o provedor aceita
+    o e-mail (`gravar_o_link`): o envio que falha não derruba o link do e-mail
+    anterior. None no endereço quando o setor já confirmou: o e-mail não sai."""
     recebimento_id = str(registro["referencia"]).removesuffix(SUFIXO_DO_REENVIO)
     linha = _linha(supabase, recebimento_id)
     if linha is None or linha.get("recebido_em"):
-        return None, registro
+        return None, registro, ""
     token = secrets.token_urlsafe(32)
-    supabase.table(TABELA).update({"token_hash": _hash(token), "expira_em": (agora + VALIDADE_DO_LINK).isoformat()}).eq(
-        "id", recebimento_id
-    ).is_("recebido_em", "null").execute()
     link = f"{settings.frontend_url}/notificar/recebido/{token}"
     pronto = {
         **registro,
         "texto": f"{registro['texto']}\n\nAbra o caso e confirme o recebimento: {link}\n",
         "contexto": {**(registro.get("contexto") or {}), "link": link},
     }
-    return linha.get("destinatario_email") or "", pronto
+    return linha.get("destinatario_email") or "", pronto, token
+
+
+def gravar_o_link(supabase, registro: dict, token: str, agora: datetime) -> None:
+    """O provedor aceitou o e-mail: o link dele passa a valer, por cima do
+    anterior, até a validade."""
+    recebimento_id = str(registro["referencia"]).removesuffix(SUFIXO_DO_REENVIO)
+    supabase.table(TABELA).update({"token_hash": _hash(token), "expira_em": (agora + VALIDADE_DO_LINK).isoformat()}).eq(
+        "id", recebimento_id
+    ).is_("recebido_em", "null").execute()
 
 
 def carregar_pelo_token(supabase, token: str, agora: datetime) -> dict:
@@ -284,7 +292,11 @@ def resumo(supabase, linha: dict) -> dict[str, Any]:
         .data
     ) or [{}]
     caso = caso[0]
-    setores = supabase.table("setores").select("id, nome").eq("id", caso.get("setor_id")).limit(1).execute().data
+    # O caso que veio pela ponte da Ouvidoria pode não ter setor: sem ele, não
+    # há consulta (`id=eq.null` numa coluna UUID dá 400 no PostgREST).
+    setores = []
+    if caso.get("setor_id"):
+        setores = supabase.table("setores").select("id, nome").eq("id", caso["setor_id"]).limit(1).execute().data
     return {
         "protocolo": caso.get("protocolo"),
         "destino": ROTULOS.get(linha.get("destino"), linha.get("destino")),
@@ -314,12 +326,32 @@ def confirmar(supabase, linha: dict, agora: datetime) -> str | None:
 
 def recebimentos_do_caso(supabase, notificacao_id: str) -> list[dict[str, Any]]:
     """Os envios com Recebido do caso, para a tela: a quem foi e quando o setor
-    confirmou. Sem token nem hash."""
+    confirmou. Sem token nem hash. O reenvio só conta quando o e-mail saiu: o
+    carimbo `reenviado_em` da linha é a trava do job, e entra antes do envio."""
     linhas = (
         supabase.table(TABELA).select(_CAMPOS).eq("notificacao_id", notificacao_id).order("enviado_em").execute().data
     ) or []
-    campos = ("encaminhamento_id", "destino", "setor", "destinatario_nome", "papel", "enviado_em", "reenviado_em")
-    return [{**{c: linha.get(c) for c in campos}, "recebido_em": linha.get("recebido_em")} for linha in linhas]
+    reenvios = {}
+    if any(linha.get("reenviado_em") for linha in linhas):
+        saidos = (
+            supabase.table(emails.TABELA)
+            .select("referencia, enviado_em")
+            .eq("marco", MARCO_DO_SETOR)
+            .eq("situacao", emails.ENVIADO)
+            .in_("referencia", [f"{linha['id']}{SUFIXO_DO_REENVIO}" for linha in linhas])
+            .execute()
+            .data
+        ) or []
+        reenvios = {str(s["referencia"]).removesuffix(SUFIXO_DO_REENVIO): s.get("enviado_em") for s in saidos}
+    campos = ("encaminhamento_id", "destino", "setor", "destinatario_nome", "papel", "enviado_em")
+    return [
+        {
+            **{c: linha.get(c) for c in campos},
+            "reenviado_em": reenvios.get(str(linha["id"])),
+            "recebido_em": linha.get("recebido_em"),
+        }
+        for linha in linhas
+    ]
 
 
 def reenviar_os_esquecidos(supabase, agora: datetime, feriados: frozenset[date] | None = None) -> int:
