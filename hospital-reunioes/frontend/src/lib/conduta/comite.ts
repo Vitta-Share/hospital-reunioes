@@ -6,6 +6,7 @@
  * AGORA" chega pronta, com o motivo do botão bloqueado.
  */
 import type { Afastamento } from "@/lib/conduta/afastamento";
+import type { AnexoDoRelato } from "@/lib/conduta/anexos";
 import type { AtaDoCaso, ReuniaoDoComite } from "@/lib/conduta/ata";
 import type { Depoimento } from "@/lib/conduta/depoimentos";
 import type { TextoDaApuracao } from "@/lib/conduta/relatorio";
@@ -109,6 +110,8 @@ export interface CasoAberto extends CasoDaLista {
   relato: string;
   // O nome de quem relatou com identificação (issue #1843); nulo no anônimo.
   relator_nome?: string | null;
+  // Os anexos do relato, já sem os dados de origem (issue #1844).
+  anexos?: AnexoDoRelato[];
   escopo: Escopo | null;
   destino: string | null;
   papel: string | null;
