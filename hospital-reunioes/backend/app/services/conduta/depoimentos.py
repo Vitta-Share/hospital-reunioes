@@ -540,6 +540,7 @@ def anexar(supabase, aberto: CasoAberto, depoimento_id: str, tipo: str, recebido
             "storage_path": caminho,
             "content_type": content_type,
             "tamanho_bytes": len(recebido.conteudo),
+            "codigo_integridade": trilha.codigo_de_integridade(recebido.conteudo),
             "enviado_por": aberto.autor_id,
             "enviado_em": agora,
         }

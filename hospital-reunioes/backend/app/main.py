@@ -30,6 +30,7 @@ from app.routers import (
     conduta_publico,
     conduta_retorno,
     conduta_rota_especial,
+    conduta_trilha,
     conduta_voto,
     conector_mcp,
     configuracoes,
@@ -222,6 +223,7 @@ app.include_router(conduta_membros.router, prefix=settings.api_prefix)
 app.include_router(conduta_publico.router, prefix=settings.api_prefix)
 app.include_router(conduta_retorno.router, prefix=settings.api_prefix)
 app.include_router(conduta_rota_especial.router, prefix=settings.api_prefix)
+app.include_router(conduta_trilha.router, prefix=settings.api_prefix)
 app.include_router(conduta_voto.router, prefix=settings.api_prefix)
 app.include_router(admin.router, prefix=settings.api_prefix)
 app.include_router(admin_super_admins.router, prefix=settings.api_prefix)
