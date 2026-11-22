@@ -220,6 +220,78 @@ class TestCriar:
         assert sb.tabelas[CONVERSA] == []
         assert emails == []
 
+    def test_sem_card_projeto_vale_o_projeto_da_demanda_e_sem_repositorio_e_recusado(self):
+        ponte, sb = _ponte()
+        sb.tabelas["tecnologia_demandas"][0]["projeto"] = "vitta-os"
+
+        resposta = _criar(ponte)
+
+        assert resposta.status_code == 422
+        assert "Projeto vitta-os" in resposta.json()["detail"]
+        assert sb.tabelas[TABELA] == []
+
+    def test_o_da_ana_e_aceito_com_o_repositorio_dela_configurado(self, monkeypatch):
+        monkeypatch.setattr(settings, "github_integracao_repo_ana", "pedrorezendefig/ana")
+        ponte, sb = _ponte()
+
+        resposta = _criar(ponte, card_projeto="ana")
+
+        assert resposta.status_code == 201, resposta.text
+        assert sb.tabelas[TABELA][0]["card_projeto"] == "ana"
+
+    def test_o_da_ana_e_recusado_com_a_variavel_vazia(self, monkeypatch):
+        monkeypatch.setattr(settings, "github_integracao_repo_ana", "")
+        ponte, sb = _ponte()
+
+        resposta = _criar(ponte, card_projeto="ana")
+
+        assert resposta.status_code == 422
+        assert resposta.json() == {
+            "detail": "O app não alcança o repositório do Projeto ana, então não fecharia o card. Mande como Pergunta."
+        }
+        assert sb.tabelas[TABELA] == []
+
+    @pytest.mark.parametrize("card_projeto", [None, "vitta-os"], ids=["sem-card-projeto", "card-projeto-sem-repo"])
+    def test_a_pergunta_de_projeto_sem_repositorio_continua_sendo_criada(self, card_projeto):
+        ponte, sb = _ponte()
+        sb.tabelas["tecnologia_demandas"][0]["projeto"] = "vitta-os"
+
+        resposta = _criar(
+            ponte,
+            tipo="pergunta",
+            passos=[],
+            card_numero=None,
+            card_projeto=card_projeto,
+            opcoes=["Sim", "Não"],
+            recomendada="A",
+        )
+
+        assert resposta.status_code == 201, resposta.text
+        [pedido] = sb.tabelas[TABELA]
+        assert pedido["tipo"] == "pergunta"
+        assert "card_projeto" not in pedido
+
+    def test_o_modulo_do_pedido_recusa_antes_de_gravar(self):
+        _, sb = _ponte()
+        [demanda] = sb.tabelas["tecnologia_demandas"]
+
+        with pytest.raises(tecnologia_perguntas.PerguntaRecusadaError, match="Projeto vitta-os"):
+            tecnologia_perguntas.criar(
+                sb,
+                {**demanda, "projeto": "vitta-os"},
+                autor=PEDRO,
+                destinatario_id=DIRETORA["id"],
+                assunto="publicar o Regimento do NSP",
+                texto="Publique o Regimento do NSP no app.",
+                linhas=QUATRO_LINHAS,
+                tipo="passo_a_passo",
+                passos=PASSOS,
+                card_numero=CARD,
+            )
+
+        assert sb.tabelas[TABELA] == []
+        assert sb.tabelas[CONVERSA] == []
+
     def test_criar_avisa_o_destinatario_com_pede_sua_acao_e_o_assunto(self, emails):
         ponte, sb = _ponte()
 
