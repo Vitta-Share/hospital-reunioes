@@ -113,6 +113,7 @@ from app.models.tecnologia_schemas import (
     ChatResponse,
     ChatTurnoPayload,
     ConversaDaDemandaResponse,
+    ConversaDoMeExpliqueResponse,
     CriarOCardPayload,
     DemandaResponse,
     DesenvolvedorResponse,
@@ -122,6 +123,7 @@ from app.models.tecnologia_schemas import (
     InterpretacaoDoEnvioResponse,
     MensagemDaConversaPayload,
     MensagemDaConversaResponse,
+    MeExpliquePayload,
     ModeloDaDemanda,
     PerguntaEsperandoResponse,
     QuemSouNaAbaResponse,
@@ -143,6 +145,7 @@ from app.services import (
     tecnologia_entregas,
     tecnologia_envio,
     tecnologia_envio_aos_desenvolvedores,
+    tecnologia_me_explique,
     tecnologia_perguntas,
     tecnologia_revisao,
     tecnologia_sincronizacao,
@@ -1352,6 +1355,59 @@ async def responder_a_pergunta(
         _recusar(str(recusa))
     nome = ator.get("nome_completo") or ""
     return {"pergunta": cartao, "mensagem": _mensagem_para_a_tela(linha, nomes={str(ator["id"]): nome}, ator=ator)}
+
+
+# ─── O Me explique (issue #2122, ADR 0109, decisao 8) ───────────────────────
+
+
+def _pergunta_do_me_explique(supabase: Client, pergunta_id: str, ator: dict) -> tuple[dict, dict]:
+    """A Pergunta e a Demanda dela, se quem pede ve o cartao: quem ve a
+    Demanda, ou o Destinatario. Senao 404, sem dizer que existe."""
+    pergunta = tecnologia_perguntas.buscar(supabase, pergunta_id)
+    if pergunta is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pergunta não encontrada.")
+    demanda = _buscar_demanda(supabase, str(pergunta["demanda_id"]))
+    if not (pode_ver(ator, demanda) or str(ator["id"]) == str(pergunta.get("destinatario_id"))):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pergunta não encontrada.")
+    return pergunta, demanda
+
+
+@router.get("/perguntas/{pergunta_id}/me-explique", response_model=ConversaDoMeExpliqueResponse)
+async def ler_o_me_explique(
+    pergunta_id: str,
+    ator: dict = Depends(require_super_admin),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """A conversa do Me explique de quem esta logado, e so a dele. Nao chama a IA."""
+    pergunta, _ = _pergunta_do_me_explique(supabase, pergunta_id, ator)
+    return {"mensagens": tecnologia_me_explique.ler(supabase, str(pergunta["id"]), str(ator["id"]))}
+
+
+@router.post("/perguntas/{pergunta_id}/me-explique", response_model=ConversaDoMeExpliqueResponse)
+@limiter.limit(LIMITE_DO_ASSISTENTE)
+async def conversar_no_me_explique(
+    request: Request,
+    pergunta_id: str,
+    payload: MeExpliquePayload,
+    ator: dict = Depends(require_super_admin),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """O clique no Me explique (sem `texto`) ou a pergunta da pessoa (com ele).
+    A IA so roda aqui, pelo clique, e o custo entra na conta do Assistente.
+    Nada vai para a Conversa da Demanda nem para o GitHub."""
+    pergunta, demanda = _pergunta_do_me_explique(supabase, pergunta_id, ator)
+    mensagens = await ai_processor.chamar_ia_fora_do_loop(
+        tecnologia_me_explique.conversar,
+        supabase,
+        pergunta,
+        demanda,
+        ator=ator,
+        texto=payload.texto,
+        kit=carregar_kit(),
+    )
+    if mensagens is None:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=tecnologia_me_explique.MOTIVO_FALHOU)
+    return {"mensagens": mensagens}
 
 
 # ─── O Envio aos desenvolvedores (issue #2011, ADR 0108, decisoes 3 a 5) ────

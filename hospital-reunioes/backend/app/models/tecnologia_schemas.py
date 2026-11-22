@@ -678,3 +678,28 @@ class RespostaDaPerguntaRespondidaResponse(BaseModel):
 
     pergunta: PerguntaDoCartaoResponse
     mensagem: MensagemDaConversaResponse
+
+
+# ─── O Me explique (issue #2122, ADR 0109, decisao 8) ───────────────────────
+
+
+class MeExpliquePayload(BaseModel):
+    """Corpo do POST /admin/tecnologia/perguntas/{id}/me-explique: sem
+    `texto`, abre a conversa; com ele, a pergunta da pessoa ao Assistente."""
+
+    texto: str | None = Field(default=None, max_length=LIMITE_DA_RESPOSTA)
+
+
+class FalaDoMeExplique(BaseModel):
+    """Uma fala da conversa particular: da pessoa ou do Assistente, que pode
+    trazer o rascunho de resposta."""
+
+    papel: Literal["pessoa", "assistente"]
+    texto: str
+    rascunho: str | None = None
+
+
+class ConversaDoMeExpliqueResponse(BaseModel):
+    """A conversa de quem esta logado sobre a Pergunta, e so a dele."""
+
+    mensagens: list[FalaDoMeExplique] = []
