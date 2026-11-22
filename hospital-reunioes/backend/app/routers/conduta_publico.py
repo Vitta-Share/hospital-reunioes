@@ -10,14 +10,18 @@ nasce fechada sem depender de quem a escreve. O log das rotas do módulo sai
 sem IP (`app.middleware.request_context`).
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+import json
+
+import httpx
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
+from postgrest.exceptions import APIError
 from supabase import Client
 
 from app.config import settings
 from app.dependencies import get_supabase_client
 from app.routers.conduta_codigo import resposta_em_pdf
 from app.services import limite_sem_ip
-from app.services.conduta import codigo, configuracoes
+from app.services.conduta import cifra, codigo, configuracoes, relato_publico
 from app.services.conduta.acesso import hoje_em_sao_paulo
 
 
@@ -58,3 +62,40 @@ async def codigo_de_conduta(request: Request, supabase: Client = Depends(get_sup
     if achada is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="O Código de Conduta ainda não foi publicado")
     return resposta_em_pdf(*achada)
+
+
+# O relato em passos (issue #1843). Rajada do mesmo aparelho para no limite,
+# contado pela chave sem endereço (decisão 10 da ADR 0097).
+LIMITE_DOS_RELATOS = "3/minute;10/hour"
+SEM_CACHE = {"Cache-Control": "no-store"}
+FALHA_DO_ENVIO = "Não deu para registrar o relato agora. Nada foi gravado. Tente de novo em alguns minutos."
+
+
+async def _corpo(request: Request):
+    """O corpo lido à mão: a recusa padrão do FastAPI devolveria o que foi
+    enviado, e aqui isso é relato e nome (regra C6)."""
+    try:
+        return await request.json()
+    except (json.JSONDecodeError, UnicodeDecodeError) as erro:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Envio ilegível.") from erro
+
+
+@router.post("/relatos", status_code=status.HTTP_201_CREATED)
+@limite_sem_ip.limitar(LIMITE_DOS_RELATOS)
+async def relatar(
+    request: Request,
+    response: Response,
+    tarefas: BackgroundTasks,
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """Recebe o relato inteiro, do passo 1 ao 5, e devolve o protocolo e o
+    código, uma vez só, com a data para voltar. Sem login: o cabeçalho de
+    sessão do app, se vier, é ignorado."""
+    response.headers.update(SEM_CACHE)
+    try:
+        envio = relato_publico.validar(await _corpo(request))
+        return relato_publico.registrar(supabase, envio, tarefas)
+    except relato_publico.EnvioRecusado as recusa:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=recusa.motivo) from None
+    except (cifra.CifraIndisponivelError, APIError, httpx.HTTPError):
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=FALHA_DO_ENVIO) from None
