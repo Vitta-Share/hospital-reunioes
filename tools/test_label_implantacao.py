@@ -61,3 +61,15 @@ def test_to_issues_diz_quando_a_fatia_humana_ganha_a_label() -> None:
     assert "não segura nenhuma fatia" in fatia, "a seção não diz a regra"
     assert "teste de aceite" in exemplo(fatia, "Ganha").lower(), "o exemplo que ganha não é de uso"
     assert "espera" in exemplo(fatia, "Não ganha"), "o exemplo que não ganha não diz que segura código"
+
+
+def test_triage_poe_ou_tira_a_label_pela_mesma_regra() -> None:
+    passo = secao(ler("triage"), "Triage a specific issue")
+    linha = [li for li in passo.splitlines() if "`implantacao`" in li]
+
+    assert linha, "o /triage não fala da label implantacao ao aplicar o papel"
+    regra = linha[0]
+    assert "--add-label implantacao" in regra, "o /triage não mostra como pôr a label"
+    assert "--remove-label implantacao" in regra, "o /triage não mostra como tirar a label"
+    assert "docs/agents/triage-labels.md" in regra, "o /triage não aponta a mesma regra do /to-issues"
+    assert "não segura nenhuma fatia" in regra, "o /triage não diz a regra"
