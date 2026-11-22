@@ -272,6 +272,22 @@ class TestQuemNaoResponde:
         [pergunta] = sb.tabelas[TABELA]
         assert (pergunta["resposta_opcao"], pergunta["respondida_por"]) == ("B", DIRETORA["id"])
 
+    def test_duas_respostas_ao_mesmo_tempo_so_a_primeira_grava(self, monkeypatch):
+        """As duas leram a Pergunta aberta; a outra grava entre a leitura e a
+        escrita desta, que é recusada sem sobrescrever nem escrever na Conversa."""
+        _, sb, pergunta_id = _uma_pergunta_aberta()
+        [linha] = sb.tabelas[TABELA]
+        conversa_antes = len(sb.tabelas[CONVERSA])
+        sb.ao_atualizar = lambda: linha.update(
+            {"estado": "respondida", "resposta_opcao": "A", "respondida_por": PEDRO["id"]}
+        )
+
+        resposta = _responder(sb, DIRETORA, pergunta_id, monkeypatch, opcao="B")
+
+        assert resposta.status_code == 409
+        assert (linha["resposta_opcao"], linha["respondida_por"]) == ("A", PEDRO["id"])
+        assert len(sb.tabelas[CONVERSA]) == conversa_antes
+
     def test_pergunta_que_nao_existe_e_404(self, monkeypatch):
         _, sb, _ = _uma_pergunta_aberta()
 

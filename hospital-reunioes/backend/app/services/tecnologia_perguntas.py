@@ -304,8 +304,6 @@ def responder(
     Pergunta respondida e a mensagem gravada na Conversa."""
     if not pode_responder(pergunta, ator):
         raise RespostaProibidaError(MOTIVO_SO_O_DESTINATARIO)
-    if (pergunta.get("estado") or ESTADO_ABERTA) != ESTADO_ABERTA:
-        raise PerguntaFechadaError(MOTIVO_NAO_ESTA_ABERTA)
     opcao, texto = (_limpo(opcao) or None), _limpo(texto)
     if not opcao and not texto:
         raise RespostaRecusadaError(MOTIVO_SEM_RESPOSTA)
