@@ -366,6 +366,14 @@ class TestEliminacao:
         assert tela["trilha"]["pode_baixar_dossie"] is False
         assert comite.baixar(COORDENACAO, caso).status_code == 409
 
+    def test_a_lista_dos_casos_mostra_o_caso_eliminado(self, comite, emails):
+        caso = comite.encerrado(dia=VENCIDO_HA_CINCO_ANOS)
+        guarda.rodada(comite.banco, HOJE)
+
+        casos = comite.cliente(COORDENACAO).get(f"{BASE}/casos").json()["casos"]
+
+        assert next(c for c in casos if c["id"] == caso)["eliminado_em"]
+
     def test_a_segunda_rodada_nao_elimina_de_novo(self, comite, emails):
         comite.encerrado(dia=VENCIDO_HA_CINCO_ANOS)
         guarda.rodada(comite.banco, HOJE)

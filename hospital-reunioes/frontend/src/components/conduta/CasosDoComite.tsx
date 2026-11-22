@@ -120,6 +120,11 @@ export function CasosDoComite() {
                 {caso.prazo_vencido && (
                   <span className="text-xs font-semibold text-red-700">Prazo vencido registrado</span>
                 )}
+                {caso.eliminado_em && (
+                  <span className="text-xs font-semibold text-slate-600">
+                    Guarda vencida: conteúdo eliminado, elimine o envelope de papel
+                  </span>
+                )}
                 {caso.origem === "ouvidoria" && (
                   <span className="text-xs font-semibold text-slate-600">Origem: Ouvidoria</span>
                 )}

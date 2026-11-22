@@ -63,6 +63,9 @@ CAMPOS_DA_LISTA = (
     # (issue #1829).
     "direcao_envolvida",
     "sinal_especial",
+    # O caso eliminado ao fim da guarda: a lista diz para eliminar o envelope
+    # de papel (issue #1838).
+    "eliminado_em",
 )
 
 

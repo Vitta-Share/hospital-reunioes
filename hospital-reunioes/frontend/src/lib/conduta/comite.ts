@@ -8,6 +8,7 @@
 import type { Afastamento } from "@/lib/conduta/afastamento";
 import type { AtaDoCaso, ReuniaoDoComite } from "@/lib/conduta/ata";
 import type { Depoimento } from "@/lib/conduta/depoimentos";
+import type { GuardaDoCaso } from "@/lib/conduta/guarda";
 import type { TextoDaApuracao } from "@/lib/conduta/relatorio";
 import type { MedidaERetorno } from "@/lib/conduta/retorno";
 import type { TrilhaDoCaso } from "@/lib/conduta/trilha";
@@ -42,6 +43,8 @@ export interface CasoDaLista {
   faltam_dias: number | null;
   /** De onde o caso veio: a página pública ou a sinalização do ouvidor (issue #1849). */
   origem?: "canal" | "ouvidoria" | null;
+  /** Conteúdo eliminado ao fim da guarda (issue #1838). */
+  eliminado_em?: string | null;
 }
 
 export interface Caixa {
@@ -105,7 +108,8 @@ export interface CasoAberto extends CasoDaLista {
   pode_contestar_participacao: boolean;
   contestacoes_de_participacao: ContestacaoDeParticipacao[];
   citados: Citado[];
-  relato: string;
+  /** Nulo depois da eliminação ao fim da guarda (issue #1838). */
+  relato: string | null;
   escopo: Escopo | null;
   destino: string | null;
   papel: string | null;
@@ -146,6 +150,8 @@ export interface CasoAberto extends CasoDaLista {
   medida_e_retorno?: MedidaERetorno | null;
   /** A trilha do caso com as gavetas e o Dossiê (issue #1837). */
   trilha?: TrilhaDoCaso | null;
+  /** O papel original, a guarda e o congelamento (issue #1838). */
+  guarda?: GuardaDoCaso | null;
 }
 
 /** O que o Grupo Especial vê do caso dele (issue #1829). */

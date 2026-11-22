@@ -15,6 +15,7 @@ import { RelatorioDaApuracao } from "@/components/conduta/RelatorioDaApuracao";
 import { RotaEspecial } from "@/components/conduta/RotaEspecial";
 import { SinalizarAoNsp } from "@/components/conduta/SinalizarAoNsp";
 import { SugestaoDoAgente } from "@/components/conduta/SugestaoDoAgente";
+import { ArquivarPapel } from "@/components/conduta/ArquivarPapel";
 import { TrilhaDoCaso } from "@/components/conduta/TrilhaDoCaso";
 import { VotoETrava } from "@/components/conduta/VotoETrava";
 import {
@@ -356,6 +357,8 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
 
       <MedidaERetorno casoId={casoId} dados={caso.medida_e_retorno ?? null} aoMudar={carregar} />
 
+      <ArquivarPapel casoId={casoId} protocolo={caso.protocolo} guarda={caso.guarda ?? null} aoMudar={carregar} />
+
       {caso.triagem_em && (
         <section aria-label="Triagem" className={`${CARTAO} px-4 py-4 space-y-1`}>
           <h2 className="text-base font-semibold text-slate-900">Triagem</h2>
@@ -444,7 +447,9 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
 
       <section aria-label="Relato original" className={`${CARTAO} px-4 py-4 space-y-1`}>
         <h2 className="text-base font-semibold text-slate-900">Relato original</h2>
-        <p className="text-sm text-slate-800 whitespace-pre-line break-words">{caso.relato}</p>
+        <p className="text-sm text-slate-800 whitespace-pre-line break-words">
+          {caso.relato ?? "O conteúdo deste caso foi eliminado ao fim da guarda."}
+        </p>
       </section>
 
       <TrilhaDoCaso casoId={casoId} protocolo={caso.protocolo} trilha={caso.trilha ?? null} />

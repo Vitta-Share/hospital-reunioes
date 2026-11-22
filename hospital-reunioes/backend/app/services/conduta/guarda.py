@@ -136,6 +136,7 @@ def para_a_tela(supabase, aberto: CasoAberto, hoje: date) -> dict:
             and not eliminado
             and not lacre
             and _do_comite_no_caso(aberto),
+            "pode_imprimir": bool(caso.get("encerrado_em")) and not eliminado and _do_comite_no_caso(aberto),
             "congelado_em": caso.get("congelado_em"),
             "pode_congelar": coordena and not eliminado,
             "eliminado_em": caso.get("eliminado_em"),
