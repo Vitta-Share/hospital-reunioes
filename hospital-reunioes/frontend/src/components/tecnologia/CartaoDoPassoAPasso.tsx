@@ -9,6 +9,10 @@
  *
  * Marca e conclui quem o servidor diz (`pode_responder`): o Destinatário, ou
  * um Desenvolvedor no lugar dele. Cada check mostra quem marcou.
+ *
+ * O Pedido de implantação (issue #2207, ADR 0111) usa este cartão com o nome
+ * dele: o card fechou quando o Pedido nasceu, e o "Não chegou ao GitHub" com
+ * o Reenviar pode aparecer já no cartão aberto.
  */
 
 import { useEffect, useState } from "react";
@@ -122,17 +126,19 @@ export function CartaoDoPassoAPasso({
   ];
   const conclusao = atual.conclusao;
   const fechamento = atual.fechamento;
+  const nome = atual.tipo === "implantacao" ? "Pedido de implantação" : "Passo a passo da Vitta";
+  const nomeDoIcone = atual.tipo === "implantacao" ? "Pedido de implantação" : "Passo a passo";
 
   return (
     <article
-      aria-label="Passo a passo da Vitta"
+      aria-label={nome}
       className={`w-full rounded-2xl border-2 px-4 py-3 space-y-3 ${
         aberta ? "border-sky-300 bg-sky-50" : "border-slate-200 bg-slate-50"
       }`}
     >
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <ListChecks role="img" aria-label="Passo a passo" className="w-4 h-4 text-sky-700" />
-        <span className="font-bold text-slate-900">Passo a passo da Vitta</span>
+        <ListChecks role="img" aria-label={nomeDoIcone} className="w-4 h-4 text-sky-700" />
+        <span className="font-bold text-slate-900">{nome}</span>
         <span className="normal-case rounded-full bg-white border border-slate-200 px-2 py-0.5 text-slate-700">
           {atual.projeto}
         </span>

@@ -241,7 +241,9 @@ class PerguntaDaVittaPayload(BaseModel):
     # O Pedido da Vitta (issue #2176, ADR 0110): sem `tipo` e Pergunta. O
     # Passo a passo traz os passos (de 2 a 15, o ultimo e o "Como saber que
     # acabou") e o card que o app fecha; o Projeto do card e o da Demanda
-    # quando nao vem. A falta e recusada pelo servico, com o motivo.
+    # quando nao vem. A falta e recusada pelo servico, com o motivo. O Pedido
+    # de implantacao (`implantacao`, issue #2207, ADR 0111) pede o mesmo e a
+    # label `implantacao` no card; nascer fecha o card.
     tipo: str | None = Field(default=None, max_length=20)
     passos: list[Annotated[str, Field(max_length=LIMITE_DO_PASSO)]] = Field(default_factory=list, max_length=20)
     card_numero: int | None = Field(default=None, ge=1)

@@ -1,6 +1,7 @@
 /**
  * O cartão do Pedido da Vitta (issue #2176, ADR 0110, decisão 1): a Pergunta
- * ou o Passo a passo, pelo tipo que o servidor manda. Sem tipo é Pergunta. A
+ * ou o Passo a passo, pelo tipo que o servidor manda. Sem tipo é Pergunta. O
+ * Pedido de implantação (issue #2207, ADR 0111) usa o cartão do Passo a passo. A
  * Conversa da Demanda e a lista Esperando você desenham este, e não um dos
  * dois direto, para os dois tipos terem o mesmo lugar.
  */
@@ -21,7 +22,7 @@ export function CartaoDoPedido({
   onRespondida?: (respondida: PerguntaRespondida) => void;
   onConcluido?: (concluido: PassoAPassoConcluido) => void;
 }) {
-  if (pedido.tipo === "passo_a_passo") {
+  if (pedido.tipo === "passo_a_passo" || pedido.tipo === "implantacao") {
     return <CartaoDoPassoAPasso pedido={pedido} agora={agora} token={token} onConcluido={onConcluido} />;
   }
   return <CartaoDaPergunta pergunta={pedido} agora={agora} token={token} onRespondida={onRespondida} />;

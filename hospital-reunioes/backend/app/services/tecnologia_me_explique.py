@@ -146,8 +146,9 @@ def pedido(demanda: dict[str, Any], pergunta: dict[str, Any], mensagens: list[di
         recuar_continuacao(f"{'Pessoa' if m.get('papel') == PAPEL_PESSOA else 'Assistente'}: {m.get('texto') or ''}")
         for m in mensagens
     ] or ["(a conversa começa agora: explique a Demanda e a Pergunta e proponha um rascunho)"]
-    if pergunta.get("tipo") == "passo_a_passo":
-        # O Passo a passo da Vitta (issue #2176, ADR 0110): no lugar das
+    if pergunta.get("tipo") in ("passo_a_passo", "implantacao"):
+        # O Passo a passo da Vitta (issue #2176, ADR 0110) e o Pedido de
+        # implantacao (issue #2207, ADR 0111): no lugar das
         # opcoes, os passos; o rascunho e o da anotacao opcional.
         return "\n".join(
             [

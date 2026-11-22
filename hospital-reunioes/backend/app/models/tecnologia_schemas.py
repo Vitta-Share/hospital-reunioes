@@ -323,8 +323,9 @@ class PerguntaDoCartaoResponse(BaseModel):
     dias)."""
 
     id: str
-    # O tipo do Pedido da Vitta (issue #2176, ADR 0110, decisao 1).
-    tipo: Literal["pergunta", "passo_a_passo"] = "pergunta"
+    # O tipo do Pedido da Vitta (issue #2176, ADR 0110, decisao 1; o Pedido de
+    # implantacao, issue #2207, ADR 0111).
+    tipo: Literal["pergunta", "passo_a_passo", "implantacao"] = "pergunta"
     projeto: str
     assunto: str
     texto: str
