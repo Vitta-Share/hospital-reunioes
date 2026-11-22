@@ -298,6 +298,15 @@ describe("assinatura na reunião do Núcleo", () => {
     expect(screen.queryByTestId("cartao-signatarios")).toBeNull();
   });
 
+  // Issue #1904: depois que todos assinam, a tela sai de "Aguardando
+  // assinatura digital" e mostra a Ata Assinada.
+  it("a reunião comum assinada mostra o banner de assinada e não o cartão de signatários", async () => {
+    servir("ASSINADA", false);
+    montar();
+    expect(await screen.findByText("Ata Assinada Digitalmente")).toBeTruthy();
+    expect(screen.queryByTestId("cartao-signatarios")).toBeNull();
+  });
+
   it("a reunião comum aprovada mostra o banner de aprovada sem assinatura", async () => {
     servir("APROVADA", false);
     montar();

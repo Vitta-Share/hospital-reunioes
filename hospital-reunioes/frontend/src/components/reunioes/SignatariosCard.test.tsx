@@ -11,7 +11,7 @@
  * dizendo "Aguardando assinatura" com a Ata já ASSINADA no banco.
  */
 
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ToastProvider } from "@/components/ui/Toast";
@@ -77,6 +77,59 @@ describe("SignatariosCard, o Atualizar que fecha a Ata", () => {
 
     await waitFor(() => {
       expect(globalThis.fetch).toHaveBeenCalled();
+    });
+    expect(onDesfecho).not.toHaveBeenCalled();
+  });
+});
+
+// Issue #1904: a Ata assinada por todos que o diretor sincronizou e seguiu em
+// "Aguardando assinatura digital". O Sincronizar que finaliza recarrega a
+// Reunião, e a página troca o card pelo banner de Ata Assinada.
+describe("SignatariosCard, o Sincronizar que fecha a Ata", () => {
+  function servirSincronizar(desfecho: string) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const corpo = url.endsWith("/signatarios/sincronizar")
+          ? { desfecho }
+          : {
+              total: 2,
+              assinaram: 2,
+              envelope_id: "env-1",
+              signatarios: [],
+              pendencias_criadas: 0,
+              total_acoes: 20,
+              finalizada: false,
+            };
+        return { ok: true, status: 200, json: async () => corpo };
+      }),
+    );
+  }
+
+  it("recarrega a Reunião quando o Sincronizar finalizou a Ata", async () => {
+    servirSincronizar("finalizada");
+    const onDesfecho = vi.fn();
+    renderCard(onDesfecho);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Sincronizar com a ClickSign" }));
+
+    await waitFor(() => {
+      expect(onDesfecho).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("não recarrega quando o Sincronizar não mudou nada", async () => {
+    servirSincronizar("sem_mudanca");
+    const onDesfecho = vi.fn();
+    renderCard(onDesfecho);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Sincronizar com a ClickSign" }));
+
+    await waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "/api/reunioes/R1/signatarios/sincronizar",
+        expect.objectContaining({ method: "POST" }),
+      );
     });
     expect(onDesfecho).not.toHaveBeenCalled();
   });
