@@ -26,6 +26,13 @@ do GitHub, que o app comenta e fecha quando ele e concluido. Concluir grava
 antes e fecha depois: o GitHub recusando deixa o fechamento `falhou`, com o
 motivo, e so o Reenviar tenta de novo. O Pedido acompanha o GitHub pelo
 webhook (`aplicar_evento_da_issue`).
+
+Desde a issue #2207 (ADR 0111, emenda a 0110) ha o terceiro tipo, o Pedido de
+implantacao: o que o hospital faz depois que o codigo sobe. Tem os passos e
+os checks do Passo a passo, mas so nasce para o card com a label
+`implantacao`, e nascer fecha o card como concluido, com o comentario fixo. O
+Concluir so comenta na issue fechada, nunca chama o fechamento, e o webhook
+nao mexe nele (decisao 7).
 """
 
 from __future__ import annotations
@@ -52,7 +59,14 @@ TABELA_CHECKS = "tecnologia_checks_do_pedido"
 # Os dois tipos do Pedido da Vitta (ADR 0110, decisao 1).
 TIPO_PERGUNTA = "pergunta"
 TIPO_PASSO_A_PASSO = "passo_a_passo"
-TIPOS = (TIPO_PERGUNTA, TIPO_PASSO_A_PASSO)
+# O Pedido de implantacao (ADR 0111, decisao 1): passos com check, como o
+# Passo a passo, para o que vem depois do codigo.
+TIPO_IMPLANTACAO = "implantacao"
+TIPOS = (TIPO_PERGUNTA, TIPO_PASSO_A_PASSO, TIPO_IMPLANTACAO)
+TIPOS_COM_PASSOS = (TIPO_PASSO_A_PASSO, TIPO_IMPLANTACAO)
+
+# A label do card que pode virar Pedido de implantacao (ADR 0111, decisao 3).
+LABEL_DA_IMPLANTACAO = "implantacao"
 
 # O Passo a passo tem de 2 a 15 passos; o ultimo e o "Como saber que acabou".
 MINIMO_DE_PASSOS = 2
@@ -101,7 +115,12 @@ MOTIVO_NAO_ESTA_ABERTA = "Esta Pergunta já não espera resposta."
 MOTIVO_SEM_DECIDIDO = "Falta o que foi decidido."
 MOTIVO_SEM_DESTRAVOU = "Falta o que destravou."
 MOTIVO_SEM_MOTIVO = "Falta o motivo do cancelamento."
-MOTIVO_TIPO = "O tipo do Pedido é pergunta ou passo_a_passo."
+MOTIVO_TIPO = "O tipo do Pedido é pergunta, passo_a_passo ou implantacao."
+MOTIVO_SEM_LABEL_DE_IMPLANTACAO = (
+    "Só o card com a label implantacao vira Pedido de implantação. Mande como Passo a passo, ou ponha a label."
+)
+MOTIVO_CARD_NAO_EXISTE = "O card não existe no repositório do Projeto {projeto}."
+MOTIVO_SEM_CONFERIR_O_CARD = "O app não conseguiu ler o card no GitHub para conferir a label ({erro})."
 MOTIVO_PASSOS = 'O Passo a passo precisa de 2 a 15 passos, todos com texto; o último é o "Como saber que acabou".'
 MOTIVO_SEM_CARD = "Falta o card do Passo a passo (o número da issue)."
 # Issue #2190: o app so fecha card no repositorio que conhece.
@@ -115,7 +134,7 @@ MOTIVO_PASSO_DESCONHECIDO = "Este passo não existe no Passo a passo."
 MOTIVO_FALTA_CHECK = "Marque todos os passos antes de concluir."
 MOTIVO_SO_QUEM_FAZ = "Só quem recebeu o Passo a passo, ou um Desenvolvedor no lugar dele, pode marcar e concluir."
 MOTIVO_JA_CONCLUIDO = "Este Passo a passo já não está aberto."
-MOTIVO_NADA_A_REENVIAR = "Este Passo a passo não tem fechamento que falhou para reenviar."
+MOTIVO_NADA_A_REENVIAR = "Este Pedido não tem fechamento que falhou para reenviar."
 MOTIVO_GITHUB_SEM_ACESSO = "O app não tem acesso ao repositório deste card."
 # Por que a passagem nao vale, pelo estado em que a Pergunta esta.
 MOTIVO_DA_PASSAGEM_RECUSADA = {
@@ -207,11 +226,18 @@ def criar(
     O Passo a passo (`tipo=passo_a_passo`) exige de 2 a 15 passos com texto e
     o numero do card; o Projeto do card e o da Demanda quando nao vem, e
     precisa ter repositorio configurado no app (issue #2190). Opcoes prontas
-    so existem na Pergunta."""
+    so existem na Pergunta.
+
+    O Pedido de implantacao (`tipo=implantacao`, issue #2207) pede o mesmo
+    que o Passo a passo e mais a label `implantacao` no card, lida no GitHub
+    antes de gravar. Depois de gravado, o app fecha o card como concluido com
+    o comentario fixo; a recusa do GitHub nao desfaz o Pedido, deixa o
+    fechamento `falhou` com o motivo (ADR 0111, decisao 4)."""
     tipo = tipo or TIPO_PERGUNTA
     if tipo not in TIPOS:
         raise PerguntaRecusadaError(MOTIVO_TIPO)
-    e_passo_a_passo = tipo == TIPO_PASSO_A_PASSO
+    e_passo_a_passo = tipo in TIPOS_COM_PASSOS
+    implantacao = tipo == TIPO_IMPLANTACAO
     assunto, texto = _limpo(assunto), _limpo(texto)
     if not assunto:
         raise PerguntaRecusadaError(MOTIVO_SEM_ASSUNTO)
@@ -237,6 +263,8 @@ def criar(
     lista = _opcoes(opcoes, recomendada)
     if not destinatario_id or not tecnologia_conversa.e_participante_ativo(supabase, destinatario_id):
         raise PerguntaRecusadaError(MOTIVO_DESTINATARIO)
+    if implantacao:
+        _exigir_a_label_da_implantacao(int(card_numero), projeto_do_card)
 
     # O id nasce aqui, como UUID: e com ele que a ponte le a Pergunta depois
     # (o PedroOS o guarda, Vitta-Share/os#992), e o aviso leva a ele (#2118).
@@ -288,12 +316,37 @@ def criar(
         {
             "demanda_id": demanda["id"],
             "autor_id": autor["id"],
-            "texto": f"{'Passo a passo aberto' if e_passo_a_passo else 'Pergunta aberta'}: {assunto}",
+            "texto": f"{NOME_DO_TIPO[tipo]} {'aberto' if e_passo_a_passo else 'aberta'}: {assunto}",
             "mencoes": [],
             "origem": ORIGEM_SISTEMA,
         }
     ).execute()
+    if implantacao:
+        pergunta = _fechar_o_card(supabase, pergunta)
     return pergunta
+
+
+# O nome de cada tipo nas linhas de sistema da Conversa.
+NOME_DO_TIPO = {
+    TIPO_PERGUNTA: "Pergunta",
+    TIPO_PASSO_A_PASSO: "Passo a passo",
+    TIPO_IMPLANTACAO: "Pedido de implantação",
+}
+
+
+def _exigir_a_label_da_implantacao(numero: int, projeto: str) -> None:
+    """So o card com a label `implantacao` vira Pedido de implantacao (ADR
+    0111, decisao 3): o app le a label no GitHub, e nao no que a ponte diz.
+    Sem conseguir ler, recusa: nada e gravado."""
+    try:
+        dados = github_client.ler_issue(numero, projeto=projeto)
+    except github_client.IssueNaoEncontradaError as erro:
+        raise PerguntaRecusadaError(MOTIVO_CARD_NAO_EXISTE.format(projeto=projeto)) from erro
+    except (github_client.GithubNaoConfiguradoError, github_client.GithubIndisponivelError) as erro:
+        raise PerguntaRecusadaError(MOTIVO_SEM_CONFERIR_O_CARD.format(erro=erro)) from erro
+    labels = {str(label.get("name")) for label in dados.get("labels") or [] if isinstance(label, dict)}
+    if github_client.e_pull_request(dados) or LABEL_DA_IMPLANTACAO not in labels:
+        raise PerguntaRecusadaError(MOTIVO_SEM_LABEL_DE_IMPLANTACAO)
 
 
 def buscar(supabase, pergunta_id: str) -> dict[str, Any] | None:
@@ -316,7 +369,12 @@ def _pessoas_da_pergunta(pergunta: dict[str, Any]) -> set[str]:
 
 
 def e_passo_a_passo(pedido: dict[str, Any]) -> bool:
-    return pedido.get("tipo") == TIPO_PASSO_A_PASSO
+    """O Pedido com passos e checks: o Passo a passo e o Pedido de implantacao."""
+    return pedido.get("tipo") in TIPOS_COM_PASSOS
+
+
+def e_implantacao(pedido: dict[str, Any]) -> bool:
+    return pedido.get("tipo") == TIPO_IMPLANTACAO
 
 
 def pode_responder(pergunta: dict[str, Any], ator: dict[str, Any]) -> bool:
@@ -411,19 +469,14 @@ def _cartao(
     passo_a_passo = e_passo_a_passo(p)
     return {
         "id": str(p["id"]),
-        "tipo": TIPO_PASSO_A_PASSO if passo_a_passo else TIPO_PERGUNTA,
+        "tipo": p["tipo"] if passo_a_passo else TIPO_PERGUNTA,
         # O Passo a passo (issue #2176): os passos com o check, a conclusao e
         # o fechamento no GitHub. Vazios na Pergunta.
         "passos": _passos(p, historico or [], nomes) if passo_a_passo else [],
         "conclusao": _conclusao(p, nomes),
         "fechamento": _fechamento(p),
         # O Reenviar do "Não chegou ao GitHub": quem pode agir no Pedido.
-        "pode_reenviar": (
-            ator is not None
-            and p.get("fechamento_github") == FECHAMENTO_FALHOU
-            and estado == ESTADO_CONCLUIDA
-            and pode_responder(p, ator)
-        ),
+        "pode_reenviar": ator is not None and _cabe_reenviar(p) and pode_responder(p, ator),
         "projeto": projeto,
         "assunto": p.get("assunto") or "",
         "texto": p.get("texto") or "",
@@ -851,7 +904,8 @@ def cancelar(
             "cancelada_em": datetime.now(UTC).isoformat(),
         },
         linha=(
-            f"{'Passo a passo cancelado' if e_passo_a_passo(pergunta) else 'Pergunta cancelada'}: "
+            f"{NOME_DO_TIPO.get(pergunta.get('tipo') or TIPO_PERGUNTA, 'Pergunta')} "
+            f"{'cancelado' if e_passo_a_passo(pergunta) else 'cancelada'}: "
             f"{pergunta.get('assunto') or ''}\nMotivo: {motivo}"
         ),
     )
@@ -903,7 +957,7 @@ def leitura_do_passo_a_passo(supabase, pedido: dict[str, Any]) -> dict[str, Any]
     if not e_passo_a_passo(pedido):
         return {"tipo": TIPO_PERGUNTA, "card": None, "conclusao": None, "fechamento": None}
     return {
-        "tipo": TIPO_PASSO_A_PASSO,
+        "tipo": pedido["tipo"],
         "card": {"projeto": pedido.get("card_projeto"), "numero": pedido.get("card_numero")},
         "conclusao": _conclusao(pedido, _nomes(supabase, _pessoas_da_pergunta(pedido))),
         "fechamento": _fechamento(pedido),
@@ -918,6 +972,7 @@ def _hora_local(instante: str) -> str:
 # O marcador da primeira linha do comentario: e por ele que o teste (e quem
 # le a issue) reconhece o comentario do app.
 MARCADOR_DO_COMENTARIO = "<!-- pedido-da-vitta: passo-a-passo-concluido -->"
+MARCADOR_DA_IMPLANTACAO_CONCLUIDA = "<!-- pedido-da-vitta: implantacao-concluida -->"
 
 
 def comentario_de_fechamento(pedido: dict[str, Any], *, destinatario_e_desenvolvedor: bool) -> str:
@@ -931,11 +986,14 @@ def comentario_de_fechamento(pedido: dict[str, Any], *, destinatario_e_desenvolv
         else f"pelo Destinatário ({papel})"
     )
     checks = "\n".join(f"- [x] {passo}" for passo in pedido.get("passos") or [])
-    return (
-        f"{MARCADOR_DO_COMENTARIO}\n"
-        f"Passo a passo concluído no app em {_hora_local(pedido['concluida_em'])}, {quem}.\n\n"
-        f"{checks}"
+    # O Pedido de implantacao (ADR 0111, decisao 7) comenta o mesmo fato, com
+    # o marcador e o nome dele.
+    marcador, nome = (
+        (MARCADOR_DA_IMPLANTACAO_CONCLUIDA, "Pedido de implantação")
+        if e_implantacao(pedido)
+        else (MARCADOR_DO_COMENTARIO, "Passo a passo")
     )
+    return f"{marcador}\n{nome} concluído no app em {_hora_local(pedido['concluida_em'])}, {quem}.\n\n{checks}"
 
 
 def _motivo_da_falha(erro: Exception) -> str:
@@ -944,14 +1002,41 @@ def _motivo_da_falha(erro: Exception) -> str:
     return f"O GitHub não aceitou ({erro})."[:500]
 
 
-def _fechar_o_card(supabase, pedido: dict[str, Any]) -> dict[str, Any]:
-    """Comenta e fecha o card como feito, e grava o desfecho: `fechado`, ou
-    `falhou` com o motivo (decisao 8). Nunca tenta de novo sozinho."""
+# O comentario fixo com que o Pedido de implantacao fecha o card ao nascer
+# (ADR 0111, decisao 4).
+COMENTARIO_DO_NASCIMENTO_DA_IMPLANTACAO = (
+    "<!-- pedido-da-vitta: virou-implantacao -->\nVirou Pedido de implantação no app."
+)
+
+
+def _cabe_reenviar(pedido: dict[str, Any]) -> bool:
+    """O fechamento falhou e ainda vale tentar de novo: o Passo a passo
+    concluido, ou o Pedido de implantacao que nao foi cancelado (o dele fecha
+    o card ao nascer)."""
+    if pedido.get("fechamento_github") != FECHAMENTO_FALHOU:
+        return False
+    if e_implantacao(pedido):
+        return pedido.get("estado") != ESTADO_CANCELADA
+    return pedido.get("estado") == ESTADO_CONCLUIDA
+
+
+def _comentario_do_destinatario(supabase, pedido: dict[str, Any]) -> str:
     destinatario = _participantes(supabase, {str(pedido.get("destinatario_id") or "")})
-    comentario = comentario_de_fechamento(
+    return comentario_de_fechamento(
         pedido,
         destinatario_e_desenvolvedor=e_desenvolvedor(destinatario.get(str(pedido.get("destinatario_id") or ""))),
     )
+
+
+def _fechar_o_card(supabase, pedido: dict[str, Any]) -> dict[str, Any]:
+    """Comenta e fecha o card como feito, e grava o desfecho: `fechado`, ou
+    `falhou` com o motivo (decisao 8). Nunca tenta de novo sozinho. O Passo a
+    passo fecha com o comentario da conclusao; o Pedido de implantacao, com o
+    comentario fixo do nascimento."""
+    if e_implantacao(pedido):
+        comentario = COMENTARIO_DO_NASCIMENTO_DA_IMPLANTACAO
+    else:
+        comentario = _comentario_do_destinatario(supabase, pedido)
     try:
         github_client.fechar_como_feita(
             int(pedido["card_numero"]), projeto=str(pedido.get("card_projeto") or ""), comentario=comentario
@@ -977,12 +1062,19 @@ def concluir(
     concluida e condicional (`estado = aberta`), a Conversa ganha a linha de
     sistema e, se houver, a anotacao como mensagem de quem concluiu; depois o
     app comenta e fecha o card. O GitHub recusando deixa o Pedido concluido
-    com o fechamento `falhou`. Devolve o cartao e a mensagem da anotacao."""
+    com o fechamento `falhou`. Devolve o cartao e a mensagem da anotacao.
+
+    O Pedido de implantacao (issue #2207, ADR 0111, decisao 7) fechou o card
+    ao nascer: concluir so comenta na issue fechada, nunca chama o
+    fechamento, e nao mexe no fechamento do nascimento. O comentario que
+    falha so vai ao log: a conclusao ja esta gravada no app."""
     _do_passo_a_passo_aberto(pedido, ator)
     historico = _historico(supabase, [str(pedido["id"])]).get(str(pedido["id"]), [])
     if not _todos_marcados(pedido, historico):
         raise ConclusaoRecusadaError(MOTIVO_FALTA_CHECK)
     anotacao = _limpo(anotacao)
+    implantacao = e_implantacao(pedido)
+    fechamento = {} if implantacao else {"fechamento_github": FECHAMENTO_PENDENTE, "fechamento_motivo": None}
     gravadas = (
         supabase.table(TABELA_PERGUNTAS)
         .update(
@@ -993,8 +1085,7 @@ def concluir(
                 "concluida_em": _agora().isoformat(),
                 "concluida_como": CONCLUIDA_NO_APP,
                 "resposta_texto": anotacao or None,
-                "fechamento_github": FECHAMENTO_PENDENTE,
-                "fechamento_motivo": None,
+                **fechamento,
             }
         )
         .eq("id", pedido["id"])
@@ -1005,14 +1096,32 @@ def concluir(
     )
     if not gravadas:
         raise PerguntaFechadaError(MOTIVO_JA_CONCLUIDO)
-    _linha_de_sistema(supabase, demanda, gravadas[0], f"Passo a passo concluído: {pedido.get('assunto') or ''}")
+    _linha_de_sistema(
+        supabase, demanda, gravadas[0], f"{NOME_DO_TIPO[pedido['tipo']]} concluído: {pedido.get('assunto') or ''}"
+    )
     mensagem = None
     if anotacao:
         mensagem = tecnologia_conversa.escrever(
             supabase, demanda, autor=ator, texto=f"Anotação: {anotacao}", origem=tecnologia_conversa.ORIGEM_APP
         )
-    concluido = _fechar_o_card(supabase, gravadas[0])
+    concluido = _comentar_a_conclusao(supabase, gravadas[0]) if implantacao else _fechar_o_card(supabase, gravadas[0])
     return cartao(supabase, concluido, ator=ator), mensagem
+
+
+def _comentar_a_conclusao(supabase, pedido: dict[str, Any]) -> dict[str, Any]:
+    """So o comentario da conclusao na issue ja fechada do Pedido de
+    implantacao, sem fechar nada. A falha fica no log."""
+    try:
+        github_client.comentar(
+            int(pedido["card_numero"]),
+            _comentario_do_destinatario(supabase, pedido),
+            projeto=str(pedido.get("card_projeto") or ""),
+        )
+    except (github_client.GithubNaoConfiguradoError, github_client.GithubIndisponivelError) as erro:
+        logger.warning(
+            f"[tecnologia_perguntas] A conclusão do Pedido de implantação {pedido.get('id')} não chegou: {erro}"
+        )
+    return pedido
 
 
 def reenviar(supabase, pedido: dict[str, Any], *, ator: dict[str, Any]) -> dict[str, Any]:
@@ -1020,7 +1129,7 @@ def reenviar(supabase, pedido: dict[str, Any], *, ator: dict[str, Any]) -> dict[
     comentar e fechar o card, so quando o fechamento falhou. Devolve o cartao."""
     if not pode_responder(pedido, ator):
         raise RespostaProibidaError(MOTIVO_SO_QUEM_FAZ)
-    if pedido.get("estado") != ESTADO_CONCLUIDA or pedido.get("fechamento_github") != FECHAMENTO_FALHOU:
+    if not _cabe_reenviar(pedido):
         raise PassagemRecusadaError(MOTIVO_NADA_A_REENVIAR)
     return cartao(supabase, _fechar_o_card(supabase, pedido), ator=ator)
 
