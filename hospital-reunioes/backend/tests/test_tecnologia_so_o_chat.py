@@ -57,6 +57,8 @@ ROTAS_DO_CHAT = {
     # A lista Esperando sua resposta, as Perguntas da Vitta abertas de todos
     # os Projetos (issue #2118, ADR 0109, decisão 5).
     "/api/admin/tecnologia/perguntas/esperando",
+    # A resposta à Pergunta da Vitta no cartão (issue #2119, ADR 0109).
+    "/api/admin/tecnologia/perguntas/{pergunta_id}/resposta",
 }
 
 # O que fica de fora da aba e continua de pé (critério 2 da issue).

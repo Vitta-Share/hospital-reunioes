@@ -125,6 +125,8 @@ from app.models.tecnologia_schemas import (
     ModeloDaDemanda,
     PerguntaEsperandoResponse,
     QuemSouNaAbaResponse,
+    RespostaDaPerguntaPayload,
+    RespostaDaPerguntaRespondidaResponse,
     RevisarPayload,
 )
 from app.services import (
@@ -1270,7 +1272,7 @@ async def ler_a_conversa_da_demanda(
     envio = None
     if not e_desenvolvedor(ator) and demanda.get("github_issue_numero"):
         envio = {"mensagens_novas": tecnologia_envio_aos_desenvolvedores.mensagens_novas(supabase, demanda_id)}
-    cartoes = tecnologia_perguntas.cartoes_da_demanda(supabase, demanda)
+    cartoes = tecnologia_perguntas.cartoes_da_demanda(supabase, demanda, ator=ator)
     return {
         "mensagens": [_mensagem_para_a_tela(linha, nomes=nomes, ator=ator, cartoes=cartoes) for linha in linhas],
         "mencionaveis": [
@@ -1318,6 +1320,38 @@ async def listar_as_perguntas_esperando(
     """As Perguntas da Vitta abertas de todos os Projetos, as do logado
     primeiro e a mais antiga primeiro. Todo Super admin ve a lista inteira."""
     return tecnologia_perguntas.esperando(supabase, ator_id=str(ator["id"]))
+
+
+# ─── Responder a Pergunta da Vitta (issue #2119, ADR 0109, decisoes 4 e 5) ──
+
+
+@router.post("/perguntas/{pergunta_id}/resposta", response_model=RespostaDaPerguntaRespondidaResponse)
+async def responder_a_pergunta(
+    pergunta_id: str,
+    payload: RespostaDaPerguntaPayload,
+    ator: dict = Depends(require_super_admin),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """A resposta da Pergunta da Vitta, pelo cartao: a opcao, o texto livre
+    ou os dois. Responde o Destinatario, ou o Desenvolvedor no lugar dele;
+    outro Super admin e 403. A Pergunta que ja nao esta aberta e 409. A
+    resposta entra na Conversa da Demanda e nada vai para o GitHub."""
+    pergunta = tecnologia_perguntas.buscar(supabase, pergunta_id)
+    if pergunta is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pergunta não encontrada.")
+    demanda = _buscar_demanda(supabase, str(pergunta["demanda_id"]))
+    try:
+        cartao, linha = tecnologia_perguntas.responder(
+            supabase, pergunta, demanda, ator=ator, opcao=payload.opcao, texto=payload.texto
+        )
+    except tecnologia_perguntas.RespostaProibidaError as recusa:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(recusa)) from recusa
+    except tecnologia_perguntas.PerguntaFechadaError as recusa:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(recusa)) from recusa
+    except tecnologia_perguntas.RespostaRecusadaError as recusa:
+        _recusar(str(recusa))
+    nome = ator.get("nome_completo") or ""
+    return {"pergunta": cartao, "mensagem": _mensagem_para_a_tela(linha, nomes={str(ator["id"]): nome}, ator=ator)}
 
 
 # ─── O Envio aos desenvolvedores (issue #2011, ADR 0108, decisoes 3 a 5) ────

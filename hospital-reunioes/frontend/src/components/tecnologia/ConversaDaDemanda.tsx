@@ -21,7 +21,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { Loader2, Send } from "lucide-react";
 
 import { LIMITE_DA_MENSAGEM } from "./assistente";
-import { CartaoDaPergunta, type PerguntaDaVitta, perguntaValida } from "./CartaoDaPergunta";
+import { CartaoDaPergunta, type PerguntaDaVitta, type PerguntaRespondida, perguntaValida } from "./CartaoDaPergunta";
 import { BASE_TECNOLOGIA, FALHA_DE_CONEXAO, motivoDaRecusa } from "./demandas";
 import { SeparadorDeDia, diaDaMensagem } from "./SeparadorDeDia";
 import { TextoDaMensagem } from "./TextoDaMensagem";
@@ -259,6 +259,16 @@ export function ConversaDaDemanda({
     }
   }
 
+  /** A resposta da Pergunta da Vitta (issue #2119): o cartão respondido e a mensagem nova na Conversa. */
+  function aoResponder({ pergunta, mensagem }: PerguntaRespondida) {
+    setMensagens((atuais) => [
+      ...(atuais ?? []).map((m) => (m.pergunta?.id === pergunta.id ? { ...m, pergunta } : m)),
+      mensagem,
+    ]);
+    // A resposta é mensagem do lado do hospital, como a da caixa: entra no próximo envio.
+    setEnvio((atual) => (atual ? { mensagens_novas: atual.mensagens_novas + 1 } : atual));
+  }
+
   function corrigir() {
     setEntendi(null);
     setFalhou(null);
@@ -302,7 +312,7 @@ export function ConversaDaDemanda({
                 )}
                 {perguntaValida(mensagem.pergunta) ? (
                   <li key={mensagem.id}>
-                    <CartaoDaPergunta pergunta={mensagem.pergunta} />
+                    <CartaoDaPergunta pergunta={mensagem.pergunta} token={token} onRespondida={aoResponder} />
                   </li>
                 ) : mensagem.sistema ? (
                   <li key={mensagem.id} className="flex justify-center">
