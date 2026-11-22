@@ -2,6 +2,59 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T02:09:22-03:00",
+      "sha": "7c2d43451818f53bf96d69fa58ffe00dcdffcd06",
+      "app_version": "0.369.0",
+      "subject": "Onda nsp2-onda10: Reunião de análise e avisos ao confirmar a triagem; Faixa o que exige ação hoje e alerta de 72 horas; Encaminhar à Segurança do Trabalho e à queixa técnica com Recebido",
+      "raw_subject": "chore(deploy): registro da onda nsp2-onda10 (#2139 #2138 #2140)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1979
+      ],
+      "result": "healthy",
+      "duration_seconds": 1389,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "218_nsp_reuniao_de_analise_e_avisos_da_confirmacao.sql",
+        "219_nsp_alerta_das_72_horas.sql",
+        "218_nsp_reuniao_de_analise_e_avisos_da_confirmacao.sql",
+        "220_nsp_recebido_do_setor.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp2-onda10: PR #2139 (issue #1994), PR #2138 (issue #2000), PR #2140 (issue #1996), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 10,
+        "build_s": {
+          "backend": 19,
+          "frontend": 191
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T01:54:14-03:00",
       "sha": "be13a89a650c7357a1d26a39787a0ad4d158d7ae",
       "app_version": "0.368.1",
