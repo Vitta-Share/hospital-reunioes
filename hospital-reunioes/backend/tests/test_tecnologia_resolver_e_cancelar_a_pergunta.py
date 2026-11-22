@@ -73,7 +73,9 @@ def _pergunta(estado: str = "aberta"):
             }
         )
     if estado == "resolvida":
-        linha.update({"resolucao_decidido": "Outra decisão.", "resolucao_destravou": "Outra coisa.", "resolvida_em": "x"})
+        linha.update(
+            {"resolucao_decidido": "Outra decisão.", "resolucao_destravou": "Outra coisa.", "resolvida_em": "x"}
+        )
     if estado == "cancelada":
         linha.update({"resolucao_decidido": "Outro motivo.", "cancelada_em": "x"})
     return ponte, sb, pergunta_id
@@ -310,3 +312,68 @@ class TestAPorta:
         resposta = _fechar(acao)(ponte, "0b1c2d3e-4f5a-4b6c-8d7e-9f0a1b2c3d4e")
 
         assert resposta.status_code == 404
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# O cartão na Conversa da Demanda
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _cartao_na_tela(sb, monkeypatch) -> dict:
+    mensagens = _tela(sb, DIRETORA, monkeypatch).get(CONVERSA_DA_TELA).json()["mensagens"]
+    [cartao] = [m["pergunta"] for m in mensagens if m["pergunta"]]
+    return cartao
+
+
+class TestOCartao:
+    def test_o_cartao_da_resolvida_mostra_o_estado_final_com_a_decisao_e_o_que_destravou(self, monkeypatch):
+        ponte, sb, pergunta_id = _pergunta("respondida")
+        _resolver(ponte, pergunta_id)
+
+        cartao = _cartao_na_tela(sb, monkeypatch)
+
+        assert cartao["estado"] == "resolvida"
+        assert cartao["resolucao"] == {
+            "decidido": DECIDIDO,
+            "destravou": DESTRAVOU,
+            "resolvida_em": sb.tabelas[TABELA][0]["resolvida_em"],
+        }
+        assert cartao["cancelamento"] is None
+        assert cartao["pode_responder"] is False
+
+    def test_o_cartao_da_cancelada_mostra_o_estado_final_com_o_motivo(self, monkeypatch):
+        ponte, sb, pergunta_id = _pergunta("aberta")
+        _cancelar(ponte, pergunta_id)
+
+        cartao = _cartao_na_tela(sb, monkeypatch)
+
+        assert cartao["estado"] == "cancelada"
+        assert cartao["cancelamento"] == {"motivo": MOTIVO, "cancelada_em": sb.tabelas[TABELA][0]["cancelada_em"]}
+        assert cartao["resolucao"] is None
+        assert cartao["pode_responder"] is False
+
+    def test_o_cartao_que_espera_nao_tem_estado_final(self, monkeypatch):
+        _, sb, _ = _pergunta("respondida")
+
+        cartao = _cartao_na_tela(sb, monkeypatch)
+
+        assert (cartao["resolucao"], cartao["cancelamento"]) == (None, None)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# O kit de conhecimento
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestOKit:
+    def test_o_kit_da_tecnologia_diz_que_a_vitta_resolve_ou_cancela_a_pergunta(self):
+        texto = (CONHECIMENTO_DIR / "tecnologia.md").read_text(encoding="utf-8")
+
+        for trecho in (
+            "a pergunta passa a Resolvida",
+            "o que foi decidido e o que destravou",
+            "a pergunta passa a Cancelada",
+            "sai da lista Esperando sua resposta",
+            "não muda mais",
+        ):
+            assert trecho in texto, trecho

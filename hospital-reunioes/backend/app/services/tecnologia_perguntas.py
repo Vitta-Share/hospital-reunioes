@@ -240,6 +240,9 @@ def _cartao(p: dict[str, Any], *, projeto: str, nomes: dict[str, str], ator: dic
         "destinatario": nomes.get(str(p.get("destinatario_id"))),
         # A resposta (issue #2119): o cartao respondido fica na Conversa com ela.
         "resposta": _resposta(p, nomes),
+        # O estado final (issue #2121): a decisao ou o motivo.
+        "resolucao": _resolucao(p),
+        "cancelamento": _cancelamento(p),
         "pode_responder": ator is not None and estado == ESTADO_ABERTA and pode_responder(p, ator),
     }
 
@@ -516,6 +519,22 @@ def _fechar(
         }
     ).execute()
     return gravadas[0]
+
+
+def _resolucao(pergunta: dict[str, Any]) -> dict[str, Any] | None:
+    if pergunta.get("estado") != ESTADO_RESOLVIDA:
+        return None
+    return {
+        "decidido": pergunta.get("resolucao_decidido"),
+        "destravou": pergunta.get("resolucao_destravou"),
+        "resolvida_em": pergunta.get("resolvida_em"),
+    }
+
+
+def _cancelamento(pergunta: dict[str, Any]) -> dict[str, Any] | None:
+    if pergunta.get("estado") != ESTADO_CANCELADA:
+        return None
+    return {"motivo": pergunta.get("resolucao_decidido"), "cancelada_em": pergunta.get("cancelada_em")}
 
 
 def resolver(
