@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T14:04+0000 -->
+<!-- last_update: 2026-11-22T15:51+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -159,6 +159,16 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/comite-de-conduta/casos/{caso_id}/relatorio/reconsulta` | Reconsultar status: pergunta à ClickSign sem depender do webhook. | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/relatorio/versoes` | Editar relatorio | ✅ |
 
+## canal-de-conduta (`app/routers/conduta_direcao.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| GET | `/comite-de-conduta/direcao/recomendacoes` | Os casos que o Comitê enviou à Direção, só com os metadados. | ✅ |
+| GET | `/comite-de-conduta/direcao/recomendacoes/{caso_id}` | A página de conclusão, com a leitura gravada na trilha. | ✅ |
+| GET | `/comite-de-conduta/direcao/recomendacoes/{caso_id}/ata` | A ata assinada, entregue pelo backend, sem cache. | ✅ |
+| POST | `/comite-de-conduta/direcao/recomendacoes/{caso_id}/comunicacao` | A cópia da comunicação da medida, anexada à trilha. | ✅ |
+| POST | `/comite-de-conduta/direcao/recomendacoes/{caso_id}/decisao` | A diretoria executiva registra a decisão do Presidente. | ✅ |
+
 ## canal-de-conduta (`app/routers/conduta_membros.py`)
 
 | Método | Rota | O que faz | Auth |
@@ -178,6 +188,19 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | GET | `/conduta/abertura` | Se o canal está aberto. Fechado, a rota nem aparece (404). | ❌ |
 | GET | `/conduta/codigo-de-conduta` | O PDF do Código de Conduta vigente hoje (issue #1841), num endereço que | ❌ |
 | GET | `/conduta/textos` | Os textos vigentes das telas públicas (issue #1826), cada um com o | ❌ |
+
+## canal-de-conduta (`app/routers/conduta_retorno.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| POST | `/comite-de-conduta/casos/{caso_id}/correcoes` | O Comitê escolhe a correção de processo, com responsável e prazo. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/correcoes/sugestao` | SUGERIR CORREÇÕES: o agente sugere de uma a três. Roda no executor da IA. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/direcao` | ENVIAR À DIREÇÃO: libera a Recomendação do Comitê ao Presidente e à | ✅ |
+| GET | `/comite-de-conduta/casos/{caso_id}/medida/comunicacao` | A última cópia da comunicação da medida, entregue pelo backend, sem cache. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/retorno` | GERAR RETORNO: o agente redige. Roda no executor da IA (issue #773). | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/retorno/aprovacao` | APROVAR RETORNO: a última versão sai, e o caso é concluído. | ✅ |
+| GET | `/comite-de-conduta/casos/{caso_id}/retorno/comunicacao-ao-acusado` | A comunicação ao acusado, só depois da aprovação. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/retorno/versoes` | Editar retorno | ✅ |
 
 ## canal-de-conduta (`app/routers/conduta_rota_especial.py`)
 
@@ -903,4 +926,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 522 endpoints em 75 routers · 93% exigem auth.
+**Totais:** 535 endpoints em 77 routers · 93% exigem auth.

@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T13:28+0000 -->
+<!-- last_update: 2026-11-22T15:51+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2393,7 +2393,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## conduta_casos
 
-> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql, 202_conduta_sinalizacao_da_ouvidoria.sql, 214_conduta_rota_especial.sql, 216_conduta_voto_e_trava_de_robustez.sql, 221_conduta_ata_de_deliberacao.sql)
+> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql, 202_conduta_sinalizacao_da_ouvidoria.sql, 214_conduta_rota_especial.sql, 216_conduta_voto_e_trava_de_robustez.sql, 221_conduta_ata_de_deliberacao.sql, 223_conduta_recomendacao_medida_e_retorno.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2413,6 +2413,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `direcao_envolvida` | `TEXT` | NOT NULL | — | `participantes.id` |
 | `rodada_do_voto` | `INTEGER` | NOT NULL | — | `participantes.id` |
 | `reuniao_concluida_em` | `TIMESTAMPTZ` | — | — | `participantes.id` |
+| `enviado_a_direcao_em` | `TIMESTAMPTZ` | — | — | `participantes.id` |
 
 **Indexes:**
 - `idx_conduta_casos_rota_etapa` em `(rota, etapa, recebido_em DESC)` (de `175_conduta_fundacao.sql`)
@@ -2424,6 +2425,9 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_conduta_casos_desviado_por` em `(desviado_por)` (de `214_conduta_rota_especial.sql`)
 - `idx_conduta_casos_votacao_concluida_por` em `(votacao_concluida_por)` (de `216_conduta_voto_e_trava_de_robustez.sql`)
 - `idx_conduta_casos_reuniao_concluida_por` em `(reuniao_concluida_por)` (de `221_conduta_ata_de_deliberacao.sql`)
+- `idx_conduta_casos_enviado_a_direcao_por` em `(enviado_a_direcao_por)` (de `223_conduta_recomendacao_medida_e_retorno.sql`)
+- `idx_conduta_casos_retorno_aprovado_id` em `(retorno_aprovado_id)` (de `223_conduta_recomendacao_medida_e_retorno.sql`)
+- `idx_conduta_casos_retorno_aprovado_por` em `(retorno_aprovado_por)` (de `223_conduta_recomendacao_medida_e_retorno.sql`)
 
 ## conduta_atribuicoes
 
@@ -3414,6 +3418,93 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_pendencias_links_pessoais_hash` em `(token_hash)` (de `222_link_pessoal_das_pendencias.sql`)
 - `idx_pendencias_links_pessoais_vivos` em `(participante_id)` (de `222_link_pessoal_das_pendencias.sql`)
 
+## conduta_retornos
+
+> Origem: `223_conduta_recomendacao_medida_e_retorno.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `versao` | `INTEGER` | NOT NULL | — | — |
+| `denunciante_cifrado` | `TEXT` | NOT NULL | — | — |
+| `acusado_cifrado` | `TEXT` | NOT NULL | — | — |
+| `origem` | `TEXT` | NOT NULL | — | — |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_retornos_autor` em `(autor_id)` (de `223_conduta_recomendacao_medida_e_retorno.sql`)
+
+## conduta_decisoes_da_medida
+
+> Origem: `223_conduta_recomendacao_medida_e_retorno.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | UNIQUE, NOT NULL | — | `conduta_casos.id` |
+| `decisao` | `TEXT` | NOT NULL | — | — |
+| `justificativa_cifrada` | `TEXT` | — | — | — |
+| `decidida_em` | `DATE` | NOT NULL | — | — |
+| `registrada_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `registrada_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_decisoes_da_medida_registrada_por` em `(registrada_por)` (de `223_conduta_recomendacao_medida_e_retorno.sql`)
+
+## conduta_comunicacoes_da_medida
+
+> Origem: `223_conduta_recomendacao_medida_e_retorno.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `versao` | `INTEGER` | NOT NULL | — | — |
+| `storage_path` | `TEXT` | NOT NULL | — | — |
+| `content_type` | `TEXT` | NOT NULL | — | — |
+| `tamanho_bytes` | `BIGINT` | NOT NULL | — | — |
+| `enviado_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `enviado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_comunicacoes_da_medida_enviado_por` em `(enviado_por)` (de `223_conduta_recomendacao_medida_e_retorno.sql`)
+
+## conduta_correcoes_sugeridas
+
+> Origem: `223_conduta_recomendacao_medida_e_retorno.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `versao` | `INTEGER` | NOT NULL | — | — |
+| `itens_cifrado` | `TEXT` | NOT NULL | — | — |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_correcoes_sugeridas_autor` em `(autor_id)` (de `223_conduta_recomendacao_medida_e_retorno.sql`)
+
+## conduta_correcoes
+
+> Origem: `223_conduta_recomendacao_medida_e_retorno.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `texto_cifrado` | `TEXT` | NOT NULL | — | — |
+| `responsavel_cifrado` | `TEXT` | NOT NULL | — | — |
+| `prazo_em` | `DATE` | NOT NULL | — | — |
+| `escolhida_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `escolhida_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_correcoes_caso` em `(caso_id)` (de `223_conduta_recomendacao_medida_e_retorno.sql`)
+- `idx_conduta_correcoes_escolhida_por` em `(escolhida_por)` (de `223_conduta_recomendacao_medida_e_retorno.sql`)
+
 ---
 
-**Resumo:** 171 tabelas vivas.
+**Resumo:** 176 tabelas vivas.
