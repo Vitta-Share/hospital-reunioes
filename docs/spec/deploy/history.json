@@ -2,6 +2,49 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T17:43:42-03:00",
+      "sha": "06e67bc59a32953d225e21df40bbfad08166f615",
+      "app_version": "0.386.1",
+      "subject": "Onda onda-1914-onda1: Ata assinada por todos finaliza e o Sincronizar volta a reconciliar",
+      "raw_subject": "chore(deploy): registro da onda onda-1914-onda1 (#2199)",
+      "scope": [
+        "backend"
+      ],
+      "prds": [],
+      "result": "healthy",
+      "duration_seconds": 370,
+      "services_touched": [
+        "backend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta onda-1914-onda1: PR #2199 (issue #1914), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 2,
+        "build_s": {
+          "backend": 22
+        },
+        "health_s": 20
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T17:40:01-03:00",
       "sha": "b463a844406b82b8e59add06a3cdc5868244b229",
       "app_version": "0.386.0",
