@@ -21,6 +21,9 @@ O gráfico de atrasos por setor e o ranking de 90 dias (issue #1871) contam o
 hospital inteiro (decisão 55 do diretor), menos o Núcleo que o Núcleo esconde,
 e só vão para o Super admin e para quem facilita ao menos uma Reunião: o
 responsável não vê ranking (decisão 35). A conta é `calcular_ranking`.
+
+As Rotinas entram no ranking ao lado dos atrasos e das reaberturas (decisão 71;
+issue #1879): o ciclo não cumprido conta para o responsável da Rotina.
 """
 
 from __future__ import annotations
@@ -31,6 +34,7 @@ from datetime import UTC, date, datetime, timedelta
 
 from pydantic import BaseModel
 
+from app.services import rotina_service
 from app.services.paginacao import ler_tudo
 from app.services.pendencia_ciclo import esta_atrasada, situacao
 from app.services.pendencias_consulta import (
@@ -102,13 +106,17 @@ class AtrasosDoPainel(BaseModel):
     (Repactuação feita depois do vencimento), `concluidas_com_atraso`
     (conclusão depois do prazo, só as do ciclo de vida novo, que guarda a
     data) e `reaberturas` (entrega concluída e reaberta), que ficam ao lado
-    dos atrasos (decisão 44) e não somam neles."""
+    dos atrasos (decisão 44) e não somam neles. Também ao lado, os
+    `rotinas_nao_cumpridas`: os ciclos de Rotina não realizados, marcados
+    fora do ciclo ou fechados sem marcação, nos últimos 90 dias (decisão 71;
+    issue #1879)."""
 
     atrasadas: int = 0
     repactuacoes_vencidas: int = 0
     concluidas_com_atraso: int = 0
     atrasos: int = 0
     reaberturas: int = 0
+    rotinas_nao_cumpridas: int = 0
 
 
 class SetorDosAtrasos(AtrasosDoPainel):
@@ -295,10 +303,14 @@ def inicio_do_ranking(hoje: date) -> date:
     return hoje - timedelta(days=DIAS_DO_RANKING - 1)
 
 
-def _somar(linha: AtrasosDoPainel, campo: str) -> None:
-    setattr(linha, campo, getattr(linha, campo) + 1)
-    if campo != "reaberturas":
-        linha.atrasos += 1
+# Ao lado dos atrasos, sem somar neles.
+_AO_LADO = ("reaberturas", "rotinas_nao_cumpridas")
+
+
+def _somar(linha: AtrasosDoPainel, campo: str, quantos: int = 1) -> None:
+    setattr(linha, campo, getattr(linha, campo) + quantos)
+    if campo not in _AO_LADO:
+        linha.atrasos += quantos
 
 
 def calcular_ranking(
@@ -308,6 +320,8 @@ def calcular_ranking(
     nome_de: dict[str, str | None],
     setor_de: dict[str, str | None],
     hoje: date,
+    rotinas: Iterable[dict] = (),
+    verificacoes: Iterable[dict] = (),
 ) -> RankingDoPainel:
     """O ranking de 90 dias e o gráfico de atrasos por setor, sem banco.
 
@@ -323,6 +337,7 @@ def calcular_ranking(
     linhas: dict[str, LinhaDoRanking] = {}
 
     def linha_de(p: dict) -> LinhaDoRanking:
+        # A Pendência ou a Rotina: as duas têm `responsavel_id`.
         rid = p["responsavel_id"]
         if rid not in linhas:
             linhas[rid] = LinhaDoRanking(
@@ -350,13 +365,31 @@ def calcular_ranking(
         elif evento.get("comando") == "reabrir" and evento.get("status_antes") == "CONCLUIDO":
             _somar(linha_de(p), "reaberturas")
 
-    ranking = sorted(linhas.values(), key=lambda li: (-li.atrasos, -li.reaberturas, li.nome or "", li.responsavel_id))
+    marcadas: dict[str, list[dict]] = {}
+    for v in verificacoes:
+        marcadas.setdefault(v["rotina_id"], []).append(v)
+    for rotina in rotinas:
+        if not rotina.get("responsavel_id"):
+            continue
+        # O ciclo que ainda tocou a janela: o que terminou nela ou o em curso.
+        falhas = [
+            c
+            for c in rotina_service.ciclos_nao_cumpridos(rotina, marcadas.get(rotina["id"], []), hoje)
+            if c.fim >= inicio
+        ]
+        if falhas:
+            _somar(linha_de(rotina), "rotinas_nao_cumpridas", len(falhas))
+
+    ranking = sorted(
+        linhas.values(),
+        key=lambda li: (-li.atrasos, -li.rotinas_nao_cumpridas, -li.reaberturas, li.nome or "", li.responsavel_id),
+    )
     setores: dict[str, SetorDosAtrasos] = {}
     for linha in ranking:
         do_setor = setores.setdefault(linha.setor, SetorDosAtrasos(setor=linha.setor))
         for campo in AtrasosDoPainel.model_fields:
             setattr(do_setor, campo, getattr(do_setor, campo) + getattr(linha, campo))
-    por_setor = sorted(setores.values(), key=lambda s: (-s.atrasos, -s.reaberturas, s.setor))
+    por_setor = sorted(setores.values(), key=lambda s: (-s.atrasos, -s.rotinas_nao_cumpridas, -s.reaberturas, s.setor))
     return RankingDoPainel(ranking=ranking, atrasos_por_setor=por_setor)
 
 
@@ -397,12 +430,39 @@ def _montar_ranking(supabase, recorte: RecorteDasPendencias, *, hoje: date, part
         ),
         rotulo="histórico do ranking",
     )
+    # As Rotinas com ciclo (a sem frequência não tem), menos as do Núcleo oculto.
+    rotinas = [
+        r
+        for r in ler_tudo(
+            lambda: (
+                supabase.table("rotinas")
+                .select("id, id_reuniao, responsavel_id, frequencia, comeca_em, encerrada_em")
+                .not_.is_("frequencia", "null")
+                .order("id")
+            ),
+            rotulo="rotinas do ranking",
+        )
+        if r.get("id_reuniao") not in recorte.ocultas
+    ]
+    # Só o ciclo que terminou na janela, ou depois, pode pesar.
+    verificacoes = ler_tudo(
+        lambda: (
+            supabase.table("rotina_verificacoes")
+            .select("rotina_id, ciclo_inicio, resultado, atrasada")
+            .gte("ciclo_fim", inicio_do_ranking(hoje).isoformat())
+            .order("rotina_id")
+            .order("ciclo_inicio")
+        ),
+        rotulo="verificações do ranking",
+    )
     return calcular_ranking(
         pendencias=pendencias,
         historico=historico,
         nome_de={p["id"]: p.get("nome_completo") for p in participantes},
         setor_de={p["id"]: p.get("setor") for p in participantes},
         hoje=hoje,
+        rotinas=rotinas,
+        verificacoes=verificacoes,
     )
 
 

@@ -26,6 +26,28 @@
   {% endif %}
 {% endmacro %}
 
+{% macro rotinas(titulo, itens) %}
+  {% if itens %}
+  <p style="font-size:13px;font-weight:700;color:#1e293b;margin:20px 0 8px;">{{ titulo }} ({{ itens|length }})</p>
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
+    {% for item in itens %}
+    <tr>
+      <td style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px;">
+        <p style="font-size:14px;font-weight:600;color:#1e293b;line-height:1.5;margin:0 0 4px;">{{ item.descricao }}</p>
+        <p style="font-size:12px;color:#64748b;line-height:1.5;margin:0;">
+          {{ item.reuniao }}. Responsável: {{ item.responsavel or "não informado" }}. Ciclo {{ item.ciclo_formatado }}. {{ item.situacao }}.
+        </p>
+        {% if item.anotacao %}
+        <p style="font-size:12px;color:#475569;line-height:1.5;margin:6px 0 0;white-space:pre-wrap;">Anotação: {{ item.anotacao }}</p>
+        {% endif %}
+      </td>
+    </tr>
+    <tr><td style="height:8px;font-size:0;line-height:0;">&nbsp;</td></tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+{% endmacro %}
+
 {% block body %}
   <p style="color:#475569;font-size:15px;margin:0 0 16px;">
     Olá, <strong style="color:#1e293b;">{{ nome }}</strong>!
@@ -36,12 +58,14 @@
     Das reuniões que você facilita
   </p>
   <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 4px;">
-    O que aconteceu na semana que passou nas pendências das suas reuniões, e o que segue atrasado.
+    O que aconteceu na semana que passou nas pendências e nas rotinas das suas reuniões, e o que segue atrasado.
   </p>
   {{ lista("Concluídas na semana", email.concluidas, True) }}
   {{ lista("Atualizadas na semana", email.atualizadas, True) }}
   {{ lista("Repactuadas na semana", email.repactuadas, True) }}
   {{ lista("Seguem atrasadas", email.atrasadas) }}
+  {{ rotinas("Rotinas verificadas na semana", email.rotinas_verificadas) }}
+  {{ rotinas("Rotinas não realizadas", email.rotinas_nao_realizadas) }}
   {% endif %}
 
   {% if email.do_responsavel %}
@@ -49,9 +73,10 @@
     Suas pendências em aberto
   </p>
   <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 4px;">
-    As pendências em que você é responsável e que ainda não foram concluídas.
+    As pendências em que você é responsável e que ainda não foram concluídas, e os ciclos das suas rotinas que ainda não foram marcados.
   </p>
   {{ lista("Em aberto", email.abertas) }}
+  {{ rotinas("Rotinas a verificar", email.rotinas_a_verificar) }}
   {% endif %}
 
   <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;">
