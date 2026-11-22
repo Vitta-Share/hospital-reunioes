@@ -25,6 +25,7 @@ from app.services.conduta import (
     depoimentos,
     impedimento,
     nota_ao_nucleo,
+    protecao,
     relatorio,
     retaliacao,
     retorno,
@@ -371,4 +372,9 @@ async def salvar_configuracao(
 ) -> dict:
     if chave not in configuracoes.POR_CHAVE:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item de configuração inexistente")
+    if chave in protecao.CHAVES_DA_PAGINA and (palavra := protecao.palavra_proibida(corpo.texto)):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f'A página de proteção não usa "{palavra}": tire a palavra e salve de novo',
+        )
     return configuracoes.salvar(supabase, chave, corpo.texto, me["id"])

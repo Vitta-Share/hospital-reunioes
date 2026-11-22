@@ -15,16 +15,36 @@ from __future__ import annotations
 import re
 
 import pytest
-from test_conduta_configuracoes import (  # noqa: F401 (fixtures)
-    COORDENACAO,
-    ROTA,
-    _ambiente,
-    _cliente,
-    banco,
-    canal_aberto,
-)
+from conduta_apoio import Banco
+from test_conduta_configuracoes import COMITE, COORDENACAO, ROTA, _cliente, _participacao
+
+from app.config import settings
+from app.limiter import limiter
 
 ROTA_DA_PAGINA = "/api/conduta/protecao"
+
+
+@pytest.fixture(autouse=True)
+def _ambiente():
+    limiter._storage.reset()
+    yield
+    limiter._storage.reset()
+
+
+@pytest.fixture
+def banco() -> Banco:
+    return Banco(
+        {
+            "participantes": [COORDENACAO],
+            "colegiados": [dict(COMITE)],
+            "participacoes": [_participacao("P1", "coordenacao")],
+        }
+    )
+
+
+@pytest.fixture
+def canal_aberto(monkeypatch):
+    monkeypatch.setattr(settings, "conduta_canal_aberto", True)
 
 
 def _bloco(corpo: dict, chave: str) -> dict:
@@ -121,3 +141,71 @@ def test_cada_versao_da_pagina_fica_arquivada_com_a_data(banco, canal_aberto):
 
 def test_dia_que_nao_e_data_responde_422(banco, canal_aberto):
     assert _cliente(banco).get(ROTA_DA_PAGINA, params={"em": "ontem"}).status_code == 422
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. O encarregado de dados (LGPD, art. 41), lido das Configurações
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_sem_o_contato_do_encarregado_salvo_o_bloco_nao_aparece(banco, canal_aberto):
+    corpo = _cliente(banco).get(ROTA_DA_PAGINA).json()
+
+    assert corpo["encarregado"] is None
+
+
+def test_a_pagina_mostra_o_contato_do_encarregado_configurado(banco, canal_aberto):
+    salvo = (
+        _cliente(banco, COORDENACAO)
+        .post(f"{ROTA}/contato_encarregado", json={"texto": "Encarregada de Teste, ramal 2041"})
+        .json()
+    )
+
+    corpo = _cliente(banco).get(ROTA_DA_PAGINA).json()
+
+    assert corpo["encarregado"] == {
+        "texto": "Encarregada de Teste, ramal 2041",
+        "versao": 1,
+        "versao_id": salvo["id"],
+    }
+    assert corpo["versoes"]  # mudar o contato também é uma versão da página
+
+
+def test_o_contato_do_encarregado_e_um_item_publico_das_configuracoes(banco, canal_aberto):
+    itens = _cliente(banco, COORDENACAO).get(ROTA).json()["itens"]
+
+    (item,) = [i for i in itens if i["chave"] == "contato_encarregado"]
+    assert (item["grupo"], item["publico"]) == ("Contatos", True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. Sem "independente", "100%" nem "risco zero"
+# ═══════════════════════════════════════════════════════════════════════════
+
+PROIBIDAS = re.compile(r"independent|100\s*%|risco\s+zero", re.IGNORECASE)
+
+
+def test_o_texto_inicial_da_pagina_nao_usa_as_palavras_proibidas(banco, canal_aberto):
+    corpo = _cliente(banco).get(ROTA_DA_PAGINA).json()
+
+    textos = " ".join(f"{b['titulo']} {b['texto']}" for b in corpo["blocos"])
+    assert textos.strip()
+    assert PROIBIDAS.search(textos) is None
+
+
+@pytest.mark.parametrize(
+    "texto",
+    ["Um canal independente.", "Sigilo 100% garantido.", "Sigilo de 100 %.", "Risco  ZERO de exposição."],
+)
+@pytest.mark.parametrize("chave", ["protecao_quem_relata", "protecao_ia", "contato_encarregado"])
+def test_a_coordenacao_nao_salva_texto_da_pagina_com_palavra_proibida(banco, texto, chave):
+    resposta = _cliente(banco, COORDENACAO).post(f"{ROTA}/{chave}", json={"texto": texto})
+
+    assert resposta.status_code == 422
+    assert banco.tabelas.get("conduta_configuracoes", []) == []
+
+
+def test_item_fora_da_pagina_nao_passa_pelo_filtro(banco):
+    resposta = _cliente(banco, COORDENACAO).post(f"{ROTA}/local_guarda_envelopes", json={"texto": "Armário 100%"})
+
+    assert resposta.status_code == 201

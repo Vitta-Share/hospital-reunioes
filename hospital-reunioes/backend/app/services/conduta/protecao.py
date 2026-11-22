@@ -16,6 +16,7 @@ de qualquer dia é refeita a partir delas: é esse o arquivo por data.
 
 from __future__ import annotations
 
+import re
 from datetime import date, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -53,6 +54,20 @@ TEXTO_INICIAL: dict[str, str] = {
 }
 
 BLOCOS: tuple[str, ...] = tuple(TEXTO_INICIAL)
+ENCARREGADO = "contato_encarregado"
+
+# Tudo o que a página mostra, e que por isso passa pelo filtro de palavras.
+CHAVES_DA_PAGINA: tuple[str, ...] = (*BLOCOS, ENCARREGADO)
+
+# A especificação (4.3) proíbe "independente", "100%" e "risco zero" na
+# página: prometem mais do que o canal entrega.
+_PROIBIDAS = re.compile(r"independent|100\s*%|risco\s+zero", re.IGNORECASE)
+
+
+def palavra_proibida(texto: str) -> str | None:
+    """A palavra proibida que o texto usa, ou None."""
+    achada = _PROIBIDAS.search(texto)
+    return achada.group(0) if achada else None
 
 
 def _dia(linha: dict) -> date:
@@ -65,12 +80,15 @@ def pagina(supabase, em: date | None = None) -> dict[str, Any]:
 
     `versoes` são os dias em que a página mudou, do mais novo ao mais antigo:
     cada um é uma versão arquivada, que se abre passando o dia em `em`."""
-    por_chave = configuracoes._todas_as_versoes(supabase, list(BLOCOS))
+    por_chave = configuracoes._todas_as_versoes(supabase, list(CHAVES_DA_PAGINA))
     dias = {_dia(linha) for versoes in por_chave.values() for linha in versoes}
+
+    def vigente_em(chave: str) -> dict | None:
+        return next((linha for linha in por_chave[chave] if em is None or _dia(linha) <= em), None)
+
     blocos = []
     for chave in BLOCOS:
-        versoes = [linha for linha in por_chave[chave] if em is None or _dia(linha) <= em]
-        vigente = versoes[0] if versoes else None
+        vigente = vigente_em(chave)
         blocos.append(
             {
                 "chave": chave,
@@ -80,8 +98,14 @@ def pagina(supabase, em: date | None = None) -> dict[str, Any]:
                 "versao_id": vigente["id"] if vigente else None,
             }
         )
+    encarregado = vigente_em(ENCARREGADO)
     return {
         "em": em.isoformat() if em else None,
         "blocos": blocos,
+        "encarregado": (
+            {"texto": encarregado["texto"], "versao": encarregado["versao"], "versao_id": encarregado["id"]}
+            if encarregado
+            else None
+        ),
         "versoes": [dia.isoformat() for dia in sorted(dias, reverse=True)],
     }
