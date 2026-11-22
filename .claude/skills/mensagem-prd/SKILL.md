@@ -17,9 +17,10 @@ Escreve a mensagem que o Pedro manda no WhatsApp quando um PRD chega em produç�
 
 1. **Fontes.** Leia o PRD e as sub-issues pelo `gh issue view`. A matéria-prima é o bloco "Para o diretor" de cada uma ("O que muda" e "O que você precisa saber"); o resto do corpo serve para não inventar comportamento. Se o `/divulgar` já publicou, pegue o link da página no último comentário `<!-- automacao -->` do PRD.
 2. **Só o que está no ar.** Confira em `docs/spec/deploy/history.json` da `main` (ou no comentário de subida do PRD) quais filhas já foram deployadas. Filha ainda aberta ou sem deploy fica fora da mensagem; se nenhuma subiu, pare e diga isso.
-3. **Escreva** no formato abaixo.
-4. **Humanizer** (ADR 0071): passe a mensagem pela Skill tool com `humanizer` em modo embutido antes de entregar. A amostra de voz é o exemplo abaixo e a regra 6 do CLAUDE.md global: elas mandam no tom informal, o humanizer só tira os cacoetes. Link e nomes da tela não mudam.
-5. **Entregue** em bloco de código para copiar num toque, e registre a mesma mensagem como comentário no PRD com `<!-- automacao -->` na primeira linha e o cabeçalho `## Mensagem para o diretor`, para o histórico saber o que foi dito e quando.
+3. **O que falta para usar** (ADR 0111, decisão 11). Rode `python3 .claude/skills/mensagem-prd/scripts/falta_implantacao.py <PRD>`: com Pedido de implantação aberto na Demanda, ele imprime a linha "Para começar a usar, falta: ...", que entra na mensagem como está; sem Pedido aberto, não imprime nada e a mensagem fica sem a linha. Saída 1 (o app não respondeu) não é "nada falta": não entregue a mensagem sem avisar o Pedro do motivo.
+4. **Escreva** no formato abaixo.
+5. **Humanizer** (ADR 0071): passe a mensagem pela Skill tool com `humanizer` em modo embutido antes de entregar. A amostra de voz é o exemplo abaixo e a regra 6 do CLAUDE.md global: elas mandam no tom informal, o humanizer só tira os cacoetes. Link e nomes da tela não mudam.
+6. **Entregue** em bloco de código para copiar num toque, e registre a mesma mensagem como comentário no PRD com `<!-- automacao -->` na primeira linha e o cabeçalho `## Mensagem para o diretor`, para o histórico saber o que foi dito e quando.
 
 ## Formato
 
@@ -28,6 +29,7 @@ Informal, na voz da regra 6 do CLAUDE.md global: é o Pedro falando com o direto
 - Abertura com "Fala <nome do diretor>" e uma frase dizendo o que subiu e em que tela está. O nome não fica no repositório (ele é público): use o do prompt ou da memória; sem nome, "Fala, tudo bem?".
 - "O que você já consegue fazer:" e depois um tópico por coisa que dá para fazer, na ordem em que a pessoa encontra na tela. Cada tópico é uma linha curta com a ação (sem marcador, sem bold) e, logo abaixo, duas ou três frases de como funciona na tela, com os textos que aparecem nela entre aspas.
 - Restrição que muda o uso (quem não vê, quando ainda não aparece) entra numa linha "Só um detalhe:" antes do fecho.
+- A linha "Para começar a usar, falta:" do passo 3, quando houver, vem logo depois, antes do fecho. Os títulos já são o Assunto do Pedido, em palavras simples: não troque por número de card.
 - Texto puro: sem bullet, sem bold, sem título, sem travessão.
 - Sem número de issue, label, nome de tabela, rota ou versão. Os nomes do `CONTEXT.md` (Fila, Painel, Quadro, Demanda) podem aparecer porque são os nomes da tela.
 - Link da página de divulgação numa linha própria, se existir.
