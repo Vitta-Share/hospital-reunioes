@@ -9,9 +9,13 @@
  * Projetos, no cartão da Pergunta, com o nome da Demanda. A ordem vem do
  * servidor (as do logado primeiro, a mais antiga primeiro). Lista vazia não
  * ocupa espaço, e o link do aviso põe o cartão em foco.
+ *
+ * Responder no cartão da lista (issue #2145): quem o servidor diz que responde
+ * vê as opções, o campo livre e o Me explique, como na Conversa da Demanda; a
+ * Pergunta respondida sai da lista na hora, sem reler.
  */
 
-import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { EsperandoSuaResposta, URL_DA_LISTA_ESPERANDO } from "./EsperandoSuaResposta";
@@ -189,5 +193,94 @@ describe("A lista Esperando sua resposta", () => {
         [],
       );
     }
+  });
+});
+
+describe("Responder no cartão da lista (issue #2145)", () => {
+  const OPCOES = {
+    opcoes: [
+      { letra: "A", texto: "O diretor geral" },
+      { letra: "B", texto: "Quem presidiu a reunião" },
+    ],
+    recomendada: "B",
+    porque: "Quem presidiu esteve na reunião.",
+  };
+  const RESPONDE = { ...MINHA, ...OPCOES, pode_responder: true };
+  const SO_LE = { ...DE_OUTRO, ...OPCOES, pode_responder: false };
+
+  /** O servidor: a lista no GET e a Pergunta respondida no POST da resposta. */
+  function servidor(itens: unknown[]) {
+    const pedidos: { url: string; metodo: string; corpo: unknown }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const metodo = init?.method ?? "GET";
+        pedidos.push({ url, metodo, corpo: init?.body ? JSON.parse(String(init.body)) : null });
+        const corpo =
+          metodo === "POST"
+            ? {
+                pergunta: { ...RESPONDE, estado: "respondida", pode_responder: false },
+                mensagem: { id: "m-9", autor: "Diretora Clínica", texto: "Resposta: B) Quem presidiu a reunião", criado_em: null, minha: true },
+              }
+            : itens;
+        return { ok: true, status: 200, json: async () => corpo } as unknown as Response;
+      }),
+    );
+    render(<EsperandoSuaResposta token="token-de-teste" agora={AGORA} />);
+    return pedidos;
+  }
+
+  async function cartoes() {
+    return within(await lista()).getAllByRole("article", { name: "Pergunta da Vitta" });
+  }
+
+  it("quem pode responder vê no cartão da lista as opções para clicar, o campo livre e o Me explique", async () => {
+    servidor([RESPONDE]);
+
+    const [cartao] = await cartoes();
+
+    expect(within(cartao).getByRole("button", { name: /Quem presidiu a reunião/ })).toBeTruthy();
+    expect(within(cartao).getByRole("textbox", { name: "Sua resposta" })).toBeTruthy();
+    expect(within(cartao).getByRole("button", { name: "Responder" })).toBeTruthy();
+    expect(within(cartao).getByRole("button", { name: "Me explique" })).toBeTruthy();
+  });
+
+  it("outro Super admin vê o cartão da lista sem o campo de resposta e sem o Me explique", async () => {
+    servidor([SO_LE]);
+
+    const [cartao] = await cartoes();
+
+    expect(within(cartao).queryByRole("textbox", { name: "Sua resposta" })).toBeNull();
+    expect(within(cartao).queryByRole("button", { name: "Responder" })).toBeNull();
+    expect(within(cartao).queryByRole("button", { name: "Me explique" })).toBeNull();
+    expect(within(cartao).queryByRole("button", { name: /Quem presidiu a reunião/ })).toBeNull();
+  });
+
+  it("o clique numa opção responde pela rota da resposta e a Pergunta sai da lista sem reler", async () => {
+    const pedidos = servidor([RESPONDE, SO_LE]);
+    const [cartao] = await cartoes();
+
+    fireEvent.click(within(cartao).getByRole("button", { name: /Quem presidiu a reunião/ }));
+
+    await waitFor(async () => expect(await cartoes()).toHaveLength(1));
+    expect(pedidos.filter((p) => p.metodo === "POST")).toEqual([
+      { url: "/api/admin/tecnologia/perguntas/p-1/resposta", metodo: "POST", corpo: { opcao: "B" } },
+    ]);
+    expect(pedidos.filter((p) => p.metodo === "GET")).toHaveLength(1);
+    expect(within(await lista()).getByRole("heading").textContent).toContain("(1)");
+    expect((await lista()).textContent).not.toContain(MINHA.texto);
+  });
+
+  it("o campo livre responde e, com a última Pergunta respondida, a lista some", async () => {
+    const pedidos = servidor([RESPONDE]);
+    const [cartao] = await cartoes();
+
+    fireEvent.change(within(cartao).getByRole("textbox", { name: "Sua resposta" }), {
+      target: { value: "Quem estiver de plantão." },
+    });
+    fireEvent.click(within(cartao).getByRole("button", { name: "Responder" }));
+
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Esperando sua resposta" })).toBeNull());
+    expect(pedidos.find((p) => p.metodo === "POST")?.corpo).toEqual({ texto: "Quem estiver de plantão." });
   });
 });

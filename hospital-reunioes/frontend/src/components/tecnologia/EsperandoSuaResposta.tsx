@@ -10,12 +10,22 @@
  * lista não ocupa espaço. `perguntaEmFoco` é o `?pergunta=` do aviso (sino e
  * e-mail): o cartão dela vem em foco.
  *
+ * Responder no cartão da lista (issue #2145): o cartão recebe o token, e quem o
+ * servidor diz que responde (`pode_responder`, as regras da Conversa da
+ * Demanda) vê as opções, o campo livre e o Me explique. A Pergunta respondida
+ * sai da lista na hora, sem reler: a lista só traz as abertas.
+ *
  * O nome é Pergunta da Vitta, nunca Pendência (ADR 0109, decisão 2).
  */
 
 import { useEffect, useRef, useState } from "react";
 
-import { CartaoDaPergunta, perguntaValida, type PerguntaDaVitta } from "./CartaoDaPergunta";
+import {
+  CartaoDaPergunta,
+  perguntaValida,
+  type PerguntaDaVitta,
+  type PerguntaRespondida,
+} from "./CartaoDaPergunta";
 import { BASE_TECNOLOGIA } from "./demandas";
 
 export const URL_DA_LISTA_ESPERANDO = `${BASE_TECNOLOGIA}/perguntas/esperando`;
@@ -75,6 +85,10 @@ export function EsperandoSuaResposta({
     alvo.focus();
   }, [itens, perguntaEmFoco]);
 
+  function aoResponder({ pergunta }: PerguntaRespondida) {
+    setItens((atuais) => (atuais ?? []).filter((item) => item.id !== pergunta.id));
+  }
+
   if (!itens || itens.length === 0) return null;
 
   return (
@@ -98,7 +112,7 @@ export function EsperandoSuaResposta({
               <p className="normal-case text-xs text-text-secondary">
                 Demanda: <span className="font-semibold text-text">{item.demanda}</span>
               </p>
-              <CartaoDaPergunta pergunta={item} agora={agora} />
+              <CartaoDaPergunta pergunta={item} agora={agora} token={token} onRespondida={aoResponder} />
             </li>
           );
         })}
