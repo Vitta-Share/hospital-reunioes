@@ -393,6 +393,27 @@ class TestPerfilDeCadastro:
         assert [r["acao"] for r in cenario.tabela("conduta_registro")] == ["perfil_tirado"]
         assert sorted(n["destinatario_id"] for n in cenario.avisos()) == ["M1", "M2", "M3"]
 
+    @pytest.mark.parametrize(
+        ("perfil", "trecho"), [("presidente", "Presidente"), ("diretoria_executiva", "diretoria executiva")]
+    )
+    def test_dar_o_perfil_da_direcao_avisa_os_membros(self, emails, perfil, trecho):
+        """Os perfis da Recomendação do Comitê (issue #1835) entram no cadastro
+        e avisam o Comitê como o de cadastro."""
+        cenario = self._cenario()
+
+        resposta = cenario.cliente().patch("/api/admin/usuarios/P9", json={"perfil_conduta": perfil})
+
+        assert resposta.status_code == 200, resposta.text
+        assert [r["acao"] for r in cenario.tabela("conduta_registro")] == ["perfil_dado"]
+        assert trecho in cenario.avisos()[0]["mensagem"]
+
+    def test_tirar_o_perfil_da_direcao_diz_qual_perfil_saiu(self, emails):
+        cenario = self._cenario("presidente")
+
+        cenario.cliente().patch("/api/admin/usuarios/P9", json={"perfil_conduta": None})
+
+        assert "perdeu o perfil de Presidente" in cenario.avisos()[0]["mensagem"]
+
     def test_editar_outro_campo_nao_avisa_o_comite(self, emails):
         cenario = self._cenario("cadastro_de_membros")
         cenario.cliente().patch("/api/admin/usuarios/P9", json={"cargo": "Analista"})

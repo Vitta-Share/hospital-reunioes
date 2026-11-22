@@ -158,7 +158,9 @@ def test_os_perfis_da_direcao_entram_no_cadastro(banco, perfil):
 
 
 def test_perfil_fora_da_lista_e_recusado(banco):
-    assert "perfil_conduta" in _sql(banco, "UPDATE participantes SET perfil_conduta = 'diretor' WHERE id = 'P1';").stderr
+    assert (
+        "perfil_conduta" in _sql(banco, "UPDATE participantes SET perfil_conduta = 'diretor' WHERE id = 'P1';").stderr
+    )
 
 
 @pytest.mark.parametrize("resultado", ["improcedente", "inconclusivo"])
@@ -185,7 +187,9 @@ def test_o_procedente_vai_a_direcao_e_o_envio_nao_muda(banco, resultado):
     caso = _caso(banco, resultado=resultado)
 
     assert _enviar_a_direcao(banco, caso).returncode == 0
-    assert "não muda" in _sql(banco, f"UPDATE conduta_casos SET enviado_a_direcao_em = NULL WHERE id = '{caso}';").stderr
+    assert (
+        "não muda" in _sql(banco, f"UPDATE conduta_casos SET enviado_a_direcao_em = NULL WHERE id = '{caso}';").stderr
+    )
 
 
 def test_a_etapa_medida_comeca_com_o_envio(banco):
@@ -215,7 +219,12 @@ def test_a_decisao_e_uma_por_caso_e_nao_muda(banco):
     assert _decidir(banco, caso).returncode == 0
 
     assert "duplicate key" in _decidir(banco, caso).stderr
-    assert "guardado" in _sql(banco, f"UPDATE conduta_decisoes_da_medida SET decisao = 'nao_aplicada' WHERE caso_id = '{caso}';").stderr
+    assert (
+        "guardado"
+        in _sql(
+            banco, f"UPDATE conduta_decisoes_da_medida SET decisao = 'nao_aplicada' WHERE caso_id = '{caso}';"
+        ).stderr
+    )
     assert "guardado" in _sql(banco, f"DELETE FROM conduta_decisoes_da_medida WHERE caso_id = '{caso}';").stderr
 
 

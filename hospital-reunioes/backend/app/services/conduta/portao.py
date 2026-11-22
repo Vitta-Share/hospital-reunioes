@@ -3,7 +3,8 @@
 Toda rota do Comitê depende de `portao_da_lista`, de `portao_do_caso`, de
 `portao_da_acao`, na tela inicial, de `portao_da_tela_inicial`, no
 afastamento cautelar, de `portao_do_afastamento` ou, nas configurações do
-módulo, de `portao_da_coordenacao`, e
+módulo, de `portao_da_coordenacao`, na Recomendação do Comitê, de
+`portao_da_direcao` ou `portao_da_recomendacao`, e
 `tests/test_conduta_varredura.py` reprova a rota do módulo que não dependa.
 A tela Membros, que não mostra caso, tem os dois portões dela:
 `portao_dos_membros` (ler) e `portao_do_cadastro` (incluir e encerrar).
@@ -30,7 +31,9 @@ from supabase import Client
 from app.dependencies import barrar_desligado, get_current_user, get_participante_for_user, get_supabase_client
 from app.services.conduta import cifra, membros, trilha
 from app.services.conduta.acesso import (
+    PERFIS_DA_DIRECAO,
     PessoaNoComite,
+    caso_se_a_direcao_le,
     caso_se_a_pessoa_abre,
     casos_da_pessoa,
     coordenacao_abre_o_pedido,
@@ -250,3 +253,53 @@ async def portao_do_cadastro(
     if me.get("perfil_conduta") != membros.PERFIL_DE_CADASTRO:
         raise _recusar()
     return me
+
+
+@dataclass(frozen=True)
+class NaDirecao:
+    """Quem da Direção pediu (issue #1835): o Presidente ou a diretoria
+    executiva."""
+
+    autor_id: str
+    perfil: str
+
+
+@dataclass(frozen=True)
+class RecomendacaoAberta:
+    """O caso cuja Recomendação do Comitê a pessoa da Direção lê, ainda
+    cifrado. O relato, os depoimentos e os votos ficam fora do que sai."""
+
+    autor_id: str
+    perfil: str
+    caso: dict
+
+
+async def portao_da_direcao(
+    current_user: dict = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase_client),
+) -> NaDirecao:
+    """A lista das Recomendações: só com o perfil do Presidente ou da
+    diretoria executiva. O super admin não herda o perfil."""
+    me = await _quem_esta_logado(current_user, supabase)
+    if me.get("perfil_conduta") not in PERFIS_DA_DIRECAO:
+        raise _recusar()
+    return NaDirecao(autor_id=me["id"], perfil=me["perfil_conduta"])
+
+
+async def portao_da_recomendacao(
+    caso_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase_client),
+) -> RecomendacaoAberta:
+    """A Recomendação de um caso: depois do envio à Direção, no procedente da
+    fila comum, e nunca a quem é Citado. A mesma recusa para tudo. A linha da
+    trilha é a da leitura ou da ação, gravada por quem chama."""
+    if not cifra.chave_configurada():
+        raise _indisponivel()
+    me = await _quem_esta_logado(current_user, supabase)
+    if me.get("perfil_conduta") not in PERFIS_DA_DIRECAO:
+        raise _recusar()
+    caso = caso_se_a_direcao_le(supabase, me["id"], str(caso_id))
+    if caso is None:
+        raise _recusar()
+    return RecomendacaoAberta(autor_id=me["id"], perfil=me["perfil_conduta"], caso=caso)
