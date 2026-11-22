@@ -40,6 +40,7 @@ from test_tecnologia_webhook_github import (  # noqa: E402
 )
 
 from app.services import github_client  # noqa: E402
+from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
 
 REPO_URL = "https://github.com/pedrorezendefig/hospital-reunioes/issues"
 
@@ -272,3 +273,16 @@ class TestAApiDoDocumento:
         item = _item_da_lista(monkeypatch, _github_do_1757(validada=False), logado=DIRETOR)
 
         assert item["validado_em"] is None
+
+
+class TestOKit:
+    def test_o_kit_da_tecnologia_diz_o_selo_a_faixa_e_o_espera_o_ajuste(self):
+        """O kit é a língua em que o Assistente fala com o diretor: sem o
+        comportamento novo escrito, ele não saberia explicar o selo nem por que
+        uma parte ainda não começou."""
+        texto = (CONHECIMENTO_DIR / "tecnologia.md").read_text(encoding="utf-8")
+        secao = texto.split("## A Etapa", 1)[1].split("\n## ", 1)[0]
+
+        for trecho in ("**Plano validado em**", "**Espera o ajuste do plano**", "ajustando o plano"):
+            assert trecho in secao, trecho
+        assert "—" not in texto and "–" not in texto
