@@ -2,6 +2,51 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T10:14:12-03:00",
+      "sha": "86f1926a50b10a11c54f6d7668729f1513150d01",
+      "app_version": "0.371.1",
+      "subject": "Onda nsp2-onda12: Manual de Segurança do Paciente com a notificação, a triagem e os prazos",
+      "raw_subject": "chore(deploy): registro da onda nsp2-onda12 (#2147)",
+      "scope": [
+        "frontend"
+      ],
+      "prds": [
+        1979
+      ],
+      "result": "healthy",
+      "duration_seconds": 467,
+      "services_touched": [
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp2-onda12: PR #2147 (issue #2003), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 2,
+        "build_s": {
+          "frontend": 450
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T03:04:12-03:00",
       "sha": "f1957b2fcbe1c4a2edb20ab41fd9e0880ab39062",
       "app_version": "0.371.0",
