@@ -33,6 +33,7 @@ from postgrest.exceptions import APIError
 
 from app.services import storage
 from app.services.conduta import cifra, impedimento, membros, trilha
+from app.services.conduta.acesso import coordenacao_abre_o_pedido, pessoa_no_comite
 from app.services.conduta.portao import CasoAberto, PedidoAberto
 from app.services.conduta.ritos import agora_utc, data_do_envio
 from app.services.conduta.rota_especial import DO_GRUPO, no_grupo
@@ -168,7 +169,10 @@ def _vista(supabase, afastamento: dict, coordena: bool) -> dict[str, Any]:
         "motivo": cifra.decifrar_texto(afastamento["motivo_cifrado"]),
         "registrado_em": afastamento["registrado_em"],
         "resultado": resultado(afastamento),
-        "entregas": {"dp": afastamento.get("entregue_ao_dp_em"), "juridico": afastamento.get("entregue_ao_juridico_em")},
+        "entregas": {
+            "dp": afastamento.get("entregue_ao_dp_em"),
+            "juridico": afastamento.get("entregue_ao_juridico_em"),
+        },
         "parecer": parecer,
         "pode_registrar_entrega": coordena,
         "pode_anexar_parecer": coordena and not afastamento.get("parecer_anexado_em"),
@@ -323,6 +327,25 @@ def abrir_parecer(supabase, aberto: PedidoAberto) -> bytes:
     if cifrado is None:
         raise AcaoRecusadaError(503, "O parecer não pôde ser lido agora. Tente de novo.")
     return cifra.decifrar_arquivo(cifrado)
+
+
+def pedidos_da_rota_especial(supabase, coordenacao_id: str) -> list[dict[str, Any]]:
+    """Os pedidos da Rota Especial que a coordenação abre, do mais novo ao mais
+    antigo, sem nada do caso: nem protocolo, nem quem afastar. O pedido se abre
+    pelo portão do afastamento, que grava a leitura."""
+    pessoa = pessoa_no_comite(supabase, coordenacao_id)
+    linhas = supabase.table(TABELA).select("*").eq("rota", "especial").execute().data or []
+    return [
+        {
+            "id": a["id"],
+            "caso_id": a["caso_id"],
+            "registrado_em": a["registrado_em"],
+            "resultado": resultado(a),
+            "parecer_anexado": bool(a.get("parecer_anexado_em")),
+        }
+        for a in sorted(linhas, key=lambda x: str(x.get("registrado_em") or ""), reverse=True)
+        if coordenacao_abre_o_pedido(supabase, pessoa, a["caso_id"]) is not None
+    ]
 
 
 def para_a_tela(supabase, aberto: CasoAberto) -> dict[str, Any]:

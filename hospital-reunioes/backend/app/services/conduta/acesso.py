@@ -176,7 +176,9 @@ def casos_da_pessoa(supabase, pessoa: PessoaNoComite) -> list[dict] | None:
     return sorted(abertos, key=lambda caso: str(caso.get("recebido_em") or ""), reverse=True)
 
 
-def coordenacao_ve_o_pedido(caso: dict[str, Any], pessoa: PessoaNoComite, atribuicoes: list[dict], citado: bool) -> bool:
+def coordenacao_ve_o_pedido(
+    caso: dict[str, Any], pessoa: PessoaNoComite, atribuicoes: list[dict], citado: bool
+) -> bool:
     """A coordenação, com o Termo assinado, vê o pedido de afastamento de um
     caso da Rota Especial, e só ele (issue #1836; decisão 36 do diretor). O
     Citado e o impedido nem o pedido veem."""

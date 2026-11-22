@@ -22,6 +22,7 @@ from app.services.conduta.portao import (
     CasoAberto,
     PedidoAberto,
     portao_da_acao,
+    portao_da_coordenacao,
     portao_do_afastamento,
 )
 from app.services.conduta.triagem import AcaoRecusadaError
@@ -46,6 +47,15 @@ def _executar(funcao, *argumentos, **nomeados):
         raise HTTPException(status_code=recusa.status, detail=recusa.mensagem) from recusa
     except cifra.CifraIndisponivelError as erro:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=INDISPONIVEL) from erro
+
+
+@router.get("/afastamentos/pedidos")
+async def pedidos_da_rota_especial(
+    me: dict = Depends(portao_da_coordenacao), supabase: Client = Depends(get_supabase_client)
+) -> dict:
+    """Os pedidos de afastamento da Rota Especial, para a coordenação: sem
+    nada do caso. Cada um se abre pelo pedido."""
+    return {"pedidos": afastamento.pedidos_da_rota_especial(supabase, me["id"])}
 
 
 @router.post("/casos/{caso_id}/afastamentos")

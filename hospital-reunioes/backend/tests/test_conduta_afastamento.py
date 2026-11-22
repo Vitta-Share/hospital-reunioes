@@ -381,3 +381,209 @@ class TestEntregaEParecer:
         afastamento_id = _afastado(comite, caso_id)
 
         assert _parecer(comite, MEMBRO, caso_id, afastamento_id).status_code == 403
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. Na Rota Especial, a coordenação vê só o pedido
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _pedido_especial(comite: Comite) -> tuple[str, str]:
+    caso_id = comite.caso("sim")
+    afastamento_id = _afastado(comite, caso_id, pid=MEMBRO)
+    return caso_id, afastamento_id
+
+
+class TestCoordenacaoNaRotaEspecial:
+    def test_o_grupo_pede_o_afastamento_a_coordenacao(self, comite):
+        caso_id, _ = _pedido_especial(comite)
+
+        [afastamento] = comite.afastamentos(caso_id)
+        assert afastamento["rota"] == "especial"
+        assert comite.trilha(caso_id)[-1]["acao"] == "afastamento_pedido"
+        tela = comite.cliente(MEMBRO).get(f"{BASE}/casos/{caso_id}").json()
+        assert tela["afastamentos"][0]["resultado"] is None
+
+    def test_a_coordenacao_abre_o_pedido_sem_nada_do_caso(self, comite):
+        caso_id, afastamento_id = _pedido_especial(comite)
+        protocolo = comite.linha(caso_id)["protocolo"]
+
+        resposta = comite.cliente(COORDENACAO).get(f"{BASE}/casos/{caso_id}/afastamentos/{afastamento_id}")
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["pedido"]["quem"] == ACUSADO
+        assert "escala" not in resposta.text
+        assert protocolo not in resposta.text
+        assert resposta.json()["pode_anexar_parecer"] is True
+        ultima = comite.trilha(caso_id)[-1]
+        assert (ultima["acao"], ultima["autor_id"]) == ("leitura", COORDENACAO)
+
+    def test_a_coordenacao_recebe_403_no_resto_do_caso(self, comite):
+        caso_id, afastamento_id = _pedido_especial(comite)
+        cliente = comite.cliente(COORDENACAO)
+
+        assert cliente.get(f"{BASE}/casos/{caso_id}").status_code == 403
+        assert cliente.post(f"{BASE}/casos/{caso_id}/citados", json={"nome": "Outra Pessoa"}).status_code == 403
+        assert cliente.post(f"{BASE}/casos/{caso_id}/nota-ao-nsp", json={"texto": "risco"}).status_code == 403
+        assert cliente.post(f"{BASE}/casos/{caso_id}/impedimento", json={"motivo": "parte"}).status_code == 403
+        caso_ids = [c["id"] for c in cliente.get(f"{BASE}/casos").json()["casos"]]
+        assert caso_id not in caso_ids
+        assert comite.afastar(COORDENACAO, caso_id, comite.afastamentos(caso_id)[0]["citado_id"]).status_code == 403
+
+    def test_a_coordenacao_lista_os_pedidos_da_rota_especial_sem_dado_do_caso(self, comite):
+        caso_id, afastamento_id = _pedido_especial(comite)
+        protocolo = comite.linha(caso_id)["protocolo"]
+
+        resposta = comite.cliente(COORDENACAO).get(f"{BASE}/afastamentos/pedidos")
+
+        assert resposta.status_code == 200, resposta.text
+        [item] = resposta.json()["pedidos"]
+        assert (item["id"], item["caso_id"]) == (afastamento_id, caso_id)
+        assert item["parecer_anexado"] is False
+        assert protocolo not in resposta.text
+        assert ACUSADO not in resposta.text
+
+    def test_so_a_coordenacao_lista_os_pedidos(self, comite):
+        _pedido_especial(comite)
+
+        assert comite.cliente(MEMBRO).get(f"{BASE}/afastamentos/pedidos").status_code == 403
+
+    def test_a_coordenacao_citada_nem_o_pedido_ve(self, comite):
+        caso_id = comite.caso("sim")
+        comite.cliente(MEMBRO).post(f"{BASE}/casos/{caso_id}/citados", json={"participante_id": COORDENACAO})
+        citado_id = next(c["id"] for c in comite.banco.tabelas["conduta_citados"] if c.get("participante_id"))
+        assert comite.afastar(MEMBRO, caso_id, citado_id).status_code == 200
+        afastamento_id = comite.afastamentos(caso_id)[0]["id"]
+
+        cliente = comite.cliente(COORDENACAO)
+        assert cliente.get(f"{BASE}/casos/{caso_id}/afastamentos/{afastamento_id}").status_code == 403
+        assert cliente.get(f"{BASE}/afastamentos/pedidos").json()["pedidos"] == []
+
+    def test_outro_membro_de_fora_do_grupo_nao_abre_o_pedido(self, comite):
+        caso_id, afastamento_id = _pedido_especial(comite)
+
+        resposta = comite.cliente(SEGUNDO_LEITOR).get(f"{BASE}/casos/{caso_id}/afastamentos/{afastamento_id}")
+
+        assert resposta.status_code == 403
+
+    def test_na_rota_especial_so_o_grupo_pede(self, comite):
+        caso_id = comite.caso("sim")
+        citado_id = comite.citar(MEMBRO, caso_id)
+
+        assert comite.afastar(COORDENACAO, caso_id, citado_id).status_code == 403
+
+    def test_o_grupo_nao_registra_a_entrega_nem_anexa_o_parecer(self, comite):
+        caso_id, afastamento_id = _pedido_especial(comite)
+
+        assert _entregar(comite, MEMBRO, caso_id, afastamento_id).status_code == 403
+        assert _parecer(comite, MEMBRO, caso_id, afastamento_id, resultado="afastar").status_code == 403
+
+    def test_a_coordenacao_registra_a_entrega_do_pedido_especial(self, comite):
+        caso_id, afastamento_id = _pedido_especial(comite)
+
+        assert _entregar(comite, COORDENACAO, caso_id, afastamento_id, "juridico").status_code == 200
+        assert comite.afastamentos(caso_id)[0]["entregue_ao_juridico_em"] == HOJE.isoformat()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. Na Rota Especial, o parecer leva a ciência do grupo e define o resultado
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestParecerNaRotaEspecial:
+    @pytest.mark.parametrize("resultado", ["afastar", "nao_afastar"])
+    def test_o_parecer_define_o_resultado(self, comite, resultado):
+        caso_id, afastamento_id = _pedido_especial(comite)
+
+        resposta = _parecer(comite, COORDENACAO, caso_id, afastamento_id, resultado=resultado)
+
+        assert resposta.status_code == 200, resposta.text
+        tela = comite.cliente(MEMBRO).get(f"{BASE}/casos/{caso_id}").json()
+        assert tela["afastamentos"][0]["resultado"] == resultado
+
+    def test_o_parecer_registra_a_ciencia_dos_membros_do_grupo(self, comite):
+        caso_id, afastamento_id = _pedido_especial(comite)
+
+        _parecer(comite, COORDENACAO, caso_id, afastamento_id, resultado="afastar")
+
+        assert comite.afastamentos(caso_id)[0]["ciencia_de"] == sorted([MEMBRO, SUPLENTE])
+        ultima = comite.trilha(caso_id)[-1]
+        assert ultima["acao"] == "parecer_do_juridico_anexado"
+        assert "afastar" in ultima["detalhe"] and "ciência de 2 membro(s) do grupo" in ultima["detalhe"]
+        tela = comite.cliente(SUPLENTE).get(f"{BASE}/casos/{caso_id}").json()
+        assert sorted(tela["afastamentos"][0]["parecer"]["ciencia_de"]) == [f"Pessoa {MEMBRO}", f"Pessoa {SUPLENTE}"]
+
+    def test_parecer_sem_resultado_e_recusado(self, comite):
+        caso_id, afastamento_id = _pedido_especial(comite)
+
+        assert _parecer(comite, COORDENACAO, caso_id, afastamento_id).status_code == 422
+        assert comite.afastamentos(caso_id)[0].get("parecer_anexado_em") is None
+
+    def test_o_grupo_baixa_o_parecer(self, comite):
+        caso_id, afastamento_id = _pedido_especial(comite)
+        _parecer(comite, COORDENACAO, caso_id, afastamento_id, resultado="nao_afastar")
+
+        resposta = comite.cliente(SUPLENTE).get(f"{BASE}/casos/{caso_id}/afastamentos/{afastamento_id}/parecer")
+
+        assert resposta.content == PDF
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. Nenhuma medida cautelar recai sobre quem relatou
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestQuemRelatou:
+    def test_nao_se_afasta_o_denunciante_identificado(self, comite):
+        caso_id = comite.caso(etapa="apuracao")
+        resposta = comite.cliente(COORDENACAO).post(
+            f"{BASE}/casos/{caso_id}/depoimentos",
+            json={"nome": "Ana Lúcia Souza", "cargo": "Técnica de enfermagem", "papel": "denunciante"},
+        )
+        assert resposta.status_code == 200, resposta.text
+        citado_id = comite.citar(MEMBRO, caso_id, nome="ana lucia  SOUZA")
+
+        resposta = comite.afastar(COORDENACAO, caso_id, citado_id)
+
+        assert resposta.status_code == 422
+        assert resposta.json()["detail"] == "Nenhuma medida cautelar recai sobre quem relatou."
+        assert comite.afastamentos(caso_id) == []
+
+    def test_nao_se_afasta_quem_manifestou_na_ouvidoria(self, comite):
+        caso_id = comite.caso()
+        comite.linha(caso_id)["manifestacao_id"] = "man-1"
+        comite.banco.tabelas["ouvidoria_protocolos"] = [{"id": "man-1", "manifestante_nome": "Bruno Dias"}]
+        citado_id = comite.citar(MEMBRO, caso_id, nome="Bruno Dias")
+
+        assert comite.afastar(COORDENACAO, caso_id, citado_id).status_code == 422
+
+    def test_a_testemunha_ouvida_pode_ser_afastada(self, comite):
+        caso_id = comite.caso(etapa="apuracao")
+        comite.cliente(COORDENACAO).post(
+            f"{BASE}/casos/{caso_id}/depoimentos",
+            json={"nome": ACUSADO, "cargo": "Supervisor", "papel": "acusado"},
+        )
+        citado_id = comite.citar(MEMBRO, caso_id)
+
+        assert comite.afastar(COORDENACAO, caso_id, citado_id).status_code == 200
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 7. O kit de conhecimento diz o comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_o_kit_do_canal_diz_o_afastamento_cautelar():
+    from pathlib import Path
+
+    kit = (Path(__file__).resolve().parents[1] / "app" / "conhecimento" / "canal-de-conduta.md").read_text(
+        encoding="utf-8"
+    )
+    assert "## O afastamento cautelar" in kit
+    assert "O afastamento cautelar é remunerado e não é punição." in kit
+    assert "o coordenador do Comitê registra a decisão de afastar" in kit
+    assert "só quem afastar e o motivo" in kit
+    assert "a coordenação vê só o pedido" in kit
+    assert "é o parecer que define" in kit
+    assert "com ciência dos membros do grupo" in kit
+    assert "nunca recai sobre quem relatou" in kit

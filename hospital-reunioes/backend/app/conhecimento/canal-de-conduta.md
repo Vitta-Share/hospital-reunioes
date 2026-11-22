@@ -216,6 +216,20 @@ O relato que envolve a Direção, a Presidência ou a família proprietária é 
 
 Por enquanto o formulário público ainda não está no ar, então a pergunta sobre a Direção chega com ele, numa próxima entrega.
 
+## O afastamento cautelar
+
+O afastamento cautelar tira do trabalho, enquanto o caso corre, a pessoa citada que pode atrapalhar a apuração. Ele está na tela do caso em qualquer etapa, enquanto o caso não encerrou, e a tela diz: "O afastamento cautelar é remunerado e não é punição."
+
+- Só se afasta quem está marcado como Citado no caso. O afastamento nunca recai sobre quem relatou: o aplicativo recusa o nome do denunciante identificado ouvido na Apuração e o de quem manifestou na Ouvidoria, no caso que veio de lá.
+- Nos casos da fila comum, quem decide é o Comitê, pelo coordenador: o coordenador do Comitê registra a decisão de afastar, com o motivo, e o aplicativo gera o pedido ao DP e ao Jurídico. O DP faz as notificações formais, e o parecer do Jurídico é consultivo.
+- O pedido leva só quem afastar e o motivo, com o aviso de que o afastamento é remunerado. Não leva o relato, o protocolo do caso nem quem relatou, e o motivo com protocolo de caso é recusado. Assim o DP e o Jurídico não leem o caso.
+- O pedido é entregue fora do aplicativo. A coordenação registra na tela a data da entrega ao DP e a data da entrega ao Jurídico, uma vez cada uma.
+- A coordenação anexa o parecer do Jurídico em PDF, uma vez. Ele fica guardado cifrado e abre pela tela do caso, para quem abre o caso. Anexar e abrir o parecer ficam na trilha.
+- Na Rota Especial, o grupo pede o afastamento à coordenação, e a coordenação vê só o pedido: nem o relato, nem o protocolo, nem o resto do caso, que continua recusado para ela. Os pedidos da Rota Especial aparecem para a coordenação numa lista própria, sem dado do caso. A coordenação pede o parecer ao Jurídico com urgência e o anexa com ciência dos membros do grupo, e é o parecer que define se haverá afastamento ou não. A tela do caso mostra ao grupo o parecer, o resultado e quem teve ciência.
+- A coordenação citada no caso da Rota Especial não vê nem o pedido.
+
+Cada decisão, pedido, entrega, parecer e abertura do pedido entra na trilha do caso, com quem fez e quando.
+
 ## Quem vê
 
 Ninguém vê um caso por ter um cargo. Vê quem está designado naquele caso:
@@ -278,3 +292,5 @@ O formulário público de relato, as páginas públicas que vão mostrar os text
 - Um impedimento sem suplente convocado: não havia suplente vigente com o Termo assinado e livre naquele caso.
 - Pedido para ver o voto de outro membro antes de todos votarem, ou para trocar um voto registrado: não existe.
 - "CONCLUIR VOTAÇÃO" que não libera: falta voto, não houve maioria (a reunião curta foi convocada) ou, no procedente, falta item da trava; a tela diz qual.
+- Pedido para afastar quem relatou, ou para levar o relato junto do pedido de afastamento: não existe; o pedido leva só quem afastar e o motivo.
+- Coordenação que não abre o caso da Rota Especial do qual recebeu o pedido de afastamento: é assim mesmo; ela vê só o pedido.
