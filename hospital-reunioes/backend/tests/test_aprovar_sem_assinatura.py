@@ -48,6 +48,7 @@ class _TableQuery:
         self._ilike: tuple[str, str] | None = None
         self._order: tuple[str, bool] | None = None
         self._limit: int | None = None
+        self._offset = 0
 
     def select(self, *_a, **_kw):
         self._op = "select"
@@ -87,6 +88,14 @@ class _TableQuery:
         self._limit = n
         return self
 
+    def range(self, inicio, fim):
+
+        self._offset = inicio
+
+        self._limit = fim - inicio + 1
+
+        return self
+
     def _matches(self, r: dict) -> bool:
         for col, value in self._filters:
             if r.get(col) != value:
@@ -113,7 +122,7 @@ class _TableQuery:
             col, desc = self._order
             matched.sort(key=lambda r: str(r.get(col) or ""), reverse=desc)
         if self._limit is not None:
-            matched = matched[: self._limit]
+            matched = matched[self._offset : self._offset + self._limit]
 
         if self._op == "update":
             for r in matched:
