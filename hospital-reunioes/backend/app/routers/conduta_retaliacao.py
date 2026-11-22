@@ -51,3 +51,16 @@ async def registrar_verificacao(
         hoje=hoje_em_sao_paulo(),
     )
     return {"marco": linha["marco"], "houve": linha["houve"]}
+
+
+class CasoNovo(BaseModel):
+    marco: Literal[30, 90, 180]
+
+
+@router.post("/casos/{caso_id}/verificacoes-de-retaliacao/caso-novo")
+async def abrir_caso_de_retaliacao(
+    corpo: CasoNovo, aberto: CasoAberto = Depends(portao_da_acao), supabase: Client = Depends(get_supabase_client)
+) -> dict:
+    """ABRIR CASO DE RETALIAÇÃO: a verificação em que houve vira caso novo, na
+    triagem. Devolve o id e o protocolo do caso novo."""
+    return _agir(retaliacao.abrir_caso_de_retaliacao, supabase, aberto, marco=corpo.marco)

@@ -282,6 +282,15 @@ Depois da decisão da Direção (ou, no caso improcedente ou inconclusivo, logo 
 - A comunicação ao acusado não cita quem relatou. Nenhum nome vai ao agente, e na volta só o nome do acusado reaparece; qualquer outra pessoa vira "uma pessoa". O aplicativo recusa a comunicação que cita o denunciante identificado.
 - Em todo caso procedente ou parcialmente procedente, o botão "SUGERIR CORREÇÕES" pede ao agente de uma a três correções no processo que permitiu o fato. Os membros votantes escolhem a correção e definem responsável e prazo. O retorno do caso procedente só é aprovado com ao menos uma correção escolhida.
 
+## A verificação de retaliação
+
+Concluído o caso, a coordenação verifica em 30, 90 e 180 dias se houve mudança desfavorável para quem relatou: desligamento, escala, transferência ou avaliação. Cada verificação aparece em MINHA VEZ da coordenação no dia dela, contado do encerramento, e fica lá até ser registrada. A de 90 dias só aparece depois de registrada a de 30.
+
+- Na tela do caso, "REGISTRAR VERIFICAÇÃO" pede uma resposta de um clique, "Não houve" ou "Houve", com um campo de observação opcional. A observação fica cifrada, e cada verificação registrada entra na trilha e não muda mais.
+- Quando houve, a tela oferece "ABRIR CASO DE RETALIAÇÃO": o aplicativo abre um caso novo de retaliação, que entra na triagem da fila comum na categoria Conduta e relações, com o protocolo do caso de origem e a observação no relato. O caso novo fica ligado à verificação, e cada verificação abre um só.
+- Só vale quando se sabe quem relatou (o denunciante identificado ouvido na apuração, ou o nome da manifestação que a Ouvidoria sinalizou) ou quando quem relatou avisou algo pela página de acompanhamento. Caso anônimo sem aviso de quem relatou não gera verificação. O caso Encaminhado e o da Rota Especial também não.
+- Só a coordenação registra a verificação e abre o caso novo. Os outros membros veem a caixa com o aviso de que é tarefa da coordenação.
+
 ## Quem vê
 
 Ninguém vê um caso por ter um cargo. Vê quem está designado naquele caso:
@@ -353,3 +362,5 @@ O formulário público de relato, as páginas públicas que vão mostrar os text
 - Pedido para trocar a decisão da medida já registrada: não existe; a decisão se registra uma vez.
 - "APROVAR RETORNO" que não libera: no caso procedente, falta a decisão da Direção ou uma correção de processo com responsável e prazo; a tela diz qual.
 - Resposta a quem relatou recusada ao salvar: ela cita a medida ou um nome; reescreva informando só a conclusão.
+- Caso concluído que não pede a verificação de retaliação: o relato é anônimo e quem relatou não avisou nada pela página de acompanhamento, ou o dia da verificação ainda não chegou.
+- Pedido para corrigir uma verificação de retaliação registrada: não existe; ela se registra uma vez. Se a situação mudou, abra um caso novo de retaliação.

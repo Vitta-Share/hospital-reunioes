@@ -147,6 +147,53 @@ def registrar(supabase, aberto: CasoAberto, *, marco: int, houve: bool, observac
         raise
 
 
+def _relato_da_retaliacao(protocolo: str, marco: int, observacao: str | None) -> str:
+    relato = (
+        f"Caso aberto pela coordenação do Comitê na verificação de retaliação de {marco} dias do caso {protocolo}: "
+        "houve mudança desfavorável para quem relatou."
+    )
+    return f"{relato}\n\nObservação da verificação: {observacao}" if observacao else relato
+
+
+def abrir_caso_de_retaliacao(supabase, aberto: CasoAberto, *, marco: int) -> dict:
+    """ABRIR CASO DE RETALIAÇÃO: a verificação em que houve mudança
+    desfavorável vira um caso novo, que entra na triagem da fila comum. Um
+    por verificação."""
+    if aberto.pessoa.papel != "coordenacao":
+        raise VerificacaoRecusadaError(403, "Só a coordenação abre o caso novo de retaliação.")
+    caso = aberto.caso
+    _exigir_acompanhamento(supabase, caso)
+    feita = _feitas(supabase, caso["id"]).get(marco)
+    if not feita or not feita["houve"]:
+        raise VerificacaoRecusadaError(409, "Só a verificação em que houve mudança desfavorável abre caso novo.")
+    if feita.get("caso_novo_id"):
+        raise VerificacaoRecusadaError(409, "O caso novo desta verificação já foi aberto.")
+    observacao = cifra.decifrar_texto(feita["observacao_cifrada"]) if feita.get("observacao_cifrada") else None
+    trilha.registrar(
+        supabase,
+        caso["id"],
+        aberto.autor_id,
+        "abriu_caso_de_retaliacao",
+        f"abriu caso novo de retaliação na verificação de {marco} dias",
+    )
+    novo = casos.registrar_caso(
+        supabase,
+        relato=_relato_da_retaliacao(caso["protocolo"], marco, observacao),
+        categoria=CATEGORIA_DA_RETALIACAO,
+    )
+    ligadas = (
+        supabase.table(TABELA)
+        .update({"caso_novo_id": novo["id"]})
+        .eq("id", feita["id"])
+        .is_("caso_novo_id", "null")
+        .execute()
+        .data
+    )
+    if not ligadas:
+        raise VerificacaoRecusadaError(409, "O caso novo desta verificação já foi aberto.")
+    return {"id": novo["id"], "protocolo": novo["protocolo"]}
+
+
 def _protocolos(supabase, ids: list[str]) -> dict[str, str]:
     if not ids:
         return {}

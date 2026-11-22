@@ -198,3 +198,118 @@ class TestRegistroComUmClique:
         assert comite.verificar(caso, 30).status_code == 200
         assert comite.verificar(caso, 30, houve=True).status_code == 409
         assert len(comite.banco.tabelas[TABELA]) == 1
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Caso anônimo sem aviso do denunciante não gera tarefa
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestCasoAnonimoSemAviso:
+    def test_o_caso_anonimo_sem_aviso_nao_gera_tarefa(self, comite):
+        caso = comite.encerrado(identificado=False, ha_dias=30)
+
+        assert comite.da_verificacao(caso) == []
+        assert comite.abrir(COORDENACAO, caso)["verificacao_de_retaliacao"] is None
+        assert comite.abrir(COORDENACAO, caso)["o_que_fazer_agora"]["botao"] is None
+        assert comite.verificar(caso, 30).status_code == 409
+
+    def test_o_caso_anonimo_em_que_o_denunciante_avisou_gera_tarefa(self, comite):
+        caso = comite.encerrado(identificado=False, ha_dias=30)
+
+        comite.linha_do_caso(caso)["denunciante_informou_em"] = "2026-11-20T12:00:00+00:00"
+
+        assert [i["acao"] for i in comite.da_verificacao(caso)] == [f"{ACAO} (30 dias)"]
+
+    def test_o_caso_sinalizado_pela_ouvidoria_com_nome_gera_tarefa(self, comite):
+        caso = comite.encerrado(identificado=False, ha_dias=30)
+        comite.linha_do_caso(caso).update({"origem": "ouvidoria", "manifestacao_id": "manif-1"})
+        comite.banco.tabelas["ouvidoria_protocolos"] = [{"id": "manif-1", "manifestante_nome": "Marta Relatora"}]
+
+        assert [i["acao"] for i in comite.da_verificacao(caso)] == [f"{ACAO} (30 dias)"]
+
+    def test_o_caso_encaminhado_nao_gera_tarefa(self, comite):
+        caso = comite.caso()
+        _denunciante_ouvido(comite, caso)
+        comite.linha_do_caso(caso).update(
+            {"etapa": "encerrado", "desfecho": "encaminhado", "encerrado_em": "2026-01-01T12:00:00+00:00"}
+        )
+
+        assert comite.da_verificacao(caso) == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# A resposta "houve" oferece abrir um caso novo de retaliação
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _abrir_caso_novo(comite, caso: str, marco: int = 30, pid: str = COORDENACAO):
+    return comite.post(pid, f"/casos/{caso}/verificacoes-de-retaliacao/caso-novo", {"marco": marco})
+
+
+class TestHouveAbreCasoNovo:
+    def test_houve_oferece_abrir_o_caso_novo(self, comite):
+        caso = comite.encerrado(ha_dias=30)
+
+        comite.verificar(caso, 30, houve=True, observacao="Ela foi trocada de escala na semana seguinte.")
+
+        (marco_30, *_) = comite.abrir(COORDENACAO, caso)["verificacao_de_retaliacao"]["marcos"]
+        assert marco_30["houve"] is True
+        assert marco_30["pode_abrir_caso_novo"] is True
+
+    def test_nao_houve_nao_oferece(self, comite):
+        caso = comite.encerrado(ha_dias=30)
+
+        comite.verificar(caso, 30, houve=False)
+
+        (marco_30, *_) = comite.abrir(COORDENACAO, caso)["verificacao_de_retaliacao"]["marcos"]
+        assert marco_30["pode_abrir_caso_novo"] is False
+        assert _abrir_caso_novo(comite, caso).status_code == 409
+
+    def test_o_caso_novo_entra_na_triagem_ligado_a_verificacao(self, comite):
+        caso = comite.encerrado(ha_dias=30)
+        comite.verificar(caso, 30, houve=True, observacao="Ela foi trocada de escala na semana seguinte.")
+
+        resposta = _abrir_caso_novo(comite, caso)
+
+        assert resposta.status_code == 200, resposta.text
+        novo = comite.linha_do_caso(resposta.json()["id"])
+        assert novo["protocolo"] == resposta.json()["protocolo"] != comite.linha_do_caso(caso)["protocolo"]
+        assert (novo["etapa"], novo["categoria"], novo["rota"]) == ("triagem", "A", "comum")
+        relato = cifra.decifrar_texto(novo["relato_cifrado"])
+        assert "retaliação" in relato
+        assert comite.linha_do_caso(caso)["protocolo"] in relato
+        assert "Ela foi trocada de escala na semana seguinte." in relato
+        (marco_30, *_) = comite.abrir(COORDENACAO, caso)["verificacao_de_retaliacao"]["marcos"]
+        assert marco_30["caso_novo"] == {"id": novo["id"], "protocolo": novo["protocolo"]}
+        assert marco_30["pode_abrir_caso_novo"] is False
+        assert "abriu_caso_de_retaliacao" in [t["acao"] for t in comite.trilha(caso)]
+
+    def test_o_caso_novo_abre_uma_vez_e_so_pela_coordenacao(self, comite):
+        caso = comite.encerrado(ha_dias=30)
+        comite.verificar(caso, 30, houve=True)
+
+        assert _abrir_caso_novo(comite, caso, pid=MEMBRO).status_code == 403
+        assert _abrir_caso_novo(comite, caso).status_code == 200
+        assert _abrir_caso_novo(comite, caso).status_code == 409
+        assert len(comite.banco.tabelas["conduta_casos"]) == 2
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# O texto do Produto Canal de Conduta no kit de conhecimento diz o
+# comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestKitDeConhecimento:
+    @pytest.mark.parametrize(
+        "trecho",
+        [
+            "30, 90 e 180 dias",
+            "REGISTRAR VERIFICAÇÃO",
+            "caso novo de retaliação",
+            "Caso anônimo sem aviso de quem relatou não gera verificação",
+        ],
+    )
+    def test_o_kit_diz_o_comportamento_novo(self, trecho):
+        assert trecho in (CONHECIMENTO_DIR / "canal-de-conduta.md").read_text(encoding="utf-8")
