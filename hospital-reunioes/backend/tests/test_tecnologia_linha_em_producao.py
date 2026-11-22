@@ -31,6 +31,7 @@ from test_tecnologia_webhook_github import (  # noqa: E402
 )
 
 from app.services import github_client, tecnologia_sincronizacao  # noqa: E402
+from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
 
 
 def _linhas_da_conversa(sb) -> list[dict]:
@@ -70,3 +71,20 @@ class TestLinhaDeEmProducao:
         [linha] = _linhas_da_conversa(sb)
         assert linha["origem"] == "sistema"
         assert linha["texto"] == "Entrou no ar na versão v0.169.0, em 08/10/2026."
+
+
+class TestKitDeConhecimento:
+    def test_o_kit_da_tecnologia_diz_a_conversa_formatada_o_separador_e_a_linha_de_em_producao(self):
+        """O Produto Tecnologia no kit diz o comportamento novo da Conversa (issue #2117)."""
+        texto = (CONHECIMENTO_DIR / "tecnologia.md").read_text(encoding="utf-8")
+        conversa = texto.split("## A Conversa da Demanda", 1)[1].split("\n## ", 1)[0]
+
+        for trecho in (
+            "aceita negrito, lista e link",
+            "o link abre em outra aba",
+            "HTML digitado aparece como texto",
+            "As mensagens escritas antes continuam como estavam",
+            "Um traço com a data separa as mensagens de cada dia",
+            "Quando o pedido entra em produção, a Conversa ganha uma linha avisando",
+        ):
+            assert trecho in conversa, trecho

@@ -17,12 +17,14 @@
  * aparece e quantas mensagens são novas é o servidor.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { Loader2, Send } from "lucide-react";
 
 import { LIMITE_DA_MENSAGEM } from "./assistente";
 import { CartaoDaPergunta, type PerguntaDaVitta, perguntaValida } from "./CartaoDaPergunta";
 import { BASE_TECNOLOGIA, FALHA_DE_CONEXAO, motivoDaRecusa } from "./demandas";
+import { SeparadorDeDia, diaDaMensagem } from "./SeparadorDeDia";
+import { TextoDaMensagem } from "./TextoDaMensagem";
 
 type Mensagem = {
   id: string;
@@ -73,6 +75,20 @@ function quando(criadoEm: string | null): string {
   const data = new Date(criadoEm);
   if (Number.isNaN(data.getTime())) return "";
   return data.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+/**
+ * O dia da mensagem `i` quando ele é outro que o da mensagem anterior com data
+ * (issue #2117): é ali que entra o separador. Nulo no mesmo dia ou sem data.
+ */
+function trocaDeDia(mensagens: Mensagem[], i: number): string | null {
+  const dia = diaDaMensagem(mensagens[i].criado_em);
+  if (!dia) return null;
+  for (let j = i - 1; j >= 0; j--) {
+    const anterior = diaDaMensagem(mensagens[j].criado_em);
+    if (anterior) return anterior === dia ? null : dia;
+  }
+  return dia;
 }
 
 /** O trecho depois do último "@" antes do cursor, se ele ainda parece um nome. */
@@ -275,33 +291,45 @@ export function ConversaDaDemanda({
       )}
       {mensagens !== null && mensagens.length > 0 && (
         <ul className="space-y-3">
-          {mensagens.map((mensagem) =>
-            perguntaValida(mensagem.pergunta) ? (
-              <li key={mensagem.id}>
-                <CartaoDaPergunta pergunta={mensagem.pergunta} />
-              </li>
-            ) : mensagem.sistema ? (
-              <li key={mensagem.id} className="flex justify-center">
-                <p className="normal-case max-w-[90%] whitespace-pre-wrap rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-800">
-                  {mensagem.texto}
-                </p>
-              </li>
-            ) : (
-              <li key={mensagem.id} className={`flex ${mensagem.minha ? "justify-end" : "justify-start"}`}>
-                <div
-                  className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${
-                    mensagem.minha ? "bg-primary/5 border border-primary/20" : "bg-slate-50 border border-slate-200"
-                  }`}
-                >
-                  <p className="flex flex-wrap items-baseline gap-2 text-xs text-text-secondary">
-                    <span className="normal-case font-semibold text-slate-800">{mensagem.autor}</span>
-                    <span className="normal-case">{quando(mensagem.criado_em)}</span>
-                  </p>
-                  <p className="normal-case whitespace-pre-wrap text-slate-800">{mensagem.texto}</p>
-                </div>
-              </li>
-            ),
-          )}
+          {mensagens.map((mensagem, i) => {
+            const dia = trocaDeDia(mensagens, i);
+            return (
+              <Fragment key={mensagem.id}>
+                {dia && (
+                  <li>
+                    <SeparadorDeDia dia={dia} />
+                  </li>
+                )}
+                {perguntaValida(mensagem.pergunta) ? (
+                  <li key={mensagem.id}>
+                    <CartaoDaPergunta pergunta={mensagem.pergunta} />
+                  </li>
+                ) : mensagem.sistema ? (
+                  <li key={mensagem.id} className="flex justify-center">
+                    <p className="normal-case max-w-[90%] whitespace-pre-wrap rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-800">
+                      {mensagem.texto}
+                    </p>
+                  </li>
+                ) : (
+                  <li key={mensagem.id} className={`flex ${mensagem.minha ? "justify-end" : "justify-start"}`}>
+                    <div
+                      className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${
+                        mensagem.minha ? "bg-primary/5 border border-primary/20" : "bg-slate-50 border border-slate-200"
+                      }`}
+                    >
+                      <p className="flex flex-wrap items-baseline gap-2 text-xs text-text-secondary">
+                        <span className="normal-case font-semibold text-slate-800">{mensagem.autor}</span>
+                        <span className="normal-case">{quando(mensagem.criado_em)}</span>
+                      </p>
+                      <div className="text-slate-800">
+                        <TextoDaMensagem texto={mensagem.texto} />
+                      </div>
+                    </div>
+                  </li>
+                )}
+              </Fragment>
+            );
+          })}
         </ul>
       )}
 
