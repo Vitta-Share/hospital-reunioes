@@ -448,3 +448,69 @@ class TestEndpointSincronizar:
         sb = _sb(envelope_key_clicksign=None)
         res = make_client(sb).post("/api/reunioes/R1/signatarios/sincronizar")
         assert res.status_code == 400
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Issue #1914: Ata assinada por todos travada em Aguardando assinatura
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _numeracao_passou_de_mil(sb: _SupabaseMock) -> None:
+    """Pendências de outras Reuniões até A1000, como em produção: em texto,
+    "A999" vem depois de "A1000", e a numeração lia o maior número errado."""
+    for n in (998, 999, 1000):
+        sb.tables["pendencias"].append(
+            {"id_acao": f"A{n:03d}", "id_reuniao": "OUTRA", "status": "PENDENTE", "quadro_pos": 0}
+        )
+
+
+def _todos_assinaram() -> list[dict]:
+    return [
+        _signer("sk-fac", "fabio@hsm.com", assinou=True),
+        _signer("sk-ana", "ana@hsm.com", assinou=True),
+    ]
+
+
+class TestAtaAssinadaPorTodos:
+    def test_sincronizar_finaliza_a_ata_depois_da_pendencia_mil(self, clicksign, make_client):
+        clicksign.status[ENVELOPE_ID] = "closed"
+        clicksign.signers[ENVELOPE_ID] = _todos_assinaram()
+        sb = _sb()
+        _numeracao_passou_de_mil(sb)
+
+        res = make_client(sb).post("/api/reunioes/R1/signatarios/sincronizar")
+
+        assert res.status_code == 200
+        assert res.json()["desfecho"] == "finalizada"
+        assert _reuniao(sb)["status_ata"] == "ASSINADA"
+        da_ata = sorted(p["id_acao"] for p in _pendencias(sb) if p["id_reuniao"] == "R1")
+        assert da_ata == ["A1001", "A1002", "A1003", "A1004", "A1005"]
+
+    def test_sincronizar_que_falhou_pode_ser_tentado_de_novo(self, clicksign, make_client, monkeypatch):
+        """A finalização falhou no meio: o diretor recebe o motivo, e o clique
+        seguinte reconcilia de novo em vez de cair no aviso de espera."""
+        clicksign.status[ENVELOPE_ID] = "closed"
+        clicksign.signers[ENVELOPE_ID] = _todos_assinaram()
+        sb = _sb()
+        client = make_client(sb)
+        from app.services import aceite_service
+
+        original = aceite_service.finalizar_documento
+        falhas = iter([RuntimeError("banco fora do ar")])
+
+        def _falha_uma_vez(*a, **kw):
+            erro = next(falhas, None)
+            if erro is not None:
+                raise erro
+            return original(*a, **kw)
+
+        monkeypatch.setattr(aceite_service, "finalizar_documento", _falha_uma_vez)
+
+        primeira = client.post("/api/reunioes/R1/signatarios/sincronizar")
+        segunda = client.post("/api/reunioes/R1/signatarios/sincronizar")
+
+        assert primeira.status_code == 500
+        assert "Sincronização feita há pouco" not in primeira.json()["detail"]
+        assert segunda.status_code == 200
+        assert segunda.json()["desfecho"] == "finalizada"
+        assert _reuniao(sb)["status_ata"] == "ASSINADA"
