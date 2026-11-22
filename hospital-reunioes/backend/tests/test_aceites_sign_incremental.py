@@ -26,6 +26,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.dirname(__file__))
+
+from like_apoio import casa_like  # noqa: E402
 
 from app.config import settings  # noqa: E402
 from app.dependencies import get_supabase_client  # noqa: E402
@@ -78,6 +81,7 @@ class _TableQuery:
         self._filters: dict = {}
         self._in_filters: dict = {}
         self._is_filters: dict = {}
+        self._like_filters: dict = {}
         self._order: tuple[str, bool] | None = None
         self._limit: int | None = None
         self._insert_payload: list[dict] | None = None
@@ -97,6 +101,10 @@ class _TableQuery:
     def is_(self, col, value):
         # PostgREST: .is_("deleted_at", "null") filtra coluna IS NULL
         self._is_filters[col] = None if value in ("null", None) else value
+        return self
+
+    def like(self, col, pattern):
+        self._like_filters[col] = pattern
         return self
 
     def order(self, col, desc=False):
@@ -137,6 +145,7 @@ class _TableQuery:
             if all(r.get(c) == v for c, v in self._filters.items())
             and all(r.get(c) in vs for c, vs in self._in_filters.items())
             and all(r.get(c) == v for c, v in self._is_filters.items())
+            and all(casa_like(r.get(c), p) for c, p in self._like_filters.items())
         ]
 
         if self._update_payload is not None:
@@ -516,6 +525,24 @@ class TestConcorrencia:
         assert res.status_code == 200
         criadas = _pendencias(sb)
         assert sorted(p["quadro_pos"] for p in criadas) == [0, 1, 2, 3, 4]  # nada duplicado
+
+    def test_auto_close_depois_da_pendencia_mil_marca_assinada(self):
+        """Issue #2085: o banco ordena o id_acao como texto, e "A999" vem
+        depois de "A1000". Com a numeração passada de mil, a próxima leitura
+        devolvia 999, todo insert colidia no A1000 e a Ata ficava em
+        AGUARDANDO_ASSINATURA com 0 Pendências."""
+        sb = _sb()
+        sb.tables["pendencias"].extend(
+            {"id_acao": f"A{n:03d}", "id_reuniao": "R0", "status": "PENDENTE", "quadro_pos": n}
+            for n in (998, 999, 1000, 1001)
+        )
+
+        res = _post(_client(sb), _evento("auto_close"))
+
+        assert res.status_code == 200
+        assert sb.tables["reunioes"][0]["status_ata"] == "ASSINADA"
+        da_ata = sorted(p["id_acao"] for p in _pendencias(sb) if p["id_reuniao"] == "R1")
+        assert da_ata == ["A1002", "A1003", "A1004", "A1005", "A1006"]
 
     def test_aceite_concorrente_nao_quebra_nem_duplica(self):
         """Outra transacao grava o mesmo aceite entre a leitura e o insert."""
