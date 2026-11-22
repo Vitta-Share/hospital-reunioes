@@ -4,7 +4,10 @@ O "Atualizar o card" da aba Tecnologia (issue #1558) fecha as partes não
 começadas como `not_planned`, com o token do Pedro, e devolve a raiz para
 `needs-triage`. Esse fechamento dispara a Action (a anti-recursão do GitHub só
 vale para o `GITHUB_TOKEN`); se ela fechasse a raiz como concluída, o card iria
-para Entregue em vez de Em análise. Os testes rodam o script do job `higiene`
+para Entregue em vez de Em análise.
+
+E o contrário (issue #2191): issue fechada como concluída com sub-issue aberta
+volta a abrir, porque o PRD só fecha pela última fatia. Os testes rodam o script do job `higiene`
 de verdade, no node, com o cliente do GitHub falso.
 """
 
@@ -119,3 +122,31 @@ def test_prd_fechado_como_concluido_com_fatia_aberta_volta_a_abrir(tmp_path):
     assert "#32" in comentario
     assert "#33" in comentario
     assert "#31" not in comentario
+
+
+def reaberturas(chamadas: list[list]) -> list[list]:
+    return [c for c in chamadas if c[0] == "update" and c[2] == "open"]
+
+
+def test_fechada_como_nao_planejada_com_fatia_aberta_continua_fechada(tmp_path):
+    saida = rodar_tudo(
+        tmp_path,
+        state_reason="not_planned",
+        parent=None,
+        sub_issues=[sub_issue(32, "OPEN")],
+    )
+    assert reaberturas(saida["chamadas"]) == []
+    assert saida["comentarios"] == {}
+
+
+def test_sem_fatia_ou_com_todas_fechadas_continua_fechada(tmp_path):
+    for fatias in ([], [sub_issue(31, "CLOSED"), sub_issue(32, "CLOSED")]):
+        saida = rodar_tudo(tmp_path, state_reason="completed", parent=None, sub_issues=fatias)
+        assert reaberturas(saida["chamadas"]) == [], fatias
+        assert saida["comentarios"] == {}, fatias
+
+
+def test_ultima_fatia_fecha_o_prd_e_ninguem_e_reaberto(tmp_path):
+    saida = rodar_tudo(tmp_path, state_reason="completed", sub_issues=[])
+    assert ["update", 10, "closed", "completed"] in saida["chamadas"]
+    assert reaberturas(saida["chamadas"]) == []
