@@ -610,7 +610,10 @@ async def get_signatarios_status(
 
     result = (
         supabase.table("reunioes")
-        .select("id_reuniao, status_ata, envelope_key_clicksign, envelope_id_clicksign, modo_interno_desde")
+        .select(
+            "id_reuniao, status_ata, envelope_key_clicksign, envelope_id_clicksign, "
+            "url_pdf_assinado, modo_interno_desde"
+        )
         .eq("id_reuniao", id_reuniao)
         .execute()
     )
@@ -661,6 +664,10 @@ async def get_signatarios_status(
             detail="Não foi possível consultar status dos signatários no ClickSign. Tente novamente.",
         )
 
+    finalizada = _finalizar_com_todos_assinados(supabase, reuniao, signers)
+    if finalizada:
+        progresso = aceite_service.progresso_pendencias(supabase, id_reuniao)
+
     locais_by_email = {p["email"]: p for p in _fetch_signatarios_locais(supabase, id_reuniao) if p["email"]}
     signatarios_out: list[dict] = []
     for s in signers:
@@ -679,8 +686,42 @@ async def get_signatarios_status(
         "assinaram": sum(1 for s in signatarios_out if s["status"] == "signed"),
         "envelope_id": envelope_id,
         "signatarios": signatarios_out,
+        "finalizada": finalizada,
         **progresso,
     }
+
+
+# Cooldown do fechamento pelo "Atualizar" (issue #2085), separado do
+# "Sincronizar": o polling de 30s não consulta o Envelope a cada volta, e olhar
+# o card não gasta o cooldown do botão.
+_FECHAMENTO_PELO_STATUS_COOLDOWN_S = 60.0
+_fechamento_pelo_status_recente: dict[str, float] = {}
+
+
+def _finalizar_com_todos_assinados(supabase, reuniao: dict, signers: list[dict]) -> bool:
+    """Todos assinaram na ClickSign e a Ata segue aguardando: o webhook de
+    fechamento se perdeu ou falhou (issue #2085). Roda a reconciliação da
+    Reunião, que só finaliza com o Envelope `closed`, cria as Pendências que
+    faltam (idempotente por ação do quadro) e marca ASSINADA. Falha não
+    derruba o card. True = a Reunião foi finalizada agora."""
+    if reuniao.get("status_ata") != "AGUARDANDO_ASSINATURA" or reuniao.get("modo_interno_desde"):
+        return False
+    if not signers or any(s.get("status") != "signed" for s in signers):
+        return False
+    id_reuniao = reuniao["id_reuniao"]
+    ultimo = _fechamento_pelo_status_recente.get(id_reuniao)
+    if ultimo is not None and (time.monotonic() - ultimo) < _FECHAMENTO_PELO_STATUS_COOLDOWN_S:
+        return False
+    _fechamento_pelo_status_recente[id_reuniao] = time.monotonic()
+
+    from app.services import reconciliacao_service
+
+    try:
+        desfecho = reconciliacao_service.reconciliar_reuniao(supabase, reuniao)
+    except Exception as e:
+        logger.error(f"Falha ao fechar {id_reuniao} com todos assinados: {e}", exc_info=True)
+        return False
+    return desfecho == reconciliacao_service.DESFECHO_FINALIZADA
 
 
 # Cooldown curto do "Sincronizar" (issue #279): a reconciliacao consulta a

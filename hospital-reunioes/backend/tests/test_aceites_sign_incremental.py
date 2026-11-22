@@ -525,6 +525,23 @@ class TestConcorrencia:
         criadas = _pendencias(sb)
         assert sorted(p["quadro_pos"] for p in criadas) == [0, 1, 2, 3, 4]  # nada duplicado
 
+    def test_auto_close_depois_da_pendencia_mil_marca_assinada(self):
+        """Issues #2085 e #1914, pelo webhook: em texto "A999" vem depois de
+        "A1000". Com a numeração passada de mil, todo insert colidia no A1000,
+        o fechamento respondia 500 e a Ata ficava em AGUARDANDO_ASSINATURA."""
+        sb = _sb()
+        sb.tables["pendencias"].extend(
+            {"id_acao": f"A{n:03d}", "id_reuniao": "R0", "status": "PENDENTE", "quadro_pos": n}
+            for n in (998, 999, 1000, 1001)
+        )
+
+        res = _post(_client(sb), _evento("auto_close"))
+
+        assert res.status_code == 200
+        assert sb.tables["reunioes"][0]["status_ata"] == "ASSINADA"
+        da_ata = sorted(p["id_acao"] for p in _pendencias(sb) if p["id_reuniao"] == "R1")
+        assert da_ata == ["A1002", "A1003", "A1004", "A1005", "A1006"]
+
     def test_aceite_concorrente_nao_quebra_nem_duplica(self):
         """Outra transacao grava o mesmo aceite entre a leitura e o insert."""
         sb = _sb()

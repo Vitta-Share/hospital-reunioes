@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, Clock, ExternalLink, Mail, PenLine, RefreshCw, RotateCw, UserCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
@@ -24,6 +24,8 @@ interface SignatariosResponse {
   signatarios: Signatario[];
   pendencias_criadas?: number;
   total_acoes?: number;
+  /** A leitura do status fechou a Ata (todos assinaram e o webhook se perdeu, issue #2085). */
+  finalizada?: boolean;
   modo_interno?: boolean;
   legacy_warning?: string;
   clicksign_url?: string;
@@ -88,6 +90,11 @@ export function SignatariosCard({
   const [aceitandoId, setAceitandoId] = useState<string | null>(null);
   const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
   const [nowTick, setNowTick] = useState(0);
+  // A página passa uma função nova a cada render: pelo ref, o fetch não é recriado por ela.
+  const onDesfechoRef = useRef(onDesfecho);
+  useEffect(() => {
+    onDesfechoRef.current = onDesfecho;
+  }, [onDesfecho]);
 
   // Tick a cada 10s só pra atualizar o texto "atualizado HHs atrás" e os cooldowns visuais.
   useEffect(() => {
@@ -111,6 +118,10 @@ export function SignatariosCard({
         setData(fresh);
         setError(null);
         setLastUpdate(new Date());
+        if (fresh.finalizada) {
+          toast("Todos assinaram: ata finalizada e pendências criadas.", "success");
+          await onDesfechoRef.current?.();
+        }
       } catch (e) {
         setError(getErrorMessage(e) || "Não foi possível atualizar o status dos signatários.");
       } finally {
@@ -118,7 +129,7 @@ export function SignatariosCard({
         if (manual) setRefreshing(false);
       }
     },
-    [idReuniao],
+    [idReuniao, toast],
   );
 
   // Fetch inicial

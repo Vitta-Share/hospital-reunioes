@@ -59,9 +59,11 @@ def _reset_cooldown_e_limiter():
     from app.limiter import limiter
 
     reunioes_router._sync_recent.clear()
+    reunioes_router._fechamento_pelo_status_recente.clear()
     limiter._storage.reset()
     yield
     reunioes_router._sync_recent.clear()
+    reunioes_router._fechamento_pelo_status_recente.clear()
     limiter._storage.reset()
 
 
@@ -514,3 +516,60 @@ class TestAtaAssinadaPorTodos:
         assert segunda.status_code == 200
         assert segunda.json()["desfecho"] == "finalizada"
         assert _reuniao(sb)["status_ata"] == "ASSINADA"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CA (issue #2085): o "Atualizar" do card leva a Ata assinada por todos a
+# ASSINADA e cria as Pendências que faltam, sem duplicar as que já nasceram
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestAtualizarComTodosAssinados:
+    def test_atualizar_com_todos_assinados_finaliza_e_cria_o_que_falta(self, clicksign, make_client):
+        """A Ata presa da issue #2085: 2 de 2 assinaram, o Envelope fechou e as
+        Pendências não nasceram. O Atualizar fecha a Ata, cria as que faltam
+        e conta as já nascidas uma vez só."""
+        clicksign.status[ENVELOPE_ID] = "closed"
+        clicksign.signers[ENVELOPE_ID] = _todos_assinaram()
+        sb = _sb()
+        _pendencias(sb).extend(
+            [
+                {"id_acao": "A999", "id_reuniao": "R0", "status": "PENDENTE", "quadro_pos": 0},
+                {"id_acao": "A1000", "id_reuniao": "R1", "status": "PENDENTE", "quadro_pos": 0},
+                {"id_acao": "A1001", "id_reuniao": "R1", "status": "PENDENTE", "quadro_pos": 1},
+            ]
+        )
+
+        res = make_client(sb).get("/api/reunioes/R1/signatarios/status")
+
+        assert res.status_code == 200
+        corpo = res.json()
+        assert corpo["finalizada"] is True
+        assert (corpo["pendencias_criadas"], corpo["total_acoes"]) == (5, 5)
+        assert _reuniao(sb)["status_ata"] == "ASSINADA"
+        da_ata = [p for p in _pendencias(sb) if p["id_reuniao"] == "R1"]
+        assert sorted(p["quadro_pos"] for p in da_ata) == [0, 1, 2, 3, 4]
+        assert sorted(p["id_acao"] for p in da_ata) == ["A1000", "A1001", "A1002", "A1003", "A1004"]
+
+    def test_atualizar_com_assinatura_faltando_nao_consulta_o_envelope(self, clicksign, make_client):
+        clicksign.status[ENVELOPE_ID] = "running"
+        clicksign.signers[ENVELOPE_ID] = _signers_padrao()
+        sb = _sb()
+
+        res = make_client(sb).get("/api/reunioes/R1/signatarios/status")
+
+        assert res.status_code == 200
+        assert res.json()["finalizada"] is False
+        assert clicksign.consultas == []
+        assert _reuniao(sb)["status_ata"] == "AGUARDANDO_ASSINATURA"
+
+    def test_atualizar_nao_gasta_o_cooldown_do_sincronizar(self, clicksign, make_client):
+        """O Atualizar não gasta o cooldown do Sincronizar (a issue #1914
+        mostrou o "Sincronização feita há pouco" a quem só tinha olhado)."""
+        clicksign.status[ENVELOPE_ID] = "running"
+        clicksign.signers[ENVELOPE_ID] = _todos_assinaram()
+        sb = _sb()
+        client = make_client(sb)
+
+        assert client.get("/api/reunioes/R1/signatarios/status").status_code == 200
+        assert client.post("/api/reunioes/R1/signatarios/sincronizar").status_code == 200

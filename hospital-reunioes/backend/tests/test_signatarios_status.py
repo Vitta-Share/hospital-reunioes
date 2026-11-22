@@ -173,8 +173,10 @@ def make_client(monkeypatch):
 def _reset_self_heal_cooldown():
     """Zera o cooldown em memoria do self-heal entre testes (estado de modulo)."""
     reunioes_router._self_heal_failures.clear()
+    reunioes_router._fechamento_pelo_status_recente.clear()
     yield
     reunioes_router._self_heal_failures.clear()
+    reunioes_router._fechamento_pelo_status_recente.clear()
 
 
 def _participante(pid, nome, email):
@@ -359,6 +361,8 @@ class TestSignatariosStatus:
                 }
             ],
         )
+        # Todos assinaram, mas o Envelope ainda não fechou: o card só conta.
+        monkeypatch.setattr(clicksign_service, "get_envelope_status", lambda _env: "running")
 
         client = make_client(sb)
         r = client.get("/api/reunioes/R1/signatarios/status")
