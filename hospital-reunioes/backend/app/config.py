@@ -63,9 +63,6 @@ class Settings(BaseSettings):
     # avaliação com comentário na chegada. Variável própria para trocar o
     # modelo sem mexer no resto da IA de texto.
     ouvidoria_agente_modelo: str = "claude-sonnet-5-5"
-    # Os agentes do Canal de Conduta que rodam depois de um clique, como o
-    # relatório de apuração (issue #1832, ADR 0097, decisão 6).
-    conduta_agente_modelo: str = "claude-sonnet-5-5"
     # O agente de triagem do Núcleo (issue #1990, ADR 0095 e 0107). Nasce
     # desligado: o Anexo F proíbe publicar antes de o teste de aceite dos 144
     # casos bater as metas (`scripts/nsp_teste_de_aceite.py`). Desligado, toda
@@ -254,6 +251,12 @@ class Settings(BaseSettings):
     # abertura mantém a rota pública em 404 até o Pedro abrir o canal.
     conduta_chave_cifra: str = ""
     conduta_canal_aberto: bool = False
+    # O agente de triagem do Canal (issue #1827, ADR 0097, decisões 6 e 15).
+    # Nasce desligado: liga depois de o teste do Anexo B bater as metas
+    # (`scripts/conduta_teste_de_aceite.py`). Desligado, todo caso entra
+    # para triagem manual, e a trilha diz por quê.
+    conduta_agente_ligado: bool = False
+    conduta_agente_modelo: str = "claude-sonnet-5-5"
 
     # Geral
     diretor_email: str = ""

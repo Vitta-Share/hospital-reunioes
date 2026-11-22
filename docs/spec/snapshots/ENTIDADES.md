@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T23:12+0000 -->
+<!-- last_update: 2026-11-21T23:36+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2895,6 +2895,46 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_conduta_avisos_pendentes` em `(na_hora, criado_em)` (de `199_conduta_avisos_por_email.sql`)
 
+## conduta_sugestoes
+
+> Origem: `200_conduta_agente_de_triagem.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `caso_id` | `UUID` | PK | — | `conduta_casos.id` |
+| `situacao` | `TEXT` | NOT NULL | — | — |
+| `motivo_manual` | `TEXT` | — | — | — |
+| `sugestao_cifrada` | `TEXT` | — | — | — |
+| `modelo` | `TEXT` | NOT NULL | — | — |
+| `prompt_versao` | `TEXT` | NOT NULL | — | — |
+| `criada_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+## conduta_sugestao_respostas
+
+> Origem: `200_conduta_agente_de_triagem.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_sugestoes.caso_id` |
+| `item` | `TEXT` | NOT NULL | — | — |
+| `resposta` | `TEXT` | NOT NULL | — | — |
+| `motivo_cifrado` | `TEXT` | — | — | — |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `respondida_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_sugestao_respostas_autor` em `(autor_id)` (de `200_conduta_agente_de_triagem.sql`)
+
+## conduta_agente_cota
+
+> Origem: `200_conduta_agente_de_triagem.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `dia` | `DATE` | PK | — | — |
+| `chamadas` | `INTEGER` | NOT NULL | `0` | — |
+
 ## conduta_notas_nsp
 
 > Origem: `203_conduta_nota_ao_nucleo.sql`
@@ -2946,4 +2986,4 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ---
 
-**Resumo:** 146 tabelas vivas.
+**Resumo:** 149 tabelas vivas.

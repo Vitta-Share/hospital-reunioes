@@ -17,6 +17,7 @@ from supabase import Client
 
 from app.dependencies import get_supabase_client
 from app.services.conduta import (
+    agente_de_triagem,
     avisos,
     cifra,
     configuracoes,
@@ -123,6 +124,9 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         contestacao = triagem.contestacao_para_a_tela(supabase, caso["id"])
         prorrogacao = cifra.decifrar_texto(caso["prorrogacao_cifrada"]) if caso.get("prorrogacao_cifrada") else None
         orientacao = cifra.decifrar_texto(caso["orientacao_cifrada"]) if caso.get("orientacao_cifrada") else None
+        sugestao = agente_de_triagem.sugestao_para_a_tela(
+            supabase, caso, relato, aberto.pessoa.papel, hoje_em_sao_paulo()
+        )
         notas_ao_nsp = nota_ao_nucleo.notas_do_caso(supabase, caso["id"])
         impedimentos = impedimento.para_a_tela(
             supabase, caso["id"], aberto.autor_id, impedimento.membros_do_caso(supabase, caso)
@@ -151,6 +155,7 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         if caso.get("rito") == "completo"
         else None,
         "orientacao": orientacao,
+        "sugestao_do_agente": sugestao,
         "notas_ao_nsp": notas_ao_nsp,
         **cartoes,
         **relatorios,
@@ -213,6 +218,29 @@ async def enviar_orientacao(
     aberto: CasoAberto = Depends(portao_da_acao), supabase: Client = Depends(get_supabase_client)
 ) -> dict:
     return _agir(triagem.enviar_orientacao, supabase, aberto, hoje=hoje_em_sao_paulo())
+
+
+class RespostaASugestao(BaseModel):
+    item: str = Field(max_length=60)
+    resposta: Literal["confirmo", "discordo"]
+    motivo: str = Field(default="", max_length=2000)
+
+
+@router.post("/casos/{caso_id}/sugestao")
+async def responder_sugestao(
+    corpo: RespostaASugestao,
+    aberto: CasoAberto = Depends(portao_da_acao),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """A coordenação confirma ou discorda de um item da sugestão do agente
+    (issue #1827). O item vai no corpo."""
+    try:
+        caso = agente_de_triagem.responder_item(supabase, aberto, **corpo.model_dump())
+    except agente_de_triagem.RespostaRecusadaError as recusa:
+        raise HTTPException(status_code=recusa.status, detail=recusa.mensagem) from recusa
+    except cifra.CifraIndisponivelError as erro:
+        raise _indisponivel(erro) from erro
+    return {"caso": _metadados(caso)}
 
 
 class NotaAoNucleo(BaseModel):

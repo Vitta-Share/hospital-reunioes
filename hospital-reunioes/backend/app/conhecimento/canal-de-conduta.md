@@ -77,6 +77,18 @@ No fim da Apuração, o botão "GERAR RELATÓRIO" pede ao agente o rascunho do r
 - No rito Completo, "ENVIAR PARA ASSINATURA" manda a última versão aos apuradores pela ClickSign, no e-mail profissional. A cópia assinada volta sozinha para a trilha do caso e abre pela tela. Editar depois pede a assinatura de novo.
 - "ENVIAR PARA VOTO" leva o caso à etapa Voto. Ele fica bloqueado, com o motivo, enquanto houver depoimento em aberto, enquanto não houver relatório e, no Completo, enquanto falta a assinatura dos apuradores.
 
+## O agente de triagem
+
+Cada relato novo é lido uma vez pelo agente de triagem, sozinho, logo que chega, sem ninguém precisar clicar. O agente sugere; quem decide é a coordenação.
+
+- Antes de sair do aplicativo, o relato perde nome, CPF, telefone e e-mail, que viram marcadores como [NOME]. Os nomes dos membros do Comitê também saem. O agente nunca recebe o nome nem o contato de quem relatou e não tenta descobrir quem escreveu.
+- A sugestão traz: se o caso é do canal (dentro, fora ou misto, e para onde vai a parte de fora), a categoria, o rito, o sinal de Rota Especial, o risco imediato, o assunto para a lista, um resumo, o que falta para apurar, até três perguntas a quem relatou, casos anteriores parecidos, relatos repetidos não confirmados, o sinal para o Núcleo de Segurança do Paciente e a confiança.
+- Na tela do caso, cada item aparece como Sugestão, com a justificativa ao lado e o trecho do relato que a sustenta, sem precisar abrir nada.
+- A coordenação confirma ou discorda de cada item. Discordar pede o motivo em uma linha, que fica guardado cifrado, e cada resposta entra na trilha do caso.
+- O possível impedimento é conferido pelo aplicativo, sem inteligência artificial: quando o nome de um membro do Comitê aparece no relato, a tela avisa.
+- O agente lê no máximo 100 relatos por dia. Passado esse teto, com o agente fora do ar ou com uma resposta fora do formato, o caso entra na fila para triagem manual, e a trilha diz por quê. O relato nunca fica parado esperando o agente.
+- O agente começa desligado. Ele só é ligado depois de passar no teste com os 12 casos fictícios da especificação, rodado três vezes.
+
 ## As configurações e os textos
 
 A coordenação do Comitê edita, na tela Configurações:
@@ -181,7 +193,7 @@ Quem não tem acesso recebe a mesma recusa, exista o caso ou não.
 
 ## O que ele ainda não faz
 
-O formulário público de relato, as páginas públicas que vão mostrar os textos das configurações, a página de acompanhamento, a sugestão do agente na triagem, a Rota Especial, as perguntas ao relator, o roteiro de perguntas e o termo de declaração redigidos pelo agente, o voto, a ata e o dossiê chegam nas próximas entregas. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. Por enquanto ninguém relata pelo Canal: os relatos continuam chegando pela Ouvidoria.
+O formulário público de relato, as páginas públicas que vão mostrar os textos das configurações, a página de acompanhamento, a Rota Especial, as perguntas ao relator, o roteiro de perguntas e o termo de declaração redigidos pelo agente, o voto, a ata e o dossiê chegam nas próximas entregas. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. Por enquanto ninguém relata pelo Canal: os relatos continuam chegando pela Ouvidoria.
 
 ## O que já foi decidido
 

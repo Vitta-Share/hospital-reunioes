@@ -8,6 +8,7 @@
 import type { Depoimento } from "@/lib/conduta/depoimentos";
 import type { TextoDaApuracao } from "@/lib/conduta/relatorio";
 import { createClient } from "@/lib/supabase/client";
+import type { SugestaoDoAgente } from "@/lib/conduta/sugestao";
 
 export type Rito = "encaminhamento" | "rapido" | "completo";
 export type Escopo = "dentro" | "fora" | "misto";
@@ -113,6 +114,7 @@ export interface CasoAberto extends CasoDaLista {
   conferida_em: string | null;
   encerrado_em: string | null;
   desfecho: string | null;
+  sugestao_do_agente?: SugestaoDoAgente;
   notas_ao_nsp?: NotaAoNucleo[];
   /** Os cartões da Apuração (issue #1830). */
   depoimentos: Depoimento[];

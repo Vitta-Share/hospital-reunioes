@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T23:12+0000 -->
+<!-- last_update: 2026-11-21T23:36+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -74,11 +74,13 @@ erDiagram
     conduta_casos ||--o{ conduta_depoimentos : "caso_id"
     conduta_casos ||--o{ conduta_notas_nsp : "caso_id"
     conduta_casos ||--o{ conduta_prazos_vencidos : "caso_id"
+    conduta_casos ||--o{ conduta_sugestoes : "caso_id"
     conduta_casos ||--o{ conduta_trilha : "caso_id"
     conduta_contestacoes ||--o{ conduta_contestacao_votos : "contestacao_id"
     conduta_contestacoes_de_participacao ||--o{ conduta_participacao_votos : "contestacao_id"
     conduta_depoimentos ||--o{ conduta_depoimento_arquivos : "depoimento_id"
     conduta_depoimentos ||--o{ conduta_depoimento_conferencia : "depoimento_id"
+    conduta_sugestoes ||--o{ conduta_sugestao_respostas : "caso_id"
     nsp_agenda_regulatoria ||--o{ nsp_agenda_ocorrencias : "item_id"
     nsp_capacitacoes ||--o{ nsp_capacitacao_participantes : "capacitacao_id"
     nsp_categorias ||--o{ nsp_triagens : "categoria"
@@ -143,6 +145,7 @@ erDiagram
     participantes ||--o{ conduta_participacao_votos : "participante_id"
     participantes ||--o{ conduta_registro : "autor_id"
     participantes ||--o{ conduta_registro : "ganhou"
+    participantes ||--o{ conduta_sugestao_respostas : "autor_id"
     participantes ||--o{ conduta_trilha : "que"
     participantes ||--o{ email_de_segunda : "participante_id"
     participantes ||--o{ notificacoes : "destinatario_id"
@@ -1566,6 +1569,28 @@ erDiagram
         TIMESTAMPTZ criado_em
         _ mais_colunas "+1"
     }
+    conduta_sugestoes {
+        UUID caso_id PK
+        TEXT situacao
+        TEXT motivo_manual
+        TEXT sugestao_cifrada
+        TEXT modelo
+        TEXT prompt_versao
+        TIMESTAMPTZ criada_em
+    }
+    conduta_sugestao_respostas {
+        UUID id PK
+        UUID caso_id FK
+        TEXT item
+        TEXT resposta
+        TEXT motivo_cifrado
+        VARCHAR autor_id FK
+        TIMESTAMPTZ respondida_em
+    }
+    conduta_agente_cota {
+        DATE dia PK
+        INTEGER chamadas
+    }
     conduta_notas_nsp {
         UUID id PK
         UUID caso_id FK
@@ -1844,6 +1869,7 @@ erDiagram
 | `email_de_segunda` | `idx_email_de_segunda_semana` | `semana` | `196_email_de_segunda.sql` |
 | `nsp_cortes_de_frequencia` | `idx_nsp_cortes_de_frequencia_atualizado_por` | `atualizado_por` | `197_nsp_tela_de_triagem.sql` |
 | `conduta_avisos` | `idx_conduta_avisos_pendentes` | `na_hora, criado_em` | `199_conduta_avisos_por_email.sql` |
+| `conduta_sugestao_respostas` | `idx_conduta_sugestao_respostas_autor` | `autor_id` | `200_conduta_agente_de_triagem.sql` |
 | `conduta_notas_nsp` | `uq_conduta_notas_nsp_pendente` | `caso_id` | `203_conduta_nota_ao_nucleo.sql` |
 | `conduta_notas_nsp` | `idx_conduta_notas_nsp_caso` | `caso_id` | `203_conduta_nota_ao_nucleo.sql` |
 | `conduta_notas_nsp` | `idx_conduta_notas_nsp_escrita_por` | `escrita_por` | `203_conduta_nota_ao_nucleo.sql` |
@@ -1852,4 +1878,4 @@ erDiagram
 | `nsp_esclarecimentos` | `idx_nsp_esclarecimentos_triagem` | `triagem_id` | `207_nsp_perguntas_de_esclarecimento.sql` |
 
 ---
-**Resumo:** 146 tabelas · 228 relacionamentos FK detectados.
+**Resumo:** 149 tabelas · 231 relacionamentos FK detectados.

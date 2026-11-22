@@ -319,7 +319,7 @@ def _atributo(valor: str) -> str:
     return valor.replace('"', "'")
 
 
-def montar_mensagem(supabase, caso: dict) -> tuple[str, Marcadores]:
+def montar_mensagem_da_apuracao(supabase, caso: dict) -> tuple[str, Marcadores]:
     """O texto que vai ao agente, já sem nomes, e os marcadores para a volta."""
     material = depoimentos.material_da_apuracao(supabase, caso["id"])
     marcadores = preparar_marcadores(_nomes_do_caso(supabase, caso, material))
@@ -418,7 +418,7 @@ def redigir_documento_da_apuracao(supabase, aberto: CasoAberto, tipo: str) -> di
     """O botão GERAR RELATÓRIO (ou MONTAR CRONOLOGIA): o agente redige, e o
     texto entra como versão nova. Roda no executor da IA."""
     _exigir_quem_apura(aberto)
-    mensagem, marcadores = montar_mensagem(supabase, aberto.caso)
+    mensagem, marcadores = montar_mensagem_da_apuracao(supabase, aberto.caso)
     texto = _texto_do_agente_da_apuracao(tipo, mensagem, marcadores)
     return _gravar_versao(supabase, aberto, tipo, texto, "agente")
 
