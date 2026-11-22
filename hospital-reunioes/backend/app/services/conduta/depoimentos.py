@@ -363,6 +363,12 @@ def _cartao(
         "concluido_por": nomes.get(depoimento.get("concluido_por") or "", "") or None,
         "termo": _termo(termos, nomes),
         "recusa": recusa,
+        "roteiro": {
+            "rotulo": "Sugestão",
+            "perguntas": json.loads(cifra.decifrar_texto(depoimento["roteiro_cifrado"])),
+        }
+        if depoimento.get("roteiro_cifrado")
+        else None,
     }
 
 

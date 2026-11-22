@@ -375,6 +375,39 @@ def imprimir_termo(supabase, aberto: CasoAberto, depoimento_id: str) -> tuple[by
     return gerar_pdf_do_termo(dados), f"Termo_de_declaracao_versao_{versao['versao']}.pdf"
 
 
+# ── O roteiro de perguntas ──────────────────────────────────────────────────
+
+
+def sugerir_roteiro_do_depoimento_conduta(supabase, aberto: CasoAberto, depoimento_id: str) -> dict:
+    """O clique que pede ao agente o roteiro de perguntas, a partir do relato
+    e do papel da pessoa ouvida. O roteiro é Sugestão. Roda no executor da IA."""
+    caso = aberto.caso
+    depoimento = depoimentos._depoimento(supabase, caso["id"], depoimento_id)
+    depoimentos._exigir_aberto(caso, depoimento)
+    nome = cifra.decifrar_texto(depoimento["nome_cifrado"])
+    nomes = _nomes_do_caso(supabase, caso, nome)
+    marcacao = Marcacao()
+    usuario = "\n\n".join(
+        [
+            f"{marcacao.marcar(nome, nomes)} é a pessoa ouvida. Papel: {depoimentos.PAPEIS[depoimento['papel']]}.",
+            _sobre_o_relato(relato_anonimo(supabase, caso["id"]), depoimento["papel"]),
+            "Relato do caso:\n" + marcacao.marcar(cifra.decifrar_texto(caso["relato_cifrado"]), nomes),
+        ]
+    )
+    resposta = _pedir_ao_agente_do_canal_de_conduta(PROMPT_DO_ROTEIRO, usuario)
+    perguntas = sanitizar_estrutura([marcacao.devolver(p) for p in _textos(resposta.get("perguntas"))])
+    if not perguntas:
+        raise AgenteIndisponivelError("a resposta veio sem perguntas")
+    roteiro_cifrado = cifra.cifrar_texto(json.dumps(perguntas, ensure_ascii=False))
+    trilha.registrar(
+        supabase, caso["id"], aberto.autor_id, "sugeriu_roteiro", "roteiro de perguntas sugerido pelo agente"
+    )
+    depoimentos._mudar(
+        supabase, depoimento, {"roteiro_cifrado": roteiro_cifrado, "roteiro_em": agora_utc().isoformat()}
+    )
+    return {"perguntas": len(perguntas)}
+
+
 # ── A certidão de recusa ────────────────────────────────────────────────────
 
 

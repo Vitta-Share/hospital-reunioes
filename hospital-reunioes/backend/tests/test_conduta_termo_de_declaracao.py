@@ -35,6 +35,7 @@ from app.limiter import limiter
 from app.routers import conduta_comite, conduta_depoimentos, webhooks
 from app.services import clicksign_service
 from app.services.conduta import cifra, termo_de_declaracao
+from app.services.conhecimento import CONHECIMENTO_DIR
 
 TRANSCRICAO = (
     "Entrevistador: Fulano de Tal, o senhor confirma que estava no almoxarifado?\n"
@@ -528,3 +529,87 @@ class TestCertidaoDeRecusa:
 
         assert _recusar(comite, caso, dep).status_code == 409
         assert clicksign.signatarios() == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# O roteiro de perguntas, por clique
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestRoteiroDePerguntas:
+    def test_o_clique_pede_o_roteiro_ao_agente_sem_nome_e_o_cartao_mostra_com_os_nomes(self, agente):
+        comite = Comite()
+        caso = comite.caso()
+        dep = comite.depoimento(caso)
+
+        def roteiro(enviado: str) -> str:
+            assert "Fulano" not in enviado
+            declarante = re.search(r"(\[PESSOA_\d+\]) é a pessoa ouvida", enviado).group(1)
+            return json.dumps({"perguntas": [f"{declarante}, onde o senhor estava naquela tarde?"]})
+
+        agente.responder = roteiro
+
+        resposta = comite.cliente(MEMBRO).post(f"{BASE}/casos/{caso}/depoimentos/{dep}/roteiro")
+
+        assert resposta.status_code == 200, resposta.text
+        assert "supervisor grita com a equipe" in _enviado(agente)
+        cartao = _cartao(comite, caso, dep)
+        assert cartao["roteiro"] == {
+            "rotulo": "Sugestão",
+            "perguntas": ["Fulano de Tal, onde o senhor estava naquela tarde?"],
+        }
+        assert "sugeriu_roteiro" in _acoes(comite, caso)
+
+    def test_sem_o_clique_nao_ha_roteiro_nem_chamada(self, agente):
+        comite = Comite()
+        caso = comite.caso()
+        dep = comite.depoimento(caso)
+
+        assert _cartao(comite, caso, dep)["roteiro"] is None
+        assert agente.chamadas == []
+
+    def test_agente_fora_do_ar_diz_para_tentar_de_novo_e_nada_e_gravado(self, agente):
+        comite = Comite()
+        caso, dep = _com_transcricao(comite)
+
+        def fora(_enviado: str) -> str:
+            raise TimeoutError("sem resposta")
+
+        agente.responder = fora
+
+        resposta = _redigir(comite, caso, dep)
+
+        assert resposta.status_code == 503
+        assert resposta.json()["detail"] == termo_de_declaracao.AGENTE_FORA
+        assert comite.banco.tabelas.get("conduta_depoimento_termos", []) == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 8. O kit de conhecimento diz o comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestKitDeConhecimento:
+    @pytest.fixture
+    def texto(self) -> str:
+        return (CONHECIMENTO_DIR / "canal-de-conduta.md").read_text(encoding="utf-8")
+
+    @pytest.mark.parametrize(
+        "frase",
+        [
+            "## O termo de declaração",
+            '"REDIGIR TERMO"',
+            "o agente redige o termo de declaração",
+            "os nomes viram marcadores numerados",
+            "Quando o relato é anônimo, o termo não cita quem relatou",
+            '"Notas para quem apura"',
+            '"Sugestão"',
+            '"IMPRIMIR TERMO"',
+            "Cada correção lançada gera uma versão nova",
+            "lido em voz alta",
+            "certidão de recusa",
+            '"SUGERIR ROTEIRO DE PERGUNTAS"',
+        ],
+    )
+    def test_o_texto_do_produto_diz_o_comportamento_novo(self, texto, frase):
+        assert frase in texto

@@ -343,3 +343,15 @@ async def registrar_recusa_de_assinatura(
     """A pessoa se recusou a assinar: a certidão vai à ClickSign para quem
     registra e outro membro do caso."""
     return _agir(termo_de_declaracao.registrar_recusa, supabase, aberto, str(depoimento_id), corpo.membro_id)
+
+
+@router.post("/casos/{caso_id}/depoimentos/{depoimento_id}/roteiro")
+async def sugerir_roteiro(
+    depoimento_id: UUID,
+    aberto: CasoAberto = Depends(portao_da_acao),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """O clique que pede ao agente o roteiro de perguntas."""
+    return await _pelo_agente(
+        termo_de_declaracao.sugerir_roteiro_do_depoimento_conduta, supabase, aberto, str(depoimento_id)
+    )
