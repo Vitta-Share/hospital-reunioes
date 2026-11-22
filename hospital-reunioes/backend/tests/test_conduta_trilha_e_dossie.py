@@ -209,3 +209,48 @@ class TestGavetas:
 
         assert origens["Termo de declaração, Acusado 1"] == (True, "Upload")
         assert origens["Ata de deliberação"] == (True, "ClickSign")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Gaveta obrigatória vazia bloqueia a conclusão como procedente, com o motivo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestGavetaVaziaBloqueia:
+    def _pronto_para_concluir(self, comite, caso: str, resultado: str) -> None:
+        medida = "advertencia_escrita" if resultado != "improcedente" else None
+        for pid in (MEMBRO, LEITOR, COORDENACAO):
+            assert comite.votar(pid, caso, resultado=resultado, medida=medida).status_code == 200
+        if resultado == "improcedente":
+            comite.ata_assinada(caso)
+        else:
+            comite.trava_completa(caso)
+            # O depoimento do acusado segue aberto: a defesa pede dois membros.
+            assert comite.confirmar(MEMBRO, caso, "defesa").status_code == 200
+
+    @pytest.mark.parametrize("resultado", ["procedente", "parcialmente_procedente"])
+    def test_sem_o_termo_assinado_o_caso_nao_conclui_como_procedente(self, comite, resultado):
+        caso, _ = comite.caso_com_depoimento(termo=False)
+        self._pronto_para_concluir(comite, caso, resultado)
+
+        resposta = comite.post(COORDENACAO, f"/casos/{caso}/conclusao-da-votacao")
+
+        assert resposta.status_code == 409
+        motivo = "Gaveta obrigatória vazia: Termo de declaração, Acusado 1."
+        assert resposta.json()["detail"] == motivo
+        assert comite.abrir(COORDENACAO, caso)["votacao"]["bloqueio_da_conclusao"] == motivo
+        assert comite.linha_do_caso(caso).get("resultado") is None
+
+    def test_com_as_gavetas_cheias_conclui_como_procedente(self, comite):
+        caso, _ = comite.caso_com_depoimento(termo=True)
+        self._pronto_para_concluir(comite, caso, "procedente")
+
+        assert comite.post(COORDENACAO, f"/casos/{caso}/conclusao-da-votacao").status_code == 200
+        assert comite.linha_do_caso(caso)["resultado"] == "procedente"
+
+    def test_improcedente_conclui_com_gaveta_vazia(self, comite):
+        caso, _ = comite.caso_com_depoimento(termo=False)
+        self._pronto_para_concluir(comite, caso, "improcedente")
+
+        assert comite.post(COORDENACAO, f"/casos/{caso}/conclusao-da-votacao").status_code == 200
+        assert comite.linha_do_caso(caso)["resultado"] == "improcedente"

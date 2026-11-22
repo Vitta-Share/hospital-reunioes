@@ -261,6 +261,15 @@ def gavetas(supabase, caso: dict) -> list[dict]:
     return saida
 
 
+def bloqueio(supabase, caso: dict) -> str | None:
+    """A primeira gaveta obrigatória vazia, numa linha, ou None. Vale para
+    concluir como procedente ou parcialmente procedente."""
+    for gaveta in gavetas(supabase, caso):
+        if gaveta["obrigatoria"] and gaveta["situacao"] != ASSINADO:
+            return f"Gaveta obrigatória vazia: {gaveta['rotulo']}."
+    return None
+
+
 def para_a_tela(supabase, aberto: CasoAberto) -> dict:
     caso = aberto.caso
     return {
