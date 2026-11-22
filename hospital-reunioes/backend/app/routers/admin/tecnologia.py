@@ -67,11 +67,16 @@ O chat da aba (issues #1381, #1383 e #1384):
 - POST  /admin/tecnologia/chat/{id}/conversa/enviar  o "Enviar": abre o
                                                 Ajuste do plano e escreve a
                                                 linha do envio na conversa.
-- GET   /admin/tecnologia/perguntas/esperando   a lista Esperando sua
-                                                resposta: as Perguntas da
-                                                Vitta abertas de todos os
-                                                Projetos (issue #2118, ADR
-                                                0109).
+- GET   /admin/tecnologia/perguntas/esperando   a lista Esperando voce: os
+                                                Pedidos da Vitta abertos de
+                                                todos os Projetos (issue
+                                                #2118, ADR 0109 e 0110).
+- POST  /admin/tecnologia/perguntas/{id}/checks    marca ou desmarca um passo
+- POST  /admin/tecnologia/perguntas/{id}/concluir  conclui o Passo a passo e
+                                                fecha o card no GitHub
+- POST  /admin/tecnologia/perguntas/{id}/reenviar  o Reenviar do "Nao chegou
+                                                ao GitHub" (issue #2176, ADR
+                                                0110).
 
 O print do chat (ADR 0056, decisao 4; ADR 0077, decisao 8):
 
@@ -100,6 +105,7 @@ from datetime import UTC, date, datetime
 from typing import Literal, NoReturn
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile, status
+from fastapi.concurrency import run_in_threadpool
 from supabase import Client
 
 from app.config import settings
@@ -112,6 +118,8 @@ from app.models.tecnologia_schemas import (
     ChatPrimeiroTurnoPayload,
     ChatResponse,
     ChatTurnoPayload,
+    CheckDoPassoPayload,
+    ConclusaoDoPassoAPassoPayload,
     ConversaDaDemandaResponse,
     ConversaDoMeExpliqueResponse,
     CriarOCardPayload,
@@ -125,6 +133,8 @@ from app.models.tecnologia_schemas import (
     MensagemDaConversaPayload,
     MensagemDaConversaResponse,
     ModeloDaDemanda,
+    PassoAPassoConcluidoResponse,
+    PerguntaDoCartaoResponse,
     PerguntaEsperandoResponse,
     QuemSouNaAbaResponse,
     RespostaDaPerguntaPayload,
@@ -1356,6 +1366,87 @@ async def responder_a_pergunta(
         _recusar(str(recusa))
     nome = ator.get("nome_completo") or ""
     return {"pergunta": cartao, "mensagem": _mensagem_para_a_tela(linha, nomes={str(ator["id"]): nome}, ator=ator)}
+
+
+# ─── O Passo a passo da Vitta (issue #2176, ADR 0110, decisoes 4 a 8) ──────
+
+
+def _pedido_e_demanda(supabase: Client, pedido_id: str) -> tuple[dict, dict]:
+    pedido = tecnologia_perguntas.buscar(supabase, pedido_id)
+    if pedido is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pedido não encontrado.")
+    return pedido, _buscar_demanda(supabase, str(pedido["demanda_id"]))
+
+
+def _recusa_do_passo_a_passo(erro: Exception) -> HTTPException:
+    if isinstance(erro, tecnologia_perguntas.RespostaProibidaError):
+        return HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(erro))
+    if isinstance(erro, (tecnologia_perguntas.PerguntaFechadaError, tecnologia_perguntas.PassagemRecusadaError)):
+        return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(erro))
+    return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(erro))
+
+
+_RECUSAS_DO_PASSO_A_PASSO = (
+    tecnologia_perguntas.RespostaProibidaError,
+    tecnologia_perguntas.PerguntaFechadaError,
+    tecnologia_perguntas.PassagemRecusadaError,
+    tecnologia_perguntas.ConclusaoRecusadaError,
+)
+
+
+@router.post("/perguntas/{pergunta_id}/checks", response_model=PerguntaDoCartaoResponse)
+async def marcar_o_passo(
+    pergunta_id: str,
+    payload: CheckDoPassoPayload,
+    ator: dict = Depends(require_super_admin),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """Marca ou desmarca um passo do Passo a passo: uma linha nova no
+    historico, com quem marcou. Marca o Destinatario, ou o Desenvolvedor no
+    lugar dele; outro Super admin e 403. O Pedido que ja nao esta aberto e 409."""
+    pedido, _ = _pedido_e_demanda(supabase, pergunta_id)
+    try:
+        return tecnologia_perguntas.marcar(supabase, pedido, ator=ator, passo=payload.passo, marcado=payload.marcado)
+    except _RECUSAS_DO_PASSO_A_PASSO as recusa:
+        raise _recusa_do_passo_a_passo(recusa) from recusa
+
+
+@router.post("/perguntas/{pergunta_id}/concluir", response_model=PassoAPassoConcluidoResponse)
+async def concluir_o_passo_a_passo(
+    pergunta_id: str,
+    payload: ConclusaoDoPassoAPassoPayload,
+    ator: dict = Depends(require_super_admin),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """O Concluir do cartao: so com todos os checks marcados (422 senao). O
+    app grava a conclusao, poe a anotacao na Conversa e fecha o card no
+    GitHub com o comentario fixo. O GitHub recusando nao e erro daqui: o
+    cartao volta concluido com "Não chegou ao GitHub" e o motivo."""
+    pedido, demanda = _pedido_e_demanda(supabase, pergunta_id)
+    try:
+        cartao, linha = await run_in_threadpool(
+            tecnologia_perguntas.concluir, supabase, pedido, demanda, ator=ator, anotacao=payload.anotacao
+        )
+    except _RECUSAS_DO_PASSO_A_PASSO as recusa:
+        raise _recusa_do_passo_a_passo(recusa) from recusa
+    nome = ator.get("nome_completo") or ""
+    mensagem = _mensagem_para_a_tela(linha, nomes={str(ator["id"]): nome}, ator=ator) if linha else None
+    return {"pergunta": cartao, "mensagem": mensagem}
+
+
+@router.post("/perguntas/{pergunta_id}/reenviar", response_model=PerguntaDoCartaoResponse)
+async def reenviar_o_fechamento(
+    pergunta_id: str,
+    ator: dict = Depends(require_super_admin),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """O Reenviar do "Não chegou ao GitHub": tenta de novo comentar e fechar
+    o card. So vale com o fechamento que falhou (409 senao); nunca sozinho."""
+    pedido, _ = _pedido_e_demanda(supabase, pergunta_id)
+    try:
+        return await run_in_threadpool(tecnologia_perguntas.reenviar, supabase, pedido, ator=ator)
+    except _RECUSAS_DO_PASSO_A_PASSO as recusa:
+        raise _recusa_do_passo_a_passo(recusa) from recusa
 
 
 # ─── O Me explique (issue #2122, ADR 0109, decisao 8) ───────────────────────

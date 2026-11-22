@@ -583,6 +583,29 @@ def fechar_como_nao_planejada(numero: int, *, projeto: str, comentario: str) -> 
         raise GithubIndisponivelError(f"A issue #{numero} nao foi encontrada para fechar") from exc
 
 
+FECHAMENTO_FEITA = "completed"
+
+
+def fechar_como_feita(numero: int, *, projeto: str, comentario: str) -> None:
+    """Comenta e fecha a issue como feita (issue #2176, ADR 0110, decisao 5):
+    o Passo a passo da Vitta concluido no app fecha o card na hora.
+
+    O comentario vai antes, como no fechar como nao planejada. Um 404 aqui nao
+    e resposta (o card veio da ponte): vira indisponibilidade, e quem chama
+    grava "Nao chegou ao GitHub" com o motivo.
+    """
+    try:
+        _chamar("POST", f"/issues/{numero}/comments", projeto=projeto, json={"body": comentario})
+        _chamar(
+            "PATCH",
+            f"/issues/{numero}",
+            projeto=projeto,
+            json={"state": "closed", "state_reason": FECHAMENTO_FEITA},
+        )
+    except IssueNaoEncontradaError as exc:
+        raise GithubIndisponivelError(f"A issue #{numero} nao foi encontrada para fechar") from exc
+
+
 def comentar(numero: int, corpo: str, *, projeto: str) -> None:
     """Deixa um comentario na issue (issue #1558, ADR 0084, decisao 3): o que
     o "Atualizar o card" mudou. Um 404 aqui nao e resposta (a issue estava

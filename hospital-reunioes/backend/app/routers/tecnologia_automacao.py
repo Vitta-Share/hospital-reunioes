@@ -214,6 +214,8 @@ def escrever_pelo_terminal(
 # Cada linha do cartao e uma frase em palavras simples (ADR 0109, decisao 3).
 LIMITE_DA_LINHA_DO_CARTAO = 500
 LIMITE_DA_OPCAO = 300
+# Um passo do Passo a passo: uma acao, com o link inteiro quando houver.
+LIMITE_DO_PASSO = 1000
 
 
 class PerguntaDaVittaPayload(BaseModel):
@@ -236,6 +238,14 @@ class PerguntaDaVittaPayload(BaseModel):
     )
     recomendada: str | None = Field(default=None, max_length=1)
     porque: str | None = Field(default=None, max_length=LIMITE_DA_LINHA_DO_CARTAO)
+    # O Pedido da Vitta (issue #2176, ADR 0110): sem `tipo` e Pergunta. O
+    # Passo a passo traz os passos (de 2 a 15, o ultimo e o "Como saber que
+    # acabou") e o card que o app fecha; o Projeto do card e o da Demanda
+    # quando nao vem. A falta e recusada pelo servico, com o motivo.
+    tipo: str | None = Field(default=None, max_length=20)
+    passos: list[Annotated[str, Field(max_length=LIMITE_DO_PASSO)]] = Field(default_factory=list, max_length=20)
+    card_numero: int | None = Field(default=None, ge=1)
+    card_projeto: str | None = Field(default=None, pattern=FORMATO_DO_PROJETO)
 
 
 @router.post("/demandas/{demanda_id}/perguntas", status_code=status.HTTP_201_CREATED)
@@ -260,17 +270,27 @@ def criar_a_pergunta(demanda_id: UUID, payload: PerguntaDaVittaPayload, supabase
             opcoes=payload.opcoes,
             recomendada=payload.recomendada,
             porque=payload.porque,
+            tipo=payload.tipo,
+            passos=payload.passos,
+            card_numero=payload.card_numero,
+            card_projeto=payload.card_projeto,
         )
     except tecnologia_perguntas.PerguntaRecusadaError as recusa:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(recusa)) from recusa
-    return {"id": str(pergunta["id"]), "estado": pergunta["estado"], "criado_em": pergunta.get("criado_em")}
+    return {
+        "id": str(pergunta["id"]),
+        "tipo": pergunta.get("tipo") or tecnologia_perguntas.TIPO_PERGUNTA,
+        "estado": pergunta["estado"],
+        "criado_em": pergunta.get("criado_em"),
+    }
 
 
 @router.get("/perguntas/{pergunta_id}")
 def ler_a_pergunta(pergunta_id: UUID, supabase=Depends(get_supabase_client)) -> dict:
-    """O estado da Pergunta da Vitta e, quando houver, a resposta (o Checar
-    respostas do PedroOS). Pergunta que nao existe, ou de Demanda apagada, e
-    404. So le."""
+    """O estado do Pedido da Vitta e, quando houver, a resposta (o Checar
+    respostas do PedroOS). No Passo a passo (issue #2176), tambem o card, a
+    conclusao (quando, como e a anotacao) e o fechamento no GitHub. Pedido que
+    nao existe, ou de Demanda apagada, e 404. So le."""
     pergunta = tecnologia_perguntas.buscar(supabase, str(pergunta_id))
     if pergunta is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=MOTIVO_PERGUNTA_NAO_ENCONTRADA)
@@ -285,6 +305,7 @@ def ler_a_pergunta(pergunta_id: UUID, supabase=Depends(get_supabase_client)) -> 
         "assunto": pergunta.get("assunto"),
         "criado_em": pergunta.get("criado_em"),
         "resposta": tecnologia_perguntas.resposta(supabase, pergunta),
+        **tecnologia_perguntas.leitura_do_passo_a_passo(supabase, pergunta),
     }
 
 

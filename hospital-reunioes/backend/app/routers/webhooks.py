@@ -616,10 +616,17 @@ async def webhook_github(
         logger.warning("[GitHub webhook] Evento 'issues' sem número de issue utilizável; ignorado.")
         return {"ignorado": "issue"}
 
+    # O card de um Passo a passo da Vitta (issue #2176, ADR 0110, decisao 7):
+    # fechado ou reaberto por fora, o Pedido acompanha. Vem antes do vinculo
+    # porque o card quase nunca e a raiz de uma Demanda.
+    pedidos = await _acompanhar_o_passo_a_passo(supabase, payload, projeto, numero)
+
     demanda = tecnologia_sincronizacao.demanda_vinculada(supabase, projeto, numero)
     if demanda is None:
         if _espelho_aceita(payload, projeto):
             return await _espelhar(supabase, projeto, numero)
+        if pedidos:
+            return {"recebido": True, "pedidos": pedidos}
         return {"ignorado": "sem_vinculo"}
 
     return await _sincronizar(
@@ -627,6 +634,32 @@ async def webhook_github(
         demanda,
         numero,
     )
+
+
+async def _acompanhar_o_passo_a_passo(supabase, payload: dict, projeto: str, numero: int) -> int:
+    """Aplica o fechar e o reabrir da issue ao Passo a passo cujo card ela e.
+    So o `closed` e o `reopened` leem o banco; a falha so vai ao log e nao
+    tira o resto da entrega (o GitHub nao reentrega)."""
+    from app.services import tecnologia_perguntas
+
+    acao = str(payload.get("action"))
+    if acao not in tecnologia_perguntas.ACOES_QUE_O_PEDIDO_ACOMPANHA:
+        return 0
+    motivo = (payload.get("issue") or {}).get("state_reason")
+    try:
+        return await run_in_threadpool(
+            tecnologia_perguntas.aplicar_evento_da_issue,
+            supabase,
+            projeto=projeto,
+            numero=numero,
+            acao=acao,
+            motivo=motivo if isinstance(motivo, str) else None,
+        )
+    except Exception:
+        logger.warning(
+            "[GitHub webhook] Falha ao aplicar o evento ao Passo a passo do card #%s.", numero, exc_info=True
+        )
+        return 0
 
 
 def _espelho_aceita(payload: dict, projeto: str) -> bool:

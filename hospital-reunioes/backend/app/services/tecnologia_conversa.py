@@ -97,6 +97,7 @@ def escrever(
     destinatario_id: str | None = None,
     pede_resposta_sobre: str | None = None,
     pergunta_id: str | None = None,
+    pede_acao: bool = False,
 ) -> dict[str, Any]:
     """Grava a mensagem de `autor` na Demanda e avisa quem a regra da `origem`
     manda. Devolve a linha gravada. Quem e avisado se calcula antes de gravar:
@@ -121,7 +122,11 @@ def escrever(
     )
     nome = autor.get("nome_completo") or ""
     for destinatario in destinatarios:
-        if pede_resposta_sobre:
+        if pede_resposta_sobre and pede_acao:
+            # ADR 0110: o Passo a passo da Vitta pede que a pessoa faça.
+            aviso = f"{nome} pede sua ação"
+            titulo_do_sino, linha_do_sino = "Pede sua ação", pede_resposta_sobre
+        elif pede_resposta_sobre:
             # ADR 0106: a pergunta que espera alguém diz isso e o Assunto.
             aviso = f"{nome} pede sua resposta"
             titulo_do_sino, linha_do_sino = "Pede sua resposta", pede_resposta_sobre
@@ -145,6 +150,7 @@ def escrever(
             demanda=demanda,
             assunto=pede_resposta_sobre,
             pergunta_id=pergunta_id,
+            acao=pede_acao,
         )
     return linha
 

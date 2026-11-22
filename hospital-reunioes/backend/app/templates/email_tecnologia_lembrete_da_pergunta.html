@@ -10,7 +10,11 @@
   </p>
 
   <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 20px;">
+    {% if acao %}
+    O passo a passo de <strong style="color:#1e293b;">{{ autor_nome }}</strong> espera você há {{ dias }} dias.
+    {% else %}
     A pergunta de <strong style="color:#1e293b;">{{ autor_nome }}</strong> espera sua resposta há {{ dias }} dias.
+    {% endif %}
     Este é o único lembrete.
   </p>
 
@@ -38,13 +42,13 @@
       <td align="center">
         <a href="{{ link }}"
            style="display:inline-block;background:linear-gradient(135deg,#2B2E7E,#2558A0);color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;padding:13px 36px;border-radius:10px;">
-          Ler e responder
+          {% if acao %}Ver os passos{% else %}Ler e responder{% endif %}
         </a>
       </td>
     </tr>
   </table>
 
   <p style="color:#94a3b8;font-size:12px;line-height:1.6;margin:0;text-align:center;">
-    O link abre a Demanda na aba Tecnologia, com o cartão da pergunta na conversa.
+    O link abre a Demanda na aba Tecnologia, com o cartão {% if acao %}do passo a passo{% else %}da pergunta{% endif %} na conversa.
   </p>
 {% endblock %}
