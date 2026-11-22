@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T02:19+0000 -->
+<!-- last_update: 2026-11-22T02:25+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -202,6 +202,7 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 211 | `211_tecnologia_pergunta_da_vitta.sql` | a Pergunta da Vitta e a conversa do Me explique | 2 | 0 | 4 | 0 |
 | 212 | `212_nsp_suplente_em_exercicio.sql` | o suplente em exercício do Núcleo | 1 | 0 | 2 | 0 |
 | 213 | `213_conduta_relatorio_de_apuracao.sql` | Canal de Conduta, o relatório de apuração e o envio para voto | 1 | 1 | 2 | 0 |
+| 214 | `214_conduta_rota_especial.sql` | Canal de Conduta, a Rota Especial | 2 | 1 | 2 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 196 migrations.
+**Total:** 197 migrations.

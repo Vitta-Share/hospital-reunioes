@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T02:19+0000 -->
+<!-- last_update: 2026-11-22T02:25+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -150,6 +150,14 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | GET | `/conduta/abertura` | Se o canal está aberto. Fechado, a rota nem aparece (404). | ❌ |
 | GET | `/conduta/codigo-de-conduta` | O PDF do Código de Conduta vigente hoje (issue #1841), num endereço que | ❌ |
 | GET | `/conduta/textos` | Os textos vigentes das telas públicas (issue #1826), cada um com o | ❌ |
+
+## canal-de-conduta (`app/routers/conduta_rota_especial.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| POST | `/comite-de-conduta/casos/{caso_id}/desvio-especial` | Confirmar desvio | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/entrega-do-parecer` | Registrar entrega | ✅ |
+| GET | `/comite-de-conduta/rota-especial/contagem` | Casos da Rota Especial recebidos, concluídos e em aberto. Nada além. | ✅ |
 
 ## conector-mcp (`app/routers/conector_mcp.py`)
 
@@ -818,4 +826,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 477 endpoints em 67 routers · 93% exigem auth.
+**Totais:** 480 endpoints em 68 routers · 93% exigem auth.

@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T02:19+0000 -->
+<!-- last_update: 2026-11-22T02:25+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -72,9 +72,11 @@ erDiagram
     conduta_casos ||--o{ conduta_contestacoes : "caso_id"
     conduta_casos ||--o{ conduta_contestacoes_de_participacao : "caso_id"
     conduta_casos ||--o{ conduta_depoimentos : "caso_id"
+    conduta_casos ||--o{ conduta_entregas_do_parecer : "caso_id"
     conduta_casos ||--o{ conduta_notas_nsp : "caso_id"
     conduta_casos ||--o{ conduta_prazos_vencidos : "caso_id"
     conduta_casos ||--o{ conduta_relatorios : "caso_id"
+    conduta_casos ||--o{ conduta_selos : "caso_id"
     conduta_casos ||--o{ conduta_sugestoes : "caso_id"
     conduta_casos ||--o{ conduta_trilha : "caso_id"
     conduta_contestacoes ||--o{ conduta_contestacao_votos : "contestacao_id"
@@ -130,6 +132,7 @@ erDiagram
     participantes ||--o{ conduta_atribuicoes : "impedimento_motivo"
     participantes ||--o{ conduta_atribuicoes : "participante_id"
     participantes ||--o{ conduta_avisos : "participante_id"
+    participantes ||--o{ conduta_casos : "direcao_envolvida"
     participantes ||--o{ conduta_casos : "escopo"
     participantes ||--o{ conduta_citados : "participante_id"
     participantes ||--o{ conduta_codigo_versoes : "autor_id"
@@ -143,6 +146,7 @@ erDiagram
     participantes ||--o{ conduta_depoimentos : "concluido_por"
     participantes ||--o{ conduta_depoimentos : "criado_por"
     participantes ||--o{ conduta_depoimentos : "sem_gravacao_por"
+    participantes ||--o{ conduta_entregas_do_parecer : "autor_id"
     participantes ||--o{ conduta_notas_nsp : "enviada_por"
     participantes ||--o{ conduta_notas_nsp : "escrita_por"
     participantes ||--o{ conduta_participacao_votos : "participante_id"
@@ -1351,7 +1355,7 @@ erDiagram
         TEXT categoria
         TIMESTAMPTZ recebido_em
         DATE prazo_em
-        _ mais_colunas "+4"
+        _ mais_colunas "+5"
     }
     conduta_atribuicoes {
         UUID id PK
@@ -1663,6 +1667,19 @@ erDiagram
         VARCHAR autor_id FK
         TIMESTAMPTZ criado_em
     }
+    conduta_selos {
+        UUID caso_id PK
+        TEXT relato_cifrado
+        TIMESTAMPTZ selado_em
+        TEXT codigo
+    }
+    conduta_entregas_do_parecer {
+        UUID caso_id PK
+        TEXT destinatario_cifrado
+        DATE entregue_em
+        VARCHAR autor_id FK
+        TIMESTAMPTZ registrado_em
+    }
 ```
 
 ## Indexes principais
@@ -1882,6 +1899,7 @@ erDiagram
 | `conduta_casos` | `idx_conduta_casos_prorrogado_por` | `prorrogado_por` | `185_conduta_triagem_e_ritos.sql` |
 | `conduta_casos` | `idx_conduta_casos_abertos_prazo` | `prazo_em` | `199_conduta_avisos_por_email.sql` |
 | `conduta_casos` | `uq_conduta_casos_manifestacao` | `manifestacao_id` | `202_conduta_sinalizacao_da_ouvidoria.sql` |
+| `conduta_casos` | `idx_conduta_casos_desviado_por` | `desviado_por` | `214_conduta_rota_especial.sql` |
 | `conduta_atribuicoes` | `idx_conduta_atribuicoes_pessoa` | `participante_id, caso_id` | `175_conduta_fundacao.sql` |
 | `conduta_atribuicoes` | `idx_conduta_atribuicoes_caso` | `caso_id` | `175_conduta_fundacao.sql` |
 | `conduta_atribuicoes` | `idx_conduta_atribuicoes_substitui` | `substitui_id` | `191_conduta_impedimento_e_citado.sql` |
@@ -1934,6 +1952,7 @@ erDiagram
 | `nsp_ausencias_da_presidencia` | `idx_nsp_ausencias_da_presidencia_participacao` | `participacao_id, inicio, fim` | `212_nsp_suplente_em_exercicio.sql` |
 | `nsp_ausencias_da_presidencia` | `idx_nsp_ausencias_da_presidencia_autor` | `autor_id` | `212_nsp_suplente_em_exercicio.sql` |
 | `conduta_relatorios` | `idx_conduta_relatorios_autor` | `autor_id` | `213_conduta_relatorio_de_apuracao.sql` |
+| `conduta_entregas_do_parecer` | `idx_conduta_entregas_do_parecer_autor` | `autor_id` | `214_conduta_rota_especial.sql` |
 
 ---
-**Resumo:** 153 tabelas · 244 relacionamentos FK detectados.
+**Resumo:** 155 tabelas · 248 relacionamentos FK detectados.

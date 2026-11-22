@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T02:19+0000 -->
+<!-- last_update: 2026-11-22T02:25+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2391,7 +2391,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## conduta_casos
 
-> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql, 202_conduta_sinalizacao_da_ouvidoria.sql)
+> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql, 202_conduta_sinalizacao_da_ouvidoria.sql, 214_conduta_rota_especial.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2408,6 +2408,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
 | `escopo` | `TEXT` | — | — | `participantes.id` |
 | `origem` | `TEXT` | NOT NULL | — | `ouvidoria_protocolos.id` |
+| `direcao_envolvida` | `TEXT` | NOT NULL | — | `participantes.id` |
 
 **Indexes:**
 - `idx_conduta_casos_rota_etapa` em `(rota, etapa, recebido_em DESC)` (de `175_conduta_fundacao.sql`)
@@ -2416,6 +2417,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_conduta_casos_prorrogado_por` em `(prorrogado_por)` (de `185_conduta_triagem_e_ritos.sql`)
 - `idx_conduta_casos_abertos_prazo` em `(prazo_em)` (de `199_conduta_avisos_por_email.sql`)
 - `uq_conduta_casos_manifestacao` em `(manifestacao_id)` (de `202_conduta_sinalizacao_da_ouvidoria.sql`)
+- `idx_conduta_casos_desviado_por` em `(desviado_por)` (de `214_conduta_rota_especial.sql`)
 
 ## conduta_atribuicoes
 
@@ -3075,6 +3077,32 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_conduta_relatorios_autor` em `(autor_id)` (de `213_conduta_relatorio_de_apuracao.sql`)
 
+## conduta_selos
+
+> Origem: `214_conduta_rota_especial.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `caso_id` | `UUID` | PK | — | `conduta_casos.id` |
+| `relato_cifrado` | `TEXT` | NOT NULL | — | — |
+| `selado_em` | `TIMESTAMPTZ` | NOT NULL | — | — |
+| `codigo` | `TEXT` | NOT NULL | — | — |
+
+## conduta_entregas_do_parecer
+
+> Origem: `214_conduta_rota_especial.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `caso_id` | `UUID` | PK | — | `conduta_casos.id` |
+| `destinatario_cifrado` | `TEXT` | NOT NULL | — | — |
+| `entregue_em` | `DATE` | NOT NULL | — | — |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `registrado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_entregas_do_parecer_autor` em `(autor_id)` (de `214_conduta_rota_especial.sql`)
+
 ---
 
-**Resumo:** 153 tabelas vivas.
+**Resumo:** 155 tabelas vivas.
