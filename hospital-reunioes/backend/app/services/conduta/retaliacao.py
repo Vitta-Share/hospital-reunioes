@@ -73,7 +73,9 @@ def acompanha(supabase, caso: dict[str, Any]) -> bool:
     )
     if not linhas:
         return False
-    return bool(linhas[0].get("denunciante_informou_em")) or bool(afastamento._nomes_de_quem_relatou(supabase, linhas[0]))
+    return bool(linhas[0].get("denunciante_informou_em")) or bool(
+        afastamento._nomes_de_quem_relatou(supabase, linhas[0])
+    )
 
 
 def _feitas(supabase, caso_id: str) -> dict[int, dict]:
