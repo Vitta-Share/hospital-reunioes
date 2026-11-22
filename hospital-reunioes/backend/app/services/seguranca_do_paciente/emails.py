@@ -50,6 +50,10 @@ FALHOU = "falhou"
 SEM_EMAIL = "A pessoa não tem e-mail no cadastro."
 FALHA_DO_ENVIO = "O provedor de e-mail não aceitou o envio."
 MARCO_MUDOU = "A Participação mudou antes do envio; aviso não enviado."
+JA_RECEBIDO = "O setor já confirmou o recebimento; e-mail não enviado."
+# O marco do e-mail com Recebido ao setor (issue #1996), lido aqui sem
+# importar `recebimento`, que importa este módulo.
+MARCO_DO_SETOR = "encaminhamento_setor"
 
 # Só os modelos do Núcleo: o nome vem do banco e vira um template carregado.
 _MODELO = re.compile(r"^email_nsp_[a-z_]+\.html$")
@@ -172,11 +176,21 @@ def despachar(supabase, registro: dict, agora: datetime) -> str | None:
         return None
     tentativas = (registro.get("tentativas") or 0) + 1
     try:
-        email = (
-            _email_de(supabase, registro["destinatario_id"])
-            if registro.get("destinatario_id")
-            else _email_de_quem_notificou(supabase, registro.get("caso_id"))
-        )
+        if registro.get("marco") == MARCO_DO_SETOR:
+            # O e-mail com Recebido (issue #1996): o endereço é o do
+            # responsável do setor, e o link de uso único nasce agora.
+            from app.services.seguranca_do_paciente import recebimento
+
+            email, registro = recebimento.com_o_link(supabase, registro, agora)
+            if email is None:
+                supabase.table(TABELA).update({"situacao": FALHOU, "erro": JA_RECEBIDO, "tentativas": tentativas}).eq(
+                    "id", registro["id"]
+                ).execute()
+                return FALHOU
+        elif registro.get("destinatario_id"):
+            email = _email_de(supabase, registro["destinatario_id"])
+        else:
+            email = _email_de_quem_notificou(supabase, registro.get("caso_id"))
         if not email:
             supabase.table(TABELA).update({"situacao": FALHOU, "erro": SEM_EMAIL, "tentativas": tentativas}).eq(
                 "id", registro["id"]
