@@ -26,7 +26,7 @@ from postgrest.exceptions import APIError
 
 from app.config import settings
 from app.services import storage
-from app.services.conduta import cifra, depoimentos, membros, relatorio, trilha
+from app.services.conduta import ata, cifra, depoimentos, membros, relatorio, trilha
 from app.services.conduta.portao import CasoAberto
 from app.services.conduta.ritos import agora_utc
 from app.services.ia_chaves import ClienteDaAnthropic
@@ -40,8 +40,8 @@ CONFIRMACOES = "conduta_trava_confirmacoes"
 CIENCIAS = "conduta_ciencias_do_codigo"
 BUCKET = depoimentos.BUCKET
 
-# A lista da especificação (6.7), na ordem da tela. O item da ata assinada
-# chega com a ata (issue #1834): aqui o último item confere os votos.
+# A lista da especificação (6.7), na ordem da tela. O último item só se
+# confirma com os três votos e a ata assinada (issue #1834).
 ITENS = (
     ("fato", "Fato descrito, com data e local"),
     ("prova", "Prova além do relato (relato anônimo sozinho não sustenta punição)"),
@@ -49,7 +49,7 @@ ITENS = (
     ("regra", "Regra violada indicada (item do Código de Conduta)"),
     ("ciencia", "Ciência prévia do Código pelo acusado"),
     ("medida", "Medida recomendada conforme a Matriz e o histórico da pessoa"),
-    ("votos", "Votos registrados"),
+    ("votos", "Votos registrados e ata assinada"),
 )
 ROTULOS = dict(ITENS)
 CERTIFICACOES_DA_RECUSA = 2
@@ -126,6 +126,8 @@ def _requisito(supabase, caso: dict, item: str, situacao_do_voto) -> str | None:
         return "Anexe a ciência do Código registrada pelo DP antes de confirmar."
     if item == "votos" and not situacao_do_voto.fechada:
         return "Faltam votos: o item se confirma depois que os três votarem."
+    if item == "votos" and not ata.ata_assinada(supabase, caso["id"]):
+        return "Falta a ata assinada pelos três: o item se confirma depois da assinatura."
     return None
 
 
@@ -315,6 +317,7 @@ def montar_mensagem_da_trava(supabase, caso: dict, situacao_do_voto) -> tuple[st
         f"Ciência do Código pelo acusado anexada: {'sim' if _ciencias(supabase, caso['id']) else 'não'}.\n"
         f"Depoimento do acusado concluído: {'sim' if _acusado_ouvido(supabase, caso['id']) else 'não'}.\n"
         f"Votos registrados: {votaram} de {len(situacao_do_voto.votantes)}.\n"
+        f"Ata assinada pelos três: {'sim' if ata.ata_assinada(supabase, caso['id']) else 'não'}.\n"
         "</fatos_do_caso>"
     )
     return "\n\n".join(partes), marcadores

@@ -206,7 +206,26 @@ class Comite:
     def confirmar(self, pid: str, caso_id: str, item: str):
         return self.post(pid, f"/casos/{caso_id}/trava/confirmacao", {"item": item})
 
+    def ata_assinada(self, caso_id: str) -> None:
+        """A ata assinada pelos três (issue #1834), direto no banco: o item dos
+        votos e a conclusão da votação pedem a ata."""
+        ata_id = f"ata-{caso_id}"
+        self.banco.tabelas.setdefault("conduta_atas", []).append(
+            {"id": ata_id, "caso_id": caso_id, "versao": 1, "rodada": 1, "ata_cifrada": cifra.cifrar_texto("{}")}
+        )
+        self.banco.tabelas.setdefault("conduta_assinaturas", []).append(
+            {
+                "id": f"assinatura-{caso_id}",
+                "tipo": "ata_de_deliberacao",
+                "caso_id": caso_id,
+                "ata_id": ata_id,
+                "signatarios": [COORDENACAO, MEMBRO, LEITOR],
+                "situacao": "assinado",
+            }
+        )
+
     def trava_completa(self, caso_id: str) -> None:
+        self.ata_assinada(caso_id)
         assert self.anexar_ciencia(COORDENACAO, caso_id).status_code == 200
         for item in ITENS_DA_TRAVA:
             resposta = self.confirmar(COORDENACAO, caso_id, item)
@@ -491,6 +510,7 @@ class TestMaioria:
         comite.votar(MEMBRO, caso, resultado="improcedente", medida=None)
         comite.votar(LEITOR, caso, resultado="improcedente", medida=None)
         comite.votar(COORDENACAO, caso)
+        comite.ata_assinada(caso)
 
         assert comite.post(MEMBRO, f"/casos/{caso}/conclusao-da-votacao").status_code == 403
         resposta = comite.post(COORDENACAO, f"/casos/{caso}/conclusao-da-votacao")
@@ -599,6 +619,7 @@ class TestTravaPreenchidaEConfirmada:
         assert comite.confirmar(MEMBRO, caso, "votos").status_code == 409
         comite.votar(LEITOR, caso)
         comite.votar(COORDENACAO, caso)
+        comite.ata_assinada(caso)
         assert comite.confirmar(MEMBRO, caso, "votos").status_code == 200
 
     def test_sem_o_acusado_ouvido_a_recusa_e_certificada_por_dois_membros(self, comite):
@@ -634,6 +655,7 @@ class TestTravaBloqueiaAConclusao:
     def test_item_em_aberto_bloqueia_com_o_motivo(self, comite, resultado):
         caso = comite.caso()
         self._votos(comite, caso, resultado)
+        comite.ata_assinada(caso)
         comite.anexar_ciencia(COORDENACAO, caso)
         for item in ITENS_DA_TRAVA:
             if item != "regra":
@@ -667,6 +689,7 @@ class TestTravaBloqueiaAConclusao:
         caso = comite.caso()
         for pid in (MEMBRO, LEITOR, COORDENACAO):
             comite.votar(pid, caso, resultado="inconclusivo", medida=None)
+        comite.ata_assinada(caso)
 
         assert comite.post(COORDENACAO, f"/casos/{caso}/conclusao-da-votacao").status_code == 200
         assert comite.linha_do_caso(caso)["resultado"] == "inconclusivo"
@@ -756,6 +779,7 @@ class TestSuplenteVota:
         comite.post(MEMBRO, f"/casos/{caso}/impedimento", {"motivo": "interesse"})
         for pid in (SUPLENTE, LEITOR, COORDENACAO):
             assert comite.votar(pid, caso).status_code == 200
+        comite.ata_assinada(caso)
         comite.anexar_ciencia(COORDENACAO, caso)
         for item in ITENS_DA_TRAVA:
             if item != "prova":

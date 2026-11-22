@@ -97,17 +97,30 @@ No fim da Apuração, o botão "GERAR RELATÓRIO" pede ao agente o rascunho do r
 Na etapa Voto, cada um dos três membros votantes do caso (a coordenação, o membro e o segundo leitor) toca em "VOTAR" e escolhe o resultado (procedente, parcialmente procedente, improcedente ou inconclusivo), a medida da Matriz de Consequências quando o resultado é procedente ou parcialmente procedente, e escreve a própria justificativa, de uma a três linhas.
 
 - Cada voto fica oculto até os três votarem. Antes disso, cada membro vê só o próprio voto e quantos já votaram, na tela e na API.
-- O voto não se troca depois de registrado. O agente não redige voto nem justificativa: ele não recebe o conteúdo dos votos, só quantos já votaram.
+- O voto não se troca depois de registrado. O agente não redige voto nem justificativa: o agente da trava não recebe o conteúdo dos votos, só quantos já votaram, e o agente da ata recebe os votos registrados só para escrever a ata, sem mudá-los.
 - Vale a maioria. Sem maioria do resultado, ou com as três medidas diferentes, o aplicativo convoca uma reunião curta: avisa os três por e-mail e abre uma nova rodada de voto. Os votos da rodada anterior ficam guardados.
 - O suplente convocado vota no lugar do impedido. O voto de quem ficou impedido depois de votar sai da conta.
 
-A trava de robustez tem sete itens: fato com data e local, prova além do relato, defesa do acusado, regra do Código violada, ciência do Código pelo acusado, medida conforme a Matriz e votos registrados. O botão "PREENCHER TRAVA" pede ao agente que aponte, em cada item, onde o material do caso mostra que ele está atendido. Quem confirma cada item é um membro votante, com o botão do item.
+A trava de robustez tem sete itens: fato com data e local, prova além do relato, defesa do acusado, regra do Código violada, ciência do Código pelo acusado, medida conforme a Matriz e "Votos registrados e ata assinada". O botão "PREENCHER TRAVA" pede ao agente que aponte, em cada item, onde o material do caso mostra que ele está atendido. Quem confirma cada item é um membro votante, com o botão do item.
 
 - A ciência do Código é o documento que o DP registra fora do aplicativo. Um membro anexa a ciência do Código ao caso, e o item só se confirma com ela anexada.
 - Sem o depoimento do acusado concluído, a recusa da defesa precisa ser certificada por dois membros.
-- O item dos votos só se confirma depois que os três votarem.
+- O item "Votos registrados e ata assinada" só se confirma depois que os três votarem e assinarem a ata.
 
-"CONCLUIR VOTAÇÃO" é da coordenação: grava o resultado da maioria e leva o caso à etapa Ata. Com algum item da trava em aberto, a votação não conclui como procedente nem como parcialmente procedente, e a tela diz qual item falta. Improcedente e inconclusivo concluem sem a trava.
+"CONCLUIR VOTAÇÃO" é da coordenação: grava o resultado da maioria e leva o caso à etapa Ata. Ela só libera com a ata assinada pelos três votantes e, no rito Completo, com a reunião do Comitê concluída. Com algum item da trava em aberto, a votação não conclui como procedente nem como parcialmente procedente, e a tela diz qual item falta. Improcedente e inconclusivo concluem sem a trava.
+
+## A ata de deliberação e a reunião do Comitê
+
+A ata de deliberação registra a decisão do Comitê e o fundamento dela. Ela nasce na etapa Voto, depois que os três votaram e houve maioria, quando a coordenação toca em "GERAR ATA".
+
+- No rito Rápido não há reunião: o agente gera a ata do relatório de apuração e dos votos.
+- No rito Completo, a coordenação anexa a transcrição da reunião do Comitê na etapa Voto, com o botão "ANEXAR TRANSCRIÇÃO DA REUNIÃO DO COMITÊ". O botão é só para isso, sem escolher tipo de transcrição. O agente gera a ata da transcrição e dos votos registrados.
+- A deliberação, a medida recomendada e o voto de cada membro saem dos votos registrados no aplicativo, nunca da transcrição. Em divergência, vale o voto registrado.
+- O agente lista à parte os "Pontos a confirmar": as divergências entre a transcrição e os votos, os trechos marcados para confirmar e os itens da trava que ficaram sem tratar. Eles aparecem marcados como Sugestão e não entram na ata.
+- Nenhum nome vai ao agente: os nomes viram marcadores na ida e voltam a ser nomes dentro do aplicativo.
+- A coordenação envia a ata à ClickSign para os três votantes. A assinatura volta sozinha para a trilha, e a cópia do PDF assinado fica no aplicativo. O botão "Reconsultar status" pergunta à ClickSign sem esperar o retorno. A ata assinada não muda mais.
+
+No rito Completo, a lista de conferência da reunião tem quatro itens: transcrição anexada e ata assinada pelos três, que o aplicativo marca sozinho, e as duas declarações da coordenação, "Apaguei a gravação de áudio da plataforma de gravação" e "Apaguei os arquivos do computador e do celular", com quem marcou e quando. "CONCLUIR REUNIÃO" só libera com os quatro. Ao concluir a reunião, a transcrição é eliminada do banco e do bucket, e a eliminação fica na trilha do caso. Fica a ata assinada. O áudio da reunião não é anexado em nenhum momento: o botão da transcrição recusa arquivo de áudio.
 
 ## O agente de triagem
 
@@ -254,7 +267,7 @@ Quem não tem acesso recebe a mesma recusa, exista o caso ou não.
 
 ## O que ele ainda não faz
 
-O formulário público de relato, as páginas públicas que vão mostrar os textos das configurações, a página de acompanhamento, as perguntas ao relator, o roteiro de perguntas e o termo de declaração redigidos pelo agente, a ata e o dossiê chegam nas próximas entregas. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. Por enquanto ninguém relata pelo Canal: os relatos continuam chegando pela Ouvidoria.
+O formulário público de relato, as páginas públicas que vão mostrar os textos das configurações, a página de acompanhamento, as perguntas ao relator, o roteiro de perguntas e o termo de declaração redigidos pelo agente e o dossiê chegam nas próximas entregas. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. Por enquanto ninguém relata pelo Canal: os relatos continuam chegando pela Ouvidoria.
 
 ## O que já foi decidido
 
@@ -291,6 +304,7 @@ O formulário público de relato, as páginas públicas que vão mostrar os text
 - Um membro que deixou de ver um caso: ele se declarou impedido, teve a participação contestada e confirmada, ou foi marcado como Citado. A trilha do caso diz qual.
 - Um impedimento sem suplente convocado: não havia suplente vigente com o Termo assinado e livre naquele caso.
 - Pedido para ver o voto de outro membro antes de todos votarem, ou para trocar um voto registrado: não existe.
-- "CONCLUIR VOTAÇÃO" que não libera: falta voto, não houve maioria (a reunião curta foi convocada) ou, no procedente, falta item da trava; a tela diz qual.
+- "CONCLUIR VOTAÇÃO" que não libera: falta voto, não houve maioria (a reunião curta foi convocada), falta a ata assinada, no Completo falta concluir a reunião, ou, no procedente, falta item da trava; a tela diz qual.
+- Pedido para anexar o áudio da reunião do Comitê, ou para recuperar a transcrição depois de concluída a reunião: não existe; fica a ata assinada.
 - Pedido para afastar quem relatou, ou para levar o relato junto do pedido de afastamento: não existe; o pedido leva só quem afastar e o motivo.
 - Coordenação que não abre o caso da Rota Especial do qual recebeu o pedido de afastamento: é assim mesmo; ela vê só o pedido.
