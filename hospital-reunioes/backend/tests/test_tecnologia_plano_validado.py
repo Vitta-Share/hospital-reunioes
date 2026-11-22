@@ -17,6 +17,8 @@ from __future__ import annotations
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from test_tecnologia_chat import CHAT, _cenario  # noqa: E402
@@ -37,7 +39,7 @@ from test_tecnologia_webhook_github import (  # noqa: E402
     _sem_pr_aberto,  # noqa: F401  (autouse)
 )
 
-from app.services import github_client, tecnologia_sincronizacao  # noqa: E402
+from app.services import github_client  # noqa: E402
 
 REPO_URL = "https://github.com/pedrorezendefig/hospital-reunioes/issues"
 
@@ -57,7 +59,9 @@ def _raiz(*, validada: bool = True) -> dict:
 
 def _ajuste(*, estado: str = "open") -> dict:
     return {
-        **_issue(AJUSTE, estado=estado, motivo="completed" if estado == "closed" else None, labels=("ready-for-human",)),
+        **_issue(
+            AJUSTE, estado=estado, motivo="completed" if estado == "closed" else None, labels=("ready-for-human",)
+        ),
         "body": f"<!-- ajuste-do-plano: {RAIZ} -->\n<!-- envio-aos-desenvolvedores -->\n## O que é este card\n",
     }
 
@@ -96,3 +100,175 @@ class TestAFotoGuardaAValidacaoEOAjuste:
 
         assert demanda["github_foto"]["validado_em"] == VALIDADO_EM
         assert demanda["github_foto"]["ajuste_aberto"] == AJUSTE
+
+    def test_a_falha_na_leitura_mantem_a_data_da_foto_anterior(self, monkeypatch):
+        antes = _sincronizar(_github_do_1757(), monkeypatch)
+
+        depois = _sincronizar(
+            _github_do_1757(validacao=github_client.GithubIndisponivelError("GitHub respondeu 502")),
+            monkeypatch,
+            guardada=antes,
+            acao="edited",
+        )
+
+        assert depois["github_foto"]["validado_em"] == VALIDADO_EM
+        assert depois["github_foto"]["ajuste_aberto"] == AJUSTE
+
+    def test_tirar_a_label_tira_a_data_na_proxima_sincronizacao(self, monkeypatch):
+        antes = _sincronizar(_github_do_1757(), monkeypatch)
+        gh = _github_do_1757(validada=False)
+
+        depois = _sincronizar(gh, monkeypatch, guardada=antes, acao="unlabeled")
+
+        assert "validado_em" not in depois["github_foto"]
+        # Sem a label nem se pergunta ao GitHub quando foi a validacao.
+        assert gh.leituras_da_validacao == []
+
+    def test_fechar_o_ajuste_tira_o_ajuste_aberto_da_foto(self, monkeypatch):
+        antes = _sincronizar(_github_do_1757(), monkeypatch)
+
+        depois = _sincronizar(_github_do_1757(ajuste="closed"), monkeypatch, guardada=antes, acao="edited")
+
+        assert "ajuste_aberto" not in depois["github_foto"]
+
+    def test_o_marcador_de_outra_raiz_nao_faz_o_ajuste(self, monkeypatch):
+        gh = _github_do_1757()
+        gh.sub_issues[RAIZ][-1]["body"] = "<!-- ajuste-do-plano: 1700 -->"
+
+        demanda = _sincronizar(gh, monkeypatch)
+
+        assert "ajuste_aberto" not in demanda["github_foto"]
+
+
+class TestOClienteLeAValidacao:
+    def _github(self, monkeypatch, *, comentarios: list[dict], eventos: list[dict]) -> list[str]:
+        chamadas: list[str] = []
+
+        def _chamar(metodo, caminho, *, projeto, **kw):
+            chamadas.append(caminho)
+            return comentarios if "/comments" in caminho else eventos
+
+        monkeypatch.setattr(github_client, "_chamar", _chamar)
+        return chamadas
+
+    def test_vale_o_marcador_do_comentario_mais_recente_de_quem_e_do_repositorio(self, monkeypatch):
+        self._github(
+            monkeypatch,
+            comentarios=[
+                {"author_association": "OWNER", "body": "<!-- validacao-diretor: 2026-11-10T12:00:00.000Z -->"},
+                {"author_association": "MEMBER", "body": f"Plano validado.\n<!-- validacao-diretor: {VALIDADO_EM} -->"},
+                # De fora do repositorio: o repositorio e publico.
+                {"author_association": "NONE", "body": "<!-- validacao-diretor: 2026-11-20T12:00:00.000Z -->"},
+            ],
+            eventos=[],
+        )
+
+        assert github_client.ler_validacao_do_diretor(RAIZ, projeto="hospital") == VALIDADO_EM
+
+    def test_sem_o_comentario_vale_a_hora_em_que_a_label_entrou_por_ultimo(self, monkeypatch):
+        chamadas = self._github(
+            monkeypatch,
+            comentarios=[{"author_association": "OWNER", "body": "Sem marcador."}],
+            eventos=[
+                {"event": "labeled", "label": {"name": "validado:diretor"}, "created_at": "2026-11-01T10:00:00Z"},
+                {"event": "labeled", "label": {"name": "ready-for-agent"}, "created_at": "2026-11-17T10:00:00Z"},
+                {"event": "labeled", "label": {"name": "validado:diretor"}, "created_at": "2026-11-16T13:04:00Z"},
+            ],
+        )
+
+        assert github_client.ler_validacao_do_diretor(RAIZ, projeto="hospital") == "2026-11-16T13:04:00Z"
+        assert chamadas == [
+            f"/issues/{RAIZ}/comments?per_page=100&page=1",
+            f"/issues/{RAIZ}/events?per_page=100&page=1",
+        ]
+
+    def test_resposta_fora_do_formato_levanta(self, monkeypatch):
+        monkeypatch.setattr(github_client, "_chamar", lambda *a, **kw: {"message": "?"})
+
+        with pytest.raises(github_client.GithubIndisponivelError):
+            github_client.ler_validacao_do_diretor(RAIZ, projeto="hospital")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# A API do Documento do card
+# ═══════════════════════════════════════════════════════════════════════════
+
+_CACHE = ("etapa", "partes_entregues", "partes_total", "o_que_muda", "partes", "plano_validado", "github_foto")
+
+
+def _item_da_lista(monkeypatch, gh: _GithubFalso, *, logado: dict) -> dict:
+    """A Demanda do PRD #1757 como a lista a devolve a quem está logado, com o
+    cache que a sincronização deixou."""
+    sincronizada = _sincronizar(gh, monkeypatch)
+    client, _, _ = _cenario(
+        monkeypatch,
+        logado=logado,
+        participantes=[DIRETOR, PEDRO],
+        demandas=[
+            _demanda_do_diretor(
+                "d-1757",
+                autor_id=DIRETOR["id"],
+                github_issue_numero=RAIZ,
+                **{c: sincronizada[c] for c in _CACHE},
+            )
+        ],
+    )
+    [item] = client.get(f"{CHAT}?filtro=todas" if logado is PEDRO else CHAT).json()
+    return item
+
+
+class TestAApiDoDocumento:
+    def test_quem_nao_tem_github_login_recebe_a_data_e_o_ajuste_aberto_sem_numero_nem_link(self, monkeypatch):
+        item = _item_da_lista(monkeypatch, _github_do_1757(), logado=DIRETOR)
+
+        assert item["validado_em"] == VALIDADO_EM
+        assert item["ajuste_aberto"] is True
+        assert (item["ajuste_numero"], item["ajuste_url"]) == (None, None)
+        assert str(AJUSTE) not in str(item)
+
+    def test_o_desenvolvedor_recebe_o_numero_e_o_link_do_ajuste(self, monkeypatch):
+        item = _item_da_lista(monkeypatch, _github_do_1757(), logado=PEDRO)
+
+        assert (item["ajuste_numero"], item["ajuste_url"]) == (AJUSTE, f"{REPO_URL}/{AJUSTE}")
+
+    def test_o_ajuste_fica_fora_das_partes_e_da_contagem(self, monkeypatch):
+        item = _item_da_lista(monkeypatch, _github_do_1757(), logado=DIRETOR)
+
+        assert [p["numero"] for p in item["partes"]] == list(PARTES)
+        assert (item["partes_entregues"], item["partes_total"]) == (0, 6)
+
+    def test_as_quatro_partes_travadas_esperam_o_ajuste_do_plano(self, monkeypatch):
+        item = _item_da_lista(monkeypatch, _github_do_1757(), logado=DIRETOR)
+
+        esperas = {p["numero"]: p["bloqueadoras"] for p in item["partes"]}
+        ajuste = [{"numero": None, "de_outro_pedido": False, "ajuste_do_plano": True}]
+        assert esperas == {
+            1758: ajuste,
+            1759: ajuste,
+            1760: ajuste,
+            1761: ajuste,
+            1762: [{"numero": 1758, "de_outro_pedido": False, "ajuste_do_plano": False}],
+            1763: [{"numero": 1759, "de_outro_pedido": False, "ajuste_do_plano": False}],
+        }
+        # O Ajuste nao empurra as partes para a Onda 2.
+        assert [p["onda"] for p in item["partes"]] == [1, 1, 1, 1, 2, 2]
+
+    def test_com_o_ajuste_fechado_some_a_faixa_e_as_partes_mostram_so_o_que_resta(self, monkeypatch):
+        item = _item_da_lista(monkeypatch, _github_do_1757(ajuste="closed"), logado=DIRETOR)
+
+        assert item["ajuste_aberto"] is False
+        assert {p["numero"]: len(p["bloqueadoras"]) for p in item["partes"]} == {
+            1758: 0,
+            1759: 0,
+            1760: 0,
+            1761: 0,
+            1762: 1,
+            1763: 1,
+        }
+        # Fechado, o Ajuste conta como entregue no GitHub: aqui nao conta.
+        assert (item["partes_entregues"], item["partes_total"]) == (0, 6)
+
+    def test_sem_a_label_a_api_nao_manda_a_data(self, monkeypatch):
+        item = _item_da_lista(monkeypatch, _github_do_1757(validada=False), logado=DIRETOR)
+
+        assert item["validado_em"] is None

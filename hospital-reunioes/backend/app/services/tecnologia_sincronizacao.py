@@ -54,6 +54,7 @@ from app.services.tecnologia_vinculo import (
     ETAPA_EM_PRODUCAO,
     ETAPA_ENTREGUE,
     ETAPA_REGISTRADA,
+    FATO_AJUSTE_DO_PLANO,
     etapa_da_foto,
     normalizar_github_login,
     o_que_muda_da_foto,
@@ -354,7 +355,8 @@ def _com_as_bloqueadoras(foto: dict[str, Any], anterior: Any, *, projeto: str) -
     raiz_aberta = foto.get("estado") == "open"
     for parte in partes:
         lidas = None
-        if raiz_aberta and isinstance(parte.get("numero"), int):
+        # O Ajuste do plano nao e parte (issue #1915): o que o trava nao aparece.
+        if raiz_aberta and isinstance(parte.get("numero"), int) and not parte.get(FATO_AJUSTE_DO_PLANO):
             try:
                 lidas = github_client.ler_bloqueadoras(parte["numero"], projeto=projeto)
             except (
