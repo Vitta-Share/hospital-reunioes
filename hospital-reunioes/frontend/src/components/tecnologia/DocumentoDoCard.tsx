@@ -3,7 +3,7 @@
  * substituiu a seção "O que muda" de texto corrido (issue #676).
  *
  * Seções fixas: Em uma frase, O que muda (até cinco tópicos, o resto atrás do
- * "Ver tudo"), Partes (com a Etapa e a data de fechamento) e Datas (criado,
+ * "Ver tudo"), Implantação só com Pedido de implantação (issue #2209), Partes (com a Etapa e a data de fechamento) e Datas (criado,
  * entregue, em produção). A Demonstração, num cartão próprio, só quando a
  * issue traz o link do vídeo (issue #1559). O texto vem do bloco "Para o diretor" da issue e do
  * de cada parte, lido do GitHub e guardado no cache da Demanda. Ninguém o
@@ -40,11 +40,14 @@ import {
   ETAPA_ROTULO,
   EtapaDemanda,
   linkDaDemonstracao,
+  ImplantacaoDaDemanda,
   linkDoPlano,
   nomeDoNumero,
   ParteDaEntrega,
   PedacoForte,
   rotuloDoProjeto,
+  SITUACAO_DA_IMPLANTACAO_CLASSE,
+  SITUACAO_DA_IMPLANTACAO_ROTULO,
   temSelo,
 } from "./demandas";
 
@@ -52,6 +55,7 @@ export const TITULO_DOCUMENTO = "Documento do card";
 export const TITULO_EM_UMA_FRASE = "Em uma frase";
 export const TITULO_O_QUE_MUDA = "O que muda";
 export const TITULO_PARTES = "Partes";
+export const TITULO_IMPLANTACAO = "Implantação";
 export const TITULO_DATAS = "Datas";
 export const TITULO_DEMONSTRACAO = "Demonstração";
 export const ASSISTIR_A_DEMONSTRACAO = "Assistir à demonstração";
@@ -410,6 +414,43 @@ function Demonstracao({ demanda }: { demanda: Demanda }) {
 }
 
 /**
+ * A seção Implantação (issue #2209, ADR 0111, decisão 5): o que o hospital faz
+ * depois que a entrega sobe, um Pedido de implantação por linha, com quem
+ * recebeu, a situação e o que ele espera, e quantos já foram feitos. Sem
+ * nenhum Pedido, a seção não existe.
+ */
+function Implantacao({ implantacao }: { implantacao: ImplantacaoDaDemanda | null | undefined }) {
+  if (!implantacao || implantacao.pedidos.length === 0) return null;
+  return (
+    <section aria-label={TITULO_IMPLANTACAO} className="space-y-1">
+      <div className="flex items-center gap-2">
+        <Titulo>{TITULO_IMPLANTACAO}</Titulo>
+        <span className="text-xs text-text-secondary">
+          {implantacao.feitos} de {implantacao.total} feitos
+        </span>
+      </div>
+      <ul className="space-y-2 text-sm text-text">
+        {implantacao.pedidos.map((pedido, i) => (
+          // Pela posição: o servidor manda os Pedidos sem id, na ordem em que nasceram.
+          <li key={i} className="flex items-start gap-2">
+            <span
+              className={`shrink-0 px-2 py-0.5 rounded text-xs font-medium ${SITUACAO_DA_IMPLANTACAO_CLASSE[pedido.situacao]}`}
+            >
+              {SITUACAO_DA_IMPLANTACAO_ROTULO[pedido.situacao]}
+            </span>
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <p>{pedido.titulo}</p>
+              {pedido.destinatario && <p className="text-xs text-text-secondary">Com {pedido.destinatario}</p>}
+              {pedido.espera && <p className="text-xs text-amber-800">{pedido.espera}</p>}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/**
  * A página do plano do pedido, num cartão no padrão da Demonstração (issue
  * #2010, ADR 0108, decisão 2). Só abre a página: validar segue pelo link do
  * e-mail, que leva o código.
@@ -510,6 +551,8 @@ export function DocumentoDoCard({ demanda }: { demanda: Demanda }) {
       <FaixaDoAjuste demanda={demanda} />
 
       {!soOPlano && <FraseEOQueMuda texto={demanda.o_que_muda} chave={demanda.id} />}
+
+      <Implantacao implantacao={demanda.implantacao} />
 
       <Plano demanda={demanda} />
 
