@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T17:24+0000 -->
+<!-- last_update: 2026-11-22T17:49+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -218,6 +218,7 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 224 | `224_conduta_trilha_e_dossie.sql` | Canal de Conduta, a trilha com gavetas e o Dossiê do caso | 0 | 4 | 0 | 0 |
 | 225 | `225_nsp_triagem_e_encaminhamento_sem_exclusao.sql` | a triagem e o encaminhamento não se apagam | 0 | 0 | 0 | 0 |
 | 228 | `228_nsp_capacitacao_formacao_do_instrutor.sql` | Segurança do Paciente, a formação do instrutor na capacitação | 0 | 1 | 0 | 0 |
+| 229 | `229_conduta_verificacao_de_retaliacao.sql` | Canal de Conduta, a verificação de retaliação em 30, 90 e | 1 | 1 | 2 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 212 migrations.
+**Total:** 213 migrations.

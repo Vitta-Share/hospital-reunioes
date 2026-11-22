@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T17:24+0000 -->
+<!-- last_update: 2026-11-22T17:49+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -92,6 +92,8 @@ erDiagram
     conduta_casos ||--o{ conduta_trava_confirmacoes : "caso_id"
     conduta_casos ||--o{ conduta_trava_preenchimentos : "caso_id"
     conduta_casos ||--o{ conduta_trilha : "caso_id"
+    conduta_casos ||--o{ conduta_verificacoes_de_retaliacao : "caso_id"
+    conduta_casos ||--o{ conduta_verificacoes_de_retaliacao : "caso_novo_id"
     conduta_casos ||--o{ conduta_votos : "caso_id"
     conduta_citados ||--o{ conduta_afastamentos : "citado_id"
     conduta_contestacoes ||--o{ conduta_contestacao_votos : "contestacao_id"
@@ -195,6 +197,7 @@ erDiagram
     participantes ||--o{ conduta_trava_confirmacoes : "participante_id"
     participantes ||--o{ conduta_trava_preenchimentos : "autor_id"
     participantes ||--o{ conduta_trilha : "que"
+    participantes ||--o{ conduta_verificacoes_de_retaliacao : "verificada_por"
     participantes ||--o{ conduta_votos : "participante_id"
     participantes ||--o{ email_de_segunda : "participante_id"
     participantes ||--o{ notificacoes : "destinatario_id"
@@ -1401,7 +1404,7 @@ erDiagram
         TEXT categoria
         TIMESTAMPTZ recebido_em
         DATE prazo_em
-        _ mais_colunas "+8"
+        _ mais_colunas "+9"
     }
     conduta_atribuicoes {
         UUID id PK
@@ -1920,6 +1923,16 @@ erDiagram
         VARCHAR escolhida_por FK
         TIMESTAMPTZ escolhida_em
     }
+    conduta_verificacoes_de_retaliacao {
+        UUID id PK
+        UUID caso_id FK
+        SMALLINT marco
+        BOOLEAN houve
+        TEXT observacao_cifrada
+        VARCHAR verificada_por FK
+        TIMESTAMPTZ verificada_em
+        UUID caso_novo_id FK
+    }
 ```
 
 ## Indexes principais
@@ -2233,6 +2246,8 @@ erDiagram
 | `conduta_correcoes_sugeridas` | `idx_conduta_correcoes_sugeridas_autor` | `autor_id` | `223_conduta_recomendacao_medida_e_retorno.sql` |
 | `conduta_correcoes` | `idx_conduta_correcoes_caso` | `caso_id` | `223_conduta_recomendacao_medida_e_retorno.sql` |
 | `conduta_correcoes` | `idx_conduta_correcoes_escolhida_por` | `escolhida_por` | `223_conduta_recomendacao_medida_e_retorno.sql` |
+| `conduta_verificacoes_de_retaliacao` | `idx_conduta_verificacoes_de_retaliacao_verificada_por` | `verificada_por` | `229_conduta_verificacao_de_retaliacao.sql` |
+| `conduta_verificacoes_de_retaliacao` | `idx_conduta_verificacoes_de_retaliacao_caso_novo` | `caso_novo_id` | `229_conduta_verificacao_de_retaliacao.sql` |
 
 ---
-**Resumo:** 176 tabelas · 294 relacionamentos FK detectados.
+**Resumo:** 177 tabelas · 297 relacionamentos FK detectados.

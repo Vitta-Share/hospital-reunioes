@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T17:24+0000 -->
+<!-- last_update: 2026-11-22T17:49+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2394,7 +2394,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## conduta_casos
 
-> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql, 202_conduta_sinalizacao_da_ouvidoria.sql, 214_conduta_rota_especial.sql, 216_conduta_voto_e_trava_de_robustez.sql, 221_conduta_ata_de_deliberacao.sql, 223_conduta_recomendacao_medida_e_retorno.sql)
+> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql, 202_conduta_sinalizacao_da_ouvidoria.sql, 214_conduta_rota_especial.sql, 216_conduta_voto_e_trava_de_robustez.sql, 221_conduta_ata_de_deliberacao.sql, 223_conduta_recomendacao_medida_e_retorno.sql, 229_conduta_verificacao_de_retaliacao.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2415,6 +2415,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `rodada_do_voto` | `INTEGER` | NOT NULL | — | `participantes.id` |
 | `reuniao_concluida_em` | `TIMESTAMPTZ` | — | — | `participantes.id` |
 | `enviado_a_direcao_em` | `TIMESTAMPTZ` | — | — | `participantes.id` |
+| `denunciante_informou_em` | `TIMESTAMPTZ` | — | — | — |
 
 **Indexes:**
 - `idx_conduta_casos_rota_etapa` em `(rota, etapa, recebido_em DESC)` (de `175_conduta_fundacao.sql`)
@@ -3510,6 +3511,25 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_conduta_correcoes_caso` em `(caso_id)` (de `223_conduta_recomendacao_medida_e_retorno.sql`)
 - `idx_conduta_correcoes_escolhida_por` em `(escolhida_por)` (de `223_conduta_recomendacao_medida_e_retorno.sql`)
 
+## conduta_verificacoes_de_retaliacao
+
+> Origem: `229_conduta_verificacao_de_retaliacao.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `marco` | `SMALLINT` | NOT NULL | — | — |
+| `houve` | `BOOLEAN` | NOT NULL | — | — |
+| `observacao_cifrada` | `TEXT` | — | — | — |
+| `verificada_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `verificada_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `caso_novo_id` | `UUID` | — | — | `conduta_casos.id` |
+
+**Indexes:**
+- `idx_conduta_verificacoes_de_retaliacao_verificada_por` em `(verificada_por)` (de `229_conduta_verificacao_de_retaliacao.sql`)
+- `idx_conduta_verificacoes_de_retaliacao_caso_novo` em `(caso_novo_id)` (de `229_conduta_verificacao_de_retaliacao.sql`)
+
 ---
 
-**Resumo:** 176 tabelas vivas.
+**Resumo:** 177 tabelas vivas.
