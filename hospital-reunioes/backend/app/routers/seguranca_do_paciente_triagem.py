@@ -5,6 +5,8 @@
   sistema calcula;
 - `GET /nsp/triagem/{id}/contexto`: o cálculo de novo, para a categoria e a
   faixa que a pessoa escolheu ao ajustar;
+- `POST /nsp/triagem/lote`: confirmar de uma vez vários casos das faixas D e
+  E, quando a aprovação em lote está ligada (issue #2002);
 - `POST /nsp/triagem/{id}`: confirmar (sem classificação, vale a sugestão) ou
   ajustar (com a classificação da pessoa);
 - `POST /nsp/triagem/{id}/encaminhamento`: encaminhar à Ouvidoria, ao Canal de
@@ -30,7 +32,7 @@ from supabase import Client
 
 from app.dependencies import get_supabase_client, require_recurso_nsp
 from app.services import limite_sem_ip, ouvidoria_nucleo
-from app.services.seguranca_do_paciente import anexos, encaminhamento, notificacoes, triagem
+from app.services.seguranca_do_paciente import anexos, encaminhamento, lote, notificacoes, triagem
 
 logger = logging.getLogger(__name__)
 
@@ -54,9 +56,39 @@ async def fila_de_triagem(
 ) -> dict:
     """A fila de triagem: sem relato e sem quem notificou."""
     try:
-        return {"fila": triagem.fila(supabase)}
+        return {"fila": triagem.fila(supabase), "lote_ligado": lote.ligado(supabase)}
     except (APIError, httpx.HTTPError) as erro:
         raise _indisponivel(erro, FALHA_DE_LEITURA) from erro
+
+
+class PedidoDeLote(BaseModel):
+    """Os casos marcados na fila. Quem confere se cada um cabe no lote é o
+    serviço, para a recusa sair em palavras."""
+
+    ids: list[UUID] = Field(default_factory=list, max_length=lote.TAMANHO_MAXIMO)
+
+
+# Declarada antes de `/triagem/{notificacao_id}`: "lote" não é um id.
+@router.post("/triagem/lote", status_code=status.HTTP_201_CREATED)
+@limite_sem_ip.limitar("30/minute")
+async def confirmar_a_triagem_em_lote(
+    request: Request,
+    pedido: PedidoDeLote,
+    me: dict = Depends(require_recurso_nsp("triagem")),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """Confirma a sugestão de cada caso como veio. Um caso fora das faixas D e
+    E recusa o pedido inteiro, sem gravar nada."""
+    try:
+        return {"confirmados": lote.confirmar(supabase, [str(i) for i in pedido.ids], autor_id=str(me["id"]))}
+    except triagem.CasoNaoEncontradoError as erro:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(erro)) from erro
+    except triagem.JaConfirmadaError as erro:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(erro)) from erro
+    except triagem.TriagemRecusadaError as erro:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(erro)) from erro
+    except (APIError, httpx.HTTPError) as erro:
+        raise _indisponivel(erro, FALHA_DE_GRAVACAO) from erro
 
 
 @router.get("/triagem/{notificacao_id}")
