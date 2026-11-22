@@ -26,6 +26,8 @@ from typing import Any
 
 from PIL import Image, ImageOps
 from postgrest.exceptions import APIError
+from pypdf import PdfReader, PdfWriter
+from pypdf.generic import ArrayObject, DictionaryObject, IndirectObject
 
 from app.services import storage
 from app.services.conduta import cifra, trilha
@@ -102,21 +104,81 @@ def _limpar_imagem(dados: bytes, formato: str) -> bytes:
     return saida.getvalue()
 
 
+# ── PDF ─────────────────────────────────────────────────────────────────────
+
+# O que carrega origem num PDF fora do /Info: o XMP (no documento, na página
+# ou numa imagem dentro dela) e os dados privados do programa que o gerou.
+_CHAVES_DE_ORIGEM = ("/Metadata", "/PieceInfo")
+
+
+def _tirar_origem(no, vistos: set[tuple[int, int]]) -> None:
+    if isinstance(no, IndirectObject):
+        if (no.idnum, no.generation) in vistos:
+            return
+        vistos.add((no.idnum, no.generation))
+        no = no.get_object()
+    if isinstance(no, DictionaryObject):
+        for chave in _CHAVES_DE_ORIGEM:
+            no.pop(chave, None)
+        for chave, valor in list(no.items()):
+            if chave != "/Parent":
+                _tirar_origem(valor, vistos)
+    elif isinstance(no, ArrayObject):
+        for valor in no:
+            _tirar_origem(valor, vistos)
+
+
+def _limpar_pdf(dados: bytes) -> bytes:
+    """Só as páginas, num PDF novo: sem /Info (autor, programa, datas), sem o
+    XMP e sem os objetos que ficaram sem dono."""
+    leitor = PdfReader(io.BytesIO(dados))
+    if leitor.is_encrypted and not leitor.decrypt(""):
+        raise AnexoRecusadoError(422, "PDF protegido por senha não pode ser anexado. Envie sem a senha.")
+    escritor = PdfWriter()
+    for pagina in leitor.pages:
+        escritor.add_page(pagina)
+    vistos: set[tuple[int, int]] = set()
+    for pagina in escritor.pages:
+        _tirar_origem(pagina, vistos)
+    escritor.metadata = None
+    escritor.compress_identical_objects(remove_duplicates=False, remove_unreferenced=True)
+    saida = io.BytesIO()
+    escritor.write(saida)
+    return saida.getvalue()
+
+
 # ── A entrada ───────────────────────────────────────────────────────────────
+
+
+def _reconhecer(dados: bytes) -> tuple[str, str] | None:
+    """O tipo do anexo e o formato, pelos primeiros bytes."""
+    formato = _formato_da_imagem(dados)
+    if formato is not None:
+        return "imagem", formato
+    if dados.startswith(b"%PDF-"):
+        return "pdf", "PDF"
+    return None
+
+
+_TETOS = {"imagem": "A imagem passa de 20 MB.", "pdf": "O PDF passa de 20 MB.", "audio": "O áudio passa de 50 MB."}
 
 
 def limpar(dados: bytes) -> Limpo:
     """O arquivo regravado sem os dados de origem, reconhecido pelo conteúdo."""
-    formato = _formato_da_imagem(dados)
-    if formato is None:
+    reconhecido = _reconhecer(dados)
+    if reconhecido is None:
         raise AnexoRecusadoError(415, RECUSA_DO_FORMATO)
-    if len(dados) > LIMITES["imagem"]:
-        raise AnexoRecusadoError(413, "A imagem passa de 20 MB.")
+    tipo, formato = reconhecido
+    if len(dados) > LIMITES[tipo]:
+        raise AnexoRecusadoError(413, _TETOS[tipo])
     try:
-        conteudo = _limpar_imagem(dados, formato)
+        if tipo == "imagem":
+            return Limpo(tipo, _IMAGENS[formato], _limpar_imagem(dados, formato))
+        return Limpo(tipo, "application/pdf", _limpar_pdf(dados))
+    except AnexoRecusadoError:
+        raise
     except Exception as erro:  # noqa: BLE001 - arquivo de fora: qualquer falha do leitor é recusa
         raise AnexoRecusadoError(422, RECUSA_ILEGIVEL) from erro
-    return Limpo("imagem", _IMAGENS[formato], conteudo)
 
 
 def guardar(supabase, caso_id: str, dados: bytes, origem: str = "relato") -> dict[str, Any]:

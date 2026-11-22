@@ -21,6 +21,8 @@ from conduta_apoio import Banco
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from PIL import Image
+from pypdf import PdfReader, PdfWriter
+from pypdf.generic import DecodedStreamObject, NameObject
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -131,3 +133,52 @@ class TestImagem:
         assert b"Modelo-XR-77" not in guardado
         assert linha["tipo"] == "imagem"
         assert linha["content_type"] == tipo
+
+
+# ── PDF ─────────────────────────────────────────────────────────────────────
+
+XMP = (
+    b'<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">'
+    b'<rdf:Description xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:creator>Joana no XMP</dc:creator>'
+    b"</rdf:Description></rdf:RDF></x:xmpmeta>"
+)
+
+
+def _pdf_com_autor_e_programa() -> bytes:
+    escritor = PdfWriter()
+    escritor.add_blank_page(200, 200)
+    escritor.add_blank_page(200, 200)
+    escritor.add_metadata({"/Author": "Joana Prudente", "/Creator": "Digitalizador do RH", "/Producer": "Programa-Z 9"})
+    escritor.xmp_metadata = XMP
+    # O XMP também pode vir pendurado na página, não só no documento.
+    da_pagina = DecodedStreamObject()
+    da_pagina.set_data(b"<xmp>Joana na pagina</xmp>")
+    da_pagina[NameObject("/Type")] = NameObject("/Metadata")
+    escritor.pages[0][NameObject("/Metadata")] = escritor._add_object(da_pagina)
+    saida = io.BytesIO()
+    escritor.write(saida)
+    pdf = saida.getvalue()
+    # Controle: o PDF de entrada carrega mesmo o autor, o programa e o XMP.
+    lido = PdfReader(io.BytesIO(pdf))
+    assert lido.metadata.author == "Joana Prudente"
+    assert lido.metadata.creator == "Digitalizador do RH"
+    assert lido.xmp_metadata is not None
+    assert b"Joana na pagina" in pdf
+    return pdf
+
+
+class TestPdf:
+    def test_o_pdf_com_autor_e_programa_de_origem_e_gravado_sem_eles(self, cliente, banco, relatado):
+        resposta = _anexar(cliente, relatado, _pdf_com_autor_e_programa(), "Denuncia da Joana.pdf", "application/pdf")
+
+        assert resposta.status_code == 201, resposta.text
+        linha, guardado = _guardado(banco)
+        lido = PdfReader(io.BytesIO(guardado))
+        assert len(lido.pages) == 2
+        assert not lido.metadata
+        assert lido.xmp_metadata is None
+        assert "/Metadata" not in lido.pages[0]
+        for marca in (b"Joana", b"Digitalizador", b"Programa-Z"):
+            assert marca not in guardado
+        assert linha["tipo"] == "pdf"
+        assert linha["content_type"] == "application/pdf"
