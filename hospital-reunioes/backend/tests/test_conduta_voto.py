@@ -162,6 +162,21 @@ class Comite:
                     "criado_em": "2026-11-10T11:00:00+00:00",
                 }
             )
+            # O termo assinado do acusado: a gaveta dele (issue #1837).
+            self.banco.tabelas.setdefault("conduta_depoimento_arquivos", []).append(
+                {
+                    "id": f"termo-{novo['id']}",
+                    "depoimento_id": f"dep-{novo['id']}",
+                    "tipo": "termo_assinado",
+                    "versao": 1,
+                    "pagina": 1,
+                    "storage_path": f"depoimentos/termo-{novo['id']}",
+                    "content_type": "application/pdf",
+                    "tamanho_bytes": 10,
+                    "enviado_por": COORDENACAO,
+                    "enviado_em": "2026-11-10T12:30:00+00:00",
+                }
+            )
         return novo["id"]
 
     def linha_do_caso(self, caso_id: str) -> dict:

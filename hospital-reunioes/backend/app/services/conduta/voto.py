@@ -350,7 +350,7 @@ def votar(
 
 def bloqueio_da_conclusao(supabase, aberto: CasoAberto) -> str | None:
     """O motivo de a votação ainda não concluir, numa linha, ou None."""
-    from app.services.conduta import ata, trava
+    from app.services.conduta import ata, trava, trilha_do_caso
 
     caso = aberto.caso
     if aberto.pessoa.papel != "coordenacao":
@@ -368,7 +368,7 @@ def bloqueio_da_conclusao(supabase, aberto: CasoAberto) -> str | None:
     if caso.get("rito") == "completo" and not caso.get("reuniao_concluida_em"):
         return "Falta concluir a reunião do Comitê."
     if apuracao.resultado in COM_MEDIDA:
-        return trava.bloqueio(supabase, caso, atual)
+        return trava.bloqueio(supabase, caso, atual) or trilha_do_caso.bloqueio(supabase, caso)
     return None
 
 

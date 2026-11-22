@@ -294,6 +294,7 @@ def anexar_parecer(supabase, aberto: PedidoAberto, *, conteudo: bytes, resultado
     campos = {
         "parecer_storage_path": caminho,
         "parecer_tamanho_bytes": len(conteudo),
+        "parecer_codigo_integridade": trilha.codigo_de_integridade(conteudo),
         "parecer_anexado_por": aberto.autor_id,
         "parecer_anexado_em": agora_utc().isoformat(),
     }
