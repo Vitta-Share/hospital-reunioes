@@ -619,7 +619,8 @@ def test_a_faixa_a_e_sempre_prioridade_alta():
 
 
 def test_a_decisao_grava_a_frequencia_e_a_prioridade_calculadas():
-    caso, anterior = _notificacao(50), _anterior(1, 10)
+    # A chegada em data real: confirmar conta os prazos a partir dela (#1993).
+    caso, anterior = _notificacao(50, criado_em="2026-11-20T10:00:00+00:00"), _anterior(1, 10)
     banco = _banco([caso, anterior], [_sugestao(caso, **MODERADO), _sugestao(anterior)])
 
     assert _confirmar(banco, caso).status_code == 201

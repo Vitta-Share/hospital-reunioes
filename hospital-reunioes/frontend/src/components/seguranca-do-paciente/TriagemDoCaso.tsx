@@ -562,6 +562,12 @@ export function TriagemDoCaso({ id }: { id: string }) {
               <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" aria-hidden />
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-slate-900">{`Triagem confirmada. O caso está em ${feito}.`}</p>
+                <Link
+                  href={`/seguranca-do-paciente/notificacoes/${encodeURIComponent(id)}`}
+                  className="block text-sm text-primary font-semibold hover:underline"
+                >
+                  Ver os prazos do caso
+                </Link>
                 <Link href="/seguranca-do-paciente/notificacoes/triagem" className="text-sm text-primary font-semibold hover:underline">
                   Voltar à fila de triagem
                 </Link>

@@ -5,13 +5,18 @@ import { AlertCircle, Loader2 } from "lucide-react";
 
 import { chamarNsp } from "@/lib/seguranca-do-paciente/membros";
 import { CHEGOU_AO_PACIENTE, TURNOS } from "@/lib/seguranca-do-paciente/notificacao";
+import type { NotificacaoExterna, PrazoDoCaso } from "@/lib/seguranca-do-paciente/prazos";
 import { ESTADOS, formatarData, ORIGENS, QuemNotificou, type Caso } from "./NotificacoesDoNucleo";
+import { PrazosDoCaso } from "./PrazosDoCaso";
 import { SeloDaOuvidoria } from "./SeloDaOuvidoria";
 
 const CARTAO = "bg-white rounded-2xl border border-border shadow-premium";
 
 interface CasoAberto extends Caso {
   justificativa_tecnica?: string | null;
+  /** Os prazos congelados na confirmação da triagem (issue #1993). */
+  prazos?: PrazoDoCaso[];
+  notificacao_externa?: NotificacaoExterna | null;
 }
 
 function Bloco({ titulo, children }: { titulo: string; children: React.ReactNode }) {
@@ -83,6 +88,8 @@ export function CasoDoNucleo({ id }: { id: string }) {
         </p>
         <QuemNotificou caso={caso} />
       </header>
+
+      <PrazosDoCaso prazos={caso.prazos ?? []} notificacaoExterna={caso.notificacao_externa ?? null} />
 
       <Bloco titulo="O que aconteceu">
         <p className="whitespace-pre-wrap break-words">{caso.relato}</p>

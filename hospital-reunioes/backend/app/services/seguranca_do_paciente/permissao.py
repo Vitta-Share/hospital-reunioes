@@ -78,6 +78,9 @@ RECURSOS_NSP = (
     "gerir_nucleo",
     # A configuração técnica do módulo, a única coisa que o super admin alcança.
     "configuracao",
+    # Editar os prazos internos da tabela do Núcleo: só a Presidência e o
+    # Acesso pleno (issue #1993). O super admin lê a tabela na configuração.
+    "tabela_de_prazos",
     # A leitura dos casos das faixas A e B, sem quem notificou e sem editar:
     # a Diretoria (ADR 0107, decisão 5).
     "casos_graves",

@@ -40,6 +40,7 @@ TODOS = {
     "notas_do_comite",
     "gerir_nucleo",
     "configuracao",
+    "tabela_de_prazos",
     "casos_graves",
     "ausencia_da_presidencia",
 }

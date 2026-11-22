@@ -173,6 +173,10 @@ describe("a tela de triagem", () => {
 
     await screen.findByText(/Triagem confirmada/);
     expect(enviados).toEqual([{ url: "/api/nsp/triagem/c1", body: { conferidos: [] } }]);
+    // Os prazos congelados na confirmação ficam na tela do caso (issue #1993).
+    expect(screen.getByRole("link", { name: "Ver os prazos do caso" }).getAttribute("href")).toBe(
+      "/seguranca-do-paciente/notificacoes/c1"
+    );
   });
 
   it("no caso grave, Confirmar só libera com cada campo marcado, e não há aceitar tudo", async () => {

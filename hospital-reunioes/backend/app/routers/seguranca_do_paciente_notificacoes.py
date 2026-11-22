@@ -51,6 +51,7 @@ from app.services.seguranca_do_paciente import (
     caso_grave,
     esclarecimentos,
     notificacoes,
+    prazos,
     triagem,
 )
 from app.services.seguranca_do_paciente.permissao import FAIXAS_DA_DIRETORIA, hoje_em_sao_paulo
@@ -578,6 +579,10 @@ async def caso_do_nucleo(
         if not todos and triagem.faixas_vigentes(supabase, [str(caso_id)]).get(str(caso_id)) not in FAIXAS_DA_DIRETORIA:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=RECUSA_DO_NSP)
         caso = notificacoes.abrir(supabase, str(caso_id), com_identidade=com_identidade)
+        if caso is not None:
+            # Os vencimentos congelados na confirmação da triagem (issue #1993).
+            caso["prazos"] = prazos.do_caso(supabase, str(caso_id))
+            caso["notificacao_externa"] = prazos.notificacao_externa_do_caso(supabase, str(caso_id))
     except (APIError, httpx.HTTPError) as erro:
         logger.error("Falha ao abrir o caso do Núcleo: %s", type(erro).__name__)
         raise HTTPException(
