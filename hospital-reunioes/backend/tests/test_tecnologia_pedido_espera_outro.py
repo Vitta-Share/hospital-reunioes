@@ -138,6 +138,21 @@ class TestPonte:
         assert resposta.json() == {"detail": tecnologia_perguntas.MOTIVO_ESPERA_NAO_EXISTE}
         assert sb.tabelas[TABELA] == []
 
+    def test_espera_de_um_pedido_cancelado_e_recusada_com_o_motivo_e_nada_e_gravado(self):
+        # O cancelado segura o Concluir para sempre: o Pedido que o esperasse
+        # nasceria sem como ser concluido, e o lembrete bateria na pessoa.
+        ponte, sb = _ponte()
+        teste = _criar(ponte, TESTE)
+        assert teste.status_code == 201, teste.text
+        _linha(sb, teste.json()["id"])["estado"] = "cancelada"
+        antes = len(sb.tabelas[TABELA])
+
+        resposta = _criar(ponte, {**ABERTURA, "espera_pedido_id": teste.json()["id"]})
+
+        assert resposta.status_code == 422
+        assert resposta.json() == {"detail": "O Pedido esperado foi cancelado: este nunca poderia ser concluído."}
+        assert len(sb.tabelas[TABELA]) == antes
+
     def test_so_o_pedido_de_implantacao_espera_outro(self):
         ponte, sb = _ponte()
         teste = _criar(ponte, TESTE)

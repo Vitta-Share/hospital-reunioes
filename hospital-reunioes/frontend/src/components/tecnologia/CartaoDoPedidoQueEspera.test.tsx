@@ -11,13 +11,17 @@
  * o cartão chega sem `espera` e o Concluir libera.
  */
 
-import { cleanup, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { PerguntaDaVitta } from "./CartaoDaPergunta";
 import { CartaoDoPedido } from "./CartaoDoPedido";
+import { EsperandoVoce } from "./EsperandoVoce";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 const ABERTURA: PerguntaDaVitta = {
   id: "pi-2",
@@ -62,5 +66,66 @@ describe("O Pedido de implantação que espera outro", () => {
 
     expect(screen.queryByText(/^Espera:/)).toBeNull();
     expect(concluir().disabled).toBe(false);
+  });
+});
+
+/** O esperado, aberto e com os checks marcados, na mesma lista que o espera. */
+const TESTE: PerguntaDaVitta = {
+  ...ABERTURA,
+  id: "pi-1",
+  assunto: "testar o anonimato do Canal de Conduta",
+  texto: "Teste o anonimato do Canal de Conduta.",
+};
+
+function naLista(pedido: PerguntaDaVitta) {
+  return { ...pedido, demanda_id: "d-1", demanda: "O Canal de Conduta", minha: true };
+}
+
+/** A lista com o teste e a abertura; o Concluir do teste devolve o cartão concluído. */
+function montarALista(esperado: PerguntaDaVitta = TESTE) {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      const corpo =
+        init?.method === "POST"
+          ? { pergunta: { ...esperado, estado: "concluida", pode_responder: false }, mensagem: null }
+          : [naLista(esperado), naLista({ ...ABERTURA, espera: ESPERA })];
+      return { ok: true, status: 200, json: async () => corpo } as unknown as Response;
+    }),
+  );
+  render(<EsperandoVoce token="token-de-teste" />);
+}
+
+async function cartaoDe(texto: string) {
+  const regiao = await screen.findByRole("region", { name: "Esperando você" });
+  return within(regiao)
+    .getAllByRole("article", { name: "Pedido de implantação" })
+    .find((cartao) => cartao.textContent?.includes(texto)) as HTMLElement;
+}
+
+describe("Concluído o esperado na mesma tela", () => {
+  it("o Pedido que espera libera o Concluir sem recarregar", async () => {
+    montarALista();
+    const abertura = await cartaoDe("Divulgue o Canal de Conduta");
+    expect((within(abertura).getByRole("button", { name: "Concluir" }) as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.click(within(await cartaoDe("Teste o anonimato")).getByRole("button", { name: "Concluir" }));
+
+    await waitFor(() =>
+      expect((within(abertura).getByRole("button", { name: "Concluir" }) as HTMLButtonElement).disabled).toBe(false),
+    );
+    expect(within(abertura).queryByText(/^Espera:/)).toBeNull();
+    expect(within(abertura).queryByText(/ser concluído\.$/)).toBeNull();
+  });
+
+  it("concluir outro Pedido não solta a espera", async () => {
+    montarALista({ ...TESTE, id: "pi-9" });
+    const abertura = await cartaoDe("Divulgue o Canal de Conduta");
+
+    fireEvent.click(within(await cartaoDe("Teste o anonimato")).getByRole("button", { name: "Concluir" }));
+
+    await waitFor(() => expect(screen.queryByText("Teste o anonimato do Canal de Conduta.")).toBeNull());
+    expect(within(abertura).getByText("Espera: testar o anonimato do Canal de Conduta")).toBeTruthy();
+    expect((within(abertura).getByRole("button", { name: "Concluir" }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

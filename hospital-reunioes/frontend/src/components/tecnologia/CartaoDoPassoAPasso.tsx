@@ -14,7 +14,9 @@
  * dele: o card fechou quando o Pedido nasceu, e o "Não chegou ao GitHub" com
  * o Reenviar pode aparecer já no cartão aberto. O Pedido que espera outro
  * (issue #2208) mostra "Espera" com o assunto do outro, e o Concluir fica
- * bloqueado com o motivo até o servidor mandar o cartão sem a espera.
+ * bloqueado com o motivo até o servidor mandar o cartão sem a espera. O
+ * cartão que conclui avisa os outros da tela (`PEDIDO_CONCLUIDO`): o que
+ * espera por ele solta a espera na hora, sem recarregar.
  */
 
 import { useEffect, useState } from "react";
@@ -29,6 +31,9 @@ export type PassoAPassoConcluido = {
   pergunta: PerguntaDaVitta;
   mensagem: { id: string; autor: string | null; texto: string; criado_em: string | null; minha: boolean } | null;
 };
+
+/** O evento da janela com o id do Pedido que acabou de ser concluído nesta tela. */
+export const PEDIDO_CONCLUIDO = "tecnologia:pedido-concluido";
 
 /** O mesmo teto da rota: a anotação entra na Conversa com o começo na frente. */
 const LIMITE_DA_ANOTACAO = 4000;
@@ -69,6 +74,17 @@ export function CartaoDoPassoAPasso({
   const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => setAtual(pedido), [pedido]);
+
+  // O esperado concluído em outro cartão da tela solta a espera deste, sem
+  // mexer nos checks já marcados aqui.
+  useEffect(() => {
+    function soltar(evento: Event) {
+      const id = (evento as CustomEvent<string>).detail;
+      setAtual((a) => (a.espera?.pedido_id === id ? { ...a, espera: null } : a));
+    }
+    window.addEventListener(PEDIDO_CONCLUIDO, soltar);
+    return () => window.removeEventListener(PEDIDO_CONCLUIDO, soltar);
+  }, []);
 
   const aberta = atual.estado === "aberta";
   const faz = aberta && Boolean(atual.pode_responder) && Boolean(token);
@@ -111,6 +127,9 @@ export function CartaoDoPassoAPasso({
     if (concluido && perguntaValida(concluido.pergunta)) {
       setAtual(concluido.pergunta);
       setAnotacao("");
+      if (concluido.pergunta.estado === "concluida") {
+        window.dispatchEvent(new CustomEvent(PEDIDO_CONCLUIDO, { detail: concluido.pergunta.id }));
+      }
       onConcluido?.(concluido);
     }
   }

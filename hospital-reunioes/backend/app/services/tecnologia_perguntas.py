@@ -145,6 +145,7 @@ MOTIVO_ESPERA_SO_NA_IMPLANTACAO = "Só o Pedido de implantação espera outro Pe
 MOTIVO_ESPERA_NAO_EXISTE = "O Pedido esperado não existe."
 MOTIVO_ESPERA_DE_OUTRA_DEMANDA = "O Pedido de implantação só espera outro da mesma Demanda."
 MOTIVO_ESPERA_DE_OUTRO_TIPO = "O Pedido de implantação só espera outro Pedido de implantação."
+MOTIVO_ESPERA_CANCELADA = "O Pedido esperado foi cancelado: este nunca poderia ser concluído."
 MOTIVO_ESPERA_ABERTA = 'Este Pedido espera "{assunto}" ser concluído.'
 # Por que a passagem nao vale, pelo estado em que a Pergunta esta.
 MOTIVO_DA_PASSAGEM_RECUSADA = {
@@ -354,7 +355,7 @@ NOME_DO_TIPO = {
 
 def _exigir_a_espera_valida(supabase, demanda: dict[str, Any], tipo: str, espera_pedido_id: str) -> None:
     """A espera vale so no Pedido de implantacao e so por outro Pedido de
-    implantacao da mesma Demanda (ADR 0111, decisao 8)."""
+    implantacao da mesma Demanda, que nao foi cancelado (ADR 0111, decisao 8)."""
     if tipo != TIPO_IMPLANTACAO:
         raise PerguntaRecusadaError(MOTIVO_ESPERA_SO_NA_IMPLANTACAO)
     esperado = buscar(supabase, espera_pedido_id)
@@ -364,6 +365,10 @@ def _exigir_a_espera_valida(supabase, demanda: dict[str, Any], tipo: str, espera
         raise PerguntaRecusadaError(MOTIVO_ESPERA_DE_OUTRA_DEMANDA)
     if not e_implantacao(esperado):
         raise PerguntaRecusadaError(MOTIVO_ESPERA_DE_OUTRO_TIPO)
+    # O cancelado segura o Concluir para sempre (`_espera`): esperar por ele
+    # faria nascer um Pedido que nunca conclui, com o lembrete batendo.
+    if esperado.get("estado") == ESTADO_CANCELADA:
+        raise PerguntaRecusadaError(MOTIVO_ESPERA_CANCELADA)
 
 
 def _exigir_a_label_da_implantacao(numero: int, projeto: str) -> None:
