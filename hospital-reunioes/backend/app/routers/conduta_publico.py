@@ -21,8 +21,8 @@ from supabase import Client
 from app.config import settings
 from app.dependencies import get_supabase_client
 from app.routers.conduta_codigo import resposta_em_pdf
-from app.services import limite_sem_ip
-from app.services.conduta import anexos, cifra, codigo, configuracoes, protecao, relato_publico
+from app.services import ai_processor, limite_sem_ip
+from app.services.conduta import anexos, aviso_fora_do_canal, cifra, codigo, configuracoes, protecao, relato_publico
 from app.services.conduta.acesso import hoje_em_sao_paulo
 
 
@@ -138,6 +138,30 @@ async def anexar(request: Request, response: Response, supabase: Client = Depend
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Não deu para guardar o anexo agora. O relato está registrado. Tente de novo em alguns minutos.",
         ) from None
+
+
+# A leitura do aviso na revisão (issue #1848): uma por abertura do P5, e cada
+# uma gasta uma vaga do teto diário do agente; o limite por aparelho segura
+# quem tente gastar a cota à mão.
+LIMITE_DOS_AVISOS = "6/minute;30/hour"
+
+
+@router.post("/relatos/aviso")
+@limite_sem_ip.limitar(LIMITE_DOS_AVISOS)
+async def aviso_de_assunto_fora_do_canal(
+    request: Request, response: Response, supabase: Client = Depends(get_supabase_client)
+) -> dict:
+    """Se o texto do relato parece de outro destino: `{"aviso": "DP" |
+    "OUVIDORIA" | "NSP" | "GESTAO" | null}`. Com termo da regra de proteção,
+    teto estourado, agente fora ou desligado, `null`, e o envio segue. Nada é
+    gravado, nem o texto nem a resposta."""
+    response.headers.update(SEM_CACHE)
+    corpo = await _corpo(request)
+    relato = corpo.get("relato") if isinstance(corpo, dict) else None
+    if not isinstance(relato, str) or not relato.strip() or len(relato) > relato_publico.LIMITE_DO_RELATO:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Envio ilegível.")
+    destino = await ai_processor.chamar_ia_fora_do_loop(aviso_fora_do_canal.aviso_na_revisao, supabase, relato)
+    return {"aviso": destino}
 
 
 @router.post("/relatos/confianca", status_code=status.HTTP_204_NO_CONTENT)
