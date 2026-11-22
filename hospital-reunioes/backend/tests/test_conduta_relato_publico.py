@@ -377,25 +377,52 @@ class TestConfianca:
 class TestOComiteLe:
     """O que a pessoa enviou chega à tela do caso, para o Comitê, e só a ele."""
 
-    def _aberto(self, corpo: dict) -> dict:
+    def _aberto(self, corpo: dict, papel: str | None = "membro", atribuicao: dict | None = None) -> dict:
         # Sem avisos salvos nas Configurações: a tela mostrou o texto padrão.
         corpo = corpo | {"ciencia": {"ciente": True, "versoes": dict.fromkeys(relato_publico.AVISOS_DO_PASSO_1)}}
         from test_conduta_portao import _Cenario, _participacao, _pessoa, _rota_do_caso
 
-        cenario = _Cenario(_pessoa(), [_participacao(papel="membro")])
+        cenario = _Cenario(_pessoa(), [_participacao(papel=papel)] if papel else [])
         app = FastAPI()
         app.state.limiter = limiter
         app.include_router(conduta_publico.router, prefix="/api")
         app.dependency_overrides[get_supabase_client] = lambda: cenario.banco
         assert TestClient(app).post(RELATOS, json=corpo).status_code == 201
         (caso,) = cenario.banco.tabelas["conduta_casos"]
-        return cenario.cliente().get(_rota_do_caso(caso)).json()
+        if atribuicao:
+            cenario.atribuir(caso, **atribuicao)
+        resposta = cenario.cliente().get(_rota_do_caso(caso))
+        assert resposta.status_code == 200, resposta.text
+        return resposta.json()
 
     def test_com_identificacao_o_comite_ve_o_nome(self, triagens):
         aberto = self._aberto(envio(identificacao="identificado", nome=NOME))
 
         assert aberto["relator_nome"] == NOME
         assert aberto["relato"].startswith(TEXTO)
+
+    @pytest.mark.parametrize("papel", ["coordenacao", "segundo_leitor"])
+    def test_a_coordenacao_e_o_segundo_leitor_veem_o_nome(self, triagens, papel):
+        aberto = self._aberto(envio(identificacao="identificado", nome=NOME), papel=papel)
+
+        assert aberto["relator_nome"] == NOME
+
+    def test_o_suplente_convocado_no_lugar_de_um_membro_ve_o_nome(self, triagens):
+        convocacao = {"motivo": "suplente_convocado", "substitui_papel": "membro"}
+        aberto = self._aberto(envio(identificacao="identificado", nome=NOME), papel="suplente", atribuicao=convocacao)
+
+        assert aberto["relator_nome"] == NOME
+
+    @pytest.mark.parametrize("motivo", ["apurador", "cipa"])
+    def test_quem_abre_o_caso_por_convite_nao_ve_o_nome(self, triagens, motivo):
+        """O apurador convidado e o membro da CIPA são de fora do Comitê: abrem
+        o caso, leem o relato, e não recebem o nome de quem relatou."""
+        convite = {"motivo": motivo, "termo_assinado_em": "2026-11-01T10:00:00+00:00"}
+        aberto = self._aberto(envio(identificacao="identificado", nome=NOME), papel=None, atribuicao=convite)
+
+        assert aberto["relato"].startswith(TEXTO)
+        assert aberto["relator_nome"] is None
+        assert NOME not in str(aberto)
 
     def test_no_relato_anonimo_nao_ha_nome(self, triagens):
         aberto = self._aberto(envio(nome=NOME))
