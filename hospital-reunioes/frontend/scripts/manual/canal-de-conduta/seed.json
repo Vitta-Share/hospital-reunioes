@@ -1,0 +1,63 @@
+{
+  "coordenacao": {
+    "id": "P18510",
+    "nome": "Helena Duarte",
+    "email": "helena.duarte.conduta@exemplo.local",
+    "senha": "ManualConduta1851!",
+    "cargo": "Gerente de Recursos Humanos de exemplo"
+  },
+  "membro": { "id": "P18511", "nome": "Rafael Moura" },
+  "segundo_leitor": { "id": "P18512", "nome": "Patrícia Nogueira" },
+  "casos": {
+    "triagem": {
+      "id": "00000000-0000-4000-8000-000000018511",
+      "protocolo": "CC-7KQ2-M4XD",
+      "anexo_b": 2,
+      "recebido_ha": 1
+    },
+    "apuracao": {
+      "id": "00000000-0000-4000-8000-000000018512",
+      "protocolo": "CC-H9TR-2WPB",
+      "anexo_b": 4,
+      "recebido_ha": 9
+    },
+    "voto": {
+      "id": "00000000-0000-4000-8000-000000018513",
+      "protocolo": "CC-R3VN-8YKF",
+      "anexo_b": 7,
+      "recebido_ha": 18
+    },
+    "ata": {
+      "id": "00000000-0000-4000-8000-000000018514",
+      "protocolo": "CC-W6DM-4PTA",
+      "anexo_b": 5,
+      "recebido_ha": 22
+    },
+    "direcao": {
+      "id": "00000000-0000-4000-8000-000000018515",
+      "protocolo": "CC-B2XJ-7QHN",
+      "anexo_b": 10,
+      "recebido_ha": 25
+    }
+  },
+  "triagem": {
+    "escopo": "Dentro do canal",
+    "categoria": "A. Conduta e relações",
+    "rito": "Rápido (20 dias corridos)"
+  },
+  "nova_pessoa": {
+    "nome": "Sandra Lopes",
+    "cargo": "Enfermeira do centro cirúrgico",
+    "papel": "Testemunha"
+  },
+  "depoente": {
+    "nome": "Marcos Vieira",
+    "cargo": "Técnico de enfermagem do plantão noturno",
+    "papel": "acusado"
+  },
+  "voto": {
+    "resultado": "Procedente",
+    "medida": "Advertência escrita",
+    "justificativa": "Os dois depoimentos confirmam o corte das horas extras na semana seguinte à recusa. A escala do setor não explica a mudança."
+  }
+}

@@ -130,6 +130,25 @@ describe("a página de Ouvidoria do manual", () => {
     expect(linha).not.toMatch(/triagem/i);
   });
 
+  it("a abertura explica a saída Sou colaborador: o relato de conduta de quem trabalha no hospital é do Canal de Conduta (issue #1851)", () => {
+    const abertura = OUVIDORIA!.corpo.split(/^## /m)[0];
+    expect(abertura).toMatch(/\*\*Sou colaborador e quero relatar uma conduta\*\*/);
+    expect(abertura).toMatch(/Canal de Conduta/);
+    expect(abertura).toMatch(/sem login/);
+  });
+
+  it("a tarefa Sinalizar ao Canal de Conduta tem os passos do botão e diz que o ouvidor não vê o caso do Canal (issue #1851)", () => {
+    const secao = secoes(OUVIDORIA!.corpo).find((s) => s.titulo === "Sinalizar ao Canal de Conduta");
+    expect(secao, "a página não tem a tarefa Sinalizar ao Canal de Conduta").toBeDefined();
+    const passos = secao!.texto.match(/^\d+\. .*/gm) ?? [];
+    expect(passos.length).toBeGreaterThanOrEqual(3);
+    expect(passos.join("\n")).toMatch(/\*\*Sinalizar ao Canal de Conduta\*\*/);
+    expect(passos.join("\n")).toMatch(/\*\*Confirmar sinalização\*\*/);
+    expect(secao!.texto).toMatch(/sem o nome nem o contato de quem manifestou/);
+    expect(secao!.texto).toMatch(/continua aberta/);
+    expect(secao!.texto).toMatch(/não vê o caso do Canal/);
+  });
+
   it("a página não tem travessão nem meia-risca (issue #2004)", () => {
     expect(OUVIDORIA!.corpo).not.toMatch(/[–—]/);
   });
