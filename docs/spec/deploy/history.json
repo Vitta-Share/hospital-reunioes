@@ -2,6 +2,52 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T19:06:02-03:00",
+      "sha": "d2156ac4a1b0071c4243c219d7156f696cea9749",
+      "app_version": "0.387.2",
+      "subject": "Onda onda-a-onda1: Regressão da ata assinada por todos presa em aguardando",
+      "raw_subject": "chore(deploy): registro da onda onda-a-onda1 (#2203)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [],
+      "result": "healthy",
+      "duration_seconds": 302,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta onda-a-onda1: PR #2203 (sem issue), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 253,
+          "frontend": 234
+        },
+        "health_s": 21
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T18:06:42-03:00",
       "sha": "705752c2c6a6b98dea1dacd52a3b85ec5dee31e5",
       "app_version": "0.387.1",
