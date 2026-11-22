@@ -311,3 +311,18 @@ it("no computador, o Manual do Admin fica logo acima do botão de recolher", () 
   const recolher = screen.getByRole("button", { name: "Recolher menu" });
   expect(manual.nextElementSibling).toBe(recolher);
 });
+
+/**
+ * O coração do item Dados do Atendimento (issue #1918): a troca do ícone do
+ * NSP para as duas mãos é só no menu do app; aqui o HeartPulse fica.
+ */
+describe("Dados do Atendimento no menu do admin", () => {
+  it("segue com o ícone do coração", () => {
+    sessao.participante = pessoa("super_admin");
+
+    render(<AdminSidebar />);
+
+    const item = within(screen.getByRole("navigation")).getByRole("link", { name: "Dados do Atendimento" });
+    expect(item.querySelector("svg.lucide-heart-pulse")).not.toBeNull();
+  });
+});

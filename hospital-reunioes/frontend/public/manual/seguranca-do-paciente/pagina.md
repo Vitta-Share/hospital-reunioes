@@ -5,15 +5,15 @@ titulo: Segurança do Paciente
 
 O módulo Segurança do Paciente é onde o Núcleo de Segurança do Paciente funciona dentro do aplicativo: quem faz parte dele, os documentos, as capacitações, a agenda regulatória, as reuniões e as notificações de incidente, da chegada à triagem.
 
-Ele fica no menu da esquerda, em **Segurança do Paciente**, com os itens **Visão geral**, **Reuniões** e **Núcleo**. Dentro de **Núcleo** ficam **Membros**, **Documentos**, **Capacitações** e **Agenda regulatória**.
+Ele fica no menu da esquerda, em **NSP**, a sigla do Núcleo de Segurança do Paciente, com os itens **Visão geral**, **Reuniões** e **Núcleo**. Dentro de **Núcleo** ficam **Membros**, **Documentos**, **Capacitações** e **Agenda regulatória**.
 
 A Presidência do Núcleo e quem tem Acesso pleno fazem tudo o que esta página descreve. O membro com o Termo de Adesão assinado abre as telas e as atas; cadastrar, publicar e validar ficam com a Presidência e com quem tem Acesso pleno. Quem ainda não assinou o Termo vê o calendário e a agenda; nas outras telas aparece a faixa **Assine o Termo de Adesão para liberar este acesso**, com o botão **Abrir o Termo de Adesão**.
 
-Notificar um incidente é para qualquer profissional, com ou sem login, e todo usuário logado vê o botão **Notificar incidente** no alto do grupo Segurança do Paciente. Quem abre os casos (a Presidência, quem tem Acesso pleno e o membro com o Termo assinado) vê também o item **Notificações**. A triagem, o encaminhamento e a **Configuração** ficam com a Presidência e com quem tem Acesso pleno.
+Notificar um incidente é para qualquer profissional, com ou sem login, e todo usuário logado vê o botão **Notificar incidente** no alto do grupo **NSP** do menu. Quem abre os casos (a Presidência, quem tem Acesso pleno e o membro com o Termo assinado) vê também o item **Notificações**. A triagem, o encaminhamento e a **Configuração** ficam com a Presidência e com quem tem Acesso pleno.
 
 ## Cadastrar um membro e acompanhar o Termo
 
-1. No menu da esquerda, clique em **Segurança do Paciente**, depois em **Núcleo** e em **Membros**.
+1. No menu da esquerda, clique em **NSP**, depois em **Núcleo** e em **Membros**.
 2. Clique em **Cadastrar membro**.
 3. Em **Pessoa**, escolha a pessoa no cadastro. Escolha o **Papel**: Presidência, Suplente da Presidência ou Membro. Preencha a **Área**, o **Conselho**, o **Número do registro**, a **UF do registro** e as datas de **Início da vigência** e **Fim da vigência**.
 
@@ -91,7 +91,7 @@ Nenhuma versão se apaga nem se edita: a correção é sempre uma versão nova. 
 
 ## Fazer a reunião do Núcleo, da pauta à ata assinada
 
-1. No menu da esquerda, em **Segurança do Paciente**, clique em **Reuniões**. As reuniões do Núcleo aparecem mês a mês.
+1. No menu da esquerda, em **NSP**, clique em **Reuniões**. As reuniões do Núcleo aparecem mês a mês.
 2. No começo do ano, clique em **Gerar o calendário do ano**, escolha o **Ano**, o **Dia do mês** e a **Hora** e clique em **Gerar**. O aplicativo cria as doze reuniões ordinárias, uma por mês; o dia que cai em fim de semana ou feriado vai para o próximo dia útil. Para uma reunião fora do calendário, clique em **Nova reunião**, escolha o **Tipo** e preencha o título, a data e a hora.
 
    ![As reuniões do Núcleo, mês a mês](reunioes.png)
@@ -123,7 +123,7 @@ A transcrição anexada é apagada 30 dias depois de a ata ser assinada. Para um
 
 ## Notificar um incidente pelo QR, pelo endereço ou pelo botão do módulo
 
-1. Abra o formulário por uma das três portas: o QR do Núcleo, no cartaz ou no celular; o endereço da página, pelo ícone nos computadores do hospital; ou, com login, o botão **Notificar incidente**, no alto do grupo **Segurança do Paciente** do menu. Pelo QR e pelo endereço não precisa de login. Pelo botão, a identificação já vem com o seu nome e o seu e-mail.
+1. Abra o formulário por uma das três portas: o QR do Núcleo, no cartaz ou no celular; o endereço da página, pelo ícone nos computadores do hospital; ou, com login, o botão **Notificar incidente**, no alto do grupo **NSP** do menu. Pelo QR e pelo endereço não precisa de login. Pelo botão, a identificação já vem com o seu nome e o seu e-mail.
 2. Na tela **O que aconteceu**, conte com as suas palavras, sem classificar nada. Não escreva o nome do paciente: se precisar, informe o **Leito ou atendimento**. Em **Fotos ou PDF**, anexe até 3 arquivos, somando menos de 9 MB. Clique em **Continuar**.
 
    ![A primeira tela da notificação, com o relato](notificar-o-que-aconteceu.png)
@@ -150,7 +150,7 @@ Se algum dado estiver errado, a resposta é sempre a mesma, sem dizer qual parte
 
 ## Fazer um registro rápido
 
-1. No menu da esquerda, em **Segurança do Paciente**, clique em **Notificações**.
+1. No menu da esquerda, em **NSP**, clique em **Notificações**.
 2. No alto da tela, em **Registro rápido**, escreva **O que foi encontrado** e escolha o **Setor** e a **Data**.
 3. Em **Origem**, escolha de onde veio: **Busca ativa**, **Ronda**, **Reunião rápida**, **Auditoria** ou **Outra**.
 
@@ -162,7 +162,7 @@ O registro rápido é da Presidência e do membro com o Termo assinado, para o i
 
 ## Fazer a triagem de uma notificação
 
-1. No menu da esquerda, em **Segurança do Paciente**, clique em **Visão geral**. Os casos graves que esperam a triagem aparecem em destaque no alto. Logo abaixo, a faixa **O que exige ação hoje** mostra os casos das faixas A e B abertos, as triagens pendentes por idade, os prazos legais a vencer e os Termos pendentes. Cada grupo leva à tela onde se resolve, e o que está mais perto de vencer aparece em destaque.
+1. No menu da esquerda, em **NSP**, clique em **Visão geral**. Os casos graves que esperam a triagem aparecem em destaque no alto. Logo abaixo, a faixa **O que exige ação hoje** mostra os casos das faixas A e B abertos, as triagens pendentes por idade, os prazos legais a vencer e os Termos pendentes. Cada grupo leva à tela onde se resolve, e o que está mais perto de vencer aparece em destaque.
 
    ![A faixa do que exige ação hoje, na Visão geral do módulo](acao-de-hoje.png)
 
@@ -213,7 +213,7 @@ Só a Presidência e quem tem Acesso pleno registram a ausência. O suplente em 
 
 ## Ajustar a tabela de prazos
 
-1. No menu da esquerda, em **Segurança do Paciente**, clique em **Configuração**.
+1. No menu da esquerda, em **NSP**, clique em **Configuração**.
 2. Em **Tabela de prazos**, os **Prazos internos** aparecem por etapa, com um prazo para cada faixa: a confirmação a quem notificou, a comunicação à Direção, a triagem e classificação, o início e a conclusão da investigação e a reunião de análise.
 
    ![A tabela de prazos do Núcleo, na Configuração](tabela-de-prazos.png)
