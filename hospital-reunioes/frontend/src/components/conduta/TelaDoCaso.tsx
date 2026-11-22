@@ -9,11 +9,13 @@ import { AtaEReuniao } from "@/components/conduta/AtaEReuniao";
 import { ConvidarAoCaso } from "@/components/conduta/ConvidarAoCaso";
 import { DepoimentosDaApuracao } from "@/components/conduta/DepoimentosDaApuracao";
 import { ImpedimentoECitados } from "@/components/conduta/ImpedimentoECitados";
+import { MedidaERetorno } from "@/components/conduta/MedidaERetorno";
 import { OQueFazerAgora } from "@/components/conduta/OQueFazerAgora";
 import { RelatorioDaApuracao } from "@/components/conduta/RelatorioDaApuracao";
 import { RotaEspecial } from "@/components/conduta/RotaEspecial";
 import { SinalizarAoNsp } from "@/components/conduta/SinalizarAoNsp";
 import { SugestaoDoAgente } from "@/components/conduta/SugestaoDoAgente";
+import { TrilhaDoCaso } from "@/components/conduta/TrilhaDoCaso";
 import { VotoETrava } from "@/components/conduta/VotoETrava";
 import {
   CATEGORIAS,
@@ -185,6 +187,8 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
     if (acao === "conferir_triagem") return void enviar("conferencia");
     if (acao === "enviar_orientacao") return void enviar("encaminhamento");
     if (acao === "enviar_para_voto") return void enviar("envio-para-voto");
+    if (acao === "enviar_a_direcao") return void enviar("direcao");
+    if (acao === "preparar_retorno") return void enviar("retorno");
     setPasso(acao);
   };
 
@@ -350,6 +354,8 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
 
       <AtaEReuniao casoId={casoId} ata={caso.ata ?? null} reuniao={caso.reuniao ?? null} aoMudar={carregar} />
 
+      <MedidaERetorno casoId={casoId} dados={caso.medida_e_retorno ?? null} aoMudar={carregar} />
+
       {caso.triagem_em && (
         <section aria-label="Triagem" className={`${CARTAO} px-4 py-4 space-y-1`}>
           <h2 className="text-base font-semibold text-slate-900">Triagem</h2>
@@ -440,6 +446,8 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
         <h2 className="text-base font-semibold text-slate-900">Relato original</h2>
         <p className="text-sm text-slate-800 whitespace-pre-line break-words">{caso.relato}</p>
       </section>
+
+      <TrilhaDoCaso casoId={casoId} protocolo={caso.protocolo} trilha={caso.trilha ?? null} />
     </div>
   );
 }

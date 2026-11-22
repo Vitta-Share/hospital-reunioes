@@ -107,7 +107,7 @@ A trava de robustez tem sete itens: fato com data e local, prova além do relato
 - Sem o depoimento do acusado concluído, a recusa da defesa precisa ser certificada por dois membros.
 - O item "Votos registrados e ata assinada" só se confirma depois que os três votarem e assinarem a ata.
 
-"CONCLUIR VOTAÇÃO" é da coordenação: grava o resultado da maioria e leva o caso à etapa Ata. Ela só libera com a ata assinada pelos três votantes e, no rito Completo, com a reunião do Comitê concluída. Com algum item da trava em aberto, a votação não conclui como procedente nem como parcialmente procedente, e a tela diz qual item falta. Improcedente e inconclusivo concluem sem a trava.
+"CONCLUIR VOTAÇÃO" é da coordenação: grava o resultado da maioria e leva o caso à etapa Ata. Ela só libera com a ata assinada pelos três votantes e, no rito Completo, com a reunião do Comitê concluída. Com algum item da trava em aberto, a votação não conclui como procedente nem como parcialmente procedente, e a tela diz qual item falta. Com uma gaveta obrigatória da trilha vazia, também não, e a tela diz qual gaveta falta. Improcedente e inconclusivo concluem sem a trava e sem as gavetas.
 
 ## A ata de deliberação e a reunião do Comitê
 
@@ -121,6 +121,26 @@ A ata de deliberação registra a decisão do Comitê e o fundamento dela. Ela n
 - A coordenação envia a ata à ClickSign para os três votantes. A assinatura volta sozinha para a trilha, e a cópia do PDF assinado fica no aplicativo. O botão "Reconsultar status" pergunta à ClickSign sem esperar o retorno. A ata assinada não muda mais.
 
 No rito Completo, a lista de conferência da reunião tem quatro itens: transcrição anexada e ata assinada pelos três, que o aplicativo marca sozinho, e as duas declarações da coordenação, "Apaguei a gravação de áudio da plataforma de gravação" e "Apaguei os arquivos do computador e do celular", com quem marcou e quando. "CONCLUIR REUNIÃO" só libera com os quatro. Ao concluir a reunião, a transcrição é eliminada do banco e do bucket, e a eliminação fica na trilha do caso. Fica a ata assinada. O áudio da reunião não é anexado em nenhum momento: o botão da transcrição recusa arquivo de áudio.
+
+## A trilha do caso e o Dossiê
+
+A área "Trilha do caso" da tela do caso mostra tudo o que foi feito e assinado nele, numa linha do tempo:
+
+- cada ato, com quem fez, quando, a origem (o próprio aplicativo) e o código da linha na corrente da trilha;
+- cada documento, com quem enviou, quando, a origem, ClickSign ou upload (arquivo ou câmera do celular), e o código de integridade do arquivo, a impressão digital que mostra se o arquivo é o mesmo que entrou. Uma correção entra como versão nova, e a anterior continua na linha do tempo.
+
+Cada rito cria as gavetas dos documentos que ele exige, cada uma "Aguardando" ou "Assinado": o termo de declaração de cada pessoa ouvida (ou a certidão de recusa assinada por dois membros), o termo de confidencialidade de cada apurador ou membro da CIPA convidado, a ciência do Código pelo acusado e a ata de deliberação e, no rito Completo, o relatório de apuração assinado. O Encaminhamento não tem gaveta. Toda gaveta do rito é obrigatória: com uma vazia, o caso não conclui como procedente nem como parcialmente procedente.
+
+A trilha confere a própria corrente toda vez que a tela abre. Se alguém trocar ou apagar uma linha direto na base, a área diz "A cadeia da trilha não confere na linha" e o número dela.
+
+"BAIXAR DOSSIÊ" monta o Dossiê do caso, um pacote ZIP com tudo decifrado:
+
+- o índice, com cada arquivo, quem enviou, quando, a origem e o código de integridade, e o aviso quando o arquivo não confere com o código gravado no envio;
+- o relato original, os documentos, os áudios e as transcrições dos depoimentos;
+- os votos das rodadas já fechadas (o voto de quem já votou continua oculto até os três votarem), a ata de deliberação e a decisão da Direção;
+- as mensagens trocadas com o denunciante e o registro de acessos, que é a trilha inteira do caso com a conferência da corrente.
+
+Só baixa o Dossiê quem é do Comitê no caso: a coordenação, o membro e o segundo leitor, ou o suplente convocado no lugar de um deles. O apurador, o membro da CIPA, o Presidente, a diretoria executiva e o super admin recebem a recusa. Cada download entra na trilha com quem baixou e quando, e sem esse registro o pacote não sai.
 
 ## O agente de triagem
 
@@ -243,6 +263,25 @@ O afastamento cautelar tira do trabalho, enquanto o caso corre, a pessoa citada 
 
 Cada decisão, pedido, entrega, parecer e abertura do pedido entra na trilha do caso, com quem fez e quando.
 
+## A Recomendação do Comitê e a decisão da medida
+
+Concluída a votação de um caso procedente ou parcialmente procedente, a coordenação toca em "ENVIAR À DIREÇÃO". A Recomendação do Comitê (a página de conclusão e a ata assinada) fica liberada, no item Recomendações do Comitê do menu lateral, para duas pessoas com perfil nominal do módulo, dado no cadastro da pessoa: o Presidente e a diretoria executiva.
+
+- O Presidente só lê: abre a página de conclusão e a ata assinada, e não registra nada. Cada leitura dele, e da diretoria executiva, entra na trilha do caso.
+- A diretoria executiva registra a decisão do Presidente, com a data: Aplicada, Aplicada com ajuste ou Não aplicada. Aplicada com ajuste e Não aplicada exigem justificativa. A decisão se registra uma vez só e não muda.
+- A página de conclusão traz o resultado, a medida recomendada e o relatório de uma página. Nenhum dos dois abre o caso: o relato, os depoimentos, os votos de cada membro e o Dossiê do caso continuam recusados para eles.
+- A execução da medida é do DP, fora do aplicativo. A diretoria executiva anexa a cópia da comunicação da medida, que entra na trilha e abre pela tela do caso para o Comitê.
+- Improcedente e inconclusivo não saem do Comitê: o botão de envio recusa, e a Direção não vê esses casos nem na lista.
+- Quem é Citado no caso não lê a Recomendação, mesmo com o perfil da Direção.
+
+## O retorno e a correção de processo
+
+Depois da decisão da Direção (ou, no caso improcedente ou inconclusivo, logo depois da votação), a coordenação toca em "GERAR RETORNO", e o agente redige a resposta a quem relatou e a comunicação ao acusado. A coordenação revisa, e cada edição vira versão nova. Nada sai antes de "APROVAR RETORNO": aprovada, a resposta vai para a página de acompanhamento de quem relatou, e a comunicação ao acusado abre na tela do caso para ser entregue. Aprovado o retorno, o caso é concluído.
+
+- A resposta a quem relatou não cita a medida nem nome de ninguém: informa a conclusão, não a punição. O aplicativo recusa o texto que cita a medida ou um nome do caso, seja do agente, seja da coordenação.
+- A comunicação ao acusado não cita quem relatou. Nenhum nome vai ao agente, e na volta só o nome do acusado reaparece; qualquer outra pessoa vira "uma pessoa". O aplicativo recusa a comunicação que cita o denunciante identificado.
+- Em todo caso procedente ou parcialmente procedente, o botão "SUGERIR CORREÇÕES" pede ao agente de uma a três correções no processo que permitiu o fato. Os membros votantes escolhem a correção e definem responsável e prazo. O retorno do caso procedente só é aprovado com ao menos uma correção escolhida.
+
 ## Quem vê
 
 Ninguém vê um caso por ter um cargo. Vê quem está designado naquele caso:
@@ -252,7 +291,8 @@ Ninguém vê um caso por ter um cargo. Vê quem está designado naquele caso:
 - o apurador e o membro da CIPA, convidados dentro do caso, e o grupo da Rota Especial veem só o caso que receberam, depois do termo assinado;
 - quem é citado no relato como envolvido nunca vê o caso, em nenhum perfil, e quem se declarou impedido perde o acesso àquele caso;
 - o super admin e a equipe técnica não abrem conteúdo de caso pelo aplicativo;
-- quem está no Comitê e ainda não assinou o Termo não abre caso.
+- quem está no Comitê e ainda não assinou o Termo não abre caso;
+- o Presidente e a diretoria executiva leem só a Recomendação do Comitê dos casos procedentes enviados a eles, nunca o caso.
 
 Quem não tem acesso recebe a mesma recusa, exista o caso ou não.
 
@@ -267,7 +307,7 @@ Quem não tem acesso recebe a mesma recusa, exista o caso ou não.
 
 ## O que ele ainda não faz
 
-O formulário público de relato, as páginas públicas que vão mostrar os textos das configurações, a página de acompanhamento, as perguntas ao relator, o roteiro de perguntas e o termo de declaração redigidos pelo agente e o dossiê chegam nas próximas entregas. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. Por enquanto ninguém relata pelo Canal: os relatos continuam chegando pela Ouvidoria.
+O formulário público de relato, as páginas públicas que vão mostrar os textos das configurações, a página de acompanhamento, as perguntas ao relator, o roteiro de perguntas e o termo de declaração redigidos pelo agente chegam nas próximas entregas. A decisão da Direção e a conversa com o denunciante entram no Dossiê quando chegarem. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. Por enquanto ninguém relata pelo Canal: os relatos continuam chegando pela Ouvidoria.
 
 ## O que já foi decidido
 
@@ -308,3 +348,8 @@ O formulário público de relato, as páginas públicas que vão mostrar os text
 - Pedido para anexar o áudio da reunião do Comitê, ou para recuperar a transcrição depois de concluída a reunião: não existe; fica a ata assinada.
 - Pedido para afastar quem relatou, ou para levar o relato junto do pedido de afastamento: não existe; o pedido leva só quem afastar e o motivo.
 - Coordenação que não abre o caso da Rota Especial do qual recebeu o pedido de afastamento: é assim mesmo; ela vê só o pedido.
+- Pedido para o Presidente ou a diretoria executiva lerem o relato, os depoimentos ou os votos: não existe; a Direção lê só a Recomendação do Comitê.
+- Pedido para enviar à Direção um caso improcedente ou inconclusivo: não existe; ele não sai do Comitê.
+- Pedido para trocar a decisão da medida já registrada: não existe; a decisão se registra uma vez.
+- "APROVAR RETORNO" que não libera: no caso procedente, falta a decisão da Direção ou uma correção de processo com responsável e prazo; a tela diz qual.
+- Resposta a quem relatou recusada ao salvar: ela cita a medida ou um nome; reescreva informando só a conclusão.

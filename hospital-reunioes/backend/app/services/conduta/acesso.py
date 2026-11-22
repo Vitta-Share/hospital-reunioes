@@ -29,6 +29,15 @@ SLUG_DO_COMITE = "conduta"
 # (especificação, 3.2). O suplente só pela convocação.
 PAPEIS_DA_FILA_COMUM = ("coordenacao", "segundo_leitor", "membro")
 
+# Os perfis nominais da Direção no cadastro da pessoa (issue #1835): o
+# Presidente só lê a Recomendação do Comitê; a diretoria executiva lê e
+# registra a decisão do Presidente sobre a medida. Nenhum dos dois abre caso.
+PRESIDENTE = "presidente"
+DIRETORIA_EXECUTIVA = "diretoria_executiva"
+PERFIS_DA_DIRECAO = (PRESIDENTE, DIRETORIA_EXECUTIVA)
+# Só o caso procedente da fila comum chega à Direção (especificação, 6.9).
+RESULTADOS_QUE_VAO_A_DIRECAO = ("procedente", "parcialmente_procedente")
+
 # O que a lista mostra: metadados em claro, nunca o conteúdo cifrado.
 CAMPOS_DA_LISTA = (
     "id",
@@ -211,3 +220,55 @@ def caso_se_a_pessoa_abre(supabase, pessoa: PessoaNoComite, caso_id: str) -> tup
     caso = linhas[0]
     do_caso = atribuicoes.get(caso_id, [])
     return (caso, do_caso) if pode_abrir(caso, pessoa, do_caso, caso_id in citados) else None
+
+
+def direcao_le(caso: dict[str, Any], citado: bool) -> bool:
+    """A Recomendação do Comitê abre à Direção só depois do ENVIAR À DIREÇÃO,
+    só no procedente da fila comum, e nunca a quem é Citado no caso (issue
+    #1835). Improcedente e inconclusivo não aparecem fora do Comitê."""
+    return (
+        not citado
+        and bool(caso.get("enviado_a_direcao_em"))
+        and caso.get("rota") == "comum"
+        and caso.get("resultado") in RESULTADOS_QUE_VAO_A_DIRECAO
+    )
+
+
+def recomendacoes_da_direcao(supabase, participante_id: str) -> list[dict]:
+    """Os casos cuja Recomendação a pessoa da Direção lê, só com os metadados."""
+    linhas = (
+        supabase.table("conduta_casos")
+        .select("id, protocolo, rota, resultado, etapa, enviado_a_direcao_em, encerrado_em")
+        .eq("rota", "comum")
+        .execute()
+        .data
+        or []
+    )
+    citados = {
+        linha["caso_id"]
+        for linha in supabase.table("conduta_citados")
+        .select("caso_id")
+        .eq("participante_id", participante_id)
+        .execute()
+        .data
+        or []
+    }
+    abertos = [caso for caso in linhas if direcao_le(caso, caso["id"] in citados)]
+    return sorted(abertos, key=lambda caso: str(caso.get("enviado_a_direcao_em") or ""), reverse=True)
+
+
+def caso_se_a_direcao_le(supabase, participante_id: str, caso_id: str) -> dict | None:
+    """O caso inteiro, ainda cifrado, se a pessoa da Direção lê a Recomendação;
+    senão None, com a mesma recusa para caso que não existe."""
+    linhas = supabase.table("conduta_casos").select("*").eq("id", caso_id).limit(1).execute().data or []
+    if not linhas:
+        return None
+    citado = bool(
+        supabase.table("conduta_citados")
+        .select("caso_id")
+        .eq("caso_id", caso_id)
+        .eq("participante_id", participante_id)
+        .execute()
+        .data
+    )
+    return linhas[0] if direcao_le(linhas[0], citado) else None

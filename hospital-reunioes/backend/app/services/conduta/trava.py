@@ -270,6 +270,7 @@ def anexar_ciencia(supabase, aberto: CasoAberto, nome: str, conteudo: bytes) -> 
                 "storage_path": caminho,
                 "content_type": content_type,
                 "tamanho_bytes": len(conteudo),
+                "codigo_integridade": trilha.codigo_de_integridade(conteudo),
                 "enviado_por": aberto.autor_id,
                 "enviado_em": agora_utc().isoformat(),
             }
