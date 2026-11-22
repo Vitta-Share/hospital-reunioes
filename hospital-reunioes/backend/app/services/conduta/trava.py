@@ -103,9 +103,13 @@ def _confirmacoes_precisas(item: str, acusado_ouvido: bool) -> int:
 def _situacao_dos_itens(supabase, caso: dict, situacao_do_voto) -> tuple[dict[str, list[dict]], bool]:
     """As confirmações que contam, por item: as de quem vota no caso hoje. A
     de quem depois ficou impedido ou virou Citado sai da conta, como o voto
-    dele (`voto._da_rodada`)."""
+    dele (`voto._da_rodada`). A do item dos votos só conta com a ata dos
+    votos de hoje assinada: a ata de votos que não valem mais não confirma."""
     por_item: dict[str, list[dict]] = {item: [] for item, _ in ITENS}
+    com_ata = ata.ata_assinada(supabase, caso, situacao_do_voto)
     for linha in sorted(_linhas(supabase, CONFIRMACOES, caso["id"]), key=lambda c: str(c.get("confirmado_em") or "")):
+        if linha["item"] == "votos" and not com_ata:
+            continue
         if linha["participante_id"] in situacao_do_voto.votantes:
             por_item.setdefault(linha["item"], []).append(linha)
     return por_item, _acusado_ouvido(supabase, caso["id"])
@@ -126,7 +130,7 @@ def _requisito(supabase, caso: dict, item: str, situacao_do_voto) -> str | None:
         return "Anexe a ciência do Código registrada pelo DP antes de confirmar."
     if item == "votos" and not situacao_do_voto.fechada:
         return "Faltam votos: o item se confirma depois que os três votarem."
-    if item == "votos" and not ata.ata_assinada(supabase, caso["id"]):
+    if item == "votos" and not ata.ata_assinada(supabase, caso, situacao_do_voto):
         return "Falta a ata assinada pelos três: o item se confirma depois da assinatura."
     return None
 
@@ -317,7 +321,7 @@ def montar_mensagem_da_trava(supabase, caso: dict, situacao_do_voto) -> tuple[st
         f"Ciência do Código pelo acusado anexada: {'sim' if _ciencias(supabase, caso['id']) else 'não'}.\n"
         f"Depoimento do acusado concluído: {'sim' if _acusado_ouvido(supabase, caso['id']) else 'não'}.\n"
         f"Votos registrados: {votaram} de {len(situacao_do_voto.votantes)}.\n"
-        f"Ata assinada pelos três: {'sim' if ata.ata_assinada(supabase, caso['id']) else 'não'}.\n"
+        f"Ata assinada pelos três: {'sim' if ata.ata_assinada(supabase, caso, situacao_do_voto) else 'não'}.\n"
         "</fatos_do_caso>"
     )
     return "\n\n".join(partes), marcadores

@@ -27,6 +27,7 @@ from test_conduta_voto import (
     ITENS_DA_TRAVA,
     LEITOR,
     MEMBRO,
+    SUPLENTE,
     Comite,
     Modelo,
 )
@@ -150,7 +151,8 @@ class _ClickSign:
         monkeypatch.setattr(clicksign_service, "create_auth_requirement", lambda *a: True)
         monkeypatch.setattr(clicksign_service, "activate_envelope", lambda env: True)
         monkeypatch.setattr(clicksign_service, "notify_signers", lambda env: True)
-        monkeypatch.setattr(clicksign_service, "cancel_envelope", lambda env: True)
+        self.cancelados: list[str] = []
+        monkeypatch.setattr(clicksign_service, "cancel_envelope", lambda env: self.cancelados.append(env) or True)
         monkeypatch.setattr(clicksign_service, "get_signed_document", lambda env: b"%PDF-ata-assinada")
         monkeypatch.setattr(assinaturas, "gerar_pdf_do_termo", lambda dados: self.dados.append(dados) or b"%PDF-ata")
 
@@ -622,6 +624,169 @@ class TestTravaEsperaAAta:
         tela = comite.abrir(MEMBRO, caso)["ata"]
         assert tela["pode_gerar"] is False
         assert tela["bloqueio_da_geracao"] == "Só a coordenação gera a ata."
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# A ata fica presa à rodada e aos votantes de que saiu: impedimento ou Citado
+# depois dos votos tiram a ata de valer, e a ata não vaza o voto oculto
+# ═══════════════════════════════════════════════════════════════════════════
+
+JUSTIFICATIVAS = {
+    MEMBRO: "O membro viu a prova da ameaça.",
+    LEITOR: "A leitora ouviu as duas testemunhas.",
+    COORDENACAO: "Faltou prova da ameaça.",
+}
+
+
+def _ata_procedente_por_maioria(comite, caso: str) -> None:
+    """Procedente por maioria (membro e leitora), a coordenação vencida."""
+    for pid in (MEMBRO, LEITOR):
+        comite.votar(pid, caso, resultado="procedente", medida="advertencia_escrita", justificativa=JUSTIFICATIVAS[pid])
+    comite.votar(COORDENACAO, caso, resultado="improcedente", medida=None, justificativa=JUSTIFICATIVAS[COORDENACAO])
+    assert comite.gerar(caso).status_code == 200
+
+
+def _impedir(comite, caso: str, pid: str = LEITOR) -> None:
+    resposta = comite.post(pid, f"/casos/{caso}/impedimento", {"motivo": "parentesco"})
+    assert resposta.status_code == 200, resposta.text
+
+
+def _envios_da_ata(comite, caso: str) -> list[dict]:
+    return [
+        a
+        for a in comite.banco.tabelas.get("conduta_assinaturas", [])
+        if a["caso_id"] == caso and a["tipo"] == "ata_de_deliberacao"
+    ]
+
+
+class TestAtaPresaAosVotos:
+    def test_o_impedimento_depois_da_ata_assinada_pede_ata_nova(self, comite, modelo, clicksign):
+        caso = comite.caso_no_rito("rapido")
+        _ata_procedente_por_maioria(comite, caso)
+        comite.assinar(caso)
+        _impedir(comite, caso)
+        comite.votar(SUPLENTE, caso, resultado="improcedente", medida=None, justificativa="Voto do suplente.")
+
+        cedo = comite.post(COORDENACAO, f"/casos/{caso}/conclusao-da-votacao")
+        assert cedo.status_code == 409
+        assert cedo.json()["detail"] == "Falta a ata assinada pelos três votantes."
+        assert comite.linha_do_caso(caso).get("resultado") is None
+
+        assert comite.gerar(caso).status_code == 200
+        documento = _ata_na_tela(comite, caso)["documento"]
+        assert documento["versao"] == 2
+        assert documento["deliberacao"] == "Improcedente, por maioria"
+        assert {v["membro"] for v in documento["votos"]} == {"Ana Coordenadora", "Bruno Membro", "Sérgio Suplente"}
+        assert documento["identificacao"]["impedimentos"] == ["Lia Leitora"]
+        comite.assinar(caso)
+        assert sorted(clicksign.signatarios[-3:]) == ["coord@hsm.test", "memb@hsm.test", "supl@hsm.test"]
+        assert comite.post(COORDENACAO, f"/casos/{caso}/conclusao-da-votacao").status_code == 200
+        assert comite.linha_do_caso(caso)["resultado"] == "improcedente"
+
+    def test_o_citado_depois_da_ata_assinada_tira_a_ata_e_o_item_dos_votos(self, comite, modelo, clicksign):
+        caso = comite.caso_no_rito("rapido")
+        _ata_procedente_por_maioria(comite, caso)
+        comite.assinar(caso)
+        assert comite.confirmar(MEMBRO, caso, "votos").status_code == 200
+        comite.banco.tabelas.setdefault("conduta_citados", []).append(
+            {"id": "cit-ata", "caso_id": caso, "participante_id": LEITOR}
+        )
+
+        tela = comite.abrir(MEMBRO, caso)
+        assert tela["ata"]["documento"] is None
+        votos = next(i for i in tela["trava"]["itens"] if i["item"] == "votos")
+        assert votos["confirmado"] is False
+        assert comite.post(COORDENACAO, f"/casos/{caso}/conclusao-da-votacao").status_code == 409
+
+    def test_a_ata_de_votos_que_mudaram_nao_vai_a_assinatura(self, comite, modelo, clicksign):
+        caso = comite.caso_no_rito("rapido")
+        _ata_procedente_por_maioria(comite, caso)
+        _impedir(comite, caso)
+
+        aberta = comite.post(COORDENACAO, f"/casos/{caso}/ata/assinatura")
+        assert aberta.status_code == 409
+        assert aberta.json()["detail"] == "A rodada de voto está aberta: a ata espera os três votos."
+        comite.votar(SUPLENTE, caso, resultado="improcedente", medida=None, justificativa="Voto do suplente.")
+        velha = comite.post(COORDENACAO, f"/casos/{caso}/ata/assinatura")
+        assert velha.status_code == 409
+        assert velha.json()["detail"] == "Os votos mudaram depois da ata. Gere a ata de novo."
+        assert clicksign.signatarios == []
+        assert _envios_da_ata(comite, caso) == []
+
+    @pytest.mark.parametrize("pid", [SUPLENTE, COORDENACAO, MEMBRO])
+    def test_a_rodada_reaberta_nao_mostra_a_ata_com_os_votos(self, comite, modelo, clicksign, pid):
+        caso = comite.caso_no_rito("rapido")
+        _ata_procedente_por_maioria(comite, caso)
+        comite.assinar(caso)
+        _impedir(comite, caso)
+
+        tela = comite.abrir(pid, caso)
+
+        assert tela["ata"]["documento"] is None
+        saida = json.dumps(tela, ensure_ascii=False)
+        assert [j for quem, j in JUSTIFICATIVAS.items() if quem != pid and j in saida] == []
+        assert comite.cliente(pid).get(f"{BASE}/casos/{caso}/ata/assinada").status_code == 404
+
+    def test_a_ata_concluida_segue_na_tela(self, comite, modelo, clicksign):
+        caso = comite.caso_no_rito("rapido")
+        comite.tres_votos(caso, resultado="improcedente")
+        comite.gerar(caso)
+        comite.assinar(caso)
+        assert comite.post(COORDENACAO, f"/casos/{caso}/conclusao-da-votacao").status_code == 200
+
+        assert _ata_na_tela(comite, caso, LEITOR)["documento"]["deliberacao"] == "Improcedente, por unanimidade"
+
+    def test_a_ata_na_clicksign_nao_e_gerada_de_novo(self, comite, modelo, clicksign):
+        caso = comite.caso_no_rito("rapido")
+        comite.tres_votos(caso)
+        comite.gerar(caso)
+        assert comite.post(COORDENACAO, f"/casos/{caso}/ata/assinatura").status_code == 200
+
+        tela = _ata_na_tela(comite, caso)
+        resposta = comite.gerar(caso)
+
+        assert tela["pode_gerar"] is False
+        assert resposta.status_code == 409
+        assert resposta.json()["detail"] == (
+            "A ata está na ClickSign, à espera da assinatura dos três: ela não é gerada de novo."
+        )
+        assert len(modelo.pedidos) == 1
+        assert len(comite.banco.tabelas["conduta_atas"]) == 1
+
+    def test_a_ata_de_votos_que_mudaram_sai_da_clicksign_com_a_versao_nova(self, comite, modelo, clicksign):
+        caso = comite.caso_no_rito("rapido")
+        _ata_procedente_por_maioria(comite, caso)
+        assert comite.post(COORDENACAO, f"/casos/{caso}/ata/assinatura").status_code == 200
+        _impedir(comite, caso)
+        comite.votar(SUPLENTE, caso, resultado="improcedente", medida=None, justificativa="Voto do suplente.")
+
+        assert comite.gerar(caso).status_code == 200
+
+        (velho,) = _envios_da_ata(comite, caso)
+        assert velho["situacao"] == "cancelado"
+        assert clicksign.cancelados == ["env-ata"]
+        assinaturas.processar_evento(comite.banco, velho, "auto_close")
+        assert "ata_assinada" not in [t["acao"] for t in comite.trilha(caso)]
+
+    def test_no_completo_com_a_reuniao_concluida_a_ata_nova_sai_sem_a_transcricao(self, comite, modelo, clicksign):
+        caso = comite.caso_no_rito("completo")
+        comite.anexar_transcricao(caso)
+        _ata_procedente_por_maioria(comite, caso)
+        comite.assinar(caso)
+        for item in ("gravacao_apagada", "arquivos_apagados"):
+            comite.post(COORDENACAO, f"/casos/{caso}/reuniao/conferencia", {"item": item})
+        assert comite.post(COORDENACAO, f"/casos/{caso}/reuniao/conclusao").status_code == 200
+        _impedir(comite, caso)
+        comite.votar(SUPLENTE, caso, resultado="improcedente", medida=None, justificativa="Voto do suplente.")
+
+        resposta = comite.gerar(caso)
+
+        assert resposta.status_code == 200, resposta.text
+        mensagem = modelo.pedidos[-1]["messages"][0]["content"]
+        assert "<transcricao_da_reuniao>" not in mensagem
+        assert "a transcrição, eliminada" in mensagem
+        comite.assinar(caso)
+        assert comite.post(COORDENACAO, f"/casos/{caso}/conclusao-da-votacao").status_code == 200
 
 
 class TestAgenteDaAtaForaDoLoop:

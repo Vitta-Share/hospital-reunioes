@@ -363,7 +363,7 @@ def bloqueio_da_conclusao(supabase, aberto: CasoAberto) -> str | None:
     apuracao = apurar([_conteudo(v) for v in atual.da_rodada(atual.rodada)])
     if not apuracao.tem_maioria:
         return "Não houve maioria. A reunião curta foi convocada."
-    if not ata.ata_assinada(supabase, caso["id"]):
+    if not ata.ata_assinada(supabase, caso, atual):
         return "Falta a ata assinada pelos três votantes."
     if caso.get("rito") == "completo" and not caso.get("reuniao_concluida_em"):
         return "Falta concluir a reunião do Comitê."

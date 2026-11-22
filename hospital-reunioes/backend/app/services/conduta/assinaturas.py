@@ -417,12 +417,9 @@ def _registrar_relatorio_assinado(supabase, assinatura: dict) -> None:
 # ---------------------------------------------------------------------------
 
 
-def enviar_ata_de_deliberacao(supabase, caso_id: str, versao: dict, ata: dict, pessoas: list[dict]) -> dict:
-    """Gera o PDF da versão da ata e o envia aos três votantes, cancelando o
-    envio da ata que ainda estava aberto no caso (o link antigo morre). Como
-    o relatório, o documento não leva o protocolo: o identificador é o da
-    assinatura. Os Pontos a confirmar não entram: nem chegam ao modelo.
-    Falha da ClickSign deixa a linha em "gerado", com o erro."""
+def cancelar_atas_abertas(supabase, caso_id: str) -> None:
+    """O envio da ata que ainda estava aberto no caso é cancelado na ClickSign
+    e na tabela: o link antigo morre, e a assinatura que chegar dele não vale."""
     abertas = (
         supabase.table(TABELA)
         .select("*")
@@ -438,6 +435,15 @@ def enviar_ata_de_deliberacao(supabase, caso_id: str, versao: dict, ata: dict, p
         supabase.table(TABELA).update({"situacao": "cancelado", "cancelado_em": _agora()}).eq(
             "id", aberta["id"]
         ).execute()
+
+
+def enviar_ata_de_deliberacao(supabase, caso_id: str, versao: dict, ata: dict, pessoas: list[dict]) -> dict:
+    """Gera o PDF da versão da ata e o envia aos três votantes, cancelando o
+    envio da ata que ainda estava aberto no caso (`cancelar_atas_abertas`).
+    Como o relatório, o documento não leva o protocolo: o identificador é o
+    da assinatura. Os Pontos a confirmar não entram: nem chegam ao modelo.
+    Falha da ClickSign deixa a linha em "gerado", com o erro."""
+    cancelar_atas_abertas(supabase, caso_id)
     assinatura = (
         supabase.table(TABELA)
         .insert(

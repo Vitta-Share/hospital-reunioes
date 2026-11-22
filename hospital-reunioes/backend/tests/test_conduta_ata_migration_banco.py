@@ -6,6 +6,11 @@ e a 218 (a 218 duas vezes) sobre o mínimo de antes e prova no banco:
 
 - a versão da ata não se altera nem se apaga, nasce só na etapa Voto, e a ata
   assinada não ganha versão nova;
+- a ata sai dos três votos da rodada aberta, e impedimento ou Citado depois
+  dos votos tiram a ata de valer (a votação não conclui com ela, e a versão
+  nova entra);
+- a ata que está na ClickSign, e vale, não ganha versão nova, e só a última
+  versão que vale vai à assinatura;
 - a assinatura da ata aponta para a versão;
 - a transcrição da reunião só entra no rito Completo, nunca como áudio, não
   se altera e só é eliminada depois de concluída a reunião;
@@ -57,6 +62,10 @@ def banco():
         for nome in ANTERIORES:
             pg.ok((PASTA / nome).read_text(encoding="utf-8"))
         pg.ok("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated;")
+        pg.ok(
+            "INSERT INTO participantes (id, nome_completo) "
+            "VALUES ('P2', 'Segunda'), ('P3', 'Terceira'), ('P4', 'Suplente');"
+        )
         migration = MIGRATION.read_text(encoding="utf-8")
         pg.ok(migration)
         pg.ok(migration)  # rodar duas vezes é inofensivo
@@ -74,21 +83,51 @@ def _caso(banco, rito: str = "rapido", etapa: str = "voto") -> str:
     ).splitlines()[-1]
 
 
-def _ata(banco, caso: str, versao: int = 1):
+VOTANTES = ("P1", "P2", "P3")
+
+
+def _votar(banco, caso: str, votantes: tuple[str, ...] = VOTANTES):
+    """Os votos da rodada 1. No caso fora da etapa Voto o banco recusa, e a
+    recusa que o teste quer ver é a da ata."""
+    linhas = ", ".join(f"('{caso}', 1, '{pid}', 'v1:VOTO')" for pid in votantes)
     return banco.sql(
-        "INSERT INTO conduta_atas (caso_id, versao, rodada, ata_cifrada, autor_id) "
-        f"VALUES ('{caso}', {versao}, 1, 'v1:ATA', 'P1') RETURNING id;",
+        f"INSERT INTO conduta_votos (caso_id, rodada, participante_id, voto_cifrado) VALUES {linhas} "
+        "ON CONFLICT DO NOTHING;",
+        papel="service_role",
+    )
+
+
+def _ata(banco, caso: str, versao: int = 1, votantes: tuple[str, ...] = VOTANTES, votar: bool = True):
+    if votar:
+        _votar(banco, caso, votantes)
+    lista = ", ".join(f"'{pid}'" for pid in votantes)
+    return banco.sql(
+        "INSERT INTO conduta_atas (caso_id, versao, rodada, votantes, ata_cifrada, autor_id) "
+        f"VALUES ('{caso}', {versao}, 1, ARRAY[{lista}]::varchar[], 'v1:ATA', 'P1') RETURNING id;",
+        papel="service_role",
+    )
+
+
+def _enviar(banco, caso: str, situacao: str = "assinado"):
+    ata = banco.ok(f"SELECT id FROM conduta_atas WHERE caso_id = '{caso}' ORDER BY versao DESC LIMIT 1;").splitlines()[
+        -1
+    ]
+    return banco.sql(
+        "INSERT INTO conduta_assinaturas (tipo, caso_id, ata_id, signatarios, situacao) "
+        f"VALUES ('ata_de_deliberacao', '{caso}', '{ata}', ARRAY['P1'], '{situacao}');",
         papel="service_role",
     )
 
 
 def _assinar(banco, caso: str) -> None:
-    ata = banco.ok(f"SELECT id FROM conduta_atas WHERE caso_id = '{caso}' ORDER BY versao DESC LIMIT 1;").splitlines()[
-        -1
-    ]
+    r = _enviar(banco, caso)
+    assert r.returncode == 0, r.stderr
+
+
+def _impedir(banco, caso: str, pid: str = "P3") -> None:
     banco.ok(
-        "INSERT INTO conduta_assinaturas (tipo, caso_id, ata_id, signatarios, situacao) "
-        f"VALUES ('ata_de_deliberacao', '{caso}', '{ata}', ARRAY['P1'], 'assinado');",
+        "INSERT INTO conduta_atribuicoes (caso_id, participante_id, motivo, impedido_em) "
+        f"VALUES ('{caso}', '{pid}', 'membro_do_comite', now());",
         papel="service_role",
     )
 
@@ -154,6 +193,63 @@ def test_a_ata_assinada_nao_ganha_versao_nova(banco):
     _ata_assinada(banco, caso)
 
     assert "não ganha versão nova" in _ata(banco, caso, versao=2).stderr
+
+
+def test_a_ata_sai_dos_tres_votos_da_rodada(banco):
+    caso = _caso(banco)
+    _votar(banco, caso, ("P1", "P2"))
+
+    sem_o_terceiro = _ata(banco, caso, votantes=VOTANTES, votar=False)
+    dois = _ata(banco, caso, votantes=("P1", "P2"), votar=False)
+
+    assert "três votos da rodada aberta" in sem_o_terceiro.stderr
+    assert "três votos da rodada aberta" in dois.stderr
+
+
+@pytest.mark.parametrize("como", ["impedimento", "citado"])
+def test_o_votante_que_sai_depois_da_ata_assinada_tira_a_ata_de_valer(banco, como):
+    caso = _caso(banco)
+    _ata_assinada(banco, caso)
+    if como == "impedimento":
+        _impedir(banco, caso)
+    else:
+        banco.ok(
+            f"INSERT INTO conduta_citados (caso_id, participante_id) VALUES ('{caso}', 'P3');", papel="service_role"
+        )
+
+    assert banco.ok(f"SELECT conduta_ata_assinada('{caso}');") == "f"
+    assert "ata assinada" in _concluir_votacao(banco, caso).stderr
+    assert "três votos da rodada aberta" in _ata(banco, caso, versao=2).stderr
+    nova = _ata(banco, caso, versao=2, votantes=("P1", "P2", "P4"))
+    assert nova.returncode == 0, nova.stderr
+    _assinar(banco, caso)
+    assert _concluir_votacao(banco, caso).returncode == 0
+
+
+def test_a_rodada_nova_tira_a_ata_de_valer(banco):
+    caso = _caso(banco)
+    _ata_assinada(banco, caso)
+    banco.ok(f"UPDATE conduta_casos SET rodada_do_voto = 2 WHERE id = '{caso}';", papel="service_role")
+
+    assert banco.ok(f"SELECT conduta_ata_assinada('{caso}');") == "f"
+
+
+def test_a_ata_na_clicksign_nao_ganha_versao_nova(banco):
+    caso = _caso(banco)
+    assert _ata(banco, caso).returncode == 0
+    assert _enviar(banco, caso, situacao="enviado").returncode == 0
+
+    assert "está na ClickSign" in _ata(banco, caso, versao=2).stderr
+    _impedir(banco, caso)
+    assert _ata(banco, caso, versao=2, votantes=("P1", "P2", "P4")).returncode == 0
+
+
+def test_a_ata_de_votos_que_nao_valem_nao_vai_a_assinatura(banco):
+    caso = _caso(banco)
+    assert _ata(banco, caso).returncode == 0
+    _impedir(banco, caso)
+
+    assert "vai à assinatura" in _enviar(banco, caso, situacao="gerado").stderr
 
 
 def test_a_assinatura_da_ata_aponta_para_a_versao(banco):

@@ -208,10 +208,19 @@ class Comite:
 
     def ata_assinada(self, caso_id: str) -> None:
         """A ata assinada pelos três (issue #1834), direto no banco: o item dos
-        votos e a conclusão da votação pedem a ata."""
+        votos e a conclusão da votação pedem a ata. A ata é da rodada aberta e
+        de quem vota no caso hoje."""
         ata_id = f"ata-{caso_id}"
+        linha = self.linha_do_caso(caso_id)
         self.banco.tabelas.setdefault("conduta_atas", []).append(
-            {"id": ata_id, "caso_id": caso_id, "versao": 1, "rodada": 1, "ata_cifrada": cifra.cifrar_texto("{}")}
+            {
+                "id": ata_id,
+                "caso_id": caso_id,
+                "versao": 1,
+                "rodada": voto.rodada_atual(linha),
+                "votantes": sorted(voto.situacao(self.banco, linha).votantes),
+                "ata_cifrada": cifra.cifrar_texto("{}"),
+            }
         )
         self.banco.tabelas.setdefault("conduta_assinaturas", []).append(
             {

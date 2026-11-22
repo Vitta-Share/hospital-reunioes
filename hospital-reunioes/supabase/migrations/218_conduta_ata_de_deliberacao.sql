@@ -7,9 +7,12 @@
 --   1. a ata de deliberação, em versões: o texto cifrado pela aplicação e os
 --      "Pontos a confirmar" (Sugestão, fora da ata), também cifrados. A ata
 --      nasce na etapa Voto, depois dos votos; a versão fica guardada, e a ata
---      assinada não ganha versão nova;
+--      assinada não ganha versão nova. A versão fica presa à rodada e aos três
+--      votantes de que saiu: se um deles fica impedido ou vira Citado, ou a
+--      rodada muda, a ata deixa de valer e a coordenação gera outra;
 --   2. a assinatura da ata pelos três votantes aponta para a versão que foi à
---      ClickSign (`conduta_assinaturas.ata_id`);
+--      ClickSign (`conduta_assinaturas.ata_id`). A ata que está na ClickSign,
+--      e ainda vale, não ganha versão nova;
 --   3. a transcrição da reunião do Comitê, no rito Completo: o arquivo fica
 --      cifrado no bucket do Canal, e a linha aqui só pode ser apagada depois
 --      de concluída a reunião (a eliminação da seção 7.3). Nada de áudio;
@@ -56,6 +59,7 @@ CREATE TABLE IF NOT EXISTS conduta_atas (
   caso_id          UUID NOT NULL REFERENCES conduta_casos(id) ON DELETE RESTRICT,
   versao           INTEGER NOT NULL CHECK (versao >= 1),
   rodada           INTEGER NOT NULL CHECK (rodada >= 1),
+  votantes         VARCHAR(10)[] NOT NULL CHECK (cardinality(votantes) = 3),
   ata_cifrada      TEXT NOT NULL CHECK (ata_cifrada LIKE 'v1:%'),
   pontos_cifrados  TEXT CHECK (pontos_cifrados IS NULL OR pontos_cifrados LIKE 'v1:%'),
   autor_id         VARCHAR(10) NOT NULL REFERENCES participantes(id) ON DELETE RESTRICT,
@@ -65,6 +69,8 @@ CREATE TABLE IF NOT EXISTS conduta_atas (
 
 COMMENT ON TABLE conduta_atas IS
   'Ata de deliberação do Comitê de Conduta, em versões (issue #1834). Texto e Pontos a confirmar cifrados pela aplicação. Imutável: gerar de novo é versão nova.';
+COMMENT ON COLUMN conduta_atas.votantes IS
+  'Os três votantes cujos votos da rodada a ata traz. Se um deles fica impedido ou vira Citado, ou a rodada muda, a versão deixa de valer (issue #1834).';
 
 CREATE INDEX IF NOT EXISTS idx_conduta_atas_autor ON conduta_atas (autor_id);
 
@@ -87,14 +93,40 @@ ALTER TABLE conduta_assinaturas ADD CONSTRAINT conduta_assinaturas_ata_da_versao
   tipo <> 'ata_de_deliberacao' OR (ata_id IS NOT NULL AND caso_id IS NOT NULL)
 );
 
--- A última versão da ata do caso, assinada pelos três.
+-- Os votos de que a ata sai ainda valem: são da rodada aberta, os três
+-- votantes votaram nela, e nenhum deles ficou impedido ou virou Citado depois.
+CREATE OR REPLACE FUNCTION conduta_votos_da_ata_valem(p_caso UUID, p_rodada INTEGER, p_votantes VARCHAR[])
+RETURNS BOOLEAN AS $$
+  SELECT cardinality(p_votantes) = 3
+     AND p_rodada = (SELECT c.rodada_do_voto FROM conduta_casos c WHERE c.id = p_caso)
+     AND (SELECT count(DISTINCT v.participante_id) FROM conduta_votos v
+           WHERE v.caso_id = p_caso AND v.rodada = p_rodada AND v.participante_id = ANY (p_votantes)) = 3
+     AND NOT EXISTS (
+       SELECT 1 FROM conduta_atribuicoes t
+        WHERE t.caso_id = p_caso AND t.impedido_em IS NOT NULL AND t.participante_id = ANY (p_votantes)
+     )
+     AND NOT EXISTS (
+       SELECT 1 FROM conduta_citados ci
+        WHERE ci.caso_id = p_caso AND ci.participante_id = ANY (p_votantes)
+     );
+$$ LANGUAGE sql STABLE;
+
+-- A última versão da ata do caso, se os votos dela ainda valem.
+CREATE OR REPLACE FUNCTION conduta_ata_em_dia(p_caso UUID) RETURNS UUID AS $$
+  SELECT a.id FROM (
+    SELECT * FROM conduta_atas WHERE caso_id = p_caso ORDER BY versao DESC LIMIT 1
+  ) a
+   WHERE conduta_votos_da_ata_valem(a.caso_id, a.rodada, a.votantes);
+$$ LANGUAGE sql STABLE;
+
+-- A última versão da ata do caso, com os votos dela valendo, assinada pelos três.
 CREATE OR REPLACE FUNCTION conduta_ata_assinada(p_caso UUID) RETURNS BOOLEAN AS $$
   SELECT EXISTS (
     SELECT 1 FROM conduta_assinaturas s
      WHERE s.tipo = 'ata_de_deliberacao'
        AND s.caso_id = p_caso
        AND s.situacao = 'assinado'
-       AND s.ata_id = (SELECT a.id FROM conduta_atas a WHERE a.caso_id = p_caso ORDER BY a.versao DESC LIMIT 1)
+       AND s.ata_id = conduta_ata_em_dia(p_caso)
   );
 $$ LANGUAGE sql STABLE;
 
@@ -106,8 +138,20 @@ BEGIN
     RAISE EXCEPTION 'A ata de deliberação é da etapa Voto'
       USING ERRCODE = 'check_violation';
   END IF;
+  IF NOT conduta_votos_da_ata_valem(NEW.caso_id, NEW.rodada, NEW.votantes) THEN
+    RAISE EXCEPTION 'A ata sai dos três votos da rodada aberta, de quem vota no caso hoje'
+      USING ERRCODE = 'check_violation';
+  END IF;
   IF conduta_ata_assinada(NEW.caso_id) THEN
     RAISE EXCEPTION 'A ata assinada não ganha versão nova'
+      USING ERRCODE = 'check_violation';
+  END IF;
+  IF EXISTS (
+       SELECT 1 FROM conduta_assinaturas s
+        WHERE s.tipo = 'ata_de_deliberacao' AND s.caso_id = NEW.caso_id AND s.situacao = 'enviado'
+          AND s.ata_id = conduta_ata_em_dia(NEW.caso_id)
+     ) THEN
+    RAISE EXCEPTION 'A ata que está na ClickSign não ganha versão nova'
       USING ERRCODE = 'check_violation';
   END IF;
   RETURN NEW;
@@ -118,6 +162,23 @@ DROP TRIGGER IF EXISTS trg_conduta_atas_na_etapa ON conduta_atas;
 CREATE TRIGGER trg_conduta_atas_na_etapa
   BEFORE INSERT ON conduta_atas
   FOR EACH ROW EXECUTE FUNCTION conduta_ata_na_etapa_voto();
+
+-- Só vai à assinatura a última versão da ata, com os votos dela valendo.
+CREATE OR REPLACE FUNCTION conduta_assinatura_da_ata_em_dia() RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.ata_id IS DISTINCT FROM conduta_ata_em_dia(NEW.caso_id) THEN
+    RAISE EXCEPTION 'Só a última versão da ata, com os votos dela valendo, vai à assinatura'
+      USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_conduta_assinaturas_ata_em_dia ON conduta_assinaturas;
+CREATE TRIGGER trg_conduta_assinaturas_ata_em_dia
+  BEFORE INSERT ON conduta_assinaturas
+  FOR EACH ROW WHEN (NEW.tipo = 'ata_de_deliberacao')
+  EXECUTE FUNCTION conduta_assinatura_da_ata_em_dia();
 
 -- ---------- 3. A transcrição da reunião do Comitê ----------
 CREATE TABLE IF NOT EXISTS conduta_reuniao_transcricoes (

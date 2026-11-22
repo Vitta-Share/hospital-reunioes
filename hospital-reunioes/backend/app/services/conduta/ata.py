@@ -112,13 +112,41 @@ def _assinatura_da_versao(supabase, caso_id: str, ata_id: str) -> dict | None:
     return vivas[-1] if vivas else None
 
 
-def ata_assinada(supabase, caso_id: str) -> bool:
-    """A última versão da ata do caso, assinada pelos três votantes."""
-    versoes = _versoes(supabase, caso_id)
+def _vale(versao: dict, situacao_do_voto) -> bool:
+    """A versão saiu dos votos que contam hoje: a mesma rodada, fechada, e os
+    mesmos três votantes. Impedimento ou Citado depois dos votos, ou a
+    rodada que muda, tiram a ata de valer (migration 218)."""
+    return (
+        situacao_do_voto.fechada
+        and versao.get("rodada") == situacao_do_voto.rodada
+        and set(versao.get("votantes") or ()) == set(situacao_do_voto.votantes)
+    )
+
+
+def ata_em_dia(supabase, caso: dict, situacao_do_voto=None) -> dict | None:
+    """A última versão da ata, se os votos dela ainda valem; senão None."""
+    from app.services.conduta import voto
+
+    versoes = _versoes(supabase, caso["id"])
     if not versoes:
+        return None
+    situacao_do_voto = situacao_do_voto or voto.situacao(supabase, caso)
+    return versoes[-1] if _vale(versoes[-1], situacao_do_voto) else None
+
+
+def ata_assinada(supabase, caso: dict, situacao_do_voto=None) -> bool:
+    """A última versão da ata do caso, com os votos dela valendo, assinada
+    pelos três votantes."""
+    versao = ata_em_dia(supabase, caso, situacao_do_voto)
+    if not versao:
         return False
-    assinatura = _assinatura_da_versao(supabase, caso_id, versoes[-1]["id"])
+    assinatura = _assinatura_da_versao(supabase, caso["id"], versao["id"])
     return bool(assinatura) and assinatura["situacao"] == "assinado"
+
+
+def _na_clicksign(supabase, caso_id: str, versao: dict | None) -> bool:
+    assinatura = _assinatura_da_versao(supabase, caso_id, versao["id"]) if versao else None
+    return bool(assinatura) and assinatura["situacao"] == "enviado"
 
 
 def _transcricoes(supabase, caso_id: str) -> list[dict]:
@@ -134,7 +162,9 @@ def _completo(caso: dict) -> bool:
     return caso.get("rito") == "completo"
 
 
-def lista_da_reuniao(supabase, caso: dict, nomes: dict[str, str] | None = None) -> list[dict[str, Any]]:
+def lista_da_reuniao(
+    supabase, caso: dict, situacao_do_voto, nomes: dict[str, str] | None = None
+) -> list[dict[str, Any]]:
     """Os quatro itens, cada um `feito` ou `pendente`. O feito diz quem e
     quando. Depois de eliminada, a transcrição segue contando como anexada."""
     nomes = nomes or {}
@@ -157,7 +187,7 @@ def lista_da_reuniao(supabase, caso: dict, nomes: dict[str, str] | None = None) 
             elif caso.get("transcricao_eliminada_em"):
                 linha.update(estado="feito")
         elif item == "ata_assinada":
-            if ata_assinada(supabase, caso["id"]):
+            if ata_assinada(supabase, caso, situacao_do_voto):
                 linha.update(estado="feito")
         elif item in por_item:
             marca = por_item[item]
@@ -185,10 +215,13 @@ def bloqueio_da_geracao(supabase, aberto: CasoAberto, situacao_do_voto) -> str |
     apuracao = voto.apurar([voto._conteudo(v) for v in situacao_do_voto.da_rodada(situacao_do_voto.rodada)])
     if not apuracao.tem_maioria:
         return "Não houve maioria. A ata espera a nova rodada de voto."
-    if _completo(caso) and not _transcricoes(supabase, caso["id"]):
+    if _completo(caso) and not caso.get("reuniao_concluida_em") and not _transcricoes(supabase, caso["id"]):
         return "Anexe a transcrição da reunião do Comitê antes de gerar a ata."
-    if ata_assinada(supabase, caso["id"]):
+    em_dia = ata_em_dia(supabase, caso, situacao_do_voto)
+    if ata_assinada(supabase, caso, situacao_do_voto):
         return "A ata já foi assinada pelos três."
+    if _na_clicksign(supabase, caso["id"], em_dia):
+        return "A ata está na ClickSign, à espera da assinatura dos três: ela não é gerada de novo."
     return None
 
 
@@ -209,9 +242,12 @@ def para_a_tela(supabase, aberto: CasoAberto, situacao_do_voto) -> dict:
     em_voto = caso.get("etapa") == "voto" and not caso.get("resultado") and not caso.get("encerrado_em")
     coordena = aberto.pessoa.papel == "coordenacao"
     versoes = _versoes(supabase, caso["id"])
+    # A ata só aparece enquanto os votos dela valem (ou depois de concluída a
+    # votação): a rodada reaberta por impedimento ou Citado esconde os votos
+    # dos outros, e a ata, que os traz, também.
+    ultima = versoes[-1] if caso.get("resultado") and versoes else ata_em_dia(supabase, caso, situacao_do_voto)
     ata = None
-    if versoes:
-        ultima = versoes[-1]
+    if ultima:
         ata = _ata_da_versao(ultima)
         assinatura = _assinatura_da_versao(supabase, caso["id"], ultima["id"])
         ata["assinatura"] = (
@@ -225,7 +261,7 @@ def para_a_tela(supabase, aberto: CasoAberto, situacao_do_voto) -> dict:
             else None
         )
     bloqueio = bloqueio_da_geracao(supabase, aberto, situacao_do_voto) if em_voto else None
-    assinada = ata_assinada(supabase, caso["id"])
+    assinada = ata_assinada(supabase, caso, situacao_do_voto)
     saida: dict[str, Any] = {
         "ata": {
             "documento": ata,
@@ -247,7 +283,7 @@ def para_a_tela(supabase, aberto: CasoAberto, situacao_do_voto) -> dict:
                 | ({caso["reuniao_concluida_por"]} if caso.get("reuniao_concluida_por") else set())
             ),
         )
-        lista = lista_da_reuniao(supabase, caso, nomes)
+        lista = lista_da_reuniao(supabase, caso, situacao_do_voto, nomes)
         aberta = em_voto and not caso.get("reuniao_concluida_em")
         falta = _bloqueio_da_lista(lista)
         saida["reuniao"] = {
@@ -401,9 +437,11 @@ def eliminar_transcricao_da_reuniao(supabase, caso: dict) -> None:
 def concluir_reuniao(supabase, aberto: CasoAberto) -> dict:
     """CONCLUIR REUNIÃO: só com os quatro itens. Concluída, a transcrição é
     eliminada."""
+    from app.services.conduta import voto
+
     _exigir_reuniao_aberta(aberto)
     caso = aberto.caso
-    falta = _bloqueio_da_lista(lista_da_reuniao(supabase, caso))
+    falta = _bloqueio_da_lista(lista_da_reuniao(supabase, caso, voto.situacao_em_dia(supabase, caso)))
     if falta:
         raise AtaRecusadaError(409, falta)
     trilha.registrar(supabase, caso["id"], aberto.autor_id, "concluiu_reuniao", "concluiu a reunião do Comitê")
@@ -534,7 +572,12 @@ def _mensagem_da_ata(
         confirmado = len(por_item[item]) >= trava._confirmacoes_precisas(item, acusado_ouvido)
         situacao_da_trava.append(f"- {rotulo}: {'confirmado' if confirmado else 'em aberto'}")
     partes.append("<trava_de_robustez>\n" + "\n".join(situacao_da_trava) + "\n</trava_de_robustez>")
-    if transcricao is None:
+    if transcricao is None and caso.get("rito") == "completo":
+        partes.append(
+            "A reunião do Comitê já foi concluída e a transcrição, eliminada. "
+            "A ata sai do relatório de apuração e dos votos."
+        )
+    elif transcricao is None:
         partes.append("Não houve reunião: o rito é Rápido. A ata sai do relatório de apuração e dos votos.")
     else:
         partes.append(
@@ -604,7 +647,8 @@ def gerar_ata_de_deliberacao(supabase, aberto: CasoAberto) -> dict:
     if not settings.anthropic_api_key:
         raise AtaRecusadaError(503, "O agente está fora do ar agora. Tente de novo em instantes.")
     parte = _parte_do_aplicativo(supabase, caso, atual)
-    transcricao = _texto_da_transcricao(supabase, _transcricoes(supabase, caso["id"])[-1]) if _completo(caso) else None
+    transcricoes = _transcricoes(supabase, caso["id"]) if _completo(caso) else []
+    transcricao = _texto_da_transcricao(supabase, transcricoes[-1]) if transcricoes else None
     marcacao = Marcacao()
     mensagem = _mensagem_da_ata(supabase, caso, atual, parte, transcricao, marcacao)
     try:
@@ -621,6 +665,8 @@ def gerar_ata_de_deliberacao(supabase, aberto: CasoAberto) -> dict:
     versao = max((v["versao"] for v in _versoes(supabase, caso["id"])), default=0) + 1
     ata_cifrada = cifra.cifrar_texto(json.dumps(ata, ensure_ascii=False))
     pontos_cifrados = cifra.cifrar_texto(json.dumps(pontos, ensure_ascii=False)) if pontos else None
+    # A versão de votos que não valem mais sai da ClickSign antes da nova.
+    assinaturas.cancelar_atas_abertas(supabase, caso["id"])
     trilha.registrar(
         supabase, caso["id"], aberto.autor_id, "gerou_ata", f"ata de deliberação, versão {versao}, pelo agente"
     )
@@ -632,6 +678,7 @@ def gerar_ata_de_deliberacao(supabase, aberto: CasoAberto) -> dict:
                     "caso_id": caso["id"],
                     "versao": versao,
                     "rodada": atual.rodada,
+                    "votantes": sorted(atual.votantes),
                     "ata_cifrada": ata_cifrada,
                     "pontos_cifrados": pontos_cifrados,
                     "autor_id": aberto.autor_id,
@@ -657,14 +704,19 @@ def enviar_para_assinatura(supabase, aberto: CasoAberto) -> dict:
     caso = aberto.caso
     _exigir_voto(caso)
     _exigir_coordenacao(aberto, "Só a coordenação envia a ata para assinatura.")
-    versoes = _versoes(supabase, caso["id"])
-    if not versoes:
+    if not _versoes(supabase, caso["id"]):
         raise AtaRecusadaError(409, "Gere a ata antes de enviar para assinatura.")
-    if ata_assinada(supabase, caso["id"]):
-        raise AtaRecusadaError(409, "A ata já foi assinada pelos três.")
-    votantes = voto.situacao(supabase, caso).votantes
+    atual = voto.situacao_em_dia(supabase, caso)
+    votantes = atual.votantes
     if len(votantes) < voto.VOTANTES:
         raise AtaRecusadaError(409, "Falta membro votante no caso: o impedido ainda não tem suplente.")
+    if not atual.fechada:
+        raise AtaRecusadaError(409, "A rodada de voto está aberta: a ata espera os três votos.")
+    ultima = ata_em_dia(supabase, caso, atual)
+    if not ultima:
+        raise AtaRecusadaError(409, "Os votos mudaram depois da ata. Gere a ata de novo.")
+    if ata_assinada(supabase, caso, atual):
+        raise AtaRecusadaError(409, "A ata já foi assinada pelos três.")
     pessoas = (
         supabase.table("participantes").select("id, nome_completo, email").in_("id", sorted(votantes)).execute().data
     ) or []
@@ -672,7 +724,6 @@ def enviar_para_assinatura(supabase, aberto: CasoAberto) -> dict:
         raise AtaRecusadaError(
             409, "Um votante não tem e-mail profissional no cadastro, e a ata vai por e-mail para assinatura."
         )
-    ultima = versoes[-1]
     trilha.registrar(
         supabase,
         caso["id"],
@@ -696,9 +747,12 @@ def assinatura_aberta(supabase, aberto: CasoAberto) -> dict:
 def abrir_assinada(supabase, aberto: CasoAberto) -> bytes:
     """A cópia do PDF assinado da última versão, decifrada, depois de gravada
     a abertura."""
-    caso_id = aberto.caso["id"]
+    caso = aberto.caso
+    caso_id = caso["id"]
     versoes = _versoes(supabase, caso_id)
-    assinatura = _assinatura_da_versao(supabase, caso_id, versoes[-1]["id"]) if versoes else None
+    # Como na tela: a ata de votos que não valem mais não abre.
+    versao = versoes[-1] if caso.get("resultado") and versoes else ata_em_dia(supabase, caso)
+    assinatura = _assinatura_da_versao(supabase, caso_id, versao["id"]) if versao else None
     if not assinatura or assinatura["situacao"] != "assinado" or not assinatura.get("arquivo_assinado_path"):
         raise AtaRecusadaError(404, "A ata assinada ainda não voltou.")
     trilha.registrar(supabase, caso_id, aberto.autor_id, "abriu_arquivo", "abriu a ata assinada")
