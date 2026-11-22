@@ -133,9 +133,18 @@ describe("dado de cidadão não fica gravado no aparelho (issue #483, ADR 0041)"
       "/api/aceite/",
       "/api/ouvidoria-setor/",
       "/api/ouvidoria/",
+      "/api/nsp/recebimento/",
       "/aceite/",
       "/ouvidoria-setor",
+      "/notificar/recebido/",
     ]);
+  });
+
+  it("o link do Recebido do Núcleo ao setor também não é gravado (issue #1996)", () => {
+    expect(modulo.podeGuardarNoAparelho("/api/nsp/recebimento/token-opaco-do-email")).toBe(false);
+    expect(modulo.podeGuardarNoAparelho("/notificar/recebido/token-opaco-do-email")).toBe(false);
+    expect(regraQueVence("/api/nsp/recebimento/token-opaco-do-email")).toBe(modulo.runtimeCaching[0]);
+    expect(modulo.podeGuardarNoAparelho("/notificar/acompanhar")).toBe(true);
   });
 });
 

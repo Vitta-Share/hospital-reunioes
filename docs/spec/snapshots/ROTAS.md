@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T04:08+0000 -->
+<!-- last_update: 2026-11-22T05:06+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -628,6 +628,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 | Método | Rota | O que faz | Auth |
 |--------|------|-----------|------|
+| GET | `/nsp/acao-de-hoje` | A faixa "o que exige ação hoje" do início do módulo (issue #2000): casos | ✅ |
 | GET | `/nsp/configuracao` | A configuração técnica do módulo, a única parte que o super admin | ✅ |
 | GET | `/nsp/configuracao/qr-da-notificacao.png` | O QR único da notificação (issue #2046), para o cartaz e o papel de | ✅ |
 | GET | `/nsp/inicio` | A página inicial do módulo: o Núcleo, quantos membros estão com a | ✅ |
@@ -712,6 +713,13 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | GET | `/nsp/configuracao/concordancia` | Concordancia do agente | ✅ |
 | GET | `/nsp/recalibracao` | Tela da recalibracao | ✅ |
 | POST | `/nsp/recalibracao/{marco}` | Grava a decisão, quem decidiu e quando, e conclui as pendências do marco. | ✅ |
+
+## seguranca-do-paciente (`app/routers/seguranca_do_paciente_recebimento.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| GET | `/nsp/recebimento/{token}` | O resumo do caso encaminhado ao setor. | ❌ |
+| POST | `/nsp/recebimento/{token}/recebido` | O clique em Recebido. O segundo clique, ou o que cruza com outro, é 410. | ❌ |
 
 ## seguranca-do-paciente (`app/routers/seguranca_do_paciente_reunioes.py`)
 
@@ -875,4 +883,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 509 endpoints em 72 routers · 93% exigem auth.
+**Totais:** 512 endpoints em 73 routers · 93% exigem auth.

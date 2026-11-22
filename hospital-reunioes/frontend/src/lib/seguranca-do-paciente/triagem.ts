@@ -174,14 +174,28 @@ export const CANAIS: Opcoes = [
   { valor: "FORA", rotulo: "Fora de escopo" },
 ];
 
-// Os destinos do botão Encaminhar (issue #1995), na ordem do envio.
-export const DESTINOS_DO_ENCAMINHAMENTO: { valor: string; rotulo: string; explicacao: string }[] = [
+// Os destinos do botão Encaminhar (issues #1995 e #1996), na ordem do envio.
+// `pedeSetor`: o destino vai ao titular do setor da taxonomia que a
+// Presidência escolhe, com o botão "Recebido" no e-mail.
+export const DESTINOS_DO_ENCAMINHAMENTO: { valor: string; rotulo: string; explicacao: string; pedeSetor?: boolean }[] = [
   { valor: "nucleo", rotulo: "Núcleo", explicacao: "O caso continua na triagem do Núcleo, junto do outro destino." },
   { valor: "ouvidoria", rotulo: "Ouvidoria", explicacao: "O ouvidor recebe por e-mail o protocolo, o motivo e o relato." },
   {
     valor: "canal_de_conduta",
     rotulo: "Canal de Conduta",
     explicacao: "Nada é enviado: a tela mostra como orientar quem notificou.",
+  },
+  {
+    valor: "seguranca_do_trabalho",
+    rotulo: "Segurança do Trabalho",
+    explicacao: 'O titular do setor recebe um e-mail com o resumo e o botão "Recebido".',
+    pedeSetor: true,
+  },
+  {
+    valor: "queixa_tecnica",
+    rotulo: "Queixa técnica",
+    explicacao: 'Farmácia ou Engenharia Clínica: o titular recebe um e-mail com o resumo e o botão "Recebido".',
+    pedeSetor: true,
   },
   {
     valor: "fora_de_escopo",

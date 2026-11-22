@@ -7,6 +7,7 @@ import { AlertCircle, AlertTriangle, CheckCircle2, Loader2, Sparkles } from "luc
 import { useCurrentParticipante } from "@/hooks/useCurrentParticipante";
 import { chamarNsp } from "@/lib/seguranca-do-paciente/membros";
 import { CHEGOU_AO_PACIENTE, PERCEBIDO, TURNOS } from "@/lib/seguranca-do-paciente/notificacao";
+import { formatarDataHora } from "@/lib/seguranca-do-paciente/prazos";
 import {
   CAMPOS,
   CANAIS,
@@ -50,7 +51,30 @@ interface Tela {
   conferencia: { campo_a_campo: boolean; motivos: string[]; campos: string[] };
   contexto: Contexto;
   opcoes: { categorias: { codigo: string; nome: string }[]; eventos: { item: number; evento: string }[] };
-  encaminhamentos?: { destinos: string[]; motivo: string; orientacao: string | null; criado_em: string | null }[];
+  encaminhamentos?: {
+    destinos: string[];
+    motivo: string;
+    orientacao: string | null;
+    criado_em: string | null;
+    recebimentos?: Recebimento[];
+  }[];
+}
+
+/** O envio com "Recebido" à Segurança do Trabalho ou à queixa técnica (issue #1996). */
+interface Recebimento {
+  destino: string;
+  setor: string;
+  destinatario_nome: string;
+  papel: string;
+  enviado_em: string;
+  reenviado_em: string | null;
+  recebido_em: string | null;
+}
+
+function situacaoDoRecebimento(r: Recebimento): string {
+  const quem = `${r.setor}, ${r.destinatario_nome}${r.papel === "gestor" ? " (gestor, o setor está sem titular)" : ""}`;
+  if (r.recebido_em) return `${quem}: recebido em ${formatarDataHora(r.recebido_em)}.`;
+  return `${quem}: aguardando o Recebido${r.reenviado_em ? ", e-mail reenviado" : ""}.`;
 }
 
 function nomesDosDestinos(destinos: string[]): string {
@@ -654,6 +678,11 @@ export function TriagemDoCaso({ id }: { id: string }) {
                     <p className="font-semibold">{nomesDosDestinos(e.destinos)}</p>
                     <p className="text-slate-700">{e.motivo}</p>
                     {e.orientacao && <p className="text-xs text-slate-500">{`Orientação a quem notificou: ${e.orientacao}`}</p>}
+                    {(e.recebimentos ?? []).map((r) => (
+                      <p key={`${r.destino}-${r.enviado_em}`} className={r.recebido_em ? "text-xs text-emerald-700" : "text-xs text-amber-700"}>
+                        {situacaoDoRecebimento(r)}
+                      </p>
+                    ))}
                   </li>
                 ))}
               </ul>

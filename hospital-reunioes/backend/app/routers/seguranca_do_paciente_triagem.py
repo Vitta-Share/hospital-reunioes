@@ -10,7 +10,8 @@
 - `POST /nsp/triagem/{id}`: confirmar (sem classificação, vale a sugestão) ou
   ajustar (com a classificação da pessoa);
 - `POST /nsp/triagem/{id}/encaminhamento`: encaminhar à Ouvidoria, ao Canal de
-  Conduta ou como fora de escopo, com ou sem o Núcleo (issue #1995);
+  Conduta ou como fora de escopo, com ou sem o Núcleo (issue #1995), e à
+  Segurança do Trabalho ou à queixa técnica, com o Recebido (issue #1996);
 - `GET` e `PUT /nsp/configuracao/cortes-de-frequencia`: os cortes da matriz
   de prioridade, na Configuração do módulo.
 
@@ -25,14 +26,14 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from postgrest.exceptions import APIError
 from pydantic import BaseModel, Field
 from supabase import Client
 
 from app.dependencies import get_supabase_client, require_recurso_nsp
 from app.services import limite_sem_ip, ouvidoria_nucleo
-from app.services.seguranca_do_paciente import anexos, encaminhamento, lote, notificacoes, triagem
+from app.services.seguranca_do_paciente import anexos, ao_confirmar, encaminhamento, lote, notificacoes, triagem
 
 logger = logging.getLogger(__name__)
 
@@ -74,13 +75,15 @@ class PedidoDeLote(BaseModel):
 async def confirmar_a_triagem_em_lote(
     request: Request,
     pedido: PedidoDeLote,
+    tarefas: BackgroundTasks,
     me: dict = Depends(require_recurso_nsp("triagem")),
     supabase: Client = Depends(get_supabase_client),
 ) -> dict:
     """Confirma a sugestão de cada caso como veio. Um caso fora das faixas D e
-    E recusa o pedido inteiro, sem gravar nada."""
+    E recusa o pedido inteiro, sem gravar nada. Os avisos de cada caso saem
+    logo depois da resposta, como na confirmação de um caso (issue #1994)."""
     try:
-        return {"confirmados": lote.confirmar(supabase, [str(i) for i in pedido.ids], autor_id=str(me["id"]))}
+        confirmados = lote.confirmar(supabase, [str(i) for i in pedido.ids], autor_id=str(me["id"]))
     except triagem.CasoNaoEncontradoError as erro:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(erro)) from erro
     except triagem.JaConfirmadaError as erro:
@@ -89,6 +92,9 @@ async def confirmar_a_triagem_em_lote(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(erro)) from erro
     except (APIError, httpx.HTTPError) as erro:
         raise _indisponivel(erro, FALHA_DE_GRAVACAO) from erro
+    for confirmado in confirmados:
+        tarefas.add_task(ao_confirmar.entregar_os_avisos, supabase, confirmado["id"])
+    return {"confirmados": confirmados}
 
 
 @router.get("/triagem/{notificacao_id}")
@@ -173,13 +179,15 @@ async def decidir_a_triagem(
     request: Request,
     notificacao_id: UUID,
     decisao: Decisao,
+    tarefas: BackgroundTasks,
     me: dict = Depends(require_recurso_nsp("triagem")),
     supabase: Client = Depends(get_supabase_client),
 ) -> dict:
     """Confirmar ou ajustar. Grava a linha da pessoa ao lado da sugestão e leva
-    o caso a Classificada, ou a Em análise agregada na faixa E e na D sem dano."""
+    o caso a Classificada, ou a Em análise agregada na faixa E e na D sem dano.
+    Os avisos da confirmação saem logo depois da resposta (issue #1994)."""
     try:
-        return triagem.decidir(
+        resultado = triagem.decidir(
             supabase,
             str(notificacao_id),
             autor_id=str(me["id"]),
@@ -194,15 +202,19 @@ async def decidir_a_triagem(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(erro)) from erro
     except (APIError, httpx.HTTPError) as erro:
         raise _indisponivel(erro, FALHA_DE_GRAVACAO) from erro
+    tarefas.add_task(ao_confirmar.entregar_os_avisos, supabase, str(notificacao_id))
+    return resultado
 
 
 class Encaminhamento(BaseModel):
     """Um ou mais destinos e o motivo em uma frase. Fora de escopo leva também
-    a orientação a quem notificou."""
+    a orientação a quem notificou; a Segurança do Trabalho e a queixa técnica,
+    o id do setor da taxonomia que recebe (`setores`, pelo destino)."""
 
     destinos: list[str] = Field(default_factory=list, max_length=len(encaminhamento.DESTINOS))
     motivo: str | None = Field(default=None, max_length=2000)
     orientacao: str | None = Field(default=None, max_length=2000)
+    setores: dict[str, UUID] | None = Field(default=None, max_length=len(encaminhamento.DESTINOS))
 
 
 @router.post("/triagem/{notificacao_id}/encaminhamento", status_code=status.HTTP_201_CREATED)
@@ -224,6 +236,7 @@ async def encaminhar_o_caso_da_triagem(
             destinos=pedido.destinos,
             motivo=pedido.motivo,
             orientacao=pedido.orientacao,
+            setores={destino: str(setor) for destino, setor in (pedido.setores or {}).items()},
         )
     except triagem.CasoNaoEncontradoError as erro:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(erro)) from erro

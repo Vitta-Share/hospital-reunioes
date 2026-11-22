@@ -5,7 +5,7 @@ as exceções escritas aqui, uma a uma: o formulário e o acompanhamento
 públicos, o botão "Notificar incidente" que todo logado vê e a confirmação da
 própria presença em capacitação. Rota nova sem o gate fica vermelha aqui até
 ganhar o gate ou entrar, de propósito, na lista. O link de uso único do Núcleo
-(ADR 0107, decisão 8) entra na lista quando a rota dele nascer.
+(ADR 0107, decisão 8) entrou na lista com a issue #1996.
 """
 
 from __future__ import annotations
@@ -37,6 +37,11 @@ EXCECOES = {
     "POST /nsp/publico/respostas",
     # A presença em capacitação: quem está na lista confirma a própria.
     "POST /nsp/capacitacoes/{capacitacao_id}/presenca",
+    # O link de uso único do encaminhamento à Segurança do Trabalho e à queixa
+    # técnica (issue #1996): o responsável do setor abre o resumo e clica em
+    # Recebido sem login. O token é a credencial, e o banco guarda só o hash.
+    "GET /nsp/recebimento/{token}",
+    "POST /nsp/recebimento/{token}/recebido",
 }
 
 # As rotas com "nsp" no caminho que moram noutro módulo, com o gate dele: a

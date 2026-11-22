@@ -2,6 +2,150 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T02:16:49-03:00",
+      "sha": "cf9dff1fc61ef0475bc400eed6dc52f23d95bd59",
+      "app_version": "0.369.1",
+      "subject": "Onda pergunta-da-vitta-2112-onda4: Tecnologia com Esperando sua resposta, responder no cartão e o Me explique",
+      "raw_subject": "chore(deploy): registro da onda pergunta-da-vitta-2112-onda4 (#2143)",
+      "scope": [
+        "frontend"
+      ],
+      "prds": [
+        2112
+      ],
+      "result": "healthy",
+      "duration_seconds": 616,
+      "services_touched": [
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta pergunta-da-vitta-2112-onda4: PR #2143 (issue #2123), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 5,
+        "build_s": {
+          "frontend": 206
+        },
+        "health_s": 2
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
+      "at": "2026-11-22T02:09:22-03:00",
+      "sha": "7c2d43451818f53bf96d69fa58ffe00dcdffcd06",
+      "app_version": "0.369.0",
+      "subject": "Onda nsp2-onda10: Reunião de análise e avisos ao confirmar a triagem; Faixa o que exige ação hoje e alerta de 72 horas; Encaminhar à Segurança do Trabalho e à queixa técnica com Recebido",
+      "raw_subject": "chore(deploy): registro da onda nsp2-onda10 (#2139 #2138 #2140)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1979
+      ],
+      "result": "healthy",
+      "duration_seconds": 1389,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "218_nsp_reuniao_de_analise_e_avisos_da_confirmacao.sql",
+        "219_nsp_alerta_das_72_horas.sql",
+        "218_nsp_reuniao_de_analise_e_avisos_da_confirmacao.sql",
+        "220_nsp_recebido_do_setor.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp2-onda10: PR #2139 (issue #1994), PR #2138 (issue #2000), PR #2140 (issue #1996), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 10,
+        "build_s": {
+          "backend": 19,
+          "frontend": 191
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
+      "at": "2026-11-22T01:54:14-03:00",
+      "sha": "be13a89a650c7357a1d26a39787a0ad4d158d7ae",
+      "app_version": "0.368.1",
+      "subject": "PR #2142, sem issue: Ranking de atrasos com nome só para o Super admin",
+      "raw_subject": "chore(deploy): registro do PR avulso (#2142)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [],
+      "result": "healthy",
+      "duration_seconds": 282,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "PR avulso: PR #2142, sem issue. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 228,
+          "frontend": 209
+        },
+        "health_s": 22
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T01:11:57-03:00",
       "sha": "5c75e3448cb54161a37774670e15aba37fd864b4",
       "app_version": "0.368.0",

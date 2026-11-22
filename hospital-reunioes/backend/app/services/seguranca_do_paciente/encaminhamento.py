@@ -11,7 +11,10 @@ e o protocolo do Núcleo fica como está:
 - **Canal de Conduta**: só a orientação na tela. Nada é enviado e nada do
   caso é gravado fora do Núcleo, nem link (ADR 0095, decisão 11);
 - **Fora de escopo**: encerra o caso com a orientação de uma frase, que quem
-  notificou vê na página de acompanhamento. Não se soma a outro destino.
+  notificou vê na página de acompanhamento. Não se soma a outro destino;
+- **Segurança do Trabalho** e **queixa técnica** (issue #1996): um e-mail ao
+  titular vigente do setor escolhido, com o link de uso único e o botão
+  "Recebido". A regra mora em `recebimento`.
 
 Sem o Núcleo entre os destinos, o caso sai da fila: vai a Encaminhada, ou a
 Fora de escopo.
@@ -26,7 +29,7 @@ from zoneinfo import ZoneInfo
 from app.config import settings
 from app.dependencies import selecionar_participantes
 from app.services.feriados import carregar_feriados
-from app.services.seguranca_do_paciente import emails
+from app.services.seguranca_do_paciente import emails, recebimento
 from app.services.seguranca_do_paciente.triagem import (
     ESTADOS_DA_FILA,
     CasoNaoEncontradoError,
@@ -39,7 +42,7 @@ NUCLEO = "nucleo"
 OUVIDORIA = "ouvidoria"
 CANAL_DE_CONDUTA = "canal_de_conduta"
 FORA_DE_ESCOPO = "fora_de_escopo"
-DESTINOS = (NUCLEO, OUVIDORIA, CANAL_DE_CONDUTA, FORA_DE_ESCOPO)
+DESTINOS = (NUCLEO, OUVIDORIA, CANAL_DE_CONDUTA, *recebimento.DESTINOS, FORA_DE_ESCOPO)
 
 ENCAMINHADA = "encaminhada"
 ESTADO_FORA_DE_ESCOPO = "fora_de_escopo"
@@ -173,6 +176,7 @@ def encaminhar_da_triagem(
     destinos: list[str],
     motivo: str | None,
     orientacao: str | None = None,
+    setores: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Grava o encaminhamento e leva o caso ao estado que os destinos pedem.
     Devolve o estado do caso, o encaminhamento gravado e, com o Canal de
@@ -191,6 +195,8 @@ def encaminhar_da_triagem(
     ouvidores = _ouvidores(supabase) if OUVIDORIA in escolhidos else []
     if OUVIDORIA in escolhidos and not ouvidores:
         raise EncaminhamentoInvalidoError("Não há ouvidor ativo no cadastro para receber o caso.")
+    agora = _agora()
+    envios = recebimento.quem_recebe(supabase, escolhidos, setores, agora.date())
     gravado = (
         supabase.table(TABELA)
         .insert(
@@ -206,7 +212,8 @@ def encaminhar_da_triagem(
         .data[0]
     )
     if ouvidores:
-        _registrar_o_email_a_ouvidoria(supabase, notificacao, ouvidores, motivo, _agora())
+        _registrar_o_email_a_ouvidoria(supabase, notificacao, ouvidores, motivo, agora)
+    recebimento.registrar_os_envios(supabase, notificacao, gravado["id"], envios, motivo, agora)
     estado = estado_depois_do_encaminhamento(escolhidos)
     if estado is not None:
         supabase.table("nsp_notificacoes").update({"estado": estado, "editado_por": autor_id}).eq(
@@ -223,9 +230,21 @@ def _apresentar(linha: dict[str, Any]) -> dict[str, Any]:
 
 
 def encaminhamentos_do_caso(supabase, notificacao_id: str) -> list[dict[str, Any]]:
-    """Os encaminhamentos do caso, do mais antigo para o mais novo."""
+    """Os encaminhamentos do caso, do mais antigo para o mais novo, cada um com
+    os envios que pedem Recebido e quando o setor confirmou."""
     linhas = supabase.table(TABELA).select("*").eq("notificacao_id", notificacao_id).order("criado_em").execute().data
-    return [_apresentar(linha) for linha in linhas or []]
+    envios = recebimento.recebimentos_do_caso(supabase, notificacao_id) if linhas else []
+    return [
+        {
+            **_apresentar(linha),
+            "recebimentos": [
+                {c: v for c, v in envio.items() if c != "encaminhamento_id"}
+                for envio in envios
+                if envio["encaminhamento_id"] == linha.get("id")
+            ],
+        }
+        for linha in linhas or []
+    ]
 
 
 def orientacao_ao_notificante(supabase, notificacao_id: str) -> str | None:

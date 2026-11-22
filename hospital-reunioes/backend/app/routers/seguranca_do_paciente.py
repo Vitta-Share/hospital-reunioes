@@ -14,7 +14,7 @@ from app.dependencies import get_supabase_client, require_recurso_nsp
 from app.limiter import limiter
 from app.services import ouvidoria_pontos
 from app.services.conduta import nota_ao_nucleo
-from app.services.seguranca_do_paciente import caso_grave
+from app.services.seguranca_do_paciente import acao_de_hoje, caso_grave
 from app.services.seguranca_do_paciente.permissao import (
     SLUG_DO_NUCLEO,
     hoje_em_sao_paulo,
@@ -60,6 +60,20 @@ async def pagina_inicial(
         "recursos": me["recursos_nsp"],
         "casos_graves": caso_grave.casos_graves_em_espera(supabase) if "casos" in me["recursos_nsp"] else [],
     }
+
+
+@router.get("/acao-de-hoje")
+@limiter.limit("60/minute")
+async def faixa_do_que_exige_acao_hoje(
+    request: Request,
+    _: dict = Depends(require_recurso_nsp("casos")),
+    supabase: Client = Depends(get_supabase_client),
+) -> dict:
+    """A faixa "o que exige ação hoje" do início do módulo (issue #2000): casos
+    A e B abertos, triagens pendentes por idade, prazos legais a vencer e
+    Termos pendentes, cada grupo com a contagem e o link. Só para quem abre os
+    casos, e sem nome de paciente nem de profissional."""
+    return acao_de_hoje.faixa_de_hoje(supabase)
 
 
 @router.get("/configuracao")

@@ -59,6 +59,7 @@ from app.middleware.request_context import (  # noqa: E402
 )
 from app.routers import aceite as aceite_router  # noqa: E402
 from app.routers import ouvidoria_setor as ouvidoria_setor_router  # noqa: E402
+from app.routers import seguranca_do_paciente_recebimento as recebimento_router  # noqa: E402
 
 # No formato real: `secrets.token_urlsafe(32)` gera 43 caracteres url-safe.
 TOKEN = "kzN7Vv2r0QhTf3lXqB9dJm4sPcW8yAeR1uGhOiZbNxE"
@@ -78,6 +79,10 @@ ROTAS_TOKENIZADAS = [
     # Recebido pelo NSP levam o token no path, e a tela mostra o relato inteiro.
     ("GET", f"/api/ouvidoria-setor/nsp/{TOKEN}", "/api/ouvidoria-setor/nsp/{token}"),
     ("POST", f"/api/ouvidoria-setor/nsp/{TOKEN}/recebido", "/api/ouvidoria-setor/nsp/{token}/recebido"),
+    # O link de uso único do Núcleo ao setor (issue #1996): o resumo e o botão
+    # Recebido levam o token no path.
+    ("GET", f"/api/nsp/recebimento/{TOKEN}", "/api/nsp/recebimento/{token}"),
+    ("POST", f"/api/nsp/recebimento/{TOKEN}/recebido", "/api/nsp/recebimento/{token}/recebido"),
     ("GET", f"/api/aceite/{TOKEN}", "/api/aceite/{token}"),
     ("POST", f"/api/aceite/{TOKEN}/aceitar", "/api/aceite/{token}/aceitar"),
 ]
@@ -243,6 +248,8 @@ ROTAS_COM_SEGREDO_NO_PATH = {
     "/api/ouvidoria-setor/elogio/{token}/recebido",
     "/api/ouvidoria-setor/nsp/{token}",
     "/api/ouvidoria-setor/nsp/{token}/recebido",
+    "/api/nsp/recebimento/{token}",
+    "/api/nsp/recebimento/{token}/recebido",
 }
 
 
@@ -317,6 +324,7 @@ def _app() -> FastAPI:
     app.add_middleware(RequestContextMiddleware)
     app.include_router(ouvidoria_setor_router.router, prefix="/api")
     app.include_router(aceite_router.router, prefix="/api")
+    app.include_router(recebimento_router.router, prefix="/api")
     app.dependency_overrides[get_supabase_client] = lambda: _SupabaseVazio()
     return app
 
@@ -405,6 +413,10 @@ CAMINHOS_DEFORMADOS = [
     f"/API/ouvidoria-setor/{TOKEN}",
     f"/api/aceite//{TOKEN}",
     f"/api/Aceite/{TOKEN}",
+    # O link do Recebido do Núcleo (issue #1996).
+    f"/api/nsp/recebimento/{TOKEN}/inexistente",
+    f"/api/nsp/recebimento//{TOKEN}",
+    f"/api/NSP/recebimento/{TOKEN}",
 ]
 
 
