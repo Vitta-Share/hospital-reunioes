@@ -14,7 +14,6 @@ import {
 import {
   AdminUsuario,
   AdminUsuarioPayload,
-  PerfilConduta,
   PerfilOuvidoriaChange,
   PerfilPopChange,
 } from "./types";
@@ -93,8 +92,8 @@ export function UsuarioFormModal({
   const [registroUf, setRegistroUf] = useState(initial?.registro_uf ?? "");
   const initialAcessoPleno = initial?.perfil_nsp === "acesso_pleno";
   const [acessoPleno, setAcessoPleno] = useState(initialAcessoPleno);
-  const initialPerfilConduta: PerfilConduta | "" = initial?.perfil_conduta ?? "";
-  const [perfilConduta, setPerfilConduta] = useState<PerfilConduta | "">(initialPerfilConduta);
+  const initialCadastroDoComite = initial?.perfil_conduta === "cadastro_de_membros";
+  const [cadastroDoComite, setCadastroDoComite] = useState(initialCadastroDoComite);
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
   const formId = useId();
@@ -153,7 +152,8 @@ export function UsuarioFormModal({
         if (registroUf !== (initial?.registro_uf ?? ""))
           payload.registro_uf = registroUf.trim().toUpperCase() || null;
         if (acessoPleno !== initialAcessoPleno) payload.perfil_nsp = acessoPleno ? "acesso_pleno" : null;
-        if (perfilConduta !== initialPerfilConduta) payload.perfil_conduta = perfilConduta || null;
+        if (cadastroDoComite !== initialCadastroDoComite)
+          payload.perfil_conduta = cadastroDoComite ? "cadastro_de_membros" : null;
         if (reason.trim()) payload.reason = reason.trim();
       }
       const perfilPopChange: PerfilPopChange | undefined =
@@ -316,26 +316,19 @@ export function UsuarioFormModal({
         {mode === "edit" && (
           <fieldset className="space-y-2">
             <legend className="text-xs font-medium text-slate-500 uppercase">Canal de Conduta</legend>
-            <label className="block text-sm text-slate-700 space-y-1">
-              <span>Perfil no Canal de Conduta</span>
-              <select
-                value={perfilConduta}
-                onChange={(e) => setPerfilConduta(e.target.value as PerfilConduta | "")}
-                className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm"
-              >
-                <option value="">Nenhum</option>
-                <option value="cadastro_de_membros">Cadastro de membros do Comitê de Conduta</option>
-                <option value="presidente">Presidente (só lê a Recomendação do Comitê)</option>
-                <option value="diretoria_executiva">Diretoria executiva (registra a decisão da medida)</option>
-              </select>
+            <label className="inline-flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={cadastroDoComite}
+                onChange={(e) => setCadastroDoComite(e.target.checked)}
+                className="accent-primary"
+              />
+              Cadastro de membros do Comitê de Conduta
             </label>
             <p className="text-xs text-slate-500 leading-snug">
-              O cadastro de membros inclui e encerra membros e suplentes do
-              Comitê, a pedido dele. O Presidente e a diretoria executiva leem a
-              conclusão e a ata dos casos procedentes que o Comitê envia; só a
-              diretoria executiva registra a decisão. Nenhum perfil abre caso, e
-              nem o Super Admin faz isso sem ele. Dar ou tirar um perfil avisa os
-              membros do Comitê.
+              Inclui e encerra membros e suplentes do Comitê, a pedido dele. Não
+              abre caso. Nem o Super Admin cadastra sem ele. Dar ou tirar este
+              perfil avisa os membros do Comitê.
             </p>
           </fieldset>
         )}

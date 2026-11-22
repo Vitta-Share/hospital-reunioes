@@ -132,15 +132,10 @@ describe("o Guia do rito", () => {
   });
 });
 
-/** As Recomendações do Comitê são a área da Direção (issue #1835): o
- * Presidente e a diretoria executiva não são do Comitê, não seguem o rito nem
- * passam pelo primeiro acesso dele. */
-const DA_DIRECAO = "./recomendacoes/";
-
 /** Toda tela do Comitê, menos o próprio guia. */
 const TELAS = Object.entries(
   import.meta.glob<{ default: () => React.ReactElement }>("./**/page.tsx", { eager: true })
-).filter(([caminho]) => !caminho.startsWith("./guia/") && !caminho.startsWith(DA_DIRECAO));
+).filter(([caminho]) => !caminho.startsWith("./guia/"));
 
 describe("o guia abre de qualquer tela do Comitê", () => {
   it("o detector acha as telas do Comitê (piso)", () => {
@@ -161,7 +156,7 @@ const AREAS = Object.entries(
   import.meta.glob<{ default: (p: { children: React.ReactNode }) => Promise<React.ReactElement> }>("./**/layout.tsx", {
     eager: true,
   })
-).filter(([caminho]) => !caminho.startsWith(DA_DIRECAO));
+);
 
 const TUDO_ABRE = {
   "/comite-de-conduta/minha-vez": 200,

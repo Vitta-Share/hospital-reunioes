@@ -38,9 +38,6 @@ export interface CurrentParticipante {
   // A tela Membros do Comitê de Conduta (issue #1822): quem está no Comitê
   // hoje ou tem o perfil de cadastro de membros. Calculado no servidor.
   ve_membros_do_comite?: boolean;
-  // O perfil nominal do Canal de Conduta (ADR 0097, decisão 3; issue #1835):
-  // o Presidente e a diretoria executiva leem a Recomendação do Comitê.
-  perfil_conduta?: "cadastro_de_membros" | "presidente" | "diretoria_executiva" | null;
 }
 
 interface State {

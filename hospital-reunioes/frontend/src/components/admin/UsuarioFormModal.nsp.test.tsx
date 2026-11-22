@@ -140,26 +140,22 @@ describe("o Acesso pleno à Segurança do Paciente", () => {
   });
 });
 
-describe("o perfil do Canal de Conduta (issues #1822 e #1835)", () => {
-  const perfil = () => screen.getByRole("combobox", { name: "Perfil no Canal de Conduta" }) as HTMLSelectElement;
+describe("o perfil de cadastro de membros do Comitê de Conduta (issue #1822)", () => {
+  it("dar o perfil manda o perfil do módulo", async () => {
+    const enviados = montar(PESSOA, "edit");
 
-  it.each(["cadastro_de_membros", "presidente", "diretoria_executiva"])(
-    "dar o perfil %s manda o perfil do módulo",
-    async (valor) => {
-      const enviados = montar(PESSOA, "edit");
+    fireEvent.click(screen.getByRole("checkbox", { name: /Cadastro de membros do Comitê de Conduta/ }));
+    salvar();
 
-      fireEvent.change(perfil(), { target: { value: valor } });
-      salvar();
-
-      await vi.waitFor(() => expect(enviados[0]?.perfil_conduta).toBe(valor));
-    }
-  );
+    await vi.waitFor(() => expect(enviados[0]?.perfil_conduta).toBe("cadastro_de_membros"));
+  });
 
   it("tirar o perfil manda null", async () => {
     const enviados = montar({ ...PESSOA, perfil_conduta: "cadastro_de_membros" }, "edit");
 
-    expect(perfil().value).toBe("cadastro_de_membros");
-    fireEvent.change(perfil(), { target: { value: "" } });
+    const caixa = screen.getByRole("checkbox", { name: /Cadastro de membros do Comitê de Conduta/ }) as HTMLInputElement;
+    expect(caixa.checked).toBe(true);
+    fireEvent.click(caixa);
     salvar();
 
     await vi.waitFor(() => expect(enviados[0]?.perfil_conduta).toBeNull());
