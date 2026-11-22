@@ -35,7 +35,7 @@ const RESPONDIDO = {
 };
 
 let chamadas: { url: string; body: BodyInit | null | undefined }[];
-let respostaDoAnexo: () => Response;
+let respostaDoAnexo: () => Response | Promise<Response>;
 
 function json(status: number, corpo: unknown): Response {
   return new Response(JSON.stringify(corpo), { status, headers: { "Content-Type": "application/json" } });
@@ -150,5 +150,34 @@ describe("o anexo no complemento do acompanhamento", () => {
     expect(await screen.findByText("Em análise")).toBeTruthy();
     expect(await screen.findByText(`foto.jpg: ${RECUSA}`)).toBeTruthy();
     expect(screen.getByText(COMPLEMENTO)).toBeTruthy();
+  });
+
+  it("segura a tela ocupada, com o botão bloqueado, até o último anexo subir", async () => {
+    let liberar: () => void = () => {};
+    respostaDoAnexo = () =>
+      new Promise<Response>((resolver) => {
+        liberar = () => resolver(json(201, { id: "a1", tipo: "audio" }));
+      });
+    await entrar();
+    anexar(arquivo("audio.m4a"));
+
+    enviarComplemento();
+
+    const botao = (await screen.findByRole("button", { name: /Enviando anexos/ })) as HTMLButtonElement;
+    await waitFor(() => expect(anexosEnviados()).toHaveLength(1));
+    expect(botao.disabled).toBe(true);
+    expect(screen.getByText(/Não feche esta página/)).toBeTruthy();
+    expect(screen.queryByText("1 anexo guardado.")).toBeNull();
+
+    digitar("Complemento", "Outro complemento.");
+    fireEvent.click(botao);
+    expect(complementosEnviados()).toHaveLength(1);
+
+    liberar();
+
+    expect(await screen.findByText("1 anexo guardado.")).toBeTruthy();
+    expect(screen.queryByText(/Enviando anexos/)).toBeNull();
+    expect(screen.queryByText(/Não feche esta página/)).toBeNull();
+    expect(screen.getByText("Em análise")).toBeTruthy();
   });
 });

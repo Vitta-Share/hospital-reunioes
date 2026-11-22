@@ -64,16 +64,15 @@ export function AcompanharRelato() {
   const [anexosRecusados, setAnexosRecusados] = useState<string[]>([]);
   const [aviso, setAviso] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  const [enviandoAnexos, setEnviandoAnexos] = useState(false);
 
   const agir = async (chamada: () => Promise<Acompanhamento>) => {
     setOcupado(true);
     setAviso(null);
     try {
       setCaso(await chamada());
-      return true;
     } catch (e) {
       setAviso((e as Error).message);
-      return false;
     } finally {
       setOcupado(false);
     }
@@ -86,23 +85,35 @@ export function AcompanharRelato() {
 
   const complementar = async (e: React.FormEvent) => {
     e.preventDefault();
+    setOcupado(true);
+    setAviso(null);
     setAnexosGuardados(0);
     setAnexosRecusados([]);
-    if (!(await agir(() => enviarComplemento(protocolo, codigo, complemento)))) return;
-    setComplemento("");
-    // Os anexos sobem um a um, depois do complemento enviado: o que o
-    // servidor recusar aparece com o motivo, e o complemento fica.
-    const enviados = anexos;
-    setAnexos([]);
-    let guardados = 0;
-    const recusados: string[] = [];
-    for (const arquivo of enviados) {
-      const motivo = await enviarAnexo({ protocolo, codigo }, arquivo, "complemento");
-      if (motivo) recusados.push(`${arquivo.name}: ${motivo}`);
-      else guardados += 1;
+    try {
+      const atualizado = await enviarComplemento(protocolo, codigo, complemento);
+      // Os anexos sobem um a um, depois do complemento enviado, com a tela
+      // ocupada até o último: o que o servidor recusar aparece com o motivo,
+      // e o complemento fica.
+      const enviados = anexos;
+      setEnviandoAnexos(enviados.length > 0);
+      let guardados = 0;
+      const recusados: string[] = [];
+      for (const arquivo of enviados) {
+        const motivo = await enviarAnexo({ protocolo, codigo }, arquivo, "complemento");
+        if (motivo) recusados.push(`${arquivo.name}: ${motivo}`);
+        else guardados += 1;
+      }
+      setCaso(atualizado);
+      setComplemento("");
+      setAnexos((atuais) => atuais.filter((arquivo) => !enviados.includes(arquivo)));
+      setAnexosGuardados(guardados);
+      setAnexosRecusados(recusados);
+    } catch (falha) {
+      setAviso((falha as Error).message);
+    } finally {
+      setEnviandoAnexos(false);
+      setOcupado(false);
     }
-    setAnexosGuardados(guardados);
-    setAnexosRecusados(recusados);
   };
 
   if (!caso) {
@@ -198,8 +209,11 @@ export function AcompanharRelato() {
         )}
         <button type="submit" className={BOTAO_PRINCIPAL} disabled={ocupado || !complemento.trim()}>
           {ocupado && <Loader2 className="w-4 h-4 animate-spin" aria-hidden />}
-          Enviar complemento
+          {enviandoAnexos ? "Enviando anexos" : "Enviar complemento"}
         </button>
+        {enviandoAnexos && (
+          <p className="text-sm text-slate-600">Não feche esta página até os anexos terminarem de subir.</p>
+        )}
         {anexosGuardados > 0 && (
           <p className="text-sm text-slate-600">
             {anexosGuardados === 1 ? "1 anexo guardado." : `${anexosGuardados} anexos guardados.`}
