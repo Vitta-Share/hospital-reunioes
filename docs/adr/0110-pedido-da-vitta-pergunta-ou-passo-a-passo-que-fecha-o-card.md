@@ -1,6 +1,7 @@
 ---
 status: accepted
 amends: 0109
+amended_by: 0111
 ---
 
 # Pedido da Vitta: Pergunta ou Passo a passo, e o Passo a passo concluído fecha o card no GitHub
