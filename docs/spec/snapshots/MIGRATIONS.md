@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T23:36+0000 -->
+<!-- last_update: 2026-11-22T01:33+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -199,6 +199,7 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 202 | `202_conduta_sinalizacao_da_ouvidoria.sql` | o caso que a Ouvidoria sinaliza ao Canal de Conduta | 0 | 2 | 1 | 0 |
 | 203 | `203_conduta_nota_ao_nucleo.sql` | Canal de Conduta, a nota do Comitê ao Núcleo de Segurança | 2 | 0 | 5 | 0 |
 | 207 | `207_nsp_perguntas_de_esclarecimento.sql` | as respostas às perguntas de esclarecimento do Núcleo | 1 | 0 | 1 | 0 |
+| 211 | `211_tecnologia_pergunta_da_vitta.sql` | a Pergunta da Vitta e a conversa do Me explique | 2 | 0 | 4 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 193 migrations.
+**Total:** 194 migrations.

@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T23:36+0000 -->
+<!-- last_update: 2026-11-22T01:33+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2984,6 +2984,60 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_nsp_esclarecimentos_triagem` em `(triagem_id)` (de `207_nsp_perguntas_de_esclarecimento.sql`)
 
+## tecnologia_perguntas
+
+> Origem: `211_tecnologia_pergunta_da_vitta.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `demanda_id` | `UUID` | NOT NULL | — | `tecnologia_demandas.id` |
+| `mensagem_id` | `UUID` | UNIQUE | — | `tecnologia_conversa_da_demanda.id` |
+| `autor_id` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `destinatario_id` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `assunto` | `TEXT` | NOT NULL | — | — |
+| `texto` | `TEXT` | NOT NULL | — | — |
+| `por_que_precisa` | `TEXT` | NOT NULL | — | — |
+| `o_que_esta_parado` | `TEXT` | NOT NULL | — | — |
+| `o_que_anda_depois` | `TEXT` | NOT NULL | — | — |
+| `ganho` | `TEXT` | NOT NULL | — | — |
+| `opcoes` | `JSONB` | NOT NULL | `'[]'::jsonb` | — |
+| `recomendada` | `TEXT` | — | — | — |
+| `porque_da_recomendada` | `TEXT` | — | — | — |
+| `estado` | `TEXT` | NOT NULL | `'aberta'` | — |
+| `resposta_opcao` | `TEXT` | — | — | — |
+| `resposta_texto` | `TEXT` | — | — | — |
+| `respondida_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `respondida_em_nome_de` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `respondida_em` | `TIMESTAMPTZ` | — | — | — |
+| `resolucao_decidido` | `TEXT` | — | — | — |
+| `resolucao_destravou` | `TEXT` | — | — | — |
+| `resolvida_em` | `TIMESTAMPTZ` | — | — | — |
+| `cancelada_em` | `TIMESTAMPTZ` | — | — | — |
+| `lembrete_enviado_em` | `TIMESTAMPTZ` | — | — | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_tecnologia_perguntas_demanda` em `(demanda_id, criado_em)` (de `211_tecnologia_pergunta_da_vitta.sql`)
+- `idx_tecnologia_perguntas_abertas` em `(criado_em)` (de `211_tecnologia_pergunta_da_vitta.sql`)
+- `idx_tecnologia_perguntas_destinatario` em `(destinatario_id)` (de `211_tecnologia_pergunta_da_vitta.sql`)
+
+## tecnologia_conversas_do_me_explique
+
+> Origem: `211_tecnologia_pergunta_da_vitta.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `pergunta_id` | `UUID` | NOT NULL | — | `tecnologia_perguntas.id` |
+| `participante_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `mensagens` | `JSONB` | NOT NULL | `'[]'::jsonb` | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `atualizado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_tecnologia_conversas_do_me_explique_participante` em `(participante_id)` (de `211_tecnologia_pergunta_da_vitta.sql`)
+
 ---
 
-**Resumo:** 149 tabelas vivas.
+**Resumo:** 151 tabelas vivas.

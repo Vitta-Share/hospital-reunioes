@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T23:36+0000 -->
+<!-- last_update: 2026-11-22T01:33+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -198,6 +198,7 @@ erDiagram
     participantes ||--o{ tecnologia_anexos : "anexado_por"
     participantes ||--o{ tecnologia_conversa_da_demanda : "autor_id"
     participantes ||--o{ tecnologia_conversas : "autor_id"
+    participantes ||--o{ tecnologia_conversas_do_me_explique : "participante_id"
     participantes ||--o{ tecnologia_demandas : "apagada_por"
     participantes ||--o{ tecnologia_demandas : "autor_id"
     participantes ||--o{ tecnologia_demandas : "cancelada_por"
@@ -205,6 +206,10 @@ erDiagram
     participantes ||--o{ tecnologia_demandas : "responsavel_id"
     participantes ||--o{ tecnologia_demandas : "vinculado_por"
     participantes ||--o{ tecnologia_envios_aos_desenvolvedores : "enviado_por"
+    participantes ||--o{ tecnologia_perguntas : "autor_id"
+    participantes ||--o{ tecnologia_perguntas : "destinatario_id"
+    participantes ||--o{ tecnologia_perguntas : "respondida_em_nome_de"
+    participantes ||--o{ tecnologia_perguntas : "respondida_por"
     participantes ||--o{ tecnologia_planejamentos : "revisao_por"
     participantes ||--o{ tecnologia_produtos : "dono_id"
     participantes ||--o{ user_preferences : "participante_id"
@@ -230,13 +235,16 @@ erDiagram
     reunioes ||--o{ rotinas : "id_reuniao"
     reunioes ||--o{ tokens_validacao : "id_reuniao"
     rotinas ||--o{ pendencia_historico : "rotina_id"
+    tecnologia_conversa_da_demanda ||--o{ tecnologia_perguntas : "mensagem_id"
     tecnologia_conversas ||--o{ tecnologia_anexos : "conversa_id"
     tecnologia_demandas ||--o{ tecnologia_anexos : "demanda_id"
     tecnologia_demandas ||--o{ tecnologia_chamadas_ia : "demanda_id"
     tecnologia_demandas ||--o{ tecnologia_conversa_da_demanda : "demanda_id"
     tecnologia_demandas ||--o{ tecnologia_conversas : "demanda_id"
     tecnologia_demandas ||--o{ tecnologia_envios_aos_desenvolvedores : "demanda_id"
+    tecnologia_demandas ||--o{ tecnologia_perguntas : "demanda_id"
     tecnologia_demandas ||--o{ tecnologia_planejamentos : "demanda_id"
+    tecnologia_perguntas ||--o{ tecnologia_conversas_do_me_explique : "pergunta_id"
     tecnologia_produtos ||--o{ tecnologia_demandas : "produto_id"
     tipos_reuniao ||--o{ reunioes : "tipo_id"
 
@@ -1613,6 +1621,25 @@ erDiagram
         TEXT resposta
         TIMESTAMPTZ criado_em
     }
+    tecnologia_perguntas {
+        UUID id PK
+        UUID demanda_id FK
+        UUID mensagem_id FK
+        VARCHAR autor_id FK
+        VARCHAR destinatario_id FK
+        TEXT assunto
+        TEXT texto
+        TEXT por_que_precisa
+        _ mais_colunas "+18"
+    }
+    tecnologia_conversas_do_me_explique {
+        UUID id PK
+        UUID pergunta_id FK
+        VARCHAR participante_id FK
+        JSONB mensagens
+        TIMESTAMPTZ criado_em
+        TIMESTAMPTZ atualizado_em
+    }
 ```
 
 ## Indexes principais
@@ -1876,6 +1903,10 @@ erDiagram
 | `conduta_notas_nsp` | `idx_conduta_notas_nsp_enviada_por` | `enviada_por` | `203_conduta_nota_ao_nucleo.sql` |
 | `nsp_notas_do_comite` | `idx_nsp_notas_do_comite_enviada_em` | `enviada_em DESC` | `203_conduta_nota_ao_nucleo.sql` |
 | `nsp_esclarecimentos` | `idx_nsp_esclarecimentos_triagem` | `triagem_id` | `207_nsp_perguntas_de_esclarecimento.sql` |
+| `tecnologia_perguntas` | `idx_tecnologia_perguntas_demanda` | `demanda_id, criado_em` | `211_tecnologia_pergunta_da_vitta.sql` |
+| `tecnologia_perguntas` | `idx_tecnologia_perguntas_abertas` | `criado_em` | `211_tecnologia_pergunta_da_vitta.sql` |
+| `tecnologia_perguntas` | `idx_tecnologia_perguntas_destinatario` | `destinatario_id` | `211_tecnologia_pergunta_da_vitta.sql` |
+| `tecnologia_conversas_do_me_explique` | `idx_tecnologia_conversas_do_me_explique_participante` | `participante_id` | `211_tecnologia_pergunta_da_vitta.sql` |
 
 ---
-**Resumo:** 149 tabelas · 231 relacionamentos FK detectados.
+**Resumo:** 151 tabelas · 239 relacionamentos FK detectados.

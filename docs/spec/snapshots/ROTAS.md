@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-21T23:36+0000 -->
+<!-- last_update: 2026-11-22T01:33+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -765,7 +765,9 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | GET | `/automacao/tecnologia/demandas/{demanda_id}/anexos` | Nome, tipo e URL assinada de cada anexo não apagado da Demanda. | ✅ |
 | GET | `/automacao/tecnologia/demandas/{demanda_id}/conversa` | A resposta do diretor (ADR 0096, decisao 6): as mensagens da Conversa | ✅ |
 | POST | `/automacao/tecnologia/demandas/{demanda_id}/conversa` | A Mensagem pelo terminal (ADR 0096): grava no perfil do Desenvolvedor | ✅ |
+| POST | `/automacao/tecnologia/demandas/{demanda_id}/perguntas` | Cria a Pergunta da Vitta aberta na Demanda, com a entrada na Conversa, | ✅ |
 | GET | `/automacao/tecnologia/destinatarios` | Quem pode ser Destinatario de uma mensagem na Conversa da Demanda | ✅ |
+| GET | `/automacao/tecnologia/perguntas/{pergunta_id}` | O estado da Pergunta da Vitta e, quando houver, a resposta (o Checar | ✅ |
 | GET | `/automacao/tecnologia/projetos/{projeto}/issues/{numero}/demanda` | O id da Demanda vinculada a esta issue-raiz (ADR 0093: projeto mais | ✅ |
 | POST | `/automacao/tecnologia/projetos/{projeto}/issues/{numero}/demanda` | A Demanda do PRD de um Projeto novo (issue #1967, PRD #1964): 201 quando | ✅ |
 | POST | `/automacao/tecnologia/validacoes` | Guarda a observacao original junto da Demanda do PRD e devolve so os | ✅ |
@@ -807,4 +809,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 466 endpoints em 67 routers · 93% exigem auth.
+**Totais:** 468 endpoints em 67 routers · 93% exigem auth.
