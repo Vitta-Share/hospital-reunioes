@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T17:21:18-03:00",
+      "sha": "b1ed0d4834d5391b5bca51106e7d09f83f72a99f",
+      "app_version": "0.385.0",
+      "subject": "Onda sesta-1786-onda14: Aviso de assunto fora do canal na revisão do relato",
+      "raw_subject": "chore(deploy): registro da onda sesta-1786-onda14 (#2194)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 568,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1786-onda14: PR #2194 (issue #1848), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 23,
+          "frontend": 247
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T17:14:08-03:00",
       "sha": "e0d599f266d4308516ca9c8a3a657e6032079d9c",
       "app_version": "0.384.1",
