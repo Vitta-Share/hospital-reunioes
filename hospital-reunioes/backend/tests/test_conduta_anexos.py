@@ -18,6 +18,7 @@ import secrets
 import struct
 import sys
 import wave
+from pathlib import Path
 
 import mutagen
 import pytest
@@ -520,3 +521,26 @@ class TestSoOMembroAbre:
         resposta = comite.abrir(caso_id=outro["id"])
 
         assert resposta.status_code == 404
+
+
+def test_o_kit_de_conhecimento_conta_os_anexos_do_relato():
+    """O agente de Tecnologia responde sobre o Produto pelo kit."""
+    kit = (Path(__file__).resolve().parents[1] / "app" / "conhecimento" / "canal-de-conduta.md").read_text(
+        encoding="utf-8"
+    )
+    secao = kit.split("## Os anexos do relato", 1)[1].split("\n## ", 1)[0]
+
+    for promessa in (
+        "Os dados de origem do arquivo são apagados automaticamente.",
+        "EXIF e a localização (GPS)",
+        "autor e o programa que gerou o PDF",
+        "etiquetas do áudio",
+        "JPG, PNG ou WEBP",
+        "MP3, M4A, OGG ou WAV",
+        "o relato segue sem ele",
+        "O nome original do arquivo não é guardado",
+        "só sai para quem abre o caso",
+    ):
+        assert promessa in secao
+    assert "Anexos e o aviso de assunto fora do canal na revisão chegam" not in kit
+    assert "os anexos do relato, as perguntas ao relator" not in kit
