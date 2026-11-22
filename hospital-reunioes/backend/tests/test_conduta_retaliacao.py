@@ -44,7 +44,7 @@ def _chave(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _unica(monkeypatch):
-    # A chave única da migration 227: uma verificação por marco do caso.
+    # A chave única da migration 229: uma verificação por marco do caso.
     monkeypatch.setitem(UNICAS, TABELA, ("caso_id", "marco"))
 
 

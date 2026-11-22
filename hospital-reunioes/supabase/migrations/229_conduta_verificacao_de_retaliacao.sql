@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 227: Canal de Conduta, a verificação de retaliação em 30, 90 e
+-- Migration 229: Canal de Conduta, a verificação de retaliação em 30, 90 e
 -- 180 dias (issue #1839, PRD #1786, ADR 0097; especificação, 6.11 e 18)
 -- =====================================================
 -- O que entra:
@@ -100,4 +100,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (227) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (229) ON CONFLICT (numero) DO NOTHING;

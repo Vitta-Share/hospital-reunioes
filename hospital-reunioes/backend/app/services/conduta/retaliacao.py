@@ -16,7 +16,7 @@ acompanhamento, issue #1845). Caso anônimo sem aviso não gera tarefa.
 A resposta é de um clique, houve ou não houve, com observação opcional e
 cifrada. "Houve" oferece abrir um caso novo de retaliação, que entra na
 triagem da fila comum, ligado à verificação. O banco tem as mesmas travas
-(migration 227).
+(migration 229).
 """
 
 from __future__ import annotations

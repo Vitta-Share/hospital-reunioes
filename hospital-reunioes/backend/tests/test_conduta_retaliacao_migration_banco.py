@@ -1,8 +1,8 @@
-"""A migration 227, a verificação de retaliação em 30, 90 e 180 dias, num
+"""A migration 229, a verificação de retaliação em 30, 90 e 180 dias, num
 Postgres de verdade (issue #1839).
 
 Sobe um Postgres descartável, aplica a 175, a 185, a 192, a 199, a 214, a
-216, a 221, a 223 e a 227 (a 227 duas vezes) sobre o mínimo de antes e prova
+216, a 221, a 223 e a 229 (a 229 duas vezes) sobre o mínimo de antes e prova
 no banco:
 
 - a verificação é do caso concluído, uma por marco, e só a partir do dia
@@ -36,7 +36,7 @@ ANTERIORES = (
     "221_conduta_ata_de_deliberacao.sql",
     "223_conduta_recomendacao_medida_e_retorno.sql",
 )
-MIGRATION = PASTA / "227_conduta_verificacao_de_retaliacao.sql"
+MIGRATION = PASTA / "229_conduta_verificacao_de_retaliacao.sql"
 TABELA = "conduta_verificacoes_de_retaliacao"
 
 
@@ -48,7 +48,7 @@ def banco():
             pytest.fail("O CI precisa do initdb para provar a verificação de retaliação no banco.")
         pytest.skip("Sem initdb nesta máquina.")
     pg = _Postgres(bindir)
-    pg.porta = "54227"
+    pg.porta = "54229"
     pg.subir()
     try:
         pg.ok(ESQUEMA_ANTERIOR)
