@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T01:11:57-03:00",
+      "sha": "5c75e3448cb54161a37774670e15aba37fd864b4",
+      "app_version": "0.368.0",
+      "subject": "Onda pergunta-da-vitta-2112-onda3: Resolver e cancelar a Pergunta da Vitta pela ponte, com a linha de sistema na Conversa; Me explique no cartão da Pergunta da Vitta",
+      "raw_subject": "chore(deploy): registro da onda pergunta-da-vitta-2112-onda3 (#2136 #2137)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        2112
+      ],
+      "result": "healthy",
+      "duration_seconds": 667,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta pergunta-da-vitta-2112-onda3: PR #2136 (issue #2121), PR #2137 (issue #2122), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 5,
+        "build_s": {
+          "backend": 22,
+          "frontend": 205
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T00:47:04-03:00",
       "sha": "e11fc690ccf65568b3a77634b79557cfa97592af",
       "app_version": "0.367.0",
