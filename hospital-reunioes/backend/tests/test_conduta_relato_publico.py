@@ -371,3 +371,32 @@ class TestConfianca:
         assert novo["protocolo"] not in resposta.text
         assert novo["codigo"] not in resposta.text
         assert _o_caso(banco).get("confianca") is None
+
+
+class TestOComiteLe:
+    """O que a pessoa enviou chega à tela do caso, para o Comitê, e só a ele."""
+
+    def _aberto(self, corpo: dict) -> dict:
+        # Sem avisos salvos nas Configurações: a tela mostrou o texto padrão.
+        corpo = corpo | {"ciencia": {"ciente": True, "versoes": dict.fromkeys(relato_publico.AVISOS_DO_PASSO_1)}}
+        from test_conduta_portao import _Cenario, _participacao, _pessoa, _rota_do_caso
+
+        cenario = _Cenario(_pessoa(), [_participacao(papel="membro")])
+        app = FastAPI()
+        app.state.limiter = limiter
+        app.include_router(conduta_publico.router, prefix="/api")
+        app.dependency_overrides[get_supabase_client] = lambda: cenario.banco
+        assert TestClient(app).post(RELATOS, json=corpo).status_code == 201
+        (caso,) = cenario.banco.tabelas["conduta_casos"]
+        return cenario.cliente().get(_rota_do_caso(caso)).json()
+
+    def test_com_identificacao_o_comite_ve_o_nome(self, triagens):
+        aberto = self._aberto(envio(identificacao="identificado", nome=NOME))
+
+        assert aberto["relator_nome"] == NOME
+        assert aberto["relato"].startswith(TEXTO)
+
+    def test_no_relato_anonimo_nao_ha_nome(self, triagens):
+        aberto = self._aberto(envio(nome=NOME))
+
+        assert aberto["relator_nome"] is None

@@ -444,6 +444,9 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
 
       <section aria-label="Relato original" className={`${CARTAO} px-4 py-4 space-y-1`}>
         <h2 className="text-base font-semibold text-slate-900">Relato original</h2>
+        {caso.relator_nome && (
+          <p className="text-sm text-slate-600">Relatou com identificação: {caso.relator_nome}</p>
+        )}
         <p className="text-sm text-slate-800 whitespace-pre-line break-words">{caso.relato}</p>
       </section>
 

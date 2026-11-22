@@ -106,6 +106,8 @@ export interface CasoAberto extends CasoDaLista {
   contestacoes_de_participacao: ContestacaoDeParticipacao[];
   citados: Citado[];
   relato: string;
+  // O nome de quem relatou com identificação (issue #1843); nulo no anônimo.
+  relator_nome?: string | null;
   escopo: Escopo | null;
   destino: string | null;
   papel: string | null;
