@@ -98,3 +98,32 @@ describe("a saída para o Canal de Conduta na Manifestação guiada", () => {
     expect(screen.queryByText(new RegExp(SAIDA))).toBeNull();
   });
 });
+
+function registroManual() {
+  render(<NovaManifestacaoModal aberto token="token" onClose={() => {}} onRegistrada={() => {}} />);
+}
+
+describe("a orientação no registro manual do ouvidor", () => {
+  it("com o canal aberto, o registro manual orienta a indicar o Canal ao colaborador", async () => {
+    registroManual();
+
+    expect(await screen.findByText(ORIENTACAO)).toBeTruthy();
+  });
+
+  it("com o canal fechado, a orientação não aparece", async () => {
+    canalAberto = false;
+    registroManual();
+
+    await waitFor(() => expect(perguntasDaAbertura).toBe(1));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByText(ORIENTACAO)).toBeNull();
+  });
+
+  it("o relato de conduta continua entre os tipos: os casos já abertos seguem tramitando na Ouvidoria", () => {
+    registroManual();
+
+    const tipo = screen.getByLabelText("Tipo da manifestação") as HTMLSelectElement;
+    const opcoes = Array.from(tipo.options).map((o) => [o.value, o.textContent]);
+    expect(opcoes).toContainEqual(["relato_de_conduta", "Relato de conduta"]);
+  });
+});
