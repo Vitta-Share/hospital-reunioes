@@ -1,5 +1,8 @@
 import { AccessProfile, PerfilOuvidoria, PerfilPop, UserRole } from "@/types";
 
+/** O perfil nominal do Canal de Conduta: cadastra membros, ou lê a Recomendação do Comitê (issue #1835). */
+export type PerfilConduta = "cadastro_de_membros" | "presidente" | "diretoria_executiva";
+
 /** Linha vinda de GET /api/admin/usuarios */
 export interface AdminUsuario {
   id: string;
@@ -24,8 +27,8 @@ export interface AdminUsuario {
   github_login?: string | null;
   /** Acesso pleno à Segurança do Paciente (ADR 0095, decisão 4). */
   perfil_nsp?: "acesso_pleno" | null;
-  /** Cadastro de membros do Comitê de Conduta (ADR 0097, decisão 3). */
-  perfil_conduta?: "cadastro_de_membros" | null;
+  /** O perfil do Canal de Conduta (ADR 0097, decisão 3; issue #1835). */
+  perfil_conduta?: PerfilConduta | null;
   /** O registro profissional (issue #1765). */
   conselho_profissional?: string | null;
   registro_profissional?: string | null;
@@ -72,8 +75,8 @@ export interface AdminUsuarioPayload {
   registro_uf?: string | null;
   /** `null` explícito tira o Acesso pleno; campo ausente não mexe nele. */
   perfil_nsp?: "acesso_pleno" | null;
-  /** `null` explícito tira o perfil de cadastro do Comitê de Conduta. */
-  perfil_conduta?: "cadastro_de_membros" | null;
+  /** `null` explícito tira o perfil do Canal de Conduta. */
+  perfil_conduta?: PerfilConduta | null;
   reason?: string;
 }
 
