@@ -161,19 +161,22 @@ describe("entrar no app pelo Início (issue #1948)", () => {
 describe("o fluxograma da página", () => {
   const fonte = FONTE_DO_FLUXOGRAMA.exec(PAGINA.corpo)?.[1] ?? "";
 
-  it("vai da reunião até a Ata assinada e às Pendências que nascem dela", () => {
+  it("vai da reunião até a Ata assinada e às Pendências, que nascem no envio (issue #1880)", () => {
     const leitura = lerFluxograma(fonte);
     if (!leitura.ok) throw new Error(leitura.erros.join("\n"));
     const { fluxo } = leitura;
     const porRotulo = (rotulo: RegExp) => fluxo.passos.find((p) => rotulo.test(p.rotulo))?.id ?? "";
 
     const inicio = fluxo.passos.find((p) => p.forma === "inicio");
+    const envio = porRotulo(/^Enviar para assinatura$/);
     const assinada = porRotulo(/^Ata assinada$/);
     const pendencias = porRotulo(/^Pendências/);
 
     expect(inicio?.rotulo).toMatch(/reunião/i);
     expect(alcancaveis(fluxo, inicio!.id)).toContain(assinada);
-    expect(alcancaveis(fluxo, assinada)).toContain(pendencias);
+    expect(alcancaveis(fluxo, envio)).toContain(pendencias);
+    // A assinatura é ciência da Ata (ADR 0098): as Pendências não esperam por ela.
+    expect(alcancaveis(fluxo, assinada)).not.toContain(pendencias);
   });
 
   it("a página desenha o fluxograma, sem erro de bloco", () => {
@@ -181,5 +184,81 @@ describe("o fluxograma da página", () => {
 
     expect(container.querySelector("[data-fluxograma]")).not.toBeNull();
     expect(container.querySelector('[role="alert"]')).toBeNull();
+  });
+});
+
+describe("o ciclo de vida, o painel e a Rotina (issue #1880)", () => {
+  const todas = secoes(PAGINA.corpo);
+  const secao = (titulo: RegExp) => todas.find((s) => titulo.test(s.titulo));
+
+  it("tem uma tarefa para cada coisa que nasceu ou mudou no pedido", () => {
+    const titulos = todas.map((s) => s.titulo);
+    for (const tarefa of [
+      /^Ver o que depende de você no Início$/,
+      /^Ler o painel de Reuniões$/,
+      /^Classificar as linhas da Ata em Ação, Rotina e Processo$/,
+      /^Contestar um item da Ata$/,
+      /^Responder a uma Contestação$/,
+      /^Concluir uma Pendência e anexar a prova$/,
+      /^Repactuar o prazo de uma Pendência$/,
+      /^Cancelar ou reabrir uma Pendência$/,
+      /^Marcar a Verificação de uma Rotina$/,
+      /^Consultar as Definições de processo$/,
+      /^Atualizar as Pendências pelo link do e-mail$/,
+    ]) {
+      expect(titulos.some((t) => tarefa.test(t)), String(tarefa)).toBe(true);
+    }
+  });
+
+  it("o envio para assinatura é onde as Pendências nascem, não a assinatura", () => {
+    const envio = secao(/^Mandar a Ata para assinatura$/)?.texto ?? "";
+
+    expect(envio).toMatch(/Pendências nascem no envio/);
+    expect(envio).not.toMatch(/assina já recebe as Pendências/);
+  });
+
+  it("o Calendário diz que as reuniões do dia vêm na ordem do horário", () => {
+    expect(secao(/^Ver as reuniões do mês$/)?.texto).toMatch(/ordem do horário de início/);
+  });
+});
+
+describe("o fluxograma do ciclo de vida da Pendência (issue #1880)", () => {
+  const blocos = [...PAGINA.corpo.matchAll(/```fluxograma\n([\s\S]*?)```/g)].map((m) => m[1]);
+  const ler = (fonte: string) => {
+    const leitura = lerFluxograma(fonte);
+    if (!leitura.ok) throw new Error(leitura.erros.join("\n"));
+    return leitura.fluxo;
+  };
+
+  it("no caminho da reunião, as Pendências saem direto do envio para assinatura", () => {
+    const fluxo = ler(blocos[0] ?? "");
+    const envio = fluxo.passos.find((p) => /^Enviar para assinatura$/.test(p.rotulo))!;
+    const pendencias = fluxo.passos.find((p) => /^Pendências/.test(p.rotulo))!;
+
+    expect(fluxo.ligacoes.some((l) => l.de === envio.id && l.para === pendencias.id)).toBe(true);
+  });
+
+  it("a Pendência nasce no envio e passa pelos quatro estados, com as ações nas ligações", () => {
+    const fluxo = ler(blocos[1] ?? "");
+    const id = (rotulo: RegExp) => fluxo.passos.find((p) => rotulo.test(p.rotulo))?.id ?? "?";
+    const liga = (de: string, para: string, acao: RegExp) =>
+      fluxo.ligacoes.some((l) => l.de === de && l.para === para && acao.test(l.rotulo));
+
+    const nasce = fluxo.passos.find((p) => p.forma === "inicio");
+    const [pendente, andamento, concluida, cancelada] = [/^Pendente$/, /^Em progresso$/, /^Concluída$/, /^Cancelada$/].map(
+      id
+    );
+    const repactuacao = id(/^Repactuação$/);
+    const reabertura = id(/^Reabertura$/);
+
+    expect(nasce?.rotulo).toMatch(/^Nasce no envio da Ata$/);
+    expect(fluxo.ligacoes.some((l) => l.de === nasce!.id && l.para === pendente)).toBe(true);
+    expect(liga(pendente, andamento, /^Iniciar$/)).toBe(true);
+    expect(liga(andamento, concluida, /^Concluir$/)).toBe(true);
+    expect(liga(andamento, cancelada, /^Cancelar$/)).toBe(true);
+    expect(liga(pendente, repactuacao, /^Repactuar$/)).toBe(true);
+    expect(liga(concluida, reabertura, /^Reabrir$/)).toBe(true);
+    expect(alcancaveis(fluxo, reabertura)).toContain(pendente);
+    expect(alcancaveis(fluxo, repactuacao)).toContain(pendente);
   });
 });

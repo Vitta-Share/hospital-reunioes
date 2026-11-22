@@ -8,6 +8,8 @@ chamam as guardas do roteiro direto.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 import sys
 from pathlib import Path
@@ -125,3 +127,69 @@ def test_o_seed_recusa_banco_que_nao_e_o_local(tmp_path):
 
     with pytest.raises(SystemExit, match="não é o Supabase local"):
         roteiro.credenciais_locais(env)
+
+
+# --------------------------------------------------------------------------
+# O ciclo de vida, o painel e a Rotina (issue #1880)
+# --------------------------------------------------------------------------
+
+
+def test_as_reunioes_do_seed_nao_contam_como_dado_de_fora(monkeypatch):
+    # A reunião em assinatura (da Contestação) é do seed: o Calendário e a
+    # lista de Pendências mostram o título dela e o print tem de sair.
+    reunioes = [{"id_reuniao": r, "titulo": t} for r, t in roteiro.REUNIOES_DO_SEED.items()]
+    reunioes.append({"id_reuniao": "R1", "titulo": "Comissão de Ética Médica"})
+
+    def rest(caminho, metodo="GET", corpo=None, prefer=None):
+        if caminho.split("&offset=")[1] != "0":
+            return []
+        return reunioes if caminho.startswith("reunioes") else []
+
+    monkeypatch.setattr(roteiro, "_rest", rest)
+
+    de_fora = roteiro.nomes_de_fora_do_seed()
+
+    assert len(roteiro.REUNIOES_DO_SEED) >= 3
+    assert de_fora == ["Comissão de Ética Médica"]
+
+
+def test_o_seed_novo_fica_na_faixa_da_issue():
+    assert all(r.startswith("MRP1721") for r in roteiro.REUNIOES_DO_SEED)
+    assert all(pid.startswith("PE1721") for pid, *_ in roteiro.PENDENCIAS)
+    assert len({pid for pid, *_ in roteiro.PENDENCIAS}) == len(roteiro.PENDENCIAS)
+
+
+def test_o_link_pessoal_do_seed_grava_so_o_hash_do_token(monkeypatch):
+    # O banco guarda o hash, como o app (`link_pessoal.py`); o token em claro
+    # só vive no roteiro, que abre a página por ele.
+    gravados = []
+
+    def rest(caminho, metodo="GET", corpo=None, prefer=None):
+        if metodo == "POST":
+            gravados.append((caminho, corpo))
+        return []
+
+    monkeypatch.setattr(roteiro, "_rest", rest)
+
+    roteiro.semear_link_pessoal()
+
+    (tabela, [linha]), *_ = [g for g in gravados if g[0] == "pendencias_links_pessoais"]
+    assert tabela == "pendencias_links_pessoais"
+    assert linha["token_hash"] == hashlib.sha256(roteiro.TOKEN_DO_LINK.encode()).hexdigest()
+    assert roteiro.TOKEN_DO_LINK not in json.dumps(linha)
+    assert linha["participante_id"] == roteiro.DONO_DO_LINK
+
+
+def test_o_ranking_sai_pelo_super_admin_de_exemplo_e_so_com_gente_do_seed(monkeypatch):
+    # O ranking com nomes é só do Super admin (issue #2144), e lista o hospital
+    # inteiro: o print entra como o Super admin de exemplo e tira da tela as
+    # linhas de quem não é do seed antes de a guarda ler o texto.
+    monkeypatch.setattr(roteiro, "_rest", lambda *a, **k: [])
+    admin = [p for p in roteiro.PESSOAS if p[4] == "super_admin"]
+
+    passos = roteiro.PRINTS["ranking"]()
+
+    assert roteiro.QUEM_TIRA["ranking"] == admin[0][0]
+    for _, nome, *_ in roteiro.PESSOAS:
+        assert json.dumps(nome) in passos
+    assert ".remove()" in passos

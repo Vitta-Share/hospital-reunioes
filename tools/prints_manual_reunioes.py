@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import json
 import shutil
 import subprocess
@@ -58,6 +59,9 @@ PESSOAS = [
     ("P17212", "Patrícia Vilela", "Enfermeira", "UTI Adulto", "regular"),
     ("P17213", "Fábio Guimarães", "Técnico de Manutenção", "Engenharia Clínica", "regular"),
     ("P17214", "Simone Furtado", "Nutricionista", "Nutrição", "regular"),
+    # O ranking com nomes é só do Super admin (issue #2144): o print dele entra
+    # por ela (issue #1880).
+    ("P17215", "Laura Pacheco", "Gerente de Qualidade", "Qualidade", "super_admin"),
 ]
 
 
@@ -77,16 +81,64 @@ TITULO_REUNIAO = "Indicadores da UTI Adulto"
 # A reunião já assinada, de onde vêm as Pendências da lista.
 REUNIAO_ASSINADA = "MRP1721B"
 TITULO_ASSINADA = "Comissão de Controle de Infecção"
+# A reunião com a Ata em assinatura, de outra Facilitadora: é nela que a
+# Clara, como responsável, contesta o item dela (issue #1880).
+REUNIAO_EM_ASSINATURA = "MRP1721C"
+TITULO_EM_ASSINATURA = "Comissão de Farmácia e Terapêutica"
+FACILITADORA_DA_FARMACIA = "P17214"
+REUNIOES_DO_SEED = {
+    REUNIAO: TITULO_REUNIAO,
+    REUNIAO_ASSINADA: TITULO_ASSINADA,
+    REUNIAO_EM_ASSINATURA: TITULO_EM_ASSINATURA,
+}
 
 # (id, descrição, responsável, prazo em dias a partir de hoje, estado, entregável)
+# O estado é o gravado; atrasada é calculada (prazo vencido e aberta).
 PENDENCIAS = [
     ("PE1721A", "Revisar o protocolo de troca de curativos", "P17212", 6, "PENDENTE", "Protocolo revisado no mural"),
     ("PE1721B", "Conferir o estoque de antissépticos", "P17211", 3, "EM_PROGRESSO", "Planilha de estoque conferida"),
-    ("PE1721C", "Calibrar as bombas de infusão do leito 4 ao 8", "P17213", -2, "ATRASADO", "Laudo de calibração"),
+    ("PE1721C", "Calibrar as bombas de infusão do leito 4 ao 8", "P17213", -2, "PENDENTE", "Laudo de calibração"),
     ("PE1721D", "Ajustar a dieta dos pacientes em jejum prolongado", "P17214", -5, "CONCLUIDO", "Cardápio ajustado"),
     # A da própria Facilitadora: o print do Início mostra a fila dela.
     ("PE1721E", "Mandar a pauta da próxima reunião da UTI", "P17210", 4, "PENDENTE", "Pauta enviada aos participantes"),
+    # A da Clara na Ata em assinatura da Farmácia: a que ela contesta.
+    ("PE1721F", "Atualizar a lista de antibióticos padronizados", "P17210", 10, "PENDENTE", "Lista publicada"),
 ]
+REUNIAO_DA_PENDENCIA = {"PE1721F": REUNIAO_EM_ASSINATURA}
+
+# A Contestação já aberta, que a Clara responde como Facilitadora.
+CONTESTADA = "PE1721B"
+MOTIVO_DA_CONTESTACAO = (
+    "O estoque de antissépticos é da Farmácia Central, e o fornecedor só entrega "
+    "na semana que vem. O prazo de 3 dias não fecha."
+)
+
+# A Rotina das linhas da Ata assinada, com as Verificações das últimas semanas.
+ROTINA = "17210000-0000-4000-8000-000000001880"
+DESCRICAO_DA_ROTINA = "Conferir o carrinho de emergência da UTI"
+RESPONSAVEL_DA_ROTINA = "P17212"
+# (semanas antes da atual, resultado, anotação, marcada com atraso)
+VERIFICACOES = [
+    (5, "REALIZADA", None, False),
+    (4, "NAO_REALIZADA", "O carrinho estava em uso numa intercorrência; conferido no dia seguinte.", False),
+    (3, "REALIZADA", None, False),
+    (2, "REALIZADA", None, True),
+    # A semana passada fica sem marcação: aparece como ciclo atrasado.
+]
+
+DEFINICAO_DE_PROCESSO = "17210000-0000-4000-8000-000000001881"
+TRECHO_DO_PROCESSO = (
+    "O curativo do cateter central é trocado a cada 7 dias, ou antes se estiver "
+    "úmido ou solto, e cada troca é registrada no prontuário."
+)
+
+# O link pessoal da pessoa que nunca entrou (issue #1878). O token é de
+# exemplo e só abre as Pendências de exemplo do Fábio no banco local.
+TOKEN_DO_LINK = "manual-reunioes-1880-link-de-exemplo"
+DONO_DO_LINK = "P17213"
+
+# Quem entra no app para cada print; o resto sai pela Facilitadora.
+QUEM_TIRA = {"ranking": "P17215"}
 
 
 # --------------------------------------------------------------------------
@@ -270,8 +322,32 @@ def json_da_ata() -> dict:
                 "entregavel": entregavel,
                 "objetivo_meta": "Reduzir a infecção de cateter na UTI",
                 "status": "ABERTO",
+                "tipo": "ACAO",
             }
             for _, descricao, responsavel, prazo, _, entregavel in PENDENCIAS[:3]
+        ]
+        + [
+            {
+                "acao": DESCRICAO_DA_ROTINA,
+                "responsavel": "Patrícia Vilela",
+                "cargo": "Enfermeira",
+                "prazo": None,
+                "entregavel": "Carrinho conferido e lacrado",
+                "objetivo_meta": "Carrinho pronto em toda intercorrência",
+                "status": "ABERTO",
+                "tipo": "ROTINA",
+                "frequencia": "SEMANAL",
+            },
+            {
+                "acao": TRECHO_DO_PROCESSO,
+                "responsavel": "",
+                "cargo": "",
+                "prazo": None,
+                "entregavel": "",
+                "objetivo_meta": "Reduzir a infecção de cateter na UTI",
+                "status": "ABERTO",
+                "tipo": "PROCESSO",
+            },
         ],
     }
 
@@ -293,7 +369,7 @@ def semear() -> None:
                     "setor": setor,
                     "ativo": True,
                     "access_profile": perfil,
-                    "is_super_admin": False,
+                    "is_super_admin": perfil == "super_admin",
                     "is_externo": False,
                     "auth_user_id": _login_de_exemplo(email, nome),
                 }
@@ -301,12 +377,15 @@ def semear() -> None:
             prefer="resolution=merge-duplicates",
         )
 
+    setor = _rest("setores?nome=eq.UTI%20Adulto&select=id")
     comum = {
         "hora_inicio": "09:00:00",
         "hora_fim": "10:00:00",
         "tipo": "Coordenação",
         "facilitador_id": FACILITADORA[0],
         "setor": "UTI Adulto",
+        # As Definições de processo se agrupam pelo setor da reunião (issue #1875).
+        "setor_id": setor[0]["id"] if setor else None,
         "fonte": "MOCK",
         "deleted_at": None,
     }
@@ -326,8 +405,17 @@ def semear() -> None:
           "status_ata": "ASSINADA", "json_ata": json_da_ata()}],
         prefer="resolution=merge-duplicates",
     )
+    _rest(
+        "reunioes",
+        "POST",
+        [{**comum, "id_reuniao": REUNIAO_EM_ASSINATURA, "titulo": TITULO_EM_ASSINATURA,
+          "data": _dia_no_mes(-3), "facilitador_id": FACILITADORA_DA_FARMACIA, "setor": "Farmácia",
+          "setor_id": None, "objetivo": "Rever a padronização de antibióticos.",
+          "status_ata": "AGUARDANDO_ASSINATURA", "json_ata": None}],
+        prefer="resolution=merge-duplicates",
+    )
 
-    for id_reuniao in (REUNIAO, REUNIAO_ASSINADA):
+    for id_reuniao in REUNIOES_DO_SEED:
         ja_estao = {
             linha["participante_id"]
             for linha in _rest(f"reuniao_participantes?id_reuniao=eq.{id_reuniao}&select=participante_id")
@@ -348,7 +436,7 @@ def semear() -> None:
         [
             {
                 "id_acao": pid,
-                "id_reuniao": REUNIAO_ASSINADA,
+                "id_reuniao": REUNIAO_DA_PENDENCIA.get(pid, REUNIAO_ASSINADA),
                 "descricao_acao": descricao,
                 "responsavel_id": responsavel,
                 "responsavel_nome": nomes[responsavel],
@@ -362,7 +450,147 @@ def semear() -> None:
         ],
         prefer="resolution=merge-duplicates",
     )
+    semear_contestacao()
+    semear_rotina()
+    semear_definicao_de_processo()
+    semear_link_pessoal()
+    semear_fotografias()
     print("dados de exemplo de Reuniões e Pendências prontos.")
+
+
+def _segunda(semanas_antes: int) -> dt.date:
+    hoje = dt.date.today()
+    return hoje - dt.timedelta(days=hoje.weekday() + 7 * semanas_antes)
+
+
+def semear_contestacao() -> None:
+    """A Contestação aberta do Rodrigo, que a Clara responde (issue #1870).
+
+    O Histórico só cresce (o banco recusa UPDATE e DELETE): o evento entra uma
+    vez e o roteiro nunca responde a ele.
+    """
+    ja_tem = _rest(f"pendencia_historico?id_acao=eq.{CONTESTADA}&comando=eq.contestar&select=id")
+    if ja_tem:
+        return
+    pid, _, responsavel, prazo, estado, _ = next(p for p in PENDENCIAS if p[0] == CONTESTADA)
+    _rest(
+        "pendencia_historico",
+        "POST",
+        [
+            {
+                "id_acao": pid,
+                "comando": "contestar",
+                "anotacao": MOTIVO_DA_CONTESTACAO,
+                "autor_id": responsavel,
+                "autor_nome": {p[0]: p[1] for p in PESSOAS}[responsavel],
+                "status_antes": estado,
+                "status_depois": estado,
+                "prazo_antes": _dia(prazo),
+                "prazo_depois": _dia(prazo),
+            }
+        ],
+    )
+
+
+def semear_rotina() -> None:
+    """A Rotina semanal da Ata assinada, com as Verificações das últimas semanas."""
+    _rest(
+        "rotinas",
+        "POST",
+        [
+            {
+                "id": ROTINA,
+                "id_reuniao": REUNIAO_ASSINADA,
+                "quadro_pos": 3,
+                "descricao": DESCRICAO_DA_ROTINA,
+                "responsavel_id": RESPONSAVEL_DA_ROTINA,
+                "responsavel_nome": {p[0]: p[1] for p in PESSOAS}[RESPONSAVEL_DA_ROTINA],
+                "frequencia": "SEMANAL",
+                "comeca_em": _segunda(5).isoformat(),
+                "status": "ATIVA",
+            }
+        ],
+        prefer="resolution=merge-duplicates",
+    )
+    _rest(
+        "rotina_verificacoes",
+        "POST",
+        [
+            {
+                "id": f"17210000-0000-4000-8000-0000000019{semanas:02d}",
+                "rotina_id": ROTINA,
+                "ciclo_inicio": _segunda(semanas).isoformat(),
+                "ciclo_fim": (_segunda(semanas) + dt.timedelta(days=6)).isoformat(),
+                "resultado": resultado,
+                "anotacao": anotacao,
+                "atrasada": atrasada,
+                "marcada_por_id": RESPONSAVEL_DA_ROTINA,
+                "marcada_por_nome": {p[0]: p[1] for p in PESSOAS}[RESPONSAVEL_DA_ROTINA],
+            }
+            for semanas, resultado, anotacao, atrasada in VERIFICACOES
+        ],
+        prefer="resolution=merge-duplicates",
+    )
+
+
+def semear_definicao_de_processo() -> None:
+    """A linha de Processo da Ata assinada, na lista do setor (issue #1875)."""
+    _rest(
+        "definicoes_processo",
+        "POST",
+        [
+            {
+                "id": DEFINICAO_DE_PROCESSO,
+                "id_reuniao": REUNIAO_ASSINADA,
+                "quadro_pos": 4,
+                "trecho": TRECHO_DO_PROCESSO,
+                "objetivo": "Reduzir a infecção de cateter na UTI",
+                "status": "ATIVA",
+            }
+        ],
+        prefer="resolution=merge-duplicates",
+    )
+
+
+def semear_link_pessoal() -> None:
+    """O link pessoal do Fábio, com o hash do token, como o app grava."""
+    token_hash = hashlib.sha256(TOKEN_DO_LINK.encode("utf-8")).hexdigest()
+    expira = (dt.datetime.now(dt.UTC) + dt.timedelta(days=14)).isoformat()
+    if _rest(f"pendencias_links_pessoais?token_hash=eq.{token_hash}&select=id"):
+        _rest(
+            f"pendencias_links_pessoais?token_hash=eq.{token_hash}",
+            "PATCH",
+            {"expira_em": expira, "revogado_em": None},
+        )
+        return
+    _rest(
+        "pendencias_links_pessoais",
+        "POST",
+        [{"participante_id": DONO_DO_LINK, "token_hash": token_hash, "expira_em": expira}],
+    )
+
+
+def semear_fotografias() -> None:
+    """As 8 segundas da Facilitadora: a evolução e a seta dos cards (issue #1873)."""
+    atrasadas = [6, 5, 5, 4, 4, 3, 2, 2]
+    _rest(
+        "painel_fotografias",
+        "POST",
+        [
+            {
+                "participante_id": FACILITADORA[0],
+                "semana": _segunda(semanas).isoformat(),
+                "atrasadas": atrasadas[7 - semanas],
+                "vencem_em_3_dias": 1,
+                "aguardam_assinatura": 0,
+                "atas_paradas": 1,
+                "conformidade": 60 + 4 * (7 - semanas),
+                "ativas": 6,
+            }
+            for semanas in range(8)
+        ],
+        prefer="resolution=merge-duplicates",
+    )
 
 
 def por_reuniao(**campos) -> None:
@@ -378,7 +606,7 @@ def nomes_de_fora_do_seed() -> list[str]:
     return [p["nome_completo"] for p in pessoas if p["id"] not in meus and p["nome_completo"]] + [
         r["titulo"]
         for r in reunioes
-        if r["id_reuniao"] not in (REUNIAO, REUNIAO_ASSINADA) and r["titulo"]
+        if r["id_reuniao"] not in REUNIOES_DO_SEED and r["titulo"]
     ]
 
 
@@ -456,6 +684,21 @@ const abrir = async (caminho, largura = 1440, altura = 900) => {
 const cartao = (titulo) =>
   page.getByRole('heading', { name: titulo, exact: true })
     .locator("xpath=ancestor::div[contains(@class,'rounded-2xl')][1]");
+const abrirPendencia = async (descricao) => {
+  // Tela alta: a janela da Pendência ocupa 85% da altura e não rola por dentro.
+  await abrir('/pendencias', 1440, 1700);
+  const linha = page.locator('tbody tr').filter({ hasText: descricao }).first();
+  await linha.waitFor();
+  await linha.getByRole('button', { name: 'Abrir detalhes da pendência' }).click();
+  const janela = page.locator('div.max-w-5xl.rounded-2xl').first();
+  await janela.getByRole('heading', { name: descricao }).waitFor();
+  await janela.getByLabel('Histórico da pendência').or(janela.getByText('Nenhuma ação registrada ainda.')).first().waitFor();
+  await page.waitForTimeout(600);
+  return janela;
+};
+const anotar = async (janela, texto) => {
+  await janela.getByPlaceholder('Conte o que foi feito ou por que esta ação.').fill(texto);
+};
 const pronto = async (clip) => {
   await page.evaluate(() => document.activeElement && document.activeElement.blur());
   // O selo do Next em modo de desenvolvimento não é do app.
@@ -476,9 +719,9 @@ def rodar(corpo: str, base: str = ""):
     return json.loads(resultado) if resultado else None
 
 
-def entrar(base: str) -> None:
-    """Abre a sessão do navegador e entra como a Facilitadora de exemplo."""
-    navegador("open", f"{base}/login")
+def entrar(base: str, pessoa: str = FACILITADORA[0]) -> None:
+    """Entra no app como a pessoa de exemplo (a Facilitadora, se não disser outra)."""
+    nome = {p[0]: p[1] for p in PESSOAS}[pessoa]
     rodar(
         f"""
         await page.setViewportSize({{ width: 1440, height: 900 }});
@@ -486,7 +729,7 @@ def entrar(base: str) -> None:
         await page.goto('{base}/login', {{ waitUntil: 'networkidle' }});
         await page.evaluate(() => {{ localStorage.clear(); sessionStorage.clear(); }});
         await page.goto('{base}/login', {{ waitUntil: 'networkidle' }});
-        await page.getByPlaceholder('seu@email.com').fill({json.dumps(email_de(FACILITADORA[1]))});
+        await page.getByPlaceholder('seu@email.com').fill({json.dumps(email_de(nome))});
         await page.getByPlaceholder('••••••••').fill({json.dumps(SENHA)});
         await page.getByRole('button', {{ name: 'Entrar' }}).click();
         await page.waitForURL((u) => !u.toString().includes('/login'), {{ timeout: 30000 }});
@@ -641,10 +884,242 @@ def pendencias() -> str:
     const linha = page.locator('tbody tr').filter({{ hasText: {atrasada} }}).first();
     await balao(page.getByRole('link', {{ name: 'Lista', exact: true }}).first(), 1);
     await balao(page.getByText('Filtros Dinâmicos'), 2);
-    await balao(linha.getByRole('button', {{ name: 'Alterar status' }}), 3);
+    // Mudar o estado pede Anotação: o selo abre as ações (issue #1862).
+    await balao(linha.getByRole('button', {{ name: 'Abrir as ações da pendência' }}), 3);
     await balao(linha.getByRole('button', {{ name: 'Abrir detalhes da pendência' }}), 4);
     await page.evaluate(() => window.scrollTo(0, 0));
     return await pronto({{ x: 0, y: 0, width: 1680, height: 900 }});
+    """
+
+
+# --------------------------------------------------------------------------
+# O ciclo de vida, o painel e a Rotina (issue #1880)
+# --------------------------------------------------------------------------
+
+
+def _descricao(pid: str) -> str:
+    return json.dumps(next(p[1] for p in PENDENCIAS if p[0] == pid))
+
+
+def minha_fila() -> str:
+    """O Início da Facilitadora: a frase, os três números e a Contestação na fila."""
+    reuniao_programada()
+    return """
+    await abrir('/inicio', 1440, 1300);
+    const resumo = page.getByRole('list', { name: 'Resumo dos prazos' });
+    await resumo.waitFor();
+    const fila48 = page.locator('#grupo-ate_48_horas');
+    await fila48.waitFor();
+    await page.waitForTimeout(1500);
+    await balao(page.getByTestId('abertura').locator('[aria-live] p').first(), 1);
+    await balao(resumo, 2);
+    await balao(fila48.locator('li').first(), 3);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    return await pronto({ x: 0, y: 0, width: 1440, height: 1300 });
+    """
+
+
+def painel() -> str:
+    """O painel da Facilitadora: cards com a seta, gráficos, evolução e atrasos por setor."""
+    reuniao_programada()
+    return """
+    await abrir('/dashboard', 1440, 900);
+    await page.getByRole('heading', { name: 'Evolução das atrasadas' }).waitFor();
+    await page.getByRole('heading', { name: 'Atrasos por setor' }).waitFor();
+    await page.waitForTimeout(2500);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await balao(page.locator('#conformidade'), 1);
+    await balao(page.getByRole('heading', { name: 'Status das Pendências' }), 2);
+    await balao(page.getByRole('heading', { name: 'Pendências por Setor' }), 3);
+    await balao(page.getByRole('heading', { name: 'Evolução das atrasadas' }), 4);
+    await balao(page.getByRole('heading', { name: 'Atrasos por setor' }), 5);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const altura = await page.evaluate(() => document.documentElement.scrollHeight);
+    return await pronto({ x: 0, y: 0, width: 1440, height: altura });
+    """
+
+
+def ranking() -> str:
+    """O ranking de atrasos, que só o Super admin vê (issue #2144).
+
+    O ranking lista o hospital inteiro: antes da guarda, o roteiro tira da
+    tela as linhas de quem não é do seed. A guarda lê o texto depois disso e
+    recusa o print se sobrar alguém de fora.
+    """
+    reuniao_programada()
+    nomes = json.dumps([nome for _, nome, *_ in PESSOAS], ensure_ascii=False)
+    return f"""
+    await abrir('/dashboard', 1440, 900);
+    const secao = page.locator('section[aria-labelledby="ranking-de-atrasos"]');
+    await secao.waitFor();
+    await page.waitForTimeout(2000);
+    const doSeed = {nomes};
+    await secao.locator('tbody tr').evaluateAll((linhas, nomes) => {{
+      for (const tr of linhas) if (!nomes.includes(tr.cells[0].innerText.trim())) tr.remove();
+    }}, doSeed);
+    const linha = secao.locator('tbody tr').first();
+    await linha.waitFor();
+    await balao(linha.locator('td').nth(2), 1);
+    await balao(linha.locator('td').nth(5), 2);
+    await balao(secao.getByRole('columnheader', {{ name: 'Rotinas não cumpridas' }}), 3);
+    // O resto do painel é do hospital inteiro: a tela fica só com o ranking.
+    const texto = await secao.innerText();
+    const {{ clip }} = await pronto(await recorte([secao], 16));
+    return {{ texto, clip }};
+    """
+
+
+def classificar_linhas() -> str:
+    """O quadro de atribuições na validação, com o tipo de cada linha (issue #1872)."""
+    ata_pronta()
+    return f"""
+    await abrir('/reunioes/{REUNIAO}', 1440, 900);
+    const titulo = page.getByRole('heading', {{ name: /Quadro de Atribuições/ }});
+    await titulo.waitFor();
+    await page.getByLabel('Tipo da linha 1').waitFor();
+    await page.waitForTimeout(1000);
+    await page.getByLabel('Tipo da linha 1').scrollIntoViewIfNeeded();
+    await balao(page.getByLabel('Tipo da linha 1'), 1);
+    await balao(page.getByLabel('Frequência da linha 4'), 2);
+    const quadro = titulo.locator("xpath=ancestor::div[contains(@class,'rounded-2xl')][1]");
+    return await pronto(await recorte([quadro]));
+    """
+
+
+def contestar() -> str:
+    """A Clara contesta o item dela na Ata em assinatura da Farmácia. Não confirma."""
+    return f"""
+    const janela = await abrirPendencia({_descricao("PE1721F")});
+    await janela.getByRole('button', {{ name: 'Contestar', exact: true }}).click();
+    await anotar(janela, 'A lista é da Comissão de Farmácia, e eu só recebo a versão final. Peço para passar o item para a Farmácia.');
+    await balao(janela.getByRole('button', {{ name: 'Contestar', exact: true }}), 1);
+    await balao(janela.getByPlaceholder('Conte o que foi feito ou por que esta ação.'), 2);
+    await balao(janela.getByRole('button', {{ name: 'Confirmar' }}), 3);
+    return await pronto(await recorte([janela], 0));
+    """
+
+
+def responder_contestacao() -> str:
+    """A Clara, Facilitadora, abre o ajuste da Contestação do Rodrigo. Não confirma."""
+    return f"""
+    const janela = await abrirPendencia({_descricao(CONTESTADA)});
+    await janela.getByRole('button', {{ name: 'Ajustar', exact: true }}).click();
+    await anotar(janela, 'Prazo ajustado para a entrega do fornecedor.');
+    await balao(janela.getByRole('button', {{ name: 'Ajustar', exact: true }}), 1);
+    await balao(janela.getByText('Prazo novo (opcional)'), 2);
+    await balao(janela.getByPlaceholder('Digite o nome da pessoa certa'), 3);
+    await balao(janela.getByRole('button', {{ name: 'Recusar contestação' }}), 4);
+    return await pronto(await recorte([janela], 0));
+    """
+
+
+def _acao_na_pendencia(pid: str, botao: str, anotacao: str, baloes: str) -> str:
+    return f"""
+    const janela = await abrirPendencia({_descricao(pid)});
+    await janela.getByRole('button', {{ name: {json.dumps(botao)}, exact: true }}).click();
+    await anotar(janela, {json.dumps(anotacao)});
+    await balao(janela.getByRole('button', {{ name: {json.dumps(botao)}, exact: true }}), 1);
+    {baloes}
+    return await pronto(await recorte([janela], 0));
+    """
+
+
+def concluir_pendencia() -> str:
+    """A conclusão da Clara com o campo da prova. Não confirma nem anexa."""
+    return _acao_na_pendencia(
+        "PE1721E",
+        "Concluir",
+        "Pauta enviada por e-mail aos participantes na segunda.",
+        """
+    await balao(janela.getByPlaceholder('Conte o que foi feito ou por que esta ação.'), 2);
+    await balao(janela.getByLabel('Anexo (opcional)'), 3);
+    await balao(janela.getByRole('button', { name: 'Confirmar' }), 4);
+    """,
+    )
+
+
+def repactuar() -> str:
+    return _acao_na_pendencia(
+        "PE1721E",
+        "Repactuar",
+        "A reunião da UTI mudou de data; a pauta sai junto com o convite novo.",
+        """
+    await balao(janela.getByText('Prazo novo', { exact: true }), 2);
+    await balao(janela.getByRole('button', { name: 'Confirmar' }), 3);
+    """,
+    )
+
+
+def cancelar_pendencia() -> str:
+    return _acao_na_pendencia(
+        "PE1721C",
+        "Cancelar pendência",
+        "As bombas dos leitos 4 a 8 foram trocadas por equipamento novo, já calibrado.",
+        "",
+    )
+
+
+def reabrir_pendencia() -> str:
+    return _acao_na_pendencia(
+        "PE1721D",
+        "Reabrir",
+        "O cardápio novo ainda não chegou à copa do 3º andar.",
+        """
+    await balao(janela.getByText('Prazo novo', { exact: true }), 2);
+    """,
+    )
+
+
+def rotinas() -> str:
+    """A tela Rotinas da Facilitadora, que marca pela responsável."""
+    descricao = json.dumps(DESCRICAO_DA_ROTINA)
+    return f"""
+    await abrir('/rotinas', 1440, 900);
+    const rotina = page.locator('section').filter({{ has: page.getByRole('heading', {{ name: {descricao} }}) }});
+    await rotina.waitFor();
+    await page.waitForTimeout(800);
+    const ciclos = rotina.getByRole('list', {{ name: /^Ciclos em aberto/ }});
+    const agora = ciclos.locator('li').last();
+    await balao(agora.getByRole('button', {{ name: 'Realizada', exact: true }}), 1);
+    await balao(agora.getByRole('button', {{ name: 'Não realizada' }}), 2);
+    await balao(ciclos.getByText('Atrasado').first(), 3);
+    await balao(rotina.getByRole('list', {{ name: /^Verificações/ }}), 4);
+    await balao(rotina.getByRole('button', {{ name: 'Encerrar a Rotina' }}), 5);
+    const titulo = page.getByRole('heading', {{ name: 'Rotinas', exact: true }});
+    return await pronto(await recorte([titulo, rotina]));
+    """
+
+
+def definicoes_de_processo() -> str:
+    return """
+    await abrir('/reunioes/processos', 1440, 900);
+    const titulo = page.getByRole('heading', { name: 'Definições de processo', exact: true });
+    await titulo.waitFor();
+    const lista = page.getByRole('list', { name: /^Definições de processo de / }).first();
+    await lista.waitFor();
+    await page.waitForTimeout(800);
+    await balao(page.getByRole('link', { name: 'Definições de processo', exact: true }).first(), 1);
+    const setor = lista.locator('xpath=preceding-sibling::h2[1]');
+    await balao(setor, 2);
+    await balao(lista.getByRole('button', { name: 'Tirar da lista' }).first(), 3);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    return await pronto({ x: 0, y: 0, width: 1440, height: 900 });
+    """
+
+
+def link_pessoal() -> str:
+    """A página do link pessoal do Fábio, aberta sem senha (issue #1878)."""
+    descricao = _descricao("PE1721C")
+    return f"""
+    await abrir('/minhas-pendencias/{TOKEN_DO_LINK}', 1100, 900);
+    const cartao = page.locator('li, article, section').filter({{ hasText: {descricao} }}).last();
+    await cartao.waitFor();
+    await page.waitForTimeout(800);
+    await balao(cartao.getByText({descricao}), 1);
+    await balao(cartao.getByRole('button', {{ name: 'Concluir', exact: true }}), 2);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const altura = await page.evaluate(() => document.documentElement.scrollHeight);
+    return await pronto({{ x: 0, y: 0, width: 1100, height: Math.min(altura, 1200) }});
     """
 
 
@@ -653,13 +1128,27 @@ def pendencias() -> str:
 # novo na página sem função aqui fica vermelho.
 PRINTS = {
     "inicio": inicio,
+    "minha-fila": minha_fila,
+    "painel": painel,
+    "ranking": ranking,
     "calendario": calendario,
     "agendar-reuniao": agendar_reuniao,
     "anexar-transcricao": anexar_transcricao,
     "revisar-ata": revisar_ata,
+    "classificar-linhas": classificar_linhas,
     "enviar-para-assinatura": enviar_para_assinatura,
     "ata-assinada": ata_assinada,
+    "contestar": contestar,
+    "responder-contestacao": responder_contestacao,
     "pendencias": pendencias,
+    "concluir-pendencia": concluir_pendencia,
+    "repactuar": repactuar,
+    "cancelar-pendencia": cancelar_pendencia,
+    "reabrir-pendencia": reabrir_pendencia,
+    "rotinas": rotinas,
+    "definicoes-de-processo": definicoes_de_processo,
+    "email-de-segunda": email_de_segunda,
+    "link-pessoal": link_pessoal,
 }
 
 
