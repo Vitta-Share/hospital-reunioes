@@ -94,3 +94,62 @@ class TestLinhaDoTempo:
         assert audio["origem"] == "Upload"
         assert audio["codigo"] == _sha(AUDIO)
         assert audio["versao"] == 1
+
+    def test_o_ato_aparece_com_autor_data_origem_e_o_codigo_da_linha(self, comite):
+        caso, _ = comite.caso_com_depoimento()
+
+        atos = [i for i in comite.trilha_do_caso(caso)["linha_do_tempo"] if i["tipo"] == "ato"]
+
+        adicionou = next(a for a in atos if a["acao"] == "adicionou_pessoa_a_ouvir")
+        linha = next(t for t in comite.banco.tabelas["conduta_trilha"] if t["acao"] == "adicionou_pessoa_a_ouvir")
+        assert adicionou["autor"] == NOMES[COORDENACAO]
+        assert adicionou["data"] == linha["registrado_em"]
+        assert adicionou["origem"] == "Aplicação"
+        assert adicionou["codigo"] == linha["codigo"]
+        assert "Rogério" not in adicionou["titulo"]
+
+    def test_a_correcao_entra_como_versao_nova_e_a_anterior_fica(self, comite):
+        caso, depoimento = comite.caso_com_depoimento()
+        comite.linha_do_caso(caso)["etapa"] = "apuracao"
+        corrigida = TRANSCRICAO + b" Corrigida."
+        comite.enviar(COORDENACAO, f"/casos/{caso}/depoimentos/{depoimento}/transcricao", "nova.txt", corrigida)
+
+        transcricoes = [
+            i
+            for i in comite.trilha_do_caso(caso)["linha_do_tempo"]
+            if i["titulo"] == "Transcrição do depoimento, Acusado 1"
+        ]
+
+        assert [(t["versao"], t["codigo"]) for t in transcricoes] == [(1, _sha(TRANSCRICAO)), (2, _sha(corrigida))]
+
+    def test_a_ciencia_anexada_leva_o_codigo_do_arquivo(self, comite):
+        caso, _ = comite.caso_com_depoimento()
+        assert comite.anexar_ciencia(LEITOR, caso).status_code == 200
+
+        ciencia = next(
+            i for i in comite.trilha_do_caso(caso)["linha_do_tempo"] if i["titulo"] == "Ciência do Código pelo acusado"
+        )
+
+        assert (ciencia["autor"], ciencia["origem"]) == (NOMES[LEITOR], "Upload")
+        assert ciencia["codigo"] == _sha(b"%PDF-1.4 ciencia do codigo")
+
+    def test_o_documento_assinado_na_clicksign_leva_a_origem_e_o_codigo_da_copia(self, comite, monkeypatch):
+        from app.services import clicksign_service
+        from app.services.conduta import assinaturas
+
+        caso, _ = comite.caso_com_depoimento()
+        comite.ata_assinada(caso)
+        pdf = b"%PDF-1.4 ata assinada pelos tres com o log da ClickSign"
+        monkeypatch.setattr(clicksign_service, "get_signed_document", lambda _envelope: pdf)
+        linha = next(a for a in comite.banco.tabelas["conduta_assinaturas"] if a["caso_id"] == caso)
+        linha["assinado_em"] = "2026-11-20T15:00:00+00:00"
+        assinaturas.processar_evento(comite.banco, linha, "document_closed")
+
+        ata = next(
+            i for i in comite.trilha_do_caso(caso)["linha_do_tempo"] if i["titulo"] == "Ata de deliberação assinada"
+        )
+
+        assert ata["origem"] == "ClickSign"
+        assert ata["autor"] == ", ".join(NOMES[p] for p in (COORDENACAO, MEMBRO, LEITOR))
+        assert ata["data"] == "2026-11-20T15:00:00+00:00"
+        assert ata["codigo"] == _sha(pdf)
