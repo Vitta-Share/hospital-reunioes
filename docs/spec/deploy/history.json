@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T20:28:57-03:00",
+      "sha": "2c00dd521a94c8f06e1fd06e3b609d4b9997ff6e",
+      "app_version": "0.388.0",
+      "subject": "Onda sesta-2205-onda1: Pedido de implantação nasce pela ponte, fecha a issue e conclui sem acompanhar o GitHub; Label implantacao no /to-issues e no /triage",
+      "raw_subject": "chore(deploy): registro da onda sesta-2205-onda1 (#2216 #2215)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        2205
+      ],
+      "result": "healthy",
+      "duration_seconds": 2147,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "235_pedido_de_implantacao.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-2205-onda1: PR #2216 (issue #2207), PR #2215 (issue #2212), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 6,
+        "build_s": {
+          "backend": 25,
+          "frontend": 232
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T19:06:02-03:00",
       "sha": "d2156ac4a1b0071c4243c219d7156f696cea9749",
       "app_version": "0.387.2",
