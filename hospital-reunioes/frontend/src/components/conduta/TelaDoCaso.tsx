@@ -9,7 +9,6 @@ import { AtaEReuniao } from "@/components/conduta/AtaEReuniao";
 import { ConvidarAoCaso } from "@/components/conduta/ConvidarAoCaso";
 import { DepoimentosDaApuracao } from "@/components/conduta/DepoimentosDaApuracao";
 import { ImpedimentoECitados } from "@/components/conduta/ImpedimentoECitados";
-import { MedidaERetorno } from "@/components/conduta/MedidaERetorno";
 import { OQueFazerAgora } from "@/components/conduta/OQueFazerAgora";
 import { RelatorioDaApuracao } from "@/components/conduta/RelatorioDaApuracao";
 import { RotaEspecial } from "@/components/conduta/RotaEspecial";
@@ -186,8 +185,6 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
     if (acao === "conferir_triagem") return void enviar("conferencia");
     if (acao === "enviar_orientacao") return void enviar("encaminhamento");
     if (acao === "enviar_para_voto") return void enviar("envio-para-voto");
-    if (acao === "enviar_a_direcao") return void enviar("direcao");
-    if (acao === "preparar_retorno") return void enviar("retorno");
     setPasso(acao);
   };
 
@@ -352,8 +349,6 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
       />
 
       <AtaEReuniao casoId={casoId} ata={caso.ata ?? null} reuniao={caso.reuniao ?? null} aoMudar={carregar} />
-
-      <MedidaERetorno casoId={casoId} dados={caso.medida_e_retorno ?? null} aoMudar={carregar} />
 
       {caso.triagem_em && (
         <section aria-label="Triagem" className={`${CARTAO} px-4 py-4 space-y-1`}>

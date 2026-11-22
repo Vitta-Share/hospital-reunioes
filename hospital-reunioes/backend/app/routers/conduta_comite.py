@@ -26,7 +26,6 @@ from app.services.conduta import (
     impedimento,
     nota_ao_nucleo,
     relatorio,
-    retorno,
     rota_especial,
     triagem,
     voto,
@@ -140,7 +139,6 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         especial = rota_especial.para_a_tela(supabase, aberto)
         votacao = voto.para_a_tela(supabase, aberto)
         afastamentos = afastamento.para_a_tela(supabase, aberto)
-        medida_e_retorno = retorno.para_a_tela(supabase, aberto)
     except cifra.CifraIndisponivelError as erro:
         raise _indisponivel(erro) from erro
     vencidos = triagem.registrar_vencidos(supabase, [caso], hoje_em_sao_paulo())
@@ -170,7 +168,6 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         **especial,
         **votacao,
         **afastamentos,
-        **medida_e_retorno,
     }
 
 

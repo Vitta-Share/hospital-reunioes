@@ -113,7 +113,7 @@ class ParticipanteResponse(BaseModel):
     # Segurança do Paciente (ADR 0095, decisão 4): o Acesso pleno ao NSP.
     perfil_nsp: Literal["acesso_pleno"] | None = None
     # Canal de Conduta (ADR 0097, decisão 3): quem cadastra membros do Comitê.
-    perfil_conduta: Literal["cadastro_de_membros", "presidente", "diretoria_executiva"] | None = None
+    perfil_conduta: Literal["cadastro_de_membros"] | None = None
     # O registro profissional da pessoa (issue #1765).
     conselho_profissional: str | None = None
     registro_profissional: str | None = None
