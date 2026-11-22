@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T13:06+0000 -->
+<!-- last_update: 2026-11-22T13:13+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -1565,7 +1565,7 @@ erDiagram
         TEXT situacao
         TEXT envelope_id
         TEXT documento_key
-        _ mais_colunas "+9"
+        _ mais_colunas "+10"
     }
     conduta_depoimentos {
         UUID id PK
@@ -1587,7 +1587,7 @@ erDiagram
         TEXT storage_path
         TEXT content_type
         BIGINT tamanho_bytes
-        _ mais_colunas "+2"
+        _ mais_colunas "+3"
     }
     conduta_depoimento_conferencia {
         UUID id PK
@@ -1813,6 +1813,7 @@ erDiagram
         BIGINT tamanho_bytes
         VARCHAR enviado_por FK
         TIMESTAMPTZ enviado_em
+        _ mais_colunas "+1"
     }
     conduta_afastamentos {
         UUID id PK
@@ -1823,7 +1824,7 @@ erDiagram
         TEXT motivo_cifrado
         VARCHAR registrado_por FK
         TIMESTAMPTZ registrado_em
-        _ mais_colunas "+11"
+        _ mais_colunas "+12"
     }
     nsp_recebimentos {
         UUID id PK

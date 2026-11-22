@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T13:06+0000 -->
+<!-- last_update: 2026-11-22T13:13+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2759,7 +2759,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## conduta_assinaturas
 
-> Origem: `192_conduta_assinaturas.sql` (alterada em: 213_conduta_relatorio_de_apuracao.sql, 215_conduta_termo_de_declaracao.sql, 221_conduta_ata_de_deliberacao.sql)
+> Origem: `192_conduta_assinaturas.sql` (alterada em: 213_conduta_relatorio_de_apuracao.sql, 215_conduta_termo_de_declaracao.sql, 221_conduta_ata_de_deliberacao.sql, 224_conduta_trilha_e_dossie.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2780,6 +2780,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `relatorio_id` | `UUID` | — | — | `conduta_relatorios.id` |
 | `depoimento_id` | `UUID` | — | — | `conduta_depoimentos.id` |
 | `ata_id` | `UUID` | — | — | `conduta_atas.id` |
+| `codigo_integridade` | `TEXT` | — | — | — |
 
 **Indexes:**
 - `idx_conduta_assinaturas_participacao` em `(participacao_id, created_at DESC)` (de `192_conduta_assinaturas.sql`)
@@ -2817,7 +2818,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## conduta_depoimento_arquivos
 
-> Origem: `193_conduta_depoimentos.sql`
+> Origem: `193_conduta_depoimentos.sql` (alterada em: 224_conduta_trilha_e_dossie.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2831,6 +2832,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `tamanho_bytes` | `BIGINT` | NOT NULL | — | — |
 | `enviado_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
 | `enviado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `codigo_integridade` | `TEXT` | — | — | — |
 
 **Indexes:**
 - `idx_conduta_depoimento_arquivos_enviado_por` em `(enviado_por)` (de `193_conduta_depoimentos.sql`)
@@ -3273,7 +3275,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## conduta_ciencias_do_codigo
 
-> Origem: `216_conduta_voto_e_trava_de_robustez.sql`
+> Origem: `216_conduta_voto_e_trava_de_robustez.sql` (alterada em: 224_conduta_trilha_e_dossie.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -3285,13 +3287,14 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `tamanho_bytes` | `BIGINT` | NOT NULL | — | — |
 | `enviado_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
 | `enviado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `codigo_integridade` | `TEXT` | — | — | — |
 
 **Indexes:**
 - `idx_conduta_ciencias_do_codigo_enviado_por` em `(enviado_por)` (de `216_conduta_voto_e_trava_de_robustez.sql`)
 
 ## conduta_afastamentos
 
-> Origem: `217_conduta_afastamento_cautelar.sql`
+> Origem: `217_conduta_afastamento_cautelar.sql` (alterada em: 224_conduta_trilha_e_dossie.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -3314,6 +3317,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `parecer_resultado` | `TEXT` | — | — | — |
 | `ciencia_de` | `TEXT[]` | — | — | — |
 | `ele` | `leva` | — | — | — |
+| `parecer_codigo_integridade` | `TEXT` | — | — | — |
 
 **Indexes:**
 - `idx_conduta_afastamentos_caso` em `(caso_id)` (de `217_conduta_afastamento_cautelar.sql`)
