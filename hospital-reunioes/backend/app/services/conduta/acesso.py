@@ -176,6 +176,28 @@ def casos_da_pessoa(supabase, pessoa: PessoaNoComite) -> list[dict] | None:
     return sorted(abertos, key=lambda caso: str(caso.get("recebido_em") or ""), reverse=True)
 
 
+def coordenacao_ve_o_pedido(caso: dict[str, Any], pessoa: PessoaNoComite, atribuicoes: list[dict], citado: bool) -> bool:
+    """A coordenação, com o Termo assinado, vê o pedido de afastamento de um
+    caso da Rota Especial, e só ele (issue #1836; decisão 36 do diretor). O
+    Citado e o impedido nem o pedido veem."""
+    if citado or any(a.get("impedido_em") for a in atribuicoes):
+        return False
+    return caso.get("rota") == "especial" and pessoa.papel == "coordenacao" and pessoa.termo_valido
+
+
+def coordenacao_abre_o_pedido(supabase, pessoa: PessoaNoComite, caso_id: str) -> dict | None:
+    """O mínimo do caso para a coordenação agir no pedido da Rota Especial, sem
+    conteúdo nem protocolo; None quando ela não vê o pedido."""
+    linhas = supabase.table("conduta_casos").select("id, rota, encerrado_em").eq("id", caso_id).limit(1).execute()
+    if not linhas.data:
+        return None
+    atribuicoes, citados = _atribuicoes_e_citacoes(supabase, pessoa)
+    caso = linhas.data[0]
+    if not coordenacao_ve_o_pedido(caso, pessoa, atribuicoes.get(caso_id, []), caso_id in citados):
+        return None
+    return {"id": caso["id"], "rota": caso["rota"], "encerrado_em": caso.get("encerrado_em")}
+
+
 def caso_se_a_pessoa_abre(supabase, pessoa: PessoaNoComite, caso_id: str) -> tuple[dict, list[dict]] | None:
     """O caso inteiro (com o conteúdo cifrado) e as atribuições da pessoa nele,
     se ela abre; senão None. Caso que não existe e caso fechado para ela dão o

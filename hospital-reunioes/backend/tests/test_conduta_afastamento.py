@@ -181,3 +181,203 @@ class TestCoordenadorRegistraNoCasoComum:
         assert visto["resultado"] == "afastar"
         assert tela["pode_registrar_afastamento"] is False
         assert comite.cliente(COORDENACAO).get(f"{BASE}/casos/{caso_id}").json()["pode_registrar_afastamento"] is True
+
+    def test_caso_encerrado_nao_recebe_afastamento(self, comite):
+        caso_id = comite.caso()
+        citado_id = comite.citar(MEMBRO, caso_id)
+        comite.linha(caso_id)["encerrado_em"] = "2026-11-01T12:00:00+00:00"
+
+        assert comite.afastar(COORDENACAO, caso_id, citado_id).status_code == 409
+
+    def test_uma_pessoa_tem_um_afastamento_por_caso(self, comite):
+        caso_id = comite.caso()
+        citado_id = comite.citar(MEMBRO, caso_id)
+
+        assert comite.afastar(COORDENACAO, caso_id, citado_id).status_code == 200
+        assert comite.afastar(COORDENACAO, caso_id, citado_id).status_code == 409
+
+    def test_so_se_afasta_um_citado_do_caso(self, comite):
+        caso_id, outro = comite.caso(), comite.caso()
+        citado_de_outro = comite.citar(MEMBRO, outro)
+
+        assert comite.afastar(COORDENACAO, caso_id, citado_de_outro).status_code == 422
+
+
+def _afastado(comite: Comite, caso_id: str, pid: str = COORDENACAO) -> str:
+    citado_id = comite.citar(MEMBRO, caso_id)
+    resposta = comite.afastar(pid, caso_id, citado_id)
+    assert resposta.status_code == 200, resposta.text
+    return comite.afastamentos(caso_id)[0]["id"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. O pedido leva só quem afastar e o motivo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestOPedidoGerado:
+    def test_o_pedido_traz_so_quem_afastar_e_o_motivo(self, comite):
+        caso_id = comite.caso()
+        afastamento_id = _afastado(comite, caso_id)
+        protocolo = comite.linha(caso_id)["protocolo"]
+
+        resposta = comite.cliente(COORDENACAO).get(f"{BASE}/casos/{caso_id}/afastamentos/{afastamento_id}")
+
+        assert resposta.status_code == 200, resposta.text
+        pedido = resposta.json()["pedido"]
+        assert set(pedido) == {"quem", "motivo", "texto"}
+        assert pedido["quem"] == ACUSADO
+        assert pedido["motivo"] == MOTIVO
+        assert ACUSADO in pedido["texto"] and MOTIVO in pedido["texto"]
+        assert "O afastamento cautelar é remunerado e não é punição." in pedido["texto"]
+        bruto = resposta.text
+        assert "escala" not in bruto
+        assert protocolo not in bruto
+
+    def test_o_motivo_com_protocolo_de_caso_e_recusado(self, comite):
+        caso_id = comite.caso()
+        outro = comite.linha(comite.caso())["protocolo"]
+        citado_id = comite.citar(MEMBRO, caso_id)
+
+        resposta = comite.afastar(COORDENACAO, caso_id, citado_id, motivo=f"Mesmo caso do {outro}.")
+
+        assert resposta.status_code == 422
+        assert comite.afastamentos(caso_id) == []
+
+    def test_abrir_o_pedido_fica_na_trilha(self, comite):
+        caso_id = comite.caso()
+        afastamento_id = _afastado(comite, caso_id)
+
+        comite.cliente(MEMBRO).get(f"{BASE}/casos/{caso_id}/afastamentos/{afastamento_id}")
+
+        ultima = comite.trilha(caso_id)[-1]
+        assert (ultima["acao"], ultima["autor_id"]) == ("leitura", MEMBRO)
+        assert ultima["detalhe"] == "abriu o pedido de afastamento"
+
+    def test_afastamento_de_outro_caso_nao_abre_pelo_caso_errado(self, comite):
+        caso_id, outro = comite.caso(), comite.caso()
+        afastamento_id = _afastado(comite, caso_id)
+
+        resposta = comite.cliente(COORDENACAO).get(f"{BASE}/casos/{outro}/afastamentos/{afastamento_id}")
+
+        assert resposta.status_code == 403
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. A entrega ao DP e ao Jurídico e o parecer do Jurídico na trilha
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _parecer(comite: Comite, pid: str, caso_id: str, afastamento_id: str, resultado: str | None = None, pdf=PDF):
+    dados = {"resultado": resultado} if resultado else {}
+    return comite.cliente(pid).post(
+        f"{BASE}/casos/{caso_id}/afastamentos/{afastamento_id}/parecer",
+        files={"arquivo": ("parecer.pdf", pdf, "application/pdf")},
+        data=dados,
+    )
+
+
+def _entregar(comite: Comite, pid: str, caso_id: str, afastamento_id: str, destino: str = "dp", quando=HOJE):
+    return comite.cliente(pid).post(
+        f"{BASE}/casos/{caso_id}/afastamentos/{afastamento_id}/entrega",
+        json={"destino": destino, "entregue_em": quando.isoformat()},
+    )
+
+
+class TestEntregaEParecer:
+    @pytest.mark.parametrize(
+        ("destino", "coluna", "rotulo"),
+        [("dp", "entregue_ao_dp_em", "ao DP"), ("juridico", "entregue_ao_juridico_em", "ao Jurídico")],
+    )
+    def test_a_entrega_do_pedido_fica_registrada(self, comite, destino, coluna, rotulo):
+        caso_id = comite.caso()
+        afastamento_id = _afastado(comite, caso_id)
+
+        resposta = _entregar(comite, COORDENACAO, caso_id, afastamento_id, destino)
+
+        assert resposta.status_code == 200, resposta.text
+        assert comite.afastamentos(caso_id)[0][coluna] == HOJE.isoformat()
+        ultima = comite.trilha(caso_id)[-1]
+        assert ultima["acao"] == "afastamento_entregue"
+        assert rotulo in ultima["detalhe"]
+        tela = comite.cliente(MEMBRO).get(f"{BASE}/casos/{caso_id}").json()
+        assert tela["afastamentos"][0]["entregas"][destino] == HOJE.isoformat()
+
+    def test_entrega_registrada_nao_se_registra_de_novo(self, comite):
+        caso_id = comite.caso()
+        afastamento_id = _afastado(comite, caso_id)
+
+        assert _entregar(comite, COORDENACAO, caso_id, afastamento_id).status_code == 200
+        assert _entregar(comite, COORDENACAO, caso_id, afastamento_id).status_code == 409
+
+    def test_so_a_coordenacao_registra_a_entrega(self, comite):
+        caso_id = comite.caso()
+        afastamento_id = _afastado(comite, caso_id)
+
+        assert _entregar(comite, MEMBRO, caso_id, afastamento_id).status_code == 403
+
+    def test_entrega_no_futuro_e_recusada(self, comite):
+        caso_id = comite.caso()
+        afastamento_id = _afastado(comite, caso_id)
+
+        resposta = _entregar(comite, COORDENACAO, caso_id, afastamento_id, quando=HOJE + timedelta(days=1))
+
+        assert resposta.status_code == 422
+
+    def test_o_parecer_do_juridico_e_anexado_a_trilha_cifrado(self, comite):
+        caso_id = comite.caso()
+        afastamento_id = _afastado(comite, caso_id)
+
+        resposta = _parecer(comite, COORDENACAO, caso_id, afastamento_id)
+
+        assert resposta.status_code == 200, resposta.text
+        ultima = comite.trilha(caso_id)[-1]
+        assert (ultima["acao"], ultima["autor_id"]) == ("parecer_do_juridico_anexado", COORDENACAO)
+        [guardado] = comite.banco.storage.objetos.values()
+        assert PDF not in guardado
+        assert cifra.decifrar_arquivo(guardado) == PDF
+        assert comite.banco.storage.urls_assinadas == []
+        tela = comite.cliente(MEMBRO).get(f"{BASE}/casos/{caso_id}").json()
+        assert tela["afastamentos"][0]["parecer"]["anexado_em"]
+        assert tela["afastamentos"][0]["resultado"] == "afastar"
+
+    def test_quem_abre_o_caso_baixa_o_parecer_decifrado(self, comite):
+        caso_id = comite.caso()
+        afastamento_id = _afastado(comite, caso_id)
+        _parecer(comite, COORDENACAO, caso_id, afastamento_id)
+
+        resposta = comite.cliente(MEMBRO).get(f"{BASE}/casos/{caso_id}/afastamentos/{afastamento_id}/parecer")
+
+        assert resposta.status_code == 200
+        assert resposta.content == PDF
+        assert resposta.headers["cache-control"] == "no-store"
+        assert comite.trilha(caso_id)[-1]["detalhe"] == "abriu o parecer do Jurídico"
+
+    def test_o_parecer_so_aceita_pdf(self, comite):
+        caso_id = comite.caso()
+        afastamento_id = _afastado(comite, caso_id)
+
+        resposta = _parecer(comite, COORDENACAO, caso_id, afastamento_id, pdf=b"nao e pdf")
+
+        assert resposta.status_code == 422
+        assert comite.banco.storage.objetos == {}
+
+    def test_o_parecer_anexado_nao_se_troca(self, comite):
+        caso_id = comite.caso()
+        afastamento_id = _afastado(comite, caso_id)
+
+        assert _parecer(comite, COORDENACAO, caso_id, afastamento_id).status_code == 200
+        assert _parecer(comite, COORDENACAO, caso_id, afastamento_id).status_code == 409
+        assert len(comite.banco.storage.objetos) == 1
+
+    def test_no_caso_comum_o_parecer_e_consultivo_e_nao_leva_resultado(self, comite):
+        caso_id = comite.caso()
+        afastamento_id = _afastado(comite, caso_id)
+
+        assert _parecer(comite, COORDENACAO, caso_id, afastamento_id, resultado="nao_afastar").status_code == 422
+
+    def test_so_a_coordenacao_anexa_o_parecer(self, comite):
+        caso_id = comite.caso()
+        afastamento_id = _afastado(comite, caso_id)
+
+        assert _parecer(comite, MEMBRO, caso_id, afastamento_id).status_code == 403

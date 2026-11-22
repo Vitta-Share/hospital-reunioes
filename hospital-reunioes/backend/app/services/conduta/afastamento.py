@@ -26,7 +26,6 @@ import logging
 import re
 import unicodedata
 import uuid
-from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
@@ -34,8 +33,7 @@ from postgrest.exceptions import APIError
 
 from app.services import storage
 from app.services.conduta import cifra, impedimento, membros, trilha
-from app.services.conduta.acesso import PessoaNoComite
-from app.services.conduta.portao import CasoAberto
+from app.services.conduta.portao import CasoAberto, PedidoAberto
 from app.services.conduta.ritos import agora_utc, data_do_envio
 from app.services.conduta.rota_especial import DO_GRUPO, no_grupo
 from app.services.conduta.triagem import AcaoRecusadaError
@@ -50,19 +48,6 @@ DESTINOS = {"dp": "ao DP", "juridico": "ao Jurídico"}
 TAMANHO_DO_MOTIVO = 1000
 LIMITE_DO_PARECER = 20 * 1024 * 1024
 _PROTOCOLO = re.compile(r"CC-[A-Z0-9]{4}-[A-Z0-9]{4}", re.IGNORECASE)
-
-
-@dataclass(frozen=True)
-class PedidoAberto:
-    """O afastamento que a pessoa abre. `so_o_pedido` é a coordenação na Rota
-    Especial: ela vê o pedido e nada mais do caso, e `caso` não leva conteúdo."""
-
-    autor_id: str
-    pessoa: PessoaNoComite
-    caso: dict
-    atribuicoes: list[dict]
-    afastamento: dict
-    so_o_pedido: bool
 
 
 # ── Quem relatou ────────────────────────────────────────────────────────────
@@ -188,6 +173,156 @@ def _vista(supabase, afastamento: dict, coordena: bool) -> dict[str, Any]:
         "pode_registrar_entrega": coordena,
         "pode_anexar_parecer": coordena and not afastamento.get("parecer_anexado_em"),
     }
+
+
+def _coordena(aberto: PedidoAberto) -> bool:
+    """Quem registra a entrega e anexa o parecer: a coordenação do caso comum
+    e, na Rota Especial, a coordenação pelo pedido."""
+    if aberto.afastamento["rota"] == "especial":
+        return aberto.so_o_pedido
+    return aberto.pessoa.papel == "coordenacao"
+
+
+def texto_do_pedido(quem: str, motivo: str) -> str:
+    return (
+        "Pedido de afastamento cautelar\n"
+        "Comitê de Conduta do Hospital São Matheus\n\n"
+        f"Quem afastar: {quem}\n"
+        f"Motivo: {motivo}\n\n"
+        f"{AVISO}"
+    )
+
+
+def abrir_pedido(supabase, aberto: PedidoAberto) -> dict[str, Any]:
+    """O pedido ao DP e ao Jurídico e em que pé ele está. Só quem afastar e o
+    motivo: nada do caso vai junto. A leitura entra na trilha."""
+    trilha.registrar(supabase, aberto.caso["id"], aberto.autor_id, "leitura", "abriu o pedido de afastamento")
+    vista = _vista(supabase, aberto.afastamento, _coordena(aberto))
+    return {
+        "pedido": {
+            "quem": vista["quem"],
+            "motivo": vista["motivo"],
+            "texto": texto_do_pedido(vista["quem"], vista["motivo"]),
+        },
+        **{campo: vista[campo] for campo in ("id", "rota", "registrado_em", "resultado", "entregas", "parecer")},
+        "pode_registrar_entrega": vista["pode_registrar_entrega"],
+        "pode_anexar_parecer": vista["pode_anexar_parecer"],
+        "aviso": AVISO,
+    }
+
+
+def _exigir_coordenacao(aberto: PedidoAberto, o_que: str) -> None:
+    if not _coordena(aberto):
+        raise AcaoRecusadaError(403, f"Só a coordenação do Comitê {o_que}.")
+
+
+def registrar_entrega(supabase, aberto: PedidoAberto, *, destino: str, entregue_em: date, hoje: date) -> dict:
+    """O pedido foi entregue fora do aplicativo, ao DP ou ao Jurídico, nesta
+    data. Cada entrega se registra uma vez."""
+    _exigir_coordenacao(aberto, "registra a entrega do pedido")
+    if destino not in DESTINOS:
+        raise AcaoRecusadaError(422, "Diga se o pedido foi entregue ao DP ou ao Jurídico.")
+    afastamento = aberto.afastamento
+    coluna = f"entregue_ao_{destino}_em"
+    if afastamento.get(coluna):
+        raise AcaoRecusadaError(409, f"A entrega {DESTINOS[destino]} já foi registrada.")
+    if entregue_em > hoje or entregue_em < data_do_envio(afastamento["registrado_em"]):
+        raise AcaoRecusadaError(422, "A data da entrega fica entre o registro do afastamento e hoje.")
+    trilha.registrar(
+        supabase,
+        aberto.caso["id"],
+        aberto.autor_id,
+        "afastamento_entregue",
+        f"registrou a entrega do pedido de afastamento {DESTINOS[destino]} em {entregue_em.strftime('%d/%m/%Y')}",
+    )
+    marcada = (
+        supabase.table(TABELA)
+        .update({coluna: entregue_em.isoformat(), f"entregue_ao_{destino}_por": aberto.autor_id})
+        .eq("id", afastamento["id"])
+        .is_(coluna, "null")
+        .execute()
+        .data
+    )
+    if not marcada:
+        raise AcaoRecusadaError(409, "O afastamento mudou enquanto você agia. Abra de novo.")
+    return marcada[0]
+
+
+def _ciencia_do_grupo(supabase, caso_id: str) -> list[str]:
+    """Os membros do grupo da Rota Especial no caso, hoje: os que analisaram o
+    caso e têm ciência do parecer."""
+    linhas = supabase.table("conduta_atribuicoes").select("*").eq("caso_id", caso_id).execute().data or []
+    return sorted(
+        {
+            a["participante_id"]
+            for a in linhas
+            if a.get("motivo") in DO_GRUPO and not a.get("revogada_em") and not a.get("impedido_em")
+        }
+    )
+
+
+def anexar_parecer(supabase, aberto: PedidoAberto, *, conteudo: bytes, resultado_do_parecer: str | None) -> dict:
+    """A coordenação anexa o parecer do Jurídico, em PDF, uma vez. No caso
+    comum ele é consultivo. Na Rota Especial ele define o resultado e fica com
+    a ciência dos membros do grupo."""
+    _exigir_coordenacao(aberto, "anexa o parecer do Jurídico")
+    afastamento = aberto.afastamento
+    especial = afastamento["rota"] == "especial"
+    if afastamento.get("parecer_anexado_em"):
+        raise AcaoRecusadaError(409, "O parecer do Jurídico já foi anexado.")
+    if especial and resultado_do_parecer not in RESULTADOS:
+        raise AcaoRecusadaError(422, "Diga o que o parecer definiu: afastar ou não afastar.")
+    if not especial and resultado_do_parecer:
+        raise AcaoRecusadaError(422, "No caso comum, quem decide é o coordenador: o parecer é consultivo.")
+    if not conteudo.startswith(b"%PDF"):
+        raise AcaoRecusadaError(422, "Envie o parecer do Jurídico em PDF.")
+    if len(conteudo) > LIMITE_DO_PARECER:
+        raise AcaoRecusadaError(422, "O parecer passou de 20 MB.")
+    cifrado = cifra.cifrar_arquivo(conteudo)
+    ciencia = _ciencia_do_grupo(supabase, aberto.caso["id"]) if especial else None
+    detalhe = "anexou o parecer do Jurídico"
+    if especial:
+        detalhe += f": {RESULTADOS[resultado_do_parecer]}; com ciência de {len(ciencia)} membro(s) do grupo"
+    trilha.registrar(supabase, aberto.caso["id"], aberto.autor_id, "parecer_do_juridico_anexado", detalhe)
+    caminho = f"afastamentos/{afastamento['id']}/{uuid.uuid4()}"
+    if not storage.upload_private(supabase, BUCKET, caminho, cifrado, "application/octet-stream"):
+        raise AcaoRecusadaError(503, "O parecer não foi guardado. Tente de novo.")
+    campos = {
+        "parecer_storage_path": caminho,
+        "parecer_tamanho_bytes": len(conteudo),
+        "parecer_anexado_por": aberto.autor_id,
+        "parecer_anexado_em": agora_utc().isoformat(),
+    }
+    if especial:
+        campos |= {"parecer_resultado": resultado_do_parecer, "ciencia_de": ciencia}
+    try:
+        marcada = (
+            supabase.table(TABELA)
+            .update(campos)
+            .eq("id", afastamento["id"])
+            .is_("parecer_storage_path", "null")
+            .execute()
+            .data
+        )
+    except APIError:
+        marcada = []
+    if not marcada:
+        if not storage.delete_file(supabase, BUCKET, caminho):
+            logger.error("Parecer de afastamento órfão no bucket do Canal: %s", caminho)
+        raise AcaoRecusadaError(409, "O parecer do Jurídico já foi anexado.")
+    return marcada[0]
+
+
+def abrir_parecer(supabase, aberto: PedidoAberto) -> bytes:
+    """O parecer decifrado. A abertura entra na trilha antes de ele sair."""
+    caminho = aberto.afastamento.get("parecer_storage_path")
+    if not caminho:
+        raise AcaoRecusadaError(404, "O parecer do Jurídico ainda não foi anexado.")
+    trilha.registrar(supabase, aberto.caso["id"], aberto.autor_id, "leitura", "abriu o parecer do Jurídico")
+    cifrado = storage.download_file(supabase, BUCKET, caminho)
+    if cifrado is None:
+        raise AcaoRecusadaError(503, "O parecer não pôde ser lido agora. Tente de novo.")
+    return cifra.decifrar_arquivo(cifrado)
 
 
 def para_a_tela(supabase, aberto: CasoAberto) -> dict[str, Any]:
