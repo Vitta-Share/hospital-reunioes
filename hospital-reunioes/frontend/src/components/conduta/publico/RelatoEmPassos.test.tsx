@@ -17,6 +17,8 @@ import { resolve } from "node:path";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { tomarTextoVindoDoCanal } from "@/lib/ouvidoria/texto-do-canal";
+
 import { RelatoEmPassos } from "./RelatoEmPassos";
 
 const PROTOCOLO = { protocolo: "CC-K7M4-Q2XT", codigo: "ABCD234567", voltar_a_partir_de: "2026-11-27" };
@@ -25,13 +27,15 @@ const TEXTOS = {
     aviso_p1_anonimato: { texto: "Aviso 1 da coordenação.", versao: 3, versao_id: "u1" },
     aviso_p1_protocolo: null,
     aviso_p1_boa_fe: { texto: "Aviso 3 revisado pelo jurídico.", versao: 2, versao_id: "u3" },
-    contato_dp: null,
+    contato_dp: { texto: "Ramal 2040, de segunda a sexta, das 8h às 17h.", versao: 1, versao_id: "u4" },
+    orientacao_nsp: { texto: "Notifique pelo formulário do NSP na intranet.", versao: 1, versao_id: "u5" },
   },
 };
 const RELATO = "A supervisora gritou com a equipe na troca de turno.";
 
 let chamadas: { url: string; init: RequestInit | undefined; corpo: Record<string, unknown> | null }[];
 let respostaDoEnvio: () => Response;
+let respostaDoAviso: () => Response;
 
 function json(status: number, corpo: unknown): Response {
   return new Response(JSON.stringify(corpo), { status, headers: { "Content-Type": "application/json" } });
@@ -40,12 +44,14 @@ function json(status: number, corpo: unknown): Response {
 beforeEach(() => {
   chamadas = [];
   respostaDoEnvio = () => json(201, PROTOCOLO);
+  respostaDoAviso = () => json(200, { aviso: null });
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       chamadas.push({ url, init, corpo: init?.body ? JSON.parse(String(init.body)) : null });
       if (url.endsWith("/textos")) return json(200, TEXTOS);
       if (url.endsWith("/relatos")) return respostaDoEnvio();
+      if (url.endsWith("/relatos/aviso")) return respostaDoAviso();
       if (url.endsWith("/relatos/confianca")) return new Response(null, { status: 204 });
       return json(404, { detail: "Not Found" });
     })
@@ -286,6 +292,7 @@ describe("sem login, sem rastro e sem terceiros", () => {
 
     expect(chamadas.map((c) => c.url)).toEqual([
       "/api/conduta/textos",
+      "/api/conduta/relatos/aviso",
       "/api/conduta/relatos",
       "/api/conduta/relatos/confianca",
     ]);
@@ -352,5 +359,148 @@ describe("o envio que falha não some com o relato", () => {
     clicar("Enviar");
 
     await waitFor(() => expect(screen.getByRole("alert").textContent).toBe("Sem conexão. Nada foi enviado. Tente de novo."));
+  });
+});
+
+/**
+ * O aviso de assunto fora do canal na revisão (issue #1848, seção 4.1 da
+ * especificação e decisão 4 do diretor). Quem decide se há aviso é a rota
+ * `/api/conduta/relatos/aviso` (o agente, com a regra de proteção); a tela só
+ * mostra o texto fixo do destino. O relato nunca é bloqueado.
+ */
+describe("o aviso de assunto fora do canal (P5)", () => {
+  const AVISO_DO_DP =
+    "Pelo que você escreveu, este assunto é do Departamento Pessoal. O Canal de Conduta não resolve esse tipo de questão.";
+  const AVISO_DA_OUVIDORIA =
+    "Pelo que você escreveu, este assunto é da Ouvidoria. O Canal de Conduta não trata de atendimento a pacientes.";
+  const leituras = () => chamadas.filter((c) => c.url.endsWith("/relatos/aviso"));
+  const comAviso = (aviso: string | null) => {
+    respostaDoAviso = () => json(200, { aviso });
+  };
+
+  it("assunto de DP: o aviso com VER CONTATO DO DP e REGISTRAR MESMO ASSIM, e este conclui o envio", async () => {
+    comAviso("DP");
+    await ateARevisaoPeloMinimo();
+
+    expect(await screen.findByText(AVISO_DO_DP)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Ver contato do DP" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Ir para a Ouvidoria" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Enviar" })).toBeNull();
+
+    clicar("Registrar mesmo assim");
+
+    expect(await screen.findByText("Relato registrado")).toBeTruthy();
+    expect(envios()).toHaveLength(1);
+    expect(envios()[0].corpo).toMatchObject({ relato: RELATO });
+  });
+
+  it("ver o contato do DP só mostra o contato: nada sai da tela e nada fica guardado", async () => {
+    comAviso("DP");
+    await ateARevisaoPeloMinimo();
+    await screen.findByText(AVISO_DO_DP);
+    const antes = chamadas.length;
+
+    clicar("Ver contato do DP");
+
+    expect(screen.getByText("Ramal 2040, de segunda a sexta, das 8h às 17h.")).toBeTruthy();
+    expect(chamadas.length).toBe(antes);
+    expect(localStorage.length + sessionStorage.length).toBe(0);
+    expect(document.cookie).toBe("");
+    // O relato segue podendo ser registrado.
+    expect(screen.getByRole("button", { name: "Registrar mesmo assim" })).toBeTruthy();
+  });
+
+  it("atendimento a paciente: IR PARA A OUVIDORIA leva o texto pela memória da aba, nunca pelo endereço", async () => {
+    comAviso("OUVIDORIA");
+    await ateARevisaoPeloMinimo();
+    expect(await screen.findByText(AVISO_DA_OUVIDORIA)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Ver contato do DP" })).toBeNull();
+
+    const ir = screen.getByRole("link", { name: "Ir para a Ouvidoria" });
+    expect(ir.getAttribute("href")).toBe("/manifestacao");
+    fireEvent.click(ir);
+
+    expect(sessionStorage.getItem("ouvidoria:texto-vindo-do-canal")).toBe(RELATO);
+    expect(window.location.href).not.toContain("supervisora");
+    expect(screen.getByRole("button", { name: "Registrar mesmo assim" })).toBeTruthy();
+  });
+
+  it("o formulário da Ouvidoria abre com o texto que veio do Canal", async () => {
+    comAviso("OUVIDORIA");
+    await ateARevisaoPeloMinimo();
+    fireEvent.click(await screen.findByRole("link", { name: "Ir para a Ouvidoria" }));
+    cleanup();
+
+    // É a leitura que o formulário da Ouvidoria faz ao abrir (issue #1847).
+    expect(tomarTextoVindoDoCanal()).toBe(RELATO);
+  });
+
+  it("NSP e gestão: o texto do destino e só REGISTRAR MESMO ASSIM", async () => {
+    comAviso("NSP");
+    await ateARevisaoPeloMinimo();
+
+    expect(await screen.findByText("Pelo que você escreveu, este é um assunto de segurança do paciente.")).toBeTruthy();
+    expect(screen.getByText("Notifique pelo formulário do NSP na intranet.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Ver contato do DP" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Ir para a Ouvidoria" })).toBeNull();
+    cleanup();
+
+    comAviso("GESTAO");
+    await ateARevisaoPeloMinimo();
+    expect(
+      await screen.findByText("Pelo que você escreveu, este assunto é tratado com a sua liderança ou com o DP.")
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Registrar mesmo assim" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Ver contato do DP" })).toBeNull();
+  });
+
+  it("sem aviso (termo da regra de proteção, ou do canal): nenhum aviso e o Enviar de sempre", async () => {
+    await ateARevisaoPeloMinimo();
+    await waitFor(() => expect(leituras()).toHaveLength(1));
+
+    expect(screen.queryByText(/Pelo que você escreveu/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Ver contato do DP" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Ir para a Ouvidoria" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Enviar" })).toBeTruthy();
+  });
+
+  it("lê uma vez ao abrir a revisão, sem login, com o texto só no corpo", async () => {
+    await ateARevisaoPeloMinimo();
+    await waitFor(() => expect(leituras()).toHaveLength(1));
+    const [leitura] = leituras();
+    expect(leitura.corpo).toEqual({ relato: RELATO });
+    expect(leitura.url).toBe("/api/conduta/relatos/aviso");
+    expect(leitura.init?.credentials).toBe("omit");
+
+    // Voltar e reabrir sem mudar o texto não lê de novo.
+    clicar("Voltar");
+    continuar();
+    expect(passoAtual()).toBe(5);
+    expect(leituras()).toHaveLength(1);
+
+    // Mudar o texto e reabrir a revisão é uma nova abertura: uma leitura nova.
+    clicar("Voltar");
+    digitar("O que aconteceu?", `${RELATO} Ainda acontece.`);
+    continuar();
+    await waitFor(() => expect(leituras()).toHaveLength(2));
+    expect(leituras()[1].corpo).toEqual({ relato: `${RELATO} Ainda acontece.` });
+  });
+
+  it("com o teto estourado ou o agente fora do ar, a revisão abre sem aviso e o relato é enviado", async () => {
+    respostaDoAviso = () => json(503, { detail: "fora" });
+    await ateARevisaoPeloMinimo();
+    await waitFor(() => expect(leituras()).toHaveLength(1));
+
+    expect(screen.queryByText(/Pelo que você escreveu/)).toBeNull();
+    clicar("Enviar");
+    expect(await screen.findByText("Relato registrado")).toBeTruthy();
+    cleanup();
+
+    respostaDoAviso = () => {
+      throw new TypeError("Failed to fetch");
+    };
+    await ateARevisaoPeloMinimo();
+    clicar("Enviar");
+    expect(await screen.findByText("Relato registrado")).toBeTruthy();
   });
 });
