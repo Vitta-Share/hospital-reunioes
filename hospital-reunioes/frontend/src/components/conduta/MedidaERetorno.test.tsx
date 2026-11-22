@@ -165,9 +165,10 @@ describe("A correção de processo fica com responsável e prazo", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "ESCOLHER: Revisar a escala do almoxarifado." }));
     const gravar = screen.getByRole("button", { name: "GRAVAR CORREÇÃO" }) as HTMLButtonElement;
+    fireEvent.change(screen.getByLabelText("Prazo"), { target: { value: "2026-12-31" } });
     expect(gravar.disabled).toBe(true);
     fireEvent.change(screen.getByLabelText("Responsável"), { target: { value: "Gerência de Logística" } });
-    fireEvent.change(screen.getByLabelText("Prazo"), { target: { value: "2026-12-31" } });
+    expect(gravar.disabled).toBe(false);
     fireEvent.click(gravar);
 
     await waitFor(() => expect(chamadas).toHaveLength(1));
