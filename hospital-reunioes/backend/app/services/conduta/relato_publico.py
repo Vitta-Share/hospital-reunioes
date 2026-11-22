@@ -25,6 +25,7 @@ from app.services.conduta import casos, cifra
 from app.services.conduta.configuracoes import vigentes_publicas
 from app.services.conduta.ritos import CATEGORIAS, FUSO, agora_utc
 from app.services.feriados import feriados_entre
+from app.services.ouvidoria_acompanhamento import _gastar_o_tempo_de_uma_conferencia, codigo_confere
 
 LIMITE_DO_RELATO = 10_000
 # O Comitê lê o relato em até 5 dias úteis (P5); a data para voltar (P6) é o
@@ -36,7 +37,7 @@ _POSICOES = {"sofreu": "sofreu", "presenciou": "presenciou", "ficou_sabendo": "f
 _SIM_NAO = {"sim": "Sim", "nao": "Não", "nao_sei": "Não sei"}
 
 
-class EnvioRecusado(Exception):
+class EnvioRecusadoError(Exception):
     def __init__(self, motivo: str) -> None:
         super().__init__(motivo)
         self.motivo = motivo
@@ -77,11 +78,11 @@ def validar(dados: Any) -> Envio:
         envio = Envio.model_validate(dados)
     except ValidationError as erro:
         campos = sorted({str(e["loc"][0]) for e in erro.errors(include_input=False) if e.get("loc")})
-        raise EnvioRecusado("Confira os campos: " + ", ".join(campos) + ".") from None
+        raise EnvioRecusadoError("Confira os campos: " + ", ".join(campos) + ".") from None
     if not envio.ciencia.ciente:
-        raise EnvioRecusado("Marque a caixa de ciência do passo 1 para enviar.")
+        raise EnvioRecusadoError("Marque a caixa de ciência do passo 1 para enviar.")
     if envio.identificacao == "identificado" and not envio.nome:
-        raise EnvioRecusado("Escreva o seu nome ou escolha relatar sem se identificar.")
+        raise EnvioRecusadoError("Escreva o seu nome ou escolha relatar sem se identificar.")
     return envio
 
 
@@ -125,7 +126,7 @@ def _versoes_aceitas(supabase, versoes: dict[str, int | None]) -> dict[str, int 
         versao = versoes.get(chave)
         vigente = vigentes.get(chave)
         if versao is not None and (vigente is None or not 1 <= versao <= vigente["versao"]):
-            raise EnvioRecusado("Os avisos do passo 1 mudaram. Volte ao passo 1 e confira.")
+            raise EnvioRecusadoError("Os avisos do passo 1 mudaram. Volte ao passo 1 e confira.")
         aceitas[chave] = versao
     return aceitas
 
@@ -167,3 +168,48 @@ def registrar(supabase, envio: Envio, tarefas=None) -> dict[str, Any]:
         "voltar_a_partir_de": data_para_voltar(supabase, agora.astimezone(FUSO).date()).isoformat(),
     }
 
+
+class NotaDeConfianca(BaseModel):
+    """A pergunta opcional do P6. Vem com o protocolo e o código, que a tela
+    ainda tem na memória, para valer uma vez por relato e só para quem relatou."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    protocolo: str = Field(max_length=20)
+    codigo: str = Field(max_length=40)
+    nota: int = Field(ge=1, le=5)
+
+
+def validar_nota(dados: Any) -> NotaDeConfianca:
+    try:
+        return NotaDeConfianca.model_validate(dados)
+    except ValidationError:
+        raise EnvioRecusadoError("Escolha uma nota de 1 a 5.") from None
+
+
+def registrar_confianca(supabase, nota: NotaDeConfianca) -> bool:
+    """Grava a nota no caso, se o código confere e se ainda não há nota.
+    Devolve se o relato foi achado com aquele código."""
+    linhas = (
+        supabase.table("conduta_casos")
+        .select("id, codigo_hash")
+        .eq("protocolo", nota.protocolo.upper())
+        .limit(1)
+        .execute()
+        .data
+    ) or []
+    if not linhas:
+        # O mesmo tempo de um código errado, para a resposta não dizer se o
+        # protocolo existe.
+        _gastar_o_tempo_de_uma_conferencia(nota.codigo)
+        return False
+    if not codigo_confere(nota.codigo, linhas[0]["codigo_hash"]):
+        return False
+    (
+        supabase.table("conduta_casos")
+        .update({"confianca": nota.nota})
+        .eq("id", linhas[0]["id"])
+        .is_("confianca", "null")
+        .execute()
+    )
+    return True

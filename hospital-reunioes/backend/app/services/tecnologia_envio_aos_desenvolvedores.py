@@ -105,7 +105,7 @@ INTERPRETACAO_MOCK = {
 }
 
 
-class EnvioRecusadoError(RuntimeError):
+class EnvioRecusadoErrorError(RuntimeError):
     """O envio nao sai: duplo clique, envio ja feito ou interpretacao que sumiu.
     `motivo` e a frase da tela."""
 
@@ -299,11 +299,11 @@ def _interpretacao(supabase, demanda: dict[str, Any], conteudo: str, *, kit: str
 def interpretar(supabase, demanda: dict[str, Any], *, kit: str) -> dict[str, Any] | None:
     """O "Entendi assim:" das mensagens novas do diretor, gravado como envio
     `interpretado`, ou `None` quando o modelo falhou (a chamada fica gravada
-    do mesmo jeito). Levanta `EnvioRecusadoError` sem mensagem nova."""
+    do mesmo jeito). Levanta `EnvioRecusadoErrorError` sem mensagem nova."""
     demanda_id = str(demanda["id"])
     do_diretor, do_desenvolvedor = pendentes(supabase, demanda_id)
     if not do_diretor:
-        raise EnvioRecusadoError(MOTIVO_SEM_MENSAGEM_NOVA)
+        raise EnvioRecusadoErrorError(MOTIVO_SEM_MENSAGEM_NOVA)
 
     interpretacao = _interpretacao(supabase, demanda, pedido_do_envio(demanda, do_diretor, do_desenvolvedor), kit=kit)
     if interpretacao is None:
@@ -579,34 +579,34 @@ def _gravar_a_falha(supabase, envio_id: str, motivo: str) -> None:
 
 def enviar(supabase, demanda: dict[str, Any], *, ator: dict[str, Any], envio_id: str) -> dict[str, Any]:
     """Abre o Ajuste do plano da interpretacao `envio_id` e escreve a linha do
-    envio na conversa. Devolve a linha. Levanta `EnvioRecusadoError` (duplo
+    envio na conversa. Devolve a linha. Levanta `EnvioRecusadoErrorError` (duplo
     clique, ja enviado, interpretacao que nao existe) e `EnvioFalhouError`
     (o GitHub nao abriu; a falha fica gravada e o clique seguinte tenta)."""
     demanda_id = str(demanda["id"])
     envios = _envios(supabase, demanda_id)
     envio = next((e for e in envios if str(e.get("id")) == str(envio_id)), None)
     if envio is None:
-        raise EnvioRecusadoError(MOTIVO_ENVIO_SUMIU)
+        raise EnvioRecusadoErrorError(MOTIVO_ENVIO_SUMIU)
     if envio.get("estado") == ESTADO_ENVIADO:
-        raise EnvioRecusadoError(MOTIVO_JA_ENVIADO)
+        raise EnvioRecusadoErrorError(MOTIVO_JA_ENVIADO)
     if _em_andamento(envio):
-        raise EnvioRecusadoError(MOTIVO_EM_ANDAMENTO)
+        raise EnvioRecusadoErrorError(MOTIVO_EM_ANDAMENTO)
     # Um envio que ja saiu cobriu ate estas mensagens (a interpretacao e de
     # antes dele: outra aba, ou outro diretor no card de Origem Vitta).
     ja_saiu_ate = _ultimo_enviado_ate(envios)
     deste = instante_do_banco(envio.get("ate_mensagem_em"))
     if ja_saiu_ate is not None and (deste is None or deste <= ja_saiu_ate):
-        raise EnvioRecusadoError(MOTIVO_JA_ENVIADO)
+        raise EnvioRecusadoErrorError(MOTIVO_JA_ENVIADO)
     # Outra interpretacao das mesmas mensagens (outra aba) ja saiu ou esta saindo.
     for outro in envios:
         if outro is envio or not _mesmas_mensagens(outro, envio):
             continue
         if outro.get("estado") == ESTADO_ENVIADO:
-            raise EnvioRecusadoError(MOTIVO_JA_ENVIADO)
+            raise EnvioRecusadoErrorError(MOTIVO_JA_ENVIADO)
         if _em_andamento(outro):
-            raise EnvioRecusadoError(MOTIVO_EM_ANDAMENTO)
+            raise EnvioRecusadoErrorError(MOTIVO_EM_ANDAMENTO)
     if not _tomar_a_vez(supabase, envio):
-        raise EnvioRecusadoError(MOTIVO_EM_ANDAMENTO)
+        raise EnvioRecusadoErrorError(MOTIVO_EM_ANDAMENTO)
 
     raiz = int(demanda["github_issue_numero"])
     projeto = projeto_da_demanda(demanda)

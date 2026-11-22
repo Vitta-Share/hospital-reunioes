@@ -95,7 +95,26 @@ async def relatar(
     try:
         envio = relato_publico.validar(await _corpo(request))
         return relato_publico.registrar(supabase, envio, tarefas)
-    except relato_publico.EnvioRecusado as recusa:
+    except relato_publico.EnvioRecusadoError as recusa:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=recusa.motivo) from None
     except (cifra.CifraIndisponivelError, APIError, httpx.HTTPError):
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=FALHA_DO_ENVIO) from None
+
+
+@router.post("/relatos/confianca", status_code=status.HTTP_204_NO_CONTENT)
+@limite_sem_ip.limitar("10/minute")
+async def responder_confianca(request: Request, supabase: Client = Depends(get_supabase_client)) -> Response:
+    """A pergunta opcional do P6, de 1 a 5. Vale uma vez por relato. Código
+    que não confere responde 404, sem dizer se o protocolo existe."""
+    try:
+        nota = relato_publico.validar_nota(await _corpo(request))
+        achado = relato_publico.registrar_confianca(supabase, nota)
+    except relato_publico.EnvioRecusadoError as recusa:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=recusa.motivo) from None
+    except (APIError, httpx.HTTPError):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Não deu para gravar a nota."
+        ) from None
+    if not achado:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Relato não encontrado.")
+    return Response(status_code=status.HTTP_204_NO_CONTENT, headers=SEM_CACHE)

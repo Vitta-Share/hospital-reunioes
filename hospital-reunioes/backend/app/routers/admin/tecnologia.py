@@ -1442,7 +1442,7 @@ async def interpretar_o_envio(
         envio = await ai_processor.chamar_ia_fora_do_loop(
             tecnologia_envio_aos_desenvolvedores.interpretar, supabase, demanda, kit=carregar_kit()
         )
-    except tecnologia_envio_aos_desenvolvedores.EnvioRecusadoError as exc:
+    except tecnologia_envio_aos_desenvolvedores.EnvioRecusadoErrorError as exc:
         _recusar(exc.motivo)
     if envio is None:
         raise HTTPException(
@@ -1467,7 +1467,7 @@ async def enviar_aos_desenvolvedores(
     demanda = _demanda_do_envio(supabase, demanda_id, ator)
     try:
         linha = tecnologia_envio_aos_desenvolvedores.enviar(supabase, demanda, ator=ator, envio_id=payload.envio_id)
-    except tecnologia_envio_aos_desenvolvedores.EnvioRecusadoError as exc:
+    except tecnologia_envio_aos_desenvolvedores.EnvioRecusadoErrorError as exc:
         _recusar(exc.motivo)
     except tecnologia_envio_aos_desenvolvedores.EnvioFalhouError as exc:
         if exc.integracao_desligada:
