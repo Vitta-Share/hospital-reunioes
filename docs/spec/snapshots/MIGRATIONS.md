@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T13:17+0000 -->
+<!-- last_update: 2026-11-22T13:28+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -214,8 +214,6 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 220 | `220_nsp_recebido_do_setor.sql` | encaminhar à Segurança do Trabalho e à queixa técnica, | 1 | 0 | 2 | 0 |
 | 221 | `221_conduta_ata_de_deliberacao.sql` | Canal de Conduta, a ata de deliberação e a reunião do Comitê | 3 | 2 | 5 | 0 |
 | 222 | `222_link_pessoal_das_pendencias.sql` | Link pessoal das Pendencias (PRD #1757; issue #1878; ADR 0098 decisao 8) | 1 | 0 | 2 | 0 |
-| 223 | `223_conduta_recomendacao_medida_e_retorno.sql` | Canal de Conduta, a Recomendação do Comitê, a decisão da | 5 | 1 | 9 | 0 |
-| 224 | `224_conduta_trilha_e_dossie.sql` | Canal de Conduta, a trilha com gavetas e o Dossiê do caso | 0 | 4 | 0 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 210 migrations.
+**Total:** 208 migrations.
