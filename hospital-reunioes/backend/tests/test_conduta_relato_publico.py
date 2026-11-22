@@ -405,7 +405,9 @@ class TestOComiteLe:
 
 def test_o_kit_de_conhecimento_conta_o_relato_em_passos():
     """O agente de Tecnologia responde sobre o Produto pelo kit."""
-    kit = (Path(__file__).resolve().parents[1] / "app" / "conhecimento" / "canal-de-conduta.md").read_text("utf-8")
+    kit = (Path(__file__).resolve().parents[1] / "app" / "conhecimento" / "canal-de-conduta.md").read_text(
+        encoding="utf-8"
+    )
     secao = kit.split("## O relato em passos", 1)[1].split("\n## ", 1)[0]
 
     for promessa in (
