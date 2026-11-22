@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T05:53+0000 -->
+<!-- last_update: 2026-11-22T06:00+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -80,6 +80,18 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/comite-de-conduta/casos/{caso_id}/afastamentos/{afastamento_id}/entrega` | Registrar entrega | ✅ |
 | GET | `/comite-de-conduta/casos/{caso_id}/afastamentos/{afastamento_id}/parecer` | O parecer decifrado, entregue pelo backend. Nada de cache. | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/afastamentos/{afastamento_id}/parecer` | O parecer do Jurídico em PDF. Na Rota Especial, com o resultado que ele | ✅ |
+
+## canal-de-conduta (`app/routers/conduta_ata.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| POST | `/comite-de-conduta/casos/{caso_id}/ata` | GERAR ATA: o agente do Anexo D redige. Roda no executor da IA (issue #773). | ✅ |
+| GET | `/comite-de-conduta/casos/{caso_id}/ata/assinada` | A cópia da ata assinada, entregue pelo backend, sem cache. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/ata/assinatura` | A última versão da ata vai à ClickSign para os três votantes. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/ata/reconsulta` | Reconsultar status: pergunta à ClickSign sem depender do webhook. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/reuniao/conclusao` | CONCLUIR REUNIÃO: com os quatro itens, e a transcrição é eliminada. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/reuniao/conferencia` | Marcar item da reuniao | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/reuniao/transcricao` | ANEXAR TRANSCRIÇÃO DA REUNIÃO DO COMITÊ, na etapa Voto do rito Completo. | ✅ |
 
 ## canal-de-conduta (`app/routers/conduta_codigo.py`)
 
@@ -884,4 +896,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 513 endpoints em 73 routers · 93% exigem auth.
+**Totais:** 520 endpoints em 74 routers · 93% exigem auth.

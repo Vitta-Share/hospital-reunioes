@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T05:06+0000 -->
+<!-- last_update: 2026-11-22T06:00+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2393,7 +2393,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## conduta_casos
 
-> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql, 202_conduta_sinalizacao_da_ouvidoria.sql, 214_conduta_rota_especial.sql, 216_conduta_voto_e_trava_de_robustez.sql)
+> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql, 202_conduta_sinalizacao_da_ouvidoria.sql, 214_conduta_rota_especial.sql, 216_conduta_voto_e_trava_de_robustez.sql, 221_conduta_ata_de_deliberacao.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2412,6 +2412,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `origem` | `TEXT` | NOT NULL | — | `ouvidoria_protocolos.id` |
 | `direcao_envolvida` | `TEXT` | NOT NULL | — | `participantes.id` |
 | `rodada_do_voto` | `INTEGER` | NOT NULL | — | `participantes.id` |
+| `reuniao_concluida_em` | `TIMESTAMPTZ` | — | — | `participantes.id` |
 
 **Indexes:**
 - `idx_conduta_casos_rota_etapa` em `(rota, etapa, recebido_em DESC)` (de `175_conduta_fundacao.sql`)
@@ -2422,6 +2423,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `uq_conduta_casos_manifestacao` em `(manifestacao_id)` (de `202_conduta_sinalizacao_da_ouvidoria.sql`)
 - `idx_conduta_casos_desviado_por` em `(desviado_por)` (de `214_conduta_rota_especial.sql`)
 - `idx_conduta_casos_votacao_concluida_por` em `(votacao_concluida_por)` (de `216_conduta_voto_e_trava_de_robustez.sql`)
+- `idx_conduta_casos_reuniao_concluida_por` em `(reuniao_concluida_por)` (de `221_conduta_ata_de_deliberacao.sql`)
 
 ## conduta_atribuicoes
 
@@ -2753,7 +2755,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## conduta_assinaturas
 
-> Origem: `192_conduta_assinaturas.sql` (alterada em: 213_conduta_relatorio_de_apuracao.sql, 215_conduta_termo_de_declaracao.sql)
+> Origem: `192_conduta_assinaturas.sql` (alterada em: 213_conduta_relatorio_de_apuracao.sql, 215_conduta_termo_de_declaracao.sql, 221_conduta_ata_de_deliberacao.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2773,12 +2775,14 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
 | `relatorio_id` | `UUID` | — | — | `conduta_relatorios.id` |
 | `depoimento_id` | `UUID` | — | — | `conduta_depoimentos.id` |
+| `ata_id` | `UUID` | — | — | `conduta_atas.id` |
 
 **Indexes:**
 - `idx_conduta_assinaturas_participacao` em `(participacao_id, created_at DESC)` (de `192_conduta_assinaturas.sql`)
 - `idx_conduta_assinaturas_caso` em `(caso_id)` (de `192_conduta_assinaturas.sql`)
 - `idx_conduta_assinaturas_relatorio` em `(relatorio_id)` (de `213_conduta_relatorio_de_apuracao.sql`)
 - `idx_conduta_assinaturas_depoimento` em `(depoimento_id)` (de `215_conduta_termo_de_declaracao.sql`)
+- `idx_conduta_assinaturas_ata` em `(ata_id)` (de `221_conduta_ata_de_deliberacao.sql`)
 
 ## conduta_depoimentos
 
@@ -3341,6 +3345,58 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_nsp_recebimentos_notificacao` em `(notificacao_id, enviado_em)` (de `220_nsp_recebido_do_setor.sql`)
 - `idx_nsp_recebimentos_sem_clique` em `(enviado_em)` (de `220_nsp_recebido_do_setor.sql`)
 
+## conduta_atas
+
+> Origem: `221_conduta_ata_de_deliberacao.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `versao` | `INTEGER` | NOT NULL | — | — |
+| `rodada` | `INTEGER` | NOT NULL | — | — |
+| `votantes` | `VARCHAR(10)[]` | NOT NULL | — | — |
+| `ata_cifrada` | `TEXT` | NOT NULL | — | — |
+| `pontos_cifrados` | `TEXT` | — | — | — |
+| `autor_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_atas_autor` em `(autor_id)` (de `221_conduta_ata_de_deliberacao.sql`)
+
+## conduta_reuniao_transcricoes
+
+> Origem: `221_conduta_ata_de_deliberacao.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `versao` | `INTEGER` | NOT NULL | — | — |
+| `storage_path` | `TEXT` | NOT NULL | — | — |
+| `content_type` | `TEXT` | NOT NULL | — | — |
+| `tamanho_bytes` | `BIGINT` | NOT NULL | — | — |
+| `enviado_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `enviado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_reuniao_transcricoes_enviado_por` em `(enviado_por)` (de `221_conduta_ata_de_deliberacao.sql`)
+
+## conduta_reuniao_conferencia
+
+> Origem: `221_conduta_ata_de_deliberacao.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `item` | `TEXT` | NOT NULL | — | — |
+| `marcado_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `marcado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_conduta_reuniao_conferencia_marcado_por` em `(marcado_por)` (de `221_conduta_ata_de_deliberacao.sql`)
+
 ---
 
-**Resumo:** 167 tabelas vivas.
+**Resumo:** 170 tabelas vivas.

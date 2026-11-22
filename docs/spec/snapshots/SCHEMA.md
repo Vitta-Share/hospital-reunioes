@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T05:06+0000 -->
+<!-- last_update: 2026-11-22T06:00+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -65,8 +65,10 @@ erDiagram
     colegiados ||--o{ nsp_reunioes_rapidas : "colegiado_id"
     colegiados ||--o{ participacoes : "colegiado_id"
     colegiados ||--o{ reunioes : "colegiado_id"
+    conduta_atas ||--o{ conduta_assinaturas : "ata_id"
     conduta_casos ||--o{ conduta_afastamentos : "caso_id"
     conduta_casos ||--o{ conduta_assinaturas : "caso_id"
+    conduta_casos ||--o{ conduta_atas : "caso_id"
     conduta_casos ||--o{ conduta_atribuicoes : "caso_id"
     conduta_casos ||--o{ conduta_avisos : "caso_id"
     conduta_casos ||--o{ conduta_ciencias_do_codigo : "caso_id"
@@ -78,6 +80,8 @@ erDiagram
     conduta_casos ||--o{ conduta_notas_nsp : "caso_id"
     conduta_casos ||--o{ conduta_prazos_vencidos : "caso_id"
     conduta_casos ||--o{ conduta_relatorios : "caso_id"
+    conduta_casos ||--o{ conduta_reuniao_conferencia : "caso_id"
+    conduta_casos ||--o{ conduta_reuniao_transcricoes : "caso_id"
     conduta_casos ||--o{ conduta_selos : "caso_id"
     conduta_casos ||--o{ conduta_sugestoes : "caso_id"
     conduta_casos ||--o{ conduta_trava_confirmacoes : "caso_id"
@@ -146,11 +150,13 @@ erDiagram
     participantes ||--o{ conduta_afastamentos : "entregue_ao_juridico_por"
     participantes ||--o{ conduta_afastamentos : "parecer_anexado_por"
     participantes ||--o{ conduta_afastamentos : "registrado_por"
+    participantes ||--o{ conduta_atas : "autor_id"
     participantes ||--o{ conduta_atribuicoes : "impedimento_motivo"
     participantes ||--o{ conduta_atribuicoes : "participante_id"
     participantes ||--o{ conduta_avisos : "participante_id"
     participantes ||--o{ conduta_casos : "direcao_envolvida"
     participantes ||--o{ conduta_casos : "escopo"
+    participantes ||--o{ conduta_casos : "reuniao_concluida_em"
     participantes ||--o{ conduta_casos : "rodada_do_voto"
     participantes ||--o{ conduta_ciencias_do_codigo : "enviado_por"
     participantes ||--o{ conduta_citados : "participante_id"
@@ -172,6 +178,8 @@ erDiagram
     participantes ||--o{ conduta_registro : "autor_id"
     participantes ||--o{ conduta_registro : "ganhou"
     participantes ||--o{ conduta_relatorios : "autor_id"
+    participantes ||--o{ conduta_reuniao_conferencia : "marcado_por"
+    participantes ||--o{ conduta_reuniao_transcricoes : "enviado_por"
     participantes ||--o{ conduta_sugestao_respostas : "autor_id"
     participantes ||--o{ conduta_trava_confirmacoes : "participante_id"
     participantes ||--o{ conduta_trava_preenchimentos : "autor_id"
@@ -1381,7 +1389,7 @@ erDiagram
         TEXT categoria
         TIMESTAMPTZ recebido_em
         DATE prazo_em
-        _ mais_colunas "+6"
+        _ mais_colunas "+7"
     }
     conduta_atribuicoes {
         UUID id PK
@@ -1546,7 +1554,7 @@ erDiagram
         TEXT situacao
         TEXT envelope_id
         TEXT documento_key
-        _ mais_colunas "+8"
+        _ mais_colunas "+9"
     }
     conduta_depoimentos {
         UUID id PK
@@ -1817,6 +1825,34 @@ erDiagram
         TEXT papel
         _ mais_colunas "+6"
     }
+    conduta_atas {
+        UUID id PK
+        UUID caso_id FK
+        INTEGER versao
+        INTEGER rodada
+        VARCHAR votantes
+        TEXT ata_cifrada
+        TEXT pontos_cifrados
+        VARCHAR autor_id FK
+        _ mais_colunas "+1"
+    }
+    conduta_reuniao_transcricoes {
+        UUID id PK
+        UUID caso_id FK
+        INTEGER versao
+        TEXT storage_path
+        TEXT content_type
+        BIGINT tamanho_bytes
+        VARCHAR enviado_por FK
+        TIMESTAMPTZ enviado_em
+    }
+    conduta_reuniao_conferencia {
+        UUID id PK
+        UUID caso_id FK
+        TEXT item
+        VARCHAR marcado_por FK
+        TIMESTAMPTZ marcado_em
+    }
 ```
 
 ## Indexes principais
@@ -2039,6 +2075,7 @@ erDiagram
 | `conduta_casos` | `uq_conduta_casos_manifestacao` | `manifestacao_id` | `202_conduta_sinalizacao_da_ouvidoria.sql` |
 | `conduta_casos` | `idx_conduta_casos_desviado_por` | `desviado_por` | `214_conduta_rota_especial.sql` |
 | `conduta_casos` | `idx_conduta_casos_votacao_concluida_por` | `votacao_concluida_por` | `216_conduta_voto_e_trava_de_robustez.sql` |
+| `conduta_casos` | `idx_conduta_casos_reuniao_concluida_por` | `reuniao_concluida_por` | `221_conduta_ata_de_deliberacao.sql` |
 | `conduta_atribuicoes` | `idx_conduta_atribuicoes_pessoa` | `participante_id, caso_id` | `175_conduta_fundacao.sql` |
 | `conduta_atribuicoes` | `idx_conduta_atribuicoes_caso` | `caso_id` | `175_conduta_fundacao.sql` |
 | `conduta_atribuicoes` | `idx_conduta_atribuicoes_substitui` | `substitui_id` | `191_conduta_impedimento_e_citado.sql` |
@@ -2069,6 +2106,7 @@ erDiagram
 | `conduta_assinaturas` | `idx_conduta_assinaturas_caso` | `caso_id` | `192_conduta_assinaturas.sql` |
 | `conduta_assinaturas` | `idx_conduta_assinaturas_relatorio` | `relatorio_id` | `213_conduta_relatorio_de_apuracao.sql` |
 | `conduta_assinaturas` | `idx_conduta_assinaturas_depoimento` | `depoimento_id` | `215_conduta_termo_de_declaracao.sql` |
+| `conduta_assinaturas` | `idx_conduta_assinaturas_ata` | `ata_id` | `221_conduta_ata_de_deliberacao.sql` |
 | `conduta_depoimentos` | `idx_conduta_depoimentos_caso` | `caso_id` | `193_conduta_depoimentos.sql` |
 | `conduta_depoimentos` | `idx_conduta_depoimentos_criado_por` | `criado_por` | `193_conduta_depoimentos.sql` |
 | `conduta_depoimentos` | `idx_conduta_depoimentos_sem_gravacao_por` | `sem_gravacao_por` | `193_conduta_depoimentos.sql` |
@@ -2114,6 +2152,9 @@ erDiagram
 | `conduta_afastamentos` | `idx_conduta_afastamentos_rota` | `rota, registrado_em DESC` | `217_conduta_afastamento_cautelar.sql` |
 | `nsp_recebimentos` | `idx_nsp_recebimentos_notificacao` | `notificacao_id, enviado_em` | `220_nsp_recebido_do_setor.sql` |
 | `nsp_recebimentos` | `idx_nsp_recebimentos_sem_clique` | `enviado_em` | `220_nsp_recebido_do_setor.sql` |
+| `conduta_atas` | `idx_conduta_atas_autor` | `autor_id` | `221_conduta_ata_de_deliberacao.sql` |
+| `conduta_reuniao_transcricoes` | `idx_conduta_reuniao_transcricoes_enviado_por` | `enviado_por` | `221_conduta_ata_de_deliberacao.sql` |
+| `conduta_reuniao_conferencia` | `idx_conduta_reuniao_conferencia_marcado_por` | `marcado_por` | `221_conduta_ata_de_deliberacao.sql` |
 
 ---
-**Resumo:** 167 tabelas · 274 relacionamentos FK detectados.
+**Resumo:** 170 tabelas · 282 relacionamentos FK detectados.

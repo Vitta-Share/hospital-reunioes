@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T05:06+0000 -->
+<!-- last_update: 2026-11-22T06:00+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -212,6 +212,7 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 218 | `218_nsp_reuniao_de_analise_e_avisos_da_confirmacao.sql` | a reunião de análise e os avisos da confirmação da triagem | 0 | 1 | 1 | 0 |
 | 219 | `219_nsp_alerta_das_72_horas.sql` | o alerta do prazo de 72 horas (issue #2000, PRD #1979) | 0 | 0 | 0 | 0 |
 | 220 | `220_nsp_recebido_do_setor.sql` | encaminhar à Segurança do Trabalho e à queixa técnica, | 1 | 0 | 2 | 0 |
+| 221 | `221_conduta_ata_de_deliberacao.sql` | Canal de Conduta, a ata de deliberação e a reunião do Comitê | 3 | 2 | 5 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 206 migrations.
+**Total:** 207 migrations.
