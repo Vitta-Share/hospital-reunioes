@@ -32,6 +32,18 @@ describe("O texto da mensagem", () => {
     expect([...caixa.querySelectorAll("ul > li")].map((li) => li.textContent)).toEqual(["a escala", "o plantão"]);
   });
 
+  it("a lista numerada guarda o número que a pessoa digitou", () => {
+    const caixa = desenhar("1. primeiro\n\nno meio\n\n2. segundo");
+
+    expect([...caixa.querySelectorAll("ol")].map((ol) => ol.getAttribute("start") ?? "1")).toEqual(["1", "2"]);
+  });
+
+  it("a lista que começa no 3 aparece a partir do 3", () => {
+    const caixa = desenhar("3. falta a escala\n4. falta o plantão");
+
+    expect(caixa.querySelector("ol")?.getAttribute("start")).toBe("3");
+  });
+
   it("desenha o link, que abre em outra aba", () => {
     const caixa = desenhar("Veja [a tela](https://app.hsm.test/admin/tecnologia).");
 
@@ -62,6 +74,33 @@ describe("O texto da mensagem", () => {
 
     expect(caixa.querySelector("br")).not.toBeNull();
     expect(caixa.textContent).toBe("@Lucas Sampaio olha isso.\nAconteceu de novo agora.");
+  });
+
+  it("o log colado entre três crases guarda as quebras de linha", () => {
+    const caixa = desenhar("Log:\n```\nlinha 1\nlinha 2\n```");
+
+    const bloco = caixa.querySelector(".whitespace-pre-wrap");
+    expect(bloco?.textContent).toBe("linha 1\nlinha 2\n");
+  });
+
+  it("o bloco recuado em 4 espaços guarda as quebras de linha", () => {
+    const caixa = desenhar("Log:\n\n    linha 1\n    linha 2");
+
+    const bloco = caixa.querySelector(".whitespace-pre-wrap");
+    expect(bloco?.textContent).toBe("linha 1\nlinha 2\n");
+  });
+
+  it("o traço digitado embaixo de uma linha continua na tela", () => {
+    const caixa = desenhar("Resumo\n---\nfaltou a escala");
+
+    expect(caixa.textContent).toContain("Resumo\n---");
+    expect(caixa.textContent).toContain("faltou a escala");
+  });
+
+  it("a linha só de traços continua na tela", () => {
+    const caixa = desenhar("antes\n\n---\n\ndepois");
+
+    expect(caixa.textContent).toContain("---");
   });
 
   it("não usa itálico", () => {
