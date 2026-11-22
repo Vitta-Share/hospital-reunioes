@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T14:53:19-03:00",
+      "sha": "ff096ec37580d5f6bb506811922e644c1eae3eec",
+      "app_version": "0.380.0",
+      "subject": "Onda sesta-1786-onda11: Verificação de retaliação em 30, 90 e 180 dias",
+      "raw_subject": "chore(deploy): registro da onda sesta-1786-onda11 (#2169)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 2444,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "229_conduta_verificacao_de_retaliacao.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1786-onda11: PR #2169 (issue #1839), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 20,
+          "frontend": 238
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T14:46:09-03:00",
       "sha": "1042390ef7279a32b35b62fd5c62a8098bcdf7df",
       "app_version": "0.379.0",
