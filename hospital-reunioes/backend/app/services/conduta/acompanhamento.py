@@ -25,7 +25,7 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 from app.services import ouvidoria_acompanhamento
-from app.services.conduta import cifra, retorno, trilha
+from app.services.conduta import cifra, depoimentos, direcao, retorno, trilha
 from app.services.conduta.portao import CasoAberto
 from app.services.conduta.ritos import FUSO, agora_utc
 
@@ -257,11 +257,27 @@ def para_a_tela(supabase, aberto: CasoAberto, hoje: date) -> dict[str, Any]:
             "pode_perguntar": coordena and not encerrado,
             "perguntas_sugeridas": _perguntas_sugeridas(supabase, caso["id"]) if coordena and not encerrado else [],
             "arquivar_a_partir_de": a_partir_de.isoformat() if a_partir_de else None,
-            "pode_arquivar": coordena and a_partir_de is not None and a_partir_de <= hoje,
+            "pode_arquivar": coordena
+            and a_partir_de is not None
+            and a_partir_de <= hoje
+            and _trava_da_etapa(supabase, caso) is None,
             "arquivado": caso.get("desfecho") == ARQUIVADO,
             "pode_reabrir": coordena and _complemento_depois_do_arquivamento(caso, mensagens),
         }
     }
+
+
+def _trava_da_etapa(supabase, caso: dict) -> str | None:
+    """O motivo de o caso não sair da etapa em que está, ou None. Arquivar
+    leva a etapa a `encerrado`, e o banco recusa a saída da Apuração com
+    depoimento em aberto (migration 193) e da Medida sem a decisão da Direção
+    (migration 223). A conferência vem antes da trilha, que não se apaga."""
+    etapa = caso.get("etapa")
+    if etapa == "apuracao":
+        return depoimentos.bloqueio_do_avanco(depoimentos.do_caso(supabase, caso["id"]))
+    if etapa == "medida" and not direcao.decisao_do_caso(supabase, caso["id"]):
+        return "A etapa Medida só termina com a decisão da Direção registrada."
+    return None
 
 
 def perguntar(supabase, aberto: CasoAberto, *, texto: str) -> dict:
@@ -308,6 +324,9 @@ def arquivar(supabase, aberto: CasoAberto, *, hoje: date) -> dict:
         )
     if a_partir_de > hoje:
         raise MensagemRecusadaError(409, f"O arquivamento fica disponível em {a_partir_de.strftime('%d/%m/%Y')}.")
+    trava = _trava_da_etapa(supabase, caso)
+    if trava:
+        raise MensagemRecusadaError(409, f"O caso ainda não arquiva. {trava}")
     trilha.registrar(supabase, caso["id"], aberto.autor_id, "arquivamento", "arquivou o caso por falta de elementos")
     linhas = (
         supabase.table("conduta_casos")

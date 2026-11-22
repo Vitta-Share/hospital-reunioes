@@ -438,6 +438,20 @@ ARQUIVAR = "/api/comite-de-conduta/casos/{}/arquivamento"
 REABRIR = "/api/comite-de-conduta/casos/{}/reabertura"
 
 
+def _depoimento(canal: _Canal, did: str, *, concluido_em: str | None) -> dict:
+    return {
+        "id": did,
+        "caso_id": canal.caso_id,
+        "nome_cifrado": cifra.cifrar_texto("Pessoa ouvida"),
+        "cargo_cifrado": cifra.cifrar_texto("Técnico"),
+        "papel": "testemunha",
+        "criado_por": COORDENACAO,
+        "criado_em": "2026-11-03T12:00:00+00:00",
+        "concluido_em": concluido_em,
+        "concluido_por": COORDENACAO if concluido_em else None,
+    }
+
+
 class TestArquivarEReabrir:
     def test_antes_de_15_dias_arquivar_nao_esta_disponivel(self, canal):
         canal.perguntar()
@@ -497,6 +511,65 @@ class TestArquivarEReabrir:
         acoes = [t["acao"] for t in canal.banco.tabelas["conduta_trilha"]]
         assert "arquivamento" in acoes
         assert acoes[-1] == "reabertura"
+
+    def _arquivar_travado(self, canal) -> tuple[dict, object, list]:
+        canal.perguntar()
+        canal.recuar_mensagens(20)
+        area = canal.tela()["mensagens"]
+        trilha_antes = list(canal.banco.tabelas["conduta_trilha"])
+        resposta = canal.comite().post(ARQUIVAR.format(canal.caso_id))
+        return area, resposta, trilha_antes
+
+    def test_na_apuracao_com_depoimento_em_aberto_nao_arquiva_nem_grava_na_trilha(self, canal):
+        canal.mudar_caso(etapa="apuracao", triagem_em="2026-11-02T12:00:00+00:00")
+        canal.banco.tabelas.setdefault("conduta_depoimentos", []).extend(
+            [_depoimento(canal, "dep-1", concluido_em=None), _depoimento(canal, "dep-2", concluido_em="2026-11-04")]
+        )
+
+        area, resposta, trilha_antes = self._arquivar_travado(canal)
+
+        assert area["pode_arquivar"] is False
+        assert resposta.status_code == 409
+        assert "depoimentos concluídos" in resposta.json()["detail"]
+        assert canal.banco.tabelas["conduta_trilha"] == trilha_antes
+        assert not canal.caso.get("encerrado_em")
+        assert canal.caso["etapa"] == "apuracao"
+
+    def test_na_apuracao_com_os_depoimentos_concluidos_arquiva(self, canal):
+        canal.mudar_caso(etapa="apuracao", triagem_em="2026-11-02T12:00:00+00:00")
+        canal.banco.tabelas.setdefault("conduta_depoimentos", []).append(
+            _depoimento(canal, "dep-1", concluido_em="2026-11-04T12:00:00+00:00")
+        )
+
+        area, resposta, _ = self._arquivar_travado(canal)
+
+        assert area["pode_arquivar"] is True
+        assert resposta.status_code == 200, resposta.text
+        assert canal.caso["desfecho"] == "arquivado"
+
+    def test_na_medida_sem_a_decisao_da_direcao_nao_arquiva_nem_grava_na_trilha(self, canal):
+        canal.mudar_caso(etapa="medida", triagem_em="2026-11-02T12:00:00+00:00")
+
+        area, resposta, trilha_antes = self._arquivar_travado(canal)
+
+        assert area["pode_arquivar"] is False
+        assert resposta.status_code == 409
+        assert "decisão da Direção" in resposta.json()["detail"]
+        assert canal.banco.tabelas["conduta_trilha"] == trilha_antes
+        assert not canal.caso.get("encerrado_em")
+        assert canal.caso["etapa"] == "medida"
+
+    def test_na_medida_com_a_decisao_da_direcao_arquiva(self, canal):
+        canal.mudar_caso(etapa="medida", triagem_em="2026-11-02T12:00:00+00:00")
+        canal.banco.tabelas.setdefault("conduta_decisoes_da_medida", []).append(
+            {"id": "dec-1", "caso_id": canal.caso_id, "decisao": "aplicada"}
+        )
+
+        area, resposta, _ = self._arquivar_travado(canal)
+
+        assert area["pode_arquivar"] is True
+        assert resposta.status_code == 200, resposta.text
+        assert canal.caso["desfecho"] == "arquivado"
 
     def test_quem_relatou_le_que_o_caso_foi_arquivado_e_como_reabrir(self, canal):
         canal.perguntar()
