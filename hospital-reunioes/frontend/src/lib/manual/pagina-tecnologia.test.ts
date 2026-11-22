@@ -21,7 +21,9 @@ const TECNOLOGIA = PAGINAS.find((p) => p.modulo === "tecnologia");
 const TAREFAS = [
   "Pedir um bug ou uma melhoria ao Assistente",
   "Acompanhar o pedido no Quadro",
+  "Ver o que espera sua resposta",
   "Responder uma pergunta da Vitta",
+  "Pedir explicação ao assistente (Me explique)",
   "Mandar o que você escreveu aos desenvolvedores",
   "Filtrar por Projeto",
   "Ver as Entregas",
@@ -166,9 +168,9 @@ describe("o aviso Pede sua resposta e o pedido de projeto novo (issue #1968, PRD
     expect(passo, "nenhum passo diz o assunto do e-mail").toBeDefined();
   });
 
-  it("o passo de responder traz o print da pergunta na Conversa da Demanda", () => {
+  it("o passo de responder traz o print do cartão da pergunta na Conversa da Demanda (issue #2123)", () => {
     const passo = passosDa(TAREFA).find((p) => /responda ali mesmo/.test(p));
-    expect(imagensCitadas(passo ?? "")).toContain("pergunta-na-conversa.png");
+    expect(imagensCitadas(passo ?? "")).toContain("cartao-da-pergunta.png");
   });
 
   it("a tarefa Acompanhar o pedido no Quadro manda para a tarefa nova, sem repetir os passos", () => {
@@ -196,6 +198,71 @@ describe("o aviso Pede sua resposta e o pedido de projeto novo (issue #1968, PRD
     expect(abertura, "a tarefa não diz que a aba junta os projetos novos da Vitta").toBeDefined();
     expect(abertura).toMatch(/projetos novos da Vitta que já têm pedido na aba/);
     expect(abertura).not.toMatch(/pergunta para você/);
+  });
+});
+
+describe("a lista Esperando sua resposta, o cartão e o Me explique (issue #2123, PRD #2112, ADR 0109)", () => {
+  const LISTA = "Ver o que espera sua resposta";
+  const RESPONDER = "Responder uma pergunta da Vitta";
+  const ME_EXPLIQUE = "Pedir explicação ao assistente (Me explique)";
+
+  it("a lista Esperando sua resposta fica no alto da aba, com as suas perguntas primeiro e o cartão em destaque pelo aviso", () => {
+    const passos = passosDa(LISTA);
+    const daLista = passos.find((p) => /\*\*Esperando sua resposta\*\*/.test(p));
+    expect(daLista, "nenhum passo mostra a lista Esperando sua resposta").toBeDefined();
+    expect(daLista).toMatch(/no alto da aba/);
+    expect(imagensCitadas(daLista!)).toContain("esperando-sua-resposta.png");
+    expect(passos.some((p) => /as suas vêm primeiro/.test(p))).toBe(true);
+    expect(passos.some((p) => /aviso do sino ou no link do e-mail/.test(p) && /em destaque/.test(p))).toBe(true);
+  });
+
+  it("o cartão diz por que precisa de você, o que está parado, o que anda depois e o que o hospital ganha", () => {
+    const { texto } = secao(LISTA);
+    for (const linha of [
+      "Por que precisa de você",
+      "O que está parado",
+      "O que anda quando você responder",
+      "O que o hospital ganha",
+    ]) {
+      expect(texto).toContain(`**${linha}**`);
+    }
+  });
+
+  it("responder no cartão: a opção, com a Recomendada em destaque, ou o campo livre e o Responder", () => {
+    const passos = passosDa(RESPONDER);
+    const i = passos.findIndex((p) => /responda ali mesmo/.test(p));
+    expect(i, "nenhum passo manda responder no cartão").toBeGreaterThanOrEqual(0);
+    const noCartao = passos.slice(i).find((p) => /\*\*Recomendada\*\*/.test(p));
+    expect(noCartao, "nenhum passo mostra as opções com a Recomendada").toBeDefined();
+    expect(noCartao).toMatch(/clique na opção/);
+    expect(noCartao).toMatch(/\*\*Responder\*\*/);
+  });
+
+  it("a resposta deixa a pergunta Respondida, sai da lista, e só destrava com o ok da Vitta", () => {
+    const passo = passosDa(RESPONDER).find((p) => /\*\*Respondida\*\*/.test(p));
+    expect(passo, "nenhum passo diz o que acontece depois de responder").toBeDefined();
+    expect(passo).toMatch(/sai da lista \*\*Esperando sua resposta\*\*/);
+    const { texto } = secao(RESPONDER);
+    expect(texto).toMatch(/\*\*Resolvida\*\*/);
+    expect(texto).toMatch(/\*\*O que foi decidido\*\*/);
+    expect(texto).toMatch(/\*\*Cancelada\*\*/);
+    expect(texto).toMatch(/depois de 3 dias/);
+  });
+
+  it("o Me explique é uma conversa só sua, o rascunho vai para o campo pelo Usar este rascunho, e quem envia é o Responder", () => {
+    const passos = passosDa(ME_EXPLIQUE);
+    const abrir = passos.findIndex((p) => /clique em \*\*Me explique\*\*/.test(p));
+    const rascunho = passos.findIndex((p) => /\*\*Usar este rascunho\*\*/.test(p));
+    const responder = passos.findIndex((p, i) => i > rascunho && /\*\*Responder\*\*/.test(p));
+    expect([abrir, rascunho, responder].every((i) => i >= 0), `faltam passos: ${abrir}, ${rascunho}, ${responder}`).toBe(true);
+    expect(abrir).toBeLessThan(rascunho);
+    expect(imagensCitadas(passos.slice(abrir, rascunho + 1).join("\n"))).toContain("me-explique.png");
+    expect(secao(ME_EXPLIQUE).texto).toMatch(/só sua/);
+    expect(secao(ME_EXPLIQUE).texto).toMatch(/nada do Me explique vai para a Conversa da Demanda/);
+  });
+
+  it("a Pergunta da Vitta nunca se chama Pendência, que é a Ação da Ata (ADR 0109, decisão 2)", () => {
+    expect(TECNOLOGIA!.corpo).not.toMatch(/pend[êe]ncia/i);
   });
 });
 
@@ -399,5 +466,21 @@ describe("o fluxograma do caminho de um pedido", () => {
     expect(alcancaveis(f, enviar.para).has(enviado.id)).toBe(true);
     expect(alcancaveis(f, corrigir.para, new Set([enviado.id])).has(envio.id)).toBe(true);
     expect(enviado.detalhe).toMatch(/só o resumo que você aprovou/);
+  });
+
+  it("a pergunta da Vitta entra pela lista Esperando sua resposta, e o trabalho só anda depois da resposta e do ok da Vitta (issue #2123)", () => {
+    const f = fluxo();
+    const inicio = f.passos.find((p) => p.forma === "inicio")!;
+    const lista = passoPorRotulo(f, /^Esperando sua resposta$/);
+    const responder = passoPorRotulo(f, /^Responder no cartão$/);
+    const resolvida = passoPorRotulo(f, /^Resolvida$/);
+    const desenvolvimento = passoPorRotulo(f, /^Em desenvolvimento$/);
+    expect(alcancaveis(f, inicio.id).has(lista.id)).toBe(true);
+    // A lista é a entrada: nenhum caminho chega ao cartão sem passar por ela.
+    expect(alcancaveis(f, inicio.id, new Set([lista.id])).has(responder.id)).toBe(false);
+    expect(alcancaveis(f, lista.id).has(responder.id)).toBe(true);
+    expect(alcancaveis(f, responder.id, new Set([resolvida.id])).has(desenvolvimento.id)).toBe(false);
+    expect(alcancaveis(f, resolvida.id).has(desenvolvimento.id)).toBe(true);
+    expect(responder.detalhe).toMatch(/Me explique/);
   });
 });
