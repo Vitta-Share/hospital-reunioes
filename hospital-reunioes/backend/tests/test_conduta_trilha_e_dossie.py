@@ -18,7 +18,7 @@ import zipfile
 
 import pytest
 from fastapi.testclient import TestClient
-from test_conduta_voto import BASE, COORDENACAO, LEITOR, MEMBRO, NOMES, RELATO, Comite, _pessoa
+from test_conduta_voto import BASE, COORDENACAO, LEITOR, MEMBRO, NOMES, RELATO, SUPLENTE, Comite, _pessoa
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -436,6 +436,20 @@ class TestDossie:
 
         assert "não confere com o código registrado no envio" in indice
 
+    def test_o_arquivo_que_a_chave_nao_abre_aparece_no_indice_e_o_resto_sai(self, dossie):
+        caso = dossie.caso_votado()
+        audio = next(a for a in dossie.banco.tabelas["conduta_depoimento_arquivos"] if a["tipo"] == "audio")
+        dossie.banco.storage.objetos[("conduta-arquivos", audio["storage_path"])] = secrets.token_bytes(80)
+
+        pacote = _pacote(dossie.baixar(COORDENACAO, caso))
+
+        indice = pacote["00-indice.txt"]
+        assert "não abre com a chave do caso" in indice
+        assert not [nome for nome in pacote if nome.startswith("03-audios/")]
+        assert _arquivo(pacote, "02-documentos/", "termo-de-declaracao")[1] == TERMO
+        assert _arquivo(pacote, "04-transcricoes-de-depoimentos/", "acusado-1")[1] == TRANSCRICAO.decode()
+        assert pacote["01-relato-original.txt"].strip().endswith(RELATO)
+
     def test_o_voto_ainda_oculto_nao_entra_no_pacote(self, dossie):
         caso, _ = dossie.caso_com_depoimento()
         dossie.votar(MEMBRO, caso, justificativa="Segredo do membro até os três votarem.")
@@ -551,6 +565,40 @@ class TestSoOComiteBaixa:
 
         assert dossie.abrir(MEMBRO, caso)["trilha"]["pode_baixar_dossie"] is True
         assert dossie.baixar(MEMBRO, caso).status_code == 200
+
+    def test_na_rota_especial_o_suplente_do_grupo_baixa(self, dossie):
+        caso = dossie.caso_votado()
+        dossie.linha_do_caso(caso).update({"rota": "especial", "rito": "especial"})
+        for pid in (MEMBRO, SUPLENTE):
+            dossie.banco.tabelas.setdefault("conduta_atribuicoes", []).append(
+                {
+                    "id": f"atr-{pid}",
+                    "caso_id": caso,
+                    "participante_id": pid,
+                    "motivo": "grupo_especial",
+                    "termo_assinado_em": "2026-10-01T12:00:00+00:00",
+                }
+            )
+
+        assert dossie.abrir(SUPLENTE, caso)["trilha"]["pode_baixar_dossie"] is True
+        assert dossie.baixar(SUPLENTE, caso).status_code == 200
+        assert dossie.baixar(COORDENACAO, caso).status_code == 403
+
+    def test_na_rota_especial_a_cipa_convidada_nao_baixa(self, dossie):
+        caso = dossie.caso_votado()
+        dossie.linha_do_caso(caso).update({"rota": "especial", "rito": "especial"})
+        self._com_pessoa(dossie, "CIPA", nome_completo="Clara Cipa")
+        dossie.banco.tabelas.setdefault("conduta_atribuicoes", []).append(
+            {
+                "id": "atr-cipa",
+                "caso_id": caso,
+                "participante_id": "CIPA",
+                "motivo": "cipa",
+                "termo_assinado_em": "2026-10-01T12:00:00+00:00",
+            }
+        )
+
+        assert dossie.baixar("CIPA", caso).status_code == 403
 
 
 # ═══════════════════════════════════════════════════════════════════════════

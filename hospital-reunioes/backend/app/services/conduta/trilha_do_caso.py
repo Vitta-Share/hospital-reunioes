@@ -285,8 +285,15 @@ def pode_baixar_dossie(aberto: CasoAberto) -> bool:
     """O Dossiê é só do Comitê no caso: a coordenação, o membro e o segundo
     leitor. O papel já vem do caso (o suplente convocado faz o que o
     substituído fazia), e o convidado (apurador, CIPA) não tem papel no
-    Comitê. Presidente, diretoria executiva e super admin, também não."""
-    return aberto.pessoa.papel in PAPEIS_DA_FILA_COMUM
+    Comitê. Presidente, diretoria executiva e super admin, também não. Na
+    Rota Especial, todo o Grupo Especial do caso baixa, o suplente do grupo
+    também: ele é cadeira do Comitê e está designado no caso."""
+    if aberto.pessoa.papel in PAPEIS_DA_FILA_COMUM:
+        return True
+    return any(
+        a.get("motivo") == "grupo_especial" and not a.get("revogada_em") and not a.get("impedido_em")
+        for a in aberto.atribuicoes
+    )
 
 
 def bloqueio(supabase, caso: dict) -> str | None:

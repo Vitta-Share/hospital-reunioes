@@ -227,7 +227,12 @@ def _nome_do_arquivo(documento: Documento, numero: int) -> str:
     return f"{PASTAS[documento.pasta]}/{numero:02d}-{_slug(documento.titulo)}{versao}{extensao}"
 
 
-def _entrada_do_indice(numero: int, nome: str, documento: Documento, conteudo: bytes | None) -> str:
+class _Ilegivel:
+    """O objeto do bucket que a chave configurada não abre: corrompido, ou
+    trocado por quem não tem a chave."""
+
+
+def _entrada_do_indice(numero: int, nome: str, documento: Documento, conteudo: bytes | None | _Ilegivel) -> str:
     linhas = [
         f"{numero:02d}. {nome}",
         f"    O quê: {documento.titulo}",
@@ -235,8 +240,14 @@ def _entrada_do_indice(numero: int, nome: str, documento: Documento, conteudo: b
         f"    Quando: {_quando(documento.data)}",
         f"    Origem: {documento.origem}",
     ]
-    if conteudo is None:
-        linhas.append("    Atenção: o arquivo não pôde ser lido do armazenamento e não está no pacote.")
+    if conteudo is None or isinstance(conteudo, _Ilegivel):
+        if conteudo is None:
+            linhas.append("    Atenção: o arquivo não pôde ser lido do armazenamento e não está no pacote.")
+        else:
+            linhas.append(
+                "    Atenção: o arquivo no armazenamento não abre com a chave do caso (corrompido ou trocado) "
+                "e não está no pacote."
+            )
         if documento.codigo:
             linhas.append(f"    Código de integridade registrado no envio: {documento.codigo}")
         return "\n".join(linhas)
@@ -249,17 +260,26 @@ def _entrada_do_indice(numero: int, nome: str, documento: Documento, conteudo: b
     return "\n".join(linhas)
 
 
-def _ler(supabase, documento: Documento) -> bytes | None:
+def _ler(supabase, documento: Documento) -> bytes | None | _Ilegivel:
     if not documento.caminho:
         return None
     cifrado = storage.download_file(supabase, depoimentos.BUCKET, documento.caminho)
-    return cifra.decifrar_arquivo(cifrado) if cifrado is not None else None
+    if cifrado is None:
+        return None
+    try:
+        return cifra.decifrar_arquivo(cifrado)
+    except cifra.CifraIndisponivelError:
+        # Sem a chave, o caso inteiro não abre: o erro sobe e vira 503.
+        if not cifra.chave_configurada():
+            raise
+        return _Ilegivel()
 
 
 def montar(supabase, aberto: CasoAberto) -> tuple[IO[bytes], str]:
     """O pacote ZIP e o nome do arquivo. Chame depois de `registrar_download`:
     o registro de acessos do pacote já traz o próprio download. Levanta
-    `CifraIndisponivelError` se a chave não abre."""
+    `CifraIndisponivelError` se a chave falta ou não abre o caso; o arquivo do
+    bucket que a chave não abre entra no índice, sem derrubar o pacote."""
     caso = aberto.caso
     linhas = linhas_da_trilha(supabase, caso["id"])
     baixou = membros.nomes(supabase, [aberto.autor_id]).get(aberto.autor_id, "")
@@ -292,7 +312,7 @@ def montar(supabase, aberto: CasoAberto) -> tuple[IO[bytes], str]:
         for numero, documento in enumerate(documentos_do_caso(supabase, caso), 1):
             nome = _nome_do_arquivo(documento, numero)
             conteudo = _ler(supabase, documento)
-            if conteudo is not None:
+            if isinstance(conteudo, bytes):
                 sem_compressao = documento.content_type.startswith(_SEM_COMPRESSAO)
                 pacote.writestr(nome, conteudo, compress_type=zipfile.ZIP_STORED if sem_compressao else None)
             indice.append(_entrada_do_indice(numero, nome, documento, conteudo))
