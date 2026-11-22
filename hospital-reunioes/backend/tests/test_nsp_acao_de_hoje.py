@@ -18,6 +18,7 @@ O banco é o dublê em memória dos testes da notificação, e o provedor de e-m
 
 from __future__ import annotations
 
+import inspect
 import os
 import sys
 from datetime import UTC, datetime, timedelta
@@ -289,9 +290,7 @@ def test_a_presidencia_ve_os_quatro_grupos_com_contagem_e_link_para_a_tela_certa
         "/seguranca-do-paciente/notificacoes/caso-2",
     ]
     assert prazos["itens"][0]["rotulo"] == "NSP-2026-0001, NOTIVISA em 72 horas: vence em 20/11/2026 às 08:00"
-    assert prazos["itens"][2]["rotulo"] == (
-        "NSP-2026-0002, VigiMed até o 15º dia útil: vence em 21/12/2026 às 23:59"
-    )
+    assert prazos["itens"][2]["rotulo"] == ("NSP-2026-0002, VigiMed até o 15º dia útil: vence em 21/12/2026 às 23:59")
 
     termos = grupos["termos_pendentes"]
     assert termos["total"] == 3
@@ -348,15 +347,29 @@ def test_o_caso_a_a_menos_de_24_horas_do_fim_gera_o_email_urgente_uma_vez_so(env
         assert alerta["situacao"] == emails.ENVIADO
     assert sorted(e["para"] for e in enviados) == ["p1@hsm.test", "p5@hsm.test", "p7@hsm.test"]
     envio = enviados[0]
-    assert envio["assunto"] == (
-        "[72 HORAS] Notificação NSP-2026-0001: notificar a vigilância até 20/11/2026 às 08:00"
-    )
+    assert envio["assunto"] == ("[72 HORAS] Notificação NSP-2026-0001: notificar a vigilância até 20/11/2026 às 08:00")
     for parte in ("texto", "html"):
         assert "/seguranca-do-paciente/notificacoes/caso-1" in envio[parte]
         assert NOME_DO_PACIENTE not in envio[parte]
         assert NOME_DO_PROFISSIONAL not in envio[parte]
         assert "—" not in envio[parte]
         assert "–" not in envio[parte]
+
+
+def test_o_job_de_hora_em_hora_dispara_o_alerta_de_72_horas(monkeypatch, enviados):
+    from app.cron import scheduler
+
+    banco = _banco()
+    monkeypatch.setattr(scheduler, "_supabase", lambda: banco)
+    monkeypatch.setattr(scheduler, "datetime", type("_Relogio", (), {"now": staticmethod(lambda tz=None: AGORA)}))
+
+    scheduler.alertar_prazos_de_72_horas_nsp()
+
+    assert {a["caso_id"] for a in _alertas(banco)} == {"caso-1"}
+    assert len(enviados) == 3
+    assert 'alertar_prazos_de_72_horas_nsp,\n        "cron",\n        minute=5,' in inspect.getsource(
+        scheduler.start_scheduler
+    )
 
 
 def test_a_faixa_destaca_o_prazo_de_72_horas_a_menos_de_24_horas_do_fim():

@@ -141,8 +141,7 @@ def _casos_abertos(supabase, _momento: datetime) -> tuple[int, list[dict[str, An
     abertos = _protocolos(supabase, faixas, estado=CASO_ABERTO)
     ordem = sorted(abertos.values(), key=lambda caso: (faixas[caso["id"]], caso.get("numero") or 0))
     itens = [
-        _item(f"{caso['protocolo']}, faixa {faixas[caso['id']]}", TELA_DO_CASO.format(id=caso["id"]))
-        for caso in ordem
+        _item(f"{caso['protocolo']}, faixa {faixas[caso['id']]}", TELA_DO_CASO.format(id=caso["id"])) for caso in ordem
     ]
     return len(itens), itens
 
@@ -340,7 +339,11 @@ def alertar_os_prazos_de_72_horas(supabase, agora: datetime) -> int:
                 continue
             try:
                 assunto, texto, contexto = mensagem_das_72_horas(
-                    pessoa.get("nome_completo") or "", caso["protocolo"], caso["caso_id"], caso["sistema"], caso["vence"]
+                    pessoa.get("nome_completo") or "",
+                    caso["protocolo"],
+                    caso["caso_id"],
+                    caso["sistema"],
+                    caso["vence"],
                 )
                 registro = emails.registrar(
                     supabase,
