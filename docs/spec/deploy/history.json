@@ -2,6 +2,51 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T02:16:49-03:00",
+      "sha": "cf9dff1fc61ef0475bc400eed6dc52f23d95bd59",
+      "app_version": "0.369.1",
+      "subject": "Onda pergunta-da-vitta-2112-onda4: Tecnologia com Esperando sua resposta, responder no cartão e o Me explique",
+      "raw_subject": "chore(deploy): registro da onda pergunta-da-vitta-2112-onda4 (#2143)",
+      "scope": [
+        "frontend"
+      ],
+      "prds": [
+        2112
+      ],
+      "result": "healthy",
+      "duration_seconds": 616,
+      "services_touched": [
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta pergunta-da-vitta-2112-onda4: PR #2143 (issue #2123), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 5,
+        "build_s": {
+          "frontend": 206
+        },
+        "health_s": 2
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T02:09:22-03:00",
       "sha": "7c2d43451818f53bf96d69fa58ffe00dcdffcd06",
       "app_version": "0.369.0",
