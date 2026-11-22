@@ -135,10 +135,12 @@ describe("dado de cidadão não fica gravado no aparelho (issue #483, ADR 0041)"
       "/api/ouvidoria/",
       "/api/nsp/recebimento/",
       "/api/minhas-pendencias/",
+      "/api/conduta/",
       "/aceite/",
       "/ouvidoria-setor",
       "/notificar/recebido/",
       "/minhas-pendencias/",
+      "/conduta",
     ]);
   });
 
@@ -162,6 +164,21 @@ describe("o link pessoal das pendências não fica no aparelho (issue #1878)", (
 
   it("as pendências do app logado seguem como antes", () => {
     expect(modulo.podeGuardarNoAparelho("/api/pendencias/stats")).toBe(true);
+  });
+});
+
+describe("o Canal de Conduta fica fora do cache do aplicativo (issue #1843)", () => {
+  it("a página pública e as respostas dela caem em NetworkOnly", () => {
+    // A resposta do envio traz o protocolo e o código, que aparecem uma vez só;
+    // nada do relato pode sobrar no Cache Storage do celular de quem relatou.
+    for (const caminho of ["/conduta", "/api/conduta/relatos", "/api/conduta/textos"]) {
+      expect(modulo.podeGuardarNoAparelho(caminho), caminho).toBe(false);
+      expect(regraQueVence(caminho), caminho).toBe(modulo.runtimeCaching[0]);
+    }
+  });
+
+  it("o lado do Comitê, que é outra área, não é afetado pela regra da página pública", () => {
+    expect(modulo.podeGuardarNoAparelho("/comite-de-conduta/casos")).toBe(true);
   });
 });
 
