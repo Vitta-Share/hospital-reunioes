@@ -2,6 +2,51 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T12:45:38-03:00",
+      "sha": "ef159e9cc1f1c8f1d9564d4e0fdefa0fe63fd1c9",
+      "app_version": "0.375.1",
+      "subject": "Onda sesta-1979-onda1: Agente de triagem marca como evento da lista o caso com detalhe faltando",
+      "raw_subject": "chore(deploy): registro da onda sesta-1979-onda1 (#2167)",
+      "scope": [
+        "backend"
+      ],
+      "prds": [
+        1979
+      ],
+      "result": "healthy",
+      "duration_seconds": 61,
+      "services_touched": [
+        "backend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1979-onda1: PR #2167 (issue #2159), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 27
+        },
+        "health_s": 10
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T11:38:54-03:00",
       "sha": "e2d2736c63d42676f6e29360b026cd2d2167bb95",
       "app_version": "0.375.0",
