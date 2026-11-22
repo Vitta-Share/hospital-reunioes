@@ -632,7 +632,10 @@ def test_o_kit_de_conhecimento_conta_os_anexos_do_relato():
         "o relato segue sem ele",
         "O nome original do arquivo não é guardado",
         "só sai para quem abre o caso",
+        "O complemento da página de acompanhamento também aceita anexo",
+        'marcado "(complemento)"',
     ):
         assert promessa in secao
     assert "Anexos e o aviso de assunto fora do canal na revisão chegam" not in kit
     assert "os anexos do relato, as perguntas ao relator" not in kit
+    assert "O anexo no complemento da página de acompanhamento" not in kit

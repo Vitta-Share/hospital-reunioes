@@ -176,6 +176,8 @@ Antes de guardar, o aplicativo regrava o arquivo sem o que ele carrega escondido
 
 O nome original do arquivo não é guardado, nem na base de dados nem no registro de funcionamento do servidor. O arquivo fica cifrado e só sai para quem abre o caso, pela tela do caso, em "Anexos do relato": cada abertura fica na trilha. O super admin, o impedido e o Citado não abrem.
 
+O complemento da página de acompanhamento também aceita anexo, com os mesmos formatos, o mesmo aviso e a mesma limpeza. Os anexos sobem depois que o complemento é enviado, e formato fora da lista é recusado sem impedir o complemento. O limite de 10 anexos conta o relato e os complementos juntos. Na tela do caso, o anexo que veio pelo complemento aparece marcado "(complemento)".
+
 ## A página de acompanhamento e as Mensagens
 
 Quem relatou volta pelo botão Acompanhar relato, na entrada do canal, e digita o protocolo e o código. É o único caminho entre o Comitê e quem relatou: ninguém recebe aviso por e-mail, mensagem ou telefone.
@@ -382,7 +384,7 @@ Quem não tem acesso recebe a mesma recusa, exista o caso ou não.
 
 ## O que ele ainda não faz
 
-O anexo no complemento da página de acompanhamento, o roteiro de perguntas e o termo de declaração redigidos pelo agente chegam nas próximas entregas. A decisão da Direção entra no Dossiê quando chegar. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. O relato em passos já existe, mas o canal segue fechado até a abertura: enquanto isso, os relatos continuam chegando pela Ouvidoria.
+O roteiro de perguntas e o termo de declaração redigidos pelo agente chegam nas próximas entregas. A decisão da Direção entra no Dossiê quando chegar. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. O relato em passos já existe, mas o canal segue fechado até a abertura: enquanto isso, os relatos continuam chegando pela Ouvidoria.
 
 ## O que já foi decidido
 
