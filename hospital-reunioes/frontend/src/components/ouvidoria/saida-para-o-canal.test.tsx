@@ -1,0 +1,100 @@
+/**
+ * @vitest-environment jsdom
+ */
+
+/**
+ * A Ouvidoria e o Canal de Conduta, nos dois sentidos (issue #1847, PRD #1786,
+ * ADR 0097 decisão 11).
+ *
+ * * A Manifestação guiada (`/manifestacao` e a que segue do cartaz) mostra a
+ *   saída "Sou colaborador e quero relatar uma conduta" só com o canal aberto.
+ *   Quem diz se ele está aberto é a rota pública `/api/conduta/abertura`: 200
+ *   aberto, 404 fechado. Na dúvida (falha de rede), fechado.
+ * * O registro manual do ouvidor mostra a orientação de indicar o Canal ao
+ *   colaborador (decisão 2 do diretor), também só com o canal aberto: com ele
+ *   fechado, a orientação mandaria a pessoa a uma página que não existe.
+ * * Vindo do Canal, o formulário abre com o texto já escrito, lido da memória
+ *   da aba (sessionStorage), nunca do endereço da página.
+ *
+ * O backend é um dublê por URL.
+ */
+
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import ManifestacaoPage from "@/app/manifestacao/page";
+import { ManifestacaoPublica } from "./ManifestacaoPublica";
+import { NovaManifestacaoModal } from "./NovaManifestacaoModal";
+import { guardarTextoParaAOuvidoria } from "@/lib/ouvidoria/texto-do-canal";
+
+const SAIDA = "Sou colaborador e quero relatar uma conduta";
+const ORIENTACAO =
+  "Colaborador que quer relatar uma conduta: indique o Canal de Conduta. Lá ele pode ficar anônimo e acompanhar o relato pelo código.";
+
+let canalAberto = true;
+let redeCaiu = false;
+let perguntasDaAbertura = 0;
+
+function json(body: unknown, status = 200) {
+  return { ok: status < 300, status, json: async () => body } as Response;
+}
+
+beforeEach(() => {
+  canalAberto = true;
+  redeCaiu = false;
+  perguntasDaAbertura = 0;
+  window.sessionStorage.clear();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url === "/api/conduta/abertura") {
+        perguntasDaAbertura += 1;
+        if (redeCaiu) throw new TypeError("Failed to fetch");
+        return canalAberto ? json({ aberto: true }) : json({ detail: "Not Found" }, 404);
+      }
+      if (url.includes("/publico/locais")) return json({ locais: [] });
+      if (url.includes("/setores")) return json([]);
+      return json({}, 404);
+    })
+  );
+});
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+describe("a saída para o Canal de Conduta na Manifestação guiada", () => {
+  it("com o canal aberto, o formulário público mostra a saída e ela leva ao Canal", async () => {
+    render(<ManifestacaoPage />);
+
+    const saida = await screen.findByRole("link", { name: new RegExp(SAIDA) });
+    expect(saida.getAttribute("href")).toBe("/conduta");
+  });
+
+  it("com o canal aberto, a Manifestação guiada que segue do cartaz também mostra a saída", async () => {
+    render(<ManifestacaoPublica codigoDoCartaz="K7M2P" />);
+
+    const saida = await screen.findByRole("link", { name: new RegExp(SAIDA) });
+    expect(saida.getAttribute("href")).toBe("/conduta");
+  });
+
+  it("com o canal fechado, a saída não aparece", async () => {
+    canalAberto = false;
+    render(<ManifestacaoPage />);
+
+    await waitFor(() => expect(perguntasDaAbertura).toBe(1));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByRole("link", { name: new RegExp(SAIDA) })).toBeNull();
+    expect(screen.queryByText(new RegExp(SAIDA))).toBeNull();
+  });
+
+  it("sem resposta da abertura, a saída não aparece: na dúvida, o canal fica fechado", async () => {
+    redeCaiu = true;
+    render(<ManifestacaoPage />);
+
+    await waitFor(() => expect(perguntasDaAbertura).toBe(1));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByText(new RegExp(SAIDA))).toBeNull();
+  });
+});

@@ -28,6 +28,8 @@ import {
   Send,
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
+import { useCanalDeCondutaAberto } from "@/hooks/useCanalDeCondutaAberto";
+import { ENDERECO_DO_CANAL } from "@/lib/conduta/publico";
 import {
   ENVIO_RECUSADO_PELA_PAGINA,
   EXPECTATIVAS,
@@ -105,7 +107,9 @@ const LIMITE_RELATO = 10000;
 const TOTAL_DE_PASSOS = 5;
 const TITULOS = ["Identificação", "Sobre o quê", "Quando e onde", "O que aconteceu", "Contato"];
 
-const FALTA_CONTATO = "Para enviar, deixe seu nome e um telefone ou e-mail.";
+const SAIDA_DO_COLABORADOR = "Sou colaborador e quero relatar uma conduta";
+
+const FALTA_CONTATO ="Para enviar, deixe seu nome e um telefone ou e-mail.";
 
 // As classes que se repetem. Alvo de toque de 44 px em tudo que se aperta
 // (regra T4 da especificação): a tela é feita para o celular.
@@ -290,6 +294,8 @@ function FormularioPublico({ codigoDoCartaz, avaliacaoId = null, naturezaInicial
     titulo.current?.focus();
   }, [passo]);
 
+  const canalDeCondutaAberto = useCanalDeCondutaAberto();
+
   const anonimo = identificacao === "anonimo";
   const nomesDaLista = locais.map((l) => l.nome);
   const opcoesDeLocal = [...nomesDaLista, OUTRO_LUGAR];
@@ -461,6 +467,19 @@ function FormularioPublico({ codigoDoCartaz, avaliacaoId = null, naturezaInicial
             </button>
           ))}
         </div>
+      )}
+
+      {/* A saída de quem trabalha no hospital (issue #1847, decisão 3 do
+          diretor no PRD #1786): o relato de conduta de colaborador é do Canal
+          de Conduta. Só com o canal aberto (ADR 0097, decisão 11). */}
+      {passo === 1 && canalDeCondutaAberto && (
+        <a
+          href={ENDERECO_DO_CANAL}
+          className="flex min-h-[44px] flex-col gap-0.5 rounded-xl border border-border bg-white px-4 py-3 text-left hover:border-primary/40"
+        >
+          <span className="text-sm font-semibold text-slate-800">{SAIDA_DO_COLABORADOR}</span>
+          <span className="text-sm text-slate-500">Ir para o Canal de Conduta</span>
+        </a>
       )}
 
       {passo === 2 && (
