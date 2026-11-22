@@ -107,6 +107,8 @@ export type PerguntaDaVitta = {
   conclusao?: ConclusaoDoPedido | null;
   fechamento?: FechamentoNoGithub | null;
   pode_reenviar?: boolean;
+  /** O Pedido de implantação que este espera, enquanto não foi concluído (issue #2208). */
+  espera?: { pedido_id: string; assunto: string } | null;
 };
 
 const NOME_DO_ESTADO: Record<EstadoDaPergunta, string> = {

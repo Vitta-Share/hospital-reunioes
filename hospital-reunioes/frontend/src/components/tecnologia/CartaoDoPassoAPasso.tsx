@@ -12,7 +12,9 @@
  *
  * O Pedido de implantação (issue #2207, ADR 0111) usa este cartão com o nome
  * dele: o card fechou quando o Pedido nasceu, e o "Não chegou ao GitHub" com
- * o Reenviar pode aparecer já no cartão aberto.
+ * o Reenviar pode aparecer já no cartão aberto. O Pedido que espera outro
+ * (issue #2208) mostra "Espera" com o assunto do outro, e o Concluir fica
+ * bloqueado com o motivo até o servidor mandar o cartão sem a espera.
  */
 
 import { useEffect, useState } from "react";
@@ -72,6 +74,7 @@ export function CartaoDoPassoAPasso({
   const faz = aberta && Boolean(atual.pode_responder) && Boolean(token);
   const passos = atual.passos ?? [];
   const todosMarcados = passos.length > 0 && passos.every((p) => p.marcado);
+  const esperado = aberta ? atual.espera : null;
 
   async function pedir(url: string, corpo?: unknown): Promise<unknown> {
     if (!token || enviando) return null;
@@ -152,6 +155,9 @@ export function CartaoDoPassoAPasso({
         {tempo && <span className="normal-case text-text-secondary">{tempo}</span>}
       </div>
       {atual.destinatario && <p className="normal-case text-xs text-text-secondary">Para {atual.destinatario}</p>}
+      {esperado && (
+        <p className="normal-case text-xs font-semibold text-amber-800">{`Espera: ${esperado.assunto}`}</p>
+      )}
       <p className="normal-case whitespace-pre-wrap text-sm font-semibold text-slate-900">{atual.texto}</p>
       <dl className="grid gap-2 sm:grid-cols-2">
         {linhas.map(([rotulo, valor]) => (
@@ -200,14 +206,18 @@ export function CartaoDoPassoAPasso({
           <button
             type="button"
             onClick={concluir}
-            disabled={!todosMarcados || enviando}
+            disabled={!todosMarcados || Boolean(esperado) || enviando}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {enviando && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             Concluir
           </button>
-          {!todosMarcados && (
-            <p className="normal-case text-xs text-text-secondary">Marque todos os passos para concluir.</p>
+          {esperado ? (
+            <p className="normal-case text-xs text-text-secondary">{`Este Pedido espera "${esperado.assunto}" ser concluído.`}</p>
+          ) : (
+            !todosMarcados && (
+              <p className="normal-case text-xs text-text-secondary">Marque todos os passos para concluir.</p>
+            )
           )}
         </div>
       )}
