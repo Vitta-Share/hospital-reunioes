@@ -36,11 +36,11 @@ O painel mostra os números das Pendências que você vê: as suas e, se você c
 3. **Status das Pendências** (2) mostra quantas estão pendentes, em progresso, concluídas, atrasadas e repactuadas. Clique numa fatia para abrir a lista só com elas.
 4. **Pendências por Setor** (3) mostra a mesma divisão em cada setor. Clique numa barra para abrir a lista daquele setor.
 5. **Evolução das atrasadas** (4) mostra as atrasadas das últimas 8 semanas, com o número guardado toda segunda.
-6. Se você conduz alguma reunião, **Atrasos por setor** (5) mostra os atrasos dos últimos 90 dias no hospital inteiro, e as reaberturas ao lado.
+6. Se você conduz alguma reunião, **Atrasos por setor** (5) mostra os atrasos dos últimos 90 dias no hospital inteiro e, ao lado, as reaberturas e as Rotinas não cumpridas.
 
 ![O painel de Reuniões](painel.png)
 
-7. Quem administra o aplicativo vê também o **Ranking de atrasos**, com o nome de cada responsável: as vencidas agora (1), as repactuadas depois do prazo, as concluídas com atraso, o total de atrasos (2), as Rotinas não cumpridas (3) e as reaberturas.
+7. Quem administra o aplicativo vê também o **Ranking de atrasos**, com o nome de cada responsável: as vencidas agora (1), as repactuadas depois do prazo, as concluídas com atraso, o total de atrasos (2), as reaberturas e as Rotinas não cumpridas (3). A Rotina não cumprida é o ciclo marcado como Não realizada, marcado depois do prazo ou que terminou sem marcação.
 
 ![O ranking de atrasos dos últimos 90 dias](ranking.png)
 
@@ -232,7 +232,7 @@ Repactuar é marcar um prazo novo. Fazem isso o responsável, o Facilitador e qu
 
 ## Cancelar ou reabrir uma Pendência
 
-Só o Facilitador da reunião e quem administra o aplicativo cancelam ou reabrem. Não existe mais excluir: a Pendência cancelada continua no Histórico.
+Só o Facilitador da reunião e quem administra o aplicativo cancelam ou reabrem. Pendência não se exclui: a cancelada continua na lista e no Histórico.
 
 1. Para cancelar uma Pendência aberta, abra-a pela lupa e clique em **Cancelar pendência** (1).
 2. Escreva na **Anotação** por que ela deixou de valer e clique em **Confirmar**.

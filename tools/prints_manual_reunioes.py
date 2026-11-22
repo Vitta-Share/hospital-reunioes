@@ -84,7 +84,7 @@ TITULO_ASSINADA = "Comissão de Controle de Infecção"
 # A reunião com a Ata em assinatura, de outra Facilitadora: é nela que a
 # Clara, como responsável, contesta o item dela (issue #1880).
 REUNIAO_EM_ASSINATURA = "MRP1721C"
-TITULO_EM_ASSINATURA = "Comissão de Farmácia e Terapêutica"
+TITULO_EM_ASSINATURA = "Padronização de antibióticos da UTI"
 FACILITADORA_DA_FARMACIA = "P17214"
 REUNIOES_DO_SEED = {
     REUNIAO: TITULO_REUNIAO,
@@ -647,9 +647,11 @@ def navegador(*args: str) -> str:
 # aceita import). O balão é um `div` por cima da tela, sem clique, que some na
 # próxima navegação: nada disto fica no app.
 AJUDANTES = r"""
-const balao = async (alvo, numero) => {
+const balao = async (alvo, numero, noFim = false) => {
   await alvo.scrollIntoViewIfNeeded();
-  const caixa = await alvo.boundingBox();
+  const achada = await alvo.boundingBox();
+  // Texto alinhado à direita (o cabeçalho de coluna numérica): o balão vai no fim.
+  const caixa = achada && noFim ? { ...achada, x: achada.x + achada.width - 6 } : achada;
   if (!caixa) throw new Error('balão ' + numero + ': o elemento não está na tela');
   await page.evaluate(([x, y, n]) => {
     const b = document.createElement('div');
@@ -697,6 +699,9 @@ const abrirPendencia = async (descricao) => {
   await page.waitForTimeout(600);
   return janela;
 };
+// Só o lado das ações: do número da Pendência ao fim do Histórico.
+const recorteDaPendencia = (janela) =>
+  recorte([janela.locator('span.font-mono').first(), janela.locator('section').last()], 24);
 const anotar = async (janela, texto) => {
   await janela.getByPlaceholder('Conte o que foi feito ou por que esta ação.').fill(texto);
 };
@@ -958,11 +963,14 @@ def ranking() -> str:
     await secao.locator('tbody tr').evaluateAll((linhas, nomes) => {{
       for (const tr of linhas) if (!nomes.includes(tr.cells[0].innerText.trim())) tr.remove();
     }}, doSeed);
-    const linha = secao.locator('tbody tr').first();
-    await linha.waitFor();
-    await balao(linha.locator('td').nth(2), 1);
-    await balao(linha.locator('td').nth(5), 2);
-    await balao(secao.getByRole('columnheader', {{ name: 'Rotinas não cumpridas' }}), 3);
+    await secao.locator('tbody tr').first().waitFor();
+    // O ranking divide a linha com os atrasos por setor e rola de lado: no
+    // print ele ocupa a largura toda, com todas as colunas à vista.
+    await secao.evaluate((s) => {{ s.parentElement.style.gridTemplateColumns = '1fr'; s.style.overflow = 'visible'; }});
+    await page.waitForTimeout(300);
+    await balao(secao.getByRole('columnheader', {{ name: 'Vencidas agora' }}), 1, true);
+    await balao(secao.getByRole('columnheader', {{ name: 'Atrasos', exact: true }}), 2, true);
+    await balao(secao.getByRole('columnheader', {{ name: 'Rotinas não cumpridas' }}), 3, true);
     // O resto do painel é do hospital inteiro: a tela fica só com o ranking.
     const texto = await secao.innerText();
     const {{ clip }} = await pronto(await recorte([secao], 16));
@@ -992,11 +1000,11 @@ def contestar() -> str:
     return f"""
     const janela = await abrirPendencia({_descricao("PE1721F")});
     await janela.getByRole('button', {{ name: 'Contestar', exact: true }}).click();
-    await anotar(janela, 'A lista é da Comissão de Farmácia, e eu só recebo a versão final. Peço para passar o item para a Farmácia.');
+    await anotar(janela, 'A lista é da Farmácia, e eu só recebo a versão final. Peço para passar o item para a Farmácia.');
     await balao(janela.getByRole('button', {{ name: 'Contestar', exact: true }}), 1);
     await balao(janela.getByPlaceholder('Conte o que foi feito ou por que esta ação.'), 2);
     await balao(janela.getByRole('button', {{ name: 'Confirmar' }}), 3);
-    return await pronto(await recorte([janela], 0));
+    return await pronto(await recorteDaPendencia(janela));
     """
 
 
@@ -1010,7 +1018,7 @@ def responder_contestacao() -> str:
     await balao(janela.getByText('Prazo novo (opcional)'), 2);
     await balao(janela.getByPlaceholder('Digite o nome da pessoa certa'), 3);
     await balao(janela.getByRole('button', {{ name: 'Recusar contestação' }}), 4);
-    return await pronto(await recorte([janela], 0));
+    return await pronto(await recorteDaPendencia(janela));
     """
 
 
@@ -1021,7 +1029,7 @@ def _acao_na_pendencia(pid: str, botao: str, anotacao: str, baloes: str) -> str:
     await anotar(janela, {json.dumps(anotacao)});
     await balao(janela.getByRole('button', {{ name: {json.dumps(botao)}, exact: true }}), 1);
     {baloes}
-    return await pronto(await recorte([janela], 0));
+    return await pronto(await recorteDaPendencia(janela));
     """
 
 
@@ -1207,14 +1215,13 @@ def link_pessoal() -> str:
     descricao = _descricao("PE1721A")
     return f"""
     await abrir('/minhas-pendencias/{TOKEN_DO_LINK}', 1100, 900);
-    const cartao = page.locator('li, article, section').filter({{ hasText: {descricao} }}).last();
-    await cartao.waitFor();
+    const daPendencia = page.locator('li, article, section').filter({{ hasText: {descricao} }}).last();
+    await daPendencia.waitFor();
     await page.waitForTimeout(800);
-    await balao(cartao.getByText({descricao}), 1);
-    await balao(cartao.getByRole('button', {{ name: 'Concluir', exact: true }}), 2);
-    await page.evaluate(() => window.scrollTo(0, 0));
-    const altura = await page.evaluate(() => document.documentElement.scrollHeight);
-    return await pronto({{ x: 0, y: 0, width: 1100, height: Math.min(altura, 1200) }});
+    await balao(daPendencia.getByText({descricao}), 1);
+    await balao(daPendencia.getByRole('button', {{ name: 'Concluir', exact: true }}), 2);
+    const titulo = page.getByRole('heading', {{ name: 'Minhas pendências' }});
+    return await pronto(await recorte([titulo, daPendencia]));
     """
 
 
