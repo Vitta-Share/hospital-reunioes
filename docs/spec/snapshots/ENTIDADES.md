@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T13:13+0000 -->
+<!-- last_update: 2026-11-22T13:17+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -3405,6 +3405,23 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_conduta_reuniao_conferencia_marcado_por` em `(marcado_por)` (de `221_conduta_ata_de_deliberacao.sql`)
 
+## pendencias_links_pessoais
+
+> Origem: `222_link_pessoal_das_pendencias.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `participante_id` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `token_hash` | `TEXT` | NOT NULL | — | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `expira_em` | `TIMESTAMPTZ` | NOT NULL | `now() + interval '14 days'` | — |
+| `revogado_em` | `TIMESTAMPTZ` | — | — | — |
+
+**Indexes:**
+- `idx_pendencias_links_pessoais_hash` em `(token_hash)` (de `222_link_pessoal_das_pendencias.sql`)
+- `idx_pendencias_links_pessoais_vivos` em `(participante_id)` (de `222_link_pessoal_das_pendencias.sql`)
+
 ## conduta_retornos
 
 > Origem: `223_conduta_recomendacao_medida_e_retorno.sql`
@@ -3494,4 +3511,4 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ---
 
-**Resumo:** 175 tabelas vivas.
+**Resumo:** 176 tabelas vivas.

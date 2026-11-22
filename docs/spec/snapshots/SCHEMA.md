@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T13:13+0000 -->
+<!-- last_update: 2026-11-22T13:17+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -232,6 +232,7 @@ erDiagram
     participantes ||--o{ participacoes_trilha : "autor_id"
     participantes ||--o{ pendencias : "co_responsavel_id"
     participantes ||--o{ pendencias : "responsavel_id"
+    participantes ||--o{ pendencias_links_pessoais : "participante_id"
     participantes ||--o{ pops : "criado_por"
     participantes ||--o{ pops : "elaborador_id"
     participantes ||--o{ pops : "revisor_id"
@@ -1865,6 +1866,14 @@ erDiagram
         VARCHAR marcado_por FK
         TIMESTAMPTZ marcado_em
     }
+    pendencias_links_pessoais {
+        UUID id PK
+        VARCHAR participante_id FK
+        TEXT token_hash
+        TIMESTAMPTZ criado_em
+        TIMESTAMPTZ expira_em
+        TIMESTAMPTZ revogado_em
+    }
     conduta_retornos {
         UUID id PK
         UUID caso_id FK
@@ -2216,6 +2225,8 @@ erDiagram
 | `conduta_atas` | `idx_conduta_atas_autor` | `autor_id` | `221_conduta_ata_de_deliberacao.sql` |
 | `conduta_reuniao_transcricoes` | `idx_conduta_reuniao_transcricoes_enviado_por` | `enviado_por` | `221_conduta_ata_de_deliberacao.sql` |
 | `conduta_reuniao_conferencia` | `idx_conduta_reuniao_conferencia_marcado_por` | `marcado_por` | `221_conduta_ata_de_deliberacao.sql` |
+| `pendencias_links_pessoais` | `idx_pendencias_links_pessoais_hash` | `token_hash` | `222_link_pessoal_das_pendencias.sql` |
+| `pendencias_links_pessoais` | `idx_pendencias_links_pessoais_vivos` | `participante_id` | `222_link_pessoal_das_pendencias.sql` |
 | `conduta_retornos` | `idx_conduta_retornos_autor` | `autor_id` | `223_conduta_recomendacao_medida_e_retorno.sql` |
 | `conduta_decisoes_da_medida` | `idx_conduta_decisoes_da_medida_registrada_por` | `registrada_por` | `223_conduta_recomendacao_medida_e_retorno.sql` |
 | `conduta_comunicacoes_da_medida` | `idx_conduta_comunicacoes_da_medida_enviado_por` | `enviado_por` | `223_conduta_recomendacao_medida_e_retorno.sql` |
@@ -2224,4 +2235,4 @@ erDiagram
 | `conduta_correcoes` | `idx_conduta_correcoes_escolhida_por` | `escolhida_por` | `223_conduta_recomendacao_medida_e_retorno.sql` |
 
 ---
-**Resumo:** 175 tabelas · 293 relacionamentos FK detectados.
+**Resumo:** 176 tabelas · 294 relacionamentos FK detectados.
