@@ -40,6 +40,8 @@ TABELA_PERGUNTAS = "tecnologia_perguntas"
 # Os estados da Pergunta (CHECK da migration 211, ADR 0109, decisao 1).
 ESTADO_ABERTA = "aberta"
 ESTADO_RESPONDIDA = "respondida"
+ESTADO_RESOLVIDA = "resolvida"
+ESTADO_CANCELADA = "cancelada"
 
 # A origem da linha de sistema na Conversa (CHECK da migration 165): a mesma
 # da linha do Envio aos desenvolvedores, para a tela mostrar do mesmo jeito.
@@ -65,6 +67,15 @@ MOTIVO_SEM_RESPOSTA = "Escolha uma das opções ou escreva a sua resposta."
 MOTIVO_OPCAO_DESCONHECIDA = "A opção escolhida não é uma das opções da Pergunta."
 MOTIVO_SO_O_DESTINATARIO = "Só quem recebeu a Pergunta, ou um Desenvolvedor no lugar dele, pode responder."
 MOTIVO_NAO_ESTA_ABERTA = "Esta Pergunta já não espera resposta."
+MOTIVO_SEM_DECIDIDO = "Falta o que foi decidido."
+MOTIVO_SEM_DESTRAVOU = "Falta o que destravou."
+MOTIVO_SEM_MOTIVO = "Falta o motivo do cancelamento."
+# Por que a passagem nao vale, pelo estado em que a Pergunta esta.
+MOTIVO_DA_PASSAGEM_RECUSADA = {
+    ESTADO_ABERTA: "A Pergunta ainda não foi respondida: só a respondida se resolve.",
+    ESTADO_RESOLVIDA: "Esta Pergunta já foi resolvida e não muda mais.",
+    ESTADO_CANCELADA: "Esta Pergunta já foi cancelada e não muda mais.",
+}
 
 
 class PerguntaRecusadaError(ValueError):
@@ -82,6 +93,16 @@ class RespostaProibidaError(PermissionError):
 
 class PerguntaFechadaError(ValueError):
     """A Pergunta ja nao esta aberta (409): respondida, resolvida ou cancelada."""
+
+
+class FechamentoIncompletoError(ValueError):
+    """Resolver sem o que foi decidido ou o que destravou, ou cancelar sem o
+    motivo (422). Nada foi gravado."""
+
+
+class PassagemRecusadaError(ValueError):
+    """A Pergunta nao esta num estado de onde a passagem vale (409): resolver
+    a aberta, ou resolver ou cancelar a que ja fechou."""
 
 
 def _limpo(valor: str | None) -> str:
@@ -219,6 +240,9 @@ def _cartao(p: dict[str, Any], *, projeto: str, nomes: dict[str, str], ator: dic
         "destinatario": nomes.get(str(p.get("destinatario_id"))),
         # A resposta (issue #2119): o cartao respondido fica na Conversa com ela.
         "resposta": _resposta(p, nomes),
+        # O estado final (issue #2121): a decisao ou o motivo.
+        "resolucao": _resolucao(p),
+        "cancelamento": _cancelamento(p),
         "pode_responder": ator is not None and estado == ESTADO_ABERTA and pode_responder(p, ator),
     }
 
@@ -456,3 +480,128 @@ def lembrar(supabase, agora: datetime) -> int:
         except Exception as e:  # noqa: BLE001 (uma Pergunta nao segura as outras)
             logger.error(f"[tecnologia_perguntas] Falha no lembrete da Pergunta {pergunta.get('id')}: {e}")
     return lembradas
+
+
+# ─── Resolver e cancelar (issue #2121, ADR 0109, decisao 6) ─────────────────
+
+
+def _fechar(
+    supabase,
+    pergunta: dict[str, Any],
+    demanda: dict[str, Any],
+    *,
+    autor: dict[str, Any],
+    de: tuple[str, ...],
+    campos: dict[str, Any],
+    linha: str,
+) -> dict[str, Any]:
+    """A passagem para resolvida ou cancelada: so dos estados `de`, por UPDATE
+    condicional (de dois pedidos ao mesmo tempo, so o primeiro grava), e a
+    linha de sistema na Conversa da Demanda. Depois dela a Pergunta nao muda
+    mais: nenhum estado final esta em `de`."""
+    estado = pergunta.get("estado") or ESTADO_ABERTA
+    if estado not in de:
+        raise PassagemRecusadaError(MOTIVO_DA_PASSAGEM_RECUSADA[estado])
+    gravadas = (
+        supabase.table(TABELA_PERGUNTAS).update(campos).eq("id", pergunta["id"]).in_("estado", list(de)).execute().data
+        or []
+    )
+    if not gravadas:
+        atual = buscar(supabase, str(pergunta["id"])) or {}
+        raise PassagemRecusadaError(MOTIVO_DA_PASSAGEM_RECUSADA.get(atual.get("estado"), MOTIVO_NAO_ESTA_ABERTA))
+    supabase.table(TABELA_CONVERSA_DA_DEMANDA).insert(
+        {
+            "demanda_id": demanda["id"],
+            "autor_id": autor["id"],
+            "texto": linha,
+            "mencoes": [],
+            "origem": ORIGEM_SISTEMA,
+        }
+    ).execute()
+    return gravadas[0]
+
+
+def _resolucao(pergunta: dict[str, Any]) -> dict[str, Any] | None:
+    if pergunta.get("estado") != ESTADO_RESOLVIDA:
+        return None
+    return {
+        "decidido": pergunta.get("resolucao_decidido"),
+        "destravou": pergunta.get("resolucao_destravou"),
+        "resolvida_em": pergunta.get("resolvida_em"),
+    }
+
+
+def _cancelamento(pergunta: dict[str, Any]) -> dict[str, Any] | None:
+    if pergunta.get("estado") != ESTADO_CANCELADA:
+        return None
+    return {"motivo": pergunta.get("resolucao_decidido"), "cancelada_em": pergunta.get("cancelada_em")}
+
+
+def resolver(
+    supabase,
+    pergunta: dict[str, Any],
+    demanda: dict[str, Any],
+    *,
+    autor: dict[str, Any],
+    decidido: str | None,
+    destravou: str | None,
+) -> dict[str, Any]:
+    """A Vitta leu a resposta e deu o ok (ADR 0109, decisao 6): a Pergunta
+    respondida passa a resolvida, com o que foi decidido e o que destravou, e
+    a Conversa ganha a linha de sistema com os dois. So a respondida se
+    resolve. Devolve a linha gravada."""
+    decidido, destravou = _limpo(decidido), _limpo(destravou)
+    if not decidido:
+        raise FechamentoIncompletoError(MOTIVO_SEM_DECIDIDO)
+    if not destravou:
+        raise FechamentoIncompletoError(MOTIVO_SEM_DESTRAVOU)
+    return _fechar(
+        supabase,
+        pergunta,
+        demanda,
+        autor=autor,
+        de=(ESTADO_RESPONDIDA,),
+        campos={
+            "estado": ESTADO_RESOLVIDA,
+            "resolucao_decidido": decidido,
+            "resolucao_destravou": destravou,
+            "resolvida_em": datetime.now(UTC).isoformat(),
+        },
+        linha=(
+            f"Pergunta resolvida: {pergunta.get('assunto') or ''}\n"
+            f"O que foi decidido: {decidido}\n"
+            f"O que destravou: {destravou}"
+        ),
+    )
+
+
+def cancelar(
+    supabase,
+    pergunta: dict[str, Any],
+    demanda: dict[str, Any],
+    *,
+    autor: dict[str, Any],
+    motivo: str | None,
+) -> dict[str, Any]:
+    """A Pergunta deixou de ser necessaria (ADR 0109, decisao 6): a aberta ou
+    a respondida passa a cancelada, com o motivo, e a Conversa ganha a linha
+    de sistema com ele. A aberta sai da lista Esperando sua resposta, que so
+    le as abertas. A migration 211 nao tem coluna propria para o motivo: ele
+    fica em `resolucao_decidido`, que na cancelada e o que se decidiu (que a
+    Pergunta nao precisa mais). Devolve a linha gravada."""
+    motivo = _limpo(motivo)
+    if not motivo:
+        raise FechamentoIncompletoError(MOTIVO_SEM_MOTIVO)
+    return _fechar(
+        supabase,
+        pergunta,
+        demanda,
+        autor=autor,
+        de=(ESTADO_ABERTA, ESTADO_RESPONDIDA),
+        campos={
+            "estado": ESTADO_CANCELADA,
+            "resolucao_decidido": motivo,
+            "cancelada_em": datetime.now(UTC).isoformat(),
+        },
+        linha=f"Pergunta cancelada: {pergunta.get('assunto') or ''}\nMotivo: {motivo}",
+    )

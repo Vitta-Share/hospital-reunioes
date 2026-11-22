@@ -259,6 +259,22 @@ class RespostaDaPerguntaResponse(BaseModel):
     em_nome_de: str | None = None
 
 
+class ResolucaoDaPerguntaResponse(BaseModel):
+    """A Pergunta resolvida pela ponte (issue #2121, ADR 0109, decisao 6): o
+    que foi decidido e o que destravou, em palavras simples."""
+
+    decidido: str | None = None
+    destravou: str | None = None
+    resolvida_em: str | None = None
+
+
+class CancelamentoDaPerguntaResponse(BaseModel):
+    """A Pergunta cancelada pela ponte (issue #2121): o motivo."""
+
+    motivo: str | None = None
+    cancelada_em: str | None = None
+
+
 class PerguntaDoCartaoResponse(BaseModel):
     """O cartao da Pergunta da Vitta (issue #2116, ADR 0109, decisao 3): de
     qual Projeto e, a pergunta, as quatro linhas em palavras simples, as
@@ -281,6 +297,9 @@ class PerguntaDoCartaoResponse(BaseModel):
     destinatario: str | None = None
     # A resposta (issue #2119): nula enquanto a Pergunta espera.
     resposta: RespostaDaPerguntaResponse | None = None
+    # O estado final (issue #2121): so na resolvida e so na cancelada.
+    resolucao: ResolucaoDaPerguntaResponse | None = None
+    cancelamento: CancelamentoDaPerguntaResponse | None = None
     # O campo de resposta aparece so a quem responde: o Destinatario, ou o
     # Desenvolvedor no lugar dele, e so na Pergunta aberta (ADR 0109, decisao 5).
     pode_responder: bool = False
