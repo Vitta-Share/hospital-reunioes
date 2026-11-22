@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T11:07:47-03:00",
+      "sha": "136cbe9bd972bd94bb670c5d4205049a91ca8f63",
+      "app_version": "0.374.1",
+      "subject": "Onda nsp2-onda13: Banco recusa DELETE em triagem e encaminhamento; Só a Presidência e o Acesso pleno editam os cortes de frequência",
+      "raw_subject": "chore(deploy): registro da onda nsp2-onda13 (#2157 #2158)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1979
+      ],
+      "result": "healthy",
+      "duration_seconds": 365,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "225_nsp_triagem_e_encaminhamento_sem_exclusao.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp2-onda13: PR #2157 (issue #2153), PR #2158 (issue #2154), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 6,
+        "build_s": {
+          "backend": 224,
+          "frontend": 207
+        },
+        "health_s": 21
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T10:34:16-03:00",
       "sha": "344d4b8989beb1b4d4d4e6c9b431350f2869deb4",
       "app_version": "0.374.0",
