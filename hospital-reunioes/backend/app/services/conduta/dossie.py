@@ -170,8 +170,14 @@ def _decisao_da_direcao(caso: dict) -> str:
     return "A decisão da Direção ainda não foi registrada neste caso.\n"
 
 
-def _mensagens(caso: dict) -> str:
+def _mensagens(supabase, caso: dict) -> str:
+    """As perguntas da coordenação e os complementos de quem relatou (issue
+    #1845), em ordem, e a orientação do Encaminhamento."""
     partes = []
+    linhas = supabase.table("conduta_mensagens").select("*").eq("caso_id", caso["id"]).execute().data or []
+    for linha in sorted(linhas, key=lambda m: datetime.fromisoformat(str(m["enviada_em"]))):
+        quem = "Pergunta do Comitê" if linha["tipo"] == "pergunta" else "Complemento de quem relatou"
+        partes.append(f"{quem} em {_quando(linha['enviada_em'])}:\n" + cifra.decifrar_texto(linha["texto_cifrado"]))
     if caso.get("orientacao_cifrada"):
         partes.append(
             "Orientação enviada pela página de acompanhamento:\n" + cifra.decifrar_texto(caso["orientacao_cifrada"])
@@ -298,7 +304,7 @@ def montar(supabase, aberto: CasoAberto) -> tuple[IO[bytes], str]:
             "05-votos.txt": _votos(supabase, caso),
             "06-ata-de-deliberacao.txt": _ata(supabase, caso),
             "07-decisao-da-direcao.txt": _decisao_da_direcao(caso),
-            "08-mensagens-com-o-denunciante.txt": _mensagens(caso),
+            "08-mensagens-com-o-denunciante.txt": _mensagens(supabase, caso),
             "09-registro-de-acessos.txt": _registro(supabase, linhas),
         }
         for nome, titulo in SECOES:

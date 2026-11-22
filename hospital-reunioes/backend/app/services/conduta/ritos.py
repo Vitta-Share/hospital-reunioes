@@ -276,6 +276,18 @@ def o_que_fazer_agora(caso: dict[str, Any], olhar: Olhar) -> dict[str, Any]:
             ("Consulte a trilha do caso", "O retorno aprovado fica guardado", "Novo assunto vira novo relato"),
             None,
         )
+    if caso.get("encerrado_em") and caso.get("desfecho") == "arquivado":
+        # Pedido de complemento sem resposta em 15 dias (issue #1845).
+        return _caixa(
+            "Este caso foi arquivado por falta de elementos. Se quem relatou mandar a informação, reabra o caso.",
+            None,
+            (
+                "Consulte as Mensagens do caso",
+                "O complemento novo aparece ali",
+                "Reabrir volta o caso à etapa em que estava",
+            ),
+            None,
+        )
     if caso.get("encerrado_em"):
         return _caixa(
             "Este caso foi encerrado como Encaminhado. A orientação já foi enviada.",

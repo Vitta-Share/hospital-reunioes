@@ -15,11 +15,13 @@ verdade, com uma chave gerada na hora.
 from __future__ import annotations
 
 import base64
+import io
 import json
 import logging
 import os
 import secrets
 import sys
+import zipfile
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -35,7 +37,7 @@ from app.config import settings  # noqa: E402
 from app.dependencies import get_current_user, get_supabase_client  # noqa: E402
 from app.limiter import limiter  # noqa: E402
 from app.middleware.request_context import JsonFormatter, RequestContextMiddleware  # noqa: E402
-from app.routers import conduta_acompanhamento, conduta_comite, conduta_mensagens  # noqa: E402
+from app.routers import conduta_acompanhamento, conduta_comite, conduta_mensagens, conduta_trilha  # noqa: E402
 from app.services import ouvidoria_acompanhamento  # noqa: E402
 from app.services.conduta import acompanhamento, casos, cifra  # noqa: E402
 from app.services.conduta.acesso import hoje_em_sao_paulo  # noqa: E402
@@ -132,6 +134,7 @@ class _Canal:
         app.state.limiter = limiter
         app.include_router(conduta_comite.router, prefix="/api")
         app.include_router(conduta_mensagens.router, prefix="/api")
+        app.include_router(conduta_trilha.router, prefix="/api")
 
         async def _usuario() -> dict:
             return {"id": f"auth-{pid}", "email": f"{pid.lower()}@hsm.test", "metadata": {}}
@@ -233,3 +236,364 @@ class TestEntrada:
 
         assert acerto == [ouvidoria_acompanhamento._ITERACOES]
         assert derivacoes == acerto
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. Nenhum dado interno: nome de membro, voto, medida nem etapa
+# ═══════════════════════════════════════════════════════════════════════════
+
+RESPOSTA_DO_RETORNO = "O Comitê apurou o seu relato e tomou as providências cabíveis. Obrigado por relatar."
+
+
+class TestNadaInterno:
+    def _caso_com_tudo_dentro(self, canal: _Canal, **campos) -> None:
+        """Um caso que já passou pelo voto, com a medida decidida e o nome de
+        cada membro no banco: tudo o que a página não pode mostrar."""
+        assert canal.perguntar().status_code == 201
+        canal.banco.tabelas["conduta_votos"] = [
+            {
+                "id": "v1",
+                "caso_id": canal.caso_id,
+                "rodada": 1,
+                "participante_id": MEMBRO,
+                "resultado": "procedente",
+                "medida": "advertencia_escrita",
+                "justificativa_cifrada": cifra.cifrar_texto("Voto do membro pela advertência escrita"),
+            }
+        ]
+        canal.banco.tabelas["conduta_retornos"] = [
+            {
+                "id": "r1",
+                "caso_id": canal.caso_id,
+                "versao": 1,
+                "denunciante_cifrado": cifra.cifrar_texto(RESPOSTA_DO_RETORNO),
+                "acusado_cifrado": cifra.cifrar_texto("Comunicação da advertência escrita ao acusado"),
+            }
+        ]
+        canal.mudar_caso(triagem_em="2026-11-02T12:00:00+00:00", rito="completo", resultado="procedente", **campos)
+
+    @pytest.mark.parametrize("etapa", ["apuracao", "voto", "ata", "medida", "retorno"])
+    def test_no_meio_do_rito_a_pagina_diz_so_em_apuracao(self, canal, etapa):
+        self._caso_com_tudo_dentro(canal, etapa=etapa)
+        canal.complementar()
+
+        pagina = canal.acompanhar().json()
+
+        assert pagina["situacao"] == "Em apuração"
+        self._sem_nada_interno(pagina, etapa)
+
+    def test_no_caso_concluido_a_resposta_final_nao_traz_medida_nem_nome(self, canal):
+        self._caso_com_tudo_dentro(
+            canal,
+            etapa="encerrado",
+            desfecho="concluido",
+            retorno_aprovado_id="r1",
+            retorno_aprovado_por=COORDENACAO,
+        )
+        canal.mudar_caso(encerrado_em=datetime.now(UTC).isoformat())
+
+        pagina = canal.acompanhar().json()
+
+        assert pagina["situacao"] == "Concluído"
+        assert pagina["mensagens"][-1] == {
+            "de": "comite",
+            "tipo": "resposta_final",
+            "texto": RESPOSTA_DO_RETORNO,
+            "em": pagina["mensagens"][-1]["em"],
+        }
+        self._sem_nada_interno(pagina, "encerrado")
+
+    def _sem_nada_interno(self, pagina: dict, etapa: str) -> None:
+        assert set(pagina) == {"protocolo", "situacao", "mensagens"}
+        for mensagem in pagina["mensagens"]:
+            assert set(mensagem) == {"de", "tipo", "texto", "em"}
+        texto = json.dumps(pagina, ensure_ascii=False).lower()
+        for proibido in (
+            NOME_DA_COORDENACAO,
+            NOME_DO_MEMBRO,
+            f'"{COORDENACAO}"',
+            f'"{MEMBRO}"',
+            "advert",
+            "procedente",
+            "voto",
+            "medida",
+            "completo",
+            f'"{etapa}"',
+        ):
+            assert proibido.lower() not in texto, proibido
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. A coordenação pergunta, e a pergunta aparece para quem relatou
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _aberto(canal: _Canal, papel: str = "coordenacao"):
+    from types import SimpleNamespace
+
+    return SimpleNamespace(autor_id=COORDENACAO, pessoa=SimpleNamespace(papel=papel), caso=canal.caso, atribuicoes=[])
+
+
+class TestPergunta:
+    def test_a_pergunta_da_coordenacao_aparece_para_quem_relatou(self, canal):
+        assert canal.perguntar().status_code == 201
+
+        pagina = canal.acompanhar().json()
+
+        assert pagina["situacao"] == "Aguardando sua resposta"
+        assert [(m["de"], m["tipo"], m["texto"]) for m in pagina["mensagens"]] == [("comite", "pergunta", PERGUNTA)]
+
+    def test_a_pergunta_fica_cifrada_e_na_trilha(self, canal):
+        canal.perguntar()
+
+        (linha,) = canal.banco.tabelas["conduta_mensagens"]
+        assert linha["texto_cifrado"].startswith("v1:")
+        assert PERGUNTA not in repr(canal.banco.tabelas)
+        assert [t["acao"] for t in canal.banco.tabelas["conduta_trilha"]][-1] == "pergunta"
+
+    def test_so_a_coordenacao_pergunta(self, canal):
+        resposta = canal.perguntar(pid=MEMBRO)
+
+        assert resposta.status_code == 403
+        assert canal.banco.tabelas.get("conduta_mensagens", []) == []
+
+    def test_a_tela_do_caso_oferece_as_perguntas_que_o_agente_sugeriu(self, canal):
+        sugestao = {"perguntas_ao_denunciante": {"valor": ["Quando foi?", "Alguém mais viu?"], "justificativa": ""}}
+        canal.banco.tabelas["conduta_sugestoes"] = [
+            {
+                "caso_id": canal.caso_id,
+                "situacao": "sugerida",
+                "sugestao_cifrada": cifra.cifrar_texto(json.dumps(sugestao)),
+            }
+        ]
+
+        area = acompanhamento.para_a_tela(canal.banco, _aberto(canal), HOJE)["mensagens"]
+
+        assert area["perguntas_sugeridas"] == ["Quando foi?", "Alguém mais viu?"]
+        assert area["pode_perguntar"] is True
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. O complemento aparece no caso, cifrado, e muda a situação
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestComplemento:
+    def test_o_complemento_aparece_no_caso_cifrado_e_muda_a_situacao(self, canal):
+        canal.perguntar()
+        assert canal.acompanhar().json()["situacao"] == "Aguardando sua resposta"
+
+        resposta = canal.complementar()
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["situacao"] == "Recebido"
+        (linha,) = [m for m in canal.banco.tabelas["conduta_mensagens"] if m["tipo"] == "complemento"]
+        assert linha["texto_cifrado"].startswith("v1:")
+        assert linha["autor_id"] is None
+        assert COMPLEMENTO_TEXTO not in repr(canal.banco.tabelas)
+        itens = canal.tela()["mensagens"]["itens"]
+        assert [(m["de"], m["texto"]) for m in itens] == [("comite", PERGUNTA), ("relator", COMPLEMENTO_TEXTO)]
+
+    def test_a_conversa_entra_no_dossie_do_caso(self, canal):
+        canal.perguntar()
+        canal.complementar()
+
+        resposta = canal.comite().get(f"/api/comite-de-conduta/casos/{canal.caso_id}/dossie")
+
+        assert resposta.status_code == 200, resposta.text
+        with zipfile.ZipFile(io.BytesIO(resposta.content)) as pacote:
+            mensagens = pacote.read("08-mensagens-com-o-denunciante.txt").decode("utf-8")
+        assert mensagens.index(PERGUNTA) < mensagens.index(COMPLEMENTO_TEXTO)
+        assert "Pergunta do Comitê" in mensagens
+        assert "Complemento de quem relatou" in mensagens
+
+    def test_o_complemento_marca_que_quem_relatou_informou_algo(self, canal):
+        """A verificação de retaliação do caso anônimo depende desse aviso."""
+        canal.complementar()
+
+        assert canal.caso["denunciante_informou_em"]
+        assert [t["acao"] for t in canal.banco.tabelas["conduta_trilha"]][-1] == "complemento"
+
+    def test_complemento_vazio_e_recusado_sem_gravar(self, canal):
+        resposta = canal.complementar(texto="   ")
+
+        assert resposta.status_code == 422
+        assert canal.banco.tabelas.get("conduta_mensagens", []) == []
+
+    def test_complemento_com_codigo_errado_recebe_a_recusa_padrao(self, canal):
+        corpo = {"protocolo": canal.protocolo, "codigo": "ABCDE-23456", "texto": COMPLEMENTO_TEXTO}
+
+        resposta = canal.publico().post(COMPLEMENTO, json=corpo)
+
+        assert resposta.status_code == 404
+        assert resposta.json() == RECUSA
+        assert canal.banco.tabelas.get("conduta_mensagens", []) == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. 15 dias sem resposta liberam arquivar; o arquivado reabre
+# ═══════════════════════════════════════════════════════════════════════════
+
+ARQUIVAR = "/api/comite-de-conduta/casos/{}/arquivamento"
+REABRIR = "/api/comite-de-conduta/casos/{}/reabertura"
+
+
+class TestArquivarEReabrir:
+    def test_antes_de_15_dias_arquivar_nao_esta_disponivel(self, canal):
+        canal.perguntar()
+        canal.recuar_mensagens(14)
+
+        area = canal.tela()["mensagens"]
+        resposta = canal.comite().post(ARQUIVAR.format(canal.caso_id))
+
+        assert area["pode_arquivar"] is False
+        assert resposta.status_code == 409
+        assert not canal.caso.get("encerrado_em")
+
+    def test_depois_de_15_dias_sem_resposta_arquivar_fica_disponivel(self, canal):
+        canal.mudar_caso(etapa="apuracao", triagem_em="2026-11-02T12:00:00+00:00")
+        canal.perguntar()
+        canal.recuar_mensagens(15)
+
+        assert canal.tela()["mensagens"]["pode_arquivar"] is True
+        resposta = canal.comite().post(ARQUIVAR.format(canal.caso_id))
+
+        assert resposta.status_code == 200, resposta.text
+        assert canal.caso["desfecho"] == "arquivado"
+        assert canal.caso["encerrado_em"]
+        assert canal.acompanhar().json()["situacao"] == "Concluído"
+
+    def test_pergunta_respondida_nao_libera_arquivar(self, canal):
+        canal.perguntar()
+        canal.complementar()
+        canal.recuar_mensagens(30)
+
+        assert canal.tela()["mensagens"]["pode_arquivar"] is False
+        assert canal.comite().post(ARQUIVAR.format(canal.caso_id)).status_code == 409
+
+    def test_so_a_coordenacao_arquiva(self, canal):
+        canal.perguntar()
+        canal.recuar_mensagens(20)
+
+        assert canal.comite(MEMBRO).post(ARQUIVAR.format(canal.caso_id)).status_code == 403
+
+    def test_o_caso_arquivado_reabre_quando_a_informacao_chega_depois(self, canal):
+        canal.mudar_caso(etapa="apuracao", triagem_em="2026-11-02T12:00:00+00:00")
+        canal.perguntar()
+        canal.recuar_mensagens(16)
+        assert canal.comite().post(ARQUIVAR.format(canal.caso_id)).status_code == 200
+        assert canal.tela()["mensagens"]["pode_reabrir"] is False
+        assert canal.comite().post(REABRIR.format(canal.caso_id)).status_code == 409
+
+        assert canal.complementar().status_code == 200
+        assert canal.tela()["mensagens"]["pode_reabrir"] is True
+        resposta = canal.comite().post(REABRIR.format(canal.caso_id))
+
+        assert resposta.status_code == 200, resposta.text
+        assert canal.caso["encerrado_em"] is None
+        assert canal.caso["desfecho"] is None
+        assert canal.caso["etapa"] == "apuracao"
+        assert canal.acompanhar().json()["situacao"] == "Em apuração"
+        acoes = [t["acao"] for t in canal.banco.tabelas["conduta_trilha"]]
+        assert "arquivamento" in acoes
+        assert acoes[-1] == "reabertura"
+
+    def test_quem_relatou_le_que_o_caso_foi_arquivado_e_como_reabrir(self, canal):
+        canal.perguntar()
+        canal.recuar_mensagens(15)
+        canal.comite().post(ARQUIVAR.format(canal.caso_id))
+
+        final = canal.acompanhar().json()["mensagens"][-1]
+
+        assert final["tipo"] == "resposta_final"
+        assert "arquivado por falta de elementos" in final["texto"]
+
+    def test_a_caixa_o_que_fazer_agora_diz_que_o_caso_foi_arquivado(self, canal):
+        canal.perguntar()
+        canal.recuar_mensagens(15)
+        canal.comite().post(ARQUIVAR.format(canal.caso_id))
+
+        caixa = canal.tela()["o_que_fazer_agora"]
+
+        assert "arquivado por falta de elementos" in caixa["frase"]
+        assert "Encaminhado" not in caixa["frase"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. Acompanhar não grava IP e tem limite de tentativas sem guardar endereço
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class _Captura(logging.Handler):
+    def __init__(self):
+        super().__init__()
+        self.setFormatter(JsonFormatter())
+        self.linhas: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.linhas.append(self.format(record))
+
+
+@pytest.fixture
+def log():
+    captura = _Captura()
+    raiz = logging.getLogger()
+    nivel = raiz.level
+    raiz.addHandler(captura)
+    raiz.setLevel(logging.DEBUG)
+    yield captura
+    raiz.removeHandler(captura)
+    raiz.setLevel(nivel)
+
+
+def _tentativas_erradas(cliente: TestClient, canal: _Canal, quantas: int) -> list[int]:
+    return [
+        cliente.post(ACOMPANHAR, json={"protocolo": canal.protocolo, "codigo": f"ABCDE-2345{n + 2}"}).status_code
+        for n in range(quantas)
+    ]
+
+
+class TestSemRastro:
+    def test_acompanhar_e_complementar_nao_gravam_ip_aparelho_nem_localizacao(self, canal, log):
+        cabecalhos = {"User-Agent": APARELHO, "X-Forwarded-For": "198.51.100.23", "Geolocation": "-22.87,-43.46"}
+        corpo = {"protocolo": canal.protocolo, "codigo": canal.codigo}
+
+        assert canal.publico().post(ACOMPANHAR, json=corpo, headers=cabecalhos).status_code == 200
+        complemento = corpo | {"texto": "Mais um dado"}
+        assert canal.publico().post(COMPLEMENTO, json=complemento, headers=cabecalhos).status_code == 200
+
+        rastro = repr(canal.banco.tabelas) + "\n".join(log.linhas)
+        assert log.linhas, "controle: o log da requisição tem que ter sido escrito"
+        for marca in (IP_DE_QUEM_ACOMPANHA, "203.0.113", "198.51.100.23", "Android", "Celular-de-Entrada", "-22.87"):
+            assert marca not in rastro
+
+    def test_a_resposta_nao_fica_em_cache_nem_grava_cookie(self, canal):
+        resposta = canal.acompanhar()
+
+        assert resposta.headers["cache-control"] == "no-store"
+        assert "set-cookie" not in resposta.headers
+
+    def test_tentativas_demais_do_mesmo_aparelho_param_no_limite_sem_gravar_o_endereco(self, canal, log):
+        respostas = _tentativas_erradas(canal.publico(), canal, 7)
+
+        assert respostas == [404, 404, 404, 404, 404, 429, 429]
+        assert IP_DE_QUEM_ACOMPANHA not in repr(canal.banco.tabelas) + "\n".join(log.linhas)
+
+    def test_depois_da_rajada_nem_o_codigo_certo_passa(self, canal):
+        cliente = canal.publico()
+        _tentativas_erradas(cliente, canal, 5)
+
+        assert cliente.post(ACOMPANHAR, json={"protocolo": canal.protocolo, "codigo": canal.codigo}).status_code == 429
+
+    def test_outro_aparelho_ainda_acompanha(self, canal):
+        _tentativas_erradas(canal.publico(), canal, 5)
+
+        assert canal.acompanhar(ip="198.51.100.77").status_code == 200
+
+    def test_com_o_canal_fechado_o_acompanhamento_responde_404(self, canal, monkeypatch):
+        monkeypatch.setattr(settings, "conduta_canal_aberto", False)
+
+        resposta = canal.acompanhar()
+
+        assert resposta.status_code == 404
+        assert resposta.json() == {"detail": "Not Found"}

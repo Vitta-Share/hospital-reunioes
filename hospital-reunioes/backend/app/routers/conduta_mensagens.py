@@ -46,14 +46,18 @@ async def enviar_pergunta(
 
 
 @router.post("/casos/{caso_id}/arquivamento")
-async def arquivar(aberto: CasoAberto = Depends(portao_da_acao), supabase: Client = Depends(get_supabase_client)) -> dict:
+async def arquivar(
+    aberto: CasoAberto = Depends(portao_da_acao), supabase: Client = Depends(get_supabase_client)
+) -> dict:
     """ARQUIVAR POR FALTA DE ELEMENTOS."""
     caso = _agir(acompanhamento.arquivar, supabase, aberto, hoje=hoje_em_sao_paulo())
     return {"caso": {campo: caso.get(campo) for campo in CAMPOS_DA_LISTA}}
 
 
 @router.post("/casos/{caso_id}/reabertura")
-async def reabrir(aberto: CasoAberto = Depends(portao_da_acao), supabase: Client = Depends(get_supabase_client)) -> dict:
+async def reabrir(
+    aberto: CasoAberto = Depends(portao_da_acao), supabase: Client = Depends(get_supabase_client)
+) -> dict:
     """REABRIR CASO, com o complemento que chegou depois do arquivamento."""
     caso = _agir(acompanhamento.reabrir, supabase, aberto)
     return {"caso": {campo: caso.get(campo) for campo in CAMPOS_DA_LISTA}}

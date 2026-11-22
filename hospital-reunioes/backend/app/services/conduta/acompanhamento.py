@@ -303,7 +303,9 @@ def arquivar(supabase, aberto: CasoAberto, *, hoje: date) -> dict:
         raise MensagemRecusadaError(409, "O caso já está encerrado.")
     a_partir_de = _arquivavel_a_partir_de(_mensagens(supabase, caso["id"]))
     if a_partir_de is None:
-        raise MensagemRecusadaError(409, "Só se arquiva por falta de elementos com um pedido de complemento sem resposta.")
+        raise MensagemRecusadaError(
+            409, "Só se arquiva por falta de elementos com um pedido de complemento sem resposta."
+        )
     if a_partir_de > hoje:
         raise MensagemRecusadaError(409, f"O arquivamento fica disponível em {a_partir_de.strftime('%d/%m/%Y')}.")
     trilha.registrar(supabase, caso["id"], aberto.autor_id, "arquivamento", "arquivou o caso por falta de elementos")
@@ -336,7 +338,9 @@ def reabrir(supabase, aberto: CasoAberto) -> dict:
     if caso.get("desfecho") != ARQUIVADO:
         raise MensagemRecusadaError(409, "Só reabre o caso arquivado por falta de elementos.")
     if not _complemento_depois_do_arquivamento(caso, _mensagens(supabase, caso["id"])):
-        raise MensagemRecusadaError(409, "O caso reabre quando quem relatou mandar a informação depois do arquivamento.")
+        raise MensagemRecusadaError(
+            409, "O caso reabre quando quem relatou mandar a informação depois do arquivamento."
+        )
     trilha.registrar(supabase, caso["id"], aberto.autor_id, "reabertura", "reabriu o caso com o complemento recebido")
     linhas = (
         supabase.table("conduta_casos")
