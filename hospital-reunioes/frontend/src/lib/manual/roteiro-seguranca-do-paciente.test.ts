@@ -38,6 +38,17 @@ function rodar(...args: string[]): string {
 
 /** A tabela que o roteiro serve no lugar do backend: a rota (depois de `/api/`) e o corpo. */
 const tabela = (): Record<string, unknown> => JSON.parse(rodar());
+/**
+ * Os textos que o roteiro digita escritos direto no script, fora do seed e do
+ * `respostas.py`: o argumento de `.fill(` ou de `pw fill` que não começa por
+ * `$(seed ` nem por `$(roteiro `. Expressão sem aspas (uma data calculada) não conta.
+ */
+function textosEscritosNoRoteiro(texto: string): string[] {
+  const doSeed = String.raw`\$\((?:seed|roteiro) `;
+  const padroes = [new RegExp(String.raw`\.fill\(\s*['"](?!${doSeed}).*`, "g"), new RegExp(String.raw`^\s*pw fill \S+ "(?!${doSeed}).*`, "gm")];
+  return padroes.flatMap((p) => Array.from(texto.matchAll(p), (m) => m[0].trim()));
+}
+
 /** O que o roteiro lê para clicar: o dia da composição, o título da reunião do dia e os casos que abre. */
 const doRoteiro = (): {
   composicao: string;
@@ -247,6 +258,10 @@ describe("o seed e as respostas da página de Segurança do Paciente", () => {
   it("a tabela de respostas não traz e-mail, telefone, endereço nem nome de gente de verdade", () => {
     expect(folhas(tabela()).flatMap(dadoReal)).toEqual([]);
   });
+
+  it("todo texto que o roteiro digita num print vem do seed ou da tabela, que a varredura acima lê (#2003)", () => {
+    expect(textosEscritosNoRoteiro(readFileSync(ROTEIRO, "utf8"))).toEqual([]);
+  });
 });
 
 describe("os detectores do roteiro e do dado real", () => {
@@ -260,6 +275,22 @@ describe("os detectores do roteiro e do dado real", () => {
       '# print "velho.png"',
     ].join("\n");
     expect(imagensDoRoteiro(texto)).toEqual(["bloco.png", "tela.png", "inteira.png", "ficha.png", "topo.png"]);
+  });
+
+  it("o texto digitado direto no roteiro é pego; o que vem do seed, da tabela ou de uma conta não é", () => {
+    const escritos = [
+      "  await page.locator('#nsp-relato').fill('ligue (21) 99876-5432');",
+      '  await page.locator("#nsp-leito").fill("Leito 9");',
+      'pw fill "#email" "fulano@gmail.com"',
+    ];
+    const lidos = [
+      `  await page.locator('#documento-titulo').fill('$(seed "['regimento']['titulo']")');`,
+      "  await page.locator('#protocolo').fill('$(roteiro protocolo_classificado)');",
+      `pw fill "#email" "$(seed "['presidencia']['email']")"`,
+      "  await ficha.getByLabel('Primeiro dia da ausência').fill(dia(7));",
+    ];
+    expect(textosEscritosNoRoteiro([...escritos, ...lidos].join("\n"))).toHaveLength(escritos.length);
+    expect(textosEscritosNoRoteiro(lidos.join("\n"))).toEqual([]);
   });
 
   it("e-mail de verdade, telefone, endereço de fora e nome real são pegos, em maiúscula ou minúscula", () => {

@@ -211,8 +211,8 @@ print_topo "getByRole('region', { name: 'Ata do Núcleo' })" 330 "ata-assinada.p
 pw goto "$BASE/notificar"
 esperar "O que aconteceu"
 pw run-code "async page => {
-  await page.locator('#nsp-relato').fill('O paciente do leito 9 recebeu a dieta pastosa no lugar da dieta zero do jejum. A copa percebeu antes da primeira colherada.');
-  await page.locator('#nsp-leito').fill('Leito 9');
+  await page.locator('#nsp-relato').fill('$(seed "['notificacao']['relato']")');
+  await page.locator('#nsp-leito').fill('$(seed "['notificacao']['leito']")');
 }"
 print "getByRole('form', { name: 'Notificação de incidente' })" "notificar-o-que-aconteceu.png"
 pw run-code "async page => {
@@ -246,7 +246,7 @@ pw goto "$MODULO/notificacoes"
 esperar "Registro rápido"
 pw run-code "async page => {
   const registro = page.getByRole('region', { name: 'Registro rápido' });
-  await registro.locator('#nsp-rr-relato').fill('Na ronda da noite, dois frascos de cloreto de potássio estavam fora da caixa de alta vigilância no posto de enfermagem.');
+  await registro.locator('#nsp-rr-relato').fill('$(seed "['registro_rapido']['relato']")');
   await registro.locator('#nsp-rr-setor').selectOption({ label: 'CTI Adulto' });
   await registro.getByRole('button', { name: 'Ronda' }).click();
 }"
@@ -263,11 +263,11 @@ print_tela "fila-de-triagem.png"
 pw goto "$MODULO/notificacoes/$(roteiro caso_da_triagem)/triagem"
 esperar "Classificar manualmente"
 pw run-code "async page => {
-  await page.locator('#triagem-assunto').fill('Queda ao levantar sozinho para ir ao banheiro');
+  await page.locator('#triagem-assunto').fill('$(seed "['triagem']['assunto']")');
   await page.locator('#triagem-natureza').selectOption('evento_adverso');
   await page.locator('#triagem-dano').selectOption('leve');
   await page.locator('#triagem-categoria').selectOption('QUE');
-  await page.locator('#triagem-incidente').fill('Queda do leito');
+  await page.locator('#triagem-incidente').fill('$(seed "['triagem']['incidente']")');
   await page.locator('#triagem-evento').selectOption('nao');
   await page.locator('#triagem-protocolo').selectOption('quedas');
   await page.getByText('3ª ocorrência desta categoria neste setor em 60 dias').waitFor();
@@ -287,7 +287,7 @@ pw run-code "async page => {
   const secao = page.getByRole('region', { name: 'Encaminhar' });
   await secao.getByLabel('Segurança do Trabalho', { exact: true }).check();
   await secao.locator('#setor-do-seguranca_do_trabalho').selectOption({ label: 'Segurança do Trabalho' });
-  await secao.locator('#motivo-do-encaminhamento').fill('Acidente com perfurocortante na equipe, que é da Segurança do Trabalho.');
+  await secao.locator('#motivo-do-encaminhamento').fill('$(seed "['encaminhamento']['motivo']")');
 }"
 print "getByRole('region', { name: 'Encaminhar' })" "encaminhar.png"
 

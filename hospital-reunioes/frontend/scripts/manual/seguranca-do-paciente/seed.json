@@ -74,5 +74,19 @@
     "instrutor": "Rodrigo Teixeira",
     "temas": ["Higiene das mãos", "Identificação do paciente"],
     "participantes": ["Juliana Prado", "Felipe Andrade", "Lívia Castro"]
+  },
+  "notificacao": {
+    "relato": "O paciente do leito 9 recebeu a dieta pastosa no lugar da dieta zero do jejum. A copa percebeu antes da primeira colherada.",
+    "leito": "Leito 9"
+  },
+  "registro_rapido": {
+    "relato": "Na ronda da noite, dois frascos de cloreto de potássio estavam fora da caixa de alta vigilância no posto de enfermagem."
+  },
+  "triagem": {
+    "assunto": "Queda ao levantar sozinho para ir ao banheiro",
+    "incidente": "Queda do leito"
+  },
+  "encaminhamento": {
+    "motivo": "Acidente com perfurocortante na equipe, que é da Segurança do Trabalho."
   }
 }
