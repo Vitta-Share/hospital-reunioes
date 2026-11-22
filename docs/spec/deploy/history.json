@@ -2,6 +2,52 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T17:28:37-03:00",
+      "sha": "d37e94cea8ca11e0c217e4b905e3c025f52f74d1",
+      "app_version": "0.385.1",
+      "subject": "Onda onda-2044-onda1: Janela de criar POP abre à vista e o Elaborador designado vê o POP atribuído",
+      "raw_subject": "chore(deploy): registro da onda onda-2044-onda1 (#2196)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [],
+      "result": "healthy",
+      "duration_seconds": 589,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta onda-2044-onda1: PR #2196 (issue #2044), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 4,
+        "build_s": {
+          "backend": 22,
+          "frontend": 236
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T17:21:18-03:00",
       "sha": "b1ed0d4834d5391b5bca51106e7d09f83f72a99f",
       "app_version": "0.385.0",
