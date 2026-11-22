@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T03:43+0000 -->
+<!-- last_update: 2026-11-22T04:57+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -106,6 +106,7 @@ erDiagram
     nsp_notificacoes ||--o{ nsp_notificacoes_trilha : "notificacao_id"
     nsp_notificacoes ||--o{ nsp_prazos_do_caso : "notificacao_id"
     nsp_notificacoes ||--o{ nsp_triagens : "notificacao_id"
+    nsp_notificacoes ||--o{ reunioes : "nsp_caso_id"
     nsp_termos_envios ||--o{ nsp_documentos : "termo_envio_id"
     nsp_triagens ||--o{ nsp_esclarecimentos : "triagem_id"
     ouvidoria_pontos ||--o{ ouvidoria_avaliacoes : "ponto_id"
@@ -300,7 +301,7 @@ erDiagram
         TEXT tipo
         VARCHAR facilitador_id FK
         TEXT setor
-        _ mais_colunas "+32"
+        _ mais_colunas "+33"
     }
     reuniao_participantes {
         UUID id PK
@@ -1837,6 +1838,7 @@ erDiagram
 | `reunioes` | `idx_reunioes_colegiado` | `colegiado_id` | `148_nsp_reunioes_do_nucleo.sql` |
 | `reunioes` | `idx_reunioes_reagendada_de` | `reagendada_de` | `153_nsp_presenca_e_quorum.sql` |
 | `reunioes` | `idx_reunioes_setor_id` | `setor_id` | `168_reunioes_setor_obrigatorio.sql` |
+| `reunioes` | `uq_reunioes_nsp_caso` | `nsp_caso_id` | `218_nsp_reuniao_de_analise_e_avisos_da_confirmacao.sql` |
 | `reuniao_participantes` | `idx_reuniao_part_reuniao` | `id_reuniao` | `002_create_reunioes.sql` |
 | `reuniao_participantes` | `idx_reuniao_part_participante` | `participante_id` | `002_create_reunioes.sql` |
 | `pendencias` | `idx_pendencias_reuniao` | `id_reuniao` | `003_create_pendencias.sql` |
@@ -2099,4 +2101,4 @@ erDiagram
 | `conduta_afastamentos` | `idx_conduta_afastamentos_rota` | `rota, registrado_em DESC` | `217_conduta_afastamento_cautelar.sql` |
 
 ---
-**Resumo:** 166 tabelas · 271 relacionamentos FK detectados.
+**Resumo:** 166 tabelas · 272 relacionamentos FK detectados.

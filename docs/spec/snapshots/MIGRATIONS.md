@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T03:43+0000 -->
+<!-- last_update: 2026-11-22T04:57+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -209,6 +209,7 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 215 | `215_conduta_termo_de_declaracao.sql` | Canal de Conduta, o termo de declaração redigido pelo agente | 0 | 2 | 2 | 0 |
 | 216 | `216_conduta_voto_e_trava_de_robustez.sql` | Canal de Conduta, o voto e a trava de robustez | 4 | 1 | 5 | 0 |
 | 217 | `217_conduta_afastamento_cautelar.sql` | Canal de Conduta, o afastamento cautelar | 1 | 0 | 7 | 0 |
+| 218 | `218_nsp_reuniao_de_analise_e_avisos_da_confirmacao.sql` | a reunião de análise e os avisos da confirmação da triagem | 0 | 1 | 1 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 203 migrations.
+**Total:** 204 migrations.
