@@ -622,11 +622,20 @@ def enviar_email_de_segunda() -> None:
 
 def despachar_emails_nsp() -> None:
     """A fila de e-mails do Núcleo (issue #1985). A janela, a retentativa e a
-    reivindicação vivem no serviço; aqui, só o relógio."""
-    from app.services.seguranca_do_paciente import emails
+    reivindicação vivem no serviço; aqui, só o relógio. Antes da fila, o
+    reenvio único do encaminhamento sem Recebido (issue #1996)."""
+    from app.services.seguranca_do_paciente import emails, recebimento
 
+    agora = datetime.now(tz=ZoneInfo("UTC"))
     try:
-        resultado = emails.despachar_pendentes(_supabase(), datetime.now(tz=ZoneInfo("UTC")))
+        reenviados = recebimento.reenviar_os_esquecidos(_supabase(), agora)
+    except Exception as e:
+        logger.error(f"[Cron] Erro no reenvio do Recebido do Núcleo: {type(e).__name__}")
+    else:
+        if reenviados:
+            logger.info(f"[Cron] {reenviados} encaminhamento(s) do Núcleo sem Recebido reenviado(s).")
+    try:
+        resultado = emails.despachar_pendentes(_supabase(), agora)
     except Exception as e:
         logger.error(f"[Cron] Erro em despachar_emails_nsp: {type(e).__name__}")
         return

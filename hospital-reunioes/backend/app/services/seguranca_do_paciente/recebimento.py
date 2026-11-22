@@ -238,9 +238,9 @@ def com_o_link(supabase, registro: dict, agora: datetime) -> tuple[str | None, d
     if linha is None or linha.get("recebido_em"):
         return None, registro
     token = secrets.token_urlsafe(32)
-    supabase.table(TABELA).update(
-        {"token_hash": _hash(token), "expira_em": (agora + VALIDADE_DO_LINK).isoformat()}
-    ).eq("id", recebimento_id).is_("recebido_em", "null").execute()
+    supabase.table(TABELA).update({"token_hash": _hash(token), "expira_em": (agora + VALIDADE_DO_LINK).isoformat()}).eq(
+        "id", recebimento_id
+    ).is_("recebido_em", "null").execute()
     link = f"{settings.frontend_url}/notificar/recebido/{token}"
     pronto = {
         **registro,

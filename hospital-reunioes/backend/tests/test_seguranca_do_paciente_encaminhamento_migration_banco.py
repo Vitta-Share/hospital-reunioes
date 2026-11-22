@@ -96,7 +96,8 @@ def _encaminhar(banco, destinos: list[str], orientacao: str | None = None):
 @pytest.mark.parametrize(
     ("destinos", "orientacao"),
     [
-        ([d for d in encaminhamento.DESTINOS if d != encaminhamento.FORA_DE_ESCOPO], None),
+        # Os da 209; a Segurança do Trabalho e a queixa técnica entram na 220.
+        ([encaminhamento.NUCLEO, encaminhamento.OUVIDORIA, encaminhamento.CANAL_DE_CONDUTA], None),
         ([encaminhamento.FORA_DE_ESCOPO], "Procure o Departamento Pessoal."),
     ],
     ids=["os outros três juntos", "fora de escopo com a orientação"],
