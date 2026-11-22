@@ -14,7 +14,7 @@ apurado por um grupo sem nenhum diretor:
   do caso) e um suplente não diretor. O membro eleito da CIPA entra por
   convite do grupo, dentro do caso (`convites`);
 - na entrada, o relato é selado: gravado com data, hora e código de
-  integridade, numa tabela que nenhum perfil altera nem apaga (migration 210);
+  integridade, numa tabela que nenhum perfil altera nem apaga (migration 214);
 - o prazo é de 60 dias, com avisos ao grupo em 15, 30 e 60 dias. Vencido sem
   parecer, fica o registro permanente "Caso não respondido no prazo";
 - no encerramento, o grupo registra a quem entregou o parecer, fora do

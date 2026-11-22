@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 210: Canal de Conduta, a Rota Especial
+-- Migration 214: Canal de Conduta, a Rota Especial
 -- (issue #1829, PRD #1786, ADR 0097; especificação, seção 10)
 -- =====================================================
 -- O que entra:
@@ -118,4 +118,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (210) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (214) ON CONFLICT (numero) DO NOTHING;

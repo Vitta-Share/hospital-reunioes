@@ -1,6 +1,6 @@
-"""A migration 210, a Rota Especial, num Postgres de verdade (issue #1829).
+"""A migration 214, a Rota Especial, num Postgres de verdade (issue #1829).
 
-Sobe um Postgres descartável, aplica a 175, a 185, a 199 e a 210 (a 210 duas
+Sobe um Postgres descartável, aplica a 175, a 185, a 199 e a 214 (a 214 duas
 vezes) sobre o mínimo de antes e prova no banco:
 
 - o registro selado e a entrega do parecer não se alteram nem se apagam, nem
@@ -26,7 +26,7 @@ from test_conduta_migration_banco import MIGRATION as MIGRATION_175
 from test_pendencia_historico_banco import _bin_do_postgres, _Postgres
 
 PASTA = Path(__file__).resolve().parents[2] / "supabase" / "migrations"
-MIGRATION = PASTA / "210_conduta_rota_especial.sql"
+MIGRATION = PASTA / "214_conduta_rota_especial.sql"
 ANTERIORES = (PASTA / "185_conduta_triagem_e_ritos.sql", PASTA / "199_conduta_avisos_por_email.sql")
 
 TABELAS_NOVAS = ("conduta_entregas_do_parecer", "conduta_selos")
@@ -41,7 +41,7 @@ def banco():
             pytest.fail("O CI precisa do initdb para provar a Rota Especial no banco.")
         pytest.skip("Sem initdb nesta máquina.")
     pg = _Postgres(bindir)
-    pg.porta = "54210"
+    pg.porta = "54214"
     pg.subir()
     try:
         pg.ok(ESQUEMA_ANTERIOR)
