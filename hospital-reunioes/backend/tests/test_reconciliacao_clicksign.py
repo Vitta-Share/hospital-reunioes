@@ -59,9 +59,11 @@ def _reset_cooldown_e_limiter():
     from app.limiter import limiter
 
     reunioes_router._sync_recent.clear()
+    reunioes_router._fechamento_pelo_status_recente.clear()
     limiter._storage.reset()
     yield
     reunioes_router._sync_recent.clear()
+    reunioes_router._fechamento_pelo_status_recente.clear()
     limiter._storage.reset()
 
 
@@ -397,6 +399,23 @@ class TestEndpointSincronizar:
         assert res.json()["desfecho"] == "finalizada"
         assert _reuniao(sb)["status_ata"] == "ASSINADA"
 
+    def test_sincronizar_finaliza_depois_da_pendencia_mil(self, clicksign, make_client):
+        """Issue #2085: com a numeração passada de mil, o Sincronizar caía no
+        mesmo A1000 já gravado e a Ata não saía de AGUARDANDO_ASSINATURA."""
+        clicksign.status[ENVELOPE_ID] = "closed"
+        clicksign.signers[ENVELOPE_ID] = _signers_padrao()
+        sb = _sb()
+        _pendencias(sb).extend(
+            {"id_acao": f"A{n}", "id_reuniao": "R0", "status": "PENDENTE", "quadro_pos": n} for n in (999, 1000)
+        )
+
+        res = make_client(sb).post("/api/reunioes/R1/signatarios/sincronizar")
+
+        assert res.status_code == 200
+        assert res.json()["desfecho"] == "finalizada"
+        assert _reuniao(sb)["status_ata"] == "ASSINADA"
+        assert sorted(p["quadro_pos"] for p in _pendencias(sb) if p["id_reuniao"] == "R1") == [0, 1, 2, 3, 4]
+
     def test_sincronizar_cancelado_abre_modo_interno(self, clicksign, make_client):
         clicksign.status[ENVELOPE_ID] = "canceled"
         sb = _sb()
@@ -448,3 +467,67 @@ class TestEndpointSincronizar:
         sb = _sb(envelope_key_clicksign=None)
         res = make_client(sb).post("/api/reunioes/R1/signatarios/sincronizar")
         assert res.status_code == 400
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CA (issue #2085): o "Atualizar" do card leva a Ata assinada por todos a
+# ASSINADA e cria as Pendências que faltam, sem duplicar as que já nasceram
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _todos_assinaram() -> list[dict]:
+    return [
+        _signer("sk-fac", "fabio@hsm.com", assinou=True),
+        _signer("sk-ana", "ana@hsm.com", assinou=True),
+    ]
+
+
+class TestAtualizarComTodosAssinados:
+    def test_atualizar_com_todos_assinados_finaliza_e_cria_o_que_falta(self, clicksign, make_client):
+        """A Ata presa da issue #2085: 2 de 2 assinaram, o Envelope fechou e as
+        Pendências não nasceram. O Atualizar fecha a Ata, cria as que faltam
+        e conta as já nascidas uma vez só."""
+        clicksign.status[ENVELOPE_ID] = "closed"
+        clicksign.signers[ENVELOPE_ID] = _todos_assinaram()
+        sb = _sb()
+        _pendencias(sb).extend(
+            [
+                {"id_acao": "A999", "id_reuniao": "R0", "status": "PENDENTE", "quadro_pos": 0},
+                {"id_acao": "A1000", "id_reuniao": "R1", "status": "PENDENTE", "quadro_pos": 0},
+                {"id_acao": "A1001", "id_reuniao": "R1", "status": "PENDENTE", "quadro_pos": 1},
+            ]
+        )
+
+        res = make_client(sb).get("/api/reunioes/R1/signatarios/status")
+
+        assert res.status_code == 200
+        corpo = res.json()
+        assert corpo["finalizada"] is True
+        assert (corpo["pendencias_criadas"], corpo["total_acoes"]) == (5, 5)
+        assert _reuniao(sb)["status_ata"] == "ASSINADA"
+        da_ata = [p for p in _pendencias(sb) if p["id_reuniao"] == "R1"]
+        assert sorted(p["quadro_pos"] for p in da_ata) == [0, 1, 2, 3, 4]
+        assert sorted(p["id_acao"] for p in da_ata) == ["A1000", "A1001", "A1002", "A1003", "A1004"]
+
+    def test_atualizar_com_assinatura_faltando_nao_consulta_o_envelope(self, clicksign, make_client):
+        clicksign.status[ENVELOPE_ID] = "running"
+        clicksign.signers[ENVELOPE_ID] = _signers_padrao()
+        sb = _sb()
+
+        res = make_client(sb).get("/api/reunioes/R1/signatarios/status")
+
+        assert res.status_code == 200
+        assert res.json()["finalizada"] is False
+        assert clicksign.consultas == []
+        assert _reuniao(sb)["status_ata"] == "AGUARDANDO_ASSINATURA"
+
+    def test_atualizar_nao_gasta_o_cooldown_do_sincronizar(self, clicksign, make_client):
+        """O Atualizar não gasta o cooldown do Sincronizar (a issue #1914
+        mostrou o "Sincronização feita há pouco" a quem só tinha olhado)."""
+        clicksign.status[ENVELOPE_ID] = "running"
+        clicksign.signers[ENVELOPE_ID] = _todos_assinaram()
+        sb = _sb()
+        client = make_client(sb)
+
+        assert client.get("/api/reunioes/R1/signatarios/status").status_code == 200
+        assert client.post("/api/reunioes/R1/signatarios/sincronizar").status_code == 200
