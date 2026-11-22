@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T19:47+0000 -->
+<!-- last_update: 2026-11-22T19:55+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -69,6 +69,13 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/pendencias/{id_acao}/comentarios` | Cria um comentário na pendência e gera notificações de menção. | ✅ |
 | DELETE | `/pendencias/{id_acao}/comentarios/{comentario_id}` | Exclui um comentário. Apenas o autor pode excluir. | ✅ |
 | GET | `/pendencias/{id_acao}/mencionaveis` | Lista participantes mencionáveis no chat da Pendência (quem enxerga a Pendência). | ✅ |
+
+## canal-de-conduta-publico (`app/routers/conduta_acompanhamento.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| POST | `/conduta/acompanhamento` | A situação do caso e as mensagens do Comitê, com o protocolo e o | ❌ |
+| POST | `/conduta/acompanhamento/complemento` | O complemento de quem relatou. Devolve a página já com ele. | ❌ |
 
 ## canal-de-conduta (`app/routers/conduta_afastamento.py`)
 
@@ -181,6 +188,14 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/comite-de-conduta/membros/{participacao_id}/encerrar` | Encerra sem apagar: a vigência termina no dia (inclusive) e a linha | ✅ |
 | POST | `/comite-de-conduta/membros/{participacao_id}/termo/reconsultar` | Pergunta à ClickSign e aplica o mesmo tratamento do webhook. | ✅ |
 | POST | `/comite-de-conduta/membros/{participacao_id}/termo/reenviar` | Cancela o envio aberto e manda outro Termo, com outro identificador. | ✅ |
+
+## canal-de-conduta (`app/routers/conduta_mensagens.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| POST | `/comite-de-conduta/casos/{caso_id}/arquivamento` | ARQUIVAR POR FALTA DE ELEMENTOS. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/mensagens` | ENVIAR PERGUNTA: aparece para quem relatou na página de acompanhamento. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/reabertura` | REABRIR CASO, com o complemento que chegou depois do arquivamento. | ✅ |
 
 ## canal-de-conduta-publico (`app/routers/conduta_publico.py`)
 
@@ -947,4 +962,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 546 endpoints em 79 routers · 92% exigem auth.
+**Totais:** 551 endpoints em 81 routers · 92% exigem auth.

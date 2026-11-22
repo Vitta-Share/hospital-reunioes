@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T18:47+0000 -->
+<!-- last_update: 2026-11-22T19:55+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -1408,7 +1408,7 @@ erDiagram
         TEXT categoria
         TIMESTAMPTZ recebido_em
         DATE prazo_em
-        _ mais_colunas "+10"
+        _ mais_colunas "+11"
     }
     conduta_atribuicoes {
         UUID id PK
