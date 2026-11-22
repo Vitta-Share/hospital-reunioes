@@ -12,6 +12,7 @@ import {
   CANAIS,
   CLASSIFICACAO_EM_BRANCO,
   CONFIANCAS,
+  DESTINOS_DO_ENCAMINHAMENTO,
   FREQUENCIAS,
   GRAUS_DE_DANO,
   MOTIVOS_DA_CONFERENCIA,
@@ -31,6 +32,7 @@ import {
   type Contexto,
   type LinhaDeTriagem,
 } from "@/lib/seguranca-do-paciente/triagem";
+import { EncaminharDoCaso } from "./EncaminharDoCaso";
 import { SeloDaFaixa } from "./FilaDeTriagem";
 import { AnexosDoCaso, ESTADOS, formatarData, QuemNotificou, type Caso } from "./NotificacoesDoNucleo";
 
@@ -48,6 +50,11 @@ interface Tela {
   conferencia: { campo_a_campo: boolean; motivos: string[]; campos: string[] };
   contexto: Contexto;
   opcoes: { categorias: { codigo: string; nome: string }[]; eventos: { item: number; evento: string }[] };
+  encaminhamentos?: { destinos: string[]; motivo: string; orientacao: string | null; criado_em: string | null }[];
+}
+
+function nomesDosDestinos(destinos: string[]): string {
+  return destinos.map((d) => DESTINOS_DO_ENCAMINHAMENTO.find((x) => x.valor === d)?.rotulo ?? d).join(", ");
 }
 
 function Secao({ titulo, children }: { titulo: string; children: ReactNode }) {
@@ -447,6 +454,8 @@ export function TriagemDoCaso({ id }: { id: string }) {
   const [enviando, setEnviando] = useState(false);
   const [erroDoEnvio, setErroDoEnvio] = useState<string | null>(null);
   const [feito, setFeito] = useState<string | null>(null);
+  const [encaminhando, setEncaminhando] = useState(false);
+  const [saiuDaFila, setSaiuDaFila] = useState(false);
 
   useEffect(() => {
     let vivo = true;
@@ -539,7 +548,7 @@ export function TriagemDoCaso({ id }: { id: string }) {
 
   return (
     <div className="space-y-4">
-      {campoACampo && !decidida && !feito && (
+      {campoACampo && !decidida && !feito && !saiuDaFila && (
         <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 space-y-1">
           <p className="flex gap-2 items-center text-sm font-semibold text-red-800">
             <AlertTriangle className="w-4 h-4 shrink-0" aria-hidden />
@@ -637,7 +646,21 @@ export function TriagemDoCaso({ id }: { id: string }) {
 
           {contexto && <Calculado contexto={contexto} podeConfigurar={podeConfigurar} />}
 
-          {!feito && !decidida && (
+          {tela.encaminhamentos && tela.encaminhamentos.length > 0 && (
+            <Secao titulo="Encaminhamentos">
+              <ul className="space-y-2">
+                {tela.encaminhamentos.map((e, i) => (
+                  <li key={`${e.criado_em}-${i}`} className="text-sm text-slate-900">
+                    <p className="font-semibold">{nomesDosDestinos(e.destinos)}</p>
+                    <p className="text-slate-700">{e.motivo}</p>
+                    {e.orientacao && <p className="text-xs text-slate-500">{`Orientação a quem notificou: ${e.orientacao}`}</p>}
+                  </li>
+                ))}
+              </ul>
+            </Secao>
+          )}
+
+          {!feito && !decidida && !saiuDaFila && (
             <div className="space-y-2">
               {erroDoEnvio && (
                 <p role="alert" className="text-sm text-red-700">
@@ -666,11 +689,25 @@ export function TriagemDoCaso({ id }: { id: string }) {
                     {ajustando ? "Voltar à sugestão" : "Ajustar"}
                   </button>
                 )}
+                <button
+                  type="button"
+                  aria-expanded={encaminhando}
+                  onClick={() => setEncaminhando(!encaminhando)}
+                  className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-border bg-white px-5 py-2 text-sm font-semibold text-slate-700 hover:border-primary/40"
+                >
+                  Encaminhar
+                </button>
               </div>
               {campoACampo && !podeConfirmar(campoACampo, marcados) && (
                 <p className="text-xs text-slate-500">Marque cada campo como conferido para liberar a confirmação.</p>
               )}
             </div>
+          )}
+
+          {encaminhando && !feito && (
+            <Secao titulo="Encaminhar">
+              <EncaminharDoCaso id={id} aoEncaminhar={(estado) => setSaiuDaFila(!["recebida", "em_triagem"].includes(estado))} />
+            </Secao>
           )}
         </div>
       </div>

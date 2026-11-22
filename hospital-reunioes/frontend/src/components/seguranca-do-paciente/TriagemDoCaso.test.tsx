@@ -121,6 +121,9 @@ beforeEach(() => {
     vi.fn(async (url: string, init?: RequestInit) => {
       if (init?.method === "POST") {
         enviados.push({ url, body: JSON.parse(String(init.body)) });
+        if (url.endsWith("/encaminhamento")) {
+          return { ok: true, status: 201, json: async () => ({ estado: "encaminhada", encaminhamento: {} }) } as Response;
+        }
         return { ok: true, status: 201, json: async () => ({ estado: "classificada", triagem: SUGESTAO }) } as Response;
       }
       if (url.includes("/contexto")) {
@@ -231,5 +234,30 @@ describe("a tela de triagem", () => {
     expect((screen.getByLabelText("Natureza") as HTMLSelectElement).value).toBe("");
     expect((screen.getByLabelText("Categoria") as HTMLSelectElement).value).toBe("");
     expect(screen.getByRole("button", { name: "Confirmar a classificação" }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("Encaminhar sem o Núcleo tira o caso da triagem e esconde o Confirmar (issue #1995)", async () => {
+    resposta = tela(false);
+    render(<TriagemDoCaso id="c1" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Encaminhar" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Ouvidoria" }));
+    fireEvent.change(screen.getByLabelText("Motivo, em uma frase"), { target: { value: "Reclamação de atendimento." } });
+    fireEvent.click(screen.getByRole("button", { name: "Registrar o encaminhamento" }));
+
+    expect(await screen.findByText(/O caso está em Encaminhada/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Confirmar" })).toBeNull();
+    expect(enviados[0].url).toBe("/api/nsp/triagem/c1/encaminhamento");
+  });
+
+  it("mostra os encaminhamentos já feitos no caso", async () => {
+    resposta = tela(false, {
+      encaminhamentos: [{ destinos: ["nucleo", "ouvidoria"], motivo: "Também é reclamação.", orientacao: null, autor_id: "P1", criado_em: "2026-11-10T14:00:00+00:00" }],
+    });
+    render(<TriagemDoCaso id="c1" />);
+
+    const lista = await screen.findByRole("region", { name: "Encaminhamentos" });
+    expect(within(lista).getByText(/Núcleo, Ouvidoria/)).toBeTruthy();
+    expect(within(lista).getByText(/Também é reclamação\./)).toBeTruthy();
   });
 });

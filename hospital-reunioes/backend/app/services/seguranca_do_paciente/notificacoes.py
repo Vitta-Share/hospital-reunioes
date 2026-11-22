@@ -196,12 +196,19 @@ def conferir(supabase, protocolo: str, codigo: str | None, contato: str | None) 
     return caso
 
 
-def consultar(supabase, protocolo: str, codigo: str | None, contato: str | None) -> dict[str, str] | None:
+def consultar(supabase, protocolo: str, codigo: str | None, contato: str | None) -> dict[str, str | None] | None:
     """O que a página de acompanhamento mostra, ou `None` para toda recusa."""
     caso = conferir(supabase, protocolo, codigo, contato)
     if caso is None:
         return None
-    return {"protocolo": caso["protocolo"], "estado": ESTADO_PUBLICO.get(caso.get("estado"), RECEBIDA)}
+    situacao = {"protocolo": caso["protocolo"], "estado": ESTADO_PUBLICO.get(caso.get("estado"), RECEBIDA)}
+    if caso.get("estado") == "fora_de_escopo":
+        # A orientação de uma frase da Presidência (issue #1995). O
+        # encaminhamento importa a triagem, que importa este módulo.
+        from app.services.seguranca_do_paciente import encaminhamento
+
+        situacao["orientacao"] = encaminhamento.orientacao_ao_notificante(supabase, caso["id"])
+    return situacao
 
 
 _CAMPOS_DA_LISTA = (

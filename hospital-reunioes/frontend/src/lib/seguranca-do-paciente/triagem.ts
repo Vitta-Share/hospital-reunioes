@@ -166,6 +166,22 @@ export const CANAIS: Opcoes = [
   { valor: "FORA", rotulo: "Fora de escopo" },
 ];
 
+// Os destinos do botão Encaminhar (issue #1995), na ordem do envio.
+export const DESTINOS_DO_ENCAMINHAMENTO: { valor: string; rotulo: string; explicacao: string }[] = [
+  { valor: "nucleo", rotulo: "Núcleo", explicacao: "O caso continua na triagem do Núcleo, junto do outro destino." },
+  { valor: "ouvidoria", rotulo: "Ouvidoria", explicacao: "O ouvidor recebe por e-mail o protocolo, o motivo e o relato." },
+  {
+    valor: "canal_de_conduta",
+    rotulo: "Canal de Conduta",
+    explicacao: "Nada é enviado: a tela mostra como orientar quem notificou.",
+  },
+  {
+    valor: "fora_de_escopo",
+    rotulo: "Fora de escopo",
+    explicacao: "Encerra o caso com uma orientação a quem notificou. Vai sozinho.",
+  },
+];
+
 export const CONFIANCAS: Record<string, string> = { alta: "alta", media: "média", baixa: "baixa" };
 export const FREQUENCIAS: Record<string, string> = {
   remoto: "Remota",

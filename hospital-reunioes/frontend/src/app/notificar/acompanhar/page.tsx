@@ -22,6 +22,8 @@ import { SEM_PUNICAO } from "@/lib/seguranca-do-paciente/notificacao";
 interface Situacao {
   protocolo: string;
   estado: string;
+  // Só no caso fora de escopo: a orientação de uma frase do Núcleo (issue #1995).
+  orientacao?: string | null;
 }
 
 /** As perguntas do agente que esperam resposta (issue #1991), com a chave
@@ -212,6 +214,7 @@ export default function AcompanharNotificacaoPage() {
               <span aria-hidden="true" className={`h-3 w-3 rounded-full ${corDoEstado(situacao.estado)}`} />
               <span role="status">{situacao.estado}</span>
             </p>
+            {situacao.orientacao && <p className="pt-2 text-sm text-slate-700">{situacao.orientacao}</p>}
           </section>
         )}
 
