@@ -41,8 +41,16 @@ vi.mock("@/lib/supabase/client", () => ({
 }));
 
 // O card de signatários tem fetch e polling próprios, fora do que se prova aqui.
+// O botão do dublê faz o que o card real faz quando o Sincronizar ou o
+// Atualizar finalizam a Ata: chama o `onDesfecho` que a página passou.
 vi.mock("@/components/reunioes/SignatariosCard", () => ({
-  SignatariosCard: () => <div data-testid="cartao-signatarios" />,
+  SignatariosCard: (props: { onDesfecho?: () => void }) => (
+    <div data-testid="cartao-signatarios">
+      <button type="button" onClick={() => props.onDesfecho?.()}>
+        desfecho do cartão
+      </button>
+    </div>
+  ),
 }));
 // A ata do Núcleo tem a própria tela, testada no componente dela.
 vi.mock("@/components/seguranca-do-paciente/AtaDoNucleo", () => ({ AtaDoNucleo: () => null }));
@@ -296,6 +304,47 @@ describe("assinatura na reunião do Núcleo", () => {
     montar();
     await esperarCarregar();
     expect(screen.queryByTestId("cartao-signatarios")).toBeNull();
+  });
+
+  // Issue #1904: depois que todos assinam, a tela sai de "Aguardando
+  // assinatura digital" e mostra a Ata Assinada.
+  it("a reunião comum assinada mostra o banner de assinada e não o cartão de signatários", async () => {
+    servir("ASSINADA", false);
+    montar();
+    expect(await screen.findByText("Ata Assinada Digitalmente")).toBeTruthy();
+    expect(screen.queryByTestId("cartao-signatarios")).toBeNull();
+  });
+
+  // Issue #1904, a troca na tela: o Sincronizar ou o Atualizar finalizam a Ata
+  // no banco e o card avisa a página, que relê a Reunião e sai do aguardando
+  // sem recarregar a página.
+  it("o desfecho do cartão relê a Reunião e a tela passa de aguardando para assinada", async () => {
+    const statusPorLeitura = ["AGUARDANDO_ASSINATURA", "ASSINADA"];
+    let leituras = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url === "/api/reunioes/REU_TESTE" && (init?.method ?? "GET") === "GET") {
+          const status_ata = statusPorLeitura[Math.min(leituras, statusPorLeitura.length - 1)];
+          leituras += 1;
+          const corpo = { ...reuniao(status_ata, null), envelope_key_clicksign: "doc-key", do_nucleo: false };
+          return { ok: true, status: 200, json: async () => corpo } as unknown as Response;
+        }
+        return { ok: true, status: 200, json: async () => [] } as unknown as Response;
+      }),
+    );
+    montar();
+
+    expect(await screen.findByTestId("cartao-signatarios")).toBeTruthy();
+    expect(screen.queryByText("Ata Assinada Digitalmente")).toBeNull();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "desfecho do cartão" }));
+    });
+
+    expect(await screen.findByText("Ata Assinada Digitalmente")).toBeTruthy();
+    expect(screen.queryByTestId("cartao-signatarios")).toBeNull();
+    expect(leituras).toBe(2);
   });
 
   it("a reunião comum aprovada mostra o banner de aprovada sem assinatura", async () => {
