@@ -19,6 +19,7 @@ from app.routers import (
     ana,
     auth,
     comentarios,
+    conduta_afastamento,
     conduta_codigo,
     conduta_comite,
     conduta_convites,
@@ -202,6 +203,7 @@ app.include_router(seguranca_do_paciente_triagem.router, prefix=settings.api_pre
 app.include_router(seguranca_do_paciente_recalibracao.router, prefix=settings.api_prefix)
 # Canal de Conduta (PRD #1786, ADR 0097): o Comitê em /comite-de-conduta,
 # atrás do portão; o lado público em /conduta, em 404 até a chave de abertura.
+app.include_router(conduta_afastamento.router, prefix=settings.api_prefix)
 app.include_router(conduta_comite.router, prefix=settings.api_prefix)
 app.include_router(conduta_codigo.router, prefix=settings.api_prefix)
 app.include_router(conduta_convites.router, prefix=settings.api_prefix)
