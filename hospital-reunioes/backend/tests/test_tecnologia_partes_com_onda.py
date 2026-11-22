@@ -252,7 +252,14 @@ class TestAApiDoDocumento:
             (678, 1, []),
             # A 678 ja fechou: conta para a Onda, mas nao aparece como espera.
             (679, 2, []),
-            (680, 3, [{"numero": 679, "de_outro_pedido": False}, {"numero": 1830, "de_outro_pedido": True}]),
+            (
+                680,
+                3,
+                [
+                    {"numero": 679, "de_outro_pedido": False, "ajuste_do_plano": False},
+                    {"numero": 1830, "de_outro_pedido": True, "ajuste_do_plano": False},
+                ],
+            ),
         ]
         textos = [str(v) for p in item["partes"] for v in p.values()]
         assert not [t for t in textos if "github.com" in t or "Tecnologia: webhook" in t]

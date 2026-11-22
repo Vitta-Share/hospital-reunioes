@@ -94,7 +94,7 @@ import { useTelaLarga } from "@/hooks/useTelaLarga";
 
 import { ChatDaTecnologia, Fala } from "./ChatDaTecnologia";
 import { ConversaDaDemanda } from "./ConversaDaDemanda";
-import { CabecalhoDaDemanda, DocumentoDoCard } from "./DocumentoDoCard";
+import { CabecalhoDaDemanda, DocumentoDoCard, SeloDoPlanoValidado } from "./DocumentoDoCard";
 import { useProjetosDoFiltro } from "./useProjetosDoFiltro";
 import { QuadroDaTecnologia } from "./QuadroDaTecnologia";
 import { SeloDeEtapa } from "./SeloDeEtapa";
@@ -862,6 +862,7 @@ function Acompanhamento({ demanda, token }: { demanda: Demanda; token: string | 
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <h2 className="normal-case text-base font-bold text-slate-900">{demanda.titulo}</h2>
         <SeloDeEtapa demanda={demanda} />
+        <SeloDoPlanoValidado demanda={demanda} />
         <OrigemNaLista demanda={demanda} />
         {demanda.autor && <span className="normal-case text-text-secondary">{demanda.autor}</span>}
       </div>

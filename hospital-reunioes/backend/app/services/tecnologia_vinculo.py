@@ -107,8 +107,29 @@ def _entregue(no: dict[str, Any] | None) -> bool:
     return _fechada(no) and str((no or {}).get("motivo_do_fechamento") or "").lower() != FECHAMENTO_NAO_PLANEJADA
 
 
-def _partes(foto: dict[str, Any] | None) -> list[dict[str, Any]]:
+# A chave que marca, na foto, a sub-issue que e o Ajuste do plano (issue
+# #1915): ele trava partes, mas nao e parte da entrega.
+FATO_AJUSTE_DO_PLANO = "ajuste_do_plano"
+
+
+def _todas_as_sub_issues(foto: dict[str, Any] | None) -> list[dict[str, Any]]:
     return list((foto or {}).get("partes") or [])
+
+
+def _partes(foto: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """As partes da entrega: as sub-issues da raiz menos o Ajuste do plano
+    (issue #1915), que nao conta para a Etapa, as Ondas nem as partes entregues."""
+    return [p for p in _todas_as_sub_issues(foto) if not (isinstance(p, dict) and p.get(FATO_AJUSTE_DO_PLANO))]
+
+
+def ajuste_aberto_da_foto(foto: dict[str, Any] | None) -> dict[str, Any] | None:
+    """O Ajuste do plano ainda aberto da raiz (issue #1915): o numero e o
+    endereco, ou `None`."""
+    numero = (foto or {}).get("ajuste_aberto")
+    if not isinstance(numero, int):
+        return None
+    url = next((p.get("url") for p in _todas_as_sub_issues(foto) if p.get("numero") == numero), None)
+    return {"numero": numero, "url": url}
 
 
 def etapa_da_foto(
@@ -254,10 +275,13 @@ def partes_da_foto(foto: dict[str, Any] | None) -> tuple[int | None, int | None]
 
     partes_lidas = _partes(foto)
     ha_parte_recusada = any(_fechada(parte) and not _entregue(parte) for parte in partes_lidas)
+    # O resumo do GitHub conta o Ajuste do plano como parte (issue #1915): com
+    # ele entre as sub-issues, a conta propria manda, como na parte recusada.
+    ha_ajuste = len(partes_lidas) != len(_todas_as_sub_issues(foto))
     resumo = foto.get("resumo_das_partes") or {}
     total = resumo.get("total")
     entregues = resumo.get("entregues")
-    if isinstance(total, int) and isinstance(entregues, int) and not ha_parte_recusada:
+    if isinstance(total, int) and isinstance(entregues, int) and not ha_parte_recusada and not ha_ajuste:
         return (None, None) if total <= 0 else (entregues, total)
 
     if not partes_lidas:
@@ -371,6 +395,11 @@ def partes_para_o_diretor(foto: dict[str, Any] | None) -> list[dict[str, Any]]:
     """
     partes = _partes(foto)
     ondas = ondas_das_partes(partes)
+    # A bloqueadora que e o Ajuste do plano vira "Espera o ajuste do plano"
+    # (issue #1915): marcada aqui, porque so a foto inteira sabe quem e o Ajuste.
+    ajustes = {
+        p.get("numero") for p in _todas_as_sub_issues(foto) if isinstance(p, dict) and p.get(FATO_AJUSTE_DO_PLANO)
+    }
     return [
         {
             "numero": parte.get("numero"),
@@ -380,7 +409,10 @@ def partes_para_o_diretor(foto: dict[str, Any] | None) -> list[dict[str, Any]]:
             # fechada, e a reaberta volta a nulo.
             "fechada_em": parte.get("fechada_em") or None,
             "onda": onda,
-            "bloqueadoras": list(parte.get("bloqueadoras") or []),
+            "bloqueadoras": [
+                {**b, FATO_AJUSTE_DO_PLANO: True} if isinstance(b, dict) and b.get("numero") in ajustes else b
+                for b in (parte.get("bloqueadoras") or [])
+            ],
         }
         for parte, onda in zip(partes, ondas, strict=True)
     ]

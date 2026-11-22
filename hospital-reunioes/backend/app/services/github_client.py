@@ -43,13 +43,14 @@ import binascii
 import json
 import logging
 import re
+from datetime import datetime
 from typing import Any
 from urllib.parse import quote, urlencode, urlsplit
 
 import httpx
 
 from app.config import settings
-from app.services.tecnologia_vinculo import FECHAMENTO_NAO_PLANEJADA, bloco_para_o_diretor
+from app.services.tecnologia_vinculo import FATO_AJUSTE_DO_PLANO, FECHAMENTO_NAO_PLANEJADA, bloco_para_o_diretor
 
 logger = logging.getLogger(__name__)
 
@@ -669,6 +670,68 @@ def regravar_corpo(numero: int, *, projeto: str, corpo: str) -> dict[str, Any]:
     return dados
 
 
+# A validacao do plano pelo diretor (issue #1915, ADR 0108): a label que o
+# Validar da Apresentacao grava na raiz e o marcador do comentario que ele
+# deixa. Vale so o comentario de quem e do repositorio, como no `estado.js` da
+# Apresentacao: o repositorio e publico, e qualquer um comenta.
+LABEL_DA_VALIDACAO = "validado:diretor"
+_MARCADOR_DA_VALIDACAO = re.compile(r"<!--\s*validacao-diretor:\s*(\S+)\s*-->", re.IGNORECASE)
+_DE_DENTRO_DO_REPOSITORIO = frozenset({"OWNER", "MEMBER", "COLLABORATOR"})
+# Teto de paginas das leituras da validacao: 1000 comentarios ou eventos.
+_PAGINAS_DA_VALIDACAO = 10
+
+
+def _instante_valido(texto: object) -> bool:
+    try:
+        datetime.fromisoformat(str(texto))
+    except ValueError:
+        return False
+    return True
+
+
+def _todas_as_paginas(caminho: str, *, projeto: str) -> list[dict[str, Any]]:
+    """A lista inteira, do mais antigo ao mais novo, ate a pagina curta."""
+    itens: list[dict[str, Any]] = []
+    for pagina in range(1, _PAGINAS_DA_VALIDACAO + 1):
+        dados = _chamar("GET", f"{caminho}?per_page={_POR_PAGINA}&page={pagina}", projeto=projeto)
+        if not isinstance(dados, list):
+            raise GithubIndisponivelError("GitHub respondeu a lista fora do formato")
+        itens.extend(d for d in dados if isinstance(d, dict))
+        if len(dados) < _POR_PAGINA:
+            break
+    return itens
+
+
+def ler_validacao_do_diretor(numero: int, *, projeto: str) -> str | None:
+    """Quando o diretor validou o plano desta raiz (issue #1915), em ISO.
+
+    A data do marcador `<!-- validacao-diretor: <ISO> -->` do comentario mais
+    recente de quem e do repositorio; sem ele, a hora em que a label
+    `validado:diretor` entrou pela ultima vez. `None` sem nenhum dos dois.
+
+    Levanta como o `_chamar`: quem chama mantem a data que ja sabia.
+    """
+    quando = None
+    for comentario in _todas_as_paginas(f"/issues/{numero}/comments", projeto=projeto):
+        if comentario.get("author_association") not in _DE_DENTRO_DO_REPOSITORIO:
+            continue
+        achados = [a for a in _MARCADOR_DA_VALIDACAO.findall(str(comentario.get("body") or "")) if _instante_valido(a)]
+        if achados:
+            quando = achados[-1]
+    if quando is not None:
+        return quando
+    for evento in _todas_as_paginas(f"/issues/{numero}/events", projeto=projeto):
+        label = evento.get("label")
+        if (
+            evento.get("event") == "labeled"
+            and isinstance(label, dict)
+            and label.get("name") == LABEL_DA_VALIDACAO
+            and _instante_valido(evento.get("created_at"))
+        ):
+            quando = evento["created_at"]
+    return quando
+
+
 # A chave do dono da raiz na foto (issue #1534).
 FATO_ASSIGNEE = "assignee"
 
@@ -706,6 +769,22 @@ _MARCADOR_DA_APRESENTACAO = re.compile(r"<!--\s*apresentacao:\s*(\S+)\s*-->", re
 
 # A unica pagina que o atalho do card abre: a dos planos do hospital.
 PAGINA_DOS_PLANOS = "https://planos-hsm.vercel.app/"
+
+# O Ajuste do plano (issue #1915, ADR 0108): a sub-issue que o Envio aos
+# desenvolvedores abre com `<!-- ajuste-do-plano: <raiz> -->` no corpo. Na
+# parte, `FATO_AJUSTE_DO_PLANO` marca o Ajuste, que nao e parte da entrega; na
+# raiz, `FATO_AJUSTE_ABERTO` guarda o numero do Ajuste ainda aberto.
+FATO_AJUSTE_ABERTO = "ajuste_aberto"
+_MARCADOR_DO_AJUSTE = re.compile(r"<!--\s*ajuste-do-plano:\s*(\d+)\s*-->", re.IGNORECASE)
+
+# Quando o diretor validou o plano da raiz (issue #1915): so com a label
+# `validado:diretor`, lido pela sincronizacao, e nao pela `montar_foto`.
+FATO_VALIDADO_EM = "validado_em"
+
+
+def e_ajuste_do_plano(corpo: str | None, raiz: object) -> bool:
+    """Se o corpo e o de um Ajuste do plano DESTA raiz (issue #1915)."""
+    return isinstance(raiz, int) and any(int(n) == raiz for n in _MARCADOR_DO_AJUSTE.findall(corpo or ""))
 
 
 def demonstracao_do_corpo(corpo: str | None) -> str | None:
@@ -762,7 +841,19 @@ def montar_foto(dados: dict[str, Any], partes: list[dict[str, Any]]) -> dict[str
     a Etapa olha a label de CADA uma.
     """
     foto = _no(dados)
-    foto["partes"] = [_no(parte) for parte in partes if isinstance(parte, dict)]
+    foto["partes"] = []
+    for parte in partes:
+        if not isinstance(parte, dict):
+            continue
+        no = _no(parte)
+        # O Ajuste do plano fica na foto, marcado, e nao some (issue #1915): o
+        # estado dele e o que as partes travadas por ele leem. So entra a chave
+        # no Ajuste, e a foto da parte comum continua identica.
+        if e_ajuste_do_plano(parte.get("body"), dados.get("number")):
+            no[FATO_AJUSTE_DO_PLANO] = True
+            if no["estado"] == "open" and FATO_AJUSTE_ABERTO not in foto:
+                foto[FATO_AJUSTE_ABERTO] = no["numero"]
+        foto["partes"].append(no)
 
     # O dono da raiz no GitHub, de que o Responsavel da Demanda e derivado
     # (issue #1534, ADR 0083, decisao 6). So entra quando ha dono: a foto da
