@@ -141,9 +141,10 @@ def _casos_abertos(supabase, _momento: datetime) -> tuple[int, list[dict[str, An
     abertos = _protocolos(supabase, faixas, estado=CASO_ABERTO)
     ordem = sorted(abertos.values(), key=lambda caso: (faixas[caso["id"]], caso.get("numero") or 0))
     itens = [
-        _item(f"{caso['protocolo']}, faixa {faixas[caso['id']]}", TELA_DO_CASO.format(id=caso["id"])) for caso in ordem
+        _item(f"{caso['protocolo']}, faixa {faixas[caso['id']]}", TELA_DO_CASO.format(id=caso["id"]))
+        for caso in ordem[:TETO_DE_ITENS]
     ]
-    return len(itens), itens
+    return len(ordem), itens
 
 
 def _triagens_pendentes(supabase, agora: datetime) -> tuple[int, list[dict[str, Any]]]:
@@ -166,11 +167,11 @@ def _prazos_legais(supabase, agora: datetime) -> tuple[int, list[dict[str, Any]]
             supabase.table(NOTIFICACOES_EXTERNAS)
             .select("id, notificacao_id, sistema, prazo_legal")
             .eq("estado", EXTERNA_PENDENTE)
-            .order("prazo_legal")
+            .order("id")
         )
     )
     externas.sort(key=lambda linha: _instante(linha["prazo_legal"]))
-    ids = [linha["notificacao_id"] for linha in externas]
+    ids = [linha["notificacao_id"] for linha in externas[:TETO_DE_ITENS]]
     unidades = {
         linha["notificacao_id"]: linha["unidade"]
         for linha in _em_lotes(
@@ -183,7 +184,7 @@ def _prazos_legais(supabase, agora: datetime) -> tuple[int, list[dict[str, Any]]
             ids,
         )
     }
-    protocolos = _protocolos(supabase, ids[:TETO_DE_ITENS])
+    protocolos = _protocolos(supabase, ids)
     itens = []
     for linha in externas[:TETO_DE_ITENS]:
         caso_id = linha["notificacao_id"]
