@@ -33,10 +33,10 @@ from app.services.conduta.ritos import FUSO
 from app.services.conduta.trilha_do_caso import (
     APLICACAO,
     Documento,
-    _linhas,
-    _pessoas_ouvidas,
     conferencia,
     documentos_do_caso,
+    linhas_da_trilha,
+    pessoas_ouvidas,
 )
 
 ACAO_DO_DOWNLOAD = "baixou_dossie"
@@ -197,7 +197,7 @@ def _textos_da_apuracao(supabase, caso: dict) -> list[tuple[str, str]]:
     """Os documentos em texto: os pontos do depoimento sem gravação e a última
     versão do relatório de apuração e da cronologia."""
     lista = depoimentos.do_caso(supabase, caso["id"])
-    pessoas = _pessoas_ouvidas(lista)
+    pessoas = pessoas_ouvidas(lista)
     textos = []
     for depoimento in lista:
         if depoimento.get("sem_gravacao_em"):
@@ -261,7 +261,7 @@ def montar(supabase, aberto: CasoAberto) -> tuple[IO[bytes], str]:
     o registro de acessos do pacote já traz o próprio download. Levanta
     `CifraIndisponivelError` se a chave não abre."""
     caso = aberto.caso
-    linhas = _linhas(supabase, caso["id"])
+    linhas = linhas_da_trilha(supabase, caso["id"])
     baixou = membros.nomes(supabase, [aberto.autor_id]).get(aberto.autor_id, "")
     destino = tempfile.SpooledTemporaryFile(max_size=_EM_MEMORIA)
     indice = [

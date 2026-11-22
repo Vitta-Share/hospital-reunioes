@@ -65,7 +65,7 @@ class Documento:
     extras: dict[str, Any] = field(default_factory=dict)
 
 
-def _pessoas_ouvidas(lista: list[dict]) -> dict[str, str]:
+def pessoas_ouvidas(lista: list[dict]) -> dict[str, str]:
     """Cada pessoa ouvida sem o nome: o papel e o número dela no papel, na
     ordem em que entrou ("Acusado 1", "Testemunha 2")."""
     contagem: dict[str, int] = {}
@@ -84,7 +84,7 @@ def documentos_do_caso(supabase, caso: dict) -> list[Documento]:
     """Todo arquivo do caso, versão a versão, na ordem em que entrou."""
     caso_id = caso["id"]
     lista = depoimentos.do_caso(supabase, caso_id)
-    pessoas = _pessoas_ouvidas(lista)
+    pessoas = pessoas_ouvidas(lista)
     arquivos = depoimentos._arquivos(supabase, [d["id"] for d in lista])
     ciencias = supabase.table("conduta_ciencias_do_codigo").select("*").eq("caso_id", caso_id).execute().data or []
     assinadas = [a for a in _assinaturas_do_caso(supabase, caso_id) if a.get("situacao") == "assinado"]
@@ -164,7 +164,7 @@ def documentos_do_caso(supabase, caso: dict) -> list[Documento]:
     return sorted(saida, key=lambda d: str(d.data or ""))
 
 
-def _linhas(supabase, caso_id: str) -> list[dict]:
+def linhas_da_trilha(supabase, caso_id: str) -> list[dict]:
     linhas = supabase.table("conduta_trilha").select("*").eq("caso_id", caso_id).execute().data or []
     return sorted(linhas, key=lambda x: x["seq"])
 
@@ -236,7 +236,7 @@ def gavetas(supabase, caso: dict) -> list[dict]:
         return []
     caso_id = caso["id"]
     lista = depoimentos.do_caso(supabase, caso_id)
-    pessoas = _pessoas_ouvidas(lista)
+    pessoas = pessoas_ouvidas(lista)
     ids = [d["id"] for d in lista]
     com_termo = {a["depoimento_id"] for a in depoimentos._arquivos(supabase, ids) if a["tipo"] == "termo_assinado"}
     com_certidao = {c["depoimento_id"] for c in depoimentos._certidoes(supabase, ids) if c["situacao"] == "assinado"}
@@ -300,7 +300,7 @@ def bloqueio(supabase, caso: dict) -> str | None:
 
 def para_a_tela(supabase, aberto: CasoAberto) -> dict:
     caso = aberto.caso
-    linhas = _linhas(supabase, caso["id"])
+    linhas = linhas_da_trilha(supabase, caso["id"])
     return {
         "trilha": {
             "linha_do_tempo": linha_do_tempo(supabase, caso, linhas),
