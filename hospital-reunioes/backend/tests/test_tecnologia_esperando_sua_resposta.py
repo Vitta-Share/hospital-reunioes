@@ -114,9 +114,12 @@ def _ponte(sb: _SupabaseMock) -> TestClient:
     return TestClient(app)
 
 
-def _perguntar(sb: _SupabaseMock, demanda: str, *, para: dict, assunto: str, em: str, estado: str = "aberta") -> str:
+def _perguntar(
+    sb: _SupabaseMock, demanda: str, *, para: dict, assunto: str, em: str, estado: str = "aberta", **opcoes
+) -> str:
     """Cria a Pergunta pela ponte e a põe na data `em` (e no `estado`, que as
-    próximas Fatias mudam pelas rotas delas)."""
+    próximas Fatias mudam pelas rotas delas). `opcoes` leva as opções e a
+    recomendada, quando a Pergunta tem."""
     resposta = _ponte(sb).post(
         f"/api/automacao/tecnologia/demandas/{demanda}/perguntas",
         json={
@@ -125,6 +128,7 @@ def _perguntar(sb: _SupabaseMock, demanda: str, *, para: dict, assunto: str, em:
             "assunto": assunto,
             "texto": f"Pergunta sobre {assunto}?",
             **QUATRO_LINHAS,
+            **opcoes,
         },
         headers={"X-API-Key": CHAVE},
     )
@@ -201,6 +205,71 @@ class TestALista:
         assert "quem assina a Ata" not in resposta.text
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# Responder pelo cartão da lista (issue #2145)
+# ═══════════════════════════════════════════════════════════════════════════
+
+OPCOES = {"opcoes": ["A diretora de plantão", "O diretor geral"], "recomendada": "B", "porque": "Ele já assina hoje."}
+
+
+def _responder_pela_lista(sb: _SupabaseMock, logado: dict, monkeypatch, **corpo):
+    """Lê a lista como `logado` e responde a primeira Pergunta dela pela rota
+    da resposta, como o cartão da lista faz."""
+    cliente, _, _ = _montar(logado=logado, supabase=sb, monkeypatch=monkeypatch)
+    [item] = cliente.get(LISTA).json()
+    return item, cliente.post(f"/api/admin/tecnologia/perguntas/{item['id']}/resposta", json=corpo)
+
+
+class TestResponderPelaLista:
+    @pytest.mark.parametrize(
+        ("logado", "pode"),
+        [(DIRETORA, True), (PEDRO, True), (DIRETOR, False)],
+        ids=["destinatario", "desenvolvedor", "outro-super-admin"],
+    )
+    def test_o_cartao_da_lista_diz_se_quem_esta_logado_pode_responder(self, logado, pode, monkeypatch):
+        sb = _banco()
+        _perguntar(sb, ATA, para=DIRETORA, assunto="quem assina a Ata", em="2026-11-18T10:00:00Z")
+
+        [item] = _lista(sb, logado, monkeypatch).json()
+
+        assert item["pode_responder"] is pode
+
+    def test_o_destinatario_responde_por_opcao_pela_lista_e_a_pergunta_sai_dela(self, monkeypatch):
+        sb = _banco()
+        _perguntar(sb, ATA, para=DIRETORA, assunto="quem assina a Ata", em="2026-11-18T10:00:00Z", **OPCOES)
+
+        item, resposta = _responder_pela_lista(sb, DIRETORA, monkeypatch, opcao="B")
+
+        assert item["pode_responder"] is True
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["pergunta"]["estado"] == "respondida"
+        [pergunta] = sb.tabelas[TABELA]
+        assert (pergunta["estado"], pergunta["resposta_opcao"]) == ("respondida", "B")
+        assert _lista(sb, DIRETORA, monkeypatch).json() == []
+
+    def test_o_destinatario_responde_por_texto_livre_pela_lista(self, monkeypatch):
+        sb = _banco()
+        _perguntar(sb, ATA, para=DIRETORA, assunto="quem assina a Ata", em="2026-11-18T10:00:00Z")
+
+        _, resposta = _responder_pela_lista(sb, DIRETORA, monkeypatch, texto="Quem estiver de plantão.")
+
+        assert resposta.status_code == 200, resposta.text
+        [pergunta] = sb.tabelas[TABELA]
+        assert (pergunta["estado"], pergunta["resposta_texto"]) == ("respondida", "Quem estiver de plantão.")
+
+    def test_o_desenvolvedor_registra_pela_lista_no_lugar_do_destinatario_com_os_dois_nomes(self, monkeypatch):
+        sb = _banco()
+        _perguntar(sb, ATA, para=DIRETORA, assunto="quem assina a Ata", em="2026-11-18T10:00:00Z", **OPCOES)
+
+        _, resposta = _responder_pela_lista(sb, PEDRO, monkeypatch, opcao="A")
+
+        assert resposta.status_code == 200, resposta.text
+        [pergunta] = sb.tabelas[TABELA]
+        assert (pergunta["respondida_por"], pergunta["respondida_em_nome_de"]) == (PEDRO["id"], DIRETORA["id"])
+        gravada = resposta.json()["pergunta"]["resposta"]
+        assert (gravada["respondida_por"], gravada["em_nome_de"]) == ("Pedro Rezende", "Diretora Clínica")
+
+
 class TestOAviso:
     def test_o_sino_da_pergunta_leva_ao_cartao_na_aba(self):
         sb = _banco()
@@ -231,6 +300,8 @@ class TestOKit:
             "As suas vêm primeiro",
             "a mais antiga primeiro",
             "abrem a aba Tecnologia já no cartão da pergunta",
+            "responde ali mesmo, no cartão da lista",
+            "sai da lista na hora",
         ):
             assert trecho in texto, trecho
         assert "Pendência da Vitta" not in texto
