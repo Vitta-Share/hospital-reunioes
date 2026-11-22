@@ -36,6 +36,7 @@ from test_tecnologia_pergunta_da_vitta import (  # noqa: E402, F401
     chave_configurada,
     emails,
 )
+from test_tecnologia_vinculo import _integracao_configurada, _montar  # noqa: E402, F401
 
 from app.services import github_client  # noqa: E402
 from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
@@ -319,12 +320,19 @@ class TestAPonte:
         assert resposta["respondida_em"] == sb.tabelas[TABELA][0]["respondida_em"]
 
     def test_a_resposta_nao_vai_para_o_github(self, monkeypatch, chamadas_ao_github):
+        """Com o token e o repositório de pé (`_integracao_configurada`), uma ida
+        ao GitHub chega ao transporte e fica gravada, mesmo dentro de um
+        try/except; o `criar_issue`, que o `_montar` troca pelo dublê, fica no
+        `gh.criadas`."""
+        assert github_client.integracao_configurada()
         _, sb, pergunta_id = _uma_pergunta_aberta()
+        tela, _, gh = _montar(logado=DIRETORA, supabase=sb, monkeypatch=monkeypatch)
 
-        resposta = _responder(sb, DIRETORA, pergunta_id, monkeypatch, texto="Quem estiver de plantão.")
+        resposta = tela.post(_responder_url(pergunta_id), json={"texto": "Quem estiver de plantão."})
 
         assert resposta.status_code == 200, resposta.text
         assert chamadas_ao_github == []
+        assert gh.criadas == []
 
 
 # ═══════════════════════════════════════════════════════════════════════════
