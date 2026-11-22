@@ -22,18 +22,20 @@ a Acao da Ata.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
 from app.dependencies import selecionar_participantes
 from app.services import tecnologia_conversa
 from app.services.paginacao import ler_tudo
-from app.services.tecnologia import TABELA_CONVERSA_DA_DEMANDA, TABELA_DEMANDAS, nome_do_projeto
+from app.services.tecnologia import TABELA_CONVERSA_DA_DEMANDA, TABELA_DEMANDAS, e_desenvolvedor, nome_do_projeto
 
 TABELA_PERGUNTAS = "tecnologia_perguntas"
 
 # Os estados da Pergunta (CHECK da migration 211, ADR 0109, decisao 1).
 ESTADO_ABERTA = "aberta"
+ESTADO_RESPONDIDA = "respondida"
 
 # A origem da linha de sistema na Conversa (CHECK da migration 165): a mesma
 # da linha do Envio aos desenvolvedores, para a tela mostrar do mesmo jeito.
@@ -55,11 +57,27 @@ MOTIVO_SEM_ASSUNTO = "Falta o Assunto da Pergunta."
 MOTIVO_SEM_TEXTO = "Falta o texto da Pergunta."
 MOTIVO_OPCOES = "A Pergunta com opções precisa de duas a quatro, todas com texto."
 MOTIVO_RECOMENDADA = "A recomendada precisa ser a letra de uma das opções."
+MOTIVO_SEM_RESPOSTA = "Escolha uma das opções ou escreva a sua resposta."
+MOTIVO_OPCAO_DESCONHECIDA = "A opção escolhida não é uma das opções da Pergunta."
+MOTIVO_SO_O_DESTINATARIO = "Só quem recebeu a Pergunta, ou um Desenvolvedor no lugar dele, pode responder."
+MOTIVO_NAO_ESTA_ABERTA = "Esta Pergunta já não espera resposta."
 
 
 class PerguntaRecusadaError(ValueError):
     """A Pergunta nao pode nascer assim. A mensagem e o motivo, para a ponte
     devolver como esta; nada foi gravado."""
+
+
+class RespostaRecusadaError(ValueError):
+    """A resposta veio vazia ou com opcao que a Pergunta nao tem (422)."""
+
+
+class RespostaProibidaError(PermissionError):
+    """Quem tentou responder nao e o Destinatario nem um Desenvolvedor (403)."""
+
+
+class PerguntaFechadaError(ValueError):
+    """A Pergunta ja nao esta aberta (409): respondida, resolvida ou cancelada."""
 
 
 def _limpo(valor: str | None) -> str:
@@ -170,28 +188,51 @@ def _nomes(supabase, ids: set[str]) -> dict[str, str]:
     return {str(p["id"]): p.get("nome_completo") or "" for p in result.data or []}
 
 
-def cartoes_da_demanda(supabase, demanda: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    """O cartao de cada Pergunta da Demanda, pela entrada dela na Conversa
-    (id da mensagem): de qual Projeto e, a pergunta, as quatro linhas, as
-    opcoes, o estado e desde quando espera. A tela conta os dias."""
-    linhas = supabase.table(TABELA_PERGUNTAS).select("*").eq("demanda_id", demanda["id"]).execute().data or []
-    nomes = _nomes(supabase, {str(p.get("destinatario_id") or "") for p in linhas})
-    return {str(p["mensagem_id"]): _cartao(p, demanda, nomes) for p in linhas if p.get("mensagem_id")}
+def _pessoas_da_pergunta(pergunta: dict[str, Any]) -> set[str]:
+    chaves = ("destinatario_id", "respondida_por", "respondida_em_nome_de")
+    return {str(pergunta.get(chave) or "") for chave in chaves}
 
 
-def _cartao(p: dict[str, Any], demanda: dict[str, Any], nomes: dict[str, str]) -> dict[str, Any]:
+def pode_responder(pergunta: dict[str, Any], ator: dict[str, Any]) -> bool:
+    """Responde o Destinatario; o Desenvolvedor registra no lugar dele (ADR
+    0109, decisao 5). Outro Super admin so ve o cartao."""
+    return str(ator.get("id")) == str(pergunta.get("destinatario_id")) or e_desenvolvedor(ator)
+
+
+def _cartao(p: dict[str, Any], *, projeto: str, nomes: dict[str, str], ator: dict[str, Any] | None) -> dict[str, Any]:
+    estado = p.get("estado") or ESTADO_ABERTA
     return {
         "id": str(p["id"]),
-        "projeto": nome_do_projeto(demanda),
+        "projeto": projeto,
         "assunto": p.get("assunto") or "",
         "texto": p.get("texto") or "",
         **{chave: p.get(chave) or "" for chave, _ in LINHAS_DO_CARTAO},
         "opcoes": p.get("opcoes") or [],
         "recomendada": p.get("recomendada"),
         "porque": p.get("porque_da_recomendada"),
-        "estado": p.get("estado") or ESTADO_ABERTA,
+        "estado": estado,
         "criado_em": p.get("criado_em"),
         "destinatario": nomes.get(str(p.get("destinatario_id"))),
+        # A resposta (issue #2119): o cartao respondido fica na Conversa com ela.
+        "resposta": _resposta(p, nomes),
+        "pode_responder": ator is not None and estado == ESTADO_ABERTA and pode_responder(p, ator),
+    }
+
+
+def cartoes_da_demanda(
+    supabase, demanda: dict[str, Any], *, ator: dict[str, Any] | None = None
+) -> dict[str, dict[str, Any]]:
+    """O cartao de cada Pergunta da Demanda, pela entrada dela na Conversa
+    (id da mensagem): de qual Projeto e, a pergunta, as quatro linhas, as
+    opcoes, o estado, desde quando espera (a tela conta os dias), a resposta
+    e se quem esta logado (`ator`) pode responder."""
+    linhas = supabase.table(TABELA_PERGUNTAS).select("*").eq("demanda_id", demanda["id"]).execute().data or []
+    nomes = _nomes(supabase, {pessoa for p in linhas for pessoa in _pessoas_da_pergunta(p)})
+    projeto = nome_do_projeto(demanda)
+    return {
+        str(p["mensagem_id"]): _cartao(p, projeto=projeto, nomes=nomes, ator=ator)
+        for p in linhas
+        if p.get("mensagem_id")
     }
 
 
@@ -215,7 +256,7 @@ def esperando(supabase, *, ator_id: str) -> list[dict[str, Any]]:
     nomes = _nomes(supabase, {str(p.get("destinatario_id") or "") for p in abertas})
     itens = [
         {
-            **_cartao(p, demanda, nomes),
+            **_cartao(p, projeto=nome_do_projeto(demanda), nomes=nomes, ator=None),
             "demanda_id": str(demanda["id"]),
             "demanda": str(demanda.get("titulo") or ""),
             "minha": str(p.get("destinatario_id") or "") == str(ator_id),
@@ -227,15 +268,91 @@ def esperando(supabase, *, ator_id: str) -> list[dict[str, Any]]:
     return sorted(itens, key=lambda item: not item["minha"])
 
 
-def resposta(supabase, pergunta: dict[str, Any]) -> dict[str, Any] | None:
-    """A resposta da Pergunta, quando houver: a letra e o texto da opcao
-    escolhida, o texto livre, quando, quem registrou e em nome de quem."""
+def _texto_na_conversa(pergunta: dict[str, Any], *, opcao: str | None, texto: str, em_nome_de: str | None) -> str:
+    """A mensagem da resposta na Conversa: "Resposta: B) <opcao>", o texto
+    livre, ou os dois, e "em nome de" quando o Desenvolvedor registrou."""
+    partes = []
+    if opcao:
+        escolhida = next((o for o in pergunta.get("opcoes") or [] if o.get("letra") == opcao), {})
+        partes.append(f"{opcao}) {escolhida.get('texto') or ''}")
+    if texto:
+        partes.append(texto)
+    abertura = f"Resposta em nome de {em_nome_de}" if em_nome_de else "Resposta"
+    return f"{abertura}: " + "\n".join(partes)
+
+
+def responder(
+    supabase,
+    pergunta: dict[str, Any],
+    demanda: dict[str, Any],
+    *,
+    ator: dict[str, Any],
+    opcao: str | None,
+    texto: str | None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Grava a resposta (a opcao, o texto livre ou os dois) e leva a Pergunta
+    de aberta a respondida (issue #2119, ADR 0109, decisoes 4 e 5). A resposta
+    entra na Conversa da Demanda como mensagem de quem respondeu, com o aviso
+    de qualquer mensagem da tela.
+
+    O Desenvolvedor que nao e o Destinatario registra no lugar dele, e os dois
+    ficam gravados (`respondida_por` e `respondida_em_nome_de`). Nao muda
+    Etapa, nao solta trabalho (decisao 6) e nada vai ao GitHub.
+
+    A passagem de estado e condicional (`estado = aberta` no UPDATE): de duas
+    respostas ao mesmo tempo, so a primeira grava. Devolve o cartao da
+    Pergunta respondida e a mensagem gravada na Conversa."""
+    if not pode_responder(pergunta, ator):
+        raise RespostaProibidaError(MOTIVO_SO_O_DESTINATARIO)
+    if (pergunta.get("estado") or ESTADO_ABERTA) != ESTADO_ABERTA:
+        raise PerguntaFechadaError(MOTIVO_NAO_ESTA_ABERTA)
+    opcao, texto = (_limpo(opcao) or None), _limpo(texto)
+    if not opcao and not texto:
+        raise RespostaRecusadaError(MOTIVO_SEM_RESPOSTA)
+    if opcao and opcao not in {o.get("letra") for o in pergunta.get("opcoes") or []}:
+        raise RespostaRecusadaError(MOTIVO_OPCAO_DESCONHECIDA)
+
+    destinatario_id = pergunta.get("destinatario_id")
+    no_lugar = destinatario_id is not None and str(ator["id"]) != str(destinatario_id)
+    gravadas = (
+        supabase.table(TABELA_PERGUNTAS)
+        .update(
+            {
+                "estado": ESTADO_RESPONDIDA,
+                "resposta_opcao": opcao,
+                "resposta_texto": texto or None,
+                "respondida_por": ator["id"],
+                "respondida_em_nome_de": destinatario_id if no_lugar else None,
+                "respondida_em": datetime.now(UTC).isoformat(),
+            }
+        )
+        .eq("id", pergunta["id"])
+        .eq("estado", ESTADO_ABERTA)
+        .execute()
+        .data
+        or []
+    )
+    if not gravadas:
+        raise PerguntaFechadaError(MOTIVO_NAO_ESTA_ABERTA)
+    respondida = gravadas[0]
+    nomes = _nomes(supabase, _pessoas_da_pergunta(respondida))
+    em_nome_de = nomes.get(str(destinatario_id)) if no_lugar else None
+    mensagem = tecnologia_conversa.escrever(
+        supabase,
+        demanda,
+        autor=ator,
+        texto=_texto_na_conversa(respondida, opcao=opcao, texto=texto, em_nome_de=em_nome_de),
+        origem=tecnologia_conversa.ORIGEM_APP,
+    )
+    return _cartao(respondida, projeto=nome_do_projeto(demanda), nomes=nomes, ator=ator), mensagem
+
+
+def _resposta(pergunta: dict[str, Any], nomes: dict[str, str]) -> dict[str, Any] | None:
     if not pergunta.get("respondida_em"):
         return None
     letra = pergunta.get("resposta_opcao")
     opcao = next((o for o in pergunta.get("opcoes") or [] if o.get("letra") == letra), None)
     por, em_nome_de = pergunta.get("respondida_por"), pergunta.get("respondida_em_nome_de")
-    nomes = _nomes(supabase, {str(por or ""), str(em_nome_de or "")})
     return {
         "opcao": letra,
         "opcao_texto": opcao.get("texto") if opcao else None,
@@ -244,3 +361,11 @@ def resposta(supabase, pergunta: dict[str, Any]) -> dict[str, Any] | None:
         "respondida_por": nomes.get(str(por)) if por else None,
         "em_nome_de": nomes.get(str(em_nome_de)) if em_nome_de else None,
     }
+
+
+def resposta(supabase, pergunta: dict[str, Any]) -> dict[str, Any] | None:
+    """A resposta da Pergunta, quando houver: a letra e o texto da opcao
+    escolhida, o texto livre, quando, quem registrou e em nome de quem."""
+    if not pergunta.get("respondida_em"):
+        return None
+    return _resposta(pergunta, _nomes(supabase, _pessoas_da_pergunta(pergunta)))

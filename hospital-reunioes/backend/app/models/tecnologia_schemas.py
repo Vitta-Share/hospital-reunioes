@@ -246,6 +246,19 @@ class OpcaoDaPerguntaResponse(BaseModel):
     texto: str
 
 
+class RespostaDaPerguntaResponse(BaseModel):
+    """A resposta da Pergunta da Vitta (issue #2119): a opcao escolhida (a
+    letra e o texto), o texto livre, quando, quem registrou e, quando foi um
+    Desenvolvedor no lugar do Destinatario, em nome de quem."""
+
+    opcao: str | None = None
+    opcao_texto: str | None = None
+    texto: str | None = None
+    respondida_em: str | None = None
+    respondida_por: str | None = None
+    em_nome_de: str | None = None
+
+
 class PerguntaDoCartaoResponse(BaseModel):
     """O cartao da Pergunta da Vitta (issue #2116, ADR 0109, decisao 3): de
     qual Projeto e, a pergunta, as quatro linhas em palavras simples, as
@@ -266,6 +279,11 @@ class PerguntaDoCartaoResponse(BaseModel):
     estado: Literal["aberta", "respondida", "resolvida", "cancelada"]
     criado_em: str | None = None
     destinatario: str | None = None
+    # A resposta (issue #2119): nula enquanto a Pergunta espera.
+    resposta: RespostaDaPerguntaResponse | None = None
+    # O campo de resposta aparece so a quem responde: o Destinatario, ou o
+    # Desenvolvedor no lugar dele, e so na Pergunta aberta (ADR 0109, decisao 5).
+    pode_responder: bool = False
 
 
 class PerguntaEsperandoResponse(PerguntaDoCartaoResponse):
@@ -619,3 +637,25 @@ class MensagemDaConversaPayload(BaseModel):
     mencao vai no proprio texto, como "@Nome Completo"."""
 
     texto: str = Field(min_length=1, max_length=LIMITE_DA_MENSAGEM)
+
+
+# A resposta entra na Conversa com "Resposta em nome de <Nome>: X) <opcao>"
+# na frente, e a mensagem da Conversa tem o teto de LIMITE_DA_MENSAGEM.
+LIMITE_DA_RESPOSTA = 4000
+
+
+class RespostaDaPerguntaPayload(BaseModel):
+    """Corpo do POST /admin/tecnologia/perguntas/{id}/resposta (issue #2119):
+    a letra da opcao, o texto livre, ou os dois. A falta dos dois e a opcao
+    que a Pergunta nao tem sao recusadas pelo servico, com o motivo."""
+
+    opcao: str | None = Field(default=None, max_length=1)
+    texto: str | None = Field(default=None, max_length=LIMITE_DA_RESPOSTA)
+
+
+class RespostaDaPerguntaRespondidaResponse(BaseModel):
+    """O cartao da Pergunta ja respondida e a mensagem da resposta na
+    Conversa, para a tela trocar os dois sem reler a Conversa."""
+
+    pergunta: PerguntaDoCartaoResponse
+    mensagem: MensagemDaConversaResponse
