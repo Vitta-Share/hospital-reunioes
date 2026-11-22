@@ -145,6 +145,15 @@ export type Demanda = {
    */
   apresentacao_url?: string | null;
   plano_validado?: boolean;
+  /**
+   * O plano validado pelo diretor e o Ajuste do plano (issue #1915): quando
+   * ele validou, para o selo, e se há Ajuste aberto, para a faixa. O número e
+   * o link do Ajuste, só para o Desenvolvedor; para o diretor vêm nulos.
+   */
+  validado_em?: string | null;
+  ajuste_aberto?: boolean;
+  ajuste_numero?: number | null;
+  ajuste_url?: string | null;
 };
 
 /**
@@ -261,9 +270,12 @@ export const CLASSIFICACAO_CLASSE: Record<Classificacao, string> = {
 
 /** Uma issue aberta que trava a parte (issue #1902, ADR 0100, decisão 2). */
 export type BloqueadoraDaParte = {
-  numero: number;
+  /** Nulo no Ajuste do plano (issue #1915), que a tela diz sem o número. */
+  numero: number | null;
   /** A bloqueadora não é parte deste pedido: a tela diz "de outro pedido". */
   de_outro_pedido: boolean;
+  /** A bloqueadora é o Ajuste do plano (issue #1915): "Espera o ajuste do plano". */
+  ajuste_do_plano?: boolean;
 };
 
 /** Uma parte da entrega: o que ela muda, em que pé está e quando fechou. */
