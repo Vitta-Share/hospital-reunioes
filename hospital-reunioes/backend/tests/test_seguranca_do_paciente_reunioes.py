@@ -790,8 +790,8 @@ class TestKitDeConhecimento:
         texto = _kit("reunioes.md")
 
         assert (
-            "As reuniões do Núcleo de Segurança do Paciente ficam no módulo Segurança do Paciente, no item Reuniões"
-            in texto
+            "As reuniões do Núcleo de Segurança do Paciente ficam no módulo Segurança do Paciente"
+            " (no menu, o item NSP), no item Reuniões" in texto
         )
 
 
