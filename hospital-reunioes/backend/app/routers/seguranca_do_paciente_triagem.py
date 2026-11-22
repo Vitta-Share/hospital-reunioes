@@ -15,8 +15,9 @@
 - `GET` e `PUT /nsp/configuracao/cortes-de-frequencia`: os cortes da matriz
   de prioridade, na Configuração do módulo.
 
-A triagem é da Presidência e do Acesso pleno (o recurso `triagem`); os cortes,
-de quem alcança a configuração.
+A triagem é da Presidência e do Acesso pleno (o recurso `triagem`). Os cortes
+se leem com a configuração e se editam só com o recurso `cortes_de_frequencia`,
+da Presidência e do Acesso pleno (issue #2154).
 """
 
 from __future__ import annotations
@@ -38,6 +39,8 @@ from app.services.seguranca_do_paciente import anexos, ao_confirmar, encaminhame
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/nsp", tags=["seguranca-do-paciente"])
+
+RECURSO_DOS_CORTES = "cortes_de_frequencia"
 
 FALHA_DE_LEITURA = "Não foi possível abrir a triagem agora. Tente de novo em instantes."
 FALHA_DE_GRAVACAO = "Não foi possível gravar a triagem agora. Tente de novo em instantes."
@@ -264,11 +267,13 @@ class CortesDeFrequencia(BaseModel):
 @limite_sem_ip.limitar("60/minute")
 async def ler_cortes_de_frequencia(
     request: Request,
-    _: dict = Depends(require_recurso_nsp("configuracao")),
+    me: dict = Depends(require_recurso_nsp("configuracao")),
     supabase: Client = Depends(get_supabase_client),
 ) -> dict:
+    """Quem só alcança a configuração lê os cortes sem editar."""
     try:
-        return triagem.cortes_de_frequencia(supabase)
+        cortes = triagem.cortes_de_frequencia(supabase)
+        return {**cortes, "pode_editar": RECURSO_DOS_CORTES in me["recursos_nsp"]}
     except httpx.HTTPError as erro:
         raise _indisponivel(erro, FALHA_DE_LEITURA) from erro
 
@@ -278,7 +283,7 @@ async def ler_cortes_de_frequencia(
 async def gravar_cortes_de_frequencia(
     request: Request,
     cortes: CortesDeFrequencia,
-    me: dict = Depends(require_recurso_nsp("configuracao")),
+    me: dict = Depends(require_recurso_nsp(RECURSO_DOS_CORTES)),
     supabase: Client = Depends(get_supabase_client),
 ) -> dict:
     """Os cortes novos valem para o que for calculado daqui para a frente."""

@@ -81,6 +81,10 @@ RECURSOS_NSP = (
     # Editar os prazos internos da tabela do Núcleo: só a Presidência e o
     # Acesso pleno (issue #1993). O super admin lê a tabela na configuração.
     "tabela_de_prazos",
+    # Editar os cortes de frequência da matriz de prioridade: só a Presidência
+    # e o Acesso pleno (issue #2154). O corte muda a prioridade do caso; o
+    # super admin lê os cortes na configuração.
+    "cortes_de_frequencia",
     # A leitura dos casos das faixas A e B, sem quem notificou e sem editar:
     # a Diretoria (ADR 0107, decisão 5).
     "casos_graves",

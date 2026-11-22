@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { AlertCircle, Loader2 } from "lucide-react";
 
 import { chamarNsp } from "@/lib/seguranca-do-paciente/membros";
-import type { Cortes } from "@/lib/seguranca-do-paciente/triagem";
+import type { Cortes, CortesDaConfiguracao } from "@/lib/seguranca-do-paciente/triagem";
 
 const CARTAO = "bg-white rounded-2xl border border-border shadow-premium";
 const CAMPO =
@@ -22,18 +22,24 @@ const CAMPOS: { campo: keyof Cortes; rotulo: string }[] = [
  * Os cortes de frequência da matriz de prioridade (issue #1992): quantas
  * ocorrências anteriores da mesma categoria no mesmo setor, na janela, fazem
  * cada frequência. Abaixo do incomum, a frequência é remota. A mudança vale
- * para os cálculos seguintes.
+ * para os cálculos seguintes. Só a Presidência e o Acesso pleno editam: o
+ * servidor diz quem (`pode_editar`, issue #2154), e os outros leem.
  */
 export function CortesDeFrequencia() {
   const [cortes, setCortes] = useState<Cortes | null>(null);
+  const [podeEditar, setPodeEditar] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [salvo, setSalvo] = useState(false);
 
   useEffect(() => {
     let vivo = true;
-    chamarNsp<Cortes>(ROTA)
-      .then((corpo) => vivo && setCortes(corpo))
+    chamarNsp<CortesDaConfiguracao>(ROTA)
+      .then(({ pode_editar, ...corpo }) => {
+        if (!vivo) return;
+        setCortes(corpo);
+        setPodeEditar(Boolean(pode_editar));
+      })
       .catch((e: Error) => vivo && setErro(e.message));
     return () => {
       vivo = false;
@@ -86,6 +92,7 @@ export function CortesDeFrequencia() {
               type="number"
               min={1}
               value={cortes[campo]}
+              readOnly={!podeEditar}
               onChange={(e) => {
                 setSalvo(false);
                 setCortes({ ...cortes, [campo]: Number(e.target.value) });
@@ -105,15 +112,19 @@ export function CortesDeFrequencia() {
           Cortes salvos.
         </p>
       )}
-      <button
-        type="button"
-        onClick={salvar}
-        disabled={salvando}
-        className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-50"
-      >
-        {salvando && <Loader2 className="w-4 h-4 animate-spin" aria-hidden />}
-        Salvar os cortes
-      </button>
+      {podeEditar ? (
+        <button
+          type="button"
+          onClick={salvar}
+          disabled={salvando}
+          className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-50"
+        >
+          {salvando && <Loader2 className="w-4 h-4 animate-spin" aria-hidden />}
+          Salvar os cortes
+        </button>
+      ) : (
+        <p className="text-sm text-slate-500">Só a Presidência e o Acesso pleno alteram os cortes.</p>
+      )}
     </section>
   );
 }

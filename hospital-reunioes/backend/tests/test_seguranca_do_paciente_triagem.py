@@ -637,13 +637,14 @@ def test_os_cortes_vem_com_o_padrao_da_sugestao_e_mudam_a_frequencia():
     outros = [_anterior(1, 10), _anterior(2, 20)]
     banco = _banco([caso, *outros], [_sugestao(caso), *(_sugestao(n) for n in outros)])
     banco.tabelas["nsp_cortes_de_frequencia"] = [{"id": True, **triagem.CORTES_PADRAO}]
-    cliente = _cliente(banco, SUPER_ADMIN)
+    cliente = _cliente(banco, PRESIDENTE)
 
     assert cliente.get(CORTES).json() == {
         "janela_meses": 12,
         "incomum_a_partir": 1,
         "ocasional_a_partir": 2,
         "frequente_a_partir": 4,
+        "pode_editar": True,
     }
     assert _cliente(banco).get(_caso(caso["id"])).json()["contexto"]["frequencia"] == "ocasional"
 
@@ -651,7 +652,7 @@ def test_os_cortes_vem_com_o_padrao_da_sugestao_e_mudam_a_frequencia():
     resposta = cliente.put(CORTES, json=novos)
 
     assert resposta.status_code == 200, resposta.text
-    assert banco.tabelas["nsp_cortes_de_frequencia"][0]["atualizado_por"] == SUPER_ADMIN["id"]
+    assert banco.tabelas["nsp_cortes_de_frequencia"][0]["atualizado_por"] == PRESIDENTE["id"]
     assert _cliente(banco).get(_caso(caso["id"])).json()["contexto"]["frequencia"] == "incomum"
 
 
@@ -668,19 +669,37 @@ def test_os_cortes_fora_de_ordem_sao_recusados(cortes):
     banco = _banco()
     banco.tabelas["nsp_cortes_de_frequencia"] = [{"id": True, **triagem.CORTES_PADRAO}]
 
-    resposta = _cliente(banco, SUPER_ADMIN).put(CORTES, json=cortes)
+    resposta = _cliente(banco, PRESIDENTE).put(CORTES, json=cortes)
 
     assert resposta.status_code == 422
     assert banco.tabelas["nsp_cortes_de_frequencia"][0]["incomum_a_partir"] == 1
 
 
-def test_so_quem_alcanca_a_configuracao_muda_os_cortes():
+@pytest.mark.parametrize("pessoa", [MEMBRO, SUPER_ADMIN], ids=["membro do Núcleo", "super admin sem Acesso pleno"])
+def test_so_a_presidencia_e_o_acesso_pleno_mudam_os_cortes(pessoa):
+    """O corte muda a frequência e, pela matriz, a prioridade do caso: é
+    decisão clínica, fora da configuração técnica do super admin (issue
+    #2154, ADR 0095 decisão 4)."""
+    banco = _banco()
+    banco.tabelas["nsp_cortes_de_frequencia"] = [{"id": True, **triagem.CORTES_PADRAO}]
+    novos = {"janela_meses": 6, "incomum_a_partir": 1, "ocasional_a_partir": 3, "frequente_a_partir": 5}
+
+    resposta = _cliente(banco, pessoa).put(CORTES, json=novos)
+
+    assert resposta.status_code == 403
+    assert resposta.json() == RECUSA
+    assert banco.tabelas["nsp_cortes_de_frequencia"] == [{"id": True, **triagem.CORTES_PADRAO}]
+    assert _cliente(banco, PRESIDENTE).put(CORTES, json=novos).status_code == 200
+
+
+def test_o_super_admin_le_os_cortes_sem_poder_editar():
     banco = _banco()
     banco.tabelas["nsp_cortes_de_frequencia"] = [{"id": True, **triagem.CORTES_PADRAO}]
 
-    resposta = _cliente(banco, MEMBRO).put(CORTES, json=triagem.CORTES_PADRAO)
+    resposta = _cliente(banco, SUPER_ADMIN).get(CORTES)
 
-    assert resposta.json() == RECUSA
+    assert resposta.status_code == 200
+    assert resposta.json() == {**triagem.CORTES_PADRAO, "pode_editar": False}
 
 
 # ═══════════════════════════════════════════════════════════════════════════
