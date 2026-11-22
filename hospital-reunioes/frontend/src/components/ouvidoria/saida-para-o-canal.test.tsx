@@ -99,6 +99,65 @@ describe("a saída para o Canal de Conduta na Manifestação guiada", () => {
   });
 });
 
+const TEXTO_DO_CANAL = "Fiquei seis horas esperando na emergência com meu pai e ninguém explicou o motivo.";
+
+function clicar(nome: string | RegExp) {
+  fireEvent.click(screen.getByRole("button", { name: nome }));
+}
+
+/** Os passos 1 a 3 com o mínimo, parando no passo 4, o do relato. */
+async function ateORelato() {
+  clicar(/Com identificação/);
+  clicar("Continuar");
+  clicar("Sobre outra pessoa");
+  clicar("Continuar");
+  clicar("Tarde");
+  fireEvent.change(await screen.findByLabelText("Onde foi?"), { target: { value: "Outro lugar do hospital" } });
+  clicar("Continuar");
+  return (await screen.findByLabelText("Seu relato")) as HTMLTextAreaElement;
+}
+
+describe("vindo do Canal, o formulário abre com o texto já escrito", () => {
+  it("o relato chega preenchido com o texto guardado na memória da aba", async () => {
+    guardarTextoParaAOuvidoria(TEXTO_DO_CANAL);
+    render(<ManifestacaoPage />);
+
+    const relato = await ateORelato();
+    expect(relato.value).toBe(TEXTO_DO_CANAL);
+    expect(screen.getByText(/O texto que você escreveu no Canal de Conduta já está no seu relato/)).toBeTruthy();
+  });
+
+  it("o texto não passa pelo endereço da página, nem ao guardar nem ao abrir o formulário", async () => {
+    const antes = window.location.href;
+    guardarTextoParaAOuvidoria(TEXTO_DO_CANAL);
+    expect(window.location.href).toBe(antes);
+
+    render(<ManifestacaoPage />);
+    await ateORelato();
+
+    expect(window.location.href).toBe(antes);
+    expect(decodeURIComponent(window.location.href)).not.toContain("seis horas");
+  });
+
+  it("o texto vale uma vez: o formulário seguinte da mesma aba abre vazio", async () => {
+    guardarTextoParaAOuvidoria(TEXTO_DO_CANAL);
+    const { unmount } = render(<ManifestacaoPage />);
+    await ateORelato();
+    unmount();
+
+    render(<ManifestacaoPage />);
+    const relato = await ateORelato();
+    expect(relato.value).toBe("");
+  });
+
+  it("sem nada guardado, o relato abre vazio, como sempre", async () => {
+    render(<ManifestacaoPage />);
+
+    const relato = await ateORelato();
+    expect(relato.value).toBe("");
+  });
+});
+
 function registroManual() {
   render(<NovaManifestacaoModal aberto token="token" onClose={() => {}} onRegistrada={() => {}} />);
 }

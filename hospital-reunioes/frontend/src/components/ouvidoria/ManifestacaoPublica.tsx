@@ -30,6 +30,7 @@ import {
 import { Logo } from "@/components/ui/Logo";
 import { useCanalDeCondutaAberto } from "@/hooks/useCanalDeCondutaAberto";
 import { ENDERECO_DO_CANAL } from "@/lib/conduta/publico";
+import { tomarTextoVindoDoCanal } from "@/lib/ouvidoria/texto-do-canal";
 import {
   ENVIO_RECUSADO_PELA_PAGINA,
   EXPECTATIVAS,
@@ -108,6 +109,8 @@ const TOTAL_DE_PASSOS = 5;
 const TITULOS = ["Identificação", "Sobre o quê", "Quando e onde", "O que aconteceu", "Contato"];
 
 const SAIDA_DO_COLABORADOR = "Sou colaborador e quero relatar uma conduta";
+const TEXTO_DO_CANAL_JA_ESTA =
+  "O texto que você escreveu no Canal de Conduta já está no seu relato. Confira antes de enviar.";
 
 const FALTA_CONTATO ="Para enviar, deixe seu nome e um telefone ou e-mail.";
 
@@ -223,6 +226,17 @@ function FormularioPublico({ codigoDoCartaz, avaliacaoId = null, naturezaInicial
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [email, setEmail] = useState("");
+
+  // Quem veio do Canal de Conduta chega com o texto já escrito, lido da
+  // memória da aba e nunca do endereço (issue #1847). Só preenche o relato
+  // vazio, e o texto vale uma vez.
+  const [veioDoCanal, setVeioDoCanal] = useState(false);
+  useEffect(() => {
+    const texto = tomarTextoVindoDoCanal();
+    if (!texto) return;
+    setRelato((atual) => atual || texto.slice(0, LIMITE_RELATO));
+    setVeioDoCanal(true);
+  }, []);
 
   const [armadilha, setArmadilha] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -437,6 +451,13 @@ function FormularioPublico({ codigoDoCartaz, avaliacaoId = null, naturezaInicial
         </h2>
         <p className="text-sm text-slate-500">{frases[passo]}</p>
       </div>
+
+      {veioDoCanal && (passo === 1 || passo === 4) && (
+        <div className="flex items-start gap-2 rounded-xl bg-sky-50 border border-sky-200 px-3 py-2.5">
+          <Info className="w-4 h-4 text-sky-600 mt-0.5 shrink-0" />
+          <p className="text-sm text-sky-900">{TEXTO_DO_CANAL_JA_ESTA}</p>
+        </div>
+      )}
 
       {passo === 1 && (
         // Dois cards lado a lado, empilhados no celular (M1 da especificação).

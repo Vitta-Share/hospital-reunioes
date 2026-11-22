@@ -75,6 +75,10 @@ function servidor(cartaz: Record<string, unknown> | null) {
       if (url.includes("/publico/locais")) {
         return { ok: true, status: 200, json: async () => ({ locais: LOCAIS }) } as Response;
       }
+      // O Canal de Conduta fechado (issue #1847): a saída dele não entra aqui.
+      if (url.includes("/conduta/abertura")) {
+        return { ok: false, status: 404, json: async () => ({}) } as Response;
+      }
       enviados.push(JSON.parse(String(init?.body ?? "{}")));
       return { ok: true, status: 201, json: async () => RECIBO } as Response;
     })

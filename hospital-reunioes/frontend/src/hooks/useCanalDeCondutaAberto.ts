@@ -9,11 +9,15 @@ import { ROTA_DA_ABERTURA } from "@/lib/conduta/publico";
  * decisão 11). A rota pública responde 200 aberto e 404 fechado. Até a
  * resposta chegar, ou se ela falhar, o canal conta como fechado: a saída para
  * ele nunca aparece por engano. A pergunta sai sem cookie nem sessão.
+ *
+ * `perguntar` adia a pergunta até a tela precisar dela (o modal do registro
+ * manual, que fica montado fechado na fila da Ouvidoria).
  */
-export function useCanalDeCondutaAberto(): boolean {
+export function useCanalDeCondutaAberto(perguntar = true): boolean {
   const [aberto, setAberto] = useState(false);
 
   useEffect(() => {
+    if (!perguntar) return;
     let vivo = true;
     fetch(ROTA_DA_ABERTURA, { credentials: "omit", cache: "no-store" })
       .then((res) => {
@@ -25,7 +29,7 @@ export function useCanalDeCondutaAberto(): boolean {
     return () => {
       vivo = false;
     };
-  }, []);
+  }, [perguntar]);
 
   return aberto;
 }

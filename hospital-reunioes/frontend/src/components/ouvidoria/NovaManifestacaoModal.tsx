@@ -94,7 +94,7 @@ export function NovaManifestacaoModal({
   const [avisoAnexos, setAvisoAnexos] = useState<string | null>(null);
   const [setores, setSetores] = useState<string[]>([]);
   const [listaFalhou, setListaFalhou] = useState(false);
-  const canalDeCondutaAberto = useCanalDeCondutaAberto();
+  const canalDeCondutaAberto = useCanalDeCondutaAberto(aberto);
 
   // A área é lista fechada desde a issue #419: texto livre aqui criava uma
   // Recepção nova a cada erro de digitação, e o relatório da Diretoria contava
