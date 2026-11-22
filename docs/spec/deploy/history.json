@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T00:03:34-03:00",
+      "sha": "1c0a3346351a842fe27cdf6a6f2070e5bbfa6635",
+      "app_version": "0.364.0",
+      "subject": "Onda nsp2-onda8: Encaminhar à Ouvidoria, ao Canal de Conduta ou como fora de escopo na tela de triagem",
+      "raw_subject": "chore(deploy): registro da onda nsp2-onda8 (#2113)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1979
+      ],
+      "result": "healthy",
+      "duration_seconds": 614,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "209_nsp_encaminhamento.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp2-onda8: PR #2113 (issue #1995), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 2,
+        "build_s": {
+          "backend": 20,
+          "frontend": 269
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-21T23:56:07-03:00",
       "sha": "00118f4383ffa396f73b3a30a8823558e740c878",
       "app_version": "0.363.0",
