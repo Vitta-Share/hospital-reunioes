@@ -41,6 +41,7 @@ TODOS = {
     "gerir_nucleo",
     "configuracao",
     "tabela_de_prazos",
+    "cortes_de_frequencia",
     "casos_graves",
     "ausencia_da_presidencia",
 }

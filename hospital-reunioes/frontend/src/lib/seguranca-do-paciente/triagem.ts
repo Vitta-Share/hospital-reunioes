@@ -74,6 +74,11 @@ export interface Cortes {
   frequente_a_partir: number;
 }
 
+/** Os cortes na Configuração: o servidor diz se a pessoa edita (issue #2154). */
+export interface CortesDaConfiguracao extends Cortes {
+  pode_editar: boolean;
+}
+
 export interface Contexto {
   recorrencia: number | null;
   janela_da_recorrencia_dias: number;

@@ -545,7 +545,7 @@ CASO_DA_OUVIDORIA = "exemplo-notificacao-ouvidoria"
 RECURSOS_DO_ACESSO_PLENO = [
     "ver_modulo", "painel", "calendario", "agenda", "membros", "documentos", "capacitacoes", "reunioes",
     "casos", "identidade_notificante", "triagem", "notas_do_comite", "gerir_nucleo", "configuracao",
-    "tabela_de_prazos", "casos_graves", "ausencia_da_presidencia",
+    "tabela_de_prazos", "cortes_de_frequencia", "casos_graves", "ausencia_da_presidencia",
 ]
 
 
@@ -904,7 +904,7 @@ def notificacoes() -> dict:
         f"&faixa={CLASSIFICACAO_DA_QUEDA['faixa']}": contexto(CLASSIFICACAO_DA_QUEDA["categoria"]),
         f"nsp/triagem/{CASO_ENCAMINHADO}": tela_da_triagem(lista[CASO_ENCAMINHADO], encaminhamentos),
         "nsp/configuracao": {"endereco_da_notificacao": "https://app.exemplo.local/notificar"},
-        "nsp/configuracao/cortes-de-frequencia": CORTES,
+        "nsp/configuracao/cortes-de-frequencia": {**CORTES, "pode_editar": True},
         "nsp/configuracao/prazos": tabela_de_prazos(),
         "nsp/configuracao/concordancia": {
             "versoes": {"prompt": "1", "base": "1"},
