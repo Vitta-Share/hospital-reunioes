@@ -410,7 +410,9 @@ def test_o_membro_com_termo_abre_os_casos_e_ve_a_faixa():
 
 
 def test_o_kit_de_conhecimento_conta_a_faixa_e_o_alerta_de_72_horas():
-    kit = (Path(__file__).resolve().parents[1] / "app" / "conhecimento" / "seguranca-do-paciente.md").read_text()
+    kit = (Path(__file__).resolve().parents[1] / "app" / "conhecimento" / "seguranca-do-paciente.md").read_text(
+        encoding="utf-8"
+    )
 
     assert "o que exige ação hoje" in kit
     assert "faltam 24 horas para o fim do prazo de 72 horas" in kit
