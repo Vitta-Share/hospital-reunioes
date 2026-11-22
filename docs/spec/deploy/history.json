@@ -2,6 +2,58 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T00:47:04-03:00",
+      "sha": "e11fc690ccf65568b3a77634b79557cfa97592af",
+      "app_version": "0.367.0",
+      "subject": "Onda sesta-1786-onda8: Voto e trava de robustez; Afastamento cautelar",
+      "raw_subject": "chore(deploy): registro da onda sesta-1786-onda8 (#2134 #2133)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 1147,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "216_conduta_voto_e_trava_de_robustez.sql",
+        "216_conduta_voto_e_trava_de_robustez.sql",
+        "217_conduta_afastamento_cautelar.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1786-onda8: PR #2134 (issue #1833), PR #2133 (issue #1836), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 6,
+        "build_s": {
+          "backend": 18,
+          "frontend": 209
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T00:30:45-03:00",
       "sha": "377c578c10a2cf54d22e1787b2657e0a303b0a65",
       "app_version": "0.366.0",
