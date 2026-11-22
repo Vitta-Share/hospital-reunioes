@@ -107,7 +107,7 @@ TENTATIVAS_DA_ESCRITA = 3
 ESTADOS_DA_RECONCILIACAO = ESTADOS_ABERTOS
 
 # A label que o Validar da Apresentacao do PRD grava na issue-raiz (ADR 0108).
-LABEL_PLANO_VALIDADO = "validado:diretor"
+LABEL_PLANO_VALIDADO = github_client.LABEL_DA_VALIDACAO
 
 
 def mudanca_da_foto(foto: dict[str, Any], *, versao_em_producao: str | None = None) -> dict[str, Any]:
@@ -383,6 +383,33 @@ def _com_as_bloqueadoras(foto: dict[str, Any], anterior: Any, *, projeto: str) -
             parte["bloqueadoras"] = bloqueadoras
 
 
+def _com_a_validacao(foto: dict[str, Any], anterior: Any, *, numero: int, projeto: str) -> None:
+    """Poe na foto quando o diretor validou o plano (issue #1915).
+
+    So le com a label `validado:diretor` na raiz: sem ela a validacao nao vale
+    (a Apresentacao publicada de novo tira a label), e a chave sai da foto. A
+    leitura que falha deixa a data que a foto anterior guardava, e a
+    sincronizacao segue, como nas bloqueadoras.
+    """
+    if LABEL_PLANO_VALIDADO not in (foto.get("labels") or []):
+        return
+    try:
+        quando = github_client.ler_validacao_do_diretor(numero, projeto=projeto)
+    except (
+        github_client.GithubIndisponivelError,
+        github_client.IssueNaoEncontradaError,
+        github_client.GithubNaoConfiguradoError,
+    ):
+        logger.warning(
+            "[tecnologia] Falha ao ler a validacao do plano da #%s; fica a data que a foto anterior guardava.",
+            numero,
+            exc_info=True,
+        )
+        quando = anterior.get(github_client.FATO_VALIDADO_EM) if isinstance(anterior, dict) else None
+    if quando:
+        foto[github_client.FATO_VALIDADO_EM] = quando
+
+
 def _reler(supabase, demanda_id: str) -> dict[str, Any] | None:
     result = supabase.table(TABELA_DEMANDAS).select("*").eq("id", demanda_id).execute()
     linhas = result.data or []
@@ -445,6 +472,7 @@ def sincronizar_demanda(
     dados = github_client.ler_issue(numero, projeto=projeto)
     foto_do_github = github_client.montar_foto(dados, github_client.ler_sub_issues(numero, projeto=projeto))
     _com_as_bloqueadoras(foto_do_github, demanda.get("github_foto"), projeto=projeto)
+    _com_a_validacao(foto_do_github, demanda.get("github_foto"), numero=numero, projeto=projeto)
     # O Responsavel e derivado do dono da issue, como a Etapa das labels
     # (issue #1534): entra no cache e na comparacao do cache igual.
     responsavel_id = responsavel_da_foto(supabase, foto_do_github)

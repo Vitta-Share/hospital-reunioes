@@ -107,6 +107,11 @@ def _entregue(no: dict[str, Any] | None) -> bool:
     return _fechada(no) and str((no or {}).get("motivo_do_fechamento") or "").lower() != FECHAMENTO_NAO_PLANEJADA
 
 
+# A chave que marca, na foto, a sub-issue que e o Ajuste do plano (issue
+# #1915): ele trava partes, mas nao e parte da entrega.
+FATO_AJUSTE_DO_PLANO = "ajuste_do_plano"
+
+
 def _partes(foto: dict[str, Any] | None) -> list[dict[str, Any]]:
     return list((foto or {}).get("partes") or [])
 

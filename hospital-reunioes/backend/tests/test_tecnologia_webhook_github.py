@@ -332,6 +332,7 @@ class _GithubFalso:
         sub_issues: dict[int, list[dict]] | None = None,
         erro=None,
         bloqueadoras: dict[int, list[dict] | Exception] | None = None,
+        validacoes: dict[int, str | None | Exception] | None = None,
     ):
         self.issues = issues
         self.sub_issues = sub_issues or {}
@@ -341,6 +342,10 @@ class _GithubFalso:
         self.bloqueadoras = bloqueadoras or {}
         self.leituras: list[int] = []
         self.leituras_das_bloqueadoras: list[int] = []
+        # Quando o diretor validou o plano de cada raiz (issue #1915), ou a
+        # excecao que a leitura levanta. Raiz sem entrada nao tem data.
+        self.validacoes = validacoes or {}
+        self.leituras_da_validacao: list[int] = []
 
     def ler_issue(self, numero: int, *, projeto: str) -> dict:
         self.leituras.append(numero)
@@ -359,6 +364,13 @@ class _GithubFalso:
         if isinstance(lidas, Exception):
             raise lidas
         return lidas
+
+    def ler_validacao_do_diretor(self, numero: int, *, projeto: str) -> str | None:
+        self.leituras_da_validacao.append(numero)
+        lida = self.validacoes.get(numero)
+        if isinstance(lida, Exception):
+            raise lida
+        return lida
 
 
 def _foto_guardada(gh: _GithubFalso, numero: int) -> dict:
@@ -430,6 +442,7 @@ def _montar(
         monkeypatch.setattr(github_client, "ler_issue", gh.ler_issue)
         monkeypatch.setattr(github_client, "ler_sub_issues", gh.ler_sub_issues)
         monkeypatch.setattr(github_client, "ler_bloqueadoras", gh.ler_bloqueadoras)
+        monkeypatch.setattr(github_client, "ler_validacao_do_diretor", gh.ler_validacao_do_diretor, raising=False)
 
     app.dependency_overrides[get_supabase_client] = lambda: sb
     # `raise_server_exceptions=False` para o 500 chegar como RESPOSTA, e nao como
