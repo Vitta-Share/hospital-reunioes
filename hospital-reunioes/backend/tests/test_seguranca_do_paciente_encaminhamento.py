@@ -39,7 +39,7 @@ from test_seguranca_do_paciente_triagem import (  # noqa: E402
     _sugestao,
 )
 
-from app.services.seguranca_do_paciente import encaminhamento  # noqa: E402
+from app.services.seguranca_do_paciente import encaminhamento, recebimento  # noqa: E402
 
 OUVIDOR = _pessoa("P7", perfil_ouvidoria="ouvidor")
 OUVIDOR_DESLIGADO = _pessoa("P8", perfil_ouvidoria="ouvidor", ativo=False)
@@ -286,7 +286,9 @@ def _sql() -> str:
 def test_a_migration_aceita_os_destinos_do_app_e_o_marco_do_email_ao_ouvidor():
     sql = _sql()
     [lista] = re.findall(r"destinos <@ ARRAY\[([^\]]+)\]", sql)
-    assert sorted(re.findall(r"'(\w+)'", lista)) == sorted(encaminhamento.DESTINOS)
+    # A Segurança do Trabalho e a queixa técnica entram na 220 (issue #1996).
+    da_209 = [d for d in encaminhamento.DESTINOS if d not in recebimento.DESTINOS]
+    assert sorted(re.findall(r"'(\w+)'", lista)) == sorted(da_209)
     assert f"''{encaminhamento.MARCO_DA_OUVIDORIA}''" in sql
 
 

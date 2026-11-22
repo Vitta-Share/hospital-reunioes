@@ -7,8 +7,10 @@
  * o Núcleo, o caso continua na triagem. Fora de escopo vai sozinho e leva a
  * orientação que quem notificou vê no acompanhamento. Ao Canal de Conduta nada
  * é enviado: a tela mostra a orientação que o servidor devolve, sem link.
+ * A Segurança do Trabalho e a queixa técnica pedem o setor que recebe (issue
+ * #1996): o titular dele recebe o e-mail com o botão "Recebido".
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 
 import { chamarNsp } from "@/lib/seguranca-do-paciente/membros";
@@ -25,8 +27,12 @@ interface Resultado {
   orientacao_do_canal_de_conduta?: string;
 }
 
+const PEDEM_SETOR = DESTINOS_DO_ENCAMINHAMENTO.filter((d) => d.pedeSetor).map((d) => d.valor);
+
 export function EncaminharDoCaso({ id, aoEncaminhar }: { id: string; aoEncaminhar: (estado: string) => void }) {
   const [destinos, setDestinos] = useState<string[]>([]);
+  const [setores, setSetores] = useState<Record<string, string>>({});
+  const [opcoesDeSetor, setOpcoesDeSetor] = useState<{ id: string; nome: string }[] | null>(null);
   const [motivo, setMotivo] = useState("");
   const [orientacao, setOrientacao] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -34,8 +40,31 @@ export function EncaminharDoCaso({ id, aoEncaminhar }: { id: string; aoEncaminha
   const [resultado, setResultado] = useState<Resultado | null>(null);
 
   const foraDeEscopo = destinos.includes(FORA_DE_ESCOPO);
+  const comSetor = destinos.filter((d) => PEDEM_SETOR.includes(d));
   const liberado =
-    destinos.length > 0 && motivo.trim() !== "" && (!foraDeEscopo || orientacao.trim() !== "") && !enviando;
+    destinos.length > 0 &&
+    motivo.trim() !== "" &&
+    (!foraDeEscopo || orientacao.trim() !== "") &&
+    comSetor.every((d) => Boolean(setores[d])) &&
+    !enviando;
+
+  // A lista de setores só é lida quando um destino pede setor.
+  const precisaDosSetores = comSetor.length > 0 && opcoesDeSetor === null;
+  useEffect(() => {
+    if (!precisaDosSetores) return;
+    let cancelado = false;
+    fetch("/api/nsp/publico/setores")
+      .then((res) => (res.ok ? res.json() : { setores: [] }))
+      .then((corpo) => {
+        if (!cancelado) setOpcoesDeSetor(corpo.setores ?? []);
+      })
+      .catch(() => {
+        if (!cancelado) setOpcoesDeSetor([]);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [precisaDosSetores]);
 
   function alternar(destino: string) {
     if (destino === FORA_DE_ESCOPO) {
@@ -50,9 +79,15 @@ export function EncaminharDoCaso({ id, aoEncaminhar }: { id: string; aoEncaminha
     setErro(null);
     try {
       const ordenados = DESTINOS_DO_ENCAMINHAMENTO.map((d) => d.valor).filter((d) => destinos.includes(d));
+      const pedido: Record<string, unknown> = {
+        destinos: ordenados,
+        motivo: motivo.trim(),
+        orientacao: foraDeEscopo ? orientacao.trim() : null,
+      };
+      if (comSetor.length > 0) pedido.setores = Object.fromEntries(comSetor.map((d) => [d, setores[d]]));
       const corpo = await chamarNsp<Resultado>(`/api/nsp/triagem/${encodeURIComponent(id)}/encaminhamento`, {
         method: "POST",
-        body: { destinos: ordenados, motivo: motivo.trim(), orientacao: foraDeEscopo ? orientacao.trim() : null },
+        body: pedido,
       });
       setResultado(corpo);
       aoEncaminhar(corpo.estado);
@@ -103,6 +138,30 @@ export function EncaminharDoCaso({ id, aoEncaminhar }: { id: string; aoEncaminha
           </label>
         ))}
       </fieldset>
+      {comSetor.map((destino) => {
+        const rotulo = DESTINOS_DO_ENCAMINHAMENTO.find((d) => d.valor === destino)?.rotulo ?? destino;
+        const campo = `setor-do-${destino}`;
+        return (
+          <div key={destino} className="space-y-1">
+            <label htmlFor={campo} className="text-xs text-slate-500">
+              {`Setor que recebe (${rotulo})`}
+            </label>
+            <select
+              id={campo}
+              value={setores[destino] ?? ""}
+              onChange={(e) => setSetores((atual) => ({ ...atual, [destino]: e.target.value }))}
+              className={CAMPO}
+            >
+              <option value="">{opcoesDeSetor === null ? "Carregando os setores" : "Escolha o setor"}</option>
+              {(opcoesDeSetor ?? []).map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+        );
+      })}
       <div className="space-y-1">
         <label htmlFor="motivo-do-encaminhamento" className="text-xs text-slate-500">
           Motivo, em uma frase

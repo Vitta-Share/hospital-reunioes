@@ -8,7 +8,8 @@
 - `POST /nsp/triagem/{id}`: confirmar (sem classificação, vale a sugestão) ou
   ajustar (com a classificação da pessoa);
 - `POST /nsp/triagem/{id}/encaminhamento`: encaminhar à Ouvidoria, ao Canal de
-  Conduta ou como fora de escopo, com ou sem o Núcleo (issue #1995);
+  Conduta ou como fora de escopo, com ou sem o Núcleo (issue #1995), e à
+  Segurança do Trabalho ou à queixa técnica, com o Recebido (issue #1996);
 - `GET` e `PUT /nsp/configuracao/cortes-de-frequencia`: os cortes da matriz
   de prioridade, na Configuração do módulo.
 
@@ -170,11 +171,13 @@ async def decidir_a_triagem(
 
 class Encaminhamento(BaseModel):
     """Um ou mais destinos e o motivo em uma frase. Fora de escopo leva também
-    a orientação a quem notificou."""
+    a orientação a quem notificou; a Segurança do Trabalho e a queixa técnica,
+    o id do setor da taxonomia que recebe (`setores`, pelo destino)."""
 
     destinos: list[str] = Field(default_factory=list, max_length=len(encaminhamento.DESTINOS))
     motivo: str | None = Field(default=None, max_length=2000)
     orientacao: str | None = Field(default=None, max_length=2000)
+    setores: dict[str, UUID] | None = Field(default=None, max_length=len(encaminhamento.DESTINOS))
 
 
 @router.post("/triagem/{notificacao_id}/encaminhamento", status_code=status.HTTP_201_CREATED)
@@ -196,6 +199,7 @@ async def encaminhar_o_caso_da_triagem(
             destinos=pedido.destinos,
             motivo=pedido.motivo,
             orientacao=pedido.orientacao,
+            setores={destino: str(setor) for destino, setor in (pedido.setores or {}).items()},
         )
     except triagem.CasoNaoEncontradoError as erro:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(erro)) from erro
