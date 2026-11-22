@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T03:04:12-03:00",
+      "sha": "f1957b2fcbe1c4a2edb20ab41fd9e0880ab39062",
+      "app_version": "0.371.0",
+      "subject": "Onda sesta-1786-onda9: Ata de deliberação e reunião do Comitê",
+      "raw_subject": "chore(deploy): registro da onda sesta-1786-onda9 (#2141)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 887,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "221_conduta_ata_de_deliberacao.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1786-onda9: PR #2141 (issue #1834), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 43,
+          "frontend": 249
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T02:56:57-03:00",
       "sha": "e0723e40e1c2ccc5443217955765d182e0a30ce1",
       "app_version": "0.370.0",
