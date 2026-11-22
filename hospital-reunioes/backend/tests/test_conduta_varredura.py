@@ -31,7 +31,9 @@ from app.routers.conduta_publico import exigir_canal_aberto  # noqa: E402
 from app.services.conduta.portao import (  # noqa: E402
     portao_da_acao,
     portao_da_coordenacao,
+    portao_da_direcao,
     portao_da_lista,
+    portao_da_recomendacao,
     portao_da_tela_inicial,
     portao_do_afastamento,
     portao_do_cadastro,
@@ -52,6 +54,10 @@ PORTOES_DO_COMITE = {
     # O afastamento cautelar (issue #1836): quem abre o caso e, na Rota
     # Especial, a coordenação, que abre só o pedido.
     portao_do_afastamento,
+    # A Recomendação do Comitê (issue #1835): o Presidente e a diretoria
+    # executiva, que não abrem caso.
+    portao_da_direcao,
+    portao_da_recomendacao,
 }
 PREFIXO_PUBLICO = "/conduta"
 # A porta da Ouvidoria para o Canal (issue #1849, ADR 0097 decisão 14): o

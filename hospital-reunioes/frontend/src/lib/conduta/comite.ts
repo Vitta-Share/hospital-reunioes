@@ -9,6 +9,7 @@ import type { Afastamento } from "@/lib/conduta/afastamento";
 import type { AtaDoCaso, ReuniaoDoComite } from "@/lib/conduta/ata";
 import type { Depoimento } from "@/lib/conduta/depoimentos";
 import type { TextoDaApuracao } from "@/lib/conduta/relatorio";
+import type { MedidaERetorno } from "@/lib/conduta/retorno";
 import type { Trava, Votacao } from "@/lib/conduta/voto";
 import { createClient } from "@/lib/supabase/client";
 import type { SugestaoDoAgente } from "@/lib/conduta/sugestao";
@@ -140,6 +141,8 @@ export interface CasoAberto extends CasoDaLista {
   rota?: "comum" | "especial" | null;
   afastamentos?: Afastamento[];
   pode_registrar_afastamento?: boolean;
+  /** A decisão da Direção, o retorno e a correção de processo (issue #1835). */
+  medida_e_retorno?: MedidaERetorno | null;
 }
 
 /** O que o Grupo Especial vê do caso dele (issue #1829). */
@@ -207,6 +210,8 @@ const ETAPAS: Record<string, string> = {
   apuracao: "Apuração",
   voto: "Voto",
   ata: "Ata",
+  medida: "Medida",
+  retorno: "Retorno",
   encerrado: "Encerrado",
 };
 

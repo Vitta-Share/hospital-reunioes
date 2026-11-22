@@ -456,9 +456,16 @@ export function itensDoMenu(participante: CurrentParticipante | null): NavItem[]
 
   // Comitê de Conduta (issue #1822): a tela Membros, para quem está no
   // Comitê hoje ou tem o perfil de cadastro. Quem decide é o servidor.
-  const comiteDeCondutaItens: NavItem[] = participante?.ve_membros_do_comite
-    ? [{ href: "/comite-de-conduta/membros", label: "Comitê de Conduta", icon: Scale }]
-    : [];
+  const comiteDeCondutaItens: NavItem[] = [
+    ...(participante?.ve_membros_do_comite
+      ? [{ href: "/comite-de-conduta/membros", label: "Comitê de Conduta", icon: Scale }]
+      : []),
+    // A Recomendação do Comitê (issue #1835): o Presidente e a diretoria
+    // executiva, pelo perfil nominal do módulo. Quem decide é o servidor.
+    ...(participante?.perfil_conduta === "presidente" || participante?.perfil_conduta === "diretoria_executiva"
+      ? [{ href: "/comite-de-conduta/recomendacoes", label: "Recomendações do Comitê", icon: Scale }]
+      : []),
+  ];
 
   // Grupo colapsável que reúne todo o tema Reuniões (Dashboard, Calendário,
   // Pendências). "Metas" é só o rótulo, não há feature nova.
