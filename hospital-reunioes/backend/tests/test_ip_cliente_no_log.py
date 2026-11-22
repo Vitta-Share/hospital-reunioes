@@ -454,6 +454,9 @@ SEM_ANONIMATO_A_PROTEGER = {
     # chave de máquina, quem chega é o PedroOS depois do ok da Vitta.
     "POST /api/automacao/tecnologia/perguntas/{pergunta_id}/resolver",
     "POST /api/automacao/tecnologia/perguntas/{pergunta_id}/cancelar",
+    # O que falta para usar (issue #2213, ADR 0111, decisão 11): mesma chave
+    # de máquina, quem chega é o `/mensagem-prd` da sessão do terminal.
+    "GET /api/automacao/tecnologia/projetos/{projeto}/issues/{numero}/implantacao",
     # A observação do Validar (issue #2013, ADR 0108, decisão 5): chave de
     # máquina própria (`PLANOS_HSM_API_KEY`); quem chega é a função da Vercel
     # da Apresentação do PRD, não um visitante anônimo.
