@@ -107,6 +107,7 @@ export const LABEL_ACAO: Record<string, string> = {
   termo_reenviado: "Termo reenviado",
   termo_assinado: "Termo assinado",
   liberacao_manual: "Liberação sem assinatura",
+  ausencia_da_presidencia: "Ausência da Presidência",
 };
 
 /** As ações da trilha que são do Termo: a tela não mostra o "de, para" delas. */

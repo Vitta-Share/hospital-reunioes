@@ -60,8 +60,9 @@ interface Props {
   titulo: string;
   /** A linha no topo dizendo o que fazer ali (seção 17 da especificação). */
   orientacao: string;
-  /** O recurso da permissão efetiva que abre a tela (ADR 0095). */
-  recurso: string;
+  /** O recurso da permissão efetiva que abre a tela (ADR 0095). Com uma
+   * lista, qualquer um deles abre. */
+  recurso: string | readonly string[];
   /** O conteúdo da tela. Sem ele, o estado vazio. */
   children?: ReactNode;
   /** A tela de duas colunas (a triagem, issue #1992) ocupa mais largura. */
@@ -82,7 +83,8 @@ interface Props {
  */
 export function TelaDoNucleo({ titulo, orientacao, recurso, children, larga = false }: Props) {
   const { participante } = useCurrentParticipante();
-  const liberada = participante?.recursos_nsp?.includes(recurso) ?? false;
+  const aceitos = typeof recurso === "string" ? [recurso] : recurso;
+  const liberada = participante?.recursos_nsp?.some((r) => aceitos.includes(r)) ?? false;
   const meuTermo = useMeuTermo(Boolean(participante) && !liberada);
 
   return (

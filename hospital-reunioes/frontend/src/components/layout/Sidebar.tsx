@@ -391,7 +391,8 @@ export function itensDoMenu(participante: CurrentParticipante | null): NavItem[]
   // pleno fica só com o botão. As telas da Fase 1 e os três itens "Em breve"
   // já ficam aqui: as fatias seguintes só preenchem as páginas.
   const notificarIncidente: NavItem = { href: HREF_DE_NOTIFICAR, label: "Notificar incidente", icon: Siren };
-  const notificacoesItem: NavItem[] = participante?.recursos_nsp?.includes("casos")
+  // A Diretoria lê os casos das faixas A e B (issue #1999).
+  const notificacoesItem: NavItem[] = participante?.recursos_nsp?.some((r) => r === "casos" || r === "casos_graves")
     ? [{ href: `${HREF_DA_SEGURANCA_DO_PACIENTE}/notificacoes`, label: "Notificações", icon: Inbox }]
     : [];
   // As notas do Comitê de Conduta (issue #1850): a Presidência e o Acesso pleno.
