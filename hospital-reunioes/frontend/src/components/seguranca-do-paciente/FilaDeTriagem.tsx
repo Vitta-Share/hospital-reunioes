@@ -175,7 +175,7 @@ export function FilaDeTriagem() {
           return (
             <li key={item.id} className="flex items-stretch gap-2">
               {marcavel && (
-                <label className="flex min-w-[44px] items-center justify-center">
+                <label className="flex min-w-11 items-center justify-center">
                   <input
                     type="checkbox"
                     aria-label={`Marcar ${item.protocolo} para confirmar em lote`}

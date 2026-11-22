@@ -157,7 +157,7 @@ def _com_leves_confirmados(sem_ajuste: int, com_ajuste: int) -> _BancoDaRecalibr
     antes de AGORA, com e sem ajuste da Presidência."""
     banco = _com_o_marco_de_30()
     for n in range(sem_ajuste + com_ajuste):
-        caso = _notificacao(20 + n, estado="classificada", criado_em=f"2026-10-{10 + n:02d}T10:00:00+00:00")
+        caso = _notificacao(20 + n, estado="classificada", criado_em=f"2026-10-{10 + n // 2:02d}T1{n % 2}:00:00+00:00")
         divergencias = [] if n < sem_ajuste else ["assunto"]
         banco.tabelas["nsp_notificacoes"].append(caso)
         banco.tabelas["nsp_triagens"] += [_sugestao(caso), _decisao(caso, divergencias)]
@@ -181,8 +181,8 @@ def test_com_90_por_cento_de_concordancia_a_diretoria_liga_o_lote(monkeypatch):
 
 @pytest.mark.parametrize(
     ("sem_ajuste", "com_ajuste"),
-    [(8, 2), (0, 0)],
-    ids=["80% de concordância", "nenhum caso leve nas 4 semanas"],
+    [(8, 2), (26, 3), (0, 0)],
+    ids=["80% de concordância", "89,7% que arredonda para 90", "nenhum caso leve nas 4 semanas"],
 )
 def test_abaixo_de_90_por_cento_a_rota_recusa_ligar(sem_ajuste, com_ajuste, monkeypatch):
     banco = _com_leves_confirmados(sem_ajuste, com_ajuste)
@@ -246,12 +246,18 @@ def test_o_caso_que_pede_conferencia_ou_sem_sugestao_tambem_recusa_o_lote(caso, 
 def test_o_caso_ja_confirmado_recusa_o_lote_sem_gravar_os_outros():
     casos, sugestoes = _leves()
     banco = _banco(casos, sugestoes, nsp_recalibracoes=[dict(LIGADO)])
-    banco.notificacoes[0]["estado"] = "classificada"
+    # O confirmado vem por último: sem a checagem antes de gravar, os dois
+    # primeiros seriam confirmados antes do 409.
+    confirmado = next(n for n in banco.notificacoes if n["id"] == casos[-1]["id"])
+    confirmado["estado"] = "classificada"
 
     resposta = _cliente(banco).post(LOTE, json={"ids": [c["id"] for c in casos]})
 
     assert resposta.status_code == 409
+    assert "NSP-2026-0013" in resposta.json()["detail"]
     assert _decisoes(banco) == []
+    assert banco.tabelas.get("nsp_prazos_do_caso", []) == []
+    assert [n["estado"] for n in banco.notificacoes if n["id"] != confirmado["id"]] == ["recebida", "recebida"]
 
 
 def test_o_lote_vazio_e_recusado():

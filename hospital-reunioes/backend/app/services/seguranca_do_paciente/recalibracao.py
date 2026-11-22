@@ -298,10 +298,11 @@ def decidir(supabase, marco: int, decisao: str | None, *, autor: dict[str, Any],
     if linhas[0].get("decisao"):
         raise JaDecididaError("A decisão desta recalibração já foi registrada.")
     if decisao == "ligar_lote":
-        _, _, percentual = concordancia_do_lote(
+        acatados, total, percentual = concordancia_do_lote(
             _com_sugestao(supabase, _decisoes(supabase)), agora.astimezone(_FUSO).date()
         )
-        if percentual is None or percentual < CONCORDANCIA_MINIMA_DO_LOTE:
+        # Pelos inteiros: o percentual arredondado faria 89,7% (26 de 29) passar por 90.
+        if not total or acatados * 100 < CONCORDANCIA_MINIMA_DO_LOTE * total:
             medida = "sem casos leves confirmados" if percentual is None else f"{percentual}%"
             raise LoteSemConcordanciaError(
                 f"A aprovação em lote só liga com concordância de {CONCORDANCIA_MINIMA_DO_LOTE}% ou mais "
