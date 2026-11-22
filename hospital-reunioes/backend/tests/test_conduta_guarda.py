@@ -355,6 +355,39 @@ class TestEliminacao:
         assert comite.eliminacoes == []
         assert comite.conteudo(caso)["conduta_depoimentos"] == 1
 
+    def test_com_o_storage_fora_do_ar_nenhum_arquivo_conta_como_fora(self, comite, emails, monkeypatch):
+        """Storage caído: a remoção falha e a leitura também. Nada confirma
+        que o arquivo saiu, então o caso fica inteiro para a rodada seguinte."""
+        from conduta_apoio import _Bucket
+
+        caso = comite.encerrado(dia=VENCIDO_HA_CINCO_ANOS)
+        arquivos = [a["storage_path"] for a in comite.banco.tabelas["conduta_depoimento_arquivos"]]
+
+        def _fora_do_ar(*_a, **_kw):
+            raise ConnectionError("Storage fora do ar")
+
+        for operacao in ("remove", "download", "exists", "info", "list"):
+            monkeypatch.setattr(_Bucket, operacao, _fora_do_ar, raising=False)
+
+        resultado = guarda.rodada(comite.banco, HOJE)
+
+        assert resultado == {"eliminados": 0, "avisados": 0, "falhas": 1}
+        assert comite.eliminacoes == []
+        assert comite.linha_do_caso(caso).get("eliminado_em") is None
+        assert comite.conteudo(caso)["conduta_depoimento_arquivos"] == 3
+        assert all(("conduta-arquivos", c) in comite.banco.storage.objetos for c in arquivos)
+
+    def test_o_arquivo_que_ja_saiu_do_bucket_nao_trava_o_caso(self, comite, emails, monkeypatch):
+        """Uma rodada que caiu no meio já tirou um arquivo; o Storage diz
+        False para a remoção dele e confirma que ele não existe mais."""
+        caso = comite.encerrado(dia=VENCIDO_HA_CINCO_ANOS)
+        primeiro = comite.banco.tabelas["conduta_depoimento_arquivos"][0]["storage_path"]
+        comite.banco.storage.objetos.pop(("conduta-arquivos", primeiro))
+        monkeypatch.setattr(guarda.storage, "delete_file", lambda _s, _b, c: c != primeiro)
+
+        assert guarda.rodada(comite.banco, HOJE)["eliminados"] == 1
+        assert comite.eliminacoes == [caso]
+
     def test_o_caso_eliminado_abre_so_com_os_metadados_e_a_trilha(self, comite, emails):
         caso = comite.encerrado(dia=VENCIDO_HA_CINCO_ANOS)
         guarda.rodada(comite.banco, HOJE)
@@ -408,6 +441,30 @@ class TestCongelar:
 
         assert comite.eliminacoes == [caso]
         assert "descongelou_o_caso" in comite.acoes(caso)
+
+    def test_na_rota_especial_o_grupo_do_caso_congela_e_descongela(self, comite, emails):
+        """A coordenação nem sabe do caso da Rota Especial (decisão 36): quem
+        congela é o Grupo Especial do caso."""
+        caso = comite.encerrado(dia=VENCIDO_HA_CINCO_ANOS, rito="especial")
+        comite.linha_do_caso(caso)["rota"] = "especial"
+        comite.banco.tabelas.setdefault("conduta_atribuicoes", []).append(
+            {
+                "id": "atr-grupo",
+                "caso_id": caso,
+                "participante_id": MEMBRO,
+                "motivo": "grupo_especial",
+                "termo_assinado_em": "2026-10-01T12:00:00+00:00",
+            }
+        )
+
+        assert comite.guarda(caso, MEMBRO)["pode_congelar"] is True
+        assert comite.post(MEMBRO, f"/casos/{caso}/congelamento").status_code == 200
+        guarda.rodada(comite.banco, HOJE)
+        assert comite.eliminacoes == []
+        assert comite.post(COORDENACAO, f"/casos/{caso}/descongelamento").status_code == 403
+
+        assert comite.post(MEMBRO, f"/casos/{caso}/descongelamento").status_code == 200
+        assert comite.linha_do_caso(caso)["congelado_em"] is None
 
     @pytest.mark.parametrize("pid", [MEMBRO, LEITOR])
     def test_so_a_coordenacao_congela(self, comite, pid):

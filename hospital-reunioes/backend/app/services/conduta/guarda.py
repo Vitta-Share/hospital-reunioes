@@ -14,9 +14,9 @@ os arquivos saem do bucket e o banco apaga o resto pela função da migration
 entra na trilha, que nunca se apaga. Depois, a coordenação recebe o aviso do
 vencimento da guarda do papel, sem nada do caso no e-mail.
 
-"Congelar caso" é da coordenação, para caso com processo judicial ou
-administrativo: congelado, o caso não é eliminado nem avisado. Nada aqui
-chama IA.
+"Congelar caso" é da coordenação (na Rota Especial, do Grupo Especial do
+caso), para caso com processo judicial ou administrativo: congelado, o caso
+não é eliminado nem avisado. Nada aqui chama IA.
 """
 
 from __future__ import annotations
@@ -115,7 +115,6 @@ def _do_comite_no_caso(aberto: CasoAberto) -> bool:
 def para_a_tela(supabase, aberto: CasoAberto, hoje: date) -> dict:
     caso = aberto.caso
     eliminado = bool(caso.get("eliminado_em"))
-    coordena = aberto.pessoa.papel == "coordenacao"
     lacre = None
     if caso.get("papel_lacrado_em"):
         lacre = {
@@ -138,7 +137,7 @@ def para_a_tela(supabase, aberto: CasoAberto, hoje: date) -> dict:
             and _do_comite_no_caso(aberto),
             "pode_imprimir": bool(caso.get("encerrado_em")) and not eliminado and _do_comite_no_caso(aberto),
             "congelado_em": caso.get("congelado_em"),
-            "pode_congelar": coordena and not eliminado,
+            "pode_congelar": _congela(aberto) and not eliminado,
             "eliminado_em": caso.get("eliminado_em"),
         }
     }
@@ -202,9 +201,19 @@ def etiqueta(supabase, aberto: CasoAberto) -> tuple[bytes, str]:
 # ── O congelamento ──────────────────────────────────────────────────────────
 
 
+def _congela(aberto: CasoAberto) -> bool:
+    """A coordenação congela; no caso da Rota Especial, que ela nem vê
+    (decisão 36), quem congela é o Grupo Especial do caso."""
+    if aberto.caso.get("rota") == "especial":
+        return _do_comite_no_caso(aberto)
+    return aberto.pessoa.papel == "coordenacao"
+
+
 def _recusar_se_nao_coordena(aberto: CasoAberto) -> None:
-    if aberto.pessoa.papel != "coordenacao":
-        raise AcaoRecusadaError(403, "Só a coordenação congela e descongela o caso.")
+    if not _congela(aberto):
+        raise AcaoRecusadaError(
+            403, "Só a coordenação, ou o Grupo Especial na Rota Especial, congela e descongela o caso."
+        )
     if aberto.caso.get("eliminado_em"):
         raise AcaoRecusadaError(409, ELIMINADO)
 
@@ -259,10 +268,17 @@ def _caminhos_do_caso(supabase, caso_id: str) -> list[str]:
 
 def _tirar_do_bucket(supabase, caminho: str) -> bool:
     """O Storage diz False tanto para a recusa quanto para o arquivo que já
-    saiu: na dúvida, confere se ele ainda está lá."""
+    saiu: na dúvida, pergunta se ele ainda está lá. Só conta como fora o
+    arquivo que o Storage confirma que não existe; o `exists` levanta em
+    qualquer outra falha (fora do ar, timeout, chave), e aí o arquivo fica
+    preso e o caso espera a rodada seguinte."""
     if storage.delete_file(supabase, BUCKET, caminho):
         return True
-    return storage.download_file(supabase, BUCKET, caminho) is None
+    try:
+        return not supabase.storage.from_(BUCKET).exists(caminho)
+    except Exception:  # noqa: BLE001 (sem confirmação, o arquivo conta como preso)
+        logger.warning("[conduta_guarda] O Storage não confirmou a saída de um arquivo do caso", exc_info=True)
+        return False
 
 
 def eliminar(supabase, caso: dict) -> bool:

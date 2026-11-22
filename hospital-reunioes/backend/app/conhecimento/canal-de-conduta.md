@@ -152,7 +152,7 @@ Os originais assinados à caneta (o termo de declaração de cada pessoa ouvida 
 
 A guarda vai até cinco anos depois do encerramento. O caso encerrado como Encaminhado é guardado por um ano.
 
-- "Congelar caso" é um botão que só a coordenação usa, para caso com processo judicial ou administrativo. Caso congelado não é eliminado nem gera aviso. "Descongelar" também é só da coordenação, e a guarda volta a contar. As duas ações entram na trilha.
+- "Congelar caso" é um botão que só a coordenação usa, para caso com processo judicial ou administrativo. Caso congelado não é eliminado nem gera aviso. "Descongelar" também é só da coordenação, e a guarda volta a contar. No caso da Rota Especial, que a coordenação nem vê, quem congela e descongela é o Grupo Especial do caso. As duas ações entram na trilha.
 - Um job diário, às 07:40, elimina o conteúdo do caso com a guarda vencida: o relato, os depoimentos, os termos, os votos, a ata, o relatório, o retorno e todos os arquivos. Ficam o protocolo, o rito, as datas e a trilha do caso continua, com a linha da eliminação. A base de dados confere o prazo de novo e recusa eliminar caso congelado ou ainda na guarda.
 - Depois da eliminação, a coordenação recebe o e-mail "Venceu a guarda de um envelope do Canal de Conduta.", sem protocolo nem nada do caso, para eliminar o envelope de papel. O aviso sai uma vez por caso.
 - O caso eliminado continua na lista e abre só com os metadados, a guarda e a trilha. O Dossiê dele não sai mais.

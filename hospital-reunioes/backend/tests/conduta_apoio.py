@@ -153,6 +153,9 @@ class _Bucket:
     def download(self, caminho):
         return self._armazem.objetos[(self._nome, caminho)]
 
+    def exists(self, caminho):
+        return (self._nome, caminho) in self._armazem.objetos
+
     def remove(self, caminhos):
         for caminho in caminhos:
             self._armazem.objetos.pop((self._nome, caminho), None)
