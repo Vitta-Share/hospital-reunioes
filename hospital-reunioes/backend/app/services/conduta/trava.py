@@ -100,16 +100,20 @@ def _confirmacoes_precisas(item: str, acusado_ouvido: bool) -> int:
     return CERTIFICACOES_DA_RECUSA if item == "defesa" and not acusado_ouvido else 1
 
 
-def _situacao_dos_itens(supabase, caso: dict) -> tuple[dict[str, list[dict]], bool]:
+def _situacao_dos_itens(supabase, caso: dict, situacao_do_voto) -> tuple[dict[str, list[dict]], bool]:
+    """As confirmações que contam, por item: as de quem vota no caso hoje. A
+    de quem depois ficou impedido ou virou Citado sai da conta, como o voto
+    dele (`voto._da_rodada`)."""
     por_item: dict[str, list[dict]] = {item: [] for item, _ in ITENS}
     for linha in sorted(_linhas(supabase, CONFIRMACOES, caso["id"]), key=lambda c: str(c.get("confirmado_em") or "")):
-        por_item.setdefault(linha["item"], []).append(linha)
+        if linha["participante_id"] in situacao_do_voto.votantes:
+            por_item.setdefault(linha["item"], []).append(linha)
     return por_item, _acusado_ouvido(supabase, caso["id"])
 
 
-def bloqueio(supabase, caso: dict, situacao_do_voto=None) -> str | None:
+def bloqueio(supabase, caso: dict, situacao_do_voto) -> str | None:
     """O primeiro item em aberto, numa linha, ou None com a trava inteira."""
-    por_item, acusado_ouvido = _situacao_dos_itens(supabase, caso)
+    por_item, acusado_ouvido = _situacao_dos_itens(supabase, caso, situacao_do_voto)
     for item, rotulo in ITENS:
         if len(por_item[item]) < _confirmacoes_precisas(item, acusado_ouvido):
             return f"A trava de robustez tem item em aberto: {rotulo}."
@@ -132,7 +136,7 @@ def _ultimo_preenchimento(supabase, caso_id: str) -> dict | None:
 
 def para_a_tela(supabase, aberto: CasoAberto, situacao_do_voto) -> dict:
     caso = aberto.caso
-    por_item, acusado_ouvido = _situacao_dos_itens(supabase, caso)
+    por_item, acusado_ouvido = _situacao_dos_itens(supabase, caso, situacao_do_voto)
     ultimo = _ultimo_preenchimento(supabase, caso["id"])
     preenchidos = {i["item"]: i for i in json.loads(cifra.decifrar_texto(ultimo["itens_cifrado"]))} if ultimo else {}
     ids = {c["participante_id"] for linhas in por_item.values() for c in linhas}
@@ -184,7 +188,7 @@ def _exigir_votante(supabase, aberto: CasoAberto):
     caso = aberto.caso
     if caso.get("etapa") != "voto" or caso.get("encerrado_em") or caso.get("resultado"):
         raise TravaRecusadaError(409, "A trava de robustez é da etapa Voto.")
-    atual = voto.situacao(supabase, caso)
+    atual = voto.situacao_em_dia(supabase, caso)
     if aberto.autor_id not in atual.votantes:
         raise TravaRecusadaError(403, "Só os membros votantes cuidam da trava.")
     return atual
@@ -199,7 +203,7 @@ def confirmar(supabase, aberto: CasoAberto, item: str) -> dict:
     falta = _requisito(supabase, caso, item, atual)
     if falta:
         raise TravaRecusadaError(409, falta)
-    por_item, acusado_ouvido = _situacao_dos_itens(supabase, caso)
+    por_item, acusado_ouvido = _situacao_dos_itens(supabase, caso, atual)
     if any(c["participante_id"] == aberto.autor_id for c in por_item[item]):
         raise TravaRecusadaError(409, "Você já confirmou este item.")
     if len(por_item[item]) >= _confirmacoes_precisas(item, acusado_ouvido):

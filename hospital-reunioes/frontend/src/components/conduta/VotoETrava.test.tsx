@@ -88,7 +88,9 @@ const TRAVA: Trava = {
 
 function desenhar(votacao: Partial<Votacao> = {}, trava: Partial<Trava> = {}) {
   const aoMudar = vi.fn();
-  render(<VotoETrava casoId="c1" votacao={{ ...VOTACAO, ...votacao }} trava={{ ...TRAVA, ...trava }} aoMudar={aoMudar} />);
+  render(
+    <VotoETrava casoId="c1" votacao={{ ...VOTACAO, ...votacao }} trava={{ ...TRAVA, ...trava }} votando aoMudar={aoMudar} />
+  );
   return aoMudar;
 }
 

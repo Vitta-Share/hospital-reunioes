@@ -195,7 +195,7 @@ def para_a_tela(supabase, aberto: CasoAberto) -> dict:
     caso = aberto.caso
     if caso.get("etapa") != "voto" and not caso.get("resultado"):
         return {"votacao": None, "trava": None}
-    atual = situacao(supabase, caso)
+    atual = situacao_em_dia(supabase, caso)
     nomes = membros.nomes(supabase, sorted({v["participante_id"] for v in atual.votos}))
     meu = next(
         (v for v in atual.votos if v["rodada"] == atual.rodada and v["participante_id"] == aberto.autor_id), None
@@ -254,10 +254,13 @@ def _exigir_voto(caso: dict) -> None:
         raise VotoRecusadoError(409, "O voto é da etapa Voto.")
 
 
-def _convocar_reuniao_curta(supabase, aberto: CasoAberto, atual: Situacao) -> None:
-    """Sem maioria: avisa os votantes e abre a rodada seguinte."""
-    caso = aberto.caso
+def _convocar_reuniao_curta(supabase, caso: dict, atual: Situacao) -> None:
+    """Sem maioria: avisa os votantes e abre a rodada seguinte. Pode rodar de
+    novo sem repetir nada: o aviso não se duplica, e a rodada só avança a
+    partir da que fechou."""
     proxima = atual.rodada + 1
+    for pid in sorted(atual.votantes):
+        avisos._gravar(supabase, caso, pid, MOTIVO_DO_AVISO, f"rodada-{proxima}")
     trilha.registrar(
         supabase,
         caso["id"],
@@ -265,9 +268,28 @@ def _convocar_reuniao_curta(supabase, aberto: CasoAberto, atual: Situacao) -> No
         "convocou_reuniao_curta",
         f"rodada {atual.rodada} sem maioria; reunião curta e nova rodada de voto",
     )
-    supabase.table("conduta_casos").update({"rodada_do_voto": proxima}).eq("id", caso["id"]).execute()
-    for pid in sorted(atual.votantes):
-        avisos._gravar(supabase, caso, pid, MOTIVO_DO_AVISO, f"rodada-{proxima}")
+    (
+        supabase.table("conduta_casos")
+        .update({"rodada_do_voto": proxima})
+        .eq("id", caso["id"])
+        .eq("rodada_do_voto", atual.rodada)
+        .execute()
+    )
+    caso["rodada_do_voto"] = proxima
+
+
+def situacao_em_dia(supabase, caso: dict) -> Situacao:
+    """A situação do caso com a reunião curta em dia. Se a convocação caiu
+    depois do último voto (a rodada fechou sem maioria e não avançou), ela é
+    feita aqui, por quem abre ou age no caso a seguir: o caso não fica parado
+    na etapa Voto."""
+    atual = situacao(supabase, caso)
+    if caso.get("etapa") != "voto" or caso.get("resultado") or not atual.fechada:
+        return atual
+    if apurar([_conteudo(v) for v in atual.da_rodada(atual.rodada)]).tem_maioria:
+        return atual
+    _convocar_reuniao_curta(supabase, caso, atual)
+    return situacao(supabase, caso)
 
 
 def votar(
@@ -283,7 +305,7 @@ def votar(
     reunião curta é convocada."""
     caso = aberto.caso
     _exigir_voto(caso)
-    atual = situacao(supabase, caso)
+    atual = situacao_em_dia(supabase, caso)
     if aberto.autor_id not in atual.votantes:
         raise VotoRecusadoError(403, "Só os três membros votantes votam.")
     justificativa = (justificativa or "").strip()
@@ -319,9 +341,7 @@ def votar(
         if getattr(erro_do_banco, "code", None) == "23505":
             raise VotoRecusadoError(409, "Você já votou nesta rodada.") from erro_do_banco
         raise
-    depois = situacao(supabase, caso)
-    if depois.fechada and not apurar([_conteudo(v) for v in depois.da_rodada(depois.rodada)]).tem_maioria:
-        _convocar_reuniao_curta(supabase, aberto, depois)
+    situacao_em_dia(supabase, caso)
     return linha
 
 
@@ -332,7 +352,7 @@ def bloqueio_da_conclusao(supabase, aberto: CasoAberto) -> str | None:
     caso = aberto.caso
     if aberto.pessoa.papel != "coordenacao":
         return "Só a coordenação conclui a votação."
-    atual = situacao(supabase, caso)
+    atual = situacao_em_dia(supabase, caso)
     if len(atual.votantes) < VOTANTES:
         return "Falta membro votante no caso: o impedido ainda não tem suplente."
     if not atual.fechada:

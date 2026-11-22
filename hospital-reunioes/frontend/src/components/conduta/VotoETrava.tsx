@@ -143,16 +143,20 @@ function ItemDaLista({ item, ocupado, agir }: { item: ItemDaTrava; ocupado: bool
  * A etapa Voto do caso (issue #1833; especificação, 6.6 e 6.7): o voto de
  * cada membro, oculto até os três votarem, o resultado da maioria, a trava de
  * robustez e a conclusão da votação. O servidor diz o que a pessoa pode fazer.
+ * O formulário do voto abre com o botão VOTAR da caixa "O QUE FAZER AGORA"
+ * (`votando`).
  */
 export function VotoETrava({
   casoId,
   votacao,
   trava,
+  votando,
   aoMudar,
 }: {
   casoId: string;
   votacao: Votacao | null;
   trava: Trava | null;
+  votando: boolean;
   aoMudar: () => void;
 }) {
   const [ocupado, setOcupado] = useState(false);
@@ -221,7 +225,7 @@ export function VotoETrava({
             <p className="text-sm text-slate-700 whitespace-pre-line break-words">{votacao.meu_voto.justificativa}</p>
           </div>
         )}
-        {votacao.pode_votar && <FormularioDoVoto ocupado={ocupado} agir={agir} />}
+        {votacao.pode_votar && votando && <FormularioDoVoto ocupado={ocupado} agir={agir} />}
         {votacao.rodadas.map((rodada) => (
           <div key={rodada.rodada} className="space-y-2 border-t border-border pt-3">
             <h3 className="text-sm font-semibold text-slate-900">{`Rodada ${rodada.rodada}`}</h3>

@@ -327,6 +327,47 @@ describe("a tela do caso", () => {
 
     expect(screen.getByRole("form", { name: "Adicionar pessoa a ouvir" })).toBeTruthy();
   });
+
+  it("no Voto, VOTAR da caixa abre o formulário do voto (#1833)", async () => {
+    respostas = {
+      "/casos/c1": {
+        ...CASO,
+        rito: "rapido",
+        etapa: "voto",
+        orientacao: null,
+        o_que_fazer_agora: {
+          frase: "Leia o dossiê e vote. Seu voto fica oculto até todos votarem.",
+          botao: "VOTAR",
+          como_fazer: ["a", "b", "c"],
+          acao: "votar",
+          bloqueio: null,
+        },
+        votacao: {
+          rodada: 1,
+          votantes: 3,
+          votaram: 0,
+          meu_voto: null,
+          pode_votar: true,
+          bloqueio_do_voto: null,
+          reuniao_curta_convocada: false,
+          rodadas: [],
+          resultado: null,
+          concluida: null,
+          pode_concluir: false,
+          bloqueio_da_conclusao: "Só a coordenação conclui a votação.",
+        },
+        trava: { itens: [], preenchida_em: null, pode_preencher: true, ciencia: [] },
+      },
+    };
+    render(<TelaDoCaso casoId="c1" />);
+
+    const caixa = await screen.findByRole("region", { name: "O que fazer agora" });
+    expect(screen.queryByRole("form", { name: "Seu voto" })).toBeNull();
+    fireEvent.click(within(caixa).getByRole("button", { name: "VOTAR" }));
+
+    const voto = screen.getByRole("form", { name: "Seu voto" });
+    expect(within(voto).getByLabelText("Procedente")).toBeTruthy();
+  });
 });
 
 describe("Sinalizar ao NSP (issue #1850)", () => {

@@ -143,6 +143,7 @@ class Comite:
                 "etapa": "voto",
                 "rito": "rapido",
                 "escopo": "dentro",
+                "rodada_do_voto": 1,  # o default da coluna (migration 216)
             }
         )
         if acusado_ouvido:
@@ -420,6 +421,63 @@ class TestMaioria:
         assert votacao["resultado"] == {"resultado": "procedente", "medida": "Advertência escrita"}
         assert [r["rodada"] for r in votacao["rodadas"]] == [1, 2]
 
+    def _ultimo_voto_sem_convocacao(self, comite, caso, monkeypatch):
+        """Três medidas diferentes, e a convocação cai depois de gravado o
+        último voto: a rodada fecha sem maioria e o caso fica na rodada 1."""
+        comite.votar(MEMBRO, caso, medida="orientacao_registrada")
+        comite.votar(LEITOR, caso, medida="advertencia_escrita")
+        registrar = voto.trilha.registrar
+
+        def _cai_na_convocacao(supabase, caso_id, autor_id, acao, detalhe=""):
+            if acao == "convocou_reuniao_curta":
+                raise RuntimeError("trilha fora do ar")
+            return registrar(supabase, caso_id, autor_id, acao, detalhe)
+
+        monkeypatch.setattr(voto.trilha, "registrar", _cai_na_convocacao)
+        with pytest.raises(RuntimeError):
+            comite.votar(COORDENACAO, caso, medida="suspensao", dias_de_suspensao=2)
+        monkeypatch.setattr(voto.trilha, "registrar", registrar)
+        assert comite.linha_do_caso(caso)["rodada_do_voto"] == 1
+
+    def _convocacoes(self, comite) -> list[dict]:
+        return [t for t in comite.banco.tabelas["conduta_trilha"] if t["acao"] == "convocou_reuniao_curta"]
+
+    def test_a_reuniao_curta_que_falhou_no_ultimo_voto_e_convocada_ao_abrir_o_caso(self, comite, monkeypatch):
+        caso = comite.caso()
+        self._ultimo_voto_sem_convocacao(comite, caso, monkeypatch)
+
+        votacao = comite.abrir(MEMBRO, caso)["votacao"]
+
+        assert votacao["rodada"] == 2
+        assert votacao["reuniao_curta_convocada"] is True
+        assert len(self._convocacoes(comite)) == 1
+        avisos = [a for a in comite.banco.tabelas["conduta_avisos"] if a["motivo"] == "reuniao_curta"]
+        assert sorted(a["participante_id"] for a in avisos) == sorted([MEMBRO, LEITOR, COORDENACAO])
+        assert comite.votar(MEMBRO, caso, medida="advertencia_escrita").status_code == 200
+        comite.abrir(LEITOR, caso)
+        assert len(self._convocacoes(comite)) == 1
+
+    def test_o_voto_seguinte_abre_a_rodada_que_a_convocacao_nao_abriu(self, comite, monkeypatch):
+        caso = comite.caso()
+        self._ultimo_voto_sem_convocacao(comite, caso, monkeypatch)
+
+        resposta = comite.votar(MEMBRO, caso, medida="advertencia_escrita")
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["voto"]["rodada"] == 2
+        assert comite.linha_do_caso(caso)["rodada_do_voto"] == 2
+
+    def test_a_conclusao_nao_diz_que_convocou_a_reuniao_que_nao_foi_convocada(self, comite, monkeypatch):
+        caso = comite.caso()
+        self._ultimo_voto_sem_convocacao(comite, caso, monkeypatch)
+
+        resposta = comite.post(COORDENACAO, f"/casos/{caso}/conclusao-da-votacao")
+
+        assert resposta.status_code == 409
+        assert "Faltam votos" in resposta.json()["detail"]
+        assert comite.linha_do_caso(caso)["rodada_do_voto"] == 2
+        assert len(self._convocacoes(comite)) == 1
+
     def test_resultado_sem_maioria_tambem_convoca(self, comite):
         caso = comite.caso()
         comite.votar(MEMBRO, caso)
@@ -691,6 +749,40 @@ class TestSuplenteVota:
         votacao = comite.abrir(LEITOR, caso)["votacao"]
         assert votacao["votaram"] == 0
         assert votacao["votantes"] == 3
+
+    def test_a_confirmacao_da_trava_de_quem_ficou_impedido_depois_sai_da_conta(self, comite):
+        caso = comite.caso()
+        assert comite.confirmar(MEMBRO, caso, "prova").status_code == 200
+        comite.post(MEMBRO, f"/casos/{caso}/impedimento", {"motivo": "interesse"})
+        for pid in (SUPLENTE, LEITOR, COORDENACAO):
+            assert comite.votar(pid, caso).status_code == 200
+        comite.anexar_ciencia(COORDENACAO, caso)
+        for item in ITENS_DA_TRAVA:
+            if item != "prova":
+                comite.confirmar(COORDENACAO, caso, item)
+
+        prova = _itens(comite.abrir(LEITOR, caso))["prova"]
+        assert prova["confirmado"] is False
+        assert prova["confirmacoes"] == []
+        resposta = comite.post(COORDENACAO, f"/casos/{caso}/conclusao-da-votacao")
+        assert resposta.status_code == 409
+        assert resposta.json()["detail"] == (
+            "A trava de robustez tem item em aberto: "
+            "Prova além do relato (relato anônimo sozinho não sustenta punição)."
+        )
+        assert comite.confirmar(LEITOR, caso, "prova").status_code == 200
+
+    def test_a_certificacao_da_recusa_por_um_citado_nao_vale(self, comite):
+        caso = comite.caso(acusado_ouvido=False)
+        comite.confirmar(MEMBRO, caso, "defesa")
+        comite.confirmar(LEITOR, caso, "defesa")
+        comite.banco.tabelas.setdefault("conduta_citados", []).append(
+            {"id": "cit-1", "caso_id": caso, "participante_id": LEITOR}
+        )
+
+        defesa = _itens(comite.abrir(MEMBRO, caso))["defesa"]
+        assert defesa["confirmado"] is False
+        assert defesa["confirmacoes"] == ["Bruno Membro"]
 
 
 # ═══════════════════════════════════════════════════════════════════════════

@@ -329,7 +329,13 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
         aoMudar={carregar}
       />
 
-      <VotoETrava casoId={casoId} votacao={caso.votacao ?? null} trava={caso.trava ?? null} aoMudar={carregar} />
+      <VotoETrava
+        casoId={casoId}
+        votacao={caso.votacao ?? null}
+        trava={caso.trava ?? null}
+        votando={passo === "votar"}
+        aoMudar={carregar}
+      />
 
       {caso.triagem_em && (
         <section aria-label="Triagem" className={`${CARTAO} px-4 py-4 space-y-1`}>
