@@ -50,7 +50,18 @@ ETAPA_DO_RITO = {"encaminhamento": "encaminhamento", "rapido": "apuracao", "comp
 TRILHO = ("Triagem", "Apuração", "Voto", "Ata", "Medida", "Acompanhamento")
 TRILHO_DO_ENCAMINHAMENTO = ("Triagem", "Encaminhado")
 TRILHO_DA_ROTA_ESPECIAL = ("Apuração", "Parecer entregue")
-_POSICAO_NO_TRILHO = {"triagem": 0, "contestada": 0, "encaminhamento": 0, "apuracao": 1, "voto": 2, "ata": 3}
+_POSICAO_NO_TRILHO = {
+    "triagem": 0,
+    "contestada": 0,
+    "encaminhamento": 0,
+    "apuracao": 1,
+    "voto": 2,
+    "ata": 3,
+    # A Medida vai do envio à Direção ao retorno aprovado (issue #1835).
+    "medida": 4,
+    "retorno": 4,
+    "encerrado": 4,
+}
 
 
 def orientacao_do_encaminhamento(destino: str) -> str:
@@ -183,6 +194,16 @@ _COMO_VOTO = (
     "Escolha a medida da Matriz",
     "Escreva sua justificativa em até três linhas",
 )
+_COMO_ENVIO = (
+    "Confira a ata assinada",
+    "O Presidente só lê a conclusão e a ata",
+    "A diretoria executiva registra a decisão",
+)
+_COMO_RETORNO = (
+    "A resposta a quem relatou não cita medida nem nome",
+    "A comunicação ao acusado não cita quem relatou",
+    "Nada sai antes de você aprovar",
+)
 _COMO_ESPECIAL = (
     "Convide o membro eleito da CIPA indicado pelos eleitos",
     "Ouça as pessoas e delibere sem nenhum diretor",
@@ -230,6 +251,13 @@ def o_que_fazer_agora(caso: dict[str, Any], olhar: Olhar) -> dict[str, Any]:
             None,
             _COMO_ESPECIAL,
             "apurar_rota_especial",
+        )
+    if caso.get("encerrado_em") and caso.get("desfecho") == "concluido":
+        return _caixa(
+            "Este caso foi concluído. O retorno aprovado já saiu.",
+            None,
+            ("Consulte a trilha do caso", "O retorno aprovado fica guardado", "Novo assunto vira novo relato"),
+            None,
         )
     if caso.get("encerrado_em"):
         return _caixa(
@@ -292,12 +320,37 @@ def o_que_fazer_agora(caso: dict[str, Any], olhar: Olhar) -> dict[str, Any]:
             "votar",
             bloqueio,
         )
-    if etapa == "ata":
+    if etapa == "ata" and caso.get("resultado") in ("procedente", "parcialmente_procedente"):
         return _caixa(
-            "A votação foi concluída, com a ata assinada pelos três votantes.",
+            "A votação foi concluída, com a ata assinada pelos três votantes. Envie a Recomendação à Direção.",
+            "ENVIAR À DIREÇÃO",
+            _COMO_ENVIO,
+            "enviar_a_direcao",
+            None if coordena else "Só a coordenação envia à Direção.",
+        )
+    if etapa == "ata":
+        # Improcedente e inconclusivo não saem do Comitê (issue #1835).
+        return _caixa(
+            "A votação foi concluída sem medida. O caso não vai à Direção: prepare o retorno.",
+            "GERAR RETORNO",
+            _COMO_RETORNO,
+            "preparar_retorno",
+            None if coordena else "Só a coordenação prepara o retorno.",
+        )
+    if etapa == "medida":
+        return _caixa(
+            "A Recomendação do Comitê está com a Direção. Espere a decisão sobre a medida.",
             None,
-            ("Abra a ata assinada", "Consulte a trilha do caso", "A medida é da Direção"),
+            ("A diretoria executiva registra a decisão", "O Presidente só lê", "A decisão aparece aqui"),
             None,
+        )
+    if etapa == "retorno":
+        return _caixa(
+            "A Direção registrou a decisão. Escolha a correção de processo e prepare o retorno.",
+            "GERAR RETORNO",
+            _COMO_RETORNO,
+            "preparar_retorno",
+            None if coordena else "Só a coordenação prepara o retorno.",
         )
     if olhar.fase_do_relatorio:
         return _caixa(
@@ -321,6 +374,8 @@ ACOES_DA_MINHA_VEZ = {
     "decidir_contestacao": "Decidir a contestação da triagem",
     "enviar_orientacao": "Enviar a orientação",
     "apurar_rota_especial": "Apurar o caso da Rota Especial",
+    "enviar_a_direcao": "Enviar à Direção",
+    "preparar_retorno": "Preparar o retorno",
 }
 
 
