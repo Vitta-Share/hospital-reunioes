@@ -236,3 +236,43 @@ def enviar_card_novo(supabase, *, demanda: dict, resumo: dict | None) -> bool:
     except Exception as e:  # noqa: BLE001 (email nunca desfaz o card)
         logger.warning(f"[tecnologia_card_novo] Falha no email do card da Demanda {demanda_id}: {e}")
         return False
+
+
+def enviar_lembrete_da_pergunta(
+    supabase, *, destinatario_id: str, assunto: str, dias: int, autor_nome: str, demanda: dict
+) -> bool:
+    """O lembrete unico da Pergunta da Vitta (issue #2120, ADR 0109, decisao
+    7): o Assunto, ha quantos dias a Pergunta espera e o link que abre a
+    Demanda com o cartao na Conversa. `False` quando nao saiu."""
+    try:
+        from app.services.email_constants import get_logo_data_uri
+
+        linhas = (
+            supabase.table("participantes").select("id, nome_completo, email").eq("id", destinatario_id).execute().data
+        )
+        destinatario = linhas[0] if linhas else None
+        if not destinatario or not destinatario.get("email"):
+            logger.warning(f"[tecnologia_lembrete] {destinatario_id} sem e-mail: lembrete por e-mail pulado")
+            return False
+
+        titulo = str(demanda.get("titulo") or "Demanda sem título")
+        link = link_da_demanda(demanda["id"])
+        espera = f"Sua resposta espera há {dias} dias"
+        html = jinja_env.get_template("email_tecnologia_lembrete_da_pergunta.html").render(
+            destinatario_nome=destinatario.get("nome_completo") or "",
+            espera=espera,
+            dias=dias,
+            autor_nome=autor_nome,
+            assunto=assunto,
+            titulo=titulo,
+            link=link,
+            logo_base64=get_logo_data_uri(),
+        )
+        texto = (
+            f"{espera}.\n\nAssunto: {assunto}\nDemanda: {titulo}\nQuem perguntou: {autor_nome}\n\n"
+            f"Para ler e responder: {link}\n"
+        )
+        return _enviar_email(destinatario["email"], f"{espera}: {assunto}", html, texto)
+    except Exception as e:  # noqa: BLE001 (o e-mail nunca desfaz o sino)
+        logger.warning(f"[tecnologia_lembrete] Falha no e-mail para {destinatario_id}: {e}")
+        return False

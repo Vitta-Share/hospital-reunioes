@@ -38,6 +38,8 @@ Jobs:
      Por fim, apaga o print (Anexo da Demanda) 30 dias depois de Em produção, ou
      já na rodada em que a Etapa é Não será feita (issue #1382, ADR 0077), e
      deixa o registro marcado apagado. Idempotente: o apagado sai da varredura.
+     E lembra, uma vez só, o Destinatário da Pergunta da Vitta aberta há 3 dias
+     (issue #2120). Idempotente: o lembrete gravado na Pergunta não sai de novo.
  10. expurgar_arquivos_contas_medicas: 04:30 diário, tira do bucket `contas-medicas`
      o PDF e o texto extraído de todo arquivo com `apagar_em` vencido e carimba
      `apagado_em` (issue #1125). Idempotente: o carimbo tira a linha da varredura.
@@ -283,6 +285,18 @@ def reconciliar_vinculos_tecnologia() -> None:
         tecnologia_anexos.apagar_vencidos(_supabase())
     except Exception as e:
         logger.error(f"[Cron] Erro em apagar os anexos vencidos da Tecnologia: {e}", exc_info=True)
+
+    # E o lembrete unico da Pergunta da Vitta aberta ha 3 dias (issue #2120,
+    # ADR 0109, decisao 7), em separado: nao depende do GitHub.
+    from app.services import tecnologia_perguntas
+
+    try:
+        lembradas = tecnologia_perguntas.lembrar(_supabase(), datetime.now(tz=ZoneInfo("UTC")))
+    except Exception as e:
+        logger.error(f"[Cron] Erro no lembrete das Perguntas da Vitta: {e}", exc_info=True)
+    else:
+        if lembradas:
+            logger.info(f"[Cron] {lembradas} Pergunta(s) da Vitta lembrada(s) depois de 3 dias.")
 
 
 def despachar_notificacoes_ouvidoria() -> None:

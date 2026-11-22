@@ -21,15 +21,19 @@ a Acao da Ata.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
 from app.dependencies import selecionar_participantes
-from app.services import tecnologia_conversa
+from app.services import tecnologia_conversa, tecnologia_email
+from app.services.notificacao_service import criar_notificacao_tecnologia
 from app.services.paginacao import ler_tudo
 from app.services.tecnologia import TABELA_CONVERSA_DA_DEMANDA, TABELA_DEMANDAS, e_desenvolvedor, nome_do_projeto
+
+logger = logging.getLogger(__name__)
 
 TABELA_PERGUNTAS = "tecnologia_perguntas"
 
@@ -367,3 +371,88 @@ def resposta(supabase, pergunta: dict[str, Any]) -> dict[str, Any] | None:
     if not pergunta.get("respondida_em"):
         return None
     return _resposta(pergunta, _nomes(supabase, _pessoas_da_pergunta(pergunta)))
+
+
+# O lembrete unico (ADR 0109, decisao 7): 3 dias corridos sem resposta.
+ESPERA_DO_LEMBRETE = timedelta(days=3)
+
+
+def _instante(valor: str) -> datetime:
+    return datetime.fromisoformat(str(valor).replace("Z", "+00:00"))
+
+
+def _lembrar_uma(supabase, pergunta: dict[str, Any], agora: datetime) -> bool:
+    # Grava antes de avisar, so se a Pergunta segue aberta e sem lembrete:
+    # a passada seguinte, ou outra ao mesmo tempo, nao lembra de novo.
+    gravadas = (
+        supabase.table(TABELA_PERGUNTAS)
+        .update({"lembrete_enviado_em": agora.isoformat()})
+        .eq("id", pergunta["id"])
+        .eq("estado", ESTADO_ABERTA)
+        .is_("lembrete_enviado_em", "null")
+        .execute()
+        .data
+    )
+    if not gravadas:
+        return False
+    # A lapide do Apagar (ADR 0084) sai de toda leitura: nao lembra de um
+    # cartao que nao existe mais.
+    demandas = (
+        supabase.table(TABELA_DEMANDAS)
+        .select("*")
+        .eq("id", pergunta["demanda_id"])
+        .is_("apagada_em", "null")
+        .execute()
+        .data
+        or []
+    )
+    if not demandas:
+        return False
+    destinatario_id = str(pergunta["destinatario_id"])
+    assunto = pergunta.get("assunto") or ""
+    dias = (agora - _instante(pergunta["criado_em"])).days
+    criar_notificacao_tecnologia(
+        supabase,
+        destinatario_id=destinatario_id,
+        titulo=f"Sua resposta espera há {dias} dias",
+        mensagem=assunto,
+        demanda_id=str(pergunta["demanda_id"]),
+    )
+    autor_id = str(pergunta.get("autor_id") or "")
+    tecnologia_email.enviar_lembrete_da_pergunta(
+        supabase,
+        destinatario_id=destinatario_id,
+        assunto=assunto,
+        dias=dias,
+        autor_nome=_nomes(supabase, {autor_id}).get(autor_id) or "A Vitta",
+        demanda=demandas[0],
+    )
+    return True
+
+
+def lembrar(supabase, agora: datetime) -> int:
+    """O lembrete unico da Pergunta aberta ha 3 dias corridos (issue #2120,
+    ADR 0109, decisao 7): sino e e-mail ao Destinatario, com o Assunto e ha
+    quantos dias ela espera. Quem chama e o agendador de hora em hora.
+    Devolve quantas foram lembradas. A falha de uma nao impede as outras."""
+    abertas = ler_tudo(
+        lambda: (
+            supabase.table(TABELA_PERGUNTAS)
+            .select("id, demanda_id, autor_id, destinatario_id, assunto, criado_em")
+            .eq("estado", ESTADO_ABERTA)
+            .is_("lembrete_enviado_em", "null")
+            .order("id")
+        ),
+        rotulo="Perguntas da Vitta abertas sem lembrete",
+    )
+    limite = agora - ESPERA_DO_LEMBRETE
+    lembradas = 0
+    for pergunta in abertas:
+        try:
+            if not pergunta.get("destinatario_id") or _instante(pergunta["criado_em"]) > limite:
+                continue
+            if _lembrar_uma(supabase, pergunta, agora):
+                lembradas += 1
+        except Exception as e:  # noqa: BLE001 (uma Pergunta nao segura as outras)
+            logger.error(f"[tecnologia_perguntas] Falha no lembrete da Pergunta {pergunta.get('id')}: {e}")
+    return lembradas
