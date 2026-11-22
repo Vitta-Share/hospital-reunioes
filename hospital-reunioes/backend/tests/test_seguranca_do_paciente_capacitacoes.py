@@ -314,6 +314,7 @@ CADASTRO = {
     "data": "2026-11-05",
     "carga_horaria": 1.5,
     "instrutor": "Instrutor de Teste",
+    "instrutor_formacao": "Enfermeira de Teste",
     "publico": "profissionais",
     "tema_ids": ["tema-id"],
     "participantes": ["P2", "P4"],
@@ -369,6 +370,7 @@ class TestCadastro:
         assert salva["data"] == "2026-11-05"
         assert salva["carga_horaria"] == 1.5
         assert salva["instrutor"] == "Instrutor de Teste"
+        assert salva["instrutor_formacao"] == "Enfermeira de Teste"
         assert salva["publico"] == "profissionais"
         assert salva["tema_ids"] == ["tema-id"]
         assert salva["criado_por"] == "P1"
@@ -396,6 +398,49 @@ class TestCadastro:
             ("P4", "Pessoa de Teste P4", None),
         ]
         assert corpo["pode_editar"] is True
+
+    @pytest.mark.parametrize(
+        "corpo",
+        [
+            {k: v for k, v in CADASTRO.items() if k != "instrutor_formacao"},
+            {**CADASTRO, "instrutor_formacao": "   "},
+            {**CADASTRO, "instrutor_formacao": None},
+        ],
+        ids=["sem o campo", "em branco", "nulo"],
+    )
+    def test_capacitacao_nova_sem_a_formacao_do_instrutor_e_recusada(self, corpo):
+        """Issue #1927, critério 1. Mutante: aceitar a formação em branco no cadastro."""
+        banco = _banco(temas=[_tema("tema-id", "Identificação do paciente")])
+
+        resposta = _cliente(PRESIDENTE, banco).post(ROTA, json=corpo)
+
+        assert resposta.status_code == 422, resposta.text
+        assert resposta.json() == {"detail": "Diga a formação de quem deu a capacitação."}
+        assert banco.escritas == []
+
+    def test_a_lista_mostra_a_formacao_junto_do_instrutor(self):
+        """Issue #1927, critério 2. Mutante: deixar a formação fora da lista."""
+        banco = _banco(temas=[_tema("tema-id", "Identificação do paciente")])
+        cliente = _cliente(PRESIDENTE, banco)
+        cliente.post(ROTA, json=CADASTRO)
+
+        [capacitacao] = cliente.get(ROTA).json()["capacitacoes"]
+
+        assert (capacitacao["instrutor"], capacitacao["instrutor_formacao"]) == (
+            "Instrutor de Teste",
+            "Enfermeira de Teste",
+        )
+
+    def test_capacitacao_antiga_sem_formacao_continua_abrindo(self):
+        """Issue #1927, critério 3: a linha de antes da migration 228 não tem a formação."""
+        banco = _banco(capacitacoes=[_capacitacao()], presencas=[_presenca("cap-fixa", "P2")])
+
+        resposta = _cliente(MEMBRO, banco).get(ROTA)
+
+        assert resposta.status_code == 200, resposta.text
+        [capacitacao] = resposta.json()["capacitacoes"]
+        assert capacitacao["instrutor"] == "Instrutor de Teste"
+        assert capacitacao["instrutor_formacao"] is None
 
     def test_membro_le_e_nao_cadastra(self):
         """Mutante: abrir o cadastro pelo recurso `capacitacoes`, que o membro tem."""
@@ -786,6 +831,12 @@ class TestKitDeConhecimento:
     def test_a_lista_de_temas_minimos_vem_com_os_17_da_anvisa(self):
         """Mutante: devolver a frase de que a lista nasce vazia (issue #1782, migration 162)."""
         assert "A lista vem com os 17 temas mínimos do caderno nº 6 da ANVISA." in _secao_do_kit("O que já está no ar")
+
+    def test_o_kit_diz_que_a_formacao_do_instrutor_e_obrigatoria_na_nova(self):
+        """Issue #1927. Mutante: deixar o kit sem a formação do instrutor."""
+        secao = _secao_do_kit("O que já está no ar")
+        assert "A formação do instrutor é obrigatória na capacitação nova" in secao
+        assert '"Formação não informada"' in secao
 
     def test_a_tela_vazia_saiu_do_que_ele_ainda_nao_faz(self):
         assert "Capacitações ainda está vazia" not in _secao_do_kit("O que ele ainda não faz")

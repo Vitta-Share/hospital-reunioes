@@ -43,6 +43,9 @@ class CapacitacaoNova(BaseModel):
     data: date
     carga_horaria: float = Field(gt=0, le=999)
     instrutor: str = Field(min_length=1, max_length=200)
+    # Opcional no modelo só para a recusa dizer o que falta, em pt-BR: a
+    # capacitação nova não entra sem ela (issue #1927).
+    instrutor_formacao: str | None = Field(None, max_length=200)
     publico: Publico
     tema_ids: list[str] = Field(default_factory=list, max_length=100)
     participantes: list[str] = Field(min_length=1, max_length=500)
@@ -102,6 +105,7 @@ async def cadastrar_capacitacao(
 ) -> dict:
     titulo = _sem_branco(corpo.titulo, "Diga o título da capacitação.")
     instrutor = _sem_branco(corpo.instrutor, "Diga quem deu a capacitação.")
+    instrutor_formacao = _sem_branco(corpo.instrutor_formacao, "Diga a formação de quem deu a capacitação.")
     tema_ids = list(dict.fromkeys(corpo.tema_ids))
     participantes = list(dict.fromkeys(p.strip() for p in corpo.participantes if p.strip()))
     if not participantes:
@@ -122,6 +126,7 @@ async def cadastrar_capacitacao(
                 "data": corpo.data.isoformat(),
                 "carga_horaria": corpo.carga_horaria,
                 "instrutor": instrutor,
+                "instrutor_formacao": instrutor_formacao,
                 "publico": corpo.publico,
                 "tema_ids": tema_ids,
                 "criado_por": me.get("id"),

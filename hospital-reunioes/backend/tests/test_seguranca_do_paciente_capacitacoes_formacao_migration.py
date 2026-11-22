@@ -13,10 +13,7 @@ import re
 from pathlib import Path
 
 MIGRATION = (
-    Path(__file__).resolve().parents[2]
-    / "supabase"
-    / "migrations"
-    / "228_nsp_capacitacao_formacao_do_instrutor.sql"
+    Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "228_nsp_capacitacao_formacao_do_instrutor.sql"
 )
 
 
