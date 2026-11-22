@@ -1,5 +1,6 @@
 "use client";
 
+import { AcaoDeHoje } from "@/components/seguranca-do-paciente/AcaoDeHoje";
 import { CasosGraves } from "@/components/seguranca-do-paciente/CasosGraves";
 import { TelaDoNucleo } from "@/components/seguranca-do-paciente/TelaDoNucleo";
 
@@ -14,8 +15,8 @@ const PASSOS = [
 ];
 
 /**
- * A página inicial de Segurança do Paciente (issue #1765, PRD #1764). O painel
- * do Núcleo chega com a segunda fase; até lá, a página explica o ciclo.
+ * A página inicial de Segurança do Paciente (issue #1765, PRD #1764): o caso
+ * grave, a faixa "o que exige ação hoje" (issue #2000) e o ciclo do Núcleo.
  */
 export default function SegurancaDoPacientePage() {
   return (
@@ -25,6 +26,7 @@ export default function SegurancaDoPacientePage() {
       recurso="ver_modulo"
     >
       <CasosGraves />
+      <AcaoDeHoje />
       <h2 className="text-base font-semibold text-slate-900 mb-3">Como funciona o Núcleo</h2>
       <ol aria-label="Como funciona o Núcleo" className="space-y-2.5">
         {PASSOS.map((passo, i) => (
