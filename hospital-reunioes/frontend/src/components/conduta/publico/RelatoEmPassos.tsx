@@ -164,9 +164,10 @@ function CampoDeTexto({
   );
 }
 
-/** Os anexos do passo 4 (issue #1844). O arquivo fora da lista nem entra na
+/** Os anexos do passo 4 (issue #1844) e do complemento do acompanhamento
+ * (issue #2187). O arquivo fora da lista nem entra na
  * lista: o relato segue sem ele. O nome aparece só aqui, no aparelho. */
-function Anexos({ arquivos, aoMudar }: { arquivos: File[]; aoMudar: (arquivos: File[]) => void }) {
+export function Anexos({ arquivos, aoMudar }: { arquivos: File[]; aoMudar: (arquivos: File[]) => void }) {
   const [recusas, setRecusas] = useState<string[]>([]);
 
   function escolher(escolhidos: FileList | null) {

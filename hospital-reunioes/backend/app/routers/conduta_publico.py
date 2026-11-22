@@ -105,6 +105,8 @@ async def relatar(
 # Cada anexo é uma chamada, depois do relato, com o protocolo e o código que a
 # tela ainda tem na memória (issue #1844).
 LIMITE_DOS_ANEXOS = "10/minute;40/hour"
+# Os valores que a coluna `origem` aceita (migration 233).
+ORIGENS_DO_ANEXO = ("relato", "complemento")
 
 
 @router.post("/relatos/anexos", status_code=status.HTTP_201_CREATED)
@@ -113,10 +115,11 @@ async def anexar(request: Request, response: Response, supabase: Client = Depend
     """Um anexo do relato: imagem, PDF ou áudio. O backend apaga os dados de
     origem do arquivo antes de cifrar e guardar. O nome do arquivo é
     ignorado. Código que não confere responde 404, sem dizer se o protocolo
-    existe."""
+    existe. O complemento do acompanhamento usa a mesma rota, com
+    `origem=complemento` (issue #2187)."""
     response.headers.update(SEM_CACHE)
     try:
-        formulario = await request.form(max_files=1, max_fields=3)
+        formulario = await request.form(max_files=1, max_fields=4)
     except Exception as erro:  # noqa: BLE001 - corpo ilegível: recusa sem devolver nada do envio
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Envio ilegível.") from erro
     protocolo, codigo, arquivo = (formulario.get(campo) for campo in ("protocolo", "codigo", "arquivo"))
@@ -124,13 +127,16 @@ async def anexar(request: Request, response: Response, supabase: Client = Depend
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Envie o protocolo, o código e o arquivo."
         )
+    origem = formulario.get("origem") or "relato"
+    if origem not in ORIGENS_DO_ANEXO:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Origem do anexo inválida.")
     if (arquivo.size or 0) > anexos.LIMITE_DO_ARQUIVO:
         raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="O arquivo passa de 50 MB.")
     try:
         caso_id = relato_publico.caso_pelo_codigo(supabase, protocolo[:20], codigo[:40])
         if caso_id is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Relato não encontrado.")
-        return anexos.guardar(supabase, caso_id, await arquivo.read())
+        return anexos.guardar(supabase, caso_id, await arquivo.read(), origem)
     except anexos.AnexoRecusadoError as recusa:
         raise HTTPException(status_code=recusa.status, detail=recusa.mensagem) from None
     except (cifra.CifraIndisponivelError, APIError, httpx.HTTPError):

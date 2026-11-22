@@ -72,6 +72,20 @@ describe("os anexos do relato", () => {
     expect((chamadas[0].init?.headers as Record<string, string>).Authorization).toBe("Bearer token-de-teste");
   });
 
+  it("o anexo que veio pelo complemento aparece marcado como complemento (issue #2187)", () => {
+    const comComplemento: AnexoDoRelato[] = [
+      ...ANEXOS,
+      { id: "a3", tipo: "pdf", origem: "complemento", enviado_em: "2026-11-21T13:00:00+00:00" },
+    ];
+
+    render(<AnexosDoRelato casoId="c1" anexos={comComplemento} />);
+
+    const itens = within(screen.getByRole("list", { name: "Anexos do relato" })).getAllByRole("listitem");
+    expect(itens[2].textContent).toContain("(complemento)");
+    expect(itens[0].textContent).not.toContain("complemento");
+    expect(itens[1].textContent).not.toContain("complemento");
+  });
+
   it("sem anexo, não mostra nada", () => {
     const { container } = render(<AnexosDoRelato casoId="c1" anexos={[]} />);
 

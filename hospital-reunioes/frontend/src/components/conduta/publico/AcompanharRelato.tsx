@@ -9,6 +9,10 @@
  * Sem login e sem nada no endereço: o protocolo e o código moram só no estado
  * desta tela. A página não mostra nada interno do caso; o servidor manda só a
  * situação e as mensagens.
+ *
+ * O complemento aceita anexo (issue #2187), com o mesmo seletor e o mesmo
+ * aviso do passo "O que aconteceu". Os anexos sobem depois do complemento
+ * enviado, pela rota do relato, com origem "complemento".
  */
 
 import { useState } from "react";
@@ -22,6 +26,9 @@ import {
   type Acompanhamento,
   type MensagemDoAcompanhamento,
 } from "@/lib/conduta/acompanhamento";
+import { enviarAnexo } from "@/lib/conduta/relato";
+
+import { Anexos } from "./RelatoEmPassos";
 
 const CAMPO =
   "w-full min-h-[44px] rounded-xl border border-border px-3 py-2.5 text-base text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary";
@@ -52,18 +59,20 @@ export function AcompanharRelato() {
   const [codigo, setCodigo] = useState("");
   const [caso, setCaso] = useState<Acompanhamento | null>(null);
   const [complemento, setComplemento] = useState("");
+  const [anexos, setAnexos] = useState<File[]>([]);
+  const [anexosGuardados, setAnexosGuardados] = useState(0);
+  const [anexosRecusados, setAnexosRecusados] = useState<string[]>([]);
   const [aviso, setAviso] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  const [enviandoAnexos, setEnviandoAnexos] = useState(false);
 
   const agir = async (chamada: () => Promise<Acompanhamento>) => {
     setOcupado(true);
     setAviso(null);
     try {
       setCaso(await chamada());
-      return true;
     } catch (e) {
       setAviso((e as Error).message);
-      return false;
     } finally {
       setOcupado(false);
     }
@@ -76,7 +85,35 @@ export function AcompanharRelato() {
 
   const complementar = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (await agir(() => enviarComplemento(protocolo, codigo, complemento))) setComplemento("");
+    setOcupado(true);
+    setAviso(null);
+    setAnexosGuardados(0);
+    setAnexosRecusados([]);
+    try {
+      const atualizado = await enviarComplemento(protocolo, codigo, complemento);
+      // Os anexos sobem um a um, depois do complemento enviado, com a tela
+      // ocupada até o último: o que o servidor recusar aparece com o motivo,
+      // e o complemento fica.
+      const enviados = anexos;
+      setEnviandoAnexos(enviados.length > 0);
+      let guardados = 0;
+      const recusados: string[] = [];
+      for (const arquivo of enviados) {
+        const motivo = await enviarAnexo({ protocolo, codigo }, arquivo, "complemento");
+        if (motivo) recusados.push(`${arquivo.name}: ${motivo}`);
+        else guardados += 1;
+      }
+      setCaso(atualizado);
+      setComplemento("");
+      setAnexos((atuais) => atuais.filter((arquivo) => !enviados.includes(arquivo)));
+      setAnexosGuardados(guardados);
+      setAnexosRecusados(recusados);
+    } catch (falha) {
+      setAviso((falha as Error).message);
+    } finally {
+      setEnviandoAnexos(false);
+      setOcupado(false);
+    }
   };
 
   if (!caso) {
@@ -164,6 +201,7 @@ export function AcompanharRelato() {
         <p id="sobre-o-complemento" className="text-sm text-slate-500">
           Acrescente informação ao seu relato ou responda ao Comitê.
         </p>
+        <Anexos arquivos={anexos} aoMudar={setAnexos} />
         {aviso && (
           <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">
             {aviso}
@@ -171,8 +209,24 @@ export function AcompanharRelato() {
         )}
         <button type="submit" className={BOTAO_PRINCIPAL} disabled={ocupado || !complemento.trim()}>
           {ocupado && <Loader2 className="w-4 h-4 animate-spin" aria-hidden />}
-          Enviar complemento
+          {enviandoAnexos ? "Enviando anexos" : "Enviar complemento"}
         </button>
+        {enviandoAnexos && (
+          <p className="text-sm text-slate-600">Não feche esta página até os anexos terminarem de subir.</p>
+        )}
+        {anexosGuardados > 0 && (
+          <p className="text-sm text-slate-600">
+            {anexosGuardados === 1 ? "1 anexo guardado." : `${anexosGuardados} anexos guardados.`}
+          </p>
+        )}
+        {anexosRecusados.length > 0 && (
+          <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800 space-y-1">
+            <p className="font-semibold">O complemento foi enviado, mas estes anexos não foram guardados:</p>
+            {anexosRecusados.map((recusa) => (
+              <p key={recusa}>{recusa}</p>
+            ))}
+          </div>
+        )}
       </form>
     </div>
   );

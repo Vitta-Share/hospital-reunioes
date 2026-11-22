@@ -471,6 +471,56 @@ class TestNomeOriginal:
         assert "Celular da Joana" not in "\n".join(log.linhas)
 
 
+# ── O complemento do acompanhamento (issue #2187) ───────────────────────────
+
+
+def _anexar_no_complemento(cliente, relatado: dict, conteudo: bytes, origem: str = "complemento"):
+    return cliente.post(
+        ANEXOS,
+        data={"protocolo": relatado["protocolo"], "codigo": relatado["codigo"], "origem": origem},
+        files={"arquivo": (NOME_DO_ARQUIVO, conteudo, "image/jpeg")},
+    )
+
+
+class TestNoComplemento:
+    def test_o_anexo_do_complemento_e_gravado_sem_os_metadados_com_origem_complemento(self, cliente, banco, relatado):
+        resposta = _anexar_no_complemento(cliente, relatado, FOTO)
+
+        assert resposta.status_code == 201, resposta.text
+        linha, guardado = _guardado(banco)
+        assert linha["origem"] == "complemento"
+        assert dict(Image.open(io.BytesIO(guardado)).getexif()) == {}
+        assert b"Celular da Joana" not in guardado
+
+    def test_o_anexo_do_passo_4_continua_com_origem_relato(self, cliente, banco, relatado):
+        assert _anexar(cliente, relatado, FOTO).status_code == 201
+
+        linha, _ = _guardado(banco)
+        assert linha["origem"] == "relato"
+
+    def test_o_formato_fora_da_lista_no_complemento_e_recusado_sem_gravar(self, cliente, banco, relatado):
+        resposta = _anexar_no_complemento(cliente, relatado, _DOCX)
+
+        assert resposta.status_code == 415
+        assert resposta.json() == {"detail": anexos.RECUSA_DO_FORMATO}
+        assert banco.tabelas.get(anexos.TABELA, []) == []
+        assert banco.storage.objetos == {}
+
+    def test_na_tela_do_caso_o_anexo_do_complemento_vem_marcado_como_complemento(self):
+        comite = _ComOComite(_membro(), origem="complemento")
+
+        tela = comite.caso_na_tela().json()
+
+        assert [(a["id"], a["origem"]) for a in tela["anexos"]] == [(comite.anexo["id"], "complemento")]
+
+    def test_origem_desconhecida_e_recusada_sem_gravar(self, cliente, banco, relatado):
+        resposta = _anexar_no_complemento(cliente, relatado, FOTO, origem="comite")
+
+        assert resposta.status_code == 422
+        assert banco.tabelas.get(anexos.TABELA, []) == []
+        assert banco.storage.objetos == {}
+
+
 # ── Cifrado, e só o membro do caso abre ─────────────────────────────────────
 
 
@@ -478,7 +528,7 @@ class _ComOComite:
     """O relato e o anexo entram pela página pública; o Comitê abre pela
     rota dele, com a pessoa do cenário."""
 
-    def __init__(self, participacoes: list[dict], **campos_da_pessoa):
+    def __init__(self, participacoes: list[dict], origem: str = "relato", **campos_da_pessoa):
         from test_conduta_portao import _Cenario, _pessoa
 
         self.cenario = _Cenario(_pessoa(**campos_da_pessoa), participacoes)
@@ -487,7 +537,7 @@ class _ComOComite:
         publico.include_router(conduta_publico.router, prefix="/api")
         publico.dependency_overrides[get_supabase_client] = lambda: self.cenario.banco
         relatado = TestClient(publico).post(RELATOS, json=ENVIO).json()
-        assert _anexar(TestClient(publico), relatado, FOTO).status_code == 201
+        assert _anexar_no_complemento(TestClient(publico), relatado, FOTO, origem).status_code == 201
         (self.caso,) = self.cenario.banco.tabelas["conduta_casos"]
         (self.anexo,) = self.cenario.banco.tabelas[anexos.TABELA]
 
@@ -582,7 +632,10 @@ def test_o_kit_de_conhecimento_conta_os_anexos_do_relato():
         "o relato segue sem ele",
         "O nome original do arquivo não é guardado",
         "só sai para quem abre o caso",
+        "O complemento da página de acompanhamento também aceita anexo",
+        'marcado "(complemento)"',
     ):
         assert promessa in secao
     assert "Anexos e o aviso de assunto fora do canal na revisão chegam" not in kit
     assert "os anexos do relato, as perguntas ao relator" not in kit
+    assert "O anexo no complemento da página de acompanhamento" not in kit
