@@ -133,9 +133,10 @@ TRECHO_DO_PROCESSO = (
 )
 
 # O link pessoal da pessoa que nunca entrou (issue #1878). O token é de
-# exemplo e só abre as Pendências de exemplo do Fábio no banco local.
+# exemplo e só abre as Pendências de exemplo da Patrícia no banco local. Ela é
+# também a responsável pela Rotina: o e-mail dela traz as Rotinas a verificar.
 TOKEN_DO_LINK = "manual-reunioes-1880-link-de-exemplo"
-DONO_DO_LINK = "P17213"
+DONO_DO_LINK = "P17212"
 
 # Quem entra no app para cada print; o resto sai pela Facilitadora.
 QUEM_TIRA = {"ranking": "P17215"}
@@ -555,7 +556,7 @@ def semear_definicao_de_processo() -> None:
 def semear_link_pessoal() -> None:
     """O link pessoal do Fábio, com o hash do token, como o app grava."""
     token_hash = hashlib.sha256(TOKEN_DO_LINK.encode("utf-8")).hexdigest()
-    expira = (dt.datetime.now(dt.UTC) + dt.timedelta(days=14)).isoformat()
+    expira = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=14)).isoformat()
     if _rest(f"pendencias_links_pessoais?token_hash=eq.{token_hash}&select=id"):
         _rest(
             f"pendencias_links_pessoais?token_hash=eq.{token_hash}",
@@ -1107,9 +1108,103 @@ def definicoes_de_processo() -> str:
     """
 
 
+# O e-mail de segunda sai do próprio backend (`montar_emails` e
+# `montar_mensagem`, com o template de verdade), alimentado pelo seed e não
+# pelo banco: o resumo é o da pessoa de exemplo e de mais ninguém.
+_RENDER_DO_EMAIL = r"""
+import json, sys
+from datetime import date
+from app.services import email_de_segunda as e
+d = json.loads(sys.stdin.read())
+emails = e.montar_emails(
+    reunioes=d["reunioes"], pendencias=d["pendencias"], eventos=[], hoje=date.fromisoformat(d["hoje"]),
+    rotinas=d["rotinas"], verificacoes=d["verificacoes"],
+)
+print(e.montar_mensagem(d["nome"], emails[d["pid"]], token=d["token"])[1])
+"""
+
+
+def dados_do_email() -> dict:
+    """O seed no formato que o e-mail de segunda lê, para a dona do link."""
+    nomes = {p[0]: p[1] for p in PESSOAS}
+    facilitador = {r: FACILITADORA[0] for r in REUNIOES_DO_SEED} | {REUNIAO_EM_ASSINATURA: FACILITADORA_DA_FARMACIA}
+    return {
+        "hoje": dt.date.today().isoformat(),
+        "pid": DONO_DO_LINK,
+        "nome": nomes[DONO_DO_LINK],
+        "token": TOKEN_DO_LINK,
+        "reunioes": [
+            {"id_reuniao": r, "titulo": t, "facilitador_id": facilitador[r]} for r, t in REUNIOES_DO_SEED.items()
+        ],
+        "pendencias": [
+            {
+                "id_acao": pid,
+                "id_reuniao": REUNIAO_DA_PENDENCIA.get(pid, REUNIAO_ASSINADA),
+                "descricao_acao": descricao,
+                "responsavel_id": responsavel,
+                "responsavel_nome": nomes[responsavel],
+                "prazo": _dia(prazo),
+                "status": estado,
+            }
+            for pid, descricao, responsavel, prazo, estado, _ in PENDENCIAS
+        ],
+        "rotinas": [
+            {
+                "id": ROTINA,
+                "id_reuniao": REUNIAO_ASSINADA,
+                "descricao": DESCRICAO_DA_ROTINA,
+                "responsavel_id": RESPONSAVEL_DA_ROTINA,
+                "responsavel_nome": nomes[RESPONSAVEL_DA_ROTINA],
+                "frequencia": "SEMANAL",
+                "comeca_em": _segunda(5).isoformat(),
+                "status": "ATIVA",
+            }
+        ],
+        "verificacoes": [
+            {
+                "rotina_id": ROTINA,
+                "ciclo_inicio": _segunda(semanas).isoformat(),
+                "ciclo_fim": (_segunda(semanas) + dt.timedelta(days=6)).isoformat(),
+                "resultado": resultado,
+                "anotacao": anotacao,
+                "atrasada": atrasada,
+                "marcada_em": f"{(_segunda(semanas) + dt.timedelta(days=4)).isoformat()}T12:00:00+00:00",
+            }
+            for semanas, resultado, anotacao, atrasada in VERIFICACOES
+        ],
+    }
+
+
+def html_do_email() -> str:
+    backend = RAIZ / "hospital-reunioes" / "backend"
+    proc = subprocess.run(
+        ["uv", "run", "--project", str(backend), "python", "-c", _RENDER_DO_EMAIL],
+        input=json.dumps(dados_do_email()),
+        capture_output=True,
+        text=True,
+        cwd=backend,
+    )
+    if proc.returncode != 0:
+        raise SystemExit(f"e-mail de segunda: {proc.stderr[-800:]}")
+    return proc.stdout
+
+
+def email_de_segunda() -> str:
+    """O e-mail de segunda da Patrícia, que nunca entrou: Pendências, Rotinas e o link."""
+    html = json.dumps(html_do_email())
+    return f"""
+    await page.setViewportSize({{ width: 720, height: 900 }});
+    await page.setContent({html}, {{ waitUntil: 'load' }});
+    await page.waitForTimeout(500);
+    await balao(page.locator('a[href*="/minhas-pendencias/"]').first(), 1);
+    const altura = await page.evaluate(() => document.documentElement.scrollHeight);
+    return await pronto({{ x: 0, y: 0, width: 720, height: altura }});
+    """
+
+
 def link_pessoal() -> str:
-    """A página do link pessoal do Fábio, aberta sem senha (issue #1878)."""
-    descricao = _descricao("PE1721C")
+    """A página do link pessoal da Patrícia, aberta sem senha (issue #1878)."""
+    descricao = _descricao("PE1721A")
     return f"""
     await abrir('/minhas-pendencias/{TOKEN_DO_LINK}', 1100, 900);
     const cartao = page.locator('li, article, section').filter({{ hasText: {descricao} }}).last();
@@ -1176,9 +1271,14 @@ def main() -> int:
 
     base = args.base.rstrip("/")
     de_fora = nomes_de_fora_do_seed()
-    entrar(base)
+    navegador("open", f"{base}/login")
+    quem_entrou = None
     try:
         for nome in [args.escolhido] if args.escolhido else list(PRINTS):
+            quem = QUEM_TIRA.get(nome, FACILITADORA[0])
+            if quem != quem_entrou:
+                entrar(base, quem)
+                quem_entrou = quem
             print(f"print: {capturar(nome, base, de_fora).relative_to(RAIZ)}")
     finally:
         reuniao_programada()

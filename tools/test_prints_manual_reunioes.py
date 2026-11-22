@@ -191,5 +191,5 @@ def test_o_ranking_sai_pelo_super_admin_de_exemplo_e_so_com_gente_do_seed(monkey
 
     assert roteiro.QUEM_TIRA["ranking"] == admin[0][0]
     for _, nome, *_ in roteiro.PESSOAS:
-        assert json.dumps(nome) in passos
+        assert json.dumps(nome, ensure_ascii=False) in passos
     assert ".remove()" in passos
