@@ -32,12 +32,14 @@ import { NetworkOnly, type RuntimeCaching } from "serwist";
  * `/api/ouvidoria-setor/` é a rota do link tokenizado do responsável;
  * `/api/ouvidoria/` é o resto do módulo (painel, dossiê e a consulta pública
  * por protocolo), que carrega a manifestação do cidadão do mesmo jeito;
- * `/api/aceite/` é o link tokenizado do participante convocado (issue #508).
+ * `/api/aceite/` é o link tokenizado do participante convocado (issue #508);
+ * `/api/nsp/recebimento/` é o link de uso único do Núcleo ao setor (issue #1996).
  */
 const PREFIXOS_DE_API_SEM_CACHE = [
   "/api/aceite/",
   "/api/ouvidoria-setor/",
   "/api/ouvidoria/",
+  "/api/nsp/recebimento/",
 ] as const;
 
 /**
@@ -57,7 +59,7 @@ const PREFIXOS_DE_API_SEM_CACHE = [
  * do `next.config.ts`: ligado, ele grava a navegação por fora do service
  * worker, e esta lista não teria voto nenhum.
  */
-const PREFIXOS_DE_TELA_SEM_CACHE = ["/aceite/", "/ouvidoria-setor"] as const;
+const PREFIXOS_DE_TELA_SEM_CACHE = ["/aceite/", "/ouvidoria-setor", "/notificar/recebido/"] as const;
 
 /** Os prefixos cujo GET nunca é gravado no aparelho. */
 export const PREFIXOS_SEM_CACHE_NO_APARELHO = [

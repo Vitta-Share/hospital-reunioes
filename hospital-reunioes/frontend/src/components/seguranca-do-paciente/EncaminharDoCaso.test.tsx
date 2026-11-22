@@ -118,4 +118,38 @@ describe("encaminhar da triagem", () => {
     expect(await screen.findByText(ORIENTACAO_DO_CANAL)).toBeTruthy();
     expect(container.querySelector("a")).toBeNull();
   });
+
+  it("Segurança do Trabalho pede o setor que recebe e o envia com o destino (issue #1996)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url === "/api/nsp/publico/setores") {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ setores: [{ id: "s-sst", nome: "Segurança do Trabalho" }, { id: "s-uti", nome: "UTI Adulto" }] }),
+          } as Response;
+        }
+        enviados.push({ url, body: JSON.parse(String(init?.body)) });
+        return { ok: true, status: 201, json: async () => resposta } as Response;
+      })
+    );
+    render(<EncaminharDoCaso id="c1" aoEncaminhar={() => undefined} />);
+
+    marcar("Segurança do Trabalho");
+    fireEvent.change(screen.getByLabelText("Motivo, em uma frase"), { target: { value: "Acidente com agulha." } });
+    expect(registrar().hasAttribute("disabled")).toBe(true);
+    await screen.findByRole("option", { name: "Segurança do Trabalho" });
+    fireEvent.change(screen.getByLabelText("Setor que recebe (Segurança do Trabalho)"), { target: { value: "s-sst" } });
+    expect(registrar().hasAttribute("disabled")).toBe(false);
+    fireEvent.click(registrar());
+
+    expect(await screen.findByText(/Encaminhamento registrado/)).toBeTruthy();
+    expect(enviados[0].body).toEqual({
+      destinos: ["seguranca_do_trabalho"],
+      motivo: "Acidente com agulha.",
+      orientacao: null,
+      setores: { seguranca_do_trabalho: "s-sst" },
+    });
+  });
 });

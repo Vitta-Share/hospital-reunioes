@@ -260,4 +260,41 @@ describe("a tela de triagem", () => {
     expect(within(lista).getByText(/Núcleo, Ouvidoria/)).toBeTruthy();
     expect(within(lista).getByText(/Também é reclamação\./)).toBeTruthy();
   });
+
+  it("mostra quando o setor clicou em Recebido, com data e hora (issue #1996)", async () => {
+    const envio = {
+      destino: "seguranca_do_trabalho",
+      setor: "Segurança do Trabalho",
+      destinatario_nome: "Responsável R1",
+      papel: "titular",
+      enviado_em: "2026-11-10T13:00:00+00:00",
+      reenviado_em: null,
+    };
+    resposta = tela(false, {
+      encaminhamentos: [
+        {
+          destinos: ["nucleo", "seguranca_do_trabalho"],
+          motivo: "Acidente com agulha.",
+          orientacao: null,
+          criado_em: "2026-11-10T13:00:00+00:00",
+          recebimentos: [{ ...envio, recebido_em: "2026-11-10T17:30:00+00:00" }],
+        },
+        {
+          destinos: ["queixa_tecnica"],
+          motivo: "Equipo com defeito.",
+          orientacao: null,
+          criado_em: "2026-11-11T13:00:00+00:00",
+          recebimentos: [
+            { ...envio, destino: "queixa_tecnica", setor: "Farmácia Hospitalar", destinatario_nome: "Responsável R3", recebido_em: null },
+          ],
+        },
+      ],
+    });
+    render(<TriagemDoCaso id="c1" />);
+
+    const lista = await screen.findByRole("region", { name: "Encaminhamentos" });
+    expect(within(lista).getByText(/Núcleo, Segurança do Trabalho/)).toBeTruthy();
+    expect(within(lista).getByText("Segurança do Trabalho, Responsável R1: recebido em 10/11/2026, 14:30.")).toBeTruthy();
+    expect(within(lista).getByText("Farmácia Hospitalar, Responsável R3: aguardando o Recebido.")).toBeTruthy();
+  });
 });
