@@ -80,7 +80,9 @@ def _chave(rota: APIRoute) -> list[str]:
 
 def rotas_sem_gate(routers: list[APIRouter], excecoes: set[str] = EXCECOES) -> list[str]:
     """As rotas do módulo sem o gate de recurso que não estão na lista."""
-    return [chave for rota in _rotas(routers) if not _tem_o_gate(rota) for chave in _chave(rota) if chave not in excecoes]
+    return [
+        chave for rota in _rotas(routers) if not _tem_o_gate(rota) for chave in _chave(rota) if chave not in excecoes
+    ]
 
 
 def test_a_varredura_enxerga_as_rotas_do_modulo():

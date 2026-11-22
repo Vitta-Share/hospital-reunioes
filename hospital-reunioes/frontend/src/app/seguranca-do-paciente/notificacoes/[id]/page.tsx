@@ -9,7 +9,7 @@ import { TelaDoNucleo } from "@/components/seguranca-do-paciente/TelaDoNucleo";
 export default function CasoDoNucleoPage() {
   const params = useParams();
   return (
-    <TelaDoNucleo titulo="Caso" orientacao="Leia o caso como ele chegou ao Núcleo." recurso="casos">
+    <TelaDoNucleo titulo="Caso" orientacao="Leia o caso como ele chegou ao Núcleo." recurso={["casos", "casos_graves"]}>
       <CasoDoNucleo id={params.id as string} />
     </TelaDoNucleo>
   );

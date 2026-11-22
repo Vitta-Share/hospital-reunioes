@@ -510,9 +510,7 @@ async def lista_de_casos(
         casos = notificacoes.listar(supabase, com_identidade=False)
         faixas = triagem.faixas_vigentes(supabase, [caso["id"] for caso in casos])
         return {
-            "notificacoes": [
-                {**caso, "anexos": []} for caso in casos if faixas.get(caso["id"]) in FAIXAS_DA_DIRETORIA
-            ]
+            "notificacoes": [{**caso, "anexos": []} for caso in casos if faixas.get(caso["id"]) in FAIXAS_DA_DIRETORIA]
         }
     com_identidade = "identidade_notificante" in me["recursos_nsp"]
     casos = notificacoes.listar(supabase, com_identidade=com_identidade)
