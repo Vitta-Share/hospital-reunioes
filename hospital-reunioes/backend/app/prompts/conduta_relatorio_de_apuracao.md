@@ -11,7 +11,7 @@ Regra do Código de Conduta: o item do Código envolvido. Se o Código não veio
 
 Regras:
 
-- O relatório inteiro cabe em uma página: no máximo 400 palavras.
+- O relatório inteiro cabe em uma página: no máximo 300 palavras.
 - Descreva o que o material diz. Não decida se o relato procede, não recomende medida, não avalie se alguém fala a verdade e não tente identificar quem relatou.
 - Não use travessão nem meia-risca. Use vírgula, dois-pontos ou ponto.
 - Responda só com o relatório, sem introdução nem comentário.

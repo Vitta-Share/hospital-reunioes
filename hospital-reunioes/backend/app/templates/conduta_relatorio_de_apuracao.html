@@ -61,7 +61,6 @@
         table.identificacao th { background: #F8FAFC; width: 34%; font-weight: 700; }
 
         .texto { white-space: pre-line; text-align: left; }
-        .assinatura { border: 1px solid #E2E8F0; border-radius: 6px; padding: 10px 12px; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -79,12 +78,12 @@
 
     <h2>Assinatura dos apuradores</h2>
     <p>Os apuradores abaixo declaram que este relatório descreve a apuração que conduziram e o assinam eletronicamente, por meio da plataforma de assinatura eletrônica contratada pelo Hospital São Matheus, nos termos da Lei nº 14.063/2020.</p>
-    {% for nome in apuradores %}
-    <div class="assinatura">
-        <p><strong>Apurador:</strong> {{ nome }}</p>
-        <p><strong>Data e hora:</strong> registradas pela plataforma de assinatura eletrônica</p>
-    </div>
-    {% endfor %}
+    <table class="identificacao">
+        <tr><th>Apurador</th><th>Data e hora</th></tr>
+        {% for nome in apuradores %}
+        <tr><td>{{ nome }}</td><td>registradas pela plataforma de assinatura eletrônica</td></tr>
+        {% endfor %}
+    </table>
     <p><strong>Documento:</strong> {{ documento.identificador }}</p>
 </body>
 </html>

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 import re
+import unicodedata
 from dataclasses import dataclass, field
 
 from postgrest.exceptions import APIError
@@ -41,8 +42,10 @@ logger = logging.getLogger(__name__)
 
 TABELA = "conduta_relatorios"
 
-# Uma página A4 em corpo 10,5: umas 450 palavras.
-TAMANHO_DA_PAGINA = 3000
+# Uma página A4 em corpo 10,5 junto com o cabeçalho e o bloco de assinatura
+# de até três apuradores (medido no WeasyPrint: passa de 2500 caracteres em
+# 12 parágrafos). O teto deixa folga para nome longo e quebra de linha.
+TAMANHO_DA_PAGINA = 2200
 TAMANHO_DA_CRONOLOGIA = 6000
 _TAMANHO_DO_MATERIAL = 60000
 
@@ -113,8 +116,29 @@ class Marcadores:
         return _MARCADOR.sub(lambda m: self.nomes.get(m.group(0), m.group(0)), texto)
 
 
+_ACENTOS = "[̀-ͯ]*"
+_VARIANTES = {
+    "a": "aáàâãä",
+    "e": "eéèêë",
+    "i": "iíìîï",
+    "o": "oóòôõö",
+    "u": "uúùûü",
+    "c": "cç",
+    "n": "nñ",
+    "y": "yýÿ",
+}
+
+
+def _letra(letra: str) -> str:
+    """A letra com e sem acento, já composta ou com o acento à parte: o nome
+    digitado sem acento ("Rogerio") casa o cadastro ("Rogério")."""
+    base = "".join(c for c in unicodedata.normalize("NFD", letra) if not unicodedata.combining(c)).casefold()
+    variantes = _VARIANTES.get(base)
+    return (f"[{variantes}]" if variantes else re.escape(letra)) + _ACENTOS
+
+
 def _padrao(trecho: str) -> re.Pattern:
-    partes = [re.escape(p) for p in trecho.split()]
+    partes = ["".join(_letra(c) for c in p) for p in unicodedata.normalize("NFC", trecho).split()]
     return re.compile(r"(?<!\w)" + r"\s+".join(partes) + r"(?!\w)", re.IGNORECASE)
 
 
@@ -486,11 +510,17 @@ def enviar_para_assinatura(supabase, aberto: CasoAberto) -> dict:
 
 
 def _assinada(supabase, caso_id: str) -> dict:
+    """A cópia assinada da última versão, a mesma que a tela mostra. A cópia
+    de uma versão anterior não abre por aqui."""
+    versoes = _versoes(supabase, caso_id, "relatorio")
+    if not versoes:
+        raise RelatorioRecusadoError(404, "O relatório assinado ainda não voltou.")
     linhas = (
         supabase.table(assinaturas.TABELA)
         .select("*")
         .eq("tipo", assinaturas.RELATORIO_DE_APURACAO)
         .eq("caso_id", caso_id)
+        .eq("relatorio_id", versoes[-1]["id"])
         .eq("situacao", "assinado")
         .execute()
         .data

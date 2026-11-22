@@ -9,6 +9,7 @@ guarda o que recebeu e devolve o texto pedido.
 from __future__ import annotations
 
 import base64
+import io
 import os
 import secrets
 import sys
@@ -16,6 +17,7 @@ from datetime import datetime, timedelta
 from types import SimpleNamespace
 from typing import Any
 
+import pdfplumber
 import pytest
 from anthropic_apoio import resposta_de_texto
 from conduta_apoio import Banco
@@ -31,6 +33,7 @@ from app.services import clicksign_service  # noqa: E402
 from app.services.conduta import assinaturas, casos, cifra, relatorio  # noqa: E402
 from app.services.conduta.acesso import hoje_em_sao_paulo  # noqa: E402
 from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
+from app.services.seguranca_do_paciente.termo import gerar_pdf_do_termo  # noqa: E402
 
 BASE = "/api/comite-de-conduta"
 HOJE = hoje_em_sao_paulo()
@@ -396,6 +399,61 @@ class TestAssinaturaDosApuradores:
 
         assert [t["acao"] for t in comite.trilha(caso)].count("relatorio_assinado") == 1
 
+    def test_o_pdf_no_teto_com_tres_apuradores_sai_em_uma_pagina(self, comite, modelo, clicksign, monkeypatch):
+        """O PDF de verdade (WeasyPrint, fonte e logo do app), com o texto no
+        teto, em 12 parágrafos, e o bloco de assinatura de três apuradores."""
+        monkeypatch.setattr(assinaturas, "gerar_pdf_do_termo", gerar_pdf_do_termo)
+        caso = comite.caso(rito="completo")
+        comite.banco.tabelas["conduta_atribuicoes"].append(
+            {
+                "id": f"atr-{DE_FORA}-{caso}",
+                "caso_id": caso,
+                "participante_id": DE_FORA,
+                "motivo": "apurador",
+                "termo_assinado_em": "2026-10-02T12:00:00+00:00",
+                "revogada_em": None,
+                "impedido_em": None,
+            }
+        )
+        frase = "A testemunha relatou que o supervisor levantou a voz com a equipe e falou em cortar as horas. "
+        corpo = (frase * (UMA_PAGINA // len(frase) + 1))[: UMA_PAGINA - 11]
+        passo = len(corpo) // 12
+        texto = "\n".join(corpo[i * passo : (i + 1) * passo] for i in range(12)).ljust(UMA_PAGINA, ".")
+        assert len(texto) == UMA_PAGINA
+        comite.post(APURADOR, f"/casos/{caso}/relatorio/versoes", {"texto": texto})
+
+        assert comite.post(APURADOR, f"/casos/{caso}/relatorio/assinatura").status_code == 200
+
+        assert len(clicksign.signatarios) == 3
+        with pdfplumber.open(io.BytesIO(clicksign.pdfs[0])) as pdf:
+            assert len(pdf.pages) == 1, "o relatório no teto passou de uma página"
+
+    def test_com_duas_versoes_assinadas_abre_a_copia_da_ultima(self, comite, modelo, clicksign, monkeypatch):
+        caso = comite.caso(rito="completo")
+        comite.gerar(APURADOR, caso)
+
+        def assinar(copia: bytes) -> None:
+            monkeypatch.setattr(clicksign_service, "get_signed_document", lambda env: copia)
+            comite.post(APURADOR, f"/casos/{caso}/relatorio/assinatura")
+            linha = next(
+                a
+                for a in reversed(comite.banco.tabelas["conduta_assinaturas"])
+                if a["tipo"] == "relatorio_de_apuracao" and a["situacao"] == "enviado"
+            )
+            assinaturas.processar_evento(comite.banco, linha, "auto_close")
+
+        def baixar():
+            return comite.cliente(APURADOR).get(f"{BASE}/casos/{caso}/relatorio/assinado")
+
+        assinar(b"%PDF-versao-1")
+        comite.post(APURADORA, f"/casos/{caso}/relatorio/versoes", {"texto": "Fatos revistos."})
+
+        assert baixar().status_code == 404, "a versão 2 ainda não foi assinada"
+
+        assinar(b"%PDF-versao-2")
+
+        assert baixar().content == b"%PDF-versao-2"
+
     def test_no_rito_rapido_o_relatorio_nao_vai_a_clicksign(self, comite, modelo, clicksign):
         caso = comite.caso()
         comite.gerar(MEMBRO, caso)
@@ -499,6 +557,24 @@ class TestSemNomesNoModelo:
         assert "[PESSOA_1]" in saiu and "[PESSOA_2]" in saiu
         assert "levantei a voz" in saiu, "a transcrição do depoimento não chegou ao modelo"
         assert "cortar as horas da equipe" in saiu, "os pontos do depoimento sem gravação não chegaram ao modelo"
+
+    def test_o_nome_escrito_sem_acento_tambem_nao_sai_para_o_modelo(self, comite, modelo):
+        caso = comite.caso()
+        acusado = comite.depoimento(caso, ACUSADO)
+        comite.transcricao(caso, acusado, "Rogerio confirmou que levantou a voz. Depois o rogerio gritou.")
+
+        assert comite.gerar(MEMBRO, caso).status_code == 200
+
+        saiu = modelo.tudo_que_saiu().casefold()
+        assert "rogerio" not in saiu and "rogério" not in saiu, "o nome sem acento foi para o modelo"
+        assert "[pessoa_1] confirmou que levantou a voz" in saiu
+
+    def test_o_nome_com_acento_decomposto_vira_o_marcador(self):
+        decomposto = "Rogério Valente negou."
+
+        texto, _ = relatorio.marcar_nomes(decomposto, ["Rogério Valente"])
+
+        assert texto == "[PESSOA_1] negou."
 
     def test_nome_fora_da_lista_do_caso_tambem_nao_sai(self):
         texto, _ = relatorio.marcar_nomes("A colega Josefina Bittencourt viu tudo.", [])
