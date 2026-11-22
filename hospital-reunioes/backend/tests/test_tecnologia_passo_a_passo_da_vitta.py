@@ -203,6 +203,23 @@ class TestCriar:
         assert sb.tabelas[CONVERSA] == []
         assert emails == []
 
+    def test_passo_a_passo_de_projeto_sem_repositorio_e_recusado_citando_o_projeto(self, emails):
+        # Issue #2190: o app só fecha card no repositório que conhece. Num
+        # Projeto sem repositório, o Concluir sempre cairia em "Não chegou ao
+        # GitHub"; a ponte recusa já na criação, e nada fica gravado.
+        ponte, sb = _ponte()
+
+        resposta = _criar(ponte, card_projeto="vitta-os")
+
+        assert resposta.status_code == 422
+        assert resposta.json() == {
+            "detail": "O app não alcança o repositório do Projeto vitta-os, então não fecharia o card. "
+            "Mande como Pergunta."
+        }
+        assert sb.tabelas[TABELA] == []
+        assert sb.tabelas[CONVERSA] == []
+        assert emails == []
+
     def test_criar_avisa_o_destinatario_com_pede_sua_acao_e_o_assunto(self, emails):
         ponte, sb = _ponte()
 
