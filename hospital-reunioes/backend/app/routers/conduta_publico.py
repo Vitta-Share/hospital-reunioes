@@ -11,6 +11,7 @@ sem IP (`app.middleware.request_context`).
 """
 
 import json
+from datetime import date
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
@@ -21,7 +22,7 @@ from app.config import settings
 from app.dependencies import get_supabase_client
 from app.routers.conduta_codigo import resposta_em_pdf
 from app.services import limite_sem_ip
-from app.services.conduta import cifra, codigo, configuracoes, relato_publico
+from app.services.conduta import cifra, codigo, configuracoes, protecao, relato_publico
 from app.services.conduta.acesso import hoje_em_sao_paulo
 
 
@@ -118,3 +119,14 @@ async def responder_confianca(request: Request, supabase: Client = Depends(get_s
     if not achado:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Relato não encontrado.")
     return Response(status_code=status.HTTP_204_NO_CONTENT, headers=SEM_CACHE)
+
+
+@router.get("/protecao")
+@limite_sem_ip.limitar("60/minute")
+async def pagina_de_protecao(
+    request: Request, em: date | None = None, supabase: Client = Depends(get_supabase_client)
+) -> dict:
+    """A página "Como este canal protege você" (issue #1846), bloco a bloco,
+    com os textos vigentes das Configurações. Com `em`, a versão arquivada
+    daquele dia."""
+    return protecao.pagina(supabase, em)

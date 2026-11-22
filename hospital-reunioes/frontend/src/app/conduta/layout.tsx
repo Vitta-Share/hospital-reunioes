@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { MolduraDoCanal } from "@/components/conduta/publico/MolduraDoCanal";
 import { canalAberto } from "@/lib/conduta/abertura";
 
 export const metadata: Metadata = {
@@ -15,8 +16,12 @@ export const dynamic = "force-dynamic";
 /**
  * As telas públicas do Canal de Conduta (issue #1843). Com a chave de abertura
  * desligada, toda tela daqui responde 404 (ADR 0097, decisão 11).
+ *
+ * Toda tela debaixo de `/conduta` ganha o rodapé com a página de proteção, o
+ * Código de Conduta e as portas "Não é aqui", só com o canal aberto. Com o
+ * canal fechado a moldura não mostra nada do canal (issue #1846).
  */
 export default async function CanalDeCondutaLayout({ children }: { children: React.ReactNode }) {
   if (!(await canalAberto())) notFound();
-  return children;
+  return <MolduraDoCanal>{children}</MolduraDoCanal>;
 }

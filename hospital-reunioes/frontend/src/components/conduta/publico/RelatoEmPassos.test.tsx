@@ -333,7 +333,9 @@ describe("a tela a 375 px", () => {
 
   it("nenhuma largura fixa, que quebraria a tela num celular de entrada", () => {
     expect(FONTE).not.toMatch(/\b(?:w|min-w)-\[\d+px\]/);
-    expect(FONTE).toMatch(/max-w-lg mx-auto/);
+    // A largura da tela vem da moldura do layout (issue #1846), não do relato.
+    const MOLDURA = readFileSync(resolve(__dirname, "MolduraDoCanal.tsx"), "utf8");
+    expect(MOLDURA).toMatch(/max-w-lg mx-auto/);
   });
 
   it("sem travessão nem meia-risca", () => {

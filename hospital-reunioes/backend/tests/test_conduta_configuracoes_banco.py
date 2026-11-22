@@ -1,12 +1,14 @@
-"""A migration 186 do Canal de Conduta num Postgres de verdade (issue #1826).
+"""As migrations 186 e 231 do Canal de Conduta num Postgres de verdade (issues
+#1826 e #1846).
 
 Sobe um Postgres descartável (o mesmo apoio da migration 169), monta o mínimo
-de antes, aplica a migration duas vezes e prova no banco:
+de antes, aplica cada migration duas vezes e prova no banco:
 
 - a tabela tem RLS ligada e nenhuma policy;
 - nenhuma versão se troca nem se apaga, nem pela `service_role`;
 - a mesma versão de um item não entra duas vezes;
-- não existe item de e-mail do DP.
+- não existe item de e-mail do DP;
+- a 231 só aumenta a lista de itens (o encarregado de dados e o bloco da IA).
 
 Sem `initdb` na máquina o teste pula; no CI ele falha, para não ficar verde
 sobre nada.
@@ -22,7 +24,9 @@ from pathlib import Path
 import pytest
 from test_pendencia_historico_banco import _bin_do_postgres, _Postgres
 
-MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "186_conduta_configuracoes_com_versao.sql"
+PASTA = Path(__file__).resolve().parents[2] / "supabase" / "migrations"
+MIGRATION = PASTA / "186_conduta_configuracoes_com_versao.sql"
+MIGRATION_231 = PASTA / "231_conduta_pagina_de_protecao.sql"
 
 # O mínimo de antes da 186 (migrations 001 e 146).
 ESQUEMA_ANTERIOR = """
@@ -51,9 +55,10 @@ def banco():
     pg.subir()
     try:
         pg.ok(ESQUEMA_ANTERIOR)
-        migration = MIGRATION.read_text(encoding="utf-8")
-        pg.ok(migration)
-        pg.ok(migration)  # rodar duas vezes é inofensivo
+        for arquivo in (MIGRATION, MIGRATION_231):
+            migration = arquivo.read_text(encoding="utf-8")
+            pg.ok(migration)
+            pg.ok(migration)  # rodar duas vezes é inofensivo
         yield pg
     finally:
         pg.descer()
@@ -140,8 +145,15 @@ def test_o_banco_aceita_cada_item_da_tela_e_so_eles(banco):
 
 def test_a_migration_nao_grava_nenhum_texto(banco):
     """Quem escreve é a coordenação, pela tela."""
-    assert "INSERT INTO conduta_configuracoes" not in MIGRATION.read_text(encoding="utf-8")
+    for arquivo in (MIGRATION, MIGRATION_231):
+        assert "INSERT INTO conduta_configuracoes" not in arquivo.read_text(encoding="utf-8")
 
 
-def test_o_recibo_e_o_180(banco):
-    assert banco.ok("SELECT max(numero) FROM migracoes_aplicadas;") == "186"
+def test_os_recibos_sao_o_186_e_o_231(banco):
+    assert banco.ok("SELECT string_agg(numero::text, ',' ORDER BY numero) FROM migracoes_aplicadas;") == "186,231"
+
+
+@pytest.mark.parametrize("chave", ["contato_encarregado", "protecao_ia"])
+def test_o_banco_aceita_os_itens_novos_da_pagina_de_protecao(banco, chave):
+    assert _inserir(banco, chave, 1, "Texto de teste").returncode == 0
+    assert banco.ok(f"SELECT count(*) FROM conduta_configuracoes WHERE chave = '{chave}';") == "1"

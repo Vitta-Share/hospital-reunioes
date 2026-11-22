@@ -16,7 +16,9 @@ A base do sigilo e a tela Membros do Comitê:
 - o código de acompanhamento é mostrado uma vez só a quem relatou, e o aplicativo guarda apenas uma marca dele, que não permite recuperar o código;
 - a lista dos casos e a abertura de um caso, para quem está designado. Cada abertura fica registrada com quem abriu, quando e o quê;
 - o canal está fechado: a página pública responde como se não existisse, até a abertura;
-- a tela Configurações, só da coordenação do Comitê, com os contatos e os textos que o canal mostra (veja abaixo).
+- a tela Configurações, só da coordenação do Comitê, com os contatos e os textos que o canal mostra (veja abaixo);
+- a página "Como este canal protege você", sem login, com link no rodapé de toda tela pública do canal (veja abaixo);
+- as portas "Não é aqui", no mesmo rodapé: quem procura o canal por salário, contracheque, escala, férias ou benefícios vê o contato do DP, sem abrir protocolo e sem enviar nada; quem é paciente ou acompanhante vai ao formulário da Ouvidoria. O rodapé também abre o Código de Conduta que vale hoje.
 
 As telas do Comitê, em Comitê de Conduta:
 
@@ -183,9 +185,10 @@ Cada relato novo é lido uma vez pelo agente de triagem, sozinho, logo que chega
 A coordenação do Comitê edita, na tela Configurações:
 
 - o contato do DP, mostrado a quem procura o canal por salário, contracheque ou escala;
+- o contato do encarregado de dados do hospital, mostrado na página de proteção, como pede a LGPD;
 - a orientação do NSP, mostrada quando o assunto é segurança do paciente;
 - os três avisos do primeiro passo do relato;
-- os textos da página "Como este canal protege você", bloco a bloco;
+- os textos da página "Como este canal protege você", bloco a bloco, inclusive o da inteligência artificial;
 - o texto de consentimento lido no início de cada depoimento gravado;
 - o local padrão de guarda dos envelopes com os originais em papel.
 
@@ -194,6 +197,18 @@ Cada vez que alguém salva um item, nasce uma versão nova, com quem salvou e qu
 Quem não é da coordenação do Comitê, o super admin inclusive, não abre a tela. Item que ninguém salvou ainda aparece como "Ainda não preenchido".
 
 Não existe e-mail do DP nas configurações: o encaminhamento ao DP não sai por e-mail, e a página só mostra o contato dele.
+
+## A página "Como este canal protege você"
+
+A página mostra, bloco a bloco, a versão mais recente de cada texto das configurações: a frase de abertura, para quem relata, para quem é citado, quem lê e quem não lê, a inteligência artificial, o que acontece se o relato envolver a Direção ou a família, os prazos e o que o canal não garante.
+
+Enquanto a coordenação não salvou um bloco, ele mostra o texto inicial da especificação, já com o que o diretor decidiu: a Direção só lê a conclusão e a ata do caso, nunca o relato; não leem TI, DP, chefia nem a empresa que desenvolve o sistema; e o serviço de inteligência artificial guarda o texto por até 30 dias e não o usa para treinar a IA.
+
+O bloco do encarregado de dados só aparece depois que a coordenação salva o contato dele. O contato não tem texto inicial: quem diz quem é o encarregado é o hospital.
+
+A página não usa as palavras "independente", "100%" nem "risco zero". A tela Configurações recusa salvar um texto da página com qualquer uma delas.
+
+Cada versão da página fica arquivada pela data. No pé da página aparecem os dias em que ela mudou, e cada dia abre a página como ela estava no fim daquele dia, pelo horário de Brasília.
 
 ## O Código de Conduta
 
@@ -340,7 +355,7 @@ Quem não tem acesso recebe a mesma recusa, exista o caso ou não.
 
 ## O que ele ainda não faz
 
-A página "Como este canal protege você", a página de acompanhamento, os anexos do relato, as perguntas ao relator, o roteiro de perguntas e o termo de declaração redigidos pelo agente chegam nas próximas entregas. A decisão da Direção e a conversa com o denunciante entram no Dossiê quando chegarem. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. O relato em passos já existe, mas o canal segue fechado até a abertura: enquanto isso, os relatos continuam chegando pela Ouvidoria.
+A página de acompanhamento, os anexos do relato, as perguntas ao relator, o roteiro de perguntas e o termo de declaração redigidos pelo agente chegam nas próximas entregas. A decisão da Direção e a conversa com o denunciante entram no Dossiê quando chegarem. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. O relato em passos já existe, mas o canal segue fechado até a abertura: enquanto isso, os relatos continuam chegando pela Ouvidoria.
 
 ## O que já foi decidido
 
