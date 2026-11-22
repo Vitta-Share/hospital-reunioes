@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T05:06+0000 -->
+<!-- last_update: 2026-11-22T05:53+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -758,6 +758,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | GET | `/nsp/configuracao/cortes-de-frequencia` | Ler cortes de frequencia | ✅ |
 | PUT | `/nsp/configuracao/cortes-de-frequencia` | Os cortes novos valem para o que for calculado daqui para a frente. | ✅ |
 | GET | `/nsp/triagem` | A fila de triagem: sem relato e sem quem notificou. | ✅ |
+| POST | `/nsp/triagem/lote` | Confirma a sugestão de cada caso como veio. Um caso fora das faixas D e | ✅ |
 | GET | `/nsp/triagem/{notificacao_id}` | A tela única: o caso, com os anexos, a sugestão (ou nenhuma) e o que o | ✅ |
 | POST | `/nsp/triagem/{notificacao_id}` | Confirmar ou ajustar. Grava a linha da pessoa ao lado da sugestão e leva | ✅ |
 | GET | `/nsp/triagem/{notificacao_id}/contexto` | A recorrência, os casos parecidos, a frequência e a prioridade para a | ✅ |
@@ -883,4 +884,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 512 endpoints em 73 routers · 93% exigem auth.
+**Totais:** 513 endpoints em 73 routers · 93% exigem auth.
