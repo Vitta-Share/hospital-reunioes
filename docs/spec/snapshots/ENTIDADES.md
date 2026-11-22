@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T04:57+0000 -->
+<!-- last_update: 2026-11-22T05:06+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -3316,6 +3316,31 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_conduta_afastamentos_parecer_anexado_por` em `(parecer_anexado_por)` (de `217_conduta_afastamento_cautelar.sql`)
 - `idx_conduta_afastamentos_rota` em `(rota, registrado_em DESC)` (de `217_conduta_afastamento_cautelar.sql`)
 
+## nsp_recebimentos
+
+> Origem: `220_nsp_recebido_do_setor.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `encaminhamento_id` | `UUID` | NOT NULL | — | `nsp_encaminhamentos.id` |
+| `notificacao_id` | `UUID` | NOT NULL | — | `nsp_notificacoes.id` |
+| `destino` | `TEXT` | NOT NULL | — | — |
+| `setor` | `TEXT` | NOT NULL | — | — |
+| `destinatario_nome` | `TEXT` | NOT NULL | — | — |
+| `destinatario_email` | `TEXT` | NOT NULL | — | — |
+| `papel` | `TEXT` | NOT NULL | — | — |
+| `token_hash` | `TEXT` | UNIQUE | — | — |
+| `expira_em` | `TIMESTAMPTZ` | — | — | — |
+| `enviado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `reenviado_em` | `TIMESTAMPTZ` | — | — | — |
+| `recebido_em` | `TIMESTAMPTZ` | — | — | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_recebimentos_notificacao` em `(notificacao_id, enviado_em)` (de `220_nsp_recebido_do_setor.sql`)
+- `idx_nsp_recebimentos_sem_clique` em `(enviado_em)` (de `220_nsp_recebido_do_setor.sql`)
+
 ---
 
-**Resumo:** 166 tabelas vivas.
+**Resumo:** 167 tabelas vivas.

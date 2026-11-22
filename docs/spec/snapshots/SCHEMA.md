@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T04:57+0000 -->
+<!-- last_update: 2026-11-22T05:06+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -98,6 +98,7 @@ erDiagram
     nsp_documentos ||--o{ nsp_documentos_envios : "documento_id"
     nsp_documentos ||--o{ nsp_termos_envios : "regimento_id"
     nsp_documentos_envios ||--o{ nsp_documentos_signatarios : "envio_id"
+    nsp_encaminhamentos ||--o{ nsp_recebimentos : "encaminhamento_id"
     nsp_eventos_que_nunca_deveriam_ocorrer ||--o{ nsp_triagens : "evento_item"
     nsp_notificacoes ||--o{ nsp_encaminhamentos : "notificacao_id"
     nsp_notificacoes ||--o{ nsp_esclarecimentos : "notificacao_id"
@@ -105,6 +106,7 @@ erDiagram
     nsp_notificacoes ||--o{ nsp_notificacoes_externas : "notificacao_id"
     nsp_notificacoes ||--o{ nsp_notificacoes_trilha : "notificacao_id"
     nsp_notificacoes ||--o{ nsp_prazos_do_caso : "notificacao_id"
+    nsp_notificacoes ||--o{ nsp_recebimentos : "notificacao_id"
     nsp_notificacoes ||--o{ nsp_triagens : "notificacao_id"
     nsp_notificacoes ||--o{ reunioes : "nsp_caso_id"
     nsp_termos_envios ||--o{ nsp_documentos : "termo_envio_id"
@@ -1804,6 +1806,17 @@ erDiagram
         TIMESTAMPTZ registrado_em
         _ mais_colunas "+11"
     }
+    nsp_recebimentos {
+        UUID id PK
+        UUID encaminhamento_id FK
+        UUID notificacao_id FK
+        TEXT destino
+        TEXT setor
+        TEXT destinatario_nome
+        TEXT destinatario_email
+        TEXT papel
+        _ mais_colunas "+6"
+    }
 ```
 
 ## Indexes principais
@@ -2099,6 +2112,8 @@ erDiagram
 | `conduta_afastamentos` | `idx_conduta_afastamentos_entregue_ao_juridico_por` | `entregue_ao_juridico_por` | `217_conduta_afastamento_cautelar.sql` |
 | `conduta_afastamentos` | `idx_conduta_afastamentos_parecer_anexado_por` | `parecer_anexado_por` | `217_conduta_afastamento_cautelar.sql` |
 | `conduta_afastamentos` | `idx_conduta_afastamentos_rota` | `rota, registrado_em DESC` | `217_conduta_afastamento_cautelar.sql` |
+| `nsp_recebimentos` | `idx_nsp_recebimentos_notificacao` | `notificacao_id, enviado_em` | `220_nsp_recebido_do_setor.sql` |
+| `nsp_recebimentos` | `idx_nsp_recebimentos_sem_clique` | `enviado_em` | `220_nsp_recebido_do_setor.sql` |
 
 ---
-**Resumo:** 166 tabelas · 272 relacionamentos FK detectados.
+**Resumo:** 167 tabelas · 274 relacionamentos FK detectados.
