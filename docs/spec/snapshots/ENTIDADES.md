@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T02:25+0000 -->
+<!-- last_update: 2026-11-22T02:32+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2988,6 +2988,77 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 **Indexes:**
 - `idx_nsp_esclarecimentos_triagem` em `(triagem_id)` (de `207_nsp_perguntas_de_esclarecimento.sql`)
 
+## nsp_tabela_de_prazos
+
+> Origem: `208_nsp_prazos_do_caso.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `faixa` | `TEXT` | NOT NULL | — | — |
+| `marco` | `TEXT` | NOT NULL | — | — |
+| `valor` | `SMALLINT` | — | — | — |
+| `unidade` | `TEXT` | — | — | — |
+| `atualizado_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `atualizado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_tabela_de_prazos_atualizado_por` em `(atualizado_por)` (de `208_nsp_prazos_do_caso.sql`)
+
+## nsp_tabela_de_prazos_historico
+
+> Origem: `208_nsp_prazos_do_caso.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `faixa` | `TEXT` | NOT NULL | — | — |
+| `marco` | `TEXT` | NOT NULL | — | — |
+| `de_valor` | `SMALLINT` | — | — | — |
+| `de_unidade` | `TEXT` | — | — | — |
+| `para_valor` | `SMALLINT` | — | — | — |
+| `para_unidade` | `TEXT` | — | — | — |
+| `alterado_por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `alterado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_tabela_de_prazos_historico_alterado_em` em `(alterado_em DESC)` (de `208_nsp_prazos_do_caso.sql`)
+- `idx_nsp_tabela_de_prazos_historico_alterado_por` em `(alterado_por)` (de `208_nsp_prazos_do_caso.sql`)
+
+## nsp_prazos_do_caso
+
+> Origem: `208_nsp_prazos_do_caso.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `notificacao_id` | `UUID` | NOT NULL | — | `nsp_notificacoes.id` |
+| `marco` | `TEXT` | NOT NULL | — | — |
+| `tipo` | `TEXT` | NOT NULL | — | — |
+| `valor` | `SMALLINT` | NOT NULL | — | — |
+| `unidade` | `TEXT` | NOT NULL | — | — |
+| `contado_de` | `TIMESTAMPTZ` | NOT NULL | — | — |
+| `vence_em` | `TIMESTAMPTZ` | NOT NULL | — | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_prazos_do_caso_vence_em` em `(vence_em)` (de `208_nsp_prazos_do_caso.sql`)
+
+## nsp_notificacoes_externas
+
+> Origem: `208_nsp_prazos_do_caso.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `notificacao_id` | `UUID` | UNIQUE, NOT NULL | — | `nsp_notificacoes.id` |
+| `sistema` | `TEXT` | NOT NULL | — | — |
+| `prazo_legal` | `TIMESTAMPTZ` | NOT NULL | — | — |
+| `estado` | `TEXT` | NOT NULL | `'pendente'` | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_nsp_notificacoes_externas_prazo` em `(estado, prazo_legal)` (de `208_nsp_prazos_do_caso.sql`)
+
 ## tecnologia_perguntas
 
 > Origem: `211_tecnologia_pergunta_da_vitta.sql`
@@ -3105,4 +3176,4 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ---
 
-**Resumo:** 155 tabelas vivas.
+**Resumo:** 159 tabelas vivas.

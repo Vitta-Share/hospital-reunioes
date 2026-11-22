@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T02:25+0000 -->
+<!-- last_update: 2026-11-22T02:32+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -94,7 +94,9 @@ erDiagram
     nsp_eventos_que_nunca_deveriam_ocorrer ||--o{ nsp_triagens : "evento_item"
     nsp_notificacoes ||--o{ nsp_esclarecimentos : "notificacao_id"
     nsp_notificacoes ||--o{ nsp_notificacao_anexos : "notificacao_id"
+    nsp_notificacoes ||--o{ nsp_notificacoes_externas : "notificacao_id"
     nsp_notificacoes ||--o{ nsp_notificacoes_trilha : "notificacao_id"
+    nsp_notificacoes ||--o{ nsp_prazos_do_caso : "notificacao_id"
     nsp_notificacoes ||--o{ nsp_triagens : "notificacao_id"
     nsp_termos_envios ||--o{ nsp_documentos : "termo_envio_id"
     nsp_triagens ||--o{ nsp_esclarecimentos : "triagem_id"
@@ -173,6 +175,8 @@ erDiagram
     participantes ||--o{ nsp_notificacoes_trilha : "autor_id"
     participantes ||--o{ nsp_pautas : "editada_por"
     participantes ||--o{ nsp_reunioes_rapidas : "criada_por"
+    participantes ||--o{ nsp_tabela_de_prazos : "atualizado_por"
+    participantes ||--o{ nsp_tabela_de_prazos_historico : "alterado_por"
     participantes ||--o{ nsp_triagens : "autor_id"
     participantes ||--o{ ouvidoria_acessos : "ator_id"
     participantes ||--o{ ouvidoria_anexos : "enviado_por"
@@ -1630,6 +1634,44 @@ erDiagram
         TEXT resposta
         TIMESTAMPTZ criado_em
     }
+    nsp_tabela_de_prazos {
+        TEXT faixa
+        TEXT marco
+        SMALLINT valor
+        TEXT unidade
+        VARCHAR atualizado_por FK
+        TIMESTAMPTZ atualizado_em
+    }
+    nsp_tabela_de_prazos_historico {
+        UUID id PK
+        TEXT faixa
+        TEXT marco
+        SMALLINT de_valor
+        TEXT de_unidade
+        SMALLINT para_valor
+        TEXT para_unidade
+        VARCHAR alterado_por FK
+        _ mais_colunas "+1"
+    }
+    nsp_prazos_do_caso {
+        UUID id PK
+        UUID notificacao_id FK
+        TEXT marco
+        TEXT tipo
+        SMALLINT valor
+        TEXT unidade
+        TIMESTAMPTZ contado_de
+        TIMESTAMPTZ vence_em
+        _ mais_colunas "+1"
+    }
+    nsp_notificacoes_externas {
+        UUID id PK
+        UUID notificacao_id FK
+        TEXT sistema
+        TIMESTAMPTZ prazo_legal
+        TEXT estado
+        TIMESTAMPTZ criado_em
+    }
     tecnologia_perguntas {
         UUID id PK
         UUID demanda_id FK
@@ -1945,6 +1987,11 @@ erDiagram
 | `conduta_notas_nsp` | `idx_conduta_notas_nsp_enviada_por` | `enviada_por` | `203_conduta_nota_ao_nucleo.sql` |
 | `nsp_notas_do_comite` | `idx_nsp_notas_do_comite_enviada_em` | `enviada_em DESC` | `203_conduta_nota_ao_nucleo.sql` |
 | `nsp_esclarecimentos` | `idx_nsp_esclarecimentos_triagem` | `triagem_id` | `207_nsp_perguntas_de_esclarecimento.sql` |
+| `nsp_tabela_de_prazos` | `idx_nsp_tabela_de_prazos_atualizado_por` | `atualizado_por` | `208_nsp_prazos_do_caso.sql` |
+| `nsp_tabela_de_prazos_historico` | `idx_nsp_tabela_de_prazos_historico_alterado_em` | `alterado_em DESC` | `208_nsp_prazos_do_caso.sql` |
+| `nsp_tabela_de_prazos_historico` | `idx_nsp_tabela_de_prazos_historico_alterado_por` | `alterado_por` | `208_nsp_prazos_do_caso.sql` |
+| `nsp_prazos_do_caso` | `idx_nsp_prazos_do_caso_vence_em` | `vence_em` | `208_nsp_prazos_do_caso.sql` |
+| `nsp_notificacoes_externas` | `idx_nsp_notificacoes_externas_prazo` | `estado, prazo_legal` | `208_nsp_prazos_do_caso.sql` |
 | `tecnologia_perguntas` | `idx_tecnologia_perguntas_demanda` | `demanda_id, criado_em` | `211_tecnologia_pergunta_da_vitta.sql` |
 | `tecnologia_perguntas` | `idx_tecnologia_perguntas_abertas` | `criado_em` | `211_tecnologia_pergunta_da_vitta.sql` |
 | `tecnologia_perguntas` | `idx_tecnologia_perguntas_destinatario` | `destinatario_id` | `211_tecnologia_pergunta_da_vitta.sql` |
@@ -1955,4 +2002,4 @@ erDiagram
 | `conduta_entregas_do_parecer` | `idx_conduta_entregas_do_parecer_autor` | `autor_id` | `214_conduta_rota_especial.sql` |
 
 ---
-**Resumo:** 155 tabelas · 248 relacionamentos FK detectados.
+**Resumo:** 159 tabelas · 252 relacionamentos FK detectados.
