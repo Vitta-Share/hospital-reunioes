@@ -83,9 +83,9 @@ def _ata(banco, caso: str, versao: int = 1):
 
 
 def _assinar(banco, caso: str) -> None:
-    ata = banco.ok(
-        f"SELECT id FROM conduta_atas WHERE caso_id = '{caso}' ORDER BY versao DESC LIMIT 1;"
-    ).splitlines()[-1]
+    ata = banco.ok(f"SELECT id FROM conduta_atas WHERE caso_id = '{caso}' ORDER BY versao DESC LIMIT 1;").splitlines()[
+        -1
+    ]
     banco.ok(
         "INSERT INTO conduta_assinaturas (tipo, caso_id, ata_id, signatarios, situacao) "
         f"VALUES ('ata_de_deliberacao', '{caso}', '{ata}', ARRAY['P1'], 'assinado');",
@@ -136,7 +136,9 @@ def test_a_versao_da_ata_nao_se_altera_nem_se_apaga(banco):
     caso = _caso(banco)
     assert _ata(banco, caso).returncode == 0
 
-    troca = banco.sql(f"UPDATE conduta_atas SET ata_cifrada = 'v1:OUTRA' WHERE caso_id = '{caso}';", papel="service_role")
+    troca = banco.sql(
+        f"UPDATE conduta_atas SET ata_cifrada = 'v1:OUTRA' WHERE caso_id = '{caso}';", papel="service_role"
+    )
     apaga = banco.sql(f"DELETE FROM conduta_atas WHERE caso_id = '{caso}';", papel="service_role")
 
     assert "fica guardado" in troca.stderr
@@ -221,8 +223,7 @@ def test_a_declaracao_da_reuniao_nao_se_desfaz(banco):
 def test_o_item_dos_votos_so_se_confirma_com_a_ata_assinada(banco):
     caso = _caso(banco)
     confirmar = (
-        "INSERT INTO conduta_trava_confirmacoes (caso_id, item, participante_id) "
-        f"VALUES ('{caso}', 'votos', 'P1');"
+        f"INSERT INTO conduta_trava_confirmacoes (caso_id, item, participante_id) VALUES ('{caso}', 'votos', 'P1');"
     )
 
     assert "ata assinada" in banco.sql(confirmar, papel="service_role").stderr

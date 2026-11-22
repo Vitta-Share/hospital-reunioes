@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, Check, Loader2 } from "lucide-react";
 
 import { AfastamentoCautelar } from "@/components/conduta/AfastamentoCautelar";
+import { AtaEReuniao } from "@/components/conduta/AtaEReuniao";
 import { ConvidarAoCaso } from "@/components/conduta/ConvidarAoCaso";
 import { DepoimentosDaApuracao } from "@/components/conduta/DepoimentosDaApuracao";
 import { ImpedimentoECitados } from "@/components/conduta/ImpedimentoECitados";
@@ -346,6 +347,8 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
         votando={passo === "votar"}
         aoMudar={carregar}
       />
+
+      <AtaEReuniao casoId={casoId} ata={caso.ata ?? null} reuniao={caso.reuniao ?? null} aoMudar={carregar} />
 
       {caso.triagem_em && (
         <section aria-label="Triagem" className={`${CARTAO} px-4 py-4 space-y-1`}>

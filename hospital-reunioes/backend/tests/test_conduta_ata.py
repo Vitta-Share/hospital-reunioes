@@ -36,7 +36,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from app.config import settings  # noqa: E402
 from app.routers import conduta_ata  # noqa: E402
 from app.services import clicksign_service  # noqa: E402
-from app.services.conduta import ata, assinaturas, cifra  # noqa: E402
+from app.services.conduta import assinaturas, ata, cifra  # noqa: E402
 from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
 
 RELATORIO = "Rogério Valente, supervisor, ameaçou cortar as horas da equipe. Duas testemunhas confirmam."
@@ -473,7 +473,9 @@ class TestConcluirReuniao:
     def test_a_declaracao_e_da_coordenacao_com_quem_e_quando(self, comite):
         caso = comite.caso_no_rito("completo")
 
-        assert comite.post(MEMBRO, f"/casos/{caso}/reuniao/conferencia", {"item": "gravacao_apagada"}).status_code == 403
+        assert (
+            comite.post(MEMBRO, f"/casos/{caso}/reuniao/conferencia", {"item": "gravacao_apagada"}).status_code == 403
+        )
         comite.post(COORDENACAO, f"/casos/{caso}/reuniao/conferencia", {"item": "gravacao_apagada"})
 
         item = next(i for i in comite.abrir(COORDENACAO, caso)["reuniao"]["lista"] if i["item"] == "gravacao_apagada")

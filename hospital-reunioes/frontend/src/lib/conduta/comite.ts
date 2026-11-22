@@ -6,6 +6,7 @@
  * AGORA" chega pronta, com o motivo do botão bloqueado.
  */
 import type { Afastamento } from "@/lib/conduta/afastamento";
+import type { AtaDoCaso, ReuniaoDoComite } from "@/lib/conduta/ata";
 import type { Depoimento } from "@/lib/conduta/depoimentos";
 import type { TextoDaApuracao } from "@/lib/conduta/relatorio";
 import type { Trava, Votacao } from "@/lib/conduta/voto";
@@ -132,6 +133,9 @@ export interface CasoAberto extends CasoDaLista {
   /** O voto e a trava de robustez (issue #1833). */
   votacao?: Votacao | null;
   trava?: Trava | null;
+  /** A ata de deliberação e a reunião do Comitê (issue #1834). */
+  ata?: AtaDoCaso | null;
+  reuniao?: ReuniaoDoComite | null;
   /** O afastamento cautelar (issue #1836). */
   rota?: "comum" | "especial" | null;
   afastamentos?: Afastamento[];

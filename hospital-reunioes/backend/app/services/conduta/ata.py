@@ -142,7 +142,12 @@ def lista_da_reuniao(supabase, caso: dict, nomes: dict[str, str] | None = None) 
     por_item = {m["item"]: m for m in _marcas(supabase, caso["id"])}
     lista = []
     for item, rotulo in ITENS_DA_REUNIAO:
-        linha: dict[str, Any] = {"item": item, "rotulo": rotulo, "automatico": item in AUTOMATICOS, "estado": "pendente"}
+        linha: dict[str, Any] = {
+            "item": item,
+            "rotulo": rotulo,
+            "automatico": item in AUTOMATICOS,
+            "estado": "pendente",
+        }
         if item == "transcricao":
             if transcricoes:
                 ultima = transcricoes[-1]
@@ -156,7 +161,9 @@ def lista_da_reuniao(supabase, caso: dict, nomes: dict[str, str] | None = None) 
                 linha.update(estado="feito")
         elif item in por_item:
             marca = por_item[item]
-            linha.update(estado="feito", marcado_por=nomes.get(marca["marcado_por"], ""), marcado_em=marca["marcado_em"])
+            linha.update(
+                estado="feito", marcado_por=nomes.get(marca["marcado_por"], ""), marcado_em=marca["marcado_em"]
+            )
         lista.append(linha)
     return lista
 
@@ -341,7 +348,9 @@ def marcar_item_da_reuniao(supabase, aberto: CasoAberto, item: str) -> None:
     caso = aberto.caso
     if any(m["item"] == item for m in _marcas(supabase, caso["id"])):
         raise AtaRecusadaError(409, "Este item já foi marcado.")
-    trilha.registrar(supabase, caso["id"], aberto.autor_id, "declarou_item_da_reuniao", f"declarou: {DECLARACOES[item]}")
+    trilha.registrar(
+        supabase, caso["id"], aberto.autor_id, "declarou_item_da_reuniao", f"declarou: {DECLARACOES[item]}"
+    )
     try:
         supabase.table(CONFERENCIA).insert(
             {"caso_id": caso["id"], "item": item, "marcado_por": aberto.autor_id, "marcado_em": agora_utc().isoformat()}
@@ -454,8 +463,9 @@ def _parte_do_aplicativo(supabase, caso: dict, situacao_do_voto) -> dict[str, An
     suplentes = [
         a["participante_id"]
         for a in atribuicoes
-        if a.get("motivo") == "suplente_convocado" and not a.get("revogada_em") and a["participante_id"]
-        in situacao_do_voto.votantes
+        if a.get("motivo") == "suplente_convocado"
+        and not a.get("revogada_em")
+        and a["participante_id"] in situacao_do_voto.votantes
     ]
     nomes = membros.nomes(supabase, sorted(set(situacao_do_voto.votantes) | set(impedidos) | set(suplentes)))
     unanime = len({c["resultado"] for c in conteudos}) == 1
@@ -474,7 +484,9 @@ def _parte_do_aplicativo(supabase, caso: dict, situacao_do_voto) -> dict[str, An
         "identificacao": {
             "rito": RITOS.get(caso.get("rito") or "", caso.get("rito") or ""),
             "data": hoje_em_sao_paulo().strftime("%d/%m/%Y"),
-            "presentes": [nomes.get(pid, "") for pid in sorted(situacao_do_voto.votantes, key=lambda p: nomes.get(p, ""))],
+            "presentes": [
+                nomes.get(pid, "") for pid in sorted(situacao_do_voto.votantes, key=lambda p: nomes.get(p, ""))
+            ],
             "impedimentos": [nomes.get(pid, "") for pid in impedidos],
             "suplentes": [nomes.get(pid, "") for pid in suplentes],
         },
@@ -517,10 +529,10 @@ def _mensagem_da_ata(
         + "\n</votos_registrados_no_aplicativo>"
     )
     por_item, acusado_ouvido = trava._situacao_dos_itens(supabase, caso, situacao_do_voto)
-    situacao_da_trava = [
-        f"- {rotulo}: {'confirmado' if len(por_item[item]) >= trava._confirmacoes_precisas(item, acusado_ouvido) else 'em aberto'}"
-        for item, rotulo in trava.ITENS
-    ]
+    situacao_da_trava = []
+    for item, rotulo in trava.ITENS:
+        confirmado = len(por_item[item]) >= trava._confirmacoes_precisas(item, acusado_ouvido)
+        situacao_da_trava.append(f"- {rotulo}: {'confirmado' if confirmado else 'em aberto'}")
     partes.append("<trava_de_robustez>\n" + "\n".join(situacao_da_trava) + "\n</trava_de_robustez>")
     if transcricao is None:
         partes.append("Não houve reunião: o rito é Rápido. A ata sai do relatório de apuração e dos votos.")
@@ -609,7 +621,9 @@ def gerar_ata_de_deliberacao(supabase, aberto: CasoAberto) -> dict:
     versao = max((v["versao"] for v in _versoes(supabase, caso["id"])), default=0) + 1
     ata_cifrada = cifra.cifrar_texto(json.dumps(ata, ensure_ascii=False))
     pontos_cifrados = cifra.cifrar_texto(json.dumps(pontos, ensure_ascii=False)) if pontos else None
-    trilha.registrar(supabase, caso["id"], aberto.autor_id, "gerou_ata", f"ata de deliberação, versão {versao}, pelo agente")
+    trilha.registrar(
+        supabase, caso["id"], aberto.autor_id, "gerou_ata", f"ata de deliberação, versão {versao}, pelo agente"
+    )
     try:
         return (
             supabase.table(ATAS)

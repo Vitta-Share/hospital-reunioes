@@ -17,7 +17,7 @@ from supabase import Client
 
 from app.dependencies import get_supabase_client
 from app.services import ai_processor
-from app.services.conduta import ata, assinaturas, cifra
+from app.services.conduta import assinaturas, ata, cifra
 from app.services.conduta.portao import INDISPONIVEL, CasoAberto, portao_da_acao
 
 router = APIRouter(prefix="/comite-de-conduta", tags=["canal-de-conduta"])
@@ -68,7 +68,9 @@ async def concluir_reuniao(
 
 
 @router.post("/casos/{caso_id}/ata")
-async def gerar_ata(aberto: CasoAberto = Depends(portao_da_acao), supabase: Client = Depends(get_supabase_client)) -> dict:
+async def gerar_ata(
+    aberto: CasoAberto = Depends(portao_da_acao), supabase: Client = Depends(get_supabase_client)
+) -> dict:
     """GERAR ATA: o agente do Anexo D redige. Roda no executor da IA (issue #773)."""
     try:
         linha = await ai_processor.chamar_ia_fora_do_loop(ata.gerar_ata_de_deliberacao, supabase, aberto)
