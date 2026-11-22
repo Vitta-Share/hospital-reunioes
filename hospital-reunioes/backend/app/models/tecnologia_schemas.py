@@ -316,6 +316,14 @@ class FechamentoNoGithubResponse(BaseModel):
     motivo: str | None = None
 
 
+class EsperaDoPedidoResponse(BaseModel):
+    """O Pedido de implantacao que este espera, enquanto ele nao esta
+    concluido (issue #2208, ADR 0111, decisao 8)."""
+
+    pedido_id: str
+    assunto: str
+
+
 class PerguntaDoCartaoResponse(BaseModel):
     """O cartao da Pergunta da Vitta (issue #2116, ADR 0109, decisao 3): de
     qual Projeto e, a pergunta, as quatro linhas em palavras simples, as
@@ -353,6 +361,8 @@ class PerguntaDoCartaoResponse(BaseModel):
     conclusao: ConclusaoDoPassoAPassoResponse | None = None
     fechamento: FechamentoNoGithubResponse | None = None
     pode_reenviar: bool = False
+    # A espera (issue #2208): nula sem espera ou com o esperado concluido.
+    espera: EsperaDoPedidoResponse | None = None
 
 
 class PerguntaEsperandoResponse(PerguntaDoCartaoResponse):
