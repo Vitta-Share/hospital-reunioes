@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 209: Canal de Conduta, o relatório de apuração e o envio para voto
+-- Migration 213: Canal de Conduta, o relatório de apuração e o envio para voto
 -- (issue #1832, PRD #1786, ADR 0097, decisão 7; especificação, 6.3, 6.4 e 8)
 -- =====================================================
 -- O que entra:
@@ -99,4 +99,4 @@ COMMIT;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (209) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (213) ON CONFLICT (numero) DO NOTHING;

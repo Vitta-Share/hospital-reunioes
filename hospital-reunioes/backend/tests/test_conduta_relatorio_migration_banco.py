@@ -1,7 +1,7 @@
-"""A migration 209, o relatório de apuração, num Postgres de verdade (issue
+"""A migration 213, o relatório de apuração, num Postgres de verdade (issue
 #1832).
 
-Sobe um Postgres descartável, aplica a 175, a 192, a 193 e a 209 (a 209 duas
+Sobe um Postgres descartável, aplica a 175, a 192, a 193 e a 213 (a 213 duas
 vezes) sobre o mínimo de antes e prova no banco:
 
 - a edição entra como versão nova: a versão guardada não se altera nem se
@@ -27,7 +27,7 @@ from test_pendencia_historico_banco import _bin_do_postgres, _Postgres
 
 PASTA = Path(__file__).resolve().parents[2] / "supabase" / "migrations"
 ANTERIORES = ("192_conduta_assinaturas.sql", "193_conduta_depoimentos.sql")
-MIGRATION = PASTA / "209_conduta_relatorio_de_apuracao.sql"
+MIGRATION = PASTA / "213_conduta_relatorio_de_apuracao.sql"
 
 
 @pytest.fixture(scope="module")
@@ -38,7 +38,7 @@ def banco():
             pytest.fail("O CI precisa do initdb para provar as travas do relatório no banco.")
         pytest.skip("Sem initdb nesta máquina.")
     pg = _Postgres(bindir)
-    pg.porta = "54209"
+    pg.porta = "54213"
     pg.subir()
     try:
         pg.ok(ESQUEMA_ANTERIOR)

@@ -4,7 +4,7 @@
 Num clique, o agente redige o relatório de uma página (fatos, provas, versão
 do acusado e a regra do Código de Conduta envolvida) ou a cronologia dos
 fatos. Quem apurou revisa e edita, e cada edição vira versão nova: a anterior
-fica (migration 209). No rito Rápido apuram a coordenação e um membro; no
+fica (migration 213). No rito Rápido apuram a coordenação e um membro; no
 Completo, os apuradores designados, e o relatório vai à ClickSign para eles
 assinarem. A cópia assinada volta sozinha para a trilha (`assinaturas`).
 
@@ -559,7 +559,7 @@ def assinatura_aberta(supabase, aberto: CasoAberto) -> dict:
 
 def enviar_para_voto(supabase, aberto: CasoAberto) -> dict:
     """O botão ENVIAR PARA VOTO: fecha a Apuração. O banco tem a mesma trava
-    dos depoimentos (migration 193) e do relatório (migration 209)."""
+    dos depoimentos (migration 193) e do relatório (migration 213)."""
     caso = aberto.caso
     _exigir_apuracao(caso)
     if not envia_para_voto(aberto):
