@@ -77,6 +77,23 @@ No fim da Apuração, o botão "GERAR RELATÓRIO" pede ao agente o rascunho do r
 - No rito Completo, "ENVIAR PARA ASSINATURA" manda a última versão aos apuradores pela ClickSign, no e-mail profissional. A cópia assinada volta sozinha para a trilha do caso e abre pela tela. Editar depois pede a assinatura de novo.
 - "ENVIAR PARA VOTO" leva o caso à etapa Voto. Ele fica bloqueado, com o motivo, enquanto houver depoimento em aberto, enquanto não houver relatório e, no Completo, enquanto falta a assinatura dos apuradores.
 
+## O voto e a trava de robustez
+
+Na etapa Voto, cada um dos três membros votantes do caso (a coordenação, o membro e o segundo leitor) toca em "VOTAR" e escolhe o resultado (procedente, parcialmente procedente, improcedente ou inconclusivo), a medida da Matriz de Consequências quando o resultado é procedente ou parcialmente procedente, e escreve a própria justificativa, de uma a três linhas.
+
+- Cada voto fica oculto até os três votarem. Antes disso, cada membro vê só o próprio voto e quantos já votaram, na tela e na API.
+- O voto não se troca depois de registrado. O agente não redige voto nem justificativa: ele não recebe o conteúdo dos votos, só quantos já votaram.
+- Vale a maioria. Sem maioria do resultado, ou com as três medidas diferentes, o aplicativo convoca uma reunião curta: avisa os três por e-mail e abre uma nova rodada de voto. Os votos da rodada anterior ficam guardados.
+- O suplente convocado vota no lugar do impedido. O voto de quem ficou impedido depois de votar sai da conta.
+
+A trava de robustez tem sete itens: fato com data e local, prova além do relato, defesa do acusado, regra do Código violada, ciência do Código pelo acusado, medida conforme a Matriz e votos registrados. O botão "PREENCHER TRAVA" pede ao agente que aponte, em cada item, onde o material do caso mostra que ele está atendido. Quem confirma cada item é um membro votante, com o botão do item.
+
+- A ciência do Código é o documento que o DP registra fora do aplicativo. Um membro anexa a ciência do Código ao caso, e o item só se confirma com ela anexada.
+- Sem o depoimento do acusado concluído, a recusa da defesa precisa ser certificada por dois membros.
+- O item dos votos só se confirma depois que os três votarem.
+
+"CONCLUIR VOTAÇÃO" é da coordenação: grava o resultado da maioria e leva o caso à etapa Ata. Com algum item da trava em aberto, a votação não conclui como procedente nem como parcialmente procedente, e a tela diz qual item falta. Improcedente e inconclusivo concluem sem a trava.
+
 ## O agente de triagem
 
 Cada relato novo é lido uma vez pelo agente de triagem, sozinho, logo que chega, sem ninguém precisar clicar. O agente sugere; quem decide é a coordenação.
@@ -208,7 +225,7 @@ Quem não tem acesso recebe a mesma recusa, exista o caso ou não.
 
 ## O que ele ainda não faz
 
-O formulário público de relato, as páginas públicas que vão mostrar os textos das configurações, a página de acompanhamento, as perguntas ao relator, o roteiro de perguntas e o termo de declaração redigidos pelo agente, o voto, a ata e o dossiê chegam nas próximas entregas. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. Por enquanto ninguém relata pelo Canal: os relatos continuam chegando pela Ouvidoria.
+O formulário público de relato, as páginas públicas que vão mostrar os textos das configurações, a página de acompanhamento, as perguntas ao relator, o roteiro de perguntas e o termo de declaração redigidos pelo agente, a ata e o dossiê chegam nas próximas entregas. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. Por enquanto ninguém relata pelo Canal: os relatos continuam chegando pela Ouvidoria.
 
 ## O que já foi decidido
 
@@ -244,3 +261,5 @@ O formulário público de relato, as páginas públicas que vão mostrar os text
 - Pedido para ver de novo os cinco cartões do primeiro acesso: eles aparecem uma vez só por pessoa; o Guia do rito fica sempre disponível.
 - Um membro que deixou de ver um caso: ele se declarou impedido, teve a participação contestada e confirmada, ou foi marcado como Citado. A trilha do caso diz qual.
 - Um impedimento sem suplente convocado: não havia suplente vigente com o Termo assinado e livre naquele caso.
+- Pedido para ver o voto de outro membro antes de todos votarem, ou para trocar um voto registrado: não existe.
+- "CONCLUIR VOTAÇÃO" que não libera: falta voto, não houve maioria (a reunião curta foi convocada) ou, no procedente, falta item da trava; a tela diz qual.

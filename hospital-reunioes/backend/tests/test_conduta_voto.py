@@ -327,10 +327,15 @@ class TestVotoOculto:
         comite.votar(MEMBRO, caso, resultado="parcialmente_procedente", justificativa="Texto do Bruno, só dele.")
         comite.votar(LEITOR, caso, resultado="inconclusivo", medida=None, justificativa="Texto da Lia, só dela.")
 
-        for pid in (MEMBRO, LEITOR, COORDENACAO):
+        segredos_dos_outros = {
+            MEMBRO: ["Texto da Lia", "inconclusivo"],
+            LEITOR: ["Texto do Bruno", "parcialmente_procedente"],
+            COORDENACAO: ["Texto da Lia", "Texto do Bruno", "inconclusivo", "parcialmente_procedente"],
+        }
+        for pid, segredos in segredos_dos_outros.items():
             tela = json.dumps(comite.abrir(pid, caso), ensure_ascii=False)
-            de_quem = {MEMBRO: "Lia", LEITOR: "Bruno", COORDENACAO: "Bruno"}[pid]
-            assert f"Texto d{'a' if de_quem == 'Lia' else 'o'} {de_quem}" not in tela
+            for segredo in segredos:
+                assert segredo not in tela, (pid, segredo)
             votacao = comite.abrir(pid, caso)["votacao"]
             assert votacao["votaram"] == 2
             assert votacao["rodadas"] == []
@@ -363,3 +368,351 @@ class TestVotoOculto:
             resposta = cliente.get("/api" + rota.replace("{caso_id}", caso))
             assert resposta.status_code == 200, rota
             assert b"Segredo da Lia" not in resposta.content
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# O resultado sai por maioria, e três medidas diferentes abrem a convocação
+# da reunião curta
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestMaioria:
+    def test_vale_a_maioria_do_resultado_e_da_medida(self, comite):
+        caso = comite.caso()
+        comite.votar(MEMBRO, caso, medida="suspensao", dias_de_suspensao=3)
+        comite.votar(LEITOR, caso, medida="suspensao", dias_de_suspensao=3)
+        comite.votar(COORDENACAO, caso, resultado="improcedente", medida=None)
+
+        votacao = comite.abrir(COORDENACAO, caso)["votacao"]
+        assert votacao["resultado"] == {"resultado": "procedente", "medida": "Suspensão de 3 dias"}
+        assert votacao["reuniao_curta_convocada"] is False
+
+    def test_tres_medidas_diferentes_convocam_a_reuniao_curta(self, comite):
+        caso = comite.caso()
+        comite.votar(MEMBRO, caso, medida="orientacao_registrada")
+        comite.votar(LEITOR, caso, medida="advertencia_escrita")
+        comite.votar(COORDENACAO, caso, medida="suspensao", dias_de_suspensao=2)
+
+        votacao = comite.abrir(MEMBRO, caso)["votacao"]
+        assert votacao["resultado"] is None
+        assert votacao["reuniao_curta_convocada"] is True
+        assert votacao["rodada"] == 2
+        assert votacao["rodadas"][0]["reuniao_curta"] is True
+        assert len(votacao["rodadas"][0]["votos"]) == 3
+        convocacao = [t for t in comite.banco.tabelas["conduta_trilha"] if t["acao"] == "convocou_reuniao_curta"]
+        assert len(convocacao) == 1
+        avisos = [a for a in comite.banco.tabelas["conduta_avisos"] if a["motivo"] == "reuniao_curta"]
+        assert sorted(a["participante_id"] for a in avisos) == sorted([MEMBRO, LEITOR, COORDENACAO])
+        assert {a["referencia"] for a in avisos} == {"rodada-2"}
+
+    def test_depois_da_reuniao_curta_os_tres_votam_de_novo(self, comite):
+        caso = comite.caso()
+        comite.votar(MEMBRO, caso, medida="orientacao_registrada")
+        comite.votar(LEITOR, caso, medida="advertencia_escrita")
+        comite.votar(COORDENACAO, caso, medida="suspensao", dias_de_suspensao=2)
+
+        assert comite.votar(MEMBRO, caso, medida="advertencia_escrita").status_code == 200
+        assert comite.abrir(LEITOR, caso)["votacao"]["meu_voto"] is None
+        comite.votar(LEITOR, caso, medida="advertencia_escrita")
+        comite.votar(COORDENACAO, caso, medida="advertencia_escrita")
+
+        votacao = comite.abrir(LEITOR, caso)["votacao"]
+        assert votacao["resultado"] == {"resultado": "procedente", "medida": "Advertência escrita"}
+        assert [r["rodada"] for r in votacao["rodadas"]] == [1, 2]
+
+    def test_resultado_sem_maioria_tambem_convoca(self, comite):
+        caso = comite.caso()
+        comite.votar(MEMBRO, caso)
+        comite.votar(LEITOR, caso, resultado="improcedente", medida=None)
+        comite.votar(COORDENACAO, caso, resultado="inconclusivo", medida=None)
+
+        assert comite.abrir(MEMBRO, caso)["votacao"]["reuniao_curta_convocada"] is True
+
+    def test_a_coordenacao_conclui_com_a_maioria_e_o_caso_vai_a_ata(self, comite):
+        caso = comite.caso()
+        comite.votar(MEMBRO, caso, resultado="improcedente", medida=None)
+        comite.votar(LEITOR, caso, resultado="improcedente", medida=None)
+        comite.votar(COORDENACAO, caso)
+
+        assert comite.post(MEMBRO, f"/casos/{caso}/conclusao-da-votacao").status_code == 403
+        resposta = comite.post(COORDENACAO, f"/casos/{caso}/conclusao-da-votacao")
+
+        assert resposta.status_code == 200, resposta.text
+        linha = comite.linha_do_caso(caso)
+        assert linha["resultado"] == "improcedente"
+        assert linha["etapa"] == "ata"
+        assert comite.abrir(COORDENACAO, caso)["trilho"][3] == {"nome": "Ata", "estado": "atual"}
+
+    def test_sem_todos_os_votos_a_votacao_nao_conclui(self, comite):
+        caso = comite.caso()
+        comite.votar(MEMBRO, caso, resultado="improcedente", medida=None)
+        comite.votar(LEITOR, caso, resultado="improcedente", medida=None)
+
+        resposta = comite.post(COORDENACAO, f"/casos/{caso}/conclusao-da-votacao")
+
+        assert resposta.status_code == 409
+        assert "Faltam votos" in resposta.json()["detail"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# O agente preenche a trava depois de um clique, e cada item precisa da
+# confirmação de um membro
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _itens(tela: dict) -> dict[str, dict]:
+    return {i["item"]: i for i in tela["trava"]["itens"]}
+
+
+class TestTravaPreenchidaEConfirmada:
+    def test_sem_o_clique_o_agente_nao_roda(self, comite, modelo):
+        caso = comite.caso()
+
+        tela = comite.abrir(MEMBRO, caso)
+
+        assert modelo.pedidos == []
+        assert all(i["preenchimento"] is None for i in tela["trava"]["itens"])
+        assert [i["item"] for i in tela["trava"]["itens"]] == list(ITENS_DA_TRAVA)
+
+    def test_o_clique_preenche_os_sete_itens_sem_confirmar_nenhum(self, comite, modelo):
+        caso = comite.caso()
+        modelo.texto = _preenchimento_do_agente(prova={"atendido": False, "texto": "Só há o relato de [PESSOA_1]."})
+
+        resposta = comite.post(MEMBRO, f"/casos/{caso}/trava/preenchimento")
+
+        assert resposta.status_code == 200, resposta.text
+        itens = _itens(comite.abrir(MEMBRO, caso))
+        assert itens["prova"]["preenchimento"] == {"atendido": False, "texto": "Só há o relato de Rogério Valente."}
+        assert itens["fato"]["preenchimento"]["atendido"] is True
+        assert not any(i["confirmado"] for i in itens.values())
+        assert len(modelo.pedidos) == 1
+
+    def test_nenhum_nome_vai_ao_agente(self, comite, modelo):
+        caso = comite.caso()
+
+        comite.post(MEMBRO, f"/casos/{caso}/trava/preenchimento")
+
+        saiu = modelo.tudo_que_saiu()
+        assert "Rogério" not in saiu
+        assert "Valente" not in saiu
+        assert "[PESSOA_" in saiu
+
+    def test_cada_item_precisa_da_confirmacao_de_um_membro(self, comite):
+        caso = comite.caso()
+
+        resposta = comite.confirmar(LEITOR, caso, "fato")
+
+        assert resposta.status_code == 200, resposta.text
+        itens = _itens(comite.abrir(MEMBRO, caso))
+        assert itens["fato"]["confirmado"] is True
+        assert itens["fato"]["confirmacoes"] == ["Lia Leitora"]
+        assert itens["prova"]["confirmado"] is False
+        assert any(t["acao"] == "confirmou_item_da_trava" for t in comite.banco.tabelas["conduta_trilha"])
+
+    def test_quem_nao_vota_no_caso_nao_confirma(self, comite):
+        caso = comite.caso()
+
+        assert comite.confirmar(DE_FORA, caso, "fato").status_code == 403
+
+    def test_a_ciencia_do_codigo_so_se_confirma_com_o_documento_anexado(self, comite):
+        caso = comite.caso()
+
+        sem_documento = comite.confirmar(MEMBRO, caso, "ciencia")
+        assert sem_documento.status_code == 409
+        assert "ciência do Código" in sem_documento.json()["detail"]
+
+        assert comite.anexar_ciencia(MEMBRO, caso).status_code == 200
+        assert comite.confirmar(MEMBRO, caso, "ciencia").status_code == 200
+
+    def test_a_ciencia_fica_cifrada_e_sai_so_pelo_backend(self, comite):
+        caso = comite.caso()
+        comite.anexar_ciencia(MEMBRO, caso)
+
+        guardado = list(comite.banco.storage.objetos.values())[0]
+        assert b"ciencia do codigo" not in guardado
+        aberta = comite.cliente(LEITOR).get(f"{BASE}/casos/{caso}/trava/ciencia")
+        assert aberta.content == b"%PDF-1.4 ciencia do codigo"
+        assert comite.banco.storage.urls_assinadas == []
+
+    def test_o_item_dos_votos_espera_os_tres_votos(self, comite):
+        caso = comite.caso()
+        comite.votar(MEMBRO, caso)
+
+        assert comite.confirmar(MEMBRO, caso, "votos").status_code == 409
+        comite.votar(LEITOR, caso)
+        comite.votar(COORDENACAO, caso)
+        assert comite.confirmar(MEMBRO, caso, "votos").status_code == 200
+
+    def test_sem_o_acusado_ouvido_a_recusa_e_certificada_por_dois_membros(self, comite):
+        caso = comite.caso(acusado_ouvido=False)
+
+        comite.confirmar(MEMBRO, caso, "defesa")
+        assert _itens(comite.abrir(MEMBRO, caso))["defesa"]["confirmado"] is False
+        assert comite.confirmar(MEMBRO, caso, "defesa").status_code == 409
+
+        comite.confirmar(LEITOR, caso, "defesa")
+        assert _itens(comite.abrir(MEMBRO, caso))["defesa"]["confirmado"] is True
+
+    def test_com_o_acusado_ouvido_a_defesa_pede_um_membro(self, comite):
+        caso = comite.caso()
+
+        comite.confirmar(MEMBRO, caso, "defesa")
+
+        assert _itens(comite.abrir(MEMBRO, caso))["defesa"]["confirmado"] is True
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Com item da trava em aberto, concluir como procedente ou parcialmente
+# procedente fica bloqueado, com o motivo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestTravaBloqueiaAConclusao:
+    def _votos(self, comite, caso, resultado):
+        for pid in (MEMBRO, LEITOR, COORDENACAO):
+            comite.votar(pid, caso, resultado=resultado, medida="advertencia_escrita")
+
+    @pytest.mark.parametrize("resultado", ["procedente", "parcialmente_procedente"])
+    def test_item_em_aberto_bloqueia_com_o_motivo(self, comite, resultado):
+        caso = comite.caso()
+        self._votos(comite, caso, resultado)
+        comite.anexar_ciencia(COORDENACAO, caso)
+        for item in ITENS_DA_TRAVA:
+            if item != "regra":
+                comite.confirmar(COORDENACAO, caso, item)
+
+        resposta = comite.post(COORDENACAO, f"/casos/{caso}/conclusao-da-votacao")
+
+        assert resposta.status_code == 409
+        motivo = resposta.json()["detail"]
+        assert motivo == "A trava de robustez tem item em aberto: Regra violada indicada (item do Código de Conduta)."
+        assert comite.abrir(COORDENACAO, caso)["votacao"]["bloqueio_da_conclusao"] == motivo
+        assert comite.linha_do_caso(caso).get("resultado") is None
+        assert comite.linha_do_caso(caso)["etapa"] == "voto"
+
+    def test_com_a_trava_inteira_conclui_como_procedente(self, comite):
+        caso = comite.caso()
+        self._votos(comite, caso, "procedente")
+        comite.trava_completa(caso)
+
+        resposta = comite.post(COORDENACAO, f"/casos/{caso}/conclusao-da-votacao")
+
+        assert resposta.status_code == 200, resposta.text
+        linha = comite.linha_do_caso(caso)
+        assert linha["resultado"] == "procedente"
+        assert json.loads(cifra.decifrar_texto(linha["medida_cifrada"])) == {
+            "medida": "advertencia_escrita",
+            "dias_de_suspensao": None,
+        }
+
+    def test_improcedente_conclui_com_a_trava_em_aberto(self, comite):
+        caso = comite.caso()
+        for pid in (MEMBRO, LEITOR, COORDENACAO):
+            comite.votar(pid, caso, resultado="inconclusivo", medida=None)
+
+        assert comite.post(COORDENACAO, f"/casos/{caso}/conclusao-da-votacao").status_code == 200
+        assert comite.linha_do_caso(caso)["resultado"] == "inconclusivo"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# O agente não redige justificativa de voto
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestAgenteNaoRedigeVoto:
+    def test_a_justificativa_e_a_que_o_membro_escreveu(self, comite, modelo):
+        caso = comite.caso()
+        comite.votar(MEMBRO, caso, justificativa="  Minhas palavras, exatamente.  ")
+
+        assert comite.abrir(MEMBRO, caso)["votacao"]["meu_voto"]["justificativa"] == "Minhas palavras, exatamente."
+        assert modelo.pedidos == []
+
+    def test_o_agente_da_trava_nao_recebe_o_conteudo_dos_votos(self, comite, modelo):
+        caso = comite.caso()
+        comite.votar(MEMBRO, caso, justificativa="Justificativa secreta do Bruno.")
+        comite.votar(LEITOR, caso, medida="suspensao", dias_de_suspensao=7, justificativa="Outra da Lia.")
+
+        comite.post(MEMBRO, f"/casos/{caso}/trava/preenchimento")
+
+        saiu = modelo.tudo_que_saiu()
+        assert "Justificativa secreta" not in saiu
+        assert "Outra da Lia" not in saiu
+        assert "Votos registrados: 2 de 3." in saiu
+
+    def test_o_modulo_do_voto_nao_chama_a_ia(self):
+        arvore = ast.parse(Path(voto.__file__).read_text(encoding="utf-8"))
+        nomes = {n.id for n in ast.walk(arvore) if isinstance(n, ast.Name)}
+        nomes |= {n.attr for n in ast.walk(arvore) if isinstance(n, ast.Attribute)}
+        importados = {a.name for n in ast.walk(arvore) if isinstance(n, ast.ImportFrom) for a in n.names}
+
+        assert not {"messages", "ClienteDaAnthropic", "load_prompt"} & (nomes | importados)
+
+    def test_nenhuma_rota_do_voto_chama_o_agente_alem_da_trava(self):
+        rotas_com_ia = [
+            rota.path
+            for rota in conduta_voto.router.routes
+            if "chamar_ia_fora_do_loop" in rota.endpoint.__code__.co_names
+            or "ai_processor" in rota.endpoint.__code__.co_names
+        ]
+        assert rotas_com_ia == ["/comite-de-conduta/casos/{caso_id}/trava/preenchimento"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Suplente convocado vota no lugar do impedido
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestSuplenteVota:
+    def test_o_suplente_convocado_vota_no_lugar_do_impedido(self, comite):
+        caso = comite.caso()
+        assert comite.votar(SUPLENTE, caso).status_code == 403
+
+        impedido = comite.post(MEMBRO, f"/casos/{caso}/impedimento", {"motivo": "parentesco"})
+        assert impedido.status_code == 200, impedido.text
+
+        assert comite.votar(SUPLENTE, caso, justificativa="Voto do suplente.").status_code == 200
+        assert comite.votar(MEMBRO, caso).status_code == 403
+        comite.votar(LEITOR, caso)
+        comite.votar(COORDENACAO, caso)
+
+        votacao = comite.abrir(SUPLENTE, caso)["votacao"]
+        assert votacao["votantes"] == 3
+        assert {v["membro"] for v in votacao["rodadas"][0]["votos"]} == {
+            "Sérgio Suplente",
+            "Lia Leitora",
+            "Ana Coordenadora",
+        }
+
+    def test_o_voto_de_quem_ficou_impedido_depois_sai_da_conta(self, comite):
+        caso = comite.caso()
+        comite.votar(MEMBRO, caso, justificativa="Voto que sai da conta.")
+        comite.post(MEMBRO, f"/casos/{caso}/impedimento", {"motivo": "interesse"})
+
+        votacao = comite.abrir(LEITOR, caso)["votacao"]
+        assert votacao["votaram"] == 0
+        assert votacao["votantes"] == 3
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# O texto do Produto Canal de Conduta no kit de conhecimento diz o
+# comportamento novo
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestKitDeConhecimento:
+    @pytest.mark.parametrize(
+        "frase",
+        [
+            "## O voto e a trava de robustez",
+            "VOTAR",
+            "oculto até os três votarem",
+            "reunião curta",
+            "PREENCHER TRAVA",
+            "ciência do Código",
+            "CONCLUIR VOTAÇÃO",
+            "não redige",
+            "suplente convocado vota",
+        ],
+    )
+    def test_o_kit_diz_o_comportamento_novo(self, frase):
+        assert frase in (CONHECIMENTO_DIR / "canal-de-conduta.md").read_text(encoding="utf-8")
