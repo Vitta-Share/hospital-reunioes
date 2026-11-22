@@ -15,7 +15,10 @@
 # `respostas.py --envio` (issue #2015), e também não chegam à IA nem ao
 # GitHub. O sino responde
 # do mesmo jeito, pelo `respostas.py --sino` (issue #1968): nenhum aviso de
-# verdade aparece, e marcar como lido não grava nada.
+# verdade aparece, e marcar como lido não grava nada. A lista Esperando sua
+# resposta (issue #2123) só traz as perguntas quando a aba abre pelo aviso, com
+# o `?pergunta=` no endereço; nos outros prints ela responde vazia, como no dia
+# sem pergunta aberta, e o Quadro fica no alto da tela.
 
 set -euo pipefail
 
@@ -79,6 +82,9 @@ pw run-code "async page => {
     if (!(chave in tabela)) {
       return route.fulfill({ status: 404, json: { detail: 'Sem resposta de exemplo para ' + chave } });
     }
+    if (chave === 'perguntas/esperando' && !new URL(page.url()).searchParams.has('pergunta')) {
+      return route.fulfill({ json: [] });
+    }
     return route.fulfill({ json: tabela[chave] });
   });
   const sino = $(python3 "$AQUI/respostas.py" --sino);
@@ -114,18 +120,23 @@ pw run-code "async page => { await page.getByRole('region', { name: 'Documento d
 print "$(bloco "Documento do card")" "partes-por-onda.png"
 pw run-code "async page => { await page.getByRole('button', { name: 'Fechar o pedido' }).click() }"
 
-# Responder uma pergunta da Vitta (issue #1968): o aviso Pede sua resposta no
-# sino, o clique que abre o pedido do projeto novo, o Plano do projeto e a
-# pergunta na Conversa da Demanda.
+# Responder uma pergunta da Vitta (issues #1968 e #2123): o aviso Pede sua
+# resposta no sino, o clique que abre a lista Esperando sua resposta no cartão
+# da pergunta, o pedido do projeto novo com o Plano do projeto, o cartão da
+# pergunta na Conversa da Demanda e o Me explique aberto nele.
 pw run-code "async page => { await page.getByRole('button', { name: 'Notificações' }).click() }"
 esperar "Pede sua resposta"
 print "getByRole('heading', { name: 'Notificações', exact: true }).locator('xpath=../..')" "aviso-pede-resposta.png"
-pw run-code "async page => { await page.getByText('Pede sua resposta', { exact: true }).click() }"
+pw run-code "async page => { await page.getByText('Pede sua resposta', { exact: true }).click(); await page.waitForURL(u => u.searchParams.has('pergunta')); await page.getByRole('region', { name: 'Esperando sua resposta', exact: true }).locator('li[aria-current=true]').waitFor() }"
+esperar "A troca entre dois plantonistas precisa da aprovação da coordenação, ou vale assim que os dois confirmam?"
+print "$(bloco "Esperando sua resposta")" "esperando-sua-resposta.png"
+pw run-code "async page => { await page.getByRole('button', { name: /Troca de plantão pelo aplicativo/ }).click() }"
 esperar "Plano do projeto"
 print "$(bloco "Documento do card")" "projeto-novo.png"
-pw run-code "async page => { await page.getByRole('complementary', { name: 'Pedido aberto' }).getByRole('button', { name: 'Conversar' }).click(); await page.waitForTimeout(600) }"
-esperar "A troca entre dois plantonistas precisa da aprovação da coordenação, ou vale assim que os dois confirmam?"
-print "getByRole('complementary', { name: 'Pedido aberto' })" "pergunta-na-conversa.png"
+pw run-code "async page => { const painel = page.getByRole('complementary', { name: 'Pedido aberto' }); await painel.getByRole('button', { name: 'Conversar' }).click(); await painel.getByRole('article', { name: 'Pergunta da Vitta' }).getByRole('button', { name: 'Responder' }).waitFor(); await page.waitForTimeout(600) }"
+print "getByRole('complementary', { name: 'Pedido aberto' }).getByRole('article', { name: 'Pergunta da Vitta' })" "cartao-da-pergunta.png"
+pw run-code "async page => { await page.getByRole('complementary', { name: 'Pedido aberto' }).getByRole('button', { name: 'Me explique' }).click(); await page.getByRole('region', { name: 'Me explique', exact: true }).getByRole('button', { name: 'Usar este rascunho' }).waitFor(); await page.waitForTimeout(600) }"
+print "$(bloco "Me explique")" "me-explique.png"
 pw run-code "async page => { await page.getByRole('button', { name: 'Fechar o pedido' }).click() }"
 
 # Mandar o que você escreveu aos desenvolvedores (issue #2015): o Entendi assim
@@ -142,7 +153,10 @@ pw run-code "async page => { await page.getByRole('group', { name: 'Entendi assi
 print "$(bloco "Conversa da Demanda")" "enviado-aos-desenvolvedores.png"
 pw run-code "async page => { await page.getByRole('button', { name: 'Fechar o pedido' }).click() }"
 
-# Filtrar por Projeto: o campo Projeto em Ana.
+# Filtrar por Projeto: o campo Projeto em Ana. A aba abre de novo, sem o
+# `?pergunta=` do aviso, e a lista Esperando sua resposta sai do alto.
+pw goto "$TECNOLOGIA"
+esperar "Em desenvolvimento"
 pw run-code "async page => { await page.getByRole('combobox', { name: 'Projeto' }).click(); await page.getByRole('option', { name: 'Ana', exact: true }).click() }"
 esperar "Ana confirmar o horário do exame por mensagem"
 print_tela "filtro-projeto.png"

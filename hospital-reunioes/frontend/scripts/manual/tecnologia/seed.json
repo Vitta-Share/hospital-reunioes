@@ -156,7 +156,37 @@
     "falas": [
       { "autor": "Clara Nogueira", "texto": "Henrique, começamos o plano da troca de plantão pelo aplicativo. Ele fica aqui, no link do pedido.", "dias": 1, "minha": false },
       { "autor": "Clara Nogueira", "texto": "A troca entre dois plantonistas precisa da aprovação da coordenação, ou vale assim que os dois confirmam?", "dias": 0, "minha": false }
+    ],
+    "pergunta": {
+      "id": "exemplo-pergunta-1",
+      "por_que_precisa": "Quem decide como a escala funciona no hospital é a diretoria.",
+      "o_que_esta_parado": "A tela de pedir a troca, que muda conforme a resposta.",
+      "o_que_anda_depois": "A Vitta desenha a tela da troca e mostra a você antes de fazer.",
+      "ganho": "A troca de plantão sai do papel e fica registrada no aplicativo.",
+      "opcoes": [
+        { "letra": "A", "texto": "A coordenação aprova cada troca antes de ela valer" },
+        { "letra": "B", "texto": "A troca vale assim que os dois plantonistas confirmam" }
+      ],
+      "recomendada": "A",
+      "porque": "Hoje a coordenação confere a escala antes de cada mudança, e a troca não deve pular essa conferência."
+    },
+    "me_explique": [
+      { "papel": "assistente", "texto": "A Vitta quer saber quem fecha uma troca de plantão. Na opção A, a coordenação vê o pedido e aprova antes de a escala mudar. Na opção B, basta os dois plantonistas confirmarem, e a coordenação só fica sabendo depois.", "rascunho": null },
+      { "papel": "pessoa", "texto": "E se a coordenação demorar para aprovar?", "rascunho": null },
+      { "papel": "assistente", "texto": "A troca fica parada até a aprovação, e os dois plantonistas veem que ela ainda espera a coordenação. Se você quiser um prazo, dá para dizer na resposta.", "rascunho": "A coordenação aprova cada troca antes de ela valer. Se a coordenação não responder em 24 horas, a troca vale assim mesmo." }
     ]
+  },
+  "outra_pergunta": {
+    "id": "exemplo-pergunta-2",
+    "demanda": "exemplo-55",
+    "dias": 2,
+    "destinatario": "Marina Lopes",
+    "assunto": "texto da confirmação do exame",
+    "texto": "A mensagem de confirmação do exame pode trazer o endereço da unidade, ou só a data e o horário?",
+    "por_que_precisa": "A coordenação do atendimento decide o que a Ana diz ao paciente.",
+    "o_que_esta_parado": "O texto da mensagem que a Ana manda para confirmar o exame.",
+    "o_que_anda_depois": "A Vitta escreve a mensagem e testa com a Ana.",
+    "ganho": "O paciente chega no lugar certo, sem precisar ligar para perguntar."
   },
   "melhoria": {
     "falas": [
