@@ -70,6 +70,7 @@ Só `status: accepted` vale como decisão; `superseded` é histórico (CLAUDE.md
 | [0108](0108-apresentacao-com-estado-real-e-envio-aos-desenvolvedores.md) | accepted | Apresentação do PRD com o estado real e link no card, e Envio aos desenvolvedores pela Conversa da Demanda (emenda 0083 e 0096) |
 | [0109](0109-pergunta-da-vitta-vira-registro-com-cartao-lista-e-me-explique.md) | accepted | Pergunta da Vitta vira registro: cartão, lista Esperando sua resposta, Me explique e a Conversa da Demanda reformada (emenda 0077, 0083, 0096 e 0106) |
 | [0110](0110-pedido-da-vitta-pergunta-ou-passo-a-passo-que-fecha-o-card.md) | accepted | Pedido da Vitta: Pergunta ou Passo a passo, e o Passo a passo concluído fecha o card no GitHub (emenda 0109) |
+| [0111](0111-pedido-de-implantacao-o-prd-fecha-e-o-hospital-implanta.md) | accepted | Pedido de implantação: o PRD fecha com o código, e o que o hospital faz depois vira uma lista no card (emenda 0110) |
 
 ## Central de Comando (números do ecossistema digital)
 
