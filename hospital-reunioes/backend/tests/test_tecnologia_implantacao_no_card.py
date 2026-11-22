@@ -32,12 +32,15 @@ from test_tecnologia_pergunta_da_vitta import (  # noqa: E402, F401
     DIRETORA,
     PEDRO,
     TABELA,
+    _a_demanda,
     _ponte,
     _tela,
     _zera_o_limitador,
     chave_configurada,
 )
-from test_tecnologia_vinculo import _integracao_configurada  # noqa: E402, F401
+from test_tecnologia_vinculo import _integracao_configurada, _TableQuery  # noqa: E402, F401
+
+from app.services import tecnologia_perguntas  # noqa: E402
 
 LISTA = "/api/admin/tecnologia/chat"
 
@@ -118,6 +121,34 @@ class TestALeituraDaDemanda:
         assert (demanda["implantacao"]["feitos"], demanda["implantacao"]["total"]) == (0, 2)
         assert {p["situacao"] for p in demanda["implantacao"]["pedidos"]} == {"aberto"}
         assert all(p["estado"] == "aberta" for p in sb.tabelas[TABELA])
+
+    def test_a_lista_com_muitas_demandas_le_a_implantacao_em_lotes(self, monkeypatch):
+        """O cliente do PostgREST poe o `in_` na querystring: algumas centenas
+        de ids estouram o header do proxy e a lista do chat cairia em 500 para
+        todos. A leitura vai em lotes, e a Demanda do lote do meio ainda traz a
+        Implantacao dela."""
+        ponte, sb = _ponte()
+        assert _criar(ponte).status_code == 201
+        outras = [{**_a_demanda(), "id": f"demanda-{i:04d}"} for i in range(250)]
+        # A Demanda com o pedido no meio: nem no primeiro lote nem no ultimo.
+        sb.tabelas["tecnologia_demandas"][:0] = outras[:125]
+        sb.tabelas["tecnologia_demandas"].extend(outras[125:])
+        tamanhos: list[int] = []
+        in_original = _TableQuery.in_
+
+        def in_que_mede(self, coluna, valores):
+            if self._nome == TABELA and coluna == "demanda_id":
+                tamanhos.append(len(list(valores)))
+            return in_original(self, coluna, valores)
+
+        monkeypatch.setattr(_TableQuery, "in_", in_que_mede)
+
+        demanda = _a_demanda_na_lista(sb, monkeypatch)
+
+        assert tamanhos and max(tamanhos) <= tecnologia_perguntas.LOTE_DE_IDS
+        assert sum(tamanhos) == 251
+        assert (demanda["implantacao"]["feitos"], demanda["implantacao"]["total"]) == (0, 1)
+        assert [p["titulo"] for p in demanda["implantacao"]["pedidos"]] == [TESTE]
 
 
 class TestKit:

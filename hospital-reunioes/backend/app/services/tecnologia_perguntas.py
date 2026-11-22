@@ -605,6 +605,11 @@ def cartoes_da_demanda(
 SITUACAO_FEITO = "feito"
 SITUACAO_ABERTO = "aberto"
 
+# O cliente do PostgREST poe o `in_` na querystring (cerca de 38 bytes por
+# UUID): algumas centenas de ids estouram o header do proxy, e a lista do chat
+# manda todas as Demandas. Mesmo teto de `contas_medicas/painel.py`.
+LOTE_DE_IDS = 100
+
 
 def implantacao_das_demandas(supabase, demanda_ids: list[str]) -> dict[str, dict[str, Any]]:
     """A Implantacao de cada Demanda que tem Pedido de implantacao, numa
@@ -613,16 +618,18 @@ def implantacao_das_demandas(supabase, demanda_ids: list[str]) -> dict[str, dict
     Demanda sem Pedido de implantacao fica fora do dicionario."""
     if not demanda_ids:
         return {}
-    linhas = (
-        supabase.table(TABELA_PERGUNTAS)
-        .select("id, demanda_id, assunto, destinatario_id, estado, criado_em")
-        .eq("tipo", TIPO_IMPLANTACAO)
-        .in_("demanda_id", demanda_ids)
-        .order("criado_em")
-        .execute()
-        .data
-        or []
-    )
+    linhas: list[dict[str, Any]] = []
+    for inicio in range(0, len(demanda_ids), LOTE_DE_IDS):
+        linhas += (
+            supabase.table(TABELA_PERGUNTAS)
+            .select("id, demanda_id, assunto, destinatario_id, estado, criado_em")
+            .eq("tipo", TIPO_IMPLANTACAO)
+            .in_("demanda_id", demanda_ids[inicio : inicio + LOTE_DE_IDS])
+            .order("criado_em")
+            .execute()
+            .data
+            or []
+        )
     vivos = [p for p in linhas if p.get("estado") != ESTADO_CANCELADA]
     nomes = _nomes(supabase, {str(p.get("destinatario_id") or "") for p in vivos})
     por_demanda: dict[str, dict[str, Any]] = {}
