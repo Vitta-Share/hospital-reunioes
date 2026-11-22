@@ -2,6 +2,52 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T01:54:14-03:00",
+      "sha": "be13a89a650c7357a1d26a39787a0ad4d158d7ae",
+      "app_version": "0.368.1",
+      "subject": "PR #2142, sem issue: Ranking de atrasos com nome só para o Super admin",
+      "raw_subject": "chore(deploy): registro do PR avulso (#2142)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [],
+      "result": "healthy",
+      "duration_seconds": 282,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "PR avulso: PR #2142, sem issue. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 228,
+          "frontend": 209
+        },
+        "health_s": 22
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T01:11:57-03:00",
       "sha": "5c75e3448cb54161a37774670e15aba37fd864b4",
       "app_version": "0.368.0",
