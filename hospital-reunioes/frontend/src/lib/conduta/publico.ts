@@ -15,6 +15,8 @@ export const ENDERECO_DA_OUVIDORIA = "/manifestacao";
 /** O PDF do Código de Conduta vigente hoje, num endereço que não muda (issue #1841). */
 export const ENDERECO_DO_CODIGO = "/api/conduta/codigo-de-conduta";
 
+/** Responde 200 só com o canal aberto; fechado, 404. */
+export const ROTA_DA_ABERTURA = "/api/conduta/abertura";
 export const ROTA_DA_PROTECAO = "/api/conduta/protecao";
 export const ROTA_DOS_TEXTOS = "/api/conduta/textos";
 

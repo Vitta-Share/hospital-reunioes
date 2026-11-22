@@ -10,21 +10,22 @@
  * a Ouvidoria, para paciente e acompanhante. O backend é um dublê. Textos de
  * teste.
  */
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import CondutaLayout from "@/app/conduta/layout";
-
+import { MolduraDoCanal } from "./MolduraDoCanal";
 import { PortaDoDp } from "./PortaDoDp";
 import { RodapeDoCanal } from "./RodapeDoCanal";
 
 let chamadas: { url: string; init?: RequestInit }[] = [];
 let textos: Record<string, unknown> = {};
 let statusDosTextos = 200;
+let statusDaAbertura = 200;
 
 beforeEach(() => {
   chamadas = [];
   statusDosTextos = 200;
+  statusDaAbertura = 200;
   textos = { contato_dp: { texto: "Sala do DP, térreo\nRamal de teste 2040", versao: 3, versao_id: "dp-v3" } };
   vi.stubGlobal(
     "fetch",
@@ -33,6 +34,11 @@ beforeEach(() => {
       if (url === "/api/conduta/textos") {
         return new Response(JSON.stringify(statusDosTextos === 200 ? { textos } : { detail: "Not Found" }), {
           status: statusDosTextos,
+        });
+      }
+      if (url === "/api/conduta/abertura") {
+        return new Response(JSON.stringify(statusDaAbertura === 200 ? { aberto: true } : { detail: "Not Found" }), {
+          status: statusDaAbertura,
         });
       }
       return new Response("{}", { status: 404 });
@@ -75,17 +81,38 @@ describe("RodapeDoCanal", () => {
   });
 });
 
-describe("layout das telas públicas", () => {
-  it("toda tela pública do canal tem o rodapé com a página de proteção", () => {
+// O layout de `/conduta` é assíncrono (a chave de abertura no servidor, issue
+// #1843, em `app/conduta/layout.test.tsx`) e embrulha toda tela nesta moldura.
+describe("moldura das telas públicas", () => {
+  it("toda tela pública do canal tem o rodapé com a página de proteção", async () => {
     render(
-      <CondutaLayout>
+      <MolduraDoCanal>
         <p>Uma tela pública de teste</p>
-      </CondutaLayout>,
+      </MolduraDoCanal>,
     );
 
     expect(screen.getByText("Uma tela pública de teste")).toBeTruthy();
-    const rodape = screen.getByRole("contentinfo");
+    const rodape = await screen.findByRole("contentinfo");
     expect(within(rodape).getByRole("link", { name: "Como este canal protege você" })).toBeTruthy();
+  });
+
+  it("com o canal fechado não anuncia nada do canal, só a tela", async () => {
+    statusDaAbertura = 404;
+
+    render(
+      <MolduraDoCanal>
+        <p>Página não encontrada.</p>
+      </MolduraDoCanal>,
+    );
+
+    expect(screen.getByText("Página não encontrada.")).toBeTruthy();
+    await waitFor(() => expect(chamadas.map((c) => c.url)).toContain("/api/conduta/abertura"));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByRole("contentinfo")).toBeNull();
+    expect(screen.queryByText("Não é aqui")).toBeNull();
+    expect(screen.queryByText("Como este canal protege você")).toBeNull();
+    expect(screen.queryByText("Código de Conduta")).toBeNull();
+    expect(screen.queryByRole("img", { name: "Hospital São Matheus" })).toBeNull();
   });
 });
 

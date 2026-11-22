@@ -11,6 +11,8 @@ vi.mock("next/navigation", () => ({
   },
 }));
 
+import { MolduraDoCanal } from "@/components/conduta/publico/MolduraDoCanal";
+
 import CanalDeCondutaLayout from "./layout";
 
 let perguntas: string[];
@@ -53,6 +55,9 @@ describe("a chave de abertura", () => {
   it("ligada, a página abre", async () => {
     backend(() => new Response('{"aberto":true}', { status: 200 }));
 
-    await expect(CanalDeCondutaLayout({ children: "relato" })).resolves.toBe("relato");
+    // Aberta, a tela vai dentro da moldura do canal (logo e rodapé, issue #1846).
+    const tela = await CanalDeCondutaLayout({ children: "relato" });
+    expect(tela.type).toBe(MolduraDoCanal);
+    expect(tela.props.children).toBe("relato");
   });
 });
