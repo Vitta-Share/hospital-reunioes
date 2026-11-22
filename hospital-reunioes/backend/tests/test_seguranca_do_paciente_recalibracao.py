@@ -261,7 +261,7 @@ def test_o_obito_que_o_agente_nem_tratou_como_incidente_acende_o_item_3():
 def test_a_configuracao_diz_as_versoes_do_prompt_e_da_base_em_uso():
     corpo = _cliente(_banco()).get(CONCORDANCIA).json()
 
-    assert corpo["versoes"] == {"prompt": "1.0.1", "base": "1.1"}
+    assert corpo["versoes"] == {"prompt": "1.0.2", "base": "1.1"}
     assert corpo["casos"] == 0
     assert all(e["percentual"] is None for e in corpo["eixos"])
 

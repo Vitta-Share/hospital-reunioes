@@ -434,7 +434,7 @@ def test_a_notificacao_ganha_a_linha_de_triagem_do_agente_com_as_versoes(monkeyp
     assert triagem["categoria"] == "MED"
     assert triagem["evento_situacao"] == "nao"
     assert triagem["canais"] == ["NSP"]
-    assert triagem["prompt_versao"] == "1.0.1"
+    assert triagem["prompt_versao"] == "1.0.2"
     assert triagem["base_versao"] == "1.1"
     assert triagem["modelo"] == settings.nsp_agente_modelo
     assert triagem["tentativas"] == 1
@@ -457,6 +457,31 @@ def test_o_prompt_vai_com_a_base_e_o_cache_no_fim_da_instrucao(monkeypatch, agen
     assert mensagem["role"] == "user"
     assert mensagem["content"].startswith("<notificacao>")
     assert "Zuleidy" not in json.dumps(chamada, ensure_ascii=False)
+
+
+def _prompt_enviado_ao_modelo(monkeypatch) -> str:
+    modelo = _com_modelo(monkeypatch, SUGESTAO_DA_BOMBA)
+    _triar(_banco_com(NOTIFICACAO_IDENTIFICADA))
+    [chamada] = modelo.chamadas
+    return chamada["system"][0]["text"]
+
+
+def test_detalhe_ausente_no_relato_nao_torna_possivel_o_evento_da_lista(monkeypatch, agente_ligado):
+    """Issue #2159: N035 e N059 caíram na faixa B porque o agente leu detalhe
+    ausente (onde foi a queda, se o atraso causou a piora) como fronteira."""
+    prompt = _prompt_enviado_ao_modelo(monkeypatch)
+
+    assert (
+        "A notificação ao Núcleo é de um evento no hospital: presuma que ele aconteceu durante o atendimento." in prompt
+    )
+    assert 'a situação é "sim", mesmo que falte detalhe no relato' in prompt
+
+
+def test_possivel_fica_para_os_fatos_na_fronteira_do_item(monkeypatch, agente_ligado):
+    prompt = _prompt_enviado_ao_modelo(monkeypatch)
+
+    assert 'Use "possível" só quando os próprios fatos estão na fronteira do item' in prompt
+    assert 'Quando o caso estiver na fronteira de um item, marque como "possível"' not in prompt
 
 
 def test_a_saida_passa_pelo_sanitizador(monkeypatch, agente_ligado):
