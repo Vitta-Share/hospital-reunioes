@@ -554,3 +554,35 @@ def resolver(
             f"O que destravou: {destravou}"
         ),
     )
+
+
+def cancelar(
+    supabase,
+    pergunta: dict[str, Any],
+    demanda: dict[str, Any],
+    *,
+    autor: dict[str, Any],
+    motivo: str | None,
+) -> dict[str, Any]:
+    """A Pergunta deixou de ser necessaria (ADR 0109, decisao 6): a aberta ou
+    a respondida passa a cancelada, com o motivo, e a Conversa ganha a linha
+    de sistema com ele. A aberta sai da lista Esperando sua resposta, que so
+    le as abertas. A migration 211 nao tem coluna propria para o motivo: ele
+    fica em `resolucao_decidido`, que na cancelada e o que se decidiu (que a
+    Pergunta nao precisa mais). Devolve a linha gravada."""
+    motivo = _limpo(motivo)
+    if not motivo:
+        raise FechamentoIncompletoError(MOTIVO_SEM_MOTIVO)
+    return _fechar(
+        supabase,
+        pergunta,
+        demanda,
+        autor=autor,
+        de=(ESTADO_ABERTA, ESTADO_RESPONDIDA),
+        campos={
+            "estado": ESTADO_CANCELADA,
+            "resolucao_decidido": motivo,
+            "cancelada_em": datetime.now(UTC).isoformat(),
+        },
+        linha=f"Pergunta cancelada: {pergunta.get('assunto') or ''}\nMotivo: {motivo}",
+    )

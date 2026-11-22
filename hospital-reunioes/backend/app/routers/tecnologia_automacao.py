@@ -351,6 +351,22 @@ def resolver_a_pergunta(
     return {"id": str(resolvida["id"]), "estado": resolvida["estado"], "resolvida_em": resolvida.get("resolvida_em")}
 
 
+@router.post("/perguntas/{pergunta_id}/cancelar")
+def cancelar_a_pergunta(
+    pergunta_id: UUID, payload: CancelamentoDaPerguntaPayload, supabase=Depends(get_supabase_client)
+) -> dict:
+    """A Pergunta deixou de ser necessaria: a aberta ou a respondida passa a
+    cancelada, sai da lista Esperando sua resposta, e a Conversa ganha a linha
+    de sistema com o motivo. A resolvida e a cancelada sao 409 com o motivo;
+    sem motivo e 422. Nada muda na recusa."""
+    autor, pergunta, demanda = _para_fechar(supabase, pergunta_id, payload.github_login)
+    try:
+        cancelada = tecnologia_perguntas.cancelar(supabase, pergunta, demanda, autor=autor, motivo=payload.motivo)
+    except (tecnologia_perguntas.PassagemRecusadaError, tecnologia_perguntas.FechamentoIncompletoError) as recusa:
+        raise _recusa_do_fechamento(recusa) from recusa
+    return {"id": str(cancelada["id"]), "estado": cancelada["estado"], "cancelada_em": cancelada.get("cancelada_em")}
+
+
 @router.get("/demandas/{demanda_id}/conversa")
 def ler_pelo_terminal(
     demanda_id: UUID,
