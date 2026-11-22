@@ -471,6 +471,49 @@ class TestNomeOriginal:
         assert "Celular da Joana" not in "\n".join(log.linhas)
 
 
+# ── O complemento do acompanhamento (issue #2187) ───────────────────────────
+
+
+def _anexar_no_complemento(cliente, relatado: dict, conteudo: bytes, origem: str = "complemento"):
+    return cliente.post(
+        ANEXOS,
+        data={"protocolo": relatado["protocolo"], "codigo": relatado["codigo"], "origem": origem},
+        files={"arquivo": (NOME_DO_ARQUIVO, conteudo, "image/jpeg")},
+    )
+
+
+class TestNoComplemento:
+    def test_o_anexo_do_complemento_e_gravado_sem_os_metadados_com_origem_complemento(self, cliente, banco, relatado):
+        resposta = _anexar_no_complemento(cliente, relatado, FOTO)
+
+        assert resposta.status_code == 201, resposta.text
+        linha, guardado = _guardado(banco)
+        assert linha["origem"] == "complemento"
+        assert dict(Image.open(io.BytesIO(guardado)).getexif()) == {}
+        assert b"Celular da Joana" not in guardado
+
+    def test_o_anexo_do_passo_4_continua_com_origem_relato(self, cliente, banco, relatado):
+        assert _anexar(cliente, relatado, FOTO).status_code == 201
+
+        linha, _ = _guardado(banco)
+        assert linha["origem"] == "relato"
+
+    def test_o_formato_fora_da_lista_no_complemento_e_recusado_sem_gravar(self, cliente, banco, relatado):
+        resposta = _anexar_no_complemento(cliente, relatado, _DOCX)
+
+        assert resposta.status_code == 415
+        assert resposta.json() == {"detail": anexos.RECUSA_DO_FORMATO}
+        assert banco.tabelas.get(anexos.TABELA, []) == []
+        assert banco.storage.objetos == {}
+
+    def test_origem_desconhecida_e_recusada_sem_gravar(self, cliente, banco, relatado):
+        resposta = _anexar_no_complemento(cliente, relatado, FOTO, origem="comite")
+
+        assert resposta.status_code == 422
+        assert banco.tabelas.get(anexos.TABELA, []) == []
+        assert banco.storage.objetos == {}
+
+
 # ── Cifrado, e só o membro do caso abre ─────────────────────────────────────
 
 
