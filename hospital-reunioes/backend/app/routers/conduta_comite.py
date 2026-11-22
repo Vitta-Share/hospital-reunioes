@@ -11,7 +11,7 @@ As listas levam só metadados: nenhum nome e nenhum trecho de relato.
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field, field_validator
 from supabase import Client
 
@@ -19,6 +19,7 @@ from app.dependencies import get_supabase_client
 from app.services.conduta import (
     afastamento,
     agente_de_triagem,
+    anexos,
     avisos,
     cifra,
     configuracoes,
@@ -154,6 +155,7 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         medida_e_retorno = retorno.para_a_tela(supabase, aberto)
         verificacao = retaliacao.para_a_tela(supabase, aberto, hoje_em_sao_paulo())
         trilha = trilha_do_caso.para_a_tela(supabase, aberto)
+        anexos_do_relato = anexos.para_a_tela(supabase, caso["id"])
     except cifra.CifraIndisponivelError as erro:
         raise _indisponivel(erro) from erro
     vencidos = triagem.registrar_vencidos(supabase, [caso], hoje_em_sao_paulo())
@@ -187,7 +189,28 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         **medida_e_retorno,
         **verificacao,
         **trilha,
+        **anexos_do_relato,
     }
+
+
+@router.get("/casos/{caso_id}/anexos/{anexo_id}")
+async def abrir_anexo(
+    anexo_id: UUID, aberto: CasoAberto = Depends(portao_da_acao), supabase: Client = Depends(get_supabase_client)
+) -> Response:
+    """Um anexo do relato (issue #1844), decifrado e entregue pelo backend,
+    com a abertura gravada na trilha. Nada de cache no navegador nem no
+    caminho."""
+    try:
+        conteudo, content_type = anexos.abrir(supabase, aberto, str(anexo_id))
+    except anexos.AnexoRecusadoError as recusa:
+        raise HTTPException(status_code=recusa.status, detail=recusa.mensagem) from recusa
+    except cifra.CifraIndisponivelError as erro:
+        raise _indisponivel(erro) from erro
+    return Response(
+        content=conteudo,
+        media_type=content_type,
+        headers={"Cache-Control": "no-store", "Content-Disposition": "inline"},
+    )
 
 
 def _executar(funcao, supabase, aberto: CasoAberto, **argumentos):

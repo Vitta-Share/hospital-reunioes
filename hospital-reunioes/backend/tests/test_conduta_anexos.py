@@ -210,7 +210,7 @@ def _m4a() -> bytes:
     mdhd = _caixa(b"mdhd", b"\x00" * 4 + struct.pack(">IIIIHH", 0, 0, 44100, 44100, 0x55C4, 0))
     som = _caixa(b"hdlr", b"\x00" * 8 + b"soun" + b"\x00" * 12)
     trak = _caixa(b"trak", _caixa(b"mdia", mdhd + som))
-    artista = _caixa(b"\xa9ART", _caixa(b"data", struct.pack(">II", 1, 0) + "Joana Prudente".encode()))
+    artista = _caixa(b"\xa9ART", _caixa(b"data", struct.pack(">II", 1, 0) + b"Joana Prudente"))
     hdlr = _caixa(b"hdlr", b"\x00" * 8 + b"mdirappl" + b"\x00" * 9)
     meta = _caixa(b"meta", b"\x00" * 4 + hdlr + _caixa(b"ilst", artista))
     udta = _caixa(b"udta", meta + _caixa(b"\xa9xyz", b"+22.8712-043.4601/"))
@@ -426,3 +426,97 @@ class TestNomeOriginal:
         _anexar(cliente, relatado, FOTO)
 
         assert "Celular da Joana" not in "\n".join(log.linhas)
+
+
+# ── Cifrado, e só o membro do caso abre ─────────────────────────────────────
+
+
+class _ComOComite:
+    """O relato e o anexo entram pela página pública; o Comitê abre pela
+    rota dele, com a pessoa do cenário."""
+
+    def __init__(self, participacoes: list[dict], **campos_da_pessoa):
+        from test_conduta_portao import _Cenario, _pessoa
+
+        self.cenario = _Cenario(_pessoa(**campos_da_pessoa), participacoes)
+        publico = FastAPI()
+        publico.state.limiter = limiter
+        publico.include_router(conduta_publico.router, prefix="/api")
+        publico.dependency_overrides[get_supabase_client] = lambda: self.cenario.banco
+        relatado = TestClient(publico).post(RELATOS, json=ENVIO).json()
+        assert _anexar(TestClient(publico), relatado, FOTO).status_code == 201
+        (self.caso,) = self.cenario.banco.tabelas["conduta_casos"]
+        (self.anexo,) = self.cenario.banco.tabelas[anexos.TABELA]
+
+    def abrir(self, anexo_id: str | None = None, caso_id: str | None = None):
+        caminho = f"/api/comite-de-conduta/casos/{caso_id or self.caso['id']}/anexos/{anexo_id or self.anexo['id']}"
+        return self.cenario.cliente().get(caminho)
+
+    def caso_na_tela(self):
+        return self.cenario.cliente().get(f"/api/comite-de-conduta/casos/{self.caso['id']}")
+
+
+def _membro() -> list[dict]:
+    from test_conduta_portao import _participacao
+
+    return [_participacao(papel="membro")]
+
+
+class TestSoOMembroAbre:
+    def test_o_anexo_fica_cifrado_no_bucket(self):
+        comite = _ComOComite(_membro())
+
+        cifrado = comite.cenario.banco.storage.objetos[(anexos.BUCKET, comite.anexo["storage_path"])]
+        assert not cifrado.startswith(b"\xff\xd8\xff")
+        with pytest.raises(Exception):  # noqa: B017 - o leitor de imagem não abre o que está cifrado
+            Image.open(io.BytesIO(cifrado))
+        assert Image.open(io.BytesIO(cifra.decifrar_arquivo(cifrado))).format == "JPEG"
+
+    def test_o_membro_do_caso_ve_o_anexo_na_tela_e_abre_o_arquivo_limpo(self):
+        comite = _ComOComite(_membro())
+
+        tela = comite.caso_na_tela().json()
+        resposta = comite.abrir()
+
+        assert tela["anexos"] == [
+            {"id": comite.anexo["id"], "tipo": "imagem", "origem": "relato", "enviado_em": comite.anexo["enviado_em"]}
+        ]
+        assert resposta.status_code == 200
+        assert resposta.headers["content-type"] == "image/jpeg"
+        assert resposta.headers["cache-control"] == "no-store"
+        assert dict(Image.open(io.BytesIO(resposta.content)).getexif()) == {}
+
+    def test_a_abertura_fica_na_trilha(self):
+        comite = _ComOComite(_membro())
+
+        comite.abrir()
+
+        acoes = [(linha["acao"], linha["autor_id"]) for linha in comite.cenario.banco.tabelas["conduta_trilha"]]
+        assert ("abriu_anexo", "P1") in acoes
+
+    def test_quem_nao_e_do_comite_nao_abre(self):
+        comite = _ComOComite([])
+
+        resposta = comite.abrir()
+
+        assert resposta.status_code == 403
+        assert resposta.content != FOTO
+
+    def test_o_super_admin_nao_abre(self):
+        comite = _ComOComite([], access_profile="super_admin", is_super_admin=True)
+
+        assert comite.abrir().status_code == 403
+
+    def test_o_impedido_no_caso_nao_abre(self):
+        comite = _ComOComite(_membro())
+        comite.cenario.atribuir(comite.caso, "membro_do_comite", impedido_em="2026-11-01T10:00:00+00:00")
+
+        assert comite.abrir().status_code == 403
+
+    def test_o_anexo_de_outro_caso_nao_sai_por_este(self):
+        comite = _ComOComite(_membro())
+        outro = comite.cenario.caso()
+
+        resposta = comite.abrir(caso_id=outro["id"])
+
+        assert resposta.status_code == 404

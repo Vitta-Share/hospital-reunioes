@@ -334,3 +334,40 @@ def guardar(supabase, caso_id: str, dados: bytes, origem: str = "relato") -> dic
             logger.error("Anexo de relato órfão no bucket do Canal: %s", caminho)
         raise
     return {"id": gravada["id"], "tipo": limpo.tipo}
+
+
+# ── O lado do Comitê ────────────────────────────────────────────────────────
+
+
+def para_a_tela(supabase, caso_id: str) -> dict[str, list[dict[str, Any]]]:
+    """Os anexos do caso, na ordem em que chegaram, sem caminho no bucket: o
+    arquivo só sai pela rota que confere o acesso e decifra."""
+    linhas = (
+        supabase.table(TABELA)
+        .select("id, tipo, origem, enviado_em")
+        .eq("caso_id", caso_id)
+        .order("enviado_em")
+        .execute()
+        .data
+        or []
+    )
+    return {"anexos": [{c: linha[c] for c in ("id", "tipo", "origem", "enviado_em")} for linha in linhas]}
+
+
+def abrir(supabase, aberto: CasoAberto, anexo_id: str) -> tuple[bytes, str]:
+    """O anexo decifrado e o content-type, depois de gravada a abertura na
+    trilha. Só o anexo DESTE caso; nunca uma URL."""
+    linhas = (
+        supabase.table(TABELA).select("*").eq("id", anexo_id).eq("caso_id", aberto.caso["id"]).limit(1).execute().data
+        or []
+    )
+    if not linhas:
+        raise AnexoRecusadoError(404, "Anexo não encontrado neste caso.")
+    anexo = linhas[0]
+    trilha.registrar(
+        supabase, aberto.caso["id"], aberto.autor_id, "abriu_anexo", f"abriu {ROTULOS[anexo['tipo']]} do relato"
+    )
+    cifrado = storage.download_file(supabase, BUCKET, anexo["storage_path"])
+    if cifrado is None:
+        raise AnexoRecusadoError(503, "O anexo não pôde ser aberto agora. Tente de novo.")
+    return cifra.decifrar_arquivo(cifrado), anexo["content_type"]
