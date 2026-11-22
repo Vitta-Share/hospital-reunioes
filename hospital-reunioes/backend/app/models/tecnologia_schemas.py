@@ -16,8 +16,11 @@ class BloqueadoraDaParte(BaseModel):
     "Espera a #N" da tela, com o "de outro pedido" quando ela nao e parte da
     mesma Demanda."""
 
-    numero: int
+    # Nulo no Ajuste do plano (issue #1915): a tela diz "Espera o ajuste do
+    # plano", sem o numero, que e so do Desenvolvedor.
+    numero: int | None = None
     de_outro_pedido: bool = False
+    ajuste_do_plano: bool = False
 
 
 class ParteDaEntrega(BaseModel):
@@ -129,6 +132,13 @@ class DemandaResponse(BaseModel):
     # validou o plano (a label `validado:diretor`). Nulo, sem botao nem cartao.
     apresentacao_url: str | None = None
     plano_validado: bool = False
+    # O selo "Plano validado em" e a faixa do Ajuste do plano (issue #1915),
+    # derivados da foto, para todos que veem a Demanda. O numero e o link do
+    # Ajuste, so para o Desenvolvedor; para o diretor saem nulos.
+    validado_em: str | None = None
+    ajuste_aberto: bool = False
+    ajuste_numero: int | None = None
+    ajuste_url: str | None = None
 
 
 class DesenvolvedorResponse(BaseModel):

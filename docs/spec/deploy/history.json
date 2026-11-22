@@ -2,6 +2,237 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T17:43:42-03:00",
+      "sha": "06e67bc59a32953d225e21df40bbfad08166f615",
+      "app_version": "0.386.1",
+      "subject": "Onda onda-1914-onda1: Ata assinada por todos finaliza e o Sincronizar volta a reconciliar",
+      "raw_subject": "chore(deploy): registro da onda onda-1914-onda1 (#2199)",
+      "scope": [
+        "backend"
+      ],
+      "prds": [],
+      "result": "healthy",
+      "duration_seconds": 370,
+      "services_touched": [
+        "backend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta onda-1914-onda1: PR #2199 (issue #1914), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 2,
+        "build_s": {
+          "backend": 22
+        },
+        "health_s": 20
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
+      "at": "2026-11-22T17:40:01-03:00",
+      "sha": "b463a844406b82b8e59add06a3cdc5868244b229",
+      "app_version": "0.386.0",
+      "subject": "Onda onda-a-onda1: O pedido mostra o plano validado pelo diretor e o Ajuste do plano",
+      "raw_subject": "chore(deploy): registro da onda onda-a-onda1 (#2197)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [],
+      "result": "healthy",
+      "duration_seconds": 272,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta onda-a-onda1: PR #2197 (issue #1915), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 2,
+        "build_s": {
+          "backend": 25,
+          "frontend": 231
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
+      "at": "2026-11-22T17:28:37-03:00",
+      "sha": "d37e94cea8ca11e0c217e4b905e3c025f52f74d1",
+      "app_version": "0.385.1",
+      "subject": "Onda onda-2044-onda1: Janela de criar POP abre à vista e o Elaborador designado vê o POP atribuído",
+      "raw_subject": "chore(deploy): registro da onda onda-2044-onda1 (#2196)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [],
+      "result": "healthy",
+      "duration_seconds": 589,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta onda-2044-onda1: PR #2196 (issue #2044), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 4,
+        "build_s": {
+          "backend": 22,
+          "frontend": 236
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
+      "at": "2026-11-22T17:21:18-03:00",
+      "sha": "b1ed0d4834d5391b5bca51106e7d09f83f72a99f",
+      "app_version": "0.385.0",
+      "subject": "Onda sesta-1786-onda14: Aviso de assunto fora do canal na revisão do relato",
+      "raw_subject": "chore(deploy): registro da onda sesta-1786-onda14 (#2194)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 568,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-1786-onda14: PR #2194 (issue #1848), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 23,
+          "frontend": 247
+        },
+        "health_s": 1
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
+      "at": "2026-11-22T17:14:08-03:00",
+      "sha": "e0d599f266d4308516ca9c8a3a657e6032079d9c",
+      "app_version": "0.384.1",
+      "subject": "Onda onda-a-onda1: Print da tarefa Concluir um passo a passo na Tecnologia; A ponte recusa o Passo a passo de Projeto sem repositório ligado ao app; Issue concluída com sub-issue aberta volta a abrir",
+      "raw_subject": "chore(deploy): registro da onda onda-a-onda1 (#2195 #2193 #2192)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        2176
+      ],
+      "result": "healthy",
+      "duration_seconds": 1232,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta onda-a-onda1: PR #2195 (issue #2184), PR #2193 (issue #2190), PR #2192 (issue #2191), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 9,
+        "build_s": {
+          "backend": 19,
+          "frontend": 194
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T16:58:45-03:00",
       "sha": "314857126f99a79997418477e5154bb6378bf9ce",
       "app_version": "0.384.0",

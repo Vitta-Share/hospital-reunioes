@@ -25,9 +25,6 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, os.path.dirname(__file__))
-
-from like_apoio import casa_like  # noqa: E402
 
 from app.config import settings  # noqa: E402
 from app.dependencies import get_supabase_client  # noqa: E402
@@ -56,6 +53,7 @@ class _TableQuery:
         self._is_filters: dict = {}
         self._in_filters: dict = {}
         self._limit: int | None = None
+        self._offset = 0
         self._insert_payload: list[dict] | None = None
         self._update_payload: dict | None = None
 
@@ -74,15 +72,19 @@ class _TableQuery:
         self._is_filters[col] = None if value in ("null", None) else value
         return self
 
-    def like(self, col, pattern):
-        self._likes = [*getattr(self, "_likes", []), (col, pattern)]
-        return self
-
     def order(self, *_a, **_kw):
         return self
 
     def limit(self, n):
         self._limit = n
+        return self
+
+    def range(self, inicio, fim):
+
+        self._offset = inicio
+
+        self._limit = fim - inicio + 1
+
         return self
 
     def insert(self, payload: dict | list):
@@ -107,14 +109,13 @@ class _TableQuery:
             if all(r.get(c) == v for c, v in self._filters.items())
             and all(r.get(c) in vs for c, vs in self._in_filters.items())
             and all(r.get(c) == v for c, v in self._is_filters.items())
-            and all(casa_like(r.get(c), p) for c, p in getattr(self, "_likes", []))
         ]
         if self._update_payload is not None:
             for row in filtered:
                 row.update(self._update_payload)
             return _Result(data=[dict(r) for r in filtered])
         if self._limit is not None:
-            filtered = filtered[: self._limit]
+            filtered = filtered[self._offset : self._offset + self._limit]
         return _Result(data=[dict(r) for r in filtered])
 
 

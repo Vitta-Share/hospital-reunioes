@@ -38,29 +38,22 @@ def extrair_quadro(json_ata: dict | None) -> list:
     return quadro or []
 
 
-_MAX_DIGITOS_ID = 9  # id_acao é VARCHAR(10): "A" + até 9 dígitos
-
-
 def _get_last_id_num(supabase) -> int:
-    """Retorna o número do último ID de ação (ex: 9 para 'A009').
+    """Retorna o maior número entre os IDs `A###` (ex: 9 para 'A009').
 
-    O banco ordena `id_acao` como texto, e "A999" vem depois de "A1000"
-    (issue #2085): passada a Pendência mil, a ordem de texto devolvia 999 e
-    todo insert colidia no A1000. A busca vai da largura maior para a menor;
-    na mesma largura, a ordem de texto e a de número concordam."""
-    for digitos in range(_MAX_DIGITOS_ID, 0, -1):
-        result = (
-            supabase.table("pendencias")
-            .select("id_acao")
-            .like("id_acao", "A" + "_" * digitos)
-            .order("id_acao", desc=True)
-            .limit(1)
-            .execute()
-        )
-        if result.data:
-            nums = re.sub(r"[^0-9]", "", result.data[0]["id_acao"])
-            return int(nums) if nums else 0
-    return 0
+    A comparação é por número, não por texto: em texto "A999" vem depois de
+    "A1000", e o `order desc` do banco devolvia A999 para sempre depois da
+    milésima Pendência; todo lote novo colidia na chave e nenhuma Pendência
+    nascia mais (issue #1914). Lê todos os IDs em páginas, inclusive os
+    apagados, que continuam ocupando a chave."""
+    from app.services.paginacao import ler_tudo
+
+    linhas = ler_tudo(
+        lambda: supabase.table("pendencias").select("id_acao").order("id_acao"),
+        rotulo="numeração das pendências",
+    )
+    numeros = [int(m.group(1)) for r in linhas if (m := re.fullmatch(r"A(\d+)", r.get("id_acao") or ""))]
+    return max(numeros, default=0)
 
 
 def _normalizar_prazo(prazo_raw: str | None) -> str | None:

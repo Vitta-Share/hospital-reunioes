@@ -194,6 +194,7 @@ from app.services.tecnologia_vinculo import (
     MOTIVO_CRIACAO_EM_ANDAMENTO,
     MOTIVO_GITHUB_INDISPONIVEL,
     MOTIVO_INTEGRACAO_DESLIGADA,
+    ajuste_aberto_da_foto,
     corpo_da_issue_do_bug,
     corpo_do_prd_do_diretor,
     labels_da_issue_nova,
@@ -264,6 +265,7 @@ def _para_a_lista(supabase: Client, demandas: list[dict], *, ator: dict) -> list
             "raiz_numero": d.get("github_issue_numero"),
             "issue_numero": d.get("github_issue_numero") if desenvolvedor else None,
             "issue_url": _url_da_issue(d) if desenvolvedor else None,
+            **_plano_validado_e_ajuste(d, desenvolvedor=desenvolvedor),
             "responsavel": _nome_do_responsavel(d, nomes),
             "envio_falhou": tecnologia_envio.envio_falhou(d),
             "designacao_falhou": desenvolvedor and tecnologia_envio.designacao_falhou(d),
@@ -329,6 +331,21 @@ def _nomes(supabase: Client, ids: set) -> dict[str, str]:
     return {str(p["id"]): p.get("nome_completo") or "" for p in (result.data or [])}
 
 
+def _plano_validado_e_ajuste(demanda: dict, *, desenvolvedor: bool) -> dict:
+    """O selo "Plano validado em" e a faixa do Ajuste do plano (issue #1915),
+    derivados da foto: a data e o sim ou nao para todos que veem a Demanda; o
+    numero e o link do Ajuste, so para o Desenvolvedor."""
+    foto = demanda.get("github_foto") if isinstance(demanda.get("github_foto"), dict) else {}
+    validado = github_client.LABEL_DA_VALIDACAO in (foto.get("labels") or [])
+    ajuste = ajuste_aberto_da_foto(foto)
+    return {
+        "validado_em": foto.get(github_client.FATO_VALIDADO_EM) if validado else None,
+        "ajuste_aberto": ajuste is not None,
+        "ajuste_numero": ajuste["numero"] if ajuste and desenvolvedor else None,
+        "ajuste_url": ajuste["url"] if ajuste and desenvolvedor else None,
+    }
+
+
 def _url_da_issue(demanda: dict) -> str | None:
     """O endereco da issue-raiz: o que a foto do GitHub guardou, ou o montado
     pelo numero quando a foto ainda nao veio, no repositorio do Projeto da
@@ -364,8 +381,13 @@ def _partes_visiveis(demanda: dict) -> list[dict]:
             "situacao": parte.get("situacao"),
             "fechada_em": parte.get("fechada_em"),
             "onda": parte.get("onda"),
+            # O Ajuste do plano sai sem numero, para todos (issue #1915): a
+            # tela diz "Espera o ajuste do plano", e o numero dele e so do
+            # Desenvolvedor, no `ajuste_numero`.
             "bloqueadoras": [
-                {"numero": b.get("numero"), "de_outro_pedido": not b.get("da_demanda")}
+                {"numero": None, "de_outro_pedido": False, "ajuste_do_plano": True}
+                if b.get("ajuste_do_plano")
+                else {"numero": b.get("numero"), "de_outro_pedido": not b.get("da_demanda"), "ajuste_do_plano": False}
                 for b in (parte.get("bloqueadoras") or [])
                 if isinstance(b, dict) and b.get("estado") == "open"
             ],
@@ -885,6 +907,12 @@ _SO_DO_DESENVOLVEDOR_NAS_ENTREGAS = {
     # Projeto novo (issue #1967).
     "raiz_numero": None,
     "raiz_url": None,
+    # O selo do plano validado e a faixa do Ajuste ficam no Documento aberto
+    # pela conversa (issue #1915): as Entregas nao mudam.
+    "validado_em": None,
+    "ajuste_aberto": False,
+    "ajuste_numero": None,
+    "ajuste_url": None,
 }
 
 

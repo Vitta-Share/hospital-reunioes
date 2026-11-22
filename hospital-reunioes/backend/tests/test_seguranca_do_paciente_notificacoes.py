@@ -37,9 +37,6 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, os.path.dirname(__file__))
-
-from like_apoio import casa_like  # noqa: E402
 
 from app.dependencies import get_current_user, get_supabase_client  # noqa: E402
 from app.limiter import limiter  # noqa: E402
@@ -88,10 +85,6 @@ class _Consulta:
 
     def update(self, valores):
         self._acao, self._valores = "update", valores
-        return self
-
-    def like(self, coluna, padrao):
-        self._filtros.append(lambda linha: casa_like(linha.get(coluna), padrao))
         return self
 
     def eq(self, coluna, valor):

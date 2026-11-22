@@ -26,9 +26,6 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, os.path.dirname(__file__))
-
-from like_apoio import casa_like  # noqa: E402
 
 from app.config import settings  # noqa: E402
 from app.dependencies import get_supabase_client  # noqa: E402
@@ -81,9 +78,9 @@ class _TableQuery:
         self._filters: dict = {}
         self._in_filters: dict = {}
         self._is_filters: dict = {}
-        self._like_filters: dict = {}
         self._order: tuple[str, bool] | None = None
         self._limit: int | None = None
+        self._range: tuple[int, int] | None = None
         self._insert_payload: list[dict] | None = None
         self._update_payload: dict | None = None
 
@@ -103,16 +100,16 @@ class _TableQuery:
         self._is_filters[col] = None if value in ("null", None) else value
         return self
 
-    def like(self, col, pattern):
-        self._like_filters[col] = pattern
-        return self
-
     def order(self, col, desc=False):
         self._order = (col, desc)
         return self
 
     def limit(self, n):
         self._limit = n
+        return self
+
+    def range(self, inicio, fim):
+        self._range = (inicio, fim)
         return self
 
     def insert(self, payload: dict | list):
@@ -145,7 +142,6 @@ class _TableQuery:
             if all(r.get(c) == v for c, v in self._filters.items())
             and all(r.get(c) in vs for c, vs in self._in_filters.items())
             and all(r.get(c) == v for c, v in self._is_filters.items())
-            and all(casa_like(r.get(c), p) for c, p in self._like_filters.items())
         ]
 
         if self._update_payload is not None:
@@ -158,6 +154,9 @@ class _TableQuery:
             filtered = sorted(filtered, key=lambda r: r.get(col) or "", reverse=desc)
         if self._limit is not None:
             filtered = filtered[: self._limit]
+        if self._range is not None:
+            inicio, fim = self._range
+            filtered = filtered[inicio : fim + 1]
         return _Result(data=[dict(r) for r in filtered])
 
 
@@ -527,10 +526,9 @@ class TestConcorrencia:
         assert sorted(p["quadro_pos"] for p in criadas) == [0, 1, 2, 3, 4]  # nada duplicado
 
     def test_auto_close_depois_da_pendencia_mil_marca_assinada(self):
-        """Issue #2085: o banco ordena o id_acao como texto, e "A999" vem
-        depois de "A1000". Com a numeração passada de mil, a próxima leitura
-        devolvia 999, todo insert colidia no A1000 e a Ata ficava em
-        AGUARDANDO_ASSINATURA com 0 Pendências."""
+        """Issues #2085 e #1914, pelo webhook: em texto "A999" vem depois de
+        "A1000". Com a numeração passada de mil, todo insert colidia no A1000,
+        o fechamento respondia 500 e a Ata ficava em AGUARDANDO_ASSINATURA."""
         sb = _sb()
         sb.tables["pendencias"].extend(
             {"id_acao": f"A{n:03d}", "id_reuniao": "R0", "status": "PENDENTE", "quadro_pos": n}

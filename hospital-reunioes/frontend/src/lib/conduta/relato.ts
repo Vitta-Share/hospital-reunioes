@@ -18,6 +18,11 @@ export type Assunto = "A" | "B" | "C" | "D" | "E" | "F";
 export const AVISOS_DO_PASSO_1 = ["aviso_p1_anonimato", "aviso_p1_protocolo", "aviso_p1_boa_fe"] as const;
 export type AvisoDoPasso1 = (typeof AVISOS_DO_PASSO_1)[number];
 
+/** Os textos das Configurações que a tela do relato lê: os avisos do passo 1
+ * e os contatos que o aviso da revisão mostra (issue #1848). */
+export const TEXTOS_DA_TELA = [...AVISOS_DO_PASSO_1, "contato_dp", "orientacao_nsp"] as const;
+export type TextoDaTela = (typeof TEXTOS_DA_TELA)[number];
+
 /** O texto da especificação, mostrado enquanto a coordenação não salva o dela
  * nas Configurações. A versão gravada, nesse caso, é nula. */
 export const AVISOS_PADRAO: Record<AvisoDoPasso1, string> = {
@@ -115,19 +120,46 @@ function chamar(caminho: string, corpo?: unknown): Promise<Response> {
 }
 
 /** Os avisos vigentes do passo 1. Sem resposta, vale o texto padrão. */
-export async function lerAvisos(): Promise<Partial<Record<AvisoDoPasso1, TextoVigente>>> {
+export async function lerAvisos(): Promise<Partial<Record<TextoDaTela, TextoVigente>>> {
   try {
     const resposta = await chamar("/textos");
     if (!resposta.ok) return {};
     const { textos } = (await resposta.json()) as { textos: Record<string, TextoVigente | null> };
-    const avisos: Partial<Record<AvisoDoPasso1, TextoVigente>> = {};
-    for (const chave of AVISOS_DO_PASSO_1) {
+    const avisos: Partial<Record<TextoDaTela, TextoVigente>> = {};
+    for (const chave of TEXTOS_DA_TELA) {
       const vigente = textos?.[chave];
       if (vigente) avisos[chave] = { texto: vigente.texto, versao: vigente.versao };
     }
     return avisos;
   } catch {
     return {};
+  }
+}
+
+/** Para onde o aviso da revisão (P5) manda a pessoa, quando o assunto parece
+ * de fora do canal (issue #1848, seção 4.1 da especificação). */
+export type DestinoDoAviso = "DP" | "OUVIDORIA" | "NSP" | "GESTAO";
+
+/** Os textos do aviso são fixos, por destino: o agente não escreve nada para
+ * a página pública. */
+export const TEXTOS_DO_AVISO: Record<DestinoDoAviso, string> = {
+  DP: "Pelo que você escreveu, este assunto é do Departamento Pessoal. O Canal de Conduta não resolve esse tipo de questão.",
+  OUVIDORIA:
+    "Pelo que você escreveu, este assunto é da Ouvidoria. O Canal de Conduta não trata de atendimento a pacientes.",
+  NSP: "Pelo que você escreveu, este é um assunto de segurança do paciente.",
+  GESTAO: "Pelo que você escreveu, este assunto é tratado com a sua liderança ou com o DP.",
+};
+
+/** A leitura do agente ao abrir a revisão: o destino do aviso, ou nada. Com
+ * falha, teto ou agente fora do ar, nada, e o envio segue normal. */
+export async function lerAvisoDaRevisao(relato: string): Promise<DestinoDoAviso | null> {
+  try {
+    const resposta = await chamar("/relatos/aviso", { relato });
+    if (!resposta.ok) return null;
+    const { aviso } = (await resposta.json()) as { aviso?: unknown };
+    return typeof aviso === "string" && aviso in TEXTOS_DO_AVISO ? (aviso as DestinoDoAviso) : null;
+  } catch {
+    return null;
   }
 }
 

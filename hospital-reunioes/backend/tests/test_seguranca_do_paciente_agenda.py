@@ -34,9 +34,6 @@ from fastapi.testclient import TestClient
 from postgrest.exceptions import APIError
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, os.path.dirname(__file__))
-
-from like_apoio import casa_like  # noqa: E402
 
 from app.cron import scheduler  # noqa: E402
 from app.dependencies import get_current_user, get_supabase_client  # noqa: E402
@@ -81,6 +78,7 @@ class _Consulta:
         self._filtros: list = []
         self._ordem: tuple[str, bool] | None = None
         self._teto: int | None = None
+        self._inicio = 0
         self._acao = "select"
         self._valores: Any = None
 
@@ -110,10 +108,6 @@ class _Consulta:
                 return consulta
 
         return _Nao()
-
-    def like(self, coluna, padrao):
-        self._filtros.append(lambda linha: casa_like(linha.get(coluna), padrao))
-        return self
 
     def eq(self, coluna, valor):
         self._filtros.append(lambda linha: linha.get(coluna) == valor)
@@ -145,6 +139,7 @@ class _Consulta:
         return self
 
     def range(self, inicio, fim):
+        self._inicio = inicio
         self._teto = fim + 1
         return self
 
@@ -165,7 +160,7 @@ class _Consulta:
             coluna, desc = self._ordem
             casam.sort(key=lambda linha: (linha.get(coluna) is None, str(linha.get(coluna))), reverse=desc)
         total = len(casam)
-        return SimpleNamespace(data=casam[: self._teto] if self._teto is not None else casam, count=total)
+        return SimpleNamespace(data=casam[self._inicio : self._teto] if self._teto is not None else casam, count=total)
 
     def _inserir(self) -> list[dict]:
         novas = self._valores if isinstance(self._valores, list) else [self._valores]

@@ -24,9 +24,6 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, os.path.dirname(__file__))
-
-from like_apoio import casa_like  # noqa: E402
 
 from app.dependencies import (  # noqa: E402
     get_current_user,
@@ -54,6 +51,7 @@ class _TableQuery:
         self._ilike: tuple[str, str] | None = None
         self._order: tuple[str, bool] | None = None
         self._limit: int | None = None
+        self._offset = 0
 
     def select(self, *_a, **_kw):
         self._op = "select"
@@ -81,10 +79,6 @@ class _TableQuery:
         self._in_filters.append((col, list(values)))
         return self
 
-    def like(self, col, pattern):
-        self._likes = [*getattr(self, "_likes", []), (col, pattern)]
-        return self
-
     def ilike(self, col, pattern):
         self._ilike = (col, pattern)
         return self
@@ -97,9 +91,15 @@ class _TableQuery:
         self._limit = n
         return self
 
+    def range(self, inicio, fim):
+
+        self._offset = inicio
+
+        self._limit = fim - inicio + 1
+
+        return self
+
     def _matches(self, r: dict) -> bool:
-        if not all(casa_like(r.get(col), pattern) for col, pattern in getattr(self, "_likes", [])):
-            return False
         for col, value in self._filters:
             if r.get(col) != value:
                 return False
@@ -125,7 +125,7 @@ class _TableQuery:
             col, desc = self._order
             matched.sort(key=lambda r: str(r.get(col) or ""), reverse=desc)
         if self._limit is not None:
-            matched = matched[: self._limit]
+            matched = matched[self._offset : self._offset + self._limit]
 
         if self._op == "update":
             for r in matched:

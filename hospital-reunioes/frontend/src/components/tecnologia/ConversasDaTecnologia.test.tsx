@@ -280,6 +280,18 @@ describe("Acompanhar", () => {
     expect(screen.queryByLabelText("Sua mensagem")).toBeNull();
   });
 
+  it("o pedido validado mostra Plano validado em ao lado da Etapa (issue #1915)", async () => {
+    montar((url) => {
+      if (url === LISTA) return { status: 200, corpo: [{ ...COM_VINCULO, validado_em: "2026-11-16T13:05:00.000Z" }] };
+      return { status: 404, corpo: {} };
+    });
+
+    fireEvent.click(await within(lista()).findByRole("button", { name: /Aviso quando a ata sair/ }));
+
+    const selo = await screen.findByText("Plano validado em 16/11/2026");
+    expect(selo.parentElement?.querySelector('[aria-label^="Etapa: "]')).toBeTruthy();
+  });
+
   it("sem o texto da Vitta, diz Descrição em preparação", async () => {
     montar((url) => {
       if (url === LISTA) return { status: 200, corpo: [{ ...COM_VINCULO, o_que_muda: null }] };
