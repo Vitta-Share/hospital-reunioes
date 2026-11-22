@@ -229,7 +229,8 @@ describe("a Pergunta da Vitta, a lista Esperando sua resposta e o Me explique na
   const T = tabela();
   type Item = PerguntaDaVitta & { demanda_id: string; demanda: string; minha: boolean };
   const lista = () => T["perguntas/esperando"] as Item[];
-  const doDiretor = () => lista().find((p) => p.minha)!;
+  // A Pergunta do diretor; o Passo a passo dele, também na lista, tem o describe próprio (issue #2184).
+  const doDiretor = () => lista().find((p) => p.minha && p.tipo !== "passo_a_passo")!;
 
   it("a lista tem as Perguntas abertas no formato que a tela aceita, as do diretor primeiro, e só a dele se responde no cartão da lista", () => {
     const itens = lista();
@@ -270,6 +271,53 @@ describe("a Pergunta da Vitta, a lista Esperando sua resposta e o Me explique na
   it("nenhum texto da Pergunta chama ela de Pendência (ADR 0109, decisão 2)", () => {
     const textos = [lista(), T[`perguntas/${doDiretor().id}/me-explique`]].flatMap(folhas);
     expect(textos.filter((t) => /pend[êe]ncia/i.test(t))).toEqual([]);
+  });
+});
+
+describe("o Passo a passo da Vitta na lista Esperando você (issue #2184, ADR 0110)", () => {
+  const T = tabela();
+  type Item = PerguntaDaVitta & { demanda_id: string; demanda: string; minha: boolean };
+  const lista = () => T["perguntas/esperando"] as Item[];
+  const passoAPasso = () => {
+    const achado = lista().find((p) => p.tipo === "passo_a_passo");
+    expect(achado, "a lista não tem um Passo a passo").toBeDefined();
+    return achado!;
+  };
+
+  it("a lista junta os dois tipos de pedido, a pergunta e o passo a passo", () => {
+    const tipos = new Set(lista().map((p) => p.tipo ?? "pergunta"));
+    expect([...tipos].sort()).toEqual(["passo_a_passo", "pergunta"]);
+  });
+
+  it("o passo a passo espera o diretor, aberto, e ele marca e conclui no cartão da lista", () => {
+    const passo = passoAPasso();
+    expect(perguntaValida(passo)).toBe(true);
+    expect(passo.estado).toBe("aberta");
+    expect(passo.minha).toBe(true);
+    expect(passo.pode_responder).toBe(true);
+    expect(passo.destinatario).toBe(SEED.admin.nome);
+    expect((T["chat"] as Demanda[]).some((d) => d.id === passo.demanda_id && d.titulo === passo.demanda)).toBe(true);
+  });
+
+  it("o print pega o cartão no meio: um passo marcado pelo diretor, com a hora, e outro ainda sem check", () => {
+    const passos = passoAPasso().passos ?? [];
+    const marcados = passos.filter((p) => p.marcado);
+    expect(marcados.length).toBeGreaterThan(0);
+    for (const p of marcados) {
+      expect(p.por).toBe(SEED.admin.nome);
+      expect(Number.isNaN(Date.parse(p.em ?? ""))).toBe(false);
+    }
+    expect(passos.some((p) => !p.marcado)).toBe(true);
+  });
+
+  it("o último passo é o Como saber que acabou", () => {
+    expect(passoAPasso().passos?.at(-1)?.texto).toMatch(/^Como saber que acabou: /);
+  });
+
+  it("o roteiro abre a aba no cartão do passo a passo, pelo ?pergunta= do aviso", () => {
+    const texto = readFileSync(ROTEIRO, "utf8");
+    expect(texto).toMatch(/\?pergunta=\$\(seed "\['passo_a_passo'\]\['id'\]"\)/);
+    expect(passoAPasso().id).toBe(SEED.passo_a_passo.id);
   });
 });
 

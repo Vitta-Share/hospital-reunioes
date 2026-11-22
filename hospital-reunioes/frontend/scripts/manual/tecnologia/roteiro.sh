@@ -153,6 +153,15 @@ pw run-code "async page => { await page.getByRole('group', { name: 'Entendi assi
 print "$(bloco "Conversa da Demanda")" "enviado-aos-desenvolvedores.png"
 pw run-code "async page => { await page.getByRole('button', { name: 'Fechar o pedido' }).click() }"
 
+# Concluir um passo a passo (issue #2184): a aba abre pelo `?pergunta=` do
+# aviso Pede sua ação, com o cartão do Passo a passo da Vitta em destaque na
+# lista Esperando você. O primeiro passo vem marcado pelo seed e o Concluir
+# ainda preso: marcar um check também não grava nada.
+pw goto "$TECNOLOGIA?pergunta=$(seed "['passo_a_passo']['id']")"
+esperar "Passo a passo da Vitta"
+pw run-code "async page => { await page.getByRole('region', { name: 'Esperando você', exact: true }).locator('li[aria-current=true]').scrollIntoViewIfNeeded(); await page.waitForTimeout(400) }"
+print "getByRole('region', { name: 'Esperando você', exact: true }).locator('li[aria-current=true]')" "concluir-passo-a-passo.png"
+
 # Filtrar por Projeto: o campo Projeto em Ana. A aba abre de novo, sem o
 # `?pergunta=` do aviso, e a lista Esperando sua resposta sai do alto.
 pw goto "$TECNOLOGIA"

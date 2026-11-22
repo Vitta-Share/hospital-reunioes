@@ -176,6 +176,22 @@
       { "papel": "assistente", "texto": "A troca fica parada até a aprovação, e os dois plantonistas veem que ela ainda espera a coordenação. Se você quiser um prazo, dá para dizer na resposta.", "rascunho": "A coordenação aprova cada troca antes de ela valer. Se a coordenação não responder em 24 horas, a troca vale assim mesmo." }
     ]
   },
+  "passo_a_passo": {
+    "id": "exemplo-passo-1",
+    "demanda": "exemplo-49",
+    "dias": 1,
+    "assunto": "publicar o POP do preparo dos exames",
+    "texto": "Publique no aplicativo o POP do preparo dos exames de imagem. A Ana vai responder aos pacientes com o texto dele.",
+    "por_que_precisa": "Só a diretoria publica um POP no aplicativo.",
+    "o_que_esta_parado": "A resposta da Ana sobre o jejum e o preparo de cada exame.",
+    "o_que_anda_depois": "A Vitta liga a Ana ao POP publicado e testa as respostas sobre o preparo.",
+    "ganho": "O paciente recebe o preparo certo do exame, sem precisar ligar para a recepção.",
+    "passos": [
+      { "texto": "No menu da esquerda, clique em POP e abra o POP Preparo para exames de imagem.", "marcado": true },
+      { "texto": "Confira as horas de jejum de cada exame e clique em Publicar.", "marcado": false },
+      { "texto": "Como saber que acabou: o POP aparece como Vigente na lista.", "marcado": false }
+    ]
+  },
   "outra_pergunta": {
     "id": "exemplo-pergunta-2",
     "demanda": "exemplo-55",

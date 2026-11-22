@@ -23,6 +23,7 @@ const TAREFAS = [
   "Acompanhar o pedido no Quadro",
   "Ver o que espera você",
   "Responder uma pergunta da Vitta",
+  "Concluir um passo a passo",
   "Pedir explicação ao assistente (Me explique)",
   "Mandar o que você escreveu aos desenvolvedores",
   "Filtrar por Projeto",
@@ -219,6 +220,12 @@ describe("concluir um passo a passo da Vitta (issue #2176, ADR 0110)", () => {
     expect(concluir, "nenhum passo manda clicar em Concluir").toBeDefined();
     expect(concluir).toMatch(/só libera com todos os checks marcados/);
     expect(passos.some((p) => /sai da lista \*\*Esperando você\*\* na hora/.test(p) && /segue sozinho/.test(p))).toBe(true);
+  });
+
+  it("o passo de marcar os checks traz o print do cartão do passo a passo (issue #2184)", () => {
+    const passo = passosDa(CONCLUIR).find((p) => /marque o check/.test(p));
+    expect(passo, "nenhum passo manda marcar o check").toBeDefined();
+    expect(imagensCitadas(passo!)).toContain("concluir-passo-a-passo.png");
   });
 
   it("Não chegou ao GitHub tem o motivo e o Reenviar, nunca sozinho", () => {

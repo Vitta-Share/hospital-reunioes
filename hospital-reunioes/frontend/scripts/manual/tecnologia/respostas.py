@@ -220,15 +220,18 @@ def pergunta_do_diretor(pode_responder: bool) -> dict:
 
 
 def perguntas() -> dict:
-    """A lista Esperando sua resposta (issue #2118) e o Me explique da Pergunta do diretor
-    (issue #2122). A do diretor vem primeiro e se responde no cartão da lista (issue #2145);
-    a de outra pessoa depois, só para ler."""
+    """A lista Esperando você (issue #2118) e o Me explique da Pergunta do diretor
+    (issue #2122). Os pedidos do diretor vêm primeiro, o Passo a passo e a Pergunta, e
+    se respondem no cartão da lista (issues #2145 e #2184); a de outra pessoa depois,
+    só para ler."""
     minha = pergunta_do_diretor(pode_responder=True)
     demanda, _ = _projeto_da(SEED["abrir"]["projeto_novo"])
     outra = SEED["outra_pergunta"]
     da_outra, projeto = _projeto_da(outra["demanda"])
     return {
         "perguntas/esperando": [
+            # Do diretor, a mais antiga primeiro: o Passo a passo nasceu ontem (issue #2184).
+            passo_a_passo(),
             {**minha, "demanda_id": demanda["id"], "demanda": demanda["titulo"], "minha": True},
             {
                 **cartao(
@@ -249,6 +252,41 @@ def perguntas() -> dict:
                 for f in SEED["pergunta_do_projeto_novo"]["me_explique"]
             ]
         },
+    }
+
+
+def passo_a_passo() -> dict:
+    """O Passo a passo da Vitta que espera o diretor (issue #2184, ADR 0110), na lista
+    Esperando você: o primeiro passo já marcado por ele, e os outros sem check, para o
+    print mostrar o cartão no meio, com o Concluir ainda preso."""
+    seed = SEED["passo_a_passo"]
+    demanda, projeto = _projeto_da(seed["demanda"])
+    diretor = SEED["admin"]["nome"]
+    return {
+        **cartao(
+            seed,
+            projeto=projeto,
+            criado_em=instante(seed["dias"], "16:20"),
+            destinatario=diretor,
+            pode_responder=True,
+        ),
+        "tipo": "passo_a_passo",
+        "passos": [
+            {
+                "texto": p["texto"],
+                "marcado": p["marcado"],
+                "por": diretor if p["marcado"] else None,
+                "em_nome_de": None,
+                "em": instante(seed["dias"], "17:05") if p["marcado"] else None,
+            }
+            for p in seed["passos"]
+        ],
+        "conclusao": None,
+        "fechamento": None,
+        "pode_reenviar": False,
+        "demanda_id": demanda["id"],
+        "demanda": demanda["titulo"],
+        "minha": True,
     }
 
 
