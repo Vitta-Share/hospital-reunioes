@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T15:55+0000 -->
+<!-- last_update: 2026-11-22T17:24+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2143,7 +2143,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## nsp_capacitacoes
 
-> Origem: `155_nsp_capacitacoes.sql`
+> Origem: `155_nsp_capacitacoes.sql` (alterada em: 228_nsp_capacitacao_formacao_do_instrutor.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2156,6 +2156,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `tema_ids` | `UUID[]` | NOT NULL | `'{}'` | — |
 | `criado_por` | `VARCHAR(10)` | — | — | `participantes.id` |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `instrutor_formacao` | `TEXT` | — | — | — |
 
 **Indexes:**
 - `idx_nsp_capacitacoes_data` em `(data DESC)` (de `155_nsp_capacitacoes.sql`)
