@@ -66,11 +66,11 @@ Nenhuma versão se apaga nem se edita: a correção é sempre uma versão nova. 
 ## Registrar uma capacitação e confirmar presença
 
 1. Em **Núcleo**, clique em **Capacitações**.
-2. Clique em **Registrar capacitação**. Preencha o **Título**, a **Data**, a **Carga horária (horas)**, o **Instrutor** e o **Público**: Membros do Núcleo ou Profissionais. Marque os **Temas tratados** e, em **Participantes**, quem estava na lista.
+2. Clique em **Registrar capacitação**. Preencha o **Título**, a **Data**, a **Carga horária (horas)**, o **Instrutor**, a **Formação do instrutor** (por exemplo, enfermeira do trabalho) e o **Público**: Membros do Núcleo ou Profissionais. Marque os **Temas tratados** e, em **Participantes**, quem estava na lista. Sem a formação do instrutor, a capacitação não é salva.
 
    ![O registro de uma capacitação](registrar-capacitacao.png)
 
-3. Clique em **Salvar**. A capacitação aparece na lista com cada participante marcado como **Não confirmou**.
+3. Clique em **Salvar**. A capacitação aparece na lista com a formação logo abaixo do nome do instrutor e cada participante marcado como **Não confirmou**. As capacitações registradas antes desse campo mostram "Formação não informada".
 4. Cada participante abre a mesma tela e clica em **Confirmar minha presença**, no cartão da capacitação. O botão aparece a partir do dia da capacitação. Depois do toque, a linha da pessoa mostra **Confirmou em**, com a data e a hora.
 
    ![As capacitações com a presença confirmada de cada participante](capacitacoes.png)
