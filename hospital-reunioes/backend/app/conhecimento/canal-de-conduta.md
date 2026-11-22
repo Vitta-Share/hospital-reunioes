@@ -176,6 +176,25 @@ Antes de guardar, o aplicativo regrava o arquivo sem o que ele carrega escondido
 
 O nome original do arquivo não é guardado, nem na base de dados nem no registro de funcionamento do servidor. O arquivo fica cifrado e só sai para quem abre o caso, pela tela do caso, em "Anexos do relato": cada abertura fica na trilha. O super admin, o impedido e o Citado não abrem.
 
+## A página de acompanhamento e as Mensagens
+
+Quem relatou volta pelo botão Acompanhar relato, na entrada do canal, e digita o protocolo e o código. É o único caminho entre o Comitê e quem relatou: ninguém recebe aviso por e-mail, mensagem ou telefone.
+
+- A página mostra a situação do caso em uma de seis palavras: Recebido (ninguém fez a triagem ainda), Em análise (triagem feita), Em apuração (da apuração até o retorno, e no caso da Rota Especial), Aguardando sua resposta (o Comitê fez uma pergunta que ainda não teve complemento), Concluído e Encaminhado.
+- Embaixo vêm as mensagens do Comitê: as perguntas da coordenação e a resposta final, que é a orientação do Encaminhamento, a resposta do retorno aprovado ou o aviso de arquivamento por falta de elementos. Os complementos que a própria pessoa mandou também aparecem.
+- Nada interno aparece: nome de membro, voto, medida, rito ou etapa do caso. A página recebe do servidor só a situação e as mensagens.
+- O campo Complemento serve para responder a pergunta ou acrescentar informação a qualquer momento, até depois do encerramento. O complemento fica cifrado, entra no caso e na trilha, e marca que quem relatou informou algo, o que liga a verificação de retaliação também no caso anônimo. Responder a pergunta tira o caso de "Aguardando sua resposta".
+- Protocolo errado, código errado ou envio malformado dão a mesma resposta ("Não encontramos um relato com esse protocolo e esse código.") no mesmo tempo, para ninguém descobrir quais protocolos existem.
+- A página não guarda IP, aparelho nem localização. Depois de cinco tentativas por minuto (ou 30 por hora) do mesmo aparelho, ela pede para esperar alguns minutos, e o limite conta sem guardar o endereço.
+
+Do lado do Comitê, a tela do caso tem a área Mensagens, logo depois do relato original:
+
+- todo mundo que abre o caso lê a conversa, em ordem, com o que é pergunta do Comitê e o que é complemento de quem relatou;
+- só a coordenação escreve a pergunta. As perguntas que o agente sugeriu na triagem aparecem como atalho: um toque copia a sugestão para o campo, e a coordenação ajusta antes de enviar. A pergunta enviada não muda mais;
+- pedido de complemento sem resposta há 15 dias, contados da primeira pergunta ainda sem resposta, libera "ARQUIVAR POR FALTA DE ELEMENTOS". Antes disso, a área diz em que dia o botão aparece. Arquivado, o caso encerra, e a página de quem relatou passa a dizer Concluído, com o aviso de que ele pode ser reaberto se a informação chegar;
+- se quem relatou mandar complemento depois do arquivamento, aparece "REABRIR CASO", e o caso volta à etapa em que estava. O prazo do rito continua contado do envio do relato;
+- a conversa entra no Dossiê, no arquivo das mensagens com o denunciante, e cada pergunta, complemento, arquivamento e reabertura entra na trilha do caso.
+
 ## O agente de triagem
 
 Cada relato novo é lido uma vez pelo agente de triagem, sozinho, logo que chega, sem ninguém precisar clicar. O agente sugere; quem decide é a coordenação.
@@ -363,7 +382,7 @@ Quem não tem acesso recebe a mesma recusa, exista o caso ou não.
 
 ## O que ele ainda não faz
 
-A página de acompanhamento (com o anexo no complemento), as perguntas ao relator, o roteiro de perguntas e o termo de declaração redigidos pelo agente chegam nas próximas entregas. A decisão da Direção e a conversa com o denunciante entram no Dossiê quando chegarem. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. O relato em passos já existe, mas o canal segue fechado até a abertura: enquanto isso, os relatos continuam chegando pela Ouvidoria.
+O anexo no complemento da página de acompanhamento, o roteiro de perguntas e o termo de declaração redigidos pelo agente chegam nas próximas entregas. A decisão da Direção entra no Dossiê quando chegar. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. O relato em passos já existe, mas o canal segue fechado até a abertura: enquanto isso, os relatos continuam chegando pela Ouvidoria.
 
 ## O que já foi decidido
 
