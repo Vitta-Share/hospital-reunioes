@@ -395,7 +395,17 @@ def _lembrar_uma(supabase, pergunta: dict[str, Any], agora: datetime) -> bool:
     )
     if not gravadas:
         return False
-    demandas = supabase.table(TABELA_DEMANDAS).select("*").eq("id", pergunta["demanda_id"]).execute().data or []
+    # A lapide do Apagar (ADR 0084) sai de toda leitura: nao lembra de um
+    # cartao que nao existe mais.
+    demandas = (
+        supabase.table(TABELA_DEMANDAS)
+        .select("*")
+        .eq("id", pergunta["demanda_id"])
+        .is_("apagada_em", "null")
+        .execute()
+        .data
+        or []
+    )
     if not demandas:
         return False
     destinatario_id = str(pergunta["destinatario_id"])

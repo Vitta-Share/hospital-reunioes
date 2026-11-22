@@ -163,6 +163,19 @@ def test_pergunta_respondida_resolvida_ou_cancelada_nao_recebe_lembrete(emails, 
     assert sb.tabelas[TABELA][0]["lembrete_enviado_em"] is None
 
 
+def test_pergunta_aberta_numa_demanda_apagada_nao_recebe_lembrete(emails):
+    """O Apagar (ADR 0084) deixa a Demanda como lápide e não mexe nas
+    Perguntas, que seguem abertas. A lápide sai de toda leitura: o lembrete
+    apontaria para um cartão que não existe mais."""
+    sb = _banco(_pergunta("q1", ha=timedelta(days=4)))
+    sb.tabelas["tecnologia_demandas"][0]["apagada_em"] = "2026-11-18T10:00:00+00:00"
+
+    assert tecnologia_perguntas.lembrar(sb, AGORA) == 0
+
+    assert _sinos(sb) == []
+    assert emails == []
+
+
 def test_a_falha_no_lembrete_de_uma_pergunta_nao_impede_as_outras(emails, monkeypatch):
     sb = _banco(
         _pergunta("q1", ha=timedelta(days=4), destinatario=DIRETORA),
