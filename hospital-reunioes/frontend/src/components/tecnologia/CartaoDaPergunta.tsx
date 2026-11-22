@@ -24,6 +24,7 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
 import { BASE_TECNOLOGIA, FALHA_DE_CONEXAO, motivoDaRecusa } from "./demandas";
+import { MeExplique } from "./MeExplique";
 import { OpcoesEmCartao } from "./OpcoesEmCartao";
 
 export type EstadoDaPergunta = "aberta" | "respondida" | "resolvida" | "cancelada";
@@ -236,8 +237,10 @@ export function CartaoDaPergunta({
       {opcoes.length > 0 && pergunta.porque && pergunta.recomendada && (aberta || !pergunta.resposta) && (
         <p className="normal-case text-sm leading-relaxed text-slate-700">{`Por que recomendo a ${pergunta.recomendada}: ${pergunta.porque}`}</p>
       )}
-      {responde && (
+      {responde && token && (
         <div className="space-y-2">
+          {/* O Me explique (issue #2122): o rascunho entra no campo só pelo clique. */}
+          <MeExplique perguntaId={pergunta.id} token={token} onUsarRascunho={setLivre} />
           <textarea
             aria-label="Sua resposta"
             rows={2}

@@ -59,6 +59,8 @@ ROTAS_DO_CHAT = {
     "/api/admin/tecnologia/perguntas/esperando",
     # A resposta à Pergunta da Vitta no cartão (issue #2119, ADR 0109).
     "/api/admin/tecnologia/perguntas/{pergunta_id}/resposta",
+    # O Me explique no cartão da Pergunta (issue #2122, ADR 0109, decisão 8).
+    "/api/admin/tecnologia/perguntas/{pergunta_id}/me-explique",
 }
 
 # O que fica de fora da aba e continua de pé (critério 2 da issue).
