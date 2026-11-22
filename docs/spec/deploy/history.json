@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-22T00:23:25-03:00",
+      "sha": "4c14045eb9e27ccaaea16ddeb0aa02d618740fdc",
+      "app_version": "0.365.0",
+      "subject": "Onda pergunta-da-vitta-2112-onda2: Lista Esperando sua resposta na aba Tecnologia, com as Perguntas abertas de todos os Projetos; Responder a Pergunta da Vitta no cartão, por opção pronta ou texto liv",
+      "raw_subject": "chore(deploy): registro da onda pergunta-da-vitta-2112-onda2 (#2131 #2132 #2130)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        2112
+      ],
+      "result": "healthy",
+      "duration_seconds": 1077,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta pergunta-da-vitta-2112-onda2: PR #2131 (issue #2118), PR #2132 (issue #2119), PR #2130 (issue #2120), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 12,
+        "build_s": {
+          "backend": 18,
+          "frontend": 18
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T00:03:34-03:00",
       "sha": "1c0a3346351a842fe27cdf6a6f2070e5bbfa6635",
       "app_version": "0.364.0",
