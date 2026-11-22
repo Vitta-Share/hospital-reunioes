@@ -63,6 +63,16 @@ export async function requireConfiguracoesDoCanalAccess() {
 }
 
 /**
+ * Gate server-side das Recomendações do Comitê (issue #1835). A pergunta vai
+ * à própria rota da lista, que só abre para o Presidente e a diretoria
+ * executiva, pelo perfil nominal do módulo. Quem ela recusa, o super admin
+ * inclusive, volta ao início sem receber a página.
+ */
+export async function requireRecomendacoesDoComiteAccess() {
+  return perguntarAoPortao("/comite-de-conduta/direcao/recomendacoes");
+}
+
+/**
  * Gate server-side do Guia do rito (issue #1842). O guia não leva caso, e
  * abre para quem vê qualquer tela do Comitê: quem o portão dos casos deixa
  * entrar (o apurador designado inclusive) e quem entra na tela Membros, que é
