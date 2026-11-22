@@ -285,4 +285,4 @@ class TestOKit:
 
         for trecho in ("**Plano validado em**", "**Espera o ajuste do plano**", "ajustando o plano"):
             assert trecho in secao, trecho
-        assert "—" not in texto and "–" not in texto
+        assert "\u2014" not in texto and "\u2013" not in texto
