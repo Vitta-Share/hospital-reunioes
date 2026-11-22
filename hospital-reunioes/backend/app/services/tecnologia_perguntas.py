@@ -104,6 +104,10 @@ MOTIVO_SEM_MOTIVO = "Falta o motivo do cancelamento."
 MOTIVO_TIPO = "O tipo do Pedido é pergunta ou passo_a_passo."
 MOTIVO_PASSOS = 'O Passo a passo precisa de 2 a 15 passos, todos com texto; o último é o "Como saber que acabou".'
 MOTIVO_SEM_CARD = "Falta o card do Passo a passo (o número da issue)."
+# Issue #2190: o app so fecha card no repositorio que conhece.
+MOTIVO_SEM_REPOSITORIO = (
+    "O app não alcança o repositório do Projeto {projeto}, então não fecharia o card. Mande como Pergunta."
+)
 MOTIVO_OPCOES_SO_NA_PERGUNTA = "Opções prontas só existem na Pergunta."
 MOTIVO_SO_NO_PASSO_A_PASSO = "Só o Passo a passo tem passos para marcar e concluir."
 MOTIVO_PASSO_A_PASSO_NAO_SE_RESPONDE = "O Passo a passo se conclui no cartão, não se responde."
@@ -201,8 +205,9 @@ def criar(
     (`PerguntaRecusadaError`) nao deixa nada gravado nem avisado.
 
     O Passo a passo (`tipo=passo_a_passo`) exige de 2 a 15 passos com texto e
-    o numero do card; o Projeto do card e o da Demanda quando nao vem. Opcoes
-    prontas so existem na Pergunta."""
+    o numero do card; o Projeto do card e o da Demanda quando nao vem, e
+    precisa ter repositorio configurado no app (issue #2190). Opcoes prontas
+    so existem na Pergunta."""
     tipo = tipo or TIPO_PERGUNTA
     if tipo not in TIPOS:
         raise PerguntaRecusadaError(MOTIVO_TIPO)
@@ -217,12 +222,16 @@ def criar(
         if not cartao[chave]:
             raise PerguntaRecusadaError(f"Falta a linha do cartão: {nome}.")
     lista_de_passos: list[str] = []
+    projeto_do_card = ""
     if e_passo_a_passo:
         lista_de_passos = [_limpo(passo) for passo in passos]
         if not MINIMO_DE_PASSOS <= len(lista_de_passos) <= MAXIMO_DE_PASSOS or not all(lista_de_passos):
             raise PerguntaRecusadaError(MOTIVO_PASSOS)
         if not card_numero:
             raise PerguntaRecusadaError(MOTIVO_SEM_CARD)
+        projeto_do_card = _limpo(card_projeto) or str(demanda.get("projeto") or github_client.PROJETO_HOSPITAL)
+        if not github_client.repositorio_do_projeto(projeto_do_card):
+            raise PerguntaRecusadaError(MOTIVO_SEM_REPOSITORIO.format(projeto=projeto_do_card))
         if any(_limpo(o) for o in opcoes) or recomendada:
             raise PerguntaRecusadaError(MOTIVO_OPCOES_SO_NA_PERGUNTA)
     lista = _opcoes(opcoes, recomendada)
@@ -246,7 +255,7 @@ def criar(
     do_passo_a_passo = (
         {
             "passos": lista_de_passos,
-            "card_projeto": _limpo(card_projeto) or str(demanda.get("projeto") or github_client.PROJETO_HOSPITAL),
+            "card_projeto": projeto_do_card,
             "card_numero": card_numero,
         }
         if e_passo_a_passo
