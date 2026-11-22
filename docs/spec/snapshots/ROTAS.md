@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T02:32+0000 -->
+<!-- last_update: 2026-11-22T02:52+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -121,8 +121,13 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/audio` | Anexar audio | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/conclusao` | Concluir depoimento | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/conferencia` | Marcar item da lista | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/recusa` | A pessoa se recusou a assinar: a certidão vai à ClickSign para quem | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/roteiro` | O clique que pede ao agente o roteiro de perguntas. | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/sem-gravacao` | Registrar sem gravacao | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/termo` | O clique que pede ao agente o termo de declaração (Anexo C). | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/termo-assinado` | Arquivo ou câmera do celular: uma foto por página, até cinco. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/termo/correcoes` | Cada correção lançada é uma versão nova do termo. | ✅ |
+| GET | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/termo/pdf` | IMPRIMIR TERMO: o PDF da última versão, no modelo do Anexo E.1. | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/depoimentos/{depoimento_id}/transcricao` | Anexar transcricao | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/envio-para-voto` | ENVIAR PARA VOTO: fecha a Apuração. | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/relatorio` | GERAR RELATÓRIO: o agente redige o relatório de uma página. | ✅ |
@@ -833,4 +838,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 482 endpoints em 69 routers · 93% exigem auth.
+**Totais:** 487 endpoints em 69 routers · 93% exigem auth.
