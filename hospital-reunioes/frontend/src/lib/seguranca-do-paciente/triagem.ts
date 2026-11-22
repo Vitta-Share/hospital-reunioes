@@ -19,6 +19,14 @@ export interface ItemDaFila {
   faixa: string | null;
   assunto: string | null;
   classificar_manualmente: boolean;
+  /** Sugestão nas faixas D ou E sem conferência campo a campo (issue #2002). */
+  cabe_no_lote: boolean;
+}
+
+/** O que `GET /nsp/triagem` devolve: a fila e se a aprovação em lote está ligada. */
+export interface RespostaDaFila {
+  fila: ItemDaFila[];
+  lote_ligado: boolean;
 }
 
 export interface Evento {
