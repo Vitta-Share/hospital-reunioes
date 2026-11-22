@@ -186,8 +186,10 @@ def _nomes_dos_setores(supabase, setor_ids: set[str]) -> dict[str, str]:
 # A fila
 # ═══════════════════════════════════════════════════════════════════════════
 
+# O relato entra só para a conta de `cabe_no_lote` (menção a morte); a fila
+# não o devolve.
 _CAMPOS_DA_FILA = (
-    "id, protocolo, numero, criado_em, setor_id, data_ocorrencia, grave_ou_morte, "
+    "id, protocolo, numero, criado_em, setor_id, data_ocorrencia, grave_ou_morte, relato, "
     "classificar_manualmente, motivo_classificar_manualmente"
 )
 
@@ -224,9 +226,25 @@ def fila(supabase) -> list[dict[str, Any]]:
                 "faixa": sugestao["faixa"] if sugestao else None,
                 "assunto": sugestao["assunto"] if sugestao else None,
                 "classificar_manualmente": bool(linha.get("classificar_manualmente")),
+                "cabe_no_lote": cabe_no_lote(linha, sugestao),
             }
         )
     return itens
+
+
+# As faixas que a aprovação em lote aceita (issue #2002). A, B e C nunca vão
+# em lote.
+FAIXAS_DO_LOTE = ("D", "E")
+
+
+def cabe_no_lote(notificacao: dict[str, Any], sugestao: dict[str, Any] | None) -> bool:
+    """O caso que a aprovação em lote confirma: sugestão nas faixas D ou E e
+    confirmação de um clique. O que pede conferência campo a campo fica fora."""
+    return (
+        sugestao is not None
+        and sugestao.get("faixa") in FAIXAS_DO_LOTE
+        and not motivos_da_conferencia(notificacao, sugestao)
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════

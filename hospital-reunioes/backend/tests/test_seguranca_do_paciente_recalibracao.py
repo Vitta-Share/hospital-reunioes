@@ -668,7 +668,9 @@ def _com_o_marco_de_30() -> _BancoDaRecalibracao:
     return banco
 
 
-@pytest.mark.parametrize("decisao", ["manter", "ajustar", "ligar_lote"])
+# "ligar_lote" pede 90% de concordância nos casos leves: o teste dele está em
+# test_seguranca_do_paciente_aprovacao_em_lote.py (issue #2002).
+@pytest.mark.parametrize("decisao", ["manter", "ajustar"])
 def test_concluir_grava_a_decisao_quem_decidiu_e_quando_e_fecha_as_pendencias(decisao, monkeypatch):
     banco = _com_o_marco_de_30()
     monkeypatch.setattr(recalibracao_router, "agora_utc", lambda: AGORA)

@@ -278,6 +278,15 @@ class JaDecididaError(RecalibracaoRecusadaError):
     pass
 
 
+class LoteSemConcordanciaError(RecalibracaoRecusadaError):
+    pass
+
+
+# O mínimo de concordância nos casos leves para ligar a aprovação em lote
+# (Anexo F, seção 5, item 13).
+CONCORDANCIA_MINIMA_DO_LOTE = 90
+
+
 def decidir(supabase, marco: int, decisao: str | None, *, autor: dict[str, Any], agora: datetime) -> None:
     """Grava a decisão do marco, quem decidiu e quando, e conclui as pendências
     dele com a decisão na anotação. A decisão gravada não muda depois."""
@@ -288,6 +297,17 @@ def decidir(supabase, marco: int, decisao: str | None, *, autor: dict[str, Any],
         raise MarcoNaoChegouError("Esta recalibração ainda não chegou.")
     if linhas[0].get("decisao"):
         raise JaDecididaError("A decisão desta recalibração já foi registrada.")
+    if decisao == "ligar_lote":
+        acatados, total, percentual = concordancia_do_lote(
+            _com_sugestao(supabase, _decisoes(supabase)), agora.astimezone(_FUSO).date()
+        )
+        # Pelos inteiros: o percentual arredondado faria 89,7% (26 de 29) passar por 90.
+        if not total or acatados * 100 < CONCORDANCIA_MINIMA_DO_LOTE * total:
+            medida = "sem casos leves confirmados" if percentual is None else f"{percentual}%"
+            raise LoteSemConcordanciaError(
+                f"A aprovação em lote só liga com concordância de {CONCORDANCIA_MINIMA_DO_LOTE}% ou mais "
+                f"nos casos leves das últimas 4 semanas. Agora: {medida}."
+            )
     gravadas = (
         supabase.table(TABELA)
         .update({"decisao": decisao, "decidido_por": autor["id"], "decidido_em": agora.isoformat()})
@@ -511,17 +531,23 @@ def _tendencia(do_mes: list[dict], do_mes_anterior: list[dict]) -> tuple[list[st
     )
 
 
-def _lote(pares: list[tuple[dict, dict]], hoje: date) -> tuple[list[str], bool]:
+def concordancia_do_lote(pares: list[tuple[dict, dict]], hoje: date) -> tuple[int, int, int | None]:
+    """Os casos leves (faixas D e E) confirmados nas últimas 4 semanas: quantos
+    sem ajuste, quantos ao todo e o percentual (None sem nenhum)."""
     inicio = hoje - timedelta(weeks=_SEMANAS_DO_LOTE)
     leves = [d for d, _ in pares if d.get("faixa") in ("D", "E") and _dia(d["criado_em"]) > inicio]
-    if not leves:
-        return ["Nenhum caso leve confirmado nas últimas 4 semanas."], False
     acatados = sum(1 for d in leves if not d["divergencias"])
-    percentual = _percentual(acatados, len(leves))
+    return acatados, len(leves), _percentual(acatados, len(leves))
+
+
+def _lote(pares: list[tuple[dict, dict]], hoje: date) -> tuple[list[str], bool]:
+    acatados, total, percentual = concordancia_do_lote(pares, hoje)
+    if not total:
+        return ["Nenhum caso leve confirmado nas últimas 4 semanas."], False
     return [
-        f"Casos leves (faixas D e E) confirmados nas últimas 4 semanas: {acatados} de {len(leves)} "
+        f"Casos leves (faixas D e E) confirmados nas últimas 4 semanas: {acatados} de {total} "
         f"sem ajuste ({percentual}%)."
-    ], percentual < 90
+    ], percentual < CONCORDANCIA_MINIMA_DO_LOTE
 
 
 _CAMPOS_DA_MUDANCA = ("natureza", "grau_de_dano", "categoria", "faixa")
