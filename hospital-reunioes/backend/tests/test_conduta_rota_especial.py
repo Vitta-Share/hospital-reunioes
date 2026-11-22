@@ -592,3 +592,42 @@ def test_o_kit_do_canal_diz_a_rota_especial():
     assert "registra na tela do caso a quem entregou e em que data" in kit
     assert "vê só a contagem" in kit
     assert "a Rota Especial, as perguntas ao relator" not in kit
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2, com o agente de verdade: a sugestão de Rota Especial vira o aviso
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestSinalDoAgenteNaEntrada:
+    @pytest.fixture(autouse=True)
+    def _agente_ligado(self, monkeypatch):
+        monkeypatch.setattr(settings, "conduta_agente_ligado", True)
+        monkeypatch.setattr(settings, "anthropic_api_key", "chave-de-teste")
+
+    def _caso(self, especial: str) -> tuple[Any, str, str]:
+        from test_conduta_agente_de_triagem import COORDENACAO as COORD_DO_AGENTE
+        from test_conduta_agente_de_triagem import Comite as ComiteDoAgente
+        from test_conduta_agente_de_triagem import Modelo, _item, resposta_valida
+
+        troca = (
+            {"especial": _item("SIM", "Cita a diretora.", citados="diretora"), "rito": _item("ESPECIAL")}
+            if especial == "SIM"
+            else {}
+        )
+        do_agente = ComiteDoAgente(modelo=Modelo(resposta_valida(**troca)))
+        caso_id = do_agente.novo_caso()
+        return do_agente, caso_id, COORD_DO_AGENTE
+
+    def test_a_sugestao_de_rota_especial_do_agente_poe_o_aviso_na_fila_comum(self):
+        do_agente, caso_id, coordenacao = self._caso("SIM")
+
+        tela = do_agente.abrir(coordenacao, caso_id)
+
+        assert tela["rota"] == "comum"
+        assert tela["aviso_de_rota_especial"] == rota_especial.AVISO
+
+    def test_sem_a_sugestao_de_rota_especial_nao_ha_aviso(self):
+        do_agente, caso_id, coordenacao = self._caso("NAO")
+
+        assert do_agente.abrir(coordenacao, caso_id)["aviso_de_rota_especial"] is None

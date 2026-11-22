@@ -40,7 +40,7 @@ from html import escape
 
 from app.config import settings
 from app.services import ai_processor
-from app.services.conduta import cifra, membros, trilha
+from app.services.conduta import cifra, membros, rota_especial, trilha
 from app.services.ia_chaves import ClienteDaAnthropic
 from app.services.ouvidoria_pseudonimizacao import MARCADOR_NOME, pseudonimizar
 from app.services.prompt_loader import load_prompt
@@ -420,6 +420,9 @@ def triar_caso(supabase, caso_id: str, *, cliente=None) -> None:
             linha |= {"situacao": "manual", "motivo_manual": motivo}
             logger.warning("[CONDUTA] Caso %s para triagem manual (%s)", caso_id, motivo)
         supabase.table("conduta_sugestoes").insert(linha).execute()
+        if leitura.sugestao is not None and leitura.sugestao["especial"]["valor"] == "SIM":
+            # O sinal de Rota Especial: aviso na fila comum, e um membro desvia (issue #1829).
+            rota_especial.marcar_sinal_do_agente(supabase, caso_id)
     except Exception as exc:
         logger.error("[CONDUTA] Triagem do agente falhou no caso %s (%s)", caso_id, type(exc).__name__)
 
