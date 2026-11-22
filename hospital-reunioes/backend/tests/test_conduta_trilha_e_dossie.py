@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import io
+import json
 import os
 import secrets
 import sys
@@ -17,7 +18,7 @@ import zipfile
 
 import pytest
 from fastapi.testclient import TestClient
-from test_conduta_voto import BASE, COORDENACAO, LEITOR, MEMBRO, NOMES, Comite, _pessoa
+from test_conduta_voto import BASE, COORDENACAO, LEITOR, MEMBRO, NOMES, RELATO, Comite, _pessoa
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -55,7 +56,9 @@ class ComiteDaTrilha(Comite):
         caso = self.caso(acusado_ouvido=False)
         self.linha_do_caso(caso)["etapa"] = "apuracao"
         resposta = self.post(
-            COORDENACAO, f"/casos/{caso}/depoimentos", {"nome": "Rogério Valente", "cargo": "Supervisor", "papel": "acusado"}
+            COORDENACAO,
+            f"/casos/{caso}/depoimentos",
+            {"nome": "Rogério Valente", "cargo": "Supervisor", "papel": "acusado"},
         )
         assert resposta.status_code == 200, resposta.text
         depoimento = resposta.json()["depoimento"]["id"]
@@ -69,6 +72,9 @@ class ComiteDaTrilha(Comite):
 
     def trilha_do_caso(self, caso: str, pid: str = COORDENACAO) -> dict:
         return self.abrir(pid, caso)["trilha"]
+
+    def baixar(self, pid: str, caso: str):
+        return self.cliente(pid).get(f"{BASE}/casos/{caso}/dossie")
 
 
 @pytest.fixture
@@ -261,7 +267,9 @@ class TestGavetaVaziaBloqueia:
             }
         )
 
-        gaveta = next(g for g in comite.trilha_do_caso(caso)["gavetas"] if g["rotulo"].startswith("Termo de declaração"))
+        gaveta = next(
+            g for g in comite.trilha_do_caso(caso)["gavetas"] if g["rotulo"].startswith("Termo de declaração")
+        )
 
         assert (gaveta["situacao"], gaveta["origem"]) == ("Assinado", "ClickSign")
 
@@ -280,7 +288,9 @@ class TestGavetaVaziaBloqueia:
 
 class TestConferenciaDaCadeia:
     def _linhas(self, comite, caso: str) -> list[dict]:
-        return sorted((t for t in comite.banco.tabelas["conduta_trilha"] if t["caso_id"] == caso), key=lambda t: t["seq"])
+        return sorted(
+            (t for t in comite.banco.tabelas["conduta_trilha"] if t["caso_id"] == caso), key=lambda t: t["seq"]
+        )
 
     def test_a_trilha_intacta_confere(self, comite):
         caso, _ = comite.caso_com_depoimento()
@@ -309,3 +319,234 @@ class TestConferenciaDaCadeia:
         conferencia = comite.trilha_do_caso(caso)["conferencia"]
 
         assert conferencia["linhas_adulteradas"] == [linhas[3]["seq"]]
+
+    def test_o_registro_de_acessos_do_dossie_traz_a_conferencia(self, comite):
+        caso, _ = comite.caso_com_depoimento()
+        trocada = next(t for t in self._linhas(comite, caso) if t["acao"] == "anexou_arquivo")
+        trocada["autor_id"] = LEITOR
+
+        pacote = _pacote(comite.baixar(COORDENACAO, caso))
+
+        assert f"A cadeia da trilha não confere na linha {trocada['seq']}." in pacote["09-registro-de-acessos.txt"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# "BAIXAR DOSSIÊ" gera o pacote com índice e todos os itens da especificação,
+# decifrados
+# ═══════════════════════════════════════════════════════════════════════════
+
+ATA = {
+    "resumo": "Rogério Valente ameaçou cortar as horas da equipe do almoxarifado.",
+    "provas": ["Depoimento de duas testemunhas."],
+    "defesa": "Negou a ameaça e admitiu ter levantado a voz.",
+    "deliberacao": "Procedente por unanimidade.",
+    "fundamentos": "Item 3.2 do Código de Conduta.",
+    "medida": "Advertência escrita",
+}
+
+
+def _pacote(resposta) -> dict[str, str | bytes]:
+    assert resposta.status_code == 200, resposta.text
+    with zipfile.ZipFile(io.BytesIO(resposta.content)) as pacote:
+        saida: dict[str, str | bytes] = {}
+        for nome in pacote.namelist():
+            conteudo = pacote.read(nome)
+            saida[nome] = conteudo.decode("utf-8") if nome.endswith(".txt") else conteudo
+        return saida
+
+
+def _arquivo(pacote: dict, pasta: str, trecho: str) -> tuple[str, bytes]:
+    [achado] = [(nome, c) for nome, c in pacote.items() if nome.startswith(pasta) and trecho in nome]
+    return achado
+
+
+class ComiteDoDossie(ComiteDaTrilha):
+    def caso_votado(self) -> str:
+        from app.services.conduta import cifra
+
+        caso, _ = self.caso_com_depoimento()
+        for pid in (MEMBRO, LEITOR, COORDENACAO):
+            assert self.votar(pid, caso, justificativa=f"Justificativa de {NOMES[pid]}.").status_code == 200
+        self.ata_assinada(caso)
+        linha = next(a for a in self.banco.tabelas["conduta_atas"] if a["caso_id"] == caso)
+        linha["ata_cifrada"] = cifra.cifrar_texto(json.dumps(ATA, ensure_ascii=False))
+        return caso
+
+
+@pytest.fixture
+def dossie() -> ComiteDoDossie:
+    return ComiteDoDossie()
+
+
+class TestDossie:
+    def test_o_pacote_traz_o_indice_e_as_secoes_da_especificacao(self, dossie):
+        pacote = _pacote(dossie.baixar(COORDENACAO, dossie.caso_votado()))
+
+        for secao in (
+            "00-indice.txt",
+            "01-relato-original.txt",
+            "05-votos.txt",
+            "06-ata-de-deliberacao.txt",
+            "07-decisao-da-direcao.txt",
+            "08-mensagens-com-o-denunciante.txt",
+            "09-registro-de-acessos.txt",
+        ):
+            assert secao in pacote
+        assert any(nome.startswith("02-documentos/") for nome in pacote)
+        assert any(nome.startswith("03-audios/") for nome in pacote)
+        assert any(nome.startswith("04-transcricoes-de-depoimentos/") for nome in pacote)
+
+    def test_os_itens_saem_decifrados(self, dossie):
+        caso = dossie.caso_votado()
+
+        pacote = _pacote(dossie.baixar(COORDENACAO, caso))
+
+        assert pacote["01-relato-original.txt"].strip().endswith(RELATO)
+        assert _arquivo(pacote, "03-audios/", "acusado-1")[1] == AUDIO
+        assert _arquivo(pacote, "04-transcricoes-de-depoimentos/", "acusado-1")[1] == TRANSCRICAO.decode()
+        assert _arquivo(pacote, "02-documentos/", "termo-de-declaracao")[1] == TERMO
+        votos = pacote["05-votos.txt"]
+        for pid in (MEMBRO, LEITOR, COORDENACAO):
+            assert f"{NOMES[pid]}: Procedente, Advertência escrita" in votos
+            assert f"Justificativa de {NOMES[pid]}." in votos
+        assert ATA["resumo"] in pacote["06-ata-de-deliberacao.txt"]
+        assert ATA["deliberacao"] in pacote["06-ata-de-deliberacao.txt"]
+
+    def test_o_indice_lista_cada_arquivo_com_o_codigo_de_integridade(self, dossie):
+        pacote = _pacote(dossie.baixar(COORDENACAO, dossie.caso_votado()))
+
+        indice = pacote["00-indice.txt"]
+        nome_do_audio, _ = _arquivo(pacote, "03-audios/", "acusado-1")
+        assert nome_do_audio in indice
+        assert f"Código de integridade: {_sha(AUDIO)}" in indice
+        assert f"Código de integridade: {_sha(TERMO)}" in indice
+        assert "Origem: Upload" in indice
+        for secao in ("01-relato-original.txt", "05-votos.txt", "09-registro-de-acessos.txt"):
+            assert secao in indice
+
+    def test_o_arquivo_trocado_no_bucket_aparece_no_indice(self, dossie):
+        from app.services.conduta import cifra
+
+        caso = dossie.caso_votado()
+        audio = next(a for a in dossie.banco.tabelas["conduta_depoimento_arquivos"] if a["tipo"] == "audio")
+        dossie.banco.storage.objetos[("conduta-arquivos", audio["storage_path"])] = cifra.cifrar_arquivo(b"outro")
+
+        indice = _pacote(dossie.baixar(COORDENACAO, caso))["00-indice.txt"]
+
+        assert "não confere com o código registrado no envio" in indice
+
+    def test_o_voto_ainda_oculto_nao_entra_no_pacote(self, dossie):
+        caso, _ = dossie.caso_com_depoimento()
+        dossie.votar(MEMBRO, caso, justificativa="Segredo do membro até os três votarem.")
+
+        votos = _pacote(dossie.baixar(COORDENACAO, caso))["05-votos.txt"]
+
+        assert "Segredo do membro" not in votos
+        assert "Nenhuma rodada de voto fechada" in votos
+
+    def test_o_pacote_nao_fica_no_cache(self, dossie):
+        resposta = dossie.baixar(COORDENACAO, dossie.caso_votado())
+
+        assert resposta.headers["cache-control"] == "no-store"
+        assert resposta.headers["content-disposition"].startswith("attachment;")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Cada download registra quem baixou e quando
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestDownloadRegistrado:
+    def test_o_download_entra_na_trilha_com_quem_e_quando(self, dossie):
+        caso = dossie.caso_votado()
+
+        dossie.baixar(LEITOR, caso)
+
+        [linha] = [t for t in dossie.banco.tabelas["conduta_trilha"] if t["acao"] == "baixou_dossie"]
+        assert linha["caso_id"] == caso
+        assert linha["autor_id"] == LEITOR
+        assert linha["registrado_em"]
+
+    def test_o_proprio_download_vai_no_registro_de_acessos_do_pacote(self, dossie):
+        pacote = _pacote(dossie.baixar(MEMBRO, dossie.caso_votado()))
+
+        ultima = pacote["09-registro-de-acessos.txt"].strip().splitlines()[-1]
+        assert "baixou o Dossiê do caso" in ultima
+        assert NOMES[MEMBRO] in ultima
+
+    def test_sem_o_registro_na_trilha_o_pacote_nao_sai(self, dossie):
+        caso = dossie.caso_votado()
+        dossie.banco.falhas_da_trilha = 3
+
+        resposta = dossie.baixar(COORDENACAO, caso)
+
+        assert resposta.status_code == 503
+        assert not [t for t in dossie.banco.tabelas["conduta_trilha"] if t["acao"] == "baixou_dossie"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Presidente, diretoria executiva, apurador de outro caso e super admin
+# recebem 403 no download
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestSoOComiteBaixa:
+    def _com_pessoa(self, dossie, pid: str, **campos) -> None:
+        dossie.banco.tabelas["participantes"].append(
+            {**_pessoa(MEMBRO), "id": pid, "auth_user_id": f"auth-{pid}", "email": f"{pid}@hsm.test", **campos}
+        )
+
+    @pytest.mark.parametrize(
+        "pid, campos",
+        [
+            ("PRES", {"nome_completo": "Paulo Presidente", "perfil_conduta": "presidente"}),
+            ("DIRE", {"nome_completo": "Dora Diretora", "perfil_conduta": "diretoria_executiva"}),
+            ("ADM", {"nome_completo": "Sara Super", "is_super_admin": True, "role": "super_admin"}),
+        ],
+    )
+    def test_quem_nao_e_do_comite_recebe_403(self, dossie, pid, campos):
+        caso = dossie.caso_votado()
+        self._com_pessoa(dossie, pid, **campos)
+
+        resposta = dossie.baixar(pid, caso)
+
+        assert resposta.status_code == 403
+        assert not [t for t in dossie.banco.tabelas["conduta_trilha"] if t["acao"] == "baixou_dossie"]
+
+    def test_o_apurador_de_outro_caso_recebe_403(self, dossie):
+        caso = dossie.caso_votado()
+        outro = dossie.caso(acusado_ouvido=False)
+        self._com_pessoa(dossie, "APUR", nome_completo="Ivo Apurador")
+        dossie.banco.tabelas.setdefault("conduta_atribuicoes", []).append(
+            {
+                "id": "atr-apur",
+                "caso_id": outro,
+                "participante_id": "APUR",
+                "motivo": "apurador",
+                "termo_assinado_em": "2026-11-01T12:00:00+00:00",
+            }
+        )
+
+        assert dossie.baixar("APUR", caso).status_code == 403
+
+    def test_o_apurador_do_proprio_caso_tambem_nao_baixa(self, dossie):
+        caso = dossie.caso_votado()
+        self._com_pessoa(dossie, "APUR", nome_completo="Ivo Apurador")
+        dossie.banco.tabelas.setdefault("conduta_atribuicoes", []).append(
+            {
+                "id": "atr-apur",
+                "caso_id": caso,
+                "participante_id": "APUR",
+                "motivo": "apurador",
+                "termo_assinado_em": "2026-11-01T12:00:00+00:00",
+            }
+        )
+
+        assert dossie.abrir("APUR", caso)["trilha"]["pode_baixar_dossie"] is False
+        assert dossie.baixar("APUR", caso).status_code == 403
+
+    def test_o_membro_do_comite_no_caso_baixa(self, dossie):
+        caso = dossie.caso_votado()
+
+        assert dossie.abrir(MEMBRO, caso)["trilha"]["pode_baixar_dossie"] is True
+        assert dossie.baixar(MEMBRO, caso).status_code == 200
