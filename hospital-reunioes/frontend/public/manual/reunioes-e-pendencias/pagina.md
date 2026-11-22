@@ -175,19 +175,22 @@ Se o item que está no seu nome saiu errado (o prazo, o responsável ou o que fo
 A Pendência tem quatro estados: **Pendente**, **Em progresso**, **Concluída** e **Cancelada**. **Atrasada** e **Repactuada** não são estados que alguém marca: o app mostra sozinho a Pendência aberta com prazo vencido e a que já teve o prazo trocado. Toda mudança pede uma **Anotação** e fica no **Histórico**, que ninguém edita nem apaga. Nenhuma Pendência é apagada.
 
 ```fluxograma
-inicio nasce 1,1: Nasce no envio da Ata | Todas as Ações da Ata viram Pendência quando o Facilitador envia para assinatura ou finaliza sem assinatura.
-passo pendente 2,1: Pendente | Já conta no painel e no prazo. Se o prazo vence aberta, aparece como atrasada.
-passo repactuacao 2,2: Repactuação | Prazo novo, com Anotação. Feita depois do vencimento, conta como atraso.
-passo andamento 3,1: Em progresso | O responsável começou a fazer.
-fim cancelada 3,2: Cancelada | Só o Facilitador ou quem administra o app cancela, com Anotação.
-fim concluida 4,1: Concluída | Com Anotação e, se quiser, uma foto ou PDF como prova. Fecha na hora, sem validação.
-passo reabertura 4,2: Reabertura | O Facilitador devolve a entrega, com Anotação e prazo novo.
+inicio nasce 1,2: Nasce no envio da Ata | Todas as Ações da Ata viram Pendência quando o Facilitador envia para assinatura ou finaliza sem assinatura.
+passo repactuacao 2,1: Repactuação | Prazo novo, com Anotação. Feita depois do vencimento, conta como atraso.
+passo pendente 2,2: Pendente | Já conta no painel e no prazo. Se o prazo vence aberta, aparece como atrasada.
+passo andamento 2,3: Em progresso | O responsável começou a fazer. Iniciar é opcional.
+decisao fecha 3,2: Como termina? | Pendente ou Em progresso, a Pendência aberta se conclui ou se cancela. Não precisa Iniciar antes.
+fim concluida 4,2: Concluída | Com Anotação e, se quiser, uma foto ou PDF como prova. Fecha na hora, sem validação.
+fim cancelada 4,3: Cancelada | Só o Facilitador ou quem administra o app cancela, com Anotação.
+passo reabertura 5,2: Reabertura | O Facilitador devolve a entrega, com Anotação e prazo novo.
 nasce -> pendente
 pendente -> andamento: Iniciar
 pendente -> repactuacao: Repactuar
 repactuacao -> pendente
-andamento -> concluida: Concluir
-andamento -> cancelada: Cancelar
+pendente -> fecha
+andamento -> fecha
+fecha -> concluida: Concluir
+fecha -> cancelada: Cancelar
 concluida -> reabertura: Reabrir
 reabertura -> pendente
 ```

@@ -193,3 +193,95 @@ def test_o_ranking_sai_pelo_super_admin_de_exemplo_e_so_com_gente_do_seed(monkey
     for _, nome, *_ in roteiro.PESSOAS:
         assert json.dumps(nome, ensure_ascii=False) in passos
     assert ".remove()" in passos
+
+
+class BancoDasVerificacoes:
+    """`rotina_verificacoes` com a chave `id` e o `UNIQUE (rotina_id, ciclo_inicio)` da migration 177."""
+
+    def __init__(self):
+        self.linhas: dict[str, dict] = {}
+
+    def rest(self, caminho, metodo="GET", corpo=None, prefer=None):
+        if not caminho.startswith("rotina_verificacoes"):
+            return []
+        if metodo == "DELETE":
+            rotina = caminho.split("rotina_id=eq.", 1)[1].split("&", 1)[0]
+            self.linhas = {k: v for k, v in self.linhas.items() if v["rotina_id"] != rotina}
+            return None
+        if metodo == "POST":
+            for linha in corpo:
+                chave = linha.get("id") or f"novo-{len(self.linhas)}"
+                if chave in self.linhas and prefer != "resolution=merge-duplicates":
+                    raise SystemExit(f"POST {caminho}: 409 id repetido")
+                ciclo = (linha["rotina_id"], linha["ciclo_inicio"])
+                if any((v["rotina_id"], v["ciclo_inicio"]) == ciclo for k, v in self.linhas.items() if k != chave):
+                    raise SystemExit(f"POST {caminho}: 409 rotina_verificacoes_rotina_id_ciclo_inicio_key")
+                self.linhas[chave] = linha
+        return []
+
+
+def test_a_rotina_semeia_de_novo_semanas_depois_sem_bater_no_ciclo_unico(monkeypatch):
+    # Revisão do PR #2156: o ciclo anda com a semana de hoje, e a Verificação
+    # de id fixo da rodada anterior ainda ocupa o ciclo que a de agora grava.
+    banco = BancoDasVerificacoes()
+    monkeypatch.setattr(roteiro, "_rest", banco.rest)
+    primeira_segunda = roteiro.dt.date(2026, 11, 16)
+
+    for semanas_depois in range(4):
+        hoje = primeira_segunda + roteiro.dt.timedelta(days=7 * semanas_depois)
+        monkeypatch.setattr(roteiro, "_segunda", lambda n, hoje=hoje: hoje - roteiro.dt.timedelta(days=7 * n))
+
+        roteiro.semear_rotina()
+
+        ciclos = sorted(v["ciclo_inicio"] for v in banco.linhas.values())
+        esperados = sorted((hoje - roteiro.dt.timedelta(days=7 * s)).isoformat() for s, *_ in roteiro.VERIFICACOES)
+        assert ciclos == esperados
+
+
+def _historico_falso(eventos):
+    gravados = []
+
+    def rest(caminho, metodo="GET", corpo=None, prefer=None):
+        if metodo == "POST":
+            gravados.extend(corpo)
+            return None
+        assert caminho.startswith(f"pendencia_historico?id_acao=eq.{roteiro.CONTESTADA}")
+        return eventos
+
+    return rest, gravados
+
+
+def _agora_utc(dias_atras: int = 0) -> str:
+    agora = roteiro.dt.datetime.now(roteiro.dt.timezone.utc) - roteiro.dt.timedelta(days=dias_atras)
+    return agora.isoformat()
+
+
+def test_a_contestacao_antiga_entra_de_novo_para_seguir_no_grupo_de_48_horas(monkeypatch):
+    # Revisão do PR #2156: o prazo da Contestação é o dia seguinte a ela, e o
+    # Histórico não muda. A semeadura de outro dia grava uma Contestação nova,
+    # senão o print `minha-fila` não acha o grupo de até 48 horas.
+    rest, gravados = _historico_falso([{"comando": "contestar", "criado_em": _agora_utc(dias_atras=2)}])
+    monkeypatch.setattr(roteiro, "_rest", rest)
+
+    roteiro.semear_contestacao()
+
+    assert [g["comando"] for g in gravados] == ["contestar"]
+    assert gravados[0]["id_acao"] == roteiro.CONTESTADA
+
+
+def test_a_contestacao_de_hoje_nao_entra_de_novo(monkeypatch):
+    rest, gravados = _historico_falso([{"comando": "contestar", "criado_em": _agora_utc()}])
+    monkeypatch.setattr(roteiro, "_rest", rest)
+
+    roteiro.semear_contestacao()
+
+    assert gravados == []
+
+
+def test_a_contestacao_respondida_no_banco_local_e_aberta_de_novo(monkeypatch):
+    rest, gravados = _historico_falso([{"comando": "ajustar", "criado_em": _agora_utc()}])
+    monkeypatch.setattr(roteiro, "_rest", rest)
+
+    roteiro.semear_contestacao()
+
+    assert [g["comando"] for g in gravados] == ["contestar"]

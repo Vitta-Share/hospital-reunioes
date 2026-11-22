@@ -39,6 +39,7 @@ import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 RAIZ = Path(__file__).resolve().parent.parent
 ENV_LOCAL = RAIZ / "hospital-reunioes" / ".env"
@@ -464,14 +465,32 @@ def _segunda(semanas_antes: int) -> dt.date:
     return hoje - dt.timedelta(days=hoje.weekday() + 7 * semanas_antes)
 
 
+BRASILIA = ZoneInfo("America/Sao_Paulo")
+
+
+def _hoje_em_brasilia() -> dt.date:
+    return dt.datetime.now(BRASILIA).date()
+
+
+def _dia_em_brasilia(instante: str) -> dt.date:
+    return dt.datetime.fromisoformat(instante).astimezone(BRASILIA).date()
+
+
 def semear_contestacao() -> None:
     """A Contestação aberta do Rodrigo, que a Clara responde (issue #1870).
 
-    O Histórico só cresce (o banco recusa UPDATE e DELETE): o evento entra uma
-    vez e o roteiro nunca responde a ele.
+    O Histórico só cresce (o banco recusa UPDATE e DELETE), e o prazo da
+    Contestação é o dia seguinte a ela (`fonte_contestacoes.py`): a de outro
+    dia já saiu do grupo de até 48 horas que o print `minha-fila` mostra. A
+    semeadura conta pelo último evento da Contestação e só grava uma nova
+    quando ele não é uma Contestação de hoje, então entra no máximo um evento
+    por dia. O roteiro nunca responde a ela.
     """
-    ja_tem = _rest(f"pendencia_historico?id_acao=eq.{CONTESTADA}&comando=eq.contestar&select=id")
-    if ja_tem:
+    ultimo = _rest(
+        f"pendencia_historico?id_acao=eq.{CONTESTADA}&comando=in.(contestar,ajustar,recusar)"
+        "&select=comando,criado_em&order=criado_em.desc,id.desc&limit=1"
+    )
+    if ultimo and ultimo[0]["comando"] == "contestar" and _dia_em_brasilia(ultimo[0]["criado_em"]) == _hoje_em_brasilia():
         return
     pid, _, responsavel, prazo, estado, _ = next(p for p in PENDENCIAS if p[0] == CONTESTADA)
     _rest(
@@ -494,7 +513,13 @@ def semear_contestacao() -> None:
 
 
 def semear_rotina() -> None:
-    """A Rotina semanal da Ata assinada, com as Verificações das últimas semanas."""
+    """A Rotina semanal da Ata assinada, com as Verificações das últimas semanas.
+
+    Os ciclos andam com a semana de hoje, e o banco tem um ciclo por Rotina
+    (`UNIQUE (rotina_id, ciclo_inicio)`, migration 177): a Verificação de uma
+    rodada de semanas atrás ainda ocupa o ciclo que esta grava. As
+    Verificações da Rotina de exemplo saem antes e entram de novo.
+    """
     _rest(
         "rotinas",
         "POST",
@@ -513,6 +538,7 @@ def semear_rotina() -> None:
         ],
         prefer="resolution=merge-duplicates",
     )
+    _rest(f"rotina_verificacoes?rotina_id=eq.{ROTINA}", "DELETE")
     _rest(
         "rotina_verificacoes",
         "POST",

@@ -63,6 +63,13 @@ function alcancaveis(fluxo: Fluxo, de: string): Set<string> {
   return achados;
 }
 
+/** Se `de` chega em `para` por uma ligação com a ação `acao`, sem passar por `evitando`. */
+function chegaPor(fluxo: Fluxo, de: string, para: string, acao: RegExp, evitando: string): boolean {
+  const semDesvio = { ...fluxo, ligacoes: fluxo.ligacoes.filter((l) => l.de !== evitando && l.para !== evitando) };
+  const antes = alcancaveis(semDesvio, de);
+  return semDesvio.ligacoes.some((l) => l.para === para && antes.has(l.de) && acao.test(l.rotulo));
+}
+
 describe("quem vê a página de Reuniões e Pendências", () => {
   it("o Facilitador vê a página, e quem só tem POPs não vê", () => {
     const facilitador = paginasVisiveis(PAGINAS, pessoa({ access_profile: "regular" }));
@@ -254,8 +261,15 @@ describe("o fluxograma do ciclo de vida da Pendência (issue #1880)", () => {
     expect(nasce?.rotulo).toMatch(/^Nasce no envio da Ata$/);
     expect(fluxo.ligacoes.some((l) => l.de === nasce!.id && l.para === pendente)).toBe(true);
     expect(liga(pendente, andamento, /^Iniciar$/)).toBe(true);
-    expect(liga(andamento, concluida, /^Concluir$/)).toBe(true);
-    expect(liga(andamento, cancelada, /^Cancelar$/)).toBe(true);
+    // Revisão do PR #2156: Concluir e Cancelar partem dos dois estados abertos
+    // (`pendencia_ciclo._PARTIDA`), então a Pendente fecha sem passar por Em progresso.
+    for (const [de, evitando] of [
+      [pendente, andamento],
+      [andamento, pendente],
+    ]) {
+      expect(chegaPor(fluxo, de, concluida, /^Concluir$/, evitando)).toBe(true);
+      expect(chegaPor(fluxo, de, cancelada, /^Cancelar$/, evitando)).toBe(true);
+    }
     expect(liga(pendente, repactuacao, /^Repactuar$/)).toBe(true);
     expect(liga(concluida, reabertura, /^Reabrir$/)).toBe(true);
     expect(alcancaveis(fluxo, reabertura)).toContain(pendente);
