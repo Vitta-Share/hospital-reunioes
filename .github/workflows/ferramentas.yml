@@ -23,6 +23,8 @@ on:
       - '.claude/skills/onda-enxuta/**'
       - '.claude/skills/pegar-issue/**'
       - '.claude/skills/apresentar-prd/**'
+      # O que falta para usar (issue #2213): o teste em tools/ roda o script da skill.
+      - '.claude/skills/mensagem-prd/**'
       - 'docs/comunicacao/planos/**'
       - '.claude/skills/guia-humano/**'
       - 'docs/comunicacao/guias/**'
@@ -60,6 +62,8 @@ on:
       # A Apresentação do PRD (issue #1891): o teste em tools/ roda o script da
       # skill e a função de validar da pasta dos planos no Node.
       - '.claude/skills/apresentar-prd/**'
+      # O que falta para usar (issue #2213): o teste em tools/ roda o script da skill.
+      - '.claude/skills/mensagem-prd/**'
       - 'docs/comunicacao/planos/**'
       # O Guia passo a passo do card humano: o teste em tools/ monta todo guia.
       - '.claude/skills/guia-humano/**'

@@ -414,6 +414,25 @@ def e_implantacao(pedido: dict[str, Any]) -> bool:
     return pedido.get("tipo") == TIPO_IMPLANTACAO
 
 
+def implantacao_aberta(supabase, demanda_id: str) -> list[dict[str, Any]]:
+    """Os Pedidos de implantacao ainda abertos da Demanda, do mais antigo ao
+    mais novo: o que falta o hospital fazer para usar a entrega (ADR 0111,
+    decisao 11). O `/mensagem-prd` le pela ponte (issue #2213)."""
+    linhas = (
+        supabase.table(TABELA_PERGUNTAS)
+        .select("id, assunto, criado_em")
+        .eq("demanda_id", demanda_id)
+        .eq("tipo", TIPO_IMPLANTACAO)
+        .eq("estado", ESTADO_ABERTA)
+        .order("criado_em")
+        .order("id")
+        .execute()
+        .data
+        or []
+    )
+    return [{"id": str(p["id"]), "assunto": p.get("assunto") or ""} for p in linhas]
+
+
 def pode_responder(pergunta: dict[str, Any], ator: dict[str, Any]) -> bool:
     """Responde (no Passo a passo, marca e conclui) o Destinatario; o
     Desenvolvedor registra no lugar dele (ADR 0109, decisao 5; ADR 0110,

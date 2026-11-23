@@ -128,6 +128,20 @@ def demanda_da_issue(
     return {"id": str(demanda["id"])}
 
 
+@router.get("/projetos/{projeto}/issues/{numero}/implantacao")
+def implantacao_da_issue(
+    projeto: str,
+    numero: int = Path(ge=1),
+    supabase=Depends(get_supabase_client),
+) -> dict:
+    """Os Pedidos de implantacao abertos da Demanda desta issue-raiz (o PRD),
+    id e Assunto, para o `/mensagem-prd` dizer o que falta para usar (issue
+    #2213, ADR 0111, decisao 11). Issue sem Demanda e 404, como na leitura do
+    id; sem Pedido aberto, a lista vazia. So le."""
+    demanda = _demanda_ou_404(supabase, projeto=projeto, github_issue_numero=numero)
+    return {"pedidos": tecnologia_perguntas.implantacao_aberta(supabase, str(demanda["id"]))}
+
+
 class DemandaDeProjetoNovoPayload(BaseModel):
     """O que o app nao tem como ler do repositorio de um Projeto novo: o nome
     dele, o titulo e o link do PRD."""

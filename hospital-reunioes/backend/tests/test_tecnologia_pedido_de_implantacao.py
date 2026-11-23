@@ -364,6 +364,51 @@ class TestLer:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# O que falta para usar (issue #2213, ADR 0111, decisão 11)
+# ═══════════════════════════════════════════════════════════════════════════
+
+# A Demanda dos testes é a da issue-raiz 1700 do Hospital: o PRD dela.
+FALTA = "/api/automacao/tecnologia/projetos/hospital/issues/1700/implantacao"
+
+
+def _falta(ponte, caminho=FALTA):
+    return ponte.get(caminho, headers={"X-API-Key": CHAVE})
+
+
+class TestOQueFaltaParaUsar:
+    """O `/mensagem-prd` lê pela ponte os Pedidos de implantação abertos da
+    Demanda do PRD para escrever "Para começar a usar, falta: ..."."""
+
+    def test_a_ponte_devolve_so_os_pedidos_de_implantacao_abertos_da_demanda_do_prd(self):
+        ponte, sb, aberto = _uma_implantacao()
+        concluido = _criar(ponte, assunto="treinar a recepção no Canal de Conduta").json()["id"]
+        next(p for p in sb.tabelas[TABELA] if p["id"] == concluido)["estado"] = "concluida"
+        assert ponte.post(CRIAR, json=PASSO_A_PASSO, headers={"X-API-Key": CHAVE}).status_code == 201
+
+        resposta = _falta(ponte)
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json() == {
+            "pedidos": [{"id": aberto, "assunto": "testar o anonimato do Canal de Conduta"}],
+        }
+
+    def test_a_demanda_sem_pedido_de_implantacao_aberto_devolve_a_lista_vazia(self):
+        ponte, _ = _ponte()
+
+        resposta = _falta(ponte)
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json() == {"pedidos": []}
+
+    def test_o_prd_sem_demanda_e_404(self):
+        ponte, _ = _ponte()
+
+        resposta = _falta(ponte, "/api/automacao/tecnologia/projetos/hospital/issues/9999/implantacao")
+
+        assert resposta.status_code == 404
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # O kit de conhecimento do Assistente
 # ═══════════════════════════════════════════════════════════════════════════
 
