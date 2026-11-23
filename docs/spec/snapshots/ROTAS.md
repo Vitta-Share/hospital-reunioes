@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T20:17+0000 -->
+<!-- last_update: 2026-11-23T13:37+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -924,6 +924,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/automacao/tecnologia/perguntas/{pergunta_id}/resolver` | A Vitta leu a resposta e deu o ok: a Pergunta respondida passa a | ✅ |
 | GET | `/automacao/tecnologia/projetos/{projeto}/issues/{numero}/demanda` | O id da Demanda vinculada a esta issue-raiz (ADR 0093: projeto mais | ✅ |
 | POST | `/automacao/tecnologia/projetos/{projeto}/issues/{numero}/demanda` | A Demanda do PRD de um Projeto novo (issue #1967, PRD #1964): 201 quando | ✅ |
+| GET | `/automacao/tecnologia/projetos/{projeto}/issues/{numero}/implantacao` | Os Pedidos de implantacao abertos da Demanda desta issue-raiz (o PRD), | ✅ |
 | POST | `/automacao/tecnologia/validacoes` | Guarda a observacao original junto da Demanda do PRD e devolve so os | ✅ |
 
 ## transcricao (`app/routers/transcricao.py`)
@@ -963,4 +964,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 552 endpoints em 81 routers · 92% exigem auth.
+**Totais:** 553 endpoints em 81 routers · 92% exigem auth.
