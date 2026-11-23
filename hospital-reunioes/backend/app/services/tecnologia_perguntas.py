@@ -52,7 +52,14 @@ from app.services import github_client, tecnologia_conversa, tecnologia_email
 from app.services.notificacao_service import criar_notificacao_tecnologia
 from app.services.paginacao import ler_tudo
 from app.services.pendencias_consulta import FUSO
-from app.services.tecnologia import TABELA_CONVERSA_DA_DEMANDA, TABELA_DEMANDAS, e_desenvolvedor, nome_do_projeto
+from app.services.tecnologia import (
+    ETAPA_EM_PRODUCAO,
+    ETAPA_ENTREGUE,
+    TABELA_CONVERSA_DA_DEMANDA,
+    TABELA_DEMANDAS,
+    e_desenvolvedor,
+    nome_do_projeto,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +158,9 @@ MOTIVO_ESPERA_ABERTA = 'Este Pedido espera "{assunto}" ser concluído.'
 MOTIVO_PROBLEMA_SO_NA_IMPLANTACAO = "Só o Pedido de implantação tem o Achei um problema."
 MOTIVO_PROBLEMA_SO_NO_ABERTO = "Este Pedido de implantação já não está aberto."
 TEXTO_DO_PROBLEMA = 'Achei um problema no Pedido de implantação "{assunto}", da entrega "{entrega}".'
+MOTIVO_ESPERA_O_BUG = "Este Pedido espera a Demanda {numero} ser entregue."
+# A Demanda de bug entregue solta o Pedido que espera por ela.
+ETAPAS_DO_BUG_ENTREGUE = (ETAPA_ENTREGUE, ETAPA_EM_PRODUCAO)
 # Por que a passagem nao vale, pelo estado em que a Pergunta esta.
 MOTIVO_DA_PASSAGEM_RECUSADA = {
     ESTADO_ABERTA: "A Pergunta ainda não foi respondida: só a respondida se resolve.",
@@ -414,9 +424,7 @@ def ligar_o_bug(supabase, bug: dict[str, Any], pedido: dict[str, Any]) -> None:
     bug guarda de qual Demanda veio, e o Pedido passa a esperar por ela. O
     Pedido continua aberto; o PRD de origem nao reabre."""
     bug_id = str(bug["id"])
-    supabase.table(TABELA_DEMANDAS).update({"demanda_origem_id": str(pedido["demanda_id"])}).eq(
-        "id", bug_id
-    ).execute()
+    supabase.table(TABELA_DEMANDAS).update({"demanda_origem_id": str(pedido["demanda_id"])}).eq("id", bug_id).execute()
     supabase.table(TABELA_PERGUNTAS).update({"espera_demanda_id": bug_id}).eq("id", str(pedido["id"])).execute()
 
 
@@ -585,6 +593,8 @@ def _cartao(
         "pode_reenviar": ator is not None and _cabe_reenviar(p) and pode_responder(p, ator),
         # A espera (issue #2208): o Pedido esperado enquanto nao esta concluido.
         "espera": _espera(p, esperados or {}),
+        # A Demanda de bug do "Achei um problema" (issue #2210) ate ser entregue.
+        "espera_demanda": _espera_demanda(p, esperados or {}),
         "projeto": projeto,
         "assunto": p.get("assunto") or "",
         "texto": p.get("texto") or "",
@@ -605,13 +615,21 @@ def _cartao(
 
 
 def _esperados(supabase, pedidos: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    """Os Pedidos que estes esperam, pelo id, lidos agora (o estado de agora
-    e o que libera o Concluir)."""
+    """Os Pedidos e as Demandas de bug que estes esperam, pelo id, lidos
+    agora (o estado de agora e o que libera o Concluir). Os ids sao uuid de
+    duas tabelas, e por isso cabem no mesmo dicionario."""
+    lidos: dict[str, dict[str, Any]] = {}
     ids = sorted({str(p["espera_pedido_id"]) for p in pedidos if p.get("espera_pedido_id")})
-    if not ids:
-        return {}
-    linhas = supabase.table(TABELA_PERGUNTAS).select("id, assunto, estado").in_("id", ids).execute().data or []
-    return {str(linha["id"]): linha for linha in linhas}
+    if ids:
+        linhas = supabase.table(TABELA_PERGUNTAS).select("id, assunto, estado").in_("id", ids).execute().data or []
+        lidos |= {str(linha["id"]): linha for linha in linhas}
+    bugs = sorted({str(p["espera_demanda_id"]) for p in pedidos if p.get("espera_demanda_id")})
+    if bugs:
+        linhas = (
+            supabase.table(TABELA_DEMANDAS).select("id, numero, etapa, apagada_em").in_("id", bugs).execute().data or []
+        )
+        lidos |= {str(linha["id"]): linha for linha in linhas}
+    return lidos
 
 
 def _espera(pedido: dict[str, Any], esperados: dict[str, dict[str, Any]]) -> dict[str, Any] | None:
@@ -624,6 +642,19 @@ def _espera(pedido: dict[str, Any], esperados: dict[str, dict[str, Any]]) -> dic
     if esperado.get("estado") == ESTADO_CONCLUIDA:
         return None
     return {"pedido_id": str(espera_id), "assunto": str(esperado.get("assunto") or "")}
+
+
+def _espera_demanda(pedido: dict[str, Any], esperados: dict[str, dict[str, Any]]) -> dict[str, Any] | None:
+    """A Demanda de bug que o Pedido espera enquanto ela nao foi entregue, ou
+    `None` (issue #2210, ADR 0111, decisao 9). Entregue ou Em producao
+    libera; a apagada tambem, porque nao ha mais o que esperar."""
+    bug_id = pedido.get("espera_demanda_id")
+    if not bug_id:
+        return None
+    bug = esperados.get(str(bug_id)) or {}
+    if bug.get("etapa") in ETAPAS_DO_BUG_ENTREGUE or bug.get("apagada_em"):
+        return None
+    return {"demanda_id": str(bug_id), "numero": bug.get("numero")}
 
 
 def cartao(supabase, pedido: dict[str, Any], *, ator: dict[str, Any] | None) -> dict[str, Any]:
@@ -1267,9 +1298,13 @@ def concluir(
     O Pedido que espera outro (issue #2208) so conclui com o esperado
     concluido; antes, recusa com o motivo numa linha."""
     _do_passo_a_passo_aberto(pedido, ator)
-    espera = _espera(pedido, _esperados(supabase, [pedido]))
+    esperados = _esperados(supabase, [pedido])
+    espera = _espera(pedido, esperados)
     if espera:
         raise ConclusaoRecusadaError(MOTIVO_ESPERA_ABERTA.format(assunto=" ".join(espera["assunto"].split())))
+    bug = _espera_demanda(pedido, esperados)
+    if bug:
+        raise ConclusaoRecusadaError(MOTIVO_ESPERA_O_BUG.format(numero=bug["numero"]))
     historico = _historico(supabase, [str(pedido["id"])]).get(str(pedido["id"]), [])
     if not _todos_marcados(pedido, historico):
         raise ConclusaoRecusadaError(MOTIVO_FALTA_CHECK)

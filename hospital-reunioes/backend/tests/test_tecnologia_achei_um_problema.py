@@ -168,3 +168,105 @@ class TestCriarOCardDoBug:
 
         assert _pedido(sb, pedido_id).get("espera_demanda_id") is None
         assert _demanda(sb, bug_id).get("demanda_origem_id") is None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. "Espera a Demanda N" e o Concluir recusa até o bug ficar Entregue
+# ═══════════════════════════════════════════════════════════════════════════
+
+NUMERO_DO_BUG = 57
+
+
+def _pedido_esperando_o_bug(monkeypatch):
+    sb, _, pedido_id, bug_id = _bug_com_card(monkeypatch)
+    _demanda(sb, bug_id)["numero"] = NUMERO_DO_BUG
+    for passo in range(len(PASSOS)):
+        assert _marcar(sb, DIRETORA, pedido_id, monkeypatch, passo).status_code == 200
+    return sb, pedido_id, bug_id
+
+
+def _cartao_na_lista(sb, pedido_id, monkeypatch) -> dict:
+    lista = _tela(sb, DIRETORA, monkeypatch).get(ESPERANDO).json()
+    return next(item for item in lista if item["id"] == pedido_id)
+
+
+class TestEsperaADemandaDeBug:
+    def test_o_cartao_mostra_espera_a_demanda_de_bug(self, monkeypatch):
+        sb, pedido_id, bug_id = _pedido_esperando_o_bug(monkeypatch)
+
+        cartao = _cartao_na_lista(sb, pedido_id, monkeypatch)
+
+        assert cartao["espera_demanda"] == {"demanda_id": bug_id, "numero": NUMERO_DO_BUG}
+
+    def test_o_concluir_recusa_com_o_motivo_ate_o_bug_ficar_entregue(self, monkeypatch):
+        sb, pedido_id, _ = _pedido_esperando_o_bug(monkeypatch)
+
+        resposta = _concluir(sb, DIRETORA, pedido_id, monkeypatch)
+
+        assert resposta.status_code == 422
+        assert resposta.json() == {"detail": "Este Pedido espera a Demanda 57 ser entregue."}
+        assert _pedido(sb, pedido_id)["estado"] == "aberta"
+
+    @pytest.mark.parametrize("etapa", ["entregue", "em_producao"])
+    def test_com_o_bug_entregue_o_concluir_libera(self, monkeypatch, etapa):
+        sb, pedido_id, bug_id = _pedido_esperando_o_bug(monkeypatch)
+        _demanda(sb, bug_id)["etapa"] = etapa
+
+        assert _cartao_na_lista(sb, pedido_id, monkeypatch)["espera_demanda"] is None
+        resposta = _concluir(sb, DIRETORA, pedido_id, monkeypatch)
+
+        assert resposta.status_code == 200, resposta.text
+        assert _pedido(sb, pedido_id)["estado"] == "concluida"
+
+    def test_o_bug_em_desenvolvimento_continua_segurando(self, monkeypatch):
+        sb, pedido_id, bug_id = _pedido_esperando_o_bug(monkeypatch)
+        _demanda(sb, bug_id)["etapa"] = "em_desenvolvimento"
+
+        assert _concluir(sb, DIRETORA, pedido_id, monkeypatch).status_code == 422
+
+    def test_o_bug_apagado_nao_segura_o_pedido_para_sempre(self, monkeypatch):
+        sb, pedido_id, bug_id = _pedido_esperando_o_bug(monkeypatch)
+        _demanda(sb, bug_id)["apagada_em"] = "2026-11-23T12:00:00+00:00"
+
+        assert _concluir(sb, DIRETORA, pedido_id, monkeypatch).status_code == 200
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. O PRD de origem continua fechado
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestOPrdNaoReabre:
+    def test_o_bug_com_card_nao_toca_no_prd_de_origem(self, monkeypatch, github):  # noqa: F811
+        sb, pedido_id = _pedido_de_implantacao()
+        origem = _demanda(sb, DEMANDA)
+        antes = dict(origem)
+        github["chamadas"].clear()
+        cliente, _, bug_id = _bug_ate_o_resumo(sb, monkeypatch, pedido_id)
+
+        assert cliente.post(f"{CHAT}/{bug_id}/criar-card").status_code == 200
+
+        # Nenhuma chamada ao GitHub mexe no PRD, e a Demanda da entrega fica como estava.
+        assert [chamada for chamada in github["chamadas"] if f"/issues/{PRD}" in chamada[1]] == []
+        assert _demanda(sb, DEMANDA) == antes
+        assert _pedido(sb, pedido_id)["estado"] == "aberta"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. O kit de conhecimento do Assistente
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestKit:
+    @pytest.mark.parametrize(
+        "frase",
+        [
+            "Achei um problema",
+            "Espera a Demanda",
+            "o Concluir fica bloqueado até a Demanda do bug ser entregue",
+            "a entrega não é reaberta",
+            "refaz só o passo que falhou",
+        ],
+    )
+    def test_o_kit_diz_o_que_o_achei_um_problema_faz(self, frase):
+        assert frase in _texto_do_kit(ARQUIVO_DA_ABA)

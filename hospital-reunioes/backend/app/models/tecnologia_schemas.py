@@ -349,6 +349,14 @@ class EsperaDoPedidoResponse(BaseModel):
     assunto: str
 
 
+class EsperaDaDemandaDeBugResponse(BaseModel):
+    """A Demanda de bug que o Pedido de implantacao espera, enquanto ela nao
+    foi entregue (issue #2210, ADR 0111, decisao 9)."""
+
+    demanda_id: str
+    numero: int | None = None
+
+
 class PerguntaDoCartaoResponse(BaseModel):
     """O cartao da Pergunta da Vitta (issue #2116, ADR 0109, decisao 3): de
     qual Projeto e, a pergunta, as quatro linhas em palavras simples, as
@@ -388,6 +396,8 @@ class PerguntaDoCartaoResponse(BaseModel):
     pode_reenviar: bool = False
     # A espera (issue #2208): nula sem espera ou com o esperado concluido.
     espera: EsperaDoPedidoResponse | None = None
+    # O "Achei um problema" (issue #2210): nula sem bug ou com ele entregue.
+    espera_demanda: EsperaDaDemandaDeBugResponse | None = None
 
 
 class PerguntaEsperandoResponse(PerguntaDoCartaoResponse):
