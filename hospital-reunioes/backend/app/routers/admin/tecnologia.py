@@ -249,6 +249,7 @@ def _para_a_lista(supabase: Client, demandas: list[dict], *, ator: dict) -> list
         ids |= {d.get("autor_id") for d in demandas}
     nomes = _nomes(supabase, ids)
     conversas = _conversas_dos_cards(supabase, demandas)
+    implantacoes = tecnologia_perguntas.implantacao_das_demandas(supabase, [str(d["id"]) for d in demandas])
     return [
         {
             **d,
@@ -275,6 +276,9 @@ def _para_a_lista(supabase: Client, demandas: list[dict], *, ator: dict) -> list
             "projeto": projeto_da_demanda(d),
             "projeto_nome": nome_do_projeto(d),
             **_revisao_na_lista(ator, d, conversas.get(str(d["id"]))),
+            # A secao Implantacao e o selo do Quadro (issue #2209, ADR 0111,
+            # decisao 5); nula na Demanda sem Pedido de implantacao.
+            "implantacao": implantacoes.get(str(d["id"])),
         }
         for d in demandas
     ]

@@ -45,6 +45,26 @@ class ParteDaEntrega(BaseModel):
     bloqueadoras: list[BloqueadoraDaParte] = []
 
 
+class PedidoDaImplantacao(BaseModel):
+    """Um Pedido de implantacao na secao Implantacao do Documento do card
+    (issue #2209, ADR 0111, decisao 5): o titulo, quem recebeu e a situacao.
+    A `espera` diz o que ele espera; vem nula ate as issues #2208 e #2210."""
+
+    titulo: str
+    destinatario: str | None = None
+    situacao: Literal["feito", "esperando", "aberto"]
+    espera: str | None = None
+
+
+class ImplantacaoDaDemanda(BaseModel):
+    """O que o hospital faz depois que a entrega sobe: os feitos sobre o total
+    (o "Implantacao 1 de 3" do Quadro) e cada Pedido de implantacao."""
+
+    feitos: int
+    total: int
+    pedidos: list[PedidoDaImplantacao] = []
+
+
 class DemandaResponse(BaseModel):
     """Uma conversa da lista lateral do chat (issue #1384, ADR 0077).
 
@@ -139,6 +159,10 @@ class DemandaResponse(BaseModel):
     ajuste_aberto: bool = False
     ajuste_numero: int | None = None
     ajuste_url: str | None = None
+    # Os Pedidos de implantacao da Demanda (issue #2209, ADR 0111, decisao 5),
+    # para todos que veem a Demanda. Nulo sem nenhum: nem secao nem selo. A
+    # Etapa nao depende deles.
+    implantacao: ImplantacaoDaDemanda | None = None
 
 
 class DesenvolvedorResponse(BaseModel):

@@ -154,7 +154,54 @@ export type Demanda = {
   ajuste_aberto?: boolean;
   ajuste_numero?: number | null;
   ajuste_url?: string | null;
+  /**
+   * Os Pedidos de implantação da Demanda (issue #2209, ADR 0111, decisão 5):
+   * o que o hospital faz depois que a entrega sobe. Nulo, ou ausente, sem
+   * nenhum: o Documento fica sem a seção, e o Quadro, sem o selo.
+   */
+  implantacao?: ImplantacaoDaDemanda | null;
 };
+
+/** A situação de um Pedido de implantação, como o servidor a manda. */
+export type SituacaoDaImplantacao = "feito" | "esperando" | "aberto";
+
+/** Um Pedido de implantação na seção Implantação: o que é, quem recebeu, a situação e o que ele espera. */
+export type PedidoDaImplantacao = {
+  titulo: string;
+  destinatario: string | null;
+  situacao: SituacaoDaImplantacao;
+  espera?: string | null;
+};
+
+/** A Implantação da Demanda: os feitos sobre o total e cada Pedido. */
+export type ImplantacaoDaDemanda = {
+  feitos: number;
+  total: number;
+  pedidos: PedidoDaImplantacao[];
+};
+
+export const SITUACAO_DA_IMPLANTACAO_ROTULO: Record<SituacaoDaImplantacao, string> = {
+  feito: "Feito",
+  esperando: "Esperando",
+  aberto: "Aberto",
+};
+
+export const SITUACAO_DA_IMPLANTACAO_CLASSE: Record<SituacaoDaImplantacao, string> = {
+  feito: "bg-emerald-50 text-emerald-700",
+  esperando: "bg-amber-50 text-amber-800",
+  aberto: "bg-slate-100 text-slate-600",
+};
+
+/**
+ * O selo do card no Quadro (ADR 0111, decisão 5): "Implantação 1 de 3"
+ * enquanto falta algum Pedido de implantação; nulo com todos concluídos ou
+ * sem nenhum.
+ */
+export function seloDaImplantacao(demanda: Demanda): string | null {
+  const implantacao = demanda.implantacao;
+  if (!implantacao || implantacao.total <= 0 || implantacao.feitos >= implantacao.total) return null;
+  return `Implantação ${implantacao.feitos} de ${implantacao.total}`;
+}
 
 /**
  * O Número da Demanda como a tela o escreve (issue #1585): "Demanda 42", sem
