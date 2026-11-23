@@ -72,3 +72,63 @@ def test_candidato_vem_com_o_motivo_e_card_que_segura_fatia_aberta_fica_de_fora(
     # A abertura segura a fatia #1855, que está aberta: não é implantação.
     assert vereditos[1854]["candidato"] is False
     assert "#1855" in vereditos[1854]["motivo"]
+
+
+def test_card_sem_demanda_ou_com_pr_aberto_fica_de_fora() -> None:
+    bug_raiz = card(1904, "Ata assinada por todos continua aguardando assinatura", raiz=None)
+    codigo = card(1838, "Canal de Conduta: papel original, guarda, congelar e eliminação", pr=2170)
+    comunicacao = card(2202, "Texto do ato", corpo="<!-- demanda-vitta: nenhuma, Card de comunicação -->")
+    ferramenta = card(900, "Configurar o runner", raiz={"numero": 899, "titulo": "x", "labels": {"area:infra"}, "corpo": ""})
+
+    vereditos = por_numero(varredura.classificar([bug_raiz, codigo, comunicacao, ferramenta]))
+
+    assert not any(v["candidato"] for v in vereditos.values())
+    assert "#2170" in vereditos[1838]["motivo"]
+    assert "#899" in vereditos[900]["motivo"]
+
+
+class GitHubFalso:
+    def __init__(self) -> None:
+        self.chamadas: list[list[str]] = []
+
+    def __call__(self, args: list[str]) -> str:
+        self.chamadas.append(list(args))
+        return ""
+
+
+def test_aplicar_poe_a_label_so_nos_candidatos() -> None:
+    gh = GitHubFalso()
+
+    varredura.aplicar(varredura.classificar(CANAL_DE_HOJE), comentar=2214, rodar=gh)
+
+    marcados = sorted(int(c[3]) for c in gh.chamadas if c[:3] == ["gh", "issue", "edit"] and "implantacao" in c)
+    assert marcados == [1853, 2135]
+
+
+def test_o_comentario_traz_a_lista_e_a_espera_da_abertura_pelo_teste() -> None:
+    gh = GitHubFalso()
+
+    varredura.aplicar(varredura.classificar(CANAL_DE_HOJE), comentar=2214, rodar=gh)
+
+    [comentario] = [c for c in gh.chamadas if c[:4] == ["gh", "issue", "comment", "2214"]]
+    texto = Path(comentario[comentario.index("--body-file") + 1]).read_text(encoding="utf-8")
+    ganharam, ficaram = texto.split("**Ficaram de fora**")
+    assert "#1853 " in ganharam and "#2135 " in ganharam
+    assert "#1854 " in ficaram and "#1855" in ficaram
+    [abertura] = [linha for linha in texto.splitlines() if linha.startswith("- #1854 ")]
+    assert "Espera #1853." in abertura
+    [teste] = [linha for linha in texto.splitlines() if linha.startswith("- #1853 ")]
+    assert "#1854 espera este." in teste
+
+
+def test_a_varredura_nao_cria_pedido_no_app() -> None:
+    gh = GitHubFalso()
+
+    varredura.aplicar(varredura.classificar(CANAL_DE_HOJE), comentar=2214, rodar=gh)
+
+    # Só duas escritas existem: a label no card e o comentário da lista. Nada
+    # vai à ponte do app (o Pedido nasce pelo "Mandar ao hospital", decisão 4).
+    assert gh.chamadas
+    for chamada in gh.chamadas:
+        assert chamada[:3] in (["gh", "issue", "edit"], ["gh", "issue", "comment"]), chamada
+        assert not any("http" in parte or "pedido" in parte.lower() for parte in chamada), chamada

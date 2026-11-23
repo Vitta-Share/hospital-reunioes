@@ -30,6 +30,7 @@ Rodar (lê o GitHub; só escreve com `--aplicar`):
 from __future__ import annotations
 
 import re
+import tempfile
 from typing import Any
 
 LABEL = "implantacao"
@@ -94,3 +95,49 @@ def classificar(cards: list[dict[str, Any]], fora: dict[int, str] | None = None)
             }
         )
     return vereditos
+
+
+def _linha(v: dict[str, Any]) -> str:
+    partes = [f"- #{v['numero']} {v['titulo']}: {v['motivo']}."]
+    if v["espera"]:
+        partes.append(f"Espera {_lista(v['espera'])}.")
+    if v["esperado_por"]:
+        partes.append(f"{_lista(v['esperado_por'])} espera este.")
+    if v["candidato"] and v["ja_tinha_a_label"]:
+        partes.append("Já tinha a label.")
+    return " ".join(partes)
+
+
+def comentario(vereditos: list[dict[str, Any]]) -> str:
+    """A lista para o Pedro: quem ganhou a label e quem ficou de fora, com o
+    motivo e as esperas entre cards humanos."""
+    candidatos = [v for v in vereditos if v["candidato"]]
+    de_fora = [v for v in vereditos if not v["candidato"]]
+    linhas = [
+        "<!-- automacao -->",
+        "Varredura dos cards humanos abertos (ADR 0111, decisão 12). Nenhum foi mandado ao app: "
+        'cada um vira Pedido de implantação pelo "Mandar ao hospital" do PedroOS, no clique do Pedro.',
+        "",
+        f"**Ganharam a label `{LABEL}`** ({len(candidatos)})",
+        "",
+        *([_linha(v) for v in candidatos] or ["- nenhum"]),
+        "",
+        f"**Ficaram de fora** ({len(de_fora)})",
+        "",
+        *([_linha(v) for v in de_fora] or ["- nenhum"]),
+    ]
+    return "\n".join(linhas) + "\n"
+
+
+def aplicar(vereditos: list[dict[str, Any]], *, comentar: int | None, rodar, repo: str | None = None) -> None:
+    """Põe a label nos candidatos e comenta a lista no card `comentar`. As
+    únicas escritas são essas duas, no GitHub: o app não é chamado."""
+    alvo = ["--repo", repo] if repo else []
+    for v in vereditos:
+        if v["candidato"] and not v["ja_tinha_a_label"]:
+            rodar(["gh", "issue", "edit", str(v["numero"]), "--add-label", LABEL, *alvo])
+    if comentar is None:
+        return
+    with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as arquivo:
+        arquivo.write(comentario(vereditos))
+    rodar(["gh", "issue", "comment", str(comentar), "--body-file", arquivo.name, *alvo])
