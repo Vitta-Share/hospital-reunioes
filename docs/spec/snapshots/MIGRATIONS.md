@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T23:20+0000 -->
+<!-- last_update: 2026-11-23T13:31+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -225,6 +225,7 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 233 | `233_conduta_anexos_do_relato.sql` | Canal de Conduta, os anexos do relato | 0 | 0 | 1 | 0 |
 | 234 | `234_conduta_acompanhamento_e_mensagens.sql` | Canal de Conduta, a página de acompanhamento e as Mensagens | 0 | 1 | 2 | 0 |
 | 235 | `235_pedido_de_implantacao.sql` | o Pedido de implantacao, o terceiro tipo do Pedido da Vitta | 0 | 0 | 0 | 0 |
+| 236 | `236_pedido_espera_outro.sql` | um Pedido de implantacao espera outro | 0 | 1 | 1 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 219 migrations.
+**Total:** 220 migrations.

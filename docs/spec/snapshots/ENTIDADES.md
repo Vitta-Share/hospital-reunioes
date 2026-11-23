@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T19:55+0000 -->
+<!-- last_update: 2026-11-23T13:31+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -3117,7 +3117,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## tecnologia_perguntas
 
-> Origem: `211_tecnologia_pergunta_da_vitta.sql` (alterada em: 232_pedido_da_vitta_passo_a_passo.sql)
+> Origem: `211_tecnologia_pergunta_da_vitta.sql` (alterada em: 232_pedido_da_vitta_passo_a_passo.sql, 236_pedido_espera_outro.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -3148,12 +3148,14 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `lembrete_enviado_em` | `TIMESTAMPTZ` | — | — | — |
 | `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
 | `tipo` | `TEXT` | NOT NULL | `'pergunta'` | `participantes.id` |
+| `espera_pedido_id` | `uuid` | — | — | `tecnologia_perguntas.id` |
 
 **Indexes:**
 - `idx_tecnologia_perguntas_demanda` em `(demanda_id, criado_em)` (de `211_tecnologia_pergunta_da_vitta.sql`)
 - `idx_tecnologia_perguntas_abertas` em `(criado_em)` (de `211_tecnologia_pergunta_da_vitta.sql`)
 - `idx_tecnologia_perguntas_destinatario` em `(destinatario_id)` (de `211_tecnologia_pergunta_da_vitta.sql`)
 - `idx_tecnologia_perguntas_card` em `(card_projeto, card_numero)` (de `232_pedido_da_vitta_passo_a_passo.sql`)
+- `tecnologia_perguntas_espera_pedido_id_idx` em `(espera_pedido_id)` (de `236_pedido_espera_outro.sql`)
 
 ## tecnologia_conversas_do_me_explique
 

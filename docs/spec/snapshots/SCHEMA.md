@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T19:55+0000 -->
+<!-- last_update: 2026-11-23T13:31+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -307,6 +307,7 @@ erDiagram
     tecnologia_demandas ||--o{ tecnologia_planejamentos : "demanda_id"
     tecnologia_perguntas ||--o{ tecnologia_checks_do_pedido : "pedido_id"
     tecnologia_perguntas ||--o{ tecnologia_conversas_do_me_explique : "pergunta_id"
+    tecnologia_perguntas ||--o{ tecnologia_perguntas : "espera_pedido_id"
     tecnologia_produtos ||--o{ tecnologia_demandas : "produto_id"
     tipos_reuniao ||--o{ reunioes : "tipo_id"
 
@@ -1748,7 +1749,7 @@ erDiagram
         TEXT assunto
         TEXT texto
         TEXT por_que_precisa
-        _ mais_colunas "+19"
+        _ mais_colunas "+20"
     }
     tecnologia_conversas_do_me_explique {
         UUID id PK
@@ -2231,6 +2232,7 @@ erDiagram
 | `tecnologia_perguntas` | `idx_tecnologia_perguntas_abertas` | `criado_em` | `211_tecnologia_pergunta_da_vitta.sql` |
 | `tecnologia_perguntas` | `idx_tecnologia_perguntas_destinatario` | `destinatario_id` | `211_tecnologia_pergunta_da_vitta.sql` |
 | `tecnologia_perguntas` | `idx_tecnologia_perguntas_card` | `card_projeto, card_numero` | `232_pedido_da_vitta_passo_a_passo.sql` |
+| `tecnologia_perguntas` | `tecnologia_perguntas_espera_pedido_id_idx` | `espera_pedido_id` | `236_pedido_espera_outro.sql` |
 | `tecnologia_conversas_do_me_explique` | `idx_tecnologia_conversas_do_me_explique_participante` | `participante_id` | `211_tecnologia_pergunta_da_vitta.sql` |
 | `nsp_ausencias_da_presidencia` | `idx_nsp_ausencias_da_presidencia_participacao` | `participacao_id, inicio, fim` | `212_nsp_suplente_em_exercicio.sql` |
 | `nsp_ausencias_da_presidencia` | `idx_nsp_ausencias_da_presidencia_autor` | `autor_id` | `212_nsp_suplente_em_exercicio.sql` |
@@ -2265,4 +2267,4 @@ erDiagram
 | `tecnologia_checks_do_pedido` | `idx_tecnologia_checks_do_pedido_pedido` | `pedido_id, criado_em` | `232_pedido_da_vitta_passo_a_passo.sql` |
 
 ---
-**Resumo:** 178 tabelas · 301 relacionamentos FK detectados.
+**Resumo:** 178 tabelas · 302 relacionamentos FK detectados.
