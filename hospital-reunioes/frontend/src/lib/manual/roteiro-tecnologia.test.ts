@@ -20,7 +20,7 @@ import { describe, expect, it } from "vitest";
 import { perguntaValida, type PerguntaDaVitta } from "@/components/tecnologia/CartaoDaPergunta";
 import { conversaValida } from "@/components/tecnologia/chat";
 import type { FalaDoMeExplique } from "@/components/tecnologia/MeExplique";
-import { colunasDoQuadro, linkDoPlano, type Demanda } from "@/components/tecnologia/demandas";
+import { colunasDoQuadro, linkDoPlano, seloDaImplantacao, type Demanda } from "@/components/tecnologia/demandas";
 import { carregarPaginasDoManual } from "./carregar";
 import { imagensCitadas } from "./paginas";
 
@@ -230,7 +230,7 @@ describe("a Pergunta da Vitta, a lista Esperando sua resposta e o Me explique na
   type Item = PerguntaDaVitta & { demanda_id: string; demanda: string; minha: boolean };
   const lista = () => T["perguntas/esperando"] as Item[];
   // A Pergunta do diretor; o Passo a passo dele, também na lista, tem o describe próprio (issue #2184).
-  const doDiretor = () => lista().find((p) => p.minha && p.tipo !== "passo_a_passo")!;
+  const doDiretor = () => lista().find((p) => p.minha && (p.tipo ?? "pergunta") === "pergunta")!;
 
   it("a lista tem as Perguntas abertas no formato que a tela aceita, as do diretor primeiro, e só a dele se responde no cartão da lista", () => {
     const itens = lista();
@@ -284,9 +284,9 @@ describe("o Passo a passo da Vitta na lista Esperando você (issue #2184, ADR 01
     return achado!;
   };
 
-  it("a lista junta os dois tipos de pedido, a pergunta e o passo a passo", () => {
+  it("a lista junta os três tipos de pedido, a pergunta, o passo a passo e o Pedido de implantação", () => {
     const tipos = new Set(lista().map((p) => p.tipo ?? "pergunta"));
-    expect([...tipos].sort()).toEqual(["passo_a_passo", "pergunta"]);
+    expect([...tipos].sort()).toEqual(["implantacao", "passo_a_passo", "pergunta"]);
   });
 
   it("o passo a passo espera o diretor, aberto, e ele marca e conclui no cartão da lista", () => {
@@ -318,6 +318,80 @@ describe("o Passo a passo da Vitta na lista Esperando você (issue #2184, ADR 01
     const texto = readFileSync(ROTEIRO, "utf8");
     expect(texto).toMatch(/\?pergunta=\$\(seed "\['passo_a_passo'\]\['id'\]"\)/);
     expect(passoAPasso().id).toBe(SEED.passo_a_passo.id);
+  });
+});
+
+describe("o Pedido de implantação, a seção Implantação e o Achei um problema na tabela (issue #2211, ADR 0111)", () => {
+  const T = tabela();
+  const E = envio();
+  const lista = T["chat"] as Demanda[];
+  type Item = PerguntaDaVitta & { demanda_id: string; demanda: string; minha: boolean };
+  const implantacoes = () => (T["perguntas/esperando"] as Item[]).filter((p) => p.tipo === "implantacao");
+  const entrega = () => lista.find((d) => d.id === SEED.implantacao.demanda)!;
+
+  it("a entrega Em produção tem a Implantação do servidor e o selo Implantação 1 de 3 no Quadro", () => {
+    const d = entrega();
+    expect(d.etapa).toBe("em_producao");
+    expect(seloDaImplantacao(d)).toBe("Implantação 1 de 3");
+    // Como o servidor manda: só Feito ou Aberto, sem espera na linha.
+    const pedidos = d.implantacao!.pedidos;
+    expect(pedidos.map((p) => p.situacao).sort()).toEqual(["aberto", "aberto", "feito"]);
+    expect(pedidos.every((p) => p.espera === null)).toBe(true);
+    const ondeCai = colunasDoQuadro(lista, false, new Date()).find((c) => c.cards.some((x) => x.id === d.id));
+    expect(ondeCai, "a entrega com Implantação não cai em coluna nenhuma do Quadro de hoje").toBeDefined();
+  });
+
+  it("os Pedidos de implantação abertos da entrega esperam o diretor na lista, com os passos, e um deles espera o outro", () => {
+    const abertos = implantacoes();
+    expect(abertos).toHaveLength(2);
+    for (const p of abertos) {
+      expect(perguntaValida(p)).toBe(true);
+      expect(p.demanda_id).toBe(SEED.implantacao.demanda);
+      expect(p.minha && p.pode_responder).toBe(true);
+      expect(p.passos?.length).toBeGreaterThan(0);
+    }
+    const queEspera = abertos.find((p) => p.espera)!;
+    expect(queEspera, "nenhum Pedido de implantação espera outro").toBeDefined();
+    const esperado = abertos.find((p) => p.id === queEspera.espera!.pedido_id);
+    expect(esperado?.assunto).toBe(queEspera.espera!.assunto);
+    // O que espera outro ainda tem o Achei um problema: não espera bug nenhum.
+    expect(queEspera.espera_demanda ?? null).toBeNull();
+    expect(queEspera.passos?.every((p) => p.marcado)).toBe(true);
+  });
+
+  it("o outro Pedido espera uma Demanda de bug do Quadro, ainda não entregue", () => {
+    const comBug = implantacoes().find((p) => p.espera_demanda);
+    expect(comBug, "nenhum Pedido de implantação espera a Demanda do bug").toBeDefined();
+    const bug = lista.find((d) => d.id === comBug!.espera_demanda!.demanda_id)!;
+    expect(bug.classificacao).toBe("bug");
+    expect(bug.numero).toBe(comBug!.espera_demanda!.numero);
+    expect(["entregue", "em_producao"]).not.toContain(bug.etapa);
+  });
+
+  it("o Achei um problema responde a Demanda de bug nova, cuja conversa abre com o texto do Pedido e da entrega", () => {
+    const queEspera = implantacoes().find((p) => p.espera)!;
+    const nova = E["chat"] as { demanda_id: string };
+    const bug = lista.find((d) => d.id === nova.demanda_id)!;
+    expect(bug.classificacao).toBe("bug");
+    expect(bug.etapa).toBe("registrada");
+    const conversa = T[`chat/${bug.id}`] as { estado: string; mensagens: { autor: string; texto: string }[] };
+    expect(conversaValida(conversa)).toBe(true);
+    expect(conversa.estado).toBe("em_andamento");
+    // O texto que o servidor monta (TEXTO_DO_PROBLEMA, issue #2210).
+    expect(conversa.mensagens[0]).toMatchObject({
+      autor: "diretor",
+      texto: `Achei um problema no Pedido de implantação "${queEspera.assunto}", da entrega "${entrega().titulo}".`,
+    });
+    expect(conversa.mensagens.at(-1)?.autor).toBe("ia");
+  });
+
+  it("o roteiro abre a aba em cada Pedido de implantação e clica no Achei um problema", () => {
+    const texto = readFileSync(ROTEIRO, "utf8");
+    for (const p of implantacoes()) {
+      const i = SEED.implantacao.pedidos.findIndex((s: { id: string }) => s.id === p.id);
+      expect(texto).toContain(`?pergunta=$(seed "['implantacao']['pedidos'][${i}]['id']")`);
+    }
+    expect(texto).toMatch(/getByRole\('button', \{ name: 'Achei um problema' \}\)\.click\(\)/);
   });
 });
 
@@ -383,7 +457,9 @@ describe("o Ver o plano e o Envio aos desenvolvedores na tabela (issue #2015, PR
   it("o roteiro só responde um pedido que não é GET pela tabela do envio, e o resto continua recusado", () => {
     const texto = readFileSync(ROTEIRO, "utf8");
     expect(texto).toMatch(/respostas\.py" --envio/);
-    expect(Object.keys(E).sort()).toEqual([`chat/${id}/conversa/enviar`, `chat/${id}/conversa/interpretar`]);
+    expect(Object.keys(E).sort()).toEqual(["chat", `chat/${id}/conversa/enviar`, `chat/${id}/conversa/interpretar`]);
+    // O POST do chat só responde o Achei um problema, que manda o Pedido (issue #2211).
+    expect(texto).toMatch(/chave !== 'chat' \|\| corpo\?\.pedido_id/);
   });
 
   it("as respostas do envio não trazem e-mail, telefone, endereço nem nome de gente de verdade", () => {

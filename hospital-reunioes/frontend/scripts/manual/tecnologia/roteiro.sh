@@ -13,7 +13,9 @@
 # nasce no GitHub e nenhum pedido de verdade entra no print. Os dois cliques do
 # Envio aos desenvolvedores, interpretar e enviar, respondem pelo
 # `respostas.py --envio` (issue #2015), e também não chegam à IA nem ao
-# GitHub. O sino responde
+# GitHub. O Achei um problema do Pedido de implantação (issue #2211) responde
+# pela mesma tabela, só quando o POST do chat leva o Pedido: a conversa do bug
+# abre com o texto de exemplo, sem IA. O sino responde
 # do mesmo jeito, pelo `respostas.py --sino` (issue #1968): nenhum aviso de
 # verdade aparece, e marcar como lido não grava nada. A lista Esperando sua
 # resposta (issue #2123) só traz as perguntas quando a aba abre pelo aviso, com
@@ -76,7 +78,11 @@ pw run-code "async page => {
     const url = new URL(pedido.url());
     const chave = decodeURIComponent(url.pathname.split('/api/admin/tecnologia/')[1] + url.search);
     if (pedido.method() !== 'GET') {
-      if (pedido.method() === 'POST' && chave in envio) return route.fulfill({ json: envio[chave] });
+      let corpo = null;
+      try { corpo = pedido.postDataJSON(); } catch {}
+      if (pedido.method() === 'POST' && chave in envio && (chave !== 'chat' || corpo?.pedido_id)) {
+        return route.fulfill({ json: envio[chave] });
+      }
       return route.fulfill({ status: 403, json: { detail: 'O roteiro do manual não grava nada.' } });
     }
     if (!(chave in tabela)) {
@@ -118,6 +124,10 @@ print_tela "pedido-no-painel.png"
 # As partes do mesmo pedido, agrupadas por Onda, com o número e o Espera a (issue #1903).
 pw run-code "async page => { await page.getByRole('region', { name: 'Documento do card', exact: true }).getByText('Onda 3', { exact: true }).scrollIntoViewIfNeeded(); await page.waitForTimeout(400) }"
 print "$(bloco "Documento do card")" "partes-por-onda.png"
+pw run-code "async page => { await page.getByRole('button', { name: 'Fechar o pedido' }).click() }"
+# A seção Implantação do card Em produção (issue #2211), com o selo no Quadro.
+pw run-code "async page => { await page.getByRole('button', { name: /Checklist da limpeza dos leitos pelo celular/ }).click(); await page.getByRole('region', { name: 'Implantação', exact: true }).scrollIntoViewIfNeeded(); await page.waitForTimeout(600) }"
+print "$(bloco "Documento do card")" "implantacao-no-card.png"
 pw run-code "async page => { await page.getByRole('button', { name: 'Fechar o pedido' }).click() }"
 
 # Responder uma pergunta da Vitta (issues #1968 e #2123): o aviso Pede sua
@@ -161,6 +171,23 @@ pw goto "$TECNOLOGIA?pergunta=$(seed "['passo_a_passo']['id']")"
 esperar "Passo a passo da Vitta"
 pw run-code "async page => { await page.getByRole('region', { name: 'Esperando você', exact: true }).locator('li[aria-current=true]').scrollIntoViewIfNeeded(); await page.waitForTimeout(400) }"
 print "getByRole('region', { name: 'Esperando você', exact: true }).locator('li[aria-current=true]')" "concluir-passo-a-passo.png"
+
+# O Pedido de implantação (issue #2211, ADR 0111): o que espera outro, com os
+# checks marcados e o Concluir preso, e o Achei um problema dele, que abre a
+# conversa do bug já com o texto do Pedido. Depois, o Pedido que espera a
+# Demanda do bug.
+DESTACADO="getByRole('region', { name: 'Esperando você', exact: true }).locator('li[aria-current=true]')"
+pw goto "$TECNOLOGIA?pergunta=$(seed "['implantacao']['pedidos'][2]['id']")"
+esperar "Achei um problema"
+pw run-code "async page => { await page.$DESTACADO.scrollIntoViewIfNeeded(); await page.waitForTimeout(400) }"
+print "$DESTACADO" "pedido-de-implantacao.png"
+pw run-code "async page => { await page.$DESTACADO.getByRole('button', { name: 'Achei um problema' }).click() }"
+esperar "$(seed "['implantacao']['falas_do_problema'][0]['texto']")"
+print_tela "problema-no-assistente.png"
+pw goto "$TECNOLOGIA?pergunta=$(seed "['implantacao']['pedidos'][1]['id']")"
+esperar "Espera a Demanda 62"
+pw run-code "async page => { await page.$DESTACADO.scrollIntoViewIfNeeded(); await page.waitForTimeout(400) }"
+print "$DESTACADO" "espera-a-demanda.png"
 
 # Filtrar por Projeto: o campo Projeto em Ana. A aba abre de novo, sem o
 # `?pergunta=` do aviso, e a lista Esperando sua resposta sai do alto.
