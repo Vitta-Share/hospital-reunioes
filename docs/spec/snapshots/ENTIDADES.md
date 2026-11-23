@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-23T13:31+0000 -->
+<!-- last_update: 2026-11-23T14:15+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -845,7 +845,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## tecnologia_demandas
 
-> Origem: `102_tecnologia_fundacao.sql` (alterada em: 103_tecnologia_vinculo.sql, 115_tecnologia_anexos_e_em_producao.sql, 128_tecnologia_envio_falhou.sql, 130_tecnologia_adr_0084.sql, 133_tecnologia_demonstracao.sql, 134_tecnologia_numero_da_demanda.sql, 145_tecnologia_projeto_da_demanda.sql, 163_tecnologia_projeto_novo.sql, 164_tecnologia_atalho_do_plano.sql)
+> Origem: `102_tecnologia_fundacao.sql` (alterada em: 103_tecnologia_vinculo.sql, 115_tecnologia_anexos_e_em_producao.sql, 128_tecnologia_envio_falhou.sql, 130_tecnologia_adr_0084.sql, 133_tecnologia_demonstracao.sql, 134_tecnologia_numero_da_demanda.sql, 145_tecnologia_projeto_da_demanda.sql, 163_tecnologia_projeto_novo.sql, 164_tecnologia_atalho_do_plano.sql, 237_achei_um_problema.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -891,6 +891,8 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `raiz_url` | `TEXT` | — | — | — |
 | `apresentacao_url` | `TEXT` | — | — | — |
 | `plano_validado` | `BOOLEAN` | NOT NULL | `false` | — |
+| `pedido_origem_id` | `uuid` | — | — | `tecnologia_perguntas.id` |
+| `demanda_origem_id` | `uuid` | — | — | `tecnologia_demandas.id` |
 
 **Indexes:**
 - `idx_tecnologia_demandas_estado` em `(estado)` (de `102_tecnologia_fundacao.sql`)
@@ -898,6 +900,8 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_tecnologia_demandas_produto` em `(produto_id)` (de `102_tecnologia_fundacao.sql`)
 - `tecnologia_demandas_github_issue_numero_idx` em `(github_issue_numero)` (de `103_tecnologia_vinculo.sql`)
 - `tecnologia_demandas_projeto_github_issue_numero_idx` em `(projeto, github_issue_numero)` (de `145_tecnologia_projeto_da_demanda.sql`)
+- `tecnologia_demandas_pedido_origem_id_idx` em `(pedido_origem_id)` (de `237_achei_um_problema.sql`)
+- `tecnologia_demandas_demanda_origem_id_idx` em `(demanda_origem_id)` (de `237_achei_um_problema.sql`)
 
 ## tecnologia_conversas
 
@@ -3117,7 +3121,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## tecnologia_perguntas
 
-> Origem: `211_tecnologia_pergunta_da_vitta.sql` (alterada em: 232_pedido_da_vitta_passo_a_passo.sql, 236_pedido_espera_outro.sql)
+> Origem: `211_tecnologia_pergunta_da_vitta.sql` (alterada em: 232_pedido_da_vitta_passo_a_passo.sql, 236_pedido_espera_outro.sql, 237_achei_um_problema.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -3149,6 +3153,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
 | `tipo` | `TEXT` | NOT NULL | `'pergunta'` | `participantes.id` |
 | `espera_pedido_id` | `uuid` | — | — | `tecnologia_perguntas.id` |
+| `espera_demanda_id` | `uuid` | — | — | `tecnologia_demandas.id` |
 
 **Indexes:**
 - `idx_tecnologia_perguntas_demanda` em `(demanda_id, criado_em)` (de `211_tecnologia_pergunta_da_vitta.sql`)
@@ -3156,6 +3161,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_tecnologia_perguntas_destinatario` em `(destinatario_id)` (de `211_tecnologia_pergunta_da_vitta.sql`)
 - `idx_tecnologia_perguntas_card` em `(card_projeto, card_numero)` (de `232_pedido_da_vitta_passo_a_passo.sql`)
 - `tecnologia_perguntas_espera_pedido_id_idx` em `(espera_pedido_id)` (de `236_pedido_espera_outro.sql`)
+- `tecnologia_perguntas_espera_demanda_id_idx` em `(espera_demanda_id)` (de `237_achei_um_problema.sql`)
 
 ## tecnologia_conversas_do_me_explique
 
