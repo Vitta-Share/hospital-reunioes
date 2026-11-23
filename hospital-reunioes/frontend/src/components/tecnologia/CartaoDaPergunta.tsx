@@ -109,6 +109,8 @@ export type PerguntaDaVitta = {
   pode_reenviar?: boolean;
   /** O Pedido de implantação que este espera, enquanto não foi concluído (issue #2208). */
   espera?: { pedido_id: string; assunto: string } | null;
+  /** A Demanda de bug do Achei um problema, enquanto não foi entregue (issue #2210). */
+  espera_demanda?: { demanda_id: string; numero: number | null } | null;
 };
 
 const NOME_DO_ESTADO: Record<EstadoDaPergunta, string> = {

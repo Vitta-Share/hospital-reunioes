@@ -17,6 +17,12 @@
  * bloqueado com o motivo até o servidor mandar o cartão sem a espera. O
  * cartão que conclui avisa os outros da tela (`PEDIDO_CONCLUIDO`): o que
  * espera por ele solta a espera na hora, sem recarregar.
+ *
+ * O Pedido de implantação aberto tem o "Achei um problema" (issue #2210, ADR
+ * 0111, decisão 9): o cartão pede o bug ao Assistente com o Pedido, e o texto
+ * inicial o servidor monta; a conversa que nasceu abre pela tela
+ * (`ABRIR_DEMANDA`). Com o card do bug criado, o cartão mostra "Espera a
+ * Demanda N" e o Concluir fica bloqueado até ela ser entregue.
  */
 
 import { useEffect, useState } from "react";
@@ -34,6 +40,9 @@ export type PassoAPassoConcluido = {
 
 /** O evento da janela com o id do Pedido que acabou de ser concluído nesta tela. */
 export const PEDIDO_CONCLUIDO = "tecnologia:pedido-concluido";
+
+/** O evento da janela com o id da Demanda de bug que o Achei um problema fez nascer. */
+export const ABRIR_DEMANDA = "tecnologia:abrir-demanda";
 
 /** O mesmo teto da rota: a anotação entra na Conversa com o começo na frente. */
 const LIMITE_DA_ANOTACAO = 4000;
@@ -91,6 +100,8 @@ export function CartaoDoPassoAPasso({
   const passos = atual.passos ?? [];
   const todosMarcados = passos.length > 0 && passos.every((p) => p.marcado);
   const esperado = aberta ? atual.espera : null;
+  const bug = aberta ? atual.espera_demanda : null;
+  const acheiUmProblema = aberta && atual.tipo === "implantacao" && Boolean(token);
 
   async function pedir(url: string, corpo?: unknown): Promise<unknown> {
     if (!token || enviando) return null;
@@ -132,6 +143,12 @@ export function CartaoDoPassoAPasso({
       }
       onConcluido?.(concluido);
     }
+  }
+
+  async function acheiOProblema() {
+    const corpo = await pedir(`${BASE_TECNOLOGIA}/chat`, { escolha: "bug", pedido_id: atual.id });
+    const demandaId = (corpo as { demanda_id?: unknown } | null)?.demanda_id;
+    if (typeof demandaId === "string") window.dispatchEvent(new CustomEvent(ABRIR_DEMANDA, { detail: demandaId }));
   }
 
   async function reenviar() {
@@ -177,6 +194,7 @@ export function CartaoDoPassoAPasso({
       {esperado && (
         <p className="normal-case text-xs font-semibold text-amber-800">{`Espera: ${esperado.assunto}`}</p>
       )}
+      {bug && <p className="normal-case text-xs font-semibold text-amber-800">{`Espera a Demanda ${bug.numero ?? ""}`}</p>}
       <p className="normal-case whitespace-pre-wrap text-sm font-semibold text-slate-900">{atual.texto}</p>
       <dl className="grid gap-2 sm:grid-cols-2">
         {linhas.map(([rotulo, valor]) => (
@@ -225,7 +243,7 @@ export function CartaoDoPassoAPasso({
           <button
             type="button"
             onClick={concluir}
-            disabled={!todosMarcados || Boolean(esperado) || enviando}
+            disabled={!todosMarcados || Boolean(esperado) || Boolean(bug) || enviando}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {enviando && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
@@ -233,12 +251,24 @@ export function CartaoDoPassoAPasso({
           </button>
           {esperado ? (
             <p className="normal-case text-xs text-text-secondary">{`Este Pedido espera "${esperado.assunto}" ser concluído.`}</p>
+          ) : bug ? (
+            <p className="normal-case text-xs text-text-secondary">{`Este Pedido espera a Demanda ${bug.numero ?? ""} ser entregue.`}</p>
           ) : (
             !todosMarcados && (
               <p className="normal-case text-xs text-text-secondary">Marque todos os passos para concluir.</p>
             )
           )}
         </div>
+      )}
+      {acheiUmProblema && (
+        <button
+          type="button"
+          onClick={acheiOProblema}
+          disabled={enviando}
+          className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-800 hover:border-primary disabled:opacity-40"
+        >
+          Achei um problema
+        </button>
       )}
       {conclusao && (
         <div role="group" aria-label="Concluído" className="rounded-xl bg-white border border-slate-200 px-3 py-2 space-y-1">
