@@ -657,6 +657,48 @@ class TestExcluirUsuarioComHistorico:
         assert desligamento[0]["reason"] == "Usuário desligado"
         assert desligamento[0]["target_id"] == "P040"
 
+    @pytest.mark.asyncio
+    async def test_usuario_ja_desligado_com_historico_fica_registrado_com_o_motivo(self):
+        sb = _supabase_que_falha_no_delete(
+            _erro_de_historico(),
+            [{"id": "P041", "nome_completo": "Ex Colaborador", "email": "ex@x.com", "ativo": False}],
+        )
+
+        result = await usuarios_router.delete_usuario(
+            participante_id="P041",
+            body=AdminUsuarioDeleteRequest(reason="saiu do hospital"),
+            request=_FakeRequest(),
+            actor=_super_admin(),
+            supabase=sb,
+        )
+
+        assert result["resultado"] == "desligado"
+        assert sb.participantes[0]["ativo"] is False
+        assert [(r["action"], r["reason"]) for r in sb.audit_rows] == [("DESLIGAR_USUARIO", "saiu do hospital")]
+
+    @pytest.mark.asyncio
+    async def test_falha_de_rede_no_delete_devolve_mensagem_clara(self):
+        import httpx
+
+        sb = _supabase_que_falha_no_delete(
+            httpx.ConnectTimeout("timed out"),
+            [{"id": "P042", "nome_completo": "Alguém", "email": "a@x.com", "ativo": True}],
+        )
+
+        with pytest.raises(HTTPException) as exc:
+            await usuarios_router.delete_usuario(
+                participante_id="P042",
+                body=AdminUsuarioDeleteRequest(reason="duplicado"),
+                request=_FakeRequest(),
+                actor=_super_admin(),
+                supabase=sb,
+            )
+
+        assert exc.value.status_code == 503
+        assert "não foi excluído" in exc.value.detail
+        assert sb.participantes[0]["ativo"] is True
+        assert sb.audit_rows == []
+
 
 class TestResetPassword:
     @pytest.mark.asyncio

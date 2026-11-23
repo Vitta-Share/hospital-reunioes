@@ -20,6 +20,7 @@ import logging
 import re
 import secrets
 
+import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from postgrest.exceptions import APIError
 from starlette.requests import Request
@@ -678,6 +679,13 @@ async def delete_usuario(
             raise
         return await _desligar_no_lugar_de_excluir(
             alvo, body.reason, request=request, actor=actor, supabase=supabase, tarefas=tarefas
+        )
+    except httpx.HTTPError as exc:
+        # O timeout do PostgREST sobe cru, fora do APIError.
+        logger.error(f"[admin.usuarios] Falha de rede ao excluir {participante_id}: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="O banco não respondeu e o usuário não foi excluído. Tente de novo em instantes.",
         )
     if not delete.data:
         raise HTTPException(
