@@ -33,6 +33,7 @@ import {
 } from "@/components/admin/types";
 import { UsuarioFormModal } from "@/components/admin/UsuarioFormModal";
 import { ReasonModal } from "@/components/admin/ReasonModal";
+import { confirmacaoDaExclusao } from "@/components/admin/confirmacaoDaExclusao";
 import { NewPasswordModal } from "@/components/admin/NewPasswordModal";
 import { MultiSelectFilter } from "@/components/admin/MultiSelectFilter";
 import { ResolverExternoModal } from "@/components/admin/ResolverExternoModal";
@@ -55,7 +56,9 @@ export default function AdminUsuariosPage() {
   const [setor, setSetor] = useState<string[]>([]);
   const [setoresDisponiveis, setSetoresDisponiveis] = useState<string[]>([]);
   const [cargosDisponiveis, setCargosDisponiveis] = useState<string[]>([]);
-  const [ativo, setAtivo] = useState<"" | "true" | "false">("");
+  // Abre em "Apenas ativos": quem foi desligado em vez de excluído (issue
+  // #2043) sai da lista sem o filtro mexer.
+  const [ativo, setAtivo] = useState<"" | "true" | "false">("true");
   const [onlySuperAdmin, setOnlySuperAdmin] = useState<"" | "true" | "false">(
     ""
   );
@@ -347,7 +350,7 @@ export default function AdminUsuariosPage() {
       toast(`Erro ao deletar: ${await res.text()}`, "error");
       return false;
     }
-    toast("Usuário deletado", "success");
+    toast(await confirmacaoDaExclusao(res), "success");
     setDeleteTarget(null);
     fetchRows();
     return true;
