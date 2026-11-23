@@ -37,7 +37,7 @@ Se a conversa parar no meio, ela fica guardada como Registrada. Clique no pedido
 
    ![O Quadro com os pedidos em colunas](quadro.png)
 
-3. Em cada card, veja o número da Demanda, o título, o selo **Bug** ou **Melhoria**, o Projeto, as iniciais de quem cuida, a versão quando ele já está Em produção e, quando o pedido tem partes, quantas já foram entregues.
+3. Em cada card, veja o número da Demanda, o título, o selo **Bug** ou **Melhoria**, o Projeto, as iniciais de quem cuida, a versão quando ele já está Em produção e, quando o pedido tem partes, quantas já foram entregues. Enquanto falta o hospital fazer alguma coisa para começar a usar a entrega, o card mostra o selo **Implantação 1 de 3**, com quantos Pedidos de implantação já foram feitos.
 4. Quando o pedido já tem um plano publicado, o card mostra no canto o botão quadrado **Ver o plano**, com o ícone de apresentação. Clique nele para abrir a página do plano em outra aba. Um check verde no botão quer dizer que você já validou aquele plano. Ao abrir o card, o cartão **Plano** também leva à página. Para validar, continue usando o link do e-mail.
 
    ![Um card com o botão Ver o plano e o check de plano validado](ver-o-plano.png)
@@ -47,12 +47,16 @@ Se a conversa parar no meio, ela fica guardada como Registrada. Clique no pedido
 
    ![As partes de um pedido agrupadas por Onda, com o número e o Espera a](partes-por-onda.png)
 
-7. Para falar com a Vitta sobre aquele pedido, clique em **Conversar**, no alto do painel, e escreva na Conversa da Demanda. Para chamar alguém, escreva @ e escolha o nome. Para o que você escreveu virar uma tarefa no plano, veja **Mandar o que você escreveu aos desenvolvedores**, mais abaixo.
+7. Quando a entrega já está Em produção e ainda falta o hospital fazer alguma coisa para começar a usá-la, como um teste, uma configuração ou um treinamento, o card ganha a seção **Implantação**. Ao lado do título aparece quantos já foram feitos, como **1 de 3 feitos**. Cada linha é um Pedido de implantação, com a situação, **Feito** ou **Aberto**, e com quem ele está. Cada Pedido aberto chega na lista **Esperando você** de quem o recebe. A Implantação aberta não segura a entrega: o pedido fica Em produção, e a seção mostra o que falta para usar. Veja **Concluir um passo a passo** e **Avisar um problema na implantação**, mais abaixo.
+
+   ![A seção Implantação de um pedido Em produção, com os Pedidos de implantação feitos e abertos](implantacao-no-card.png)
+
+8. Para falar com a Vitta sobre aquele pedido, clique em **Conversar**, no alto do painel, e escreva na Conversa da Demanda. Para chamar alguém, escreva @ e escolha o nome. Para o que você escreveu virar uma tarefa no plano, veja **Mandar o que você escreveu aos desenvolvedores**, mais abaixo.
 
    ![Um pedido aberto no painel ao lado do Quadro](pedido-no-painel.png)
 
-8. Quando a Vitta precisa de uma decisão sua sobre o pedido, ou precisa que você faça alguma coisa no aplicativo, o pedido chega num cartão nessa mesma Conversa da Demanda e na lista **Esperando você**, no alto da aba. Veja **Responder uma pergunta da Vitta** e **Concluir um passo a passo**, logo abaixo.
-9. Para fechar o painel, clique no X ou aperte Esc. O botão **Ampliar** abre o pedido na tela toda, e o **Voltar ao quadro** traz as colunas de volta.
+9. Quando a Vitta precisa de uma decisão sua sobre o pedido, ou precisa que você faça alguma coisa no aplicativo, o pedido chega num cartão nessa mesma Conversa da Demanda e na lista **Esperando você**, no alto da aba. Veja **Responder uma pergunta da Vitta** e **Concluir um passo a passo**, logo abaixo.
+10. Para fechar o painel, clique no X ou aperte Esc. O botão **Ampliar** abre o pedido na tela toda, e o **Voltar ao quadro** traz as colunas de volta.
 
 A coluna Entregue mostra o que foi entregue nos últimos 30 dias. Os pedidos que não serão feitos ficam fora das colunas: para vê-los, ligue **Mostrar as que não serão feitas**, na barra de filtros.
 
@@ -103,7 +107,9 @@ Quando a Vitta só dá um recado, sem pergunta, o sino mostra o aviso de sempre,
 
 Às vezes a Vitta precisa que você faça alguma coisa no aplicativo, como publicar um documento ou cadastrar uma pessoa. O pedido chega num cartão com o passo a passo, e cada passo tem um check para você marcar.
 
-1. Quando a Vitta precisa que você faça alguma coisa, o cartão **Passo a passo da Vitta** chega na lista **Esperando você** e na Conversa da Demanda do pedido, e você recebe o aviso no sino e por e-mail. O aviso do sino diz **Pede sua ação** e traz o assunto embaixo.
+O **Pedido de implantação** usa o mesmo cartão. Ele chega quando uma entrega já está no ar e falta o hospital fazer alguma coisa para começar a usá-la, como um teste, uma configuração, a abertura ou um treinamento. Quem recebe escolhe quem do hospital faz e marca os checks quando a pessoa devolve.
+
+1. Quando a Vitta precisa que você faça alguma coisa, o cartão **Passo a passo da Vitta**, ou **Pedido de implantação**, chega na lista **Esperando você** e na Conversa da Demanda do pedido, e você recebe o aviso no sino e por e-mail. O aviso do sino diz **Pede sua ação** e traz o assunto embaixo.
 2. Clique no aviso do sino ou no link do e-mail. A aba Tecnologia abre com o cartão em destaque. Leia os passos: cada um diz onde clicar e traz o link quando precisa.
 3. Faça o primeiro passo e marque o check ao lado dele. O cartão mostra o seu nome e a hora embaixo do passo. Marcou errado? Clique de novo para desmarcar.
 
@@ -112,12 +118,35 @@ Quando a Vitta só dá um recado, sem pergunta, o sino mostra o aviso de sempre,
 4. Faça os outros passos e marque um por um. O último é o **Como saber que acabou**: confira o que ele diz antes de marcar.
 5. Se quiser deixar algo registrado para a Vitta, escreva no campo **Sua anotação (opcional)**. A anotação fica só no aplicativo.
 6. Clique em **Concluir**. O botão só libera com todos os checks marcados.
-7. O pedido sai da lista **Esperando você** na hora, e o cartão passa a **Concluído**, com o seu nome. A Vitta fica sabendo na hora, e o trabalho que dependia disso segue sozinho, sem ninguém precisar conferir.
-8. Se o cartão mostrar **Não chegou ao GitHub**, o pedido ficou concluído no aplicativo, mas o aviso não chegou à Vitta. O motivo aparece embaixo. Clique em **Reenviar** para tentar de novo. O aplicativo nunca tenta sozinho.
+7. Num **Pedido de implantação**, o Concluir pode ficar preso mesmo com todos os checks marcados. Um Pedido de implantação pode esperar outro da mesma entrega, como a abertura de um canal, que espera o teste dele. Nesse caso, o cartão mostra **Espera:** com o nome do outro, o Concluir fica bloqueado, e a linha embaixo dele diz o motivo, por exemplo: Este Pedido espera "testar o checklist no 3º andar" ser concluído. Quando o outro é concluído, o Concluir libera sozinho, sem ninguém precisar fazer nada.
+
+   ![O cartão do Pedido de implantação que espera outro, com o Espera, o Concluir bloqueado e o Achei um problema](pedido-de-implantacao.png)
+
+8. O pedido sai da lista **Esperando você** na hora, e o cartão passa a **Concluído**, com o seu nome. A Vitta fica sabendo na hora, e o trabalho que dependia disso segue sozinho, sem ninguém precisar conferir. No Pedido de implantação, o card da entrega já fechou quando o pedido chegou: o Concluir só registra a conclusão nele, sem reabrir nada.
+9. Se o cartão mostrar **Não chegou ao GitHub**, o pedido ficou concluído no aplicativo, mas o aviso não chegou à Vitta. O motivo aparece embaixo. Clique em **Reenviar** para tentar de novo. O aplicativo nunca tenta sozinho. No Pedido de implantação, esse aviso pode aparecer já no cartão aberto, quando o card da entrega não fechou no GitHub.
 
 Só a pessoa que o passo a passo espera marca os checks e conclui. Outro Super admin vê o cartão sem poder marcar. Um desenvolvedor da Vitta pode marcar e concluir no seu lugar, e o cartão mostra os dois nomes, como "Concluído por Rafael Moura em nome de Henrique Bastos".
 
 Se o passo a passo fica parado, o aplicativo lembra você uma vez só, depois de 3 dias, no sino e por e-mail, como **Seu passo a passo espera há 3 dias**.
+
+## Avisar um problema na implantação
+
+Quando você acha um problema no meio de um Pedido de implantação, como uma tela que não funciona no teste, o próprio cartão abre o bug para a Vitta. O Pedido continua aberto, e a entrega não é reaberta.
+
+1. No cartão do **Pedido de implantação**, na lista **Esperando você**, clique em **Achei um problema**, embaixo do Concluir. O botão só aparece no Pedido de implantação aberto.
+2. A conversa com o Assistente abre já como bug, com uma primeira mensagem que diz qual é o Pedido e de qual entrega ele é. Conte o que aconteceu no campo de baixo, como em qualquer bug.
+
+   ![A conversa com o Assistente aberta pelo Achei um problema, já como bug](problema-no-assistente.png)
+
+3. Responda as perguntas do bug, como em **Pedir um bug ou uma melhoria ao Assistente**. Nada vai para a Vitta antes do seu clique no fim.
+4. Leia o resumo e clique em **Criar o card**. O bug vira uma Demanda nova, que diz de qual entrega veio, e aparece no Quadro.
+5. Volte ao cartão do Pedido de implantação. Ele continua aberto e mostra **Espera a Demanda 62**, com o número do bug. O Concluir fica bloqueado até ela ser entregue, e a linha embaixo dele diz o motivo.
+
+   ![O cartão do Pedido de implantação que espera a Demanda do bug, com o Concluir bloqueado](espera-a-demanda.png)
+
+6. Quando a Demanda do bug é entregue, a linha **Espera a Demanda** some e o Concluir libera. Refaça só o passo que falhou, marque o check dele, se ainda não estiver marcado, e clique em **Concluir**.
+
+É um problema por vez: enquanto o Pedido espera uma Demanda de bug, o botão **Achei um problema** some do cartão. O próximo problema entra depois que ela for entregue.
 
 ## Pedir explicação ao assistente (Me explique)
 
@@ -196,7 +225,12 @@ passo card 6,1: Criar o card | O pedido vai para a Vitta e aparece no Quadro.
 passo analise 7,1: Em análise | A Vitta lê a melhoria e decide como fazer. O bug pula esta Etapa e entra direto na fila.
 passo planejada 7,2: Planejada | O trabalho está dividido em partes e na fila. Quando o plano está publicado, o card mostra o botão Ver o plano.
 passo desenvolvimento 7,3: Em desenvolvimento | A Vitta está fazendo. Num pedido com partes, o card mostra quantas já foram entregues.
-fim entregue 7,4: Entregue | O trabalho terminou. Quando a entrega chega ao aplicativo, o card passa a Em produção, com a versão.
+passo entregue 7,4: Entregue | O trabalho terminou.
+passo producao 8,4: Em produção | A entrega chegou ao aplicativo, e o card mostra a versão.
+passo implantacao 9,4: Implantação | Se falta o hospital fazer algo para usar a entrega, como um teste ou um treinamento, o card ganha a seção Implantação e o selo Implantação 1 de 3. Cada Pedido de implantação tem passos com check.
+decisao problema 10,4: Achei um problema?
+passo bugdaimplantacao 10,5: Demanda de bug | O Assistente abre o bug com o nome do Pedido. O Pedido mostra Espera a Demanda, e a entrega não reabre.
+fim emuso 11,4: Em uso | Os Pedidos de implantação estão concluídos, e a entrega está em uso.
 passo envio 8,2: Enviar para os desenvolvedores | Com o card criado, você escreve na Conversa da Demanda quantas mensagens quiser e aperta o botão.
 decisao entendi 9,2: O Entendi assim bateu?
 passo corrigir 9,1: Corrigir | Você manda na Conversa uma mensagem com o que faltou e aperta o botão de novo.
@@ -219,6 +253,12 @@ card -> planejada: bug
 analise -> planejada
 planejada -> desenvolvimento
 desenvolvimento -> entregue
+entregue -> producao
+producao -> implantacao
+implantacao -> problema
+problema -> bugdaimplantacao: sim
+problema -> emuso: não
+bugdaimplantacao -> implantacao: corrigido
 planejada -> envio: quer mudar algo
 envio -> entendi
 entendi -> enviado: Enviar

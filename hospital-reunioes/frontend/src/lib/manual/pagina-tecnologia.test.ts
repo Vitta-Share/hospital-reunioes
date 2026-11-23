@@ -24,6 +24,7 @@ const TAREFAS = [
   "Ver o que espera você",
   "Responder uma pergunta da Vitta",
   "Concluir um passo a passo",
+  "Avisar um problema na implantação",
   "Pedir explicação ao assistente (Me explique)",
   "Mandar o que você escreveu aos desenvolvedores",
   "Filtrar por Projeto",
@@ -233,6 +234,60 @@ describe("concluir um passo a passo da Vitta (issue #2176, ADR 0110)", () => {
     expect(passo, "nenhum passo explica o Não chegou ao GitHub").toBeDefined();
     expect(passo).toMatch(/\*\*Reenviar\*\*/);
     expect(passo).toMatch(/nunca tenta sozinho/);
+  });
+});
+
+describe("o Pedido de implantação no manual (issue #2211, ADR 0111)", () => {
+  const CONCLUIR = "Concluir um passo a passo";
+  const PROBLEMA = "Avisar um problema na implantação";
+  const QUADRO = "Acompanhar o pedido no Quadro";
+
+  /** O índice do primeiro passo da tarefa que casa com o padrão, ou -1. */
+  function indice(tarefa: string, padrao: RegExp): number {
+    return passosDa(tarefa).findIndex((p) => padrao.test(p));
+  }
+
+  it("o Concluir um passo a passo tem a variante do Pedido de implantação, com a espera e o print do cartão", () => {
+    const passo = passosDa(CONCLUIR).find((p) => /\*\*Pedido de implantação\*\*/.test(p) && /\*\*Espera:\*\*/.test(p));
+    expect(passo, "nenhum passo explica o Pedido de implantação que espera outro").toBeDefined();
+    expect(passo).toMatch(/Concluir fica bloqueado/);
+    expect(passo).toMatch(/libera sozinho/);
+    expect(imagensCitadas(passo!)).toContain("pedido-de-implantacao.png");
+  });
+
+  it("o Avisar um problema vai do Achei um problema ao Criar o card, à espera da Demanda e ao passo refeito, nessa ordem", () => {
+    const ordem = [
+      indice(PROBLEMA, /clique em \*\*Achei um problema\*\*/),
+      indice(PROBLEMA, /já como bug/),
+      indice(PROBLEMA, /\*\*Criar o card\*\*/),
+      indice(PROBLEMA, /\*\*Espera a Demanda \d+\*\*/),
+      indice(PROBLEMA, /Refaça só o passo que falhou/),
+    ];
+    expect(ordem.every((i) => i >= 0), `faltam passos: ${ordem.join(", ")}`).toBe(true);
+    expect(ordem).toEqual([...ordem].sort((a, b) => a - b));
+    expect(new Set(ordem).size).toBe(ordem.length);
+  });
+
+  it("o Avisar um problema diz que a entrega não reabre, que o Concluir espera a Demanda entregue e que é um bug por vez", () => {
+    const { texto } = secao(PROBLEMA);
+    expect(texto).toMatch(/a entrega não é reaberta/);
+    expect(passosDa(PROBLEMA)[indice(PROBLEMA, /\*\*Espera a Demanda \d+\*\*/)]).toMatch(
+      /Concluir fica bloqueado até ela ser entregue/,
+    );
+    expect(imagensCitadas(passosDa(PROBLEMA)[indice(PROBLEMA, /\*\*Espera a Demanda \d+\*\*/)])).toContain(
+      "espera-a-demanda.png",
+    );
+    expect(texto).toMatch(/um problema por vez/);
+  });
+
+  it("o Acompanhar o pedido no Quadro mostra o selo Implantação e a seção Implantação do card, com print", () => {
+    expect(passosDa(QUADRO).some((p) => /selo \*\*Implantação 1 de 3\*\*/.test(p))).toBe(true);
+    const secaoDoCard = passosDa(QUADRO).find((p) => /seção \*\*Implantação\*\*/.test(p));
+    expect(secaoDoCard, "nenhum passo explica a seção Implantação do card").toBeDefined();
+    expect(secaoDoCard).toMatch(/\*\*Feito\*\*/);
+    expect(secaoDoCard).toMatch(/\*\*Aberto\*\*/);
+    expect(secaoDoCard).toMatch(/Esperando você/);
+    expect(imagensCitadas(secaoDoCard!)).toContain("implantacao-no-card.png");
   });
 });
 
@@ -449,12 +504,42 @@ describe("o fluxograma do caminho de um pedido", () => {
     expect(inicios[0].rotulo).toMatch(/Assistente/);
   });
 
-  it("termina em Entregue, que se alcança a partir da conversa", () => {
+  it("passa por Entregue e termina num fim só, os dois alcançáveis a partir da conversa", () => {
     const f = fluxo();
     const entregue = passoPorRotulo(f, /^Entregue$/);
-    expect(entregue.forma).toBe("fim");
+    const fins = f.passos.filter((p) => p.forma === "fim");
+    expect(fins).toHaveLength(1);
     const inicio = f.passos.find((p) => p.forma === "inicio")!;
     expect(alcancaveis(f, inicio.id).has(entregue.id)).toBe(true);
+    expect(alcancaveis(f, entregue.id).has(fins[0].id)).toBe(true);
+  });
+
+  it("a Implantação vem depois de Em produção, e nada chega a ela sem passar por Em produção (issue #2211)", () => {
+    const f = fluxo();
+    const inicio = f.passos.find((p) => p.forma === "inicio")!;
+    const entregue = passoPorRotulo(f, /^Entregue$/);
+    const producao = passoPorRotulo(f, /^Em produção$/);
+    const implantacao = passoPorRotulo(f, /^Implantação$/);
+    expect(alcancaveis(f, entregue.id).has(producao.id)).toBe(true);
+    expect(alcancaveis(f, producao.id).has(implantacao.id)).toBe(true);
+    expect(alcancaveis(f, inicio.id, new Set([producao.id])).has(implantacao.id)).toBe(false);
+    expect(alcancaveis(f, implantacao.id).has(producao.id), "a Implantação volta para Em produção").toBe(false);
+    expect(implantacao.detalhe).toMatch(/Implantação 1 de 3/);
+  });
+
+  it("o Achei um problema da Implantação abre a Demanda de bug, que volta à Implantação sem reabrir a entrega (issue #2211)", () => {
+    const f = fluxo();
+    const implantacao = passoPorRotulo(f, /^Implantação$/);
+    const decisao = passoPorRotulo(f, /Achei um problema/);
+    const bug = passoPorRotulo(f, /^Demanda de bug$/);
+    const producao = passoPorRotulo(f, /^Em produção$/);
+    const fim = f.passos.find((p) => p.forma === "fim")!;
+    expect(decisao.forma).toBe("decisao");
+    expect(f.ligacoes.some((l) => l.de === implantacao.id && l.para === decisao.id)).toBe(true);
+    expect(f.ligacoes.some((l) => l.de === decisao.id && l.para === bug.id && l.rotulo === "sim")).toBe(true);
+    expect(f.ligacoes.some((l) => l.de === decisao.id && l.para === fim.id && l.rotulo === "não")).toBe(true);
+    expect(f.ligacoes.some((l) => l.de === bug.id && l.para === implantacao.id)).toBe(true);
+    expect(alcancaveis(f, bug.id, new Set([implantacao.id])).has(producao.id)).toBe(false);
   });
 
   it("nada chega a Entregue sem o clique em Criar o card", () => {
@@ -477,10 +562,12 @@ describe("o fluxograma do caminho de um pedido", () => {
     }
   });
 
-  it("depois do card, o pedido passa pelas Etapas Em análise, Planejada e Em desenvolvimento, nessa ordem", () => {
+  it("depois do card, o pedido passa pelas Etapas Em análise, Planejada, Em desenvolvimento, Entregue e Em produção, nessa ordem", () => {
     const f = fluxo();
     const criar = passoPorRotulo(f, /^Criar o card$/);
-    const etapas = [/^Em análise$/, /^Planejada$/, /^Em desenvolvimento$/, /^Entregue$/].map((r) => passoPorRotulo(f, r));
+    const etapas = [/^Em análise$/, /^Planejada$/, /^Em desenvolvimento$/, /^Entregue$/, /^Em produção$/].map((r) =>
+      passoPorRotulo(f, r),
+    );
     expect(alcancaveis(f, criar.id).has(etapas[0].id)).toBe(true);
     for (let i = 0; i < etapas.length - 1; i++) {
       expect(alcancaveis(f, etapas[i].id).has(etapas[i + 1].id), `${etapas[i].rotulo} não leva a ${etapas[i + 1].rotulo}`).toBe(true);
