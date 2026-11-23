@@ -281,7 +281,9 @@ describe("o Pedido de implantação no manual (issue #2211, ADR 0111)", () => {
   });
 
   it("o Acompanhar o pedido no Quadro mostra o selo Implantação e a seção Implantação do card, com print", () => {
-    expect(passosDa(QUADRO).some((p) => /selo \*\*Implantação 1 de 3\*\*/.test(p))).toBe(true);
+    const doSelo = passosDa(QUADRO).find((p) => /selo \*\*Implantação 1 de 3\*\*/.test(p));
+    expect(doSelo, "nenhum passo mostra o selo Implantação do card").toBeDefined();
+    expect(imagensCitadas(doSelo!)).toContain("selo-da-implantacao.png");
     const secaoDoCard = passosDa(QUADRO).find((p) => /seção \*\*Implantação\*\*/.test(p));
     expect(secaoDoCard, "nenhum passo explica a seção Implantação do card").toBeDefined();
     expect(secaoDoCard).toMatch(/\*\*Feito\*\*/);

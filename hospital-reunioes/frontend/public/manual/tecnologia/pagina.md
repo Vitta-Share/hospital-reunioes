@@ -38,6 +38,9 @@ Se a conversa parar no meio, ela fica guardada como Registrada. Clique no pedido
    ![O Quadro com os pedidos em colunas](quadro.png)
 
 3. Em cada card, veja o número da Demanda, o título, o selo **Bug** ou **Melhoria**, o Projeto, as iniciais de quem cuida, a versão quando ele já está Em produção e, quando o pedido tem partes, quantas já foram entregues. Enquanto falta o hospital fazer alguma coisa para começar a usar a entrega, o card mostra o selo **Implantação 1 de 3**, com quantos Pedidos de implantação já foram feitos.
+
+   ![Um card Em produção com o selo Implantação 1 de 3, na coluna Entregue](selo-da-implantacao.png)
+
 4. Quando o pedido já tem um plano publicado, o card mostra no canto o botão quadrado **Ver o plano**, com o ícone de apresentação. Clique nele para abrir a página do plano em outra aba. Um check verde no botão quer dizer que você já validou aquele plano. Ao abrir o card, o cartão **Plano** também leva à página. Para validar, continue usando o link do e-mail.
 
    ![Um card com o botão Ver o plano e o check de plano validado](ver-o-plano.png)

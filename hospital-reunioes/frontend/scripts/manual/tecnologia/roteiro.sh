@@ -91,6 +91,14 @@ pw run-code "async page => {
     if (chave === 'perguntas/esperando' && !new URL(page.url()).searchParams.has('pergunta')) {
       return route.fulfill({ json: [] });
     }
+    if (chave === 'perguntas/esperando') {
+      // Os Pedidos de implantação só entram quando a aba abre num deles (issue #2211):
+      // nos outros prints a lista fica como era, sem eles.
+      const destaque = new URL(page.url()).searchParams.get('pergunta');
+      const lista = tabela[chave];
+      const deImplantacao = lista.some(i => i.tipo === 'implantacao' && i.id === destaque);
+      return route.fulfill({ json: deImplantacao ? lista : lista.filter(i => i.tipo !== 'implantacao') });
+    }
     return route.fulfill({ json: tabela[chave] });
   });
   const sino = $(python3 "$AQUI/respostas.py" --sino);
@@ -125,7 +133,9 @@ print_tela "pedido-no-painel.png"
 pw run-code "async page => { await page.getByRole('region', { name: 'Documento do card', exact: true }).getByText('Onda 3', { exact: true }).scrollIntoViewIfNeeded(); await page.waitForTimeout(400) }"
 print "$(bloco "Documento do card")" "partes-por-onda.png"
 pw run-code "async page => { await page.getByRole('button', { name: 'Fechar o pedido' }).click() }"
-# A seção Implantação do card Em produção (issue #2211), com o selo no Quadro.
+# O selo Implantação 1 de 3 no card Em produção e a seção Implantação dele (issue #2211).
+pw run-code "async page => { await page.getByText('Implantação 1 de 3', { exact: true }).scrollIntoViewIfNeeded(); await page.waitForTimeout(400) }"
+print "$(bloco "Entregue")" "selo-da-implantacao.png"
 pw run-code "async page => { await page.getByRole('button', { name: /Checklist da limpeza dos leitos pelo celular/ }).click(); await page.getByRole('region', { name: 'Implantação', exact: true }).scrollIntoViewIfNeeded(); await page.waitForTimeout(600) }"
 print "$(bloco "Documento do card")" "implantacao-no-card.png"
 pw run-code "async page => { await page.getByRole('button', { name: 'Fechar o pedido' }).click() }"
@@ -183,7 +193,8 @@ pw run-code "async page => { await page.$DESTACADO.scrollIntoViewIfNeeded(); awa
 print "$DESTACADO" "pedido-de-implantacao.png"
 pw run-code "async page => { await page.$DESTACADO.getByRole('button', { name: 'Achei um problema' }).click() }"
 esperar "$(seed "['implantacao']['falas_do_problema'][0]['texto']")"
-print_tela "problema-no-assistente.png"
+# A conversa abre embaixo da lista Esperando você, que fica no alto pelo `?pergunta=`.
+print "$(bloco "Conversa aberta")" "problema-no-assistente.png"
 pw goto "$TECNOLOGIA?pergunta=$(seed "['implantacao']['pedidos'][1]['id']")"
 esperar "Espera a Demanda 62"
 pw run-code "async page => { await page.$DESTACADO.scrollIntoViewIfNeeded(); await page.waitForTimeout(400) }"
