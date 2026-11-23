@@ -55,7 +55,9 @@ export default function AdminUsuariosPage() {
   const [setor, setSetor] = useState<string[]>([]);
   const [setoresDisponiveis, setSetoresDisponiveis] = useState<string[]>([]);
   const [cargosDisponiveis, setCargosDisponiveis] = useState<string[]>([]);
-  const [ativo, setAtivo] = useState<"" | "true" | "false">("");
+  // Abre em "Apenas ativos": quem foi desligado em vez de excluído (issue
+  // #2043) sai da lista sem o filtro mexer.
+  const [ativo, setAtivo] = useState<"" | "true" | "false">("true");
   const [onlySuperAdmin, setOnlySuperAdmin] = useState<"" | "true" | "false">(
     ""
   );
@@ -347,7 +349,15 @@ export default function AdminUsuariosPage() {
       toast(`Erro ao deletar: ${await res.text()}`, "error");
       return false;
     }
-    toast("Usuário deletado", "success");
+    // Quem tem histórico no app não sai da tabela: o mesmo clique desliga
+    // (issue #2043), e a confirmação diz qual dos dois aconteceu.
+    const { resultado } = (await res.json()) as { resultado?: string };
+    toast(
+      resultado === "desligado"
+        ? "Usuário desligado; o histórico dele foi mantido"
+        : "Usuário excluído",
+      "success"
+    );
     setDeleteTarget(null);
     fetchRows();
     return true;
