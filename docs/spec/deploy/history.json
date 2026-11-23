@@ -2,6 +2,57 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-23T10:45:02-03:00",
+      "sha": "04d9443f4bcddc52f7450b0879423ab349b28560",
+      "app_version": "0.389.0",
+      "subject": "Onda sesta-2205-onda2: Pedido de implantação espera outro antes de concluir; Seção Implantação no Documento do card e selo no Quadro; A mensagem de PRD entregue diz o que falta para começar a usar",
+      "raw_subject": "chore(deploy): registro da onda sesta-2205-onda2 (#2219 #2220 #2218)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        2205
+      ],
+      "result": "healthy",
+      "duration_seconds": 48929,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "236_pedido_espera_outro.sql",
+        "236_pedido_espera_outro.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-2205-onda2: PR #2219 (issue #2208), PR #2220 (issue #2209), PR #2218 (issue #2213), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 10,
+        "build_s": {
+          "backend": 140,
+          "frontend": 226
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-22T20:28:57-03:00",
       "sha": "2c00dd521a94c8f06e1fd06e3b609d4b9997ff6e",
       "app_version": "0.388.0",
