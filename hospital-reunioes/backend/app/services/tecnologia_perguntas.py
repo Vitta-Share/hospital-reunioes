@@ -147,6 +147,10 @@ MOTIVO_ESPERA_DE_OUTRA_DEMANDA = "O Pedido de implantação só espera outro da 
 MOTIVO_ESPERA_DE_OUTRO_TIPO = "O Pedido de implantação só espera outro Pedido de implantação."
 MOTIVO_ESPERA_CANCELADA = "O Pedido esperado foi cancelado: este nunca poderia ser concluído."
 MOTIVO_ESPERA_ABERTA = 'Este Pedido espera "{assunto}" ser concluído.'
+# O "Achei um problema" (issue #2210, ADR 0111, decisao 9).
+MOTIVO_PROBLEMA_SO_NA_IMPLANTACAO = "Só o Pedido de implantação tem o Achei um problema."
+MOTIVO_PROBLEMA_SO_NO_ABERTO = "Este Pedido de implantação já não está aberto."
+TEXTO_DO_PROBLEMA = 'Achei um problema no Pedido de implantação "{assunto}", da entrega "{entrega}".'
 # Por que a passagem nao vale, pelo estado em que a Pergunta esta.
 MOTIVO_DA_PASSAGEM_RECUSADA = {
     ESTADO_ABERTA: "A Pergunta ainda não foi respondida: só a respondida se resolve.",
@@ -369,6 +373,20 @@ def _exigir_a_espera_valida(supabase, demanda: dict[str, Any], tipo: str, espera
     # faria nascer um Pedido que nunca conclui, com o lembrete batendo.
     if esperado.get("estado") == ESTADO_CANCELADA:
         raise PerguntaRecusadaError(MOTIVO_ESPERA_CANCELADA)
+
+
+def texto_do_problema(pedido: dict[str, Any], demanda: dict[str, Any]) -> str:
+    """O texto inicial do bug que o "Achei um problema" abre (issue #2210,
+    ADR 0111, decisao 9): nomeia o Pedido e a entrega. So vale no Pedido de
+    implantacao aberto."""
+    if not e_implantacao(pedido):
+        raise PerguntaRecusadaError(MOTIVO_PROBLEMA_SO_NA_IMPLANTACAO)
+    if pedido.get("estado") != ESTADO_ABERTA:
+        raise PerguntaRecusadaError(MOTIVO_PROBLEMA_SO_NO_ABERTO)
+    return TEXTO_DO_PROBLEMA.format(
+        assunto=" ".join(str(pedido.get("assunto") or "").split()),
+        entrega=" ".join(str(demanda.get("titulo") or "").split()),
+    )
 
 
 def _exigir_a_label_da_implantacao(numero: int, projeto: str) -> None:

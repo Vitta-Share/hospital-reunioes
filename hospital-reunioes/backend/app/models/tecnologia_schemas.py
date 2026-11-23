@@ -7,6 +7,7 @@ conversas, os turnos do chat e a leitura do print (issue #1386).
 from __future__ import annotations
 
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -540,6 +541,9 @@ class ChatPrimeiroTurnoPayload(BaseModel):
     # #1520): o texto entra na fala, fora do teto da mensagem, e o original
     # vira Anexo quando a fala entra na conversa.
     documentos: list[str] = Field(default_factory=list, max_length=10)
+    # O "Achei um problema" do Pedido de implantacao (issue #2210, ADR 0111,
+    # decisao 9): o bug nasce com o texto inicial que nomeia o Pedido.
+    pedido_id: UUID | None = None
 
 
 class ChatTurnoPayload(BaseModel):
