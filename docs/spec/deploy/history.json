@@ -2,6 +2,51 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-23T12:19:35-03:00",
+      "sha": "7ed089bbb7d6964f486e4e0ab82b73532ba34c6a",
+      "app_version": "0.390.2",
+      "subject": "Onda sesta-2205-onda5: Tecnologia explica o Pedido de implantação, a seção Implantação e o Achei um problema",
+      "raw_subject": "chore(deploy): registro da onda sesta-2205-onda5 (#2223)",
+      "scope": [
+        "frontend"
+      ],
+      "prds": [
+        2205
+      ],
+      "result": "healthy",
+      "duration_seconds": 334,
+      "services_touched": [
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-2205-onda5: PR #2223 (issue #2211), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 4,
+        "build_s": {
+          "frontend": 243
+        },
+        "health_s": 2
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-23T12:12:11-03:00",
       "sha": "8f3fe36a1b86f88adfc3f65abb5bb526a6730acc",
       "app_version": "0.390.1",
