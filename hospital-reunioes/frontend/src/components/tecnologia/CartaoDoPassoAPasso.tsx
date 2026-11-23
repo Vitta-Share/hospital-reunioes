@@ -101,7 +101,8 @@ export function CartaoDoPassoAPasso({
   const todosMarcados = passos.length > 0 && passos.every((p) => p.marcado);
   const esperado = aberta ? atual.espera : null;
   const bug = aberta ? atual.espera_demanda : null;
-  const acheiUmProblema = aberta && atual.tipo === "implantacao" && Boolean(token);
+  // Um bug por vez (issue #2210): esperando um, o cartão não abre outro.
+  const acheiUmProblema = aberta && atual.tipo === "implantacao" && !bug && Boolean(token);
 
   async function pedir(url: string, corpo?: unknown): Promise<unknown> {
     if (!token || enviando) return null;

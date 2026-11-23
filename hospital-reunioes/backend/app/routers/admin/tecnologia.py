@@ -1029,6 +1029,7 @@ async def comecar_o_chat(
         pedido, demanda_do_pedido = _pergunta_do_me_explique(supabase, pedido_origem_id, ator)
         try:
             inicial = tecnologia_perguntas.texto_do_problema(pedido, demanda_do_pedido)
+            tecnologia_perguntas.exigir_sem_bug_aberto(supabase, pedido)
         except tecnologia_perguntas.PerguntaRecusadaError as recusa:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(recusa)) from recusa
         payload.escolha = "bug"
@@ -2263,6 +2264,11 @@ def _enviar_o_card(
     imagens, documentos = tecnologia_anexos.quantos_guardados(supabase, demanda_id)
     # O bug do "Achei um problema" (issue #2210): a issue cita o PRD de origem.
     pedido = tecnologia_perguntas.pedido_do_bug(supabase, demanda)
+    if pedido:
+        try:
+            tecnologia_perguntas.exigir_sem_bug_aberto(supabase, pedido, bug_id=demanda_id)
+        except tecnologia_perguntas.PerguntaRecusadaError as recusa:
+            _recusar(str(recusa))
     prd = tecnologia_perguntas.prd_de_origem(supabase, pedido) if pedido else None
 
     def corpo(_titulo: str) -> str:

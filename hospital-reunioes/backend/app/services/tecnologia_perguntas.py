@@ -157,6 +157,10 @@ MOTIVO_ESPERA_ABERTA = 'Este Pedido espera "{assunto}" ser concluído.'
 # O "Achei um problema" (issue #2210, ADR 0111, decisao 9).
 MOTIVO_PROBLEMA_SO_NA_IMPLANTACAO = "Só o Pedido de implantação tem o Achei um problema."
 MOTIVO_PROBLEMA_SO_NO_ABERTO = "Este Pedido de implantação já não está aberto."
+# Um bug por vez (issue #2210): o segundo trocaria a espera e soltaria o Concluir.
+MOTIVO_JA_ESPERA_UM_BUG = (
+    "Este Pedido já espera a Demanda {numero}. O próximo problema entra depois que ela for entregue."
+)
 TEXTO_DO_PROBLEMA = 'Achei um problema no Pedido de implantação "{assunto}", da entrega "{entrega}".'
 MOTIVO_ESPERA_O_BUG = "Este Pedido espera a Demanda {numero} ser entregue."
 # A Demanda de bug entregue solta o Pedido que espera por ela.
@@ -417,6 +421,16 @@ def prd_de_origem(supabase, pedido: dict[str, Any]) -> str | None:
     projeto = str(demandas[0].get("projeto") or github_client.PROJETO_HOSPITAL)
     repositorio = "" if projeto == github_client.PROJETO_HOSPITAL else github_client.repositorio_do_projeto(projeto)
     return f"{repositorio}#{numero}"
+
+
+def exigir_sem_bug_aberto(supabase, pedido: dict[str, Any], *, bug_id: str | None = None) -> None:
+    """O Pedido espera um bug por vez (issue #2210): enquanto a Demanda de bug
+    que ele espera nao foi entregue, outro bug nao abre nem ganha card, senao
+    a espera trocaria de Demanda e o Concluir soltaria com a primeira aberta.
+    O proprio bug (`bug_id`, o Reenviar) passa."""
+    espera = _espera_demanda(pedido, _esperados(supabase, [pedido]))
+    if espera and espera["demanda_id"] != bug_id:
+        raise PerguntaRecusadaError(MOTIVO_JA_ESPERA_UM_BUG.format(numero=espera["numero"]))
 
 
 def ligar_o_bug(supabase, bug: dict[str, Any], pedido: dict[str, Any]) -> None:

@@ -232,6 +232,52 @@ class TestEsperaADemandaDeBug:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# 3b. Um bug por vez: o segundo não troca a espera do primeiro
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestUmBugPorVez:
+    def test_o_pedido_que_espera_um_bug_recusa_o_segundo_achei_um_problema(self, monkeypatch):
+        sb, pedido_id, bug_id = _pedido_esperando_o_bug(monkeypatch)
+        cliente, _ = _na_tela(sb, monkeypatch)
+        antes = len(sb.tabelas["tecnologia_demandas"])
+
+        resposta = _achei_um_problema(cliente, monkeypatch, pedido_id)
+
+        assert resposta.status_code == 422
+        assert resposta.json() == {
+            "detail": "Este Pedido já espera a Demanda 57. O próximo problema entra depois que ela for entregue."
+        }
+        assert len(sb.tabelas["tecnologia_demandas"]) == antes
+        assert _pedido(sb, pedido_id)["espera_demanda_id"] == bug_id
+
+    def test_com_o_bug_entregue_o_pedido_aceita_o_proximo_problema(self, monkeypatch):
+        sb, pedido_id, bug_id = _pedido_esperando_o_bug(monkeypatch)
+        _demanda(sb, bug_id)["etapa"] = "entregue"
+        cliente, _ = _na_tela(sb, monkeypatch)
+
+        assert _achei_um_problema(cliente, monkeypatch, pedido_id).status_code == 201
+
+    def test_o_segundo_bug_aberto_em_paralelo_nao_ganha_card_nem_troca_a_espera(self, monkeypatch):
+        sb, pedido_id = _pedido_de_implantacao()
+        cliente, _, primeiro = _bug_ate_o_resumo(sb, monkeypatch, pedido_id)
+        # A segunda montagem instala o GitHub dublado que as duas rotas usam.
+        _, gh, segundo = _bug_ate_o_resumo(sb, monkeypatch, pedido_id)
+        assert cliente.post(f"{CHAT}/{primeiro}/criar-card").status_code == 200
+        _demanda(sb, primeiro)["numero"] = NUMERO_DO_BUG
+
+        resposta = cliente.post(f"{CHAT}/{segundo}/criar-card")
+
+        assert resposta.status_code == 422
+        assert resposta.json() == {
+            "detail": "Este Pedido já espera a Demanda 57. O próximo problema entra depois que ela for entregue."
+        }
+        assert _pedido(sb, pedido_id)["espera_demanda_id"] == primeiro
+        assert _demanda(sb, segundo).get("demanda_origem_id") is None
+        assert len(gh.criadas) == 1
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # 4. O PRD de origem continua fechado
 # ═══════════════════════════════════════════════════════════════════════════
 

@@ -111,6 +111,14 @@ describe("O Pedido que espera a Demanda de bug", () => {
     expect(within(cartao).getByText("Este Pedido espera a Demanda 57 ser entregue.")).toBeTruthy();
   });
 
+  it("não oferece o Achei um problema enquanto espera o bug: um bug por vez", () => {
+    render(
+      <CartaoDoPedido pedido={{ ...TESTE, espera_demanda: { demanda_id: "bug-1", numero: 57 } }} token="token-de-teste" />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Achei um problema" })).toBeNull();
+  });
+
   it("com o bug entregue, o cartão chega sem a espera e o Concluir libera", () => {
     render(<CartaoDoPedido pedido={{ ...TESTE, espera_demanda: null }} token="token-de-teste" />);
 
