@@ -10,8 +10,10 @@ verdade.
 from __future__ import annotations
 
 import os
+import re
 import sys
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -220,3 +222,75 @@ class TestSqlGerado:
         sql = limpeza.gerar_sql(_plano()).lower()
         for proibido in ("numero_seq", "setval", "sequence", "truncate"):
             assert proibido not in sql
+
+
+# ---------------------------------------------------------------------------
+# As migrations contra o SQL: toda filha da Manifestação precisa sair
+# ---------------------------------------------------------------------------
+
+MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "supabase" / "migrations"
+
+_COMENTARIO = re.compile(r"--[^\n]*")
+_CABECALHO = re.compile(r"\b(?:CREATE\s+TABLE|ALTER\s+TABLE)\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?(?:ONLY\s+)?(?:public\.)?\"?(\w+)", re.I)
+
+
+def _filhas(pai: str, pasta: Path) -> set[str]:
+    """Tabelas com chave estrangeira para `pai`, lidas das migrations. A dona de
+    cada REFERENCES é o último CREATE TABLE ou ALTER TABLE antes dele, o que
+    cobre coluna nova, constraint nomeada e bloco DO."""
+    referencia = re.compile(rf"\bREFERENCES\s+(?:public\.)?\"?{pai}\"?\s*\(", re.I)
+    filhas: set[str] = set()
+    for arquivo in sorted(pasta.glob("*.sql")):
+        texto = _COMENTARIO.sub("", arquivo.read_text(encoding="utf-8"))
+        for achado in referencia.finditer(texto):
+            donos = list(_CABECALHO.finditer(texto, 0, achado.start()))
+            assert donos, f"{arquivo.name}: REFERENCES {pai} sem tabela dona"
+            filhas.add(donos[-1].group(1).lower())
+    return filhas - {pai}
+
+
+def _filhas_fora_do_sql(pasta: Path) -> set[str]:
+    """As filhas da Manifestação (e do e-mail recebido, que sai junto com o caso
+    liberado) que o SQL gerado nem apaga nem confere."""
+    sql = limpeza.gerar_sql(_plano())
+    filhas = _filhas("ouvidoria_protocolos", pasta) | _filhas("ouvidoria_emails_recebidos", pasta)
+    cobertas = {t for t in filhas if f"DELETE FROM {t} WHERE" in sql}
+    barram = {t for t in filhas if f"FROM {t} WHERE manifestacao_id = ANY(casos)" in sql and t in limpeza.TABELAS_QUE_BARRAM}
+    return filhas - cobertas - barram
+
+
+class TestMigrationsContraOSql:
+    def test_o_leitor_de_migrations_acha_as_filhas_que_ja_existem(self):
+        filhas = _filhas("ouvidoria_protocolos", MIGRATIONS_DIR)
+        # As nove do Refino do PRD #1913 e as duas que vieram depois.
+        assert {
+            "ouvidoria_movimentos",
+            "ouvidoria_acessos",
+            "ouvidoria_anexos",
+            "ouvidoria_notificacoes",
+            "ouvidoria_setor_tokens",
+            "ouvidoria_prorrogacoes",
+            "ouvidoria_tentativas_contato",
+            "ouvidoria_emails_recebidos",
+            "ouvidoria_acionamentos",
+            "nsp_notificacoes",
+            "conduta_casos",
+        } <= filhas
+
+    def test_toda_tabela_filha_da_manifestacao_sai_no_sql(self):
+        assert _filhas_fora_do_sql(MIGRATIONS_DIR) == set()
+
+    def test_filha_nova_numa_migration_futura_faz_o_teste_falhar(self, tmp_path):
+        for arquivo in MIGRATIONS_DIR.glob("*.sql"):
+            (tmp_path / arquivo.name).write_text(arquivo.read_text(encoding="utf-8"), encoding="utf-8")
+        (tmp_path / "999_ouvidoria_filha_nova.sql").write_text(
+            "CREATE TABLE IF NOT EXISTS ouvidoria_filha_nova (\n"
+            "  id UUID PRIMARY KEY,\n"
+            "  -- REFERENCES comentado não conta\n"
+            "  manifestacao_id UUID NOT NULL REFERENCES ouvidoria_protocolos(id) ON DELETE RESTRICT\n"
+            ");\n"
+            "ALTER TABLE outra_tabela\n"
+            "  ADD COLUMN IF NOT EXISTS caso UUID REFERENCES public.ouvidoria_protocolos (id);\n",
+            encoding="utf-8",
+        )
+        assert _filhas_fora_do_sql(tmp_path) == {"ouvidoria_filha_nova", "outra_tabela"}
