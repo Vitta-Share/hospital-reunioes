@@ -357,7 +357,9 @@ def pedidos_de_implantacao() -> list[dict]:
                 }
                 for passo in p["passos"]
             ],
-            "espera": {"pedido_id": p["espera"], "assunto": por_id[p["espera"]]["assunto"]} if p.get("espera") else None,
+            "espera": (
+                {"pedido_id": p["espera"], "assunto": por_id[p["espera"]]["assunto"]} if p.get("espera") else None
+            ),
             "espera_demanda": (
                 {"demanda_id": p["espera_a_demanda"], "numero": numero_de[p["espera_a_demanda"]]}
                 if p.get("espera_a_demanda")
