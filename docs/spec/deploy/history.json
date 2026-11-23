@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-23T11:19:42-03:00",
+      "sha": "7d9aad94415c365c01922911fa6408cf58b7a032",
+      "app_version": "0.390.0",
+      "subject": "Onda sesta-2205-onda4: Achei um problema abre a Demanda de bug e o Pedido de implantação espera por ela",
+      "raw_subject": "chore(deploy): registro da onda sesta-2205-onda4 (#2222)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        2205
+      ],
+      "result": "healthy",
+      "duration_seconds": 438,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "237_achei_um_problema.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta sesta-2205-onda4: PR #2222 (issue #2210), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 2,
+        "build_s": {
+          "backend": 31,
+          "frontend": 296
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-23T10:45:02-03:00",
       "sha": "04d9443f4bcddc52f7450b0879423ab349b28560",
       "app_version": "0.389.0",
