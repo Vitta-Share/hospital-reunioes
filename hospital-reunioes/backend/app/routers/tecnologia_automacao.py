@@ -248,6 +248,9 @@ class PerguntaDaVittaPayload(BaseModel):
     passos: list[Annotated[str, Field(max_length=LIMITE_DO_PASSO)]] = Field(default_factory=list, max_length=20)
     card_numero: int | None = Field(default=None, ge=1)
     card_projeto: str | None = Field(default=None, pattern=FORMATO_DO_PROJETO)
+    # O Pedido de implantacao que este espera (issue #2208, ADR 0111, decisao
+    # 8): so outro Pedido de implantacao da mesma Demanda.
+    espera_pedido_id: UUID | None = None
 
 
 @router.post("/demandas/{demanda_id}/perguntas", status_code=status.HTTP_201_CREATED)
@@ -276,6 +279,7 @@ def criar_a_pergunta(demanda_id: UUID, payload: PerguntaDaVittaPayload, supabase
             passos=payload.passos,
             card_numero=payload.card_numero,
             card_projeto=payload.card_projeto,
+            espera_pedido_id=str(payload.espera_pedido_id) if payload.espera_pedido_id else None,
         )
     except tecnologia_perguntas.PerguntaRecusadaError as recusa:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(recusa)) from recusa

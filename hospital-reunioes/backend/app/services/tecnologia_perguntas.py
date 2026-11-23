@@ -33,6 +33,10 @@ os checks do Passo a passo, mas so nasce para o card com a label
 `implantacao`, e nascer fecha o card como concluido, com o comentario fixo. O
 Concluir so comenta na issue fechada, nunca chama o fechamento, e o webhook
 nao mexe nele (decisao 7).
+
+Desde a issue #2208 (ADR 0111, decisao 8) um Pedido de implantacao pode
+esperar outro da mesma Demanda (`espera_pedido_id`): o cartao mostra a espera
+e o Concluir recusa enquanto o esperado nao esta concluido.
 """
 
 from __future__ import annotations
@@ -136,6 +140,13 @@ MOTIVO_SO_QUEM_FAZ = "Só quem recebeu o Passo a passo, ou um Desenvolvedor no l
 MOTIVO_JA_CONCLUIDO = "Este Passo a passo já não está aberto."
 MOTIVO_NADA_A_REENVIAR = "Este Pedido não tem fechamento que falhou para reenviar."
 MOTIVO_GITHUB_SEM_ACESSO = "O app não tem acesso ao repositório deste card."
+# A espera de um Pedido de implantacao por outro (issue #2208, ADR 0111, decisao 8).
+MOTIVO_ESPERA_SO_NA_IMPLANTACAO = "Só o Pedido de implantação espera outro Pedido."
+MOTIVO_ESPERA_NAO_EXISTE = "O Pedido esperado não existe."
+MOTIVO_ESPERA_DE_OUTRA_DEMANDA = "O Pedido de implantação só espera outro da mesma Demanda."
+MOTIVO_ESPERA_DE_OUTRO_TIPO = "O Pedido de implantação só espera outro Pedido de implantação."
+MOTIVO_ESPERA_CANCELADA = "O Pedido esperado foi cancelado: este nunca poderia ser concluído."
+MOTIVO_ESPERA_ABERTA = 'Este Pedido espera "{assunto}" ser concluído.'
 # Por que a passagem nao vale, pelo estado em que a Pergunta esta.
 MOTIVO_DA_PASSAGEM_RECUSADA = {
     ESTADO_ABERTA: "A Pergunta ainda não foi respondida: só a respondida se resolve.",
@@ -216,6 +227,7 @@ def criar(
     passos: Sequence[str] = (),
     card_numero: int | None = None,
     card_projeto: str | None = None,
+    espera_pedido_id: str | None = None,
 ) -> dict[str, Any]:
     """Grava o Pedido aberto, a entrada dele na Conversa da Demanda e a linha
     de sistema "Pergunta aberta" ou "Passo a passo aberto", e avisa so o
@@ -232,7 +244,10 @@ def criar(
     que o Passo a passo e mais a label `implantacao` no card, lida no GitHub
     antes de gravar. Depois de gravado, o app fecha o card como concluido com
     o comentario fixo; a recusa do GitHub nao desfaz o Pedido, deixa o
-    fechamento `falhou` com o motivo (ADR 0111, decisao 4)."""
+    fechamento `falhou` com o motivo (ADR 0111, decisao 4).
+
+    O Pedido de implantacao pode esperar outro (`espera_pedido_id`, issue
+    #2208): so outro Pedido de implantacao da mesma Demanda."""
     tipo = tipo or TIPO_PERGUNTA
     if tipo not in TIPOS:
         raise PerguntaRecusadaError(MOTIVO_TIPO)
@@ -263,6 +278,9 @@ def criar(
     lista = _opcoes(opcoes, recomendada)
     if not destinatario_id or not tecnologia_conversa.e_participante_ativo(supabase, destinatario_id):
         raise PerguntaRecusadaError(MOTIVO_DESTINATARIO)
+    espera_pedido_id = _limpo(espera_pedido_id) or None
+    if espera_pedido_id:
+        _exigir_a_espera_valida(supabase, demanda, tipo, espera_pedido_id)
     if implantacao:
         _exigir_a_label_da_implantacao(int(card_numero), projeto_do_card)
 
@@ -307,6 +325,7 @@ def criar(
                 "estado": ESTADO_ABERTA,
                 "tipo": tipo,
                 **do_passo_a_passo,
+                **({"espera_pedido_id": espera_pedido_id} if espera_pedido_id else {}),
             }
         )
         .execute()
@@ -332,6 +351,24 @@ NOME_DO_TIPO = {
     TIPO_PASSO_A_PASSO: "Passo a passo",
     TIPO_IMPLANTACAO: "Pedido de implantação",
 }
+
+
+def _exigir_a_espera_valida(supabase, demanda: dict[str, Any], tipo: str, espera_pedido_id: str) -> None:
+    """A espera vale so no Pedido de implantacao e so por outro Pedido de
+    implantacao da mesma Demanda, que nao foi cancelado (ADR 0111, decisao 8)."""
+    if tipo != TIPO_IMPLANTACAO:
+        raise PerguntaRecusadaError(MOTIVO_ESPERA_SO_NA_IMPLANTACAO)
+    esperado = buscar(supabase, espera_pedido_id)
+    if esperado is None:
+        raise PerguntaRecusadaError(MOTIVO_ESPERA_NAO_EXISTE)
+    if str(esperado.get("demanda_id")) != str(demanda["id"]):
+        raise PerguntaRecusadaError(MOTIVO_ESPERA_DE_OUTRA_DEMANDA)
+    if not e_implantacao(esperado):
+        raise PerguntaRecusadaError(MOTIVO_ESPERA_DE_OUTRO_TIPO)
+    # O cancelado segura o Concluir para sempre (`_espera`): esperar por ele
+    # faria nascer um Pedido que nunca conclui, com o lembrete batendo.
+    if esperado.get("estado") == ESTADO_CANCELADA:
+        raise PerguntaRecusadaError(MOTIVO_ESPERA_CANCELADA)
 
 
 def _exigir_a_label_da_implantacao(numero: int, projeto: str) -> None:
@@ -464,6 +501,7 @@ def _cartao(
     nomes: dict[str, str],
     ator: dict[str, Any] | None,
     historico: list[dict[str, Any]] | None = None,
+    esperados: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     estado = p.get("estado") or ESTADO_ABERTA
     passo_a_passo = e_passo_a_passo(p)
@@ -477,6 +515,8 @@ def _cartao(
         "fechamento": _fechamento(p),
         # O Reenviar do "Não chegou ao GitHub": quem pode agir no Pedido.
         "pode_reenviar": ator is not None and _cabe_reenviar(p) and pode_responder(p, ator),
+        # A espera (issue #2208): o Pedido esperado enquanto nao esta concluido.
+        "espera": _espera(p, esperados or {}),
         "projeto": projeto,
         "assunto": p.get("assunto") or "",
         "texto": p.get("texto") or "",
@@ -496,13 +536,37 @@ def _cartao(
     }
 
 
+def _esperados(supabase, pedidos: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Os Pedidos que estes esperam, pelo id, lidos agora (o estado de agora
+    e o que libera o Concluir)."""
+    ids = sorted({str(p["espera_pedido_id"]) for p in pedidos if p.get("espera_pedido_id")})
+    if not ids:
+        return {}
+    linhas = supabase.table(TABELA_PERGUNTAS).select("id, assunto, estado").in_("id", ids).execute().data or []
+    return {str(linha["id"]): linha for linha in linhas}
+
+
+def _espera(pedido: dict[str, Any], esperados: dict[str, dict[str, Any]]) -> dict[str, Any] | None:
+    """O Pedido esperado enquanto ele nao esta concluido, ou `None`. O
+    cancelado continua segurando: so a conclusao libera (ADR 0111, decisao 8)."""
+    espera_id = pedido.get("espera_pedido_id")
+    if not espera_id:
+        return None
+    esperado = esperados.get(str(espera_id)) or {}
+    if esperado.get("estado") == ESTADO_CONCLUIDA:
+        return None
+    return {"pedido_id": str(espera_id), "assunto": str(esperado.get("assunto") or "")}
+
+
 def cartao(supabase, pedido: dict[str, Any], *, ator: dict[str, Any] | None) -> dict[str, Any]:
     """O cartao de um Pedido, com os checks e os nomes lidos agora."""
     historico = _historico(supabase, [str(pedido["id"])]).get(str(pedido["id"]), [])
     nomes = _nomes(supabase, _pessoas_da_pergunta(pedido) | _pessoas_dos_checks(historico))
     demandas = supabase.table(TABELA_DEMANDAS).select("*").eq("id", pedido["demanda_id"]).execute().data or []
     projeto = nome_do_projeto(demandas[0]) if demandas else ""
-    return _cartao(pedido, projeto=projeto, nomes=nomes, ator=ator, historico=historico)
+    return _cartao(
+        pedido, projeto=projeto, nomes=nomes, ator=ator, historico=historico, esperados=_esperados(supabase, [pedido])
+    )
 
 
 def cartoes_da_demanda(
@@ -519,9 +583,15 @@ def cartoes_da_demanda(
     pessoas |= {pessoa for h in historicos.values() for pessoa in _pessoas_dos_checks(h)}
     nomes = _nomes(supabase, pessoas)
     projeto = nome_do_projeto(demanda)
+    esperados = _esperados(supabase, linhas)
     return {
         str(p["mensagem_id"]): _cartao(
-            p, projeto=projeto, nomes=nomes, ator=ator, historico=historicos.get(str(p["id"]), [])
+            p,
+            projeto=projeto,
+            nomes=nomes,
+            ator=ator,
+            historico=historicos.get(str(p["id"]), []),
+            esperados=esperados,
         )
         for p in linhas
         if p.get("mensagem_id")
@@ -569,6 +639,7 @@ def esperando(supabase, *, ator: dict[str, Any]) -> list[dict[str, Any]]:
     pessoas = _participantes(supabase, {str(p.get("destinatario_id") or "") for p in abertas})
     nomes = {pid: pessoa.get("nome_completo") or "" for pid, pessoa in pessoas.items()}
     nomes |= _nomes(supabase, {pessoa for h in historicos.values() for pessoa in _pessoas_dos_checks(h)})
+    esperados = _esperados(supabase, abertas)
     itens = []
     for p in abertas:
         demanda = demandas.get(str(p["demanda_id"]))
@@ -579,7 +650,12 @@ def esperando(supabase, *, ator: dict[str, Any]) -> list[dict[str, Any]]:
         itens.append(
             {
                 **_cartao(
-                    p, projeto=nome_do_projeto(demanda), nomes=nomes, ator=ator, historico=historicos.get(str(p["id"]))
+                    p,
+                    projeto=nome_do_projeto(demanda),
+                    nomes=nomes,
+                    ator=ator,
+                    historico=historicos.get(str(p["id"])),
+                    esperados=esperados,
                 ),
                 "demanda_id": str(demanda["id"]),
                 "demanda": str(demanda.get("titulo") or ""),
@@ -1067,8 +1143,14 @@ def concluir(
     O Pedido de implantacao (issue #2207, ADR 0111, decisao 7) fechou o card
     ao nascer: concluir so comenta na issue fechada, nunca chama o
     fechamento, e nao mexe no fechamento do nascimento. O comentario que
-    falha so vai ao log: a conclusao ja esta gravada no app."""
+    falha so vai ao log: a conclusao ja esta gravada no app.
+
+    O Pedido que espera outro (issue #2208) so conclui com o esperado
+    concluido; antes, recusa com o motivo numa linha."""
     _do_passo_a_passo_aberto(pedido, ator)
+    espera = _espera(pedido, _esperados(supabase, [pedido]))
+    if espera:
+        raise ConclusaoRecusadaError(MOTIVO_ESPERA_ABERTA.format(assunto=" ".join(espera["assunto"].split())))
     historico = _historico(supabase, [str(pedido["id"])]).get(str(pedido["id"]), [])
     if not _todos_marcados(pedido, historico):
         raise ConclusaoRecusadaError(MOTIVO_FALTA_CHECK)

@@ -12,7 +12,11 @@
  *
  * O Pedido de implantação (issue #2207, ADR 0111) usa este cartão com o nome
  * dele: o card fechou quando o Pedido nasceu, e o "Não chegou ao GitHub" com
- * o Reenviar pode aparecer já no cartão aberto.
+ * o Reenviar pode aparecer já no cartão aberto. O Pedido que espera outro
+ * (issue #2208) mostra "Espera" com o assunto do outro, e o Concluir fica
+ * bloqueado com o motivo até o servidor mandar o cartão sem a espera. O
+ * cartão que conclui avisa os outros da tela (`PEDIDO_CONCLUIDO`): o que
+ * espera por ele solta a espera na hora, sem recarregar.
  */
 
 import { useEffect, useState } from "react";
@@ -27,6 +31,9 @@ export type PassoAPassoConcluido = {
   pergunta: PerguntaDaVitta;
   mensagem: { id: string; autor: string | null; texto: string; criado_em: string | null; minha: boolean } | null;
 };
+
+/** O evento da janela com o id do Pedido que acabou de ser concluído nesta tela. */
+export const PEDIDO_CONCLUIDO = "tecnologia:pedido-concluido";
 
 /** O mesmo teto da rota: a anotação entra na Conversa com o começo na frente. */
 const LIMITE_DA_ANOTACAO = 4000;
@@ -68,10 +75,22 @@ export function CartaoDoPassoAPasso({
 
   useEffect(() => setAtual(pedido), [pedido]);
 
+  // O esperado concluído em outro cartão da tela solta a espera deste, sem
+  // mexer nos checks já marcados aqui.
+  useEffect(() => {
+    function soltar(evento: Event) {
+      const id = (evento as CustomEvent<string>).detail;
+      setAtual((a) => (a.espera?.pedido_id === id ? { ...a, espera: null } : a));
+    }
+    window.addEventListener(PEDIDO_CONCLUIDO, soltar);
+    return () => window.removeEventListener(PEDIDO_CONCLUIDO, soltar);
+  }, []);
+
   const aberta = atual.estado === "aberta";
   const faz = aberta && Boolean(atual.pode_responder) && Boolean(token);
   const passos = atual.passos ?? [];
   const todosMarcados = passos.length > 0 && passos.every((p) => p.marcado);
+  const esperado = aberta ? atual.espera : null;
 
   async function pedir(url: string, corpo?: unknown): Promise<unknown> {
     if (!token || enviando) return null;
@@ -108,6 +127,9 @@ export function CartaoDoPassoAPasso({
     if (concluido && perguntaValida(concluido.pergunta)) {
       setAtual(concluido.pergunta);
       setAnotacao("");
+      if (concluido.pergunta.estado === "concluida") {
+        window.dispatchEvent(new CustomEvent(PEDIDO_CONCLUIDO, { detail: concluido.pergunta.id }));
+      }
       onConcluido?.(concluido);
     }
   }
@@ -152,6 +174,9 @@ export function CartaoDoPassoAPasso({
         {tempo && <span className="normal-case text-text-secondary">{tempo}</span>}
       </div>
       {atual.destinatario && <p className="normal-case text-xs text-text-secondary">Para {atual.destinatario}</p>}
+      {esperado && (
+        <p className="normal-case text-xs font-semibold text-amber-800">{`Espera: ${esperado.assunto}`}</p>
+      )}
       <p className="normal-case whitespace-pre-wrap text-sm font-semibold text-slate-900">{atual.texto}</p>
       <dl className="grid gap-2 sm:grid-cols-2">
         {linhas.map(([rotulo, valor]) => (
@@ -200,14 +225,18 @@ export function CartaoDoPassoAPasso({
           <button
             type="button"
             onClick={concluir}
-            disabled={!todosMarcados || enviando}
+            disabled={!todosMarcados || Boolean(esperado) || enviando}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {enviando && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             Concluir
           </button>
-          {!todosMarcados && (
-            <p className="normal-case text-xs text-text-secondary">Marque todos os passos para concluir.</p>
+          {esperado ? (
+            <p className="normal-case text-xs text-text-secondary">{`Este Pedido espera "${esperado.assunto}" ser concluído.`}</p>
+          ) : (
+            !todosMarcados && (
+              <p className="normal-case text-xs text-text-secondary">Marque todos os passos para concluir.</p>
+            )
           )}
         </div>
       )}
