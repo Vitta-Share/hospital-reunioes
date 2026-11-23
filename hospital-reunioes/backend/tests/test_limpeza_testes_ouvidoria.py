@@ -73,3 +73,90 @@ class TestJanela:
         ]
         escolha = escolher(_avaliacoes(5), casos)
         assert [c.protocolo for c in escolha.saem] == ["2026-0002", "2026-0003"]
+
+
+class TestTravaDosCinco:
+    def test_cinco_avaliacoes_na_janela_deixam_seguir(self):
+        escolha = escolher(_avaliacoes(5), [_caso()])
+        assert escolha.pode_seguir
+        assert not escolha.trava_dos_cinco
+
+    @pytest.mark.parametrize("quantas", [0, 4, 6])
+    def test_numero_de_avaliacoes_diferente_de_cinco_trava(self, quantas):
+        escolha = escolher(_avaliacoes(quantas), [_caso()])
+        assert escolha.trava_dos_cinco
+        assert not escolha.pode_seguir
+
+    def test_avaliacao_fora_da_janela_nao_conta_para_os_cinco(self):
+        fora = _avaliacoes(1, quando=FIM + timedelta(days=1))
+        escolha = escolher(_avaliacoes(4) + fora, [])
+        assert escolha.trava_dos_cinco
+
+    def test_zero_avaliacoes_e_zero_casos_e_limpeza_ja_feita_e_nao_trava(self):
+        fora = [_caso(t0=FIM + timedelta(days=2))]
+        escolha = escolher(_avaliacoes(2, quando=INICIO - timedelta(days=1)), fora)
+        assert escolha.ja_feita
+        assert not escolha.trava_dos_cinco
+        assert not escolha.pode_seguir
+
+
+class TestForaDoPadrao:
+    @pytest.mark.parametrize("canal", ["qr", "site"])
+    def test_caso_do_qr_ou_do_site_sem_nada_ligado_sai_sem_pergunta(self, canal):
+        escolha = escolher(_avaliacoes(5), [_caso(canal=canal)])
+        assert escolha.pendentes == []
+        assert [c.protocolo for c in escolha.saem] == ["2026-0101"]
+
+    @pytest.mark.parametrize(
+        ("campos", "trecho"),
+        [
+            ({"canal": "telefone"}, "não veio do QR nem do site"),
+            ({"emails": ("email-1",)}, "e-mail recebido"),
+            ({"acionamentos": 1}, "acionamento"),
+            ({"links_de_setor": 2}, "link de setor"),
+            ({"no_nucleo": True}, "Núcleo de Segurança do Paciente"),
+            ({"no_canal_de_conduta": True}, "Canal de Conduta"),
+        ],
+    )
+    def test_cada_motivo_de_fora_do_padrao_segura_o_caso_ate_a_decisao(self, campos, trecho):
+        escolha = escolher(_avaliacoes(5), [_caso("2026-0200", **campos), _caso("2026-0201")])
+        assert [p.protocolo for p in escolha.pendentes] == ["2026-0200"]
+        assert any(trecho in motivo for motivo in escolha.pendentes[0].motivos)
+        assert not escolha.pode_seguir
+
+    def test_caso_com_dois_motivos_mostra_os_dois(self):
+        escolha = escolher(_avaliacoes(5), [_caso("2026-0200", canal="email", emails=("e1",))])
+        assert len(escolha.pendentes[0].motivos) == 2
+
+    def test_liberar_leva_o_caso_fora_do_padrao_junto(self):
+        caso = _caso("2026-0200", canal="whatsapp", emails=("email-1",))
+        escolha = escolher(_avaliacoes(5), [caso, _caso("2026-0201")], liberar=["2026-0200"])
+        assert escolha.pode_seguir
+        assert [c.protocolo for c in escolha.saem] == ["2026-0200", "2026-0201"]
+
+    def test_manter_deixa_o_caso_fora_do_padrao_no_banco(self):
+        caso = _caso("2026-0200", acionamentos=1)
+        escolha = escolher(_avaliacoes(5), [caso, _caso("2026-0201")], manter=["2026-0200"])
+        assert escolha.pode_seguir
+        assert [c.protocolo for c in escolha.saem] == ["2026-0201"]
+        assert [c.protocolo for c in escolha.ficam] == ["2026-0200"]
+
+    @pytest.mark.parametrize("campos", [{"no_nucleo": True}, {"no_canal_de_conduta": True}])
+    def test_caso_ligado_a_outro_modulo_nao_aceita_liberar(self, campos):
+        """A notificação do Núcleo e o caso do Canal de Conduta têm trilha e
+        filhas próprias, e esta limpeza não alcança outro módulo: o caso só
+        pode ficar."""
+        escolha = escolher(_avaliacoes(5), [_caso("2026-0200", **campos)], liberar=["2026-0200"])
+        assert not escolha.pode_seguir
+        assert any("2026-0200" in erro for erro in escolha.erros)
+
+    def test_protocolo_que_nao_esta_na_janela_e_erro_de_digitacao(self):
+        escolha = escolher(_avaliacoes(5), [_caso("2026-0201")], manter=["2026-9999"])
+        assert not escolha.pode_seguir
+        assert any("2026-9999" in erro for erro in escolha.erros)
+
+    def test_mesmo_protocolo_em_liberar_e_manter_e_erro(self):
+        caso = _caso("2026-0200", canal="telefone")
+        escolha = escolher(_avaliacoes(5), [caso], liberar=["2026-0200"], manter=["2026-0200"])
+        assert not escolha.pode_seguir
+        assert any("2026-0200" in erro for erro in escolha.erros)
