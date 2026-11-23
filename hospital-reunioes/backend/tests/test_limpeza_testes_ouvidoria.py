@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 import re
 import sys
+import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -231,7 +232,9 @@ class TestSqlGerado:
 MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "supabase" / "migrations"
 
 _COMENTARIO = re.compile(r"--[^\n]*")
-_CABECALHO = re.compile(r"\b(?:CREATE\s+TABLE|ALTER\s+TABLE)\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?(?:ONLY\s+)?(?:public\.)?\"?(\w+)", re.I)
+_CABECALHO = re.compile(
+    r"\b(?:CREATE\s+TABLE|ALTER\s+TABLE)\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?(?:ONLY\s+)?(?:public\.)?\"?(\w+)", re.I
+)
 
 
 def _filhas(pai: str, pasta: Path) -> set[str]:
@@ -255,7 +258,9 @@ def _filhas_fora_do_sql(pasta: Path) -> set[str]:
     sql = limpeza.gerar_sql(_plano())
     filhas = _filhas("ouvidoria_protocolos", pasta) | _filhas("ouvidoria_emails_recebidos", pasta)
     cobertas = {t for t in filhas if f"DELETE FROM {t} WHERE" in sql}
-    barram = {t for t in filhas if f"FROM {t} WHERE manifestacao_id = ANY(casos)" in sql and t in limpeza.TABELAS_QUE_BARRAM}
+    barram = {
+        t for t in filhas if f"FROM {t} WHERE manifestacao_id = ANY(casos)" in sql and t in limpeza.TABELAS_QUE_BARRAM
+    }
     return filhas - cobertas - barram
 
 
@@ -294,3 +299,260 @@ class TestMigrationsContraOSql:
             encoding="utf-8",
         )
         assert _filhas_fora_do_sql(tmp_path) == {"ouvidoria_filha_nova", "outra_tabela"}
+
+
+# ---------------------------------------------------------------------------
+# O script inteiro, contra um PostgREST e um bucket falsos
+# ---------------------------------------------------------------------------
+
+
+class _Consulta:
+    """O pedaço do cliente do PostgREST que o script usa. Devolve só as colunas
+    pedidas no select, como o banco de verdade."""
+
+    def __init__(self, linhas: list[dict]):
+        self._linhas = linhas
+        self._colunas: list[str] = []
+        self._filtros: list = []
+        self._faixa: tuple[int, int] | None = None
+
+    def select(self, colunas: str):
+        self._colunas = [c.strip() for c in colunas.split(",")]
+        return self
+
+    def gte(self, coluna, valor):
+        limite = datetime.fromisoformat(valor)
+        self._filtros.append(lambda linha: datetime.fromisoformat(linha[coluna]) >= limite)
+        return self
+
+    def lt(self, coluna, valor):
+        limite = datetime.fromisoformat(valor)
+        self._filtros.append(lambda linha: datetime.fromisoformat(linha[coluna]) < limite)
+        return self
+
+    def in_(self, coluna, valores):
+        valores = set(valores)
+        self._filtros.append(lambda linha: linha.get(coluna) in valores)
+        return self
+
+    def order(self, _coluna):
+        return self
+
+    def range(self, inicio, fim):
+        self._faixa = (inicio, fim)
+        return self
+
+    def execute(self):
+        achadas = [linha for linha in self._linhas if all(f(linha) for f in self._filtros)]
+        if self._faixa:
+            achadas = achadas[self._faixa[0] : self._faixa[1] + 1]
+        dados = [{c: linha.get(c) for c in self._colunas} for linha in achadas]
+        return type("Resposta", (), {"data": dados})()
+
+
+class _BancoFalso:
+    def __init__(self):
+        self.tabelas: dict[str, list[dict]] = {}
+
+    def table(self, nome: str):
+        return _Consulta(self.tabelas.setdefault(nome, []))
+
+    def inserir(self, tabela: str, **linha):
+        ordem = len(self.tabelas.setdefault(tabela, [])) + 1
+        linha.setdefault("id", str(uuid.uuid5(uuid.NAMESPACE_URL, f"{tabela}-{ordem}")))
+        self.tabelas[tabela].append(linha)
+        return linha["id"]
+
+
+class _BucketFalso:
+    def __init__(self, arquivos: set[str], teimosos: set[str] = frozenset()):
+        self.arquivos = set(arquivos)
+        self.teimosos = set(teimosos)  # o Storage não confirma a remoção
+        self.removidos: list[str] = []
+
+    def remover(self, caminho: str) -> bool:
+        if caminho in self.teimosos or caminho not in self.arquivos:
+            return False
+        self.arquivos.discard(caminho)
+        self.removidos.append(caminho)
+        return True
+
+    def existe(self, caminho: str) -> bool:
+        return caminho in self.arquivos
+
+
+URL_LOCAL = "http://127.0.0.1:54351"
+DOSSIE = ("RELATO-SIGILOSO", "Fulana de Tal", "fulana@exemplo.com", "Paciente Beltrano", "COMENTARIO-DA-NOTA")
+
+
+def _iso(instante: datetime) -> str:
+    return instante.isoformat()
+
+
+def _banco(avaliacoes: int = 5, canal: str = "qr") -> _BancoFalso:
+    """Cinco Avaliações na janela, um caso de teste com dois anexos, um caso e
+    uma Avaliação fora da janela. Todas as linhas carregam dado do Dossiê."""
+    banco = _BancoFalso()
+    relato, nome, contato, paciente, comentario = DOSSIE
+    for i in range(avaliacoes):
+        banco.inserir(
+            "ouvidoria_avaliacoes", criada_em=_iso(MEIO + timedelta(minutes=i)), comentario=comentario, nota=1
+        )
+    banco.inserir("ouvidoria_avaliacoes", id="av-fora", criada_em=_iso(FIM + timedelta(hours=1)), comentario=comentario)
+    dossie = {
+        "relato_integral": relato,
+        "manifestante_nome": nome,
+        "manifestante_contato": contato,
+        "paciente_nome": paciente,
+        "status": "em_classificacao",
+        "anonimo": False,
+    }
+    banco.inserir(
+        "ouvidoria_protocolos", id=CASO_A, protocolo="2026-0101", canal=canal, contato_em=_iso(MEIO), **dossie
+    )
+    banco.inserir(
+        "ouvidoria_protocolos",
+        id=CASO_B,
+        protocolo="2026-0300",
+        canal="qr",
+        contato_em=_iso(FIM + timedelta(days=1)),
+        **dossie,
+    )
+    for caminho in ("caso-a/1.jpg", "caso-a/2.pdf"):
+        banco.inserir("ouvidoria_anexos", manifestacao_id=CASO_A, storage_path=caminho, filename=f"{nome}.jpg")
+    banco.inserir("ouvidoria_anexos", manifestacao_id=CASO_B, storage_path="caso-b/1.jpg", filename="x.jpg")
+    banco.inserir("ouvidoria_movimentos", manifestacao_id=CASO_A, observacao=relato)
+    banco.inserir("ouvidoria_movimentos", manifestacao_id=CASO_A, observacao=relato)
+    banco.inserir("ouvidoria_acessos", manifestacao_id=CASO_A, ator_nome=nome)
+    return banco
+
+
+def _rodar(banco, bucket, destino, *argv):
+    return limpeza.executar(banco, bucket, URL_LOCAL, list(argv), destino)
+
+
+class TestConferencia:
+    def test_conferencia_mostra_o_banco_alvo_na_primeira_linha_e_nenhum_dado_do_dossie(self, capsys, tmp_path):
+        codigo = _rodar(_banco(), _BucketFalso({"caso-a/1.jpg"}), tmp_path / "limpeza.sql")
+        saida = capsys.readouterr().out
+        assert codigo == 0
+        assert saida.splitlines()[0] == f"Banco alvo: {URL_LOCAL}"
+        assert "2026-0101" in saida
+        for sigilo in DOSSIE:
+            assert sigilo not in saida
+
+    def test_conferencia_mostra_protocolo_canal_t0_estado_anonimo_e_anexos(self, capsys, tmp_path):
+        _rodar(_banco(), _BucketFalso(set()), tmp_path / "limpeza.sql")
+        linha = next(t for t in capsys.readouterr().out.splitlines() if "2026-0101" in t)
+        # T0 na hora de Brasília: 15:00 UTC são 12:00 em Brasília.
+        for trecho in ("canal qr", "T0 01/11/2026 12:00:00", "em_classificacao", "anônimo: não", "anexos: 2"):
+            assert trecho in linha
+
+    def test_conferencia_nao_grava_sql_nem_toca_no_bucket(self, tmp_path):
+        bucket = _BucketFalso({"caso-a/1.jpg", "caso-a/2.pdf"})
+        _rodar(_banco(), bucket, tmp_path / "limpeza.sql")
+        assert bucket.removidos == []
+        assert not (tmp_path / "limpeza.sql").exists()
+
+    @pytest.mark.parametrize("quantas", [4, 6])
+    def test_avaliacoes_diferente_de_cinco_param_sem_sql_e_sem_bucket(self, capsys, tmp_path, quantas):
+        bucket = _BucketFalso({"caso-a/1.jpg", "caso-a/2.pdf"})
+        codigo = _rodar(_banco(avaliacoes=quantas), bucket, tmp_path / "limpeza.sql", "--aplicar")
+        assert codigo != 0
+        assert bucket.removidos == []
+        assert not (tmp_path / "limpeza.sql").exists()
+        assert f"{quantas} Avaliações" in capsys.readouterr().out
+
+    def test_caso_fora_do_padrao_sem_decisao_para_com_protocolo_e_motivo(self, capsys, tmp_path):
+        bucket = _BucketFalso({"caso-a/1.jpg", "caso-a/2.pdf"})
+        codigo = _rodar(_banco(canal="telefone"), bucket, tmp_path / "limpeza.sql", "--aplicar")
+        saida = capsys.readouterr().out
+        assert codigo != 0
+        linha = next(t for t in saida.splitlines() if "2026-0101" in t and "QR" in t)
+        assert "não veio do QR nem do site" in linha
+        assert bucket.removidos == []
+        assert not (tmp_path / "limpeza.sql").exists()
+
+    def test_limpeza_ja_feita_sai_com_zero(self, capsys, tmp_path):
+        banco = _BancoFalso()
+        banco.inserir("ouvidoria_avaliacoes", criada_em=_iso(FIM + timedelta(days=3)))
+        codigo = _rodar(banco, _BucketFalso(set()), tmp_path / "limpeza.sql", "--aplicar")
+        assert codigo == 0
+        assert "já foi feita" in capsys.readouterr().out
+        assert not (tmp_path / "limpeza.sql").exists()
+
+
+class TestAplicar:
+    def test_aplicar_tira_os_arquivos_e_grava_o_sql_com_os_ids_e_as_contagens(self, capsys, tmp_path):
+        bucket = _BucketFalso({"caso-a/1.jpg", "caso-a/2.pdf", "caso-b/1.jpg"})
+        destino = tmp_path / "limpeza.sql"
+        codigo = _rodar(_banco(), bucket, destino, "--aplicar")
+        saida = capsys.readouterr().out
+        assert codigo == 0
+        assert bucket.arquivos == {"caso-b/1.jpg"}
+        sql = destino.read_text(encoding="utf-8")
+        assert CASO_A in sql and CASO_B not in sql
+        assert "ouvidoria_anexos: esperava apagar 2 " in sql
+        assert "ouvidoria_movimentos: esperava apagar 2 " in sql
+        assert "ouvidoria_acessos: esperava apagar 1 " in sql
+        assert "ouvidoria_protocolos: esperava apagar 1 " in sql
+        assert "ouvidoria_avaliacoes: esperava apagar 5 " in sql
+        assert "Lista da limpeza" in saida
+        assert "2026-0101" in saida[saida.index("Lista da limpeza") :]
+
+    def test_rodar_aplicar_duas_vezes_nao_falha_nem_apaga_nada_a_mais(self, tmp_path):
+        bucket = _BucketFalso({"caso-a/1.jpg", "caso-a/2.pdf", "caso-b/1.jpg"})
+        destino = tmp_path / "limpeza.sql"
+        assert _rodar(_banco(), bucket, destino, "--aplicar") == 0
+        primeiro = destino.read_text(encoding="utf-8")
+        assert _rodar(_banco(), bucket, destino, "--aplicar") == 0
+        assert destino.read_text(encoding="utf-8") == primeiro
+        assert bucket.arquivos == {"caso-b/1.jpg"}
+        assert sorted(bucket.removidos) == ["caso-a/1.jpg", "caso-a/2.pdf"]
+
+    def test_arquivo_que_o_storage_nao_confirma_para_antes_do_sql(self, capsys, tmp_path):
+        bucket = _BucketFalso({"caso-a/1.jpg", "caso-a/2.pdf"}, teimosos={"caso-a/2.pdf"})
+        destino = tmp_path / "limpeza.sql"
+        assert _rodar(_banco(), bucket, destino, "--aplicar") != 0
+        assert not destino.exists()
+        assert "caso-a/2.pdf" in capsys.readouterr().out
+
+    def test_caso_liberado_com_email_leva_o_email_e_os_anexos_dele(self, tmp_path):
+        banco = _banco()
+        email = "55555555-5555-5555-5555-555555555555"
+        banco.inserir("ouvidoria_emails_recebidos", id=email, manifestacao_id=CASO_A, corpo_texto="RELATO-SIGILOSO")
+        banco.inserir("ouvidoria_emails_recebidos_anexos", email_recebido_id=email, storage_path="email/1.pdf")
+        banco.inserir("ouvidoria_emails_recebidos_anexos", email_recebido_id=email, storage_path=None)
+        banco.inserir("ouvidoria_acessos", email_recebido_id=email, ator_nome="x")
+        bucket = _BucketFalso({"caso-a/1.jpg", "caso-a/2.pdf", "email/1.pdf"})
+        destino = tmp_path / "limpeza.sql"
+        assert _rodar(banco, bucket, destino, "--aplicar") != 0  # e-mail ligado: espera o diretor
+        assert _rodar(banco, bucket, destino, "--aplicar", "--liberar", "2026-0101") == 0
+        sql = destino.read_text(encoding="utf-8")
+        assert email in sql
+        assert "ouvidoria_emails_recebidos: esperava apagar 1 " in sql
+        assert "ouvidoria_emails_recebidos_anexos: esperava apagar 2 " in sql
+        assert "ouvidoria_acessos: esperava apagar 2 " in sql
+        assert bucket.arquivos == set()
+
+
+class TestOScriptEmSi:
+    def test_o_script_nao_aceita_parametro_de_data(self):
+        opcoes = {o for acao in limpeza.criar_parser()._actions for o in acao.option_strings}
+        assert opcoes == {"-h", "--help", "--aplicar", "--liberar", "--manter"}
+
+    def test_a_janela_e_constante_no_codigo(self):
+        assert limpeza.INICIO_DA_JANELA == INICIO
+        assert limpeza.FIM_DA_JANELA == FIM
+
+    def test_o_sql_vai_para_local_fora_do_git(self):
+        raiz = Path(__file__).resolve().parents[3]
+        assert limpeza.DESTINO_SQL == raiz / "local" / "limpeza-1913.sql"
+        assert "/local/" in (raiz / ".gitignore").read_text(encoding="utf-8").splitlines()
+
+    def test_o_cabecalho_traz_os_comandos_na_ordem_de_producao(self):
+        doc = limpeza.__doc__
+        conferencia = doc.index("uv run python -m scripts.oneshot.limpeza_testes_ouvidoria\n")
+        aplicar = doc.index("uv run python -m scripts.oneshot.limpeza_testes_ouvidoria --aplicar")
+        sql = doc.index("local/limpeza-1913.sql", aplicar)
+        assert conferencia < aplicar < sql
