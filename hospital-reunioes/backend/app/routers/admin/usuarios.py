@@ -727,8 +727,8 @@ async def _desligar_no_lugar_de_excluir(
     tarefas: BackgroundTasks | None,
 ) -> dict:
     """Desliga quem o banco não deixa excluir, pelo mesmo caminho do desligar
-    da edição (login fechado, escada da Ouvidoria, aviso ao Comitê), e grava
-    o motivo da exclusão pedida. Nenhum histórico é apagado (issue #2043)."""
+    da edição (`update_usuario`: login fechado e EDIT_USUARIO), e grava o
+    motivo da exclusão pedida. Nenhum histórico é apagado (issue #2043)."""
     participante_id = alvo["id"]
     ja_estava_desligado = alvo.get("ativo") is False
     if not ja_estava_desligado:
