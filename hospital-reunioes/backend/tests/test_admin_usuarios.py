@@ -552,6 +552,7 @@ class TestDeleteUsuario:
             supabase=sb,
         )
         assert result["success"] is True
+        assert result["resultado"] == "excluido"
         assert not any(p.get("id") == "P020" for p in sb.participantes)
         assert len(sb.audit_rows) == 1
         assert sb.audit_rows[0]["action"] == "DELETE_USUARIO"
@@ -579,6 +580,82 @@ class TestDeleteUsuario:
                 supabase=sb,
             )
         assert exc.value.status_code == 400
+
+
+def _supabase_que_falha_no_delete(erro: Exception, participantes: list[dict]) -> _SupabaseMock:
+    """O banco recusa o DELETE em `participantes` com `erro`; o resto responde
+    como o mock de sempre."""
+    sb = _build_supabase(participantes=participantes)
+    tabela_de_verdade = sb.table
+
+    def table(name):
+        query = tabela_de_verdade(name)
+        if name == "participantes":
+            execute_de_verdade = query.execute
+
+            def execute():
+                if query._op == "delete":
+                    raise erro
+                return execute_de_verdade()
+
+            query.execute = execute
+        return query
+
+    sb.table = table
+    return sb
+
+
+def _erro_de_historico() -> Exception:
+    from postgrest.exceptions import APIError
+
+    return APIError(
+        {
+            "code": "23503",
+            "message": 'update or delete on table "participantes" violates foreign key constraint',
+            "details": 'Key (id)=(P040) is still referenced from table "reunioes".',
+            "hint": None,
+        }
+    )
+
+
+class TestExcluirUsuarioComHistorico:
+    """Issue #2043: quem tem histórico (reuniões, pendências, notas, POPs)
+    não sai da tabela, porque as FKs seguram. O mesmo clique desliga."""
+
+    @pytest.mark.asyncio
+    async def test_usuario_com_historico_e_desligado_e_auditado_em_vez_de_500(self):
+        sb = _supabase_que_falha_no_delete(
+            _erro_de_historico(),
+            [
+                {
+                    "id": "P040",
+                    "nome_completo": "Felipe de Carvalho",
+                    "email": "felipe@x.com",
+                    "ativo": True,
+                    "auth_user_id": "auth-40",
+                    "is_super_admin": False,
+                }
+            ],
+        )
+
+        result = await usuarios_router.delete_usuario(
+            participante_id="P040",
+            body=AdminUsuarioDeleteRequest(reason="Usuário desligado"),
+            request=_FakeRequest(),
+            actor=_super_admin(),
+            supabase=sb,
+        )
+
+        assert result["resultado"] == "desligado"
+        assert sb.participantes[0]["ativo"] is False
+        # O login cai junto, como no desligar da edição (issue #415).
+        sb.auth.admin.update_user_by_id.assert_called_once()
+        assert sb.auth.admin.update_user_by_id.call_args.args[0] == "auth-40"
+        assert sb.auth.admin.update_user_by_id.call_args.args[1]["ban_duration"] != "none"
+        desligamento = [r for r in sb.audit_rows if r["action"] == "DESLIGAR_USUARIO"]
+        assert len(desligamento) == 1
+        assert desligamento[0]["reason"] == "Usuário desligado"
+        assert desligamento[0]["target_id"] == "P040"
 
 
 class TestResetPassword:
