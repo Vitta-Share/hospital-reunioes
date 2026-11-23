@@ -29,7 +29,11 @@ Rodar (lê o GitHub; só escreve com `--aplicar`):
 
 from __future__ import annotations
 
+import argparse
+import json
 import re
+import subprocess
+import sys
 import tempfile
 from typing import Any
 
@@ -39,6 +43,9 @@ TIPOS = frozenset({"type:feature", "type:fix", "type:bug"})
 AREAS_DO_APP = frozenset({"area:backend", "area:frontend", "area:supabase"})
 _FORA_DO_ESPELHO = re.compile(r"<!--\s*demanda-vitta:\s*nenhuma", re.IGNORECASE)
 _MARCADOR_DA_DEMANDA = re.compile(r"<!--\s*demanda-vitta\b", re.IGNORECASE)
+# "Pai: #1786", "## Pai\n\n#1786" ou "## Pai\n\n`#1913`".
+_SECAO_PAI = re.compile(r"^(?:#{1,6}[ \t]*)?\**Pai\**[ \t]*:?\**\s*`?#(\d+)", re.IGNORECASE | re.MULTILINE)
+_FECHA = re.compile(r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)", re.IGNORECASE)
 
 
 def _e_demanda(raiz: dict[str, Any]) -> bool:
@@ -115,8 +122,10 @@ def comentario(vereditos: list[dict[str, Any]]) -> str:
     de_fora = [v for v in vereditos if not v["candidato"]]
     linhas = [
         "<!-- automacao -->",
-        "Varredura dos cards humanos abertos (ADR 0111, decisão 12). Nenhum foi mandado ao app: "
-        'cada um vira Pedido de implantação pelo "Mandar ao hospital" do PedroOS, no clique do Pedro.',
+        (
+            "Varredura dos cards humanos abertos (ADR 0111, decisão 12). Nenhum foi mandado ao app: "
+            'cada um vira Pedido de implantação pelo "Mandar ao hospital" do PedroOS, no clique do Pedro.'
+        ),
         "",
         f"**Ganharam a label `{LABEL}`** ({len(candidatos)})",
         "",
@@ -126,6 +135,14 @@ def comentario(vereditos: list[dict[str, Any]]) -> str:
         "",
         *([_linha(v) for v in de_fora] or ["- nenhum"]),
     ]
+    if any(v["motivo"].startswith("segura fatia") for v in de_fora):
+        linhas += [
+            "",
+            (
+                "Card que segura fatia continua Passo a passo (ADR 0110). Se a fatia não precisa esperar por ele, "
+                "tire o bloqueio nativo e rode a varredura de novo: `python3 tools/varredura_implantacao.py`."
+            ),
+        ]
     return "\n".join(linhas) + "\n"
 
 
@@ -141,3 +158,78 @@ def aplicar(vereditos: list[dict[str, Any]], *, comentar: int | None, rodar, rep
     with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as arquivo:
         arquivo.write(comentario(vereditos))
     rodar(["gh", "issue", "comment", str(comentar), "--body-file", arquivo.name, *alvo])
+
+
+def _resumo(issue: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "numero": int(issue["number"]),
+        "titulo": str(issue.get("title") or ""),
+        "labels": {str(rotulo.get("name")) for rotulo in issue.get("labels") or ()},
+        "corpo": str(issue.get("body") or ""),
+    }
+
+
+def _abertas(issues: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [_resumo(i) for i in issues if i.get("state") == "open"]
+
+
+def _numero_do_pai(issue: dict[str, Any]) -> int | None:
+    url = issue.get("parent_issue_url")
+    if url:
+        return int(str(url).rstrip("/").rsplit("/", 1)[-1])
+    m = _SECAO_PAI.search(str(issue.get("body") or ""))
+    return int(m.group(1)) if m else None
+
+
+def coletar(repo: str, *, api) -> list[dict[str, Any]]:
+    """Os cards `ready-for-human` abertos, cada um com o pai, as issues abertas
+    que ele segura e espera (o `blocked_by` nativo) e o PR aberto que o fecha.
+    `api(caminho)` devolve o JSON da REST do GitHub."""
+    prs: dict[int, int] = {}
+    for pr in api(f"repos/{repo}/pulls?state=open&per_page=100"):
+        for numero in _FECHA.findall(str(pr.get("body") or "")):
+            prs.setdefault(int(numero), int(pr["number"]))
+    cards = []
+    for issue in api(f"repos/{repo}/issues?state=open&labels={LABEL_HUMANA}&per_page=100"):
+        if issue.get("pull_request"):
+            continue
+        numero = int(issue["number"])
+        pai = _numero_do_pai(issue)
+        cards.append(
+            {
+                **_resumo(issue),
+                "raiz": _resumo(api(f"repos/{repo}/issues/{pai}")) if pai else None,
+                "bloqueia": _abertas(api(f"repos/{repo}/issues/{numero}/dependencies/blocking")),
+                "espera": _abertas(api(f"repos/{repo}/issues/{numero}/dependencies/blocked_by")),
+                "pr_aberto": prs.get(numero),
+            }
+        )
+    return cards
+
+
+def _gh_api(caminho: str) -> Any:
+    saida = subprocess.run(["gh", "api", caminho], check=True, capture_output=True, text=True).stdout
+    return json.loads(saida)
+
+
+def _gh(args: list[str]) -> str:
+    return subprocess.run(args, check=True, capture_output=True, text=True).stdout
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Varredura dos cards de implantação (ADR 0111, decisão 12).")
+    parser.add_argument("--repo", default="pedrorezendefig/hospital-reunioes")
+    parser.add_argument("--aplicar", action="store_true", help="põe a label nos candidatos e comenta a lista")
+    parser.add_argument("--comentar", type=int, help="o card que recebe o comentário com a lista")
+    parser.add_argument("--fora", action="append", default=[], metavar="N=motivo", help="tira um card pelo juízo")
+    args = parser.parse_args(argv)
+    fora = {int(n): motivo for n, _, motivo in (item.partition("=") for item in args.fora)}
+    vereditos = classificar(coletar(args.repo, api=_gh_api), fora)
+    print(comentario(vereditos))
+    if args.aplicar:
+        aplicar(vereditos, comentar=args.comentar, rodar=_gh, repo=args.repo)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

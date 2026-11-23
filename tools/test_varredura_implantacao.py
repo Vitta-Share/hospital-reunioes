@@ -26,7 +26,9 @@ DEMANDA_DO_CANAL = {
 }
 
 
-def card(numero, titulo, *, raiz=DEMANDA_DO_CANAL, bloqueia=(), espera=(), labels=("ready-for-human",), pr=None, corpo=""):
+def card(
+    numero, titulo, *, raiz=DEMANDA_DO_CANAL, bloqueia=(), espera=(), labels=("ready-for-human",), pr=None, corpo=""
+):
     return {
         "numero": numero,
         "titulo": titulo,
@@ -78,7 +80,9 @@ def test_card_sem_demanda_ou_com_pr_aberto_fica_de_fora() -> None:
     bug_raiz = card(1904, "Ata assinada por todos continua aguardando assinatura", raiz=None)
     codigo = card(1838, "Canal de Conduta: papel original, guarda, congelar e eliminação", pr=2170)
     comunicacao = card(2202, "Texto do ato", corpo="<!-- demanda-vitta: nenhuma, Card de comunicação -->")
-    ferramenta = card(900, "Configurar o runner", raiz={"numero": 899, "titulo": "x", "labels": {"area:infra"}, "corpo": ""})
+    ferramenta = card(
+        900, "Configurar o runner", raiz={"numero": 899, "titulo": "x", "labels": {"area:infra"}, "corpo": ""}
+    )
 
     vereditos = por_numero(varredura.classificar([bug_raiz, codigo, comunicacao, ferramenta]))
 
@@ -119,6 +123,52 @@ def test_o_comentario_traz_a_lista_e_a_espera_da_abertura_pelo_teste() -> None:
     assert "Espera #1853." in abertura
     [teste] = [linha for linha in texto.splitlines() if linha.startswith("- #1853 ")]
     assert "#1854 espera este." in teste
+    assert "tire o bloqueio nativo" in ficaram
+
+
+def issue_rest(numero, titulo, *labels, corpo="", estado="open", pai=None):
+    return {
+        "number": numero,
+        "title": titulo,
+        "state": estado,
+        "body": corpo,
+        "labels": [{"name": n} for n in labels],
+        "parent_issue_url": f"https://api.github.com/repos/o/r/issues/{pai}" if pai else None,
+    }
+
+
+def test_a_coleta_le_o_pai_as_dependencias_abertas_e_o_pr_que_fecha() -> None:
+    respostas = {
+        "repos/o/r/issues?state=open&labels=ready-for-human&per_page=100": [
+            issue_rest(1963, "Limpeza", "ready-for-human", corpo="## Pai\n\n`#1913`: a Demanda."),
+            issue_rest(1853, "Teste", "ready-for-human", pai=1786),
+        ],
+        "repos/o/r/issues/1913": issue_rest(1913, "Apagar testes", "origem:diretor"),
+        "repos/o/r/issues/1786": DEMANDA_REST,
+        "repos/o/r/issues/1963/dependencies/blocking": [],
+        "repos/o/r/issues/1963/dependencies/blocked_by": [issue_rest(1962, "Script", "ready-for-agent")],
+        "repos/o/r/issues/1853/dependencies/blocking": [issue_rest(1854, "Abertura", "ready-for-human")],
+        "repos/o/r/issues/1853/dependencies/blocked_by": [
+            issue_rest(1838, "Papel", "ready-for-human"),
+            issue_rest(1836, "Afastamento", estado="closed"),
+        ],
+        "repos/o/r/pulls?state=open&per_page=100": [
+            {"number": 2170, "body": "Closes #1838"},
+            {"number": 9, "body": "Fixes #1963"},
+        ],
+    }
+
+    cards = {c["numero"]: c for c in varredura.coletar("o/r", api=respostas.__getitem__)}
+
+    assert cards[1963]["raiz"]["numero"] == 1913
+    assert cards[1963]["pr_aberto"] == 9
+    assert cards[1853]["raiz"]["numero"] == 1786
+    assert [i["numero"] for i in cards[1853]["espera"]] == [1838]
+    assert [i["numero"] for i in cards[1853]["bloqueia"]] == [1854]
+    assert cards[1853]["pr_aberto"] is None
+
+
+DEMANDA_REST = issue_rest(1786, "Canal de Conduta", "type:feature", "origem:diretor")
 
 
 def test_a_varredura_nao_cria_pedido_no_app() -> None:
