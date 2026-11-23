@@ -33,6 +33,7 @@ import {
 } from "@/components/admin/types";
 import { UsuarioFormModal } from "@/components/admin/UsuarioFormModal";
 import { ReasonModal } from "@/components/admin/ReasonModal";
+import { confirmacaoDaExclusao } from "@/components/admin/confirmacaoDaExclusao";
 import { NewPasswordModal } from "@/components/admin/NewPasswordModal";
 import { MultiSelectFilter } from "@/components/admin/MultiSelectFilter";
 import { ResolverExternoModal } from "@/components/admin/ResolverExternoModal";
@@ -349,15 +350,7 @@ export default function AdminUsuariosPage() {
       toast(`Erro ao deletar: ${await res.text()}`, "error");
       return false;
     }
-    // Quem tem histórico no app não sai da tabela: o mesmo clique desliga
-    // (issue #2043), e a confirmação diz qual dos dois aconteceu.
-    const { resultado } = (await res.json()) as { resultado?: string };
-    toast(
-      resultado === "desligado"
-        ? "Usuário desligado; o histórico dele foi mantido"
-        : "Usuário excluído",
-      "success"
-    );
+    toast(await confirmacaoDaExclusao(res), "success");
     setDeleteTarget(null);
     fetchRows();
     return true;
