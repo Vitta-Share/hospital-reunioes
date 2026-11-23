@@ -73,6 +73,11 @@ pw run-code "async page => { await page.waitForURL(u => !u.pathname.startsWith('
 pw run-code "async page => {
   const tabela = $(python3 "$AQUI/respostas.py");
   const envio = $(python3 "$AQUI/respostas.py" --envio);
+  // A lista Esperando você depois do Achei um problema (issue #2211): o Pedido em
+  // que se clicou passa a esperar a Demanda do bug. No app isso vem com o Criar o
+  // card; o roteiro não grava nada e troca a lista logo depois do POST do chat.
+  const depoisDoProblema = $(python3 "$AQUI/respostas.py" --depois-do-problema);
+  let problemaAberto = false;
   await page.route(u => u.pathname.includes('/api/admin/tecnologia/'), route => {
     const pedido = route.request();
     const url = new URL(pedido.url());
@@ -81,6 +86,7 @@ pw run-code "async page => {
       let corpo = null;
       try { corpo = pedido.postDataJSON(); } catch {}
       if (pedido.method() === 'POST' && chave in envio && (chave !== 'chat' || corpo?.pedido_id)) {
+        if (chave === 'chat') problemaAberto = true;
         return route.fulfill({ json: envio[chave] });
       }
       return route.fulfill({ status: 403, json: { detail: 'O roteiro do manual não grava nada.' } });
@@ -95,7 +101,7 @@ pw run-code "async page => {
       // Os Pedidos de implantação só entram quando a aba abre num deles (issue #2211):
       // nos outros prints a lista fica como era, sem eles.
       const destaque = new URL(page.url()).searchParams.get('pergunta');
-      const lista = tabela[chave];
+      const lista = problemaAberto ? depoisDoProblema : tabela[chave];
       const deImplantacao = lista.some(i => i.tipo === 'implantacao' && i.id === destaque);
       return route.fulfill({ json: deImplantacao ? lista : lista.filter(i => i.tipo !== 'implantacao') });
     }
@@ -183,20 +189,22 @@ pw run-code "async page => { await page.getByRole('region', { name: 'Esperando v
 print "getByRole('region', { name: 'Esperando você', exact: true }).locator('li[aria-current=true]')" "concluir-passo-a-passo.png"
 
 # O Pedido de implantação (issue #2211, ADR 0111): o que espera outro, com os
-# checks marcados e o Concluir preso, e o Achei um problema dele, que abre a
-# conversa do bug já com o texto do Pedido. Depois, o Pedido que espera a
-# Demanda do bug.
+# checks marcados e o Concluir preso. Depois, o Achei um problema do Pedido do
+# teste, que abre a conversa do bug já com o texto dele, e o mesmo Pedido
+# esperando a Demanda 63, a do bug.
 DESTACADO="getByRole('region', { name: 'Esperando você', exact: true }).locator('li[aria-current=true]')"
 pw goto "$TECNOLOGIA?pergunta=$(seed "['implantacao']['pedidos'][2]['id']")"
 esperar "Achei um problema"
 pw run-code "async page => { await page.$DESTACADO.scrollIntoViewIfNeeded(); await page.waitForTimeout(400) }"
 print "$DESTACADO" "pedido-de-implantacao.png"
+pw goto "$TECNOLOGIA?pergunta=$(seed "['implantacao']['achei_um_problema_em']")"
+esperar "Achei um problema"
 pw run-code "async page => { await page.$DESTACADO.getByRole('button', { name: 'Achei um problema' }).click() }"
 esperar "$(seed "['implantacao']['falas_do_problema'][0]['texto']")"
 # A conversa abre embaixo da lista Esperando você, que fica no alto pelo `?pergunta=`.
 print "$(bloco "Conversa aberta")" "problema-no-assistente.png"
-pw goto "$TECNOLOGIA?pergunta=$(seed "['implantacao']['pedidos'][1]['id']")"
-esperar "Espera a Demanda 62"
+pw goto "$TECNOLOGIA?pergunta=$(seed "['implantacao']['achei_um_problema_em']")"
+esperar "Espera a Demanda 63"
 pw run-code "async page => { await page.$DESTACADO.scrollIntoViewIfNeeded(); await page.waitForTimeout(400) }"
 print "$DESTACADO" "espera-a-demanda.png"
 

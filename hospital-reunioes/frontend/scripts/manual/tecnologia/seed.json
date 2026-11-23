@@ -37,14 +37,8 @@
     },
     {
       "id": "exemplo-63", "numero": 63, "dias": 0, "hora": "11:50",
-      "titulo": "O checklist da limpeza não abre nos outros andares",
-      "classificacao": "bug", "etapa": "registrada", "projeto": "hospital", "origem": "diretor"
-    },
-    {
-      "id": "exemplo-62", "numero": 62, "dias": 0, "hora": "11:20",
       "titulo": "A foto do leito não salva no checklist da limpeza",
-      "classificacao": "bug", "etapa": "planejada", "projeto": "hospital", "origem": "diretor",
-      "responsavel": "Clara Nogueira"
+      "classificacao": "bug", "etapa": "registrada", "projeto": "hospital", "origem": "diretor"
     },
     {
       "id": "exemplo-54", "numero": 54, "dias": 3, "hora": "14:20",
@@ -213,6 +207,7 @@
   "implantacao": {
     "demanda": "exemplo-46",
     "problema": "exemplo-63",
+    "achei_um_problema_em": "exemplo-implantacao-2",
     "pedidos": [
       {
         "id": "exemplo-implantacao-1", "dias": 3, "hora": "10:00", "estado": "concluida",
@@ -229,7 +224,7 @@
         ]
       },
       {
-        "id": "exemplo-implantacao-2", "dias": 1, "hora": "14:00", "estado": "aberta", "espera_a_demanda": "exemplo-62",
+        "id": "exemplo-implantacao-2", "dias": 1, "hora": "14:00", "estado": "aberta",
         "assunto": "testar o checklist no 3º andar",
         "texto": "Teste o checklist da limpeza no 3º andar durante um plantão inteiro, antes de abrir para o hospital todo.",
         "por_que_precisa": "Só a equipe do hospital sabe se o checklist cabe na rotina da limpeza.",
@@ -258,7 +253,7 @@
       }
     ],
     "falas_do_problema": [
-      { "autor": "ia", "texto": "Entendi, é no checklist da limpeza. O que aconteceu quando a equipe tentou usar o checklist nos outros andares?" }
+      { "autor": "ia", "texto": "Entendi, é no teste do checklist no 3º andar. O que aconteceu quando a equipe tentou marcar o leito com a foto?" }
     ]
   },
   "outra_pergunta": {

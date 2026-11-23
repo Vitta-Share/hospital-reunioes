@@ -9,12 +9,13 @@ tabela do sino (issue #1968), com a chave depois de `/api/notificacoes`. Com
 `--envio`, imprime as respostas dos dois cliques do Envio aos desenvolvedores
 (issue #2015), interpretar e enviar, e a do Achei um problema (issue #2211), os
 únicos pedidos que não são GET a que o roteiro responde; o resto continua
-recusado. Tudo sai do `seed.json`,
+recusado. Com `--depois-do-problema`, imprime a lista Esperando você depois do
+Achei um problema, com o Pedido esperando a Demanda do bug. Tudo sai do `seed.json`,
 com as datas contadas a partir de hoje, no fuso do hospital: assim o Quadro
 abre com as colunas cheias e as Entregas caem nas últimas semanas, em qualquer
 dia que o roteiro rodar. Nada aqui é gente, pedido ou card de verdade.
 
-Uso: python3 scripts/manual/tecnologia/respostas.py [--sino | --envio]
+Uso: python3 scripts/manual/tecnologia/respostas.py [--sino | --envio | --depois-do-problema]
 """
 
 from __future__ import annotations
@@ -32,6 +33,8 @@ HOJE = datetime.now(FUSO).date()
 SEMANAS_DO_GRAFICO = 12
 # Os dois Projetos cujo repositório o app lê; o resto é projeto novo da Vitta (issue #1967).
 PROJETOS_CONHECIDOS = {"hospital": "Aplicativo do Hospital", "ana": "Ana"}
+# A pergunta com que o Assistente abre toda conversa (ABERTURA, em backend/app/services/chat_tecnologia.py).
+ABERTURA = "Isso é um bug, algo que não funciona como deveria, ou uma melhoria?"
 
 
 def instante(dias_atras: int, hora: str = "10:00") -> str:
@@ -202,13 +205,19 @@ def conversas(lista: list[dict]) -> dict:
 
 def conversa_do_problema() -> dict:
     """A conversa que o Achei um problema abre (issue #2211, ADR 0111, decisão
-    9): o bug novo, com o texto que o servidor monta do Pedido de implantação e
-    da entrega como primeira fala do diretor, e a pergunta do Assistente."""
+    9), com as falas que o POST do chat com o Pedido devolve: a abertura do
+    Assistente, o Bug do diretor, o texto que o servidor monta do Pedido de
+    implantação e da entrega, e a pergunta do Assistente."""
     seed = SEED["implantacao"]
     entrega = next(d for d in SEED["demandas"] if d["id"] == seed["demanda"])
-    pedido = next(p for p in seed["pedidos"] if p.get("espera"))
+    pedido = next(p for p in seed["pedidos"] if p["id"] == seed["achei_um_problema_em"])
     inicial = f'Achei um problema no Pedido de implantação "{pedido["assunto"]}", da entrega "{entrega["titulo"]}".'
-    falas = [{"autor": "diretor", "texto": inicial}, *seed["falas_do_problema"]]
+    falas = [
+        {"autor": "ia", "texto": ABERTURA, "opcoes": ["Bug", "Melhoria"]},
+        {"autor": "diretor", "texto": "Bug"},
+        {"autor": "diretor", "texto": inicial},
+        *seed["falas_do_problema"],
+    ]
     return conversa(seed["problema"], "em_andamento", falas)
 
 
@@ -255,11 +264,12 @@ def pergunta_do_diretor(pode_responder: bool) -> dict:
     )
 
 
-def perguntas() -> dict:
+def perguntas(depois_do_problema: bool = False) -> dict:
     """A lista Esperando você (issue #2118) e o Me explique da Pergunta do diretor
     (issue #2122). Os pedidos do diretor vêm primeiro, o Passo a passo e a Pergunta, e
     se respondem no cartão da lista (issues #2145 e #2184); a de outra pessoa depois,
-    só para ler."""
+    só para ler. Com `depois_do_problema`, a lista depois do Achei um problema (issue
+    #2211)."""
     minha = pergunta_do_diretor(pode_responder=True)
     demanda, _ = _projeto_da(SEED["abrir"]["projeto_novo"])
     outra = SEED["outra_pergunta"]
@@ -268,7 +278,7 @@ def perguntas() -> dict:
         "perguntas/esperando": [
             # Do diretor, a mais antiga primeiro: os Pedidos de implantação e o Passo a
             # passo nasceram ontem (issues #2184 e #2211).
-            *pedidos_de_implantacao(),
+            *pedidos_de_implantacao(depois_do_problema),
             passo_a_passo(),
             {**minha, "demanda_id": demanda["id"], "demanda": demanda["titulo"], "minha": True},
             {
@@ -328,11 +338,13 @@ def passo_a_passo() -> dict:
     }
 
 
-def pedidos_de_implantacao() -> list[dict]:
+def pedidos_de_implantacao(depois_do_problema: bool = False) -> list[dict]:
     """Os Pedidos de implantação abertos da entrega Em produção (issue #2211, ADR
     0111), na lista Esperando você: o que espera outro, com todos os checks e o
-    Concluir preso, e o que espera a Demanda de bug, com um check só."""
+    Concluir preso, e o do Achei um problema, com um check só. Com
+    `depois_do_problema`, este espera a Demanda de bug que o clique abriu."""
     seed = SEED["implantacao"]
+    esperas = {seed["achei_um_problema_em"]: seed["problema"]} if depois_do_problema else {}
     demanda, projeto = _projeto_da(seed["demanda"])
     diretor = SEED["admin"]["nome"]
     por_id = {p["id"]: p for p in seed["pedidos"]}
@@ -361,9 +373,7 @@ def pedidos_de_implantacao() -> list[dict]:
                 {"pedido_id": p["espera"], "assunto": por_id[p["espera"]]["assunto"]} if p.get("espera") else None
             ),
             "espera_demanda": (
-                {"demanda_id": p["espera_a_demanda"], "numero": numero_de[p["espera_a_demanda"]]}
-                if p.get("espera_a_demanda")
-                else None
+                {"demanda_id": esperas[p["id"]], "numero": numero_de[esperas[p["id"]]]} if p["id"] in esperas else None
             ),
             "conclusao": None,
             "fechamento": None,
@@ -548,5 +558,7 @@ if __name__ == "__main__":
         print(json.dumps(sino(), ensure_ascii=False))
     elif "--envio" in sys.argv[1:]:
         print(json.dumps(envio(), ensure_ascii=False))
+    elif "--depois-do-problema" in sys.argv[1:]:
+        print(json.dumps(perguntas(depois_do_problema=True)["perguntas/esperando"], ensure_ascii=False))
     else:
         print(json.dumps(tabela(), ensure_ascii=False))

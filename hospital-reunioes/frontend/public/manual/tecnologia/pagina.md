@@ -137,13 +137,13 @@ Se o passo a passo fica parado, o aplicativo lembra você uma vez só, depois de
 Quando você acha um problema no meio de um Pedido de implantação, como uma tela que não funciona no teste, o próprio cartão abre o bug para a Vitta. O Pedido continua aberto, e a entrega não é reaberta.
 
 1. No cartão do **Pedido de implantação**, na lista **Esperando você**, clique em **Achei um problema**, embaixo do Concluir. O botão só aparece no Pedido de implantação aberto.
-2. A conversa com o Assistente abre já como bug, com uma primeira mensagem que diz qual é o Pedido e de qual entrega ele é. Conte o que aconteceu no campo de baixo, como em qualquer bug.
+2. A conversa com o Assistente abre já como bug: a pergunta se é um bug ou uma melhoria já vem respondida com **Bug**, e logo depois vem uma mensagem sua que diz qual é o Pedido e de qual entrega ele é. Conte o que aconteceu no campo de baixo, como em qualquer bug.
 
    ![A conversa com o Assistente aberta pelo Achei um problema, já como bug](problema-no-assistente.png)
 
 3. Responda as perguntas do bug, como em **Pedir um bug ou uma melhoria ao Assistente**. Nada vai para a Vitta antes do seu clique no fim.
 4. Leia o resumo e clique em **Criar o card**. O bug vira uma Demanda nova, que diz de qual entrega veio, e aparece no Quadro.
-5. Volte ao cartão do Pedido de implantação. Ele continua aberto e mostra **Espera a Demanda 62**, com o número do bug. O Concluir fica bloqueado até ela ser entregue, e a linha embaixo dele diz o motivo.
+5. Volte ao cartão do mesmo Pedido de implantação. Ele continua aberto e mostra **Espera a Demanda 63**, com o número do bug. O Concluir fica bloqueado até ela ser entregue, e a linha embaixo dele diz o motivo.
 
    ![O cartão do Pedido de implantação que espera a Demanda do bug, com o Concluir bloqueado](espera-a-demanda.png)
 

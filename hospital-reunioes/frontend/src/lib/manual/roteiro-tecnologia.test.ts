@@ -55,6 +55,21 @@ function envio(): Record<string, unknown> {
   return JSON.parse(rodada.stdout);
 }
 
+/** A lista Esperando você que o roteiro serve depois do Achei um problema (issue #2211). */
+function depoisDoProblema(): unknown[] {
+  const rodada = spawnSync("python3", [join(PASTA, "respostas.py"), "--depois-do-problema"], { encoding: "utf8" });
+  if (rodada.status !== 0) throw new Error(rodada.stderr);
+  return JSON.parse(rodada.stdout);
+}
+
+/** Uma constante de texto do backend, lida do código: o dublê segue o contrato do servidor, não uma cópia. */
+function textoDoServidor(arquivo: string, padrao: RegExp): string {
+  const codigo = readFileSync(join(process.cwd(), "..", "backend", "app", "services", arquivo), "utf8");
+  const achado = codigo.match(padrao);
+  if (!achado) throw new Error(`${padrao} não está em ${arquivo}`);
+  return achado[1];
+}
+
 /** Todo texto de um valor JSON, folha por folha. */
 function folhas(valor: unknown): string[] {
   if (typeof valor === "string") return [valor];
@@ -359,39 +374,90 @@ describe("o Pedido de implantação, a seção Implantação e o Achei um proble
     expect(queEspera.passos?.every((p) => p.marcado)).toBe(true);
   });
 
-  it("o outro Pedido espera uma Demanda de bug do Quadro, ainda não entregue", () => {
-    const comBug = implantacoes().find((p) => p.espera_demanda);
-    expect(comBug, "nenhum Pedido de implantação espera a Demanda do bug").toBeDefined();
-    const bug = lista.find((d) => d.id === comBug!.espera_demanda!.demanda_id)!;
-    expect(bug.classificacao).toBe("bug");
-    expect(bug.numero).toBe(comBug!.espera_demanda!.numero);
-    expect(["entregue", "em_producao"]).not.toContain(bug.etapa);
+  /** O Pedido em que o roteiro clica no Achei um problema, antes e depois do clique. */
+  const doProblema = () => implantacoes().find((p) => p.id === SEED.implantacao.achei_um_problema_em)!;
+  const doProblemaDepois = () =>
+    (depoisDoProblema() as Item[]).find((p) => p.id === SEED.implantacao.achei_um_problema_em)!;
+  const bugDoProblema = () => lista.find((d) => d.id === (E["chat"] as { demanda_id: string }).demanda_id)!;
+
+  it("antes do clique, o Pedido do Achei um problema não espera nada: o botão aparece e nenhum outro motivo prende o Concluir", () => {
+    const antes = doProblema();
+    expect(antes, "o achei_um_problema_em do seed não é um Pedido de implantação aberto").toBeDefined();
+    expect(antes.espera ?? null).toBeNull();
+    expect(antes.espera_demanda ?? null).toBeNull();
+    // Um problema por vez: antes do clique, nenhum Pedido espera bug.
+    expect(implantacoes().filter((p) => p.espera_demanda)).toEqual([]);
   });
 
-  it("o Achei um problema responde a Demanda de bug nova, cuja conversa abre com o texto do Pedido e da entrega", () => {
-    const queEspera = implantacoes().find((p) => p.espera)!;
-    const nova = E["chat"] as { demanda_id: string };
-    const bug = lista.find((d) => d.id === nova.demanda_id)!;
+  it("depois do clique, o mesmo Pedido espera a Demanda de bug que o Achei um problema abriu, e só ele muda", () => {
+    const bug = bugDoProblema();
     expect(bug.classificacao).toBe("bug");
+    expect(["entregue", "em_producao"]).not.toContain(bug.etapa);
+    expect(doProblemaDepois().espera_demanda).toEqual({ demanda_id: bug.id, numero: bug.numero });
+    expect({ ...doProblemaDepois(), espera_demanda: null }).toEqual(doProblema());
+    const outros = (lista: Item[]) => lista.filter((p) => p.id !== SEED.implantacao.achei_um_problema_em);
+    expect(outros(depoisDoProblema() as Item[])).toEqual(outros(T["perguntas/esperando"] as Item[]));
+    expect(folhas(depoisDoProblema()).flatMap(dadoReal)).toEqual([]);
+  });
+
+  it("o Achei um problema responde a Demanda de bug nova com as falas que o servidor manda: a abertura, o Bug, o texto do Pedido e a pergunta", () => {
+    const bug = bugDoProblema();
     expect(bug.etapa).toBe("registrada");
-    const conversa = T[`chat/${bug.id}`] as { estado: string; mensagens: { autor: string; texto: string }[] };
+    const conversa = T[`chat/${bug.id}`] as {
+      estado: string;
+      mensagens: { autor: string; texto: string; opcoes: string[] }[];
+    };
+    expect(E["chat"]).toEqual(conversa);
     expect(conversaValida(conversa)).toBe(true);
     expect(conversa.estado).toBe("em_andamento");
-    // O texto que o servidor monta (TEXTO_DO_PROBLEMA, issue #2210).
-    expect(conversa.mensagens[0]).toMatchObject({
-      autor: "diretor",
-      texto: `Achei um problema no Pedido de implantação "${queEspera.assunto}", da entrega "${entrega().titulo}".`,
-    });
-    expect(conversa.mensagens.at(-1)?.autor).toBe("ia");
+    // O contrato de POST /chat com o pedido_id (backend/app/routers/admin/tecnologia.py,
+    // provado em backend/tests/test_tecnologia_achei_um_problema.py): a abertura,
+    // o botão Bug, o texto que nomeia o Pedido e a entrega, e a resposta da IA.
+    const abertura = textoDoServidor("chat_tecnologia.py", /^ABERTURA = "(.+)"$/m);
+    const escolha = textoDoServidor("chat_tecnologia.py", /"bug": "(\w+)"/);
+    const modelo = textoDoServidor("tecnologia_perguntas.py", /^TEXTO_DO_PROBLEMA = '(.+)'$/m);
+    const inicial = modelo.replace("{assunto}", doProblema().assunto!).replace("{entrega}", entrega().titulo);
+    expect(conversa.mensagens.map((m) => [m.autor, m.texto])).toEqual([
+      ["ia", abertura],
+      ["diretor", escolha],
+      ["diretor", inicial],
+      ["ia", SEED.implantacao.falas_do_problema[0].texto],
+    ]);
+    expect(conversa.mensagens[0].opcoes).toEqual(["Bug", "Melhoria"]);
+  });
+
+  it("o roteiro clica no Achei um problema e fotografa a espera no mesmo Pedido, com o número do bug que nasceu", () => {
+    const texto = readFileSync(ROTEIRO, "utf8");
+    const linhas = texto.split("\n");
+    const ultimoGotoAntes = (marca: RegExp) => {
+      const ate = linhas.findIndex((l) => marca.test(l));
+      expect(ate, `${marca} não está no roteiro`).toBeGreaterThan(-1);
+      return linhas.slice(0, ate).findLast((l) => /^pw goto /.test(l));
+    };
+    const doPedido = `pw goto "$TECNOLOGIA?pergunta=$(seed "['implantacao']['achei_um_problema_em']")"`;
+    expect(ultimoGotoAntes(/name: 'Achei um problema' \}\)\.click\(\)/)).toBe(doPedido);
+    expect(ultimoGotoAntes(/"espera-a-demanda\.png"/)).toBe(doPedido);
+    const trecho = texto.slice(texto.lastIndexOf(doPedido), texto.indexOf('"espera-a-demanda.png"'));
+    expect(trecho).toContain(`esperar "Espera a Demanda ${bugDoProblema().numero}"`);
+  });
+
+  it("a página diz o mesmo número de bug que o roteiro fotografa", () => {
+    const pagina = carregarPaginasDoManual().find((p) => p.modulo === "tecnologia")!;
+    const citados = Array.from(pagina.corpo.matchAll(/Espera a Demanda (\d+)/g), (m) => Number(m[1]));
+    expect(citados.length).toBeGreaterThan(0);
+    expect(new Set(citados)).toEqual(new Set([bugDoProblema().numero]));
   });
 
   it("o roteiro abre a aba em cada Pedido de implantação e clica no Achei um problema", () => {
     const texto = readFileSync(ROTEIRO, "utf8");
     for (const p of implantacoes()) {
       const i = SEED.implantacao.pedidos.findIndex((s: { id: string }) => s.id === p.id);
-      expect(texto).toContain(`?pergunta=$(seed "['implantacao']['pedidos'][${i}]['id']")`);
+      const pelo = p.id === SEED.implantacao.achei_um_problema_em ? "['achei_um_problema_em']" : `['pedidos'][${i}]['id']`;
+      expect(texto).toContain(`?pergunta=$(seed "['implantacao']${pelo}")`);
     }
     expect(texto).toMatch(/getByRole\('button', \{ name: 'Achei um problema' \}\)\.click\(\)/);
+    // A lista depois do clique só vale depois do POST do chat com o Pedido.
+    expect(texto).toMatch(/respostas\.py" --depois-do-problema/);
   });
 });
 
