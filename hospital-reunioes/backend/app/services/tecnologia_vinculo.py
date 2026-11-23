@@ -999,6 +999,8 @@ def corpo_da_issue_do_bug(
     link: str,
     anexos: int = 0,
     documentos: int = 0,
+    prd_de_origem: str | None = None,
+    pedido_de_origem: str | None = None,
 ) -> str:
     """O corpo da issue que o "Criar o card" do Roteiro do bug cria.
 
@@ -1013,8 +1015,23 @@ def corpo_da_issue_do_bug(
 
     Com as seis partes de quem programa no resumo (issue #1634), o bloco "Para
     o desenvolvedor" entra logo depois do bloco do diretor, como no PRD.
+
+    O bug do "Achei um problema" (issue #2210, ADR 0111, decisao 9) cita, na
+    parte tecnica, o PRD de origem (`prd_de_origem`, a referencia ja pronta,
+    como "#1700") e o assunto do Pedido de implantacao: o PRD nao reabre.
     """
     rotulos = [(rotulo, _linha_do_prd(resumo.get(campo))) for campo, rotulo in ROTULOS_DO_BUG.items()]
+    origem_do_prd = (
+        [
+            "## PRD de origem",
+            "",
+            f'{prd_de_origem}, no Pedido de implantação "{_linha_do_prd(pedido_de_origem)}". '
+            "O PRD continua fechado: a correção vem por este card.",
+            "",
+        ]
+        if prd_de_origem
+        else []
+    )
     esperado = dict(rotulos)["O que esperava"]
     o_que_muda = esperado if esperado and esperado != NAO_INFORMADO else _linha_do_prd(resumo.get("titulo"))
     criterios = [item for item in (_linha_do_prd(c) for c in resumo.get("criterios") or []) if item]
@@ -1040,6 +1057,7 @@ def corpo_da_issue_do_bug(
             "",
             *[f"- [ ] {criterio}" for criterio in criterios],
             "",
+            *origem_do_prd,
             "## Origem",
             "",
             "Relatado na conversa com o Assistente de Tecnologia, no aplicativo do hospital, e mandado para o "

@@ -109,3 +109,62 @@ class TestAbreOAssistente:
             ),
             ("ia", "Em qual passo deu errado?"),
         ]
+
+    def test_so_o_pedido_de_implantacao_aberto_tem_o_achei_um_problema(self, monkeypatch):
+        sb, pedido_id = _pedido_de_implantacao()
+        _pedido(sb, pedido_id)["tipo"] = "passo_a_passo"
+        cliente, _ = _na_tela(sb, monkeypatch)
+        antes = len(sb.tabelas["tecnologia_demandas"])
+
+        resposta = _achei_um_problema(cliente, monkeypatch, pedido_id)
+
+        assert resposta.status_code == 422
+        assert resposta.json() == {"detail": tecnologia_perguntas.MOTIVO_PROBLEMA_SO_NA_IMPLANTACAO}
+        assert len(sb.tabelas["tecnologia_demandas"]) == antes
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. O Criar o card liga o bug à Demanda de origem e ao Pedido
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _bug_ate_o_resumo(sb, monkeypatch, pedido_id):
+    cliente, gh = _na_tela(sb, monkeypatch)
+    bug_id = _achei_um_problema(cliente, monkeypatch, pedido_id).json()["demanda_id"]
+    _ia(
+        monkeypatch,
+        _turno(pronto=True, mensagem="Montei o resumo. Confere?", campos=CAMPOS_RESPONDIDOS, criterios=CRITERIOS),
+    )
+    resposta = cliente.post(f"{CHAT}/{bug_id}", json={"texto": "O relato de teste saiu com o meu nome."})
+    assert resposta.json()["estado"] == "resumido", resposta.text
+    return cliente, gh, bug_id
+
+
+def _bug_com_card(monkeypatch):
+    sb, pedido_id = _pedido_de_implantacao()
+    cliente, gh, bug_id = _bug_ate_o_resumo(sb, monkeypatch, pedido_id)
+    resposta = cliente.post(f"{CHAT}/{bug_id}/criar-card")
+    assert resposta.status_code == 200, resposta.text
+    return sb, gh, pedido_id, bug_id
+
+
+class TestCriarOCardDoBug:
+    def test_o_criar_o_card_grava_a_demanda_de_origem_e_liga_o_pedido_ao_bug(self, monkeypatch):
+        sb, _, pedido_id, bug_id = _bug_com_card(monkeypatch)
+
+        assert _demanda(sb, bug_id)["demanda_origem_id"] == DEMANDA
+        assert _pedido(sb, pedido_id)["espera_demanda_id"] == bug_id
+
+    def test_a_issue_do_bug_cita_o_prd_de_origem_na_parte_tecnica(self, monkeypatch):
+        _, gh, _, _ = _bug_com_card(monkeypatch)
+
+        [issue] = gh.criadas
+        _, tecnica = issue["corpo"].split("\n---\n", 1)
+        assert f"## PRD de origem\n\n#{PRD}" in tecnica
+
+    def test_antes_do_criar_o_card_o_pedido_nao_espera_o_bug(self, monkeypatch):
+        sb, pedido_id = _pedido_de_implantacao()
+        _, _, bug_id = _bug_ate_o_resumo(sb, monkeypatch, pedido_id)
+
+        assert _pedido(sb, pedido_id).get("espera_demanda_id") is None
+        assert _demanda(sb, bug_id).get("demanda_origem_id") is None

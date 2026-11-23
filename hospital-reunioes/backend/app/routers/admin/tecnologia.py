@@ -2261,6 +2261,9 @@ def _enviar_o_card(
     produto_nome = (produtos.data or [{}])[0].get("nome") or SEM_PRODUTO
     # So a contagem dos anexos vai a issue (ADR 0069), por tipo (issue #1520).
     imagens, documentos = tecnologia_anexos.quantos_guardados(supabase, demanda_id)
+    # O bug do "Achei um problema" (issue #2210): a issue cita o PRD de origem.
+    pedido = tecnologia_perguntas.pedido_do_bug(supabase, demanda)
+    prd = tecnologia_perguntas.prd_de_origem(supabase, pedido) if pedido else None
 
     def corpo(_titulo: str) -> str:
         return corpo_da_issue_do_bug(
@@ -2270,6 +2273,8 @@ def _enviar_o_card(
             link=link_da_demanda(demanda_id),
             anexos=imagens,
             documentos=documentos,
+            prd_de_origem=prd,
+            pedido_de_origem=pedido.get("assunto") if pedido else None,
         )
 
     vinculada = _enviar(
@@ -2281,6 +2286,8 @@ def _enviar_o_card(
         labels=[*LABELS_DO_BUG, LABEL_ORIGEM_DIRETOR],
         responsavel_id=responsavel_id,
     )
+    if pedido:
+        tecnologia_perguntas.ligar_o_bug(supabase, vinculada, pedido)
     _mandar_o_email_do_card(supabase, vinculada, resumo=resumo)
     linha = planejamento_demanda.marcar_enviado(supabase, demanda_id, agora=_agora())
     return _chat_para_a_tela(supabase, demanda_id, linha or {**atual, "estado": planejamento_demanda.ESTADO_ENVIADO})

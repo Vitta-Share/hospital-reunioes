@@ -389,6 +389,37 @@ def texto_do_problema(pedido: dict[str, Any], demanda: dict[str, Any]) -> str:
     )
 
 
+def pedido_do_bug(supabase, bug: dict[str, Any]) -> dict[str, Any] | None:
+    """O Pedido de implantacao de que o bug veio pelo "Achei um problema"
+    (issue #2210), ou `None`."""
+    pedido_id = bug.get("pedido_origem_id")
+    return buscar(supabase, str(pedido_id)) if pedido_id else None
+
+
+def prd_de_origem(supabase, pedido: dict[str, Any]) -> str | None:
+    """A referencia ao PRD da entrega do Pedido, como o GitHub a le na issue
+    do bug (que nasce no Hospital): "#1700", ou "dono/repo#12" de outro
+    Projeto. `None` sem card vinculado."""
+    demandas = supabase.table(TABELA_DEMANDAS).select("*").eq("id", pedido["demanda_id"]).execute().data or []
+    numero = demandas[0].get("github_issue_numero") if demandas else None
+    if not numero:
+        return None
+    projeto = str(demandas[0].get("projeto") or github_client.PROJETO_HOSPITAL)
+    repositorio = "" if projeto == github_client.PROJETO_HOSPITAL else github_client.repositorio_do_projeto(projeto)
+    return f"{repositorio}#{numero}"
+
+
+def ligar_o_bug(supabase, bug: dict[str, Any], pedido: dict[str, Any]) -> None:
+    """Depois do Criar o card (issue #2210, ADR 0111, decisao 9): a Demanda de
+    bug guarda de qual Demanda veio, e o Pedido passa a esperar por ela. O
+    Pedido continua aberto; o PRD de origem nao reabre."""
+    bug_id = str(bug["id"])
+    supabase.table(TABELA_DEMANDAS).update({"demanda_origem_id": str(pedido["demanda_id"])}).eq(
+        "id", bug_id
+    ).execute()
+    supabase.table(TABELA_PERGUNTAS).update({"espera_demanda_id": bug_id}).eq("id", str(pedido["id"])).execute()
+
+
 def _exigir_a_label_da_implantacao(numero: int, projeto: str) -> None:
     """So o card com a label `implantacao` vira Pedido de implantacao (ADR
     0111, decisao 3): o app le a label no GitHub, e nao no que a ponte diz.
