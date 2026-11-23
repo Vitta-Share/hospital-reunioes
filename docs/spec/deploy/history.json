@@ -2,6 +2,52 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-23T12:12:11-03:00",
+      "sha": "8f3fe36a1b86f88adfc3f65abb5bb526a6730acc",
+      "app_version": "0.390.1",
+      "subject": "Onda onda-a-onda1: Excluir usuário com histórico desliga o cadastro em vez de dar erro interno",
+      "raw_subject": "chore(deploy): registro da onda onda-a-onda1 (#2224)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [],
+      "result": "healthy",
+      "duration_seconds": 374,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta onda-a-onda1: PR #2224 (issue #2043), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 325,
+          "frontend": 303
+        },
+        "health_s": 21
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-23T11:19:42-03:00",
       "sha": "7d9aad94415c365c01922911fa6408cf58b7a032",
       "app_version": "0.390.0",
