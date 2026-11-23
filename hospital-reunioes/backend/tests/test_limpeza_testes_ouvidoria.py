@@ -160,3 +160,63 @@ class TestForaDoPadrao:
         escolha = escolher(_avaliacoes(5), [caso], liberar=["2026-0200"], manter=["2026-0200"])
         assert not escolha.pode_seguir
         assert any("2026-0200" in erro for erro in escolha.erros)
+
+
+CASO_A = "11111111-1111-1111-1111-111111111111"
+CASO_B = "22222222-2222-2222-2222-222222222222"
+EMAIL_A = "33333333-3333-3333-3333-333333333333"
+AVALIACAO_A = "44444444-4444-4444-4444-444444444444"
+
+
+def _plano() -> limpeza.Plano:
+    esperado = {tabela: 1 for tabela, _ in limpeza.TABELAS_APAGADAS}
+    esperado["ouvidoria_protocolos"] = 2
+    esperado["ouvidoria_avaliacoes"] = 1
+    return limpeza.Plano(
+        casos=(CASO_A, CASO_B),
+        emails=(EMAIL_A,),
+        avaliacoes=(AVALIACAO_A,),
+        esperado=esperado,
+    )
+
+
+class TestSqlGerado:
+    def test_sql_mira_os_ids_conferidos_e_nao_as_datas_da_janela(self):
+        sql = limpeza.gerar_sql(_plano())
+        for id_ in (CASO_A, CASO_B, EMAIL_A, AVALIACAO_A):
+            assert id_ in sql
+        for data in ("2026-10-19", "2026-11-17", "contato_em", "criada_em"):
+            assert data not in sql
+
+    def test_sql_roda_numa_transacao_e_religa_os_gatilhos_antes_do_fim(self):
+        sql = limpeza.gerar_sql(_plano())
+        begin = sql.index("BEGIN;")
+        commit = sql.index("COMMIT;")
+        for gatilho in ("trg_ouvidoria_movimentos_sem_delete", "trg_ouvidoria_acessos_sem_delete"):
+            desliga = sql.index(f"DISABLE TRIGGER {gatilho}")
+            religa = sql.index(f"ENABLE TRIGGER {gatilho}")
+            assert begin < desliga < sql.index("DELETE FROM") < religa < commit
+        # Termina mostrando, depois do COMMIT, que os dois gatilhos estão ligados.
+        assert sql.index("FROM pg_trigger") > commit
+
+    def test_sql_apaga_filhas_depois_casos_depois_avaliacoes(self):
+        sql = limpeza.gerar_sql(_plano())
+        filhas = max(sql.index(f"DELETE FROM {t} ") for t, _ in limpeza.TABELAS_APAGADAS)
+        casos = sql.index("DELETE FROM ouvidoria_protocolos ")
+        avaliacoes = sql.index("DELETE FROM ouvidoria_avaliacoes ")
+        assert filhas < casos < avaliacoes
+
+    def test_sql_confere_cada_contagem_e_levanta_erro_se_nao_bater(self):
+        plano = _plano()
+        plano.esperado["ouvidoria_movimentos"] = 7
+        sql = limpeza.gerar_sql(plano)
+        trecho = sql[sql.index("DELETE FROM ouvidoria_movimentos ") :]
+        trecho = trecho[: trecho.index("END IF;")]
+        assert "GET DIAGNOSTICS" in trecho
+        assert "<> 7" in trecho
+        assert "RAISE EXCEPTION" in trecho
+
+    def test_sql_nao_toca_na_sequence_dos_protocolos(self):
+        sql = limpeza.gerar_sql(_plano()).lower()
+        for proibido in ("numero_seq", "setval", "sequence", "truncate"):
+            assert proibido not in sql
