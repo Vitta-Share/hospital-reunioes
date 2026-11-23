@@ -481,6 +481,19 @@ class TestConferencia:
         assert "já foi feita" in capsys.readouterr().out
         assert not (tmp_path / "limpeza.sql").exists()
 
+    def test_aviso_de_avaliacao_so_para_caso_que_fica_de_verdade(self, capsys, tmp_path):
+        """O caso ainda sem decisão não é caso que fica: o aviso só sai para o
+        caso mantido pelo diretor ou de fora da janela."""
+        banco = _banco(canal="telefone")
+        avaliacao = banco.tabelas["ouvidoria_avaliacoes"][0]["id"]
+        banco.tabelas["ouvidoria_protocolos"][0]["avaliacao_id"] = avaliacao  # CASO_A, sem decisão
+        _rodar(banco, _BucketFalso(set()), tmp_path / "limpeza.sql")
+        assert "perdem só a ligação" not in capsys.readouterr().out
+
+        _rodar(banco, _BucketFalso(set()), tmp_path / "limpeza.sql", "--manter", "2026-0101")
+        saida = capsys.readouterr().out
+        assert "perdem só a ligação com a Avaliação que sai: 2026-0101" in saida
+
 
 class TestAplicar:
     def test_aplicar_tira_os_arquivos_e_grava_o_sql_com_os_ids_e_as_contagens(self, capsys, tmp_path):

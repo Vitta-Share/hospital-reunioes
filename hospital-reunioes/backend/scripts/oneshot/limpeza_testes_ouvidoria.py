@@ -441,11 +441,13 @@ def montar_plano(cliente, escolha: Escolha) -> Plano:
 def casos_que_perdem_a_avaliacao(cliente, escolha: Escolha) -> list[str]:
     """Caso que fica e aponta para uma Avaliação que sai: o banco só tira a
     ligação (ON DELETE SET NULL). Vai na conferência para ninguém se surpreender."""
-    saem = {c.id for c in escolha.saem}
+    ficam = {c.id for c in escolha.ficam}
+    # Caso da janela que não ficou por decisão (sai ou ainda espera) não conta.
+    sem_aviso = {c.id for c in escolha.casos} - ficam
     linhas = _ler_por(
         cliente, "ouvidoria_protocolos", "id, protocolo", "avaliacao_id", [a.id for a in escolha.avaliacoes]
     )
-    return sorted(linha["protocolo"] for linha in linhas if linha["id"] not in saem)
+    return sorted(linha["protocolo"] for linha in linhas if linha["id"] not in sem_aviso)
 
 
 # ---------------------------------------------------------------------------
