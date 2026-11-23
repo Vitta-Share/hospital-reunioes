@@ -13,7 +13,9 @@
 # nasce no GitHub e nenhum pedido de verdade entra no print. Os dois cliques do
 # Envio aos desenvolvedores, interpretar e enviar, respondem pelo
 # `respostas.py --envio` (issue #2015), e também não chegam à IA nem ao
-# GitHub. O sino responde
+# GitHub. O Achei um problema do Pedido de implantação (issue #2211) responde
+# pela mesma tabela, só quando o POST do chat leva o Pedido: a conversa do bug
+# abre com o texto de exemplo, sem IA. O sino responde
 # do mesmo jeito, pelo `respostas.py --sino` (issue #1968): nenhum aviso de
 # verdade aparece, e marcar como lido não grava nada. A lista Esperando sua
 # resposta (issue #2123) só traz as perguntas quando a aba abre pelo aviso, com
@@ -71,12 +73,22 @@ pw run-code "async page => { await page.waitForURL(u => !u.pathname.startsWith('
 pw run-code "async page => {
   const tabela = $(python3 "$AQUI/respostas.py");
   const envio = $(python3 "$AQUI/respostas.py" --envio);
+  // A lista Esperando você depois do Achei um problema (issue #2211): o Pedido em
+  // que se clicou passa a esperar a Demanda do bug. No app isso vem com o Criar o
+  // card; o roteiro não grava nada e troca a lista logo depois do POST do chat.
+  const depoisDoProblema = $(python3 "$AQUI/respostas.py" --depois-do-problema);
+  let problemaAberto = false;
   await page.route(u => u.pathname.includes('/api/admin/tecnologia/'), route => {
     const pedido = route.request();
     const url = new URL(pedido.url());
     const chave = decodeURIComponent(url.pathname.split('/api/admin/tecnologia/')[1] + url.search);
     if (pedido.method() !== 'GET') {
-      if (pedido.method() === 'POST' && chave in envio) return route.fulfill({ json: envio[chave] });
+      let corpo = null;
+      try { corpo = pedido.postDataJSON(); } catch {}
+      if (pedido.method() === 'POST' && chave in envio && (chave !== 'chat' || corpo?.pedido_id)) {
+        if (chave === 'chat') problemaAberto = true;
+        return route.fulfill({ json: envio[chave] });
+      }
       return route.fulfill({ status: 403, json: { detail: 'O roteiro do manual não grava nada.' } });
     }
     if (!(chave in tabela)) {
@@ -84,6 +96,14 @@ pw run-code "async page => {
     }
     if (chave === 'perguntas/esperando' && !new URL(page.url()).searchParams.has('pergunta')) {
       return route.fulfill({ json: [] });
+    }
+    if (chave === 'perguntas/esperando') {
+      // Os Pedidos de implantação só entram quando a aba abre num deles (issue #2211):
+      // nos outros prints a lista fica como era, sem eles.
+      const destaque = new URL(page.url()).searchParams.get('pergunta');
+      const lista = problemaAberto ? depoisDoProblema : tabela[chave];
+      const deImplantacao = lista.some(i => i.tipo === 'implantacao' && i.id === destaque);
+      return route.fulfill({ json: deImplantacao ? lista : lista.filter(i => i.tipo !== 'implantacao') });
     }
     return route.fulfill({ json: tabela[chave] });
   });
@@ -118,6 +138,12 @@ print_tela "pedido-no-painel.png"
 # As partes do mesmo pedido, agrupadas por Onda, com o número e o Espera a (issue #1903).
 pw run-code "async page => { await page.getByRole('region', { name: 'Documento do card', exact: true }).getByText('Onda 3', { exact: true }).scrollIntoViewIfNeeded(); await page.waitForTimeout(400) }"
 print "$(bloco "Documento do card")" "partes-por-onda.png"
+pw run-code "async page => { await page.getByRole('button', { name: 'Fechar o pedido' }).click() }"
+# O selo Implantação 1 de 3 no card Em produção e a seção Implantação dele (issue #2211).
+pw run-code "async page => { await page.getByText('Implantação 1 de 3', { exact: true }).scrollIntoViewIfNeeded(); await page.waitForTimeout(400) }"
+print "$(bloco "Entregue")" "selo-da-implantacao.png"
+pw run-code "async page => { await page.getByRole('button', { name: /Checklist da limpeza dos leitos pelo celular/ }).click(); await page.getByRole('region', { name: 'Implantação', exact: true }).scrollIntoViewIfNeeded(); await page.waitForTimeout(600) }"
+print "$(bloco "Documento do card")" "implantacao-no-card.png"
 pw run-code "async page => { await page.getByRole('button', { name: 'Fechar o pedido' }).click() }"
 
 # Responder uma pergunta da Vitta (issues #1968 e #2123): o aviso Pede sua
@@ -161,6 +187,26 @@ pw goto "$TECNOLOGIA?pergunta=$(seed "['passo_a_passo']['id']")"
 esperar "Passo a passo da Vitta"
 pw run-code "async page => { await page.getByRole('region', { name: 'Esperando você', exact: true }).locator('li[aria-current=true]').scrollIntoViewIfNeeded(); await page.waitForTimeout(400) }"
 print "getByRole('region', { name: 'Esperando você', exact: true }).locator('li[aria-current=true]')" "concluir-passo-a-passo.png"
+
+# O Pedido de implantação (issue #2211, ADR 0111): o que espera outro, com os
+# checks marcados e o Concluir preso. Depois, o Achei um problema do Pedido do
+# teste, que abre a conversa do bug já com o texto dele, e o mesmo Pedido
+# esperando a Demanda 63, a do bug.
+DESTACADO="getByRole('region', { name: 'Esperando você', exact: true }).locator('li[aria-current=true]')"
+pw goto "$TECNOLOGIA?pergunta=$(seed "['implantacao']['pedidos'][2]['id']")"
+esperar "Achei um problema"
+pw run-code "async page => { await page.$DESTACADO.scrollIntoViewIfNeeded(); await page.waitForTimeout(400) }"
+print "$DESTACADO" "pedido-de-implantacao.png"
+pw goto "$TECNOLOGIA?pergunta=$(seed "['implantacao']['achei_um_problema_em']")"
+esperar "Achei um problema"
+pw run-code "async page => { await page.$DESTACADO.getByRole('button', { name: 'Achei um problema' }).click() }"
+esperar "$(seed "['implantacao']['falas_do_problema'][0]['texto']")"
+# A conversa abre embaixo da lista Esperando você, que fica no alto pelo `?pergunta=`.
+print "$(bloco "Conversa aberta")" "problema-no-assistente.png"
+pw goto "$TECNOLOGIA?pergunta=$(seed "['implantacao']['achei_um_problema_em']")"
+esperar "Espera a Demanda 63"
+pw run-code "async page => { await page.$DESTACADO.scrollIntoViewIfNeeded(); await page.waitForTimeout(400) }"
+print "$DESTACADO" "espera-a-demanda.png"
 
 # Filtrar por Projeto: o campo Projeto em Ana. A aba abre de novo, sem o
 # `?pergunta=` do aviso, e a lista Esperando sua resposta sai do alto.

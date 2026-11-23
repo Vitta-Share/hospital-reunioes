@@ -7,13 +7,15 @@ chave é a rota depois de `/api/admin/tecnologia/`, com a consulta quando há
 (`chat?projeto=ana`), e o valor é o corpo da resposta. Com `--sino`, imprime a
 tabela do sino (issue #1968), com a chave depois de `/api/notificacoes`. Com
 `--envio`, imprime as respostas dos dois cliques do Envio aos desenvolvedores
-(issue #2015), interpretar e enviar, os únicos pedidos que não são GET a que o
-roteiro responde; o resto continua recusado. Tudo sai do `seed.json`,
+(issue #2015), interpretar e enviar, e a do Achei um problema (issue #2211), os
+únicos pedidos que não são GET a que o roteiro responde; o resto continua
+recusado. Com `--depois-do-problema`, imprime a lista Esperando você depois do
+Achei um problema, com o Pedido esperando a Demanda do bug. Tudo sai do `seed.json`,
 com as datas contadas a partir de hoje, no fuso do hospital: assim o Quadro
 abre com as colunas cheias e as Entregas caem nas últimas semanas, em qualquer
 dia que o roteiro rodar. Nada aqui é gente, pedido ou card de verdade.
 
-Uso: python3 scripts/manual/tecnologia/respostas.py [--sino | --envio]
+Uso: python3 scripts/manual/tecnologia/respostas.py [--sino | --envio | --depois-do-problema]
 """
 
 from __future__ import annotations
@@ -31,6 +33,8 @@ HOJE = datetime.now(FUSO).date()
 SEMANAS_DO_GRAFICO = 12
 # Os dois Projetos cujo repositório o app lê; o resto é projeto novo da Vitta (issue #1967).
 PROJETOS_CONHECIDOS = {"hospital": "Aplicativo do Hospital", "ana": "Ana"}
+# A pergunta com que o Assistente abre toda conversa (ABERTURA, em backend/app/services/chat_tecnologia.py).
+ABERTURA = "Isso é um bug, algo que não funciona como deveria, ou uma melhoria?"
 
 
 def instante(dias_atras: int, hora: str = "10:00") -> str:
@@ -99,7 +103,28 @@ def demanda(d: dict) -> dict:
         "pode_apagar": registrada and not projeto_novo,
         "pode_revisar": False,
         "em_revisao": False,
+        "implantacao": implantacao_da_demanda(d["id"]),
     }
+
+
+def implantacao_da_demanda(demanda_id: str) -> dict | None:
+    """A seção Implantação do card (issue #2211, ADR 0111, decisão 5), como o
+    servidor a manda: os feitos sobre o total e cada Pedido de implantação, só
+    Feito ou Aberto, com a espera nula na linha. Nula na Demanda sem Pedido."""
+    seed = SEED["implantacao"]
+    if demanda_id != seed["demanda"]:
+        return None
+    pedidos = [
+        {
+            "titulo": p["assunto"],
+            "destinatario": SEED["admin"]["nome"],
+            "situacao": "feito" if p["estado"] == "concluida" else "aberto",
+            "espera": None,
+        }
+        for p in seed["pedidos"]
+    ]
+    feitos = sum(1 for p in pedidos if p["situacao"] == "feito")
+    return {"feitos": feitos, "total": len(pedidos), "pedidos": pedidos}
 
 
 def fala(f: dict) -> dict:
@@ -158,6 +183,8 @@ def conversas(lista: list[dict]) -> dict:
     tabela[f"chat/{abrir['bug']}"] = conversa(
         abrir["bug"], "resumido", bug["falas"], resumo=bug["resumo"], custo=bug["custo"]
     )
+    problema = conversa_do_problema()
+    tabela[f"chat/{problema['demanda_id']}"] = problema
     tabela[f"chat/{abrir['painel']}/conversa"] = conversa_da_demanda(SEED["conversa_da_demanda"])
     # O pedido do Envio aos desenvolvedores (issue #2015): as últimas mensagens são do
     # diretor, e o botão conta só essas.
@@ -174,6 +201,24 @@ def conversas(lista: list[dict]) -> dict:
     da_pergunta["mensagens"][-1]["pergunta"] = pergunta_do_diretor(pode_responder=True)
     tabela[f"chat/{abrir['projeto_novo']}/conversa"] = da_pergunta
     return tabela
+
+
+def conversa_do_problema() -> dict:
+    """A conversa que o Achei um problema abre (issue #2211, ADR 0111, decisão
+    9), com as falas que o POST do chat com o Pedido devolve: a abertura do
+    Assistente, o Bug do diretor, o texto que o servidor monta do Pedido de
+    implantação e da entrega, e a pergunta do Assistente."""
+    seed = SEED["implantacao"]
+    entrega = next(d for d in SEED["demandas"] if d["id"] == seed["demanda"])
+    pedido = next(p for p in seed["pedidos"] if p["id"] == seed["achei_um_problema_em"])
+    inicial = f'Achei um problema no Pedido de implantação "{pedido["assunto"]}", da entrega "{entrega["titulo"]}".'
+    falas = [
+        {"autor": "ia", "texto": ABERTURA, "opcoes": ["Bug", "Melhoria"]},
+        {"autor": "diretor", "texto": "Bug"},
+        {"autor": "diretor", "texto": inicial},
+        *seed["falas_do_problema"],
+    ]
+    return conversa(seed["problema"], "em_andamento", falas)
 
 
 def _projeto_da(demanda_id: str) -> tuple[dict, str]:
@@ -219,18 +264,21 @@ def pergunta_do_diretor(pode_responder: bool) -> dict:
     )
 
 
-def perguntas() -> dict:
+def perguntas(depois_do_problema: bool = False) -> dict:
     """A lista Esperando você (issue #2118) e o Me explique da Pergunta do diretor
     (issue #2122). Os pedidos do diretor vêm primeiro, o Passo a passo e a Pergunta, e
     se respondem no cartão da lista (issues #2145 e #2184); a de outra pessoa depois,
-    só para ler."""
+    só para ler. Com `depois_do_problema`, a lista depois do Achei um problema (issue
+    #2211)."""
     minha = pergunta_do_diretor(pode_responder=True)
     demanda, _ = _projeto_da(SEED["abrir"]["projeto_novo"])
     outra = SEED["outra_pergunta"]
     da_outra, projeto = _projeto_da(outra["demanda"])
     return {
         "perguntas/esperando": [
-            # Do diretor, a mais antiga primeiro: o Passo a passo nasceu ontem (issue #2184).
+            # Do diretor, a mais antiga primeiro: os Pedidos de implantação e o Passo a
+            # passo nasceram ontem (issues #2184 e #2211).
+            *pedidos_de_implantacao(depois_do_problema),
             passo_a_passo(),
             {**minha, "demanda_id": demanda["id"], "demanda": demanda["titulo"], "minha": True},
             {
@@ -288,6 +336,55 @@ def passo_a_passo() -> dict:
         "demanda": demanda["titulo"],
         "minha": True,
     }
+
+
+def pedidos_de_implantacao(depois_do_problema: bool = False) -> list[dict]:
+    """Os Pedidos de implantação abertos da entrega Em produção (issue #2211, ADR
+    0111), na lista Esperando você: o que espera outro, com todos os checks e o
+    Concluir preso, e o do Achei um problema, com um check só. Com
+    `depois_do_problema`, este espera a Demanda de bug que o clique abriu."""
+    seed = SEED["implantacao"]
+    esperas = {seed["achei_um_problema_em"]: seed["problema"]} if depois_do_problema else {}
+    demanda, projeto = _projeto_da(seed["demanda"])
+    diretor = SEED["admin"]["nome"]
+    por_id = {p["id"]: p for p in seed["pedidos"]}
+    numero_de = {d["id"]: d["numero"] for d in SEED["demandas"]}
+    return [
+        {
+            **cartao(
+                p,
+                projeto=projeto,
+                criado_em=instante(p["dias"], p["hora"]),
+                destinatario=diretor,
+                pode_responder=True,
+            ),
+            "tipo": "implantacao",
+            "passos": [
+                {
+                    "texto": passo["texto"],
+                    "marcado": passo["marcado"],
+                    "por": diretor if passo["marcado"] else None,
+                    "em_nome_de": None,
+                    "em": instante(p["dias"], "16:40") if passo["marcado"] else None,
+                }
+                for passo in p["passos"]
+            ],
+            "espera": (
+                {"pedido_id": p["espera"], "assunto": por_id[p["espera"]]["assunto"]} if p.get("espera") else None
+            ),
+            "espera_demanda": (
+                {"demanda_id": esperas[p["id"]], "numero": numero_de[esperas[p["id"]]]} if p["id"] in esperas else None
+            ),
+            "conclusao": None,
+            "fechamento": None,
+            "pode_reenviar": False,
+            "demanda_id": demanda["id"],
+            "demanda": demanda["titulo"],
+            "minha": True,
+        }
+        for p in seed["pedidos"]
+        if p["estado"] == "aberta"
+    ]
 
 
 def conversa_da_demanda(falas: list[dict], prefixo: str = "exemplo-mensagem") -> dict:
@@ -442,6 +539,8 @@ def envio() -> dict:
         [f"Enviado aos desenvolvedores em {agora:%d/%m/%Y}, às {agora:%H:%M}:", *[f"- {t}" for t in entendi["topicos"]]]
     )
     return {
+        # O Achei um problema (issue #2211): o POST do chat com o Pedido devolve o bug novo.
+        "chat": conversa_do_problema(),
         f"{chave}/interpretar": {"id": "exemplo-envio-1", **entendi},
         f"{chave}/enviar": {
             "id": "exemplo-envio-linha",
@@ -459,5 +558,7 @@ if __name__ == "__main__":
         print(json.dumps(sino(), ensure_ascii=False))
     elif "--envio" in sys.argv[1:]:
         print(json.dumps(envio(), ensure_ascii=False))
+    elif "--depois-do-problema" in sys.argv[1:]:
+        print(json.dumps(perguntas(depois_do_problema=True)["perguntas/esperando"], ensure_ascii=False))
     else:
         print(json.dumps(tabela(), ensure_ascii=False))

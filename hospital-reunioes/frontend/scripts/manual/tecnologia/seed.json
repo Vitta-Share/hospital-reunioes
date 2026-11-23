@@ -36,6 +36,11 @@
       "classificacao": "bug", "etapa": "registrada", "projeto": "hospital", "origem": "diretor"
     },
     {
+      "id": "exemplo-63", "numero": 63, "dias": 0, "hora": "11:50",
+      "titulo": "A foto do leito não salva no checklist da limpeza",
+      "classificacao": "bug", "etapa": "registrada", "projeto": "hospital", "origem": "diretor"
+    },
+    {
       "id": "exemplo-54", "numero": 54, "dias": 3, "hora": "14:20",
       "titulo": "Mostrar no painel quantas guias voltaram glosadas",
       "classificacao": "melhoria", "etapa": "em_analise", "projeto": "hospital", "origem": "diretor",
@@ -92,6 +97,13 @@
       "classificacao": "melhoria", "etapa": "em_producao", "projeto": "hospital", "origem": "diretor",
       "responsavel": "Rafael Moura", "partes": [3, 3], "versao": "v0.288.0", "entregue_ha": 2, "tamanho": "M",
       "o_que_muda": "**O que muda:** O Quadro ganha o campo Projeto, para ver só os pedidos do aplicativo ou só os da Ana."
+    },
+    {
+      "id": "exemplo-46", "numero": 46, "dias": 14, "hora": "09:00",
+      "titulo": "Checklist da limpeza dos leitos pelo celular",
+      "classificacao": "melhoria", "etapa": "em_producao", "projeto": "hospital", "origem": "diretor",
+      "responsavel": "Rafael Moura", "partes": [2, 2], "versao": "v0.291.0", "entregue_ha": 1,
+      "o_que_muda": "**O que muda:** A equipe da limpeza marca pelo celular cada leito limpo, com a foto, e a Hotelaria vê o andar inteiro numa tela."
     },
     {
       "id": "exemplo-45", "numero": 45, "dias": 11, "hora": "13:50",
@@ -190,6 +202,58 @@
       { "texto": "No menu da esquerda, clique em POP e abra o POP Preparo para exames de imagem.", "marcado": true },
       { "texto": "Confira as horas de jejum de cada exame e clique em Publicar.", "marcado": false },
       { "texto": "Como saber que acabou: o POP aparece como Vigente na lista.", "marcado": false }
+    ]
+  },
+  "implantacao": {
+    "demanda": "exemplo-46",
+    "problema": "exemplo-63",
+    "achei_um_problema_em": "exemplo-implantacao-2",
+    "pedidos": [
+      {
+        "id": "exemplo-implantacao-1", "dias": 3, "hora": "10:00", "estado": "concluida",
+        "assunto": "cadastrar os leitos de cada andar",
+        "texto": "Cadastre no checklist os leitos de cada andar, com o número de cada um.",
+        "por_que_precisa": "Só o hospital sabe quais leitos cada andar tem hoje.",
+        "o_que_esta_parado": "O teste do checklist no 3º andar.",
+        "o_que_anda_depois": "A equipe da limpeza encontra cada leito no celular.",
+        "ganho": "A Hotelaria vê pelo celular quais leitos já estão limpos.",
+        "passos": [
+          { "texto": "Escolha quem da Hotelaria cadastra os leitos e mande a ela este pedido.", "marcado": true },
+          { "texto": "Cadastre os leitos de cada andar, com o número de cada um.", "marcado": true },
+          { "texto": "Como saber que acabou: cada andar mostra os seus leitos no checklist.", "marcado": true }
+        ]
+      },
+      {
+        "id": "exemplo-implantacao-2", "dias": 1, "hora": "14:00", "estado": "aberta",
+        "assunto": "testar o checklist no 3º andar",
+        "texto": "Teste o checklist da limpeza no 3º andar durante um plantão inteiro, antes de abrir para o hospital todo.",
+        "por_que_precisa": "Só a equipe do hospital sabe se o checklist cabe na rotina da limpeza.",
+        "o_que_esta_parado": "A abertura do checklist para todos os andares.",
+        "o_que_anda_depois": "O checklist pode abrir para os outros andares.",
+        "ganho": "A Hotelaria vê pelo celular quais leitos já estão limpos.",
+        "passos": [
+          { "texto": "Escolha quem da Hotelaria faz o teste e mande a ela este pedido.", "marcado": true },
+          { "texto": "Peça para ela marcar a limpeza de cada leito do 3º andar durante um plantão, com a foto.", "marcado": false },
+          { "texto": "Como saber que acabou: os leitos do 3º andar aparecem como limpos na tela da Hotelaria.", "marcado": false }
+        ]
+      },
+      {
+        "id": "exemplo-implantacao-3", "dias": 1, "hora": "14:10", "estado": "aberta", "espera": "exemplo-implantacao-2",
+        "assunto": "abrir o checklist para todos os andares",
+        "texto": "Abra o checklist da limpeza para todos os andares e avise a equipe da Hotelaria.",
+        "por_que_precisa": "Quem decide quando a equipe começa a usar o checklist é a diretoria.",
+        "o_que_esta_parado": "O uso do checklist nos outros andares.",
+        "o_que_anda_depois": "Toda a equipe da limpeza passa a marcar os leitos pelo celular.",
+        "ganho": "A Hotelaria vê pelo celular quais leitos já estão limpos.",
+        "passos": [
+          { "texto": "Escolha quem da Hotelaria avisa a equipe de cada andar e mande a ela este pedido.", "marcado": true },
+          { "texto": "Peça para ela mostrar o checklist à equipe de cada andar na troca de plantão.", "marcado": true },
+          { "texto": "Como saber que acabou: a equipe de todos os andares marca os leitos pelo celular.", "marcado": true }
+        ]
+      }
+    ],
+    "falas_do_problema": [
+      { "autor": "ia", "texto": "Entendi, é no teste do checklist no 3º andar. O que aconteceu quando a equipe tentou marcar o leito com a foto?" }
     ]
   },
   "outra_pergunta": {
