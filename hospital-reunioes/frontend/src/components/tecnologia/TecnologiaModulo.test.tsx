@@ -15,11 +15,12 @@
 import { readdirSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ToastProvider } from "@/components/ui/Toast";
 
+import { ABRIR_DEMANDA } from "./CartaoDoPassoAPasso";
 import { ABERTURA } from "./ChatDaTecnologia";
 import { TecnologiaModulo } from "./TecnologiaModulo";
 
@@ -111,6 +112,18 @@ describe("A aba abre no chat, com Conversas e Entregas (issues #1386 e #1556)", 
     expect(await screen.findByText("Nenhuma entrega com esses filtros.")).toBeTruthy();
     // O chat fica guardado atrás da aba: voltar a Conversas não recomeça a conversa.
     expect(screen.getByText(ABERTURA).closest("[hidden]")).not.toBeNull();
+  });
+
+  it("o Achei um problema de um cartão volta à aba das conversas, onde o bug abre (issue #2210)", async () => {
+    montar();
+    await screen.findByText(ABERTURA);
+    fireEvent.click(screen.getByRole("tab", { name: "Entregas" }));
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent(ABRIR_DEMANDA, { detail: "bug-1" }));
+    });
+
+    expect(screen.getByRole("tab", { name: "Conversas" }).getAttribute("aria-selected")).toBe("true");
   });
 
   it("só pede ao servidor a lista das conversas e quem está logado: nada de Produtos, pessoas ou Vínculo", async () => {

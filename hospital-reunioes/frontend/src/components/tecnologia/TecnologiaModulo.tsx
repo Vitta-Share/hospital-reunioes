@@ -20,12 +20,13 @@
  * #2118, ADR 0109, decisão 5; ADR 0110). `perguntaInicial` é o `?pergunta=` do aviso: o cartão em foco.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Cpu } from "lucide-react";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useTelaLarga } from "@/hooks/useTelaLarga";
 
+import { ABRIR_DEMANDA } from "./CartaoDoPassoAPasso";
 import { ConversasDaTecnologia } from "./ConversasDaTecnologia";
 import { EntregasDaTecnologia } from "./EntregasDaTecnologia";
 import { EsperandoVoce } from "./EsperandoVoce";
@@ -54,6 +55,13 @@ export function TecnologiaModulo({
     setAba(id);
     if (id === "entregas") setEntregasAbertas(true);
   }
+
+  // O bug que o Achei um problema fez nascer abre nas conversas (issue #2210).
+  useEffect(() => {
+    const voltar = () => setAba("conversas");
+    window.addEventListener(ABRIR_DEMANDA, voltar);
+    return () => window.removeEventListener(ABRIR_DEMANDA, voltar);
+  }, []);
 
   return (
     <div className="animate-fade-in-up space-y-6">

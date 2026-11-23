@@ -575,8 +575,14 @@ def _respondido_por(fala: dict, ator: dict) -> dict:
     return {**fala, "respondido_por": ator["id"]}
 
 
-def _nascer_a_demanda(supabase: Client, *, ator: dict, titulo: str, tipo: str, produto: dict) -> dict:
-    """A Demanda que o primeiro turno do chat faz nascer (ADR 0077, decisao 2)."""
+def _nascer_a_demanda(
+    supabase: Client, *, ator: dict, titulo: str, tipo: str, produto: dict, pedido_origem_id: str | None = None
+) -> dict:
+    """A Demanda que o primeiro turno do chat faz nascer (ADR 0077, decisao 2).
+
+    O bug do "Achei um problema" (issue #2210) guarda o Pedido de que veio:
+    e por ele que o Criar o card liga as duas pontas."""
+    origem = {"pedido_origem_id": pedido_origem_id} if pedido_origem_id else {}
     criada = (
         supabase.table(TABELA_DEMANDAS)
         .insert(
@@ -593,6 +599,7 @@ def _nascer_a_demanda(supabase: Client, *, ator: dict, titulo: str, tipo: str, p
                 # O Assistente so cria card no Hospital (issue #1713, ADR 0093,
                 # decisao 5): a conversa nasce no Projeto do card que ela vira.
                 "projeto": github_client.PROJETO_HOSPITAL,
+                **origem,
             }
         )
         .execute()
@@ -1015,6 +1022,18 @@ async def comecar_o_chat(
     deixa Demanda vazia para tras, e o texto continua na caixa da tela.
     """
     texto = (payload.texto or "").strip()
+    pedido_origem_id = str(payload.pedido_id) if payload.pedido_id else None
+    if pedido_origem_id:
+        # O "Achei um problema" (issue #2210, ADR 0111, decisao 9): o bug abre
+        # com o texto que nomeia o Pedido e a entrega, antes do que vier escrito.
+        pedido, demanda_do_pedido = _pergunta_do_me_explique(supabase, pedido_origem_id, ator)
+        try:
+            inicial = tecnologia_perguntas.texto_do_problema(pedido, demanda_do_pedido)
+            tecnologia_perguntas.exigir_sem_bug_aberto(supabase, pedido)
+        except tecnologia_perguntas.PerguntaRecusadaError as recusa:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(recusa)) from recusa
+        payload.escolha = "bug"
+        texto = f"{inicial}\n\n{texto}" if texto else inicial
     if not payload.escolha and not texto and not payload.documentos:
         _recusar(chat_tecnologia.MOTIVO_SEM_TEXTO)
     documentos = _documentos_da_fala(supabase, demanda_id=None, ids=payload.documentos, ator=ator)
@@ -1047,6 +1066,7 @@ async def comecar_o_chat(
         titulo=resultado.titulo,
         tipo=chat_tecnologia.TIPO_DA_CLASSIFICACAO[resultado.classificacao],
         produto=produto,
+        pedido_origem_id=pedido_origem_id,
     )
     demanda_id = str(demanda["id"])
     if resultado.chamada is not None:
@@ -2242,6 +2262,14 @@ def _enviar_o_card(
     produto_nome = (produtos.data or [{}])[0].get("nome") or SEM_PRODUTO
     # So a contagem dos anexos vai a issue (ADR 0069), por tipo (issue #1520).
     imagens, documentos = tecnologia_anexos.quantos_guardados(supabase, demanda_id)
+    # O bug do "Achei um problema" (issue #2210): a issue cita o PRD de origem.
+    pedido = tecnologia_perguntas.pedido_do_bug(supabase, demanda)
+    if pedido:
+        try:
+            tecnologia_perguntas.exigir_sem_bug_aberto(supabase, pedido, bug_id=demanda_id)
+        except tecnologia_perguntas.PerguntaRecusadaError as recusa:
+            _recusar(str(recusa))
+    prd = tecnologia_perguntas.prd_de_origem(supabase, pedido) if pedido else None
 
     def corpo(_titulo: str) -> str:
         return corpo_da_issue_do_bug(
@@ -2251,6 +2279,8 @@ def _enviar_o_card(
             link=link_da_demanda(demanda_id),
             anexos=imagens,
             documentos=documentos,
+            prd_de_origem=prd,
+            pedido_de_origem=pedido.get("assunto") if pedido else None,
         )
 
     vinculada = _enviar(
@@ -2262,6 +2292,8 @@ def _enviar_o_card(
         labels=[*LABELS_DO_BUG, LABEL_ORIGEM_DIRETOR],
         responsavel_id=responsavel_id,
     )
+    if pedido:
+        tecnologia_perguntas.ligar_o_bug(supabase, vinculada, pedido)
     _mandar_o_email_do_card(supabase, vinculada, resumo=resumo)
     linha = planejamento_demanda.marcar_enviado(supabase, demanda_id, agora=_agora())
     return _chat_para_a_tela(supabase, demanda_id, linha or {**atual, "estado": planejamento_demanda.ESTADO_ENVIADO})

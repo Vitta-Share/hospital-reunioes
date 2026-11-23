@@ -92,6 +92,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Select } from "@/components/ui/Select";
 import { useTelaLarga } from "@/hooks/useTelaLarga";
 
+import { ABRIR_DEMANDA } from "./CartaoDoPassoAPasso";
 import { ChatDaTecnologia, Fala } from "./ChatDaTecnologia";
 import { ConversaDaDemanda } from "./ConversaDaDemanda";
 import { CabecalhoDaDemanda, DocumentoDoCard, SeloDoPlanoValidado } from "./DocumentoDoCard";
@@ -937,6 +938,8 @@ export function ConversasDaTecnologia({
   const noEndereco = useRef<string | null>(null);
   /** O endereço trouxe uma Demanda fora da lista de quem abriu (issue #1586). */
   const [semAcesso, setSemAcesso] = useState(false);
+  /** A Demanda de bug que o Achei um problema fez nascer (issue #2210): abre como a do endereço. */
+  const [pedida, setPedida] = useState<string | null>(null);
 
   // Sem resposta, a tela fica como a do diretor: o filtro só aparece com o
   // sim do servidor.
@@ -1137,14 +1140,29 @@ export function ConversasDaTecnologia({
     abrir(atual ?? (aberta ? { ...aberta, designacao_falhou: false, envio_motivo: null } : null));
   }
 
-  // A Demanda do endereço (o sino, o e-mail, o recarregar): abre se está na
-  // lista; se o filtro a esconde, a barra vai ao recorte mais largo e a lista
-  // relê; se nem lá ela está, o aviso de sem acesso.
+  // O bug que o Achei um problema do cartão fez nascer (issue #2210): a lista
+  // relê primeiro, para ele já estar nela, e daí abre como a do endereço.
   useEffect(() => {
-    if (!demandaInicial || demandaInicial === noEndereco.current || demandas === null || filtro === null) return;
-    const pedida = demandas.find((d) => d.id === demandaInicial);
-    if (pedida) {
-      abrir(pedida);
+    async function abrirOBug(evento: Event) {
+      const id = (evento as CustomEvent<string>).detail;
+      await carregar();
+      setPedida(id);
+    }
+    window.addEventListener(ABRIR_DEMANDA, abrirOBug);
+    return () => window.removeEventListener(ABRIR_DEMANDA, abrirOBug);
+  }, [carregar]);
+
+  // A Demanda do endereço (o sino, o e-mail, o recarregar) ou a do bug que
+  // acabou de nascer: abre se está na lista; se o filtro a esconde, a barra
+  // vai ao recorte mais largo e a lista relê; se nem lá ela está, o aviso de
+  // sem acesso.
+  useEffect(() => {
+    const alvo = pedida ?? demandaInicial;
+    if (!alvo || alvo === noEndereco.current || demandas === null || filtro === null) return;
+    const achada = demandas.find((d) => d.id === alvo);
+    if (achada) {
+      setPedida(null);
+      abrir(achada);
       return;
     }
     const maisLargo: Filtro = desenvolvedor ? "todas" : "minhas";
@@ -1162,14 +1180,15 @@ export function ConversasDaTecnologia({
       setDemandas(null);
       return;
     }
-    noEndereco.current = demandaInicial;
+    noEndereco.current = alvo;
+    setPedida(null);
     setSemAcesso(true);
     setAberta(null);
     setDestacada(null);
     setAmpliada(false);
     setNoPainel(false);
     setNaTela("conversa");
-  }, [demandaInicial, demandas, filtro, desenvolvedor, filtroAtivo, abrir]);
+  }, [pedida, demandaInicial, demandas, filtro, desenvolvedor, filtroAtivo, abrir]);
 
   /**
    * A lista recolhe na tela média só com o pedido ampliado (issue #1593, que

@@ -20,6 +20,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "@/components/ui/Toast";
 import { caixaDoDado } from "@/lib/testes/caixaDoDado";
 
+import { ABRIR_DEMANDA } from "./CartaoDoPassoAPasso";
 import { ABERTURA, SEM_CONVERSA_GUARDADA } from "./ChatDaTecnologia";
 import {
   AMPLIAR,
@@ -2432,5 +2433,49 @@ describe("O filtro Projeto e o selo (issue #1715, ADR 0093, decisão 8)", () => 
         "Ana",
       ]);
     });
+  });
+});
+
+describe("O Achei um problema do Pedido de implantação (issue #2210)", () => {
+  const BUG = demanda("bug-1", "O relato de teste saiu com o nome", { numero: 57 });
+  const DO_BUG = conversa("bug-1", {
+    mensagens: [
+      ABERTURA_GUARDADA,
+      { autor: "diretor", texto: "Bug", fonte: null, opcoes: [], nao_bateu: false },
+      { autor: "ia", texto: "Em qual passo deu errado?", fonte: null, opcoes: [], nao_bateu: false },
+    ],
+  });
+
+  it("a conversa do bug que nasceu no cartão abre na tela", async () => {
+    let nasceu = false;
+    montar((url, metodo) => {
+      if (url === LISTA && metodo === "GET") return { status: 200, corpo: nasceu ? [BUG, SEM_CARD] : [SEM_CARD] };
+      if (url === `${LISTA}/bug-1` && metodo === "GET") return { status: 200, corpo: DO_BUG };
+      return { status: 404, corpo: {} };
+    });
+    await within(lista()).findByText("Botão de responder some na Ouvidoria");
+
+    nasceu = true;
+    window.dispatchEvent(new CustomEvent(ABRIR_DEMANDA, { detail: "bug-1" }));
+
+    expect(await screen.findByText("Em qual passo deu errado?")).toBeTruthy();
+    expect(demandaDaUrl()).toBe("bug-1");
+  });
+
+  it("no Para mim do Desenvolvedor, que não traz o bug sem Responsável, a lista vai ao Todas e abre", async () => {
+    let nasceu = false;
+    montar((url, metodo) => {
+      if (url === "/api/admin/tecnologia/eu") return { status: 200, corpo: { desenvolvedor: true } };
+      if (url === `${LISTA}?filtro=para_mim`) return { status: 200, corpo: [SEM_CARD] };
+      if (url === `${LISTA}?filtro=todas`) return { status: 200, corpo: nasceu ? [BUG, SEM_CARD] : [SEM_CARD] };
+      if (url === `${LISTA}/bug-1` && metodo === "GET") return { status: 200, corpo: DO_BUG };
+      return { status: 404, corpo: {} };
+    });
+    await within(lista()).findByText("Botão de responder some na Ouvidoria");
+
+    nasceu = true;
+    window.dispatchEvent(new CustomEvent(ABRIR_DEMANDA, { detail: "bug-1" }));
+
+    expect(await screen.findByText("Em qual passo deu errado?")).toBeTruthy();
   });
 });
