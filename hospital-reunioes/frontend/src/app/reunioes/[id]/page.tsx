@@ -1302,7 +1302,7 @@ export default function ReuniaoDetailPage() {
           </div>
         </div>
 
-        {/* PROTÓTIPO Fireflies (ADR 0113 proposta): a versão B mora aqui, no topo. */}
+        {/* PROTÓTIPO Fireflies (ADR 0114 proposta): a versão B mora aqui, no topo. */}
         {!hideAtaSections && (
           <GravarNoFireflies posicao="topo" idReuniao={reuniao.id_reuniao} titulo={reuniao.titulo ?? "sem título"} doNucleo={!!reuniao.do_nucleo} />
         )}
@@ -1502,7 +1502,7 @@ export default function ReuniaoDetailPage() {
               </div>
             </div>
 
-            {/* PROTÓTIPO Fireflies (ADR 0113 proposta): as versões A e C moram aqui. */}
+            {/* PROTÓTIPO Fireflies (ADR 0114 proposta): as versões A e C moram aqui. */}
             {!hideAtaSections && (
               <GravarNoFireflies posicao="corpo" idReuniao={reuniao.id_reuniao} titulo={reuniao.titulo ?? "sem título"} doNucleo={!!reuniao.do_nucleo} />
             )}

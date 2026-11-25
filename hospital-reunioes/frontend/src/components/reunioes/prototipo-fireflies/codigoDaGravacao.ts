@@ -1,4 +1,4 @@
-// PROTÓTIPO, descartável (integração Fireflies, ADR 0113 proposta).
+// PROTÓTIPO, descartável (integração Fireflies, ADR 0114 proposta).
 // O Código da gravação: letra do módulo e cinco números, o último conferindo os
 // outros (dígito de Luhn). No produto ele seria sorteado e guardado no banco;
 // aqui sai de um hash do id da Reunião, só para a tela ter um código estável.

@@ -1,6 +1,6 @@
 "use client";
 
-// PROTÓTIPO, descartável (integração Fireflies, ADR 0113 proposta).
+// PROTÓTIPO, descartável (integração Fireflies, ADR 0114 proposta).
 // Três versões de como o Código da gravação aparece na Reunião agendada,
 // trocadas por `?variant=` (A, B, C). O botão "Simular" faz de conta que o
 // Fireflies terminou: nada vai ao backend, tudo fica na memória da tela.

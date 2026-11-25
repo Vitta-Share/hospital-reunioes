@@ -1324,7 +1324,7 @@ export default function CalendarioPage() {
           <p className="text-slate-500 text-sm mt-0.5">Agende e visualize reuniões presenciais</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* PROTÓTIPO Fireflies (ADR 0113 proposta): atalho para a fila, com a contagem fictícia. */}
+          {/* PROTÓTIPO Fireflies (ADR 0114 proposta): atalho para a fila, com a contagem fictícia. */}
           <Link
             href="/reunioes/transcricoes-sem-destino"
             className="etiqueta flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-sm font-medium hover:bg-amber-100 transition-all"

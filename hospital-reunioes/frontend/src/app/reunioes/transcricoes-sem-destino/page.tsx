@@ -1,6 +1,6 @@
 "use client";
 
-// PROTÓTIPO, descartável (integração Fireflies, ADR 0113 proposta).
+// PROTÓTIPO, descartável (integração Fireflies, ADR 0114 proposta).
 // A fila Transcrições sem destino em três versões, trocadas por `?variant=`
 // (A, B, C). Os dados são fictícios e ficam só na memória da tela: nada vai ao
 // backend. No produto, a fila seria uma tabela nova e as Reuniões viriam do banco.
