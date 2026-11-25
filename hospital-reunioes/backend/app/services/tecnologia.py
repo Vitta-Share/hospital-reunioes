@@ -189,17 +189,13 @@ def projetos_do_filtro(demandas: Sequence[dict[str, Any]]) -> list[dict[str, str
 
 
 def pode_ver(pessoa: dict[str, Any], demanda: dict[str, Any]) -> bool:
-    """Quem ve uma Demanda: o autor, o Desenvolvedor, que ve todas (ADR 0083),
-    e todo Super admin no card de Origem Vitta, aberto pelo terminal (ADR 0084,
-    decisao 4). A conversa de outro diretor continua fechada.
+    """Quem ve uma Demanda: todo Super admin, qualquer que seja o autor (issue
+    #2265, ADR 0113, decisao 6, que emenda a decisao 3 da ADR 0083). O login
+    do GitHub no cadastro nao entra aqui: ele so da nome ao Responsavel.
 
-    A regra e uma so, e a lista e a leitura da conversa leem daqui.
+    A regra e uma so, e toda rota de leitura da aba le daqui.
     """
-    return (
-        demanda.get("autor_id") == pessoa.get("id")
-        or e_desenvolvedor(pessoa)
-        or origem_da_demanda(demanda) == ORIGEM_VITTA
-    )
+    return is_super_admin(pessoa)
 
 
 # Ate onde a Demanda se apaga (ADR 0084, decisao 2): ate Planejada. Em
