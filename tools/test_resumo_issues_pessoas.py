@@ -30,3 +30,10 @@ def test_fluxo_do_hospital_tem_os_tres_socios_e_o_diretor():
         {"login": "lucassampaioc1", "nome": "Lucas", "papel": "socio"},
         {"login": "felipemalafaia", "nome": "Felipe", "papel": "diretor"},
     ]
+
+
+def test_resumo_mostra_felipe_lendo_o_nome_do_fluxo_json():
+    nomes = ri.nomes_do_fluxo(ri.ler_fluxo(RAIZ))
+    saida = ri.montar([issue(1, donos=["felipemalafaia"])], "Hospital", nomes)
+    assert "\nFelipe (1)\n" in saida
+    assert "felipemalafaia" not in saida
