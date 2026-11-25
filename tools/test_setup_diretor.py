@@ -51,3 +51,18 @@ def test_conferir_mostra_ok_com_a_negacao_do_merge_no_settings(tmp_path: Path) -
     linhas = conferir({"permissions": {"deny": ["Bash(git push --force:*)", *NEGA_MERGE]}}, tmp_path)
     assert len(linhas) == 1, linhas
     assert linhas[0].split()[0] == "OK", linhas
+
+
+def partes() -> dict[str, str]:
+    """As Partes do passo a passo: título (sem o número) e o texto até a próxima Parte."""
+    texto = (SKILL / "references" / "passo-a-passo.md").read_text(encoding="utf-8")
+    blocos = re.split(r"^## Parte \d+\. ", texto, flags=re.MULTILINE)[1:]
+    return {b.split("\n", 1)[0].strip(): b for b in blocos}
+
+
+@pytest.mark.parametrize("assunto", ["convite", "Arquivo de apoio", "Tarefa do diretor"])
+def test_passo_a_passo_tem_a_parte_nova_com_como_saber_que_acabou(assunto: str) -> None:
+    achadas = [t for t in partes() if assunto.lower() in t.lower()]
+    assert len(achadas) == 1, f"nenhuma Parte (ou mais de uma) sobre {assunto}: {list(partes())}"
+    (titulo,) = achadas
+    assert "**Como saber que acabou:**" in partes()[titulo], f"a Parte '{titulo}' não fecha"

@@ -4,7 +4,8 @@
 # Uma linha por item, na ordem das Partes do passo a passo: OK, FALTA (conta, exit 1)
 # ou AVISO (não conta), com o conserto ao lado. O Claude começa pela primeira FALTA.
 # Nunca imprime valor de chave. Não confere nada de produção: o diretor não tem
-# Coolify, token nem acesso de escrita, de propósito.
+# Coolify nem token, de propósito. É colaborador do repositório sem poder mergear
+# (ADR 0113): a trava do merge mora no settings.json do Claude dele.
 
 set -u
 RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
@@ -64,10 +65,6 @@ case "$upstream" in
   *"$UPSTREAM"*) ok "upstream no time" ;;
   *) falta "upstream no time" "git remote add upstream https://github.com/$UPSTREAM.git" ;;
 esac
-if [ -n "$LOGIN" ]; then
-  perm="$(gh api "repos/$UPSTREAM" --jq '.permissions.push' 2>/dev/null)"
-  [ "$perm" = "true" ] && aviso "sem escrita no time" "$LOGIN tem escrita no $UPSTREAM; o diretor trabalha sem (decisão de 24/11/2026)"
-fi
 email="$(git -C "$RAIZ" config user.email 2>/dev/null)"
 case "$email" in
   *@users.noreply.github.com) ok "git config" "$(git -C "$RAIZ" config user.name)" ;;
@@ -122,6 +119,19 @@ if [ -f "$LISTA" ]; then
       falta "plugin ${plugin%%@*}" "claude plugin install $plugin"
     fi
   done < "$LISTA"
+fi
+
+titulo "Parte 6. O convite do time"
+ARQUIVOS="pedrorezendefig/hospital-arquivos"
+if [ -n "$LOGIN" ]; then
+  for par in "colaborador do time:$UPSTREAM" "hospital-arquivos:$ARQUIVOS"; do
+    nome="${par%%:*}"; repo="${par#*:}"
+    if [ "$(gh api "repos/$repo" --jq '.permissions.push' 2>/dev/null)" = "true" ]; then
+      ok "$nome"
+    else
+      falta "$nome" "aceite o convite (Parte 6) ou peça ao Pedro: https://github.com/$repo/invitations"
+    fi
+  done
 fi
 
 printf '\n'
