@@ -1,6 +1,7 @@
 ---
-status: accepted
+status: superseded
 amends: 0077
+superseded_by: 0113
 ---
 
 # Planejamento da Demanda sem teto de perguntas, e o custo da conversa na tela

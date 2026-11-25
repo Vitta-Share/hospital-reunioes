@@ -1,7 +1,8 @@
 ---
-status: accepted
+status: superseded
 amends: 0077, 0083, 0096, 0106
 amended_by: 0110
+superseded_by: 0113
 ---
 
 # Pergunta da Vitta vira registro: cartão, lista Esperando sua resposta, Me explique e a Conversa da Demanda reformada
