@@ -11,7 +11,6 @@ import re
 import subprocess
 import sys
 
-APELIDOS = {"pedrorezendefig": "Pedro", "pedroribbe": "Rib", "lucassampaioc1": "Lucas"}
 SEM_DONO = "Sem responsável"
 RE_O_QUE_MUDA = re.compile(r"\*\*O que muda:\*\*\s*(.+)")
 LARGURA = 110
@@ -23,8 +22,19 @@ def limpo(t: str) -> str:
     return RE_CONTROLE.sub(" ", t).strip()
 
 
-def nome(login: str) -> str:
-    return APELIDOS.get(login, login)
+def ler_fluxo(raiz) -> dict:
+    """O `.claude/fluxo.json` que o instalador gera na raiz do Projeto; sem ele, vazio."""
+    try:
+        with open(f"{raiz}/.claude/fluxo.json", encoding="utf-8") as f:
+            dado = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return dado if isinstance(dado, dict) else {}
+
+
+def nomes_do_fluxo(fluxo: dict) -> dict[str, str]:
+    """Login para nome, da lista `pessoas` do fluxo.json; sem a lista, vazio (o login aparece como está)."""
+    return {p["login"]: p["nome"] for p in fluxo.get("pessoas") or [] if p.get("login") and p.get("nome")}
 
 
 def eh_prd(i: dict) -> bool:
@@ -45,12 +55,13 @@ def _titulo_prd(t: str) -> str:
     return t if len(t) <= 80 else t[:77].rstrip() + "..."
 
 
-def montar(issues: list[dict], projeto: str = "Projeto") -> str:
+def montar(issues: list[dict], projeto: str = "Projeto", nomes: dict[str, str] | None = None) -> str:
+    nomes = nomes or {}
     pais = {i["parent"]["number"] for i in issues if i.get("parent")}
     pessoas: dict[str, list[dict]] = {}
     for i in issues:
         for dono in i["assignees"] or [None]:
-            pessoas.setdefault(nome(dono) if dono else SEM_DONO, []).append(i)
+            pessoas.setdefault(nomes.get(dono, dono) if dono else SEM_DONO, []).append(i)
 
     # Pessoas com mais cards primeiro; quem não tem dono vai por último.
     ordem = sorted(pessoas, key=lambda p: (p == SEM_DONO, -len(pessoas[p]), p))
@@ -99,17 +110,15 @@ query($q: String!) {
 """
 
 
-def nome_do_projeto(repo: str) -> str:
-    """O `nome` do .claude/fluxo.json que o instalador gera; sem ele, o nome do repo."""
+def fluxo_do_repo() -> dict:
     try:
         raiz = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, check=True).stdout.strip()
-        with open(f"{raiz}/.claude/fluxo.json", encoding="utf-8") as f:
-            return json.load(f)["nome"]
-    except (OSError, subprocess.CalledProcessError, KeyError, ValueError):
-        return repo.split("/")[-1]
+    except (OSError, subprocess.CalledProcessError):
+        return {}
+    return ler_fluxo(raiz)
 
 
-def coletar() -> tuple[list[dict], str]:
+def coletar() -> tuple[list[dict], str, dict[str, str]]:
     repo = subprocess.run(
         ["gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"],
         capture_output=True, text=True, encoding="utf-8", check=True,
@@ -131,9 +140,10 @@ def coletar() -> tuple[list[dict], str]:
         }
         for n in busca["nodes"]
     ]
-    return issues, nome_do_projeto(repo)
+    fluxo = fluxo_do_repo()
+    return issues, fluxo.get("nome") or repo.split("/")[-1], nomes_do_fluxo(fluxo)
 
 
 if __name__ == "__main__":
-    issues, projeto = coletar()
-    print(montar(issues, projeto), end="")
+    issues, projeto, nomes = coletar()
+    print(montar(issues, projeto, nomes), end="")
