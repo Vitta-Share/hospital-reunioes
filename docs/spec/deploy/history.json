@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-25T20:43:54-03:00",
+      "sha": "21221a573ee7d2c32d1150bfb42b829b8582e337",
+      "app_version": "0.392.0",
+      "subject": "Onda diretor-a-onda2: Implantação do card lida dos Cards de implantação; Relatar um bug pelo robô do canto da tela",
+      "raw_subject": "chore(deploy): registro da onda diretor-a-onda2 (#2292 #2294)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        2262
+      ],
+      "result": "healthy",
+      "duration_seconds": 539,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "240_tecnologia_origem_relato.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta diretor-a-onda2: PR #2292 (issue #2266), PR #2294 (issue #2275), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 7,
+        "build_s": {
+          "backend": 20,
+          "frontend": 245
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-25T20:10:59-03:00",
       "sha": "4684dd35615d42283808e8a4b9187acae2ad0f21",
       "app_version": "0.391.0",
