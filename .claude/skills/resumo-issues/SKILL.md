@@ -34,6 +34,6 @@ Vale só para o repositório onde roda; o PedroOS instala a mesma skill em cada 
 
 - O agrupamento usa a sub-issue nativa do GitHub (`parent`). Issue que cita o PRD só no corpo, sem ser sub-issue, cai em Avulsas.
 - O cabeçalho usa o `nome` do `.claude/fluxo.json`; sem ele, o nome do repositório.
-- O nome curto vem de `APELIDOS` no script; login fora dele aparece como está.
+- O nome de cada pessoa vem da lista `pessoas` do `.claude/fluxo.json` (login, nome e papel); sem a lista, ou login fora dela, aparece o login.
 - Até 100 issues abertas (o script avisa se passar).
 - Fonte no PedroOS (`skills/fluxo/skills/resumo-issues`), testes em `tests/test_resumo_issues.py` de lá. Não edite a cópia do Projeto: o instalador sobrescreve.
