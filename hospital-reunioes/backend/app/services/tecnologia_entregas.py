@@ -16,8 +16,8 @@ from datetime import date, datetime, timedelta
 from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
-from app.services.chat_tecnologia import CLASSIFICACAO_DO_TIPO
 from app.services.tecnologia import (
+    CLASSIFICACAO_DO_TIPO,
     ORIGEM_DIRETOR,
     entregue_na_data,
     instante_do_banco,

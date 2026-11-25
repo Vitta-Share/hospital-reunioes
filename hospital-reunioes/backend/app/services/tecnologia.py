@@ -50,6 +50,13 @@ ORIGEM_VITTA = "vitta"
 ORIGEM_RELATO = "relato"
 ORIGENS: tuple[str, ...] = (ORIGEM_DIRETOR, ORIGEM_VITTA, ORIGEM_RELATO)
 
+# A classificacao da tela e o Tipo do banco: bug e Defeito, melhoria e Novo.
+# O caminho de volta da o selo da lista (issue #1438): o Tipo que nao veio do
+# chat (os de antes dele) nao e bug nem melhoria, e fica sem selo. Moravam no
+# `chat_tecnologia`, que saiu com o chat da aba (issue #2279).
+TIPO_DA_CLASSIFICACAO: dict[str, str] = {"bug": "defeito", "melhoria": "novo"}
+CLASSIFICACAO_DO_TIPO: dict[str, str] = {tipo: c for c, tipo in TIPO_DA_CLASSIFICACAO.items()}
+
 # O nome que a issue do bug leva quando a Demanda nao tem Produto.
 SEM_PRODUTO = "(sem Produto)"
 
