@@ -38,6 +38,16 @@ Desde 24/11/2026 o diretor também abre o card pelo Claude dele (skill `/setup-d
 
 Descreve de onde a issue veio, não o estado dela: convive com as labels de triagem e de tipo, e ninguém a tira na curadoria.
 
+## Label do PR do diretor (ADR 0113)
+
+| Label | Significado |
+| --- | --- |
+| `assumido` | Um Desenvolvedor assumiu o PR rascunho que o diretor abriu: continua na mesma branch do fork, completa com teste e leva pela subida. Sem ela, o PR do diretor não mergeia |
+
+O diretor é colaborador para receber e fechar card, sem poder mergear (ADR 0113, decisão 2). A Action `.github/workflows/pr-do-diretor.yml` reprova o check `PR do diretor assumido` em todo PR aberto por um login de `DIRETOR_LOGINS` enquanto o PR não tem `assumido`, e roda de novo quando a label entra ou sai e a cada push. PR de sócio passa direto. Quem põe a label é o Desenvolvedor que assume, à mão; nenhuma skill a põe sozinha. O check só segura o merge depois de entrar como obrigatório no ruleset da `main`.
+
+Desde a mesma ADR, a `card-do-diretor.yml` respeita o dono que o diretor escolheu ao abrir o card: só designa o dono do repositório quando a issue nasce sem ninguém. A `dono-do-card.yml` deixa o card do diretor com ela.
+
 ## Label de implantação (ADR 0111)
 
 | Label | Significado |

@@ -5,9 +5,12 @@
 # (repo de conta pessoal não tem papel Triage; todo colaborador é Write). Sem acesso,
 # ele não consegue pôr label nem dono. Esta Action faz isso por ele: quando a issue
 # abre por um login da variável DIRETOR_LOGINS (lista separada por vírgula), põe
-# needs-triage + origem:diretor e designa o dono do repositório, que faz o grill
-# técnico (/grill-with-docs #N). A dono-do-card.yml ignora autor de fora, então as
-# duas não brigam.
+# needs-triage + origem:diretor e, se a issue nasceu sem dono, designa o dono do
+# repositório, que faz o grill técnico (/grill-with-docs #N).
+#
+# Desde a ADR 0113 (decisão 2) o diretor é colaborador e pode abrir o card já no nome
+# de quem vai desenvolver: a Action relê os assignees e mantém esse dono. A
+# dono-do-card.yml pula o login do diretor, então as duas não brigam.
 #
 # Só lê login e número do evento; título e corpo da issue nunca entram em comando.
 name: Card do diretor
@@ -43,5 +46,10 @@ jobs:
             await github.rest.issues.addLabels({
               owner, repo, issue_number, labels: ['needs-triage', 'origem:diretor'],
             });
+            const { data: atual } = await github.rest.issues.get({ owner, repo, issue_number });
+            if (atual.assignees.length > 0) {
+              core.info(`#${issue_number}: card do diretor, já tem dono: ${atual.assignees.map((a) => a.login).join(', ')}`);
+              return;
+            }
             await github.rest.issues.addAssignees({ owner, repo, issue_number, assignees: [owner] });
             core.info(`#${issue_number}: card do diretor, needs-triage + origem:diretor, dono ${owner}`);

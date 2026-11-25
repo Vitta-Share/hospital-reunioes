@@ -34,12 +34,19 @@ def passo() -> dict:
     return unico
 
 
-def rodar_action(autor: str, diretor_logins: str, tipo: str = "User") -> list[dict]:
-    """Roda o script da Action e devolve as chamadas que ele fez à API."""
+def rodar_action(
+    autor: str, diretor_logins: str, tipo: str = "User", donos: tuple[str, ...] = ()
+) -> list[dict]:
+    """Roda o script da Action e devolve as chamadas de escrita que ele fez à API.
+
+    `donos` é quem já está designado na issue quando a Action relê o card.
+    """
     script = passo()["with"]["script"]
+    atuais = [{"login": d} for d in donos]
     harness = f"""
 const chamadas = [];
 const github = {{ rest: {{ issues: {{
+  get: async () => ({{ data: {{ assignees: {json.dumps(atuais)} }} }}),
   addLabels: async (a) => chamadas.push({{ fn: 'addLabels', ...a }}),
   addAssignees: async (a) => chamadas.push({{ fn: 'addAssignees', ...a }}),
 }} }} }};
@@ -105,6 +112,14 @@ def test_card_do_diretor_ganha_as_labels_e_o_dono() -> None:
 
 
 @precisa_node
+def test_card_do_diretor_com_dono_mantem_o_dono() -> None:
+    """O diretor é colaborador e pode pôr o card no nome de quem vai desenvolver."""
+    chamadas = rodar_action("felipe-hsm", "felipe-hsm", donos=("lucassampaioc1",))
+    assert [c["fn"] for c in chamadas] == ["addLabels"]
+    assert chamadas[0]["labels"] == ["needs-triage", "origem:diretor"]
+
+
+@precisa_node
 def test_card_de_quem_nao_e_diretor_fica_como_esta() -> None:
     assert rodar_action("lucassampaioc1", "felipe-hsm") == []
 
@@ -167,3 +182,43 @@ def test_mensagens_ao_pedro_sem_travessao() -> None:
 def test_ask_pedro_roteia_a_skill() -> None:
     ask = (RAIZ / ".claude" / "skills" / "ask-pedro" / "SKILL.md").read_text(encoding="utf-8")
     assert "`/setup-diretor`" in ask
+
+
+DONO_DO_CARD = RAIZ / ".github" / "workflows" / "dono-do-card.yml"
+
+
+def rodar_dono_do_card(autor: str, diretor_logins: str) -> list[dict]:
+    """Roda o script da dono-do-card.yml numa issue sem dono e devolve as escritas."""
+    (job,) = yaml.safe_load(DONO_DO_CARD.read_text(encoding="utf-8"))["jobs"].values()
+    (unico,) = job["steps"]
+    assert unico["env"]["DIRETOR_LOGINS"] == "${{ vars.DIRETOR_LOGINS }}"
+    harness = f"""
+const chamadas = [];
+const github = {{ rest: {{ issues: {{
+  get: async () => ({{ data: {{ assignees: [] }} }}),
+  addAssignees: async (a) => chamadas.push({{ fn: 'addAssignees', ...a }}),
+}} }} }};
+const context = {{
+  repo: {{ owner: 'pedrorezendefig', repo: 'hospital-reunioes' }},
+  payload: {{ issue: {{ number: 42, user: {{ login: {json.dumps(autor)} }} }} }},
+}};
+const core = {{ info: () => {{}} }};
+process.env.DIRETOR_LOGINS = {json.dumps(diretor_logins)};
+(async () => {{
+{unico["with"]["script"]}
+}})().then(() => console.log(JSON.stringify(chamadas)));
+"""
+    saida = subprocess.run(["node", "-e", harness], capture_output=True, text=True, check=True)
+    return json.loads(saida.stdout)
+
+
+@precisa_node
+def test_dono_do_card_deixa_o_card_do_diretor_com_a_action_dele() -> None:
+    """Colaborador, o diretor passaria no filtro da dono-do-card e viraria dono do próprio card."""
+    assert rodar_dono_do_card("Felipe-HSM", "outro, felipe-hsm") == []
+
+
+@precisa_node
+def test_dono_do_card_segue_designando_o_socio_autor() -> None:
+    chamadas = rodar_dono_do_card("lucassampaioc1", "felipe-hsm")
+    assert [c["assignees"] for c in chamadas] == [["lucassampaioc1"]]
