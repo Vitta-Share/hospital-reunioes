@@ -711,57 +711,6 @@ def cartoes_da_demanda(
     }
 
 
-# A situacao de cada Pedido de implantacao na secao Implantacao do Documento
-# do card (issue #2209, ADR 0111, decisao 5). `esperando` e o Pedido que
-# espera outro ou a Demanda de bug (decisoes 8 e 9), que chegam pelas issues
-# #2208 e #2210: ate la, a `espera` sai nula.
-SITUACAO_FEITO = "feito"
-SITUACAO_ABERTO = "aberto"
-
-# O cliente do PostgREST poe o `in_` na querystring (cerca de 38 bytes por
-# UUID): algumas centenas de ids estouram o header do proxy, e a lista do chat
-# manda todas as Demandas. Mesmo teto de `contas_medicas/painel.py`.
-LOTE_DE_IDS = 100
-
-
-def implantacao_das_demandas(supabase, demanda_ids: list[str]) -> dict[str, dict[str, Any]]:
-    """A Implantacao de cada Demanda que tem Pedido de implantacao, numa
-    leitura so: os feitos, o total e cada Pedido (o titulo, o Destinatario, a
-    situacao e a espera), na ordem em que nasceram. O cancelado nao conta. A
-    Demanda sem Pedido de implantacao fica fora do dicionario."""
-    if not demanda_ids:
-        return {}
-    linhas: list[dict[str, Any]] = []
-    for inicio in range(0, len(demanda_ids), LOTE_DE_IDS):
-        linhas += (
-            supabase.table(TABELA_PERGUNTAS)
-            .select("id, demanda_id, assunto, destinatario_id, estado, criado_em")
-            .eq("tipo", TIPO_IMPLANTACAO)
-            .in_("demanda_id", demanda_ids[inicio : inicio + LOTE_DE_IDS])
-            .order("criado_em")
-            .execute()
-            .data
-            or []
-        )
-    vivos = [p for p in linhas if p.get("estado") != ESTADO_CANCELADA]
-    nomes = _nomes(supabase, {str(p.get("destinatario_id") or "") for p in vivos})
-    por_demanda: dict[str, dict[str, Any]] = {}
-    for p in vivos:
-        feito = p.get("estado") == ESTADO_CONCLUIDA
-        implantacao = por_demanda.setdefault(str(p["demanda_id"]), {"feitos": 0, "total": 0, "pedidos": []})
-        implantacao["total"] += 1
-        implantacao["feitos"] += int(feito)
-        implantacao["pedidos"].append(
-            {
-                "titulo": p.get("assunto") or "",
-                "destinatario": nomes.get(str(p.get("destinatario_id"))),
-                "situacao": SITUACAO_FEITO if feito else SITUACAO_ABERTO,
-                "espera": None,
-            }
-        )
-    return por_demanda
-
-
 def _participantes(supabase, ids: set[str]) -> dict[str, dict[str, Any]]:
     """O cadastro de cada id, com o que diz se a pessoa e Desenvolvedor."""
     ids = {i for i in ids if i}

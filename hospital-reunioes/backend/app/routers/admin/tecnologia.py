@@ -197,6 +197,7 @@ from app.services.tecnologia_vinculo import (
     ajuste_aberto_da_foto,
     corpo_da_issue_do_bug,
     corpo_do_prd_do_diretor,
+    implantacao_da_foto,
     labels_da_issue_nova,
     link_da_demanda,
     login_para_publicar,
@@ -249,7 +250,7 @@ def _para_a_lista(supabase: Client, demandas: list[dict], *, ator: dict) -> list
         ids |= {d.get("autor_id") for d in demandas}
     nomes = _nomes(supabase, ids)
     conversas = _conversas_dos_cards(supabase, demandas)
-    implantacoes = tecnologia_perguntas.implantacao_das_demandas(supabase, [str(d["id"]) for d in demandas])
+    implantacoes = _implantacoes(supabase, demandas)
     return [
         {
             **d,
@@ -276,12 +277,43 @@ def _para_a_lista(supabase: Client, demandas: list[dict], *, ator: dict) -> list
             "projeto": projeto_da_demanda(d),
             "projeto_nome": nome_do_projeto(d),
             **_revisao_na_lista(ator, d, conversas.get(str(d["id"]))),
-            # A secao Implantacao e o selo do Quadro (issue #2209, ADR 0111,
-            # decisao 5); nula na Demanda sem Pedido de implantacao.
+            # A secao Implantacao e o selo do Quadro, lidos dos Cards de
+            # implantacao (issue #2266, ADR 0113, decisao 9); nula sem nenhum.
             "implantacao": implantacoes.get(str(d["id"])),
         }
         for d in demandas
     ]
+
+
+def _implantacoes(supabase: Client, demandas: list[dict]) -> dict[str, dict]:
+    """A Implantacao de cada Demanda, lida da foto que a sincronizacao guardou
+    (issue #2266, ADR 0113, decisao 9), com o nome de quem tem cada card no
+    lugar do login quando ele e usuario do app. A Demanda sem Card de
+    implantacao fica fora do dicionario."""
+    por_demanda = {}
+    for d in demandas:
+        foto = d.get("github_foto") if isinstance(d.get("github_foto"), dict) else None
+        implantacao = implantacao_da_foto(foto)
+        if implantacao is not None:
+            por_demanda[str(d["id"])] = implantacao
+    logins = sorted(
+        {
+            normalizar_github_login(p["destinatario"])
+            for i in por_demanda.values()
+            for p in i["pedidos"]
+            if normalizar_github_login(p["destinatario"])
+        }
+    )
+    if not logins:
+        return por_demanda
+    result = selecionar_participantes(supabase, "github_login, nome_completo", lambda q: q.in_("github_login", logins))
+    nomes = {p.get("github_login"): p.get("nome_completo") for p in (result.data or []) if p.get("nome_completo")}
+    for implantacao in por_demanda.values():
+        for pedido in implantacao["pedidos"]:
+            pedido["destinatario"] = (
+                nomes.get(normalizar_github_login(pedido["destinatario"])) or pedido["destinatario"]
+            )
+    return por_demanda
 
 
 def _conversas_dos_cards(supabase: Client, demandas: list[dict]) -> dict[str, dict]:

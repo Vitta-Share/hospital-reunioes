@@ -112,14 +112,59 @@ def _entregue(no: dict[str, Any] | None) -> bool:
 FATO_AJUSTE_DO_PLANO = "ajuste_do_plano"
 
 
+# A label do Card de implantacao (ADR 0113, decisao 9): a sub-issue da raiz
+# com o que o hospital faz depois que a entrega sobe. Nao e parte da entrega.
+LABEL_IMPLANTACAO = "implantacao"
+
+# A chave do dono do Card de implantacao na foto, a mesma do dono da raiz
+# (`github_client.FATO_ASSIGNEE`, issue #1534).
+FATO_DONO = "assignee"
+
+SITUACAO_DA_IMPLANTACAO_FEITO = "feito"
+SITUACAO_DA_IMPLANTACAO_ABERTO = "aberto"
+
+
 def _todas_as_sub_issues(foto: dict[str, Any] | None) -> list[dict[str, Any]]:
     return list((foto or {}).get("partes") or [])
 
 
+def e_card_de_implantacao(no: dict[str, Any] | None) -> bool:
+    """Se esta sub-issue e um Card de implantacao (issue #2266)."""
+    return LABEL_IMPLANTACAO in _labels(no)
+
+
 def _partes(foto: dict[str, Any] | None) -> list[dict[str, Any]]:
     """As partes da entrega: as sub-issues da raiz menos o Ajuste do plano
-    (issue #1915), que nao conta para a Etapa, as Ondas nem as partes entregues."""
-    return [p for p in _todas_as_sub_issues(foto) if not (isinstance(p, dict) and p.get(FATO_AJUSTE_DO_PLANO))]
+    (issue #1915) e os Cards de implantacao (issue #2266), que nao contam para
+    a Etapa, as Ondas nem as partes entregues."""
+    return [
+        p
+        for p in _todas_as_sub_issues(foto)
+        if not (isinstance(p, dict) and (p.get(FATO_AJUSTE_DO_PLANO) or e_card_de_implantacao(p)))
+    ]
+
+
+def implantacao_da_foto(foto: dict[str, Any] | None) -> dict[str, Any] | None:
+    """A Implantacao da Demanda lida dos Cards de implantacao (issue #2266, ADR
+    0113, decisao 9): os fechados sobre o total e cada card, com o titulo, o
+    login do dono (quem chama troca pelo nome) e a situacao. `None` sem Card
+    de implantacao nenhum: a secao nao aparece."""
+    cards = [p for p in _todas_as_sub_issues(foto) if isinstance(p, dict) and e_card_de_implantacao(p)]
+    if not cards:
+        return None
+    return {
+        "feitos": sum(1 for c in cards if _fechada(c)),
+        "total": len(cards),
+        "pedidos": [
+            {
+                "titulo": str(c.get("titulo") or ""),
+                "destinatario": c.get(FATO_DONO) or None,
+                "situacao": SITUACAO_DA_IMPLANTACAO_FEITO if _fechada(c) else SITUACAO_DA_IMPLANTACAO_ABERTO,
+                "espera": None,
+            }
+            for c in cards
+        ],
+    }
 
 
 def ajuste_aberto_da_foto(foto: dict[str, Any] | None) -> dict[str, Any] | None:
