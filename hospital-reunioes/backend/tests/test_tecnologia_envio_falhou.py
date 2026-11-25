@@ -220,13 +220,15 @@ class TestReenviar:
         assert _reenviar(client, demanda_id).status_code == 409
         assert gh.criadas == []
 
-    def test_quem_nao_ve_a_demanda_nao_reenvia(self, monkeypatch):
+    def test_quem_nao_e_super_admin_nao_reenvia(self, monkeypatch):
+        """Desde a issue #2265 (ADR 0113, decisao 6) todo Super admin ve a
+        Demanda: quem fica de fora e quem nao e Super admin."""
         _, sb, gh, demanda_id = _demanda_com_envio_falhou(monkeypatch)
-        outro_diretor = _pessoa("P3", "Outro Diretor")
+        gestor = _pessoa("P9", "Gestora do Setor", access_profile="facilitador")
 
-        resposta = _reenviar(_como(outro_diretor, sb, gh, monkeypatch), demanda_id)
+        resposta = _reenviar(_como(gestor, sb, gh, monkeypatch), demanda_id)
 
-        assert resposta.status_code == 404
+        assert resposta.status_code == 403
         assert gh.criadas == []
 
 

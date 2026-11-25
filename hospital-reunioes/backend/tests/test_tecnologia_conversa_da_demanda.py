@@ -107,9 +107,9 @@ class TestQuemEscreveELe:
                 ("Pedro Vitta", "Vi aqui, olho amanhã cedo."),
             ]
 
-    def test_outro_super_admin_le_a_conversa_mas_nao_escreve_nela(self, monkeypatch):
-        """A leitura e de todo Super admin desde a issue #2265 (ADR 0113,
-        decisao 6); a escrita continua do autor e do Desenvolvedor."""
+    def test_outro_super_admin_le_e_escreve_na_conversa(self, monkeypatch):
+        """Desde a issue #2265 (ADR 0113, decisao 6) todo Super admin ve a
+        Demanda, e quem ve le e escreve na Conversa."""
         diretor, sb = _cenario(monkeypatch, logado=DIRETOR)
         diretor.post(CONVERSA, json={"texto": "Só entre nós."})
         outro, _ = _cenario(monkeypatch, logado=OUTRO_DIRETOR, sb=sb)
@@ -119,8 +119,11 @@ class TestQuemEscreveELe:
 
         assert leitura.status_code == 200, leitura.text
         assert "Só entre nós." in leitura.text
-        assert escrita.status_code == 404
-        assert [m["texto"] for m in sb.tabelas["tecnologia_conversa_da_demanda"]] == ["Só entre nós."]
+        assert escrita.status_code == 201, escrita.text
+        assert [m["texto"] for m in sb.tabelas["tecnologia_conversa_da_demanda"]] == [
+            "Só entre nós.",
+            "Entrei pelo endereço.",
+        ]
 
 
 # ═══════════════════════════════════════════════════════════════════════════

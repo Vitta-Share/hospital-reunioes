@@ -40,6 +40,7 @@ from test_tecnologia_webhook_github import _demandas as _demandas_do_webhook  # 
 
 from app.config import settings  # noqa: E402
 from app.limiter import limiter  # noqa: E402
+from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
 
 # Outra pessoa da diretoria: Super admin, sem login do GitHub.
 OUTRO_DIRETOR = _pessoa("P3", "Outro Diretor")
@@ -188,3 +189,22 @@ class TestAListaDoDiretor:
         )
 
         assert [d["id"] for d in client.get(CHAT).json()] == ["d-pedro", "d-diretor"]
+
+
+class TestKit:
+    def test_o_texto_do_produto_tecnologia_no_kit_diz_o_comportamento_novo(self):
+        """O Assistente fala pela lingua do Kit: sem a regra nova escrita, ele
+        diria que outra pessoa da diretoria nao ve os seus pedidos."""
+        texto = (CONHECIMENTO_DIR / "tecnologia.md").read_text(encoding="utf-8")
+        quem_ve = texto.split("## Quem vê", 1)[1].split("\n## ", 1)[0]
+        decidido = texto.split("## O que já foi decidido", 1)[1]
+
+        for trecho in (
+            "Todo administrador do aplicativo vê todas as Demandas",
+            "com ou sem login do GitHub",
+            "o número e o link do card e o número de cada parte",
+            "só serve para dar nome ao **Responsável**",
+            "inclusive você",
+        ):
+            assert trecho in quem_ve, trecho
+        assert "Todo administrador do aplicativo vê todas as Demandas" in decidido

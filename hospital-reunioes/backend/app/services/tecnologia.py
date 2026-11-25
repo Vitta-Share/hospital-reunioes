@@ -198,20 +198,6 @@ def pode_ver(pessoa: dict[str, Any], demanda: dict[str, Any]) -> bool:
     return is_super_admin(pessoa)
 
 
-def pode_agir(pessoa: dict[str, Any], demanda: dict[str, Any]) -> bool:
-    """Quem age numa Demanda pelas rotas que escrevem (a conversa, o modelo, o
-    Reenviar, o Me explique): o autor, o Desenvolvedor e todo Super admin no
-    card de Origem Vitta (ADR 0083; ADR 0084, decisao 4). E a regra de antes
-    da issue #2265, que so abriu a leitura: essas rotas saem do app pela
-    decisao 7 da ADR 0113, e ate la ninguem ganha escrita nova.
-    """
-    return (
-        demanda.get("autor_id") == pessoa.get("id")
-        or e_desenvolvedor(pessoa)
-        or origem_da_demanda(demanda) == ORIGEM_VITTA
-    )
-
-
 # Ate onde a Demanda se apaga (ADR 0084, decisao 2): ate Planejada. Em
 # desenvolvimento ja existe PR aberto, e dali em diante o app recusa. Nao sera
 # feita tambem se apaga (issue #1637): ninguem vai fazer o pedido, e sem isto o

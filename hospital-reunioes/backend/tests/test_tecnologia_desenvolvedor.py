@@ -271,5 +271,5 @@ class TestKit:
         texto = (CONHECIMENTO_DIR / "tecnologia.md").read_text(encoding="utf-8")
 
         secao = texto.split("## Quem vê", 1)[1].split("\n## ", 1)[0]
-        for trecho in ("Desenvolvedor", "login do GitHub", "Demandas de todos", "as próprias conversas", "Todas"):
+        for trecho in ("Desenvolvedor", "login do GitHub", "todas as Demandas", "prints e os documentos", "Todas"):
             assert trecho in secao, trecho
