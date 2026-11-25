@@ -23,6 +23,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import test_tecnologia_webhook_github as webhook  # noqa: E402
 from test_kit_conhecimento import ARQUIVO_DA_ABA  # noqa: E402
 from test_kit_conhecimento import _texto as _texto_do_kit  # noqa: E402
 from test_tecnologia_pergunta_da_vitta import (  # noqa: E402, F401
@@ -33,8 +34,15 @@ from test_tecnologia_pergunta_da_vitta import (  # noqa: E402, F401
     _zera_o_limitador,
     chave_configurada,
 )
+from test_tecnologia_webhook_github import (  # noqa: E402, F401
+    _pr_do_app,
+    _segredo_configurado,
+    _sem_github_de_verdade,
+    _sem_pr_aberto,
+)
 
-from app.services import github_client  # noqa: E402
+from app.services import github_client, tecnologia_sincronizacao  # noqa: E402
+from app.services.tecnologia_vinculo import ETAPA_EM_DESENVOLVIMENTO, implantacao_da_foto  # noqa: E402
 
 LISTA = "/api/admin/tecnologia/chat"
 
@@ -104,3 +112,101 @@ class TestALeituraDaDemanda:
                 {"titulo": ABERTURA, "destinatario": "fulano-de-fora", "situacao": "aberto", "espera": None},
             ],
         }
+
+    def test_raiz_sem_card_de_implantacao_vem_sem_a_secao(self, monkeypatch):
+        """A Parte comum, mesmo com uma label qualquer, não vira Implantação."""
+        foto = github_client.montar_foto(_raiz(), [_fatia(), _issue(1802, "Outra fatia", labels=("in-progress",))])
+
+        demanda = _na_lista(foto, monkeypatch)
+
+        assert demanda["implantacao"] is None
+
+
+def _fechou_o_card(numero: int, *, raiz: int = RAIZ, labels=("implantacao",)) -> bytes:
+    """O `issues.closed` do Card de implantação, como o GitHub manda: a
+    sub-issue traz o endereço da raiz em `parent_issue_url`."""
+    payload = {
+        "action": "closed",
+        "issue": {
+            "number": numero,
+            "state": "closed",
+            "labels": [{"name": nome} for nome in labels],
+            "parent_issue_url": f"https://api.github.com/repos/{webhook.REPO}/issues/{raiz}",
+        },
+        "repository": {"full_name": webhook.REPO},
+    }
+    return json.dumps(payload).encode("utf-8")
+
+
+class TestPeloWebhook:
+    def test_fechar_o_segundo_card_atualiza_a_raiz_para_2_de_2(self, monkeypatch):
+        antes = webhook._GithubFalso(
+            {RAIZ: _raiz()},
+            sub_issues={RAIZ: [_fatia(), _card(1854, TESTE, estado="closed"), _card(1855, ABERTURA)]},
+        )
+        demanda = webhook._ja_sincronizada(antes, RAIZ)
+        assert implantacao_da_foto(demanda["github_foto"])["feitos"] == 1
+        depois = webhook._GithubFalso(
+            {RAIZ: _raiz()},
+            sub_issues={RAIZ: [_fatia(), _card(1854, TESTE, estado="closed"), _card(1855, ABERTURA, estado="closed")]},
+        )
+        cliente, sb, _ = webhook._montar(demandas=[demanda], github=depois, monkeypatch=monkeypatch)
+
+        resposta = webhook._entregar(cliente, _fechou_o_card(1855))
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["sincronizada"] is True
+        foto = webhook._demandas(sb)[0]["github_foto"]
+        na_lista = _na_lista(foto, monkeypatch)
+        assert (na_lista["implantacao"]["feitos"], na_lista["implantacao"]["total"]) == (2, 2)
+
+    def test_a_parte_comum_continua_sem_ressincronizar_a_raiz(self, monkeypatch):
+        """Só o Card de implantação puxa a raiz: o evento de uma Parte segue
+        como antes, sem ler o GitHub."""
+        gh = webhook._GithubFalso({RAIZ: _raiz()})
+        cliente, _, _ = webhook._montar(
+            demandas=[webhook._ja_sincronizada(gh, RAIZ)], github=gh, monkeypatch=monkeypatch
+        )
+
+        resposta = webhook._entregar(cliente, _fechou_o_card(1801, labels=()))
+
+        assert resposta.status_code == 200, resposta.text
+        assert gh.leituras == []
+
+
+class TestNaoEParte:
+    def test_o_card_de_implantacao_nao_entra_no_x_de_y_partes_entregues(self):
+        """O resumo do GitHub conta toda sub-issue, o Card de implantação
+        inclusive: com ele na raiz, a conta própria manda."""
+        raiz = {**_raiz(), "sub_issues_summary": {"total": 3, "completed": 2}}
+        foto = github_client.montar_foto(raiz, [_fatia(), _card(1854, TESTE, estado="closed"), _card(1855, ABERTURA)])
+
+        mudanca = tecnologia_sincronizacao.mudanca_da_foto(foto)
+
+        assert (mudanca["partes_entregues"], mudanca["partes_total"]) == (1, 1)
+        assert [p["numero"] for p in mudanca["partes"]] == [1801]
+        # A raiz aberta com a única Parte entregue e o Card aberto: em
+        # desenvolvimento pela Parte, e não planejada pelo Card.
+        assert mudanca["etapa"] == ETAPA_EM_DESENVOLVIMENTO
+
+
+class TestKit:
+    """O texto do Produto Tecnologia é o que o Assistente lê para responder
+    ao diretor: ele diz o comportamento novo."""
+
+    @pytest.fixture
+    def texto(self) -> str:
+        return _texto_do_kit(ARQUIVO_DA_ABA)
+
+    @pytest.mark.parametrize(
+        "frase",
+        [
+            "card de implantação no seu nome no GitHub",
+            "Implantação 1 de 3",
+            "Cada card de implantação fechado conta como feito",
+            "não conta como parte da entrega",
+            "a entrega fica Em produção mesmo com a implantação por fazer",
+        ],
+    )
+    def test_o_kit_diz_que_a_implantacao_sai_dos_cards_de_implantacao(self, texto, frase):
+        assert frase in texto
