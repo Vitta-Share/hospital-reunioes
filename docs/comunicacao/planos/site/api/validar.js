@@ -1,47 +1,21 @@
 // Botão Validar da Apresentação do PRD: confere o código do link e grava no PRD do GitHub
-// a label validado:diretor e um comentário com a data e o resumo da observação do diretor.
+// a label validado:diretor e um comentário com a data e a observação do diretor.
 // Com observação, abre antes o Ajuste do plano: uma sub-issue ready-for-human do Pedro que
 // bloqueia as Fatias iniciais até ele rever o plano (CONTEXT.md do PedroOS).
-// A observação nunca vai literal para o GitHub (ADR 0108, decisão 5): o texto vai ao app, que
-// guarda o original junto da Demanda do PRD e devolve os tópicos interpretados.
+// Grava só no GitHub (ADR 0113, decisão 10): a observação vai como o diretor escreveu, porque
+// ele já escreve no GitHub. Nada passa pelo app.
 const crypto = require('crypto');
 
 const REPO = 'pedrorezendefig/hospital-reunioes';
 const LABEL = 'validado:diretor';
 const DONO = 'pedrorezendefig';
-const APP = 'https://api.hospitalsaomatheus.cloud/api/automacao/tecnologia/validacoes';
-const GUARDADA = 'Observação guardada fora do GitHub; leia no app.';
-const RECEBIDA = 'Observação recebida; leia no e-mail de aviso.';
 
 // Sem menção a ninguém pelo texto que vai ao GitHub: o @ ganha um espaço invisível.
 const semMencao = (t) => t.replace(/@/g, '@​');
 
-// Manda a observação ao app (chave APP_API_KEY). Devolve { guardada, topicos } e nunca lança:
-// app fora do ar, erro ou variável faltando viram { guardada: false, topicos: [] }.
-async function observacaoNoApp(prd, obs) {
-  if (!process.env.APP_API_KEY) return { guardada: false, topicos: [] };
-  try {
-    const r = await fetch(APP, {
-      method: 'POST',
-      headers: { 'X-API-Key': process.env.APP_API_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prd, observacao: obs }),
-      signal: AbortSignal.timeout(25000),
-    });
-    if (!r.ok) return { guardada: false, topicos: [] };
-    const j = await r.json();
-    const topicos = (Array.isArray(j.topicos) ? j.topicos : [])
-      .map((t) => semMencao(String(t).replace(/\s+/g, ' ').trim()))
-      .filter(Boolean);
-    return { guardada: j.guardada === true, topicos };
-  } catch (e) {
-    return { guardada: false, topicos: [] };
-  }
-}
-
-// A citação do comentário (o formato que o aviso do PedroOS e a página leem): um tópico por linha.
-function citacao(resumo) {
-  const linhas = resumo.topicos.length ? resumo.topicos : [resumo.guardada ? GUARDADA : RECEBIDA];
-  return linhas.map((l) => '> ' + l).join('\n');
+// A citação da observação (o formato que o aviso do PedroOS e a página leem): cada linha com "> ".
+function citacao(obs) {
+  return semMencao(obs).split(/\r?\n/).map((l) => '> ' + l.trimEnd()).join('\n');
 }
 
 function codigoDe(prd) {
@@ -77,12 +51,10 @@ async function fatiasIniciais(prd) {
   return { iniciais: livres.filter((_, k) => !presas[k]).map((i) => i.number), emAndamento };
 }
 
-// O corpo leva só os tópicos que o app interpretou; sem eles, o aviso de onde ler a observação.
-function corpoDoAjuste(prd, resumo, iniciais, emAndamento, data, hora) {
+// O corpo leva a observação do diretor como ele escreveu.
+function corpoDoAjuste(prd, obs, iniciais, emAndamento, data, hora) {
   const lista = (ns) => ns.map((n) => '- #' + n).join('\n');
-  const observacao = resumo.topicos.length
-    ? '## O que o diretor quer mudar\n\n' + resumo.topicos.map((t) => '- ' + t).join('\n') + '\n\n'
-    : '## Observação do diretor\n\n' + (resumo.guardada ? GUARDADA : RECEBIDA) + '\n\n';
+  const observacao = '## O que o diretor quer mudar\n\n' + citacao(obs) + '\n\n';
   return (
     '<!-- ajuste-do-plano: ' + prd + ' -->\n' +
     '## O que é este card\n\n' +
@@ -107,11 +79,11 @@ function corpoDoAjuste(prd, resumo, iniciais, emAndamento, data, hora) {
   );
 }
 
-async function abrirAjuste(prd, resumo, data, hora) {
+async function abrirAjuste(prd, obs, data, hora) {
   const { iniciais, emAndamento } = await fatiasIniciais(prd);
   const rc = await gh('/issues', 'POST', {
     title: 'Ajuste do plano: observação do diretor no PRD #' + prd,
-    body: corpoDoAjuste(prd, resumo, iniciais, emAndamento, data, hora),
+    body: corpoDoAjuste(prd, obs, iniciais, emAndamento, data, hora),
     labels: ['ready-for-human'],
     assignees: [DONO],
   });
@@ -147,19 +119,15 @@ module.exports = async (req, res) => {
   const data = agora.toLocaleDateString('pt-BR', fuso);
   const hora = agora.toLocaleTimeString('pt-BR', { ...fuso, hour: '2-digit', minute: '2-digit' });
 
-  // O texto do diretor só vai ao app; o GitHub recebe o resumo dele.
   const obs = String(corpo.observacao || '').slice(0, 2000).trim();
   const rl = await gh('/issues/' + prd + '/labels', 'POST', { labels: [LABEL] });
   if (!rl.ok) return res.status(502).json({ ok: false, erro: 'Não deu para gravar a validação.' });
 
-  // O app falhar não desfaz a validação: o resumo diz onde ler a observação.
-  const resumo = obs ? await observacaoNoApp(prd, obs) : null;
-
   // O Ajuste falhar não desfaz a validação: o comentário avisa para abrir à mão.
   let ajuste = '';
-  if (resumo) {
+  if (obs) {
     try {
-      ajuste = '\n\nAbri o Ajuste do plano #' + (await abrirAjuste(prd, resumo, data, hora)) + ', que segura as fatias iniciais até a observação ser revista.';
+      ajuste = '\n\nAbri o Ajuste do plano #' + (await abrirAjuste(prd, obs, data, hora)) + ', que segura as fatias iniciais até a observação ser revista.';
     } catch (e) {
       ajuste = '\n\nNão deu para abrir o Ajuste do plano (' + e.message + '): abra o Ajuste do plano à mão.';
     }
@@ -168,7 +136,7 @@ module.exports = async (req, res) => {
   const texto =
     '<!-- validacao-diretor: ' + agora.toISOString() + ' -->\n' +
     'O diretor validou este plano pela Apresentação do PRD em ' + data + ', às ' + hora + '.\n\n' +
-    (resumo ? 'Observação dele:\n\n' + citacao(resumo) : 'Sem observação.') + ajuste;
+    (obs ? 'Observação dele:\n\n' + citacao(obs) : 'Sem observação.') + ajuste;
   const rc = await gh('/issues/' + prd + '/comments', 'POST', { body: texto });
   if (!rc.ok) return res.status(502).json({ ok: false, erro: 'A validação entrou, mas a observação não.' });
 

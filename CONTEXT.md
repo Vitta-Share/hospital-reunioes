@@ -595,7 +595,7 @@ P, M ou G, pelo número de partes da Demanda: até 1 parte é P, de 2 a 5 é M, 
 _Evitar_: story points; tamanho escolhido à mão; tamanho pelo tempo que a entrega levou.
 
 **Ajuste do plano**:
-A sub-issue `ready-for-human` do Pedro na issue-raiz de uma Demanda, que diz o que muda em cada card a partir do que o diretor pediu e trava as fatias iniciais ainda não começadas até o plano ser revisto (ADR 0108). Quem revê é o agente, num grill em lote que segue as próprias recomendações: ele ajusta o PRD e os cards, fecha o Ajuste e monta as ondas. A única parada do Pedro é o "Posso lançar?". Nasce do Validar da [Apresentação do PRD] com observação, que grava só no GitHub (ADR 0113). O texto é a interpretação do agente, sem dado de paciente.
+A sub-issue `ready-for-human` do Pedro na issue-raiz de uma Demanda, que diz o que muda em cada card a partir do que o diretor pediu e trava as fatias iniciais ainda não começadas até o plano ser revisto (ADR 0108). Quem revê é o agente, num grill em lote que segue as próprias recomendações: ele ajusta o PRD e os cards, fecha o Ajuste e monta as ondas. A única parada do Pedro é o "Posso lançar?". Nasce do Validar da [Apresentação do PRD] com observação, que grava só no GitHub (ADR 0113). O texto é a observação do diretor, como ele escreveu na página, sem passar pelo app nem pela IA.
 _Evitar_: dado de paciente na issue; abrir o Ajuste sem travar as fatias iniciais.
 
 **Apresentação do PRD**:
