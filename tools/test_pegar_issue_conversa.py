@@ -316,13 +316,12 @@ def test_a_retomada_le_so_no_terminal_e_volta_com_a_decisao_escrita_pelo_agente(
     assert regra.index("confirma") < regra.index("--add-label ready-for-agent")
 
 
-def test_o_refino_manda_as_perguntas_pela_conversa_da_demanda_quando_ha_demanda():
+def test_o_refino_pergunta_ao_diretor_por_comentario_no_github_e_nao_pela_conversa():
+    # ADR 0113, decisão 5 (issue #2270): a pergunta do Refino sai como comentário na
+    # issue, e a Conversa da Demanda e o WhatsApp saem do passo.
     fechamento = trecho(notas("grill-with-docs"), "**Fechamento.**", "\n#")
     passo = fechamento[fechamento.index("4. Com pergunta aberta") :]
 
-    assert ENVIAR in passo and LER in passo
-    assert passo.index('"aprovo"') < passo.index(ENVIAR)
-    # O WhatsApp sobra só para a issue sem Demanda: a única frase que manda colar lá é a da saída 3.
-    assert passo.count("cola no WhatsApp") == 1 and "colar no WhatsApp" not in passo
-    colar = passo.index("cola no WhatsApp")
-    assert "Saída 3" in passo[colar - 150 : colar]
+    assert "conversa.py" not in passo and "WhatsApp" not in passo
+    assert "`<!-- automacao -->`" in passo and "DIRETOR_LOGINS" in passo
+    assert "`needs-info`" in passo and "põe o card no nome dele" in passo
