@@ -8,6 +8,28 @@
   "humano": "Pedro",
   "ask": "ask-pedro",
   "designado_tira_da_fila": true,
+  "pessoas": [
+    {
+      "login": "pedrorezendefig",
+      "nome": "Pedro",
+      "papel": "socio"
+    },
+    {
+      "login": "pedroribbe",
+      "nome": "Ribbe",
+      "papel": "socio"
+    },
+    {
+      "login": "lucassampaioc1",
+      "nome": "Lucas",
+      "papel": "socio"
+    },
+    {
+      "login": "felipemalafaia",
+      "nome": "Felipe",
+      "papel": "diretor"
+    }
+  ],
   "dado_sensivel": "dado de paciente ou de outro Facilitador",
   "migrations": {
     "pasta": "hospital-reunioes/supabase/migrations",
