@@ -232,21 +232,16 @@ def _buscar_demanda(supabase: Client, demanda_id: str) -> dict:
 def _para_a_lista(supabase: Client, demandas: list[dict], *, ator: dict) -> list[dict]:
     """A Demanda como a lista lateral do chat a le (issue #1384).
 
-    E o funil por onde a Demanda sai desta API, e por isso o corte e aqui:
-    numero e endereco da issue nao saem para o diretor (ADR 0054, decisao 9), e
-    ele le a Etapa e O que muda sem nenhum dos dois. O Desenvolvedor le tambem
-    o autor, o numero e o link (ADR 0083, decisao 3). O Responsavel sai para
-    os dois (ADR 0083, decisao 5), e o selo "Envio falhou" tambem; o motivo
-    tecnico da falha, so para o Desenvolvedor (issue #1535). A designacao
-    falhada sai so para o Desenvolvedor (issue #1536). O `pode_apagar` diz a
+    E o funil por onde a Demanda sai desta API. Desde a issue #2265 (ADR 0113,
+    decisao 6) todo Super admin le a mesma coisa: o autor, o numero e o link
+    da issue, o Responsavel, o selo "Envio falhou" com o motivo (issue #1535)
+    e a designacao falhada (issue #1536). O login do GitHub no cadastro nao
+    corta mais nada aqui. O `pode_apagar` diz a
     tela se mostra o "Apagar" (issue #1549), pela regra da rota. A `origem`
     da o selo "Pedido do diretor" ou "Vitta" (issue #1554), e o `projeto`, o
     selo do Aplicativo do Hospital ou da Ana (issue #1715).
     """
-    desenvolvedor = e_desenvolvedor(ator)
-    ids = {responsavel_da_demanda(d) for d in demandas}
-    if desenvolvedor:
-        ids |= {d.get("autor_id") for d in demandas}
+    ids = {responsavel_da_demanda(d) for d in demandas} | {d.get("autor_id") for d in demandas}
     nomes = _nomes(supabase, ids)
     conversas = _conversas_dos_cards(supabase, demandas)
     implantacoes = tecnologia_perguntas.implantacao_das_demandas(supabase, [str(d["id"]) for d in demandas])
@@ -260,17 +255,17 @@ def _para_a_lista(supabase: Client, demandas: list[dict], *, ator: dict) -> list
             "em_producao_em": em_producao_desde(d),
             "classificacao": chat_tecnologia.CLASSIFICACAO_DO_TIPO.get(str(d.get("tipo") or "")),
             "minha": d.get("autor_id") == ator["id"],
-            "autor": nomes.get(str(d.get("autor_id"))) if desenvolvedor else None,
-            # O numero da raiz, sem link, para todos (issue #1902, ADR 0100,
-            # decisao 1). O link continua so do Desenvolvedor.
+            "autor": nomes.get(str(d.get("autor_id"))),
+            # O numero da raiz para todos (issue #1902, ADR 0100, decisao 1),
+            # e o link tambem desde a issue #2265.
             "raiz_numero": d.get("github_issue_numero"),
-            "issue_numero": d.get("github_issue_numero") if desenvolvedor else None,
-            "issue_url": _url_da_issue(d) if desenvolvedor else None,
-            **_plano_validado_e_ajuste(d, desenvolvedor=desenvolvedor),
+            "issue_numero": d.get("github_issue_numero"),
+            "issue_url": _url_da_issue(d),
+            **_plano_validado_e_ajuste(d),
             "responsavel": _nome_do_responsavel(d, nomes),
             "envio_falhou": tecnologia_envio.envio_falhou(d),
-            "designacao_falhou": desenvolvedor and tecnologia_envio.designacao_falhou(d),
-            "envio_motivo": d.get("envio_motivo") if desenvolvedor and _falha_pendente(d) else None,
+            "designacao_falhou": tecnologia_envio.designacao_falhou(d),
+            "envio_motivo": d.get("envio_motivo") if _falha_pendente(d) else None,
             "pode_apagar": recusa_de_apagar(ator, d) is None,
             "origem": origem_da_demanda(d),
             "projeto": projeto_da_demanda(d),
@@ -335,18 +330,18 @@ def _nomes(supabase: Client, ids: set) -> dict[str, str]:
     return {str(p["id"]): p.get("nome_completo") or "" for p in (result.data or [])}
 
 
-def _plano_validado_e_ajuste(demanda: dict, *, desenvolvedor: bool) -> dict:
+def _plano_validado_e_ajuste(demanda: dict) -> dict:
     """O selo "Plano validado em" e a faixa do Ajuste do plano (issue #1915),
-    derivados da foto: a data e o sim ou nao para todos que veem a Demanda; o
-    numero e o link do Ajuste, so para o Desenvolvedor."""
+    derivados da foto, com o numero e o link do Ajuste, para todo Super admin
+    (issue #2265)."""
     foto = demanda.get("github_foto") if isinstance(demanda.get("github_foto"), dict) else {}
     validado = github_client.LABEL_DA_VALIDACAO in (foto.get("labels") or [])
     ajuste = ajuste_aberto_da_foto(foto)
     return {
         "validado_em": foto.get(github_client.FATO_VALIDADO_EM) if validado else None,
         "ajuste_aberto": ajuste is not None,
-        "ajuste_numero": ajuste["numero"] if ajuste and desenvolvedor else None,
-        "ajuste_url": ajuste["url"] if ajuste and desenvolvedor else None,
+        "ajuste_numero": ajuste["numero"] if ajuste else None,
+        "ajuste_url": ajuste["url"] if ajuste else None,
     }
 
 
@@ -840,29 +835,26 @@ async def listar_as_conversas(
     ator: dict = Depends(require_super_admin),
     supabase: Client = Depends(get_supabase_client),
 ):
-    """A lista ao lado do chat (issue #1384): as Demandas que o Super admin
-    logado pediu, com o titulo e a Etapa, a mais recente primeiro.
+    """A lista ao lado do chat (issue #1384): as Demandas, com o titulo e a
+    Etapa, a mais recente primeiro.
 
-    `todas` e o filtro do Desenvolvedor (ADR 0083, decisao 3). Quem corta e o
-    `pode_ver`, a mesma regra da leitura da conversa: para quem nao e
-    Desenvolvedor, `todas` volta so as dele. `para_mim` e o padrao da lista do
-    Desenvolvedor: as Demandas de que ele e o Responsavel (ADR 0083, decisao 5).
+    Quem corta e o `pode_ver`, a regra unica da leitura: desde a issue #2265
+    (ADR 0113, decisao 6) todo Super admin ve todas, e o "Minhas" de quem nao
+    e Desenvolvedor, a lista sem recorte da tela dele, traz todas. O recorte
+    `todas`, `minhas` e `para_mim` continua o do Desenvolvedor (ADR 0083,
+    decisoes 3 e 5): `minhas` sao as que ele pediu, `para_mim` as de que ele e
+    o Responsavel.
 
     Por cima do recorte, e combinando entre si (issue #1551): a `busca` pelo
     titulo, sem diferenciar maiuscula e acento; o `tipo` (bug ou melhoria); a
     `etapa`; o `responsavel` (o id de quem cuida); e o `envio_falhou`, as
     Demandas cujo card nao chegou ao GitHub (issue #1535), de todos os autores
     mesmo partindo de `para_mim`, porque elas nao tem Responsavel. `para_mim`,
-    `responsavel` e `envio_falhou` sao do Desenvolvedor, como os chips da
-    tela, e a rota os recusa a quem nao e. A `origem` (issue #1554) e o
+    `responsavel` e `envio_falhou` continuam do Desenvolvedor, como os chips
+    da tela, e a rota os recusa a quem nao e. A `origem` (issue #1554) e o
     `projeto` (issue #1715, ADR 0093, decisao 8) sao para todos.
 
-    O diretor ve, alem das dele, os cards de Origem Vitta, abertos pelo
-    terminal (ADR 0084, decisao 4): o "Minhas" dele e o `pode_ver`, e o do
-    Desenvolvedor continua sendo o que ele mesmo pediu.
-
-    Sai pelo `_para_a_lista`, o funil da Demanda desta API: e la que numero e
-    endereco da issue ficam de fora para o diretor.
+    Sai pelo `_para_a_lista`, o funil da Demanda desta API.
     """
     if not e_desenvolvedor(ator) and (filtro == "para_mim" or responsavel or envio_falhou):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Filtro so do Desenvolvedor")
@@ -1237,9 +1229,8 @@ async def ler_o_chat(
 ):
     """A conversa guardada, para retomar de onde parou.
 
-    So o autor e o Desenvolvedor a abrem (ADR 0083): a Demanda de outro autor
-    responde como inexistente, sem dizer que existe. O Desenvolvedor le tambem
-    os Anexos.
+    Todo Super admin a abre (`pode_ver`, issue #2265). O Desenvolvedor le
+    tambem os Anexos.
     """
     demanda, linha = _chat_guardado(supabase, demanda_id)
     if not pode_ver(ator, demanda):
@@ -1276,8 +1267,8 @@ async def trocar_o_modelo_da_demanda(
 
 
 def _demanda_visivel(supabase: Client, demanda_id: str, ator: dict) -> dict:
-    """A Demanda, se quem pede a ve; senao 404, como a leitura do chat: a de
-    outro autor responde como inexistente, sem dizer que existe."""
+    """A Demanda, se quem pede a ve (`pode_ver`, todo Super admin desde a
+    issue #2265); senao 404, sem dizer que existe."""
     demanda = _buscar_demanda(supabase, demanda_id)
     if not pode_ver(ator, demanda):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=MOTIVO_CHAT_NAO_ENCONTRADO)
@@ -1862,9 +1853,9 @@ async def reenviar_o_card(
 ):
     """O "Reenviar" da Demanda em "Envio falhou" (issue #1535, ADR 0083, decisao 7).
 
-    Pelo autor ou pelo Desenvolvedor: quem nao ve a Demanda leva 404, como na
-    leitura. Passa pela mesma porta do "Criar o card", com o Responsavel que
-    ficou guardado no primeiro clique. Antes, confere se a Demanda ja tem issue
+    Por quem ve a Demanda (`pode_ver`): os demais levam 404. Passa pela
+    mesma porta do "Criar o card", com o Responsavel que ficou guardado no
+    primeiro clique. Antes, confere se a Demanda ja tem issue
     vinculada, e nesse caso nao cria a segunda. Nada reenvia sozinho.
     """
     demanda, atual = _chat_guardado(supabase, demanda_id)

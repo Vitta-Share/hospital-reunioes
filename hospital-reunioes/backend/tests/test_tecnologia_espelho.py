@@ -387,16 +387,19 @@ def _ids(resposta) -> list[str]:
 
 
 class TestQuemVe:
-    def test_o_diretor_ve_as_dele_e_os_cards_vitta(self, monkeypatch):
+    def test_o_diretor_ve_todas_na_lista_sem_recorte(self, monkeypatch):
+        """Issue #2265 (ADR 0113, decisao 6): a lista do diretor traz as dele,
+        os cards Vitta e as de outro autor."""
         client, _ = _aba(monkeypatch, DIRETOR)
 
-        assert _ids(client.get(CHAT)) == ["d-vitta", "d-minha"]
+        assert _ids(client.get(CHAT)) == ["d-vitta", "d-minha", "d-outra"]
 
-    def test_o_diretor_nao_ve_a_conversa_de_outro_autor_nem_em_todas(self, monkeypatch):
+    def test_o_diretor_ve_todas_e_le_a_conversa_de_outro_autor(self, monkeypatch):
+        """Issue #2265 (ADR 0113, decisao 6): todo Super admin ve todas."""
         client, _ = _aba(monkeypatch, DIRETOR)
 
-        assert _ids(client.get(f"{CHAT}?filtro=todas")) == ["d-vitta", "d-minha"]
-        assert client.get(f"{CHAT}/d-outra/conversa").status_code == 404
+        assert _ids(client.get(f"{CHAT}?filtro=todas")) == ["d-vitta", "d-minha", "d-outra"]
+        assert client.get(f"{CHAT}/d-outra/conversa").status_code == 200
 
     def test_o_card_vitta_nao_e_do_diretor(self, monkeypatch):
         client, _ = _aba(monkeypatch, DIRETOR)
@@ -404,7 +407,7 @@ class TestQuemVe:
         vitta = next(d for d in client.get(CHAT).json() if d["id"] == "d-vitta")
 
         assert vitta["minha"] is False
-        assert vitta["issue_numero"] is None
+        assert vitta["issue_numero"] == 1700
         assert vitta["pode_apagar"] is False
 
     def test_o_desenvolvedor_em_minhas_continua_so_com_as_dele(self, monkeypatch):
@@ -437,7 +440,7 @@ class TestOrigemNaLista:
         ("logado", "consulta", "esperado"),
         [
             (DIRETOR, "origem=vitta", ["d-vitta"]),
-            (DIRETOR, "origem=diretor", ["d-minha"]),
+            (DIRETOR, "origem=diretor", ["d-minha", "d-outra"]),
             (PEDRO, "filtro=todas&origem=diretor", ["d-minha", "d-outra"]),
             (PEDRO, "filtro=todas&origem=vitta&etapa=em_analise", ["d-vitta"]),
         ],

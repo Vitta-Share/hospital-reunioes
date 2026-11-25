@@ -31,13 +31,12 @@ from test_tecnologia_revisao import (  # noqa: E402
     CHAT,
     CONVERSA_ENVIADA,
     DEMANDA,
-    OUTRO_DIRETOR,
     REVISAO,
     _card,
     _montar_revisao,
     _retrato,
 )
-from test_tecnologia_vinculo import DIRETOR, PEDRO  # noqa: E402
+from test_tecnologia_vinculo import DIRETOR, PEDRO, _pessoa  # noqa: E402
 
 SONNET = "claude-sonnet-5-5"
 OPUS = "claude-opus-5-5"
@@ -227,10 +226,13 @@ class TestARecusa:
         assert resposta.status_code == 422
         assert _conversas(sb)[0]["modelo"] == SONNET
 
-    def test_quem_nao_acessa_a_demanda_nao_troca_o_modelo(self, monkeypatch):
-        client, sb, _ = _montar(monkeypatch, modelo=SONNET, logado=OUTRO_DIRETOR)
+    def test_quem_nao_e_super_admin_nao_troca_o_modelo(self, monkeypatch):
+        """Desde a issue #2265 (ADR 0113, decisao 6) todo Super admin ve a
+        Demanda: quem fica de fora e quem nao e Super admin."""
+        gestor = _pessoa("P9", "Gestora do Setor", access_profile="facilitador")
+        client, sb, _ = _montar(monkeypatch, modelo=SONNET, logado=gestor)
 
         resposta = client.put(MODELO, json={"modelo": OPUS})
 
-        assert resposta.status_code == 404
+        assert resposta.status_code == 403
         assert _conversas(sb)[0]["modelo"] == SONNET

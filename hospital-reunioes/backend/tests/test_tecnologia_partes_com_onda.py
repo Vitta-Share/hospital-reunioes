@@ -235,7 +235,7 @@ def _foto_com_partes() -> dict:
 
 
 class TestAApiDoDocumento:
-    def test_quem_nao_tem_github_login_recebe_numeros_onda_e_bloqueadoras_abertas_sem_link(self, monkeypatch):
+    def test_quem_nao_tem_github_login_recebe_numeros_onda_e_bloqueadoras_abertas(self, monkeypatch):
         cache = tecnologia_sincronizacao.mudanca_da_foto(_foto_com_partes())
         client, _, _ = _cenario(
             monkeypatch,
@@ -247,7 +247,9 @@ class TestAApiDoDocumento:
         [item] = client.get(CHAT).json()
 
         assert item["raiz_numero"] == 673
-        assert (item["issue_numero"], item["issue_url"]) == (None, None)
+        # O numero da raiz sai tambem como `issue_numero` desde a issue #2265
+        # (ADR 0113, decisao 6); as partes continuam sem titulo, link e labels.
+        assert item["issue_numero"] == 673
         assert [(p["numero"], p["onda"], p["bloqueadoras"]) for p in item["partes"]] == [
             (678, 1, []),
             # A 678 ja fechou: conta para a Onda, mas nao aparece como espera.

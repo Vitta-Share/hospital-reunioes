@@ -223,13 +223,14 @@ def _item_da_lista(monkeypatch, gh: _GithubFalso, *, logado: dict) -> dict:
 
 
 class TestAApiDoDocumento:
-    def test_quem_nao_tem_github_login_recebe_a_data_e_o_ajuste_aberto_sem_numero_nem_link(self, monkeypatch):
+    def test_quem_nao_tem_github_login_recebe_a_data_o_ajuste_aberto_e_o_numero_dele(self, monkeypatch):
+        """Issue #2265 (ADR 0113, decisao 6): o login do GitHub nao corta mais
+        a leitura."""
         item = _item_da_lista(monkeypatch, _github_do_1757(), logado=DIRETOR)
 
         assert item["validado_em"] == VALIDADO_EM
         assert item["ajuste_aberto"] is True
-        assert (item["ajuste_numero"], item["ajuste_url"]) == (None, None)
-        assert str(AJUSTE) not in str(item)
+        assert (item["ajuste_numero"], item["ajuste_url"]) == (AJUSTE, f"{REPO_URL}/{AJUSTE}")
 
     def test_o_desenvolvedor_recebe_o_numero_e_o_link_do_ajuste(self, monkeypatch):
         item = _item_da_lista(monkeypatch, _github_do_1757(), logado=PEDRO)

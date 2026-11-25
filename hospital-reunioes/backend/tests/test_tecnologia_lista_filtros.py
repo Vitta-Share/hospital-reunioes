@@ -161,8 +161,15 @@ class TestFiltrosCombinam:
     def test_o_diretor_combina_tipo_e_etapa(self, lista):
         assert _ids(lista(DIRETOR, "tipo=bug&etapa=em_analise")) == ["d-bug-rib", "d-bug-pedro"]
 
-    def test_sem_filtro_a_lista_continua_a_de_hoje(self, lista):
-        assert _ids(lista(DIRETOR)) == ["d-bug-rib", "d-bug-pedro", "d-falhou-diretor"]
+    def test_sem_filtro_a_lista_do_diretor_traz_todas(self, lista):
+        """Issue #2265 (ADR 0113, decisao 6): todo Super admin ve todas."""
+        assert _ids(lista(DIRETOR)) == [
+            "d-bug-rib",
+            "d-bug-pedro",
+            "d-melhoria-pedro",
+            "d-falhou-pedro",
+            "d-falhou-diretor",
+        ]
 
 
 # ═══════════════════════════════════════════════════════════════════════════

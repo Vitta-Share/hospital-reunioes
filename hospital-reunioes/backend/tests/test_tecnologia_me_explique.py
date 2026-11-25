@@ -36,6 +36,7 @@ from test_tecnologia_pergunta_da_vitta import (  # noqa: E402, F401
     chave_configurada,
     emails,
 )
+from test_tecnologia_vinculo import _pessoa  # noqa: E402
 
 from app.config import settings  # noqa: E402
 from app.services import github_client  # noqa: E402
@@ -128,14 +129,16 @@ class TestAbrir:
         assert resposta.json() == {"detail": "O assistente não conseguiu responder agora. Tente de novo."}
         assert sb.tabelas.get(CONVERSAS, []) == []
 
-    def test_quem_nao_ve_a_demanda_nem_recebeu_a_pergunta_nao_abre(self, monkeypatch):
+    def test_quem_nao_e_super_admin_nao_abre(self, monkeypatch):
+        """Desde a issue #2265 (ADR 0113, decisao 6) todo Super admin ve a
+        Demanda: quem fica de fora e quem nao e Super admin."""
         sb, pergunta_id = _uma_pergunta()
         sb.tabelas["tecnologia_demandas"][0]["origem"] = None
         cliente = _ia(monkeypatch, _fala())
 
-        resposta = _abrir(sb, DIRETOR, pergunta_id, monkeypatch)
+        resposta = _abrir(sb, _pessoa("P9", "Gestora do Setor", access_profile="facilitador"), pergunta_id, monkeypatch)
 
-        assert resposta.status_code == 404
+        assert resposta.status_code == 403
         assert cliente.chamadas == []
 
 
