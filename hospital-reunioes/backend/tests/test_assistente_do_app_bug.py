@@ -15,7 +15,6 @@ from __future__ import annotations
 import os
 import sys
 import uuid
-from typing import Any
 
 import pytest
 from fastapi import FastAPI
@@ -121,9 +120,11 @@ class _Banco:
 class _GitHub:
     def __init__(self):
         self.criadas: list[dict] = []
+        self.tentativas = 0
         self.erro: Exception | None = None
 
     def criar_issue(self, *, projeto, titulo, corpo, labels, assignees):
+        self.tentativas += 1
         if self.erro is not None:
             raise self.erro
         criada = {"projeto": projeto, "titulo": titulo, "corpo": corpo, "labels": labels, "assignees": assignees}
@@ -201,3 +202,123 @@ class TestOEnvioCriaAIssue:
         assert "tela.png" not in corpo
         assert "BYTES-DO-PRINT" not in corpo
         assert bucket == [PRINT_PNG]
+
+
+class TestAFilaDependeDeQuemRelata:
+    def test_o_bug_do_super_admin_nasce_ready_for_agent(self, gh, bucket):
+        client = _app(_Banco(), SUPER_ADMIN)
+        demanda_id = _relatar(client)
+
+        assert client.post(f"{BUG}/{demanda_id}/enviar").status_code == 200
+
+        assert "ready-for-agent" in gh.criadas[0]["labels"]
+        assert "needs-triage" not in gh.criadas[0]["labels"]
+
+    def test_o_bug_de_outro_perfil_nasce_needs_triage(self, gh, bucket):
+        client = _app(_Banco(), COLABORADORA)
+        demanda_id = _relatar(client)
+
+        assert client.post(f"{BUG}/{demanda_id}/enviar").status_code == 200
+
+        assert "needs-triage" in gh.criadas[0]["labels"]
+        assert "ready-for-agent" not in gh.criadas[0]["labels"]
+
+
+class TestADemandaDoRelato:
+    def test_a_demanda_nasce_registrada_com_a_origem_relato_no_app(self, gh, bucket):
+        banco = _Banco()
+        _relatar(_app(banco, COLABORADORA))
+
+        demanda = banco.demandas()[0]
+        assert demanda["origem"] == "relato"
+        assert demanda["etapa"] == "registrada"
+        assert demanda["autor_id"] == "P7"
+        assert demanda.get("github_issue_numero") is None
+
+    def test_o_envio_grava_o_vinculo_e_o_espelho_nao_cria_outra_demanda(self, gh, bucket, monkeypatch):
+        banco = _Banco()
+        client = _app(banco, SUPER_ADMIN)
+        demanda_id = _relatar(client)
+        assert client.post(f"{BUG}/{demanda_id}/enviar").status_code == 200
+        numero = banco.demandas()[0]["github_issue_numero"]
+        criada = gh.criadas[0]
+        # A issue como o GitHub a devolve, com uma `area:` de app que a triagem
+        # pode pôr depois: é o caso em que o espelho criaria uma Demanda.
+        issue = {
+            "number": numero,
+            "title": criada["titulo"],
+            "body": criada["corpo"],
+            "state": "open",
+            "labels": [{"name": nome} for nome in [*criada["labels"], "area:frontend"]],
+        }
+        monkeypatch.setattr(github_client, "ler_issue", lambda *_a, **_kw: issue)
+
+        assert numero == 901
+        assert tecnologia_espelho.espelhar(banco, "hospital", numero) is None
+        assert len(banco.demandas()) == 1
+
+
+class TestRotuloSemResposta:
+    def test_rotulo_sem_resposta_sai_nao_informado_no_resumo_e_na_issue(self, gh, bucket):
+        client = _app(_Banco(), SUPER_ADMIN)
+        respostas = {**RESPOSTAS, "como_repetir": "   ", "o_que_esperava": ""}
+
+        registrado = client.post(BUG, json=respostas)
+
+        assert registrado.status_code == 200, registrado.text
+        resumo = registrado.json()["resumo"]
+        assert resumo["como_repetir"] == "não informado"
+        assert resumo["o_que_esperava"] == "não informado"
+        demanda_id = registrado.json()["demanda_id"]
+        assert client.post(f"{BUG}/{demanda_id}/enviar").status_code == 200
+        assert "- **Como repetir:** não informado" in gh.criadas[0]["corpo"]
+        assert "- **O que esperava:** não informado" in gh.criadas[0]["corpo"]
+
+
+class TestFalhaNoGitHub:
+    def test_a_falha_devolve_o_motivo_e_nada_reenvia_ate_o_proximo_clique(self, gh, bucket):
+        banco = _Banco()
+        client = _app(banco, SUPER_ADMIN)
+        demanda_id = _relatar(client)
+        gh.erro = github_client.GithubIndisponivelError("GitHub respondeu 502")
+
+        falhou = client.post(f"{BUG}/{demanda_id}/enviar")
+
+        assert falhou.status_code == 502
+        assert "Tentar de novo" in falhou.json()["detail"]
+        assert gh.tentativas == 1
+        assert banco.demandas()[0]["envio_estado"] == "falhou"
+
+        gh.erro = None
+        de_novo = client.post(f"{BUG}/{demanda_id}/enviar")
+
+        assert de_novo.status_code == 200, de_novo.text
+        assert gh.tentativas == 2
+        assert len(gh.criadas) == 1
+        assert banco.demandas()[0]["github_issue_numero"] == 901
+
+    def test_o_bug_ja_enviado_nao_cria_a_segunda_issue(self, gh, bucket):
+        client = _app(_Banco(), SUPER_ADMIN)
+        demanda_id = _relatar(client)
+        assert client.post(f"{BUG}/{demanda_id}/enviar").status_code == 200
+
+        assert client.post(f"{BUG}/{demanda_id}/enviar").status_code == 409
+        assert len(gh.criadas) == 1
+
+    def test_outra_pessoa_nao_envia_o_relato_de_quem_relatou(self, gh, bucket):
+        banco = _Banco()
+        demanda_id = _relatar(_app(banco, COLABORADORA))
+
+        assert _app(banco, SUPER_ADMIN).post(f"{BUG}/{demanda_id}/enviar").status_code == 404
+        assert gh.criadas == []
+
+
+class TestOPrint:
+    def test_o_print_so_entra_como_imagem(self, gh, bucket):
+        client = _app(_Banco(), SUPER_ADMIN)
+        demanda_id = _relatar(client, com_print=False)
+
+        resposta = client.post(f"{BUG}/{demanda_id}/print", files={"imagem": ("dados.csv", b"a,b", "text/csv")})
+
+        assert resposta.status_code == 422
+        assert bucket == []

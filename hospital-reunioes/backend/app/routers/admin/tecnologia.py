@@ -830,7 +830,7 @@ async def listar_as_conversas(
     etapa: str | None = None,
     responsavel: str | None = None,
     envio_falhou: bool = False,
-    origem: Literal["diretor", "vitta"] | None = None,
+    origem: Literal["diretor", "vitta", "relato"] | None = None,
     projeto: str | None = Query(default=None, pattern=FORMATO_DO_PROJETO),
     ator: dict = Depends(require_super_admin),
     supabase: Client = Depends(get_supabase_client),
@@ -928,7 +928,7 @@ def _partes_sem_numero(entrega: dict) -> list[dict]:
 @router.get("/entregas", response_model=EntregasResponse)
 async def listar_as_entregas(
     tipo: Literal["bug", "melhoria"] | None = None,
-    origem: Literal["diretor", "vitta"] | None = None,
+    origem: Literal["diretor", "vitta", "relato"] | None = None,
     responsavel: str | None = None,
     projeto: str | None = Query(default=None, pattern=FORMATO_DO_PROJETO),
     corte: date | None = None,

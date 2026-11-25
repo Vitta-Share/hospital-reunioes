@@ -232,17 +232,19 @@ export function linkDoPlano(demanda: Demanda): string | null {
   return url && url.startsWith(PAGINA_DOS_PLANOS) ? url : null;
 }
 
-export type Origem = "diretor" | "vitta";
+export type Origem = "diretor" | "vitta" | "relato";
 
-/** O selo da Origem na lista (issue #1554). */
+/** O selo da Origem na lista (issue #1554); o bug do Assistente do app é "Relato no app" (issue #2275). */
 export const ORIGEM_ROTULO: Record<Origem, string> = {
   diretor: "Pedido do diretor",
   vitta: "Vitta",
+  relato: "Relato no app",
 };
 
 export const ORIGEM_CLASSE: Record<Origem, string> = {
   diretor: "bg-slate-100 text-slate-700",
   vitta: "bg-sky-50 text-sky-700",
+  relato: "bg-amber-50 text-amber-700",
 };
 
 /** Os dois Projetos cujo repositório o app lê (ADR 0093, decisão 1). */

@@ -128,8 +128,9 @@ class DemandaResponse(BaseModel):
     # decisao 2): a tela mostra o botao so com o sim. A regra e a da rota.
     pode_apagar: bool = False
     # Quem abriu o card (issue #1554, ADR 0084, decisao 4): o diretor, pelo
-    # chat, ou a Vitta, pela issue aberta no terminal. O selo da lista.
-    origem: Literal["diretor", "vitta"] = "diretor"
+    # chat, ou a Vitta, pela issue aberta no terminal. O selo da lista. Desde
+    # a issue #2275, tambem o bug do Assistente do app ("Relato no app").
+    origem: Literal["diretor", "vitta", "relato"] = "diretor"
     # O Projeto da Demanda (issue #1715, ADR 0093, decisao 8): o Aplicativo do
     # Hospital, a Ana ou, desde a issue #1967, um Projeto novo da Vitta. O selo
     # do card no Quadro e na lista do celular leva o `projeto_nome`.

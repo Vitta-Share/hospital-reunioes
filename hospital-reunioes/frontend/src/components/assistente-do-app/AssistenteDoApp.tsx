@@ -6,11 +6,15 @@ import { Bot, Send, X } from "lucide-react";
 import { useCurrentParticipante } from "@/hooks/useCurrentParticipante";
 import { FALHA_DA_CONVERSA, perguntarAoAssistente, type FalaDoAssistente } from "@/lib/assistente-do-app/conversa";
 
+import { RoteiroDoBug } from "./RoteiroDoBug";
+
 /**
  * O robô do Assistente do app (issue #2267, ADR 0113, decisão 8): no canto
  * inferior direito de toda área logada, para todo usuário. Abre um painel com
- * a sugestão "Tirar uma dúvida" e o campo livre. A conversa vive só aqui, no
- * estado da tela: não vira Demanda e some ao recarregar a página.
+ * as sugestões "Relatar um bug" e "Tirar uma dúvida" e o campo livre. A
+ * dúvida vive só aqui, no estado da tela: não vira Demanda e some ao
+ * recarregar a página. O bug segue o Roteiro do bug (`RoteiroDoBug`, issue
+ * #2275), que vira Demanda.
  *
  * No celular, sobe acima da barra inferior (`BottomNav`).
  */
@@ -21,6 +25,7 @@ export function AssistenteDoApp() {
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [relatando, setRelatando] = useState(false);
   const campo = useRef<HTMLTextAreaElement>(null);
 
   async function enviar() {
@@ -68,14 +73,24 @@ export function AssistenteDoApp() {
           </div>
 
           <div className="max-h-[360px] overflow-y-auto px-4 py-3 flex flex-col gap-2">
-            {falas.length === 0 && (
-              <button
-                type="button"
-                onClick={() => campo.current?.focus()}
-                className="self-start px-3 py-1.5 rounded-full border border-primary/30 bg-primary/5 text-primary text-sm font-medium hover:bg-primary/10 transition-colors"
-              >
-                Tirar uma dúvida
-              </button>
+            {relatando && <RoteiroDoBug />}
+            {!relatando && falas.length === 0 && (
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRelatando(true)}
+                  className="px-3 py-1.5 rounded-full border border-primary/30 bg-primary/5 text-primary text-sm font-medium hover:bg-primary/10 transition-colors"
+                >
+                  Relatar um bug
+                </button>
+                <button
+                  type="button"
+                  onClick={() => campo.current?.focus()}
+                  className="px-3 py-1.5 rounded-full border border-primary/30 bg-primary/5 text-primary text-sm font-medium hover:bg-primary/10 transition-colors"
+                >
+                  Tirar uma dúvida
+                </button>
+              </div>
             )}
             {falas.map((fala, i) => (
               <p
@@ -93,38 +108,40 @@ export function AssistenteDoApp() {
             {erro && <p className="text-xs text-red-600">{erro}</p>}
           </div>
 
-          <form
-            className="flex items-end gap-2 px-3 py-3 border-t border-slate-100"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void enviar();
-            }}
-          >
-            <textarea
-              ref={campo}
-              aria-label="Sua pergunta"
-              value={texto}
-              onChange={(e) => setTexto(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void enviar();
-                }
+          {!relatando && (
+            <form
+              className="flex items-end gap-2 px-3 py-3 border-t border-slate-100"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void enviar();
               }}
-              rows={2}
-              maxLength={8000}
-              placeholder="Escreva a sua dúvida"
-              className="flex-1 resize-none text-sm rounded-lg border border-slate-200 px-3 py-2 focus:outline-none focus:border-primary"
-            />
-            <button
-              type="submit"
-              aria-label="Enviar"
-              disabled={enviando || !texto.trim()}
-              className="w-9 h-9 rounded-lg bg-primary text-white flex items-center justify-center disabled:opacity-50"
             >
-              <Send className="w-4 h-4" />
-            </button>
-          </form>
+              <textarea
+                ref={campo}
+                aria-label="Sua pergunta"
+                value={texto}
+                onChange={(e) => setTexto(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    void enviar();
+                  }
+                }}
+                rows={2}
+                maxLength={8000}
+                placeholder="Escreva a sua dúvida"
+                className="flex-1 resize-none text-sm rounded-lg border border-slate-200 px-3 py-2 focus:outline-none focus:border-primary"
+              />
+              <button
+                type="submit"
+                aria-label="Enviar"
+                disabled={enviando || !texto.trim()}
+                className="w-9 h-9 rounded-lg bg-primary text-white flex items-center justify-center disabled:opacity-50"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </form>
+          )}
         </div>
       )}
 
