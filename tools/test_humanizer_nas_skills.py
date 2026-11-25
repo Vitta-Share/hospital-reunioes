@@ -72,7 +72,7 @@ def passos_do_humanizer(trecho: str) -> list[str]:
         ("grill-with-docs", "Fim"),
         ("triage", "Triage a specific issue"),
         ("to-issues", "5. Publish the issues"),
-        ("setup-diretor", "Parte 8: o card"),
+        ("setup-diretor", "Parte 9: o card"),
     ],
 )
 def test_skill_de_texto_para_fora_passa_o_texto_pelo_humanizer_onde_ele_e_gravado(

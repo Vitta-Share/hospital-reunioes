@@ -109,13 +109,27 @@ Agora o Claude liga o banco de dados e o app no seu Mac. Na primeira vez demora 
 
 O Claude instala os complementos que o time usa. Um deles tira print das telas do seu app para pôr nos cards.
 
+Ele também grava uma trava nas configurações dele: o seu Claude fica proibido de juntar qualquer mudança ao código do app (o nome técnico é "merge"). Quem junta é sempre a Vitta, depois de revisar e testar.
+
 1. Diga "pode instalar" e espere.
 2. Quando ele pedir, feche o Claude (Command e Q) e abra de novo.
 3. Volte à conversa na pasta `hospital-reunioes` e digite `/setup-diretor`.
 
-**Como saber que acabou:** a conferência mostra tudo OK.
+**Como saber que acabou:** a conferência mostra tudo OK, inclusive a linha "trava do merge".
 
-## Parte 6. Planejar uma ideia
+## Parte 6. O convite do time
+
+O Pedro convida você para dois lugares no GitHub. O primeiro é o repositório do app: com ele você recebe cards no seu nome, responde, devolve e fecha os que terminar. O segundo é o `hospital-arquivos`, uma pasta privada que só você e os sócios da Vitta veem, onde ficam os seus arquivos de apoio (Parte 10).
+
+Mesmo convidado, você não junta mudança ao app. O seu Claude tem a trava da Parte 5, e o GitHub reprova o seu pedido de mudança até alguém da Vitta assumir.
+
+1. Diga "aceita os convites" ao Claude. Ele aceita os dois pelo GitHub e confere.
+2. Se ele disser que não achou convite, mande ao Pedro a mensagem "Sem convite", que o Claude mostra pronta.
+3. Quando o Pedro responder, diga "aceita os convites" de novo.
+
+**Como saber que acabou:** a conferência mostra "colaborador do time" e "hospital-arquivos" como OK.
+
+## Parte 7. Planejar uma ideia
 
 O time usa comandos que começam com uma barra. Você digita o comando e o Claude conduz. Os que importam para você:
 
@@ -126,20 +140,22 @@ O time usa comandos que começam com uma barra. Você digita o comando e o Claud
 
 Dois comandos que você vai ver citados e que são da Vitta, não seus: `/to-prd` e `/to-issues`. Depois do seu card, o Pedro faz a parte técnica (`/grill-with-docs` com o número do card), transforma em plano (`/to-prd`) e divide em tarefas (`/to-issues`). O `/triage` é a triagem que a Vitta faz dos cards que chegam.
 
+Achou um erro no app (um bug)? Relate pelo Assistente do app, o robozinho no canto de baixo, à direita, do app do hospital. Ele faz as perguntas certas e manda o relato para a Vitta. O seu Claude cuida das melhorias.
+
 **Como saber que acabou:** você sabe por onde começar quando tiver uma ideia: abrir o Claude na pasta `hospital-reunioes` e digitar `/grill-with-docs`.
 
-## Parte 7. Prototipar
+## Parte 8. Prototipar
 
 1. Conte a ideia ao Claude depois do `/grill-with-docs`, ou peça "quero ver isso funcionando".
 2. O Claude atualiza a sua cópia com o que o time subiu, monta o protótipo e liga o app de novo.
 3. Abra http://localhost:3000 e teste. Diga o que mudar. Repita até ficar do jeito que você quer.
 4. O Claude tira os prints e manda o protótipo para a sua cópia no GitHub, com um pedido de revisão em rascunho (o nome técnico é "PR em rascunho") ligado ao card.
 
-O protótipo é um esboço. Ele mostra a ideia, mas não vai para o app do hospital: quem faz a versão final é o time.
+O protótipo é o ponto de partida. Quando alguém da Vitta pega, o pedido ganha a etiqueta "assumido", e a pessoa continua de onde você parou, completa e leva ao app. Juntar a mudança ao app é sempre da Vitta.
 
 **Como saber que acabou:** o card tem um comentário com o link do protótipo.
 
-## Parte 8. Abrir o card
+## Parte 9. Abrir o card
 
 1. O Claude mostra o texto do card inteiro.
 2. Leia a parte "Para o diretor": é o resumo que você vai acompanhar. Peça mudança se algo não for o que você quis dizer.
@@ -148,3 +164,26 @@ O protótipo é um esboço. Ele mostra a ideia, mas não vai para o app do hospi
 5. Mande ao Pedro a mensagem "Card novo", que o Claude mostra pronta.
 
 **Como saber que acabou:** o link abre o card no GitHub com as etiquetas "needs-triage" e "origem:diretor" e o Pedro como responsável.
+
+## Parte 10. Arquivo de apoio
+
+Às vezes a ideia depende de um documento seu: uma especificação, uma planilha, uma memória de cálculo, um PDF. A Vitta precisa ler esse documento na hora de fazer o código. O card é público, então o arquivo não vai nele. Vai para o `hospital-arquivos`, numa pasta com o número do card, e o card leva só o link.
+
+1. Arraste o arquivo para a conversa do Claude, ou diga onde ele está no seu Mac.
+2. Diga para qual card ele é. Se o card ainda não existe, o Claude abre primeiro (Parte 9).
+3. O Claude guarda o arquivo na pasta do card e comenta no card com o link.
+
+**Como saber que acabou:** o card tem um comentário com o link, e o link abre o seu arquivo no GitHub. Quem não é do time vê uma página de "não encontrado", e é assim mesmo.
+
+## Parte 11. A Tarefa do diretor
+
+Às vezes a Vitta precisa de você no meio do trabalho. Pode ser uma pergunta (o card vem com a etiqueta "needs-info") ou uma coisa a fazer, como testar, configurar ou mandar um arquivo (etiqueta "ready-for-human"). As duas chegam como um card no seu nome, e o GitHub avisa por e-mail. O card de implantação também é uma coisa a fazer: chega depois que a mudança está no app, você combina com quem faz no hospital e fecha quando terminarem.
+
+1. Abra o Claude na pasta `hospital-reunioes` e pergunte "o que está no meu nome?". Ele lista os cards.
+2. Escolha um. O Claude explica o que pedem, com as opções e a recomendação de quem pediu.
+3. Responda ao Claude. Ele escreve a resposta, mostra para você e, com o seu "pode mandar", comenta no card.
+4. Se era pergunta, o Claude devolve o card a quem perguntou.
+5. Se era coisa a fazer, diga "terminei" quando acabar. O Claude comenta o que foi feito e fecha o card. O trabalho que esperava por você volta a andar sozinho.
+6. Se a tarefa pede um arquivo, ele vai pela Parte 10, e o comentário leva o link.
+
+**Como saber que acabou:** quando você pergunta "o que está no meu nome?", o card não aparece mais.
