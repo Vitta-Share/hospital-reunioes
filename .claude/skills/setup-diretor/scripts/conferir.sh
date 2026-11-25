@@ -98,7 +98,20 @@ curl -sf -o /dev/null --max-time 5 http://localhost:3000 && ok "frontend :3000" 
 
 titulo "Parte 5. O Claude do jeito do time"
 tem playwright-cli && ok "playwright-cli" || falta "playwright-cli" "npm install -g @playwright/cli@latest && playwright-cli install --skills"
-SETTINGS="$HOME/.claude/settings.json"
+SETTINGS="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
+# A trava do merge (ADR 0113, decisão 2): o diretor é colaborador e o Claude dele
+# nunca mergeia, nem pelo gh nem pela API. As regras são as do SKILL.md, Parte 5.
+falta_trava=""
+for regra in "Bash(gh pr merge:*)" "Bash(gh api *merge*)"; do
+  if ! { [ -f "$SETTINGS" ] && tem jq && jq -e --arg r "$regra" '(.permissions.deny // []) | index($r)' "$SETTINGS" >/dev/null 2>&1; }; then
+    falta_trava="$falta_trava $regra"
+  fi
+done
+if [ -z "$falta_trava" ]; then
+  ok "trava do merge"
+else
+  falta "trava do merge" "o settings.json do Claude não nega:$falta_trava (SKILL.md, Parte 5)"
+fi
 LISTA="$RAIZ/.claude/skills/setup-maquina/references/plugins.txt"
 if [ -f "$LISTA" ]; then
   while IFS= read -r plugin; do
