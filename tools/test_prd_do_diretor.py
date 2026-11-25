@@ -217,6 +217,31 @@ def test_reconhece_a_demanda_pelo_marcador_e_o_tipo_pela_secao():
     assert pd.ler(MELHORIA + "\n<!-- refino -->")["refinada"] is True
 
 
+# o card que o diretor abre pelo Claude dele: sem Origem nem marcador, só a label (ADR 0113, decisão 5)
+CARD_DO_DIRETOR = MELHORIA.split("## Origem")[0].rstrip() + "\n"
+
+
+def rodar_ler(corpo, labels):
+    chamadas = []
+
+    def gh_falso(*args):
+        chamadas.append(args)
+        return json.dumps({"body": corpo, "labels": [{"name": l} for l in labels], "title": "Relatório por setor"})
+
+    return pd.main(["ler", "1400"], gh=gh_falso), chamadas
+
+
+def test_ler_reconhece_o_card_do_diretor_so_pela_label(capsys):
+    codigo, _ = rodar_ler(CARD_DO_DIRETOR, ["needs-triage", "origem:diretor"])
+    assert codigo == 0
+    saida = capsys.readouterr().out
+    assert pd.NAO_E_DEMANDA not in saida
+    assert pd.TITULO_TOMADAS in saida and "- Se o relatório conta fim de semana." in saida
+    # sem a label e sem o marcador, não é card do diretor
+    rodar_ler(CARD_DO_DIRETOR, ["needs-triage"])
+    assert pd.NAO_E_DEMANDA in capsys.readouterr().out
+
+
 def test_grill_lista_as_decisoes_do_diretor_como_tomadas_e_abre_pelo_que_ficou_em_aberto():
     roteiro = pd.roteiro_do_grill(CORPO)
     tomadas, abertas = roteiro.split(pd.TITULO_EM_ABERTO)

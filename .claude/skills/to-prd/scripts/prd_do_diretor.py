@@ -29,6 +29,8 @@ import tempfile
 from pathlib import Path
 
 MARCADOR_DA_DEMANDA = re.compile(r'<!--\s*demanda-vitta id="[^"]*"\s*-->')
+# o card que o diretor abre pelo Claude dele não tem Demanda no app: a label basta (ADR 0113, decisão 5)
+LABEL_DO_DIRETOR = "origem:diretor"
 # a marca que o coletor do PedroOS lê (coletor/collect.py, MARCADOR_REFINO): a Demanda refinada e o link do painel
 MARCA_DE_REFINO = re.compile(r"<!-- refino(?:: (\S+))? -->")
 LINK_HTTPS = re.compile(r"https://[^\s<>\"']+")
@@ -38,7 +40,9 @@ LINHA_O_QUE_MUDA = re.compile(r"^\*\*O que muda:\*\*.*$", re.MULTILINE)
 
 TITULO_TOMADAS = "Já decidido pelo diretor (não pergunte de novo):"
 TITULO_EM_ABERTO = "Ficou em aberto (a Leitura começa por aqui):"
-NAO_E_DEMANDA = "Não é Demanda do diretor (sem o marcador da Demanda): siga o /grill-with-docs normal."
+NAO_E_DEMANDA = (
+    "Não é Demanda do diretor (sem o marcador da Demanda nem a label origem:diretor): siga o /grill-with-docs normal."
+)
 SECOES_OBRIGATORIAS = ("Decisões de implementação", "Decisões de teste")
 SECOES_TECNICAS = (*SECOES_OBRIGATORIAS, "Fora de escopo", "Notas adicionais")
 SECAO_DO_REFINO = "Refino"
@@ -68,11 +72,11 @@ def _itens(texto: str | None) -> list[str]:
     return [linha[2:].strip() for linha in (texto or "").splitlines() if linha.startswith("- ") and linha[2:].strip()]
 
 
-def ler(corpo: str) -> dict:
+def ler(corpo: str, labels: list[str] | tuple[str, ...] = ()) -> dict:
     em_aberto = _secao(corpo, "Ficou em aberto")
     marca = MARCA_DE_REFINO.search(corpo)
     return {
-        "demanda": bool(MARCADOR_DA_DEMANDA.search(corpo)),
+        "demanda": bool(MARCADOR_DA_DEMANDA.search(corpo)) or LABEL_DO_DIRETOR in labels,
         "tipo": "melhoria" if em_aberto is not None else "bug" if _secao(corpo, "O bug") is not None else None,
         "decisoes": _secao(corpo, "Decisões de negócio") or "",
         "em_aberto": _itens(em_aberto),
@@ -94,9 +98,9 @@ def mensagem_ao_diretor(titulo: str, perguntas: list[str]) -> str:
     return "\n".join(linhas)
 
 
-def roteiro_do_grill(corpo: str, titulo: str = "") -> str:
+def roteiro_do_grill(corpo: str, titulo: str = "", labels: list[str] | tuple[str, ...] = ()) -> str:
     """O que o /grill-with-docs #N mostra antes da Leitura."""
-    lido = ler(corpo)
+    lido = ler(corpo, labels)
     if not lido["demanda"]:
         return NAO_E_DEMANDA
     if lido["tipo"] == "bug":
@@ -201,8 +205,9 @@ def _gravar(numero: str, corpo: str, mudar: dict[str, list[str]], gh) -> None:
 
 def main(argv: list[str], gh=_gh) -> int:
     if len(argv) == 2 and argv[0] == "ler" and argv[1].isdigit():
-        dados = json.loads(gh("issue", "view", argv[1], "--json", "body,title"))
-        print(roteiro_do_grill(dados.get("body") or "", dados.get("title") or ""))
+        dados = json.loads(gh("issue", "view", argv[1], "--json", "body,title,labels"))
+        labels = [l["name"] for l in dados.get("labels") or []]
+        print(roteiro_do_grill(dados.get("body") or "", dados.get("title") or "", labels))
         return 0
     painel_ok = len(argv) == 3 or (len(argv) == 5 and argv[3] == "--painel")
     if argv and argv[0] == "completar" and painel_ok and argv[1].isdigit():
