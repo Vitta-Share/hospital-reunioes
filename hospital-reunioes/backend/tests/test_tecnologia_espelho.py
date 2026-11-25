@@ -387,12 +387,12 @@ def _ids(resposta) -> list[str]:
 
 
 class TestQuemVe:
-    def test_o_minhas_do_diretor_traz_so_as_dele(self, monkeypatch):
-        """Desde a issue #2265 o Minhas corta pelo autor para todo Super admin;
-        o card Vitta fica no Todas."""
+    def test_o_diretor_ve_todas_na_lista_sem_recorte(self, monkeypatch):
+        """Issue #2265 (ADR 0113, decisao 6): a lista do diretor traz as dele,
+        os cards Vitta e as de outro autor."""
         client, _ = _aba(monkeypatch, DIRETOR)
 
-        assert _ids(client.get(CHAT)) == ["d-minha"]
+        assert _ids(client.get(CHAT)) == ["d-vitta", "d-minha", "d-outra"]
 
     def test_o_diretor_ve_todas_e_le_a_conversa_de_outro_autor(self, monkeypatch):
         """Issue #2265 (ADR 0113, decisao 6): todo Super admin ve todas."""
@@ -404,7 +404,7 @@ class TestQuemVe:
     def test_o_card_vitta_nao_e_do_diretor(self, monkeypatch):
         client, _ = _aba(monkeypatch, DIRETOR)
 
-        vitta = next(d for d in client.get(f"{CHAT}?filtro=todas").json() if d["id"] == "d-vitta")
+        vitta = next(d for d in client.get(CHAT).json() if d["id"] == "d-vitta")
 
         assert vitta["minha"] is False
         assert vitta["issue_numero"] == 1700
@@ -439,8 +439,8 @@ class TestOrigemNaLista:
     @pytest.mark.parametrize(
         ("logado", "consulta", "esperado"),
         [
-            (DIRETOR, "filtro=todas&origem=vitta", ["d-vitta"]),
-            (DIRETOR, "origem=diretor", ["d-minha"]),
+            (DIRETOR, "origem=vitta", ["d-vitta"]),
+            (DIRETOR, "origem=diretor", ["d-minha", "d-outra"]),
             (PEDRO, "filtro=todas&origem=diretor", ["d-minha", "d-outra"]),
             (PEDRO, "filtro=todas&origem=vitta&etapa=em_analise", ["d-vitta"]),
         ],

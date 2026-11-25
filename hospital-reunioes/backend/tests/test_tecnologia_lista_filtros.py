@@ -161,8 +161,15 @@ class TestFiltrosCombinam:
     def test_o_diretor_combina_tipo_e_etapa(self, lista):
         assert _ids(lista(DIRETOR, "tipo=bug&etapa=em_analise")) == ["d-bug-rib", "d-bug-pedro"]
 
-    def test_sem_filtro_a_lista_continua_a_de_hoje(self, lista):
-        assert _ids(lista(DIRETOR)) == ["d-bug-rib", "d-bug-pedro", "d-falhou-diretor"]
+    def test_sem_filtro_a_lista_do_diretor_traz_todas(self, lista):
+        """Issue #2265 (ADR 0113, decisao 6): todo Super admin ve todas."""
+        assert _ids(lista(DIRETOR)) == [
+            "d-bug-rib",
+            "d-bug-pedro",
+            "d-melhoria-pedro",
+            "d-falhou-pedro",
+            "d-falhou-diretor",
+        ]
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -170,15 +177,12 @@ class TestFiltrosCombinam:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-class TestOsFiltrosSaoDeTodos:
-    """Issue #2265 (ADR 0113, decisao 6): nenhum filtro e mais so do
-    Desenvolvedor."""
-
+class TestSoDoDesenvolvedor:
     @pytest.mark.parametrize("consulta", ["filtro=para_mim", "responsavel=P4", "envio_falhou=true"])
-    def test_a_rota_aceita_do_diretor_o_filtro_que_era_do_desenvolvedor(self, lista, consulta):
+    def test_a_rota_recusa_ao_diretor_o_filtro_do_desenvolvedor(self, lista, consulta):
         resposta = lista(DIRETOR, consulta)
 
-        assert resposta.status_code == 200, resposta.text
+        assert resposta.status_code == 403, resposta.text
 
 
 # ═══════════════════════════════════════════════════════════════════════════

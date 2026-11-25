@@ -175,19 +175,11 @@ def _montar_como(logado: dict, sb, monkeypatch):
     return client
 
 
-class TestOsFiltrosValemParaTodos:
-    """Os filtros da lista continuam, e nenhum deles e mais so do
-    Desenvolvedor: o Minhas corta pelo autor para todo Super admin."""
-
-    def test_o_minhas_do_super_admin_sem_login_traz_so_as_dele(self, monkeypatch):
-        demandas = [*_demandas_de_dois_autores(), _demanda("d-outro", titulo="O meu pedido", autor_id="P3")]
-        client, _, _ = _cenario(
-            monkeypatch, logado=OUTRO_DIRETOR, participantes=[PEDRO, DIRETOR, OUTRO_DIRETOR], demandas=demandas
-        )
-
-        assert [d["id"] for d in client.get(f"{CHAT}?filtro=minhas").json()] == ["d-outro"]
-
-    def test_super_admin_sem_login_filtra_pelo_responsavel(self, monkeypatch):
+class TestAListaDoDiretor:
+    def test_a_lista_sem_recorte_do_super_admin_sem_login_traz_todas(self, monkeypatch):
+        """A tela de quem nao e Desenvolvedor pede a lista sem recorte (o
+        Minhas): ela traz todas, e nenhum Super admin fica limitado as
+        proprias Demandas. O recorte continua do Desenvolvedor."""
         client, _, _ = _cenario(
             monkeypatch,
             logado=OUTRO_DIRETOR,
@@ -195,7 +187,4 @@ class TestOsFiltrosValemParaTodos:
             demandas=_demandas_de_dois_autores(),
         )
 
-        resposta = client.get(f"{CHAT}?filtro=todas&responsavel=P1")
-
-        assert resposta.status_code == 200, resposta.text
-        assert [d["id"] for d in resposta.json()] == ["d-diretor"]
+        assert [d["id"] for d in client.get(CHAT).json()] == ["d-pedro", "d-diretor"]

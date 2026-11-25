@@ -839,25 +839,31 @@ async def listar_as_conversas(
     """A lista ao lado do chat (issue #1384): as Demandas, com o titulo e a
     Etapa, a mais recente primeiro.
 
-    Todo Super admin ve todas (issue #2265, ADR 0113, decisao 6): o `pode_ver`
-    e a regra unica, e os filtros valem para todos. `minhas` sao as que o
-    Super admin logado pediu, `todas` sao todas, e `para_mim` as de que ele e
-    o Responsavel (ADR 0083, decisao 5).
+    Quem corta e o `pode_ver`, a regra unica da leitura: desde a issue #2265
+    (ADR 0113, decisao 6) todo Super admin ve todas, e o "Minhas" de quem nao
+    e Desenvolvedor, a lista sem recorte da tela dele, traz todas. O recorte
+    `todas`, `minhas` e `para_mim` continua o do Desenvolvedor (ADR 0083,
+    decisoes 3 e 5): `minhas` sao as que ele pediu, `para_mim` as de que ele e
+    o Responsavel.
 
     Por cima do recorte, e combinando entre si (issue #1551): a `busca` pelo
     titulo, sem diferenciar maiuscula e acento; o `tipo` (bug ou melhoria); a
     `etapa`; o `responsavel` (o id de quem cuida); e o `envio_falhou`, as
     Demandas cujo card nao chegou ao GitHub (issue #1535), de todos os autores
-    mesmo partindo de `para_mim`, porque elas nao tem Responsavel. A `origem`
-    (issue #1554) e o `projeto` (issue #1715, ADR 0093, decisao 8) tambem.
+    mesmo partindo de `para_mim`, porque elas nao tem Responsavel. `para_mim`,
+    `responsavel` e `envio_falhou` continuam do Desenvolvedor, como os chips
+    da tela, e a rota os recusa a quem nao e. A `origem` (issue #1554) e o
+    `projeto` (issue #1715, ADR 0093, decisao 8) sao para todos.
 
     Sai pelo `_para_a_lista`, o funil da Demanda desta API.
     """
+    if not e_desenvolvedor(ator) and (filtro == "para_mim" or responsavel or envio_falhou):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Filtro so do Desenvolvedor")
     if etapa is not None and etapa not in ETAPAS:
         _recusar("Etapa desconhecida")
     # A lapide do Apagar fica fora de todo filtro (ADR 0084, decisao 2).
     consulta = supabase.table(TABELA_DEMANDAS).select("*").is_("apagada_em", "null")
-    if filtro == "minhas":
+    if filtro == "minhas" and e_desenvolvedor(ator):
         consulta = consulta.eq("autor_id", ator["id"])
     elif filtro == "para_mim":
         consulta = consulta.eq("responsavel_id", ator["id"])

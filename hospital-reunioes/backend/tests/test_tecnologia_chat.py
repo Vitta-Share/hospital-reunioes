@@ -793,7 +793,8 @@ class TestListaDasConversas:
     """A lista ao lado do chat: as Demandas de quem está logado, com o título e
     a Etapa, da mais recente para a mais antiga."""
 
-    def test_lista_so_as_demandas_do_logado_da_mais_recente_para_a_mais_antiga(self, monkeypatch):
+    def test_lista_as_demandas_da_mais_recente_para_a_mais_antiga(self, monkeypatch):
+        """Desde a issue #2265 (ADR 0113, decisao 6) a do Pedro entra tambem."""
         demandas = [
             _demanda("d-velha", titulo="O relatório some", autor_id=DIRETOR["id"], criado_em="2026-10-01T10:00:00Z"),
             _demanda(
@@ -814,6 +815,7 @@ class TestListaDasConversas:
         assert resposta.status_code == 200, resposta.text
         lista = resposta.json()
         assert [(d["titulo"], d["etapa"]) for d in lista] == [
+            ("Pedido da Vitta", "registrada"),
             ("Aviso quando a ata sair", "em_desenvolvimento"),
             ("O botão sumiu", "registrada"),
             ("O relatório some", "registrada"),
