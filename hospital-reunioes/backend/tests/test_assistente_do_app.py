@@ -162,3 +162,15 @@ class TestNaoViraDemanda:
         assert resposta.status_code == 200
         assert supabase.escritas == []
         assert "tecnologia_demandas" not in supabase.tabelas
+
+
+class TestOKitDiz:
+    def test_o_texto_da_tecnologia_no_kit_diz_o_assistente_do_app(self):
+        from app.services.conhecimento import CONHECIMENTO_DIR
+
+        texto = (CONHECIMENTO_DIR / "tecnologia.md").read_text(encoding="utf-8")
+        assert "## O Assistente do app" in texto
+        assert "canto inferior direito" in texto
+        assert "**Tirar uma dúvida**" in texto
+        assert "para todo mundo que entra no aplicativo" in texto
+        assert "A dúvida não vira pedido para a Vitta" in texto

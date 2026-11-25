@@ -215,6 +215,14 @@ O manual tem duas abas. A aba **Aplicativo do Hospital** tem uma página para ca
 
 Os prints do manual usam pessoas e dados inventados, nunca de paciente ou de funcionário.
 
+## O Assistente do app
+
+No canto inferior direito da tela fica um robozinho, o Assistente do app, para todo mundo que entra no aplicativo, em qualquer parte dele e também na Administração. O clique no robô abre um painel com a sugestão **Tirar uma dúvida** e um campo livre para escrever a pergunta do seu jeito.
+
+Ele responde dúvidas de uso: como uma tela funciona, onde fica um botão, como fazer uma tarefa. Para responder, lê as páginas do manual das partes do aplicativo que a pessoa já usa (as mesmas que ela vê no Manual) e este material da Vitta, e diz de onde tirou a resposta. Se o material não responde, ele avisa que não sabe. Ele não lê o código do aplicativo e não muda nada nele.
+
+A dúvida não vira pedido para a Vitta: a conversa fica só no painel e some quando a página é recarregada. O Manual continua no canto inferior esquerdo, como antes.
+
 ## O que já foi decidido
 
 - A aba mora dentro do aplicativo e só quem é Super admin a vê.
