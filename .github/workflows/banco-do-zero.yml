@@ -1,0 +1,55 @@
+name: Banco do zero
+
+# Monta o banco local do zero, com todas as migrations e o seed, como faz quem
+# clona o repositório (o diretor achou três quebras assim em 25/11/2026: seção do
+# config.toml que o CLI 3 renomeou, índice numa tabela que outra migration apagou
+# e número de migration repetido). Produção recebe cada migration colada à mão no
+# Studio, então nenhuma outra conferência via o caminho de quem começa do zero.
+# Roda só quando o PR mexe em hospital-reunioes/supabase/. Não é check exigido
+# pelo ruleset: workflow pulado por filtro de caminho não reporta.
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'hospital-reunioes/supabase/**'
+      - '.github/workflows/banco-do-zero.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'hospital-reunioes/supabase/**'
+      - '.github/workflows/banco-do-zero.yml'
+
+jobs:
+  banco-do-zero:
+    name: Banco montado do zero (Supabase CLI 3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # A versão que o Homebrew instala no Mac de quem chega; suba junto com o time.
+      SUPABASE_CLI: supabase@3.4.0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Nenhum número de migration repetido
+        run: |
+          repetidos=$(ls hospital-reunioes/supabase/migrations | sed -nE 's/^([0-9]+)_.*/\1/p' | sort | uniq -d)
+          if [ -n "$repetidos" ]; then
+            echo "::error::número de migration repetido: $repetidos (o Supabase CLI usa o número como chave)"
+            exit 1
+          fi
+
+      - name: supabase start (migrations e seed)
+        working-directory: hospital-reunioes
+        run: npx -y "$SUPABASE_CLI" start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,realtime,postgres-meta
+
+      - name: O último recibo é o da maior migration
+        working-directory: hospital-reunioes
+        run: |
+          maior=$(ls supabase/migrations | sed -nE 's/^([0-9]+)_.*/\1/p' | sort -n | tail -1 | sed 's/^0*//')
+          db_url=$(npx -y "$SUPABASE_CLI" status -o env | sed -nE 's/^DB_URL="?([^"]*)"?$/\1/p')
+          lido=$(psql "$db_url" -tAc "SELECT max(numero) FROM migracoes_aplicadas")
+          echo "maior migration: $maior; recibo no banco: $lido"
+          [ "$lido" = "$maior" ]
