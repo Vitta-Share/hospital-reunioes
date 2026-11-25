@@ -7,6 +7,8 @@
 # Demandas cria a issue e designa o responsável num PATCH logo depois (github_client.py),
 # e o payload do evento ainda vem sem ninguém. Autor de fora (OWNER, MEMBER ou
 # COLLABORATOR não) e bot ficam como estão: o GitHub não deixa designar quem não tem acesso.
+# O card de um login de DIRETOR_LOGINS fica com a card-do-diretor.yml: desde a ADR 0113 o
+# diretor é colaborador, e sem dono o card dele vai ao dono do repositório, não a ele.
 name: Dono do card
 
 on:
@@ -25,11 +27,20 @@ jobs:
     steps:
       - name: Designar o autor quando a issue nasce sem dono
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          DIRETOR_LOGINS: ${{ vars.DIRETOR_LOGINS }}
         with:
           script: |
             const { owner, repo } = context.repo;
             const issue_number = context.payload.issue.number;
             const autor = context.payload.issue.user.login;
+            const diretores = (process.env.DIRETOR_LOGINS || '').split(',')
+              .map((l) => l.trim().toLowerCase())
+              .filter(Boolean);
+            if (diretores.includes(autor.toLowerCase())) {
+              core.info(`#${issue_number}: card do diretor, o dono fica com a card-do-diretor.yml`);
+              return;
+            }
             const { data: atual } = await github.rest.issues.get({ owner, repo, issue_number });
             if (atual.assignees.length > 0) {
               core.info(`#${issue_number} já tem dono: ${atual.assignees.map((a) => a.login).join(', ')}`);
