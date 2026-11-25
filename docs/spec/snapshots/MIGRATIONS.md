@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-23T14:15+0000 -->
+<!-- last_update: 2026-11-25T16:50+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -168,10 +168,8 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 168 | `168_reunioes_setor_obrigatorio.sql` | o setor da Reunião aponta para a tabela de setores | 0 | 1 | 1 | 1 |
 | 169 | `169_ciclo_de_vida_da_pendencia.sql` | ciclo de vida da Pendencia (ADR 0098, decisoes 4 e 5; issue #1862) | 1 | 1 | 2 | 0 |
 | 171 | `171_nascimento_da_pendencia.sql` | evento de nascimento da Pendencia (ADR 0098, decisao 1; issue #1867) | 0 | 0 | 0 | 0 |
-| 172 | `172_ouvidoria_setor_id.sql` | o setor da manifestação aponta para a tabela de setores | 0 | 1 | 1 | 1 |
 | 172 | `172_pendencia_nao_cai_com_a_reuniao.sql` | nada apaga Pendencia (ADR 0098, decisao 6; issue #1864) | 0 | 0 | 0 | 0 |
 | 173 | `173_nsp_registro_de_email.sql` | o registro de e-mail do Núcleo, com retentativa | 0 | 1 | 3 | 0 |
-| 174 | `174_anexo_da_conclusao_da_pendencia.sql` | foto ou PDF anexado na conclusao da Pendencia (issue #1865, PRD #1757) | 1 | 0 | 1 | 0 |
 | 174 | `174_nsp_notificacao_de_incidente.sql` | a Notificação de incidente do Núcleo | 3 | 0 | 7 | 0 |
 | 175 | `175_conduta_fundacao.sql` | Canal de Conduta, a fundação do sigilo | 4 | 1 | 7 | 0 |
 | 176 | `176_contas_medicas_arquivar_por_competencia.sql` | Contas medicas, arquivar por Competencia | 0 | 2 | 1 | 0 |
@@ -227,6 +225,8 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 235 | `235_pedido_de_implantacao.sql` | o Pedido de implantacao, o terceiro tipo do Pedido da Vitta | 0 | 0 | 0 | 0 |
 | 236 | `236_pedido_espera_outro.sql` | um Pedido de implantacao espera outro | 0 | 1 | 1 | 0 |
 | 237 | `237_achei_um_problema.sql` | o Achei um problema do Pedido de implantacao | 0 | 3 | 3 | 0 |
+| 238 | `238_ouvidoria_setor_id.sql` | (era 172, renumerada na issue do banco do zero: dividia o número com outra; em p | 0 | 1 | 1 | 1 |
+| 239 | `239_anexo_da_conclusao_da_pendencia.sql` | (era 174, renumerada na issue do banco do zero: dividia o número com outra; em p | 1 | 0 | 1 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
 **Total:** 221 migrations.

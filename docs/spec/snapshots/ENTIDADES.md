@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-23T14:15+0000 -->
+<!-- last_update: 2026-11-25T16:50+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2310,24 +2310,6 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_pendencia_historico_contestacao` em `(id_acao, criado_em)` (de `187_contestacao_do_item_da_ata.sql`)
 - `idx_pendencia_historico_rotina` em `(rotina_id)` (de `190_fluxo_continuo_vira_rotina.sql`)
 
-## pendencia_anexos
-
-> Origem: `174_anexo_da_conclusao_da_pendencia.sql`
-
-| Campo | Tipo | Constraints | Default | FK |
-|-------|------|-------------|---------|-----|
-| `id` | `BIGINT` | PK | — | — |
-| `id_acao` | `VARCHAR(10)` | NOT NULL | — | `pendencias.id_acao` |
-| `evento_id` | `BIGINT` | UNIQUE, NOT NULL | — | `pendencia_historico.id` |
-| `storage_path` | `TEXT` | NOT NULL | — | — |
-| `nome_original` | `TEXT` | NOT NULL | — | — |
-| `content_type` | `TEXT` | NOT NULL | — | — |
-| `tamanho_bytes` | `BIGINT` | NOT NULL | — | — |
-| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
-
-**Indexes:**
-- `idx_pendencia_anexos_acao` em `(id_acao)` (de `174_anexo_da_conclusao_da_pendencia.sql`)
-
 ## nsp_protocolos
 
 > Origem: `174_nsp_notificacao_de_incidente.sql`
@@ -3558,6 +3540,24 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 **Indexes:**
 - `idx_tecnologia_checks_do_pedido_pedido` em `(pedido_id, criado_em)` (de `232_pedido_da_vitta_passo_a_passo.sql`)
+
+## pendencia_anexos
+
+> Origem: `239_anexo_da_conclusao_da_pendencia.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `BIGINT` | PK | — | — |
+| `id_acao` | `VARCHAR(10)` | NOT NULL | — | `pendencias.id_acao` |
+| `evento_id` | `BIGINT` | UNIQUE, NOT NULL | — | `pendencia_historico.id` |
+| `storage_path` | `TEXT` | NOT NULL | — | — |
+| `nome_original` | `TEXT` | NOT NULL | — | — |
+| `content_type` | `TEXT` | NOT NULL | — | — |
+| `tamanho_bytes` | `BIGINT` | NOT NULL | — | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_pendencia_anexos_acao` em `(id_acao)` (de `239_anexo_da_conclusao_da_pendencia.sql`)
 
 ---
 

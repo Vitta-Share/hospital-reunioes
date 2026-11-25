@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-23T14:15+0000 -->
+<!-- last_update: 2026-11-25T16:50+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -1368,16 +1368,6 @@ erDiagram
         DATE prazo_antes
         _ mais_colunas "+5"
     }
-    pendencia_anexos {
-        BIGINT id PK
-        VARCHAR id_acao FK
-        BIGINT evento_id FK
-        TEXT storage_path
-        TEXT nome_original
-        TEXT content_type
-        BIGINT tamanho_bytes
-        TIMESTAMPTZ criado_em
-    }
     nsp_protocolos {
         SMALLINT ano PK
         INTEGER ultimo
@@ -1950,6 +1940,16 @@ erDiagram
         VARCHAR em_nome_de FK
         TIMESTAMPTZ criado_em
     }
+    pendencia_anexos {
+        BIGINT id PK
+        VARCHAR id_acao FK
+        BIGINT evento_id FK
+        TEXT storage_path
+        TEXT nome_original
+        TEXT content_type
+        BIGINT tamanho_bytes
+        TIMESTAMPTZ criado_em
+    }
 ```
 
 ## Indexes principais
@@ -2158,7 +2158,6 @@ erDiagram
 | `pendencia_historico` | `idx_pendencia_historico_repactuacao` | `id_acao` | `169_ciclo_de_vida_da_pendencia.sql` |
 | `pendencia_historico` | `idx_pendencia_historico_contestacao` | `id_acao, criado_em` | `187_contestacao_do_item_da_ata.sql` |
 | `pendencia_historico` | `idx_pendencia_historico_rotina` | `rotina_id` | `190_fluxo_continuo_vira_rotina.sql` |
-| `pendencia_anexos` | `idx_pendencia_anexos_acao` | `id_acao` | `174_anexo_da_conclusao_da_pendencia.sql` |
 | `nsp_notificacoes` | `idx_nsp_notificacoes_criado_em` | `criado_em DESC` | `174_nsp_notificacao_de_incidente.sql` |
 | `nsp_notificacoes` | `idx_nsp_notificacoes_setor` | `setor_id` | `174_nsp_notificacao_de_incidente.sql` |
 | `nsp_notificacoes` | `idx_nsp_notificacoes_notificante` | `notificante_id` | `174_nsp_notificacao_de_incidente.sql` |
@@ -2271,6 +2270,7 @@ erDiagram
 | `conduta_verificacoes_de_retaliacao` | `idx_conduta_verificacoes_de_retaliacao_verificada_por` | `verificada_por` | `229_conduta_verificacao_de_retaliacao.sql` |
 | `conduta_verificacoes_de_retaliacao` | `idx_conduta_verificacoes_de_retaliacao_caso_novo` | `caso_novo_id` | `229_conduta_verificacao_de_retaliacao.sql` |
 | `tecnologia_checks_do_pedido` | `idx_tecnologia_checks_do_pedido_pedido` | `pedido_id, criado_em` | `232_pedido_da_vitta_passo_a_passo.sql` |
+| `pendencia_anexos` | `idx_pendencia_anexos_acao` | `id_acao` | `239_anexo_da_conclusao_da_pendencia.sql` |
 
 ---
 **Resumo:** 178 tabelas · 305 relacionamentos FK detectados.
