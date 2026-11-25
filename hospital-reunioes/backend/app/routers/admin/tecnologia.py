@@ -835,37 +835,28 @@ async def listar_as_conversas(
     ator: dict = Depends(require_super_admin),
     supabase: Client = Depends(get_supabase_client),
 ):
-    """A lista ao lado do chat (issue #1384): as Demandas que o Super admin
-    logado pediu, com o titulo e a Etapa, a mais recente primeiro.
+    """A lista ao lado do chat (issue #1384): as Demandas, com o titulo e a
+    Etapa, a mais recente primeiro.
 
-    `todas` e o filtro do Desenvolvedor (ADR 0083, decisao 3). Quem corta e o
-    `pode_ver`, a mesma regra da leitura da conversa: para quem nao e
-    Desenvolvedor, `todas` volta so as dele. `para_mim` e o padrao da lista do
-    Desenvolvedor: as Demandas de que ele e o Responsavel (ADR 0083, decisao 5).
+    Todo Super admin ve todas (issue #2265, ADR 0113, decisao 6): o `pode_ver`
+    e a regra unica, e os filtros valem para todos. `minhas` sao as que o
+    Super admin logado pediu, `todas` sao todas, e `para_mim` as de que ele e
+    o Responsavel (ADR 0083, decisao 5).
 
     Por cima do recorte, e combinando entre si (issue #1551): a `busca` pelo
     titulo, sem diferenciar maiuscula e acento; o `tipo` (bug ou melhoria); a
     `etapa`; o `responsavel` (o id de quem cuida); e o `envio_falhou`, as
     Demandas cujo card nao chegou ao GitHub (issue #1535), de todos os autores
-    mesmo partindo de `para_mim`, porque elas nao tem Responsavel. `para_mim`,
-    `responsavel` e `envio_falhou` sao do Desenvolvedor, como os chips da
-    tela, e a rota os recusa a quem nao e. A `origem` (issue #1554) e o
-    `projeto` (issue #1715, ADR 0093, decisao 8) sao para todos.
+    mesmo partindo de `para_mim`, porque elas nao tem Responsavel. A `origem`
+    (issue #1554) e o `projeto` (issue #1715, ADR 0093, decisao 8) tambem.
 
-    O diretor ve, alem das dele, os cards de Origem Vitta, abertos pelo
-    terminal (ADR 0084, decisao 4): o "Minhas" dele e o `pode_ver`, e o do
-    Desenvolvedor continua sendo o que ele mesmo pediu.
-
-    Sai pelo `_para_a_lista`, o funil da Demanda desta API: e la que numero e
-    endereco da issue ficam de fora para o diretor.
+    Sai pelo `_para_a_lista`, o funil da Demanda desta API.
     """
-    if not e_desenvolvedor(ator) and (filtro == "para_mim" or responsavel or envio_falhou):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Filtro so do Desenvolvedor")
     if etapa is not None and etapa not in ETAPAS:
         _recusar("Etapa desconhecida")
     # A lapide do Apagar fica fora de todo filtro (ADR 0084, decisao 2).
     consulta = supabase.table(TABELA_DEMANDAS).select("*").is_("apagada_em", "null")
-    if filtro == "minhas" and e_desenvolvedor(ator):
+    if filtro == "minhas":
         consulta = consulta.eq("autor_id", ator["id"])
     elif filtro == "para_mim":
         consulta = consulta.eq("responsavel_id", ator["id"])
