@@ -48,16 +48,20 @@ O texto bruto da Reunião. Chega sozinha do Fireflies, quando a [Gravação] lev
 _Evitar_: gravação, áudio (o áudio é a [Gravação], que não entra nas Reuniões).
 
 **Gravação**:
-O áudio de uma Reunião, feito no Fireflies (aplicativo do celular ou navegador do computador) e guardado lá, fora do app. Nas Reuniões ela é só passagem: sai do Fireflies assim que a Transcrição chega ao app.
+O áudio de uma Reunião, de um depoimento ou da reunião do [Comitê de Conduta], feito no Fireflies (aplicativo do celular ou navegador do computador) e guardado lá até o app apagar. Nas Reuniões e na reunião do Comitê ela é só passagem: sai do Fireflies assim que a Transcrição chega ao app, e o áudio não entra. No depoimento o app traz o áudio e o guarda cifrado no cartão da pessoa ouvida.
 _Evitar_: chamar a Transcrição de gravação; "áudio da ata".
 
 **Código da gravação**:
-O código curto e único de uma Reunião agendada que quem grava digita no título da [Gravação] para a Transcrição chegar sozinha ao destino certo. É a letra do módulo e cinco números, sem sequência, e o último número confere os outros (`R-48273` em Reuniões, `N-30517` no Núcleo).
+O código curto e único de uma Reunião agendada, de um depoimento ou da reunião do [Comitê de Conduta] que quem grava digita no título da [Gravação] para a Transcrição chegar sozinha ao destino certo. É a letra do módulo e cinco números, sem sequência, e o último número confere os outros (`R-48273` em Reuniões, `N-30517` no Núcleo, `C-61904` no Comitê). No Comitê ele não tem relação com o protocolo do caso, vale até concluir o depoimento ou a reunião e só aparece para quem abre o caso, nunca por e-mail.
 _Evitar_: protocolo, número da reunião; confundir com o Código do POP (`HSM_[SIGLA]-NNN`).
 
 **Transcrições sem destino**:
 A fila das Transcrições que chegaram do Fireflies sem um [Código da gravação] válido para uma Reunião agendada na mesma data. Mostra só data, hora, duração e título; quem conduz puxa a Transcrição para uma Reunião dele, e o app sugere a Reunião pelo horário, sem nunca escolher sozinho.
-_Evitar_: "gravações sem reunião"; destino adivinhado.
+_Evitar_: "gravações sem reunião"; destino adivinhado; mandar para cá o que começa com C (vai para as [Gravações do Comitê sem destino]).
+
+**Gravações do Comitê sem destino**:
+A fila das Gravações com título começando por C cujo [Código da gravação] não casa com um depoimento ou uma reunião do Comitê em aberto. Guarda texto e áudio cifrados, mostra só data, hora e duração, sem o título, e só a vê quem tem depoimento ou reunião do Comitê em aberto num caso que abre. O que ninguém puxa apaga com 15 dias.
+_Evitar_: mostrar o título; deixar a coordenação distribuir (ela não abre a Rota Especial).
 
 **Ata**:
 O documento estruturado da Reunião — tópicos, decisões e ações. Tem **dois modos de geração**: **por Transcrição** (o Pipeline de IA extrai a Ata completa a partir do texto da Reunião; vira PDF e pode ser assinada) ou **Guiada** (ver **Ata Guiada**). Uma Reunião tem no máximo **uma** Ata, por um dos dois modos.

@@ -36,6 +36,7 @@ Só `status: accepted` vale como decisão; `superseded` é histórico (CLAUDE.md
 | [0112](0112-nsp-responsavel-tecnico-assina-os-documentos-do-nucleo.md) | accepted | Núcleo de Segurança do Paciente: o Responsável técnico assina os documentos do Núcleo (emenda 0095) |
 | [0096](0096-mensagem-pelo-terminal-na-conversa-da-demanda.md) | superseded | Mensagem pelo terminal: a sessão do desenvolvedor escreve e lê na Conversa da Demanda, pela ponte de automação (emenda 0069 e 0083) |
 | [0097](0097-canal-de-conduta-fundacao.md) | accepted | Canal de Conduta: fundação, sigilo do conteúdo e exceções de IA (emenda 0082, 0088 e 0095) |
+| [0115](0115-fireflies-no-comite-de-conduta-o-audio-do-depoimento-entra-cifrado.md) | proposed | Fireflies no Comitê de Conduta: o áudio do depoimento entra cifrado vindo do Fireflies, pela conta única |
 | [0101](0101-dados-do-atendimento-e-espelho-so-para-super-admin.md) | accepted | Dados do Atendimento e o Espelho da Global Health ficam só com o Super admin (emenda 0031 e 0038) |
 
 ## Contas médicas
