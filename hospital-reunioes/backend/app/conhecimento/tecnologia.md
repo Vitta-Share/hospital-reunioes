@@ -219,11 +219,13 @@ Os prints do manual usam pessoas e dados inventados, nunca de paciente ou de fun
 
 ## O Assistente do app
 
-No canto inferior direito da tela fica um robozinho, o Assistente do app, para todo mundo que entra no aplicativo, em qualquer parte dele e também na Administração. O clique no robô abre um painel com a sugestão **Tirar uma dúvida** e um campo livre para escrever a pergunta do seu jeito.
+No canto inferior direito da tela fica um robozinho, o Assistente do app, para todo mundo que entra no aplicativo, em qualquer parte dele e também na Administração. O clique no robô abre um painel com as sugestões **Relatar um bug** e **Tirar uma dúvida** e um campo livre para escrever a pergunta do seu jeito.
 
 Ele responde dúvidas de uso: como uma tela funciona, onde fica um botão, como fazer uma tarefa. Para responder, lê as páginas do manual das partes do aplicativo que a pessoa já usa (as mesmas que ela vê no Manual) e este material da Vitta, e diz de onde tirou a resposta. Se o material não responde, ele avisa que não sabe. Ele não lê o código do aplicativo e não muda nada nele.
 
 A dúvida não vira pedido para a Vitta: a conversa fica só no painel e some quando a página é recarregada. O Manual continua no canto inferior esquerdo, como antes.
+
+Em **Relatar um bug**, o robô faz cinco perguntas, uma por vez: onde aconteceu, o que aconteceu, o que você esperava, como fazer o problema acontecer de novo e, se você tiver, o print da tela. Dá para pular qualquer uma, e o que você não respondeu aparece como "não informado". O print fica guardado no aplicativo, junto do pedido, e nunca vai para o GitHub. No fim, o robô mostra o resumo do que você disse, e o bug só vai para a Vitta quando você clica em **Enviar à Vitta**. Até lá, ele fica guardado no aplicativo como um pedido Registrado. O bug de quem é Super admin entra direto na fila da Vitta; o das outras pessoas passa antes por uma conferência. No Quadro da Tecnologia, ele aparece com o selo **Relato no app**. Se o envio falhar, o robô mostra o motivo e o botão **Tentar de novo**, e nada é reenviado sem esse clique.
 
 ## O que já foi decidido
 

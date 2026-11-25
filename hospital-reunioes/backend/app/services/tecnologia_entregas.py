@@ -99,7 +99,7 @@ class Filtros:
     `chave_do_responsavel`."""
 
     tipo: Literal["bug", "melhoria"] | None = None
-    origem: Literal["diretor", "vitta"] | None = None
+    origem: Literal["diretor", "vitta", "relato"] | None = None
     responsavel: str | None = None
     projeto: str | None = None
 

@@ -1036,6 +1036,13 @@ LABELS_DO_BUG = [LABEL_PRONTA_PARA_AGENTE, LABEL_DO_TIPO["defeito"]]
 LABEL_ORIGEM_DIRETOR = "origem:diretor"
 
 
+# A Origem do bug do chat da aba, o padrao do `corpo_da_issue_do_bug`.
+ORIGEM_DO_BUG_DO_CHAT = (
+    "Relatado na conversa com o Assistente de Tecnologia, no aplicativo do hospital, e mandado para o "
+    'desenvolvimento pelo clique em "Criar o card".'
+)
+
+
 def corpo_da_issue_do_bug(
     *,
     demanda_id: str,
@@ -1046,6 +1053,8 @@ def corpo_da_issue_do_bug(
     documentos: int = 0,
     prd_de_origem: str | None = None,
     pedido_de_origem: str | None = None,
+    quem_relatou: str = "Bug relatado pelo diretor na aba Tecnologia",
+    como_chegou: str = ORIGEM_DO_BUG_DO_CHAT,
 ) -> str:
     """O corpo da issue que o "Criar o card" do Roteiro do bug cria.
 
@@ -1064,6 +1073,9 @@ def corpo_da_issue_do_bug(
     O bug do "Achei um problema" (issue #2210, ADR 0111, decisao 9) cita, na
     parte tecnica, o PRD de origem (`prd_de_origem`, a referencia ja pronta,
     como "#1700") e o assunto do Pedido de implantacao: o PRD nao reabre.
+
+    O bug do Assistente do app (issue #2275, ADR 0113, decisao 8) passa pelo
+    mesmo corpo, com `quem_relatou` e `como_chegou` dele.
     """
     rotulos = [(rotulo, _linha_do_prd(resumo.get(campo))) for campo, rotulo in ROTULOS_DO_BUG.items()]
     origem_do_prd = (
@@ -1090,7 +1102,7 @@ def corpo_da_issue_do_bug(
             f"**O que muda:** {o_que_muda}",
             "",
             "**O que você precisa saber:**",
-            f"- Bug relatado pelo diretor na aba Tecnologia, em {_linha_do_prd(produto_nome)}.",
+            f"- {quem_relatou}, em {_linha_do_prd(produto_nome)}.",
             "",
             "---",
             "",
@@ -1105,8 +1117,7 @@ def corpo_da_issue_do_bug(
             *origem_do_prd,
             "## Origem",
             "",
-            "Relatado na conversa com o Assistente de Tecnologia, no aplicativo do hospital, e mandado para o "
-            'desenvolvimento pelo clique em "Criar o card".',
+            como_chegou,
             f"Abrir a Demanda: {link}",
             *(["", frase] if (frase := frase_dos_anexos(anexos, documentos)) else []),
             "",

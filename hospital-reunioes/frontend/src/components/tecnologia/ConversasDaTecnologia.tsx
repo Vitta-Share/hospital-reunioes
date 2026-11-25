@@ -836,7 +836,8 @@ function Acompanhamento({ demanda, token }: { demanda: Demanda; token: string | 
 
   // A conversa é complemento: sem ela (a melhoria planejada, ou a rede fora),
   // o Documento do card continua à vista.
-  const semChat = demanda.origem === "vitta";
+  // O bug do Assistente do app (issue #2275) também não tem conversa com o agente.
+  const semChat = demanda.origem === "vitta" || demanda.origem === "relato";
   useEffect(() => {
     if (!token || semChat) return;
     let viva = true;
