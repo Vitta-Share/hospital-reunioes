@@ -531,7 +531,9 @@ async def webhook_github(
     6. **Demanda vinculada.** A esmagadora maioria das issues do repositório não
        tem Demanda nenhuma atrás, e isso não é erro. A exceção é a issue-raiz do
        app aberta pelo terminal, que o espelho transforma em Demanda de Origem
-       Vitta no `opened` e no `edited` (issue #1554, ADR 0084, decisão 4).
+       Vitta no `opened` e no `edited` (issue #1554, ADR 0084, decisão 4), e o
+       card do diretor, que vira Pedido do diretor também no `labeled` (issue
+       #2264).
 
     O corpo da resposta é o SMOKE do passo humano: o operador confere a
     instalação pelo corpo da delivery em `Recent Deliveries`, e não pelo 200.
