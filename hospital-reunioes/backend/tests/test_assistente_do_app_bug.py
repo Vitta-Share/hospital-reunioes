@@ -322,3 +322,18 @@ class TestOPrint:
 
         assert resposta.status_code == 422
         assert bucket == []
+
+
+class TestOKitDiz:
+    def test_o_texto_da_tecnologia_no_kit_diz_o_relato_de_bug(self):
+        from app.services.conhecimento import CONHECIMENTO_DIR
+
+        texto = (CONHECIMENTO_DIR / "tecnologia.md").read_text(encoding="utf-8")
+        secao = texto[texto.index("## O Assistente do app") :].split("\n## ", 1)[0]
+        assert "**Relatar um bug**" in secao
+        assert "cinco perguntas" in secao
+        assert '"não informado"' in secao
+        assert "nunca vai para o GitHub" in secao
+        assert "Relato no app" in secao
+        assert "Tentar de novo" in secao
+        assert "Super admin entra direto na fila" in secao
