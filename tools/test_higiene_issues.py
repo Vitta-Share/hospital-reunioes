@@ -150,3 +150,44 @@ def test_ultima_fatia_fecha_o_prd_e_ninguem_e_reaberto(tmp_path):
     saida = rodar_tudo(tmp_path, state_reason="completed", sub_issues=[])
     assert ["update", 10, "closed", "completed"] in saida["chamadas"]
     assert reaberturas(saida["chamadas"]) == []
+
+
+# O Card de implantação (issue #2266, ADR 0111, decisão 5, e ADR 0113, decisão
+# 9): o PRD fecha sem esperar por ele.
+IMPLANTACAO = {"nodes": [{"name": "implantacao"}]}
+
+
+def test_prd_fecha_quando_so_sobram_abertos_os_cards_de_implantacao(tmp_path):
+    parent = {
+        **PRD_COM_FATIAS_FECHADAS,
+        "subIssues": {
+            "totalCount": 3,
+            "nodes": [
+                {"state": "CLOSED", "labels": {"nodes": []}},
+                {"state": "OPEN", "labels": IMPLANTACAO},
+                {"state": "OPEN", "labels": IMPLANTACAO},
+            ],
+        },
+    }
+    saida = rodar_tudo(tmp_path, state_reason="completed", parent=parent)
+    assert ["update", 10, "closed", "completed"] in saida["chamadas"]
+    assert "2 cards de implantação" in saida["comentarios"]["10"]
+
+
+def test_prd_segue_aberto_com_fatia_aberta_alem_do_card_de_implantacao(tmp_path):
+    parent = {
+        **PRD_COM_FATIAS_FECHADAS,
+        "subIssues": {
+            "totalCount": 2,
+            "nodes": [{"state": "OPEN", "labels": {"nodes": []}}, {"state": "OPEN", "labels": IMPLANTACAO}],
+        },
+    }
+    saida = rodar_tudo(tmp_path, state_reason="completed", parent=parent)
+    assert [c for c in saida["chamadas"] if c[1] == 10] == []
+
+
+def test_prd_fechado_com_so_o_card_de_implantacao_aberto_continua_fechado(tmp_path):
+    card = {**sub_issue(32, "OPEN"), "labels": IMPLANTACAO}
+    saida = rodar_tudo(tmp_path, state_reason="completed", parent=None, sub_issues=[sub_issue(31, "CLOSED"), card])
+    assert reaberturas(saida["chamadas"]) == []
+    assert saida["comentarios"] == {}
