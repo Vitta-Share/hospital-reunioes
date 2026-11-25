@@ -36,6 +36,12 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 |--------|------|-----------|------|
 | POST | `/pops/{pop_id}/assinatura/reenviar` | Re-tenta o envio ao ClickSign de uma Versão EM_ASSINATURA. Exclusivo | ✅ |
 
+## assistente-do-app (`app/routers/assistente_do_app.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| POST | `/assistente-do-app/conversa` | Conversa | ✅ |
+
 ## auth (`app/routers/auth.py`)
 
 | Método | Rota | O que faz | Auth |
@@ -964,4 +970,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 553 endpoints em 81 routers · 92% exigem auth.
+**Totais:** 554 endpoints em 82 routers · 92% exigem auth.
