@@ -13,6 +13,10 @@ Por dentro estao as regras da issue-raiz do app:
 - **Entrega do app:** `type:feature`, `type:fix` ou `type:bug`, e alguma
   `area:` de app (backend, frontend ou supabase). Ferramenta (`area:skills`,
   `area:docs` ou `area:infra` sozinhas) fica de fora.
+- **O card do diretor** (issue #2264, ADR 0113, decisao 6): a raiz com
+  `origem:diretor` vira Demanda mesmo sem `type:` e `area:`, com a Origem
+  "Pedido do diretor". Ferramenta, que tem `area:` e nenhuma do app, fica de
+  fora.
 - **Uma Demanda por issue.** A issue que ja tem Demanda devolve "ja existe";
   a lapide do Apagar devolve "ignora", para a issue fechada nao voltar.
 
@@ -23,9 +27,10 @@ Como o repositorio da Ana e publico e qualquer conta abre issue sem label, so
 entra a issue aberta por quem e do time (`author_association`), e so a aberta:
 a concluida antiga nao nasce nem por um `edited` (revisao do PR #1746).
 
-Quem chama e o webhook (`issues.opened` e `issues.edited`) e a carga do
-historico. `espelhar` e a costura com o GitHub e o banco: rele a issue e so
-cria pelo que releu, nunca pelo corpo do evento.
+Quem chama e o webhook (`issues.opened`, `issues.edited` e `issues.labeled`,
+este porque a Action do card do diretor poe a label depois que a issue abre) e
+a carga do historico. `espelhar` e a costura com o GitHub e o banco: rele a
+issue e so cria pelo que releu, nunca pelo corpo do evento.
 """
 
 from __future__ import annotations
