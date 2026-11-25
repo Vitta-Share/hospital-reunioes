@@ -128,7 +128,7 @@ O PR nunca é mergeado. Quem implementa de verdade é o time, numa fatia que nas
 ### Parte 8: o card
 
 1. Escreva o corpo no formato de `references/modelo-do-card.md`, com o que saiu do `/grill-with-docs` e, se houver, do protótipo.
-2. Passe o bloco "Para o diretor" e a primeira linha pela skill `humanizer`.
+2. Passe o bloco "Para o diretor" e a primeira linha pela skill `humanizer`, em modo embutido (ADR 0071), com a amostra de voz que `references/modelo-do-card.md` indica.
 3. Mostre o texto inteiro a ele e espere o "pode criar".
 4. Crie no repositório do time, nunca no fork:
 

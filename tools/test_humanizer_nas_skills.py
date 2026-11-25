@@ -36,6 +36,8 @@ TEXTO_PARA_FORA = {
     "triage",
     # A Descrição de valor da Onda, que o PedroOS mostra a quem não é dev.
     "onda-enxuta",
+    # O card que o Claude do diretor abre e o passo a passo que ele lê (/setup-diretor).
+    "setup-diretor",
 }
 
 
@@ -70,6 +72,7 @@ def passos_do_humanizer(trecho: str) -> list[str]:
         ("grill-with-docs", "Fim"),
         ("triage", "Triage a specific issue"),
         ("to-issues", "5. Publish the issues"),
+        ("setup-diretor", "Parte 8: o card"),
     ],
 )
 def test_skill_de_texto_para_fora_passa_o_texto_pelo_humanizer_onde_ele_e_gravado(
