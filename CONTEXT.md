@@ -375,6 +375,10 @@ _Evitar_: pedir nova assinatura por revisão só de redação do Regimento.
 A permissão nominal de quem vê e edita tudo no módulo, inclusive a identidade de quem notificou. Hoje é do Diretor Executivo. Não vem do super admin, que só alcança a configuração técnica.
 _Evitar_: dar leitura de caso a super admin; excluir registro (todo perfil corrige, com histórico).
 
+**Responsável técnico**:
+A pessoa que responde pelo hospital perante a vigilância sanitária, hoje o Diretor Técnico. É uma marca no cadastro do usuário, de uma pessoa só por vez, que o Super admin troca. Assina pela Direção os documentos do Núcleo: o Ato de designação sozinho, o Regimento e o Plano de Segurança do Paciente junto com a Presidência (ADR 0112). Sem ninguém marcado, o envio trava.
+_Evitar_: confundir com o [Acesso pleno ao NSP], que é permissão de ver e editar e não assina nada; mandar documento do Núcleo para a Diretoria Executiva.
+
 **Notificação de incidente**:
 O relato de um incidente relacionado à assistência, feito por um profissional, com ou sem login, ou vindo de um caso da Ouvidoria. Quem notifica conta o que aconteceu e não classifica.
 _Evitar_: "notificação" sozinha (confunde com a [Notificação da Ouvidoria], que é o registro de um e-mail); "denúncia"; nome de paciente no relato.
