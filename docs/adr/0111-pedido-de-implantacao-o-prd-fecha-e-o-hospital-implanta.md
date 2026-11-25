@@ -1,6 +1,7 @@
 ---
 status: accepted
 amends: 0110
+amended_by: 0113
 ---
 
 # Pedido de implantação: o PRD fecha com o código, e o que o hospital faz depois vira uma lista no card

@@ -1,7 +1,8 @@
 ---
-status: accepted
+status: superseded
 amends: 0109
 amended_by: 0111
+superseded_by: 0113
 ---
 
 # Pedido da Vitta: Pergunta ou Passo a passo, e o Passo a passo concluído fecha o card no GitHub

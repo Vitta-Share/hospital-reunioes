@@ -1,6 +1,7 @@
 ---
 status: accepted
 amends: 0083, 0096
+amended_by: 0113
 ---
 
 # Apresentação do PRD com o estado real, link no card, e Envio aos desenvolvedores pela Conversa da Demanda
