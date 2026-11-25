@@ -13,6 +13,10 @@ Por dentro estao as regras da issue-raiz do app:
 - **Entrega do app:** `type:feature`, `type:fix` ou `type:bug`, e alguma
   `area:` de app (backend, frontend ou supabase). Ferramenta (`area:skills`,
   `area:docs` ou `area:infra` sozinhas) fica de fora.
+- **O card do diretor** (issue #2264, ADR 0113, decisao 6): a raiz com
+  `origem:diretor` vira Demanda mesmo sem `type:` e `area:`, com a Origem
+  "Pedido do diretor". Ferramenta, que tem `area:` e nenhuma do app, fica de
+  fora.
 - **Uma Demanda por issue.** A issue que ja tem Demanda devolve "ja existe";
   a lapide do Apagar devolve "ignora", para a issue fechada nao voltar.
 
@@ -23,9 +27,10 @@ Como o repositorio da Ana e publico e qualquer conta abre issue sem label, so
 entra a issue aberta por quem e do time (`author_association`), e so a aberta:
 a concluida antiga nao nasce nem por um `edited` (revisao do PR #1746).
 
-Quem chama e o webhook (`issues.opened` e `issues.edited`) e a carga do
-historico. `espelhar` e a costura com o GitHub e o banco: rele a issue e so
-cria pelo que releu, nunca pelo corpo do evento.
+Quem chama e o webhook (`issues.opened`, `issues.edited` e `issues.labeled`,
+este porque a Action do card do diretor poe a label depois que a issue abre) e
+a carga do historico. `espelhar` e a costura com o GitHub e o banco: rele a
+issue e so cria pelo que releu, nunca pelo corpo do evento.
 """
 
 from __future__ import annotations
@@ -39,9 +44,9 @@ from postgrest.exceptions import APIError
 from app.config import settings
 from app.services import github_client
 from app.services.github_client import PROJETO_ANA, PROJETO_HOSPITAL
-from app.services.tecnologia import ORIGEM_VITTA, TABELA_DEMANDAS, TABELA_PRODUTOS
+from app.services.tecnologia import ORIGEM_DIRETOR, ORIGEM_VITTA, TABELA_DEMANDAS, TABELA_PRODUTOS
 from app.services.tecnologia_sincronizacao import demanda_vinculada
-from app.services.tecnologia_vinculo import ETAPA_REGISTRADA, normalizar_github_login
+from app.services.tecnologia_vinculo import ETAPA_REGISTRADA, LABEL_ORIGEM_DIRETOR, normalizar_github_login
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +55,9 @@ IGNORA = "ignora"
 JA_EXISTE = "ja_existe"
 
 # As acoes do evento `issues` que passam pelo espelho.
-ACOES_DO_ESPELHO = ("opened", "edited")
+# O `labeled` e o do card do diretor: a Action poe `origem:diretor` depois que
+# a issue abre (issue #2264).
+ACOES_DO_ESPELHO = ("opened", "edited", "labeled")
 
 # O Tipo da Demanda pela label de natureza da issue (`docs/agents/triage-labels.md`).
 TIPO_DA_LABEL: dict[str, str] = {"type:feature": "novo", "type:fix": "defeito", "type:bug": "defeito"}
@@ -98,14 +105,27 @@ def decidir(issue: dict[str, Any], demanda: dict[str, Any] | None, *, projeto: s
         if issue.get("state") != "open" or issue.get("author_association") not in AUTORES_DO_TIME_DA_ANA:
             return IGNORA
         return IGNORA if AREA_DE_FERRAMENTA_DA_ANA in labels else CRIA
+    if LABEL_ORIGEM_DIRETOR in labels:
+        return IGNORA if _e_ferramenta(labels) else CRIA
     if not labels & TIPO_DA_LABEL.keys() or not labels & AREAS_DO_APP:
         return IGNORA
     return CRIA
 
 
+def _e_ferramenta(labels: set[str]) -> bool:
+    """Tem `area:` e nenhuma do app: `area:skills`, `area:docs` ou `area:infra`
+    sozinhas. O card do diretor sem `area:` nenhuma e de produto."""
+    return any(label.startswith("area:") for label in labels) and not labels & AREAS_DO_APP
+
+
 def _tipo(issue: dict[str, Any]) -> str:
     labels = _labels(issue)
     return "defeito" if labels & {"type:fix", "type:bug"} else "novo"
+
+
+def _origem(issue: dict[str, Any]) -> str:
+    """A Origem "Pedido do diretor" quando a raiz tem `origem:diretor` (ADR 0113, decisao 6)."""
+    return ORIGEM_DIRETOR if LABEL_ORIGEM_DIRETOR in _labels(issue) else ORIGEM_VITTA
 
 
 def _autor_id(supabase, issue: dict[str, Any]) -> str | None:
@@ -163,7 +183,7 @@ def criar(supabase, issue: dict[str, Any], *, projeto: str) -> dict[str, Any] | 
         "responsavel_id": None,
         "autor_id": _autor_id(supabase, issue),
         "prioridade": "normal",
-        "origem": ORIGEM_VITTA,
+        "origem": _origem(issue),
         "projeto": projeto,
         "github_issue_numero": numero,
         "etapa": ETAPA_REGISTRADA,

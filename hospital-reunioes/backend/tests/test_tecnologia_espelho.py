@@ -138,6 +138,27 @@ class TestTabelaDoEspelho:
     def test_pull_request_ignora(self):
         assert decidir(_issue_raiz(pull_request={"url": "x"}), None) == IGNORA
 
+    @pytest.mark.parametrize("labels", [("origem:diretor",), ("Origem:Diretor", "needs-triage")])
+    def test_card_do_diretor_sem_tipo_nem_area_cria(self, labels):
+        """O card que o diretor abre pelo Claude dele e raiz de produto pela
+        label `origem:diretor` (issue #2264, ADR 0113, decisao 6)."""
+        assert decidir(_issue_raiz(labels=labels), None) == CRIA
+
+    @pytest.mark.parametrize(
+        "labels",
+        [
+            ("origem:diretor", "area:skills"),
+            ("origem:diretor", "area:docs"),
+            ("origem:diretor", "type:feature", "area:infra"),
+        ],
+    )
+    def test_card_do_diretor_de_ferramenta_ignora(self, labels):
+        assert decidir(_issue_raiz(labels=labels), None) == IGNORA
+
+    def test_card_do_diretor_que_e_parte_ignora(self):
+        corpo = "## Pai\n\n#2262\n\n## O que construir\n\nY."
+        assert decidir(_issue_raiz(labels=("origem:diretor",), corpo=corpo), None) == IGNORA
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 2. O webhook cria a Demanda Vitta
@@ -255,6 +276,52 @@ class TestWebhookCriaADemandaVitta:
         assert [d["id"] for d in _demandas(sb)] == ["D1"]
         assert _demandas(sb)[0]["github_foto"] is None
         assert gh.leituras == []
+
+    def test_o_card_do_diretor_aberto_vira_pedido_do_diretor(self, monkeypatch):
+        """Issue #2264: a raiz com `origem:diretor`, sem `type:` nem `area:`."""
+        issue = _issue_raiz(labels=("origem:diretor",))
+
+        resposta, sb, _ = _entregar_issue(monkeypatch, issue)
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["espelhada"] is True
+        [demanda] = _demandas(sb)
+        assert demanda["origem"] == "diretor"
+        assert demanda["github_issue_numero"] == 1700
+
+    def test_o_card_do_diretor_de_ferramenta_nao_vira_demanda(self, monkeypatch):
+        issue = _issue_raiz(labels=("origem:diretor", "area:skills"))
+
+        resposta, sb, gh = _entregar_issue(monkeypatch, issue)
+
+        assert resposta.json() == {"ignorado": "sem_vinculo"}
+        assert _demandas(sb) == []
+        assert gh.leituras == []
+
+    def test_a_label_que_chega_depois_cria_no_labeled_uma_vez_so(self, monkeypatch):
+        """A Action do card do diretor poe `origem:diretor` depois que a issue
+        abre: o `opened` nao tem a label, o `labeled` tem, e o segundo
+        `labeled` nao cria outra Demanda (issue #2264)."""
+        aberta = _issue_raiz(labels=())
+        gh = _GithubFalso({1700: aberta})
+        cliente, sb, _ = _montar(participantes=[PEDRO], produtos=PRODUTOS, github=gh, monkeypatch=monkeypatch)
+
+        no_opened = _entregar(cliente, _corpo_do_evento(aberta, "opened"))
+        assert no_opened.json() == {"ignorado": "sem_vinculo"}
+        assert _demandas(sb) == []
+
+        rotulada = _issue_raiz(labels=("origem:diretor",))
+        gh.issues[1700] = rotulada
+        no_labeled = _entregar(cliente, _corpo_do_evento(rotulada, "labeled"))
+        assert no_labeled.json()["espelhada"] is True
+
+        mais_uma = _issue_raiz(labels=("origem:diretor", "needs-triage"))
+        gh.issues[1700] = mais_uma
+        segundo = _entregar(cliente, _corpo_do_evento(mais_uma, "labeled"))
+        assert segundo.status_code == 200, segundo.text
+        assert "espelhada" not in segundo.json()
+
+        assert [(d["origem"], d["github_issue_numero"]) for d in _demandas(sb)] == [("diretor", 1700)]
 
     def test_a_releitura_manda_quando_o_payload_ficou_velho(self, monkeypatch):
         """O payload diz raiz de app, mas a issue relida ja virou parte: quem
@@ -455,6 +522,15 @@ class TestKit:
         secao = _secao("O que é uma Demanda")
         assert "pelo desenvolvimento" in secao
         assert "sem conversa com a IA" in secao
+
+    def test_o_kit_diz_que_o_card_aberto_pelo_claude_do_diretor_vira_demanda(self):
+        """Issue #2264: o card do diretor vira Demanda sozinho, com a Etapa, e
+        leva o selo Pedido do diretor."""
+        demanda = _secao("O que é uma Demanda")
+        assert "O card que você abre pelo seu Claude" in demanda
+        assert "Pedido do diretor" in demanda
+        quem_ve = _secao("Quem vê")
+        assert "ou do card que você abriu pelo seu Claude" in quem_ve
 
     def test_o_kit_diz_que_ajuste_interno_nao_aparece(self):
         secao = _secao("O que é uma Demanda")
