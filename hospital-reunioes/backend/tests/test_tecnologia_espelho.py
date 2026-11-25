@@ -277,6 +277,52 @@ class TestWebhookCriaADemandaVitta:
         assert _demandas(sb)[0]["github_foto"] is None
         assert gh.leituras == []
 
+    def test_o_card_do_diretor_aberto_vira_pedido_do_diretor(self, monkeypatch):
+        """Issue #2264: a raiz com `origem:diretor`, sem `type:` nem `area:`."""
+        issue = _issue_raiz(labels=("origem:diretor",))
+
+        resposta, sb, _ = _entregar_issue(monkeypatch, issue)
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["espelhada"] is True
+        [demanda] = _demandas(sb)
+        assert demanda["origem"] == "diretor"
+        assert demanda["github_issue_numero"] == 1700
+
+    def test_o_card_do_diretor_de_ferramenta_nao_vira_demanda(self, monkeypatch):
+        issue = _issue_raiz(labels=("origem:diretor", "area:skills"))
+
+        resposta, sb, gh = _entregar_issue(monkeypatch, issue)
+
+        assert resposta.json() == {"ignorado": "sem_vinculo"}
+        assert _demandas(sb) == []
+        assert gh.leituras == []
+
+    def test_a_label_que_chega_depois_cria_no_labeled_uma_vez_so(self, monkeypatch):
+        """A Action do card do diretor poe `origem:diretor` depois que a issue
+        abre: o `opened` nao tem a label, o `labeled` tem, e o segundo
+        `labeled` nao cria outra Demanda (issue #2264)."""
+        aberta = _issue_raiz(labels=())
+        gh = _GithubFalso({1700: aberta})
+        cliente, sb, _ = _montar(participantes=[PEDRO], produtos=PRODUTOS, github=gh, monkeypatch=monkeypatch)
+
+        no_opened = _entregar(cliente, _corpo_do_evento(aberta, "opened"))
+        assert no_opened.json() == {"ignorado": "sem_vinculo"}
+        assert _demandas(sb) == []
+
+        rotulada = _issue_raiz(labels=("origem:diretor",))
+        gh.issues[1700] = rotulada
+        no_labeled = _entregar(cliente, _corpo_do_evento(rotulada, "labeled"))
+        assert no_labeled.json()["espelhada"] is True
+
+        mais_uma = _issue_raiz(labels=("origem:diretor", "needs-triage"))
+        gh.issues[1700] = mais_uma
+        segundo = _entregar(cliente, _corpo_do_evento(mais_uma, "labeled"))
+        assert segundo.status_code == 200, segundo.text
+        assert "espelhada" not in segundo.json()
+
+        assert [(d["origem"], d["github_issue_numero"]) for d in _demandas(sb)] == [("diretor", 1700)]
+
     def test_a_releitura_manda_quando_o_payload_ficou_velho(self, monkeypatch):
         """O payload diz raiz de app, mas a issue relida ja virou parte: quem
         cria e a releitura, nunca o corpo do evento."""

@@ -39,7 +39,7 @@ from postgrest.exceptions import APIError
 from app.config import settings
 from app.services import github_client
 from app.services.github_client import PROJETO_ANA, PROJETO_HOSPITAL
-from app.services.tecnologia import ORIGEM_VITTA, TABELA_DEMANDAS, TABELA_PRODUTOS
+from app.services.tecnologia import ORIGEM_DIRETOR, ORIGEM_VITTA, TABELA_DEMANDAS, TABELA_PRODUTOS
 from app.services.tecnologia_sincronizacao import demanda_vinculada
 from app.services.tecnologia_vinculo import ETAPA_REGISTRADA, LABEL_ORIGEM_DIRETOR, normalizar_github_login
 
@@ -50,7 +50,9 @@ IGNORA = "ignora"
 JA_EXISTE = "ja_existe"
 
 # As acoes do evento `issues` que passam pelo espelho.
-ACOES_DO_ESPELHO = ("opened", "edited")
+# O `labeled` e o do card do diretor: a Action poe `origem:diretor` depois que
+# a issue abre (issue #2264).
+ACOES_DO_ESPELHO = ("opened", "edited", "labeled")
 
 # O Tipo da Demanda pela label de natureza da issue (`docs/agents/triage-labels.md`).
 TIPO_DA_LABEL: dict[str, str] = {"type:feature": "novo", "type:fix": "defeito", "type:bug": "defeito"}
@@ -116,6 +118,11 @@ def _tipo(issue: dict[str, Any]) -> str:
     return "defeito" if labels & {"type:fix", "type:bug"} else "novo"
 
 
+def _origem(issue: dict[str, Any]) -> str:
+    """A Origem "Pedido do diretor" quando a raiz tem `origem:diretor` (ADR 0113, decisao 6)."""
+    return ORIGEM_DIRETOR if LABEL_ORIGEM_DIRETOR in _labels(issue) else ORIGEM_VITTA
+
+
 def _autor_id(supabase, issue: dict[str, Any]) -> str | None:
     """Quem tem no cadastro o login de quem abriu a issue; sem ele, o dono
     configurado (`GITHUB_LOGIN_DONO`); sem nenhum dos dois, ninguem."""
@@ -171,7 +178,7 @@ def criar(supabase, issue: dict[str, Any], *, projeto: str) -> dict[str, Any] | 
         "responsavel_id": None,
         "autor_id": _autor_id(supabase, issue),
         "prioridade": "normal",
-        "origem": ORIGEM_VITTA,
+        "origem": _origem(issue),
         "projeto": projeto,
         "github_issue_numero": numero,
         "etapa": ETAPA_REGISTRADA,
