@@ -41,7 +41,7 @@ from app.services import github_client
 from app.services.github_client import PROJETO_ANA, PROJETO_HOSPITAL
 from app.services.tecnologia import ORIGEM_VITTA, TABELA_DEMANDAS, TABELA_PRODUTOS
 from app.services.tecnologia_sincronizacao import demanda_vinculada
-from app.services.tecnologia_vinculo import ETAPA_REGISTRADA, normalizar_github_login
+from app.services.tecnologia_vinculo import ETAPA_REGISTRADA, LABEL_ORIGEM_DIRETOR, normalizar_github_login
 
 logger = logging.getLogger(__name__)
 
@@ -98,9 +98,17 @@ def decidir(issue: dict[str, Any], demanda: dict[str, Any] | None, *, projeto: s
         if issue.get("state") != "open" or issue.get("author_association") not in AUTORES_DO_TIME_DA_ANA:
             return IGNORA
         return IGNORA if AREA_DE_FERRAMENTA_DA_ANA in labels else CRIA
+    if LABEL_ORIGEM_DIRETOR in labels:
+        return IGNORA if _e_ferramenta(labels) else CRIA
     if not labels & TIPO_DA_LABEL.keys() or not labels & AREAS_DO_APP:
         return IGNORA
     return CRIA
+
+
+def _e_ferramenta(labels: set[str]) -> bool:
+    """Tem `area:` e nenhuma do app: `area:skills`, `area:docs` ou `area:infra`
+    sozinhas. O card do diretor sem `area:` nenhuma e de produto."""
+    return any(label.startswith("area:") for label in labels) and not labels & AREAS_DO_APP
 
 
 def _tipo(issue: dict[str, Any]) -> str:

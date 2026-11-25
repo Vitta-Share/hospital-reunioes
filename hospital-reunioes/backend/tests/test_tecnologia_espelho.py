@@ -138,6 +138,27 @@ class TestTabelaDoEspelho:
     def test_pull_request_ignora(self):
         assert decidir(_issue_raiz(pull_request={"url": "x"}), None) == IGNORA
 
+    @pytest.mark.parametrize("labels", [("origem:diretor",), ("Origem:Diretor", "needs-triage")])
+    def test_card_do_diretor_sem_tipo_nem_area_cria(self, labels):
+        """O card que o diretor abre pelo Claude dele e raiz de produto pela
+        label `origem:diretor` (issue #2264, ADR 0113, decisao 6)."""
+        assert decidir(_issue_raiz(labels=labels), None) == CRIA
+
+    @pytest.mark.parametrize(
+        "labels",
+        [
+            ("origem:diretor", "area:skills"),
+            ("origem:diretor", "area:docs"),
+            ("origem:diretor", "type:feature", "area:infra"),
+        ],
+    )
+    def test_card_do_diretor_de_ferramenta_ignora(self, labels):
+        assert decidir(_issue_raiz(labels=labels), None) == IGNORA
+
+    def test_card_do_diretor_que_e_parte_ignora(self):
+        corpo = "## Pai\n\n#2262\n\n## O que construir\n\nY."
+        assert decidir(_issue_raiz(labels=("origem:diretor",), corpo=corpo), None) == IGNORA
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 2. O webhook cria a Demanda Vitta
