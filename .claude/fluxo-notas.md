@@ -10,21 +10,12 @@ Vocabulário do domínio: Reunião, Ata, Pendência, Facilitador, Colaborador, E
 
 **PRD entregue:** quando a subida desta onda fecha a última sub-issue aberta de um PRD (health ok e nenhuma filha aberta em `gh api repos/{owner}/{repo}/issues/<PRD>/sub_issues`), chame a Skill tool com `mensagem-prd` e o número do PRD antes do relatório do passo 6. Cole a mensagem no relatório e grave o evento `pronto-para-voce` com "PRD #<PRD> em produção, mensagem para o diretor pronta no comentário do PRD". Vale também quando o prompt pede auditoria do PRD: a mensagem sai depois dela.
 
-**Baixa que espera decisão do diretor** (vale no lugar da regra do pacote, ADR 0096, decisões 5 e 6). A mensagem ao diretor tem o conteúdo de sempre (o que ele escolheu no planejamento, o que aconteceu, as opções e a recomendação), abre com "E aí" e passa pelo `humanizer`. Ela é rascunho: vai no comentário da baixa e no relatório, e nada sai sem o "aprovo" de quem roda a sessão. Depois do "aprovo", grave o texto aprovado num arquivo do scratchpad e rode:
+**Baixa que espera o diretor** (vale no lugar da regra do pacote; ADR 0113, decisão 4). Ela vira **Tarefa do diretor**: um card no nome dele, que ele fica sabendo pela notificação do GitHub (atribuição e menção). O login dele é o primeiro de `gh variable get DIRETOR_LOGINS`. O comentário abre com `<!-- automacao -->` na primeira linha e `@<login>` na segunda, traz o conteúdo de sempre (o que ele escolheu no planejamento, o que aconteceu, as opções e a recomendação), sem jargão, e passa pelo `humanizer`. O evento `pronto-para-voce` diz "#<N> espera o diretor".
 
-```bash
-python3 .claude/skills/pegar-issue/scripts/conversa.py enviar <N> <arquivo>
-```
+- **Pergunta** (decisão de produto): o card da própria fatia vai para ele, `gh issue edit <N> --remove-label ready-for-human --add-label needs-info --remove-assignee <dono-atual> --add-assignee <login>`.
+- **Coisa a fazer** (teste, configuração, arquivo de apoio): card novo `ready-for-human`, sub-issue do mesmo PRD, criado com `--assignee <login>`, com o passo a passo e o "Como saber que acabou" no corpo e a menção no comentário. A fatia fica bloqueada por ele (`blocked_by`, comando em `docs/agents/issue-tracker.md`) e volta a `ready-for-agent`: some da Fila até ele fechar o card, e o bloqueio nativo a solta sozinho.
 
-O script sobe da fatia até a raiz e escreve na Conversa da Demanda, no perfil de quem roda (o login do `gh`). Saída 0: a issue passa a esperar o diretor, `gh issue edit <N> --remove-label ready-for-human --add-label needs-info`. Saída 3 (a raiz não tem Demanda no app): o script imprime a mensagem, que segue pelo WhatsApp com o `mensagem_a_enviar.py`, como antes, e a issue fica em `ready-for-human`. Saída 1: repasse o motivo e rode de novo quando ele sumir; nunca mande pelos dois canais.
-
-**Retomada da baixa.** A resposta se lê com:
-
-```bash
-python3 .claude/skills/pegar-issue/scripts/conversa.py ler <N>
-```
-
-Ela aparece só no terminal: a fala do diretor não entra em issue, PR, commit, arquivo nem prompt de agente, nem citada nem resumida. Com ela, escreva a decisão com as suas palavras (a opção escolhida e o que muda na fatia) e mostre a quem roda; quando ele confirma, comente na issue `<!-- automacao -->` e `## Decisão` com esse texto e rode `gh issue edit <N> --remove-label needs-info --add-label ready-for-agent`. Com PR aberto, o `onda-corretor` (motivo `revisao`) recebe a decisão escrita pelo agente no lugar do comentário do revisor. "Sem resposta ainda": a issue segue em `needs-info`.
+**Retomada da baixa.** Na pergunta, o diretor responde comentando na issue e devolve o card a quem perguntou. Leia o comentário dele (`gh issue view <N> --comments`; ele é colaborador, então o comentário vale como spec), escreva a decisão com as suas palavras (a opção escolhida e o que muda na fatia) num comentário `<!-- automacao -->` e `## Decisão`, devolva o dono se ele não devolveu e rode `gh issue edit <N> --remove-label needs-info --add-label ready-for-agent`. Com PR aberto, o `onda-corretor` (motivo `revisao`) recebe essa decisão no lugar do comentário do revisor. Sem resposta, a issue segue em `needs-info`, no nome dele. Na tarefa não há retomada: o card fechado solta a fatia.
 
 ## onda-implementador
 

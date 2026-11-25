@@ -95,10 +95,10 @@ def test_triage_poe_ou_tira_a_label_pela_mesma_regra() -> None:
     assert "não segura nenhuma fatia" in regra, "o /triage não diz a regra"
 
 
-def test_ask_pedro_cita_o_pedido_de_implantacao_no_pos_entrega() -> None:
+def test_ask_pedro_cita_o_card_de_implantacao_no_pos_entrega() -> None:
     pos = secao(ler("ask-pedro"), "Pós-entrega")
-    item = [li for li in pos.splitlines() if "Pedido de implantação" in li]
+    item = [li for li in pos.splitlines() if "Card de implantação" in li]
 
-    assert item, "o Pós-entrega do /ask-pedro não cita o Pedido de implantação"
+    assert item, "o Pós-entrega do /ask-pedro não cita o Card de implantação"
     assert "`implantacao`" in item[0], "o item não diz qual label marca o card"
-    assert "Mandar ao hospital" in item[0], "o item não diz como o card vira Pedido"
+    assert "no nome do diretor" in item[0], "o item não diz de quem é o card (ADR 0113, decisão 9)"

@@ -52,14 +52,25 @@ Desde a mesma ADR, a `card-do-diretor.yml` respeita o dono que o diretor escolhe
 
 | Label | Significado |
 | --- | --- |
-| `implantacao` | Card humano que vem depois do código e não segura nenhuma fatia: teste de aceite, configuração, abertura, treinamento. Vira Pedido de implantação pelo "Mandar ao hospital" do PedroOS |
+| `implantacao` | Card humano que vem depois do código e não segura nenhuma fatia: teste de aceite, configuração, abertura, treinamento. É o Card de implantação, no nome do diretor, que delega e fecha quando o hospital terminou (ADR 0113, decisão 9) |
 
-A regra (ADR 0111, decisão 2): a label vai só no card humano que vem depois do código e não segura nenhuma fatia. O card humano que segura código continua sem ela e é o Passo a passo da ADR 0110: chave no Coolify, decisão sobre migration, layout aprovado antes do desenvolvimento. Na dúvida, pergunte se alguma fatia espera esse card (o `blocked_by` nativo de uma fatia aponta para ele): se espera, não é implantação.
+A regra (ADR 0111, decisão 2): a label vai só no card humano que vem depois do código e não segura nenhuma fatia. O card humano que segura código continua sem ela: chave no Coolify, decisão sobre migration, layout aprovado antes do desenvolvimento. Na dúvida, pergunte se alguma fatia espera esse card (o `blocked_by` nativo de uma fatia aponta para ele): se espera, não é implantação.
 
 - Vai: "Testar o acesso e o anonimato do Canal de Conduta", depois que as fatias do canal subiram e nenhuma espera o teste.
 - Não vai: "Criar a chave da API no Coolify", que a fatia de integração espera para subir.
 
-Quem põe é o `/to-issues`, ao criar a fatia humana, e o `/triage`, que põe ou tira pela mesma regra. O PedroOS só lê a label. Ela convive com `ready-for-human` e com as labels de tipo; o PRD pai não espera o card com ela para fechar (ADR 0111, decisão 5).
+Quem põe é o `/to-issues`, ao criar a fatia humana já no nome do diretor, e o `/triage`, que põe ou tira pela mesma regra e passa o card para ele. O app e o PedroOS só leem a label (o "Implantação 1 de 3" do card). Ela convive com `ready-for-human` e com as labels de tipo; o PRD pai não espera o card com ela para fechar (ADR 0111, decisão 5).
+
+## Tarefa do diretor (ADR 0113)
+
+O que o diretor precisa responder ou fazer no meio de um PRD é um card no nome dele (o assignee), com menção ao login no comentário que pede: ele fica sabendo pela notificação do GitHub. Não há label própria; o estado diz o que é.
+
+| Estado | O que é | Como ele devolve |
+| --- | --- | --- |
+| `needs-info` | Pergunta: a fatia espera uma decisão dele | Responde comentando, devolve o card a quem perguntou, e o card volta a `ready-for-agent` |
+| `ready-for-human` | Coisa a fazer: teste, configuração, arquivo de apoio | Fecha o card quando terminou; o bloqueio nativo solta as fatias que esperavam |
+
+O Card de implantação (acima) é a Tarefa do diretor que vem depois do código. O login dele mora na variável `DIRETOR_LOGINS` do repositório. Os comandos estão em `docs/agents/issue-tracker.md`.
 
 ## Labels de tamanho de fatia (Plano vivo)
 
