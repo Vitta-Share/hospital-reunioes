@@ -122,3 +122,17 @@ def test_ask_pedro_aponta_a_tarefa_do_diretor():
 
     assert item, "o /ask-pedro não cita a Tarefa do diretor"
     assert "docs/agents/issue-tracker.md" in item[0]
+
+
+def test_o_refino_pergunta_ao_diretor_por_comentario_no_github_e_nao_pela_conversa():
+    # ADR 0113, decisão 5 (issue #2270): a pergunta do Refino sai como comentário na
+    # issue, e a Conversa da Demanda e o WhatsApp saem do passo. Veio do
+    # test_pegar_issue_conversa.py, que saiu com o conversa.py.
+    texto = notas("grill-with-docs")
+    fechamento = texto[texto.index("**Fechamento.**") :]
+    fechamento = fechamento[: fechamento.index("\n#")] if "\n#" in fechamento else fechamento
+    passo = fechamento[fechamento.index("4. Com pergunta aberta") :]
+
+    assert "conversa.py" not in passo and "WhatsApp" not in passo
+    assert "`<!-- automacao -->`" in passo and "DIRETOR_LOGINS" in passo
+    assert "`needs-info`" in passo and "põe o card no nome dele" in passo
