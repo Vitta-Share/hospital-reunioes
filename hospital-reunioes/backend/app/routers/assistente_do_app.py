@@ -64,7 +64,7 @@ def conversa(
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=SEM_IA)
     paginas = [assistente_do_app.PaginaDoManual(p.modulo, p.titulo, p.corpo) for p in payload.paginas_do_manual]
     try:
-        texto = assistente_do_app.responder(
+        texto = assistente_do_app.responder_a_duvida(
             cliente,
             mensagens=[f.model_dump() for f in payload.mensagens],
             paginas=paginas,

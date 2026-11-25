@@ -57,7 +57,7 @@ def material(kit: str, paginas: list[PaginaDoManual]) -> str:
     return f"# Páginas do Manual que esta pessoa vê\n\n{manual or '(nenhuma)'}\n\n# Kit de conhecimento\n\n{kit}"
 
 
-def responder(cliente, *, mensagens: list[dict], paginas: list[PaginaDoManual], kit: str) -> str:
+def responder_a_duvida(cliente, *, mensagens: list[dict], paginas: list[PaginaDoManual], kit: str) -> str:
     """Um turno da conversa. Sem estado: a conversa inteira chega por parâmetro."""
     resposta = cliente.messages.create(
         model=MODELO_DOS_AGENTES_DO_APP,
