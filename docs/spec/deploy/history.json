@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-25T20:10:59-03:00",
+      "sha": "4684dd35615d42283808e8a4b9187acae2ad0f21",
+      "app_version": "0.391.0",
+      "subject": "Onda diretor-a-onda1: Card do diretor vira Demanda no Quadro; Todo Super admin vê a mesma aba Tecnologia; Tirar dúvida pelo robô no canto da tela",
+      "raw_subject": "chore(deploy): registro da onda diretor-a-onda1 (#2287 #2291 #2289)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        2262
+      ],
+      "result": "healthy",
+      "duration_seconds": 700,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta diretor-a-onda1: PR #2287 (issue #2264), PR #2291 (issue #2265), PR #2289 (issue #2267), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 10,
+        "build_s": {
+          "backend": 21,
+          "frontend": 276
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-25T13:51:39-03:00",
       "sha": "f4441f45f68856d19bd581da383ef00151a35f16",
       "app_version": "0.390.3",
