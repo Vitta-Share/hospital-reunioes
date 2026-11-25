@@ -217,6 +217,31 @@ def test_reconhece_a_demanda_pelo_marcador_e_o_tipo_pela_secao():
     assert pd.ler(MELHORIA + "\n<!-- refino -->")["refinada"] is True
 
 
+# o card que o diretor abre pelo Claude dele: sem Origem nem marcador, só a label (ADR 0113, decisão 5)
+CARD_DO_DIRETOR = MELHORIA.split("## Origem")[0].rstrip() + "\n"
+
+
+def rodar_ler(corpo, labels):
+    chamadas = []
+
+    def gh_falso(*args):
+        chamadas.append(args)
+        return json.dumps({"body": corpo, "labels": [{"name": l} for l in labels], "title": "Relatório por setor"})
+
+    return pd.main(["ler", "1400"], gh=gh_falso), chamadas
+
+
+def test_ler_reconhece_o_card_do_diretor_so_pela_label(capsys):
+    codigo, _ = rodar_ler(CARD_DO_DIRETOR, ["needs-triage", "origem:diretor"])
+    assert codigo == 0
+    saida = capsys.readouterr().out
+    assert pd.NAO_E_DEMANDA not in saida
+    assert pd.TITULO_TOMADAS in saida and "- Se o relatório conta fim de semana." in saida
+    # sem a label e sem o marcador, não é card do diretor
+    rodar_ler(CARD_DO_DIRETOR, ["needs-triage"])
+    assert pd.NAO_E_DEMANDA in capsys.readouterr().out
+
+
 def test_grill_lista_as_decisoes_do_diretor_como_tomadas_e_abre_pelo_que_ficou_em_aberto():
     roteiro = pd.roteiro_do_grill(CORPO)
     tomadas, abertas = roteiro.split(pd.TITULO_EM_ABERTO)
@@ -248,6 +273,7 @@ def test_o_bug_tem_o_roteiro_curto_e_o_card_refinado_mostra_as_perguntas_abertas
     roteiro = pd.roteiro_do_grill(refinado)
     assert "já foi refinada" in roteiro
     assert "- O relatório conta o fim de semana?" in roteiro
+    assert "WhatsApp" not in roteiro and "Qualquer coisa me chama" not in roteiro
 
 
 # Completar: o Refino gravado na mesma issue
@@ -340,36 +366,57 @@ def test_completar_recusa_o_que_quebraria_a_issue(corpo, refino, painel, motivo)
         pd.completar(corpo, refino, painel)
 
 
-def test_pergunta_aberta_mantem_a_triagem_e_a_lista_vazia_libera_para_o_agente():
-    assert pd.labels_do_refino(["needs-triage", "type:feature"], ["Conta o fim de semana?"]) == {"add": [], "remove": []}
+def test_pergunta_aberta_espera_o_diretor_e_a_lista_vazia_libera_para_o_agente():
+    assert pd.labels_do_refino(["needs-triage", "type:feature"], ["Conta o fim de semana?"]) == {
+        "add": ["needs-info"],
+        "remove": ["needs-triage"],
+    }
     assert pd.labels_do_refino(["needs-triage"], []) == {"add": ["ready-for-agent"], "remove": ["needs-triage"]}
-    # o bug que já estava na Fila volta à Triagem enquanto o diretor não responde
+    # o bug que já estava na Fila sai dela enquanto o diretor não responde
     assert pd.labels_do_refino(["ready-for-agent", "type:fix"], ["O print é da Ata nova?"]) == {
-        "add": ["needs-triage"],
+        "add": ["needs-info"],
         "remove": ["ready-for-agent"],
     }
     assert pd.labels_do_refino(["ready-for-agent"], []) == {"add": [], "remove": []}
+    # refinar de novo depois da resposta, sem pergunta, tira o needs-info
+    assert pd.labels_do_refino(["needs-info"], []) == {"add": ["ready-for-agent"], "remove": ["needs-info"]}
 
 
 # A linha de comando, com o `gh` dublado
 
 
-def rodar_completar(tmp_path, corpo, labels, refino, *extra):
+def rodar_completar(tmp_path, corpo, labels, refino, *extra, diretores="felipe-hsm", autor="vitta-app", donos=()):
     chamadas = []
 
     def gh_falso(*args):
         chamadas.append(args)
         if args[:2] == ("issue", "view"):
-            return json.dumps({"body": corpo, "labels": [{"name": l} for l in labels], "title": "Relatório por setor"})
-        if args[:2] == ("issue", "edit"):
+            return json.dumps(
+                {
+                    "body": corpo,
+                    "labels": [{"name": l} for l in labels],
+                    "title": "Relatório por setor",
+                    "author": {"login": autor},
+                    "assignees": [{"login": d} for d in donos],
+                }
+            )
+        if args == ("variable", "get", "DIRETOR_LOGINS"):
+            return diretores + "\n"
+        if args[:2] == ("api", "user"):
+            return "pedrorezendefig\n"
+        if "--body-file" in args:
             arquivo = args[args.index("--body-file") + 1]
-            chamadas.append(("corpo", Path(arquivo).read_text(encoding="utf-8")))
+            chamadas.append(("corpo" if args[1] == "edit" else "comentario", Path(arquivo).read_text(encoding="utf-8")))
         return ""
 
     arquivo = tmp_path / "refino.md"
     arquivo.write_text(refino, encoding="utf-8")
     codigo = pd.main(["completar", "1400", str(arquivo), *extra], gh=gh_falso)
     return codigo, chamadas
+
+
+def _valores(chamada, flag):
+    return [chamada[i + 1] for i, a in enumerate(chamada) if a == flag]
 
 
 def test_cli_completar_edita_a_mesma_issue_e_troca_a_triagem(tmp_path, capsys):
@@ -385,18 +432,65 @@ def test_cli_completar_edita_a_mesma_issue_e_troca_a_triagem(tmp_path, capsys):
     assert corpo_gravado.startswith("Relatório de ocorrências por setor.\n\n## 👔 Para o diretor")
     assert "## Refino" in corpo_gravado and corpo_gravado.endswith("<!-- refino -->")
     assert "Qualquer coisa me chama" not in capsys.readouterr().out
+    # sem pergunta, segue como antes: nenhum comentário e o dono não muda
+    assert not [c for c in chamadas if c[:2] == ("issue", "comment")]
+    assert "--add-assignee" not in edicoes[0] and "--remove-assignee" not in edicoes[0]
 
 
-def test_cli_com_perguntas_fica_em_triagem_e_imprime_a_mensagem_para_o_diretor(tmp_path, capsys):
-    codigo, chamadas = rodar_completar(tmp_path, MELHORIA, ["needs-triage"], REFINO + PERGUNTAS, "--painel", PAINEL)
+def test_cli_com_perguntas_comenta_ao_diretor_troca_para_needs_info_e_poe_o_card_no_nome_dele(
+    tmp_path, capsys, monkeypatch
+):
+    monkeypatch.delenv("DIRETOR_LOGINS", raising=False)
+    codigo, chamadas = rodar_completar(
+        tmp_path,
+        CARD_DO_DIRETOR,
+        ["needs-triage", "origem:diretor"],
+        REFINO + PERGUNTAS,
+        "--painel",
+        PAINEL,
+        diretores="outro-diretor, Felipe-HSM",
+        autor="felipe-hsm",
+        donos=("pedrorezendefig",),
+    )
     assert codigo == 0
     edicao = next(c for c in chamadas if c[:2] == ("issue", "edit"))
     assert edicao[:3] == ("issue", "edit", "1400")
-    assert "--add-label" not in edicao and "--remove-label" not in edicao
-    assert f"<!-- refino: {PAINEL} -->" in next(c[1] for c in chamadas if c[0] == "corpo")
+    assert _valores(edicao, "--add-label") == ["needs-info"]
+    assert _valores(edicao, "--remove-label") == ["needs-triage"]
+    # o diretor que abriu o card vira o dono, no lugar de quem era
+    assert _valores(edicao, "--add-assignee") == ["felipe-hsm"]
+    assert _valores(edicao, "--remove-assignee") == ["pedrorezendefig"]
+    corpo = next(c[1] for c in chamadas if c[0] == "corpo")
+    assert corpo.rstrip().endswith(f"<!-- refino: {PAINEL} -->")
+    assert "## Perguntas para o diretor" in corpo
+
+    comentarios = [c for c in chamadas if c[:2] == ("issue", "comment")]
+    assert len(comentarios) == 1 and comentarios[0][2] == "1400"
+    comentario = next(c[1] for c in chamadas if c[0] == "comentario")
+    assert comentario.startswith("<!-- automacao -->\n")
+    assert "@felipe-hsm" in comentario and "@outro-diretor" not in comentario
+    assert "1. O relatório conta o fim de semana?\n2. Quem mais pode ver o relatório?" in comentario
+    # ele responde comentando e devolve o card a quem perguntou
+    assert "@pedrorezendefig" in comentario
+
     saida = capsys.readouterr().out
-    assert '"Relatório por setor"' in saida
-    assert "1. O relatório conta o fim de semana?\n2. Quem mais pode ver o relatório?" in saida
+    assert "WhatsApp" not in saida and "Qualquer coisa me chama" not in saida
+    assert "felipe-hsm" in saida
+
+
+def test_cli_com_perguntas_sem_diretor_conhecido_nao_grava_nada(tmp_path, monkeypatch):
+    monkeypatch.delenv("DIRETOR_LOGINS", raising=False)
+    codigo, chamadas = rodar_completar(tmp_path, MELHORIA, ["needs-triage"], REFINO + PERGUNTAS, diretores="")
+    assert codigo == 1
+    assert not [c for c in chamadas if c[:2] in (("issue", "edit"), ("issue", "comment"))]
+
+
+def test_cli_le_o_diretor_da_variavel_de_ambiente_quando_ela_existe(tmp_path, monkeypatch):
+    monkeypatch.setenv("DIRETOR_LOGINS", "diretor-do-env")
+    codigo, chamadas = rodar_completar(tmp_path, MELHORIA, ["needs-triage"], REFINO + PERGUNTAS, diretores="")
+    assert codigo == 0
+    assert "@diretor-do-env" in next(c[1] for c in chamadas if c[0] == "comentario")
+    assert ("variable", "get", "DIRETOR_LOGINS") not in chamadas
 
 
 def test_cli_arquivo_recusado_nao_edita_a_issue(tmp_path):
@@ -431,6 +525,9 @@ def test_grill_with_docs_le_o_prd_do_diretor_e_nao_repergunta_o_negocio():
     assert "prd_do_diretor.py completar" in trecho
     assert "humanizer" in trecho
     assert "/to-issues #N" in trecho
+    # as perguntas vão ao diretor no GitHub, sem a Conversa da Demanda (ADR 0113, decisão 5)
+    assert "conversa.py" not in trecho and "WhatsApp" not in trecho
+    assert "origem:diretor" in trecho and "needs-info" in trecho
 
 
 def test_to_prd_completa_a_issue_do_diretor_em_vez_de_criar_outra():
