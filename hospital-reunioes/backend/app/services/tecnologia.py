@@ -45,7 +45,10 @@ ESTADOS_FECHADOS: tuple[str, ...] = ("concluida", "cancelada")
 # pelo chat da aba, ou a Vitta, pela issue-raiz do app aberta no terminal.
 ORIGEM_DIRETOR = "diretor"
 ORIGEM_VITTA = "vitta"
-ORIGENS: tuple[str, ...] = (ORIGEM_DIRETOR, ORIGEM_VITTA)
+# O bug relatado no Assistente do app (issue #2275, ADR 0113, decisao 8;
+# CHECK da migration 240): a tela diz "Relato no app".
+ORIGEM_RELATO = "relato"
+ORIGENS: tuple[str, ...] = (ORIGEM_DIRETOR, ORIGEM_VITTA, ORIGEM_RELATO)
 
 # O nome que a issue do bug leva quando a Demanda nao tem Produto.
 SEM_PRODUTO = "(sem Produto)"
@@ -153,7 +156,8 @@ def e_desenvolvedor(pessoa: dict[str, Any] | None) -> bool:
 
 def origem_da_demanda(demanda: dict[str, Any]) -> str:
     """A Origem da Demanda; a linha de antes da coluna (migration 130) e do diretor."""
-    return ORIGEM_VITTA if demanda.get("origem") == ORIGEM_VITTA else ORIGEM_DIRETOR
+    origem = demanda.get("origem")
+    return origem if origem in (ORIGEM_VITTA, ORIGEM_RELATO) else ORIGEM_DIRETOR
 
 
 def projeto_da_demanda(demanda: dict[str, Any]) -> str:
