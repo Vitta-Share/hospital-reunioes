@@ -1,35 +1,28 @@
 #!/usr/bin/env python3
-"""O que falta para usar a entrega do PRD (issue #2213, ADR 0111, decisão 11).
+"""O que falta para usar a entrega do PRD (issue #2271, ADR 0113, decisão 9).
 
 Uso:
   python3 .claude/skills/mensagem-prd/scripts/falta_implantacao.py <PRD>
 
-Pede à ponte de automação os Pedidos de implantação abertos da Demanda do PRD
-e imprime a linha da mensagem, com o Assunto de cada um:
+Lê no GitHub os Cards de implantação abertos do PRD (sub-issues abertas com a
+label `implantacao`) e imprime a linha da mensagem, com o título de cada um:
 
-  Para começar a usar, falta: testar o Canal, treinar a recepção e divulgar.
+  Para começar a usar, falta: Testar o Canal, Treinar a recepção e Divulgar.
 
-Saída 0 com a linha, ou sem imprimir nada quando não há Pedido de
-implantação aberto ou o PRD não tem Demanda no app (a mensagem fica como era).
-Saída 1 com o motivo no stderr quando não deu para perguntar ao app (chave
-ausente, ponte desligada, app fora do ar): quem chama não pode tratar isso como
-"nada falta". Saída 2 no uso errado.
-
-Mesmo endereço e mesma chave do `pegar-issue/scripts/anexos.py`
-(`HOSPITAL_API_URL` e `TECNOLOGIA_AUTOMACAO_API_KEY`). A chave nunca é impressa.
+Saída 0 com a linha, ou sem imprimir nada quando não há Card de implantação
+aberto (a mensagem fica como era). Saída 1 com o motivo no stderr quando o
+`gh` falhou: quem chama não pode tratar isso como "nada falta". Saída 2 no uso
+errado.
 """
 
 from __future__ import annotations
 
-import os
+import json
+import subprocess
 import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "pegar-issue" / "scripts"))
-import anexos  # noqa: E402
-import conversa  # noqa: E402
 
 ABERTURA = "Para começar a usar, falta:"
+LABEL = "implantacao"
 
 
 def juntar(itens: list[str]) -> str:
@@ -39,23 +32,26 @@ def juntar(itens: list[str]) -> str:
     return f"{', '.join(itens[:-1])} e {itens[-1]}"
 
 
-def main(argv: list[str], env=os.environ) -> int:
+def main(argv: list[str]) -> int:
     if len(argv) != 1 or not argv[0].isdigit():
         print("uso: falta_implantacao.py <PRD>", file=sys.stderr)
         return 2
-    chave_api = anexos.chave(env)
-    if not chave_api:
-        print(f"Não deu para ler a implantação: falta {anexos.CHAVE} no tokens/.env.", file=sys.stderr)
+    feito = subprocess.run(
+        ["gh", "api", "--paginate", "--slurp", f"repos/{{owner}}/{{repo}}/issues/{argv[0]}/sub_issues"],
+        capture_output=True,
+        text=True,
+    )
+    if feito.returncode != 0:
+        print(f"Não deu para ler os Cards de implantação: {feito.stderr.strip()}", file=sys.stderr)
         return 1
-    caminho = f"/automacao/tecnologia/projetos/{conversa.PROJETO}/issues/{argv[0]}/implantacao"
-    try:
-        lida = conversa.pedir(anexos.base_da_api(env), caminho, chave_api)
-    except conversa.Falha as falha:
-        print(f"Não deu para ler a implantação: {falha}.", file=sys.stderr)
-        return 1
-    assuntos = [p["assunto"].strip() for p in (lida or {}).get("pedidos", []) if (p.get("assunto") or "").strip()]
-    if assuntos:
-        print(f"{ABERTURA} {juntar(assuntos)}.")
+    cards = [card for pagina in json.loads(feito.stdout) for card in pagina]
+    titulos = [
+        card["title"].strip()
+        for card in cards
+        if card.get("state") == "open" and any(label.get("name") == LABEL for label in card.get("labels", []))
+    ]
+    if titulos:
+        print(f"{ABERTURA} {juntar(titulos)}.")
     return 0
 
 
