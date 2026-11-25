@@ -1,4 +1,4 @@
-"""A migration 172 num Postgres de verdade (issue #1983).
+"""A migration 238 (era a 172) num Postgres de verdade (issue #1983).
 
 Sobe um Postgres descartável pelo mesmo arnês do teste da migration 169, monta
 o mínimo de `setores` e `ouvidoria_protocolos`, aplica a migration duas vezes e
@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from test_pendencia_historico_banco import _bin_do_postgres, _Postgres  # noqa: E402
 
-MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "172_ouvidoria_setor_id.sql"
+MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "238_ouvidoria_setor_id.sql"
 
 S_RECEPCAO = "00000000-0000-0000-0000-000000000001"
 S_FARMACIA = "00000000-0000-0000-0000-000000000002"
@@ -130,4 +130,4 @@ class TestNomeQueNaoCasa:
         assert '"A definir"' not in banco.relatorio, "o caso sem área é fila de triagem, não erro"
 
     def test_o_recibo_e_gravado(self, banco):
-        assert banco.ok("SELECT numero FROM migracoes_aplicadas;") == "172"
+        assert banco.ok("SELECT numero FROM migracoes_aplicadas;") == "238"

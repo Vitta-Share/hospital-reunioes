@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 172: o setor da manifestação aponta para a tabela de setores
+-- Migration 238 (era 172, renumerada na issue do banco do zero: dividia o número com outra; em produção o recibo 172 já existe): o setor da manifestação aponta para a tabela de setores
 -- (issue #1983, ADR 0095 decisão 2)
 --
 -- A manifestação da Ouvidoria guarda o setor só em texto desde a 063. O
@@ -72,4 +72,4 @@ END $$;
 
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (172) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (238) ON CONFLICT (numero) DO NOTHING;

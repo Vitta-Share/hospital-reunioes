@@ -433,7 +433,13 @@ fi
 if [ "$NIVEL" -ge 3 ]; then
 titulo "Nível 3: app local (opcional, hoje ninguém usa)"
 if tem_bin docker && docker ps >/dev/null 2>&1; then ok "docker no ar"; else opc "docker no ar" "instale o Docker Desktop e abra"; fi
-no_path_do_shell supabase && ok "supabase" || opc "supabase" "brew install supabase/tap/supabase (se já instalou, adicione ao PATH do ~/.zshrc)"
+if no_path_do_shell supabase; then
+  # O config.toml usa [local_smtp], que só o CLI 3 lê (o 2 chamava de [inbucket] e recusa o nome novo).
+  SB_V="$(PATH="$PATH_SHELL" supabase --version 2>/dev/null | head -1 | tr -d v)"
+  versao_min "$SB_V" "3.0.0" && ok "supabase" "$SB_V" || opc "supabase" "tem $SB_V, o config.toml pede o CLI 3: brew upgrade supabase"
+else
+  opc "supabase" "brew install supabase/tap/supabase (se já instalou, adicione ao PATH do ~/.zshrc)"
+fi
 # node e corepack são conferidos no nível 2.
 [ -f "$APP/frontend/.env.local" ] && ok "frontend/.env.local" || opc "frontend/.env.local" "cp hospital-reunioes/frontend/.env.example hospital-reunioes/frontend/.env.local"
 fi
