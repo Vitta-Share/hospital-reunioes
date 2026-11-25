@@ -50,7 +50,12 @@ from urllib.parse import quote, urlencode, urlsplit
 import httpx
 
 from app.config import settings
-from app.services.tecnologia_vinculo import FATO_AJUSTE_DO_PLANO, FECHAMENTO_NAO_PLANEJADA, bloco_para_o_diretor
+from app.services.tecnologia_vinculo import (
+    FATO_AJUSTE_DO_PLANO,
+    FECHAMENTO_NAO_PLANEJADA,
+    bloco_para_o_diretor,
+    e_card_de_implantacao,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -853,6 +858,12 @@ def montar_foto(dados: dict[str, Any], partes: list[dict[str, Any]]) -> dict[str
             no[FATO_AJUSTE_DO_PLANO] = True
             if no["estado"] == "open" and FATO_AJUSTE_ABERTO not in foto:
                 foto[FATO_AJUSTE_ABERTO] = no["numero"]
+        # O dono do Card de implantacao (issue #2266): a secao Implantacao
+        # mostra com quem ele esta. So nele, e a parte comum continua identica.
+        if e_card_de_implantacao(no):
+            dono = _primeiro_assignee(parte)
+            if dono is not None:
+                no[FATO_ASSIGNEE] = dono
         foto["partes"].append(no)
 
     # O dono da raiz no GitHub, de que o Responsavel da Demanda e derivado

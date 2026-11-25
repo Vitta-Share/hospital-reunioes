@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import json
 import logging
+import re
 import time
 from datetime import UTC, datetime
 
@@ -627,6 +628,14 @@ async def webhook_github(
     if demanda is None:
         if _espelho_aceita(payload, projeto):
             return await _espelhar(supabase, projeto, numero)
+        raiz = _raiz_do_card_de_implantacao(payload)
+        da_raiz = tecnologia_sincronizacao.demanda_vinculada(supabase, projeto, raiz) if raiz else None
+        if da_raiz is not None:
+            return await _sincronizar(
+                lambda: tecnologia_sincronizacao.sincronizar_demanda(supabase, da_raiz),
+                da_raiz,
+                raiz,
+            )
         if pedidos:
             return {"recebido": True, "pedidos": pedidos}
         return {"ignorado": "sem_vinculo"}
@@ -662,6 +671,26 @@ async def _acompanhar_o_passo_a_passo(supabase, payload: dict, projeto: str, num
             "[GitHub webhook] Falha ao aplicar o evento ao Passo a passo do card #%s.", numero, exc_info=True
         )
         return 0
+
+
+_RAIZ_DA_SUB_ISSUE = re.compile(r"/issues/(\d+)$")
+
+
+def _raiz_do_card_de_implantacao(payload: dict) -> int | None:
+    """O numero da raiz quando a issue do evento e um Card de implantacao
+    (issue #2266, ADR 0113, decisao 9), ou `None`. A Implantacao do card sai
+    desses cards, entao o evento de um deles ressincroniza a raiz; o de uma
+    Parte comum continua sem ressincronizar. O `unlabeled` da propria label
+    tambem conta: o card que deixou de ser de implantacao sai da conta."""
+    from app.services.tecnologia_vinculo import LABEL_IMPLANTACAO
+
+    issue = payload.get("issue") or {}
+    labels = {str(rotulo.get("name") or "").lower() for rotulo in issue.get("labels") or [] if isinstance(rotulo, dict)}
+    rotulo_do_evento = payload.get("label") if isinstance(payload.get("label"), dict) else {}
+    if LABEL_IMPLANTACAO not in labels and str(rotulo_do_evento.get("name") or "").lower() != LABEL_IMPLANTACAO:
+        return None
+    achado = _RAIZ_DA_SUB_ISSUE.search(str(issue.get("parent_issue_url") or ""))
+    return int(achado.group(1)) if achado else None
 
 
 def _espelho_aceita(payload: dict, projeto: str) -> bool:
