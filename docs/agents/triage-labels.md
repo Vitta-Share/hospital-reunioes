@@ -34,6 +34,8 @@ Aplicada automaticamente pela Action de higiene (`.github/workflows/higiene-issu
 | --- | --- |
 | `origem:diretor` | O diretor criou o card pelo "Criar o card" da aba Tecnologia, bug ou melhoria. O app aplica sozinho, junto com uma frase de resumo na primeira linha do corpo e o link para a Demanda; o Hospital OS lê os três para o selo, o Aviso e o Resumo da manhã |
 
+Desde 24/11/2026 o diretor também abre o card pelo Claude dele (skill `/setup-diretor`), de um fork, sem acesso de escrita. Aí quem aplica é a Action `.github/workflows/card-do-diretor.yml`: quando a issue abre por um login da variável `DIRETOR_LOGINS`, ela põe `needs-triage` e `origem:diretor` e designa o dono do repositório. Esse card não tem Demanda, então a primeira linha é o resumo e não há link para a Demanda nem o marcador `demanda-vitta`.
+
 Descreve de onde a issue veio, não o estado dela: convive com as labels de triagem e de tipo, e ninguém a tira na curadoria.
 
 ## Label de implantação (ADR 0111)
