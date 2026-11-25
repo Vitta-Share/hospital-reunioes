@@ -28,6 +28,23 @@ export const FALHA_DA_CONVERSA = "O assistente não conseguiu responder. Mande a
 
 type Buscar = typeof fetch;
 
+// Os tetos do backend (`routers/assistente_do_app.py`): passar deles é 422 a
+// toda pergunta seguinte, e a conversa vive na tela sem nunca encolher.
+const MAX_FALAS = 40;
+const MAX_CARACTERES_DA_FALA = 8000;
+
+/** As últimas falas que cabem no backend, abrindo sempre por uma da pessoa. */
+function recorteDaConversa(mensagens: FalaDoAssistente[]): FalaDoAssistente[] {
+  const recorte = mensagens.slice(-MAX_FALAS);
+  while (recorte.length > 1 && recorte[0].role !== "user") recorte.shift();
+  return recorte.map((fala) => {
+    const letras = Array.from(fala.content);
+    return letras.length > MAX_CARACTERES_DA_FALA
+      ? { ...fala, content: letras.slice(0, MAX_CARACTERES_DA_FALA).join("") }
+      : fala;
+  });
+}
+
 /** As páginas do Manual que a pessoa vê, lidas do `public/manual`. */
 export async function paginasDoManualDe(
   participante: CurrentParticipante | null,
@@ -67,7 +84,7 @@ export async function perguntarAoAssistente(
       Authorization: `Bearer ${session?.access_token ?? ""}`,
     },
     body: JSON.stringify({
-      mensagens,
+      mensagens: recorteDaConversa(mensagens),
       paginas_do_manual: paginas.map(({ modulo, titulo, corpo }) => ({ modulo, titulo, corpo })),
     }),
   });

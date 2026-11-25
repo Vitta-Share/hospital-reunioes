@@ -91,3 +91,49 @@ describe("as páginas do Manual que vão para o Assistente", () => {
     expect(enviados[0].headers.Authorization).toBe("Bearer tok-2267");
   });
 });
+
+/**
+ * O backend recusa (422) mais de 40 falas ou fala com mais de 8000 caracteres
+ * (`routers/assistente_do_app.py`). Sem o recorte, a 21ª pergunta e toda
+ * pergunta depois de uma resposta longa falhavam para sempre.
+ */
+describe("a conversa longa que vai para o Assistente", () => {
+  function conversaDe(perguntas: number): { role: "user" | "assistant"; content: string }[] {
+    const falas: { role: "user" | "assistant"; content: string }[] = [];
+    for (let i = 1; i <= perguntas; i++) {
+      falas.push({ role: "user", content: `pergunta ${i}` });
+      if (i < perguntas) falas.push({ role: "assistant", content: `resposta ${i}` });
+    }
+    return falas;
+  }
+
+  it("a 30ª pergunta sai com no máximo 40 falas, abrindo por uma pergunta e fechando na nova", async () => {
+    const { buscar, enviados } = servidorFalso();
+
+    await perguntarAoAssistente(conversaDe(30), DAS_REUNIOES, buscar);
+
+    const { mensagens } = enviados[0].corpo as { mensagens: { role: string; content: string }[] };
+    expect(mensagens.length).toBeLessThanOrEqual(40);
+    expect(mensagens.length).toBeGreaterThanOrEqual(39);
+    expect(mensagens[0].role).toBe("user");
+    expect(mensagens.at(-1)).toEqual({ role: "user", content: "pergunta 30" });
+  });
+
+  it("a resposta do assistente com mais de 8000 caracteres sai cortada em 8000", async () => {
+    const { buscar, enviados } = servidorFalso();
+    const longa = "a".repeat(9500);
+
+    await perguntarAoAssistente(
+      [
+        { role: "user", content: "Como abro uma pendência?" },
+        { role: "assistant", content: longa },
+        { role: "user", content: "E depois?" },
+      ],
+      DAS_REUNIOES,
+      buscar
+    );
+
+    const { mensagens } = enviados[0].corpo as { mensagens: { role: string; content: string }[] };
+    expect(mensagens.map((m) => m.content.length)).toEqual([24, 8000, 9]);
+  });
+});
