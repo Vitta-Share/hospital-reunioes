@@ -44,8 +44,20 @@ A entidade central. Nasce PROGRAMADA e caminha por uma máquina de estados até 
 _Evitar_: encontro, meeting, evento.
 
 **Transcrição**:
-O texto bruto da Reunião (colado manualmente ou sincronizado via Fireflies). É a entrada do Pipeline de IA.
-_Evitar_: gravação, áudio (o áudio em si não entra no sistema).
+O texto bruto da Reunião. Chega sozinha do Fireflies, quando a [Gravação] leva o [Código da gravação] no título, ou é anexada à mão. É a entrada do Pipeline de IA.
+_Evitar_: gravação, áudio (o áudio é a [Gravação], que não entra nas Reuniões).
+
+**Gravação**:
+O áudio de uma Reunião, feito no Fireflies (aplicativo do celular ou navegador do computador) e guardado lá, fora do app. Nas Reuniões ela é só passagem: sai do Fireflies assim que a Transcrição chega ao app.
+_Evitar_: chamar a Transcrição de gravação; "áudio da ata".
+
+**Código da gravação**:
+O código curto e único de uma Reunião agendada que quem grava digita no título da [Gravação] para a Transcrição chegar sozinha ao destino certo. É a letra do módulo e cinco números, sem sequência, e o último número confere os outros (`R-48273` em Reuniões, `N-30517` no Núcleo).
+_Evitar_: protocolo, número da reunião; confundir com o Código do POP (`HSM_[SIGLA]-NNN`).
+
+**Transcrições sem destino**:
+A fila das Transcrições que chegaram do Fireflies sem um [Código da gravação] válido para uma Reunião agendada na mesma data. Mostra só data, hora, duração e título; quem conduz puxa a Transcrição para uma Reunião dele, e o app sugere a Reunião pelo horário, sem nunca escolher sozinho.
+_Evitar_: "gravações sem reunião"; destino adivinhado.
 
 **Ata**:
 O documento estruturado da Reunião — tópicos, decisões e ações. Tem **dois modos de geração**: **por Transcrição** (o Pipeline de IA extrai a Ata completa a partir do texto da Reunião; vira PDF e pode ser assinada) ou **Guiada** (ver **Ata Guiada**). Uma Reunião tem no máximo **uma** Ata, por um dos dois modos.
