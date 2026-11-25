@@ -2,6 +2,49 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-25T13:51:39-03:00",
+      "sha": "f4441f45f68856d19bd581da383ef00151a35f16",
+      "app_version": "0.390.3",
+      "subject": "PR #2256, issue #2255: Banco local monta do zero com o Supabase CLI 3",
+      "raw_subject": "chore(deploy): registro do PR avulso (#2256)",
+      "scope": [
+        "backend"
+      ],
+      "prds": [],
+      "result": "healthy",
+      "duration_seconds": 84,
+      "services_touched": [
+        "backend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "PR avulso: PR #2256, issue #2255. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 35
+        },
+        "health_s": 20
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-23T12:19:35-03:00",
       "sha": "7ed089bbb7d6964f486e4e0ab82b73532ba34c6a",
       "app_version": "0.390.2",
