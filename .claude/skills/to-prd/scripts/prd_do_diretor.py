@@ -4,7 +4,9 @@ O "Criar o card" da aba Tecnologia cria a issue da Demanda (ADR 0077): a
 melhoria já nasce com o PRD inteiro, "Decisões de implementação" inclusive, em
 `needs-triage`; o bug nasce com o Roteiro do bug, em `ready-for-agent`. O
 Refino (`/grill-with-docs #N`, aberto pelo botão Refinar do PedroOS) lê a
-issue, diz se o pedido é viável e grava o resultado na mesma issue.
+issue, diz se o pedido é viável e grava o resultado na mesma issue. O card que
+o diretor abre pelo Claude dele não tem Demanda no app: o `ler` o reconhece pela
+label `origem:diretor` (ADR 0113, decisão 5).
 
 Uso:
   python3 prd_do_diretor.py ler <N>                                  roteiro do Refino
@@ -14,9 +16,10 @@ Uso:
 e, quando há, `## Perguntas para o diretor`), escreve a seção do Refino e a
 lista de perguntas antes da Origem, troca a linha "O que muda" do bloco do
 diretor pelo Veredito, grava a marca de Refino (com o link do painel) e mexe
-nas labels: com pergunta aberta a issue fica em Triagem (`needs-triage`); sem
-pergunta ela vai para `ready-for-agent`. Refinar de novo troca o Refino
-anterior. O resto do corpo fica byte a byte.
+nas labels. Com pergunta aberta, comenta na issue com a menção ao diretor
+(login lido de `DIRETOR_LOGINS`), troca para `needs-info` e põe o card no nome
+dele; sem pergunta a issue vai para `ready-for-agent`. Refinar de novo troca o
+Refino anterior. O resto do corpo fica byte a byte.
 """
 
 from __future__ import annotations

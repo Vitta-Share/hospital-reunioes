@@ -525,6 +525,9 @@ def test_grill_with_docs_le_o_prd_do_diretor_e_nao_repergunta_o_negocio():
     assert "prd_do_diretor.py completar" in trecho
     assert "humanizer" in trecho
     assert "/to-issues #N" in trecho
+    # as perguntas vão ao diretor no GitHub, sem a Conversa da Demanda (ADR 0113, decisão 5)
+    assert "conversa.py" not in trecho and "WhatsApp" not in trecho
+    assert "origem:diretor" in trecho and "needs-info" in trecho
 
 
 def test_to_prd_completa_a_issue_do_diretor_em_vez_de_criar_outra():
