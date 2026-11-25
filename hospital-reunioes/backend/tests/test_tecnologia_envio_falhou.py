@@ -129,12 +129,14 @@ class TestALista:
 
         assert _linha(client.get(CHAT).json(), demanda_id)["envio_falhou"] is False
 
-    def test_o_desenvolvedor_ve_o_motivo_e_o_diretor_nao(self, monkeypatch):
+    def test_o_desenvolvedor_e_o_diretor_veem_o_motivo(self, monkeypatch):
+        """Issue #2265 (ADR 0113, decisao 6): a leitura e a mesma para todo
+        Super admin."""
         diretor, sb, gh, demanda_id = _demanda_com_envio_falhou(monkeypatch)
         pedro = _como(PEDRO, sb, gh, monkeypatch)
 
         assert _linha(pedro.get(f"{CHAT}?filtro=todas").json(), demanda_id)["envio_motivo"] == "GitHub respondeu 502"
-        assert _linha(diretor.get(CHAT).json(), demanda_id)["envio_motivo"] is None
+        assert _linha(diretor.get(CHAT).json(), demanda_id)["envio_motivo"] == "GitHub respondeu 502"
 
     def test_o_filtro_envio_falhou_lista_so_as_demandas_nesse_estado(self, monkeypatch):
         diretor, sb, gh, falhou_id = _demanda_com_envio_falhou(monkeypatch)

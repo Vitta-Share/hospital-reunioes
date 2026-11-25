@@ -2,9 +2,9 @@
 
 Desenvolvedor é o Super admin com login do GitHub no cadastro (ADR 0083,
 decisão 2): não é perfil novo. A regra de quem vê uma Demanda é uma só, usada
-pela lista e pela leitura da conversa: o autor vê as dele, o Desenvolvedor vê
-todas. O diretor (Super admin sem login do GitHub) segue vendo só as dele, sem
-número nem link da issue.
+pela lista e pela leitura da conversa. Desde a issue #2265 (ADR 0113, decisão
+6) todo Super admin vê todas, com o número e o link da issue: o diretor (Super
+admin sem login do GitHub) lê o mesmo que o Desenvolvedor.
 
 Tudo pela ROTA, no molde de `test_tecnologia_chat`: o modelo e o GitHub ficam
 dublados.
@@ -12,7 +12,6 @@ dublados.
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 
@@ -131,7 +130,7 @@ class TestListaDoDesenvolvedor:
 
         assert por_id == {"d-pedro": True, "d-diretor": False, "d-outro": False}
 
-    def test_super_admin_sem_login_do_github_lista_so_as_proprias_mesmo_pedindo_todas(self, monkeypatch):
+    def test_super_admin_sem_login_do_github_lista_as_de_todos_no_todas(self, monkeypatch):
         client, _, _ = _cenario(
             monkeypatch, logado=DIRETOR, participantes=_participantes(), demandas=_demandas_de_dois_autores()
         )
@@ -139,7 +138,7 @@ class TestListaDoDesenvolvedor:
         resposta = client.get(TODAS)
 
         assert resposta.status_code == 200, resposta.text
-        assert [d["titulo"] for d in resposta.json()] == ["O relatório some"]
+        assert [d["titulo"] for d in resposta.json()] == ["Pedido da Vitta", "O relatório some", "O botão sumiu"]
 
     def test_o_desenvolvedor_ve_o_numero_e_o_link_da_issue_na_demanda_com_card(self, monkeypatch):
         client, _, _ = _cenario(
@@ -153,31 +152,28 @@ class TestListaDoDesenvolvedor:
         assert por_id["d-diretor"]["issue_numero"] is None
         assert por_id["d-diretor"]["issue_url"] is None
 
-    def test_a_lista_entregue_ao_diretor_nao_traz_numero_nem_link_da_issue(self, monkeypatch):
+    def test_a_lista_entregue_ao_diretor_traz_o_numero_e_o_link_da_issue(self, monkeypatch):
+        """Issue #2265 (ADR 0113, decisão 6): o login do GitHub não corta mais
+        a leitura."""
         client, _, _ = _cenario(
             monkeypatch, logado=OUTRO_DIRETOR, participantes=_participantes(), demandas=_demandas_de_dois_autores()
         )
 
-        [item] = client.get(TODAS).json()
+        item = next(d for d in client.get(TODAS).json() if d["id"] == "d-outro")
 
-        assert item["id"] == "d-outro"
         assert item["tem_vinculo"] is True
-        assert "github.com" not in json.dumps(item)
-        # O numero sai so no `raiz_numero`, sem link (issue #1902, ADR 0100).
         assert item["raiz_numero"] == 912
-        assert "912" not in json.dumps({k: v for k, v in item.items() if k != "raiz_numero"})
+        assert item["issue_numero"] == 912
+        assert item["issue_url"] == "https://github.com/pedrorezendefig/hospital-reunioes/issues/912"
 
-    def test_o_diretor_ve_o_numero_da_demanda_na_lista_sem_o_numero_da_issue(self, monkeypatch):
-        """O Número da Demanda (issue #1585) é de todo mundo que vê a Demanda;
-        o da issue continua só do Desenvolvedor (ADR 0054, decisão 9)."""
+    def test_o_diretor_ve_o_numero_da_demanda_e_o_da_issue_lado_a_lado(self, monkeypatch):
         client, _, _ = _cenario(
             monkeypatch, logado=OUTRO_DIRETOR, participantes=_participantes(), demandas=_demandas_de_dois_autores()
         )
 
-        [item] = client.get(TODAS).json()
+        item = next(d for d in client.get(TODAS).json() if d["id"] == "d-outro")
 
-        assert item["numero"] == 7
-        assert item["issue_numero"] is None
+        assert (item["numero"], item["issue_numero"]) == (7, 912)
 
     def test_o_desenvolvedor_ve_o_numero_da_demanda_e_o_da_issue_lado_a_lado(self, monkeypatch):
         client, _, _ = _cenario(
@@ -228,13 +224,16 @@ class TestLeituraDaConversa:
         assert anexo["nome"] == "tela.png"
         assert anexo["url"].startswith("https://storage.local/")
 
-    def test_super_admin_sem_login_do_github_recebe_recusa_ao_abrir_a_de_outro_autor(self, monkeypatch):
+    def test_super_admin_sem_login_do_github_abre_a_de_outro_autor_sem_os_anexos(self, monkeypatch):
+        """Issue #2265: todo Super admin lê a conversa; os Anexos continuam do
+        Desenvolvedor."""
         sb, demanda_id = _conversa_do_diretor_com_print(monkeypatch)
 
         resposta = _como(OUTRO_DIRETOR, sb, monkeypatch).get(f"{CHAT}/{demanda_id}")
 
-        assert resposta.status_code == 404, resposta.text
-        assert "mensagens" not in resposta.text
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["mensagens"][-1]["texto"] == "Onde isso aconteceu?"
+        assert resposta.json()["anexos_da_demanda"] == []
 
     def test_o_autor_le_a_propria_conversa_sem_a_lista_dos_anexos(self, monkeypatch):
         sb, demanda_id = _conversa_do_diretor_com_print(monkeypatch)

@@ -829,7 +829,7 @@ class TestListaDasConversas:
         assert item["titulo"] == "Botão de responder some na Ouvidoria"
         assert item["etapa"] == "registrada"
 
-    def test_o_diretor_ve_o_que_muda_sem_numero_nem_link_da_issue(self, monkeypatch):
+    def test_o_diretor_ve_o_que_muda_com_o_numero_e_o_link_da_issue(self, monkeypatch):
         demandas = [
             _demanda(
                 "d-1",
@@ -846,11 +846,10 @@ class TestListaDasConversas:
 
         assert item["o_que_muda"] == "Agora o aviso chega por e-mail."
         assert item["tem_vinculo"] is True
-        # O endereco da issue nao sai por campo nenhum. O numero sai so no
-        # `raiz_numero`, sem link (issue #1902, ADR 0100, decisao 1).
-        assert "github.com" not in json.dumps(item)
+        # Desde a issue #2265 (ADR 0113, decisao 6) o numero e o link saem
+        # para todo Super admin, com ou sem login do GitHub.
         assert item["raiz_numero"] == 900
-        assert "900" not in json.dumps({k: v for k, v in item.items() if k != "raiz_numero"})
+        assert (item["issue_numero"], item["issue_url"]) == (900, "https://github.com/x/y/issues/900")
 
 
 # ═══════════════════════════════════════════════════════════════════════════

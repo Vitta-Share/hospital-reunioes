@@ -178,6 +178,7 @@ from app.services.tecnologia import (
     login_do_responsavel,
     nome_do_projeto,
     origem_da_demanda,
+    pode_agir,
     pode_ver,
     projeto_da_demanda,
     projetos_do_filtro,
@@ -1223,9 +1224,8 @@ async def ler_o_chat(
 ):
     """A conversa guardada, para retomar de onde parou.
 
-    So o autor e o Desenvolvedor a abrem (ADR 0083): a Demanda de outro autor
-    responde como inexistente, sem dizer que existe. O Desenvolvedor le tambem
-    os Anexos.
+    Todo Super admin a abre (`pode_ver`, issue #2265). O Desenvolvedor le
+    tambem os Anexos.
     """
     demanda, linha = _chat_guardado(supabase, demanda_id)
     if not pode_ver(ator, demanda):
@@ -1248,11 +1248,11 @@ async def trocar_o_modelo_da_demanda(
     """O seletor "Sonnet 5.5 | Opus 5.5" da conversa (issue #1921, ADR 0103).
 
     Troca quem abre a conversa, com a mesma regra da leitura: a Demanda de
-    outro autor responde como inexistente. A troca vale da proxima chamada em
+    outro autor responde como inexistente (`pode_agir`). A troca vale da proxima chamada em
     diante, e nao chama a IA. Modelo fora dos dois volta 422 no payload.
     """
     demanda, _linha = _chat_guardado(supabase, demanda_id)
-    if not pode_ver(ator, demanda):
+    if not pode_agir(ator, demanda):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=MOTIVO_CHAT_NAO_ENCONTRADO)
     linha = planejamento_demanda.trocar_o_modelo(supabase, demanda_id, payload.modelo)
     return {"modelo": planejamento_demanda.modelo_da_linha(linha)}
@@ -1262,10 +1262,19 @@ async def trocar_o_modelo_da_demanda(
 
 
 def _demanda_visivel(supabase: Client, demanda_id: str, ator: dict) -> dict:
-    """A Demanda, se quem pede a ve; senao 404, como a leitura do chat: a de
-    outro autor responde como inexistente, sem dizer que existe."""
+    """A Demanda, se quem pede a ve (`pode_ver`, todo Super admin desde a
+    issue #2265); senao 404, sem dizer que existe."""
     demanda = _buscar_demanda(supabase, demanda_id)
     if not pode_ver(ator, demanda):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=MOTIVO_CHAT_NAO_ENCONTRADO)
+    return demanda
+
+
+def _demanda_de_quem_age(supabase: Client, demanda_id: str, ator: dict) -> dict:
+    """A Demanda, se quem pede pode agir nela (`pode_agir`); senao 404, como
+    antes da issue #2265: a de outro autor responde como inexistente."""
+    demanda = _buscar_demanda(supabase, demanda_id)
+    if not pode_agir(ator, demanda):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=MOTIVO_CHAT_NAO_ENCONTRADO)
     return demanda
 
@@ -1346,7 +1355,7 @@ async def escrever_na_conversa_da_demanda(
 ):
     """Uma mensagem na Conversa da Demanda. Escreve quem ve a Demanda. Nada
     daqui vai para o GitHub (ADR 0083, decisao 8)."""
-    demanda = _demanda_visivel(supabase, demanda_id, ator)
+    demanda = _demanda_de_quem_age(supabase, demanda_id, ator)
     texto = payload.texto.strip()
     if not texto:
         _recusar("Escreva a mensagem antes de enviar.")
@@ -1497,7 +1506,7 @@ def _pergunta_do_me_explique(supabase: Client, pergunta_id: str, ator: dict) -> 
     if pergunta is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pergunta não encontrada.")
     demanda = _buscar_demanda(supabase, str(pergunta["demanda_id"]))
-    if not (pode_ver(ator, demanda) or str(ator["id"]) == str(pergunta.get("destinatario_id"))):
+    if not (pode_agir(ator, demanda) or str(ator["id"]) == str(pergunta.get("destinatario_id"))):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pergunta não encontrada.")
     return pergunta, demanda
 
@@ -1550,7 +1559,7 @@ def _demanda_do_envio(supabase: Client, demanda_id: str, ator: dict) -> dict:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail=tecnologia_envio_aos_desenvolvedores.MOTIVO_SO_O_HOSPITAL
         )
-    demanda = _demanda_visivel(supabase, demanda_id, ator)
+    demanda = _demanda_de_quem_age(supabase, demanda_id, ator)
     if not demanda.get("github_issue_numero"):
         _recusar(tecnologia_envio_aos_desenvolvedores.MOTIVO_SEM_CARD)
     return demanda
@@ -1848,13 +1857,13 @@ async def reenviar_o_card(
 ):
     """O "Reenviar" da Demanda em "Envio falhou" (issue #1535, ADR 0083, decisao 7).
 
-    Pelo autor ou pelo Desenvolvedor: quem nao ve a Demanda leva 404, como na
-    leitura. Passa pela mesma porta do "Criar o card", com o Responsavel que
-    ficou guardado no primeiro clique. Antes, confere se a Demanda ja tem issue
+    Pelo autor ou pelo Desenvolvedor (`pode_agir`): os demais levam 404.
+    Passa pela mesma porta do "Criar o card", com o Responsavel que ficou
+    guardado no primeiro clique. Antes, confere se a Demanda ja tem issue
     vinculada, e nesse caso nao cria a segunda. Nada reenvia sozinho.
     """
     demanda, atual = _chat_guardado(supabase, demanda_id)
-    if not pode_ver(ator, demanda):
+    if not pode_agir(ator, demanda):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=MOTIVO_CHAT_NAO_ENCONTRADO)
     if demanda.get("github_issue_numero"):
         _conflito(MOTIVO_CHAT_TERMINOU)
@@ -1969,7 +1978,7 @@ def _revisao_permitida(supabase: Client, demanda_id: str, ator: dict) -> tuple[d
     """A Demanda e a conversa que se revisam, ou a recusa: 404 para quem nao a
     ve, a `recusa_de_revisar` (403 ou 409), e 409 sem a conversa da melhoria
     ja enviada para retomar."""
-    demanda = _demanda_visivel(supabase, demanda_id, ator)
+    demanda = _demanda_de_quem_age(supabase, demanda_id, ator)
     recusa = recusa_de_revisar(ator, demanda)
     if recusa is not None:
         raise HTTPException(status_code=recusa[0], detail=recusa[1])
@@ -2138,7 +2147,7 @@ async def atualizar_o_card(
     escrita. Só depois do GitHub o app grava: a conversa volta a enviada e a
     Etapa é relida. Falha do GitHub sai como 502, com nada gravado no app.
     """
-    demanda = _demanda_visivel(supabase, demanda_id, ator)
+    demanda = _demanda_de_quem_age(supabase, demanda_id, ator)
     recusa = recusa_de_revisar(ator, demanda)
     if recusa is not None:
         raise HTTPException(status_code=recusa[0], detail=recusa[1])

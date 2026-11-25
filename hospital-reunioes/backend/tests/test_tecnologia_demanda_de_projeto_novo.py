@@ -369,7 +369,7 @@ class TestOFiltroProjeto:
         ]
 
     def test_o_quadro_filtra_pelo_projeto_novo(self, aba):
-        resposta = aba(f"{BASE_DA_ABA}/chat?projeto=os")
+        resposta = aba(f"{BASE_DA_ABA}/chat?filtro=todas&projeto=os")
 
         assert resposta.status_code == 200, resposta.text
         assert [d["id"] for d in resposta.json()] == ["d-os"]

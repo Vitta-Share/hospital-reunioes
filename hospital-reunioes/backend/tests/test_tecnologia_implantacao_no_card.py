@@ -42,7 +42,9 @@ from test_tecnologia_vinculo import _integracao_configurada, _TableQuery  # noqa
 
 from app.services import tecnologia_perguntas  # noqa: E402
 
-LISTA = "/api/admin/tecnologia/chat"
+# O "Minhas" corta pelo autor desde a issue #2265: a Diretora le o card da
+# Vitta no Todas.
+LISTA = "/api/admin/tecnologia/chat?filtro=todas"
 
 TESTE = "testar o anonimato do Canal de Conduta"
 ABERTURA = "abrir o Canal de Conduta para todos"

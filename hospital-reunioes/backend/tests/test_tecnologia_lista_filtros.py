@@ -170,12 +170,15 @@ class TestFiltrosCombinam:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-class TestSoDoDesenvolvedor:
+class TestOsFiltrosSaoDeTodos:
+    """Issue #2265 (ADR 0113, decisao 6): nenhum filtro e mais so do
+    Desenvolvedor."""
+
     @pytest.mark.parametrize("consulta", ["filtro=para_mim", "responsavel=P4", "envio_falhou=true"])
-    def test_a_rota_recusa_ao_diretor_o_filtro_do_desenvolvedor(self, lista, consulta):
+    def test_a_rota_aceita_do_diretor_o_filtro_que_era_do_desenvolvedor(self, lista, consulta):
         resposta = lista(DIRETOR, consulta)
 
-        assert resposta.status_code == 403, resposta.text
+        assert resposta.status_code == 200, resposta.text
 
 
 # ═══════════════════════════════════════════════════════════════════════════

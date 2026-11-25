@@ -149,13 +149,15 @@ class TestQuemVe:
         assert linha["designacao_falhou"] is True
         assert "pedrorezendefig" in linha["envio_motivo"]
 
-    def test_o_diretor_nao_ve_a_designacao_falhada(self, monkeypatch):
+    def test_o_diretor_ve_a_designacao_falhada_como_o_desenvolvedor(self, monkeypatch):
+        """Issue #2265 (ADR 0113, decisao 6): a leitura nao depende mais do
+        login do GitHub. O Designar de novo continua do Desenvolvedor."""
         diretor, _, _, demanda_id, _ = _demanda_com_designacao_falhada(monkeypatch)
 
         linha = _linha(diretor.get(CHAT).json(), demanda_id)
 
-        assert linha["designacao_falhou"] is False
-        assert linha["envio_motivo"] is None
+        assert linha["designacao_falhou"] is True
+        assert linha["envio_motivo"]
         assert linha["envio_falhou"] is False
 
 
