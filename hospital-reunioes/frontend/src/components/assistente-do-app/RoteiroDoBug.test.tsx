@@ -81,6 +81,9 @@ beforeEach(() => {
         })
       );
     }
+    if (url === "/api/assistente-do-app/conversa") {
+      return new Response(JSON.stringify({ resposta: "Fica no menu Pendências." }));
+    }
     if (url === `${BUG}/d-1/print`) return new Response(JSON.stringify({ prints: 1 }));
     if (url === `${BUG}/d-1/enviar`) {
       return respostasDoEnvio.shift() ?? new Response(JSON.stringify({ demanda_id: "d-1" }));
@@ -179,5 +182,64 @@ describe("o Roteiro do bug", () => {
 
     expect(await screen.findByText(/O bug foi enviado à Vitta/)).toBeTruthy();
     expect(chamadasPara(`${BUG}/d-1/enviar`)).toHaveLength(2);
+  });
+});
+
+describe("sair do Roteiro do bug", () => {
+  function voltouAoInicio() {
+    const painel = screen.getByRole("dialog", { name: "Assistente do app" });
+    expect(within(painel).getByRole("button", { name: "Tirar uma dúvida" })).toBeTruthy();
+    expect(within(painel).getByRole("textbox", { name: "Sua pergunta" })).toBeTruthy();
+    expect(within(painel).queryByRole("textbox", { name: "Sua resposta" })).toBeNull();
+  }
+
+  it("fechar e reabrir o painel no meio do relato volta a Tirar uma dúvida", () => {
+    abrirORoteiro();
+    responder("Na tela de Pendências");
+
+    fireEvent.click(screen.getByRole("button", { name: "Fechar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Assistente do app" }));
+
+    voltouAoInicio();
+  });
+
+  it("cancelar o relato volta a Tirar uma dúvida", () => {
+    abrirORoteiro();
+    responder("Na tela de Pendências");
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar o relato" }));
+
+    voltouAoInicio();
+  });
+
+  it("depois do envio, Voltar sai do relato", async () => {
+    await ateOResumo();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar à Vitta" }));
+    await screen.findByText(/O bug foi enviado à Vitta/);
+
+    fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
+
+    voltouAoInicio();
+  });
+
+  it("depois de uma dúvida, ainda dá para relatar um bug", async () => {
+    render(
+      <AppShell userName="Pessoa">
+        <p>conteúdo</p>
+      </AppShell>
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Assistente do app" }));
+    const painel = screen.getByRole("dialog", { name: "Assistente do app" });
+    fireEvent.change(within(painel).getByRole("textbox", { name: "Sua pergunta" }), {
+      target: { value: "Onde vejo as Pendências?" },
+    });
+    await act(async () => {
+      fireEvent.click(within(painel).getByRole("button", { name: "Enviar" }));
+    });
+    await within(painel).findByText("Fica no menu Pendências.");
+
+    fireEvent.click(within(painel).getByRole("button", { name: "Relatar um bug" }));
+
+    expect(within(painel).getByRole("textbox", { name: "Sua resposta" })).toBeTruthy();
   });
 });

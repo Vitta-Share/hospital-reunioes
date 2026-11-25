@@ -14,7 +14,8 @@ import { RoteiroDoBug } from "./RoteiroDoBug";
  * as sugestões "Relatar um bug" e "Tirar uma dúvida" e o campo livre. A
  * dúvida vive só aqui, no estado da tela: não vira Demanda e some ao
  * recarregar a página. O bug segue o Roteiro do bug (`RoteiroDoBug`, issue
- * #2275), que vira Demanda.
+ * #2275), que vira Demanda. Cancelar o relato, terminar o envio ou fechar o
+ * painel devolvem as sugestões e o campo livre.
  *
  * No celular, sobe acima da barra inferior (`BottomNav`).
  */
@@ -27,6 +28,11 @@ export function AssistenteDoApp() {
   const [erro, setErro] = useState<string | null>(null);
   const [relatando, setRelatando] = useState(false);
   const campo = useRef<HTMLTextAreaElement>(null);
+
+  function fecharOPainel() {
+    setAberto(false);
+    setRelatando(false);
+  }
 
   async function enviar() {
     const pergunta = texto.trim();
@@ -64,7 +70,7 @@ export function AssistenteDoApp() {
             </h3>
             <button
               type="button"
-              onClick={() => setAberto(false)}
+              onClick={fecharOPainel}
               aria-label="Fechar"
               className="w-6 h-6 rounded-md hover:bg-slate-100 flex items-center justify-center text-slate-400"
             >
@@ -73,8 +79,20 @@ export function AssistenteDoApp() {
           </div>
 
           <div className="max-h-[360px] overflow-y-auto px-4 py-3 flex flex-col gap-2">
-            {relatando && <RoteiroDoBug />}
-            {!relatando && falas.length === 0 && (
+            {falas.map((fala, i) => (
+              <p
+                key={i}
+                className={`text-sm whitespace-pre-wrap rounded-xl px-3 py-2 max-w-[85%] ${
+                  fala.role === "user"
+                    ? "self-end bg-primary text-white"
+                    : "self-start bg-slate-100 text-slate-800"
+                }`}
+              >
+                {fala.content}
+              </p>
+            ))}
+            {relatando && <RoteiroDoBug aoSair={() => setRelatando(false)} />}
+            {!relatando && (
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -92,18 +110,6 @@ export function AssistenteDoApp() {
                 </button>
               </div>
             )}
-            {falas.map((fala, i) => (
-              <p
-                key={i}
-                className={`text-sm whitespace-pre-wrap rounded-xl px-3 py-2 max-w-[85%] ${
-                  fala.role === "user"
-                    ? "self-end bg-primary text-white"
-                    : "self-start bg-slate-100 text-slate-800"
-                }`}
-              >
-                {fala.content}
-              </p>
-            ))}
             {enviando && <p className="self-start text-xs text-slate-400">Pensando…</p>}
             {erro && <p className="text-xs text-red-600">{erro}</p>}
           </div>
@@ -147,7 +153,7 @@ export function AssistenteDoApp() {
 
       <button
         type="button"
-        onClick={() => setAberto((v) => !v)}
+        onClick={() => (aberto ? fecharOPainel() : setAberto(true))}
         aria-label="Assistente do app"
         aria-expanded={aberto}
         className="w-12 h-12 rounded-full bg-primary text-white shadow-premium-strong flex items-center justify-center hover:bg-primary/90 transition-colors"

@@ -18,7 +18,8 @@ import {
  * 8): uma pergunta por vez, no máximo cinco (Onde, O que aconteceu, O que
  * esperava, Como repetir e o print), o resumo e o clique de envio. Pergunta
  * pulada sai "não informado" no resumo. A falha do envio mostra o motivo e
- * "Tentar de novo"; nada é reenviado sem o clique.
+ * "Tentar de novo"; nada é reenviado sem o clique. "Cancelar o relato" (e
+ * "Voltar", depois do envio) chama `aoSair`, que devolve o painel ao início.
  */
 
 type Etapa = "perguntas" | "print" | "resumo" | "enviado";
@@ -40,7 +41,7 @@ function Bolha({ de, children }: { de: "robo" | "pessoa"; children: React.ReactN
   );
 }
 
-export function RoteiroDoBug() {
+export function RoteiroDoBug({ aoSair }: { aoSair: () => void }) {
   const [etapa, setEtapa] = useState<Etapa>("perguntas");
   const [respostas, setRespostas] = useState<RespostasDoBug>(VAZIAS);
   const [indice, setIndice] = useState(0);
@@ -225,6 +226,14 @@ export function RoteiroDoBug() {
       )}
       {ocupado && <p className="self-start text-xs text-slate-400">Guardando…</p>}
       {erro && <p className="text-xs text-red-600">{erro}</p>}
+      <button
+        type="button"
+        onClick={aoSair}
+        disabled={ocupado}
+        className="self-start text-xs text-slate-500 hover:text-slate-700 underline disabled:opacity-50"
+      >
+        {etapa === "enviado" ? "Voltar" : "Cancelar o relato"}
+      </button>
     </div>
   );
 }
