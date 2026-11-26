@@ -325,3 +325,52 @@ def test_implementador_da_onda_assume_o_pr_do_diretor():
     agente = (RAIZ / ".claude" / "agents" / "onda-implementador.md").read_text(encoding="utf-8")
 
     assert "pr_do_diretor.py <N>" in agente
+
+
+# ------------------------------------- a conferência do lote acha o PR do fork
+
+
+def test_conferencia_do_lote_le_o_head_do_pr_do_diretor_pela_refs_pull(tmp_path, monkeypatch):
+    """A branch do PR do diretor mora no fork: neste repositório só há a `refs/pull/<n>/head`."""
+    import importlib.util
+
+    env_git = {"GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1", "GIT_AUTHOR_NAME": "t",
+               "GIT_AUTHOR_EMAIL": "t@x", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@x"}
+    for k, v in env_git.items():
+        monkeypatch.setenv(k, v)
+
+    def git(cwd, *args):
+        return subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
+
+    obra = tmp_path / "obra"
+    obra.mkdir()
+    git(obra, "init", "-q", "-b", "main")
+    (obra / "a.txt").write_text("1\n")
+    git(obra, "add", "a.txt")
+    git(obra, "commit", "-q", "-m", "base")
+    git(obra, "checkout", "-q", "-b", "prototipo")
+    (obra / "a.txt").write_text("2\n")
+    git(obra, "commit", "-q", "-am", "prototipo")
+    head = git(obra, "rev-parse", "HEAD")
+    remoto = tmp_path / "remoto.git"
+    git(tmp_path, "init", "-q", "--bare", "-b", "main", str(remoto))
+    git(obra, "push", "-q", str(remoto), "main", "prototipo:refs/pull/77/head")
+    clone = tmp_path / "clone"
+    git(tmp_path, "clone", "-q", str(remoto), str(clone))
+
+    falso = tmp_path / "bin"
+    falso.mkdir()
+    (falso / "gh").write_text(
+        "#!/bin/sh\necho '{\"headRefName\": \"prototype/902-relatorio\", \"isCrossRepository\": true}'\n"
+    )
+    (falso / "gh").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{falso}{os.pathsep}{os.environ['PATH']}")
+    spec = importlib.util.spec_from_file_location(
+        "conferir_lote", RAIZ / ".claude" / "skills" / "onda-enxuta" / "scripts" / "conferir_lote.py"
+    )
+    conferir_lote = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(conferir_lote)
+
+    assert conferir_lote.prs_do_github(clone, [77]) == [
+        {"number": 77, "branch": "prototype/902-relatorio", "head": head}
+    ]
