@@ -40,9 +40,10 @@ pw() {
 }
 
 # Espera um texto aparecer e a tela assentar. O selo do Next, que só existe
-# com o app rodando em modo de desenvolvimento, sai do print.
+# com o app rodando em modo de desenvolvimento, sai do print, e o robô do
+# Assistente do app também: ele fica por cima do canto dos cards.
 esperar() {
-  pw run-code "async page => { await page.getByText('$1', { exact: true }).first().waitFor(); await page.addStyleTag({ content: 'nextjs-portal { display: none !important }' }); await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(1200) }"
+  pw run-code "async page => { await page.getByText('$1', { exact: true }).first().waitFor(); await page.addStyleTag({ content: 'nextjs-portal, [data-assistente-do-app] { display: none !important }' }); await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(1200) }"
 }
 
 # Fotografa a tela inteira ou um pedaço dela, e salva o PNG ao lado do Markdown.
