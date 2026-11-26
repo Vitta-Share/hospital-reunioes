@@ -31,7 +31,6 @@ from app.dependencies import get_supabase_client  # noqa: E402
 from app.limiter import limiter  # noqa: E402
 from app.routers import tecnologia_automacao  # noqa: E402
 from app.services import tecnologia_email  # noqa: E402
-from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
 
 CHAVE = "chave-de-automacao-do-teste-2116"
 DEMANDA = "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
@@ -346,55 +345,6 @@ def _tela(sb: _SupabaseMock, logado: dict, monkeypatch) -> TestClient:
     return cliente
 
 
-class TestNaConversaDaDemanda:
-    def test_a_conversa_mostra_a_pergunta_como_cartao_e_a_linha_de_sistema_da_pergunta_aberta(self, monkeypatch):
-        ponte, sb = _ponte()
-        pergunta_id = _criar(ponte).json()["id"]
-
-        resposta = _tela(sb, DIRETORA, monkeypatch).get(CONVERSA_DA_TELA)
-
-        assert resposta.status_code == 200, resposta.text
-        mensagens = resposta.json()["mensagens"]
-        entrada, linha = mensagens
-        assert entrada["texto"] == "Quem assina a Ata em nome da diretoria quando a senhora não está?"
-        cartao = entrada["pergunta"]
-        assert cartao["id"] == pergunta_id
-        assert cartao["projeto"] == "Aplicativo do Hospital"
-        assert cartao["assunto"] == "quem assina a Ata pela diretoria"
-        assert {chave: cartao[chave] for chave in QUATRO_LINHAS} == QUATRO_LINHAS
-        assert cartao["estado"] == "aberta"
-        assert cartao["criado_em"] == sb.tabelas[TABELA][0]["criado_em"]
-        assert cartao["destinatario"] == "Diretora Clínica"
-        assert (linha["sistema"], linha["texto"], linha["pergunta"]) == (
-            True,
-            "Pergunta aberta: quem assina a Ata pela diretoria",
-            None,
-        )
-
-    def test_mensagem_comum_nao_vira_cartao(self, monkeypatch):
-        ponte, sb = _ponte()
-        ponte.post(
-            MENSAGEM_DE_ANTES,
-            json={"texto": "Subiu a tela nova.", "github_login": "pedrorezendefig"},
-            headers={"X-API-Key": CHAVE},
-        )
-
-        [mensagem] = _tela(sb, DIRETORA, monkeypatch).get(CONVERSA_DA_TELA).json()["mensagens"]
-
-        assert mensagem["pergunta"] is None
-
-    def test_so_super_admin_ve_o_cartao(self, monkeypatch):
-        """ADR 0050: a aba Tecnologia é do Super admin. A gestora, que nem
-        Super admin é, não lê a Conversa, nem o cartão que nela mora."""
-        ponte, sb = _ponte()
-        _criar(ponte, destinatario_id=GESTORA["id"])
-
-        resposta = _tela(sb, GESTORA, monkeypatch).get(CONVERSA_DA_TELA)
-
-        assert resposta.status_code == 403
-        assert "quem assina a Ata" not in resposta.text
-
-
 # ═══════════════════════════════════════════════════════════════════════════
 # A rota de antes segue igual
 # ═══════════════════════════════════════════════════════════════════════════
@@ -425,18 +375,3 @@ class TestARotaDeAntes:
 # ═══════════════════════════════════════════════════════════════════════════
 # O kit de conhecimento
 # ═══════════════════════════════════════════════════════════════════════════
-
-
-class TestOKit:
-    def test_o_kit_da_tecnologia_diz_que_a_pergunta_da_vitta_chega_como_cartao(self):
-        texto = (CONHECIMENTO_DIR / "tecnologia.md").read_text(encoding="utf-8")
-
-        for trecho in (
-            "a pergunta aparece na Conversa como um cartão em destaque",
-            "por que a resposta é sua, o que está parado, o que anda quando você responder e o que o hospital ganha",
-            "há quantos dias ela espera",
-            'a linha "Pergunta aberta"',
-        ):
-            assert trecho in texto, trecho
-        assert "sem marca diferente" not in texto
-        assert "Pendência da Vitta" not in texto

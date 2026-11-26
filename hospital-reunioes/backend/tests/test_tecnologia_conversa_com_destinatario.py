@@ -30,7 +30,6 @@ from app.dependencies import get_supabase_client  # noqa: E402
 from app.limiter import limiter  # noqa: E402
 from app.routers import tecnologia_automacao  # noqa: E402
 from app.services import tecnologia_email  # noqa: E402
-from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
 
 CHAVE = "chave-de-automacao-do-teste-1965"
 DEMANDA = "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
@@ -226,15 +225,3 @@ class TestPedeResposta:
 # ═══════════════════════════════════════════════════════════════════════════
 # O kit de conhecimento
 # ═══════════════════════════════════════════════════════════════════════════
-
-
-class TestOKit:
-    def test_o_kit_da_tecnologia_diz_que_o_aviso_vai_so_para_quem_responde_com_o_assunto(self):
-        texto = (CONHECIMENTO_DIR / "tecnologia.md").read_text(encoding="utf-8")
-
-        for trecho in (
-            "o aviso vai só para essa pessoa, em qualquer pedido, mesmo num que ela não abriu",
-            'o sino mostra "Pede sua resposta" e o assunto',
-            '"<Nome> pede sua resposta: <assunto>"',
-        ):
-            assert trecho in texto, trecho

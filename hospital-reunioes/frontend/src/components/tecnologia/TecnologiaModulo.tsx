@@ -3,51 +3,37 @@
 /**
  * O módulo da aba Tecnologia (issue #636, PRD #634, ADR 0050).
  *
- * Desde a ADR 0077 a aba é o chat do Assistente (issue #1381), com a lista
- * lateral das conversas (issue #1384). O Quadro, o Painel, a tela de Produtos
- * e o formulário à mão saíram do código na issue #1386. Desde a issue #1556
- * (ADR 0084, decisão 8) há duas abas: Conversas, o chat, e Entregas, o retrato
- * do que foi entregue. O gate de verdade é o `require_super_admin` do backend;
- * a sidebar apenas esconde o item.
+ * Desde a issue #2279 (ADR 0113, decisões 6 e 7) a aba só informa: duas abas,
+ * o Quadro, com a Etapa de cada Demanda, e as Entregas, o retrato do que foi
+ * entregue (issue #1556, ADR 0084, decisão 8). Saíram o chat do Assistente, o
+ * "Novo pedido" e a lista Esperando você: o pedido nasce no GitHub. O gate de
+ * verdade é o `require_super_admin` do backend; a sidebar apenas esconde o item.
  *
- * Na tela larga, a partir de 1280px, a aba Conversas se chama Quadro e mostra
- * as Demandas em colunas pela Etapa (issue #1642, ADR 0090, decisão 1). No
- * celular ela continua a lista de antes, com o nome de antes. O "Ver todos nas
- * Entregas", no pé da coluna Entregue, troca para a aba Entregas (issue #1644).
- *
- * No topo, acima das abas, fica a lista Esperando você, com os Pedidos da
- * Vitta abertos de todos os Projetos, Perguntas e Passos a passo (issue
- * #2118, ADR 0109, decisão 5; ADR 0110). `perguntaInicial` é o `?pergunta=` do aviso: o cartão em foco.
+ * Na tela larga, a partir de 1280px, o Quadro mostra as Demandas em colunas
+ * pela Etapa (issue #1642, ADR 0090, decisão 1); no celular, a lista. O "Ver
+ * todos nas Entregas", no pé da coluna Entregue, troca para a aba Entregas
+ * (issue #1644). `demandaInicial` é o `?demanda=` do endereço, que um aviso
+ * antigo do sino ou do e-mail ainda traz: o Quadro abre com o pedido.
  */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Cpu } from "lucide-react";
 
 import { useAuth } from "@/hooks/useAuth";
-import { useTelaLarga } from "@/hooks/useTelaLarga";
 
-import { ABRIR_DEMANDA } from "./CartaoDoPassoAPasso";
 import { ConversasDaTecnologia } from "./ConversasDaTecnologia";
 import { EntregasDaTecnologia } from "./EntregasDaTecnologia";
-import { EsperandoVoce } from "./EsperandoVoce";
 
-type Aba = "conversas" | "entregas";
+type Aba = "quadro" | "entregas";
 
-export function TecnologiaModulo({
-  demandaInicial = null,
-  perguntaInicial = null,
-}: {
-  demandaInicial?: string | null;
-  perguntaInicial?: string | null;
-}) {
+export const ABAS: { id: Aba; rotulo: string }[] = [
+  { id: "quadro", rotulo: "Quadro" },
+  { id: "entregas", rotulo: "Entregas" },
+];
+
+export function TecnologiaModulo({ demandaInicial = null }: { demandaInicial?: string | null }) {
   const { token } = useAuth();
-  const largo = useTelaLarga();
-  const rotuloDasConversas = largo ? "Quadro" : "Conversas";
-  const abas: { id: Aba; rotulo: string }[] = [
-    { id: "conversas", rotulo: rotuloDasConversas },
-    { id: "entregas", rotulo: "Entregas" },
-  ];
-  const [aba, setAba] = useState<Aba>("conversas");
+  const [aba, setAba] = useState<Aba>("quadro");
   /** As Entregas só pedem ao servidor quando abertas pela primeira vez. */
   const [entregasAbertas, setEntregasAbertas] = useState(false);
 
@@ -55,13 +41,6 @@ export function TecnologiaModulo({
     setAba(id);
     if (id === "entregas") setEntregasAbertas(true);
   }
-
-  // O bug que o Achei um problema fez nascer abre nas conversas (issue #2210).
-  useEffect(() => {
-    const voltar = () => setAba("conversas");
-    window.addEventListener(ABRIR_DEMANDA, voltar);
-    return () => window.removeEventListener(ABRIR_DEMANDA, voltar);
-  }, []);
 
   return (
     <div className="animate-fade-in-up space-y-6">
@@ -72,15 +51,13 @@ export function TecnologiaModulo({
         <div>
           <h1 className="text-2xl font-bold text-text">Tecnologia</h1>
           <p className="text-sm text-text-secondary">
-            Conte um bug ou peça uma melhoria nos sistemas que a Vitta cuida.
+            Acompanhe a fase de cada pedido e o que a Vitta já entregou.
           </p>
         </div>
       </div>
 
-      <EsperandoVoce token={token} perguntaEmFoco={perguntaInicial} />
-
       <div className="flex flex-wrap gap-1 border-b border-border" role="tablist" aria-label="Tecnologia">
-        {abas.map((a) => (
+        {ABAS.map((a) => (
           <button
             key={a.id}
             type="button"
@@ -96,8 +73,8 @@ export function TecnologiaModulo({
         ))}
       </div>
 
-      {/* A conversa fica montada atrás da aba: trocar de aba não perde o que foi escrito. */}
-      <div role="tabpanel" aria-label={rotuloDasConversas} hidden={aba !== "conversas"}>
+      {/* O Quadro fica montado atrás da aba: trocar de aba não perde os filtros. */}
+      <div role="tabpanel" aria-label="Quadro" hidden={aba !== "quadro"}>
         <ConversasDaTecnologia
           token={token}
           demandaInicial={demandaInicial}

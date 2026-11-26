@@ -19,9 +19,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from test_tecnologia_chat import (  # noqa: E402
     CHAT,
-    _ate_o_resumo,
     _cenario,
-    _demandas,
     _integracao_configurada,  # noqa: F401
     _llm_em_mock,  # noqa: F401
 )
@@ -127,7 +125,7 @@ class TestTodoSuperAdminListaTodas:
 
 
 class TestQuemNaoESuperAdmin:
-    @pytest.mark.parametrize("rota", [CHAT, TODAS, f"{BASE}/entregas", f"{CHAT}/d-diretor"])
+    @pytest.mark.parametrize("rota", [CHAT, TODAS, f"{BASE}/entregas"])
     def test_quem_nao_e_super_admin_continua_sem_acesso_a_aba(self, monkeypatch, rota):
         client, _, _ = _cenario(
             monkeypatch,
@@ -144,16 +142,24 @@ class TestQuemNaoESuperAdmin:
 
 class TestResponsavelDiretor:
     def test_card_atribuido_ao_diretor_mostra_o_nome_dele_como_responsavel(self, monkeypatch):
-        """O diretor cria o card, a Vitta o atribui a ele no GitHub, e outro
-        Super admin, sem login, ve o nome dele como Responsavel."""
+        """O card do diretor ja esta no GitHub, a Vitta o atribui a ele, e
+        outro Super admin, sem login, ve o nome dele como Responsavel."""
         participantes = [PEDRO, DIRETOR, OUTRO_DIRETOR, DIRETOR_COLABORADOR]
         _, sb, _ = _cenario(monkeypatch, logado=DIRETOR, participantes=participantes)
-        demanda_id = _ate_o_resumo(_montar_como(DIRETOR, sb, monkeypatch), monkeypatch)
-        assert (
-            _montar_como(DIRETOR, sb, monkeypatch).post(f"{CHAT}/{demanda_id}/criar-card", json={}).status_code == 200
+        numero = 950
+        demanda_id = "d-card"
+        linha = _demanda(
+            demanda_id,
+            titulo="O relatório some",
+            autor_id=DIRETOR["id"],
+            github_issue_numero=numero,
+            github_foto={
+                "numero": numero,
+                "url": f"https://github.com/pedrorezendefig/hospital-reunioes/issues/{numero}",
+            },
+            etapa="em_analise",
         )
-        linha = _demandas(sb)[0]
-        numero = linha["github_issue_numero"]
+        sb.tabelas["tecnologia_demandas"] = [dict(linha)]
         dados = _issue(numero, labels=("needs-triage",))
         dados["assignees"] = [{"login": "Diretor-HSM"}]
         dados["assignee"] = dados["assignees"][0]

@@ -702,12 +702,12 @@ def _secao(titulo: str) -> str:
 
 
 class TestKit:
-    def test_o_kit_diz_que_a_aba_tem_conversas_e_entregas(self):
+    def test_o_kit_diz_que_a_aba_tem_quadro_e_entregas(self):
         """O Assistente fala pela lingua do Kit: sem isto, ele diria que a aba
         e uma tela so."""
         abertura = _kit().split("\n## ", 1)[0]
 
-        assert "**Conversas**" in abertura
+        assert "**Quadro**" in abertura
         assert "**Entregas**" in abertura
         assert "tela só" not in _kit()
 

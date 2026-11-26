@@ -1,9 +1,9 @@
 /**
  * O vocabulário da Demanda, do lado da tela (issue #637, PRD #634; ADR 0077).
  *
- * Desde a issue #1386 a aba é o chat do agente: aqui ficam o que a lista das
- * conversas e a conversa aberta leem da Demanda (a Etapa, o selo e O que muda)
- * e o tratamento comum das respostas do servidor.
+ * Desde a issue #2279 (ADR 0113, decisões 6 e 7) a aba só lê: aqui fica o que
+ * o Quadro, a lista do celular e o Documento do card leem da Demanda (a Etapa,
+ * o selo e O que muda) e o tratamento comum das respostas do servidor.
  */
 
 /** O prefixo da API da aba. */
@@ -105,12 +105,6 @@ export type Demanda = {
   /** O motivo técnico da falha, só para o Desenvolvedor. Para o diretor o servidor manda nulo. */
   envio_motivo?: string | null;
   /**
-   * Se quem está logado pode apagar a Demanda (issue #1549, ADR 0084): o autor
-   * na conversa Registrada, o Desenvolvedor no card até Planejada. Quem decide
-   * é o servidor; sem o campo, o botão não aparece.
-   */
-  pode_apagar?: boolean;
-  /**
    * Quem abriu o card (issue #1554, ADR 0084, decisão 4): o diretor, pelo
    * chat, ou a Vitta, pela issue aberta no terminal. O card da Vitta não tem
    * conversa com o agente. Sem o campo, a linha fica sem selo.
@@ -125,13 +119,6 @@ export type Demanda = {
   projeto?: Projeto | null;
   projeto_nome?: string | null;
   raiz_url?: string | null;
-  /**
-   * A Revisão com o código de hoje (issue #1557, ADR 0084, decisão 3):
-   * `pode_revisar` mostra o botão, pela regra do servidor; `em_revisao` abre a
-   * conversa para responder, e não só para ler.
-   */
-  pode_revisar?: boolean;
-  em_revisao?: boolean;
   /**
    * O vídeo de demonstração da entrega (issue #1559): o link `https` lido do
    * marcador da issue-raiz e quando ele chegou. Sem link, sem selo nem seção.
@@ -293,6 +280,22 @@ export const PROJETOS_FIXOS: OpcaoDeProjeto[] = (Object.keys(PROJETO_ROTULO) as 
 );
 
 export const URL_DOS_PROJETOS = `${BASE_TECNOLOGIA}/projetos`;
+
+/** A lista do Quadro e do celular (issue #1384): as Demandas, com os filtros na consulta. */
+export const URL_DA_LISTA = `${BASE_TECNOLOGIA}/chat`;
+
+/** As opções do filtro Responsável do Desenvolvedor (issue #1533, ADR 0083, decisão 5). */
+export const URL_DOS_DESENVOLVEDORES = `${BASE_TECNOLOGIA}/desenvolvedores`;
+
+export type Desenvolvedor = { id: string; nome: string; padrao: boolean };
+
+export function desenvolvedoresValidos(corpo: unknown): Desenvolvedor[] {
+  if (!Array.isArray(corpo)) return [];
+  return corpo.filter(
+    (d): d is Desenvolvedor =>
+      typeof d === "object" && d !== null && typeof d.id === "string" && typeof d.nome === "string",
+  );
+}
 
 /** A lista do servidor, só com as opções bem formadas; nula quando não é uma lista. */
 export function projetosValidos(corpo: unknown): OpcaoDeProjeto[] | null {

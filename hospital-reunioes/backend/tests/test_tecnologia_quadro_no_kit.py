@@ -32,10 +32,14 @@ def test_o_kit_diz_que_a_aba_e_um_quadro_por_etapa():
         assert etapa in abertura, etapa
 
 
-def test_o_kit_diz_onde_fica_o_novo_pedido():
+def test_o_kit_diz_que_nao_ha_novo_pedido_e_a_melhoria_vem_do_claude():
+    """Issue #2279 (ADR 0113, decisoes 6 e 7): a aba so le, e o pedido nasce
+    fora dela."""
     abertura = _abertura_da_aba()
 
-    assert "**Novo pedido**, no alto da aba" in abertura
+    assert "**Novo pedido**" not in abertura
+    assert "Melhoria você pede pelo seu Claude" in abertura
+    assert "pelo robozinho" in abertura
 
 
 def test_o_kit_diz_que_no_celular_a_lista_continua():

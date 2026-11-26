@@ -128,7 +128,7 @@ describe("aviso da Conversa da Demanda no sino (#1537)", () => {
     expect(navegacao.push).toHaveBeenCalledTimes(1);
   });
 
-  it("o aviso da Pergunta da Vitta abre a aba Tecnologia no cartão dela (issue #2118)", async () => {
+  it("o aviso antigo da Pergunta da Vitta abre a aba Tecnologia, sem a lista que saiu (issue #2279)", async () => {
     notificacoes = [
       aviso({
         tipo: "TECNOLOGIA",
@@ -140,9 +140,7 @@ describe("aviso da Conversa da Demanda no sino (#1537)", () => {
 
     await clicarNoAviso("Pede sua resposta");
 
-    await waitFor(() =>
-      expect(navegacao.push).toHaveBeenCalledWith("/admin/tecnologia?pergunta=5d0c7a52-0000-4000-8000-000000000009"),
-    );
+    await waitFor(() => expect(navegacao.push).toHaveBeenCalledWith("/admin/tecnologia"));
     expect(navegacao.push).toHaveBeenCalledTimes(1);
   });
 

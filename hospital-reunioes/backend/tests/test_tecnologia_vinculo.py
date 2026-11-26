@@ -54,12 +54,10 @@ from app.services.tecnologia_vinculo import (  # noqa: E402
     ETAPA_PLANEJADA,
     ETAPA_REGISTRADA,
     ETAPAS,
-    LABEL_TRIAGEM,
     MOTIVO_LOGIN_INVALIDO,
     bloco_para_o_diretor,
     corpo_da_issue_do_bug,
     etapa_da_foto,
-    labels_da_issue_nova,
     marcador_da_demanda,
     motivo_github_login_invalido,
     motivo_github_login_repetido,
@@ -1256,29 +1254,6 @@ class TestOQueMudaNaSincronizacao:
 # entao, alem do fluxo, e que a primeira coluna do corpo continue sendo do
 # backend: nada que o diretor digite pode virar marcador, cabecalho ou
 # separador de secao dentro da issue.
-
-
-class TestLabelsDaIssueNova:
-    """A traducao do tipo da Demanda em label do repositorio (issue #677)."""
-
-    def test_defeito_vira_type_fix(self):
-        assert labels_da_issue_nova("defeito") == [LABEL_TRIAGEM, "type:fix"]
-
-    @pytest.mark.parametrize("tipo", ("ajuste", "novo"))
-    def test_ajuste_e_novo_viram_type_feature(self, tipo):
-        assert labels_da_issue_nova(tipo) == [LABEL_TRIAGEM, "type:feature"]
-
-    @pytest.mark.parametrize("tipo", ("decisao", "informacao", "terceiro", "consultoria"))
-    def test_os_demais_tipos_nao_ganham_label_de_tipo(self, tipo):
-        """Sem label de tipo, e nao com uma inventada: a triagem e humana, e um
-        `type:feature` chutado num pedido de Decisao mentiria para quem cura."""
-        assert labels_da_issue_nova(tipo) == [LABEL_TRIAGEM]
-
-    def test_a_triagem_entra_sempre(self):
-        """`needs-triage` e o contrato do protocolo de triagem: sem ela a issue
-        nasce fora da fila de quem cura."""
-        for tipo in ("defeito", "ajuste", "novo", "decisao", "consultoria", "tipo-que-nao-existe", ""):
-            assert labels_da_issue_nova(tipo)[0] == LABEL_TRIAGEM
 
 
 class _TransporteGithub:

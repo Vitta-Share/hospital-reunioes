@@ -238,27 +238,22 @@ class TestOsDetectoresMordem:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 3. Os nove arquivos chegam ao prompt do chat
+# 3. Os nove arquivos chegam ao prompt da IA da aba
 # ═══════════════════════════════════════════════════════════════════════════
 
 
 def _prompt_de_um_turno(monkeypatch) -> str:
-    """Um turno de verdade pela rota do chat, com o cliente do LLM substituido.
+    """O `system` que a porta da IA da aba monta para o Envio aos
+    desenvolvedores, a chamada que sobrou depois que o chat saiu (issue #2279).
 
     O kit vai no bloco fixo do sistema (ADR 0077, decisao 9, com o
-    `cache_control`), e e de la que o teste o le.
+    `cache_control`), e e de la que o teste o le. O kit e lido do disco pelo
+    backend (`carregar_kit`), e nao passado pelo teste.
     """
-    from test_planejamento_demanda import _ia
-    from test_tecnologia_chat import _turno
-    from test_tecnologia_vinculo import DIRETOR, _montar
+    from app.services import planejamento_demanda, tecnologia_envio_aos_desenvolvedores
 
-    cliente = _ia(monkeypatch, _turno())
-    client, _, _ = _montar(logado=DIRETOR, monkeypatch=monkeypatch)
-
-    resposta = client.post("/api/admin/tecnologia/chat", json={"escolha": "bug"})
-
-    assert resposta.status_code == 201, resposta.text
-    return "\n".join(bloco["text"] for bloco in cliente.chamadas[-1]["system"])
+    blocos = planejamento_demanda.bloco_fixo(carregar_kit(), tecnologia_envio_aos_desenvolvedores.PROMPT_DO_ENVIO)
+    return "\n".join(bloco["text"] for bloco in blocos)
 
 
 def _secoes_do_kit(prompt: str) -> dict[str, str]:
@@ -425,7 +420,7 @@ class TestOTextoDaAbaContaATelaDeHoje:
 
     def test_os_anexos_dizem_a_porta_o_limite_e_o_apagamento(self, texto):
         anexos = _secao(texto, "Os anexos da Demanda")
-        # Desde a issue #1520 o botão anexa print e documento.
+        # Desde a issue #2279 o print entra pelo botão de anexo do robozinho.
         for termo in ("botão de anexo", "até 10", "apagad"):
             assert termo in anexos, termo
 
@@ -468,33 +463,6 @@ class TestOTextoDaAbaContaATelaDeHoje:
         ):
             assert termo in etapa, termo
 
-    def test_a_conversa_da_demanda_diz_quem_escreve_a_mencao_o_aviso_e_que_fica_no_app(self, texto):
-        """Issue #1537 (ADR 0083, decisão 8): o diretor pergunta ao Assistente
-        quem é avisado da mensagem dele, e a resposta tem que estar no kit."""
-        conversa = _secao(texto, "A Conversa da Demanda")
-        for termo in (
-            "separada da conversa com a IA",
-            "quem vê o pedido",
-            "escreva @ e escolha o nome",
-            "avisado no sino",
-            "avisa o Responsável",
-            "avisa você",
-            "Ninguém é avisado da própria mensagem",
-            "abre o pedido",
-            "nunca vai para o material público",
-        ):
-            assert termo in conversa, termo
-        decidido = _secao(texto, "O que já foi decidido")
-        assert "Conversa da Demanda" in decidido
-
-    def test_a_conversa_da_demanda_diz_que_o_aviso_chega_tambem_por_email(self, texto):
-        """Issue #1538 (ADR 0083, decisão 8): o aviso do sino sai também por
-        e-mail, com o link que abre o pedido."""
-        conversa = _secao(texto, "A Conversa da Demanda")
-        for termo in ("também por e-mail", "o link do e-mail abre o pedido"):
-            assert termo in conversa, termo
-        assert "no sino e por e-mail" in _secao(texto, "O que já foi decidido")
-
     def test_o_link_do_pedido_volta_a_ele_depois_do_login(self, texto):
         """Issue #1587: o link do pedido aberto num celular sem sessao passa
         pelo login e cai no pedido, e o diretor pergunta isso ao Assistente."""
@@ -518,29 +486,6 @@ class TestOTextoDaAbaContaATelaDeHoje:
     def test_os_pedidos_ao_hospital_voltaram_para_o_whatsapp(self, texto):
         """ADR 0077, decisao 3: a aba e so de um sentido, o diretor relata."""
         assert "WhatsApp" in _secao(texto, "O que é uma Demanda")
-
-    def test_o_planejamento_diz_o_que_e_quando_aparece_e_o_que_o_card_faz(self, texto):
-        """ADR 0077, issue #1383. O planejamento e o caminho da melhoria dentro
-        do chat: sem teto de perguntas (ADR 0079), o fechar, o resumo com o que ficou em aberto, o Criar
-        o card que leva ao desenvolvimento e o Nao bateu."""
-        planejamento = _secao(texto, "O Planejamento da Demanda")
-        termos = (
-            "melhoria",
-            "não tem limite de perguntas",
-            "o campo de texto continua aberto até o clique em Criar o card",
-            "Fechar e resumir",
-            "ficou em aberto",
-            "**Criar o card**",
-            "desenvolvimento",
-            "**Não bateu**",
-            "O que já foi decidido",
-            "**Em análise**",
-            "**O que muda**",
-        )
-        for termo in termos:
-            assert termo in planejamento, termo
-        for aposentado in ("Continuar planejamento", "Sim, mandar para os desenvolvedores", "12 perguntas"):
-            assert aposentado not in texto, aposentado
 
     def test_o_planejamento_ja_esta_no_aplicativo(self, texto):
         """PRD #1344 entregue: a marca "ainda nao esta no aplicativo" das ondas
@@ -745,16 +690,6 @@ def test_o_decidido_diz_que_a_caixa_alta_e_so_na_tela(arquivo):
 def test_contas_medicas_diz_que_o_nome_e_o_codigo_ficam_como_estao():
     decidido = _secao(_texto("contas-medicas.md"), SECAO_DECIDIDO)
     for termo in ("aparecem como foram escritos", "códigos e siglas ficam como estão"):
-        assert termo in decidido, termo
-
-
-def test_a_aba_diz_que_a_conversa_fica_corrida_e_os_subtitulos_em_caixa_alta():
-    decidido = _secao(_texto(ARQUIVO_DA_ABA), SECAO_DECIDIDO)
-    for termo in (
-        "a conversa e o texto dos resumos ficam com maiúscula e minúscula",
-        "os subtítulos do resumo ficam em caixa alta",
-        "o título de cada Demanda aparece como foi escrito",
-    ):
         assert termo in decidido, termo
 
 

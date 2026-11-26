@@ -24,7 +24,6 @@ from test_tecnologia_vinculo import _demanda, _pessoa, _SupabaseMock  # noqa: E4
 from app.config import settings  # noqa: E402
 from app.cron import scheduler  # noqa: E402
 from app.services import tecnologia_email, tecnologia_perguntas  # noqa: E402
-from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
 
 AGORA = datetime(2026, 11, 21, 15, 0, tzinfo=UTC)
 DEMANDA = "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
@@ -253,12 +252,3 @@ def test_o_agendador_segue_quando_o_lembrete_falha(monkeypatch):
 # ═══════════════════════════════════════════════════════════════════════════
 # O kit de conhecimento
 # ═══════════════════════════════════════════════════════════════════════════
-
-
-def test_o_kit_da_tecnologia_explica_o_lembrete_unico_de_3_dias():
-    texto = (CONHECIMENTO_DIR / "tecnologia.md").read_text(encoding="utf-8")
-    paragrafo = next((p for p in texto.split("\n\n") if "lembrete" in p.lower() and "3 dias" in p), "")
-    assert paragrafo, "o kit não diz que a Pergunta da Vitta ganha um lembrete depois de 3 dias"
-    assert "uma vez só" in paragrafo
-    assert "sino" in paragrafo and "e-mail" in paragrafo
-    assert "Pendência" not in paragrafo

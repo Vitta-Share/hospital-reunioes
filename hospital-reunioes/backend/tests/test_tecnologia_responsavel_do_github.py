@@ -23,7 +23,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from test_tecnologia_chat import (  # noqa: E402
     CHAT,
-    _ate_o_resumo,
     _cenario,
     _demandas,
     _integracao_configurada,  # noqa: F401
@@ -31,6 +30,7 @@ from test_tecnologia_chat import (  # noqa: E402
     _reset_rate_limiter,  # noqa: F401
 )
 from test_tecnologia_responsavel import DIRETOR, LUCAS, PEDRO, RIB, _participantes  # noqa: E402
+from test_tecnologia_vinculo import _demanda  # noqa: E402
 from test_tecnologia_webhook_github import (  # noqa: E402
     SEGREDO,
     _corpo,
@@ -44,6 +44,7 @@ from test_tecnologia_webhook_github import _demandas as _demandas_do_webhook  # 
 
 from app.config import settings  # noqa: E402
 from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
+from app.services.github_client import FATO_ASSIGNEE  # noqa: E402
 
 REPO = "pedrorezendefig/hospital-reunioes"
 
@@ -62,13 +63,26 @@ def _issue_designada(numero: int, *logins: str) -> dict:
     return dados
 
 
-def _card_criado(monkeypatch, responsavel_id: str | None = "P4"):
-    """O diretor cria o card escolhendo o Responsável: devolve a tela e o banco."""
+def _card_criado(monkeypatch, responsavel_id: str | None = "P4", *, login_na_foto: str | None = None):
+    """O card do diretor ja no GitHub, com o Responsavel que nasceu nele: devolve
+    a tela e o banco. O chat que criava o card saiu na issue #2279; o card entra
+    direto no banco, como o espelho e a ponte o deixam."""
     client, sb, _ = _cenario(monkeypatch, logado=DIRETOR, participantes=_participantes())
-    demanda_id = _ate_o_resumo(client, monkeypatch)
-    corpo = {"responsavel_id": responsavel_id} if responsavel_id else {}
-    assert client.post(f"{CHAT}/{demanda_id}/criar-card", json=corpo).status_code == 200
-    return client, sb, demanda_id
+    foto = {"numero": 960, "url": f"https://github.com/{REPO}/issues/960"}
+    if login_na_foto:
+        foto[FATO_ASSIGNEE] = login_na_foto
+    sb.tabelas["tecnologia_demandas"] = [
+        _demanda(
+            "d-card",
+            titulo="Botão de responder some na Ouvidoria",
+            autor_id=DIRETOR["id"],
+            github_issue_numero=960,
+            github_foto=foto,
+            responsavel_id=responsavel_id,
+            etapa="em_analise",
+        )
+    ]
+    return client, sb, "d-card"
 
 
 def _troca_no_github(monkeypatch, sb, *logins: str, acao: str = "assigned"):
@@ -141,21 +155,11 @@ class TestATelaMostraOResponsavelNovo:
 
         assert [(d["id"], d["responsavel"]) for d in lista] == [(demanda_id, "Lucas Sampaio")]
 
-    def test_a_demanda_aberta_mostra_o_responsavel_novo(self, monkeypatch):
-        client, sb, demanda_id = _card_criado(monkeypatch, responsavel_id=RIB["id"])
-        assert client.get(f"{CHAT}/{demanda_id}").json()["responsavel"] == "Pedro Rib"
-        _troca_no_github(monkeypatch, sb, "lucas-sampaio")
-
-        resposta = client.get(f"{CHAT}/{demanda_id}")
-
-        assert resposta.status_code == 200, resposta.text
-        assert resposta.json()["responsavel"] == "Lucas Sampaio"
-
     def test_a_conversa_sem_card_nao_tem_responsavel(self, monkeypatch):
-        client, _, _ = _cenario(monkeypatch, logado=DIRETOR, participantes=_participantes())
-        demanda_id = _ate_o_resumo(client, monkeypatch)
+        client, sb, _ = _cenario(monkeypatch, logado=DIRETOR, participantes=_participantes())
+        sb.tabelas["tecnologia_demandas"] = [_demanda("d-sem-card", autor_id=DIRETOR["id"], responsavel_id=RIB["id"])]
 
-        assert client.get(f"{CHAT}/{demanda_id}").json()["responsavel"] is None
+        assert client.get(CHAT).json()[0]["responsavel"] is None
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -178,11 +182,9 @@ class TestAssigneeSemUsuarioNoApp:
         _troca_no_github(monkeypatch, sb, "Colaborador-de-Fora")
 
         assert client.get(CHAT).json()[0]["responsavel"] == "Colaborador-de-Fora"
-        assert client.get(f"{CHAT}/{demanda_id}").json()["responsavel"] == "Colaborador-de-Fora"
 
     def test_sem_escolha_e_com_o_dono_fora_do_cadastro_o_card_mostra_o_login_do_dono(self, monkeypatch):
-        monkeypatch.setattr(settings, "github_login_dono", "dono-sem-cadastro")
-        client, sb, _ = _card_criado(monkeypatch, responsavel_id=None)
+        client, sb, _ = _card_criado(monkeypatch, responsavel_id=None, login_na_foto="dono-sem-cadastro")
 
         assert _demandas(sb)[0]["responsavel_id"] is None
         assert client.get(CHAT).json()[0]["responsavel"] == "dono-sem-cadastro"
@@ -245,16 +247,10 @@ def _corpos_que_levam_responsavel() -> set[tuple[str, str]]:
 
 
 class TestOAppNaoTrocaOResponsavel:
-    def test_so_o_criar_o_card_recebe_responsavel(self):
-        assert _corpos_que_levam_responsavel() == {("POST", "/api/admin/tecnologia/chat/{demanda_id}/criar-card")}
-
-    def test_criar_o_card_de_novo_nao_troca_o_responsavel(self, monkeypatch):
-        client, sb, demanda_id = _card_criado(monkeypatch, responsavel_id=RIB["id"])
-
-        resposta = client.post(f"{CHAT}/{demanda_id}/criar-card", json={"responsavel_id": LUCAS["id"]})
-
-        assert resposta.status_code == 409, resposta.text
-        assert _demandas(sb)[0]["responsavel_id"] == RIB["id"]
+    def test_nenhuma_rota_recebe_responsavel(self):
+        """O Criar o card, a unica rota que recebia o Responsavel, saiu com o
+        chat (issue #2279): quem troca o dono e a Vitta, no GitHub."""
+        assert _corpos_que_levam_responsavel() == set()
 
     def test_o_kit_diz_que_a_troca_e_da_vitta_e_a_tela_acompanha(self):
         """O Assistente fala com o diretor pela língua do Kit: sem a regra

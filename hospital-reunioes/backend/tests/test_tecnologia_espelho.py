@@ -36,7 +36,6 @@ from test_tecnologia_webhook_github import (  # noqa: E402
 )
 
 from app.limiter import limiter  # noqa: E402
-from app.services import tecnologia_email  # noqa: E402
 from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
 from app.services.tecnologia_espelho import CRIA, IGNORA, JA_EXISTE, decidir  # noqa: E402
 from app.services.tecnologia_vinculo import ETAPA_EM_ANALISE, ETAPA_EM_DESENVOLVIMENTO  # noqa: E402
@@ -394,12 +393,11 @@ class TestQuemVe:
 
         assert _ids(client.get(CHAT)) == ["d-vitta", "d-minha", "d-outra"]
 
-    def test_o_diretor_ve_todas_e_le_a_conversa_de_outro_autor(self, monkeypatch):
+    def test_o_diretor_ve_todas_no_recorte_todas(self, monkeypatch):
         """Issue #2265 (ADR 0113, decisao 6): todo Super admin ve todas."""
         client, _ = _aba(monkeypatch, DIRETOR)
 
         assert _ids(client.get(f"{CHAT}?filtro=todas")) == ["d-vitta", "d-minha", "d-outra"]
-        assert client.get(f"{CHAT}/d-outra/conversa").status_code == 200
 
     def test_o_card_vitta_nao_e_do_diretor(self, monkeypatch):
         client, _ = _aba(monkeypatch, DIRETOR)
@@ -408,7 +406,6 @@ class TestQuemVe:
 
         assert vitta["minha"] is False
         assert vitta["issue_numero"] == 1700
-        assert vitta["pode_apagar"] is False
 
     def test_o_desenvolvedor_em_minhas_continua_so_com_as_dele(self, monkeypatch):
         client, _ = _aba(monkeypatch, PEDRO)
@@ -457,54 +454,6 @@ class TestOrigemNaLista:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 5. A Demanda Vitta abre o documento e a Conversa da Demanda, sem o chat
-# ═══════════════════════════════════════════════════════════════════════════
-
-
-class TestDemandaVittaAberta:
-    def test_o_diretor_le_e_escreve_na_conversa_da_demanda_vitta(self, monkeypatch):
-        enviados: list[dict] = []
-        monkeypatch.setattr(tecnologia_email, "_enviar_email", lambda *a, **kw: enviados.append(a) or True)
-        client, sb = _aba(monkeypatch, DIRETOR)
-
-        assert client.get(f"{CHAT}/d-vitta/conversa").status_code == 200
-        escrita = client.post(f"{CHAT}/d-vitta/conversa", json={"texto": "Quando fica pronto?"})
-
-        assert escrita.status_code == 201, escrita.text
-        [linha] = sb.tabelas["tecnologia_conversa_da_demanda"]
-        assert (linha["demanda_id"], linha["autor_id"]) == ("d-vitta", DIRETOR["id"])
-
-    def test_a_resposta_da_vitta_sem_mencao_avisa_o_diretor_que_escreveu(self, monkeypatch):
-        """No card Vitta o autor e o Responsavel sao o proprio Desenvolvedor: a
-        resposta dele, sem mencao, avisa quem ja escreveu na conversa, e so."""
-        monkeypatch.setattr(tecnologia_email, "_enviar_email", lambda *a, **kw: True)
-        diretor, sb = _aba(monkeypatch, DIRETOR)
-        pedro, _, _ = _cenario(monkeypatch, logado=PEDRO, supabase=sb)
-        diretor.post(f"{CHAT}/d-vitta/conversa", json={"texto": "Quando fica pronto?"})
-        sb.tabelas["notificacoes"] = []
-
-        assert pedro.post(f"{CHAT}/d-vitta/conversa", json={"texto": "Na semana que vem."}).status_code == 201
-
-        assert [n["destinatario_id"] for n in sb.tabelas["notificacoes"]] == [DIRETOR["id"]]
-
-    def test_a_vitta_menciona_qualquer_diretor_no_card_vitta(self, monkeypatch):
-        """Quem ve o card Vitta e toda a diretoria: e quem a mencao alcanca."""
-        monkeypatch.setattr(tecnologia_email, "_enviar_email", lambda *a, **kw: True)
-        pedro, sb = _aba(monkeypatch, PEDRO)
-
-        nomes = [p["nome"] for p in pedro.get(f"{CHAT}/d-vitta/conversa").json()["mencionaveis"]]
-        pedro.post(f"{CHAT}/d-vitta/conversa", json={"texto": "@Outra Diretora, pode testar?"})
-
-        assert {"Diretor do Hospital", "Outra Diretora"} <= set(nomes)
-        assert [n["destinatario_id"] for n in sb.tabelas["notificacoes"]] == [OUTRO_DIRETOR["id"]]
-
-    def test_a_demanda_vitta_nao_tem_chat_do_agente(self, monkeypatch):
-        client, _ = _aba(monkeypatch, DIRETOR)
-
-        assert client.get(f"{CHAT}/d-vitta").status_code == 404
-
-
-# ═══════════════════════════════════════════════════════════════════════════
 # 6. O Kit de conhecimento
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -521,11 +470,6 @@ class TestKit:
             assert trecho in secao, trecho
         assert "cada diretor vê só as suas conversas" not in secao
 
-    def test_o_kit_diz_que_o_card_da_vitta_nao_tem_conversa_com_a_ia(self):
-        secao = _secao("O que é uma Demanda")
-        assert "pelo desenvolvimento" in secao
-        assert "sem conversa com a IA" in secao
-
     def test_o_kit_diz_que_o_card_aberto_pelo_claude_do_diretor_vira_demanda(self):
         """Issue #2264: o card do diretor vira Demanda sozinho, com a Etapa, e
         leva o selo Pedido do diretor."""
@@ -533,7 +477,7 @@ class TestKit:
         assert "O card que você abre pelo seu Claude" in demanda
         assert "Pedido do diretor" in demanda
         quem_ve = _secao("Quem vê")
-        assert "ou do card que você abriu pelo seu Claude" in quem_ve
+        assert "do card que você abriu pelo seu Claude" in quem_ve
 
     def test_o_kit_diz_que_ajuste_interno_nao_aparece(self):
         secao = _secao("O que é uma Demanda")
