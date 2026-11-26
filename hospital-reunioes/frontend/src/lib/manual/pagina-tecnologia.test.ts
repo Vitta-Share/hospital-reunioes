@@ -177,10 +177,27 @@ describe("a aba mostrada como ela é, sem as telas que saíram (issue #2282, ADR
     const abertura = TECNOLOGIA!.corpo.split(/^## /m)[0];
     expect(abertura).toMatch(/só acompanha/);
     expect(abertura).toMatch(/seu Claude/);
-    expect(abertura).toMatch(/\*\*Pedido do diretor\*\*/);
     expect(abertura).toMatch(/Assistente do app/);
-    expect(abertura).toMatch(/\*\*Relato no app\*\*/);
     expect(abertura).toMatch(/GitHub/);
+  });
+
+  it("a Origem do pedido aparece ao abrir o pedido, porque o card do Quadro não a desenha", () => {
+    const abertura = TECNOLOGIA!.corpo.split(/^## /m)[0];
+    const frase = abertura.split(/(?<=\.)\s+/).find((f) => /\*\*Pedido do diretor\*\*/.test(f));
+    expect(frase, "a abertura não diz de onde vem o pedido").toBeDefined();
+    expect(frase).toMatch(/^Ao abrir o pedido, o painel mostra de onde ele veio/);
+    expect(frase).toMatch(/\*\*Relato no app\*\*/);
+  });
+
+  it("o bug do Assistente aparece no Quadro, em Registrada, assim que você responde às perguntas", () => {
+    const abertura = TECNOLOGIA!.corpo.split(/^## /m)[0];
+    expect(abertura).toMatch(/aparece no Quadro, em Registrada, assim que você responde às perguntas/);
+  });
+
+  it("só o aviso sobre um pedido abre o painel; o aviso antigo que pedia resposta ou ação abre só a aba", () => {
+    const { texto } = secao("Acompanhar o pedido no Quadro");
+    expect(texto).toMatch(/aviso do sino ou do e-mail sobre um pedido abre o pedido no painel/);
+    expect(texto).toMatch(/aviso antigo que pedia a sua resposta ou a sua ação, e o lembrete dele, abrem só a aba, no Quadro, sem pedido aberto/);
   });
 
   it("nenhum print da página é de uma tela que saiu", () => {
@@ -317,13 +334,27 @@ describe("o fluxograma do caminho de um pedido (issue #2282)", () => {
     expect(assistente.detalhe).toMatch(/[Bb]ug/);
   });
 
-  it("os dois inícios chegam ao Quadro, e o bug só chega depois do Enviar à Vitta", () => {
+  it("os dois inícios chegam ao Quadro sem o Enviar à Vitta: o bug aparece em Registrada antes do envio", () => {
     const f = fluxo();
     const quadro = passoPorRotulo(f, /Quadro/);
     const enviar = passoPorRotulo(f, /^Enviar à Vitta$/);
-    for (const inicio of inicios(f)) expect(alcancaveis(f, inicio.id).has(quadro.id), inicio.rotulo).toBe(true);
+    for (const inicio of inicios(f)) {
+      expect(alcancaveis(f, inicio.id, new Set([enviar.id])).has(quadro.id), inicio.rotulo).toBe(true);
+    }
+    expect(quadro.detalhe).toMatch(/bug aparece em Registrada/);
+    expect(quadro.detalhe).not.toMatch(/selo/);
+  });
+
+  it("o bug só entra na fila da Vitta depois do Enviar à Vitta, que vem depois do Quadro", () => {
+    const f = fluxo();
+    const quadro = passoPorRotulo(f, /Quadro/);
+    const enviar = passoPorRotulo(f, /^Enviar à Vitta$/);
+    const planejada = passoPorRotulo(f, /^Planejada$/);
     const assistente = inicios(f).find((p) => /Assistente do app/.test(p.rotulo))!;
-    expect(alcancaveis(f, assistente.id, new Set([enviar.id])).has(quadro.id)).toBe(false);
+    expect(f.ligacoes.some((l) => l.de === assistente.id && l.para === enviar.id)).toBe(false);
+    expect(alcancaveis(f, quadro.id).has(enviar.id)).toBe(true);
+    expect(f.ligacoes.filter((l) => l.de === quadro.id && l.para === planejada.id)).toEqual([]);
+    expect(alcancaveis(f, enviar.id).has(planejada.id)).toBe(true);
   });
 
   it("depois do Quadro, o pedido passa pelas Etapas Em análise, Planejada, Em desenvolvimento, Entregue e Em produção, nessa ordem", () => {

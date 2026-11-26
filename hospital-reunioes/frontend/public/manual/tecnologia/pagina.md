@@ -5,7 +5,7 @@ titulo: Tecnologia
 
 A Tecnologia é onde você acompanha o que a Vitta, a empresa que cuida dos sistemas do hospital, está fazendo no aplicativo e na Ana. Cada pedido vira uma Demanda, e a aba mostra em que fase ela está e o que já foi entregue. A aba só acompanha: nada se pede nem se responde por ela.
 
-O pedido nasce em dois lugares. A melhoria você pede pelo seu Claude, no seu computador: ele faz as perguntas, monta o protótipo e abre o card no GitHub, e o card aparece sozinho no Quadro com o selo **Pedido do diretor**. O bug você relata pelo robô do canto inferior direito, o Assistente do app, e ele aparece no Quadro com o selo **Relato no app**. Veja **Tirar uma dúvida ou relatar um bug no Assistente**, na página Início. O que pede uma ação sua, como uma decisão ou uma tarefa, chega como card no seu nome no GitHub, com o aviso do próprio GitHub.
+O pedido nasce em dois lugares. A melhoria você pede pelo seu Claude, no seu computador: ele faz as perguntas, monta o protótipo e abre o card no GitHub, e o card aparece sozinho no Quadro. O bug você relata pelo robô do canto inferior direito, o Assistente do app, e ele aparece no Quadro, em Registrada, assim que você responde às perguntas. Ao abrir o pedido, o painel mostra de onde ele veio: **Pedido do diretor** ou **Relato no app**. Veja **Tirar uma dúvida ou relatar um bug no Assistente**, na página Início. O que pede uma ação sua, como uma decisão ou uma tarefa, chega como card no seu nome no GitHub, com o aviso do próprio GitHub.
 
 A aba fica na área de Administração, e só o Super admin vê. Ela tem duas partes no alto: **Quadro**, com a fase de cada pedido, e **Entregas**, com o que já foi entregue. No celular, o Quadro vira uma lista dos pedidos.
 
@@ -31,7 +31,7 @@ A aba fica na área de Administração, e só o Super admin vê. Ela tem duas pa
 
 7. Para fechar o painel, clique no X ou aperte Esc. O botão **Ampliar** abre o pedido na tela toda, e o **Voltar ao quadro** traz as colunas de volta.
 
-A coluna Entregue mostra o que foi entregue nos últimos 30 dias; o **Ver todos nas Entregas**, no pé dela, abre o histórico inteiro. Os pedidos que não serão feitos ficam fora das colunas: para vê-los, ligue **Mostrar as que não serão feitas**, na barra de filtros. O link de um aviso antigo do sino ou do e-mail continua abrindo o pedido no painel.
+A coluna Entregue mostra o que foi entregue nos últimos 30 dias; o **Ver todos nas Entregas**, no pé dela, abre o histórico inteiro. Os pedidos que não serão feitos ficam fora das colunas: para vê-los, ligue **Mostrar as que não serão feitas**, na barra de filtros. O link de um aviso do sino ou do e-mail sobre um pedido abre o pedido no painel. O aviso antigo que pedia a sua resposta ou a sua ação, e o lembrete dele, abrem só a aba, no Quadro, sem pedido aberto.
 
 ## Ver o que falta para começar a usar
 
@@ -85,8 +85,8 @@ Os filtros do alto, **Bug** ou **Melhoria**, a Origem e o Projeto, valem para os
 ```fluxograma
 inicio claude 1,1: No seu Claude | Melhoria: o seu Claude faz as perguntas, monta o protótipo e abre o card no GitHub.
 inicio assistente 1,2: No Assistente do app | Bug: o robô do canto inferior direito faz as perguntas do bug e mostra o resumo.
-passo enviar 2,2: Enviar à Vitta | O bug só vai para a Vitta com o seu clique. Até lá, fica em Registrada.
-passo quadro 3,1: No Quadro | O pedido aparece sozinho na aba, com o selo Pedido do diretor ou Relato no app.
+passo quadro 2,1: No Quadro | O pedido aparece sozinho na aba. O bug aparece em Registrada assim que você responde às perguntas do robô.
+passo enviar 3,2: Enviar à Vitta | O bug só vai para a Vitta com o seu clique, no resumo do Assistente. Até lá, fica em Registrada.
 passo analise 4,1: Em análise | A Vitta lê a melhoria e decide como fazer. O bug pula esta Etapa e entra direto na fila.
 passo planejada 4,2: Planejada | O trabalho está dividido em partes e na fila. Quando o plano está publicado, o card mostra o botão Ver o plano.
 passo desenvolvimento 4,3: Em desenvolvimento | A Vitta está fazendo. Num pedido com partes, o card mostra quantas já foram entregues. Se ela precisa de você, chega um card no seu nome no GitHub.
@@ -96,10 +96,10 @@ decisao falta 6,4: Falta algo para usar?
 passo implantacao 6,3: Implantação | Cada coisa que o hospital faz vira um card de implantação no seu nome no GitHub, e o card da entrega mostra o selo Implantação 1 de 3.
 fim emuso 7,4: Em uso | A entrega está em uso no hospital.
 claude -> quadro: melhoria
-assistente -> enviar
-enviar -> quadro: bug
+assistente -> quadro: bug
 quadro -> analise: melhoria
-quadro -> planejada: bug
+quadro -> enviar: bug
+enviar -> planejada
 analise -> planejada
 planejada -> desenvolvimento
 desenvolvimento -> entregue
