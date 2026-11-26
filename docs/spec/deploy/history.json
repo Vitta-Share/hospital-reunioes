@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-26T15:51:06-03:00",
+      "sha": "a9599accf7cc176388ddfaec3107679e9e7f42e1",
+      "app_version": "0.392.1",
+      "subject": "Onda diretor-a-onda3: A aba fica com o Quadro e as Entregas; Início ensina a tirar dúvida e relatar bug no Assistente",
+      "raw_subject": "chore(deploy): registro da onda diretor-a-onda3 (#2297 #2295)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        2262
+      ],
+      "result": "healthy",
+      "duration_seconds": 496,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta diretor-a-onda3: PR #2297 (issue #2279), PR #2295 (issue #2280), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 7,
+        "build_s": {
+          "backend": 289,
+          "frontend": 305
+        },
+        "health_s": 20
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-25T20:43:54-03:00",
       "sha": "21221a573ee7d2c32d1150bfb42b829b8582e337",
       "app_version": "0.392.0",
