@@ -1,125 +1,53 @@
 "use client";
 
 /**
- * A aba Assistente da Tecnologia com a lista lateral (issue #1384, PRD #1380, ADR 0077).
+ * O Quadro e a lista da aba Tecnologia, só para ler (issue #2279, PRD #2262,
+ * ADR 0113, decisões 6 e 7).
  *
- * Ao lado do chat, a lista das Demandas de quem está logado, com o título e a
- * Etapa, da mais recente para a mais antiga (a ordem é do servidor). Clicar
- * numa conversa sem card retoma o chat de onde parou; clicar numa que já tem
- * Vínculo mostra a conversa e O que muda. "Nova conversa" abre o chat do zero.
+ * A partir de 1280px a aba é o Quadro, as Demandas em colunas pela Etapa
+ * (issue #1642, ADR 0090). Embaixo de 1280px fica a lista, com o card
+ * completo e o filtro de Etapa. O clique num card abre o Documento do card:
+ * na tela larga, num painel à direita, por cima do Quadro e sem ser modal
+ * (issue #1643), que fecha pelo X ou pelo Esc e devolve o foco ao card; na
+ * lista, ao lado dela. O Ampliar leva à largura toda.
  *
- * No celular só um dos dois lados aparece por vez: a lista é a tela de
- * entrada, e a conversa aberta tem o caminho de volta. Na tela larga os dois
- * ficam lado a lado.
+ * Saíram, com a issue #2279, o chat do Assistente e o Novo pedido, a
+ * Conversa da Demanda, os botões Apagar, Revisar com o código de hoje,
+ * Reenviar e Designar de novo e o Conversar do card: o pedido nasce no
+ * GitHub e a aba acompanha.
  *
- * O Desenvolvedor (issue #1531, ADR 0083) tem o filtro "Todas", com o autor
- * em cada linha. A Demanda de outro autor abre só para leitura, com a
- * entrevista inteira, os Anexos e o número e o link da issue. Quem é
- * Desenvolvedor é o servidor que diz.
- *
- * Cada linha com card mostra o Responsável, para todos, e a lista do
- * Desenvolvedor abre em "Para mim", as Demandas de que ele cuida (issue
- * #1533, ADR 0083, decisão 5).
- *
- * Toda Demanda aberta tem, embaixo, a Conversa da Demanda, numa área própria
- * (issue #1537, ADR 0083, decisão 8). O aviso do sino chega com a Demanda em
- * `demandaInicial` e a abre.
+ * Os filtros ficam numa barra em cima, um campo com rótulo por categoria
+ * (issue #1578): Tipo, Etapa (só na lista), Origem e Projeto (issue #1715)
+ * para todos; o recorte (Para mim, Minhas, Todas), o Responsável e o "Só
+ * envio falhou" só para o Desenvolvedor, que é o servidor que diz. Tudo
+ * combina, e quem filtra é o servidor.
  *
  * O endereço acompanha o card aberto, em `?demanda=<id>`, sem empilhar o
- * histórico (issue #1586): recarregar abre o mesmo card. A Demanda do endereço
- * que o filtro esconde (o "Para mim" do Desenvolvedor, por exemplo) troca a
- * barra para o recorte mais largo, sem filtros, e abre; a que não está nem
- * nele vira o aviso "Você não tem acesso a esta Demanda", sem título nem número.
- *
- * O card que não chegou ao GitHub fica com o selo "Envio falhou" na lista, e a
- * conversa aberta traz o "Reenviar", para o autor e para o Desenvolvedor. Só o
- * Desenvolvedor lê o motivo técnico e tem o filtro "Envio falhou" (issue
- * #1535, ADR 0083, decisão 7). O card que nasceu sem o Responsável aparece
- * só para o Desenvolvedor, com o "Designar de novo" (issue #1536).
- *
- * A conversa aberta tem o "Apagar" para quem pode, com confirmação: o autor
- * na conversa Registrada, o Desenvolvedor no card até Planejada (issue
- * #1549, ADR 0084, decisão 2). Quem pode é o servidor que diz.
- *
- * Os filtros ficam numa barra em cima, na largura toda, um campo com rótulo
- * por categoria (issue #1578, emenda da ADR 0084, que trocou os chips da
- * #1551): Tipo, Etapa, Origem e Projeto (issue #1715) para todos; o recorte
- * (Para mim, Minhas, Todas, controle segmentado), o Responsável e o "Só envio falhou" só para o
- * Desenvolvedor. Tudo combina, e quem filtra é o servidor.
- *
- * Na tela larga o clique no card abre a Demanda ao lado da lista (issue #1593,
- * que reverteu o recolher da #1551). O Ampliar, no canto do card e no topo da
- * Demanda aberta, recolhe a barra e a lista, e o Voltar às conversas as traz de
- * volta; o próximo clique num card volta a abrir ao lado. No celular, a lista e
- * a Demanda seguem uma de cada vez, com o Voltar.
- *
- * Cada conversa é um card com contorno: título, data de abertura, quem pediu
- * e quem cuida com as iniciais, as partes do PRD numa barra e os selos. O
- * "Conversar" do card abre a Demanda com a caixa da Conversa da Demanda em
- * foco. Ao lado da lista, a Conversa da Demanda fica embaixo do documento;
- * ampliada, numa coluna à direita, fixa na rolagem (issues #1578 e #1593).
- *
- * Os cards que a Vitta abre pelo terminal aparecem na lista com o selo
- * "Vitta", e os do chat com "Pedido do diretor"; o chip Origem filtra (issue
- * #1554, ADR 0084, decisão 4). O card da Vitta abre o documento e a Conversa
- * da Demanda, sem conversa com o agente.
- *
- * O card de melhoria Em análise ou Planejada tem o "Revisar com o código de
- * hoje" para o autor e o Desenvolvedor (issue #1557, ADR 0084, decisão 3). O
- * clique mostra antes quanto o Retrato de hoje deve custar, e a revisão só
- * começa com a confirmação (ADR 0082). Em revisão, o card abre a conversa para
- * responder. Quem pode é o servidor que diz.
- *
- * A partir de 1280px a lista dá lugar ao Quadro, as Demandas em colunas pela
- * Etapa (issue #1642, ADR 0090), e o Assistente sai da tela inicial: o "Novo
- * pedido", no topo da aba, e o clique num card abrem na largura toda, como o
- * Ampliar, com o "Voltar ao quadro". O que fica embaixo de 1280px é a lista de
- * antes, com o card completo e o filtro de Etapa.
- *
- * O card do Quadro que não é a conversa Registrada do autor abre num painel à
- * direita, por cima do Quadro e sem ser modal (issue #1643, ADR 0090, decisão
- * 5): o Documento do card, a Conversa da Demanda e os mesmos botões da
- * largura toda. O painel fecha pelo X ou pelo Esc e devolve o foco ao card; o
- * Ampliar leva à largura toda; o "Conversar" põe a caixa da Conversa em foco.
- * O endereço e o link do sino abrem o Quadro com o painel.
+ * histórico (issue #1586): recarregar e o link de um aviso antigo do sino ou
+ * do e-mail abrem o mesmo card. A Demanda do endereço que o filtro esconde
+ * troca a barra para o recorte mais largo, sem filtros, e abre; a que não
+ * está nem nele vira o aviso "Você não tem acesso a esta Demanda".
  */
 
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, Loader2, Maximize2, MessageSquare, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
+import { ArrowLeft, Loader2, Maximize2, Search, X } from "lucide-react";
 
-import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Select } from "@/components/ui/Select";
 import { useTelaLarga } from "@/hooks/useTelaLarga";
 
-import { ABRIR_DEMANDA } from "./CartaoDoPassoAPasso";
-import { ChatDaTecnologia, Fala } from "./ChatDaTecnologia";
-import { ConversaDaDemanda } from "./ConversaDaDemanda";
 import { CabecalhoDaDemanda, DocumentoDoCard, SeloDoPlanoValidado } from "./DocumentoDoCard";
 import { useProjetosDoFiltro } from "./useProjetosDoFiltro";
 import { QuadroDaTecnologia } from "./QuadroDaTecnologia";
 import { SeloDeEtapa } from "./SeloDeEtapa";
-import {
-  AnexoDaDemanda,
-  conversaValida,
-  Desenvolvedor,
-  desenvolvedoresValidos,
-  EstimativaDaRevisao,
-  FalaDoChat,
-  textoDaEstimativa,
-  URL_DO_CHAT_DA_ABA,
-  URL_DOS_DESENVOLVEDORES,
-  urlDaConversa,
-  urlDaRevisao,
-  urlDoDesignarDeNovo,
-  urlDoReenviar,
-} from "./chat";
 import {
   BASE_TECNOLOGIA,
   CLASSIFICACAO_CLASSE,
   CLASSIFICACAO_ROTULO,
   Classificacao,
   Demanda,
+  Desenvolvedor,
+  desenvolvedoresValidos,
   ENVIO_FALHOU,
   ETAPA_CLASSE,
   EtapaDemanda,
@@ -127,7 +55,6 @@ import {
   FALHA_DE_CONEXAO,
   iniciais,
   linkDaDemonstracao,
-  motivoDaRecusa,
   nomeDoNumero,
   Origem,
   ORIGEM_CLASSE,
@@ -140,12 +67,11 @@ import {
   TEM_DEMONSTRACAO,
   temSelo,
   textoDaAbertura,
+  URL_DA_LISTA,
+  URL_DOS_DESENVOLVEDORES,
 } from "./demandas";
 
-export const NOVA_CONVERSA = "Nova conversa";
-export const VOLTAR_PARA_A_LISTA = "Voltar às conversas";
-/** Na tela larga (issue #1642, ADR 0090): o pedido novo, no topo da aba, e a volta da Demanda aberta. */
-export const NOVO_PEDIDO = "Novo pedido";
+export const VOLTAR_PARA_A_LISTA = "Voltar à lista";
 export const VOLTAR_AO_QUADRO = "Voltar ao quadro";
 export const AMPLIAR = "Ampliar";
 /** O fechar do painel à direita do Quadro (issue #1643). */
@@ -153,24 +79,8 @@ export const FECHAR_O_PAINEL = "Fechar o pedido";
 /** O link de uma Demanda que quem abriu não pode ver (issue #1586): sem título nem número. */
 export const SEM_ACESSO = "Você não tem acesso a esta Demanda";
 const AMPLIAR_EXPLICADO = "Abrir este pedido em tela cheia";
-export const REENVIAR = "Reenviar";
-export const DESIGNACAO_FALHOU = "Designação falhou";
-export const DESIGNAR_DE_NOVO = "Designar de novo";
-export const APAGAR = "Apagar";
-export const REVISAR_COM_O_CODIGO_DE_HOJE = "Revisar com o código de hoje";
-const REVISAR_TITULO = "Revisar este pedido com o código de hoje?";
-const REVISAR = "Revisar";
-const APAGAR_TITULO = "Apagar este pedido?";
-const APAGAR_A_CONVERSA_EXPLICADO =
-  "A conversa sai da lista com os anexos. Não dá para desfazer.";
-const APAGAR_O_CARD_EXPLICADO =
-  "O pedido sai da lista com a conversa e os anexos, e o card fecha como não planejado no desenvolvimento. Não dá para desfazer.";
-const DESIGNACAO_FALHOU_EXPLICADO =
-  "O card nasceu no GitHub sem o Responsável. Designar de novo pede só a designação, sem criar outro card.";
-const ENVIO_FALHOU_EXPLICADO =
-  "Este card não chegou à Vitta. O que você disse continua guardado: clique em Reenviar para tentar de novo.";
-const LISTA_VAZIA = "Nenhuma conversa ainda.";
-const LISTA_FALHOU = "Não foi possível carregar as suas conversas. Tente recarregar a página.";
+const LISTA_VAZIA = "Nenhum pedido ainda.";
+const LISTA_FALHOU = "Não foi possível carregar os pedidos. Tente recarregar a página.";
 const URL_QUEM_SOU = `${BASE_TECNOLOGIA}/eu`;
 
 type Filtro = "para_mim" | "minhas" | "todas";
@@ -199,7 +109,6 @@ const LIMPAR_FILTROS = "Limpar filtros";
 const SO_ENVIO_FALHOU = "Só envio falhou";
 /** O interruptor do Quadro que mostra a coluna Não será feita, no fim (ADR 0090, decisões 2 e 8). */
 export const MOSTRAR_AS_QUE_NAO_SERAO_FEITAS = "Mostrar as que não serão feitas";
-const CONVERSAR = "Conversar";
 /** A espera depois da última tecla, para a busca não pedir a lista a cada letra. */
 const ESPERA_DA_BUSCA_MS = 300;
 
@@ -227,7 +136,7 @@ function urlDaLista(filtros: FiltrosDaLista): string {
   if (filtros.responsavel) consulta.set("responsavel", filtros.responsavel);
   if (filtros.envioFalhou) consulta.set("envio_falhou", "true");
   const texto = consulta.toString();
-  return texto ? `${URL_DO_CHAT_DA_ABA}?${texto}` : URL_DO_CHAT_DA_ABA;
+  return texto ? `${URL_DA_LISTA}?${texto}` : URL_DA_LISTA;
 }
 
 /**
@@ -264,16 +173,6 @@ export function GrupoDeChips({ rotulo, children }: { rotulo: string; children: R
       {children}
     </div>
   );
-}
-
-/**
- * A Demanda abre no Acompanhamento (o Documento do card, só para ler) e não na
- * conversa com o agente: a que já virou card ou é de outro autor, fora da
- * revisão. O resto é a conversa Registrada do autor, ou a revisão, que fica
- * na largura toda (ADR 0090, decisão 6).
- */
-function abreNoAcompanhamento(demanda: Demanda): boolean {
-  return Boolean((demanda.tem_vinculo || demanda.minha === false) && !demanda.em_revisao);
 }
 
 /** O item serve para a lista? O resto da Demanda é opcional para ela. */
@@ -378,24 +277,20 @@ function PartesNoCard({ demanda }: { demanda: Demanda }) {
 }
 
 /**
- * O card de uma conversa na lista (issue #1578). Contorno sempre visível; no
+ * O card de um pedido na lista (issue #1578). Contorno sempre visível; no
  * hover e no foco ele se destaca e sobe um pouco, sem movimento para quem
- * pediu menos animação ao sistema. O "Conversar" fica num botão próprio, ao
- * lado do card, porque botão dentro de botão não existe no HTML. Ao lado dele,
- * o Ampliar abre o pedido em tela cheia, e fica sempre à vista na tela larga
- * (issue #1593).
+ * pediu menos animação ao sistema. O Ampliar fica num botão próprio, ao lado
+ * do card, porque botão dentro de botão não existe no HTML (issue #1593).
  */
 function CardDaConversa({
   demanda,
   destacada,
   onAbrir,
-  onConversar,
   onAmpliar,
 }: {
   demanda: Demanda;
   destacada: boolean;
   onAbrir: () => void;
-  onConversar: () => void;
   onAmpliar: () => void;
 }) {
   const abertura = textoDaAbertura(demanda.criado_em);
@@ -442,15 +337,6 @@ function CardDaConversa({
         </span>
       </button>
       <div className="absolute top-3 right-3 flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={onConversar}
-          aria-label={CONVERSAR}
-          title="Conversar com quem cuida deste pedido"
-          className="w-9 h-9 inline-flex items-center justify-center rounded-xl border border-border bg-white text-primary shadow-sm transition-opacity duration-150 motion-reduce:transition-none hover:bg-primary/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
-        >
-          <MessageSquare className="w-4 h-4" />
-        </button>
         <button
           type="button"
           onClick={onAmpliar}
@@ -524,343 +410,18 @@ function InterruptorDaBarra({
   );
 }
 
-/**
- * O aviso do Envio falhou no alto da conversa aberta, com o Reenviar (issue
- * #1535). O motivo técnico só vem do servidor para o Desenvolvedor.
- */
-function AvisoDoEnvioFalhou({
-  demanda,
-  token,
-  onReenviado,
-}: {
-  demanda: Demanda;
-  token: string | null;
-  onReenviado: (demandaId: string) => void;
-}) {
-  const [reenviando, setReenviando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
-
-  async function reenviar() {
-    if (!token) return;
-    setReenviando(true);
-    setErro(null);
-    try {
-      const resposta = await fetch(urlDoReenviar(demanda.id), {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!resposta.ok) {
-        setErro(await motivoDaRecusa(resposta));
-        return;
-      }
-      onReenviado(demanda.id);
-    } catch (e) {
-      console.error("[admin/tecnologia] falha ao reenviar o card", e);
-      setErro(FALHA_DE_CONEXAO);
-    } finally {
-      setReenviando(false);
-    }
-  }
-
-  return (
-    <section
-      role="region"
-      aria-label={ENVIO_FALHOU}
-      className="w-full rounded-2xl border border-red-200 bg-red-50 p-4 space-y-2 text-sm text-red-800"
-    >
-      <p className="font-semibold">{ENVIO_FALHOU}</p>
-      <p>{ENVIO_FALHOU_EXPLICADO}</p>
-      {demanda.envio_motivo && <p className="normal-case font-mono text-xs">{demanda.envio_motivo}</p>}
-      {erro && <p role="alert">{erro}</p>}
-      <button
-        type="button"
-        onClick={reenviar}
-        disabled={reenviando}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-semibold disabled:opacity-60"
-      >
-        {reenviando && <Loader2 className="w-4 h-4 animate-spin" />}
-        {REENVIAR}
-      </button>
-    </section>
-  );
-}
+/** O nome da área do pedido aberto: a Etapa, a Origem, quem pediu e o Documento do card. */
+export const ACOMPANHAMENTO = "Acompanhamento do pedido";
 
 /**
- * O aviso da designação falhada no alto da conversa aberta, com o Designar de
- * novo (issue #1536). Só o Desenvolvedor o recebe do servidor.
+ * O pedido aberto, só para ler (issue #2279): a Etapa, a Origem, quem pediu e
+ * o Documento do card. A Demanda ainda sem card (o bug do Assistente do app
+ * antes do envio) mostra só o cabeçalho, com o número e o Copiar link.
  */
-function AvisoDaDesignacaoFalhou({
-  demanda,
-  token,
-  onDesignado,
-}: {
-  demanda: Demanda;
-  token: string | null;
-  onDesignado: (demandaId: string) => void;
-}) {
-  const [designando, setDesignando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
-
-  async function designarDeNovo() {
-    if (!token) return;
-    setDesignando(true);
-    setErro(null);
-    try {
-      const resposta = await fetch(urlDoDesignarDeNovo(demanda.id), {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!resposta.ok) {
-        setErro(await motivoDaRecusa(resposta));
-        return;
-      }
-      onDesignado(demanda.id);
-    } catch (e) {
-      console.error("[admin/tecnologia] falha ao designar de novo", e);
-      setErro(FALHA_DE_CONEXAO);
-    } finally {
-      setDesignando(false);
-    }
-  }
-
+function Acompanhamento({ demanda }: { demanda: Demanda }) {
+  const semDocumento = !temSelo(demanda) && !demanda.raiz_url;
   return (
-    <section
-      role="region"
-      aria-label={DESIGNACAO_FALHOU}
-      className="w-full rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-2 text-sm text-amber-900"
-    >
-      <p className="font-semibold">{DESIGNACAO_FALHOU}</p>
-      <p>{DESIGNACAO_FALHOU_EXPLICADO}</p>
-      {demanda.envio_motivo && <p className="normal-case font-mono text-xs">{demanda.envio_motivo}</p>}
-      {erro && <p role="alert">{erro}</p>}
-      <button
-        type="button"
-        onClick={designarDeNovo}
-        disabled={designando}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-semibold disabled:opacity-60"
-      >
-        {designando && <Loader2 className="w-4 h-4 animate-spin" />}
-        {DESIGNAR_DE_NOVO}
-      </button>
-    </section>
-  );
-}
-
-/**
- * O "Apagar" da Demanda (issue #1549, ADR 0084, decisão 2). Só aparece com o
- * `pode_apagar` do servidor, e pede confirmação antes. A recusa do servidor
- * (o GitHub que não fechou o card, a Etapa que andou) aparece embaixo do botão.
- */
-function ApagarADemanda({
-  demanda,
-  token,
-  onApagada,
-}: {
-  demanda: Demanda;
-  token: string | null;
-  onApagada: () => void;
-}) {
-  const [confirmando, setConfirmando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
-
-  async function apagar() {
-    if (!token) return;
-    setErro(null);
-    try {
-      const resposta = await fetch(urlDaConversa(demanda.id), {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!resposta.ok) {
-        setErro(await motivoDaRecusa(resposta));
-        return;
-      }
-      onApagada();
-    } catch (e) {
-      console.error("[admin/tecnologia] falha ao apagar a Demanda", e);
-      setErro(FALHA_DE_CONEXAO);
-    }
-  }
-
-  return (
-    <div className="flex flex-col items-end gap-1">
-      <button
-        type="button"
-        onClick={() => setConfirmando(true)}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-200 text-red-700 text-xs font-semibold hover:bg-red-50"
-      >
-        <Trash2 className="w-3.5 h-3.5" />
-        {APAGAR}
-      </button>
-      {erro && (
-        <p role="alert" className="text-sm text-red-700">
-          {erro}
-        </p>
-      )}
-      <ConfirmDialog
-        open={confirmando}
-        onClose={() => setConfirmando(false)}
-        onConfirm={apagar}
-        title={APAGAR_TITULO}
-        description={demanda.tem_vinculo ? APAGAR_O_CARD_EXPLICADO : APAGAR_A_CONVERSA_EXPLICADO}
-        confirmLabel={APAGAR}
-        confirmVariant="danger"
-      />
-    </div>
-  );
-}
-
-/**
- * O "Revisar com o código de hoje" (issue #1557, ADR 0084, decisão 3). O
- * clique pede ao servidor a estimativa, que não chama a IA, e abre a
- * confirmação com a faixa em dólar. Só o Revisar do diálogo começa a revisão
- * (ADR 0082). A recusa do servidor aparece embaixo do botão.
- */
-function RevisarComOCodigoDeHoje({
-  demanda,
-  token,
-  onRevisada,
-}: {
-  demanda: Demanda;
-  token: string | null;
-  onRevisada: (demandaId: string) => void;
-}) {
-  const [estimativa, setEstimativa] = useState<EstimativaDaRevisao | null>(null);
-  const [calculando, setCalculando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
-
-  async function estimar() {
-    if (!token) return;
-    setCalculando(true);
-    setErro(null);
-    try {
-      const resposta = await fetch(urlDaRevisao(demanda.id), { headers: { Authorization: `Bearer ${token}` } });
-      if (!resposta.ok) {
-        setErro(await motivoDaRecusa(resposta));
-        return;
-      }
-      setEstimativa((await resposta.json()) as EstimativaDaRevisao);
-    } catch (e) {
-      console.error("[admin/tecnologia] falha ao estimar a revisão", e);
-      setErro(FALHA_DE_CONEXAO);
-    } finally {
-      setCalculando(false);
-    }
-  }
-
-  async function revisar() {
-    if (!token) return;
-    setErro(null);
-    try {
-      const resposta = await fetch(urlDaRevisao(demanda.id), {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ confirmado: true }),
-      });
-      if (!resposta.ok) {
-        setErro(await motivoDaRecusa(resposta));
-        return;
-      }
-      onRevisada(demanda.id);
-    } catch (e) {
-      console.error("[admin/tecnologia] falha ao começar a revisão", e);
-      setErro(FALHA_DE_CONEXAO);
-    }
-  }
-
-  return (
-    <div className="flex flex-col items-end gap-1">
-      <button
-        type="button"
-        onClick={estimar}
-        disabled={calculando}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-primary/30 text-primary text-xs font-semibold hover:bg-primary/5 disabled:opacity-60"
-      >
-        {calculando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-        {REVISAR_COM_O_CODIGO_DE_HOJE}
-      </button>
-      {erro && (
-        <p role="alert" className="text-sm text-red-700">
-          {erro}
-        </p>
-      )}
-      <ConfirmDialog
-        open={estimativa !== null}
-        onClose={() => setEstimativa(null)}
-        onConfirm={revisar}
-        title={REVISAR_TITULO}
-        description={
-          estimativa
-            ? `${textoDaEstimativa(estimativa)} A IA lê o que o sistema já faz hoje e pergunta só o que falta. Cada resposta depois do retrato custa como as do planejamento.`
-            : undefined
-        }
-        confirmLabel={REVISAR}
-      />
-    </div>
-  );
-}
-
-/** Os Anexos da Demanda, que só o Desenvolvedor recebe do servidor. */
-function AnexosDaDemanda({ anexos }: { anexos: AnexoDaDemanda[] }) {
-  const comLink = anexos.filter((anexo) => anexo.url);
-  if (comLink.length === 0) return null;
-  return (
-    <div className="border-t border-slate-100 pt-4 space-y-1">
-      <h3 className="text-xs font-semibold text-text-secondary">Anexos</h3>
-      <ul className="space-y-1 text-sm">
-        {comLink.map((anexo, i) => (
-          <li key={i}>
-            <a
-              href={anexo.url ?? undefined}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="normal-case text-primary underline"
-            >
-              {anexo.nome}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-/**
- * A conversa só para leitura: a que já virou card, ou a de outro autor que o
- * Desenvolvedor abriu (ADR 0083), com a Etapa e o Documento do card. O card
- * da Vitta não tem conversa com o agente (issue #1554): nem a pede.
- */
-function Acompanhamento({ demanda, token }: { demanda: Demanda; token: string | null }) {
-  const [falas, setFalas] = useState<FalaDoChat[]>([]);
-  const [anexos, setAnexos] = useState<AnexoDaDemanda[]>([]);
-
-  // A conversa é complemento: sem ela (a melhoria planejada, ou a rede fora),
-  // o Documento do card continua à vista.
-  // O bug do Assistente do app (issue #2275) também não tem conversa com o agente.
-  const semChat = demanda.origem === "vitta" || demanda.origem === "relato";
-  useEffect(() => {
-    if (!token || semChat) return;
-    let viva = true;
-    (async () => {
-      try {
-        const resposta = await fetch(urlDaConversa(demanda.id), { headers: { Authorization: `Bearer ${token}` } });
-        if (!resposta.ok) return;
-        const corpo: unknown = await resposta.json();
-        if (viva && conversaValida(corpo)) {
-          setFalas(corpo.mensagens);
-          setAnexos(Array.isArray(corpo.anexos_da_demanda) ? corpo.anexos_da_demanda : []);
-        }
-      } catch (e) {
-        console.error("[admin/tecnologia] falha ao abrir a conversa", e);
-      }
-    })();
-    return () => {
-      viva = false;
-    };
-  }, [demanda.id, token, semChat]);
-
-  return (
-    <section className="w-full bg-white rounded-2xl border border-primary/30 shadow-premium p-5 space-y-4">
+    <section aria-label={ACOMPANHAMENTO} className="w-full bg-white rounded-2xl border border-primary/30 shadow-premium p-5 space-y-4">
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <h2 className="normal-case text-base font-bold text-slate-900">{demanda.titulo}</h2>
         <SeloDeEtapa demanda={demanda} />
@@ -868,15 +429,7 @@ function Acompanhamento({ demanda, token }: { demanda: Demanda; token: string | 
         <OrigemNaLista demanda={demanda} />
         {demanda.autor && <span className="normal-case text-text-secondary">{demanda.autor}</span>}
       </div>
-      <DocumentoDoCard demanda={demanda} />
-      {falas.length > 0 && (
-        <div role="log" className="space-y-3 border-t border-slate-100 pt-4">
-          {falas.map((fala, i) => (
-            <Fala key={i} fala={fala} />
-          ))}
-        </div>
-      )}
-      <AnexosDaDemanda anexos={anexos} />
+      {semDocumento ? <CabecalhoDaDemanda demanda={demanda} /> : <DocumentoDoCard demanda={demanda} />}
     </section>
   );
 }
@@ -896,23 +449,17 @@ export function ConversasDaTecnologia({
   const largo = useTelaLarga();
   const [demandas, setDemandas] = useState<Demanda[] | null>(null);
   const [erroDaLista, setErroDaLista] = useState<string | null>(null);
-  /** A Demanda clicada; `null` é a conversa nova. */
+  /** A Demanda clicada, aberta no Documento do card. */
   const [aberta, setAberta] = useState<Demanda | null>(null);
-  /** A que a lista destaca: a clicada, ou a que acabou de nascer no chat. */
+  /** A que a lista destaca: a clicada. */
   const [destacada, setDestacada] = useState<string | null>(null);
-  /** Muda a cada clique, para o chat recomeçar do estado da conversa escolhida. */
-  const [chave, setChave] = useState(0);
-  const [naTela, setNaTela] = useState<"lista" | "conversa">("lista");
-  /** A Demanda abriu pelo "Conversar" do card: a caixa da Conversa da Demanda vem em foco. */
-  const [focarConversa, setFocarConversa] = useState(false);
+  const [naTela, setNaTela] = useState<"lista" | "pedido">("lista");
   /** O pedido aberto na largura toda, com a lista recolhida: só o Ampliar liga (issue #1593). */
   const [ampliada, setAmpliada] = useState(false);
   /** Na tela larga, a Demanda aberta no painel à direita, com o Quadro atrás (issue #1643). */
   const [noPainel, setNoPainel] = useState(false);
   /** O Quadro, onde o painel procura o card para devolver o foco quando fecha. */
   const quadroRef = useRef<HTMLDivElement>(null);
-  /** O painel, onde o "Conversar" acha a caixa da Conversa da Demanda. */
-  const painelRef = useRef<HTMLElement>(null);
   const [desenvolvedor, setDesenvolvedor] = useState(false);
   /** Nulo até o servidor dizer quem está logado: o Desenvolvedor abre em Para mim. */
   const [filtro, setFiltro] = useState<Filtro | null>(null);
@@ -939,8 +486,6 @@ export function ConversasDaTecnologia({
   const noEndereco = useRef<string | null>(null);
   /** O endereço trouxe uma Demanda fora da lista de quem abriu (issue #1586). */
   const [semAcesso, setSemAcesso] = useState(false);
-  /** A Demanda de bug que o Achei um problema fez nascer (issue #2210): abre como a do endereço. */
-  const [pedida, setPedida] = useState<string | null>(null);
 
   // Sem resposta, a tela fica como a do diretor: o filtro só aparece com o
   // sim do servidor.
@@ -1015,7 +560,7 @@ export function ConversasDaTecnologia({
       setErroDaLista(null);
       return lidas;
     } catch (e) {
-      console.error("[admin/tecnologia] falha ao carregar as conversas", e);
+      console.error("[admin/tecnologia] falha ao carregar os pedidos", e);
       setErroDaLista(FALHA_DE_CONEXAO);
       return null;
     }
@@ -1025,14 +570,6 @@ export function ConversasDaTecnologia({
     carregar();
   }, [carregar]);
 
-  const aoMudar = useCallback(
-    (demandaId: string) => {
-      setDestacada(demandaId);
-      carregar();
-    },
-    [carregar],
-  );
-
   /** Escreve no endereço e lembra o que escreveu, para o eco do endereço não reabrir o card. */
   const escreverNoEndereco = useCallback((demandaId: string | null) => {
     noEndereco.current = demandaId;
@@ -1040,19 +577,17 @@ export function ConversasDaTecnologia({
   }, []);
 
   const abrir = useCallback(
-    (demanda: Demanda | null, conversar = false, ampliar = false) => {
+    (demanda: Demanda, ampliar = false) => {
       // Na tela larga, o Documento do card abre no painel, por cima do Quadro;
-      // a conversa com o agente e o Ampliar seguem na largura toda (issue #1643).
-      const painel = largo && !ampliar && demanda !== null && abreNoAcompanhamento(demanda);
-      escreverNoEndereco(demanda?.id ?? null);
+      // o Ampliar segue na largura toda (issue #1643).
+      const painel = largo && !ampliar;
+      escreverNoEndereco(demanda.id);
       setSemAcesso(false);
       setAberta(demanda);
-      setDestacada(demanda?.id ?? null);
-      setFocarConversa(conversar);
+      setDestacada(demanda.id);
       setAmpliada(ampliar);
       setNoPainel(painel);
-      setChave((atual) => atual + 1);
-      setNaTela(painel ? "lista" : "conversa");
+      setNaTela(painel ? "lista" : "pedido");
     },
     [escreverNoEndereco, largo],
   );
@@ -1072,8 +607,8 @@ export function ConversasDaTecnologia({
 
   const painelAberto = largo && naTela === "lista" && noPainel && aberta !== null;
 
-  // Esc fecha o painel. Fica de fora o Esc que outra peça já tratou (a lista de
-  // nomes da Conversa) e o de um diálogo por cima, como a confirmação do Apagar.
+  // Esc fecha o painel. Fica de fora o Esc que outra peça já tratou e o de um
+  // diálogo por cima.
   useEffect(() => {
     if (!painelAberto) return;
     function aoTeclar(evento: KeyboardEvent) {
@@ -1109,60 +644,14 @@ export function ConversasDaTecnologia({
     setNaoSeraFeita(false);
   }
 
-  /** O card nasceu pelo Reenviar: a lista relê e a Demanda abre como está agora. */
-  async function aoReenviar(demandaId: string) {
-    const lidas = await carregar();
-    const atual = lidas?.find((d) => d.id === demandaId);
-    abrir(atual ?? (aberta ? { ...aberta, envio_falhou: false, envio_motivo: null, tem_vinculo: true } : null));
-  }
-
-  /** A Demanda foi apagada: some da lista, e a tela volta à lista com a conversa nova pronta. */
-  function aoApagar() {
-    escreverNoEndereco(null);
-    setAberta(null);
-    setDestacada(null);
-    setNoPainel(false);
-    setChave((atual) => atual + 1);
-    setNaTela("lista");
-    carregar();
-  }
-
-  /** A revisão começou: a lista relê e o card abre na conversa, para responder. */
-  async function aoRevisar(demandaId: string) {
-    const lidas = await carregar();
-    const atual = lidas?.find((d) => d.id === demandaId);
-    abrir(atual ?? (aberta ? { ...aberta, pode_revisar: false, em_revisao: true } : null));
-  }
-
-  /** A designação pegou: a lista relê e a Demanda abre como está agora. */
-  async function aoDesignar(demandaId: string) {
-    const lidas = await carregar();
-    const atual = lidas?.find((d) => d.id === demandaId);
-    abrir(atual ?? (aberta ? { ...aberta, designacao_falhou: false, envio_motivo: null } : null));
-  }
-
-  // O bug que o Achei um problema do cartão fez nascer (issue #2210): a lista
-  // relê primeiro, para ele já estar nela, e daí abre como a do endereço.
+  // A Demanda do endereço (o aviso antigo do sino, o e-mail, o recarregar):
+  // abre se está na lista; se o filtro a esconde, a barra vai ao recorte mais
+  // largo e a lista relê; se nem lá ela está, o aviso de sem acesso.
   useEffect(() => {
-    async function abrirOBug(evento: Event) {
-      const id = (evento as CustomEvent<string>).detail;
-      await carregar();
-      setPedida(id);
-    }
-    window.addEventListener(ABRIR_DEMANDA, abrirOBug);
-    return () => window.removeEventListener(ABRIR_DEMANDA, abrirOBug);
-  }, [carregar]);
-
-  // A Demanda do endereço (o sino, o e-mail, o recarregar) ou a do bug que
-  // acabou de nascer: abre se está na lista; se o filtro a esconde, a barra
-  // vai ao recorte mais largo e a lista relê; se nem lá ela está, o aviso de
-  // sem acesso.
-  useEffect(() => {
-    const alvo = pedida ?? demandaInicial;
+    const alvo = demandaInicial;
     if (!alvo || alvo === noEndereco.current || demandas === null || filtro === null) return;
     const achada = demandas.find((d) => d.id === alvo);
     if (achada) {
-      setPedida(null);
       abrir(achada);
       return;
     }
@@ -1182,22 +671,21 @@ export function ConversasDaTecnologia({
       return;
     }
     noEndereco.current = alvo;
-    setPedida(null);
     setSemAcesso(true);
     setAberta(null);
     setDestacada(null);
     setAmpliada(false);
     setNoPainel(false);
-    setNaTela("conversa");
-  }, [pedida, demandaInicial, demandas, filtro, desenvolvedor, filtroAtivo, abrir]);
+    setNaTela("pedido");
+  }, [demandaInicial, demandas, filtro, desenvolvedor, filtroAtivo, abrir]);
 
   /**
    * A lista recolhe na tela média só com o pedido ampliado (issue #1593, que
-   * reverteu a #1551). Na tela larga, tudo o que se abre a partir do Quadro
-   * (a Demanda, o Novo pedido, o aviso de sem acesso) ocupa a largura toda.
+   * reverteu a #1551). Na tela larga, o que se abre na largura toda a partir
+   * do Quadro (o Ampliar, o aviso de sem acesso) a ocupa inteira.
    */
-  const recolhida = naTela === "conversa" && (largo || (aberta !== null && ampliada));
-  /** Na tela larga o Quadro sai de cena quando algo abre, e o Assistente só monta quando aberto. */
+  const recolhida = naTela === "pedido" && (largo || (aberta !== null && ampliada));
+  /** Na tela larga o Quadro sai de cena quando algo abre na largura toda. */
   const quadroAVista = largo && naTela === "lista";
 
   /** A falha e o carregando, os mesmos na lista e no Quadro. */
@@ -1211,44 +699,14 @@ export function ConversasDaTecnologia({
       {demandas === null && !erroDaLista && (
         <p role="status" className="flex items-center gap-2 px-1 text-xs text-text-secondary">
           <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          Carregando as conversas...
+          Carregando os pedidos...
         </p>
-      )}
-    </>
-  );
-
-  /** Apagar, Revisar, Reenviar e Designar de novo, nas mesmas condições na largura toda e no painel. */
-  const acoesDaDemanda = (
-    <>
-      {aberta?.pode_apagar && (
-        <ApagarADemanda key={`apagar-${chave}`} demanda={aberta} token={token} onApagada={aoApagar} />
-      )}
-      {aberta?.pode_revisar && (
-        <RevisarComOCodigoDeHoje key={`revisar-${chave}`} demanda={aberta} token={token} onRevisada={aoRevisar} />
-      )}
-      {aberta?.envio_falhou && (
-        <AvisoDoEnvioFalhou key={`envio-${chave}`} demanda={aberta} token={token} onReenviado={aoReenviar} />
-      )}
-      {desenvolvedor && aberta?.designacao_falhou && (
-        <AvisoDaDesignacaoFalhou key={`designacao-${chave}`} demanda={aberta} token={token} onDesignado={aoDesignar} />
       )}
     </>
   );
 
   return (
     <div className="space-y-4">
-      {quadroAVista && (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() => abrir(null)}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 min-h-[38px] rounded-xl bg-primary text-white text-sm font-semibold transition-opacity hover:opacity-90"
-          >
-            <Plus className="w-4 h-4" />
-            {NOVO_PEDIDO}
-          </button>
-        </div>
-      )}
       <section
         role="region"
         aria-label="Filtros da lista"
@@ -1267,16 +725,6 @@ export function ConversasDaTecnologia({
             />
           </div>
           {desenvolvedor && <RecorteDaLista valor={filtro} onMudar={setFiltro} />}
-          {!largo && (
-            <button
-              type="button"
-              onClick={() => abrir(null)}
-              className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2 min-h-[38px] rounded-xl bg-primary text-white text-sm font-semibold transition-opacity hover:opacity-90"
-            >
-              <Plus className="w-4 h-4" />
-              {NOVA_CONVERSA}
-            </button>
-          )}
         </div>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Select
@@ -1357,7 +805,7 @@ export function ConversasDaTecnologia({
               </div>
             )
           ) : (
-            <nav aria-label="Suas conversas" className="md:max-h-[calc(100vh-18rem)] md:overflow-y-auto p-1 -m-1">
+            <nav aria-label="Pedidos" className="md:max-h-[calc(100vh-18rem)] md:overflow-y-auto p-1 -m-1">
               {estadoDaLista}
               {demandas !== null && demandas.length === 0 && (
                 <p className="px-1 text-sm text-text-secondary">{LISTA_VAZIA}</p>
@@ -1370,8 +818,7 @@ export function ConversasDaTecnologia({
                         demanda={demanda}
                         destacada={destacada === demanda.id}
                         onAbrir={() => abrir(demanda)}
-                        onConversar={() => abrir(demanda, true)}
-                        onAmpliar={() => abrir(demanda, false, true)}
+                        onAmpliar={() => abrir(demanda, true)}
                       />
                     </li>
                   ))}
@@ -1384,8 +831,8 @@ export function ConversasDaTecnologia({
         {!quadroAVista && (
           <div
             role="region"
-            aria-label="Conversa aberta"
-            className={`${naTela === "conversa" ? "" : "hidden"} md:block min-w-0 space-y-3`}
+            aria-label="Pedido na tela"
+            className={`${naTela === "pedido" ? "" : "hidden"} md:block min-w-0 space-y-3`}
           >
             <button
               type="button"
@@ -1406,7 +853,7 @@ export function ConversasDaTecnologia({
                 type="button"
                 onClick={() => {
                   setAmpliada(true);
-                  setNaTela("conversa");
+                  setNaTela("pedido");
                 }}
                 title={AMPLIAR_EXPLICADO}
                 className="hidden md:inline-flex items-center gap-1.5 text-sm font-semibold text-primary"
@@ -1415,48 +862,13 @@ export function ConversasDaTecnologia({
                 {AMPLIAR}
               </button>
             )}
-            {acoesDaDemanda}
-            {/* Ao lado da lista, a Conversa da Demanda desce para baixo do documento;
-                ampliado, ela ganha a coluna à direita (issue #1593). */}
-            <div
-              className={
-                !aberta
-                  ? ""
-                  : recolhida
-                    ? "space-y-3 xl:space-y-0 xl:grid xl:grid-cols-[minmax(0,1fr)_24rem] xl:gap-6 xl:items-start"
-                    : "space-y-3"
-              }
-            >
-              <div className="min-w-0">
-                {semAcesso ? (
-                  <p role="alert" className="px-4 py-3 rounded-2xl border border-border bg-white text-sm text-text">
-                    {SEM_ACESSO}
-                  </p>
-                ) : aberta && abreNoAcompanhamento(aberta) ? (
-                  <Acompanhamento key={chave} demanda={aberta} token={token} />
-                ) : (
-                  <div className="space-y-3">
-                    {/* A Demanda que abre no chat tem o mesmo cabeçalho do Documento (issue #1669). */}
-                    {aberta && (
-                      <div className="px-4 py-3 rounded-2xl border border-border bg-white space-y-2">
-                        <CabecalhoDaDemanda key={chave} demanda={aberta} />
-                      </div>
-                    )}
-                    <ChatDaTecnologia key={chave} token={token} demandaId={aberta?.id ?? null} onMudou={aoMudar} />
-                  </div>
-                )}
-              </div>
-              {aberta && (
-                <div className={recolhida ? "xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto" : ""}>
-                  <ConversaDaDemanda
-                    key={`conversa-${chave}`}
-                    demandaId={aberta.id}
-                    token={token}
-                    focar={focarConversa}
-                  />
-                </div>
-              )}
-            </div>
+            {semAcesso ? (
+              <p role="alert" className="px-4 py-3 rounded-2xl border border-border bg-white text-sm text-text">
+                {SEM_ACESSO}
+              </p>
+            ) : (
+              aberta && <Acompanhamento demanda={aberta} />
+            )}
           </div>
         )}
       </div>
@@ -1469,7 +881,6 @@ export function ConversasDaTecnologia({
         aberta &&
         createPortal(
         <aside
-          ref={painelRef}
           aria-label="Pedido aberto"
           className="fixed top-16 bottom-0 right-0 z-40 w-[min(40rem,100vw)] overflow-y-auto border-l border-border bg-bg shadow-premium-strong p-5 space-y-3 animate-fade-in-right"
         >
@@ -1478,24 +889,9 @@ export function ConversasDaTecnologia({
             <button
               type="button"
               onClick={() => {
-                const caixa = painelRef.current?.querySelector<HTMLTextAreaElement>(
-                  'textarea[aria-label="Mensagem para a Conversa"]',
-                );
-                caixa?.scrollIntoView?.({ block: "center" });
-                caixa?.focus();
-              }}
-              title="Conversar com quem cuida deste pedido"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold text-primary hover:bg-primary/5"
-            >
-              <MessageSquare className="w-4 h-4" />
-              {CONVERSAR}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
                 setNoPainel(false);
                 setAmpliada(true);
-                setNaTela("conversa");
+                setNaTela("pedido");
               }}
               title={AMPLIAR_EXPLICADO}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold text-primary hover:bg-primary/5"
@@ -1513,9 +909,7 @@ export function ConversasDaTecnologia({
               <X className="w-4 h-4" />
             </button>
           </div>
-          {acoesDaDemanda}
-          <Acompanhamento key={chave} demanda={aberta} token={token} />
-          <ConversaDaDemanda key={`conversa-${chave}`} demandaId={aberta.id} token={token} focar={focarConversa} />
+          <Acompanhamento demanda={aberta} />
         </aside>,
           document.body,
         )}

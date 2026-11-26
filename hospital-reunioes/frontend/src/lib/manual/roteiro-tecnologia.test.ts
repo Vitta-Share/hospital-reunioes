@@ -17,9 +17,6 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { perguntaValida, type PerguntaDaVitta } from "@/components/tecnologia/CartaoDaPergunta";
-import { conversaValida } from "@/components/tecnologia/chat";
-import type { FalaDoMeExplique } from "@/components/tecnologia/MeExplique";
 import { colunasDoQuadro, linkDoPlano, seloDaImplantacao, type Demanda } from "@/components/tecnologia/demandas";
 import { carregarPaginasDoManual } from "./carregar";
 import { imagensCitadas } from "./paginas";
@@ -53,21 +50,6 @@ function envio(): Record<string, unknown> {
   const rodada = spawnSync("python3", [join(PASTA, "respostas.py"), "--envio"], { encoding: "utf8" });
   if (rodada.status !== 0) throw new Error(rodada.stderr);
   return JSON.parse(rodada.stdout);
-}
-
-/** A lista Esperando você que o roteiro serve depois do Achei um problema (issue #2211). */
-function depoisDoProblema(): unknown[] {
-  const rodada = spawnSync("python3", [join(PASTA, "respostas.py"), "--depois-do-problema"], { encoding: "utf8" });
-  if (rodada.status !== 0) throw new Error(rodada.stderr);
-  return JSON.parse(rodada.stdout);
-}
-
-/** Uma constante de texto do backend, lida do código: o dublê segue o contrato do servidor, não uma cópia. */
-function textoDoServidor(arquivo: string, padrao: RegExp): string {
-  const codigo = readFileSync(join(process.cwd(), "..", "backend", "app", "services", arquivo), "utf8");
-  const achado = codigo.match(padrao);
-  if (!achado) throw new Error(`${padrao} não está em ${arquivo}`);
-  return achado[1];
 }
 
 /** Todo texto de um valor JSON, folha por folha. */
@@ -151,17 +133,6 @@ describe("a tabela de respostas da aba Tecnologia", () => {
     expect(daAna.map((d) => d.id).sort()).toEqual(lista.filter((d) => d.projeto === "ana").map((d) => d.id).sort());
   });
 
-  it("cada pedido do diretor abre com uma conversa que a tela aceita, e todo pedido com a Conversa da Demanda", () => {
-    for (const demanda of lista) {
-      if (demanda.origem !== "vitta") {
-        expect(conversaValida(T[`chat/${demanda.id}`]), `a conversa de ${demanda.id} não serve`).toBe(true);
-      }
-      expect(T[`chat/${demanda.id}/conversa`], `falta a Conversa da Demanda de ${demanda.id}`).toMatchObject({
-        mensagens: expect.any(Array),
-      });
-    }
-  });
-
   it("o pedido do painel tem partes numeradas em mais de uma Onda, uma esperando outra do pedido e uma de outro pedido (issue #1903)", () => {
     const painel = lista.find((d) => d.id === SEED.abrir.painel)!;
     const partes = painel.partes ?? [];
@@ -206,7 +177,6 @@ describe("a pergunta da Vitta e o pedido de projeto novo na tabela (issue #1968,
     expect(novo!.etapa).toBe("registrada");
     expect(novo!.projeto_nome).toEqual(expect.any(String));
     expect(novo!.raiz_url).toMatch(/^https:\/\/[\w.-]*exemplo\.local\//);
-    expect(novo!.pode_apagar).toBe(false);
   });
 
   it("a rota projetos lista o Aplicativo do Hospital, a Ana e o projeto novo, com o nome", () => {
@@ -240,108 +210,9 @@ describe("a pergunta da Vitta e o pedido de projeto novo na tabela (issue #1968,
   });
 });
 
-describe("a Pergunta da Vitta, a lista Esperando sua resposta e o Me explique na tabela (issue #2123, PRD #2112)", () => {
+describe("a seção Implantação na tabela (issue #2211, ADR 0111)", () => {
   const T = tabela();
-  type Item = PerguntaDaVitta & { demanda_id: string; demanda: string; minha: boolean };
-  const lista = () => T["perguntas/esperando"] as Item[];
-  // A Pergunta do diretor; o Passo a passo dele, também na lista, tem o describe próprio (issue #2184).
-  const doDiretor = () => lista().find((p) => p.minha && (p.tipo ?? "pergunta") === "pergunta")!;
-
-  it("a lista tem as Perguntas abertas no formato que a tela aceita, as do diretor primeiro, e só a dele se responde no cartão da lista", () => {
-    const itens = lista();
-    expect(Array.isArray(itens)).toBe(true);
-    for (const p of itens) {
-      expect(perguntaValida(p), `a Pergunta ${p.id} não serve`).toBe(true);
-      expect(typeof p.demanda).toBe("string");
-      expect(p.estado).toBe("aberta");
-      // Desde a issue #2145 o cartão da lista responde: o print mostra o campo na do diretor.
-      expect(p.pode_responder ?? false).toBe(p.minha);
-    }
-    const minhas = itens.map((p) => p.minha);
-    expect(minhas).toContain(true);
-    expect(minhas).toContain(false);
-    expect(minhas).toEqual([...minhas].sort((a, b) => Number(b) - Number(a)));
-  });
-
-  it("a Conversa do pedido da Pergunta do diretor traz o mesmo cartão, com opções, a recomendada e o porquê, para responder", () => {
-    const pergunta = doDiretor();
-    const conversa = T[`chat/${pergunta.demanda_id}/conversa`] as { mensagens: { pergunta?: PerguntaDaVitta | null }[] };
-    const cartao = conversa.mensagens.map((m) => m.pergunta).find((p) => p?.id === pergunta.id);
-    expect(cartao, "a Conversa não tem o cartão da Pergunta").toBeDefined();
-    expect(cartao!.estado).toBe("aberta");
-    expect(cartao!.pode_responder).toBe(true);
-    const letras = (cartao!.opcoes ?? []).map((o) => o.letra);
-    expect(letras.length).toBeGreaterThanOrEqual(2);
-    expect(letras).toContain(cartao!.recomendada);
-    expect(cartao!.porque).toEqual(expect.any(String));
-  });
-
-  it("o Me explique da Pergunta começa pela explicação do Assistente e traz um rascunho de resposta", () => {
-    const conversa = T[`perguntas/${doDiretor().id}/me-explique`] as { mensagens: FalaDoMeExplique[] };
-    expect(conversa?.mensagens?.[0]?.papel).toBe("assistente");
-    expect(conversa.mensagens.some((m) => m.papel === "pessoa")).toBe(true);
-    expect(conversa.mensagens.some((m) => m.papel === "assistente" && typeof m.rascunho === "string")).toBe(true);
-  });
-
-  it("nenhum texto da Pergunta chama ela de Pendência (ADR 0109, decisão 2)", () => {
-    const textos = [lista(), T[`perguntas/${doDiretor().id}/me-explique`]].flatMap(folhas);
-    expect(textos.filter((t) => /pend[êe]ncia/i.test(t))).toEqual([]);
-  });
-});
-
-describe("o Passo a passo da Vitta na lista Esperando você (issue #2184, ADR 0110)", () => {
-  const T = tabela();
-  type Item = PerguntaDaVitta & { demanda_id: string; demanda: string; minha: boolean };
-  const lista = () => T["perguntas/esperando"] as Item[];
-  const passoAPasso = () => {
-    const achado = lista().find((p) => p.tipo === "passo_a_passo");
-    expect(achado, "a lista não tem um Passo a passo").toBeDefined();
-    return achado!;
-  };
-
-  it("a lista junta os três tipos de pedido, a pergunta, o passo a passo e o Pedido de implantação", () => {
-    const tipos = new Set(lista().map((p) => p.tipo ?? "pergunta"));
-    expect([...tipos].sort()).toEqual(["implantacao", "passo_a_passo", "pergunta"]);
-  });
-
-  it("o passo a passo espera o diretor, aberto, e ele marca e conclui no cartão da lista", () => {
-    const passo = passoAPasso();
-    expect(perguntaValida(passo)).toBe(true);
-    expect(passo.estado).toBe("aberta");
-    expect(passo.minha).toBe(true);
-    expect(passo.pode_responder).toBe(true);
-    expect(passo.destinatario).toBe(SEED.admin.nome);
-    expect((T["chat"] as Demanda[]).some((d) => d.id === passo.demanda_id && d.titulo === passo.demanda)).toBe(true);
-  });
-
-  it("o print pega o cartão no meio: um passo marcado pelo diretor, com a hora, e outro ainda sem check", () => {
-    const passos = passoAPasso().passos ?? [];
-    const marcados = passos.filter((p) => p.marcado);
-    expect(marcados.length).toBeGreaterThan(0);
-    for (const p of marcados) {
-      expect(p.por).toBe(SEED.admin.nome);
-      expect(Number.isNaN(Date.parse(p.em ?? ""))).toBe(false);
-    }
-    expect(passos.some((p) => !p.marcado)).toBe(true);
-  });
-
-  it("o último passo é o Como saber que acabou", () => {
-    expect(passoAPasso().passos?.at(-1)?.texto).toMatch(/^Como saber que acabou: /);
-  });
-
-  it("o roteiro abre a aba no cartão do passo a passo, pelo ?pergunta= do aviso", () => {
-    const texto = readFileSync(ROTEIRO, "utf8");
-    expect(texto).toMatch(/\?pergunta=\$\(seed "\['passo_a_passo'\]\['id'\]"\)/);
-    expect(passoAPasso().id).toBe(SEED.passo_a_passo.id);
-  });
-});
-
-describe("o Pedido de implantação, a seção Implantação e o Achei um problema na tabela (issue #2211, ADR 0111)", () => {
-  const T = tabela();
-  const E = envio();
   const lista = T["chat"] as Demanda[];
-  type Item = PerguntaDaVitta & { demanda_id: string; demanda: string; minha: boolean };
-  const implantacoes = () => (T["perguntas/esperando"] as Item[]).filter((p) => p.tipo === "implantacao");
   const entrega = () => lista.find((d) => d.id === SEED.implantacao.demanda)!;
 
   it("a entrega Em produção tem a Implantação do servidor e o selo Implantação 1 de 3 no Quadro", () => {
@@ -354,112 +225,8 @@ describe("o Pedido de implantação, a seção Implantação e o Achei um proble
     expect(pedidos.every((p) => p.espera === null)).toBe(true);
     const ondeCai = colunasDoQuadro(lista, false, new Date()).find((c) => c.cards.some((x) => x.id === d.id));
     expect(ondeCai, "a entrega com Implantação não cai em coluna nenhuma do Quadro de hoje").toBeDefined();
-  });
+  });});
 
-  it("os Pedidos de implantação abertos da entrega esperam o diretor na lista, com os passos, e um deles espera o outro", () => {
-    const abertos = implantacoes();
-    expect(abertos).toHaveLength(2);
-    for (const p of abertos) {
-      expect(perguntaValida(p)).toBe(true);
-      expect(p.demanda_id).toBe(SEED.implantacao.demanda);
-      expect(p.minha && p.pode_responder).toBe(true);
-      expect(p.passos?.length).toBeGreaterThan(0);
-    }
-    const queEspera = abertos.find((p) => p.espera)!;
-    expect(queEspera, "nenhum Pedido de implantação espera outro").toBeDefined();
-    const esperado = abertos.find((p) => p.id === queEspera.espera!.pedido_id);
-    expect(esperado?.assunto).toBe(queEspera.espera!.assunto);
-    // O que espera outro ainda tem o Achei um problema: não espera bug nenhum.
-    expect(queEspera.espera_demanda ?? null).toBeNull();
-    expect(queEspera.passos?.every((p) => p.marcado)).toBe(true);
-  });
-
-  /** O Pedido em que o roteiro clica no Achei um problema, antes e depois do clique. */
-  const doProblema = () => implantacoes().find((p) => p.id === SEED.implantacao.achei_um_problema_em)!;
-  const doProblemaDepois = () =>
-    (depoisDoProblema() as Item[]).find((p) => p.id === SEED.implantacao.achei_um_problema_em)!;
-  const bugDoProblema = () => lista.find((d) => d.id === (E["chat"] as { demanda_id: string }).demanda_id)!;
-
-  it("antes do clique, o Pedido do Achei um problema não espera nada: o botão aparece e nenhum outro motivo prende o Concluir", () => {
-    const antes = doProblema();
-    expect(antes, "o achei_um_problema_em do seed não é um Pedido de implantação aberto").toBeDefined();
-    expect(antes.espera ?? null).toBeNull();
-    expect(antes.espera_demanda ?? null).toBeNull();
-    // Um problema por vez: antes do clique, nenhum Pedido espera bug.
-    expect(implantacoes().filter((p) => p.espera_demanda)).toEqual([]);
-  });
-
-  it("depois do clique, o mesmo Pedido espera a Demanda de bug que o Achei um problema abriu, e só ele muda", () => {
-    const bug = bugDoProblema();
-    expect(bug.classificacao).toBe("bug");
-    expect(["entregue", "em_producao"]).not.toContain(bug.etapa);
-    expect(doProblemaDepois().espera_demanda).toEqual({ demanda_id: bug.id, numero: bug.numero });
-    expect({ ...doProblemaDepois(), espera_demanda: null }).toEqual(doProblema());
-    const outros = (lista: Item[]) => lista.filter((p) => p.id !== SEED.implantacao.achei_um_problema_em);
-    expect(outros(depoisDoProblema() as Item[])).toEqual(outros(T["perguntas/esperando"] as Item[]));
-    expect(folhas(depoisDoProblema()).flatMap(dadoReal)).toEqual([]);
-  });
-
-  it("o Achei um problema responde a Demanda de bug nova com as falas que o servidor manda: a abertura, o Bug, o texto do Pedido e a pergunta", () => {
-    const bug = bugDoProblema();
-    expect(bug.etapa).toBe("registrada");
-    const conversa = T[`chat/${bug.id}`] as {
-      estado: string;
-      mensagens: { autor: string; texto: string; opcoes: string[] }[];
-    };
-    expect(E["chat"]).toEqual(conversa);
-    expect(conversaValida(conversa)).toBe(true);
-    expect(conversa.estado).toBe("em_andamento");
-    // O contrato de POST /chat com o pedido_id (backend/app/routers/admin/tecnologia.py,
-    // provado em backend/tests/test_tecnologia_achei_um_problema.py): a abertura,
-    // o botão Bug, o texto que nomeia o Pedido e a entrega, e a resposta da IA.
-    const abertura = textoDoServidor("chat_tecnologia.py", /^ABERTURA = "(.+)"$/m);
-    const escolha = textoDoServidor("chat_tecnologia.py", /"bug": "(\w+)"/);
-    const modelo = textoDoServidor("tecnologia_perguntas.py", /^TEXTO_DO_PROBLEMA = '(.+)'$/m);
-    const inicial = modelo.replace("{assunto}", doProblema().assunto!).replace("{entrega}", entrega().titulo);
-    expect(conversa.mensagens.map((m) => [m.autor, m.texto])).toEqual([
-      ["ia", abertura],
-      ["diretor", escolha],
-      ["diretor", inicial],
-      ["ia", SEED.implantacao.falas_do_problema[0].texto],
-    ]);
-    expect(conversa.mensagens[0].opcoes).toEqual(["Bug", "Melhoria"]);
-  });
-
-  it("o roteiro clica no Achei um problema e fotografa a espera no mesmo Pedido, com o número do bug que nasceu", () => {
-    const texto = readFileSync(ROTEIRO, "utf8");
-    const linhas = texto.split("\n");
-    const ultimoGotoAntes = (marca: RegExp) => {
-      const ate = linhas.findIndex((l) => marca.test(l));
-      expect(ate, `${marca} não está no roteiro`).toBeGreaterThan(-1);
-      return linhas.slice(0, ate).findLast((l) => /^pw goto /.test(l));
-    };
-    const doPedido = `pw goto "$TECNOLOGIA?pergunta=$(seed "['implantacao']['achei_um_problema_em']")"`;
-    expect(ultimoGotoAntes(/name: 'Achei um problema' \}\)\.click\(\)/)).toBe(doPedido);
-    expect(ultimoGotoAntes(/"espera-a-demanda\.png"/)).toBe(doPedido);
-    const trecho = texto.slice(texto.lastIndexOf(doPedido), texto.indexOf('"espera-a-demanda.png"'));
-    expect(trecho).toContain(`esperar "Espera a Demanda ${bugDoProblema().numero}"`);
-  });
-
-  it("a página diz o mesmo número de bug que o roteiro fotografa", () => {
-    const pagina = carregarPaginasDoManual().find((p) => p.modulo === "tecnologia")!;
-    const citados = Array.from(pagina.corpo.matchAll(/Espera a Demanda (\d+)/g), (m) => Number(m[1]));
-    expect(citados.length).toBeGreaterThan(0);
-    expect(new Set(citados)).toEqual(new Set([bugDoProblema().numero]));
-  });
-
-  it("o roteiro abre a aba em cada Pedido de implantação e clica no Achei um problema", () => {
-    const texto = readFileSync(ROTEIRO, "utf8");
-    for (const p of implantacoes()) {
-      const i = SEED.implantacao.pedidos.findIndex((s: { id: string }) => s.id === p.id);
-      const pelo = p.id === SEED.implantacao.achei_um_problema_em ? "['achei_um_problema_em']" : `['pedidos'][${i}]['id']`;
-      expect(texto).toContain(`?pergunta=$(seed "['implantacao']${pelo}")`);
-    }
-    expect(texto).toMatch(/getByRole\('button', \{ name: 'Achei um problema' \}\)\.click\(\)/);
-    // A lista depois do clique só vale depois do POST do chat com o Pedido.
-    expect(texto).toMatch(/respostas\.py" --depois-do-problema/);
-  });
-});
 
 describe("o Ver o plano e o Envio aos desenvolvedores na tabela (issue #2015, PRD #2007)", () => {
   const T = tabela();
