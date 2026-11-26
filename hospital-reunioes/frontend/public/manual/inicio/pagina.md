@@ -71,3 +71,45 @@ Este bloco aparece embaixo da Minha Fila para quem acompanha outras pessoas. O F
 ![Quem responde a você, com a lista de uma pessoa aberta](quem-responde.png)
 
 O dia em que você abre o Início fica registrado, uma marca por dia, guardada por 90 dias. Só vê esse dia quem já acompanha os seus itens.
+
+## Tirar uma dúvida ou relatar um bug no Assistente
+
+O robô do Assistente do app fica no canto de baixo, à direita, em toda tela do app, para todo mundo. No celular, ele fica logo acima da barra de baixo.
+
+1. Clique no robô (1). O painel do Assistente abre com duas sugestões: **Relatar um bug** (2) e **Tirar uma dúvida** (3).
+2. Para tirar uma dúvida, clique em **Tirar uma dúvida** ou escreva direto no campo de baixo (4). Aperte Enter ou a seta para enviar. A resposta aparece no painel, e você pode perguntar de novo em seguida.
+
+![O painel do Assistente aberto, com as duas sugestões e o campo da dúvida](assistente.png)
+
+3. Para relatar um bug, clique em **Relatar um bug**. O robô faz uma pergunta por vez: em que tela aconteceu, o que aconteceu, o que você esperava e como fazer o problema acontecer de novo. Responda e clique na seta, ou clique em **Pular** se não souber.
+4. Depois das perguntas, o robô pede um print da tela. Clique em **Escolher o print** e escolha a imagem, ou em **Não tenho print**. O print fica guardado só no aplicativo.
+5. Confira o resumo. A pergunta que você pulou aparece como "não informado". Se estiver certo, clique em **Enviar à Vitta**.
+6. Quando o envio dá certo, o robô diz que o bug foi enviado à Vitta. Clique em **Voltar** para ver as sugestões de novo.
+
+O caminho do bug, da pergunta ao envio:
+
+```fluxograma
+inicio robo 1,1: Abrir o robô | Clique no robô, no canto de baixo, à direita. O painel abre com as sugestões Relatar um bug e Tirar uma dúvida.
+decisao qual 2,1: Dúvida ou bug?
+fim duvida 2,2: Tirar uma dúvida | Escreva no campo e envie. A resposta aparece no painel. A conversa não fica guardada: some quando a página recarrega.
+passo perguntas 3,1: Responder as perguntas | Uma por vez: onde aconteceu, o que aconteceu, o que você esperava e como repetir. Pular também vale.
+passo print 4,1: Mandar o print | Escolher o print ou Não tenho print. O print fica guardado só no aplicativo.
+passo resumo 5,1: Conferir o resumo | A pergunta pulada aparece como "não informado".
+passo enviar 6,1: Enviar à Vitta | O clique em Enviar à Vitta manda o relato.
+decisao deu 7,1: O envio deu certo?
+passo denovo 7,2: Tentar de novo | O painel mostra o motivo da falha. Nada é reenviado sem o seu clique em Tentar de novo.
+fim enviado 8,1: Bug enviado | O robô agradece. Voltar mostra as sugestões de novo.
+
+robo -> qual
+qual -> perguntas: bug
+qual -> duvida: dúvida
+perguntas -> print
+print -> resumo
+resumo -> enviar
+enviar -> deu
+deu -> enviado: sim
+deu -> denovo: não
+denovo -> enviar
+```
+
+Para desistir no meio do relato, clique em **Cancelar o relato**. Fechar o painel no X também desiste. A conversa da dúvida não fica guardada: ela some quando a página recarrega.

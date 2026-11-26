@@ -53,13 +53,15 @@ async (page) => {
     });
     await page.waitForTimeout(400);
   };
-  // O print de um pedaço da tela, ou da janela inteira sem `alvo`. O texto do
-  // que foi fotografado vai junto para a guarda.
-  const foto = async (arquivo, alvo) => {
+  // O print de um pedaço da tela, ou da janela inteira sem `alvo`. Com
+  // `recorte`, o print é esse retângulo da janela, e o texto vem do `alvo`. O
+  // texto do que foi fotografado vai junto para a guarda.
+  const foto = async (arquivo, alvo, recorte) => {
     await semFoco();
     const fotografado = alvo ?? page.locator("body");
     textos.push({ arquivo, texto: await fotografado.innerText() });
-    if (alvo) await alvo.screenshot({ path: `${saida}/${arquivo}` });
+    if (recorte) await page.screenshot({ path: `${saida}/${arquivo}`, clip: recorte });
+    else if (alvo) await alvo.screenshot({ path: `${saida}/${arquivo}` });
     else await page.screenshot({ path: `${saida}/${arquivo}` });
     await limpar();
   };
@@ -71,6 +73,10 @@ async (page) => {
   await page.locator("#password").fill(seed.facilitadora.senha);
   await page.locator("#password").press("Enter");
   await page.waitForURL((url) => url.pathname === "/inicio", { timeout: 30000 });
+
+  // O robô do Assistente fica escondido nos prints do Início, para não sair
+  // cortado no canto; ele volta só no print dele, o último.
+  const semRobo = await page.addStyleTag({ content: "[data-assistente-do-app] { visibility: hidden; }" });
 
   // Ver o que tenho para entregar: o Início inteiro, numa janela alta o
   // bastante para a Minha Fila caber, sem Quem responde a você.
@@ -110,6 +116,34 @@ async (page) => {
   await balao(linhaDaPessoa.locator("td").first(), 1);
   await balao(lista, 2);
   await foto("quem-responde.png", quem);
+
+  // Tirar uma dúvida ou relatar um bug no Assistente (issue #2280): o robô do
+  // canto aberto, com as duas sugestões e o campo da dúvida. Nada é enviado.
+  // O recorte pega um pedaço do Início atrás do painel, então a guarda lê o
+  // texto da tela inteira.
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await semRobo.evaluate((estilo) => estilo.remove());
+  const robo = page.getByRole("button", { name: "Assistente do app" });
+  await robo.click();
+  const painel = page.getByRole("dialog", { name: "Assistente do app" });
+  await painel.waitFor();
+  await page.mouse.move(0, 0);
+  await balao(robo, 1);
+  await balao(painel.getByRole("button", { name: "Relatar um bug" }), 2);
+  await balao(painel.getByRole("button", { name: "Tirar uma dúvida" }), 3);
+  await balao(painel.getByRole("textbox", { name: "Sua pergunta" }), 4);
+  const caixaDoPainel = await painel.boundingBox();
+  const caixaDoRobo = await robo.boundingBox();
+  const margem = 32;
+  const x = Math.max(0, caixaDoPainel.x - margem);
+  const y = Math.max(0, caixaDoPainel.y - margem);
+  const recorte = {
+    x,
+    y,
+    width: Math.max(caixaDoPainel.x + caixaDoPainel.width, caixaDoRobo.x + caixaDoRobo.width) + 16 - x,
+    height: caixaDoRobo.y + caixaDoRobo.height + 16 - y,
+  };
+  await foto("assistente.png", page.locator("body"), recorte);
 
   return JSON.stringify(textos);
 }
