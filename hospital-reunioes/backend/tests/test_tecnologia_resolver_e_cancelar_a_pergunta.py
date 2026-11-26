@@ -183,16 +183,6 @@ class TestCancelar:
 
         assert _linhas_de_sistema(sb)[-1] == f"Pergunta cancelada: quem assina a Ata pela diretoria\nMotivo: {MOTIVO}"
 
-    def test_a_cancelada_sai_da_lista_esperando_sua_resposta(self, monkeypatch):
-        ponte, sb, pergunta_id = _pergunta("aberta")
-        tela = _tela(sb, DIRETORA, monkeypatch)
-        esperando = "/api/admin/tecnologia/perguntas/esperando"
-        assert [p["id"] for p in tela.get(esperando).json()] == [pergunta_id]
-
-        _cancelar(ponte, pergunta_id)
-
-        assert tela.get(esperando).json() == []
-
     @pytest.mark.parametrize(
         ("estado", "motivo"),
         [
@@ -323,41 +313,6 @@ def _cartao_na_tela(sb, monkeypatch) -> dict:
     mensagens = _tela(sb, DIRETORA, monkeypatch).get(CONVERSA_DA_TELA).json()["mensagens"]
     [cartao] = [m["pergunta"] for m in mensagens if m["pergunta"]]
     return cartao
-
-
-class TestOCartao:
-    def test_o_cartao_da_resolvida_mostra_o_estado_final_com_a_decisao_e_o_que_destravou(self, monkeypatch):
-        ponte, sb, pergunta_id = _pergunta("respondida")
-        _resolver(ponte, pergunta_id)
-
-        cartao = _cartao_na_tela(sb, monkeypatch)
-
-        assert cartao["estado"] == "resolvida"
-        assert cartao["resolucao"] == {
-            "decidido": DECIDIDO,
-            "destravou": DESTRAVOU,
-            "resolvida_em": sb.tabelas[TABELA][0]["resolvida_em"],
-        }
-        assert cartao["cancelamento"] is None
-        assert cartao["pode_responder"] is False
-
-    def test_o_cartao_da_cancelada_mostra_o_estado_final_com_o_motivo(self, monkeypatch):
-        ponte, sb, pergunta_id = _pergunta("aberta")
-        _cancelar(ponte, pergunta_id)
-
-        cartao = _cartao_na_tela(sb, monkeypatch)
-
-        assert cartao["estado"] == "cancelada"
-        assert cartao["cancelamento"] == {"motivo": MOTIVO, "cancelada_em": sb.tabelas[TABELA][0]["cancelada_em"]}
-        assert cartao["resolucao"] is None
-        assert cartao["pode_responder"] is False
-
-    def test_o_cartao_que_espera_nao_tem_estado_final(self, monkeypatch):
-        _, sb, _ = _pergunta("respondida")
-
-        cartao = _cartao_na_tela(sb, monkeypatch)
-
-        assert (cartao["resolucao"], cartao["cancelamento"]) == (None, None)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

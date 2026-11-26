@@ -170,55 +170,9 @@ class TestPonte:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-class TestComOEsperadoAberto:
-    def test_o_cartao_mostra_a_espera_com_o_assunto_do_outro(self, monkeypatch):
-        _, sb, teste_id, abertura_id = _teste_e_abertura()
-
-        cartao = _cartao_na_lista(sb, abertura_id, monkeypatch)
-
-        assert cartao["espera"] == {"pedido_id": teste_id, "assunto": "testar o anonimato do Canal de Conduta"}
-        assert _cartao_na_lista(sb, teste_id, monkeypatch)["espera"] is None
-
-    def test_o_concluir_recusa_com_o_motivo_numa_linha(self, monkeypatch, github):  # noqa: F811
-        _, sb, _, abertura_id = _teste_e_abertura()
-        _marcar_todos(sb, abertura_id, monkeypatch)
-        github["chamadas"].clear()
-
-        resposta = _concluir(sb, DIRETORA, abertura_id, monkeypatch)
-
-        assert resposta.status_code == 422
-        motivo = resposta.json()["detail"]
-        assert motivo == 'Este Pedido espera "testar o anonimato do Canal de Conduta" ser concluído.'
-        assert "\n" not in motivo
-        assert _linha(sb, abertura_id)["estado"] == "aberta"
-        assert github["chamadas"] == []
-
-    def test_o_esperado_cancelado_continua_segurando_o_concluir(self, monkeypatch):
-        _, sb, teste_id, abertura_id = _teste_e_abertura()
-        _linha(sb, teste_id)["estado"] = "cancelada"
-        _marcar_todos(sb, abertura_id, monkeypatch)
-
-        assert _concluir(sb, DIRETORA, abertura_id, monkeypatch).status_code == 422
-        assert _cartao_na_lista(sb, abertura_id, monkeypatch)["espera"]["pedido_id"] == teste_id
-
-
 # ═══════════════════════════════════════════════════════════════════════════
 # Concluído o esperado, o Concluir libera sozinho
 # ═══════════════════════════════════════════════════════════════════════════
-
-
-class TestConcluidoOEsperado:
-    def test_o_concluir_do_outro_libera_sem_nenhuma_acao_extra(self, monkeypatch):
-        _, sb, teste_id, abertura_id = _teste_e_abertura()
-        _marcar_todos(sb, teste_id, monkeypatch)
-        _marcar_todos(sb, abertura_id, monkeypatch)
-        assert _concluir(sb, DIRETORA, teste_id, monkeypatch).status_code == 200
-
-        assert _cartao_na_lista(sb, abertura_id, monkeypatch)["espera"] is None
-        resposta = _concluir(sb, DIRETORA, abertura_id, monkeypatch)
-
-        assert resposta.status_code == 200, resposta.text
-        assert _linha(sb, abertura_id)["estado"] == "concluida"
 
 
 # ═══════════════════════════════════════════════════════════════════════════

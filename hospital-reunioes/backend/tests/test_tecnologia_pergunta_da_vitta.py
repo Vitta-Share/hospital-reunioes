@@ -346,55 +346,6 @@ def _tela(sb: _SupabaseMock, logado: dict, monkeypatch) -> TestClient:
     return cliente
 
 
-class TestNaConversaDaDemanda:
-    def test_a_conversa_mostra_a_pergunta_como_cartao_e_a_linha_de_sistema_da_pergunta_aberta(self, monkeypatch):
-        ponte, sb = _ponte()
-        pergunta_id = _criar(ponte).json()["id"]
-
-        resposta = _tela(sb, DIRETORA, monkeypatch).get(CONVERSA_DA_TELA)
-
-        assert resposta.status_code == 200, resposta.text
-        mensagens = resposta.json()["mensagens"]
-        entrada, linha = mensagens
-        assert entrada["texto"] == "Quem assina a Ata em nome da diretoria quando a senhora não está?"
-        cartao = entrada["pergunta"]
-        assert cartao["id"] == pergunta_id
-        assert cartao["projeto"] == "Aplicativo do Hospital"
-        assert cartao["assunto"] == "quem assina a Ata pela diretoria"
-        assert {chave: cartao[chave] for chave in QUATRO_LINHAS} == QUATRO_LINHAS
-        assert cartao["estado"] == "aberta"
-        assert cartao["criado_em"] == sb.tabelas[TABELA][0]["criado_em"]
-        assert cartao["destinatario"] == "Diretora Clínica"
-        assert (linha["sistema"], linha["texto"], linha["pergunta"]) == (
-            True,
-            "Pergunta aberta: quem assina a Ata pela diretoria",
-            None,
-        )
-
-    def test_mensagem_comum_nao_vira_cartao(self, monkeypatch):
-        ponte, sb = _ponte()
-        ponte.post(
-            MENSAGEM_DE_ANTES,
-            json={"texto": "Subiu a tela nova.", "github_login": "pedrorezendefig"},
-            headers={"X-API-Key": CHAVE},
-        )
-
-        [mensagem] = _tela(sb, DIRETORA, monkeypatch).get(CONVERSA_DA_TELA).json()["mensagens"]
-
-        assert mensagem["pergunta"] is None
-
-    def test_so_super_admin_ve_o_cartao(self, monkeypatch):
-        """ADR 0050: a aba Tecnologia é do Super admin. A gestora, que nem
-        Super admin é, não lê a Conversa, nem o cartão que nela mora."""
-        ponte, sb = _ponte()
-        _criar(ponte, destinatario_id=GESTORA["id"])
-
-        resposta = _tela(sb, GESTORA, monkeypatch).get(CONVERSA_DA_TELA)
-
-        assert resposta.status_code == 403
-        assert "quem assina a Ata" not in resposta.text
-
-
 # ═══════════════════════════════════════════════════════════════════════════
 # A rota de antes segue igual
 # ═══════════════════════════════════════════════════════════════════════════

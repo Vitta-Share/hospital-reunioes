@@ -19,13 +19,12 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from test_tecnologia_anexos import PNG  # noqa: E402
-from test_tecnologia_chat import CHAT, _cenario, _comecar  # noqa: E402
-from test_tecnologia_vinculo import BASE, DIRETOR, PEDRO, _demanda, _montar, _pessoa  # noqa: E402
+from test_tecnologia_chat import CHAT, _cenario  # noqa: E402
+from test_tecnologia_vinculo import BASE, DIRETOR, PEDRO, _demanda, _pessoa  # noqa: E402
 
 from app.config import settings  # noqa: E402
 from app.limiter import limiter  # noqa: E402
-from app.services import ai_processor, tecnologia_anexos  # noqa: E402
+from app.services import ai_processor  # noqa: E402
 from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
 
 # Outra pessoa da diretoria: Super admin, sem login do GitHub.
@@ -76,20 +75,6 @@ def _demandas_de_dois_autores() -> list[dict]:
 
 def _participantes() -> list[dict]:
     return [PEDRO, DIRETOR, OUTRO_DIRETOR]
-
-
-def _conversa_do_diretor_com_print(monkeypatch):
-    """O diretor conversa com o agente e manda um print; devolve o banco e o id."""
-    client, sb, _ = _cenario(monkeypatch, logado=DIRETOR, participantes=_participantes())
-    demanda_id = _comecar(client, monkeypatch, mensagem="Onde isso aconteceu?")
-    demanda = next(d for d in sb.tabelas["tecnologia_demandas"] if d["id"] == demanda_id)
-    tecnologia_anexos.anexar(sb, demanda=demanda, nome="tela.png", conteudo=PNG, quem_id=DIRETOR["id"])
-    return sb, demanda_id
-
-
-def _como(logado: dict, sb, monkeypatch):
-    client, _, _ = _montar(logado=logado, supabase=sb, monkeypatch=monkeypatch)
-    return client
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -206,61 +191,7 @@ class TestQuemSou:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 3. A leitura de uma conversa
-# ═══════════════════════════════════════════════════════════════════════════
-
-
-class TestLeituraDaConversa:
-    def test_o_desenvolvedor_abre_a_demanda_de_outro_autor_e_le_a_entrevista_e_os_anexos(self, monkeypatch):
-        sb, demanda_id = _conversa_do_diretor_com_print(monkeypatch)
-
-        resposta = _como(PEDRO, sb, monkeypatch).get(f"{CHAT}/{demanda_id}")
-
-        assert resposta.status_code == 200, resposta.text
-        conversa = resposta.json()
-        assert [(f["autor"], f["texto"]) for f in conversa["mensagens"]][-1] == ("ia", "Onde isso aconteceu?")
-        assert any(f["autor"] == "diretor" for f in conversa["mensagens"])
-        [anexo] = conversa["anexos_da_demanda"]
-        assert anexo["nome"] == "tela.png"
-        assert anexo["url"].startswith("https://storage.local/")
-
-    def test_super_admin_sem_login_do_github_abre_a_de_outro_autor_sem_os_anexos(self, monkeypatch):
-        """Issue #2265: todo Super admin lê a conversa; os Anexos continuam do
-        Desenvolvedor."""
-        sb, demanda_id = _conversa_do_diretor_com_print(monkeypatch)
-
-        resposta = _como(OUTRO_DIRETOR, sb, monkeypatch).get(f"{CHAT}/{demanda_id}")
-
-        assert resposta.status_code == 200, resposta.text
-        assert resposta.json()["mensagens"][-1]["texto"] == "Onde isso aconteceu?"
-        assert resposta.json()["anexos_da_demanda"] == []
-
-    def test_o_autor_le_a_propria_conversa_sem_a_lista_dos_anexos(self, monkeypatch):
-        sb, demanda_id = _conversa_do_diretor_com_print(monkeypatch)
-
-        resposta = _como(DIRETOR, sb, monkeypatch).get(f"{CHAT}/{demanda_id}")
-
-        assert resposta.status_code == 200, resposta.text
-        conversa = resposta.json()
-        assert conversa["anexos"] == 1
-        assert conversa["anexos_da_demanda"] == []
-        assert "storage.local" not in resposta.text
-
-    @pytest.mark.parametrize("logado", [DIRETOR, PEDRO], ids=["autor", "desenvolvedor"])
-    def test_o_detalhe_da_demanda_traz_o_numero_da_demanda(self, monkeypatch, logado):
-        """O número vem do banco no insert (issue #1585); aqui o banco falso
-        não tem a sequence, e o teste o grava como o default gravaria."""
-        sb, demanda_id = _conversa_do_diretor_com_print(monkeypatch)
-        next(d for d in sb.tabelas["tecnologia_demandas"] if d["id"] == demanda_id)["numero"] = 42
-
-        resposta = _como(logado, sb, monkeypatch).get(f"{CHAT}/{demanda_id}")
-
-        assert resposta.status_code == 200, resposta.text
-        assert resposta.json()["numero"] == 42
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 4. O Kit de conhecimento
+# 3. O Kit de conhecimento
 # ═══════════════════════════════════════════════════════════════════════════
 
 

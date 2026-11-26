@@ -213,29 +213,6 @@ class TestObservacao:
         assert modelo.chamadas == []
         assert sb.tabelas.get(TABELA, []) == []
 
-    def test_a_observacao_guardada_nao_entra_no_proximo_envio_da_conversa(self, monkeypatch):
-        """A linha da validação mora na tabela do Envio, mas não é envio da
-        Conversa: a mensagem que o diretor escreveu antes continua pendente."""
-        from app.services import tecnologia_envio_aos_desenvolvedores as envio
-
-        conversa = [
-            {
-                "id": "m-1",
-                "demanda_id": DEMANDA,
-                "autor_id": DIRETOR["id"],
-                "texto": "Uma mensagem da Conversa",
-                "origem": "app",
-                "criado_em": "2026-11-19T10:00:00+00:00",
-            }
-        ]
-        cliente, sb = _cliente()
-        sb.tabelas["tecnologia_conversa_da_demanda"] = conversa
-        _ia(monkeypatch, json.dumps(INTERPRETACAO, ensure_ascii=False))
-        assert _validar(cliente).status_code == 201
-        sb.tabelas[TABELA][0]["estado"] = envio.ESTADO_ENVIADO
-
-        assert envio.mensagens_novas(sb, DEMANDA) == 1
-
 
 class TestMigration:
     def test_a_tabela_do_envio_ganha_a_origem_e_o_texto_original_com_o_recibo_166(self):

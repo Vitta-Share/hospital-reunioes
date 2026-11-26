@@ -52,6 +52,7 @@ import httpx
 from app.config import settings
 from app.services.tecnologia_vinculo import (
     FATO_AJUSTE_DO_PLANO,
+    FECHAMENTO_NAO_PLANEJADA,  # noqa: F401 (o `tecnologia_perguntas` le daqui)
     bloco_para_o_diretor,
     e_card_de_implantacao,
 )

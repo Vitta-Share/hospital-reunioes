@@ -442,17 +442,17 @@ def test_a_varredura_enxerga_as_rotas_da_aba():
     """Controle, antes de qualquer asserção sobre a matriz: varredura vazia
     satisfaz "toda rota responde 403" sem olhar rota nenhuma.
 
-    O piso é o número de operações que a aba publica hoje, desde que ela virou
-    o chat do agente (issue #1386, ADR 0077): a lista e o primeiro turno, ler e
-    responder a conversa, o "Não bateu", o "Fechar e resumir", o "Criar o card"
-    e a leitura do print. Ele acompanha a aba de propósito. Um piso que ficasse
+    O piso é o número de operações que a aba publica hoje, desde que ela ficou
+    só com o Quadro e as Entregas (issue #2279, ADR 0113, decisão 7): o "quem
+    sou", os Desenvolvedores, os Projetos, a lista e as Entregas. Ele acompanha
+    a aba de propósito. Um piso que ficasse
     para trás deixaria de guardar as rotas novas: bastaria um refactor mover o
     chat para outro prefixo para a varredura cair, este teste continuar VERDE e
     as rotas saírem da matriz de 403 em silêncio, que é a morte por varredura
     parcial das issues #542 e #546. Fatia que acrescentar rota sobe o número
     junto.
     """
-    assert len(ROTAS) >= 8, f"a varredura só achou {len(ROTAS)} rotas em {PREFIXO}: {ROTAS}"
+    assert len(ROTAS) >= 5, f"a varredura só achou {len(ROTAS)} rotas em {PREFIXO}: {ROTAS}"
 
 
 PERSONAS_SEM_ACESSO = {

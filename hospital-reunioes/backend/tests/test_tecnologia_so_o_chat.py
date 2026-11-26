@@ -1,12 +1,13 @@
-"""A aba Tecnologia é o chat do agente, e só (issue #1386, PRD #1380, ADR 0077).
+"""A aba Tecnologia só lê: o Quadro e as Entregas (issue #2279, PRD #2262, ADR 0113, decisões 6 e 7).
 
-Saíram do código o Quadro, o Painel, a tela de Produtos, o formulário à mão, a
-Conversa da Demanda espelhada com a issue, as menções, o e-mail da Tecnologia,
-o Vínculo por número, a rota antiga do Assistente de entrada e a tela antiga do
-Planejamento da Demanda. Ficam as rotas do chat, a leitura do print, o webhook
-do GitHub que deriva a Etapa, a rota de automação dos anexos e o cron deles
-(o cron tem os testes dele em `test_tecnologia_anexos.py` e
-`test_tecnologia_webhook_github.py`).
+Desde a issue #1386 (ADR 0077) a aba era o chat do agente. Saíram, nesta
+fatia, o chat com o Planejamento e o Criar o card, a Conversa da Demanda, o
+Envio aos desenvolvedores, a lista Esperando você com os cartões de Pergunta e
+Passo a passo, o Me explique, o Revisar, o Apagar, o Reenviar, o Designar de
+novo, o seletor de modelo e a leitura do print. Ficam as leituras da aba, o
+webhook do GitHub que deriva a Etapa e a rota de automação dos anexos. A
+prova por chamada HTTP de que cada rota que saiu responde 404 mora em
+`test_tecnologia_so_quadro_e_entregas.py`; aqui é o schema inteiro.
 """
 
 from __future__ import annotations
@@ -18,53 +19,20 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 PREFIXO_DA_ABA = "/api/admin/tecnologia"
 
-# As rotas que a tela do chat chama, e só elas. Escritas à mão, e não lidas do
-# router: a lista é o que a ADR 0077 deixou de pé.
+# As rotas que a aba chama, e só elas. Escritas à mão, e não lidas do router:
+# desde a issue #2279 (ADR 0113, decisões 6 e 7) a aba só lê o Quadro e as
+# Entregas, e o chat, a Conversa da Demanda e os Pedidos da Vitta saíram.
 ROTAS_DO_CHAT = {
-    "/api/admin/tecnologia/chat",
-    "/api/admin/tecnologia/chat/{demanda_id}",
-    "/api/admin/tecnologia/chat/{demanda_id}/nao-bateu",
-    "/api/admin/tecnologia/chat/{demanda_id}/resumo",
-    "/api/admin/tecnologia/chat/{demanda_id}/criar-card",
-    # O "Reenviar" do Envio falhou (issue #1535), pela mesma porta do card.
-    "/api/admin/tecnologia/chat/{demanda_id}/reenviar",
-    # O "Designar de novo" da issue que nasceu sem o Responsável (issue #1536).
-    "/api/admin/tecnologia/chat/{demanda_id}/designar-de-novo",
-    "/api/admin/tecnologia/assistente/descrever-imagem",
-    # O documento do chat (issue #1520), irmã da leitura do print.
-    "/api/admin/tecnologia/assistente/ler-documento",
-    # Se quem esta logado e Desenvolvedor (issue #1531, ADR 0083): o filtro
-    # "Todas" da lista depende dela.
+    # Se quem esta logado e Desenvolvedor (issue #1531, ADR 0083).
     "/api/admin/tecnologia/eu",
-    # O "Quem cuida disto?" do resumo (issue #1533, ADR 0083, decisão 5).
+    # As opcoes do filtro Responsavel (issue #1533, ADR 0083, decisao 5).
     "/api/admin/tecnologia/desenvolvedores",
-    # A Conversa da Demanda volta, só no app (issue #1537, ADR 0083, decisão 8).
-    "/api/admin/tecnologia/chat/{demanda_id}/conversa",
-    # O Envio aos desenvolvedores (issue #2011, ADR 0108): o "Entendi assim:"
-    # e o "Enviar".
-    "/api/admin/tecnologia/chat/{demanda_id}/conversa/interpretar",
-    "/api/admin/tecnologia/chat/{demanda_id}/conversa/enviar",
+    # O Quadro e a lista do celular (issue #1384).
+    "/api/admin/tecnologia/chat",
     # A aba Entregas, só leitura (issue #1556, ADR 0084, decisão 8).
     "/api/admin/tecnologia/entregas",
-    # A Revisão com o código de hoje (issue #1557): a estimativa e o confirmar.
-    "/api/admin/tecnologia/chat/{demanda_id}/revisao",
-    # O Atualizar o card no fim da revisão (issue #1558).
-    "/api/admin/tecnologia/chat/{demanda_id}/atualizar-card",
-    # O seletor de modelo da Demanda (issue #1921).
-    "/api/admin/tecnologia/chat/{demanda_id}/modelo",
     # As opções do filtro Projeto, com os projetos novos da Vitta (issue #1967).
     "/api/admin/tecnologia/projetos",
-    # A lista Esperando você, os Pedidos da Vitta abertos de todos os
-    # Projetos (issue #2118, ADR 0109, decisão 5; ADR 0110).
-    "/api/admin/tecnologia/perguntas/esperando",
-    # O Passo a passo da Vitta: o check, o Concluir e o Reenviar (issue #2176, ADR 0110).
-    "/api/admin/tecnologia/perguntas/{pergunta_id}/checks",
-    "/api/admin/tecnologia/perguntas/{pergunta_id}/concluir",
-    "/api/admin/tecnologia/perguntas/{pergunta_id}/reenviar",
-    # A resposta à Pergunta da Vitta no cartão (issue #2119, ADR 0109).
-    "/api/admin/tecnologia/perguntas/{pergunta_id}/resposta",
-    # O Me explique no cartão da Pergunta (issue #2122, ADR 0109, decisão 8).
-    "/api/admin/tecnologia/perguntas/{pergunta_id}/me-explique",
 }
 
 # O que fica de fora da aba e continua de pé (critério 2 da issue).
@@ -86,7 +54,7 @@ def _caminhos_do_app() -> dict:
         app.openapi_schema = cache
 
 
-def test_a_aba_tecnologia_so_tem_as_rotas_do_chat():
+def test_a_aba_tecnologia_so_tem_as_rotas_de_leitura():
     caminhos = _caminhos_do_app()
 
     assert len(caminhos) > 50, "O schema voltou quase vazio: a varredura estaria olhando para nada"

@@ -31,8 +31,6 @@ from app.services.paginacao import ler_tudo
 from app.services.tecnologia import TABELA_CONVERSA_DA_DEMANDA, e_desenvolvedor, quem_avisar
 from app.services.tecnologia_vinculo import normalizar_github_login
 
-# A origem da mensagem (CHECK da migration 161). A tela nao mostra: o banco guarda.
-ORIGEM_APP = "app"
 ORIGEM_TERMINAL = "terminal"
 
 

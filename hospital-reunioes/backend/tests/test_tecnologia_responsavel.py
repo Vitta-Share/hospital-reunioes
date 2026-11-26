@@ -1,12 +1,8 @@
-"""O diretor escolhe o Responsável antes de "Criar o card" (issue #1533, PRD #1529, ADR 0083, decisão 5).
+"""O Responsavel da Demanda na lista (issue #1533, PRD #1529, ADR 0083, decisao 5).
 
-No resumo, "Quem cuida disto?" lista os Desenvolvedores (o Super admin com
-login do GitHub no cadastro). O escolhido vira o Responsável da Demanda e o
-assignee da issue; sem escolha, bug e melhoria nascem designados ao login do
-dono que já está na configuração. A lista mostra o Responsável em cada linha e
-o Desenvolvedor ganha o filtro "Para mim".
-
-Tudo pela ROTA, com o modelo e o GitHub dublados no molde de `test_tecnologia_chat`.
+O "Quem cuida disto?" do resumo saiu com o chat (issue #2279, ADR 0113,
+decisao 7). Ficam a lista dos Desenvolvedores, que da as opcoes do filtro
+Responsavel, o Responsavel em cada linha e o filtro "Para mim".
 """
 
 from __future__ import annotations
@@ -20,18 +16,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from test_tecnologia_chat import (  # noqa: E402
     CHAT,
-    _ate_o_resumo,
     _cenario,
-    _demandas,
     _integracao_configurada,  # noqa: F401
     _llm_em_mock,  # noqa: F401
     _reset_rate_limiter,  # noqa: F401
 )
-from test_tecnologia_chat_melhoria import _ate_o_resumo as _ate_o_resumo_da_melhoria  # noqa: E402
 from test_tecnologia_vinculo import BASE, DIRETOR, PEDRO, _demanda, _pessoa  # noqa: E402
 
 from app.config import settings  # noqa: E402
-from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
 
 RIB = _pessoa("P4", "Pedro Rib", github_login="pedrorib")
 LUCAS = _pessoa("P5", "Lucas Sampaio", github_login="lucas-sampaio")
@@ -48,12 +40,6 @@ def _participantes() -> list[dict]:
 @pytest.fixture(autouse=True)
 def _dono_na_configuracao(monkeypatch):
     monkeypatch.setattr(settings, "github_login_dono", "pedrorezendefig")
-
-
-def _resumo(client, sb, monkeypatch, tipo: str) -> str:
-    if tipo == "bug":
-        return _ate_o_resumo(client, monkeypatch)
-    return _ate_o_resumo_da_melhoria(client, sb, monkeypatch)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -89,74 +75,9 @@ class TestSeletor:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-class TestAssignee:
-    @pytest.mark.parametrize("tipo", ["bug", "melhoria"])
-    def test_com_responsavel_escolhido_o_assignee_e_o_login_dele(self, monkeypatch, tipo):
-        client, sb, gh = _cenario(monkeypatch, participantes=_participantes())
-        demanda_id = _resumo(client, sb, monkeypatch, tipo)
-
-        resposta = client.post(f"{CHAT}/{demanda_id}/criar-card", json={"responsavel_id": "P5"})
-
-        assert resposta.status_code == 200, resposta.text
-        assert gh.criadas[0]["assignees"] == ["lucas-sampaio"]
-        assert _demandas(sb)[0]["responsavel_id"] == "P5"
-
-    @pytest.mark.parametrize("tipo", ["bug", "melhoria"])
-    def test_sem_escolha_o_assignee_e_o_login_do_dono_e_o_card_nasce_sem_erro(self, monkeypatch, tipo):
-        monkeypatch.setattr(settings, "github_login_dono", "lucas-sampaio")
-        client, sb, gh = _cenario(monkeypatch, participantes=_participantes())
-        demanda_id = _resumo(client, sb, monkeypatch, tipo)
-
-        resposta = client.post(f"{CHAT}/{demanda_id}/criar-card")
-
-        assert resposta.status_code == 200, resposta.text
-        assert resposta.json()["estado"] == "enviado"
-        assert gh.criadas[0]["assignees"] == ["lucas-sampaio"]
-        assert _demandas(sb)[0]["github_issue_numero"] == 900
-        assert _demandas(sb)[0]["responsavel_id"] == "P5"
-
-    def test_escolha_vazia_conta_como_sem_escolha(self, monkeypatch):
-        client, sb, gh = _cenario(monkeypatch, participantes=_participantes())
-        demanda_id = _resumo(client, sb, monkeypatch, "bug")
-
-        resposta = client.post(f"{CHAT}/{demanda_id}/criar-card", json={"responsavel_id": None})
-
-        assert resposta.status_code == 200, resposta.text
-        assert gh.criadas[0]["assignees"] == ["pedrorezendefig"]
-
-    @pytest.mark.parametrize("fora_da_lista", ["P2", "P6", "nao-existe"])
-    def test_quem_nao_e_desenvolvedor_nao_vira_responsavel(self, monkeypatch, fora_da_lista):
-        client, sb, gh = _cenario(monkeypatch, participantes=_participantes())
-        demanda_id = _resumo(client, sb, monkeypatch, "bug")
-
-        resposta = client.post(f"{CHAT}/{demanda_id}/criar-card", json={"responsavel_id": fora_da_lista})
-
-        assert resposta.status_code == 422, resposta.text
-        assert gh.criadas == []
-        assert _demandas(sb)[0].get("github_issue_numero") is None
-
-
 # ═══════════════════════════════════════════════════════════════════════════
 # 3. As labels de sempre
 # ═══════════════════════════════════════════════════════════════════════════
-
-
-class TestLabels:
-    @pytest.mark.parametrize(
-        ("tipo", "labels"),
-        [
-            ("bug", ["origem:diretor", "ready-for-agent", "type:fix"]),
-            ("melhoria", ["needs-triage", "origem:diretor", "type:feature"]),
-        ],
-    )
-    def test_com_responsavel_o_bug_nasce_pronto_e_a_melhoria_na_triagem(self, monkeypatch, tipo, labels):
-        client, sb, gh = _cenario(monkeypatch, participantes=_participantes())
-        demanda_id = _resumo(client, sb, monkeypatch, tipo)
-
-        assert client.post(f"{CHAT}/{demanda_id}/criar-card", json={"responsavel_id": "P4"}).status_code == 200
-
-        assert sorted(gh.criadas[0]["labels"]) == labels
-        assert gh.criadas[0]["assignees"] == ["pedrorib"]
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -226,19 +147,3 @@ class TestLista:
 # ═══════════════════════════════════════════════════════════════════════════
 # 5. O Kit de conhecimento
 # ═══════════════════════════════════════════════════════════════════════════
-
-
-class TestKit:
-    def test_o_kit_diz_o_comportamento_novo_do_responsavel(self):
-        """O Assistente fala com o diretor pela língua do Kit: sem a regra
-        escrita, ele diria que o card vai sempre para o Pedro."""
-        texto = (CONHECIMENTO_DIR / "tecnologia.md").read_text(encoding="utf-8")
-        decidido = texto.split("## O que já foi decidido", 1)[1]
-        quem_ve = texto.split("## Quem vê", 1)[1].split("\n## ", 1)[0]
-
-        for trecho in ("Quem cuida disto?", "Pedro Rezende", "Pedro Rib", "Lucas Sampaio", "opcional"):
-            assert trecho in texto, trecho
-        assert "Quem cuida disto?" in decidido
-        for trecho in ("Para mim", "Responsável"):
-            assert trecho in quem_ve, trecho
-        assert "chega primeiro ao Pedro" not in texto

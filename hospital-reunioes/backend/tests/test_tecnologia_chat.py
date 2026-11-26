@@ -66,5 +66,3 @@ def _demandas(sb) -> list[dict]:
 
 def _conversas(sb) -> list[dict]:
     return sb.tabelas.setdefault("tecnologia_planejamentos", [])
-
-

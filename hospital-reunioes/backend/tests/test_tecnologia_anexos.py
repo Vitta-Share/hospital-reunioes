@@ -20,9 +20,7 @@ import os
 import sys
 from datetime import UTC, datetime, timedelta
 
-import httpx
 import pytest
-from postgrest.exceptions import APIError
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 

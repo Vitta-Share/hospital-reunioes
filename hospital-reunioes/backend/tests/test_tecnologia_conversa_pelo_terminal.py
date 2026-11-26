@@ -27,8 +27,7 @@ from slowapi.errors import RateLimitExceeded
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from test_tecnologia_vinculo import BASE as BASE_DA_TELA  # noqa: E402
-from test_tecnologia_vinculo import _demanda, _montar, _pessoa, _SupabaseMock  # noqa: E402
+from test_tecnologia_vinculo import _demanda, _pessoa, _SupabaseMock  # noqa: E402
 
 from app.config import settings  # noqa: E402
 from app.dependencies import get_supabase_client  # noqa: E402
@@ -303,29 +302,6 @@ class TestEscreverSemDemanda:
 
         assert resposta.status_code == 422
         assert sb.tabelas["tecnologia_conversa_da_demanda"] == []
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# A origem da mensagem escrita pela tela
-# ═══════════════════════════════════════════════════════════════════════════
-
-
-class TestAOrigemDaTela:
-    def test_a_mensagem_escrita_pelo_app_grava_a_origem_app(self, monkeypatch):
-        """A mesma tabela, pela rota da aba Tecnologia: a tela continua igual
-        por fora e a linha passa a dizer de onde veio."""
-        client, sb, _ = _montar(
-            logado=DIRETOR,
-            participantes=CADASTRO,
-            demandas=[_demanda_do_diretor()],
-            monkeypatch=monkeypatch,
-        )
-
-        resposta = client.post(f"{BASE_DA_TELA}/chat/{DEMANDA}/conversa", json={"texto": "Aconteceu de novo."})
-
-        assert resposta.status_code == 201, resposta.text
-        [linha] = sb.tabelas["tecnologia_conversa_da_demanda"]
-        assert (linha["autor_id"], linha["origem"]) == (DIRETOR["id"], "app")
 
 
 # ═══════════════════════════════════════════════════════════════════════════

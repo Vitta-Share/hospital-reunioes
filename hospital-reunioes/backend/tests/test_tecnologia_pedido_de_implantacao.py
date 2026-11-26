@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import os
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 import httpx
 import pytest
@@ -168,125 +168,10 @@ class TestNascerFechaOCard:
         [pedido] = sb.tabelas[TABELA]
         assert (pedido["estado"], pedido["fechamento_github"]) == ("aberta", "fechado")
 
-    def test_o_github_recusando_deixa_o_pedido_criado_com_o_motivo_e_o_reenviar(self, monkeypatch, github):
-        github["status"] = 403
-        ponte, sb = _ponte()
-
-        resposta = _criar(ponte)
-
-        assert resposta.status_code == 201, resposta.text
-        [pedido] = sb.tabelas[TABELA]
-        assert (pedido["estado"], pedido["fechamento_github"]) == ("aberta", "falhou")
-        cartao = _tela(sb, DIRETORA, monkeypatch).get("/api/admin/tecnologia/perguntas/esperando").json()[0]
-        assert cartao["fechamento"] == {"estado": "falhou", "motivo": "O GitHub não aceitou (GitHub respondeu 403)."}
-        assert cartao["pode_reenviar"] is True
-
-        github["status"] = 200
-        github["chamadas"].clear()
-        reenviado = _reenviar(sb, DIRETORA, pedido["id"], monkeypatch)
-
-        assert reenviado.status_code == 200, reenviado.text
-        assert reenviado.json()["fechamento"] == {"estado": "fechado", "motivo": None}
-        assert reenviado.json()["estado"] == "aberta"
-        assert _comentarios(github) == [COMENTARIO_DO_NASCIMENTO]
-        assert _fechamentos(github) == [{"state": "closed", "state_reason": "completed"}]
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 # O cartão na Esperando você, e o Concluir
 # ═══════════════════════════════════════════════════════════════════════════
-
-
-class TestCartao:
-    def test_o_cartao_aparece_na_esperando_voce_com_os_checks(self, monkeypatch):
-        _, sb, pedido_id = _uma_implantacao()
-        _marcar(sb, DIRETORA, pedido_id, monkeypatch, 0)
-
-        lista = _tela(sb, DIRETORA, monkeypatch).get("/api/admin/tecnologia/perguntas/esperando").json()
-
-        [item] = lista
-        assert (item["tipo"], item["assunto"], item["estado"]) == (
-            "implantacao",
-            "testar o anonimato do Canal de Conduta",
-            "aberta",
-        )
-        assert [(p["texto"], p["marcado"]) for p in item["passos"]] == [
-            (PASSOS[0], True),
-            (PASSOS[1], False),
-            (PASSOS[2], False),
-        ]
-        assert item["pode_responder"] is True
-
-    def test_o_concluir_so_libera_com_todos_os_checks_marcados(self, monkeypatch, github):
-        _, sb, pedido_id = _uma_implantacao()
-        _marcar(sb, DIRETORA, pedido_id, monkeypatch, 0)
-        _marcar(sb, DIRETORA, pedido_id, monkeypatch, 1)
-        github["chamadas"].clear()
-
-        resposta = _concluir(sb, DIRETORA, pedido_id, monkeypatch)
-
-        assert resposta.status_code == 422
-        assert resposta.json() == {"detail": tecnologia_perguntas.MOTIVO_FALTA_CHECK}
-        assert sb.tabelas[TABELA][0]["estado"] == "aberta"
-        assert github["chamadas"] == []
-
-
-class TestConcluir:
-    def test_concluir_comenta_na_issue_fechada_e_nao_chama_o_fechamento(self, monkeypatch, github):
-        _, sb, pedido_id = _uma_implantacao()
-        _marcar_todos(sb, DIRETORA, pedido_id, monkeypatch)
-        github["chamadas"].clear()
-        monkeypatch.setattr(tecnologia_perguntas, "_agora", lambda: datetime(2026, 11, 22, 17, 30, tzinfo=UTC))
-
-        resposta = _concluir(sb, DIRETORA, pedido_id, monkeypatch, anotacao=ANOTACAO)
-
-        assert resposta.status_code == 200, resposta.text
-        assert _fechamentos(github) == []
-        assert _comentarios(github) == [
-            "<!-- pedido-da-vitta: implantacao-concluida -->\n"
-            "Pedido de implantação concluído no app em 22/11 às 14:30, pelo Destinatário (Diretoria).\n"
-            "\n"
-            f"- [x] {PASSOS[0]}\n"
-            f"- [x] {PASSOS[1]}\n"
-            f"- [x] {PASSOS[2]}"
-        ]
-        assert all(f"/issues/{CARD}/comments" in url for _, url, _ in github["chamadas"])
-        [pedido] = sb.tabelas[TABELA]
-        assert (pedido["estado"], pedido["concluida_como"], pedido["concluida_por"]) == (
-            "concluida",
-            "app",
-            DIRETORA["id"],
-        )
-        # O fechamento é o do nascimento: o Concluir não o regrava.
-        assert pedido["fechamento_github"] == "fechado"
-        assert resposta.json()["pergunta"]["estado"] == "concluida"
-        assert ("Pedido de implantação concluído: testar o anonimato do Canal de Conduta", "sistema") in [
-            (m["texto"], m["origem"]) for m in sb.tabelas[CONVERSA]
-        ]
-
-    def test_o_comentario_da_conclusao_nao_leva_nome_nem_a_anotacao(self, monkeypatch, github):
-        _, sb, pedido_id = _uma_implantacao()
-        _marcar_todos(sb, DIRETORA, pedido_id, monkeypatch)
-        github["chamadas"].clear()
-
-        _concluir(sb, DIRETORA, pedido_id, monkeypatch, anotacao=ANOTACAO)
-
-        [comentario] = _comentarios(github)
-        assert "Diretora Clínica" not in comentario
-        assert "Fernanda" not in comentario
-
-    def test_o_comentario_que_falha_nao_desfaz_a_conclusao(self, monkeypatch, github):
-        _, sb, pedido_id = _uma_implantacao()
-        _marcar_todos(sb, DIRETORA, pedido_id, monkeypatch)
-        github["chamadas"].clear()
-        github["status"] = 502
-
-        resposta = _concluir(sb, DIRETORA, pedido_id, monkeypatch)
-
-        assert resposta.status_code == 200, resposta.text
-        [pedido] = sb.tabelas[TABELA]
-        assert (pedido["estado"], pedido["fechamento_github"]) == ("concluida", "fechado")
-        assert _fechamentos(github) == []
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -307,18 +192,6 @@ class TestWebhook:
         assert resposta.status_code == 200, resposta.text
         assert sb.tabelas[TABELA][0] == antes
         assert len(sb.tabelas[CONVERSA]) == conversa
-
-    def test_o_card_reaberto_por_fora_nao_reabre_a_implantacao_concluida(self, monkeypatch, webhook):  # noqa: F811
-        _, sb, pedido_id = _uma_implantacao()
-        _marcar_todos(sb, DIRETORA, pedido_id, monkeypatch)
-        _concluir(sb, DIRETORA, pedido_id, monkeypatch)
-        antes = dict(sb.tabelas[TABELA][0])
-        checks = len(sb.tabelas[CHECKS])
-
-        webhook(sb, "reopened", numero=CARD)
-
-        assert sb.tabelas[TABELA][0] == antes
-        assert len(sb.tabelas[CHECKS]) == checks
 
     def test_o_mesmo_evento_continua_mudando_o_passo_a_passo(self, webhook):  # noqa: F811
         ponte, sb = _ponte()

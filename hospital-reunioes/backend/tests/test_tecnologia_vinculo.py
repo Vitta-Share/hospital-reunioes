@@ -54,7 +54,6 @@ from app.services.tecnologia_vinculo import (  # noqa: E402
     ETAPA_PLANEJADA,
     ETAPA_REGISTRADA,
     ETAPAS,
-    LABEL_TRIAGEM,
     MOTIVO_LOGIN_INVALIDO,
     bloco_para_o_diretor,
     corpo_da_issue_do_bug,
