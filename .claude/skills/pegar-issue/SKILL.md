@@ -77,6 +77,16 @@ git fetch origin && git worktree add ../<projeto>-issue-<N> -b <type>/<slug>-<N>
 ```
 Siga o trabalho dentro de `../<projeto>-issue-<N>`. Não dependa de `git pull` na árvore principal: pode estar semanas atrasada que a branch nasce do que está em produção agora (issue #1081).
 
+**PR do diretor** (ADR 0113, decisão 3). A fatia que tem o link de um PR na seção "Protótipo" continua no PR rascunho do diretor, sem branch nova. Crie o worktree sem branch e rode o script dentro dele:
+```bash
+git fetch origin && git worktree add --detach ../<projeto>-issue-<N> origin/main
+python3 .claude/skills/pegar-issue/scripts/pr_do_diretor.py <N>
+```
+- Linha `assumido: #<PR> na branch <branch>`: o script fez o `gh pr checkout` da branch do fork e pôs a label `assumido` pela sua sessão, que é o que o check `PR do diretor assumido` espera. Trabalhe nessa branch; o `git push` vai para o fork pela edição por mantenedores. O `/ship` usa esse PR (seção "PR do diretor" dele).
+- Nada impresso (ou só um `aviso:`): a fatia não tem PR do diretor aberto. Crie a branch de sempre no worktree: `git switch -c <type>/<slug>-<N>`.
+- Saída 3 (`tarefa do diretor: #<T> ...`): o PR está sem edição por mantenedores. O script criou a Tarefa do diretor pedindo para ligar, e a fatia ficou bloqueada por ela. Devolva a fatia ao pool (comandos de "Abandonou?", abaixo) e pare.
+- Saída 4: quem roda é o diretor, e o PR dele não é assumido pela sessão dele. Pare.
+
 `<projeto>` é o `slug` de `python3 .claude/skills/onda-enxuta/scripts/fluxo.py slug`.
 
 ### 7. Carregar contexto e seguir sem parar

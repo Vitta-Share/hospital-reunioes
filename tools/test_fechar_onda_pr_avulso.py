@@ -428,6 +428,14 @@ class Cenario:
                               cwd=self.remoto, capture_output=True, text=True)
         return proc.stdout.strip() or None
 
+    def _head(self, pr: dict) -> str | None:
+        """A ponta do PR: a branch deste repositório ou, no PR de fork, a `refs/pull/<n>/head`."""
+        if not pr.get("isCrossRepository"):
+            return self._tip(pr["headRefName"])
+        proc = subprocess.run(["git", "rev-parse", "--verify", "-q", f"refs/pull/{pr['number']}/head"],
+                              cwd=self.remoto, capture_output=True, text=True)
+        return proc.stdout.strip() or None
+
     def _atras(self, head: str) -> bool:
         return subprocess.run(["git", "merge-base", "--is-ancestor", "main", head],
                               cwd=self.remoto).returncode != 0
@@ -441,7 +449,7 @@ class Cenario:
 
     def ver_pr(self, n: int, campos: list[str]) -> dict:
         pr = dict(self.prs[n])
-        head = self._tip(pr["headRefName"]) or pr.get("headRefOid")
+        head = self._head(pr) or pr.get("headRefOid")
         pr["headRefOid"] = head
         pr["statusCheckRollup"] = [{"name": "Backend Lint, Format & Tests", "status": "COMPLETED",
                                     "conclusion": "FAILURE" if head in self.ci_vermelho else "SUCCESS"}]
@@ -487,7 +495,7 @@ class Cenario:
         com a main, e apaga a branch do PR depois do merge. Branch atrás da base
         entra (ADR 0064, decisão 2), salvo com o ruleset antigo ainda aplicado."""
         pr = self.prs[n]
-        head = self._tip(pr["headRefName"])
+        head = self._head(pr)
         if campos.get("merge_method") != "squash":
             raise RuntimeError("gh api -> 405: Merge commits are not allowed on this repository.")
         if campos.get("sha") != head:
@@ -502,7 +510,8 @@ class Cenario:
         antes = self.main_remota()
         novo = git(self.remoto, "commit-tree", arvore, "-p", antes, "-m", campos["commit_title"])
         git(self.remoto, "update-ref", "refs/heads/main", novo, antes)
-        git(self.remoto, "update-ref", "-d", f"refs/heads/{pr['headRefName']}")
+        if not pr.get("isCrossRepository"):  # a branch do fork não é apagada pelo merge
+            git(self.remoto, "update-ref", "-d", f"refs/heads/{pr['headRefName']}")
         pr["state"] = "MERGED"
         pr["headRefOid"] = head
         self.merges.append({"pr": n, "head": head, "main": novo, "titulo": campos["commit_title"],
@@ -684,6 +693,42 @@ def test_um_pr_so_sem_sessao_faz_merge_bump_app_version_build_health_e_registro(
     assert entrada["app_version"] == "0.10.1"
     assert entrada["prds"] == [902]
     assert entrada["sha"] == codigo
+
+
+# ------------------------------------------- o PR do diretor vem do fork (#2300)
+
+def pr_do_diretor_no_fork(tmp_path: Path, labels: list[str]) -> Cenario:
+    """O PR rascunho do diretor assumido pela Vitta (ADR 0113, decisão 3): a branch mora no fork e,
+    neste repositório, o GitHub só guarda a `refs/pull/<n>/head`."""
+    c = pr_de_codigo(tmp_path)
+    git(c.remoto, "update-ref", "-d", "refs/heads/feature")
+    c.pr.update(isCrossRepository=True, headRefName="prototype/5-prazo",
+                labels=[{"name": n} for n in labels])
+    return c
+
+
+def test_pr_do_diretor_assumido_vem_do_fork_e_entra_pela_subida(tmp_path, monkeypatch):
+    fo = carregar_fechar_onda()
+    c = pr_do_diretor_no_fork(tmp_path, ["assumido"])
+    preparar(fo, monkeypatch, c)
+
+    assert rodar_main(fo, monkeypatch, c) == 0
+
+    entrega = c.merges[0]
+    assert entrega["pr"] == 7 and entrega["head"] == c.head_do_pr
+    assert c.na_main("hospital-reunioes/backend/app/prazo.py") == "PRAZO = 15"
+
+
+def test_pr_de_fork_sem_assumido_continua_fora_da_subida(tmp_path, monkeypatch):
+    fo = carregar_fechar_onda()
+    c = pr_do_diretor_no_fork(tmp_path, [])
+    preparar(fo, monkeypatch, c)
+
+    with pytest.raises(SystemExit) as e:
+        rodar_main(fo, monkeypatch, c)
+
+    assert e.value.code == fo.EXIT_PRECOND
+    assert c.merges == []
 
 
 # ------------------------------------------------ main sob o ruleset (#910)

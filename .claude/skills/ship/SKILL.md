@@ -27,6 +27,15 @@ Do código ao PR verde e, com os gates verdes, a subida (`fechar_onda.py`), sem 
 
 **Passo da issue** (ADR 0027): com `--issue N`, o `/ship` grava o Passo que o PedroOS mostra na linha da issue, da raiz do repositório: Revisão, Correção e Verde nos gates e o fim na baixa (Passo 8). A subida grava Mergeada depois do merge e encerra o Passo sozinha. Com `--skip-review` (o `onda-implementador`, dentro de uma Onda), o `/ship` não grava Passo: ali o Passo é o status que a Onda grava no Estado da Onda, e o PedroOS fica com o mais novo dos dois. O `passo.py` sempre sai 0: a linha `passo:` que ele imprimir é só aviso, e a skill segue.
 
+## PR do diretor
+
+Com `--issue N`, rode `python3 .claude/skills/pegar-issue/scripts/pr_do_diretor.py qual <N>` no pre-flight (ADR 0113, decisão 3). Linha `#<PR> <branch>` com a branch atual: a fatia continua o PR rascunho do diretor, que o `/pegar-issue` assumiu, e o `/ship` usa esse PR em vez de abrir outro. Muda em três pontos; o resto (gates, revisor, CI, subida) segue igual:
+- **Passo 1:** a branch é a do fork e não termina em `-<N>`; siga assim mesmo.
+- **Passo 7:** `git push`, sem `-u origin`: a branch já aponta para o fork (edição por mantenedores).
+- **Passo 8:** no lugar do `gh pr create`, `python3 .claude/skills/pegar-issue/scripts/pr_do_diretor.py pronto <N> --corpo <scratchpad>/pr-$BRANCH.md`. Ele tira o PR do rascunho, põe o corpo do template com o `Closes #<N>` da fatia e guarda o texto do diretor embaixo, em "Protótipo do diretor". O número que ele imprime é o `$PR` dos gates e da subida.
+
+Sem a linha, siga os passos como estão.
+
 ## Passos 1 a 8: branch, código, testes, commit, PR
 
 1. **Pre-flight:** `git fetch origin`. Arquivo alheio no working tree fica de fora do commit, sem perguntar. Com `--issue N` fora da `main`, a branch tem que terminar em `-<N>`; senão, pare (a árvore pode ser de outra sessão).

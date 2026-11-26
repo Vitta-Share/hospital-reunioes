@@ -392,7 +392,7 @@ def checar_pre_condicoes(raiz: Path, prs: list[int], dry: bool,
             info = gh_json(["pr", "view", str(n), "--json",
                             "number,state,mergeable,mergeStateStatus,statusCheckRollup,headRefName,"
                             "headRefOid,isCrossRepository,baseRefName,title,files,commits,url,"
-                            "closingIssuesReferences,body"], cwd=raiz)
+                            "closingIssuesReferences,body,labels"], cwd=raiz)
             if info.get("mergeable") != "UNKNOWN":
                 break
             time.sleep(5)
@@ -690,7 +690,9 @@ def entrar_na_branch_do_pr(wt: Path, info: dict) -> str:
     merge do PR anterior do lote), so confere, sem commit nem push, que entra
     sem conflito. Devolve o head."""
     n, branch = info["number"], info["headRefName"]
-    run(["git", "fetch", "-q", "origin", f"+refs/heads/{branch}:refs/remotes/origin/{branch}"], cwd=wt)
+    # o PR do diretor assumido (#2300) vem do fork: aqui so existe a refs/pull/<n>/head
+    origem = f"refs/pull/{n}/head" if info.get("isCrossRepository") else f"refs/heads/{branch}"
+    run(["git", "fetch", "-q", "origin", f"+{origem}:refs/remotes/origin/{branch}"], cwd=wt)
     run(["git", "checkout", "-q", "--detach", f"origin/{branch}"], cwd=wt)
     ponta = run(["git", "rev-parse", "HEAD"], cwd=wt).stdout.strip()
     # um push no PR durante a espera da migration entraria sem a conferencia do sha256
@@ -834,6 +836,8 @@ def rebasear_empilhado(wt: Path, info: dict, entraram: list[dict]) -> None:
                      check=False).returncode == 0]
     if not dentro:
         return
+    if info.get("isCrossRepository"):
+        raise EntregaFalhou(f"#{n} vem do fork e esta empilhado sobre um irmao: rebaseie na branch do fork")
     run(["git", "checkout", "-q", "--detach", head], cwd=wt)
     if run(["git", "rebase", "-q", "--onto", "origin/main", dentro[-1]], cwd=wt, check=False).returncode != 0:
         conflitos = run(["git", "diff", "--name-only", "--diff-filter=U"], cwd=wt, check=False).stdout.split()
@@ -1818,10 +1822,12 @@ def main() -> int:
     SEM_SEMAFORO = not precisa_semaforo(raiz, plataforma)
 
     infos, novas = checar_pre_condicoes(raiz, args.prs, args.dry_run, plataforma)
-    de_fork = " ".join(f"#{i['number']}" for i in infos if i.get("isCrossRepository"))
+    # o PR do diretor assumido (label `assumido`, ADR 0113 decisao 3, #2300) e o unico de fork que entra
+    de_fork = " ".join(f"#{i['number']}" for i in infos if i.get("isCrossRepository")
+                       and "assumido" not in {lb.get("name") for lb in i.get("labels") or []})
     if de_fork:
         falhar(f"pre-condicao: {de_fork} vem de um fork; a main entra na branch do PR, "
-               "que precisa estar neste repositorio.", EXIT_PRECOND)
+               "que precisa estar neste repositorio (fora o PR do diretor com a label assumido).", EXIT_PRECOND)
     prs_txt = " ".join(f"#{i['number']}" for i in infos)
     por_numero = {i["number"]: i for i in infos}  # com os que o bloqueio tira do lote adiante
     print(f"pre-condicoes ok: {prs_txt}, migrations sem numero repetido contra origin/main e com o sha256 do corpo"
