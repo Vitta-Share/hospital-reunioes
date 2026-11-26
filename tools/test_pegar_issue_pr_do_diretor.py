@@ -175,3 +175,101 @@ def test_fatia_com_o_pr_do_diretor_faz_checkout_da_branch_do_fork_sem_branch_nov
     assert estado["checkout"] == ["77"]
     assert feito.stdout.strip() == "assumido: #77 na branch prototype/902-relatorio-por-setor"
     assert not [c for c in chamadas if c[:2] == ["pr", "create"]]
+
+
+def test_label_assumido_entra_pela_sessao_de_quem_assumiu_e_o_check_passa(tmp_path):
+    from test_pr_do_diretor import rodar_check
+
+    feito, estado, _ = rodar(tmp_path, "2300")
+
+    assert feito.returncode == 0, feito.stderr
+    labels = [l["name"] for l in estado["prs"]["77"]["labels"]]
+    assert labels == ["assumido"]
+    assert estado["quem_pos"] == [QUEM_ASSUME]
+    assert rodar_check(DIRETOR, labels, diretor_logins=DIRETOR, quem_pos=estado["quem_pos"]) is None
+
+
+def test_sessao_do_proprio_diretor_nao_assume_o_pr(tmp_path):
+    feito, estado, _ = rodar(tmp_path, "2300", login=DIRETOR)
+
+    assert feito.returncode == 4
+    assert "checkout" not in estado
+    assert estado["prs"]["77"]["labels"] == []
+
+
+def test_sem_edicao_por_mantenedores_cria_a_tarefa_do_diretor_e_para(tmp_path):
+    feito, estado, _ = rodar(tmp_path, "2300", pr=pr_do_diretor(maintainerCanModify=False))
+
+    assert feito.returncode == 3
+    assert feito.stdout.strip().startswith("tarefa do diretor: #990;")
+    (tarefa,) = estado["criadas"]
+    assert tarefa["labels"] == ["ready-for-human"]
+    assert tarefa["assignees"] == [DIRETOR]
+    assert f"https://github.com/{REPO}/pull/77\n" in tarefa["corpo"]
+    assert "Allow edits and access to secrets by maintainers" in tarefa["corpo"]
+    assert "## Como saber que acabou" in tarefa["corpo"]
+    # a fatia espera a Tarefa (bloqueio nativo), que vira filha do PRD do "Pai"
+    assert estado["posts"] == [
+        [f"repos/{REPO}/issues/2300/dependencies/blocked_by", "issue_id=990000"],
+        [f"repos/{REPO}/issues/902/sub_issues", "sub_issue_id=990000"],
+    ]
+    # e a sessão para: nada de checkout nem label
+    assert "checkout" not in estado
+    assert estado["prs"]["77"]["labels"] == []
+
+
+def test_fatia_sem_prototipo_nao_mexe_em_pr_nenhum(tmp_path):
+    feito, estado, chamadas = rodar(tmp_path, "2300", corpo=FATIA_SEM_PROTOTIPO)
+
+    assert feito.returncode == 0, feito.stderr
+    assert feito.stdout == ""
+    assert "checkout" not in estado
+    assert not [c for c in chamadas if c[:1] == ["pr"]]
+
+
+def test_pr_do_prototipo_ja_fechado_avisa_e_segue_com_a_branch_de_sempre(tmp_path):
+    feito, estado, _ = rodar(tmp_path, "2300", pr=pr_do_diretor(state="CLOSED"))
+
+    assert feito.returncode == 0, feito.stderr
+    assert feito.stdout.startswith("aviso: o PR #77 do Protótipo está CLOSED")
+    assert "checkout" not in estado
+
+
+def test_qual_imprime_o_pr_e_a_branch_do_fork(tmp_path):
+    feito, _, _ = rodar(tmp_path, "qual", "2300")
+
+    assert feito.stdout.strip() == "#77 prototype/902-relatorio-por-setor"
+
+
+def test_ship_nao_abre_pr_novo_tira_o_do_diretor_do_rascunho_com_o_closes_da_fatia(tmp_path):
+    corpo_do_ship = tmp_path / "pr-corpo.md"
+    corpo_do_ship.write_text("## Valor entregue\n\n**O que muda:** sai por setor.\n\nCloses #2300\n", encoding="utf-8")
+
+    feito, estado, chamadas = rodar(tmp_path, "pronto", "2300", "--corpo", str(corpo_do_ship))
+
+    assert feito.returncode == 0, feito.stderr
+    assert feito.stdout.strip() == "77"
+    pr = estado["prs"]["77"]
+    assert pr["isDraft"] is False
+    assert pr["body"].startswith("## Valor entregue")
+    assert pr["body"].count("Closes #2300") == 1
+    # o que o diretor escreveu fica, embaixo
+    assert "## Protótipo do diretor\n\nO protótipo responde se o relatório por setor faz sentido." in pr["body"]
+    assert not [c for c in chamadas if c[:2] == ["pr", "create"]]
+
+
+def test_pronto_sem_corpo_novo_acrescenta_o_closes_ao_corpo_do_diretor(tmp_path):
+    feito, estado, _ = rodar(tmp_path, "pronto", "2300")
+
+    assert feito.returncode == 0, feito.stderr
+    assert estado["prs"]["77"]["body"].rstrip().endswith("Refs #902\n\nCloses #2300")
+
+
+def test_pronto_de_novo_no_resume_nao_empilha_o_corpo_do_diretor(tmp_path):
+    corpo_do_ship = tmp_path / "pr-corpo.md"
+    corpo_do_ship.write_text("## Valor entregue\n\nCloses #2300\n", encoding="utf-8")
+    rodar(tmp_path, "pronto", "2300", "--corpo", str(corpo_do_ship))
+
+    _, estado, _ = rodar(tmp_path, "pronto", "2300", "--corpo", str(corpo_do_ship))
+
+    assert estado["prs"]["77"]["body"].count("## Protótipo do diretor") == 1
