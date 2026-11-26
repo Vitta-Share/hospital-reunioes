@@ -707,17 +707,6 @@ def _escapar_para_o_github(texto: str, *, marcador_vira_link: bool = True) -> st
     return sanitizar_travessao(neutralizado).strip()
 
 
-def labels_da_issue_nova(tipo: str | None) -> list[str]:
-    """As labels com que a issue nasce.
-
-    `needs-triage` SEMPRE: e o contrato do protocolo de triagem
-    (docs/agents/triage-labels.md), e sem ela a issue nasce fora da fila de
-    quem cura, invisivel para a `/onda` e para o `/pegar-issue`.
-    """
-    label = LABEL_DO_TIPO.get(str(tipo or "").strip().lower())
-    return [LABEL_TRIAGEM, label] if label else [LABEL_TRIAGEM]
-
-
 def login_para_publicar(bruto: str | None) -> str | None:
     """O login que pode entrar num corpo de issue PUBLICA, ou `None`.
 
@@ -756,17 +745,6 @@ def link_da_demanda(demanda_id: str) -> str:
 # issue do repositorio publico, e o bloco volta para a tela do diretor, onde
 # numero de issue nao aparece (ADR 0054, decisao 9).
 _NUMERO_DE_ISSUE = re.compile(r"(?<!&)(?:#|\bGH-)(\d+)", re.IGNORECASE)
-
-SEM_DECISAO_NO_PRD = "Nenhuma pergunta respondida fechou uma decisão."
-NADA_EM_ABERTO_NO_PRD = "Nada ficou em aberto."
-SEM_TERMO_NO_PRD = "Nenhum termo novo."
-SEM_CANDIDATA_NO_PRD = "Nenhuma decisão candidata a ADR."
-SEM_LEITURA_DO_CODIGO_NO_PRD = "Nenhuma lida do código nesta conversa: o planejamento técnico completa."
-
-
-# O formato fixo do bloco "Para o diretor" (ADR 0084, decisao 7): no maximo
-# cinco topicos depois da frase de "O que muda".
-LIMITE_DE_TOPICOS_DO_BLOCO = 5
 
 
 def _linha_do_prd(bruto: str | None) -> str:
@@ -857,151 +835,6 @@ def inserir_bloco_do_desenvolvedor(corpo: str, bloco: str) -> str:
         posicao = comentario if comentario >= 0 else len(corpo)
     antes, depois = corpo[:posicao].rstrip("\n"), corpo[posicao:]
     return f"{antes}\n\n{bloco}\n\n{depois}" if depois else f"{antes}\n\n{bloco}\n"
-
-
-def corpo_do_prd_do_diretor(
-    *,
-    demanda_id: str,
-    titulo: str,
-    descricao: str | None,
-    resumo: dict[str, Any],
-    link: str,
-    anexos: int = 0,
-    documentos: int = 0,
-    documento: dict[str, Any] | None = None,
-) -> str:
-    """O corpo da issue que o "sim" do resumo cria (ADR 0075, decisao 1).
-
-    E o PRD do diretor: o bloco "Para o diretor", Problema, Solucao, Historias
-    de usuario, Decisoes de negocio, as Decisoes de implementacao e de teste
-    que o agente leu do codigo (issue #1385), "Ficou em
-    aberto" e "Para o glossario" (issue #1383, ADR 0077, decisao 7: os termos e
-    as decisoes candidatas a ADR, que o terminal grava no `CONTEXT.md` e nas
-    ADRs). O resto do planejamento tecnico nasce depois, no terminal.
-    Tambem e o corpo do "Criar o card" da melhoria no chat.
-
-    Funcao pura do resumo e da Demanda, sem IA: o que o diretor le na issue e o
-    que ele aprovou na tela, palavra por palavra. Nada aqui e escrito por um
-    modelo que nao foi o do resumo, e nenhuma decisao nasce fora do resumo.
-
-    Todo texto passa pelo `texto_do_diretor` (peneira de dado pessoal, escape
-    de marcador e de estrutura, sanitizador de travessao), como o corpo da
-    issue do bug. A Origem nao leva login: quem clicou e o diretor, que nao tem
-    um.
-
-    A primeira linha e a frase de resumo que o modelo escreveu no resumo
-    (issue #1532, ADR 0083, decisao 9), acima do bloco e fora dele, e cai no
-    titulo quando o resumo nao a tem. A conversa nao vai: o link a substitui
-    (decisao 4).
-
-    O bloco "Para o diretor" sai no formato fixo da ADR 0084 (decisao 7, issue
-    #1553): uma frase de "O que muda" e no maximo cinco topicos. Os dois vem do
-    `documento`, o rascunho que o planejamento montou ao lado do chat; sem ele
-    (conversa de antes do documento vivo), a frase e a do resumo e os topicos
-    sao as escolhas do diretor, cortados em cinco.
-    """
-    documento = documento or {}
-    problema = _linha_do_prd(descricao) or _linha_do_prd(titulo)
-    titulo_limpo = _linha_do_prd(titulo)
-    frase = _linha_do_prd(resumo.get("frase")) or titulo_limpo
-    o_que_muda = _linha_do_prd(documento.get("frase")) or frase
-    decisoes = [
-        (_linha_do_prd(d.get("pergunta")), _linha_do_prd(d.get("escolha")), _linha_do_prd(d.get("porque")))
-        for d in resumo.get("decisoes") or []
-    ]
-    em_aberto = [item for item in (_linha_do_prd(t) for t in resumo.get("em_aberto") or []) if item]
-    termos = [item for item in (_linha_do_prd(t) for t in resumo.get("termos") or []) if item]
-    candidatas = [item for item in (_linha_do_prd(t) for t in resumo.get("candidatas_a_adr") or []) if item]
-    # O que o agente leu do codigo (issue #1385, ADR 0077, decisao 7).
-    implementacao = [item for item in (_linha_do_prd(t) for t in resumo.get("decisoes_de_implementacao") or []) if item]
-    teste = [item for item in (_linha_do_prd(t) for t in resumo.get("decisoes_de_teste") or []) if item]
-
-    precisa_saber = [f"- {escolha}" for _, escolha, _ in decisoes]
-    if em_aberto:
-        pontos = "1 ponto" if len(em_aberto) == 1 else f"{len(em_aberto)} pontos"
-        precisa_saber.append(f"- Ficou em aberto: {pontos}, que a Vitta pergunta depois.")
-    topicos = [item for item in (_linha_do_prd(t) for t in documento.get("topicos") or []) if item]
-    if topicos:
-        precisa_saber = [f"- {item}" for item in topicos]
-    if not precisa_saber:
-        precisa_saber.append(f"- {SEM_DECISAO_NO_PRD}")
-    precisa_saber = precisa_saber[:LIMITE_DE_TOPICOS_DO_BLOCO]
-
-    historias = [f"1. Como quem pediu a Demanda, quero {titulo_limpo}, para resolver o problema acima."]
-    historias += [
-        f"{n}. Como quem pediu a Demanda, quero que valha o que decidi: {escolha}"
-        for n, (_, escolha, _) in enumerate(decisoes, start=2)
-    ]
-
-    linhas_das_decisoes: list[str] = []
-    for n, (pergunta, escolha, porque) in enumerate(decisoes, start=1):
-        linhas_das_decisoes += [f"{n}. **{pergunta}**", f"   Escolha: {escolha}", f"   Por quê: {porque}", ""]
-
-    corpo = "\n".join(
-        [
-            frase,
-            "",
-            CABECALHO_DO_BLOCO,
-            "",
-            f"**O que muda:** {o_que_muda}",
-            "",
-            "**O que você precisa saber:**",
-            *precisa_saber,
-            "",
-            "---",
-            "",
-            "## Problema",
-            "",
-            problema,
-            "",
-            "## Solução",
-            "",
-            f"{titulo_limpo}, do jeito que o diretor decidiu no planejamento com a IA, na aba Tecnologia. "
-            "As decisões dele estão em Decisões de negócio; as de implementação e de teste vêm do que a IA "
-            "leu do código, e o planejamento da Vitta completa o resto.",
-            "",
-            "## Histórias de usuário",
-            "",
-            *historias,
-            "",
-            "## Decisões de negócio",
-            "",
-            *(linhas_das_decisoes or [SEM_DECISAO_NO_PRD, ""]),
-            "## Decisões de implementação",
-            "",
-            *([f"- {item}" for item in implementacao] or [SEM_LEITURA_DO_CODIGO_NO_PRD]),
-            "",
-            "## Decisões de teste",
-            "",
-            *([f"- {item}" for item in teste] or [SEM_LEITURA_DO_CODIGO_NO_PRD]),
-            "",
-            "## Ficou em aberto",
-            "",
-            *([f"- {item}" for item in em_aberto] or [NADA_EM_ABERTO_NO_PRD]),
-            "",
-            "## Para o glossário",
-            "",
-            "Termos:",
-            *([f"- {item}" for item in termos] or [f"- {SEM_TERMO_NO_PRD}"]),
-            "",
-            "Decisões candidatas a ADR:",
-            *([f"- {item}" for item in candidatas] or [f"- {SEM_CANDIDATA_NO_PRD}"]),
-            "",
-            "## Origem",
-            "",
-            "Planejado com a IA na aba Tecnologia do aplicativo do hospital e mandado para o desenvolvimento "
-            "por quem planejou, depois de conferir o resumo.",
-            f"Abrir a Demanda: {link}",
-            *(["", frase] if (frase := frase_dos_anexos(anexos, documentos)) else []),
-            "",
-            marcador_da_demanda(demanda_id),
-        ]
-    )
-    # O bloco de quem programa (issue #1633) entra pela mesma funcao que o
-    # insere num corpo que ja existe: o PRD novo e o corpo antigo ganham o
-    # bloco no mesmo lugar e no mesmo formato.
-    bloco = bloco_do_desenvolvedor(resumo.get("para_o_desenvolvedor"))
-    return inserir_bloco_do_desenvolvedor(corpo, bloco) if bloco else corpo
 
 
 # ─── 2b. A issue do bug (issue #1381, ADR 0077) ──────────────────────────────
@@ -1184,15 +1017,4 @@ def _trecho_do_autor(trecho: str) -> str:
 MOTIVO_INTEGRACAO_DESLIGADA = (
     "A integração com o GitHub não está configurada neste ambiente. "
     "Sem ela o app não consegue criar o card: peça para configurar e tente de novo."
-)
-
-
-MOTIVO_CRIACAO_EM_ANDAMENTO = (
-    "O card desta conversa já está sendo criado neste instante. "
-    "Espere alguns segundos e recarregue a página para ver o card que nasceu."
-)
-
-
-MOTIVO_GITHUB_INDISPONIVEL = (
-    "O GitHub não respondeu agora. O Vínculo não foi criado: tente de novo em alguns instantes."
 )

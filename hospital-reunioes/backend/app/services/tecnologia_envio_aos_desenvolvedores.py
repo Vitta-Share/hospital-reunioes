@@ -82,14 +82,7 @@ JANELA_DO_ENVIO = timedelta(seconds=60)
 
 LIMITE_DE_TOPICOS = 5
 
-MOTIVO_SO_O_HOSPITAL = "Só quem é do hospital envia aos desenvolvedores."
 MOTIVO_SEM_CARD = "Este pedido ainda não virou card no desenvolvimento. O envio existe depois do Criar o card."
-MOTIVO_SEM_MENSAGEM_NOVA = (
-    "Não há mensagem sua nova desde o último envio. Escreva na conversa o que quer mandar e aperte de novo."
-)
-MOTIVO_INTERPRETACAO_FALHOU = (
-    "A IA não conseguiu ler a conversa agora, e nada foi enviado. A sua conversa ficou como estava: tente de novo."
-)
 MOTIVO_ENVIO_SUMIU = "Este resumo não vale mais. Aperte de novo em Enviar para os desenvolvedores."
 MOTIVO_EM_ANDAMENTO = "Este envio já está saindo agora. Espere alguns segundos e recarregue a página."
 MOTIVO_JA_ENVIADO = "Estas mensagens já foram enviadas aos desenvolvedores."
@@ -186,11 +179,6 @@ def pendentes(supabase, demanda_id: str) -> tuple[list[dict[str, Any]], dict[str
     ]
     do_desenvolvedor = [linha for linha in linhas if str(linha.get("autor_id")) in desenvolvedores]
     return do_diretor, (do_desenvolvedor[-1] if do_desenvolvedor else None)
-
-
-def mensagens_novas(supabase, demanda_id: str) -> int:
-    """Quantas mensagens do diretor esperam o proximo envio: e o que liga o botao."""
-    return len(pendentes(supabase, demanda_id)[0])
 
 
 # ─── O interpretar ───────────────────────────────────────────────────────────
@@ -294,37 +282,6 @@ def _interpretacao(supabase, demanda: dict[str, Any], conteudo: str, *, kit: str
     if saida is None:
         return None
     return interpretacao_limpa(saida, demanda)
-
-
-def interpretar(supabase, demanda: dict[str, Any], *, kit: str) -> dict[str, Any] | None:
-    """O "Entendi assim:" das mensagens novas do diretor, gravado como envio
-    `interpretado`, ou `None` quando o modelo falhou (a chamada fica gravada
-    do mesmo jeito). Levanta `EnvioRecusadoError` sem mensagem nova."""
-    demanda_id = str(demanda["id"])
-    do_diretor, do_desenvolvedor = pendentes(supabase, demanda_id)
-    if not do_diretor:
-        raise EnvioRecusadoError(MOTIVO_SEM_MENSAGEM_NOVA)
-
-    interpretacao = _interpretacao(supabase, demanda, pedido_do_envio(demanda, do_diretor, do_desenvolvedor), kit=kit)
-    if interpretacao is None:
-        return None
-
-    [linha] = (
-        supabase.table(TABELA_ENVIOS)
-        .insert(
-            {
-                "demanda_id": demanda_id,
-                "topicos": interpretacao["topicos"],
-                "cards": interpretacao["cards"],
-                "ate_mensagem_em": do_diretor[-1].get("criado_em"),
-                "estado": ESTADO_INTERPRETADO,
-                "estado_em": _agora(),
-            }
-        )
-        .execute()
-        .data
-    )
-    return linha
 
 
 def interpretar_a_validacao(supabase, demanda: dict[str, Any], observacao: str, *, kit: str) -> list[str]:

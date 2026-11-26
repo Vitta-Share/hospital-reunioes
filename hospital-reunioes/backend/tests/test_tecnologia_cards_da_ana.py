@@ -350,27 +350,12 @@ def _painel(monkeypatch, logado: dict = PEDRO):
 
 
 class TestOPainelDoCardDaAna:
-    def test_o_card_da_ana_nao_tem_apagar_nem_revisar_e_o_link_aponta_para_a_ana(self, monkeypatch):
-        """O Desenvolvedor, que ve o Apagar no card Vitta do Hospital na mesma
-        Etapa, nao o ve no da Ana (ADR 0093, decisao 5)."""
+    def test_o_link_do_card_da_ana_aponta_para_a_ana(self, monkeypatch):
+        """O Apagar e o Revisar sairam da aba (issue #2279): o card da Ana so
+        se acompanha, e o link vai ao repositorio dela."""
         _, _, _, cards = _painel(monkeypatch)
 
-        ana, hospital = cards["d-ana"], cards["d-hospital"]
-        assert (ana["pode_apagar"], ana["pode_revisar"]) == (False, False)
-        assert ana["issue_url"] == f"https://github.com/{REPO_ANA}/issues/12"
-        assert hospital["pode_apagar"] is True
-
-    def test_o_apagar_do_card_da_ana_e_recusado_sem_tocar_no_github(self, monkeypatch):
-        client, sb, _, _ = _painel(monkeypatch)
-        fechadas: list = []
-        monkeypatch.setattr(github_client, "fechar_como_nao_planejada", lambda *a, **kw: fechadas.append((a, kw)))
-
-        resposta = client.delete(f"{CHAT}/d-ana")
-
-        assert resposta.status_code == 409
-        assert "acompanhar" in resposta.json()["detail"]
-        assert not next(d for d in sb.tabelas["tecnologia_demandas"] if d["id"] == "d-ana").get("apagada_em")
-        assert fechadas == []
+        assert cards["d-ana"]["issue_url"] == f"https://github.com/{REPO_ANA}/issues/12"
 
 
 # ═══════════════════════════════════════════════════════════════════════════

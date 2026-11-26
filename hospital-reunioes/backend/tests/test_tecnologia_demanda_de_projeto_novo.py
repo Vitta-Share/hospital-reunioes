@@ -41,7 +41,7 @@ from app.dependencies import get_supabase_client  # noqa: E402
 from app.limiter import limiter  # noqa: E402
 from app.routers import tecnologia_automacao  # noqa: E402
 from app.routers.admin import tecnologia as tecnologia_router  # noqa: E402
-from app.services import github_client, tecnologia, tecnologia_email, tecnologia_sincronizacao  # noqa: E402
+from app.services import github_client, tecnologia_email, tecnologia_sincronizacao  # noqa: E402
 from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
 
 CHAVE = "chave-de-automacao-do-teste-1967"
@@ -265,14 +265,6 @@ class TestForaDoEspelho:
         assert mudou is False
         assert gh.leituras == []
         assert sb.tabelas["tecnologia_demandas"] == [do_os]
-
-    def test_o_apagar_recusa_a_demanda_do_projeto_novo(self):
-        """O Apagar fecha a issue no repositorio do Hospital: no card do PedroOS
-        ele fecharia a #915 do Hospital."""
-        recusa = tecnologia.recusa_de_apagar(PEDRO, _a_demanda_criada_pela_ponte())
-
-        assert recusa is not None
-        assert recusa[0] == 409
 
 
 # ═══════════════════════════════════════════════════════════════════════════

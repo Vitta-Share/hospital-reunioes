@@ -154,14 +154,6 @@ MOTIVO_ESPERA_DE_OUTRA_DEMANDA = "O Pedido de implantação só espera outro da 
 MOTIVO_ESPERA_DE_OUTRO_TIPO = "O Pedido de implantação só espera outro Pedido de implantação."
 MOTIVO_ESPERA_CANCELADA = "O Pedido esperado foi cancelado: este nunca poderia ser concluído."
 MOTIVO_ESPERA_ABERTA = 'Este Pedido espera "{assunto}" ser concluído.'
-# O "Achei um problema" (issue #2210, ADR 0111, decisao 9).
-MOTIVO_PROBLEMA_SO_NA_IMPLANTACAO = "Só o Pedido de implantação tem o Achei um problema."
-MOTIVO_PROBLEMA_SO_NO_ABERTO = "Este Pedido de implantação já não está aberto."
-# Um bug por vez (issue #2210): o segundo trocaria a espera e soltaria o Concluir.
-MOTIVO_JA_ESPERA_UM_BUG = (
-    "Este Pedido já espera a Demanda {numero}. O próximo problema entra depois que ela for entregue."
-)
-TEXTO_DO_PROBLEMA = 'Achei um problema no Pedido de implantação "{assunto}", da entrega "{entrega}".'
 MOTIVO_ESPERA_O_BUG = "Este Pedido espera a Demanda {numero} ser entregue."
 # A Demanda de bug entregue solta o Pedido que espera por ela.
 ETAPAS_DO_BUG_ENTREGUE = (ETAPA_ENTREGUE, ETAPA_EM_PRODUCAO)
@@ -389,27 +381,6 @@ def _exigir_a_espera_valida(supabase, demanda: dict[str, Any], tipo: str, espera
         raise PerguntaRecusadaError(MOTIVO_ESPERA_CANCELADA)
 
 
-def texto_do_problema(pedido: dict[str, Any], demanda: dict[str, Any]) -> str:
-    """O texto inicial do bug que o "Achei um problema" abre (issue #2210,
-    ADR 0111, decisao 9): nomeia o Pedido e a entrega. So vale no Pedido de
-    implantacao aberto."""
-    if not e_implantacao(pedido):
-        raise PerguntaRecusadaError(MOTIVO_PROBLEMA_SO_NA_IMPLANTACAO)
-    if pedido.get("estado") != ESTADO_ABERTA:
-        raise PerguntaRecusadaError(MOTIVO_PROBLEMA_SO_NO_ABERTO)
-    return TEXTO_DO_PROBLEMA.format(
-        assunto=" ".join(str(pedido.get("assunto") or "").split()),
-        entrega=" ".join(str(demanda.get("titulo") or "").split()),
-    )
-
-
-def pedido_do_bug(supabase, bug: dict[str, Any]) -> dict[str, Any] | None:
-    """O Pedido de implantacao de que o bug veio pelo "Achei um problema"
-    (issue #2210), ou `None`."""
-    pedido_id = bug.get("pedido_origem_id")
-    return buscar(supabase, str(pedido_id)) if pedido_id else None
-
-
 def prd_de_origem(supabase, pedido: dict[str, Any]) -> str | None:
     """A referencia ao PRD da entrega do Pedido, como o GitHub a le na issue
     do bug (que nasce no Hospital): "#1700", ou "dono/repo#12" de outro
@@ -421,25 +392,6 @@ def prd_de_origem(supabase, pedido: dict[str, Any]) -> str | None:
     projeto = str(demandas[0].get("projeto") or github_client.PROJETO_HOSPITAL)
     repositorio = "" if projeto == github_client.PROJETO_HOSPITAL else github_client.repositorio_do_projeto(projeto)
     return f"{repositorio}#{numero}"
-
-
-def exigir_sem_bug_aberto(supabase, pedido: dict[str, Any], *, bug_id: str | None = None) -> None:
-    """O Pedido espera um bug por vez (issue #2210): enquanto a Demanda de bug
-    que ele espera nao foi entregue, outro bug nao abre nem ganha card, senao
-    a espera trocaria de Demanda e o Concluir soltaria com a primeira aberta.
-    O proprio bug (`bug_id`, o Reenviar) passa."""
-    espera = _espera_demanda(pedido, _esperados(supabase, [pedido]))
-    if espera and espera["demanda_id"] != bug_id:
-        raise PerguntaRecusadaError(MOTIVO_JA_ESPERA_UM_BUG.format(numero=espera["numero"]))
-
-
-def ligar_o_bug(supabase, bug: dict[str, Any], pedido: dict[str, Any]) -> None:
-    """Depois do Criar o card (issue #2210, ADR 0111, decisao 9): a Demanda de
-    bug guarda de qual Demanda veio, e o Pedido passa a esperar por ela. O
-    Pedido continua aberto; o PRD de origem nao reabre."""
-    bug_id = str(bug["id"])
-    supabase.table(TABELA_DEMANDAS).update({"demanda_origem_id": str(pedido["demanda_id"])}).eq("id", bug_id).execute()
-    supabase.table(TABELA_PERGUNTAS).update({"espera_demanda_id": bug_id}).eq("id", str(pedido["id"])).execute()
 
 
 def _exigir_a_label_da_implantacao(numero: int, projeto: str) -> None:
@@ -680,35 +632,6 @@ def cartao(supabase, pedido: dict[str, Any], *, ator: dict[str, Any] | None) -> 
     return _cartao(
         pedido, projeto=projeto, nomes=nomes, ator=ator, historico=historico, esperados=_esperados(supabase, [pedido])
     )
-
-
-def cartoes_da_demanda(
-    supabase, demanda: dict[str, Any], *, ator: dict[str, Any] | None = None
-) -> dict[str, dict[str, Any]]:
-    """O cartao de cada Pedido da Demanda, pela entrada dele na Conversa (id
-    da mensagem): de qual Projeto e, a pergunta ou os passos com os checks,
-    as quatro linhas, as opcoes, o estado, desde quando espera (a tela conta
-    os dias), a resposta ou a conclusao e se quem esta logado (`ator`) pode
-    agir."""
-    linhas = supabase.table(TABELA_PERGUNTAS).select("*").eq("demanda_id", demanda["id"]).execute().data or []
-    historicos = _historico(supabase, [str(p["id"]) for p in linhas if e_passo_a_passo(p)])
-    pessoas = {pessoa for p in linhas for pessoa in _pessoas_da_pergunta(p)}
-    pessoas |= {pessoa for h in historicos.values() for pessoa in _pessoas_dos_checks(h)}
-    nomes = _nomes(supabase, pessoas)
-    projeto = nome_do_projeto(demanda)
-    esperados = _esperados(supabase, linhas)
-    return {
-        str(p["mensagem_id"]): _cartao(
-            p,
-            projeto=projeto,
-            nomes=nomes,
-            ator=ator,
-            historico=historicos.get(str(p["id"]), []),
-            esperados=esperados,
-        )
-        for p in linhas
-        if p.get("mensagem_id")
-    }
 
 
 def _participantes(supabase, ids: set[str]) -> dict[str, dict[str, Any]]:

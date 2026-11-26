@@ -238,27 +238,22 @@ class TestOsDetectoresMordem:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 3. Os nove arquivos chegam ao prompt do chat
+# 3. Os nove arquivos chegam ao prompt da IA da aba
 # ═══════════════════════════════════════════════════════════════════════════
 
 
 def _prompt_de_um_turno(monkeypatch) -> str:
-    """Um turno de verdade pela rota do chat, com o cliente do LLM substituido.
+    """O `system` que a porta da IA da aba monta para o Envio aos
+    desenvolvedores, a chamada que sobrou depois que o chat saiu (issue #2279).
 
     O kit vai no bloco fixo do sistema (ADR 0077, decisao 9, com o
-    `cache_control`), e e de la que o teste o le.
+    `cache_control`), e e de la que o teste o le. O kit e lido do disco pelo
+    backend (`carregar_kit`), e nao passado pelo teste.
     """
-    from test_planejamento_demanda import _ia
-    from test_tecnologia_chat import _turno
-    from test_tecnologia_vinculo import DIRETOR, _montar
+    from app.services import planejamento_demanda, tecnologia_envio_aos_desenvolvedores
 
-    cliente = _ia(monkeypatch, _turno())
-    client, _, _ = _montar(logado=DIRETOR, monkeypatch=monkeypatch)
-
-    resposta = client.post("/api/admin/tecnologia/chat", json={"escolha": "bug"})
-
-    assert resposta.status_code == 201, resposta.text
-    return "\n".join(bloco["text"] for bloco in cliente.chamadas[-1]["system"])
+    blocos = planejamento_demanda.bloco_fixo(carregar_kit(), tecnologia_envio_aos_desenvolvedores.PROMPT_DO_ENVIO)
+    return "\n".join(bloco["text"] for bloco in blocos)
 
 
 def _secoes_do_kit(prompt: str) -> dict[str, str]:
