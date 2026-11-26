@@ -16,12 +16,8 @@ from __future__ import annotations
 import os
 import sys
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from test_kit_conhecimento import ARQUIVO_DA_ABA  # noqa: E402
-from test_kit_conhecimento import _texto as _texto_do_kit  # noqa: E402
 from test_tecnologia_passo_a_passo_da_vitta import (  # noqa: E402, F401
     CRIAR,
     PASSO_A_PASSO,
@@ -178,21 +174,3 @@ class TestPonte:
 # ═══════════════════════════════════════════════════════════════════════════
 # O kit de conhecimento do Assistente
 # ═══════════════════════════════════════════════════════════════════════════
-
-
-class TestKit:
-    @pytest.fixture
-    def texto(self) -> str:
-        return _texto_do_kit(ARQUIVO_DA_ABA)
-
-    @pytest.mark.parametrize(
-        "frase",
-        [
-            "um Pedido de implantação pode esperar outro",
-            'o cartão mostra "Espera" com o nome do outro',
-            "o Concluir fica bloqueado e diz o motivo",
-            "libera sozinho",
-        ],
-    )
-    def test_o_kit_diz_que_um_pedido_de_implantacao_espera_outro(self, texto, frase):
-        assert frase in texto

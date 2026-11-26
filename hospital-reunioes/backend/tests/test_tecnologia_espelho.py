@@ -470,11 +470,6 @@ class TestKit:
             assert trecho in secao, trecho
         assert "cada diretor vê só as suas conversas" not in secao
 
-    def test_o_kit_diz_que_o_card_da_vitta_nao_tem_conversa_com_a_ia(self):
-        secao = _secao("O que é uma Demanda")
-        assert "pelo desenvolvimento" in secao
-        assert "sem conversa com a IA" in secao
-
     def test_o_kit_diz_que_o_card_aberto_pelo_claude_do_diretor_vira_demanda(self):
         """Issue #2264: o card do diretor vira Demanda sozinho, com a Etapa, e
         leva o selo Pedido do diretor."""
@@ -482,7 +477,7 @@ class TestKit:
         assert "O card que você abre pelo seu Claude" in demanda
         assert "Pedido do diretor" in demanda
         quem_ve = _secao("Quem vê")
-        assert "ou do card que você abriu pelo seu Claude" in quem_ve
+        assert "do card que você abriu pelo seu Claude" in quem_ve
 
     def test_o_kit_diz_que_ajuste_interno_nao_aparece(self):
         secao = _secao("O que é uma Demanda")

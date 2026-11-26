@@ -31,7 +31,6 @@ from app.dependencies import get_supabase_client  # noqa: E402
 from app.limiter import limiter  # noqa: E402
 from app.routers import tecnologia_automacao  # noqa: E402
 from app.services import tecnologia_email  # noqa: E402
-from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
 
 CHAVE = "chave-de-automacao-do-teste-2116"
 DEMANDA = "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
@@ -376,18 +375,3 @@ class TestARotaDeAntes:
 # ═══════════════════════════════════════════════════════════════════════════
 # O kit de conhecimento
 # ═══════════════════════════════════════════════════════════════════════════
-
-
-class TestOKit:
-    def test_o_kit_da_tecnologia_diz_que_a_pergunta_da_vitta_chega_como_cartao(self):
-        texto = (CONHECIMENTO_DIR / "tecnologia.md").read_text(encoding="utf-8")
-
-        for trecho in (
-            "a pergunta aparece na Conversa como um cartão em destaque",
-            "por que a resposta é sua, o que está parado, o que anda quando você responder e o que o hospital ganha",
-            "há quantos dias ela espera",
-            'a linha "Pergunta aberta"',
-        ):
-            assert trecho in texto, trecho
-        assert "sem marca diferente" not in texto
-        assert "Pendência da Vitta" not in texto

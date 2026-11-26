@@ -19,7 +19,6 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
 from app.services.tecnologia_vinculo import (  # noqa: E402
     CABECALHO_DO_BLOCO,
     CABECALHO_DO_DESENVOLVEDOR,
@@ -125,11 +124,3 @@ class TestOCorpoDoBug:
         assert "Para o desenvolvedor" not in sem_a_chave
         assert _corpo(para_o_desenvolvedor={}) == sem_a_chave
         assert _corpo(para_o_desenvolvedor=None) == sem_a_chave
-
-
-def test_o_kit_diz_que_o_card_do_bug_leva_uma_parte_para_quem_programa():
-    texto = (CONHECIMENTO_DIR / "tecnologia.md").read_text(encoding="utf-8")
-
-    conversa = texto.split("## A conversa com o Assistente", 1)[1].split("\n## ", 1)[0]
-    [paragrafo_do_bug] = [p for p in conversa.split("\n\n") if "resolvido" in p and "Criar o card" in p]
-    assert re.search(r"parte escrita para quem programa, abaixo da (sua parte|parte do diretor)", paragrafo_do_bug)

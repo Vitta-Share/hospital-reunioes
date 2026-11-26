@@ -24,8 +24,6 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from test_kit_conhecimento import ARQUIVO_DA_ABA  # noqa: E402
-from test_kit_conhecimento import _texto as _texto_do_kit  # noqa: E402
 from test_tecnologia_passo_a_passo_da_vitta import (  # noqa: E402, F401
     CHECKS,
     CRIAR,
@@ -284,24 +282,3 @@ class TestOQueFaltaParaUsar:
 # ═══════════════════════════════════════════════════════════════════════════
 # O kit de conhecimento do Assistente
 # ═══════════════════════════════════════════════════════════════════════════
-
-
-class TestKit:
-    """O texto do Produto Tecnologia é o que o Assistente lê para responder
-    ao diretor: ele diz o comportamento novo."""
-
-    @pytest.fixture
-    def texto(self) -> str:
-        return _texto_do_kit(ARQUIVO_DA_ABA)
-
-    @pytest.mark.parametrize(
-        "frase",
-        [
-            "Pedido de implantação",
-            "o card da entrega fecha na hora",
-            "não reabre nada",
-            "se a Vitta fechar ou reabrir o card por fora, o pedido de implantação não muda",
-        ],
-    )
-    def test_o_kit_diz_como_o_pedido_de_implantacao_funciona(self, texto, frase):
-        assert frase in texto

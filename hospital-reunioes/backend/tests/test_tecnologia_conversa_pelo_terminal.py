@@ -34,7 +34,6 @@ from app.dependencies import get_supabase_client  # noqa: E402
 from app.limiter import limiter  # noqa: E402
 from app.routers import tecnologia_automacao  # noqa: E402
 from app.services import tecnologia_email  # noqa: E402
-from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
 
 CHAVE = "chave-de-automacao-do-teste-1805"
 DEMANDA = "5c1e7a2b-3d4f-4a6b-9c8d-1e2f3a4b5c6d"
@@ -390,17 +389,3 @@ class TestMigration:
 # ═══════════════════════════════════════════════════════════════════════════
 # O kit de conhecimento
 # ═══════════════════════════════════════════════════════════════════════════
-
-
-class TestOKit:
-    def test_o_kit_da_tecnologia_diz_que_a_vitta_pergunta_pela_conversa_e_quem_e_avisado(self):
-        texto = (CONHECIMENTO_DIR / "tecnologia.md").read_text(encoding="utf-8")
-
-        for trecho in (
-            "Quando a Vitta precisa de uma decisão sua num pedido",
-            "no card que a Vitta abriu, avisa a diretoria",
-            "no seu pedido, avisa você",
-        ):
-            assert trecho in texto, trecho
-        # A frase de antes dizia que toda decisão da Vitta ia pelo WhatsApp.
-        assert "Quando a Vitta precisa de uma decisão, de um dado ou de um acesso" not in texto

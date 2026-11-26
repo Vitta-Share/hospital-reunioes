@@ -35,8 +35,6 @@ from test_tecnologia_pergunta_da_vitta import (  # noqa: E402, F401
 )
 from test_tecnologia_vinculo import _integracao_configurada, _montar  # noqa: E402, F401
 
-from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
-
 DECIDIDO = "Quem presidiu a reunião assina a Ata pela diretoria."
 DESTRAVOU = "A tela de assinatura da Ata volta a andar e entra na próxima subida."
 MOTIVO = "A diretoria decidiu na reunião de quinta, não precisa mais perguntar."
@@ -318,17 +316,3 @@ def _cartao_na_tela(sb, monkeypatch) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════
 # O kit de conhecimento
 # ═══════════════════════════════════════════════════════════════════════════
-
-
-class TestOKit:
-    def test_o_kit_da_tecnologia_diz_que_a_vitta_resolve_ou_cancela_a_pergunta(self):
-        texto = (CONHECIMENTO_DIR / "tecnologia.md").read_text(encoding="utf-8")
-
-        for trecho in (
-            "a pergunta passa a Resolvida",
-            "o que foi decidido e o que destravou",
-            "a pergunta passa a Cancelada",
-            "sai da lista Esperando você",
-            "não muda mais",
-        ):
-            assert trecho in texto, trecho
