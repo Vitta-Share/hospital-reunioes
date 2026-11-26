@@ -174,7 +174,6 @@ app.include_router(ana.router, prefix=settings.api_prefix)
 # O Assistente do app, o robô do canto da tela (issue #2267, ADR 0113).
 app.include_router(assistente_do_app.router, prefix=settings.api_prefix)
 app.include_router(tecnologia_automacao.router, prefix=settings.api_prefix)
-app.include_router(tecnologia_automacao.router_dos_planos, prefix=settings.api_prefix)
 app.include_router(comentarios.router, prefix=settings.api_prefix)
 app.include_router(notificacoes.router, prefix=settings.api_prefix)
 app.include_router(ouvidoria.router, prefix=settings.api_prefix)

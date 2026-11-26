@@ -26,14 +26,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import test_tecnologia_webhook_github as webhook  # noqa: E402
 from test_kit_conhecimento import ARQUIVO_DA_ABA  # noqa: E402
 from test_kit_conhecimento import _texto as _texto_do_kit  # noqa: E402
-from test_tecnologia_pergunta_da_vitta import (  # noqa: E402, F401
-    DEMANDA,
-    DIRETORA,
-    _ponte,
-    _tela,
-    _zera_o_limitador,
-    chave_configurada,
-)
+from test_tecnologia_vinculo import _demanda, _montar, _pessoa, _SupabaseMock  # noqa: E402
 from test_tecnologia_webhook_github import (  # noqa: E402, F401
     _pr_do_app,
     _segredo_configurado,
@@ -41,6 +34,7 @@ from test_tecnologia_webhook_github import (  # noqa: E402, F401
     _sem_pr_aberto,
 )
 
+from app.limiter import limiter  # noqa: E402
 from app.services import github_client, tecnologia_sincronizacao  # noqa: E402
 from app.services.tecnologia_vinculo import ETAPA_EM_DESENVOLVIMENTO, implantacao_da_foto  # noqa: E402
 
@@ -49,6 +43,17 @@ LISTA = "/api/admin/tecnologia/chat"
 RAIZ = 1700
 TESTE = "Testar o anonimato do Canal de Conduta"
 ABERTURA = "Abrir o Canal de Conduta para todos"
+
+DEMANDA = "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
+PEDRO = _pessoa("P001", "Pedro Rezende", github_login="pedrorezendefig")
+DIRETORA = _pessoa("P004", "Diretora Clínica")
+
+
+@pytest.fixture(autouse=True)
+def _zera_o_limitador():
+    limiter._storage.reset()
+    yield
+    limiter._storage.reset()
 
 
 def _issue(numero: int, titulo: str, *, estado: str = "open", labels=(), dono: str | None = None) -> dict:
@@ -82,10 +87,25 @@ def _card(numero: int, titulo: str, *, estado: str = "open", dono: str | None = 
 def _na_lista(foto: dict, monkeypatch) -> dict:
     """A Demanda como a lista do chat a devolve, com esta foto guardada pela
     sincronização."""
-    _, sb = _ponte()
-    [linha] = sb.tabelas["tecnologia_demandas"]
-    linha["github_foto"] = foto
-    resposta = _tela(sb, DIRETORA, monkeypatch).get(LISTA)
+    linha = _demanda(
+        DEMANDA,
+        titulo="A Ata assinada no app",
+        autor_id=PEDRO["id"],
+        responsavel_id=PEDRO["id"],
+        github_issue_numero=RAIZ,
+        origem="vitta",
+        apagada_em=None,
+        github_foto=foto,
+    )
+    sb = _SupabaseMock(
+        {
+            "participantes": [dict(PEDRO), dict(DIRETORA)],
+            "tecnologia_produtos": [{"id": "prod-1", "nome": "Reuniões", "ativo": True, "ordem": 1, "dono_id": "P001"}],
+            "tecnologia_demandas": [linha],
+        }
+    )
+    cliente, _, _ = _montar(logado=DIRETORA, supabase=sb, monkeypatch=monkeypatch)
+    resposta = cliente.get(LISTA)
     assert resposta.status_code == 200, resposta.text
     [demanda] = [d for d in resposta.json() if d["id"] == DEMANDA]
     return demanda
