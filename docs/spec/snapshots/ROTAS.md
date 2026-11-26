@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-25T23:40+0000 -->
+<!-- last_update: 2026-11-26T18:43+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -887,36 +887,10 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 | Método | Rota | O que faz | Auth |
 |--------|------|-----------|------|
-| POST | `/admin/tecnologia/assistente/descrever-imagem` | O print anexado vira descricao, e a imagem some (ADR 0056, decisao 4). | ✅ |
-| POST | `/admin/tecnologia/assistente/ler-documento` | O documento anexado no chat vira texto (issue #1520, ADR 0069). | ✅ |
 | GET | `/admin/tecnologia/chat` | A lista ao lado do chat (issue #1384): as Demandas, com o titulo e a | ✅ |
-| POST | `/admin/tecnologia/chat` | O primeiro turno: a Demanda nasce aqui (ADR 0077, decisao 2). | ✅ |
-| DELETE | `/admin/tecnologia/chat/{demanda_id}` | O "Apagar" da Demanda (issue #1549, ADR 0084, decisao 2). | ✅ |
-| GET | `/admin/tecnologia/chat/{demanda_id}` | A conversa guardada, para retomar de onde parou. | ✅ |
-| POST | `/admin/tecnologia/chat/{demanda_id}` | Um turno: a fala do diretor entra, a da IA volta. | ✅ |
-| POST | `/admin/tecnologia/chat/{demanda_id}/atualizar-card` | O "Atualizar o card" no fim da revisão (ADR 0084, decisão 3). | ✅ |
-| GET | `/admin/tecnologia/chat/{demanda_id}/conversa` | A Conversa da Demanda, da mais antiga para a mais nova, e quem pode ser | ✅ |
-| POST | `/admin/tecnologia/chat/{demanda_id}/conversa` | Uma mensagem na Conversa da Demanda. Escreve quem ve a Demanda. Nada | ✅ |
-| POST | `/admin/tecnologia/chat/{demanda_id}/conversa/enviar` | O "Enviar" do "Entendi assim:": abre o Ajuste do plano e devolve a linha | ✅ |
-| POST | `/admin/tecnologia/chat/{demanda_id}/conversa/interpretar` | O "Entendi assim:" das mensagens do diretor desde o ultimo envio. A IA | ✅ |
-| POST | `/admin/tecnologia/chat/{demanda_id}/criar-card` | O "Criar o card" do resumo (ADR 0077, decisoes 6 e 7). | ✅ |
-| POST | `/admin/tecnologia/chat/{demanda_id}/designar-de-novo` | O "Designar de novo" da issue que nasceu sem o Responsavel (issue #1536, | ✅ |
-| PUT | `/admin/tecnologia/chat/{demanda_id}/modelo` | O seletor "Sonnet 5.5 \| Opus 5.5" da conversa (issue #1921, ADR 0103). | ✅ |
-| POST | `/admin/tecnologia/chat/{demanda_id}/nao-bateu` | O "Nao bateu" do resumo: o que nao bateu entra na conversa como fala do | ✅ |
-| POST | `/admin/tecnologia/chat/{demanda_id}/reenviar` | O "Reenviar" da Demanda em "Envio falhou" (issue #1535, ADR 0083, decisao 7). | ✅ |
-| POST | `/admin/tecnologia/chat/{demanda_id}/resumo` | O "Fechar e resumir" da melhoria (issue #1383): vale a qualquer altura do | ✅ |
-| GET | `/admin/tecnologia/chat/{demanda_id}/revisao` | A estimativa do diálogo de confirmação (ADR 0082): a faixa em dólar do | ✅ |
-| POST | `/admin/tecnologia/chat/{demanda_id}/revisao` | O "Revisar com o código de hoje" confirmado (ADR 0084, decisão 3). | ✅ |
 | GET | `/admin/tecnologia/desenvolvedores` | O "Quem cuida disto?" do resumo (ADR 0083, decisao 5). `padrao` marca | ✅ |
 | GET | `/admin/tecnologia/entregas` | A aba Entregas como ritmo semanal (issue #1701, ADR 0092, decisoes 1 e 7). | ✅ |
 | GET | `/admin/tecnologia/eu` | Se quem esta logado e Desenvolvedor (ADR 0083, decisao 2). | ✅ |
-| GET | `/admin/tecnologia/perguntas/esperando` | As Perguntas da Vitta abertas de todos os Projetos, as do logado | ✅ |
-| POST | `/admin/tecnologia/perguntas/{pergunta_id}/checks` | Marca ou desmarca um passo do Passo a passo: uma linha nova no | ✅ |
-| POST | `/admin/tecnologia/perguntas/{pergunta_id}/concluir` | O Concluir do cartao: so com todos os checks marcados (422 senao). O | ✅ |
-| GET | `/admin/tecnologia/perguntas/{pergunta_id}/me-explique` | A conversa do Me explique de quem esta logado, e so a dele. Nao chama a IA. | ✅ |
-| POST | `/admin/tecnologia/perguntas/{pergunta_id}/me-explique` | O clique no Me explique (sem `texto`) ou a pergunta da pessoa (com ele). | ✅ |
-| POST | `/admin/tecnologia/perguntas/{pergunta_id}/reenviar` | O Reenviar do "Não chegou ao GitHub": tenta de novo comentar e fechar | ✅ |
-| POST | `/admin/tecnologia/perguntas/{pergunta_id}/resposta` | A resposta da Pergunta da Vitta, pelo cartao: a opcao, o texto livre | ✅ |
 | GET | `/admin/tecnologia/projetos` | As opcoes do filtro Projeto do Quadro e das Entregas (issue #1967): o | ✅ |
 
 ## automacao (`app/routers/tecnologia_automacao.py`)
@@ -973,4 +947,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 557 endpoints em 82 routers · 92% exigem auth.
+**Totais:** 531 endpoints em 82 routers · 92% exigem auth.
