@@ -273,3 +273,55 @@ def test_pronto_de_novo_no_resume_nao_empilha_o_corpo_do_diretor(tmp_path):
     _, estado, _ = rodar(tmp_path, "pronto", "2300", "--corpo", str(corpo_do_ship))
 
     assert estado["prs"]["77"]["body"].count("## Protótipo do diretor") == 1
+
+
+# ------------------------------------------------ as skills que usam o script
+
+SKILLS = RAIZ / ".claude" / "skills"
+
+
+def secao_md(texto: str, titulo: str) -> str:
+    """O trecho do título até o próximo título de nível igual ou maior."""
+    import re
+
+    m = re.search(rf"^(#+) {re.escape(titulo)}\s*$", texto, re.MULTILINE)
+    assert m, f"seção '{titulo}' não encontrada"
+    resto = texto[m.end() :]
+    fim = re.search(rf"^#{{1,{len(m.group(1))}}} ", resto, re.MULTILINE)
+    return resto[: fim.start()] if fim else resto
+
+
+def ler(skill: str) -> str:
+    return (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
+
+
+def test_to_issues_leva_o_link_do_pr_do_diretor_para_uma_fatia_so():
+    regra = secao_md(ler("to-issues"), "A fatia que continua o protótipo do diretor")
+
+    assert "uma fatia só" in regra
+    assert "## Protótipo" in regra
+    # a seção do modelo do corpo é a que o script lê
+    modelo = ler("to-issues").split("<issue-template>", 1)[1].split("</issue-template>", 1)[0]
+    assert "\n## Protótipo\n" in modelo
+
+
+def test_pegar_issue_assume_o_pr_do_diretor_no_lugar_da_branch_nova():
+    passo = secao_md(ler("pegar-issue"), "6. Criar o worktree da issue a partir da `origin/main`")
+
+    assert "pr_do_diretor.py <N>" in passo
+    assert "assumido:" in passo
+    assert "saída 3" in passo.lower()
+
+
+def test_ship_usa_o_pr_do_diretor_no_lugar_do_gh_pr_create():
+    regra = secao_md(ler("ship"), "PR do diretor")
+
+    assert "pr_do_diretor.py qual <N>" in regra
+    assert "pr_do_diretor.py pronto <N> --corpo" in regra
+    assert "`git push`" in regra
+
+
+def test_implementador_da_onda_assume_o_pr_do_diretor():
+    agente = (RAIZ / ".claude" / "agents" / "onda-implementador.md").read_text(encoding="utf-8")
+
+    assert "pr_do_diretor.py <N>" in agente

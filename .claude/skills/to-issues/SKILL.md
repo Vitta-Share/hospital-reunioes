@@ -88,6 +88,10 @@ A fatia HITL que vem depois do código e não segura nenhuma fatia (teste de ace
 
 Na lista do passo 4, a fatia mostra "Implantação: sim" ao lado do Tipo. No passo 5, acrescente `--label implantacao` ao `gh issue create` dela, no lugar do `--label ready-for-agent` vai `--label ready-for-human`, e no lugar do dono do PRD vai `--assignee <login do diretor>`.
 
+#### A fatia que continua o protótipo do diretor
+
+PRD do diretor (label `origem:diretor`) com o link de um PR na seção "Protótipo": o PR rascunho dele é o ponto de partida (ADR 0113, decisão 3), e o link vai para uma fatia só, a que continua nele (a que entrega o comportamento que o protótipo mostra). Ela leva a seção `## Protótipo` com o link inteiro do PR (`https://github.com/<dono>/<repo>/pull/<n>`), que o `pr_do_diretor.py` do `/pegar-issue` lê para fazer o checkout da branch do fork. As outras fatias não citam o PR: duas fatias no mesmo PR se atropelariam na branch dele. Na lista do passo 4, a fatia mostra "Continua o protótipo: sim".
+
 ### 4. Quiz the user
 
 Apresente a divisão como uma **lista numerada em pt-BR**. Para cada fatia, mostre:
@@ -163,6 +167,10 @@ Se o endpoint de sub-issues falhar (feature indisponível ou permissão), **não
 ## Pai
 
 `#$PRD`: a issue-PRD de onde esta fatia saiu. **Sempre preencha** quando houver um PRD pai; use "Nenhum" só para fatia avulsa. Além desta menção, a fatia é registrada como **sub-issue nativa** do PRD (passo 5).
+
+## Protótipo
+
+Só na fatia que continua o PR rascunho do diretor (seção "A fatia que continua o protótipo do diretor"): o link inteiro do PR. Nas outras, tire a seção.
 
 ## O que construir
 
