@@ -60,10 +60,10 @@ LIMITE_DA_IMAGEM = LIMITE_DA_IMAGEM_EM_BASE64 * 3 // 4
 
 # ─── O que entra pelo botao de anexo (issue #1520, ADR 0069) ─────────────────
 #
-# UMA tabela so decide o tipo, o `content-type` e o teto de cada extensao: a
-# rota do print, a rota do documento, o servico de anexos e a tela (pelo espelho
-# `frontend/src/components/tecnologia/tipos-de-anexo.json`, que o teste amarra
-# a esta tabela). Duas listas para a mesma regra divergiriam calado.
+# UMA tabela so decide o tipo, o `content-type` e o teto de cada extensao: o
+# servico de anexos e o print do bug do Assistente do app. O espelho da tela
+# saiu com o chat da aba (issue #2279). Duas listas para a mesma regra
+# divergiriam calado.
 #
 # Os tetos do documento sao os do extrator da Ata Guiada, que e quem le o
 # arquivo: 5 MB para o que e texto puro, 15 MB para o que pede parser.
