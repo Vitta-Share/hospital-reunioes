@@ -11,11 +11,8 @@
     { "id": "P17282", "nome": "Clara Nogueira", "padrao": false }
   ],
   "abrir": {
-    "melhoria": "exemplo-58",
-    "bug": "exemplo-59",
     "painel": "exemplo-47",
-    "projeto_novo": "exemplo-60",
-    "envio": "exemplo-51"
+    "projeto_novo": "exemplo-60"
   },
   "demandas": [
     {
@@ -26,19 +23,14 @@
       "raiz_url": "https://planos.exemplo.local/escala-de-plantoes/12"
     },
     {
-      "id": "exemplo-58", "numero": 58, "dias": 0, "hora": "09:10",
-      "titulo": "Avisar a Secretária quando a ata ficar pronta para assinar",
-      "classificacao": "melhoria", "etapa": "registrada", "projeto": "hospital", "origem": "diretor"
-    },
-    {
       "id": "exemplo-59", "numero": 59, "dias": 0, "hora": "10:40",
       "titulo": "O botão Exportar da Ouvidoria não baixa a planilha",
-      "classificacao": "bug", "etapa": "registrada", "projeto": "hospital", "origem": "diretor"
+      "classificacao": "bug", "etapa": "registrada", "projeto": "hospital", "origem": "relato"
     },
     {
       "id": "exemplo-63", "numero": 63, "dias": 0, "hora": "11:50",
       "titulo": "A foto do leito não salva no checklist da limpeza",
-      "classificacao": "bug", "etapa": "registrada", "projeto": "hospital", "origem": "diretor"
+      "classificacao": "bug", "etapa": "registrada", "projeto": "hospital", "origem": "relato"
     },
     {
       "id": "exemplo-54", "numero": 54, "dias": 3, "hora": "14:20",
@@ -67,7 +59,7 @@
     {
       "id": "exemplo-53", "numero": 53, "dias": 4, "hora": "16:30",
       "titulo": "A data da reunião aparece um dia antes no celular",
-      "classificacao": "bug", "etapa": "planejada", "projeto": "hospital", "origem": "diretor",
+      "classificacao": "bug", "etapa": "planejada", "projeto": "hospital", "origem": "relato",
       "responsavel": "Clara Nogueira"
     },
     {
@@ -140,185 +132,12 @@
     { "pedidos": 4, "g": 0, "m": 1, "p": 2 },
     { "pedidos": 2, "g": 0, "m": 0, "p": 1 }
   ],
-  "conversa_da_demanda": [
-    { "autor": "Clara Nogueira", "texto": "Henrique, as duas primeiras partes já estão no ar. A próxima traz o filtro de período.", "dias": 1, "minha": false },
-    { "autor": "Henrique Bastos", "texto": "Ótimo. Dá para incluir os convênios sem guia no mês, com zero?", "dias": 1, "minha": true },
-    { "autor": "Clara Nogueira", "texto": "Dá, sim. Entra na mesma parte.", "dias": 0, "minha": false }
-  ],
-  "envio": {
-    "falas": [
-      { "autor": "Rafael Moura", "texto": "Henrique, o plano do lembrete está no botão Ver o plano do card. Se quiser mudar algo, escreva aqui.", "dias": 1, "minha": false },
-      { "autor": "Henrique Bastos", "texto": "Li o plano. Sete dias é pouco, quero o aviso duas semanas antes.", "dias": 0, "minha": true },
-      { "autor": "Henrique Bastos", "texto": "E o gestor do setor precisa saber também, não só o dono do POP.", "dias": 0, "minha": true }
-    ],
-    "entendi": {
-      "topicos": [
-        "O lembrete sai 15 dias antes de o POP vencer, e não 7.",
-        "O gestor do setor do POP recebe o lembrete junto com o dono."
-      ],
-      "cards": [
-        { "numero": 311, "muda": "o prazo do lembrete passa de 7 para 15 dias." },
-        { "numero": 312, "muda": "o gestor do setor entra entre quem recebe o e-mail." }
-      ]
-    }
-  },
-  "pergunta_do_projeto_novo": {
-    "autor": "Clara Nogueira",
-    "assunto": "aprovação da troca de plantão",
-    "falas": [
-      { "autor": "Clara Nogueira", "texto": "Henrique, começamos o plano da troca de plantão pelo aplicativo. Ele fica aqui, no link do pedido.", "dias": 1, "minha": false },
-      { "autor": "Clara Nogueira", "texto": "A troca entre dois plantonistas precisa da aprovação da coordenação, ou vale assim que os dois confirmam?", "dias": 0, "minha": false }
-    ],
-    "pergunta": {
-      "id": "exemplo-pergunta-1",
-      "por_que_precisa": "Quem decide como a escala funciona no hospital é a diretoria.",
-      "o_que_esta_parado": "A tela de pedir a troca, que muda conforme a resposta.",
-      "o_que_anda_depois": "A Vitta desenha a tela da troca e mostra a você antes de fazer.",
-      "ganho": "A troca de plantão sai do papel e fica registrada no aplicativo.",
-      "opcoes": [
-        { "letra": "A", "texto": "A coordenação aprova cada troca antes de ela valer" },
-        { "letra": "B", "texto": "A troca vale assim que os dois plantonistas confirmam" }
-      ],
-      "recomendada": "A",
-      "porque": "Hoje a coordenação confere a escala antes de cada mudança, e a troca não deve pular essa conferência."
-    },
-    "me_explique": [
-      { "papel": "assistente", "texto": "A Vitta quer saber quem fecha uma troca de plantão. Na opção A, a coordenação vê o pedido e aprova antes de a escala mudar. Na opção B, basta os dois plantonistas confirmarem, e a coordenação só fica sabendo depois.", "rascunho": null },
-      { "papel": "pessoa", "texto": "E se a coordenação demorar para aprovar?", "rascunho": null },
-      { "papel": "assistente", "texto": "A troca fica parada até a aprovação, e os dois plantonistas veem que ela ainda espera a coordenação. Se você quiser um prazo, dá para dizer na resposta.", "rascunho": "A coordenação aprova cada troca antes de ela valer. Se a coordenação não responder em 24 horas, a troca vale assim mesmo." }
-    ]
-  },
-  "passo_a_passo": {
-    "id": "exemplo-passo-1",
-    "demanda": "exemplo-49",
-    "dias": 1,
-    "assunto": "publicar o POP do preparo dos exames",
-    "texto": "Publique no aplicativo o POP do preparo dos exames de imagem. A Ana vai responder aos pacientes com o texto dele.",
-    "por_que_precisa": "Só a diretoria publica um POP no aplicativo.",
-    "o_que_esta_parado": "A resposta da Ana sobre o jejum e o preparo de cada exame.",
-    "o_que_anda_depois": "A Vitta liga a Ana ao POP publicado e testa as respostas sobre o preparo.",
-    "ganho": "O paciente recebe o preparo certo do exame, sem precisar ligar para a recepção.",
-    "passos": [
-      { "texto": "No menu da esquerda, clique em POP e abra o POP Preparo para exames de imagem.", "marcado": true },
-      { "texto": "Confira as horas de jejum de cada exame e clique em Publicar.", "marcado": false },
-      { "texto": "Como saber que acabou: o POP aparece como Vigente na lista.", "marcado": false }
-    ]
-  },
   "implantacao": {
     "demanda": "exemplo-46",
-    "problema": "exemplo-63",
-    "achei_um_problema_em": "exemplo-implantacao-2",
-    "pedidos": [
-      {
-        "id": "exemplo-implantacao-1", "dias": 3, "hora": "10:00", "estado": "concluida",
-        "assunto": "cadastrar os leitos de cada andar",
-        "texto": "Cadastre no checklist os leitos de cada andar, com o número de cada um.",
-        "por_que_precisa": "Só o hospital sabe quais leitos cada andar tem hoje.",
-        "o_que_esta_parado": "O teste do checklist no 3º andar.",
-        "o_que_anda_depois": "A equipe da limpeza encontra cada leito no celular.",
-        "ganho": "A Hotelaria vê pelo celular quais leitos já estão limpos.",
-        "passos": [
-          { "texto": "Escolha quem da Hotelaria cadastra os leitos e mande a ela este pedido.", "marcado": true },
-          { "texto": "Cadastre os leitos de cada andar, com o número de cada um.", "marcado": true },
-          { "texto": "Como saber que acabou: cada andar mostra os seus leitos no checklist.", "marcado": true }
-        ]
-      },
-      {
-        "id": "exemplo-implantacao-2", "dias": 1, "hora": "14:00", "estado": "aberta",
-        "assunto": "testar o checklist no 3º andar",
-        "texto": "Teste o checklist da limpeza no 3º andar durante um plantão inteiro, antes de abrir para o hospital todo.",
-        "por_que_precisa": "Só a equipe do hospital sabe se o checklist cabe na rotina da limpeza.",
-        "o_que_esta_parado": "A abertura do checklist para todos os andares.",
-        "o_que_anda_depois": "O checklist pode abrir para os outros andares.",
-        "ganho": "A Hotelaria vê pelo celular quais leitos já estão limpos.",
-        "passos": [
-          { "texto": "Escolha quem da Hotelaria faz o teste e mande a ela este pedido.", "marcado": true },
-          { "texto": "Peça para ela marcar a limpeza de cada leito do 3º andar durante um plantão, com a foto.", "marcado": false },
-          { "texto": "Como saber que acabou: os leitos do 3º andar aparecem como limpos na tela da Hotelaria.", "marcado": false }
-        ]
-      },
-      {
-        "id": "exemplo-implantacao-3", "dias": 1, "hora": "14:10", "estado": "aberta", "espera": "exemplo-implantacao-2",
-        "assunto": "abrir o checklist para todos os andares",
-        "texto": "Abra o checklist da limpeza para todos os andares e avise a equipe da Hotelaria.",
-        "por_que_precisa": "Quem decide quando a equipe começa a usar o checklist é a diretoria.",
-        "o_que_esta_parado": "O uso do checklist nos outros andares.",
-        "o_que_anda_depois": "Toda a equipe da limpeza passa a marcar os leitos pelo celular.",
-        "ganho": "A Hotelaria vê pelo celular quais leitos já estão limpos.",
-        "passos": [
-          { "texto": "Escolha quem da Hotelaria avisa a equipe de cada andar e mande a ela este pedido.", "marcado": true },
-          { "texto": "Peça para ela mostrar o checklist à equipe de cada andar na troca de plantão.", "marcado": true },
-          { "texto": "Como saber que acabou: a equipe de todos os andares marca os leitos pelo celular.", "marcado": true }
-        ]
-      }
-    ],
-    "falas_do_problema": [
-      { "autor": "ia", "texto": "Entendi, é no teste do checklist no 3º andar. O que aconteceu quando a equipe tentou marcar o leito com a foto?" }
+    "cards": [
+      { "titulo": "Cadastrar os leitos de cada andar no checklist", "fechado": true, "dono": "Marina Lopes" },
+      { "titulo": "Testar o checklist no 3º andar durante um plantão", "fechado": false, "dono": "Marina Lopes" },
+      { "titulo": "Abrir o checklist para todos os andares", "fechado": false, "dono": "Henrique Bastos" }
     ]
-  },
-  "outra_pergunta": {
-    "id": "exemplo-pergunta-2",
-    "demanda": "exemplo-55",
-    "dias": 2,
-    "destinatario": "Marina Lopes",
-    "assunto": "texto da confirmação do exame",
-    "texto": "A mensagem de confirmação do exame pode trazer o endereço da unidade, ou só a data e o horário?",
-    "por_que_precisa": "A coordenação do atendimento decide o que a Ana diz ao paciente.",
-    "o_que_esta_parado": "O texto da mensagem que a Ana manda para confirmar o exame.",
-    "o_que_anda_depois": "A Vitta escreve a mensagem e testa com a Ana.",
-    "ganho": "O paciente chega no lugar certo, sem precisar ligar para perguntar."
-  },
-  "melhoria": {
-    "falas": [
-      { "autor": "ia", "texto": "Isso é um bug, algo que não funciona como deveria, ou uma melhoria?", "opcoes": ["Bug", "Melhoria"] },
-      { "autor": "diretor", "texto": "Melhoria. Quero que a Secretária saiba na hora que a ata ficou pronta para assinar." },
-      {
-        "autor": "ia", "texto": "Por onde a Secretária deve receber o aviso?",
-        "opcoes": ["Pelo sino do aplicativo", "Pelo sino e por e-mail"], "recomendada": "B",
-        "cartao": {
-          "titulo": "Por onde vai o aviso?",
-          "na_pratica_a": "Ela só vê o aviso quando abrir o aplicativo.",
-          "na_pratica_b": "Ela recebe o e-mail mesmo longe do computador, e o sino guarda o aviso.",
-          "porque": "A Secretária passa boa parte do dia fora da mesa, e o e-mail chega no celular."
-        }
-      },
-      { "autor": "diretor", "texto": "Pelo sino e por e-mail" },
-      {
-        "autor": "ia", "texto": "O aviso vai só para a Secretária da reunião ou também para quem assina?",
-        "opcoes": ["Só para a Secretária", "Para a Secretária e para quem assina"], "recomendada": "A",
-        "cartao": {
-          "titulo": "Quem recebe o aviso?",
-          "na_pratica_a": "A Secretária confere a ata e depois manda para assinar, como hoje.",
-          "na_pratica_b": "Quem assina recebe o aviso antes de a Secretária conferir a ata.",
-          "porque": "Hoje a Secretária confere a ata antes de ela seguir para assinatura, e o aviso não deve pular essa conferência."
-        }
-      }
-    ],
-    "documento": {
-      "frase": "A Secretária recebe um aviso, no sino e por e-mail, quando a ata fica pronta para assinar.",
-      "topicos": ["O aviso chega na hora em que a ata fica pronta.", "O e-mail traz o nome da reunião e o link da ata."]
-    },
-    "custo": { "modelo": "Opus 5.5", "custo_usd": 0.42 }
-  },
-  "bug": {
-    "falas": [
-      { "autor": "ia", "texto": "Isso é um bug, algo que não funciona como deveria, ou uma melhoria?", "opcoes": ["Bug", "Melhoria"] },
-      { "autor": "diretor", "texto": "Bug. Clico em Exportar na Ouvidoria e a planilha não baixa." },
-      { "autor": "ia", "texto": "Aparece alguma mensagem quando você clica, ou nada acontece?" },
-      { "autor": "diretor", "texto": "Nada acontece. O botão fica girando e para." },
-      { "autor": "ia", "texto": "Obrigado. Montei o resumo abaixo. Confira antes de criar o card." }
-    ],
-    "resumo": {
-      "titulo": "O botão Exportar da Ouvidoria não baixa a planilha",
-      "onde": "Ouvidoria, na lista das manifestações, botão Exportar.",
-      "o_que_aconteceu": "O botão gira por alguns segundos e para, sem baixar nada e sem mensagem.",
-      "o_que_esperava": "Baixar a planilha com as manifestações do filtro escolhido.",
-      "como_repetir": "Abrir a Ouvidoria, escolher o mês passado no filtro e clicar em Exportar.",
-      "criterios": [
-        "Clicar em Exportar baixa a planilha com as manifestações do filtro.",
-        "Se a planilha não puder ser gerada, a tela diz o motivo."
-      ]
-    },
-    "custo": { "modelo": "Opus 5.5", "custo_usd": 0.18 }
   }
 }
