@@ -2,6 +2,51 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-26T16:25:24-03:00",
+      "sha": "811359c76839c79d94946f89d3a1595c8967ffc9",
+      "app_version": "0.392.2",
+      "subject": "Onda diretor-a-onda4: Tecnologia vira a aba de acompanhamento, com o que falta para começar a usar",
+      "raw_subject": "chore(deploy): registro da onda diretor-a-onda4 (#2298)",
+      "scope": [
+        "frontend"
+      ],
+      "prds": [
+        2262
+      ],
+      "result": "healthy",
+      "duration_seconds": 273,
+      "services_touched": [
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta diretor-a-onda4: PR #2298 (issue #2282), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "frontend": 249
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-26T15:51:06-03:00",
       "sha": "a9599accf7cc176388ddfaec3107679e9e7f42e1",
       "app_version": "0.392.1",
