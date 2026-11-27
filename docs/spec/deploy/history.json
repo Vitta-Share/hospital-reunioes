@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-27T01:44:49-03:00",
+      "sha": "3575805acba9068a7739a1773b235e4314a54755",
+      "app_version": "0.393.0",
+      "subject": "Onda nsp-rt-onda1: Marca de Responsável técnico no cadastro de usuários; Link de voltar no alto das telas do Núcleo",
+      "raw_subject": "chore(deploy): registro da onda nsp-rt-onda1 (#2323 #2321)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        2247
+      ],
+      "result": "healthy",
+      "duration_seconds": 1076,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "241_nsp_responsavel_tecnico.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp-rt-onda1: PR #2323 (issue #2248), PR #2321 (issue #2249), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 8,
+        "build_s": {
+          "backend": 25,
+          "frontend": 266
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-27T01:36:17-03:00",
       "sha": "54d34995c3d7b0e05b3cfffe3ad5de0bff5ac080",
       "app_version": "0.392.5",
