@@ -203,30 +203,6 @@ def responsavel_da_demanda(demanda: dict[str, Any]) -> str | None:
     return demanda.get("responsavel_id") or None
 
 
-def quem_avisar(
-    demanda: dict[str, Any], *, autor_id: str, mencoes: list[str], ja_escreveram: Sequence[str] = ()
-) -> list[str]:
-    """Quem a mensagem da Conversa da Demanda avisa no sino (ADR 0083, decisao 8).
-
-    Mencao avisa o mencionado, e so ele. Sem mencao, a mensagem do autor da
-    Demanda avisa o Responsavel, e a de qualquer outro (o Desenvolvedor, unico
-    que alem do autor escreve ali) avisa o autor. No card de Origem Vitta, que
-    toda a diretoria le e escreve (ADR 0084, decisao 4), avisa tambem quem ja
-    escreveu na conversa: o autor ali e o proprio Desenvolvedor, e sem isso a
-    resposta nunca chega ao diretor que perguntou. Ninguem e avisado da
-    propria mensagem.
-    """
-    if mencoes:
-        destino = list(mencoes)
-    elif autor_id == demanda.get("autor_id"):
-        destino = [responsavel_da_demanda(demanda)]
-    else:
-        destino = [demanda.get("autor_id")]
-    if not mencoes and origem_da_demanda(demanda) == ORIGEM_VITTA:
-        destino += list(ja_escreveram)
-    return sorted({str(d) for d in destino if d and d != autor_id})
-
-
 def login_do_responsavel(demanda: dict[str, Any]) -> str | None:
     """O login do dono da issue, como a foto o guardou, ou `None`.
 

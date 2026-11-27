@@ -115,7 +115,7 @@ def banco():
 
 
 def _pergunta(banco, *, estado: str = "aberta", mensagem: str = "0b1c2d3e-4f5a-4b6c-8d7e-9f0a1b2c3d4e"):
-    """A linha que `tecnologia_perguntas.criar` grava."""
+    """A linha que a ponte gravava ao criar a Pergunta (até a issue #2281)."""
     return banco.sql(
         f"INSERT INTO {PERGUNTAS} (demanda_id, mensagem_id, autor_id, destinatario_id, assunto, texto,"
         " por_que_precisa, o_que_esta_parado, o_que_anda_depois, ganho, opcoes, recomendada,"

@@ -1,12 +1,13 @@
-"""O aviso da Conversa da Demanda por e-mail (issue #1538, ADR 0083, decisão 8).
+"""Os avisos da aba Tecnologia por e-mail (issue #1538, ADR 0083, decisão 8).
 
-Sai junto com o aviso do sino, para o mesmo destinatário: o diretor não fica
-com o app aberto. Leva o título da Demanda, quem escreveu e o link que abre a
-Demanda na aba Tecnologia. Não leva número de issue nem link do GitHub: o
-diretor não está no GitHub e o repositório é público.
+Saem junto com o aviso do sino, para o mesmo destinatário: o diretor não fica
+com o app aberto. Levam o título da Demanda e o link que abre a Demanda na aba
+Tecnologia. Não levam número de issue nem link do GitHub: o repositório é
+público. O aviso da Conversa da Demanda saiu com a escrita pela ponte (issue
+#2281); ficam o aviso de entrega e o lembrete do Pedido da Vitta.
 
-Best-effort como os demais e-mails do app: falha aqui nunca desfaz a mensagem
-gravada nem o aviso do sino.
+Best-effort como os demais e-mails do app: falha aqui nunca desfaz o que foi
+gravado nem o aviso do sino.
 """
 
 from __future__ import annotations
@@ -24,64 +25,6 @@ logger = logging.getLogger(__name__)
 def link_da_demanda(demanda_id: str) -> str:
     """O mesmo endereço que o clique no sino abre."""
     return f"{settings.frontend_url}/admin/tecnologia?demanda={quote(str(demanda_id), safe='')}"
-
-
-def link_da_pergunta(pergunta_id: str) -> str:
-    """A aba Tecnologia com o cartão da Pergunta da Vitta em foco, o mesmo
-    endereço que o clique no aviso do sino dela abre (issue #2118)."""
-    return f"{settings.frontend_url}/admin/tecnologia?pergunta={quote(str(pergunta_id), safe='')}"
-
-
-def enviar_aviso_da_conversa(
-    supabase,
-    *,
-    destinatario_id: str,
-    aviso: str,
-    autor_nome: str,
-    demanda: dict,
-    assunto: str | None = None,
-    pergunta_id: str | None = None,
-    acao: bool = False,
-) -> bool:
-    """Um e-mail para `destinatario_id` com o `aviso` do sino ("Fulano mencionou
-    você" ou "Fulano escreveu na Demanda"). Com `assunto`, a mensagem pede
-    resposta (ADR 0106): o assunto do e-mail é o aviso com o Assunto, e o corpo
-    leva o Assunto ao lado do título. `False` quando não saiu."""
-    try:
-        from app.services.email_constants import get_logo_data_uri
-
-        linhas = (
-            supabase.table("participantes").select("id, nome_completo, email").eq("id", destinatario_id).execute().data
-        )
-        destinatario = linhas[0] if linhas else None
-        if not destinatario or not destinatario.get("email"):
-            logger.warning(f"[tecnologia_conversa] {destinatario_id} sem e-mail: aviso por e-mail pulado")
-            return False
-
-        titulo = str(demanda.get("titulo") or "Demanda sem título")
-        # O aviso da Pergunta da Vitta abre o cartão dela (issue #2118).
-        link = link_da_pergunta(pergunta_id) if pergunta_id else link_da_demanda(demanda["id"])
-        html = jinja_env.get_template("email_tecnologia_conversa.html").render(
-            destinatario_nome=destinatario.get("nome_completo") or "",
-            aviso=aviso,
-            autor_nome=autor_nome,
-            titulo=titulo,
-            assunto=assunto,
-            link=link,
-            pergunta=bool(pergunta_id),
-            # O Passo a passo da Vitta (ADR 0110): pede que a pessoa faça.
-            acao=acao,
-            logo_base64=get_logo_data_uri(),
-        )
-        linha_do_assunto = f"Assunto: {assunto}\n" if assunto else ""
-        texto = (
-            f"{aviso}.\n\n{linha_do_assunto}Demanda: {titulo}\nQuem escreveu: {autor_nome}\n\n"
-            f"{'Para ver os passos' if acao else 'Para ler e responder'}: {link}\n"
-        )
-        return _enviar_email(destinatario["email"], f"{aviso}: {assunto or titulo}", html, texto)
-    except Exception as e:  # noqa: BLE001 (e-mail nunca desfaz a mensagem nem o sino)
-        logger.warning(f"[tecnologia_conversa] Falha no e-mail para {destinatario_id}: {e}")
-        return False
 
 
 # O rotulo em negrito que abre uma linha do bloco no formato fixo da ADR 0084
