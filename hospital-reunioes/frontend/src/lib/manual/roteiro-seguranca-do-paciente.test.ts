@@ -56,6 +56,7 @@ const doRoteiro = (): {
   caso_da_triagem: string;
   caso_encaminhado: string;
   caso_classificado: string;
+  responsavel_tecnico: string;
 } => JSON.parse(rodar("--roteiro"));
 
 /** Todo texto de um valor JSON, folha por folha. */
@@ -226,6 +227,24 @@ describe("a tabela de respostas do módulo", () => {
     expect(T["nsp/configuracao/concordancia"]).toMatchObject({ casos: 0, erros_para_baixo: [] });
   });
 
+  it("o envio do Regimento que espera assinatura vai para o Responsável técnico e para a Presidência (#2251)", () => {
+    const { assinaturas } = T["nsp/assinaturas-dos-documentos"] as {
+      assinaturas: { situacao: string; signatarios: { nome: string; qualidade: string }[] }[];
+    };
+    const esperando = assinaturas.filter((a) => a.situacao === "enviado");
+    expect(esperando).toHaveLength(1);
+    expect(esperando[0].signatarios.map((s) => s.qualidade)).toEqual(["responsavel_tecnico", "presidencia"]);
+    expect(esperando[0].signatarios[0].nome).toBe(SEED.responsavel_tecnico.nome);
+  });
+
+  it("o cadastro do usuário que o roteiro abre é o do Responsável técnico de exemplo, com a caixa ainda desmarcada (#2251)", () => {
+    expect(R.responsavel_tecnico).toBe(SEED.responsavel_tecnico.id);
+    expect(T[`admin/usuarios/${R.responsavel_tecnico}`]).toMatchObject({
+      usuario: { id: SEED.responsavel_tecnico.id, nome_completo: SEED.responsavel_tecnico.nome, responsavel_tecnico: false },
+      audit_logs: expect.any(Array),
+    });
+  });
+
   it("o POST só responde o envio e a consulta de exemplo; o resto que grava fica recusado (#2003)", () => {
     const posts = Object.keys(T).filter((k) => !/^[a-z]/.test(k));
     expect(posts.sort()).toEqual(["POST nsp/publico/acompanhamento", "POST nsp/publico/notificacoes"]);
@@ -245,9 +264,10 @@ describe("a tabela de respostas do módulo", () => {
 });
 
 describe("o seed e as respostas da página de Segurança do Paciente", () => {
-  it("as pessoas de exemplo ficam na faixa P17800 a P17809, longe das pessoas dos outros roteiros", () => {
-    const ids = [SEED.presidencia.id, ...SEED.membros.map((m: { id: string }) => m.id), ...SEED.pessoas_fora_do_nucleo.map((p: { id: string }) => p.id)];
-    for (const id of ids) expect(id).toMatch(/^P1780\d$/);
+  // A faixa cresceu para P17819 com o Super admin e o Responsável técnico de exemplo (#2251).
+  it("as pessoas de exemplo ficam na faixa P17800 a P17819, longe das pessoas dos outros roteiros", () => {
+    const ids = [SEED.presidencia.id, SEED.super_admin.id, SEED.responsavel_tecnico.id, ...SEED.membros.map((m: { id: string }) => m.id), ...SEED.pessoas_fora_do_nucleo.map((p: { id: string }) => p.id)];
+    for (const id of ids) expect(id).toMatch(/^P178[01]\d$/);
   });
 
   it("o seed só tem e-mail de exemplo, e nenhum telefone, endereço ou nome de gente de verdade", () => {
