@@ -10,7 +10,7 @@ import { ORIENTACAO_DA_TRIAGEM } from "@/lib/seguranca-do-paciente/triagem";
 export default function TriagemDoCasoPage() {
   const params = useParams();
   return (
-    <TelaDoNucleo titulo="Triagem" orientacao={ORIENTACAO_DA_TRIAGEM} recurso="triagem" larga>
+    <TelaDoNucleo titulo="Triagem" orientacao={ORIENTACAO_DA_TRIAGEM} recurso="triagem" larga voltar={null}>
       <TriagemDoCaso id={params.id as string} />
     </TelaDoNucleo>
   );
