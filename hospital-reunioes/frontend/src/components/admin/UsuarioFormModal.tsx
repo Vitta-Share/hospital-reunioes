@@ -93,6 +93,8 @@ export function UsuarioFormModal({
   const [registroUf, setRegistroUf] = useState(initial?.registro_uf ?? "");
   const initialAcessoPleno = initial?.perfil_nsp === "acesso_pleno";
   const [acessoPleno, setAcessoPleno] = useState(initialAcessoPleno);
+  const initialResponsavelTecnico = initial?.responsavel_tecnico === true;
+  const [responsavelTecnico, setResponsavelTecnico] = useState(initialResponsavelTecnico);
   const initialPerfilConduta: PerfilConduta | "" = initial?.perfil_conduta ?? "";
   const [perfilConduta, setPerfilConduta] = useState<PerfilConduta | "">(initialPerfilConduta);
   const [reason, setReason] = useState("");
@@ -153,6 +155,7 @@ export function UsuarioFormModal({
         if (registroUf !== (initial?.registro_uf ?? ""))
           payload.registro_uf = registroUf.trim().toUpperCase() || null;
         if (acessoPleno !== initialAcessoPleno) payload.perfil_nsp = acessoPleno ? "acesso_pleno" : null;
+        if (responsavelTecnico !== initialResponsavelTecnico) payload.responsavel_tecnico = responsavelTecnico;
         if (perfilConduta !== initialPerfilConduta) payload.perfil_conduta = perfilConduta || null;
         if (reason.trim()) payload.reason = reason.trim();
       }
@@ -310,6 +313,16 @@ export function UsuarioFormModal({
               do Diretor Executivo. Nem o Super Admin lê o Núcleo sem ele, e
               ninguém dá este acesso a si mesmo.
             </p>
+            <label className="inline-flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={responsavelTecnico}
+                onChange={(e) => setResponsavelTecnico(e.target.checked)}
+                className="accent-primary"
+              />
+              Responsável técnico
+            </label>
+            <p className="text-xs text-slate-500 leading-snug">Marcar aqui desmarca quem estava.</p>
           </fieldset>
         )}
 
