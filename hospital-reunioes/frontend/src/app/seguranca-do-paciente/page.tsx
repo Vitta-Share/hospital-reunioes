@@ -24,6 +24,7 @@ export default function SegurancaDoPacientePage() {
       titulo="Segurança do Paciente"
       orientacao="O que precisa de você hoje vem primeiro. O resto é acompanhamento."
       recurso="ver_modulo"
+      voltar={null}
     >
       <CasosGraves />
       <AcaoDeHoje />
