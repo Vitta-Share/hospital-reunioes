@@ -191,7 +191,7 @@ describe("a assinatura", () => {
     assinado_em: null,
     pode_reenviar: true,
     signatarios: [
-      { nome: "Pessoa de Teste P1", qualidade: "diretoria_executiva", assinado_em: null },
+      { nome: "Pessoa de Teste P7", qualidade: "responsavel_tecnico", assinado_em: null },
       { nome: "Pessoa de Teste P2", qualidade: "presidencia", assinado_em: "2026-11-11T12:00:00+00:00" },
     ],
   };
@@ -221,13 +221,46 @@ describe("a assinatura", () => {
 
     const regimento = await screen.findByRole("region", { name: "Regimento" });
     const esperando = await within(regimento).findByRole("article", { name: "Versão 3, aguardando assinatura" });
-    expect(within(esperando).getByText(/Diretoria Executiva: Pessoa de Teste P1, falta assinar/)).toBeTruthy();
+    expect(within(esperando).getByText(/Responsável técnico: Pessoa de Teste P7, falta assinar/)).toBeTruthy();
     expect(within(esperando).getByText(/Presidência do Núcleo: Pessoa de Teste P2, assinou em 11\/11\/2026/)).toBeTruthy();
     expect(within(regimento).getByRole("article", { name: "Versão 2, vigente" })).toBeTruthy();
     const anteriores = within(regimento).getByRole("list", { name: "Versões anteriores" });
     expect(within(anteriores).queryByText("Versão 3")).toBeNull();
     expect(within(esperando).queryByRole("button", { name: "Reconsultar status da assinatura" })).toBeNull();
     expect(within(esperando).queryByRole("button", { name: "Reenviar para assinatura" })).toBeNull();
+  });
+
+  it("o envio antigo, de antes do Responsável técnico, continua com o rótulo Diretoria Executiva", async () => {
+    const ANTIGO: AssinaturaDoDocumento = {
+      ...ESPERANDO,
+      signatarios: [
+        { nome: "Pessoa de Teste P1", qualidade: "diretoria_executiva", assinado_em: null },
+        { nome: "Pessoa de Teste P2", qualidade: "presidencia", assinado_em: null },
+      ],
+    };
+    servidorComAssinaturas([REGIMENTO_V3, REGIMENTO_V2], [ANTIGO]);
+
+    render(<DocumentosDoNucleo podePublicar={false} />);
+
+    const esperando = await screen.findByRole("article", { name: "Versão 3, aguardando assinatura" });
+    expect(within(esperando).getByText(/Diretoria Executiva: Pessoa de Teste P1, falta assinar/)).toBeTruthy();
+  });
+
+  it("o formulário diz que o Responsável técnico assina cada documento", async () => {
+    servidorComAssinaturas([], []);
+    render(<DocumentosDoNucleo podePublicar />);
+    fireEvent.click(await screen.findByRole("button", { name: "Publicar versão nova" }));
+
+    fireEvent.change(screen.getByLabelText("Tipo"), { target: { value: "ato_designacao" } });
+    expect(screen.getByText(/vai por e-mail, assinado pelo Responsável técnico, e só vira/)).toBeTruthy();
+
+    for (const tipo of ["regimento", "plano_seguranca_paciente"]) {
+      fireEvent.change(screen.getByLabelText("Tipo"), { target: { value: tipo } });
+      expect(
+        screen.getByText(/vai por e-mail, assinado pelo Responsável técnico e pela Presidência do Núcleo, e só vira/)
+      ).toBeTruthy();
+    }
+    expect(screen.queryByText(/Diretoria Executiva/)).toBeNull();
   });
 
   it("a Presidência reconsulta e reenvia a versão que espera", async () => {

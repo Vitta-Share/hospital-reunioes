@@ -808,14 +808,30 @@ class TestAssinaturaDosDocumentosNoKit:
         no_ar = _secao(texto, "O que já está no ar")
         for termo in (
             "Enviar para assinatura",
-            "O ato de designação é assinado pela Diretoria Executiva",
-            "o Regimento e o Plano, pela Diretoria Executiva e pela Presidência",
+            "O ato de designação é assinado pelo Responsável técnico",
+            "o Regimento e o Plano, pelo Responsável técnico e pela Presidência",
             "só vira a vigente quando todos assinam",
             "a anterior continua valendo",
             "Baixar o arquivo assinado",
             "Reenviar para assinatura",
         ):
             assert termo in no_ar, termo
+
+    def test_quem_assina_e_o_responsavel_tecnico_e_nao_a_diretoria_executiva(self, texto):
+        """Issue #2250 (ADR 0112): o Assistente responde "quem assina o Ato?"
+        com o Responsável técnico. Mutante: deixar a frase antiga, da
+        Diretoria Executiva."""
+        no_ar = _secao(texto, "O que já está no ar")
+        for termo in (
+            "Sem Responsável técnico marcado",
+            "Não há Responsável técnico marcado no cadastro para assinar",
+            "O Acesso pleno ao NSP não entra na assinatura",
+            "Trocar o Responsável técnico não mexe no envio que já saiu",
+        ):
+            assert termo in no_ar, termo
+        assert "Por enquanto a marca não muda quem assina" not in no_ar
+        assert "assinado pela Diretoria Executiva" not in no_ar
+        assert "sem Diretoria Executiva cadastrada" not in no_ar
 
     def test_a_assinatura_saiu_do_que_ainda_nao_faz(self, texto):
         """Mutante: deixar a frase antiga, que dizia que a assinatura chega depois."""

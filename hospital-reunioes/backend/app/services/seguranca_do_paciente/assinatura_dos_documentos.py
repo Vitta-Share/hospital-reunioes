@@ -1,8 +1,9 @@
 """A assinatura eletrônica dos documentos do Núcleo (issue #1771, PRD #1764, ADR 0095).
 
-O ato de designação vai para a Diretoria Executiva (quem tem o Acesso pleno ao
-NSP, nominal, do Diretor Executivo); o Regimento e o Plano de Segurança do
-Paciente vão para a Diretoria Executiva e para a Presidência vigente do Núcleo.
+O ato de designação vai para o Responsável técnico do hospital (a marca no
+cadastro, issue #2250, ADR 0112); o Regimento e o Plano de Segurança do
+Paciente vão para o Responsável técnico e para a Presidência vigente do Núcleo.
+O Acesso pleno ao NSP é permissão de ver e editar, e não entra no envelope.
 Um envelope por envio, com um signatário por pessoa, sobre as mesmas
 primitivas que os POPs, as Reuniões e o Termo de Adesão usam
 (`clicksign_service`).
@@ -26,7 +27,6 @@ from datetime import UTC, datetime
 from app.config import settings
 from app.services import clicksign_service, storage
 from app.services.seguranca_do_paciente.permissao import (
-    PERFIL_ACESSO_PLENO,
     hoje_em_sao_paulo,
     id_do_nucleo,
     participacoes_vigentes,
@@ -37,9 +37,9 @@ logger = logging.getLogger(__name__)
 
 # Quem assina cada tipo, na ordem em que entram no envelope.
 SIGNATARIOS_POR_TIPO: dict[str, tuple[str, ...]] = {
-    "ato_designacao": ("diretoria_executiva",),
-    "regimento": ("diretoria_executiva", "presidencia"),
-    "plano_seguranca_paciente": ("diretoria_executiva", "presidencia"),
+    "ato_designacao": ("responsavel_tecnico",),
+    "regimento": ("responsavel_tecnico", "presidencia"),
+    "plano_seguranca_paciente": ("responsavel_tecnico", "presidencia"),
 }
 
 ROTULO_DO_TIPO = {
@@ -48,7 +48,13 @@ ROTULO_DO_TIPO = {
     "plano_seguranca_paciente": "Plano de Segurança do Paciente",
 }
 
-ROTULO_DA_QUALIDADE = {"diretoria_executiva": "Diretoria Executiva", "presidencia": "Presidência do Núcleo"}
+# `diretoria_executiva` fica para as linhas antigas, de antes do Responsável
+# técnico (ADR 0112): a tela continua mostrando quem estava nelas.
+ROTULO_DA_QUALIDADE = {
+    "responsavel_tecnico": "Responsável técnico",
+    "diretoria_executiva": "Diretoria Executiva",
+    "presidencia": "Presidência do Núcleo",
+}
 
 # `auto_close` só chega com todas as assinaturas; `close` e `deadline` podem
 # fechar o envelope com assinatura faltando, e não trocam a vigente.
@@ -89,11 +95,11 @@ def _bucket() -> str:
 # ---------------------------------------------------------------------------
 
 
-def _diretoria_executiva(supabase) -> list[dict]:
+def _responsavel_tecnico(supabase) -> list[dict]:
     return (
         supabase.table("participantes")
         .select("id, nome_completo, email")
-        .eq("perfil_nsp", PERFIL_ACESSO_PLENO)
+        .eq("responsavel_tecnico", True)
         .eq("ativo", True)
         .order("nome_completo")
         .execute()
@@ -126,7 +132,7 @@ def _presidencia(supabase) -> list[dict]:
 
 
 _FALTA = {
-    "diretoria_executiva": "Não há Diretoria Executiva (Acesso pleno ao NSP) cadastrada para assinar.",
+    "responsavel_tecnico": "Não há Responsável técnico marcado no cadastro para assinar",
     "presidencia": "Não há Presidência vigente no Núcleo para assinar.",
 }
 
@@ -135,7 +141,7 @@ def signatarios_do_tipo(supabase, tipo: str) -> list[dict]:
     """Quem assina o tipo agora, um por pessoa: [{participante_id, qualidade,
     nome, email}]. Sem alguém de uma das qualidades, ou sem e-mail, sobe
     `AssinaturaNaoEnviadaError` antes de qualquer gravação."""
-    buscar = {"diretoria_executiva": _diretoria_executiva, "presidencia": _presidencia}
+    buscar = {"responsavel_tecnico": _responsavel_tecnico, "presidencia": _presidencia}
     signatarios: list[dict] = []
     vistos: set[str] = set()
     for qualidade in SIGNATARIOS_POR_TIPO[tipo]:
