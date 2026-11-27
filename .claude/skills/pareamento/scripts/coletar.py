@@ -127,6 +127,7 @@ def montar_cards(projetos: list[dict], eu: str, diretores: set[str], nomes: dict
                 "prd": chave(p["nome"], p["pais"][n]) if n in p["pais"] else None,
                 "atualizado": i["updated_at"],
                 "corpo": corpo_do_card(i),
+                "confiavel": confiavel(i),
             }
     # Ponta de bloqueio que ficou fora (outro dono, sem relação com quem roda) vira chip simples.
     for c in list(cards.values()):
@@ -155,7 +156,7 @@ def ler_projeto(cfg: dict) -> dict:
             s = i["sub_issues_summary"]
             prds.append({"chave": chave(cfg["nome"], i["number"]), "numero": i["number"], "titulo": i["title"],
                          "url": i["html_url"], "feitas": s.get("completed", 0), "total": s.get("total", 0),
-                         "atualizado": i["updated_at"], "corpo": corpo_do_card(i)})
+                         "atualizado": i["updated_at"], "corpo": corpo_do_card(i), "confiavel": confiavel(i)})
             for filha in gh_paginado(f"repos/{repo}/issues/{i['number']}/sub_issues?per_page=100"):
                 pais[filha["number"]] = i["number"]
     deps = {}
@@ -207,7 +208,9 @@ def _cercado(rotulo: str, texto: str) -> str:
 
 def bloco_para_descrever(k: str, rotulo: str, item: dict, comentarios: list[dict]) -> str:
     """A seção de um card no para-descrever.md, com corpo e comentários cercados como dado."""
-    partes = [f"## {k} ({rotulo}) {item['titulo'].replace(chr(10), ' ')}", f"atualizado: {item['atualizado']}", ""]
+    titulo = item["titulo"] if item.get("confiavel", True) else "(título omitido: a issue foi aberta por quem não é do time)"
+    partes = [f"## {k} ({rotulo})", f"atualizado: {item['atualizado']}", ""]
+    partes.append(_cercado("título da issue", titulo))
     partes.append(_cercado("corpo da issue", item.get("corpo") or ""))
     for c in comentarios:
         partes.append(_cercado(f"comentário de {c['user']['login']}", (c.get("body") or "")[:1200]))
