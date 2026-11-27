@@ -16,7 +16,7 @@
 # Quem chega e acha esse pid morto não espera a trava ficar velha: sem a fase
 # `app-na-main` a trava é órfã (nada do app entrou na main) e sai do caminho;
 # com ela, a trava fica parada na hora, e prod espera o humano. Trava sem pid
-# (o `/ship` manual) segue a fila e a regra dos 60 min, como antes.
+# (o `/subir` manual) segue a fila e a regra dos 60 min, como antes.
 #
 # Chave: identificador da sessão (basename do scratchpad da sessão serve).
 # Reentrante: pegar com a mesma chave de quem já segura devolve 0 na hora.

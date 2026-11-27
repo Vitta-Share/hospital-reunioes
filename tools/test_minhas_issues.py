@@ -274,7 +274,7 @@ def test_estimativa_vem_da_mediana_da_fatia_e_marca_mais_rapido_e_melhor():
     "ahead,sem_remoto,onde,prox",
     [
         pytest.param(0, True, "worktree aberto, sem commit novo", "seguir no worktree", id="sem-commit"),
-        pytest.param(2, False, "branch no remoto, sem PR", "`/ship`", id="pushado-sem-pr"),
+        pytest.param(2, False, "branch no remoto, sem PR", "`/subir`", id="pushado-sem-pr"),
     ],
 )
 def test_worktree_sem_pr_sempre_diz_onde_parou_e_o_proximo_passo(ahead, sem_remoto, onde, prox):

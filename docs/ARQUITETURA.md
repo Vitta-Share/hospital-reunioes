@@ -149,7 +149,7 @@ CONTEXT.md · CONTEXT-MAP.md   glossário e mapa dos contextos (raiz)
 
 O desenvolvimento é **GitHub-issue-centric** (modelo Matt Pocock). Issues, PRs e deploys ao vivo aparecem na Página do Projeto do Hospital, no PedroOS. O método de trabalho vive em `docs/onboarding/`.
 
-**Fluxo:** `/grill-with-docs` → `/to-prd` → `/to-issues` → `/pegar-issue` → `/tdd` → `/ship` → `/deploy`.
+**Fluxo:** `/grill-with-docs` → `/to-prd` → `/to-issues` → `/pegar-issue` → `/tdd` → `/subir` → `/deploy`.
 
 **Skills do projeto** (versionadas em `.claude/skills/`, já instaladas):
 
@@ -157,7 +157,7 @@ O desenvolvimento é **GitHub-issue-centric** (modelo Matt Pocock). Issues, PRs 
 |---|---|
 | Planejar → issues | `grill-with-docs` · `to-prd` · `to-issues` · `triage` |
 | Desenvolver | `pegar-issue` · `tdd` · `diagnose` · `prototype` · `improve-codebase-architecture` · `zoom-out` |
-| Entregar | `ship` (PR + gates + subida) · `deploy` (Coolify + health + rollback) |
+| Entregar | `subir` (PR + gates + subida) · `deploy` (Coolify + health + rollback) |
 | Apoio | `snapshot` (atualiza este doc) · `atualizar-app` (dev local) |
 
 **Skills globais** (no seu Claude Code, valem em todos os projetos — não precisam de instalação por repo): `passagem` (handoff pt-BR), e os plugins `code-review`, `security-review`, `frontend-design`, `context7`, `github`.

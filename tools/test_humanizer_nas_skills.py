@@ -28,7 +28,7 @@ TEXTO_PARA_FORA = {
     "mensagem-prd",
     "to-prd",
     "to-issues",
-    "ship",
+    "subir",
     "ask-pedro",
     "pendencias",
     # O bloco do leitor leigo da issue da porta B, que o card mostra a quem pediu.

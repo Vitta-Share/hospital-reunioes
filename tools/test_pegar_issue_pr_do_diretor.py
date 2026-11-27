@@ -2,7 +2,7 @@
 
 A fatia que leva o link do PR do diretor na seção "Protótipo" continua nele:
 o `pr_do_diretor.py` faz o checkout da branch do fork (sem branch nova), põe a
-label `assumido` pela sessão de quem assumiu e, no `/ship`, tira o PR do
+label `assumido` pela sessão de quem assumiu e, no `/subir`, tira o PR do
 rascunho com o `Closes` da fatia. Sem edição por mantenedores, cria a Tarefa
 do diretor e para. Os testes rodam o script como o agente roda, com um `gh` de
 mentira no PATH que anota cada chamada: o GitHub de verdade não entra.
@@ -314,7 +314,7 @@ def test_pegar_issue_assume_o_pr_do_diretor_no_lugar_da_branch_nova():
 
 
 def test_ship_usa_o_pr_do_diretor_no_lugar_do_gh_pr_create():
-    regra = secao_md(ler("ship"), "PR do diretor")
+    regra = secao_md(ler("subir"), "PR do diretor")
 
     assert "pr_do_diretor.py qual <N>" in regra
     assert "pr_do_diretor.py pronto <N> --corpo" in regra

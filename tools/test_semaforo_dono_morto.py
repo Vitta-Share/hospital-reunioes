@@ -8,7 +8,7 @@ confere se o dono está vivo:
 - morto sem código do app na main: a trava é órfã, sai do caminho e quem chega pega;
 - morto com código do app na main (fase `app-na-main`): a trava fica parada na
   hora, e prod espera o humano, como na saída 3 ou 4 da subida;
-- vivo, ou trava sem pid (o `/ship` manual): espera na fila, como antes.
+- vivo, ou trava sem pid (o `/subir` manual): espera na fila, como antes.
 """
 
 from __future__ import annotations

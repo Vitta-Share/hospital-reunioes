@@ -107,7 +107,7 @@ Termine com a pergunta **"Posso seguir?"** e pare. Sem o "pode", nada é feito.
 
 A resposta é texto livre: "pode" faz tudo o que a tabela sugeriu; "só o Diduccio" faz um; "não" encerra.
 
-Antes de mexer num repositório, leia o `CLAUDE.md` dele. Se ele tem `.claude/skills/ship/SKILL.md`, siga as regras da `/ship` dele (nome da branch, tipo de commit, gates). Senão, o caminho padrão:
+Antes de mexer num repositório, leia o `CLAUDE.md` dele. Se ele tem `.claude/skills/subir/SKILL.md`, siga as regras da `/subir` dele (nome da branch, tipo de commit, gates). Senão, o caminho padrão:
 
 **Subir mudança pendente que está na main:**
 

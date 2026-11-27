@@ -248,7 +248,7 @@ def montar(d: dict, visual: bool = False) -> str:
             passos.setdefault(2, []).append((f"#{n}", prox))
         elif wt and not pr and wt["ahead"]:
             onde.append("branch no remoto, sem PR")
-            prox = ["`/ship`"]
+            prox = ["`/subir`"]
             passos.setdefault(3, []).append((f"#{n}", prox))
         elif wt and not pr:
             onde.append("worktree aberto, sem commit novo")

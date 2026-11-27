@@ -1,5 +1,5 @@
 <!--
-PR template preenchido automaticamente pelo /ship a partir da Issue vinculada (gh issue view).
+PR template preenchido automaticamente pelo /subir a partir da Issue vinculada (gh issue view).
 Pode editar manualmente. No modelo Pocock o contexto vive na Issue, não em chronicle/plano.
 -->
 
@@ -51,7 +51,7 @@ saída do script ou do comando antes e depois.
 
 <!--
 Porta de uma via (o rollback da imagem não desfaz): migration, envio externo (email, ClickSign, WhatsApp),
-escrita ou apagamento em dado de produção, mudança em .github/ ou nas skills da subida (ship, onda-enxuta,
+escrita ou apagamento em dado de produção, mudança em .github/ ou nas skills da subida (subir, onda-enxuta,
 agentes hr-*). O resto é porta de duas vias: a subida faz rollback automático.
 Raio: quem sente se der errado (uma tela, um módulo, todos os logins, o próprio deploy).
 -->

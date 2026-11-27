@@ -174,7 +174,7 @@ jobs:
                 return;
               }
 
-              // O revisor de teste é a MESMA conta que roda a automação (gh, /ship,
+              // O revisor de teste é a MESMA conta que roda a automação (gh, /subir,
               // /triage). Comentários de automação carregam marcadores fixos e não
               // são a voz do revisor: sem isso, todo comentário do agente
               // dispararia o loop sobre si mesmo (issue #74).

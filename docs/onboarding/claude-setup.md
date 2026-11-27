@@ -2,7 +2,7 @@
 
 Guia único de setup. Roda do zero até ter o fluxo do time funcionando no terminal — com plugins, CLI do Coolify, MCP servers e permissões alinhadas. Tempo estimado: **15–30 minutos**.
 
-Depois de seguir este guia, leia [`dev.md`](./dev.md) pra entender o fluxo dia-a-dia (`/grill-with-docs` → `/pegar-issue` → `/tdd` → `/ship` → subida `fechar_onda.py`).
+Depois de seguir este guia, leia [`dev.md`](./dev.md) pra entender o fluxo dia-a-dia (`/grill-with-docs` → `/pegar-issue` → `/tdd` → `/subir` → subida `fechar_onda.py`).
 
 ---
 
@@ -30,7 +30,7 @@ Instale antes de tudo:
 | Ferramenta | Comando (macOS) | Pra quê |
 |---|---|---|
 | **Claude Code CLI** | `npm install -g @anthropic-ai/claude-code` ou via [claude.ai/code](https://claude.ai/code) | O agente em si |
-| **GitHub CLI** (`gh`) | `brew install gh` | PRs, Issues, reviews. Usado por `/pegar-issue`, `/to-prd`, `/to-issues` e `/ship` |
+| **GitHub CLI** (`gh`) | `brew install gh` | PRs, Issues, reviews. Usado por `/pegar-issue`, `/to-prd`, `/to-issues` e `/subir` |
 | **`jq`** | `brew install jq` | Parser JSON em scripts (`/deploy status`, semáforo, `/setup-maquina`) |
 | **Python 3.9+** | já vem no macOS recente, ou `brew install python@3.12` | Scripts do `/snapshot`, a subida (`fechar_onda.py`) e o `/deploy`. O 3.12 do backend quem provê é o `uv sync` |
 | **`uv`** | `curl -LsSf https://astral.sh/uv/install.sh \| sh` e depois `cd hospital-reunioes/backend && uv sync` | Cria o `.venv` do backend. A subida (`fechar_onda.py`) importa o app para gerar o snapshot |
@@ -84,8 +84,8 @@ Plugins do Claude Code são instalados via `/plugin` dentro de uma sessão. Eles
 
 | Plugin | Pra que serve | Quem usa |
 |---|---|---|
-| `code-review@claude-plugins-official` | `/code-review`, review automatizada do diff | Revisão avulsa; no `/ship`, quem revisa o PR do app é o `hr-revisor` (ADR 0068) |
-| `security-guidance@claude-plugins-official` | `/security-review`, review focada em vulns | Revisão avulsa; no `/ship`, a lente de segurança entra no `hr-revisor` quando o `sensivel.py` acusa |
+| `code-review@claude-plugins-official` | `/code-review`, review automatizada do diff | Revisão avulsa; no `/subir`, quem revisa o PR do app é o `hr-revisor` (ADR 0068) |
+| `security-guidance@claude-plugins-official` | `/security-review`, review focada em vulns | Revisão avulsa; no `/subir`, a lente de segurança entra no `hr-revisor` quando o `sensivel.py` acusa |
 | `context7@claude-plugins-official` | Docs atualizadas de libs (React, Next.js, FastAPI, Supabase) | Claude busca antes de propor mudanças em libs |
 | `skill-creator@claude-plugins-official` | Criar/editar skills do time | Quando alguém quiser estender `.claude/skills/` |
 
@@ -361,7 +361,7 @@ open http://localhost:3000                  # esperado: tela de login do app
 | `/to-issues` | Quebra o PRD em fatias verticais independentes (1 issue cada). |
 | `/pegar-issue` | **Sem arg:** lista a fila. **Com `<N>`:** claim atômico + branch + carrega a spec. |
 | `/tdd` | Red → green → refactor. Critérios de aceite da Issue viram testes. |
-| `/ship` | Commit → PR → gates da ADR 0068 e, com o PR verde, roda a subida sozinho. |
+| `/subir` | Commit → PR → gates da ADR 0068 e, com o PR verde, roda a subida sozinho. |
 | `fechar_onda.py --prs <N>` | A subida única (ADR 0068): versão sem commit, `APP_VERSION` no backend e no frontend, merge pela API, tag `vX.Y.Z`, um build, health e registro gravado pela Action pós-merge, sem PR. |
 | `/deploy` | Opera a produção no Coolify: `status`, `rollback`, `setup`. `/deploy ship` aponta para a subida e sai. |
 | `/diagnose` | Investigação raiz de bug (reproduz → minimiza → corrige → regressão). |
@@ -379,7 +379,7 @@ open http://localhost:3000                  # esperado: tela de login do app
 |---|---|---|
 | `/pegar-issue` não responde | Não está no repo, ou `.claude/skills/pegar-issue/` foi apagado | `cd /caminho/pra/hospital-reunioes && ls .claude/skills/pegar-issue/SKILL.md` |
 | `/deploy` falha com 401 do Coolify | Token expirado ou contexto do CLI desatualizado | `coolify context verify`; se falhar: `set -a; source tokens/.env; set +a && coolify context set-token hsm "$COOLIFY_ACCESS_TOKEN"` |
-| `/ship` reprova num gate misterioso | CI, lint, ou review reprovou — output do `/ship` mostra qual | Olhar último comentário no PR (`gh pr view --comments`); corrigir; `/ship` (retoma do passo certo) |
+| `/subir` reprova num gate misterioso | CI, lint, ou review reprovou — output do `/subir` mostra qual | Olhar último comentário no PR (`gh pr view --comments`); corrigir; `/subir` (retoma do passo certo) |
 | `/tdd` não roda os testes do backend | `.venv` ausente ou Pango faltando | `cd hospital-reunioes/backend && uv sync`, depois `/setup-maquina` para conferir o import do app |
 | Issue não aparece na fila do `/pegar-issue` | Sem label `ready-for-agent`, já tem dono, ou tem "Bloqueada por: #X" aberta | `gh issue view <N>` confere labels/assignee/bloqueio |
 | Permission prompts a cada comando | `defaultMode` está como `default` ou allow-list vazia | Passo 5 acima |

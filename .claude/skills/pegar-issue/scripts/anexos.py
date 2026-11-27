@@ -14,7 +14,7 @@ Lê a issue pelo `gh`, acha o id da Demanda no marcador oculto do corpo
 chave `TECNOLOGIA_AUTOMACAO_API_KEY` (do ambiente ou do `tokens/.env` do clone
 principal) e grava as imagens em `local/anexos/<issue>/` na raiz do clone em que
 roda (fora do git). Imprime um caminho por linha; o agente lê cada um como
-arquivo. O `/ship` apaga a pasta ao abrir o PR.
+arquivo. O `/subir` apaga a pasta ao abrir o PR.
 
 Saída 0 com os caminhos, ou com "sem anexos" quando a issue não tem Demanda ou a
 Demanda não tem imagem guardada. Saída 1 com o motivo no stderr quando não deu
