@@ -2,6 +2,56 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-27T13:41:28-03:00",
+      "sha": "454787c6be5596a3e14adb7d9c71f52bd8640f4a",
+      "app_version": "0.395.0",
+      "subject": "PR #2170, issue #1838: Papel original, guarda, congelar e eliminação",
+      "raw_subject": "chore(deploy): registro do PR avulso (#2170)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        1786
+      ],
+      "result": "healthy",
+      "duration_seconds": 498,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "242_conduta_papel_guarda_e_eliminacao.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "PR avulso: PR #2170, issue #1838. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 7,
+        "build_s": {
+          "backend": 41,
+          "frontend": 373
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-27T02:36:03-03:00",
       "sha": "9d430a51e570fcb89684b7c9aacd8bdfdb121be5",
       "app_version": "0.394.1",
