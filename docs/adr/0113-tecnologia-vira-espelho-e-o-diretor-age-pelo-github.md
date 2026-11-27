@@ -12,7 +12,7 @@ Decisão do Pedro (25/11/2026, grill no terminal em três rodadas). Desde 24/11 
 
 1. **O diretor é prototipador.** Melhoria só nasce do Claude Code dele: ele faz o grill, prototipa e abre o card (o PRD, com a label `origem:diretor`) e o PR rascunho. A Vitta refina, fatia e desenvolve. Rejeitado: manter o Planejamento da Demanda no app em paralelo (dois caminhos para a mesma melhoria, e o caro é o do app).
 
-2. **O diretor vira colaborador do repositório, sem poder mergear.** Colaborador é o único jeito de ele receber card, fechar o card que a Vitta abriu e pôr card no nome de quem vai desenvolver. Duas travas seguram o merge: o `/setup-diretor` nega no Claude dele o merge pelo `gh` e pela API, e um check obrigatório do CI reprova o PR aberto por ele até um Desenvolvedor assumir (uma label). O PR dele continua saindo do fork. Vale também para o repositório da Ana. Emenda a decisão de 24/11 (fork sem ser colaborador). Rejeitado: só a instrução ao Claude dele (não segura o botão verde, e a `main` pede zero aprovações); continuar só no fork (ele só comentaria, e quem fecha o card seria sempre a Vitta).
+2. **O diretor vira colaborador do repositório, sem poder mergear.** Colaborador é o único jeito de ele receber card, fechar o card que a Vitta abriu e pôr card no nome de quem vai desenvolver. Duas travas seguram o merge: o `/setup-diretor` nega no Claude dele o merge pelo `gh` e pela API, e um check obrigatório do CI reprova o PR aberto por ele até um Desenvolvedor assumir (uma label). O PR dele continua saindo do fork. Vale também para o repositório da Ana. Emenda a decisão de 24/11 (fork sem ser colaborador). Rejeitado: só a instrução ao Claude dele (não segura o botão verde, e a `main` pede zero aprovações); continuar só no fork (ele só comentaria, e quem fecha o card seria sempre a Vitta). **Ver a emenda de 26/11/2026 abaixo: o diretor entra com o papel Triage na organização `Vitta-Share`, e as duas travas viram segunda linha.**
 
 3. **O PR rascunho do diretor é ponto de partida.** Quem assume continua na mesma branch do fork (edição por mantenedores), completa com teste e leva pela subida. Rejeitado: o PR só como referência, com a fatia refeita do zero; subir o PR como está.
 
@@ -35,6 +35,18 @@ Decisão do Pedro (25/11/2026, grill no terminal em três rodadas). Desde 24/11 
 12. **As mensagens saem do PedroOS.** O `mensagem_a_enviar.py`, o bloco Mensagens da Ala Hoje, o Canal (app ou WhatsApp), o `checar-respostas`, a faixa Novidades e o "Mandar ao hospital" deixam de existir. O que era mensagem ao diretor é a tarefa da decisão 4; o resto o Pedro manda por fora, sem o OS saber. As pessoas de cada Projeto (login, nome e papel, sócio ou diretor) passam a morar no `.claude/fluxo.json` do Projeto, e o OS de cada sócio lê dali o Filtro de pessoa, o "O que é meu" e o resumo por pessoa. O diretor fica fora do "Acesso dos sócios". Rejeitado: o diretor nas quatro listas fixas do OS, cada uma com um nome diferente para a mesma pessoa.
 
 13. **O que está aberto hoje passa por triagem na última fatia.** Cada Pedido aberto no app e cada card de comunicação (`com:*`) aberto no GitHub vira card atribuído ao diretor, se ainda vale, ou fecha como não planejado com um comentário do motivo. Rejeitado: fechar tudo às cegas (solta bloqueio que ainda segura fatia).
+
+## Emenda de 26/11/2026: o diretor entra com Triage na organização Vitta-Share (PRD #2301)
+
+A decisão 2 deixou um buraco que as duas travas não cobrem. Num repositório de conta pessoal, todo colaborador tem escrita, e o GitHub não tem regra que tire o merge de uma pessoa só. A negação no Claude dele segura o Claude, e o check `PR do diretor assumido` segura o PR que ele abre; nenhuma das duas segura o clique dele em "Merge" num PR verde da Vitta, e o merge na `main` sobe para a produção pelos webhooks do Coolify. Decisão do Pedro em 26/11/2026, depois de conferir que o repositório pessoal não tem como tirar o merge de um colaborador.
+
+1. **O repositório mora na organização `Vitta-Share` e o diretor é colaborador com o papel Triage.** Triage mexe em issue, label, atribuição e comentário, e não dá push nem merge. É o que a decisão 2 precisava: receber card, fechar o card que a Vitta abriu e pôr card no nome de quem vai desenvolver. Os sócios ficam com escrita, e a esteira (revisor, CI, subida) não muda. Vale também para o repositório da Ana.
+
+2. **As duas travas de merge continuam, agora como segunda linha.** A negação no `settings.json` do Claude dele e o check `PR do diretor assumido` ficam onde estão: seguram o caso de alguém dar a ele mais acesso do que Triage por engano.
+
+3. **O `/setup-diretor` confere o papel.** O `conferir.sh` dá `OK` em "colaborador do time" só com Triage sem escrita; escrita no time dá `FALTA`, e a mensagem "Acesso de escrita" pede ao Pedro a troca. O `upstream` da cópia dele passa a ser `Vitta-Share/hospital-reunioes`, e a cópia clonada antes da virada troca o endereço pelo passo "Cópia antiga" da skill. O `hospital-arquivos` continua em `pedrorezendefig`, com escrita, porque ele grava ali o Arquivo de apoio (decisão 11).
+
+Rejeitado: ficar na conta pessoal e confiar nas duas travas (o clique no botão verde continua livre); tirar o diretor de colaborador e voltar só ao fork (ele perde receber e fechar card, que é o que a decisão 2 quis dar a ele).
 
 ## Consequências
 

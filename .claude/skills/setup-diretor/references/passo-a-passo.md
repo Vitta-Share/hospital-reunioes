@@ -87,6 +87,8 @@ O Claude vai criar uma cópia do código só sua no GitHub (o nome técnico é "
 6. No Claude, abra uma conversa nova na área de código e escolha essa pasta `hospital-reunioes`.
 7. Digite `/setup-diretor` e aperte Enter. O Claude continua de onde parou.
 
+Se a sua cópia foi baixada antes de 26/11/2026, ela ainda aponta o endereço antigo do repositório do time. O Claude troca o endereço sozinho quando a conferência acusar, e você não precisa fazer nada.
+
 **Como saber que acabou:** na conversa nova, o Claude roda a conferência e mostra a sua cópia ligada ao seu login e o GitHub conectado.
 
 ## Parte 4. A sua cópia do app
@@ -121,11 +123,12 @@ Ele também grava uma trava nas configurações dele: o seu Claude fica proibido
 
 O Pedro convida você para dois lugares no GitHub. O primeiro é o repositório do app: com ele você recebe cards no seu nome, responde, devolve e fecha os que terminar. O segundo é o `hospital-arquivos`, uma pasta privada que só você e os sócios da Vitta veem, onde ficam os seus arquivos de apoio (Parte 10).
 
-Mesmo convidado, você não junta mudança ao app. O seu Claude tem a trava da Parte 5, e o GitHub reprova o seu pedido de mudança até alguém da Vitta assumir.
+Mesmo convidado, você não junta mudança ao app. No repositório do app você entra com o papel Triage: mexe nos cards, nas etiquetas e em quem cuida de cada um, e o GitHub não deixa você mudar o código nem juntar mudança. A trava do seu Claude (Parte 5) e a regra que reprova o seu pedido de mudança até alguém da Vitta assumir continuam valendo, como segunda proteção.
 
 1. Diga "aceita os convites" ao Claude. Ele aceita os dois pelo GitHub e confere.
 2. Se ele disser que não achou convite, mande ao Pedro a mensagem "Sem convite", que o Claude mostra pronta.
 3. Quando o Pedro responder, diga "aceita os convites" de novo.
+4. Se a conferência disser que você tem acesso de escrita, mande ao Pedro a mensagem "Acesso de escrita", que o Claude mostra pronta. Ele troca o seu papel para Triage.
 
 **Como saber que acabou:** a conferência mostra "colaborador do time" e "hospital-arquivos" como OK.
 

@@ -4,7 +4,8 @@ O Felipe manda estas mensagens ao Pedro pelo WhatsApp. O Claude mostra a mensage
 
 | Quando | Mensagem | O que o Pedro faz do lado dele |
 |---|---|---|
-| Criou a conta no GitHub (Parte 1) | Conta criada | `gh variable set DIRETOR_LOGINS --body "<login>"` no repositório (com o login dos outros diretores, se houver, separados por vírgula) e convida o login como colaborador com escrita no `hospital-reunioes` e no `hospital-arquivos` (ADR 0113). O merge fica travado no Claude dele e no check do PR do diretor |
+| Criou a conta no GitHub (Parte 1) | Conta criada | `gh variable set DIRETOR_LOGINS --body "<login>"` no repositório (com o login dos outros diretores, se houver, separados por vírgula) e convida o login como colaborador com o papel Triage no `Vitta-Share/hospital-reunioes` e com escrita no `hospital-arquivos` (ADR 0113, emenda da decisão 2). Triage não dá push nem merge; a trava no Claude dele e o check do PR do diretor ficam como segunda linha |
+| A conferência diz que ele tem escrita no time (Parte 6) | Acesso de escrita | Troca o papel dele no `Vitta-Share/hospital-reunioes` para Triage (Settings, Collaborators and teams) |
 | Não achou o convite (Parte 6) | Sem convite | Convida de novo nos dois repositórios |
 | O card nasceu sem as etiquetas depois de um minuto | Card sem label | Confere a variável `DIRETOR_LOGINS` e põe as labels à mão naquele card |
 | Abriu um card (Parte 9) | Card novo | Grill técnico com `/grill-with-docs #N` e, depois, `/to-prd` e `/to-issues` |
@@ -33,6 +34,16 @@ Fala Pedro, o Claude não achou o convite do GitHub
 Login: <login>
 
 Consegue me convidar no hospital-reunioes e no hospital-arquivos?
+```
+
+## Acesso de escrita
+
+```
+Fala Pedro, o Claude disse que eu tô com acesso de escrita no hospital-reunioes
+
+Login: <login>
+
+Era pra ser Triage, né? Consegue trocar? Qualquer coisa me chama.
 ```
 
 ## Card sem label
