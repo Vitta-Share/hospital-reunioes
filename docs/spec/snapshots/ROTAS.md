@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-27T00:25+0000 -->
+<!-- last_update: 2026-11-27T16:35+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -251,7 +251,11 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 | Método | Rota | O que faz | Auth |
 |--------|------|-----------|------|
+| POST | `/comite-de-conduta/casos/{caso_id}/congelamento` | Congelar caso | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/descongelamento` | Descongelar caso | ✅ |
 | GET | `/comite-de-conduta/casos/{caso_id}/dossie` | BAIXAR DOSSIÊ: o pacote ZIP do caso, sem cache. 403 a quem não é do | ✅ |
+| GET | `/comite-de-conduta/casos/{caso_id}/etiqueta` | IMPRIMIR ETIQUETA: a folha A4 do envelope, sem nome, setor nem assunto. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/lacre` | Registrar lacre | ✅ |
 
 ## canal-de-conduta (`app/routers/conduta_voto.py`)
 
@@ -936,4 +940,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 520 endpoints em 82 routers · 91% exigem auth.
+**Totais:** 524 endpoints em 82 routers · 91% exigem auth.

@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-27T04:40+0000 -->
+<!-- last_update: 2026-11-27T16:35+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -2382,7 +2382,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## conduta_casos
 
-> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql, 202_conduta_sinalizacao_da_ouvidoria.sql, 214_conduta_rota_especial.sql, 216_conduta_voto_e_trava_de_robustez.sql, 221_conduta_ata_de_deliberacao.sql, 223_conduta_recomendacao_medida_e_retorno.sql, 229_conduta_verificacao_de_retaliacao.sql, 230_conduta_relato_em_passos.sql, 234_conduta_acompanhamento_e_mensagens.sql)
+> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql, 202_conduta_sinalizacao_da_ouvidoria.sql, 214_conduta_rota_especial.sql, 216_conduta_voto_e_trava_de_robustez.sql, 221_conduta_ata_de_deliberacao.sql, 223_conduta_recomendacao_medida_e_retorno.sql, 229_conduta_verificacao_de_retaliacao.sql, 230_conduta_relato_em_passos.sql, 234_conduta_acompanhamento_e_mensagens.sql, 242_conduta_papel_guarda_e_eliminacao.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2406,6 +2406,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `denunciante_informou_em` | `TIMESTAMPTZ` | — | — | — |
 | `relator_nome_cifrado` | `TEXT` | — | — | — |
 | `etapa_ao_arquivar` | `TEXT` | — | — | — |
+| `papel_lacrado_por` | `VARCHAR(10)` | — | — | `participantes.id` |
 
 **Indexes:**
 - `idx_conduta_casos_rota_etapa` em `(rota, etapa, recebido_em DESC)` (de `175_conduta_fundacao.sql`)
@@ -2420,6 +2421,9 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_conduta_casos_enviado_a_direcao_por` em `(enviado_a_direcao_por)` (de `223_conduta_recomendacao_medida_e_retorno.sql`)
 - `idx_conduta_casos_retorno_aprovado_id` em `(retorno_aprovado_id)` (de `223_conduta_recomendacao_medida_e_retorno.sql`)
 - `idx_conduta_casos_retorno_aprovado_por` em `(retorno_aprovado_por)` (de `223_conduta_recomendacao_medida_e_retorno.sql`)
+- `idx_conduta_casos_papel_lacrado_por` em `(papel_lacrado_por)` (de `242_conduta_papel_guarda_e_eliminacao.sql`)
+- `idx_conduta_casos_congelado_por` em `(congelado_por)` (de `242_conduta_papel_guarda_e_eliminacao.sql`)
+- `idx_conduta_casos_em_guarda` em `(encerrado_em)` (de `242_conduta_papel_guarda_e_eliminacao.sql`)
 
 ## conduta_atribuicoes
 

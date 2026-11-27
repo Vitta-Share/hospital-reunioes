@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-27T04:40+0000 -->
+<!-- last_update: 2026-11-27T16:35+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -229,6 +229,7 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 239 | `239_anexo_da_conclusao_da_pendencia.sql` | (era 174, renumerada na issue do banco do zero: dividia o número com outra; em p | 1 | 0 | 1 | 0 |
 | 240 | `240_tecnologia_origem_relato.sql` | a Origem "Relato no app" da Demanda (issue #2275, PRD #2262, ADR 0113) | 0 | 0 | 0 | 0 |
 | 241 | `241_nsp_responsavel_tecnico.sql` | a marca de Responsável técnico no cadastro | 0 | 1 | 1 | 0 |
+| 242 | `242_conduta_papel_guarda_e_eliminacao.sql` | Canal de Conduta, o papel original, a guarda, o congelamento | 0 | 1 | 3 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 223 migrations.
+**Total:** 224 migrations.

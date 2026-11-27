@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-27T04:40+0000 -->
+<!-- last_update: 2026-11-27T16:35+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -164,6 +164,7 @@ erDiagram
     participantes ||--o{ conduta_casos : "direcao_envolvida"
     participantes ||--o{ conduta_casos : "enviado_a_direcao_em"
     participantes ||--o{ conduta_casos : "escopo"
+    participantes ||--o{ conduta_casos : "papel_lacrado_por"
     participantes ||--o{ conduta_casos : "reuniao_concluida_em"
     participantes ||--o{ conduta_casos : "rodada_do_voto"
     participantes ||--o{ conduta_ciencias_do_codigo : "enviado_por"
@@ -1402,7 +1403,7 @@ erDiagram
         TEXT categoria
         TIMESTAMPTZ recebido_em
         DATE prazo_em
-        _ mais_colunas "+11"
+        _ mais_colunas "+12"
     }
     conduta_atribuicoes {
         UUID id PK
@@ -2178,6 +2179,9 @@ erDiagram
 | `conduta_casos` | `idx_conduta_casos_enviado_a_direcao_por` | `enviado_a_direcao_por` | `223_conduta_recomendacao_medida_e_retorno.sql` |
 | `conduta_casos` | `idx_conduta_casos_retorno_aprovado_id` | `retorno_aprovado_id` | `223_conduta_recomendacao_medida_e_retorno.sql` |
 | `conduta_casos` | `idx_conduta_casos_retorno_aprovado_por` | `retorno_aprovado_por` | `223_conduta_recomendacao_medida_e_retorno.sql` |
+| `conduta_casos` | `idx_conduta_casos_papel_lacrado_por` | `papel_lacrado_por` | `242_conduta_papel_guarda_e_eliminacao.sql` |
+| `conduta_casos` | `idx_conduta_casos_congelado_por` | `congelado_por` | `242_conduta_papel_guarda_e_eliminacao.sql` |
+| `conduta_casos` | `idx_conduta_casos_em_guarda` | `encerrado_em` | `242_conduta_papel_guarda_e_eliminacao.sql` |
 | `conduta_atribuicoes` | `idx_conduta_atribuicoes_pessoa` | `participante_id, caso_id` | `175_conduta_fundacao.sql` |
 | `conduta_atribuicoes` | `idx_conduta_atribuicoes_caso` | `caso_id` | `175_conduta_fundacao.sql` |
 | `conduta_atribuicoes` | `idx_conduta_atribuicoes_substitui` | `substitui_id` | `191_conduta_impedimento_e_citado.sql` |
@@ -2274,4 +2278,4 @@ erDiagram
 | `pendencia_anexos` | `idx_pendencia_anexos_acao` | `id_acao` | `239_anexo_da_conclusao_da_pendencia.sql` |
 
 ---
-**Resumo:** 178 tabelas · 305 relacionamentos FK detectados.
+**Resumo:** 178 tabelas · 306 relacionamentos FK detectados.
