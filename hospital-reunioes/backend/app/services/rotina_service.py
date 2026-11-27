@@ -38,25 +38,30 @@ FREQUENCIAS = (SEMANAL, QUINZENAL, MENSAL)
 def nascer_rotinas(
     supabase,
     id_reuniao: str,
-    quadro_resolvido: list[dict],
+    linhas_por_pessoa: list[tuple[int, dict]],
     filtro: Callable[[dict], bool] | None = None,
 ) -> int:
-    """Cria uma Rotina por linha do tipo Rotina do quadro já resolvido (com
-    `responsavel_id`). Idempotente pela posição no quadro: Reenviar e a
-    reconciliação das 5h30 não duplicam. Devolve quantas nasceram."""
+    """Cria uma Rotina por linha do tipo Rotina, das linhas já resolvidas
+    (`(posição no quadro, item com responsavel_id)`), em que "Todos os
+    participantes" já vem uma por pessoa (#2327). Idempotente pela posição no
+    quadro (e pela pessoa, na linha de todos): Reenviar e a reconciliação das
+    5h30 não duplicam. Devolve quantas nasceram."""
+    from app.services.pendencia_service import ja_nasceu
+
     linhas = [
         (posicao, item)
-        for posicao, item in enumerate(quadro_resolvido)
+        for posicao, item in linhas_por_pessoa
         if isinstance(item, dict) and tipo_da_linha(item) == ROTINA and (filtro is None or filtro(item))
     ]
     if not linhas:
         return 0
-    existentes = supabase.table("rotinas").select("quadro_pos").eq("id_reuniao", id_reuniao).execute().data or []
-    ocupadas = {r.get("quadro_pos") for r in existentes}
+    existentes = (
+        supabase.table("rotinas").select("quadro_pos, responsavel_id").eq("id_reuniao", id_reuniao).execute().data or []
+    )
     hoje = hoje_em_brasilia()
     criadas = 0
     for posicao, item in linhas:
-        if posicao in ocupadas:
+        if ja_nasceu(item, posicao, existentes):
             continue
         frequencia = frequencia_da_linha(item)
         rotina = {

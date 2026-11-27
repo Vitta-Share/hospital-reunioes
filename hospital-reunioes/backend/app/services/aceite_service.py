@@ -772,5 +772,7 @@ def progresso_pendencias(supabase, id_reuniao: str) -> dict:
         or []
     )
     # Só Ação vira Pendência (#1872): Rotina e Processo não entram no "de Y".
-    acoes = [a for a in quadro if isinstance(a, dict) and tipo_da_linha(a) == ACAO]
+    # A Ação de "Todos os participantes" conta uma por pessoa (#2327).
+    linhas = pendencia_service.linhas_por_pessoa(supabase, id_reuniao, [a for a in quadro if isinstance(a, dict)])
+    acoes = [a for _, a in linhas if tipo_da_linha(a) == ACAO]
     return {"pendencias_criadas": len(criadas), "total_acoes": len(acoes)}

@@ -28,7 +28,7 @@ Vínculo entre um Colaborador e uma **Reunião** específica. É o roster que a 
 _Evitar_: convidado, presente.
 
 **Resolução**:
-O casamento de um nome citado (na Transcrição ou na conversa de uma Ata Guiada) com um Colaborador do cadastro, para que a Pendência nasça atribuída à pessoa certa. Prioriza o roster de Participantes da Reunião e cai para o cadastro geral; nome que não casa fica como **externo** (só o nome, sem vínculo nem cobrança). Na Ata Guiada acontece **ao vivo**: o agente conversa usando os nomes canônicos do cadastro e pergunta quando há ambiguidade ("qual Lucas?") ou quando não encontra ninguém.
+O casamento de um nome citado (na Transcrição ou na conversa de uma Ata Guiada) com um Colaborador do cadastro, para que a Pendência nasça atribuída à pessoa certa. Prioriza o roster de Participantes da Reunião e cai para o cadastro geral; nome que não casa fica como **externo** (só o nome, sem vínculo nem cobrança). Na Ata Guiada acontece **ao vivo**: o agente conversa usando os nomes canônicos do cadastro e pergunta quando há ambiguidade ("qual Lucas?") ou quando não encontra ninguém. A linha cujo responsável é "Todos os participantes" (ou "Todos os presentes") não passa pelo casamento: nasce uma Pendência, ou uma Rotina, para cada Participante da Reunião, e o quadro continua mostrando "Todos os participantes" (issue #2327).
 _Evitar_: matching, match, reconhecimento, identificação.
 
 **Signatário**:

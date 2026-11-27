@@ -16,7 +16,7 @@ import re
 from collections.abc import Callable
 
 from app.services.quadro_classificacao import ACAO, tipo_da_linha
-from app.services.resolucao_service import montar_candidatos, resolver_quadro
+from app.services.resolucao_service import PARA_TODOS, montar_candidatos, por_pessoa, resolver_quadro
 
 logger = logging.getLogger(__name__)
 
@@ -100,17 +100,34 @@ def _e_conflito_unicidade(e: Exception) -> bool:
     return "23505" in msg or "duplicate key" in msg.lower()
 
 
-def _posicoes_ocupadas(supabase, id_reuniao: str) -> set:
-    rows = supabase.table("pendencias").select("quadro_pos").eq("id_reuniao", id_reuniao).execute().data or []
-    return {r.get("quadro_pos") for r in rows if r.get("quadro_pos") is not None}
+def _chaves_ocupadas(supabase, id_reuniao: str) -> set[tuple]:
+    rows = (
+        supabase.table("pendencias").select("quadro_pos, responsavel_id").eq("id_reuniao", id_reuniao).execute().data
+        or []
+    )
+    return {(r.get("quadro_pos"), r.get("responsavel_id")) for r in rows if r.get("quadro_pos") is not None}
 
 
-def resolver_quadro_da_reuniao(supabase, id_reuniao: str, quadro: list) -> list[dict]:
-    """Normaliza os nomes do quadro e resolve os responsáveis (ADR 0008).
+def ja_nasceu(linha: dict, posicao: int, existentes: list[dict]) -> bool:
+    """A linha do quadro já tem o que nasceu dela (Pendência ou Rotina)?
 
-    Fonte única da normalização + Resolução: a liberação de Pendências e o
-    Aceite interno (ADR 0030) precisam enxergar o MESMO `responsavel_id` por
-    ação para concordarem sobre "quais ações são de quem"."""
+    A linha comum é uma por posição: qualquer registro naquela posição basta,
+    mesmo que a Resolução de hoje dê outro responsável. A cópia de "Todos os
+    participantes" é uma por pessoa: conta só o registro daquela pessoa
+    (issue #2327)."""
+    na_posicao = [r for r in existentes if r.get("quadro_pos") == posicao]
+    if linha.get(PARA_TODOS):
+        return any(r.get("responsavel_id") == linha.get("responsavel_id") for r in na_posicao)
+    return bool(na_posicao)
+
+
+def linhas_por_pessoa(supabase, id_reuniao: str, quadro: list) -> list[tuple[int, dict]]:
+    """Normaliza os nomes do quadro, resolve os responsáveis (ADR 0008) e
+    desdobra a linha de "Todos os participantes" numa por pessoa (#2327).
+
+    Devolve `(posição no quadro, linha resolvida)`. Fonte única da
+    normalização + Resolução: a liberação e o contador "Pendências criadas: X
+    de Y" precisam enxergar as MESMAS linhas por pessoa."""
     candidatos = montar_candidatos(supabase, id_reuniao)
     quadro_normalizado = []
     for acao in quadro or []:
@@ -118,7 +135,7 @@ def resolver_quadro_da_reuniao(supabase, id_reuniao: str, quadro: list) -> list[
         nome_bruto = str(item.get("responsavel") or item.get("responsavel_nome") or "").strip()
         item["responsavel"] = "" if nome_bruto.lower() in ("null", "none", "n/a") else nome_bruto
         quadro_normalizado.append(item)
-    return resolver_quadro(quadro_normalizado, candidatos)
+    return por_pessoa(resolver_quadro(quadro_normalizado, candidatos), candidatos)
 
 
 def _inserir_pendencias(supabase, id_reuniao: str, itens: list[dict]) -> list[dict]:
@@ -129,9 +146,9 @@ def _inserir_pendencias(supabase, id_reuniao: str, itens: list[dict]) -> list[di
     os campos de domínio prontos; aqui nascem só o `id_acao` e o status.
 
     Webhooks `sign` chegam em paralelo (ADR 0030): uma violação de unicidade
-    (PK `A###` ou índice parcial por `quadro_pos`) significa que outra sessão
-    ganhou a corrida. O retry relê a numeração e as posições já ocupadas,
-    descarta o que já nasceu e re-insere o restante; nada duplica.
+    (PK `A###` ou índice parcial por `quadro_pos` e responsável) significa que
+    outra sessão ganhou a corrida. O retry relê a numeração e as chaves já
+    ocupadas, descarta o que já nasceu e re-insere o restante; nada duplica.
     """
     restantes = list(itens)
     for tentativa in range(1, _MAX_TENTATIVAS_INSERT + 1):
@@ -151,8 +168,10 @@ def _inserir_pendencias(supabase, id_reuniao: str, itens: list[dict]) -> list[di
                 f"[PendenciaService] Conflito de unicidade na tentativa {tentativa} para {id_reuniao} "
                 f"(inserção concorrente); relendo estado e re-tentando: {e}"
             )
-            ocupadas = _posicoes_ocupadas(supabase, id_reuniao)
-            restantes = [item for item in restantes if item.get("quadro_pos") not in ocupadas]
+            ocupadas = _chaves_ocupadas(supabase, id_reuniao)
+            restantes = [
+                item for item in restantes if (item.get("quadro_pos"), item.get("responsavel_id")) not in ocupadas
+            ]
     return []
 
 
@@ -223,7 +242,12 @@ def liberar_pendencias(
         return 0
 
     # 2. Idempotência por ação (ADR 0030): posições do quadro já com Pendência
-    existing = supabase.table("pendencias").select("id_acao, quadro_pos").eq("id_reuniao", id_reuniao).execute()
+    existing = (
+        supabase.table("pendencias")
+        .select("id_acao, quadro_pos, responsavel_id")
+        .eq("id_reuniao", id_reuniao)
+        .execute()
+    )
     existentes = existing.data or []
     if any(r.get("quadro_pos") is None for r in existentes):
         # Legado pré-incremental: a liberação total já aconteceu sem quadro_pos;
@@ -232,7 +256,6 @@ def liberar_pendencias(
             f"[PendenciaService] {len(existentes)} pendências legadas (sem quadro_pos) em {id_reuniao}. Ignorando."
         )
         return 0
-    posicoes_ocupadas = {r["quadro_pos"] for r in existentes}
 
     # 2b. A linha de Processo entra na lista do setor na mesma porta (ADR 0098,
     # decisão 9; #1875). Idempotente pela posição no quadro.
@@ -244,19 +267,20 @@ def liberar_pendencias(
     # Reunião primeiro, só ativos, ambiguidade/desconhecido fica sem vínculo.
     # Vínculo pré-gravado no item (validação/Ata Guiada) é honrado; id forjado
     # ou de inativo é descartado e o item volta à resolução por nome.
-    quadro_resolvido = resolver_quadro_da_reuniao(supabase, id_reuniao, quadro)
+    # A linha de "Todos os participantes" vem uma por pessoa (#2327).
+    linhas = linhas_por_pessoa(supabase, id_reuniao, quadro)
 
     # 3b. A Rotina nasce na mesma porta (ADR 0098, decisão 9; #1874), com o
     # responsável já resolvido. Idempotente pela posição no quadro.
     from app.services.rotina_service import nascer_rotinas
 
-    nascer_rotinas(supabase, id_reuniao, quadro_resolvido, filtro=filtro)
+    nascer_rotinas(supabase, id_reuniao, linhas, filtro=filtro)
 
-    # 4. Preparar lote de inserção: pula posições já nascidas e aplica o filtro
+    # 4. Preparar lote de inserção: pula o que já nasceu e aplica o filtro
     batch_pendencias = []
 
-    for posicao, acao in enumerate(quadro_resolvido):
-        if posicao in posicoes_ocupadas:
+    for posicao, acao in linhas:
+        if ja_nasceu(acao, posicao, existentes):
             continue
         # Só Ação vira Pendência (ADR 0098, decisão 9; #1872): Rotina e
         # Processo ficam no quadro para a Rotina e a lista de processos.
