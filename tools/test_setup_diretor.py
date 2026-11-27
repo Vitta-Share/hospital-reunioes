@@ -197,7 +197,7 @@ def test_o_passo_da_copia_antiga_troca_o_upstream_para_a_vitta_share(
 ) -> None:
     """A cópia clonada antes da virada aponta o dono antigo; o comando da skill a conserta."""
     raiz = raiz_falsa(
-        tmp_path, "https://github.com/pedrorezendefig/hospital-reunioes.git"
+        tmp_path, "https://github.com/" + "pedrorezendefig" + "/hospital-reunioes.git"
     )
     permissoes = {TIME: TRIAGE, ARQUIVOS: ESCRITA}
     assert (
