@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import subprocess
 import sys
 import urllib.request
@@ -92,6 +93,32 @@ def dono(issue: dict, eu: str, diretores: set[str]) -> str:
     return "outro"
 
 
+BLOQUEIO_NO_TEXTO = re.compile(
+    r"(?:bloquead[oa] por|depende d[oa]s?|espera o|espere o|esperando o)[:\s]*((?:#\d+[\s,e]*)+)", re.IGNORECASE
+)
+
+
+def bloqueio_no_texto(corpo: str, espera: list[int], abertos: set[int], proprio: int) -> list[int]:
+    """Cards abertos que o corpo diz que este espera, mas que o bloqueio nativo não tem.
+
+    "Bloqueada por: #2330", "depende do #12", "espere o #9 fechar". O que já é bloqueio
+    nativo, o próprio card e card fechado ficam de fora.
+    """
+    achados: set[int] = set()
+    for m in BLOQUEIO_NO_TEXTO.finditer(corpo or ""):
+        achados |= {int(n) for n in re.findall(r"#(\d+)", m.group(1))}
+    return sorted(n for n in achados if n in abertos and n not in espera and n != proprio)
+
+
+def voltou_do_diretor(dono_do_card: str, labels: list[str], comentarios: list[dict], diretores: set[str]) -> bool:
+    """A pergunta que o diretor já respondeu: card de quem roda, ainda com `needs-info`, e o último
+    comentário do time é do diretor. Pela ADR 0113 (decisão 4) quem perguntou grava a decisão e solta o card."""
+    if dono_do_card != "eu" or "needs-info" not in labels:
+        return False
+    do_time = [c for c in comentarios if confiavel(c)]
+    return bool(do_time) and do_time[-1]["user"]["login"] in diretores
+
+
 def eh_prd(issue: dict) -> bool:
     return (issue.get("sub_issues_summary") or {}).get("total", 0) > 0
 
@@ -140,6 +167,11 @@ def montar_cards(projetos: list[dict], eu: str, diretores: set[str], nomes: dict
                 "versao": versao(i, quem),
                 "corpo": corpo_do_card(i),
                 "confiavel": confiavel(i),
+                "no_texto": [
+                    chave(p["nome"], m)
+                    for m in bloqueio_no_texto(corpo_do_card(i), d.get("espera", []), set(por_numero), n)
+                ] if confiavel(i) else [],
+                "voltou": False,
             }
     # Ponta de bloqueio que ficou fora (outro dono, sem relação com quem roda) vira chip simples.
     for c in list(cards.values()):
@@ -248,6 +280,12 @@ def main() -> int:
     projetos = [ler_projeto(cfg) for cfg in REPOS]
     cards = montar_cards(projetos, eu, diretores, gente)
     prds = [prd for p in projetos for prd in p["prds"]]
+    comentarios: dict[str, list] = {}
+    repo_de = {p["nome"]: p["repo"] for p in projetos}
+    for c in cards.values():
+        if c["dono"] == "eu" and "needs-info" in c["labels"]:
+            comentarios[c["chave"]] = gh("api", f"repos/{repo_de[c['projeto']]}/issues/{c['numero']}/comments?per_page=100")
+            c["voltou"] = voltou_do_diretor(c["dono"], c["labels"], comentarios[c["chave"]], diretores)
 
     estado = {
         "gerado_em": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -259,6 +297,8 @@ def main() -> int:
         "cards": cards,
     }
     (args.pasta / "estado.json").write_text(json.dumps(estado, ensure_ascii=False, indent=1), encoding="utf-8")
+    # O que o painel fez vale para a coleta anterior: a nova já vê o card passado e o bloqueio gravado.
+    (args.pasta / "feitos.json").unlink(missing_ok=True)
 
     arq_desc = args.pasta / "descricoes.json"
     descricoes = json.loads(arq_desc.read_text(encoding="utf-8")) if arq_desc.exists() else {}
@@ -268,7 +308,7 @@ def main() -> int:
     for k in lista:
         x = itens[k]
         proj = next(p for p in projetos if p["nome"] == k.split("#")[0])
-        coment = gh("api", f"repos/{proj['repo']}/issues/{x['numero']}/comments?per_page=100")
+        coment = comentarios.get(k) or gh("api", f"repos/{proj['repo']}/issues/{x['numero']}/comments?per_page=100")
         rotulo = "PRD" if k in {p["chave"] for p in prds} else x.get("dono")
         partes.append(bloco_para_descrever(k, rotulo, x, comentarios_confiaveis(coment)[-2:]))
     (args.pasta / "para-descrever.md").write_text("\n\n---\n\n".join(partes), encoding="utf-8")

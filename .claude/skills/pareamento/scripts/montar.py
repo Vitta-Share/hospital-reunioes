@@ -17,10 +17,13 @@ from collections import Counter
 from pathlib import Path
 
 AQUI = Path(__file__).resolve().parent
+sys.path.insert(0, str(AQUI))
+import acoes  # noqa: E402
+
 MODELO = AQUI.parent / "references" / "modelo.html"
 RAIZ = Path(__file__).resolve().parents[4]
 PASTA = RAIZ / "local" / "pareamento"
-CAMPOS = ("para_que_serve", "o_que_muda", "como_acaba", "por_que_com_quem")
+CAMPOS = ("para_que_serve", "o_que_muda", "como_acaba", "por_que_com_quem", "proximo", "proximo_porque")
 
 
 def filas(cards: dict) -> list[dict]:
@@ -66,14 +69,22 @@ def filas(cards: dict) -> list[dict]:
     return saida
 
 
-def dados_da_pagina(estado: dict, descricoes: dict) -> tuple[dict, list[str]]:
+def dados_da_pagina(estado: dict, descricoes: dict, passagens: dict | None = None) -> tuple[dict, list[str]]:
     cards = {}
     sem = []
     for k, c in estado["cards"].items():
         d = descricoes.get(k) or {}
         if not c.get("satelite") and not d:
             sem.append(k)
-        cards[k] = {**{x: y for x, y in c.items() if x != "corpo"}, "desc": {f: d.get(f, "") for f in CAMPOS}}
+        cards[k] = {**{x: y for x, y in c.items() if x != "corpo"}, "desc": {f: d.get(f, "") for f in CAMPOS},
+                    "acoes": acoes.acoes_do_card(c, d)}
+    # Rascunho de passagem só vale para card seu e livre, escrito para a versão de agora do card.
+    rascunhos = {
+        k: {x: y for x, y in r.items() if x != "versao"}
+        for k, r in (passagens or {}).items()
+        if k in estado["cards"] and estado["cards"][k]["dono"] == "eu" and estado["cards"][k]["livre"]
+        and r.get("versao") == estado["cards"][k]["versao"]
+    }
     prds = []
     for p in estado["projetos"]:
         for prd in p["prds"]:
@@ -89,6 +100,8 @@ def dados_da_pagina(estado: dict, descricoes: dict) -> tuple[dict, list[str]]:
         "prds": prds,
         "cards": cards,
         "filas": filas(estado["cards"]),
+        "passagens": rascunhos,
+        "rotulos": acoes.TIPOS,
     }, sem
 
 
@@ -114,7 +127,8 @@ def resumo(estado: dict) -> str:
         return "\n".join([f"{titulo} ({len(chaves)}):", *corpo, *extra])
 
     livre = {k for k, c in cards.items() if c["livre"] and not c.get("rodando")}
-    eu = [k for k in livre if cards[k]["dono"] == "eu"]
+    voltou = [k for k in livre if cards[k].get("voltou")]
+    eu = [k for k in livre if cards[k]["dono"] == "eu" and k not in voltou]
     onda = [k for k in livre if cards[k]["dono"] == "agente"]
     diretor = [k for k in livre if cards[k]["dono"] == "diretor"]
     rodando = [k for k, c in cards.items() if c.get("rodando")]
@@ -122,13 +136,17 @@ def resumo(estado: dict) -> str:
     lancar = [f"  lançar {'na' if p == 'Ana' else 'no'} {p}: /montar-ondas-enxutas" for p in projetos]
     presos = Counter(cards[k]["dono"] for k in cards if k not in livre and k not in rodando)
     nomes = {"eu": "você", "diretor": "diretor", "agente": "agente"}
+    no_texto = [f"  {k} espera {', '.join(c['no_texto'])} só no texto" for k, c in cards.items() if c.get("no_texto")]
     partes = [
+        bloco("Voltou do diretor", voltou),
         bloco("Você pode tocar já", eu),
         bloco("Pode ir para a onda", onda, lancar),
         bloco("Rodando agora", rodando),
         bloco("Com o diretor e livre", diretor),
         "Preso: " + ", ".join(f"{nomes[d]} {presos[d]}" for d in ("eu", "diretor", "agente")),
     ]
+    if no_texto:
+        partes.append("\n".join([f"Bloqueio só no texto ({len(no_texto)}):", *no_texto]))
     return "\n\n".join(partes)
 
 
@@ -145,10 +163,13 @@ def main() -> int:
     estado = json.loads((args.pasta / "estado.json").read_text(encoding="utf-8"))
     arq = args.pasta / "descricoes.json"
     descricoes = json.loads(arq.read_text(encoding="utf-8")) if arq.exists() else {}
-    dados, sem = dados_da_pagina(estado, descricoes)
+    arq_p = args.pasta / "passagens.json"
+    passagens = json.loads(arq_p.read_text(encoding="utf-8")) if arq_p.exists() else {}
+    dados, sem = dados_da_pagina(estado, descricoes, passagens)
     saida = args.pasta / "pareamento.html"
     saida.write_text(html(dados), encoding="utf-8")
     print(f"página: {saida}")
+    print(f"painel local: python3 {Path(__file__).with_name('painel.py')} --fundo")
     if sem:
         print(f"atenção: {len(sem)} cards sem descrição: {', '.join(sem)}")
     print()
