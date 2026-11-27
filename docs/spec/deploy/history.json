@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-26T22:33:45-03:00",
+      "sha": "f727075a25a7569930020b5cba06b4d596d1c0a1",
+      "app_version": "0.392.4",
+      "subject": "Onda vitta-a-onda1: Referências do repositório apontam para a Vitta-Share; Endereço Vitta-Share e acesso de Triage",
+      "raw_subject": "chore(deploy): registro da onda vitta-a-onda1 (#2311 #2310)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        2301
+      ],
+      "result": "healthy",
+      "duration_seconds": 646,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta vitta-a-onda1: PR #2311 (issue #2303), PR #2310 (issue #2304), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 8,
+        "build_s": {
+          "backend": 19,
+          "frontend": 210
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-26T21:28:05-03:00",
       "sha": "a72987a82874efe689639c928b7e2d089aa966dd",
       "app_version": "0.392.3",
