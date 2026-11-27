@@ -89,6 +89,108 @@ def test_a_trava_que_a_parte_5_grava_e_a_que_o_conferir_aceita(tmp_path: Path) -
     assert [linha.split()[0] for linha in linhas] == ["OK"], linhas
 
 
+TIME = "Vitta-Share/hospital-reunioes"
+ARQUIVOS = "pedrorezendefig/hospital-arquivos"
+
+# O `gh` de mentira: uma função exportada, que o bash do conferir.sh prefere a
+# qualquer `gh` do PATH. Responde `auth status`, o login e, para cada repositório
+# do arquivo $GH_FALSO, as permissões dele, aplicando o `--jq` de verdade.
+GH_FALSO = r"""() {
+  case "$1 $2" in
+    "auth status") return 0 ;;
+    "api user") echo diretor-teste; return 0 ;;
+  esac
+  [ "$1" = api ] || return 1
+  perms="$(jq -c --arg r "${2#repos/}" '.[$r] // empty' "$GH_FALSO")"
+  [ -n "$perms" ] || return 1
+  printf '{"permissions": %s}' "$perms" | jq -r "$4"
+}"""
+
+TRIAGE = {
+    "admin": False,
+    "maintain": False,
+    "push": False,
+    "triage": True,
+    "pull": True,
+}
+ESCRITA = {
+    "admin": False,
+    "maintain": False,
+    "push": True,
+    "triage": True,
+    "pull": True,
+}
+
+
+def raiz_falsa(tmp_path: Path, upstream: str) -> Path:
+    """Uma cópia do diretor de mentira: o conferir.sh dentro dela e os dois remotes."""
+    raiz = tmp_path / "hospital-reunioes"
+    scripts = raiz / ".claude" / "skills" / "setup-diretor" / "scripts"
+    scripts.mkdir(parents=True)
+    shutil.copy(CONFERIR, scripts / "conferir.sh")
+    for comando in (
+        ["git", "init", "-q"],
+        [
+            "git",
+            "remote",
+            "add",
+            "origin",
+            "https://github.com/diretor-teste/hospital-reunioes.git",
+        ],
+        ["git", "remote", "add", "upstream", upstream],
+    ):
+        subprocess.run(comando, cwd=raiz, check=True)
+    return raiz
+
+
+def conferir_na_copia(raiz: Path, permissoes: dict, tmp_path: Path) -> dict[str, str]:
+    """Roda o conferir.sh da cópia com o `gh` de mentira; devolve a situação de cada item."""
+    (tmp_path / "gh.json").write_text(json.dumps(permissoes), encoding="utf-8")
+    env = {k: v for k, v in os.environ.items() if k not in ("GH_TOKEN", "GITHUB_TOKEN")}
+    env["BASH_FUNC_gh%%"] = GH_FALSO
+    env["GH_FALSO"] = str(tmp_path / "gh.json")
+    env["CLAUDE_CONFIG_DIR"] = str(tmp_path)
+    saida = subprocess.run(
+        [
+            "bash",
+            str(
+                raiz
+                / ".claude"
+                / "skills"
+                / "setup-diretor"
+                / "scripts"
+                / "conferir.sh"
+            ),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=180,
+    ).stdout
+    itens = {}
+    for linha in saida.splitlines():
+        m = re.match(r"\s+(OK|FALTA|AVISO)\s+(.+?)(?:\s{2,}|$)", linha)
+        if m:
+            itens[m.group(2).strip()] = m.group(1)
+    return itens
+
+
+@precisa_jq
+def test_diretor_com_triage_no_time_fica_ok(tmp_path: Path) -> None:
+    raiz = raiz_falsa(tmp_path, f"https://github.com/{TIME}.git")
+    itens = conferir_na_copia(raiz, {TIME: TRIAGE, ARQUIVOS: ESCRITA}, tmp_path)
+    assert itens.get("colaborador do time") == "OK", itens
+    assert itens.get("hospital-arquivos") == "OK", itens
+
+
+@precisa_jq
+def test_diretor_com_escrita_no_time_fica_em_falta(tmp_path: Path) -> None:
+    raiz = raiz_falsa(tmp_path, f"https://github.com/{TIME}.git")
+    itens = conferir_na_copia(raiz, {TIME: ESCRITA, ARQUIVOS: ESCRITA}, tmp_path)
+    assert itens.get("colaborador do time") == "FALTA", itens
+
+
 def nao_ensina_bug_pelo_claude(texto: str) -> list[str]:
     """Os trechos que falam de bug sem mandar ao Assistente do app."""
     blocos = re.split(r"\n\s*\n|\n(?=\s*(?:[-*]|\d+\.|\|) )", texto)

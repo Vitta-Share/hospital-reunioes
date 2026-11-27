@@ -4,8 +4,9 @@
 # Uma linha por item, na ordem das Partes do passo a passo: OK, FALTA (conta, exit 1)
 # ou AVISO (não conta), com o conserto ao lado. O Claude começa pela primeira FALTA.
 # Nunca imprime valor de chave. Não confere nada de produção: o diretor não tem
-# Coolify nem token, de propósito. É colaborador do repositório sem poder mergear
-# (ADR 0113): a trava do merge mora no settings.json do Claude dele.
+# Coolify nem token, de propósito. É colaborador do repositório com Triage, que não
+# dá push nem merge (ADR 0113, emenda de 26/11/2026 da decisão 2); a trava do merge
+# no settings.json do Claude dele continua como segunda linha.
 
 set -u
 RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
@@ -125,14 +126,19 @@ fi
 titulo "Parte 6. O convite do time"
 ARQUIVOS="pedrorezendefig/hospital-arquivos"
 if [ -n "$LOGIN" ]; then
-  for par in "colaborador do time:$UPSTREAM" "hospital-arquivos:$ARQUIVOS"; do
-    nome="${par%%:*}"; repo="${par#*:}"
-    if [ "$(gh api "repos/$repo" --jq '.permissions.push' 2>/dev/null)" = "true" ]; then
-      ok "$nome"
-    else
-      falta "$nome" "aceite o convite (Parte 6) ou peça ao Pedro: https://github.com/$repo/invitations"
-    fi
-  done
+  # No time o papel é Triage: card, label e atribuição, sem push nem merge.
+  # Escrita é acesso a mais, e quem tira é o Pedro (mensagem "Acesso de escrita").
+  case "$(gh api "repos/$UPSTREAM" --jq '"\(.permissions.triage) \(.permissions.push)"' 2>/dev/null)" in
+    "true false") ok "colaborador do time" "triage" ;;
+    *" true") falta "colaborador do time" "tem escrita, o diretor entra com Triage: mande ao Pedro a mensagem \"Acesso de escrita\"" ;;
+    *) falta "colaborador do time" "aceite o convite (Parte 6) ou peça ao Pedro: https://github.com/$UPSTREAM/invitations" ;;
+  esac
+  # No hospital-arquivos ele grava o Arquivo de apoio: precisa de escrita.
+  if [ "$(gh api "repos/$ARQUIVOS" --jq '.permissions.push' 2>/dev/null)" = "true" ]; then
+    ok "hospital-arquivos"
+  else
+    falta "hospital-arquivos" "aceite o convite (Parte 6) ou peça ao Pedro: https://github.com/$ARQUIVOS/invitations"
+  fi
 fi
 
 printf '\n'
