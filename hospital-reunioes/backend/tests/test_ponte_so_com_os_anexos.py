@@ -16,8 +16,10 @@ desmontado) passaria por remoção.
 
 from __future__ import annotations
 
+import json
 import os
 import sys
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -27,7 +29,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from test_tecnologia_anexos import _StorageFake  # noqa: E402
 from test_tecnologia_vinculo import _SupabaseMock  # noqa: E402
 
-from app.config import settings  # noqa: E402
+from app.config import Settings, settings  # noqa: E402
 from app.dependencies import get_supabase_client  # noqa: E402
 from app.limiter import limiter  # noqa: E402
 
@@ -57,6 +59,8 @@ ROTAS_REMOVIDAS = [
 ]
 
 ANEXOS = f"{BASE}/demandas/{DEMANDA}/anexos"
+
+CONTRATO_DE_DEPLOY = Path(__file__).resolve().parents[3] / "docs" / "spec" / "deploy" / "project.json"
 
 
 @pytest.fixture(autouse=True)
@@ -135,3 +139,23 @@ def test_sem_a_chave_os_prints_continuam_fechados(cliente: TestClient):
 
     assert resposta.status_code == 401
     assert resposta.json() == {"detail": "API key inválida ou ausente"}
+
+
+def _variaveis_do_backend() -> set[str]:
+    """Os nomes de toda variável que o contrato de deploy registra no backend."""
+    contrato = json.loads(CONTRATO_DE_DEPLOY.read_text(encoding="utf-8"))
+    (backend,) = [s for s in contrato["services"] if s["id"] == "backend"]
+    listas = ("build_time", "runtime_required", "runtime_optional")
+    return {variavel["name"] for lista in listas for variavel in backend["env_keys"][lista]}
+
+
+def test_a_chave_do_validar_sai_da_configuracao_e_a_da_ponte_fica():
+    """A `PLANOS_HSM_API_KEY` só servia à rota de validações, que saiu: não
+    fica no Settings nem no contrato de deploy, e o corpo do PR diz para
+    apagá-la no Coolify. A chave da ponte, que guarda os anexos, fica."""
+    assert "tecnologia_automacao_api_key" in Settings.model_fields
+    assert "planos_hsm_api_key" not in Settings.model_fields
+
+    variaveis = _variaveis_do_backend()
+    assert "TECNOLOGIA_AUTOMACAO_API_KEY" in variaveis
+    assert "PLANOS_HSM_API_KEY" not in variaveis

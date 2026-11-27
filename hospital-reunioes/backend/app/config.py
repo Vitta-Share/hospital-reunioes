@@ -154,13 +154,6 @@ class Settings(BaseSettings):
     # chave errada. Cadastro humano, na tela do Coolify.
     tecnologia_automacao_api_key: str = ""
 
-    # A chave da Apresentação do PRD (issue #2013, ADR 0108, decisão 5): a
-    # função Validar da Vercel (projeto planos-hsm, variável `APP_API_KEY`)
-    # manda a observação do diretor no `X-API-Key`. Chave própria, separada da
-    # ponte do terminal. Vazio = a rota da observação responde 503. Cadastro
-    # humano, na tela do Coolify e nas variáveis do projeto da Vercel.
-    planos_hsm_api_key: str = ""
-
     # Central de Comando (ADR 0058): os números do Site e do Instagram, só para
     # Super admin. Todas as variáveis da Central moram aqui desde a primeira
     # fatia do PRD #809, para as fatias paralelas não disputarem este arquivo.
