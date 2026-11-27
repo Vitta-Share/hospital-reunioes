@@ -66,6 +66,7 @@ A recalibração do agente:
 A fundação do módulo:
 
 - o item **NSP** no menu lateral, com o ícone de duas mãos juntas e o nome por extenso, Núcleo de Segurança do Paciente, ao passar o mouse, com a página inicial do módulo (o item Visão geral, para não se confundir com o Início de cada pessoa), as Reuniões e o grupo Núcleo (Membros, Documentos, Capacitações e Agenda regulatória). Cada tela abre com uma linha dizendo o que fazer ali;
+- no alto de toda tela do módulo, o link Núcleo de Segurança do Paciente, com a seta de voltar, igual ao de Contas médicas, que leva à Visão geral; o caso aberto de uma notificação volta para Notificações. O link é um endereço fixo e funciona também na tela aberta pelo link do e-mail. A Visão geral não tem o link, e a triagem do caso continua com o "Voltar à fila de triagem";
 - os itens Auditorias de adesão, Gestão de riscos e Comissões, que aparecem no menu desabilitados, com o selo "Em breve" e uma explicação do que vão fazer;
 - o Núcleo criado como o primeiro colegiado do hospital, ainda sem nenhum membro: a composição é cadastrada pela tela;
 - a tela **Membros**, com uma linha por membro (papel, área, conselho e registro, vigência, estado e situação do Termo). A Presidência e o Acesso pleno cadastram, editam, renovam a vigência, mudam o papel e encerram a participação. Os demais que abrem a tela só leem;
