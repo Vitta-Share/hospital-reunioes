@@ -38,6 +38,8 @@ TEXTO_PARA_FORA = {
     "onda-enxuta",
     # O card que o Claude do diretor abre e o passo a passo que ele lê (/setup-diretor).
     "setup-diretor",
+    # A descrição funcional de cada card na página do pareamento, que o diretor lê.
+    "pareamento",
 }
 
 
@@ -73,6 +75,7 @@ def passos_do_humanizer(trecho: str) -> list[str]:
         ("triage", "Triage a specific issue"),
         ("to-issues", "5. Publish the issues"),
         ("setup-diretor", "Parte 9: o card"),
+        ("pareamento", "Fluxo"),
     ],
 )
 def test_skill_de_texto_para_fora_passa_o_texto_pelo_humanizer_onde_ele_e_gravado(

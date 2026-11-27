@@ -1,0 +1,233 @@
+<title>Pareamento Pedro e diretor</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: uma coluna clara; estado dos projetos, quem anda agora, colunas por dono com selo, filas de bloqueio. Hover em qualquer card abre a descrição funcional. Tema claro de propósito. */
+:root{
+  --bg:#f6f8fa; --panel:#ffffff; --ink:#1b2430; --muted:#5d6b7a; --line:#d8dee6;
+  --eu:#2563a8; --eu-soft:#e7f0fa; --eu-ink:#1d4f86;
+  --dir:#c7771a; --dir-soft:#fdf1e2; --dir-ink:#7a4306;
+  --ag:#2f8a57; --ag-soft:#e5f4ea; --ag-ink:#1f6a40;
+  --ou:#8795a4; --ou-soft:#eef1f5; --ou-ink:#46525f;
+  --red:#c24141; --red-soft:#fdeeee; --red-ink:#9b2c2c;
+  --display:"Plus Jakarta Sans",ui-sans-serif,system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:light;
+}
+body{background:var(--bg);color:var(--ink);font-family:var(--display);font-size:15px;line-height:1.55}
+.wrap{max-width:1180px;margin:0 auto;padding-block:36px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:40px}
+header{display:grid;gap:8px}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-size:clamp(28px,4.4vw,40px);line-height:1.1;margin:0;font-weight:800;text-wrap:balance}
+h1 .e{color:var(--eu)} h1 .d{color:var(--dir)}
+.lead{margin:0;max-width:70ch;color:var(--muted)}
+h2{font-size:21px;margin:0;font-weight:700}
+section{display:grid;gap:14px}
+.sub{margin:0;color:var(--muted);max-width:72ch;font-size:14px}
+
+.d-eu{--c:var(--eu);--cs:var(--eu-soft);--ct:var(--eu-ink)}
+.d-diretor{--c:var(--dir);--cs:var(--dir-soft);--ct:var(--dir-ink)}
+.d-agente{--c:var(--ag);--cs:var(--ag-soft);--ct:var(--ag-ink)}
+.d-outro{--c:var(--ou);--cs:var(--ou-soft);--ct:var(--ou-ink)}
+
+/* estado */
+.projetos{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;align-items:start}
+.proj{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:12px}
+.proj h3{margin:0;font-size:17px;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.proj h3 small{font-family:var(--mono);font-size:12px;color:var(--muted);font-weight:500}
+.nums{display:flex;flex-wrap:wrap;gap:8px}
+.num-b{background:var(--ou-soft);border-radius:8px;padding:6px 10px;font-size:12.5px;color:var(--muted)}
+.num-b b{font-family:var(--mono);color:var(--ink);font-size:14px;margin-right:4px;font-variant-numeric:tabular-nums}
+.prd{display:grid;gap:4px;padding:8px 10px;border-radius:9px;cursor:default;border:1px solid transparent}
+.prd:hover,.prd:focus-visible{background:var(--ou-soft);outline:none}
+.prd .l1{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;font-weight:600}
+.prd .l1 span:last-child{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap;font-weight:500}
+.barra{height:6px;border-radius:99px;background:var(--line);overflow:hidden}
+.barra i{display:block;height:100%;background:var(--ag);border-radius:99px}
+.prs{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+.prs a{color:var(--eu);text-decoration:none;font-family:var(--mono);font-size:12px}
+
+/* legenda e caixas */
+.legend{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:var(--muted);align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block;background:var(--cs);border:1.5px solid var(--c)}
+.agora{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.box{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--c);border-radius:12px;padding:14px 16px;display:grid;gap:8px;align-content:start}
+.box b{font-size:14px}
+.box p{margin:0;font-size:13px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.vazio{font-size:13px;color:var(--muted);font-style:italic}
+
+/* chip */
+.k{font-family:var(--mono);font-size:12px;line-height:1;padding:5px 8px;border-radius:7px;background:var(--cs);color:var(--ct);border:1.5px solid var(--c);cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.k.preso{border-style:dashed;background:var(--panel)}
+.k:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.k small{font-family:var(--display);font-size:11px;font-weight:600}
+.ic{width:11px;height:11px;flex:none}
+
+/* colunas */
+.colunas{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;align-items:start}
+.col{background:var(--panel);border:1px solid var(--line);border-top:5px solid var(--c);border-radius:14px;padding:14px 14px 16px;display:grid;gap:10px;min-width:0}
+.col h3{margin:0 0 2px;font-size:15px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.col h3 .n{font-family:var(--mono);font-size:12px;color:var(--muted);font-weight:500}
+.card{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:7px;transition:box-shadow .25s,border-color .25s;scroll-margin:90px;cursor:default;min-width:0}
+.card:hover,.card:focus-visible{border-color:var(--c);box-shadow:0 2px 10px rgba(27,36,48,.07);outline:none}
+.card.preso{background:#fafbfc}
+.topo{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:start}
+.cnum{font-family:var(--mono);font-size:12.5px;color:var(--eu);padding-top:2px;white-space:nowrap}
+.tit{font-size:13.5px;font-weight:600;line-height:1.35;min-width:0}
+.resumo{font-size:12.5px;color:var(--muted);margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.selo{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;padding:4px 7px;border-radius:6px;border:1.5px solid;display:inline-flex;align-items:center;gap:4px;transform:rotate(-2.5deg);white-space:nowrap}
+.selo.livre{color:var(--ag-ink);border-color:var(--ag);background:var(--ag-soft)}
+.selo.preso{color:var(--red-ink);border-color:var(--red);background:var(--red-soft)}
+.selo.rodando{color:var(--eu-ink);border-color:var(--eu);background:var(--eu-soft)}
+.selo.rodando .pt{width:7px;height:7px;border-radius:50%;background:currentColor;animation:pisca 1.2s ease-in-out infinite}
+@keyframes pisca{50%{opacity:.25}}
+.rel{display:grid;grid-template-columns:54px 1fr;gap:6px;align-items:center}
+.rel .lab{font-weight:700;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.card.flash{box-shadow:0 0 0 3px rgba(37,99,168,.35);border-color:var(--eu)}
+
+/* filas */
+.filas{display:grid;gap:12px}
+.fila{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:grid;gap:10px}
+.fila b{font-size:14px}
+.trilho{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.camada{display:flex;flex-wrap:wrap;gap:6px;padding:4px;border-radius:9px;background:var(--bg)}
+.seta{color:#9aa7b5;font-size:14px}
+.k.vez{animation:pulsa 2.2s ease-in-out infinite}
+@keyframes pulsa{0%,100%{box-shadow:0 0 0 0 rgba(47,138,87,0)}50%{box-shadow:0 0 0 4px rgba(47,138,87,.22)}}
+
+/* descrição no hover */
+#dica{position:fixed;z-index:20;width:min(420px,calc(100vw - 32px));background:var(--panel);border:1px solid var(--line);border-top:5px solid var(--c);border-radius:12px;box-shadow:0 12px 40px rgba(27,36,48,.18);padding:14px 16px 16px;display:grid;gap:10px;font-size:13.5px;line-height:1.5}
+#dica .h{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start}
+#dica .h b{font-size:14.5px;line-height:1.35}
+#dica .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--muted)}
+#dica .dono{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:99px;background:var(--cs);color:var(--ct)}
+#dica h4{margin:0 0 2px;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+#dica p{margin:0}
+#dica a{color:var(--eu);font-weight:600;font-size:12.5px;text-decoration:none}
+#dica .fechar{display:none;border:0;background:none;font:inherit;font-size:20px;line-height:1;color:var(--muted);cursor:pointer;padding:0 2px}
+@media (hover:none){#dica{left:max(16px,env(safe-area-inset-left,0px))!important;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));top:auto!important;width:auto;max-height:70vh;overflow:auto}#dica .fechar{display:block}}
+footer{color:var(--muted);font-size:13px}
+@media (prefers-reduced-motion:reduce){.k.vez,.selo.rodando .pt{animation:none}.selo{transform:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow" id="gerado"></span>
+    <h1 id="titulo"></h1>
+    <p class="lead">Passe o mouse (ou toque) em qualquer card para ver para que ele serve, o que muda quando fecha e por que está com quem está. Azul é você, laranja é o diretor, verde é o agente, cinza é outra pessoa.</p>
+  </header>
+
+  <section aria-labelledby="t-estado">
+    <h2 id="t-estado">Estado dos projetos</h2>
+    <div class="projetos" id="projetos"></div>
+  </section>
+
+  <section aria-labelledby="t-agora">
+    <h2 id="t-agora">Quem pode andar agora</h2>
+    <div class="legend" id="legenda"></div>
+    <div class="agora" id="agora"></div>
+  </section>
+
+  <section aria-labelledby="t-cards">
+    <h2 id="t-cards">O que depende de cada um</h2>
+    <p class="sub">O selo diz se o card já pode andar. "Espera" mostra quem ele aguarda e "Segura" mostra quem fica parado por causa dele, na cor de quem está com cada um. Clique num número colorido para ir até o card.</p>
+    <div class="colunas" id="colunas"></div>
+  </section>
+
+  <section aria-labelledby="t-filas">
+    <h2 id="t-filas">O que solta o quê</h2>
+    <p class="sub">Cada fila se lê da esquerda para a direita. O card que pulsa pode andar agora e destrava o resto.</p>
+    <div class="filas" id="filas"></div>
+  </section>
+
+  <footer>Feito pela skill /pareamento a partir do GitHub (Vitta-Share). Regra da troca de cards: ADR 0113.</footer>
+</div>
+<div id="dica" role="dialog" aria-live="polite" hidden></div>
+
+<script>
+const DADOS = /*DADOS*/null;
+(function(){
+  if(!DADOS) return;
+  const C=DADOS.cards, P=Object.fromEntries(DADOS.prds.map(p=>[p.chave,p]));
+  const NOME={eu:DADOS.eu.nome.split(" ")[0]||"você",diretor:DADOS.diretor.nome.split(",")[0],agente:"agente",outro:"outra pessoa"};
+  const ROT={eu:"você",diretor:NOME.diretor,agente:"agente",outro:"outro"};
+  const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const rot=k=>{const [p,n]=k.split("#");return (p==="Hospital"?"":p+" ")+"#"+n;};
+  const OK='<svg class="ic" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5l2.5 2.5L10 3.5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>';
+  const LOCK='<svg class="ic" viewBox="0 0 12 12" aria-hidden="true"><rect x="2.5" y="5.5" width="7" height="5" rx="1" fill="currentColor"/><path d="M4 5.5V4a2 2 0 014 0v1.5" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>';
+  const chip=(k,extra)=>{const c=C[k];if(!c)return "";return '<button type="button" class="k d-'+c.dono+(c.livre?'':' preso')+(extra||'')+'" data-k="'+esc(k)+'" data-ir="'+esc(k)+'">'+(c.livre?OK:LOCK)+esc(rot(k))+'<small>'+esc(ROT[c.dono])+'</small></button>';};
+  const selo=(c,solto)=>c.rodando?'<span class="selo rodando"'+(solto?' style="transform:none"':'')+'><i class="pt"></i>rodando</span>':'<span class="selo '+(c.livre?'livre':'preso')+'"'+(solto?' style="transform:none"':'')+'>'+(c.livre?OK+'pode tocar':LOCK+'bloqueado')+'</span>';
+  const rel=(lab,ks)=>ks&&ks.length?'<div class="rel"><span class="lab">'+lab+'</span><div class="chips">'+ks.map(k=>chip(k)).join("")+'</div></div>':"";
+  const ordem=(a,b)=>(C[b].livre-C[a].livre)||a.localeCompare(b,undefined,{numeric:true});
+  const reais=Object.keys(C).filter(k=>!C[k].satelite);
+
+  const g=new Date(DADOS.gerado_em);
+  document.getElementById("gerado").textContent="Pareamento, atualizado em "+g.toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"});
+  document.getElementById("titulo").innerHTML='<span class="e">'+esc(NOME.eu)+'</span> e <span class="d">'+esc(NOME.diretor)+'</span>';
+
+  document.getElementById("projetos").innerHTML=DADOS.projetos.map(p=>{
+    const prds=DADOS.prds.filter(x=>x.projeto===p.nome).sort((a,b)=>(b.feitas/b.total)-(a.feitas/a.total));
+    const meus=reais.filter(k=>C[k].projeto===p.nome);
+    const n=d=>meus.filter(k=>C[k].dono===d).length;
+    return '<div class="proj"><h3>'+esc(p.nome)+(p.versao?'<small>v'+esc(p.versao)+(p.migracao!=null?', migration '+esc(p.migracao):'')+'</small>':'<small>sem deploy</small>')+'</h3>'+
+      '<div class="nums"><span class="num-b"><b>'+p.abertas+'</b>abertas</span><span class="num-b"><b>'+n("eu")+'</b>com você</span><span class="num-b"><b>'+n("diretor")+'</b>com '+esc(NOME.diretor)+'</span><span class="num-b"><b>'+n("agente")+'</b>com o agente</span></div>'+
+      (prds.length?prds.map(x=>'<div class="prd" tabindex="0" data-k="'+esc(x.chave)+'"><div class="l1"><span>'+esc(x.titulo)+'</span><span>'+x.feitas+' de '+x.total+'</span></div><div class="barra"><i style="width:'+Math.round(100*x.feitas/Math.max(1,x.total))+'%"></i></div></div>').join(""):'<span class="vazio">Nenhum PRD aberto.</span>')+
+      (p.prs&&p.prs.length?'<div class="prs">'+p.prs.map(r=>'<span><a href="'+esc(r.url)+'" target="_blank" rel="noopener">PR #'+r.number+'</a> '+esc(r.title)+(r.isDraft?' (rascunho)':'')+', de '+esc(r.author&&r.author.login)+'</span>').join("")+'</div>':'')+
+    '</div>';
+  }).join("");
+
+  document.getElementById("legenda").innerHTML=["eu","diretor","agente","outro"].map(d=>'<span><i class="sw d-'+d+'"></i>'+esc(d==="eu"?"você":d==="diretor"?NOME.diretor:d==="agente"?"agente":"outra pessoa")+'</span>').join("")+
+    '<span><span class="k d-eu" style="cursor:default">'+OK+'#000</span>pode tocar</span><span><span class="k preso d-eu" style="cursor:default">'+LOCK+'#000</span>bloqueado</span>';
+
+  const caixas=[["eu","Você pode tocar já","Cards seus sem nada na frente."],["diretor",NOME.diretor+" pode tocar já","Estão no nome dele e não esperam ninguém."],["agente","Um agente pode rodar já","Prontos para a onda enxuta e ainda não pegos."]];
+  document.getElementById("agora").innerHTML=caixas.map(([d,t,p])=>{const ks=reais.filter(k=>C[k].dono===d&&C[k].livre&&!C[k].rodando).sort(ordem);
+    return '<div class="box d-'+d+'"><b>'+esc(t)+' ('+ks.length+')</b><p>'+esc(p)+'</p><div class="chips">'+(ks.map(k=>chip(k)).join("")||'<span class="vazio">Nada agora.</span>')+'</div></div>';}).join("");
+
+  const cols=[["eu","O que depende de você"],["diretor","O que depende de "+NOME.diretor],["agente","Com o agente"]];
+  document.getElementById("colunas").innerHTML=cols.map(([d,t])=>{const ks=reais.filter(k=>C[k].dono===d).sort(ordem);const nl=ks.filter(k=>C[k].livre&&!C[k].rodando).length,nr=ks.filter(k=>C[k].rodando).length;
+    return '<div class="col d-'+d+'"><h3>'+esc(t)+' <span class="n">'+nl+' livres, '+(nr?nr+' rodando, ':'')+(ks.length-nl-nr)+' bloqueados</span></h3>'+(ks.map(k=>{const c=C[k];
+      return '<div class="card d-'+c.dono+(c.livre?'':' preso')+'" id="card-'+esc(k)+'" tabindex="0" data-k="'+esc(k)+'"><div class="topo"><span class="cnum">'+esc(rot(k))+'</span><span class="tit">'+esc(c.titulo)+'</span>'+selo(c)+'</div>'+(c.desc.para_que_serve?'<p class="resumo">'+esc(c.desc.para_que_serve)+'</p>':'')+rel("Espera",c.espera)+rel("Segura",c.segura)+'</div>';}).join("")||'<span class="vazio">Nada aqui.</span>')+'</div>';}).join("");
+
+  document.getElementById("filas").innerHTML=DADOS.filas.map(f=>{const titulo=f.prd&&P[f.prd]?P[f.prd].titulo+" ("+rot(f.prd)+")":"Sem PRD";
+    return '<div class="fila"><b>'+esc(titulo)+'</b><div class="trilho">'+f.camadas.map(cam=>'<div class="camada">'+cam.map(k=>chip(k,C[k]&&C[k].livre&&C[k].dono!=="outro"?' vez':'')).join("")+'</div>').join('<span class="seta" aria-hidden="true">→</span>')+'</div></div>';}).join("")||'<span class="vazio">Nenhum card espera outro.</span>';
+
+  // descrição no hover, no foco e no toque
+  const dica=document.getElementById("dica");let fechaT=null,atual=null;
+  const sec=(h,t)=>t?'<div><h4>'+h+'</h4><p>'+esc(t)+'</p></div>':"";
+  function conteudo(k){
+    const c=C[k]||P[k];if(!c)return null;const d=c.desc||{};const prd=!C[k];
+    const dono=prd?"outro":c.dono;
+    const meta=prd?'<span class="dono">PRD</span><span>'+c.feitas+' de '+c.total+' fatias fechadas</span>':'<span class="dono">com '+esc(c.dono_nome)+'</span>'+selo(c,1)+(c.prd&&P[c.prd]?'<span>PRD '+esc(rot(c.prd))+'</span>':'');
+    const semDesc=!d.para_que_serve&&!d.o_que_muda?'<p style="color:var(--muted)">Ainda sem descrição. Rode o /pareamento de novo.</p>':"";
+    return {dono,html:'<div class="h"><b>'+esc(rot(k))+' '+esc(c.titulo)+'</b><button class="fechar" type="button" aria-label="Fechar">×</button></div><div class="meta">'+meta+'</div>'+
+      sec("Para que serve",d.para_que_serve)+sec("O que muda quando fecha",d.o_que_muda)+sec("Como acaba",d.como_acaba)+sec(prd?"Onde está":"Por que está com quem está",d.por_que_com_quem)+semDesc+
+      (!prd?rel("Espera",c.espera)+rel("Segura",c.segura):"")+(c.url?'<a href="'+esc(c.url)+'" target="_blank" rel="noopener">Abrir no GitHub</a>':'')};
+  }
+  function mostra(el){
+    const k=el.dataset.k;if(atual===k&&!dica.hidden)return;const r=conteudo(k);if(!r)return;
+    clearTimeout(fechaT);atual=k;dica.className="d-"+r.dono;dica.innerHTML=r.html;dica.hidden=false;
+    if(matchMedia("(hover:none)").matches)return;
+    const b=el.getBoundingClientRect(),w=dica.offsetWidth,h=dica.offsetHeight,vw=innerWidth,vh=innerHeight;
+    let x=b.right+12,y=b.top;
+    if(x+w>vw-12)x=b.left-w-12;
+    if(x<12){x=Math.max(12,Math.min(vw-w-12,b.left));y=b.bottom+8;if(y+h>vh-12)y=b.top-h-8;}
+    y=Math.max(12,Math.min(y,vh-h-12));
+    dica.style.left=x+"px";dica.style.top=y+"px";
+  }
+  const esconde=()=>{fechaT=setTimeout(()=>{dica.hidden=true;atual=null;},180);};
+  document.addEventListener("mouseover",e=>{const el=e.target.closest("[data-k]");if(el&&!dica.contains(el))mostra(el);else if(dica.contains(e.target))clearTimeout(fechaT);});
+  document.addEventListener("mouseout",e=>{const el=e.target.closest("[data-k]");if(el&&!dica.contains(el)&&!(e.relatedTarget&&dica.contains(e.relatedTarget)))esconde();if(dica.contains(e.target)&&!(e.relatedTarget&&dica.contains(e.relatedTarget)))esconde();});
+  document.addEventListener("focusin",e=>{const el=e.target.closest("[data-k]");if(el&&!dica.contains(el))mostra(el);});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape"){dica.hidden=true;atual=null;}});
+  document.addEventListener("click",e=>{
+    if(e.target.closest(".fechar")){dica.hidden=true;atual=null;return;}
+    const b=e.target.closest("[data-ir]");
+    if(b&&!matchMedia("(hover:none)").matches){const alvo=document.getElementById("card-"+b.dataset.ir);if(alvo){alvo.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});alvo.classList.add("flash");setTimeout(()=>alvo.classList.remove("flash"),1600);}return;}
+    const el=e.target.closest("[data-k]");
+    if(el&&!dica.contains(el)){mostra(el);return;}
+    if(!dica.contains(e.target)){dica.hidden=true;atual=null;}
+  });
+})();
+</script>
