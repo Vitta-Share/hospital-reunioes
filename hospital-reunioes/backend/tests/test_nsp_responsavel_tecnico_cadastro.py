@@ -195,3 +195,19 @@ class TestTroca:
 
         assert sb.trocas == []
         assert sb.audit_rows == []
+
+
+def test_o_kit_diz_onde_se_marca_o_responsavel_tecnico():
+    """O Assistente responde "onde marco o Responsável técnico?" pelo kit.
+    Mutante: apagar a linha do Responsável técnico da fundação do módulo."""
+    from test_kit_conhecimento import _secao, _texto
+
+    no_ar = _secao(_texto("seguranca-do-paciente.md"), "O que já está no ar")
+    for termo in (
+        "Responsável técnico",
+        "cadastro de usuários",
+        "ao lado do Acesso pleno ao NSP",
+        "marcar outra desmarca a anterior",
+        "histórico da pessoa",
+    ):
+        assert termo in no_ar, termo
