@@ -1,12 +1,12 @@
 # INTEGRACOES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-27T17:22+0000 -->
+<!-- last_update: 2026-11-27T19:01+0000 -->
 
 Serviços externos usados pelo Hospital Reuniões. Secrets configurados no Coolify (não no git).
 
 ## Anthropic
 **Pra que serve:** IA de texto do app inteiro desde a issue #1302 (Atas, POP, Ouvidoria, Assistente de Tecnologia, Contas médicas), pelo LLM_MODEL e pelos CM_IA_MODELO_PASSO_A/B (default claude-sonnet-5-5 no código; em produção estão em claude-opus-5-5 no Coolify, conferido em 09/11/2026), a recomendação da Validação pelo CM_IA_MODELO_VALIDACAO (claude-sonnet-5-5, ADR 0082). Retenção padrão da API (até 30 dias, sem treino), sem ZDR (ADR 0074)
-**Onde aparece no código:** `app/services/ia_chaves.py`, `app/services/ai_processor.py`, `app/services/contas_medicas/ia.py`
+**Onde aparece no código:** `app/services/ai_processor.py`, `app/services/contas_medicas/ia.py`, `app/services/ia_chaves.py`
 **Secret/env primária:** `ANTHROPIC_API_KEY`
 **Variáveis relacionadas:** `ANTHROPIC_API_KEYS_RESERVA`
 
@@ -17,7 +17,7 @@ Serviços externos usados pelo Hospital Reuniões. Secrets configurados no Cooli
 
 ## ClickSign
 **Pra que serve:** Assinatura digital de atas (sandbox em dev, app em prod)
-**Onde aparece no código:** `app/routers/reunioes.py`, `app/routers/conduta_membros.py`, `app/routers/admin/legacy.py`
+**Onde aparece no código:** `app/routers/reunioes.py`, `app/routers/conduta_depoimentos.py`, `app/routers/webhooks.py`
 **Secret/env primária:** `CLICKSIGN_API_KEY`
 **Variáveis relacionadas:** `CLICKSIGN_BASE_URL`, `CLICKSIGN_WEBHOOK_SECRET`
 
