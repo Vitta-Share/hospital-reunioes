@@ -9,20 +9,19 @@ estado. Nasce aberta.
 Todas as regras da Pergunta moram aqui (criar, e nas proximas Fatias
 responder, resolver, cancelar, listar e lembrar); as rotas nao repetem regra.
 
-Criar grava a entrada da Pergunta na Conversa da Demanda, pelo mesmo servico
-das mensagens (`tecnologia_conversa.escrever`), que avisa so o Destinatario
-com "Pede sua resposta" e o Assunto (ADR 0106). Depois vem a linha de sistema
-"Pergunta aberta", pela mesma origem `sistema` da linha do Envio aos
-desenvolvedores (ADR 0108).
+Criar gravava a entrada da Pergunta na Conversa da Demanda, pelo mesmo
+servico das mensagens, que avisava so o Destinatario com "Pede sua resposta"
+e o Assunto (ADR 0106). Depois vinha a linha de sistema "Pergunta aberta",
+pela mesma origem `sistema` da linha do Envio aos desenvolvedores (ADR 0108).
 
 O nome e Pergunta da Vitta, nunca Pendencia (ADR 0109, decisao 2): Pendencia e
 a Acao da Ata.
 
 Desde a issue #2279 (ADR 0113, decisao 7) o app nao age mais sobre o Pedido:
 sairam a lista Esperando voce, a resposta no cartao, o check, o Concluir e o
-Reenviar. Ficam o criar, o resolver e o cancelar pela ponte, a leitura, o
-lembrete e o acompanhamento do GitHub pelo webhook, que a triagem dos Pedidos
-abertos (issue #2277) e a ponte (issue #2281) ainda usam.
+Reenviar. Desde a issue #2281 a ponte tambem nao cria, nao le, nao resolve e
+nao cancela Pedido. Ficam, para os Pedidos que ja estao no banco, o lembrete
+(o agendador) e o acompanhamento do GitHub (o webhook).
 
 Desde a issue #2176 (ADR 0110, emenda a 0109) este e o modulo do Pedido da
 Vitta, com dois tipos na mesma tabela: a Pergunta, que se responde, e o Passo
@@ -48,16 +47,13 @@ e o Concluir recusa enquanto o esperado nao esta concluido.
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from uuid import uuid4
 
 from app.dependencies import selecionar_participantes
-from app.services import github_client, tecnologia_conversa, tecnologia_email
+from app.services import github_client, tecnologia_email
 from app.services.notificacao_service import criar_notificacao_tecnologia
 from app.services.paginacao import ler_tudo
-from app.services.pendencias_consulta import FUSO
 from app.services.tecnologia import (
     ETAPA_EM_PRODUCAO,
     ETAPA_ENTREGUE,
@@ -79,15 +75,7 @@ TIPO_PASSO_A_PASSO = "passo_a_passo"
 # O Pedido de implantacao (ADR 0111, decisao 1): passos com check, como o
 # Passo a passo, para o que vem depois do codigo.
 TIPO_IMPLANTACAO = "implantacao"
-TIPOS = (TIPO_PERGUNTA, TIPO_PASSO_A_PASSO, TIPO_IMPLANTACAO)
 TIPOS_COM_PASSOS = (TIPO_PASSO_A_PASSO, TIPO_IMPLANTACAO)
-
-# A label do card que pode virar Pedido de implantacao (ADR 0111, decisao 3).
-LABEL_DA_IMPLANTACAO = "implantacao"
-
-# O Passo a passo tem de 2 a 15 passos; o ultimo e o "Como saber que acabou".
-MINIMO_DE_PASSOS = 2
-MAXIMO_DE_PASSOS = 15
 
 # Os estados da Pergunta (CHECK da migration 211, ADR 0109, decisao 1).
 ESTADO_ABERTA = "aberta"
@@ -113,245 +101,13 @@ LINHAS_DO_CARTAO: tuple[tuple[str, str], ...] = (
     ("ganho", "o ganho"),
 )
 
-# As letras das opcoes, na ordem em que chegam. Quatro no maximo.
-LETRAS = ("A", "B", "C", "D")
-
-MOTIVO_DESTINATARIO = "O Destinatário não é um participante ativo do aplicativo."
-MOTIVO_SEM_ASSUNTO = "Falta o Assunto da Pergunta."
-MOTIVO_SEM_TEXTO = "Falta o texto da Pergunta."
-MOTIVO_OPCOES = "A Pergunta com opções precisa de duas a quatro, todas com texto."
-MOTIVO_RECOMENDADA = "A recomendada precisa ser a letra de uma das opções."
-MOTIVO_NAO_ESTA_ABERTA = "Esta Pergunta já não espera resposta."
-MOTIVO_SEM_DECIDIDO = "Falta o que foi decidido."
-MOTIVO_SEM_DESTRAVOU = "Falta o que destravou."
-MOTIVO_SEM_MOTIVO = "Falta o motivo do cancelamento."
-MOTIVO_TIPO = "O tipo do Pedido é pergunta, passo_a_passo ou implantacao."
-MOTIVO_SEM_LABEL_DE_IMPLANTACAO = (
-    "Só o card com a label implantacao vira Pedido de implantação. Mande como Passo a passo, ou ponha a label."
-)
-MOTIVO_CARD_NAO_EXISTE = "O card não existe no repositório do Projeto {projeto}."
-MOTIVO_SEM_CONFERIR_O_CARD = "O app não conseguiu ler o card no GitHub para conferir a label ({erro})."
-MOTIVO_PASSOS = 'O Passo a passo precisa de 2 a 15 passos, todos com texto; o último é o "Como saber que acabou".'
-MOTIVO_SEM_CARD = "Falta o card do Passo a passo (o número da issue)."
-# Issue #2190: o app so fecha card no repositorio que conhece.
-MOTIVO_SEM_REPOSITORIO = (
-    "O app não alcança o repositório do Projeto {projeto}, então não fecharia o card. Mande como Pergunta."
-)
-MOTIVO_OPCOES_SO_NA_PERGUNTA = "Opções prontas só existem na Pergunta."
-MOTIVO_GITHUB_SEM_ACESSO = "O app não tem acesso ao repositório deste card."
-# A espera de um Pedido de implantacao por outro (issue #2208, ADR 0111, decisao 8).
-MOTIVO_ESPERA_SO_NA_IMPLANTACAO = "Só o Pedido de implantação espera outro Pedido."
-MOTIVO_ESPERA_NAO_EXISTE = "O Pedido esperado não existe."
-MOTIVO_ESPERA_DE_OUTRA_DEMANDA = "O Pedido de implantação só espera outro da mesma Demanda."
-MOTIVO_ESPERA_DE_OUTRO_TIPO = "O Pedido de implantação só espera outro Pedido de implantação."
-MOTIVO_ESPERA_CANCELADA = "O Pedido esperado foi cancelado: este nunca poderia ser concluído."
 # A Demanda de bug entregue solta o Pedido que espera por ela.
 ETAPAS_DO_BUG_ENTREGUE = (ETAPA_ENTREGUE, ETAPA_EM_PRODUCAO)
-# Por que a passagem nao vale, pelo estado em que a Pergunta esta.
-MOTIVO_DA_PASSAGEM_RECUSADA = {
-    ESTADO_ABERTA: "A Pergunta ainda não foi respondida: só a respondida se resolve.",
-    ESTADO_RESOLVIDA: "Esta Pergunta já foi resolvida e não muda mais.",
-    ESTADO_CANCELADA: "Esta Pergunta já foi cancelada e não muda mais.",
-    ESTADO_CONCLUIDA: "Este Passo a passo já foi concluído e não muda mais.",
-}
-
-
-class PerguntaRecusadaError(ValueError):
-    """A Pergunta nao pode nascer assim. A mensagem e o motivo, para a ponte
-    devolver como esta; nada foi gravado."""
-
-
-class FechamentoIncompletoError(ValueError):
-    """Resolver sem o que foi decidido ou o que destravou, ou cancelar sem o
-    motivo (422). Nada foi gravado."""
-
-
-class PassagemRecusadaError(ValueError):
-    """A Pergunta nao esta num estado de onde a passagem vale (409): resolver
-    a aberta, ou resolver ou cancelar a que ja fechou."""
 
 
 def _agora() -> datetime:
-    """O relogio do modulo: o teste do comentario fixa a hora por aqui."""
+    """O relogio do modulo: o teste do webhook pode fixar a hora por aqui."""
     return datetime.now(UTC)
-
-
-def _limpo(valor: str | None) -> str:
-    return (valor or "").strip()
-
-
-def _opcoes(opcoes: Sequence[str], recomendada: str | None) -> list[dict[str, str]]:
-    textos = [_limpo(texto) for texto in opcoes]
-    if not textos:
-        if recomendada:
-            raise PerguntaRecusadaError(MOTIVO_RECOMENDADA)
-        return []
-    if not 2 <= len(textos) <= len(LETRAS) or not all(textos):
-        raise PerguntaRecusadaError(MOTIVO_OPCOES)
-    letras = LETRAS[: len(textos)]
-    if recomendada not in letras:
-        raise PerguntaRecusadaError(MOTIVO_RECOMENDADA)
-    return [{"letra": letra, "texto": texto} for letra, texto in zip(letras, textos, strict=True)]
-
-
-def criar(
-    supabase,
-    demanda: dict[str, Any],
-    *,
-    autor: dict[str, Any],
-    destinatario_id: str | None,
-    assunto: str | None,
-    texto: str | None,
-    linhas: dict[str, str | None],
-    opcoes: Sequence[str] = (),
-    recomendada: str | None = None,
-    porque: str | None = None,
-    tipo: str | None = None,
-    passos: Sequence[str] = (),
-    card_numero: int | None = None,
-    card_projeto: str | None = None,
-    espera_pedido_id: str | None = None,
-) -> dict[str, Any]:
-    """Grava o Pedido aberto, a entrada dele na Conversa da Demanda e a linha
-    de sistema "Pergunta aberta" ou "Passo a passo aberto", e avisa so o
-    Destinatario ("Pede sua resposta" ou "Pede sua ação", ADR 0110). Devolve a
-    linha do Pedido. Tudo e conferido antes da primeira escrita: a recusa
-    (`PerguntaRecusadaError`) nao deixa nada gravado nem avisado.
-
-    O Passo a passo (`tipo=passo_a_passo`) exige de 2 a 15 passos com texto e
-    o numero do card; o Projeto do card e o da Demanda quando nao vem, e
-    precisa ter repositorio configurado no app (issue #2190). Opcoes prontas
-    so existem na Pergunta.
-
-    O Pedido de implantacao (`tipo=implantacao`, issue #2207) pede o mesmo
-    que o Passo a passo e mais a label `implantacao` no card, lida no GitHub
-    antes de gravar. Depois de gravado, o app fecha o card como concluido com
-    o comentario fixo; a recusa do GitHub nao desfaz o Pedido, deixa o
-    fechamento `falhou` com o motivo (ADR 0111, decisao 4).
-
-    O Pedido de implantacao pode esperar outro (`espera_pedido_id`, issue
-    #2208): so outro Pedido de implantacao da mesma Demanda."""
-    tipo = tipo or TIPO_PERGUNTA
-    if tipo not in TIPOS:
-        raise PerguntaRecusadaError(MOTIVO_TIPO)
-    e_passo_a_passo = tipo in TIPOS_COM_PASSOS
-    implantacao = tipo == TIPO_IMPLANTACAO
-    assunto, texto = _limpo(assunto), _limpo(texto)
-    if not assunto:
-        raise PerguntaRecusadaError(MOTIVO_SEM_ASSUNTO)
-    if not texto:
-        raise PerguntaRecusadaError(MOTIVO_SEM_TEXTO)
-    cartao = {chave: _limpo(linhas.get(chave)) for chave, _ in LINHAS_DO_CARTAO}
-    for chave, nome in LINHAS_DO_CARTAO:
-        if not cartao[chave]:
-            raise PerguntaRecusadaError(f"Falta a linha do cartão: {nome}.")
-    lista_de_passos: list[str] = []
-    projeto_do_card = ""
-    if e_passo_a_passo:
-        lista_de_passos = [_limpo(passo) for passo in passos]
-        if not MINIMO_DE_PASSOS <= len(lista_de_passos) <= MAXIMO_DE_PASSOS or not all(lista_de_passos):
-            raise PerguntaRecusadaError(MOTIVO_PASSOS)
-        if not card_numero:
-            raise PerguntaRecusadaError(MOTIVO_SEM_CARD)
-        projeto_do_card = _limpo(card_projeto) or str(demanda.get("projeto") or github_client.PROJETO_HOSPITAL)
-        if not github_client.repositorio_do_projeto(projeto_do_card):
-            raise PerguntaRecusadaError(MOTIVO_SEM_REPOSITORIO.format(projeto=projeto_do_card))
-        if any(_limpo(o) for o in opcoes) or recomendada:
-            raise PerguntaRecusadaError(MOTIVO_OPCOES_SO_NA_PERGUNTA)
-    lista = _opcoes(opcoes, recomendada)
-    if not destinatario_id or not tecnologia_conversa.e_participante_ativo(supabase, destinatario_id):
-        raise PerguntaRecusadaError(MOTIVO_DESTINATARIO)
-    espera_pedido_id = _limpo(espera_pedido_id) or None
-    if espera_pedido_id:
-        _exigir_a_espera_valida(supabase, demanda, tipo, espera_pedido_id)
-    if implantacao:
-        _exigir_a_label_da_implantacao(int(card_numero), projeto_do_card)
-
-    # O id nasce aqui, como UUID: e com ele que a ponte le a Pergunta depois
-    # (o PedroOS o guarda, Vitta-Share/os#992), e o aviso leva a ele (#2118).
-    pergunta_id = str(uuid4())
-    entrada = tecnologia_conversa.escrever(
-        supabase,
-        demanda,
-        autor=autor,
-        texto=texto,
-        origem=tecnologia_conversa.ORIGEM_TERMINAL,
-        destinatario_id=destinatario_id,
-        pede_resposta_sobre=assunto,
-        pergunta_id=pergunta_id,
-        pede_acao=e_passo_a_passo,
-    )
-    do_passo_a_passo = (
-        {
-            "passos": lista_de_passos,
-            "card_projeto": projeto_do_card,
-            "card_numero": card_numero,
-        }
-        if e_passo_a_passo
-        else {}
-    )
-    [pergunta] = (
-        supabase.table(TABELA_PERGUNTAS)
-        .insert(
-            {
-                "id": pergunta_id,
-                "demanda_id": demanda["id"],
-                "mensagem_id": entrada["id"],
-                "autor_id": autor["id"],
-                "destinatario_id": destinatario_id,
-                "assunto": assunto,
-                "texto": texto,
-                **cartao,
-                "opcoes": lista,
-                "recomendada": recomendada if lista else None,
-                "porque_da_recomendada": (_limpo(porque) or None) if lista else None,
-                "estado": ESTADO_ABERTA,
-                "tipo": tipo,
-                **do_passo_a_passo,
-                **({"espera_pedido_id": espera_pedido_id} if espera_pedido_id else {}),
-            }
-        )
-        .execute()
-        .data
-    )
-    supabase.table(TABELA_CONVERSA_DA_DEMANDA).insert(
-        {
-            "demanda_id": demanda["id"],
-            "autor_id": autor["id"],
-            "texto": f"{NOME_DO_TIPO[tipo]} {'aberto' if e_passo_a_passo else 'aberta'}: {assunto}",
-            "mencoes": [],
-            "origem": ORIGEM_SISTEMA,
-        }
-    ).execute()
-    if implantacao:
-        pergunta = _fechar_o_card(supabase, pergunta)
-    return pergunta
-
-
-# O nome de cada tipo nas linhas de sistema da Conversa.
-NOME_DO_TIPO = {
-    TIPO_PERGUNTA: "Pergunta",
-    TIPO_PASSO_A_PASSO: "Passo a passo",
-    TIPO_IMPLANTACAO: "Pedido de implantação",
-}
-
-
-def _exigir_a_espera_valida(supabase, demanda: dict[str, Any], tipo: str, espera_pedido_id: str) -> None:
-    """A espera vale so no Pedido de implantacao e so por outro Pedido de
-    implantacao da mesma Demanda, que nao foi cancelado (ADR 0111, decisao 8)."""
-    if tipo != TIPO_IMPLANTACAO:
-        raise PerguntaRecusadaError(MOTIVO_ESPERA_SO_NA_IMPLANTACAO)
-    esperado = buscar(supabase, espera_pedido_id)
-    if esperado is None:
-        raise PerguntaRecusadaError(MOTIVO_ESPERA_NAO_EXISTE)
-    if str(esperado.get("demanda_id")) != str(demanda["id"]):
-        raise PerguntaRecusadaError(MOTIVO_ESPERA_DE_OUTRA_DEMANDA)
-    if not e_implantacao(esperado):
-        raise PerguntaRecusadaError(MOTIVO_ESPERA_DE_OUTRO_TIPO)
-    # O cancelado segura o Concluir para sempre (`_espera`): esperar por ele
-    # faria nascer um Pedido que nunca conclui, com o lembrete batendo.
-    if esperado.get("estado") == ESTADO_CANCELADA:
-        raise PerguntaRecusadaError(MOTIVO_ESPERA_CANCELADA)
 
 
 def prd_de_origem(supabase, pedido: dict[str, Any]) -> str | None:
@@ -365,27 +121,6 @@ def prd_de_origem(supabase, pedido: dict[str, Any]) -> str | None:
     projeto = str(demandas[0].get("projeto") or github_client.PROJETO_HOSPITAL)
     repositorio = "" if projeto == github_client.PROJETO_HOSPITAL else github_client.repositorio_do_projeto(projeto)
     return f"{repositorio}#{numero}"
-
-
-def _exigir_a_label_da_implantacao(numero: int, projeto: str) -> None:
-    """So o card com a label `implantacao` vira Pedido de implantacao (ADR
-    0111, decisao 3): o app le a label no GitHub, e nao no que a ponte diz.
-    Sem conseguir ler, recusa: nada e gravado."""
-    try:
-        dados = github_client.ler_issue(numero, projeto=projeto)
-    except github_client.IssueNaoEncontradaError as erro:
-        raise PerguntaRecusadaError(MOTIVO_CARD_NAO_EXISTE.format(projeto=projeto)) from erro
-    except (github_client.GithubNaoConfiguradoError, github_client.GithubIndisponivelError) as erro:
-        raise PerguntaRecusadaError(MOTIVO_SEM_CONFERIR_O_CARD.format(erro=erro)) from erro
-    labels = {str(label.get("name")) for label in dados.get("labels") or [] if isinstance(label, dict)}
-    if github_client.e_pull_request(dados) or LABEL_DA_IMPLANTACAO not in labels:
-        raise PerguntaRecusadaError(MOTIVO_SEM_LABEL_DE_IMPLANTACAO)
-
-
-def buscar(supabase, pergunta_id: str) -> dict[str, Any] | None:
-    """A linha da Pergunta, ou `None`."""
-    linhas = supabase.table(TABELA_PERGUNTAS).select("*").eq("id", pergunta_id).execute().data or []
-    return linhas[0] if linhas else None
 
 
 def _nomes(supabase, ids: set[str]) -> dict[str, str]:
@@ -408,25 +143,6 @@ def e_passo_a_passo(pedido: dict[str, Any]) -> bool:
 
 def e_implantacao(pedido: dict[str, Any]) -> bool:
     return pedido.get("tipo") == TIPO_IMPLANTACAO
-
-
-def implantacao_aberta(supabase, demanda_id: str) -> list[dict[str, Any]]:
-    """Os Pedidos de implantacao ainda abertos da Demanda, do mais antigo ao
-    mais novo: o que falta o hospital fazer para usar a entrega (ADR 0111,
-    decisao 11). O `/mensagem-prd` le pela ponte (issue #2213)."""
-    linhas = (
-        supabase.table(TABELA_PERGUNTAS)
-        .select("id, assunto, criado_em")
-        .eq("demanda_id", demanda_id)
-        .eq("tipo", TIPO_IMPLANTACAO)
-        .eq("estado", ESTADO_ABERTA)
-        .order("criado_em")
-        .order("id")
-        .execute()
-        .data
-        or []
-    )
-    return [{"id": str(p["id"]), "assunto": p.get("assunto") or ""} for p in linhas]
 
 
 def pode_responder(pergunta: dict[str, Any], ator: dict[str, Any]) -> bool:
@@ -602,19 +318,6 @@ def cartao(supabase, pedido: dict[str, Any], *, ator: dict[str, Any] | None) -> 
     )
 
 
-def _participantes(supabase, ids: set[str]) -> dict[str, dict[str, Any]]:
-    """O cadastro de cada id, com o que diz se a pessoa e Desenvolvedor."""
-    ids = {i for i in ids if i}
-    if not ids:
-        return {}
-    result = selecionar_participantes(
-        supabase,
-        "id, nome_completo, access_profile, is_super_admin, github_login",
-        lambda q: q.in_("id", sorted(ids)),
-    )
-    return {str(p["id"]): p for p in result.data or []}
-
-
 def _resposta(pergunta: dict[str, Any], nomes: dict[str, str]) -> dict[str, Any] | None:
     if not pergunta.get("respondida_em"):
         return None
@@ -629,14 +332,6 @@ def _resposta(pergunta: dict[str, Any], nomes: dict[str, str]) -> dict[str, Any]
         "respondida_por": nomes.get(str(por)) if por else None,
         "em_nome_de": nomes.get(str(em_nome_de)) if em_nome_de else None,
     }
-
-
-def resposta(supabase, pergunta: dict[str, Any]) -> dict[str, Any] | None:
-    """A resposta da Pergunta, quando houver: a letra e o texto da opcao
-    escolhida, o texto livre, quando, quem registrou e em nome de quem."""
-    if not pergunta.get("respondida_em"):
-        return None
-    return _resposta(pergunta, _nomes(supabase, _pessoas_da_pergunta(pergunta)))
 
 
 # O lembrete unico (ADR 0109, decisao 7): 3 dias corridos sem resposta.
@@ -727,43 +422,7 @@ def lembrar(supabase, agora: datetime) -> int:
     return lembradas
 
 
-# ─── Resolver e cancelar (issue #2121, ADR 0109, decisao 6) ─────────────────
-
-
-def _fechar(
-    supabase,
-    pergunta: dict[str, Any],
-    demanda: dict[str, Any],
-    *,
-    autor: dict[str, Any],
-    de: tuple[str, ...],
-    campos: dict[str, Any],
-    linha: str,
-) -> dict[str, Any]:
-    """A passagem para resolvida ou cancelada: so dos estados `de`, por UPDATE
-    condicional (de dois pedidos ao mesmo tempo, so o primeiro grava), e a
-    linha de sistema na Conversa da Demanda. Depois dela a Pergunta nao muda
-    mais: nenhum estado final esta em `de`."""
-    estado = pergunta.get("estado") or ESTADO_ABERTA
-    if estado not in de:
-        raise PassagemRecusadaError(MOTIVO_DA_PASSAGEM_RECUSADA[estado])
-    gravadas = (
-        supabase.table(TABELA_PERGUNTAS).update(campos).eq("id", pergunta["id"]).in_("estado", list(de)).execute().data
-        or []
-    )
-    if not gravadas:
-        atual = buscar(supabase, str(pergunta["id"])) or {}
-        raise PassagemRecusadaError(MOTIVO_DA_PASSAGEM_RECUSADA.get(atual.get("estado"), MOTIVO_NAO_ESTA_ABERTA))
-    supabase.table(TABELA_CONVERSA_DA_DEMANDA).insert(
-        {
-            "demanda_id": demanda["id"],
-            "autor_id": autor["id"],
-            "texto": linha,
-            "mencoes": [],
-            "origem": ORIGEM_SISTEMA,
-        }
-    ).execute()
-    return gravadas[0]
+# ─── O estado final no cartao (issue #2121, ADR 0109, decisao 6) ────────────
 
 
 def _resolucao(pergunta: dict[str, Any]) -> dict[str, Any] | None:
@@ -782,140 +441,7 @@ def _cancelamento(pergunta: dict[str, Any]) -> dict[str, Any] | None:
     return {"motivo": pergunta.get("resolucao_decidido"), "cancelada_em": pergunta.get("cancelada_em")}
 
 
-def resolver(
-    supabase,
-    pergunta: dict[str, Any],
-    demanda: dict[str, Any],
-    *,
-    autor: dict[str, Any],
-    decidido: str | None,
-    destravou: str | None,
-) -> dict[str, Any]:
-    """A Vitta leu a resposta e deu o ok (ADR 0109, decisao 6): a Pergunta
-    respondida passa a resolvida, com o que foi decidido e o que destravou, e
-    a Conversa ganha a linha de sistema com os dois. So a respondida se
-    resolve. Devolve a linha gravada."""
-    decidido, destravou = _limpo(decidido), _limpo(destravou)
-    if not decidido:
-        raise FechamentoIncompletoError(MOTIVO_SEM_DECIDIDO)
-    if not destravou:
-        raise FechamentoIncompletoError(MOTIVO_SEM_DESTRAVOU)
-    return _fechar(
-        supabase,
-        pergunta,
-        demanda,
-        autor=autor,
-        de=(ESTADO_RESPONDIDA,),
-        campos={
-            "estado": ESTADO_RESOLVIDA,
-            "resolucao_decidido": decidido,
-            "resolucao_destravou": destravou,
-            "resolvida_em": datetime.now(UTC).isoformat(),
-        },
-        linha=(
-            f"Pergunta resolvida: {pergunta.get('assunto') or ''}\n"
-            f"O que foi decidido: {decidido}\n"
-            f"O que destravou: {destravou}"
-        ),
-    )
-
-
-def cancelar(
-    supabase,
-    pergunta: dict[str, Any],
-    demanda: dict[str, Any],
-    *,
-    autor: dict[str, Any],
-    motivo: str | None,
-) -> dict[str, Any]:
-    """A Pergunta deixou de ser necessaria (ADR 0109, decisao 6): a aberta ou
-    a respondida passa a cancelada, com o motivo, e a Conversa ganha a linha
-    de sistema com ele. A aberta sai da lista Esperando voce, que so
-    le as abertas. A migration 211 nao tem coluna propria para o motivo: ele
-    fica em `resolucao_decidido`, que na cancelada e o que se decidiu (que a
-    Pergunta nao precisa mais). Devolve a linha gravada."""
-    motivo = _limpo(motivo)
-    if not motivo:
-        raise FechamentoIncompletoError(MOTIVO_SEM_MOTIVO)
-    return _fechar(
-        supabase,
-        pergunta,
-        demanda,
-        autor=autor,
-        de=(ESTADO_ABERTA, ESTADO_RESPONDIDA),
-        campos={
-            "estado": ESTADO_CANCELADA,
-            "resolucao_decidido": motivo,
-            "cancelada_em": datetime.now(UTC).isoformat(),
-        },
-        linha=(
-            f"{NOME_DO_TIPO.get(pergunta.get('tipo') or TIPO_PERGUNTA, 'Pergunta')} "
-            f"{'cancelado' if e_passo_a_passo(pergunta) else 'cancelada'}: "
-            f"{pergunta.get('assunto') or ''}\nMotivo: {motivo}"
-        ),
-    )
-
-
-# ─── Marcar, concluir e reenviar o Passo a passo (issue #2176, ADR 0110) ────
-
-
-def leitura_do_passo_a_passo(supabase, pedido: dict[str, Any]) -> dict[str, Any]:
-    """O que a ponte devolve alem da resposta (o Checar respostas do PedroOS):
-    o tipo, o card, a conclusao (quando, como, quem e a anotacao) e o
-    fechamento no GitHub. Nulos na Pergunta."""
-    if not e_passo_a_passo(pedido):
-        return {"tipo": TIPO_PERGUNTA, "card": None, "conclusao": None, "fechamento": None}
-    return {
-        "tipo": pedido["tipo"],
-        "card": {"projeto": pedido.get("card_projeto"), "numero": pedido.get("card_numero")},
-        "conclusao": _conclusao(pedido, _nomes(supabase, _pessoas_da_pergunta(pedido))),
-        "fechamento": _fechamento(pedido),
-    }
-
-
-def _hora_local(instante: str) -> str:
-    momento = _instante(instante).astimezone(FUSO)
-    return f"{momento:%d/%m} às {momento:%H:%M}"
-
-
-# O marcador da primeira linha do comentario: e por ele que o teste (e quem
-# le a issue) reconhece o comentario do app.
-MARCADOR_DO_COMENTARIO = "<!-- pedido-da-vitta: passo-a-passo-concluido -->"
-MARCADOR_DA_IMPLANTACAO_CONCLUIDA = "<!-- pedido-da-vitta: implantacao-concluida -->"
-
-
-def comentario_de_fechamento(pedido: dict[str, Any], *, destinatario_e_desenvolvedor: bool) -> str:
-    """O comentario fixo na issue (ADR 0110, decisao 10): quando, por qual
-    papel e os checks. Sem a anotacao e sem o nome de ninguem: o repositorio e
-    publico (ADR 0083, decisao 8)."""
-    papel = "Desenvolvedor" if destinatario_e_desenvolvedor else "Diretoria"
-    quem = (
-        f"por um Desenvolvedor, no lugar do Destinatário ({papel})"
-        if pedido.get("concluida_em_nome_de")
-        else f"pelo Destinatário ({papel})"
-    )
-    checks = "\n".join(f"- [x] {passo}" for passo in pedido.get("passos") or [])
-    # O Pedido de implantacao (ADR 0111, decisao 7) comenta o mesmo fato, com
-    # o marcador e o nome dele.
-    marcador, nome = (
-        (MARCADOR_DA_IMPLANTACAO_CONCLUIDA, "Pedido de implantação")
-        if e_implantacao(pedido)
-        else (MARCADOR_DO_COMENTARIO, "Passo a passo")
-    )
-    return f"{marcador}\n{nome} concluído no app em {_hora_local(pedido['concluida_em'])}, {quem}.\n\n{checks}"
-
-
-def _motivo_da_falha(erro: Exception) -> str:
-    if isinstance(erro, github_client.GithubNaoConfiguradoError):
-        return MOTIVO_GITHUB_SEM_ACESSO
-    return f"O GitHub não aceitou ({erro})."[:500]
-
-
-# O comentario fixo com que o Pedido de implantacao fecha o card ao nascer
-# (ADR 0111, decisao 4).
-COMENTARIO_DO_NASCIMENTO_DA_IMPLANTACAO = (
-    "<!-- pedido-da-vitta: virou-implantacao -->\nVirou Pedido de implantação no app."
-)
+# ─── O Reenviar no cartao e a linha de sistema (issue #2176, ADR 0110) ──────
 
 
 def _cabe_reenviar(pedido: dict[str, Any]) -> bool:
@@ -927,35 +453,6 @@ def _cabe_reenviar(pedido: dict[str, Any]) -> bool:
     if e_implantacao(pedido):
         return pedido.get("estado") != ESTADO_CANCELADA
     return pedido.get("estado") == ESTADO_CONCLUIDA
-
-
-def _comentario_do_destinatario(supabase, pedido: dict[str, Any]) -> str:
-    destinatario = _participantes(supabase, {str(pedido.get("destinatario_id") or "")})
-    return comentario_de_fechamento(
-        pedido,
-        destinatario_e_desenvolvedor=e_desenvolvedor(destinatario.get(str(pedido.get("destinatario_id") or ""))),
-    )
-
-
-def _fechar_o_card(supabase, pedido: dict[str, Any]) -> dict[str, Any]:
-    """Comenta e fecha o card como feito, e grava o desfecho: `fechado`, ou
-    `falhou` com o motivo (decisao 8). Nunca tenta de novo sozinho. O Passo a
-    passo fecha com o comentario da conclusao; o Pedido de implantacao, com o
-    comentario fixo do nascimento."""
-    if e_implantacao(pedido):
-        comentario = COMENTARIO_DO_NASCIMENTO_DA_IMPLANTACAO
-    else:
-        comentario = _comentario_do_destinatario(supabase, pedido)
-    try:
-        github_client.fechar_como_feita(
-            int(pedido["card_numero"]), projeto=str(pedido.get("card_projeto") or ""), comentario=comentario
-        )
-        desfecho = {"fechamento_github": FECHAMENTO_FECHADO, "fechamento_motivo": None}
-    except (github_client.GithubNaoConfiguradoError, github_client.GithubIndisponivelError) as erro:
-        logger.warning(f"[tecnologia_perguntas] O card do Passo a passo {pedido.get('id')} não fechou: {erro}")
-        desfecho = {"fechamento_github": FECHAMENTO_FALHOU, "fechamento_motivo": _motivo_da_falha(erro)}
-    gravadas = supabase.table(TABELA_PERGUNTAS).update(desfecho).eq("id", pedido["id"]).execute().data or []
-    return gravadas[0] if gravadas else {**pedido, **desfecho}
 
 
 def _linha_de_sistema(supabase, demanda: dict[str, Any] | None, pedido: dict[str, Any], texto: str) -> None:

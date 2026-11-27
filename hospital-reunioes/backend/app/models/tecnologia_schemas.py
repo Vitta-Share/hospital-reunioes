@@ -265,16 +265,6 @@ class QuemSouNaAbaResponse(BaseModel):
     desenvolvedor: bool
 
 
-# ─── A Conversa da Demanda (issue #1537, ADR 0083, decisao 8) ──────────────
-
-
-# O teto de uma fala do chat. E do pydantic, e nao do router, porque aqui nao
-# ha frase de gente a preservar: um texto de 50 mil caracteres nao veio da tela,
-# veio de um cliente que resolveu mandar o que quisesse para uma rota que gasta
-# token de LLM a cada chamada.
-LIMITE_DA_MENSAGEM = 5000
-
-
 # ─── A leitura do print (PRD #726, ADR 0056) ─────────────────────────────────
 
 
