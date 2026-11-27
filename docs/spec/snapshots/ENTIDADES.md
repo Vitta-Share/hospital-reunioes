@@ -1,12 +1,12 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-25T16:50+0000 -->
+<!-- last_update: 2026-11-27T04:40+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## participantes
 
-> Origem: `001_create_participantes.sql` (alterada em: 014_add_externo_co_responsavel.sql, 017_add_super_admin.sql, 028_add_taxonomy_fks.sql, 036_add_access_profile.sql, 045_pops_fundacao_acesso.sql, 064_ouvidoria_manifestacao.sql, 103_tecnologia_vinculo.sql, 116_contas_medicas_fundacao.sql, 146_nsp_fundacao.sql, 175_conduta_fundacao.sql)
+> Origem: `001_create_participantes.sql` (alterada em: 014_add_externo_co_responsavel.sql, 017_add_super_admin.sql, 028_add_taxonomy_fks.sql, 036_add_access_profile.sql, 045_pops_fundacao_acesso.sql, 064_ouvidoria_manifestacao.sql, 103_tecnologia_vinculo.sql, 116_contas_medicas_fundacao.sql, 146_nsp_fundacao.sql, 175_conduta_fundacao.sql, 241_nsp_responsavel_tecnico.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -34,6 +34,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `registro_profissional` | `TEXT` | — | — | — |
 | `registro_uf` | `TEXT` | — | — | — |
 | `perfil_conduta` | `TEXT` | — | — | — |
+| `responsavel_tecnico` | `BOOLEAN` | NOT NULL | `false` | — |
 
 **Indexes:**
 - `idx_participantes_email` em `(email)` (de `001_create_participantes.sql`)
@@ -48,6 +49,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_participantes_perfil_ouvidoria` em `(perfil_ouvidoria)` (de `064_ouvidoria_manifestacao.sql`)
 - `participantes_github_login_lower_idx` em `((lower(github_login)` (de `103_tecnologia_vinculo.sql`)
 - `idx_participantes_perfil_contas_medicas` em `(perfil_contas_medicas)` (de `116_contas_medicas_fundacao.sql`)
+- `uq_participantes_responsavel_tecnico` em `(responsavel_tecnico)` (de `241_nsp_responsavel_tecnico.sql`)
 
 ## reunioes
 

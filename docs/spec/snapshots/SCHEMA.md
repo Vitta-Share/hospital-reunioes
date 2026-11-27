@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-25T16:50+0000 -->
+<!-- last_update: 2026-11-27T04:40+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -323,7 +323,7 @@ erDiagram
         TEXT setor
         user_role role
         BOOLEAN ativo
-        _ mais_colunas "+16"
+        _ mais_colunas "+17"
     }
     reunioes {
         VARCHAR id_reuniao PK
@@ -1968,6 +1968,7 @@ erDiagram
 | `participantes` | `idx_participantes_perfil_ouvidoria` | `perfil_ouvidoria` | `064_ouvidoria_manifestacao.sql` |
 | `participantes` | `participantes_github_login_lower_idx` | `(lower(github_login` | `103_tecnologia_vinculo.sql` |
 | `participantes` | `idx_participantes_perfil_contas_medicas` | `perfil_contas_medicas` | `116_contas_medicas_fundacao.sql` |
+| `participantes` | `uq_participantes_responsavel_tecnico` | `responsavel_tecnico` | `241_nsp_responsavel_tecnico.sql` |
 | `reunioes` | `idx_reunioes_status` | `status_ata` | `002_create_reunioes.sql` |
 | `reunioes` | `idx_reunioes_data` | `data DESC` | `002_create_reunioes.sql` |
 | `reunioes` | `idx_reunioes_setor` | `setor` | `002_create_reunioes.sql` |
