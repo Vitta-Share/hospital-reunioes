@@ -27,7 +27,7 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parents[4]
 GUIAS = RAIZ / "docs" / "comunicacao" / "guias"
 ASSETS = RAIZ / "docs" / "comunicacao" / "_assets"
-REPO = "pedrorezendefig/hospital-reunioes"
+REPO = "Vitta-Share/hospital-reunioes"
 SITE = "https://guias-hsm.vercel.app"
 PROJETO = "guias-hsm"
 

@@ -55,7 +55,7 @@ Chaves de produção: só no Coolify. A lista e o "quem mexe" estão no `README.
 
 | Serviço | Para quê | O que você precisa | Como conseguir |
 |---|---|---|---|
-| **GitHub** (`pedrorezendefig/hospital-reunioes`) | Issues, PRs, CI, merge | Permissão WRITE e `gh auth login` | O Pedro adiciona você como colaborador; depois `gh auth login` |
+| **GitHub** (`Vitta-Share/hospital-reunioes`) | Issues, PRs, CI, merge | Permissão WRITE e `gh auth login` | O Pedro adiciona você como colaborador; depois `gh auth login` |
 | **Coolify** (`https://coolify.hospitalsaomatheus.cloud`) | Deploy, status, rollback, env de produção | Conta na instância e um token seu | O Pedro cria a conta. Você gera o token em Keys & Tokens, grava em `tokens/.env` e cria o contexto `hsm` (`claude-setup.md` seção 4.1) |
 | **Supabase de produção** (`https://studio.hospitalsaomatheus.cloud`) | Aplicar migration, conferir tabela | Acesso ao Studio | Hoje só o Pedro. O `/ship` entrega o SQL e espera o humano aplicar |
 | **App em produção** (`https://app.hospitalsaomatheus.cloud`; API em `api.hospitalsaomatheus.cloud/api/health`) | Testar o que subiu | Um usuário no app | O Pedro cria pelo admin |

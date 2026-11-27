@@ -65,7 +65,7 @@ ROTA = "/api/webhooks/github"
 # Valor de mentira, deste arquivo. O segredo de verdade e do Coolify.
 SEGREDO = "segredo-falso-de-teste-678"
 
-REPO = "pedrorezendefig/hospital-reunioes"
+REPO = "Vitta-Share/hospital-reunioes"
 
 
 # ─── Fixtures de seguranca ───────────────────────────────────────────────────
@@ -276,7 +276,7 @@ def _issue(numero: int, *, estado: str = "open", motivo=None, labels=(), resumo=
     dados = {
         "number": numero,
         "title": "Tecnologia: webhook do GitHub",
-        "html_url": f"https://github.com/pedrorezendefig/hospital-reunioes/issues/{numero}",
+        "html_url": f"https://github.com/Vitta-Share/hospital-reunioes/issues/{numero}",
         "state": estado,
         "state_reason": motivo,
         "labels": [{"name": nome} for nome in labels],
@@ -1348,7 +1348,7 @@ class TestSincronizacaoPeloWebhook:
         """
         gh = _GithubFalso({673: _issue(673, labels=("in-progress",))})
         demandas = [_ja_sincronizada(gh, 673)]
-        url_nova = "https://github.com/pedrorezendefig/hospital-reunioes-renomeado/issues/673"
+        url_nova = "https://github.com/Vitta-Share/hospital-reunioes-renomeado/issues/673"
         gh.issues[673]["html_url"] = url_nova
         cliente, sb, _ = _montar(demandas=demandas, github=gh, monkeypatch=monkeypatch)
 
@@ -2264,7 +2264,7 @@ class TestIssuesQueOCorpoFecha:
         (
             ("Closes #673", [673]),
             ("closes #673\n\nfixes: #674", [673, 674]),
-            ("Resolved pedrorezendefig/hospital-reunioes#673", [673]),
+            ("Resolved Vitta-Share/hospital-reunioes#673", [673]),
             ("Closes #1, #2", [1]),
             ("Close #10 e close #10 de novo", [10]),
             ("Foreclose #673", []),

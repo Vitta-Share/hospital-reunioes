@@ -10,7 +10,7 @@
 set -u
 RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 APP="$RAIZ/hospital-reunioes"
-UPSTREAM="pedrorezendefig/hospital-reunioes"
+UPSTREAM="Vitta-Share/hospital-reunioes"
 FALHAS=0
 export PATH="/opt/homebrew/bin:/opt/homebrew/opt/node@22/bin:/Applications/Docker.app/Contents/Resources/bin:$PATH"
 

@@ -51,7 +51,7 @@ const github = {{ rest: {{ issues: {{
   addAssignees: async (a) => chamadas.push({{ fn: 'addAssignees', ...a }}),
 }} }} }};
 const context = {{
-  repo: {{ owner: 'pedrorezendefig', repo: 'hospital-reunioes' }},
+  repo: {{ owner: 'Vitta-Share', repo: 'hospital-reunioes' }},
   payload: {{ issue: {{ number: 42, user: {{ login: {json.dumps(autor)}, type: {json.dumps(tipo)} }} }} }},
 }};
 const core = {{ info: () => {{}} }};
@@ -96,14 +96,14 @@ def test_card_do_diretor_ganha_as_labels_e_o_dono() -> None:
     assert chamadas == [
         {
             "fn": "addLabels",
-            "owner": "pedrorezendefig",
+            "owner": "Vitta-Share",
             "repo": "hospital-reunioes",
             "issue_number": 42,
             "labels": ["needs-triage", "origem:diretor"],
         },
         {
             "fn": "addAssignees",
-            "owner": "pedrorezendefig",
+            "owner": "Vitta-Share",
             "repo": "hospital-reunioes",
             "issue_number": 42,
             "assignees": ["pedrorezendefig"],
@@ -145,14 +145,14 @@ def test_prototipo_vai_em_pr_rascunho_e_nao_fecha_o_card() -> None:
     skill = ler("SKILL.md")
     criar_pr = re.search(r"gh pr create[^\n]*(?:\n\s+[^\n]*)*", skill).group(0)
     assert "--draft" in criar_pr
-    assert "--repo pedrorezendefig/hospital-reunioes" in criar_pr
+    assert "--repo Vitta-Share/hospital-reunioes" in criar_pr
     assert "Refs #<N>" in skill and "nunca `Closes`" in skill
 
 
 def test_card_nasce_no_repositorio_do_time_sem_label_no_comando() -> None:
     skill = ler("SKILL.md")
     (criar,) = re.findall(r"gh issue create[^\n]*", skill)
-    assert "--repo pedrorezendefig/hospital-reunioes" in criar
+    assert "--repo Vitta-Share/hospital-reunioes" in criar
     assert "--label" not in criar and "--assignee" not in criar
 
 
@@ -199,7 +199,7 @@ const github = {{ rest: {{ issues: {{
   addAssignees: async (a) => chamadas.push({{ fn: 'addAssignees', ...a }}),
 }} }} }};
 const context = {{
-  repo: {{ owner: 'pedrorezendefig', repo: 'hospital-reunioes' }},
+  repo: {{ owner: 'Vitta-Share', repo: 'hospital-reunioes' }},
   payload: {{ issue: {{ number: 42, user: {{ login: {json.dumps(autor)} }} }} }},
 }};
 const core = {{ info: () => {{}} }};

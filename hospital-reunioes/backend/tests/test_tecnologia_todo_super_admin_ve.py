@@ -61,7 +61,7 @@ def _reset_rate_limiter():
 @pytest.fixture(autouse=True)
 def _webhook_configurado(monkeypatch):
     monkeypatch.setattr(settings, "github_webhook_secret", SEGREDO)
-    monkeypatch.setattr(settings, "github_integracao_repo", "pedrorezendefig/hospital-reunioes")
+    monkeypatch.setattr(settings, "github_integracao_repo", "Vitta-Share/hospital-reunioes")
     monkeypatch.setattr(settings, "github_login_dono", "pedrorezendefig")
 
 
@@ -73,7 +73,7 @@ def _card_de_outro_autor() -> dict:
         autor_id=DIRETOR["id"],
         criado_em="2026-11-01T10:00:00Z",
         github_issue_numero=912,
-        github_foto={"numero": 912, "url": "https://github.com/pedrorezendefig/hospital-reunioes/issues/912"},
+        github_foto={"numero": 912, "url": "https://github.com/Vitta-Share/hospital-reunioes/issues/912"},
         etapa="em_desenvolvimento",
         partes=[
             {"numero": 913, "o_que_muda": "A lista mostra o relatório", "situacao": "em_desenvolvimento"},
@@ -120,7 +120,7 @@ class TestTodoSuperAdminListaTodas:
 
         assert item["raiz_numero"] == 912
         assert item["issue_numero"] == 912
-        assert item["issue_url"] == "https://github.com/pedrorezendefig/hospital-reunioes/issues/912"
+        assert item["issue_url"] == "https://github.com/Vitta-Share/hospital-reunioes/issues/912"
         assert [p["numero"] for p in item["partes"]] == [913, 914]
 
 
@@ -155,7 +155,7 @@ class TestResponsavelDiretor:
             github_issue_numero=numero,
             github_foto={
                 "numero": numero,
-                "url": f"https://github.com/pedrorezendefig/hospital-reunioes/issues/{numero}",
+                "url": f"https://github.com/Vitta-Share/hospital-reunioes/issues/{numero}",
             },
             etapa="em_analise",
         )

@@ -53,7 +53,7 @@ from app.services.tecnologia_vinculo import (  # noqa: E402
     ETAPA_ENTREGUE,
 )
 
-REPO_ANA = "pedrorezendefig/programa-ana"
+REPO_ANA = "Vitta-Share/programa-ana"
 
 HOSPITAL = "hospital"
 ANA = "ana"

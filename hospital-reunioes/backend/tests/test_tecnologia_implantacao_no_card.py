@@ -60,7 +60,7 @@ def _issue(numero: int, titulo: str, *, estado: str = "open", labels=(), dono: s
     dados = {
         "number": numero,
         "title": titulo,
-        "html_url": f"https://github.com/pedrorezendefig/hospital-reunioes/issues/{numero}",
+        "html_url": f"https://github.com/Vitta-Share/hospital-reunioes/issues/{numero}",
         "state": estado,
         "state_reason": "completed" if estado == "closed" else None,
         "labels": [{"name": nome} for nome in labels],

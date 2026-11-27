@@ -18,7 +18,7 @@ O texto que o Felipe lê, passo a passo, está em `references/passo-a-passo.md`.
 
 **Antes do clone** (a pasta ainda não existe no Mac dele), leia os mesmos arquivos pelo endereço público do repositório:
 
-https://raw.githubusercontent.com/pedrorezendefig/hospital-reunioes/main/.claude/skills/setup-diretor/SKILL.md
+https://raw.githubusercontent.com/Vitta-Share/hospital-reunioes/main/.claude/skills/setup-diretor/SKILL.md
 
 Troque `SKILL.md` por `references/passo-a-passo.md`, `references/pedro.md` e `references/modelo-do-card.md`.
 
@@ -81,7 +81,7 @@ Docker Desktop é o `.dmg` para Apple Silicon (link no passo a passo); ele abre,
 Depois do `gh auth login` (no Terminal, pelas mãos dele) e do `gh auth status` verde:
 
 ```bash
-cd ~ && gh repo fork pedrorezendefig/hospital-reunioes --clone --default-branch-only
+cd ~ && gh repo fork Vitta-Share/hospital-reunioes --clone --default-branch-only
 cd ~/hospital-reunioes && git remote -v   # origin = fork dele, upstream = pedrorezendefig
 git config --global user.name "<nome dele>"
 git config --global user.email "<ID>+<login>@users.noreply.github.com"
@@ -123,7 +123,7 @@ A trava entra antes do convite (Parte 6): quando ele vira colaborador, o Claude 
 
 ### Parte 6: o convite
 
-Só depois da linha "trava do merge" em `OK`. O Pedro convida o login dele no `pedrorezendefig/hospital-reunioes` e no `pedrorezendefig/hospital-arquivos` (mensagem "Conta criada"). Aceite você, pelo `gh`, os convites desses dois repositórios:
+Só depois da linha "trava do merge" em `OK`. O Pedro convida o login dele no `Vitta-Share/hospital-reunioes` e no `pedrorezendefig/hospital-arquivos` (mensagem "Conta criada"). Aceite você, pelo `gh`, os convites desses dois repositórios:
 
 ```bash
 gh api user/repository_invitations --jq '.[] | "\(.id) \(.repository.full_name)"'
@@ -134,7 +134,7 @@ Sem convite na lista: mande a mensagem "Sem convite" de `references/pedro.md`. P
 
 ### Parte 8: o protótipo
 
-1. Atualize a cópia antes de começar (você roda): `gh repo sync <login>/hospital-reunioes --source pedrorezendefig/hospital-reunioes && git checkout main && git pull`.
+1. Atualize a cópia antes de começar (você roda): `gh repo sync <login>/hospital-reunioes --source Vitta-Share/hospital-reunioes && git checkout main && git pull`.
 2. Chame a skill `prototype`. A branch é `prototype/<N>-<slug>`, onde `<N>` é o número do card (se o card ainda não existe, abra-o primeiro pela Parte 9 e volte). O código do protótipo é descartável: responde uma pergunta de tela ou de regra, não vira o código final.
 3. Dados que a tela precisa: crie no banco local, com nomes inventados.
 4. Suba de novo com a skill `atualizar-app --yes` e peça que ele teste na tela. Ajuste até ele dizer que é isso.
@@ -143,7 +143,7 @@ Sem convite na lista: mande a mensagem "Sem convite" de `references/pedro.md`. P
 7. PR rascunho do fork para o repositório do time:
 
    ```bash
-   gh pr create --draft --repo pedrorezendefig/hospital-reunioes --head <login>:prototype/<N>-<slug> --base main \
+   gh pr create --draft --repo Vitta-Share/hospital-reunioes --head <login>:prototype/<N>-<slug> --base main \
      --title "Protótipo: <título do card>" --body-file <arquivo>
    ```
 
@@ -161,10 +161,10 @@ O PR é o ponto de partida (ADR 0113, decisão 3), e ele nunca mergeia. Quando u
 4. Crie no repositório do time, nunca no fork:
 
    ```bash
-   gh issue create --repo pedrorezendefig/hospital-reunioes --title "<título curto>" --body-file <arquivo>
+   gh issue create --repo Vitta-Share/hospital-reunioes --title "<título curto>" --body-file <arquivo>
    ```
 
-5. A Action `card-do-diretor.yml` põe `needs-triage` e `origem:diretor` e designa o Pedro em segundos. Confira com `gh issue view <N> --repo pedrorezendefig/hospital-reunioes --json labels,assignees`. Sem as labels depois de um minuto, o login dele ainda não está em `DIRETOR_LOGINS`: mande a mensagem "Card sem label" de `references/pedro.md`.
+5. A Action `card-do-diretor.yml` põe `needs-triage` e `origem:diretor` e designa o Pedro em segundos. Confira com `gh issue view <N> --repo Vitta-Share/hospital-reunioes --json labels,assignees`. Sem as labels depois de um minuto, o login dele ainda não está em `DIRETOR_LOGINS`: mande a mensagem "Card sem label" de `references/pedro.md`.
 6. Dê a ele o link do card e a mensagem "Card novo" de `references/pedro.md`.
 
 O card nasce `needs-triage` porque o Pedro faz o grill técnico (`/grill-with-docs #N`) e só o `/to-prd` dele vira `ready-for-agent`. Não use `/to-prd` nem `/to-issues` aqui: os dois publicam como trabalho pronto para o time.
@@ -177,7 +177,7 @@ O arquivo que a Vitta precisa ler na hora do código (ADR 0113, decisão 11) vai
 [ -d ~/hospital-arquivos ] || gh repo clone pedrorezendefig/hospital-arquivos ~/hospital-arquivos
 cd ~/hospital-arquivos && git pull && mkdir -p <N> && cp "<caminho do arquivo>" <N>/
 git add <N> && git commit -m "Arquivo de apoio do card <N>" && git push
-gh issue comment <N> --repo pedrorezendefig/hospital-reunioes --body "Arquivo de apoio: https://github.com/pedrorezendefig/hospital-arquivos/tree/main/<N>"
+gh issue comment <N> --repo Vitta-Share/hospital-reunioes --body "Arquivo de apoio: https://github.com/pedrorezendefig/hospital-arquivos/tree/main/<N>"
 ```
 
 Arquivo acima de 100 MB o GitHub recusa: peça a ele uma versão menor. Pronto quando o link do comentário abre a pasta com o arquivo.
@@ -186,11 +186,11 @@ Arquivo acima de 100 MB o GitHub recusa: peça a ele uma versão menor. Pronto q
 
 O card no nome dele é a Tarefa do diretor (ADR 0113, decisão 4; os comandos do time estão em `docs/agents/issue-tracker.md`). Pergunta leva `needs-info`; coisa a fazer leva `ready-for-human`; o card `implantacao` é coisa a fazer depois do código, que ele combina com quem faz no hospital.
 
-1. O que está no nome dele: `gh issue list --repo pedrorezendefig/hospital-reunioes --assignee @me --state open --json number,title,labels,url`.
-2. Leia o card escolhido com `gh issue view <N> --repo pedrorezendefig/hospital-reunioes --comments` e explique em palavras simples o que pedem, com as opções e a recomendação de quem pediu.
-3. Escreva a resposta com ele, mostre e espere o "pode mandar". Publique com `gh issue comment <N> --repo pedrorezendefig/hospital-reunioes --body-file <arquivo>`. Arquivo que a resposta precisa vai pela Parte 10, e o comentário leva o link.
-4. Pergunta (`needs-info`): devolva o card a quem perguntou, o autor do comentário que menciona o login dele, com `gh issue edit <N> --repo pedrorezendefig/hospital-reunioes --remove-assignee @me --add-assignee <login de quem perguntou>`. As labels ficam com a Vitta, que grava a decisão e volta o card a `ready-for-agent`.
-5. Coisa a fazer (`ready-for-human` ou `implantacao`): com o "terminei" dele, `gh issue close <N> --repo pedrorezendefig/hospital-reunioes --comment "<o que foi feito>"`. O bloqueio nativo solta as fatias que esperavam.
+1. O que está no nome dele: `gh issue list --repo Vitta-Share/hospital-reunioes --assignee @me --state open --json number,title,labels,url`.
+2. Leia o card escolhido com `gh issue view <N> --repo Vitta-Share/hospital-reunioes --comments` e explique em palavras simples o que pedem, com as opções e a recomendação de quem pediu.
+3. Escreva a resposta com ele, mostre e espere o "pode mandar". Publique com `gh issue comment <N> --repo Vitta-Share/hospital-reunioes --body-file <arquivo>`. Arquivo que a resposta precisa vai pela Parte 10, e o comentário leva o link.
+4. Pergunta (`needs-info`): devolva o card a quem perguntou, o autor do comentário que menciona o login dele, com `gh issue edit <N> --repo Vitta-Share/hospital-reunioes --remove-assignee @me --add-assignee <login de quem perguntou>`. As labels ficam com a Vitta, que grava a decisão e volta o card a `ready-for-agent`.
+5. Coisa a fazer (`ready-for-human` ou `implantacao`): com o "terminei" dele, `gh issue close <N> --repo Vitta-Share/hospital-reunioes --comment "<o que foi feito>"`. O bloqueio nativo solta as fatias que esperavam.
 
 Nunca mexa em card que não está no nome dele, nunca troque label de estado e nunca feche pergunta: quem fecha é quem perguntou.
 

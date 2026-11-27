@@ -112,7 +112,7 @@ class TestAOndaDeCadaParte:
 # A foto guarda as bloqueadoras de cada parte
 # ═══════════════════════════════════════════════════════════════════════════
 
-REPO_URL = "https://github.com/pedrorezendefig/hospital-reunioes/issues"
+REPO_URL = "https://github.com/Vitta-Share/hospital-reunioes/issues"
 
 
 def _bloqueadora(numero: int, estado: str = "open", *, url: str | None = None) -> dict:

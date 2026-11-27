@@ -218,7 +218,7 @@ def _gh(args: list[str]) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Varredura dos cards de implantação (ADR 0111, decisão 12).")
-    parser.add_argument("--repo", default="pedrorezendefig/hospital-reunioes")
+    parser.add_argument("--repo", default="Vitta-Share/hospital-reunioes")
     parser.add_argument("--aplicar", action="store_true", help="põe a label nos candidatos e comenta a lista")
     parser.add_argument("--comentar", type=int, help="o card que recebe o comentário com a lista")
     parser.add_argument("--fora", action="append", default=[], metavar="N=motivo", help="tira um card pelo juízo")

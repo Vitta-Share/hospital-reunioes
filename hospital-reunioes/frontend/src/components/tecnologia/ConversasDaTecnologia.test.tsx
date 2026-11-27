@@ -264,7 +264,7 @@ describe("O Desenvolvedor (issue #1531, ADR 0083)", () => {
     etapa: "em_desenvolvimento",
     tem_vinculo: true,
     issue_numero: 912,
-    issue_url: "https://github.com/pedrorezendefig/hospital-reunioes/issues/912",
+    issue_url: "https://github.com/Vitta-Share/hospital-reunioes/issues/912",
   });
 
   it("vê o filtro Todas, que traz as Demandas de todos com o autor em cada linha", async () => {
@@ -307,7 +307,7 @@ describe("O Desenvolvedor (issue #1531, ADR 0083)", () => {
     fireEvent.click(await within(lista()).findByRole("button", { name: /O botão sumiu/ }));
 
     const link = await screen.findByRole("link", { name: "#912" });
-    expect(link.getAttribute("href")).toBe("https://github.com/pedrorezendefig/hospital-reunioes/issues/912");
+    expect(link.getAttribute("href")).toBe("https://github.com/Vitta-Share/hospital-reunioes/issues/912");
   });
 
   // ─── O Responsável e o Para mim (issue #1533, ADR 0083, decisão 5) ────────
@@ -1388,7 +1388,7 @@ describe("O card do Quadro abre num painel à direita (issue #1643, ADR 0090, de
       origem: "vitta",
       tem_vinculo: true,
       issue_numero: 12,
-      issue_url: "https://github.com/pedrorezendefig/programa-ana/issues/12",
+      issue_url: "https://github.com/Vitta-Share/programa-ana/issues/12",
     });
     telaLarga();
     montar((url) => {
@@ -1407,7 +1407,7 @@ describe("O card do Quadro abre num painel à direita (issue #1643, ADR 0090, de
       expect(within(painel).queryByRole("button", { name: nome })).toBeNull();
     }
     const link = within(painel).getByRole("link", { name: "#12" });
-    expect(link.getAttribute("href")).toBe("https://github.com/pedrorezendefig/programa-ana/issues/12");
+    expect(link.getAttribute("href")).toBe("https://github.com/Vitta-Share/programa-ana/issues/12");
   });
 
   it("com prefers-reduced-motion, o painel abre sem animação", async () => {

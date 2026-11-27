@@ -50,7 +50,7 @@ def _llm_em_mock(monkeypatch):
 @pytest.fixture(autouse=True)
 def _integracao_configurada(monkeypatch):
     monkeypatch.setattr(settings, "github_integracao_token", "token-de-teste")
-    monkeypatch.setattr(settings, "github_integracao_repo", "pedrorezendefig/hospital-reunioes")
+    monkeypatch.setattr(settings, "github_integracao_repo", "Vitta-Share/hospital-reunioes")
 
 
 def _cenario(monkeypatch, *, logado=DIRETOR, **kw):

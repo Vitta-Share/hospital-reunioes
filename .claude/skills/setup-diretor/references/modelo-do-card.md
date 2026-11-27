@@ -5,7 +5,7 @@ O card que o Claude do Felipe abre segue o formato do card da aba Tecnologia (AD
 Regras:
 
 - Primeira linha: uma frase de resumo do que muda, sem título. O Hospital OS lê essa linha.
-- O bloco "👔 Para o diretor" passa pela skill `humanizer` (a amostra de voz é o bloco de um card `origem:diretor` já publicado: `gh issue list --repo pedrorezendefig/hospital-reunioes --label origem:diretor --state all --limit 5`).
+- O bloco "👔 Para o diretor" passa pela skill `humanizer` (a amostra de voz é o bloco de um card `origem:diretor` já publicado: `gh issue list --repo Vitta-Share/hospital-reunioes --label origem:diretor --state all --limit 5`).
 - Sem dado real: nada de nome de paciente, de funcionário, número de prontuário, preço de contrato ou print de produção. O repositório é público.
 - Decisão do Felipe vai em "Decisões de negócio" como escolha dele, com o porquê. Dúvida técnica que ele não soube responder vai em "Ficou em aberto", nunca chutada.
 - Sem labels nem dono no comando: a Action `card-do-diretor.yml` põe `needs-triage`, `origem:diretor` e o Pedro.

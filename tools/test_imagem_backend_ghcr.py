@@ -66,7 +66,7 @@ def job_build() -> dict:
 def test_backend_esta_em_modo_imagem_no_project_json_e_o_frontend_segue_no_git():
     build = backend()["build"]
     assert build["build_pack"] == "dockerimage"
-    assert build["image"] == "ghcr.io/pedrorezendefig/hospital-reunioes-backend"
+    assert build["image"] == "ghcr.io/vitta-share/hospital-reunioes-backend"
     assert (WORKFLOWS / build["publish_workflow"]).exists()
     # a pasta que a subida compara entre head e squash é o contexto do build no CI
     contexto = passo(job_build()["steps"], "Build backend image")["with"]["context"]

@@ -40,7 +40,7 @@ Consegue me convidar no hospital-reunioes e no hospital-arquivos?
 ```
 Fala Pedro, abri um card e ele ficou sem as etiquetas
 
-Card: https://github.com/pedrorezendefig/hospital-reunioes/issues/<N>
+Card: https://github.com/Vitta-Share/hospital-reunioes/issues/<N>
 
 Acho que meu login não tá liberado ainda. Dá uma olhada?
 ```
@@ -51,7 +51,7 @@ Acho que meu login não tá liberado ainda. Dá uma olhada?
 Fala Pedro, abri um card novo
 
 <título do card>
-https://github.com/pedrorezendefig/hospital-reunioes/issues/<N>
+https://github.com/Vitta-Share/hospital-reunioes/issues/<N>
 
 Quando der, faz a parte técnica. Qualquer coisa me chama.
 ```
@@ -61,8 +61,8 @@ Quando der, faz a parte técnica. Qualquer coisa me chama.
 ```
 Fala Pedro, montei o protótipo do card <N>
 
-Card: https://github.com/pedrorezendefig/hospital-reunioes/issues/<N>
-Protótipo: https://github.com/pedrorezendefig/hospital-reunioes/pull/<PR>
+Card: https://github.com/Vitta-Share/hospital-reunioes/issues/<N>
+Protótipo: https://github.com/Vitta-Share/hospital-reunioes/pull/<PR>
 
 Tá em rascunho, só pra vocês verem a ideia funcionando.
 ```
@@ -74,7 +74,7 @@ Fala Pedro, no card <N> ficou uma dúvida que não é só minha
 
 <a dúvida, numa frase>
 
-Card: https://github.com/pedrorezendefig/hospital-reunioes/issues/<N>
+Card: https://github.com/Vitta-Share/hospital-reunioes/issues/<N>
 
 Me fala o que acha.
 ```
