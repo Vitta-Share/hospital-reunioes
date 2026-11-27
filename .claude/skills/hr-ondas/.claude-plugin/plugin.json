@@ -1,1 +1,0 @@
-{ "name": "hr-ondas", "version": "0.2.0", "description": "Torre das ondas: PRD, onda e Fatia com o tempo de cada etapa, sessões vivas e as migrations que esperam você", "types": "./types/index.d.ts" }
