@@ -2,6 +2,51 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-26T21:28:05-03:00",
+      "sha": "a72987a82874efe689639c928b7e2d089aa966dd",
+      "app_version": "0.392.3",
+      "subject": "Onda diretor-d-onda2: A ponte de automação fica só com a leitura dos anexos",
+      "raw_subject": "chore(deploy): registro da onda diretor-d-onda2 (#2306)",
+      "scope": [
+        "backend"
+      ],
+      "prds": [
+        2262
+      ],
+      "result": "healthy",
+      "duration_seconds": 167,
+      "services_touched": [
+        "backend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta diretor-d-onda2: PR #2306 (issue #2281), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 129
+        },
+        "health_s": 20
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-26T16:25:24-03:00",
       "sha": "811359c76839c79d94946f89d3a1595c8967ffc9",
       "app_version": "0.392.2",
