@@ -1,17 +1,18 @@
 """A skill /pareamento, parte das ações: bloqueio no texto, volta do diretor, ações por card,
-passagem ao diretor e o painel local que abre as sessões no Claude Agents."""
+passagem ao diretor, aderência à ADR 0113 e o acao.py, a porta da Ala Pareamento do PedroOS."""
 
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import date, datetime, timezone
 
 from test_pareamento import DIR, EU, SKILL, carregar, estado_exemplo, issue, montar, projeto
 
 coletar = carregar("coletar")
 acoes = carregar("acoes")
 passagem = carregar("passagem")
-painel = carregar("painel")
+acao = carregar("acao")
+aderencia = carregar("aderencia")
 
 
 def test_bloqueio_no_texto_acha_o_que_o_nativo_nao_tem():
@@ -144,48 +145,104 @@ def test_passar_recusa_card_rodando():
         raise AssertionError
 
 
-def test_guarda_do_painel():
-    host_ok, autorizado = painel.guarda(4479, "t" * 48)
-    bom = {"Host": "127.0.0.1:4479", "x-pareamento-token": "t" * 48}
-    assert autorizado(bom)
-    assert autorizado({**bom, "Origin": "http://localhost:4479", "Host": "localhost:4479"})
-    assert not autorizado({**bom, "Host": "evil.com:4479"})  # DNS rebinding
-    assert not autorizado({**bom, "Origin": "https://claude.ai"})
-    assert not autorizado({**bom, "x-pareamento-token": "x" * 48})
-    assert not autorizado({"Host": "127.0.0.1:4479"})
-    assert host_ok({"Host": "localhost:4479"}) and not host_ok({"Host": "127.0.0.1:80"})
-
-
-def test_painel_abre_sessao_so_do_que_o_card_aceita(tmp_path):
-    estado = {"projetos": [{"nome": "Hospital", "repo": "o/r"}],
-              "cards": {"Hospital#7": c_acao("agente"), "Hospital#8": {**c_acao("diretor"), "chave": "Hospital#8", "numero": 8}}}
+def estado_da_ala(tmp_path, cards, gerado="2026-11-27T12:00:00+00:00"):
+    estado = {"gerado_em": gerado, "eu": {"login": EU, "nome": "Pedro"}, "diretor": {"login": DIR, "nome": "Felipe"},
+              "projetos": [{"nome": "Hospital", "repo": "o/r", "prds": []}], "cards": cards}
     (tmp_path / "estado.json").write_text(json.dumps(estado), encoding="utf-8")
-    lancadas = []
-
-    def lancador(projeto, nome, prompt):
-        lancadas.append((projeto, nome, prompt))
-        return {"ok": True, "id": "abc"}
-
-    pedidos = [{"tipo": "agente", "chave": "Hospital#7"}, {"tipo": "tocar", "chave": "Hospital#8"},
-               {"tipo": "agente", "chave": "Hospital#99"}, {"tipo": "onda", "projeto": "Hospital"},
-               {"tipo": "onda", "projeto": "../x"}]
-    r = painel.abrir_sessoes(pedidos, tmp_path, lancador=lancador, vivas=set)
-    assert [x.get("ok") for x in r] == [True, None, None, True, None]
-    assert lancadas[0][1] == "par-hosp-7-agente" and "/pegar-issue 7" in lancadas[0][2]
-    assert "/montar-ondas-enxutas" in lancadas[1][2]
-    # Sessão viva com o mesmo nome não abre outra.
-    r = painel.abrir_sessoes([{"tipo": "agente", "chave": "Hospital#7"}], tmp_path, lancador=lancador,
-                             vivas=lambda: {"par-hosp-7-agente"})
-    assert r[0]["viva"] and len(lancadas) == 2
+    return estado
 
 
-def test_painel_poe_o_token_na_pagina_e_o_artifact_fica_sem(tmp_path):
-    dados, _ = montar.dados_da_pagina(estado_exemplo(), {})
-    html = montar.html(dados)
-    assert "const PAINEL = /*PAINEL*/null;" in html
-    (tmp_path / "pareamento.html").write_text(html, encoding="utf-8")
-    servida = painel.pagina(tmp_path, "segredo123").decode()
-    assert '"token": "segredo123"' in servida and "/*PAINEL*/null" not in servida
+def test_acao_sessao_so_do_que_o_card_aceita(tmp_path):
+    estado_da_ala(tmp_path, {"Hospital#7": c_acao("agente"),
+                             "Hospital#8": {**c_acao("diretor"), "chave": "Hospital#8", "numero": 8}})
+    r = acao.sessao(tmp_path, "agente", "Hospital#7")
+    assert r["nome"] == "par-hosp-7-agente" and r["projeto"] == "Hospital" and "/pegar-issue 7" in r["prompt"]
+    # Card do diretor não abre sessão de esfera, mas aceita as da aderência.
+    assert "menciona o diretor" in acao.sessao(tmp_path, "cobrar", "Hospital#8")["prompt"]
+    for tipo, chave in [("tocar", "Hospital#8"), ("agente", "Hospital#99")]:
+        try:
+            acao.sessao(tmp_path, tipo, chave)
+        except ValueError:
+            continue
+        raise AssertionError((tipo, chave))
+    assert "/montar-ondas-enxutas" in acao.sessao(tmp_path, "onda", projeto="Hospital")["prompt"]
+    assert "/pareamento" in acao.sessao(tmp_path, "atualizar")["prompt"]
+
+
+def test_acao_cli_devolve_erro_em_json(tmp_path, capsys):
+    estado_da_ala(tmp_path, {})
+    assert acao.main(["sessao", "--pasta", str(tmp_path), "--tipo", "onda", "--projeto", "../x"]) == 2
+    assert json.loads(capsys.readouterr().out)["erro"]
+    assert acao.main(["dados", "--pasta", str(tmp_path / "nada")]) == 2
+
+
+def test_acao_dados_sem_corpo_com_aderencia(tmp_path):
+    estado_da_ala(tmp_path, {"Hospital#7": {**c_acao(), "corpo": "SEGREDO", "versao": "v", "espera": [], "segura": [],
+                                            "prd": None, "labels": [], "titulo": "t"}})
+    d = acao.dados(tmp_path, agora=datetime(2026, 11, 27, 13, tzinfo=timezone.utc))
+    assert "SEGREDO" not in json.dumps(d, ensure_ascii=False)
+    assert d["cards"]["Hospital#7"]["acoes"] and "extras" in d["cards"]["Hospital#7"]
+    assert 0 <= d["aderencia"]["nota"] <= 100 and d["rotulos"]["cobrar"]
+
+
+def test_acao_passar_so_card_seu_e_marca_feito(tmp_path):
+    estado_da_ala(tmp_path, {"Hospital#7": c_acao(), "Hospital#8": {**c_acao("diretor"), "chave": "Hospital#8", "numero": 8}})
+    chamado = []
+    acao.passar(tmp_path, "Hospital#7", RASCUNHO, executar=lambda *a: chamado.append(a) or {"ok": True})
+    assert chamado[0][:2] == ("o/r", 7)
+    assert "passado:Hospital#7" in json.loads((tmp_path / "feitos.json").read_text(encoding="utf-8"))
+    try:
+        acao.passar(tmp_path, "Hospital#8", RASCUNHO, executar=lambda *a: {"ok": True})
+    except ValueError:
+        pass
+    else:
+        raise AssertionError
+
+
+AGORA = datetime(2026, 11, 27, 13, tzinfo=timezone.utc)
+
+
+def card_ad(k, dono, **extra):
+    n = int(k.split("#")[1])
+    return {"chave": k, "numero": n, "projeto": "Hospital", "dono": dono, "livre": True, "labels": [], "corpo": "",
+            "versao": "v", "atualizado": "2026-11-27T10:00:00Z", **extra}
+
+
+def regras(r, estado="falta"):
+    return sorted((i["regra"], i["chave"]) for i in r["faltam" if estado == "falta" else "justificados"])
+
+
+def test_aderencia_cem_quando_tudo_segue_a_adr():
+    estado = {"gerado_em": "2026-11-27T12:00:00+00:00", "cards": {
+        "Hospital#1": card_ad("Hospital#1", "diretor", corpo="## 🔁 Por que este card passou para você"),
+        "Hospital#2": card_ad("Hospital#2", "eu"),
+        "Hospital#3": card_ad("Hospital#3", "eu", labels=["com:ti"]),
+    }}
+    desc = {"Hospital#2": {"proximo": "tocar"}, "Hospital#3": {"proximo": "esperar", "proximo_porque": "Segura até 30/11."}}
+    r = aderencia.aderencia(estado, desc, {}, {}, AGORA)
+    assert r["nota"] == 100 and r["faltam"] == []
+    assert regras(r, "justificado") == [("comunicacao", "Hospital#3")]
+
+
+def test_aderencia_aponta_cada_falta_com_a_acao_que_resolve():
+    estado = {"gerado_em": "2026-11-26T12:00:00+00:00", "cards": {
+        "Hospital#1": card_ad("Hospital#1", "diretor"),  # sem explicação
+        "Hospital#2": card_ad("Hospital#2", "diretor", corpo="👔 Para o diretor", atualizado="2026-11-20T10:00:00Z"),
+        "Hospital#3": card_ad("Hospital#3", "eu", voltou=True, labels=["needs-info"]),
+        "Hospital#4": card_ad("Hospital#4", "eu", no_texto=["Hospital#9"]),
+        "Hospital#5": card_ad("Hospital#5", "eu", labels=["com:rib"]),
+        "Hospital#6": card_ad("Hospital#6", "eu"),
+    }}
+    desc = {"Hospital#4": {"proximo": "esperar", "proximo_porque": "x"}, "Hospital#5": {"proximo": "tocar"},
+            "Hospital#6": {"proximo": "diretor"}}
+    r = aderencia.aderencia(estado, desc, {}, {}, AGORA)
+    assert [i["acao"]["tipo"] for i in r["faltam"]] == ["voltou", "bloqueio", "explicar", "cobrar", "diretor", "limpar", "atualizar"]
+    assert r["faltam"][1]["acao"] == {"tipo": "bloqueio", "chave": "Hospital#4", "espera": "Hospital#9"}
+    assert 0 < r["nota"] < 100
+    # O que já foi feito pela Ala sai da conta, e o rascunho da versão de agora fecha a passagem.
+    feitos = {"bloqueio:Hospital#4:Hospital#9": "x"}
+    r2 = aderencia.aderencia(estado, desc, {"Hospital#6": {"versao": "v"}}, feitos, AGORA)
+    assert ("bloqueio", "Hospital#4") not in regras(r2) and ("passagem", "Hospital#6") not in regras(r2)
 
 
 def test_rascunho_so_vale_para_a_versao_de_agora_do_card():
@@ -200,6 +257,6 @@ def test_rascunho_so_vale_para_a_versao_de_agora_do_card():
 
 
 def test_textos_novos_sem_travessao():
-    for nome in ["references/passagem.md", "scripts/acoes.py", "scripts/passagem.py", "scripts/painel.py"]:
+    for nome in ["references/passagem.md", "scripts/acoes.py", "scripts/passagem.py", "scripts/acao.py", "scripts/aderencia.py"]:
         texto = (SKILL / nome).read_text(encoding="utf-8")
         assert chr(0x2014) not in texto and chr(0x2013) not in texto, nome

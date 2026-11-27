@@ -27,7 +27,7 @@ Na coisa a fazer, `opcoes` vira a lista dos passos e `recomendacao` pode ficar v
 
 ## Onde o rascunho mora e quem manda
 
-No `/pareamento`, o rascunho de cada card que dá para passar vai para `local/pareamento/passagens.json`, com a `versao` do card (a mesma do `descricoes.json`). A página mostra o rascunho no card, o Pedro ajusta se quiser e clica em "Mandar ao diretor"; o clique, com a confirmação da página, é o "pode" dele. Numa sessão, com o "pode" do Pedro no turno:
+No `/pareamento`, o rascunho de cada card que dá para passar vai para `local/pareamento/passagens.json`, com a `versao` do card (a mesma do `descricoes.json`). A Ala Pareamento do PedroOS mostra o rascunho no card, o Pedro ajusta se quiser e clica em "Mandar ao diretor"; o clique, com a confirmação da Ala, é o "pode" dele. Numa sessão, com o "pode" do Pedro no turno:
 
 ```bash
 python3 .claude/skills/pareamento/scripts/passagem.py --repo <dono/repo> --numero <N> --rascunho <arquivo.json>
