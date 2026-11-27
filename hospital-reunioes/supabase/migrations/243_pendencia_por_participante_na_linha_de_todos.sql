@@ -1,5 +1,5 @@
 -- =====================================================
--- Migration 242: uma Pendência e uma Rotina por Participante na linha do
+-- Migration 243: uma Pendência e uma Rotina por Participante na linha do
 -- quadro dirigida a "Todos os participantes" (issue #2327)
 -- =====================================================
 -- A chave única da Pendência (057) e da Rotina (177) era a posição no quadro:
@@ -32,4 +32,4 @@ ALTER TABLE rotinas DROP CONSTRAINT IF EXISTS rotinas_id_reuniao_quadro_pos_key;
 COMMIT;
 
 -- recibo: a subida espera este número no /api/health (issue #969)
-INSERT INTO migracoes_aplicadas (numero) VALUES (242) ON CONFLICT (numero) DO NOTHING;
+INSERT INTO migracoes_aplicadas (numero) VALUES (243) ON CONFLICT (numero) DO NOTHING;

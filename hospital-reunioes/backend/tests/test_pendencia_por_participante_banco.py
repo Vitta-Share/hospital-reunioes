@@ -1,4 +1,4 @@
-"""A linha de "Todos os participantes" no banco (issue #2327, migration 242).
+"""A linha de "Todos os participantes" no banco (issue #2327, migration 243).
 
 A chave única da Pendência e da Rotina era a posição no quadro: uma por linha.
 Desdobrada por pessoa, a mesma posição recebe uma para cada Participante. O
@@ -21,7 +21,7 @@ from test_pendencia_historico_banco import ESQUEMA_ANTERIOR, _bin_do_postgres, _
 
 MIGRATIONS = Path(__file__).resolve().parents[2] / "supabase" / "migrations"
 MIGRATION_177 = MIGRATIONS / "177_rotina_e_verificacao.sql"
-MIGRATION_242 = MIGRATIONS / "242_pendencia_por_participante_na_linha_de_todos.sql"
+MIGRATION_243 = MIGRATIONS / "243_pendencia_por_participante_na_linha_de_todos.sql"
 
 # O índice da migration 057, a chave antiga da Pendência.
 INDICE_057 = """
@@ -38,7 +38,7 @@ def banco():
             pytest.fail("O CI precisa do initdb para provar a chave da Pendência no banco.")
         pytest.skip("Sem initdb nesta máquina.")
     pg = _Postgres(bindir)
-    pg.porta = "54242"
+    pg.porta = "54243"
     pg.subir()
     try:
         pg.ok(ESQUEMA_ANTERIOR)
@@ -46,7 +46,7 @@ def banco():
         pg.ok(MIGRATION_177.read_text(encoding="utf-8"))
         pg.ok("INSERT INTO reunioes (id_reuniao, json_ata) VALUES ('R9', '{}');")
         pg.ok("INSERT INTO participantes (id, nome_completo) VALUES ('P1', 'Pedro Rezende'), ('P2', 'Ana Lima');")
-        sql = MIGRATION_242.read_text(encoding="utf-8")
+        sql = MIGRATION_243.read_text(encoding="utf-8")
         pg.ok(sql)
         pg.ok(sql)  # rodar duas vezes é inofensivo
         yield pg
@@ -111,4 +111,4 @@ def test_a_rotina_sem_vinculo_continua_uma_so(banco):
 
 
 def test_a_migration_deixa_o_recibo(banco):
-    assert banco.ok("SELECT count(*) FROM migracoes_aplicadas WHERE numero = 242;") == "1"
+    assert banco.ok("SELECT count(*) FROM migracoes_aplicadas WHERE numero = 243;") == "1"

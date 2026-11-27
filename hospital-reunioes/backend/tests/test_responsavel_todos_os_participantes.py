@@ -97,6 +97,47 @@ def test_liberar_de_novo_nao_duplica_a_pendencia_de_ninguem(cliente, monkeypatch
     assert len(sb.rotinas) == 2
 
 
+def test_linha_de_todos_que_nasceu_sem_vinculo_ganha_uma_por_pessoa_na_reconciliacao(cliente, monkeypatch):
+    """A Ata enviada antes da correção tem uma Pendência e uma Rotina sem
+    vínculo na posição da linha de todos. A reconciliação das 5h30 cria a de
+    cada Participante, sem apagar a que já existia."""
+    _sem_clicksign(monkeypatch)
+    sb = _sb_com_quadro([dict(ZERAR), dict(PONTO)])
+    roster = list(sb.reuniao_participantes)
+    sb.reuniao_participantes.clear()
+    assert cliente(sb).post("/api/reunioes/R1/aprovar-sem-assinatura").status_code == 200
+    assert [(p["quadro_pos"], p["responsavel_id"]) for p in sb.pendencias] == [(0, None)]
+    assert [(ro["quadro_pos"], ro["responsavel_id"]) for ro in sb.rotinas] == [(1, None)]
+
+    sb.reuniao_participantes.extend(roster)
+    pendencia_service.liberar_pendencias(sb, "R1", origem="RECONCILIACAO")
+
+    assert sorted((p["quadro_pos"], p["responsavel_id"] or "") for p in sb.pendencias) == [
+        (0, ""),
+        (0, "P1"),
+        (0, "P2"),
+    ]
+    assert sorted((ro["quadro_pos"], ro["responsavel_id"] or "") for ro in sb.rotinas) == [
+        (1, ""),
+        (1, "P1"),
+        (1, "P2"),
+    ]
+
+
+def test_participante_que_entra_no_roster_depois_ganha_a_sua_na_reconciliacao(cliente, monkeypatch):
+    _sem_clicksign(monkeypatch)
+    sb = _sb_com_quadro([dict(ZERAR), dict(PONTO)])
+    entra_depois = sb.reuniao_participantes.pop()
+    assert cliente(sb).post("/api/reunioes/R1/aprovar-sem-assinatura").status_code == 200
+    assert [p["responsavel_id"] for p in sb.pendencias] == ["P1"]
+
+    sb.reuniao_participantes.append(entra_depois)
+    pendencia_service.liberar_pendencias(sb, "R1", origem="RECONCILIACAO")
+
+    assert sorted((p["quadro_pos"], p["responsavel_id"]) for p in sb.pendencias) == [(0, "P1"), (0, "P2")]
+    assert sorted((ro["quadro_pos"], ro["responsavel_id"]) for ro in sb.rotinas) == [(1, "P1"), (1, "P2")]
+
+
 def test_linha_comum_ja_nascida_nao_ganha_outra_quando_a_resolucao_muda(cliente, monkeypatch):
     """A linha de uma pessoa só segue uma por posição: se o nome que nasceu sem
     vínculo passa a casar com alguém do cadastro, a reconciliação não cria uma
