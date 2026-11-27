@@ -191,6 +191,35 @@ def test_diretor_com_escrita_no_time_fica_em_falta(tmp_path: Path) -> None:
     assert itens.get("colaborador do time") == "FALTA", itens
 
 
+@precisa_jq
+def test_o_passo_da_copia_antiga_troca_o_upstream_para_a_vitta_share(
+    tmp_path: Path,
+) -> None:
+    """A cópia clonada antes da virada aponta o dono antigo; o comando da skill a conserta."""
+    raiz = raiz_falsa(
+        tmp_path, "https://github.com/pedrorezendefig/hospital-reunioes.git"
+    )
+    permissoes = {TIME: TRIAGE, ARQUIVOS: ESCRITA}
+    assert (
+        conferir_na_copia(raiz, permissoes, tmp_path).get("upstream no time") == "FALTA"
+    )
+
+    skill = (SKILL / "SKILL.md").read_text(encoding="utf-8")
+    trecho = skill.split("**Cópia antiga**", 1)[1]
+    comando = re.search(r"```bash\n(.*?)```", trecho, re.DOTALL).group(1)
+    subprocess.run(["bash", "-c", comando], cwd=raiz, check=True)
+
+    url = subprocess.run(
+        ["git", "remote", "get-url", "upstream"],
+        cwd=raiz,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    assert url == f"https://github.com/{TIME}.git"
+    assert conferir_na_copia(raiz, permissoes, tmp_path).get("upstream no time") == "OK"
+
+
 def nao_ensina_bug_pelo_claude(texto: str) -> list[str]:
     """Os trechos que falam de bug sem mandar ao Assistente do app."""
     blocos = re.split(r"\n\s*\n|\n(?=\s*(?:[-*]|\d+\.|\|) )", texto)

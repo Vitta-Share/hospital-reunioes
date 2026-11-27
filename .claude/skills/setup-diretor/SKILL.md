@@ -37,7 +37,7 @@ Troque `SKILL.md` por `references/passo-a-passo.md`, `references/pedro.md` e `re
 
 Valem por cima do `CLAUDE.md` do repositório, que foi escrito para os sócios desenvolvedores.
 
-- **Nada vai para produção daqui.** Nunca rode `/pegar-issue`, `/tdd`, `/ship`, `/onda-enxuta`, `/montar-ondas-enxutas`, `fechar_onda.py`, `/deploy`, `/divulgar`, `/apresentar-prd`, `/guia-humano` nem `/mensagem-prd`. Nunca mergeie nada e nunca marque um PR como pronto para revisão: o PR dele é sempre rascunho. Desde 25/11/2026 o Felipe é colaborador do repositório (ADR 0113, decisão 2), para receber, devolver e fechar card; o código dele continua saindo do fork. Duas travas seguram o merge: a negação no `settings.json` do Claude dele (Parte 5) e o check `PR do diretor assumido`, que reprova o PR dele até um Desenvolvedor pôr a label `assumido`. Nunca tire a negação e nunca ponha nem tire a label `assumido`: ela é da Vitta.
+- **Nada vai para produção daqui.** Nunca rode `/pegar-issue`, `/tdd`, `/ship`, `/onda-enxuta`, `/montar-ondas-enxutas`, `fechar_onda.py`, `/deploy`, `/divulgar`, `/apresentar-prd`, `/guia-humano` nem `/mensagem-prd`. Nunca mergeie nada e nunca marque um PR como pronto para revisão: o PR dele é sempre rascunho. Desde 25/11/2026 o Felipe é colaborador do repositório (ADR 0113, decisão 2), para receber, devolver e fechar card; o código dele continua saindo do fork. Desde 26/11/2026 o repositório mora na organização `Vitta-Share` e ele entra com o papel **Triage** (emenda da decisão 2): mexe em card, label, atribuição e comentário, e o GitHub não deixa ele dar push nem mergear. As duas travas de antes continuam, como segunda linha: a negação no `settings.json` do Claude dele (Parte 5) e o check `PR do diretor assumido`, que reprova o PR dele até um Desenvolvedor pôr a label `assumido`. Nunca tire a negação e nunca ponha nem tire a label `assumido`: ela é da Vitta.
 - **Nunca produção, nunca chave real.** Nada de Coolify, do Studio de produção (`studio.hospitalsaomatheus.cloud`) nem de login no app de produção para testar. O `hospital-reunioes/.env` dele só tem valores do Supabase local, gerados pelo `scripts/env_local.sh`. Chave de IA e de e-mail ficam vazias: com elas vazias o app local usa respostas simuladas e não gasta nada. Nunca peça chave de API a ele nem ao Pedro: o motivo de ele planejar aqui é não pagar API.
 - **Nunca dado real.** O repositório é público. Dado fictício só no banco local, com nome inventado (nunca nome de paciente, de funcionário nem de médico de verdade). Print que vai para o card sai do app local, nunca de produção.
 - **Arquivo que ele mandar** (especificação, planilha, memória de cálculo, PDF) é Arquivo de apoio: vai para o repositório privado `hospital-arquivos`, na pasta do card (Parte 10), e o card leva só o link (ADR 0113, decisão 11). Nunca vai para o commit do repositório público nem como anexo do card. Antes de qualquer commit no `hospital-reunioes`, `git status --short` não pode listar nada de `local/` nem `.env`.
@@ -89,6 +89,13 @@ git config --global user.email "<ID>+<login>@users.noreply.github.com"
 
 O e-mail sai de `gh api user --jq '"\(.id)+\(.login)@users.noreply.github.com"'`: assim o e-mail pessoal dele não vai para o repositório público. Depois do clone, peça que ele abra uma conversa nova do Claude na pasta `hospital-reunioes` (texto no passo a passo): é ali que esta skill, as do time e o `CLAUDE.md` passam a valer.
 
+**Cópia antiga** (clonada antes de 26/11/2026, quando o repositório do time saiu de `pedrorezendefig` para a organização `Vitta-Share`): o `conferir.sh` mostra `FALTA` em "upstream no time". Troque o endereço você mesmo, sem pedir nada a ele, e rode o `conferir.sh` de novo. O fork dele (`origin`) não muda.
+
+```bash
+git remote set-url upstream https://github.com/Vitta-Share/hospital-reunioes.git
+git remote -v
+```
+
 ### Parte 4: a cópia do app
 
 ```bash
@@ -119,18 +126,18 @@ CFG="$HOME/.claude/settings.json"; mkdir -p "$HOME/.claude"; [ -f "$CFG" ] || ec
 jq '.permissions.deny = (((.permissions.deny // []) + ["Bash(gh pr merge:*)", "Bash(gh api *merge*)"]) | unique)' "$CFG" > "$CFG.novo" && mv "$CFG.novo" "$CFG"
 ```
 
-A trava entra antes do convite (Parte 6): quando ele vira colaborador, o Claude dele já não mergeia. Depois, ele fecha e abre o Claude de novo, e o `conferir.sh` mostra `OK` na linha "trava do merge".
+A trava entra antes do convite (Parte 6): quando ele vira colaborador, o Claude dele já não mergeia. Com o papel Triage o GitHub já não deixa ele mergear; a trava fica como segunda linha, para o caso de alguém dar a ele mais acesso do que devia. Depois, ele fecha e abre o Claude de novo, e o `conferir.sh` mostra `OK` na linha "trava do merge".
 
 ### Parte 6: o convite
 
-Só depois da linha "trava do merge" em `OK`. O Pedro convida o login dele no `Vitta-Share/hospital-reunioes` e no `pedrorezendefig/hospital-arquivos` (mensagem "Conta criada"). Aceite você, pelo `gh`, os convites desses dois repositórios:
+Só depois da linha "trava do merge" em `OK`. O Pedro convida o login dele no `Vitta-Share/hospital-reunioes`, com o papel Triage, e no `pedrorezendefig/hospital-arquivos`, com escrita (mensagem "Conta criada"). Aceite você, pelo `gh`, os convites desses dois repositórios:
 
 ```bash
 gh api user/repository_invitations --jq '.[] | "\(.id) \(.repository.full_name)"'
 gh api -X PATCH user/repository_invitations/<id>      # um por convite, só esses dois repositórios
 ```
 
-Sem convite na lista: mande a mensagem "Sem convite" de `references/pedro.md`. Pronto quando o `conferir.sh` mostra `OK` em "colaborador do time" e "hospital-arquivos". O código dele continua saindo do fork (Parte 8): colaborador serve para receber, devolver e fechar card e para guardar o Arquivo de apoio.
+Sem convite na lista: mande a mensagem "Sem convite" de `references/pedro.md`. Pronto quando o `conferir.sh` mostra `OK` em "colaborador do time" (com `triage`) e "hospital-arquivos". Se "colaborador do time" vier `FALTA` dizendo que ele tem escrita, o convite saiu com o papel errado: mande a mensagem "Acesso de escrita" de `references/pedro.md` e não siga para a Parte 8 até o `OK`. O código dele continua saindo do fork (Parte 8): colaborador serve para receber, devolver e fechar card e para guardar o Arquivo de apoio.
 
 ### Parte 8: o protótipo
 
@@ -212,7 +219,7 @@ Quando ele perguntar o que está no nome dele, siga a Parte 11; quando mandar um
 bash .claude/skills/setup-diretor/scripts/conferir.sh
 ```
 
-Uma linha por item, `OK` ou `FALTA` com o conserto ao lado: Homebrew, git, `gh` logado, Node 22.12 ou mais, `pnpm@9` pelo corepack, `uv`, Supabase CLI, Docker respondendo, o clone com `origin` no fork e `upstream` no repositório do time, o `.env` local ignorado pelo git e sem endereço de produção, Supabase local no ar, app em `:8000` e `:3000`, `playwright-cli`, os plugins, a trava do merge no `settings.json`, colaborador do time e acesso de escrita ao `hospital-arquivos`. O script nunca imprime valor de chave.
+Uma linha por item, `OK` ou `FALTA` com o conserto ao lado: Homebrew, git, `gh` logado, Node 22.12 ou mais, `pnpm@9` pelo corepack, `uv`, Supabase CLI, Docker respondendo, o clone com `origin` no fork e `upstream` no repositório do time (`Vitta-Share`; o endereço antigo dá `FALTA`, e o conserto é o da Cópia antiga, Parte 3), o `.env` local ignorado pelo git e sem endereço de produção, Supabase local no ar, app em `:8000` e `:3000`, `playwright-cli`, os plugins, a trava do merge no `settings.json`, colaborador do time com Triage (escrita no time dá `FALTA`) e acesso de escrita ao `hospital-arquivos`. O script nunca imprime valor de chave.
 
 ## O que esta skill nunca faz
 
