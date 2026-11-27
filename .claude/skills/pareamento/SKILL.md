@@ -1,13 +1,13 @@
 ---
 name: pareamento
-description: 'Página do pareamento entre o Pedro e o diretor: o estado do Hospital e da Ana, o que depende do Pedro, o que depende do diretor e o que o agente roda, com selo de livre ou bloqueado em cada card, quem espera e quem segura cada um na cor do dono, e a descrição funcional de cada card ao passar o mouse. Publicada como Artifact no mesmo link a cada rodada. Use quando o Pedro disser "/pareamento", "pareamento com o Felipe", "o que está comigo e com o diretor", "quem está travando quem", "atualiza a página do pareamento", ou antes de uma conversa com o diretor.'
+description: 'Página do pareamento entre o Pedro e o diretor: o estado do Hospital e da Ana, o que depende do Pedro, o que depende do diretor e o que o agente roda, com selo de livre ou bloqueado em cada card, quem espera e quem segura cada um na cor do dono, e a descrição funcional de cada card ao passar o mouse. Publicada como Artifact no mesmo link a cada rodada, que abre sozinho no navegador, e com o resumo no terminal: o que anda já, o que vai para a onda e o que dá para passar ao diretor, com o comentário pronto. Use quando o Pedro disser "/pareamento", "pareamento com o Felipe", "o que está comigo e com o diretor", "quem está travando quem", "atualiza a página do pareamento", ou antes de uma conversa com o diretor.'
 ---
 
 # Pareamento
 
 Uma página para o Pedro e o diretor olharem juntos: o estado de cada projeto, quem pode andar agora e o que solta o quê. Lê os repositórios `Vitta-Share/hospital-reunioes` e `Vitta-Share/programa-ana` pelo `gh` (REST). O diretor é a pessoa com `papel: diretor` na lista `pessoas` do `.claude/fluxo.json`; "você" é o login do `gh` de quem roda. A regra da troca de cards (pergunta, tarefa, implantação) é a da ADR 0113.
 
-**Só leitura no GitHub.** A skill não muda card, label nem bloqueio. Bloqueio que só está escrito no corpo de um card ("depende do #N") não aparece na página: se notar um, diga ao Pedro e ofereça gravar o `blocked_by` nativo.
+**Só leitura no GitHub, até o Pedro dizer "pode".** A skill só muda um card no passo 6, para passar ao diretor o que o Pedro aprovou, e nunca mexe em bloqueio. Bloqueio que só está escrito no corpo de um card ("depende do #N") não aparece na página: se notar um, diga ao Pedro e ofereça gravar o `blocked_by` nativo.
 
 ## Onde fica cada coisa
 
@@ -59,7 +59,25 @@ Tudo em `local/pareamento/` (fora do git, ADR 0044), na árvore principal do rep
    - Com `local/pareamento/artifact.txt`: leia o Artifact (`action: "read"`, `url` do arquivo) e publique com o mesmo `url`.
    - Sem ele: publique novo, com `icon: "people"`, e grave o link devolvido em `local/pareamento/artifact.txt`.
 
-5. **Responder ao Pedro** com o link e, em até cinco linhas: o que ele pode tocar já, o que espera o diretor, o que o agente pode rodar e qualquer bloqueio que só existe no texto. Se houver card do diretor que precisa de conversa, ofereça a mensagem pronta no tom da seção 3 do `CLAUDE.md` global.
+   A página abre sozinha no navegador do Pedro pelo hook `~/.claude/hooks/abrir-artefato.sh`, que roda depois de toda publicação. Se a ferramenta Artifact avisar que não publicou, ou o Pedro disser que não abriu, rode `open "<link do artifact.txt>"`.
+
+5. **Responder ao Pedro no terminal**, sempre, além da página. O `montar.py` imprime o resumo da rodada em blocos (Você pode tocar já, Pode ir para a onda, Rodando agora, Com o diretor e livre, Preso), com o que solta mais primeiro. Reescreva em texto seu, curto, nesta ordem:
+
+   - **Você pode tocar já**: uma linha por card, com o que fazer e o que ele solta.
+   - **Para a onda**: os cards do bloco "Pode ir para a onda" e o comando de cada repositório (`/montar-ondas-enxutas` no checkout dele, que planeja sem conflito e termina em "Posso lançar?"). Se um card seu é só código, sem acesso, decisão nem dado de produção, sugira passá-lo ao agente (`ready-for-agent`).
+   - **Dá para passar ao diretor**: dos cards seus livres, os que param numa decisão, num dado ou num acesso que só o diretor ou o hospital têm (cobrar alguém do hospital, nomear pessoas, escolher entre opções). Para cada um, o rascunho do comentário: por que está passando, o que ele precisa fazer ou responder e como devolve (ADR 0113, decisão 4: pergunta leva `needs-info`, ele responde e reatribui a você; tarefa leva `ready-for-human`, ele faz e fecha). Card que apaga dado, sobe código ou mexe no servidor nunca vai para ele.
+   - **Espera o diretor**: os cards do bloco "Com o diretor e livre" e qual deles solta mais.
+   - Bloqueio que só existe no texto, se notou algum.
+
+   Feche com o link e a pergunta "Posso passar ao diretor o #X e o #Y com esses comentários?". Sem nada para passar, diga isso e não pergunte.
+
+6. **Passar ao diretor, só com o "pode" do Pedro** no turno, citando os cards. Para cada card aprovado:
+
+   1. Passe o comentário pela skill `humanizer` (o diretor lê; amostra de voz do bloco "Para o diretor"). A primeira linha é `<!-- automacao -->` e o texto menciona o login do diretor.
+   2. Comente: `gh issue comment <N> --repo <repo> --body-file <arquivo>`.
+   3. Passe o card: `gh issue edit <N> --repo <repo> --add-assignee <diretor> --remove-assignee <você> --add-label <needs-info|ready-for-human>`, tirando `ready-for-agent` se estiver lá.
+
+   Depois rode de novo os passos 1, 3 e 4, para a página mostrar o card no nome dele.
 
 ## Como escrever a descrição
 
