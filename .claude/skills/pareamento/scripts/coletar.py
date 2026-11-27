@@ -14,6 +14,7 @@ Uso: python3 .claude/skills/pareamento/scripts/coletar.py [--pasta DIR]
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -57,6 +58,16 @@ def pessoas() -> dict:
     except (OSError, ValueError):
         return {}
     return {p["login"]: p for p in dados.get("pessoas") or [] if p.get("login")}
+
+
+def versao(issue: dict, quem: str) -> str:
+    """Muda quando muda o que a descrição conta: título, corpo, comentários ou dono.
+
+    Label, atribuição a um agente e reações mudam o `updated_at` sem mudar a
+    descrição; por isso o cache não usa a data.
+    """
+    base = "\x1f".join([issue.get("title") or "", issue.get("body") or "", str(issue.get("comments", 0)), quem])
+    return hashlib.sha1(base.encode("utf-8")).hexdigest()[:12]
 
 
 def chave(nome_repo: str, numero: int) -> str:
@@ -126,6 +137,7 @@ def montar_cards(projetos: list[dict], eu: str, diretores: set[str], nomes: dict
                 "segura": [chave(p["nome"], m) for m in d.get("segura", [])],
                 "prd": chave(p["nome"], p["pais"][n]) if n in p["pais"] else None,
                 "atualizado": i["updated_at"],
+                "versao": versao(i, quem),
                 "corpo": corpo_do_card(i),
                 "confiavel": confiavel(i),
             }
@@ -156,7 +168,8 @@ def ler_projeto(cfg: dict) -> dict:
             s = i["sub_issues_summary"]
             prds.append({"chave": chave(cfg["nome"], i["number"]), "numero": i["number"], "titulo": i["title"],
                          "url": i["html_url"], "feitas": s.get("completed", 0), "total": s.get("total", 0),
-                         "atualizado": i["updated_at"], "corpo": corpo_do_card(i), "confiavel": confiavel(i)})
+                         "atualizado": i["updated_at"], "versao": versao(i, "PRD"),
+                         "corpo": corpo_do_card(i), "confiavel": confiavel(i)})
             for filha in gh_paginado(f"repos/{repo}/issues/{i['number']}/sub_issues?per_page=100"):
                 pais[filha["number"]] = i["number"]
     deps = {}
@@ -170,16 +183,16 @@ def ler_projeto(cfg: dict) -> dict:
         ]
         deps[i["number"]] = {"espera": abertos("blocked_by"), "segura": abertos("blocking")}
     prs = gh("pr", "list", "-R", repo, "--state", "open", "--json", "number,title,author,isDraft,url")
-    versao = migracao = None
+    versao_app = migracao = None
     if cfg.get("health"):
         try:
             with urllib.request.urlopen(cfg["health"], timeout=10) as r:
                 h = json.load(r)
-            versao, migracao = h.get("version"), h.get("migracao")
+            versao_app, migracao = h.get("version"), h.get("migracao")
         except (OSError, ValueError):
             pass
     return {"nome": cfg["nome"], "repo": repo, "issues": issues, "deps": deps, "pais": pais,
-            "prds": prds, "prs": prs, "versao": versao, "migracao": migracao}
+            "prds": prds, "prs": prs, "versao": versao_app, "migracao": migracao}
 
 
 CONFIAVEIS = {"OWNER", "MEMBER", "COLLABORATOR"}
@@ -209,7 +222,7 @@ def _cercado(rotulo: str, texto: str) -> str:
 def bloco_para_descrever(k: str, rotulo: str, item: dict, comentarios: list[dict]) -> str:
     """A seção de um card no para-descrever.md, com corpo e comentários cercados como dado."""
     titulo = item["titulo"] if item.get("confiavel", True) else "(título omitido: a issue foi aberta por quem não é do time)"
-    partes = [f"## {k} ({rotulo})", f"atualizado: {item['atualizado']}", ""]
+    partes = [f"## {k} ({rotulo})", f"versao: {item['versao']}", ""]
     partes.append(_cercado("título da issue", titulo))
     partes.append(_cercado("corpo da issue", item.get("corpo") or ""))
     for c in comentarios:
@@ -220,7 +233,7 @@ def bloco_para_descrever(k: str, rotulo: str, item: dict, comentarios: list[dict
 def faltam(cards: dict, prds: list[dict], descricoes: dict) -> list[str]:
     """Chaves sem descrição, ou com descrição de antes da última mudança do card."""
     itens = [c for c in cards.values() if not c.get("satelite")] + prds
-    return [x["chave"] for x in itens if (descricoes.get(x["chave"]) or {}).get("atualizado") != x["atualizado"]]
+    return [x["chave"] for x in itens if (descricoes.get(x["chave"]) or {}).get("versao") != x["versao"]]
 
 
 def main() -> int:
