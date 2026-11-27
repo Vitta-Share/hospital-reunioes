@@ -2,6 +2,51 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-27T02:36:03-03:00",
+      "sha": "9d430a51e570fcb89684b7c9aacd8bdfdb121be5",
+      "app_version": "0.394.1",
+      "subject": "Onda nsp-rt-onda3: Manual diz quem assina os documentos e ensina a marcar o Responsável técnico",
+      "raw_subject": "chore(deploy): registro da onda nsp-rt-onda3 (#2326)",
+      "scope": [
+        "frontend"
+      ],
+      "prds": [
+        2247
+      ],
+      "result": "healthy",
+      "duration_seconds": 243,
+      "services_touched": [
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp-rt-onda3: PR #2326 (issue #2251), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 6,
+        "build_s": {
+          "frontend": 198
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-27T02:11:07-03:00",
       "sha": "2cfd7b685dca12305799d8885f9e4d1d3dd1384a",
       "app_version": "0.394.0",
