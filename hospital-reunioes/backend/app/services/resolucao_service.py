@@ -7,6 +7,9 @@ Módulo profundo com duas portas:
   quem está no roster da Reunião (`na_reuniao`), roster na frente.
 - `resolver_quadro(quadro, candidatos)`: anota em cada item do Quadro de
   Atribuições o `responsavel_id` + nome/cargo canônicos do cadastro.
+- `por_pessoa(quadro_resolvido, candidatos)`: desdobra a linha dirigida a
+  "Todos os participantes" numa linha para cada Participante da Reunião
+  (issue #2327).
 
 Esconde a cascata de matching do Pipeline de Transcrição
 (`participant_matcher`), o threshold de auto-match, a prioridade roster →
@@ -17,6 +20,8 @@ vínculo** (`responsavel_id=None`), com o nome livre preservado; o LLM nunca
 decide FK.
 """
 
+import re
+import unicodedata
 from difflib import SequenceMatcher
 
 from app.services.participant_matcher import DEFAULT_AUTO_THRESHOLD, _normalize, match_single_name_scored
@@ -26,6 +31,22 @@ from app.services.participant_matcher import DEFAULT_AUTO_THRESHOLD, _normalize,
 # barra nomes parecidos de pessoas distintas ("mario" ~ "maria" = 0.80) —
 # vínculo errado é pior que sem vínculo.
 _FUZZY_PRIMEIRO_NOME_MIN = 0.85
+
+# O responsável que é a Reunião inteira: "Todos os participantes", "Todos os
+# presentes", "Todos" (issue #2327). Comparado sem acento, caixa e pontuação.
+_COLETIVO = re.compile(r"(todos|todas)( (os|as))?( (participantes|presentes|membros)( da reuniao)?)?")
+
+
+# Marca da cópia que o `por_pessoa` fez para um Participante: a idempotência
+# dela é por posição E pessoa; a das outras linhas segue só por posição.
+PARA_TODOS = "para_todos"
+
+
+def e_responsavel_coletivo(nome: str | None) -> bool:
+    """True quando o responsável da linha é todo mundo da Reunião."""
+    sem_acento = unicodedata.normalize("NFKD", str(nome or "")).encode("ascii", "ignore").decode()
+    texto = " ".join(re.sub(r"[^a-z ]", " ", sem_acento.lower()).split())
+    return bool(_COLETIVO.fullmatch(texto))
 
 
 def montar_candidatos(supabase, id_reuniao: str) -> list[dict]:
@@ -73,7 +94,9 @@ def resolver_quadro(quadro: list[dict], candidatos: list[dict]) -> list[dict]:
         if pid not in por_id:
             pid = None
             nome = str(novo.get("responsavel") or "").strip()
-            if nome:
+            # "Todos os participantes" não é o nome de alguém: quem o recebe
+            # é o roster inteiro, pelo `por_pessoa`.
+            if nome and not e_responsavel_coletivo(nome):
                 pid = _resolver_nome(nome, str(novo.get("cargo") or ""), candidatos)
         novo["responsavel_id"] = pid
         if pid:
@@ -82,6 +105,36 @@ def resolver_quadro(quadro: list[dict], candidatos: list[dict]) -> list[dict]:
             novo["cargo"] = canonico.get("cargo")
         resolvidos.append(novo)
     return resolvidos
+
+
+def por_pessoa(quadro_resolvido: list[dict], candidatos: list[dict]) -> list[tuple[int, dict]]:
+    """As linhas do quadro resolvido como `(posição, item)`, uma por pessoa.
+
+    A linha dirigida a "Todos os participantes" vira uma cópia para cada
+    Participante ativo do roster da Reunião, com o vínculo, o nome e o cargo
+    canônicos de cada um, todas na mesma posição do quadro (issue #2327). Sem
+    ninguém no roster, ela fica como está, sem vínculo. As outras linhas
+    passam iguais."""
+    roster = [c for c in candidatos if c.get("na_reuniao")]
+    linhas: list[tuple[int, dict]] = []
+    for posicao, item in enumerate(quadro_resolvido or []):
+        if not item.get("responsavel_id") and e_responsavel_coletivo(item.get("responsavel")) and roster:
+            for pessoa in roster:
+                linhas.append(
+                    (
+                        posicao,
+                        {
+                            **item,
+                            "responsavel_id": pessoa["id"],
+                            "responsavel": pessoa["nome_completo"],
+                            "cargo": pessoa.get("cargo"),
+                            PARA_TODOS: True,
+                        },
+                    )
+                )
+        else:
+            linhas.append((posicao, item))
+    return linhas
 
 
 def _resolver_nome(nome: str, cargo_item: str, candidatos: list[dict]) -> str | None:
