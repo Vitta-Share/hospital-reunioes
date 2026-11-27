@@ -64,16 +64,15 @@ def test_a_troca_desmarca_a_anterior_e_marca_a_nova_numa_transacao():
 
 
 def test_a_troca_e_so_do_backend():
-    assert re.search(
-        rf"REVOKE EXECUTE ON FUNCTION {FUNCAO}\([^)]*\)\s+FROM PUBLIC, anon, authenticated;", _sql()
-    )
+    assert re.search(rf"REVOKE EXECUTE ON FUNCTION {FUNCAO}\([^)]*\)\s+FROM PUBLIC, anon, authenticated;", _sql())
     assert re.search(rf"GRANT EXECUTE ON FUNCTION {FUNCAO}\([^)]*\) TO service_role;", _sql())
     assert re.search(rf"FUNCTION {FUNCAO}\([^)]*\)[^$]*SET search_path = public", _sql(), re.DOTALL)
 
 
 def test_o_check_da_qualidade_aceita_o_responsavel_tecnico_e_mantem_as_antigas():
     assert re.search(
-        r"ALTER TABLE nsp_documentos_signatarios\s+DROP CONSTRAINT IF EXISTS nsp_documentos_signatarios_qualidade_check;",
+        r"ALTER TABLE nsp_documentos_signatarios\s+"
+        r"DROP CONSTRAINT IF EXISTS nsp_documentos_signatarios_qualidade_check;",
         _sql(),
     )
     check = re.search(
