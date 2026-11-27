@@ -38,9 +38,9 @@ Com `Sensível:` no prompt, leia antes `.claude/skills/supabase-postgres-best-pr
 python3 .claude/skills/pegar-issue/scripts/anexos.py <N>
 ```
 
-É a boca única (ADR 0069, decisão 2): o print vive só no app, nunca na issue (o repositório é público), e o script busca pela rota de automação com a `TECNOLOGIA_AUTOMACAO_API_KEY` do `tokens/.env`. Ele grava em `local/anexos/<N>/` (fora do git) e imprime um caminho por linha: leia cada um com a Read tool. Saída `sem anexos` é normal. Saída 1 traz o motivo (chave ausente, ponte desligada no Coolify): repasse a linha e siga sem as imagens. O `/ship` apaga a pasta ao abrir o PR.
+É a boca única (ADR 0069, decisão 2): o print vive só no app, nunca na issue (o repositório é público), e o script busca pela rota de automação com a `TECNOLOGIA_AUTOMACAO_API_KEY` do `tokens/.env`. Ele grava em `local/anexos/<N>/` (fora do git) e imprime um caminho por linha: leia cada um com a Read tool. Saída `sem anexos` é normal. Saída 1 traz o motivo (chave ausente, ponte desligada no Coolify): repasse a linha e siga sem as imagens. O `/subir` apaga a pasta ao abrir o PR.
 
-## ship
+## subir
 
 - **Valor entregue:** é o que o hover do card do PR mostra no painel, sozinho; escreva como quem explica a um colega do hospital.
 - **Anexos:** aberto o PR com `--issue N`, apague os prints da Demanda que o `anexos.py` baixou: `rm -rf local/anexos/<N>` na raiz do clone (ADR 0069, decisão 3: print do hospital não fica parado na máquina; sem a pasta, o comando não faz nada).

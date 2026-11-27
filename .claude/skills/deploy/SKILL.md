@@ -107,7 +107,7 @@ Deploy manual (`coolify deploy uuid`, rodado pelo humano com `!`) é **exceção
 
 ### Semáforo de deploy (sessões paralelas)
 
-Várias sessões `/onda-enxuta` ou `/ship` rodam na mesma máquina e todas terminam na `main`. Como todo push na `main` dispara build pelo webhook, dois merges juntos viram builds concorrentes (o frontend estoura a memória da VPS), e o `/health` mostra a versão de outra sessão, o que dispara rollback errado. O semáforo serializa isso sem o humano de porteiro: quem segura a trava mergeia e deploya; as outras esperam na fila.
+Várias sessões `/onda-enxuta` ou `/subir` rodam na mesma máquina e todas terminam na `main`. Como todo push na `main` dispara build pelo webhook, dois merges juntos viram builds concorrentes (o frontend estoura a memória da VPS), e o `/health` mostra a versão de outra sessão, o que dispara rollback errado. O semáforo serializa isso sem o humano de porteiro: quem segura a trava mergeia e deploya; as outras esperam na fila.
 
 ```bash
 S=.claude/skills/deploy/scripts/semaforo.sh
@@ -119,7 +119,7 @@ $S status                                # quem segura e há quanto tempo
 - **Chave** = identificador da sessão. Use o basename do diretório de scratchpad da sessão (é único por sessão e a sessão o conhece).
 - A trava é `/tmp/deploy-semaforo-<project.slug>.lock` (pasta criada com `mkdir`, atômico). Vale só para sessões na mesma máquina, que é o caso do trabalho paralelo deste repo.
 - `pegar` devolve `3` se passou o tempo de espera (default 540 s, cabe no timeout do Bash): chame de novo, sem alarde. Devolve `2` se a trava tem mais de 60 min: confira `coolify app deployments list` e, sem build rodando, `soltar <chave-do-dono> --forcar`. Nunca force com build em andamento.
-- **Dono morto.** A subida (`fechar_onda.py`) grava o próprio pid na trava (`SEMAFORO_PID`) e, antes do primeiro merge de app, a fase `app-na-main`. Quem chega e acha o pid morto não espera os 60 min: sem a fase, a trava é órfã e sai do caminho sozinha; com a fase, fica parada na hora (`4`), porque prod pode estar pela metade. Trava sem pid (o `/ship` manual) segue a regra dos 60 min.
+- **Dono morto.** A subida (`fechar_onda.py`) grava o próprio pid na trava (`SEMAFORO_PID`) e, antes do primeiro merge de app, a fase `app-na-main`. Quem chega e acha o pid morto não espera os 60 min: sem a fase, a trava é órfã e sai do caminho sozinha; com a fase, fica parada na hora (`4`), porque prod pode estar pela metade. Trava sem pid (o `/subir` manual) segue a regra dos 60 min.
 - **Regra:** pegar **antes do primeiro push na `main`** (merge ou commit direto), soltar **depois** do health verde e do push do bookkeeping, ou depois do rollback. Sempre soltar, mesmo em falha.
 
 ## Bootstrap (executado em todo modo, antes de qualquer outra coisa)
@@ -160,7 +160,7 @@ O caminho para produção é um só, o `fechar_onda.py` (ADR 0068): versão nova
 python3 .claude/skills/onda-enxuta/scripts/fechar_onda.py --prs <N>
 ```
 
-Com `--dry-run` o script mostra o plano (PR, issue, versão nova) sem tocar em nada. Sem PR não há o que subir: abra um pelo `/ship`.
+Com `--dry-run` o script mostra o plano (PR, issue, versão nova) sem tocar em nada. Sem PR não há o que subir: abra um pelo `/subir`.
 
 ## Passos do ship (referência)
 
@@ -174,7 +174,7 @@ Antes de qualquer push na `main`. Chave = basename do scratchpad da sessão; des
 .claude/skills/deploy/scripts/semaforo.sh pegar <chave> "ship: <descrição>"
 ```
 
-Saída `3`: chame de novo (outra sessão está deployando). Saída `2`: trava velha, siga a regra da seção "Semáforo de deploy". Quando o `/ship` ou a `/onda-enxuta` já pegaram a trava com a mesma chave, o comando devolve "já é sua" e segue.
+Saída `3`: chame de novo (outra sessão está deployando). Saída `2`: trava velha, siga a regra da seção "Semáforo de deploy". Quando o `/subir` ou a `/onda-enxuta` já pegaram a trava com a mesma chave, o comando devolve "já é sua" e segue.
 
 ### Passo 1 — Carregar estado atual
 
@@ -432,7 +432,7 @@ Apresentar ao humano e **não prosseguir** até ele confirmar que aplicou:
   5. Rodar a query de verificação e conferir a contagem de linhas esperada.
 - Pedir confirmação explícita ("apliquei / deu certo") antes de seguir.
 
-> No fluxo `/ship` este gate é **antecipado para antes do merge** (o `fechar_onda.py` espera a migration no `/api/health`), pois o merge dispara o auto-build no Coolify — o schema precisa existir **antes** do código novo subir. No `/deploy` standalone, se a migration é pré-requisito do código já em produção, há uma janela curta entre o deploy e a confirmação: aplique o quanto antes.
+> No fluxo `/subir` este gate é **antecipado para antes do merge** (o `fechar_onda.py` espera a migration no `/api/health`), pois o merge dispara o auto-build no Coolify — o schema precisa existir **antes** do código novo subir. No `/deploy` standalone, se a migration é pré-requisito do código já em produção, há uma janela curta entre o deploy e a confirmação: aplique o quanto antes.
 
 #### 6.4 Verificação pós-migration
 

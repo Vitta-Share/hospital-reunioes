@@ -1,11 +1,11 @@
 ---
 name: pegar-issue
-description: 'Claim atômico de uma issue ready-for-agent, branch e spec, e daí sem parar: /tdd, /ship e subida até produção. Sem argumento, lista a fila. Sintaxe `/pegar-issue [N]`.'
+description: 'Claim atômico de uma issue ready-for-agent, branch e spec, e daí sem parar: /tdd, /subir e subida até produção. Sem argumento, lista a fila. Sintaxe `/pegar-issue [N]`.'
 ---
 
 # Pegar issue
 
-Entry point de **desenvolvimento**. Pega uma issue da fila `ready-for-agent`, dá "claim" para evitar colisão entre sessões paralelas, cria a branch, carrega a spec no contexto e encadeia `/tdd`, `/ship` e a subida até produção, sem parar para perguntar (decisão do fluxo). Protocolo completo em `docs/agents/issue-tracker.md`.
+Entry point de **desenvolvimento**. Pega uma issue da fila `ready-for-agent`, dá "claim" para evitar colisão entre sessões paralelas, cria a branch, carrega a spec no contexto e encadeia `/tdd`, `/subir` e a subida até produção, sem parar para perguntar (decisão do fluxo). Protocolo completo em `docs/agents/issue-tracker.md`.
 
 ## Sem argumento: listar a fila
 
@@ -82,7 +82,7 @@ Siga o trabalho dentro de `../<projeto>-issue-<N>`. Não dependa de `git pull` n
 git fetch origin && git worktree add --detach ../<projeto>-issue-<N> origin/main
 python3 .claude/skills/pegar-issue/scripts/pr_do_diretor.py <N>
 ```
-- Linha `assumido: #<PR> na branch <branch>`: o script fez o `gh pr checkout` da branch do fork e pôs a label `assumido` pela sua sessão, que é o que o check `PR do diretor assumido` espera. Trabalhe nessa branch; o `git push` vai para o fork pela edição por mantenedores. O `/ship` usa esse PR (seção "PR do diretor" dele).
+- Linha `assumido: #<PR> na branch <branch>`: o script fez o `gh pr checkout` da branch do fork e pôs a label `assumido` pela sua sessão, que é o que o check `PR do diretor assumido` espera. Trabalhe nessa branch; o `git push` vai para o fork pela edição por mantenedores. O `/subir` usa esse PR (seção "PR do diretor" dele).
 - Nada impresso (ou só um `aviso:`): a fatia não tem PR do diretor aberto. Crie a branch de sempre no worktree: `git switch -c <type>/<slug>-<N>`.
 - Saída 3 (`tarefa do diretor: #<T> ...`): o PR está sem edição por mantenedores. O script criou a Tarefa do diretor pedindo para ligar, e a fatia ficou bloqueada por ela. Devolva a fatia ao pool (comandos de "Abandonou?", abaixo) e pare.
 - Saída 4: quem roda é o diretor, e o PR dele não é assumido pela sessão dele. Pare.
@@ -92,7 +92,7 @@ python3 .claude/skills/pegar-issue/scripts/pr_do_diretor.py <N>
 ### 7. Carregar contexto e seguir sem parar
 Antes, rode `python3 .claude/skills/onda-enxuta/scripts/fluxo.py notas pegar-issue`: o que ele imprimir vale por cima desta skill. **Anexos:** se o Projeto tem `.claude/skills/pegar-issue/scripts/anexos.py` e o corpo da issue diz "Anexos", rode `python3 .claude/skills/pegar-issue/scripts/anexos.py <N>` no worktree e leia com a Read tool cada caminho que ele imprimir; saída 1 não bloqueia.
 
-Carregue no contexto **O que construir** + **Critérios de aceite** (cada critério vira um teste). Leia `CONTEXT.md` e os ADRs relevantes em `docs/adr/`. Então chame a Skill tool com `tdd` (cada critério de aceite é um teste RED) e, com os testes verdes, a Skill tool com `ship`, que roda a subida sozinho (veja "Fechar o loop"). Não espere mensagem entre um e outro: pegar a issue foi a ordem.
+Carregue no contexto **O que construir** + **Critérios de aceite** (cada critério vira um teste). Leia `CONTEXT.md` e os ADRs relevantes em `docs/adr/`. Então chame a Skill tool com `tdd` (cada critério de aceite é um teste RED) e, com os testes verdes, a Skill tool com `subir`, que roda a subida sozinho (veja "Fechar o loop"). Não espere mensagem entre um e outro: pegar a issue foi a ordem.
 
 ## Sessões paralelas (worktree)
 
@@ -104,7 +104,7 @@ Abra o Claude Code dentro de `../<projeto>-issue-<N>`. Veja `docs/agents/issue-t
 
 ## Fechar o loop
 
-Terminado o TDD (testes verdes), chame a Skill tool com `ship`: abre o PR com `Closes #N`, roda os gates até o PR verde (gate reprovado chama o `onda-corretor`) e roda a subida (`python3 .claude/skills/onda-enxuta/scripts/fechar_onda.py --prs <PR>`), que mergeia e faz o deploy (decisão do fluxo). Conflito na subida chama o `onda-corretor` com a `/resolver-conflitos` e conta tentativa; a terceira falha manda a issue para `ready-for-human` (`/ship` Passo 10). O humano só é chamado por notificação em migration, nessa terceira falha e em rollback. Ao mergear, a issue fecha e a Action de higiene (`.github/workflows/higiene-issues.yml`) remove o `in-progress` sozinha.
+Terminado o TDD (testes verdes), chame a Skill tool com `subir`: abre o PR com `Closes #N`, roda os gates até o PR verde (gate reprovado chama o `onda-corretor`) e roda a subida (`python3 .claude/skills/onda-enxuta/scripts/fechar_onda.py --prs <PR>`), que mergeia e faz o deploy (decisão do fluxo). Conflito na subida chama o `onda-corretor` com a `/resolver-conflitos` e conta tentativa; a terceira falha manda a issue para `ready-for-human` (`/subir` Passo 10). O humano só é chamado por notificação em migration, nessa terceira falha e em rollback. Ao mergear, a issue fecha e a Action de higiene (`.github/workflows/higiene-issues.yml`) remove o `in-progress` sozinha.
 
 Abandonou? Devolva ao pool:
 ```bash

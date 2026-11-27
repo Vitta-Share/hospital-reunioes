@@ -1,6 +1,6 @@
 """O `fechar_onda.py` como subida única de um PR avulso (issues #907 e #910, ADR 0061).
 
-O `/ship` passou a parar no PR verde, e quem faz merge, bump, `APP_VERSION`,
+O `/subir` passou a parar no PR verde, e quem faz merge, bump, `APP_VERSION`,
 build, health e registro de um PR só é o mesmo script da onda. Estes testes
 montam um repositório `git` de verdade em `tmp_path` (uma `main` de base, o PR
 na branch `feature` e em `refs/pull/<n>/head` num remoto nu, como no GitHub) e
@@ -1166,7 +1166,7 @@ def test_segundo_pr_em_conflito_com_o_primeiro_imprime_a_linha_que_chama_o_corre
     tmp_path, monkeypatch, capsys
 ):
     """O #8 mexe no mesmo arquivo que o #7: depois do squash do #7, a main não
-    entra na branch do #8. A `/onda-enxuta` e o `/ship` distinguem o conflito
+    entra na branch do #8. A `/onda-enxuta` e o `/subir` distinguem o conflito
     pela linha `conflito no merge de #N em: <arquivos>`."""
     fo = carregar_fechar_onda()
     c = pr_de_codigo(tmp_path)
@@ -2507,7 +2507,7 @@ def test_digest_no_ghcr_le_o_digest_da_tag_sem_login_e_none_quando_nao_le(monkey
 # --------------------------------------------- critérios de aceite na issue
 
 def test_merge_marca_os_criterios_da_issue_e_deixa_o_descopado_riscado(tmp_path, monkeypatch, capsys):
-    """A issue fecha no merge com os critérios marcados: o `/ship` avulso marcava no
+    """A issue fecha no merge com os critérios marcados: o `/subir` avulso marcava no
     Passo 9, mas a onda nunca passa por ele e 390 issues fecharam com as caixas vazias."""
     fo = carregar_fechar_onda()
     c = pr_de_codigo(tmp_path)

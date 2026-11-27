@@ -25,7 +25,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 APP="$REPO_ROOT/hospital-reunioes"
 FALHAS=0
 cd "$REPO_ROOT" || exit 2   # gh resolve o repositório pelo cwd
-# O PATH do shell de quem roda é o que o /deploy e o /ship enxergam. Os prefixos extras
+# O PATH do shell de quem roda é o que o /deploy e o /subir enxergam. Os prefixos extras
 # servem só para achar o binário instalado fora do PATH e avisar, não para dar OK.
 PATH_SHELL="$PATH"
 export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:/opt/homebrew/bin:/Applications/Docker.app/Contents/Resources/bin:$PATH"
@@ -287,7 +287,7 @@ done < "$LISTA"
 
 # ---------------------------------------------------------------- Nível 2
 if [ "$NIVEL" -ge 2 ]; then
-titulo "Nível 2: deploy (ship, subida fechar_onda.py, /deploy, /onda-enxuta)"
+titulo "Nível 2: deploy (subir, subida fechar_onda.py, /deploy, /onda-enxuta)"
 checa_claude_versao
 # O allow do projeto também vale: o da árvore onde o script roda e o da árvore principal (worktree).
 PRINCIPAL="$(cd "$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)/.." 2>/dev/null && pwd)"

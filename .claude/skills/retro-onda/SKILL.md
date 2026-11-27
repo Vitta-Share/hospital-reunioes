@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Retro da onda
 
-Olha para trás numa onda que já terminou e responde: **o que no ambiente deixou o atrito acontecer, e que mudança impede a repetição?** O produto é uma lista de candidatas, da mais grave para a menos, cada uma presa a um momento concreto da onda. Aqui só a Retro é gravada, no Estado da Onda: a candidata aceita vira PR de ferramenta pelo `/ship`, com a decisão e a linha `Candidata:` no corpo do PR (decisão do fluxo, regra 12).
+Olha para trás numa onda que já terminou e responde: **o que no ambiente deixou o atrito acontecer, e que mudança impede a repetição?** O produto é uma lista de candidatas, da mais grave para a menos, cada uma presa a um momento concreto da onda. Aqui só a Retro é gravada, no Estado da Onda: a candidata aceita vira PR de ferramenta pelo `/subir`, com a decisão e a linha `Candidata:` no corpo do PR (decisão do fluxo, regra 12).
 
 Fork do `/retro` do Matt Pocock (Skills v1.3), com as fontes e as casas do pacote do fluxo (a mesma em todo Projeto; as regras só de um Projeto estão em `fluxo.py notas retro-onda`). O princípio é o dele: **o padrão mora no revisor, não no implementador** (o implementador tem a pressão de contexto: explora, escreve, depura; o revisor recebe um diff). E **violação mecânica vira check determinístico**, nunca prosa: um check falha, uma frase em skill não.
 
@@ -55,7 +55,7 @@ Sem argumento: a medição mais recente em `~/.claude/onda-enxuta/medicoes/`. Co
    Candidata: <slug>/<sessao>-onda<N> #<n>
    ```
 
-   `<slug>` é o `slug` do `fluxo.py`, `<sessao>-onda<N>` é a onda desta Retro e `<n>` é o número da Candidata. A linha vai como está no pedido do `/ship` da correção, e o PR que entra na main com ela dá a Candidata por corrigida. Termine com a linha "só a Retro foi gravada; cada Candidata aceita vira `/ship` próprio, com a linha `Candidata:` no pedido".
+   `<slug>` é o `slug` do `fluxo.py`, `<sessao>-onda<N>` é a onda desta Retro e `<n>` é o número da Candidata. A linha vai como está no pedido do `/subir` da correção, e o PR que entra na main com ela dá a Candidata por corrigida. Termine com a linha "só a Retro foi gravada; cada Candidata aceita vira `/subir` próprio, com a linha `Candidata:` no pedido".
 
 ## Modo --todas: a Análise das Retros
 
@@ -86,7 +86,7 @@ Todas as Retros pendentes, de todos os Projetos, de uma vez. O humano aceita as 
    Candidata: <id> #<n>
    ```
 
-   `<id>` é o id da Análise e `<n>`, o número da Candidata. O PR que entra na main com essa linha dá a Candidata por corrigida em todas as Ondas que a têm. Termine com a linha "só as Retros foram gravadas; cada Candidata aceita vira `/ship` próprio, com a linha `Candidata:` no pedido".
+   `<id>` é o id da Análise e `<n>`, o número da Candidata. O PR que entra na main com essa linha dá a Candidata por corrigida em todas as Ondas que a têm. Termine com a linha "só as Retros foram gravadas; cada Candidata aceita vira `/subir` próprio, com a linha `Candidata:` no pedido".
 
 ## O que esta skill não faz
 

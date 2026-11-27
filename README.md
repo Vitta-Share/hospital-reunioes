@@ -28,11 +28,11 @@ Tudo que está na árvore é código, doc viva, decisão ou material de comunica
 | `CONTEXT-MAP.md` | Mapa dos contextos de domínio | Termos homônimos (Setor, Versão) mudam de sentido entre contextos | Tabela contexto x glossário | Saber qual glossário abrir |
 | `skills-lock.json` | Origem, commit (`ref`) e hash das skills importadas do Matt Pocock | Rastreabilidade, não instalação | Repo, commit e caminho de origem de cada uma | Nada a rodar; as skills já vêm no clone |
 | `.claude/skills/` | As skills do time, versionadas | Quem clona recebe o workflow inteiro (ADR 0068) | Uma pasta por skill, com `SKILL.md` e, quando precisa, `references/` e `scripts/` | `/ask-pedro` diz qual usar |
-| `.github/` | CI e templates | Gates automáticos do `/ship` | `ci.yml` (ruff, pytest, lint, tsc, build), `lint-adr.yml`, `higiene-issues.yml`, templates de issue e PR | Não se edita no dia a dia |
+| `.github/` | CI e templates | Gates automáticos do `/subir` | `ci.yml` (ruff, pytest, lint, tsc, build), `lint-adr.yml`, `higiene-issues.yml`, templates de issue e PR | Não se edita no dia a dia |
 | `docs/` | Documentação viva | Ver seção abaixo | | |
 | `hospital-reunioes/` | O app | Ver seção abaixo | `backend/`, `frontend/`, `supabase/` | Onde o código mora |
 | `local/` | **Fora do git.** Insumo humano | PDFs, transcrições e dumps não podem ir para o GitHub | `insumos/<assunto>/` que cada máquina cria | Colocar aqui o que o hospital manda |
-| `tokens/` | Tokens da **máquina**, não do app | O `/deploy` e o `/ship` falam com o Coolify | `.env.example` (versionado) e `.env` (fora do git, permissão 600) | Preencher uma vez por máquina |
+| `tokens/` | Tokens da **máquina**, não do app | O `/deploy` e o `/subir` falam com o Coolify | `.env.example` (versionado) e `.env` (fora do git, permissão 600) | Preencher uma vez por máquina |
 | `tools/` | Ferramentas de repo | Gates de ADR no CI | `lint_adr.py` e os outros conferidores, com o teste de cada um ao lado | Quando um gate do CI falha |
 
 ## `docs/`
@@ -70,7 +70,7 @@ Na sua máquina só existem tokens da máquina (`tokens/.env`: Coolify) e três 
 
 ## O fluxo, em uma linha por etapa
 
-1. Ideia: `/grill-with-docs` afia contra `CONTEXT.md` e ADRs. 2. `/to-prd` e `/to-issues` viram issues. 3. `/pegar-issue N` faz o claim e abre a branch. 4. `/tdd` escreve o teste primeiro. 5. `/ship` abre o PR, roda os gates da ADR 0068 e, com o PR verde, roda a subida (`fechar_onda.py`) sozinho. 6. A subida mergeia pela API, define a versão (`APP_VERSION` e tag, sem commit), faz um build, confere o health e registra em `docs/spec/deploy/` pela Action pós-merge. 7. Testa em produção. 8. `/divulgar` conta a entrega ao diretor.
+1. Ideia: `/grill-with-docs` afia contra `CONTEXT.md` e ADRs. 2. `/to-prd` e `/to-issues` viram issues. 3. `/pegar-issue N` faz o claim e abre a branch. 4. `/tdd` escreve o teste primeiro. 5. `/subir` abre o PR, roda os gates da ADR 0068 e, com o PR verde, roda a subida (`fechar_onda.py`) sozinho. 6. A subida mergeia pela API, define a versão (`APP_VERSION` e tag, sem commit), faz um build, confere o health e registra em `docs/spec/deploy/` pela Action pós-merge. 7. Testa em produção. 8. `/divulgar` conta a entrega ao diretor.
 
 ## Cobertura (o `/setup-maquina` confere esta lista)
 

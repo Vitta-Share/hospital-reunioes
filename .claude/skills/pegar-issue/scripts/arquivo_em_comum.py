@@ -7,10 +7,10 @@ PR a PR. Por isso o script só imprime um aviso de uma linha com os arquivos que
 coincidem, não grava dependência e não impede o claim.
 
 Os arquivos de uma issue são os caminhos que o corpo cita entre crases
-(`ship/SKILL.md`, `ouvidoria_setor.py:102`); os de uma fatia em andamento somam
+(`subir/SKILL.md`, `ouvidoria_setor.py:102`); os de uma fatia em andamento somam
 os do PR aberto que a fecha. Um caminho casa com outro quando é igual a ele ou
-é o fim dele depois de uma barra: `ship/SKILL.md` casa com
-`.claude/skills/ship/SKILL.md`, e `tdd/SKILL.md` não.
+é o fim dele depois de uma barra: `subir/SKILL.md` casa com
+`.claude/skills/subir/SKILL.md`, e `tdd/SKILL.md` não.
 
 Uso:
   python3 arquivo_em_comum.py <N>   sem arquivo em comum: nada
@@ -37,7 +37,7 @@ query($owner: String!, $repo: String!, $n: Int!, $q: String!) {
 """
 
 # Entre crases, sem espaço, terminando em extensão que começa por letra, com o
-# `:linha` opcional: `fechar_onda.py:466`, não `v0.163.3` nem `/ship`.
+# `:linha` opcional: `fechar_onda.py:466`, não `v0.163.3` nem `/subir`.
 CITACAO = re.compile(r"`(?:\./)?([\w.\-/]+\.[A-Za-z]\w*)(?::\d+(?:-\d+)?)?`")
 
 

@@ -3,7 +3,7 @@
 O `/to-issues` põe o link do PR do protótipo do diretor na seção "Protótipo" de
 uma fatia só. Quem pega essa fatia continua na branch do fork (edição por
 mantenedores), põe a label `assumido` pela própria sessão (o check `PR do
-diretor assumido` só aceita a label posta por quem não é diretor) e o `/ship`
+diretor assumido` só aceita a label posta por quem não é diretor) e o `/subir`
 usa esse PR em vez de abrir outro.
 
 Uso:
@@ -16,7 +16,7 @@ Uso:
                                         da fatia, ou nada.
   python3 pr_do_diretor.py pronto <N> [--corpo <arquivo>]
                                         o PR do diretor sai do rascunho com `Closes #<N>`
-                                        no corpo. Com `--corpo`, o corpo do `/ship` vem
+                                        no corpo. Com `--corpo`, o corpo do `/subir` vem
                                         antes e o do diretor fica embaixo, em
                                         "Protótipo do diretor". Imprime o número do PR.
 
@@ -161,7 +161,7 @@ def pronto(n: str, repo: str, arquivo_do_corpo: str | None) -> int:
     numero = str(pr["number"])
     atual = json.loads(gh("pr", "view", numero, "--json", "body,isDraft"))
     do_diretor = atual["body"] or ""
-    if SECAO_DO_DIRETOR in do_diretor:  # o /ship rodou antes (--resume): o do diretor é o que está embaixo
+    if SECAO_DO_DIRETOR in do_diretor:  # o /subir rodou antes (--resume): o do diretor é o que está embaixo
         do_diretor = do_diretor.split(SECAO_DO_DIRETOR, 1)[1].strip()
     corpo = do_diretor
     if arquivo_do_corpo:

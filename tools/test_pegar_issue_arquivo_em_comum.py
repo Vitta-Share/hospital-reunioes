@@ -83,8 +83,8 @@ def test_arquivo_do_pr_de_outra_em_andamento_avisa_sem_bloquear(tmp_path):
     feito = rodar(
         tmp_path,
         resposta(
-            "Mexe no Passo 10 de `.claude/skills/ship/SKILL.md`.",
-            em_andamento(988, 5001, "", [".claude/agents/hr-revisor.md", ".claude/skills/ship/SKILL.md"]),
+            "Mexe no Passo 10 de `.claude/skills/subir/SKILL.md`.",
+            em_andamento(988, 5001, "", [".claude/agents/hr-revisor.md", ".claude/skills/subir/SKILL.md"]),
         ),
         "970",
     )
@@ -92,7 +92,7 @@ def test_arquivo_do_pr_de_outra_em_andamento_avisa_sem_bloquear(tmp_path):
     assert feito.returncode == 0, feito.stderr
     assert feito.stdout == (
         "aviso, sem bloqueio (ADR 0068): arquivo em comum com fatia em andamento: "
-        "#988 (.claude/skills/ship/SKILL.md)\n"
+        "#988 (.claude/skills/subir/SKILL.md)\n"
     )
     assert bloqueios(tmp_path) == []
 
@@ -117,7 +117,7 @@ def test_sem_arquivo_em_comum_pega_sem_marcar_nada(tmp_path):
     feito = rodar(
         tmp_path,
         resposta(
-            "Mexe em `.claude/skills/ship/SKILL.md` e em `tools/test_skill_ship_subida.py`.",
+            "Mexe em `.claude/skills/subir/SKILL.md` e em `tools/test_skill_ship_subida.py`.",
             em_andamento(990, 5003, "Muda `.github/rulesets/main.json`.", ["tools/test_ruleset_main.py"]),
         ),
         "970",
@@ -132,7 +132,7 @@ def test_mesmo_nome_em_pasta_diferente_nao_e_o_mesmo_arquivo(tmp_path):
     feito = rodar(
         tmp_path,
         resposta(
-            "Mexe em `.claude/skills/ship/SKILL.md`.",
+            "Mexe em `.claude/skills/subir/SKILL.md`.",
             em_andamento(995, 5004, "", [".claude/skills/tdd/SKILL.md"]),
         ),
         "970",

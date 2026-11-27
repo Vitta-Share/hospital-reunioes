@@ -285,7 +285,7 @@ def test_quem_le_a_issue_chama_o_script_quando_o_corpo_diz_anexos(arquivo):
 
 
 def test_o_ship_apaga_a_pasta_que_o_script_grava():
-    texto = (SKILLS / "ship" / "SKILL.md").read_text(encoding="utf-8")
+    texto = (SKILLS / "subir" / "SKILL.md").read_text(encoding="utf-8")
 
     assert "rm -rf local/anexos/<N>" in texto
 

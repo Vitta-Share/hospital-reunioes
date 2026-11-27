@@ -1,6 +1,6 @@
 ---
 name: express
-description: 'Fecha um grill em andamento em lote, com painel de aprovação. No meio de um `/grill-with-docs`, a pessoa diz "/express" e o agente responde todas as perguntas que faltam com a própria recomendação, entrega a tabela decisão por decisão (escolha, por quê, a outra opção) no terminal e num painel interativo publicado como Artifact (Concordo ou Discordo por linha, nota, botão de aprovar), e espera a aprovação antes de classificar a porta e chamar `/to-prd`. Com `--voz`, o painel agrupa as decisões em Pacotes de perguntas, cada um com uma Fala de até 30 segundos na voz oficial e um Sim ou Não que a pessoa responde pelo celular. Use quando o usuário disser "/express", "/express --voz", "fecha o grill com as suas recomendações", "responde o resto você e me mostra a tabela", "segue com todas as recomendações e me pede aprovação". Não implementa nada e não chama `/ship`: o grill de uma rodada que implementava a ponte mínima morreu em 01/11/2026 (ideia pequena vai para `/grill-with-docs --lote`).'
+description: 'Fecha um grill em andamento em lote, com painel de aprovação. No meio de um `/grill-with-docs`, a pessoa diz "/express" e o agente responde todas as perguntas que faltam com a própria recomendação, entrega a tabela decisão por decisão (escolha, por quê, a outra opção) no terminal e num painel interativo publicado como Artifact (Concordo ou Discordo por linha, nota, botão de aprovar), e espera a aprovação antes de classificar a porta e chamar `/to-prd`. Com `--voz`, o painel agrupa as decisões em Pacotes de perguntas, cada um com uma Fala de até 30 segundos na voz oficial e um Sim ou Não que a pessoa responde pelo celular. Use quando o usuário disser "/express", "/express --voz", "fecha o grill com as suas recomendações", "responde o resto você e me mostra a tabela", "segue com todas as recomendações e me pede aprovação". Não implementa nada e não chama `/subir`: o grill de uma rodada que implementava a ponte mínima morreu em 01/11/2026 (ideia pequena vai para `/grill-with-docs --lote`).'
 ---
 
 # Express: fechar o grill em lote, com painel
@@ -67,7 +67,7 @@ Com o "ok" (ou `aprovado`): o fechamento é o do `grill-with-docs`. `CONTEXT.md`
 
 - **A** → `/to-prd` → `/to-issues`. Só invoque o `/to-prd` com a porta A confirmada.
 - **B** → `/triage` ou `gh issue create` com critérios de aceite → `/pegar-issue`.
-- **C** → `/ship "<descrição>" --from-diff`, feito nesta sessão.
+- **C** → `/subir "<descrição>" --from-diff`, feito nesta sessão.
 
 ## Com voz (`/express --voz`)
 
@@ -101,6 +101,6 @@ Provado em 10/11/2026: o mp3 publicado junto do painel toca no app do Claude no 
 
 ## O que este skill não faz
 
-- Não implementa nada e não chama `/ship` por conta própria: o produto é a decisão aprovada.
+- Não implementa nada e não chama `/subir` por conta própria: o produto é a decisão aprovada.
 - Não grava `CONTEXT.md` nem ADR antes da aprovação.
 - Não decide dinheiro, preferência de <leitor> nem texto na voz de quem assina: essas linhas ficam "[precisa de você]".

@@ -9,7 +9,7 @@ O trabalho é **GitHub-issue-centric**: toda mudança nasce de uma Issue e morre
 - **Tem uma ideia ou melhoria nova?** → `/grill-with-docs` (lapida a ideia, vira PRD, vira issues).
 - **Vai pegar trabalho que já está na fila?** → `/pegar-issue` (sem nada lista a fila; com um número pega a issue).
 
-O resto do caminho, `/tdd` → `/ship` → subida (`fechar_onda.py`), as skills encadeiam sozinhas, sem parada até produção, exceto migration (ADR 0068).
+O resto do caminho, `/tdd` → `/subir` → subida (`fechar_onda.py`), as skills encadeiam sozinhas, sem parada até produção, exceto migration (ADR 0068).
 
 ## Setup inicial (1 vez só)
 
@@ -45,7 +45,7 @@ Agora há issues na fila pra qualquer um pegar.
 /pegar-issue          # lista as issues ready-for-agent sem dono
 /pegar-issue 42       # dá o "claim" (vira sua), cria a branch e carrega a spec
 /tdd                  # red → green → refactor: critérios de aceite viram testes
-/ship                 # gates da ADR 0068 e, com o PR verde, roda a subida sozinho:
+/subir                 # gates da ADR 0068 e, com o PR verde, roda a subida sozinho:
                       # fechar_onda.py --prs <PR> = merge + versão + deploy + registro (a issue fecha pelo Closes #42)
 # migration nova? a subida imprime <arquivo>:1, você cola no Studio de produção e ela segue quando o número aparece no /api/health (até 24 h)
 ```
@@ -83,12 +83,12 @@ Loop disciplinado: reproduz → minimiza → hipótese → instrumenta → corri
    ▼
 /tdd               red → green → refactor; critérios de aceite = testes de integração
    ▼
-/ship              Ferramenta (nada em hospital-reunioes/): só o CI verde (GitHub Actions)
+/subir              Ferramenta (nada em hospital-reunioes/): só o CI verde (GitHub Actions)
                    App: hr-revisor uma vez (sensivel.py acusa rota sem login ou migration e
                    acrescenta a lente de segurança; spec × diff se houver issue) + CI verde
                    → must-fix ou CI vermelho chamam o hr-corretor; com o PR verde, roda a subida sozinho (sem versão no PR)
                    ▼
-fechar_onda.py     a subida única (ADR 0068), rodada pelo /ship ou pelo fechamento da onda:
+fechar_onda.py     a subida única (ADR 0068), rodada pelo /subir ou pelo fechamento da onda:
   --prs <N>        migration nova no /api/health → semáforo → versão nova sem commit → CI verde
                    → APP_VERSION no backend e no frontend → merge pela API (squash) → tag vX.Y.Z
                    → um build → health com version-match
@@ -115,7 +115,7 @@ fechar_onda.py     a subida única (ADR 0068), rodada pelo /ship ou pelo fechame
 
 ## Regras importantes
 
-1. **Nunca commitar em `main` direto.** Sempre PR via `/ship`; quem leva o PR à `main` é a subida (`fechar_onda.py`).
+1. **Nunca commitar em `main` direto.** Sempre PR via `/subir`; quem leva o PR à `main` é a subida (`fechar_onda.py`).
 2. **Self-approval é OK**: os gates da ADR 0068 (hr-revisor com a lente do sensivel.py, e CI) validam. Cada um aprova o próprio PR.
    - **Emenda (ADR 0068):** cada sócio **mergeia e sobe para produção o próprio PR**, sem esperar ninguém. Quem mergeia aplica a migration em produção (Studio) e cuida do `APP_VERSION` no Coolify, então todo sócio precisa de acesso aos dois. PR verde parado esperando o Pedro é erro de processo, não cautela.
 3. **Nunca pular o `sensivel.py`**: rota sem login ou migration (canal público da Ouvidoria, webhook, e-mail recebido, RLS) leva a linha `Sensível:` ao `hr-revisor`.
@@ -175,7 +175,7 @@ Sem Discord, sem Slack.
 | `/to-issues` | Quebra o PRD em fatias verticais (1 issue cada) |
 | `/pegar-issue` | Sem arg: lista a fila. Com `<N>`: claim + branch + spec |
 | `/tdd` | Red → green → refactor (testes a partir dos critérios de aceite) |
-| `/ship` | Commit → PR → gates da ADR 0068 → com o PR verde, roda a subida sozinho |
+| `/subir` | Commit → PR → gates da ADR 0068 → com o PR verde, roda a subida sozinho |
 | `fechar_onda.py --prs <N>` | A subida única: versão sem commit, APP_VERSION nos dois apps, merge pela API, tag, um build, health, registro gravado pela Action pós-merge, sem PR (ADR 0068) |
 | `/deploy status` | Ver estado de produção (sem alterar) |
 | `/deploy rollback` | Reverte produção pro deploy anterior |
@@ -187,9 +187,9 @@ Sem Discord, sem Slack.
 ## Quando algo dá errado
 
 - **`/tdd` vermelho e não fecha?** O teste é a spec — confira o critério de aceite na Issue. Se o critério está errado, ajuste a Issue primeiro.
-- **`/ship` reprovou num gate?** O gate chama o `hr-corretor` sozinho; só a baixa (`ready-for-human`, com o diagnóstico na issue) volta para você. A saída diz qual gate (hr-revisor ou CI). Corrija e rode `/ship --resume`.
+- **`/subir` reprovou num gate?** O gate chama o `hr-corretor` sozinho; só a baixa (`ready-for-human`, com o diagnóstico na issue) volta para você. A saída diz qual gate (hr-revisor ou CI). Corrija e rode `/subir --resume`.
 - **Conflito com a `main`?** A subida sai com 2 e chama o `hr-corretor`, que rebaseia pela `/resolver-conflitos` e conta tentativa; só a terceira falha (`ready-for-human`) volta para você.
-- **Deploy falhou em produção?** Com health ruim, o `fechar_onda.py` já volta sozinho a imagem anterior e o `APP_VERSION` antigo: sai com código 6, semáforo solto, e quem o rodou abre o PR de revert, reabre a issue e notifica (Passo 10 do `/ship`). Build que falha sai com 3, e health cujo rollback também falhou sai com 4: os dois seguram o semáforo; a saída dele é a fonte de verdade (o `history.json` já foi escrito no push, como `healthy`, e não é corrigido). `/deploy rollback` reverte e `/deploy status` mostra o estado.
+- **Deploy falhou em produção?** Com health ruim, o `fechar_onda.py` já volta sozinho a imagem anterior e o `APP_VERSION` antigo: sai com código 6, semáforo solto, e quem o rodou abre o PR de revert, reabre a issue e notifica (Passo 10 do `/subir`). Build que falha sai com 3, e health cujo rollback também falhou sai com 4: os dois seguram o semáforo; a saída dele é a fonte de verdade (o `history.json` já foi escrito no push, como `healthy`, e não é corrigido). `/deploy rollback` reverte e `/deploy status` mostra o estado.
 - **Snapshot desatualizado?** Olhe o último run da Action Pós-merge na aba Actions: a saída dele diz o que faltou. Corrigida a causa, **Re-run** no run (ele parte da ponta da `main`).
 - Na dúvida, pergunta pro Claude — ele puxa o conhecimento daqui.
 

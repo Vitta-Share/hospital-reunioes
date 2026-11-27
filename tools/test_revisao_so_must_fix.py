@@ -329,7 +329,7 @@ def test_o_sensivel_em_python_antigo_sai_2(tmp_path):
         "hospital-reunioes/backend/.env.example",
         ".github/workflows/ci.yml",
         ".claude/agents/hr-revisor-seguranca.md",
-        ".claude/skills/ship/SKILL.md",
+        ".claude/skills/subir/SKILL.md",
     ],
 )
 def test_rota_com_login_middleware_env_workflow_e_o_fluxo_de_revisao_sairam_do_gatilho(caminho):

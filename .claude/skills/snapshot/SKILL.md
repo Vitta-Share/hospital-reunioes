@@ -12,13 +12,13 @@ Uma skill, sete arquivos vivos. O time tem sempre um **mapa atualizado** da apli
 
 ## Princípio arquitetural
 
-**Esta skill é metodologia pura.** Lê config de `docs/spec/deploy/project.json` (compartilhada com `/deploy` e `/ship`). Não tem conhecimento hardcoded sobre projetos específicos.
+**Esta skill é metodologia pura.** Lê config de `docs/spec/deploy/project.json` (compartilhada com `/deploy` e `/subir`). Não tem conhecimento hardcoded sobre projetos específicos.
 
 A skill executa sempre o mesmo algoritmo (detectar mudança → parsear → gerar → comparar → commit se mudou). Cada gerador é parametrizado pelo `project.json` do repo atual.
 
 Relação com outras skills:
 - **Action no push da `main`**: roda o snapshot em todo push na `main` e no run que a subida dispara com o registro, depois de gravá-lo, com o ambiente completo, e commita na `main` (ADR 0068). A subida (`fechar_onda.py`) não roda mais o snapshot.
-- **`/ship`**: usa `/snapshot --diff <base>..HEAD` no Passo 8 pra gerar a seção "Mudanças" do PR body.
+- **`/subir`**: usa `/snapshot --diff <base>..HEAD` no Passo 8 pra gerar a seção "Mudanças" do PR body.
 
 ## Sintaxe
 
@@ -34,7 +34,7 @@ Flags suportadas pelo script:
 |------|--------|
 | (sem flag) | Regenera 5 MDs auto-gerados (ROTAS, ENTIDADES, SCHEMA, MIGRATIONS, INTEGRACOES) se algo mudou. Cria commit separado `chore(spec): atualizar snapshot pós deploy <sha>`. |
 | `--check` | Dry-run: mostra que arquivos mudariam, não escreve nem commita. |
-| `--diff <base>..HEAD` | Markdown comparando snapshot esperado com o que teria depois das mudanças entre `<base>` e `HEAD`. Usado pelo `/ship` no Passo 8 pra preencher seção "Mudanças" do PR body. Não escreve em `docs/spec/snapshots/`. |
+| `--diff <base>..HEAD` | Markdown comparando snapshot esperado com o que teria depois das mudanças entre `<base>` e `HEAD`. Usado pelo `/subir` no Passo 8 pra preencher seção "Mudanças" do PR body. Não escreve em `docs/spec/snapshots/`. |
 | `--force` | Regenera tudo ignorando idempotência (útil pra debug). |
 | `--only <ARQUIVO>` | Regenera só 1 dos 5 auto-gerados (ROTAS / ENTIDADES / SCHEMA / MIGRATIONS / INTEGRACOES). **Não aceita** FLUXOGRAMAS ou ESTRUTURA (são curados humano). |
 | `--no-commit` | Não cria commit automático (default: commita). Mudanças ficam no working tree. |
@@ -77,7 +77,7 @@ Detectar mudança → parsear (app FastAPI montado, migrations, `project.json`) 
 
 ## Modo `--diff <base>..HEAD`
 
-Caso de uso: o `/ship` invoca `/snapshot --diff main..HEAD` no Passo 7 pra preencher a seção "Mudanças" do PR body.
+Caso de uso: o `/subir` invoca `/snapshot --diff main..HEAD` no Passo 7 pra preencher a seção "Mudanças" do PR body.
 
 ```bash
 /snapshot --diff main..HEAD
@@ -109,7 +109,7 @@ Comportamento:
 
 4. Imprime no stdout. **Não commita.** Não escreve nada em `docs/spec/snapshots/`.
 
-Esse markdown é o que vai pra dentro do PR body do `/ship`.
+Esse markdown é o que vai pra dentro do PR body do `/subir`.
 
 ---
 
@@ -168,7 +168,7 @@ Regenera só 1 arquivo (útil em desenvolvimento da skill ou pra testar geradore
 | Skill | Quando interage |
 |---|---|
 | **Action no push da `main`** | Roda o snapshot no run que a subida (`fechar_onda.py`) dispara com o registro, e em todo push na `main`, e commita na `main` (ADR 0068). |
-| **`/ship`** | Invoca `/snapshot --diff <base>..HEAD` no Passo 8 pra preencher "Mudanças" do PR body. |
+| **`/subir`** | Invoca `/snapshot --diff <base>..HEAD` no Passo 8 pra preencher "Mudanças" do PR body. |
 
 ---
 

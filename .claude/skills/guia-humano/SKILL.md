@@ -32,7 +32,7 @@ O repositório e a página são públicos: dado que o card guarda fora do git (t
 3. **Texto pelo humanizer**: passe a prosa (tudo menos `copiar` e `url`) pela skill `humanizer` em modo embutido (ADR 0071). A amostra de voz é o `1961/dados.json`: segunda pessoa, frase curta, um clique por frase. A mensagem pronta no `copiar` segue a seção 3 do CLAUDE.md global e não muda.
 4. **Montar e conferir**: `guia.py montar <N> --saida "$TMPDIR/guias"` recusa travessão em qualquer campo e número de issue ou palavra técnica da `/divulgar` na explicação. Sirva a pasta com `python3 -m http.server` (o `playwright-cli` não abre `file://`), copie a logo e a fonte de `docs/comunicacao/_assets/` e confira no `playwright-cli` em 1280 px e 390 px: o Copiar copia e o "Já fiz este passo" conta no topo.
 5. **Publicar**: `python3 .claude/skills/guia-humano/scripts/guia.py publicar <N>`. Monta o site inteiro (todo `<N>/dados.json`, porque cada deploy troca o projeto todo) numa pasta fora do repositório, roda `npx vercel@latest deploy --prod --yes` e, depois do deploy que deu certo, grava no fim do corpo da issue a linha do guia e o marcador `<!-- guia: https://guias-hsm.vercel.app/<N> -->` (uma vez só, sem mudar outro byte). Guia publicado sem marcador: `guia.py marcar <N>`.
-6. **Subir a fonte**: o `dados.json` vai para a `main` pelo `/ship "<descrição>" --from-diff` (classe ferramenta, só merge).
+6. **Subir a fonte**: o `dados.json` vai para a `main` pelo `/subir "<descrição>" --from-diff` (classe ferramenta, só merge).
 
 ## O que o marcador liga
 

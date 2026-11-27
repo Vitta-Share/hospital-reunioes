@@ -113,7 +113,7 @@ For each labeled issue:
 2. **Classify:** change request vs. praise/observation.
 3. **Act, with maintainer approval:**
    - **Open issue + change request**: propose editing the user story/acceptance criteria to absorb the context; apply once approved.
-   - **Closed issue + change request**: reopen, add the new criterion **unchecked** while keeping delivered ones checked (honest count, e.g. 6/7), and return it to the flow (`ready-for-agent` or `ready-for-human`). The redo is a follow-up ship; reopening never undoes the deploy (decisão do fluxo).
+   - **Closed issue + change request**: reopen, add the new criterion **unchecked** while keeping delivered ones checked (honest count, e.g. 6/7), and return it to the flow (`ready-for-agent` or `ready-for-human`). The redo is a follow-up `/subir`; reopening never undoes the deploy (decisão do fluxo).
    - **Praise/observation**: no reopening, no edits.
 
    When editing a body, keep the lay-reader block at the top intact (its title is `bloco` in `python3 .claude/skills/onda-enxuta/scripts/fluxo.py`; decisão do fluxo). Project-only rules come from `python3 .claude/skills/onda-enxuta/scripts/fluxo.py notas triage`.

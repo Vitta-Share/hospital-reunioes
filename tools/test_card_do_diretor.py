@@ -135,7 +135,7 @@ def ler(nome: str) -> str:
 
 def test_skill_proibe_o_caminho_de_producao() -> None:
     regras = ler("SKILL.md")
-    for proibido in ("/ship", "/pegar-issue", "/onda-enxuta", "fechar_onda.py", "/deploy"):
+    for proibido in ("/subir", "/pegar-issue", "/onda-enxuta", "fechar_onda.py", "/deploy"):
         assert f"`{proibido}`" in regras.split("## Regras do modo diretor")[1].split("## ")[0], (
             f"as regras do modo diretor não proíbem {proibido}"
         )

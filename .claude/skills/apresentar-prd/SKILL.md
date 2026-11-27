@@ -50,7 +50,7 @@ Logo e fonte vêm de `docs/comunicacao/_assets/` na hora do deploy.
 5. **Publicar.** `apresentar.py publicar <PRD>`. Ele tira a label `validado:diretor` do PRD antes de tudo, monta o site inteiro (todo `<N>/dados.json` da pasta, porque cada deploy troca o projeto todo) numa pasta temporária fora do repositório (de dentro, a Vercel recusa o autor do git) e roda `npx vercel@latest deploy --prod --yes`. O endereço é `https://planos-hsm.vercel.app/<PRD>`. Depois do deploy que deu certo, ele grava no fim do corpo do PRD o marcador `<!-- apresentacao: https://planos-hsm.vercel.app/<PRD> -->` (ADR 0108, decisão 2), fora do bloco "Para o diretor" e sem mudar outro byte do corpo. O marcador leva só o endereço da página, nunca o código do link (`?c=`). Republicar não duplica; deploy que falhou não grava. A sincronização leva o link ao card da Demanda ("Ver o plano"). Plano publicado antes do marcador: `apresentar.py marcar <PRD>` grava só o marcador, sem deploy e sem mexer nas labels.
 6. **Conferir no `playwright-cli`**, em desktop (1280 px) e em 390 px: título, contadores, "O que você já decidiu", as etapas com as Partes, o hover (ou toque) que acende o que vem antes e o que vem depois, o painel do detalhe com "Pronto quando", o botão "Ver a ordem das etapas" e o Validar, que sem o código no link fica desligado com o aviso "Abra esta página pelo link do e-mail" (num PRD com a label, o cartão "Plano validado" no lugar do formulário). **Nunca** abra o link com o código nem clique em Validar: isso carimba o PRD de verdade.
 7. **Enviar o e-mail.** `apresentar.py email <PRD>` grava o texto (assunto, link com o código e o pedido para validar) em `~/.config/planos-hsm/email-<PRD>.txt` e imprime o caminho. Com o Gmail do Pedro na sessão, **envie** o e-mail para o endereço de `~/.config/planos-hsm/diretor`, com o assunto da primeira linha e o resto como corpo, sem parar no rascunho (Pedro pediu em 18/11/2026). Sem o Gmail ou sem o arquivo `diretor`, diga ao Pedro onde está o texto. O código não vai para issue, PR, commit nem resposta da sessão.
-8. **Subir a fonte.** O `dados.json` novo ou mudado vai para a `main` pelo `/ship "<descrição>" --from-diff` (classe ferramenta, só merge).
+8. **Subir a fonte.** O `dados.json` novo ou mudado vai para a `main` pelo `/subir "<descrição>" --from-diff` (classe ferramenta, só merge).
 
 ## Checklist de saída
 
@@ -59,4 +59,4 @@ Logo e fonte vêm de `docs/comunicacao/_assets/` na hora do deploy.
 3. Label `validado:diretor` tirada, página publicada em `https://planos-hsm.vercel.app/<PRD>` e o marcador `<!-- apresentacao: ... -->` no corpo do PRD.
 4. Página conferida no `playwright-cli` em desktop e 390 px.
 5. E-mail enviado ao diretor pelo Gmail (ou o caminho do arquivo dito ao Pedro).
-6. `docs/comunicacao/planos/<PRD>/dados.json` subindo pelo `/ship`.
+6. `docs/comunicacao/planos/<PRD>/dados.json` subindo pelo `/subir`.

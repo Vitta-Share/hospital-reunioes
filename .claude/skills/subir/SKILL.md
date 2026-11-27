@@ -1,16 +1,16 @@
 ---
-name: ship
-description: Leva uma mudança até o PR verde (branch, commit, PR, gates da decisão do fluxo) e roda a subida, o fechar_onda.py, sem parar. Sintaxe `/ship "<descrição>" [--issue N] [--type ...] [--skip-review]`.
+name: subir
+description: Leva uma mudança até o PR verde (branch, commit, PR, gates da decisão do fluxo) e roda a subida, o fechar_onda.py, sem parar. Sintaxe `/subir "<descrição>" [--issue N] [--type ...] [--skip-review]`.
 ---
 
-# ship
+# subir
 
-Do código ao PR verde e, com os gates verdes, a subida (`fechar_onda.py`), sem esperar mensagem (decisão do fluxo). Merge, versão, `APP_VERSION`, build, health e registro são só da subida (decisão do fluxo); o `/ship` nunca faz nenhum deles. Config do deploy em `docs/spec/deploy/project.json`; o que muda de um Projeto para outro (pasta do app, comando de testes, leitor do PR) em `.claude/fluxo.json` (`python3 .claude/skills/onda-enxuta/scripts/fluxo.py`). O que `fluxo.py notas ship` imprimir vale por cima desta skill.
+Do código ao PR verde e, com os gates verdes, a subida (`fechar_onda.py`), sem esperar mensagem (decisão do fluxo). Merge, versão, `APP_VERSION`, build, health e registro são só da subida (decisão do fluxo); o `/subir` nunca faz nenhum deles. Config do deploy em `docs/spec/deploy/project.json`; o que muda de um Projeto para outro (pasta do app, comando de testes, leitor do PR) em `.claude/fluxo.json` (`python3 .claude/skills/onda-enxuta/scripts/fluxo.py`). O que `fluxo.py notas subir` imprimir vale por cima desta skill.
 
 ## Sintaxe
 
 ```bash
-/ship "<descrição curta>" [--issue N] [--type fix|feature|chore|refactor|docs|test|spec] [--skip-review] [--hotfix] [--draft] [--from-diff] [--resume]
+/subir "<descrição curta>" [--issue N] [--type fix|feature|chore|refactor|docs|test|spec] [--skip-review] [--hotfix] [--draft] [--from-diff] [--resume]
 ```
 
 | Flag | Efeito |
@@ -25,11 +25,11 @@ Do código ao PR verde e, com os gates verdes, a subida (`fechar_onda.py`), sem 
 
 **Nunca pare para perguntar** (decisão do fluxo): dúvida, impasse ou revisor sem veredito é baixa, com uma linha de motivo.
 
-**Passo da issue** (ADR 0027): com `--issue N`, o `/ship` grava o Passo que o PedroOS mostra na linha da issue, da raiz do repositório: Revisão, Correção e Verde nos gates e o fim na baixa (Passo 8). A subida grava Mergeada depois do merge e encerra o Passo sozinha. Com `--skip-review` (o `onda-implementador`, dentro de uma Onda), o `/ship` não grava Passo: ali o Passo é o status que a Onda grava no Estado da Onda, e o PedroOS fica com o mais novo dos dois. O `passo.py` sempre sai 0: a linha `passo:` que ele imprimir é só aviso, e a skill segue.
+**Passo da issue** (ADR 0027): com `--issue N`, o `/subir` grava o Passo que o PedroOS mostra na linha da issue, da raiz do repositório: Revisão, Correção e Verde nos gates e o fim na baixa (Passo 8). A subida grava Mergeada depois do merge e encerra o Passo sozinha. Com `--skip-review` (o `onda-implementador`, dentro de uma Onda), o `/subir` não grava Passo: ali o Passo é o status que a Onda grava no Estado da Onda, e o PedroOS fica com o mais novo dos dois. O `passo.py` sempre sai 0: a linha `passo:` que ele imprimir é só aviso, e a skill segue.
 
 ## PR do diretor
 
-Com `--issue N`, rode `python3 .claude/skills/pegar-issue/scripts/pr_do_diretor.py qual <N>` no pre-flight (ADR 0113, decisão 3). Linha `#<PR> <branch>` com a branch atual: a fatia continua o PR rascunho do diretor, que o `/pegar-issue` assumiu, e o `/ship` usa esse PR em vez de abrir outro. Muda em três pontos; o resto (gates, revisor, CI, subida) segue igual:
+Com `--issue N`, rode `python3 .claude/skills/pegar-issue/scripts/pr_do_diretor.py qual <N>` no pre-flight (ADR 0113, decisão 3). Linha `#<PR> <branch>` com a branch atual: a fatia continua o PR rascunho do diretor, que o `/pegar-issue` assumiu, e o `/subir` usa esse PR em vez de abrir outro. Muda em três pontos; o resto (gates, revisor, CI, subida) segue igual:
 - **Passo 1:** a branch é a do fork e não termina em `-<N>`; siga assim mesmo.
 - **Passo 7:** `git push`, sem `-u origin`: a branch já aponta para o fork (edição por mantenedores).
 - **Passo 8:** no lugar do `gh pr create`, `python3 .claude/skills/pegar-issue/scripts/pr_do_diretor.py pronto <N> --corpo <scratchpad>/pr-$BRANCH.md`. Ele tira o PR do rascunho, põe o corpo do template com o `Closes #<N>` da fatia e guarda o texto do diretor embaixo, em "Protótipo do diretor". O número que ele imprime é o `$PR` dos gates e da subida.
@@ -82,7 +82,7 @@ python3 .claude/skills/onda-enxuta/scripts/fechar_onda.py --prs "$PR"
 Em segundo plano (builds levam minutos); leia só a saída. O que fazer em cada código de saída está na docstring do script. Os dois que pedem ação de quem rodou:
 - **Saída 2 com `conflito no merge de #N em: <arquivos>`:** `onda-corretor` motivo `conflito` com os arquivos, CI de novo, subida de novo. Conta tentativa.
 - **Saídas 6, 7 e 8:** `PushNotification` com a linha que o script imprimiu. A 6 conta tentativa.
-- **`migration: <como aplicar> <arquivo> (...); copie com: pbcopy < <caminho>`:** a subida espera o `/api/health` devolver o número dela (até 24 h). Repasse a linha por `PushNotification`. Nunca mostre o caminho com `:1` nem abra o `.sql` num editor: o humano copia o arquivo inteiro pelo `pbcopy` (ou pelo botão do painel, quando o Projeto tem um). Quem aplica é o humano, do jeito que `migrations.aplicar` do `fluxo.py` diz; o `/ship` nunca aplica migration.
+- **`migration: <como aplicar> <arquivo> (...); copie com: pbcopy < <caminho>`:** a subida espera o `/api/health` devolver o número dela (até 24 h). Repasse a linha por `PushNotification`. Nunca mostre o caminho com `:1` nem abra o `.sql` num editor: o humano copia o arquivo inteiro pelo `pbcopy` (ou pelo botão do painel, quando o Projeto tem um). Quem aplica é o humano, do jeito que `migrations.aplicar` do `fluxo.py` diz; o `/subir` nunca aplica migration.
 
 **Sem plataforma:** enquanto o `services` do `docs/spec/deploy/project.json` estiver vazio (`/deploy status` diz), a subida trata todo PR como ferramenta e termina no merge: sem versão, tag, build, health, registro nem espera de migration. A saída 0 já é o PR mergeado com o CI verde.
 
@@ -91,7 +91,7 @@ Em segundo plano (builds levam minutos); leia só a saída. O que fazer em cada 
 ## Saída
 
 ```
-✅ ship PR #<PR> verde · gates: <lista> · Issue #<N> com critérios marcados
+✅ subir PR #<PR> verde · gates: <lista> · Issue #<N> com critérios marcados
    Subida: <última linha do fechar_onda.py>
 ```
 
@@ -111,5 +111,5 @@ Baixa: `❌` e, na segunda linha, o gate e o motivo.
 ## Regras
 
 - Nunca `git push --force` na `main`; `--force-with-lease` só na branch própria.
-- Nunca rodar `/ship` numa branch que já tem PR aberto sem `--resume`.
+- Nunca rodar `/subir` numa branch que já tem PR aberto sem `--resume`.
 - Nunca logar token ou segredo.
