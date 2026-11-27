@@ -8,6 +8,8 @@ fica como foi escrito.
 
 from __future__ import annotations
 
+import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -49,3 +51,26 @@ def test_a_varredura_acha_o_endereco_antigo_num_arquivo_novo(tmp_path: Path) -> 
     subprocess.run(["git", "-C", str(tmp_path), "add", "."], check=True)
     achados = referencias_antigas(tmp_path)
     assert sorted(a.split(":", 1)[0] for a in achados) == ["ci.yml", "script.sh"]
+
+
+def test_fork_feito_antes_da_troca_recebe_o_set_url_do_upstream(tmp_path: Path) -> None:
+    """O upstream de um fork feito antes da troca já existe: o conserto troca o endereço."""
+    script = tmp_path / ".claude" / "skills" / "setup-diretor" / "scripts" / "conferir.sh"
+    script.parent.mkdir(parents=True)
+    shutil.copy(RAIZ / ".claude" / "skills" / "setup-diretor" / "scripts" / "conferir.sh", script)
+    antigo = "https://github.com/" + "pedrorezendefig" + "/hospital-reunioes.git"
+    fork = "https://github.com/felipe-hsm/hospital-reunioes.git"
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "remote", "add", "origin", fork], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "remote", "add", "upstream", antigo], check=True)
+    env = {k: v for k, v in os.environ.items() if k not in ("GH_TOKEN", "GITHUB_TOKEN")}
+    env["CLAUDE_CONFIG_DIR"] = str(tmp_path)
+    saida = subprocess.run(
+        ["bash", str(script)], capture_output=True, text=True, env=env, timeout=180, check=False
+    ).stdout
+    linhas = [linha for linha in saida.splitlines() if "upstream no time" in linha]
+    assert len(linhas) == 1, saida
+    assert linhas[0].split()[0] == "FALTA", linhas
+    assert linhas[0].endswith(
+        "git remote set-url upstream https://github.com/Vitta-Share/hospital-reunioes.git"
+    ), linhas

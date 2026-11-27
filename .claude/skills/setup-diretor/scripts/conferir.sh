@@ -63,7 +63,8 @@ case "$origin" in
 esac
 case "$upstream" in
   *"$UPSTREAM"*) ok "upstream no time" ;;
-  *) falta "upstream no time" "git remote add upstream https://github.com/$UPSTREAM.git" ;;
+  "") falta "upstream no time" "git remote add upstream https://github.com/$UPSTREAM.git" ;;
+  *) falta "upstream no time" "git remote set-url upstream https://github.com/$UPSTREAM.git" ;;
 esac
 email="$(git -C "$RAIZ" config user.email 2>/dev/null)"
 case "$email" in

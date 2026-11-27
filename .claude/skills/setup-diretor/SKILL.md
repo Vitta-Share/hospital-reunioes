@@ -82,7 +82,7 @@ Depois do `gh auth login` (no Terminal, pelas mãos dele) e do `gh auth status` 
 
 ```bash
 cd ~ && gh repo fork Vitta-Share/hospital-reunioes --clone --default-branch-only
-cd ~/hospital-reunioes && git remote -v   # origin = fork dele, upstream = pedrorezendefig
+cd ~/hospital-reunioes && git remote -v   # origin = fork dele, upstream = Vitta-Share
 git config --global user.name "<nome dele>"
 git config --global user.email "<ID>+<login>@users.noreply.github.com"
 ```
@@ -127,7 +127,7 @@ Só depois da linha "trava do merge" em `OK`. O Pedro convida o login dele no `V
 
 ```bash
 gh api user/repository_invitations --jq '.[] | "\(.id) \(.repository.full_name)"'
-gh api -X PATCH user/repository_invitations/<id>      # um por convite, só os dois do pedrorezendefig
+gh api -X PATCH user/repository_invitations/<id>      # um por convite, só esses dois repositórios
 ```
 
 Sem convite na lista: mande a mensagem "Sem convite" de `references/pedro.md`. Pronto quando o `conferir.sh` mostra `OK` em "colaborador do time" e "hospital-arquivos". O código dele continua saindo do fork (Parte 8): colaborador serve para receber, devolver e fechar card e para guardar o Arquivo de apoio.
