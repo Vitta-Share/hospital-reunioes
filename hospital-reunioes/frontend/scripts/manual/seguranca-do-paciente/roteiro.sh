@@ -172,7 +172,8 @@ pw run-code "async page => {
   await form.getByLabel('Título').fill('$(seed "['capacitacao_nova']['titulo']")');
   await form.getByLabel('Data').fill(new Date().toISOString().slice(0, 10));
   await form.getByLabel('Carga horária (horas)').fill('$(seed "['capacitacao_nova']['carga']")');
-  await form.getByLabel('Instrutor').fill('$(seed "['capacitacao_nova']['instrutor']")');
+  await form.getByLabel('Instrutor', { exact: true }).fill('$(seed "['capacitacao_nova']['instrutor']")');
+  await form.getByLabel('Formação do instrutor').fill('$(seed "['capacitacao_nova']['formacao']")');
   for (const nome of $(python3 -c "import json,sys; d=json.load(open(sys.argv[1]))['capacitacao_nova']; print(json.dumps(d['temas'] + d['participantes'], ensure_ascii=False))" "$SEED")) {
     await form.getByLabel(nome, { exact: true }).check();
   }
