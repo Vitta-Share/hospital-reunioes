@@ -62,6 +62,16 @@ def test_acoes_de_cada_card():
     assert acoes.acoes_do_card(c_acao(), {"proximo": "esperar"}) == ["tocar", "decidir", "diretor", "agente"]
 
 
+def test_explicar_so_aparece_no_card_do_diretor_sem_explicacao():
+    sem = c_acao("diretor", corpo="Só o passo a passo.")
+    com = c_acao("diretor", corpo="## 🔁 Por que este card passou para você\n...")
+    assert acoes.acoes_extra(sem) == ["explicar", "cobrar"]
+    assert acoes.acoes_extra(com) == ["cobrar"]
+    assert acoes.acoes_extra({**com, "livre": False}) == []
+    assert acoes.acoes_extra(c_acao("eu", labels=["com:ti"])) == ["limpar"]
+    assert acoes.rotulo("Hospital#2330") == "#2330" and acoes.rotulo("Ana#4") == "Ana #4"
+
+
 def test_pedido_da_sessao_sai_do_servidor_e_recusa_acao_que_o_card_nao_tem():
     p = acoes.pedido("agente", c_acao("agente"), "Vitta-Share/hospital-reunioes", {"para_que_serve": "Serve."})
     assert "/pegar-issue 7" in p and "--repo Vitta-Share/hospital-reunioes" in p and "Serve." in p
@@ -238,6 +248,7 @@ def test_aderencia_aponta_cada_falta_com_a_acao_que_resolve():
     r = aderencia.aderencia(estado, desc, {}, {}, AGORA)
     assert [i["acao"]["tipo"] for i in r["faltam"]] == ["voltou", "bloqueio", "explicar", "cobrar", "diretor", "limpar", "atualizar"]
     assert r["faltam"][1]["acao"] == {"tipo": "bloqueio", "chave": "Hospital#4", "espera": "Hospital#9"}
+    assert "espera o #9," in r["faltam"][1]["motivo"]
     assert 0 < r["nota"] < 100
     # O que já foi feito pela Ala sai da conta, e o rascunho da versão de agora fecha a passagem.
     feitos = {"bloqueio:Hospital#4:Hospital#9": "x"}
