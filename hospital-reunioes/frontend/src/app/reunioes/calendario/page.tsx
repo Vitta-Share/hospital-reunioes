@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useToast } from "@/components/ui/Toast";
 import { createClient } from "@/lib/supabase/client";
 import { isSecretaria } from "@/lib/auth";
@@ -30,6 +31,7 @@ import {
   Loader2,
   Repeat2,
   Filter,
+  Inbox,
 } from "lucide-react";
 
 // ──────────────────────────────────────────
@@ -1322,6 +1324,15 @@ export default function CalendarioPage() {
           <p className="text-slate-500 text-sm mt-0.5">Agende e visualize reuniões presenciais</p>
         </div>
         <div className="flex items-center gap-2">
+          {/* PROTÓTIPO Fireflies (ADR 0114 proposta): atalho para a fila, com a contagem fictícia. */}
+          <Link
+            href="/reunioes/transcricoes-sem-destino"
+            className="etiqueta flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-sm font-medium hover:bg-amber-100 transition-all"
+          >
+            <Inbox className="w-4 h-4" />
+            Transcrições sem destino
+            <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-amber-600 text-white text-[11px] leading-none">4</span>
+          </Link>
           <button
             id="btn-importar-transcricao"
             onClick={() => setShowUploadModal(true)}

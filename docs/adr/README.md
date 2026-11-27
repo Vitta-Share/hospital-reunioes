@@ -36,6 +36,7 @@ Só `status: accepted` vale como decisão; `superseded` é histórico (CLAUDE.md
 | [0112](0112-nsp-responsavel-tecnico-assina-os-documentos-do-nucleo.md) | accepted | Núcleo de Segurança do Paciente: o Responsável técnico assina os documentos do Núcleo (emenda 0095) |
 | [0096](0096-mensagem-pelo-terminal-na-conversa-da-demanda.md) | superseded | Mensagem pelo terminal: a sessão do desenvolvedor escreve e lê na Conversa da Demanda, pela ponte de automação (emenda 0069 e 0083) |
 | [0097](0097-canal-de-conduta-fundacao.md) | accepted | Canal de Conduta: fundação, sigilo do conteúdo e exceções de IA (emenda 0082, 0088 e 0095) |
+| [0115](0115-fireflies-no-comite-de-conduta-o-audio-do-depoimento-entra-cifrado.md) | proposed | Fireflies no Comitê de Conduta: o áudio do depoimento entra cifrado vindo do Fireflies, pela conta única |
 | [0101](0101-dados-do-atendimento-e-espelho-so-para-super-admin.md) | accepted | Dados do Atendimento e o Espelho da Global Health ficam só com o Super admin (emenda 0031 e 0038) |
 
 ## Contas médicas
@@ -96,6 +97,7 @@ Só `status: accepted` vale como decisão; `superseded` é histórico (CLAUDE.md
 | [0030](0030-pendencia-nasce-por-assinatura-gatilho-incremental.md) | accepted | Pendência nasce por assinatura: gatilho incremental e Aceite interno |
 | [0098](0098-pendencia-nasce-no-envio-anotacao-obrigatoria-historico-imutavel.md) | accepted | Pendência nasce no envio para assinatura, toda mudança pede anotação e o histórico não se apaga (emenda 0030 e 0011) |
 | [0104](0104-inicio-a-tela-de-cada-pessoa-com-a-minha-fila-de-todos-os-modulos.md) | accepted | O Início é a tela de cada pessoa, e a Minha Fila junta todos os módulos (emenda 0098) |
+| [0114](0114-transcricao-do-fireflies-chega-sozinha-pelo-codigo-e-a-ata-nasce-na-chegada.md) | proposed | A Transcrição do Fireflies chega sozinha pelo Código da gravação, e a Ata nasce na chegada |
 
 ## POPs
 
