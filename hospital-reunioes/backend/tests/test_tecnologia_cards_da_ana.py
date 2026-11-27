@@ -42,7 +42,7 @@ from app.services import github_client, tecnologia_espelho  # noqa: E402
 from app.services.tecnologia_espelho import CRIA, IGNORA, decidir  # noqa: E402
 from app.services.tecnologia_vinculo import ETAPA_PLANEJADA  # noqa: E402
 
-REPO_ANA = "pedrorezendefig/programa-ana"
+REPO_ANA = "Vitta-Share/programa-ana"
 HOSPITAL = "hospital"
 ANA = "ana"
 

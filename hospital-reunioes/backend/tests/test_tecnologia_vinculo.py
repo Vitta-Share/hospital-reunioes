@@ -117,7 +117,7 @@ def _integracao_configurada(monkeypatch):
     teste que APAGA a variavel, e nao a ausencia dela por acidente.
     """
     monkeypatch.setattr(settings, "github_integracao_token", "token-de-teste")
-    monkeypatch.setattr(settings, "github_integracao_repo", "pedrorezendefig/hospital-reunioes")
+    monkeypatch.setattr(settings, "github_integracao_repo", "Vitta-Share/hospital-reunioes")
 
 
 # ─── 1. A tabela de Etapas ───────────────────────────────────────────────────
@@ -135,7 +135,7 @@ def _foto(
     foto = {
         "numero": numero,
         "titulo": "PRD de teste",
-        "url": f"https://github.com/pedrorezendefig/hospital-reunioes/issues/{numero}",
+        "url": f"https://github.com/Vitta-Share/hospital-reunioes/issues/{numero}",
         "estado": estado,
         "motivo_do_fechamento": motivo,
         "labels": list(labels),
@@ -150,7 +150,7 @@ def _parte(numero: int, *, estado: str = "open", motivo: str | None = None, labe
     return {
         "numero": numero,
         "titulo": "Fatia",
-        "url": f"https://github.com/pedrorezendefig/hospital-reunioes/issues/{numero}",
+        "url": f"https://github.com/Vitta-Share/hospital-reunioes/issues/{numero}",
         "estado": estado,
         "motivo_do_fechamento": motivo,
         "labels": list(labels),
@@ -1142,7 +1142,7 @@ def _issue(
     dados = {
         "number": numero,
         "title": "Tecnologia: fundação do Vínculo",
-        "html_url": f"https://github.com/pedrorezendefig/hospital-reunioes/issues/{numero}",
+        "html_url": f"https://github.com/Vitta-Share/hospital-reunioes/issues/{numero}",
         "state": estado,
         "state_reason": motivo,
         "labels": [{"name": nome} for nome in labels],
@@ -1289,7 +1289,7 @@ class TestADesignacaoNaoDerrubaACriacao:
     """O assignee e conveniencia: login que o GitHub recusa nao pode virar
     "GitHub indisponivel" no botao (must-fix da revisao do PR #1050)."""
 
-    URL = "https://api.github.com/repos/pedrorezendefig/hospital-reunioes"
+    URL = "https://api.github.com/repos/Vitta-Share/hospital-reunioes"
 
     def test_com_login_a_issue_nasce_e_e_designada_pelo_patch(self, monkeypatch):
         transporte = _TransporteGithub()

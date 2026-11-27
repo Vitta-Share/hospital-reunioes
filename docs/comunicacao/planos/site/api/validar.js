@@ -6,7 +6,7 @@
 // ele já escreve no GitHub. Nada passa pelo app.
 const crypto = require('crypto');
 
-const REPO = 'pedrorezendefig/hospital-reunioes';
+const REPO = 'Vitta-Share/hospital-reunioes';
 const LABEL = 'validado:diretor';
 const DONO = 'pedrorezendefig';
 

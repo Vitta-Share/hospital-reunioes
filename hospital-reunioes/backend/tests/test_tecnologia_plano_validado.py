@@ -42,7 +42,7 @@ from test_tecnologia_webhook_github import (  # noqa: E402
 from app.services import github_client  # noqa: E402
 from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
 
-REPO_URL = "https://github.com/pedrorezendefig/hospital-reunioes/issues"
+REPO_URL = "https://github.com/Vitta-Share/hospital-reunioes/issues"
 
 # O PRD #1757 como estava em 16/11/2026: validado, com o Ajuste #1911 aberto.
 RAIZ = 1757

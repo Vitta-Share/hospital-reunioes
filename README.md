@@ -4,7 +4,7 @@ Este é o app de Atas, POPs e Ouvidoria do Hospital São Matheus, com o pipeline
 
 ## Primeiro dia
 
-1. Clone: `gh repo clone pedrorezendefig/hospital-reunioes`. Já tem o clone? `git pull --ff-only origin main`.
+1. Clone: `gh repo clone Vitta-Share/hospital-reunioes`. Já tem o clone? `git pull --ff-only origin main`.
 2. Abra o Claude Code dentro da pasta e rode `/setup-maquina`. Ele confere a máquina (binários, `gh`, plugins, Coolify, tokens), avisa se o clone está atrás da `main` e diz o conserto de cada item.
 3. Rode `/ask-pedro` para saber qual skill usar em cada momento. O passo a passo humano do setup está em `docs/onboarding/claude-setup.md`; o dia a dia em `docs/onboarding/dev.md`.
 

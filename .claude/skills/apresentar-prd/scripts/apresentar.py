@@ -31,7 +31,7 @@ RAIZ = Path(__file__).resolve().parents[4]
 PLANOS = RAIZ / "docs" / "comunicacao" / "planos"
 ASSETS = RAIZ / "docs" / "comunicacao" / "_assets"
 PACOTE = RAIZ / "hospital-reunioes" / "frontend" / "package.json"
-REPO = "pedrorezendefig/hospital-reunioes"
+REPO = "Vitta-Share/hospital-reunioes"
 SITE = "https://planos-hsm.vercel.app"
 SELO = "validado:diretor"
 

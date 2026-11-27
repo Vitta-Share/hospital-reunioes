@@ -42,7 +42,7 @@ DENY = [
 ]
 AMBIENTE = [
     "$defaults",
-    "**Source control**: o repositório confiável é pedrorezendefig/hospital-reunioes, público",
+    "**Source control**: o repositório confiável é Vitta-Share/hospital-reunioes, público",
     "**CI/CD deploy targets**: Coolify (coolify.exemplo.test), deploy de produção pelo fechar_onda.py",
 ]
 AUTO_ALLOW = [
@@ -280,7 +280,7 @@ def gh_admin(
     falso(
         tmp_path,
         "gh",
-        'case "$*" in *"repos/pedrorezendefig/hospital-reunioes/keys"*) ;;\n'
+        'case "$*" in *"repos/Vitta-Share/hospital-reunioes/keys"*) ;;\n'
         f'  "api user --jq .login") echo {login}; exit 0 ;;\n'
         "  *) exit 0 ;;\n"
         "esac\n"
@@ -566,7 +566,7 @@ def test_o_script_confere_o_token_do_gh_no_nivel_2(tmp_path):
         'case "$*" in\n'
         '  "auth status") exit 0 ;;\n'
         '  "repo view"*) echo ADMIN ;;\n'
-        '  *"repos/pedrorezendefig/hospital-reunioes/keys"*) echo "[]" ;;\n'
+        '  *"repos/Vitta-Share/hospital-reunioes/keys"*) echo "[]" ;;\n'
         "  *) exit 1 ;;\n"
         "esac"
     )
@@ -582,7 +582,7 @@ def test_gh_sem_autenticar_ainda_confere_o_chaveiro(tmp_path):
     corpo = (
         'case "$*" in\n'
         '  "auth status") exit 1 ;;\n'
-        '  *"repos/pedrorezendefig/hospital-reunioes/keys"*) echo "[]" ;;\n'
+        '  *"repos/Vitta-Share/hospital-reunioes/keys"*) echo "[]" ;;\n'
         "  *) exit 1 ;;\n"
         "esac"
     )

@@ -46,7 +46,7 @@ from app.config import settings  # noqa: E402
 from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
 from app.services.github_client import FATO_ASSIGNEE  # noqa: E402
 
-REPO = "pedrorezendefig/hospital-reunioes"
+REPO = "Vitta-Share/hospital-reunioes"
 
 
 @pytest.fixture(autouse=True)

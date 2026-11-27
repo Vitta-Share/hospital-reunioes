@@ -49,7 +49,7 @@ def _llm_em_mock(monkeypatch):
 @pytest.fixture(autouse=True)
 def _integracao_configurada(monkeypatch):
     monkeypatch.setattr(settings, "github_integracao_token", "token-de-teste")
-    monkeypatch.setattr(settings, "github_integracao_repo", "pedrorezendefig/hospital-reunioes")
+    monkeypatch.setattr(settings, "github_integracao_repo", "Vitta-Share/hospital-reunioes")
 
 
 def _demandas_de_dois_autores() -> list[dict]:
@@ -67,7 +67,7 @@ def _demandas_de_dois_autores() -> list[dict]:
             autor_id=OUTRO_DIRETOR["id"],
             criado_em="2026-10-15T10:00:00Z",
             github_issue_numero=912,
-            github_foto={"numero": 912, "url": "https://github.com/pedrorezendefig/hospital-reunioes/issues/912"},
+            github_foto={"numero": 912, "url": "https://github.com/Vitta-Share/hospital-reunioes/issues/912"},
             etapa="em_desenvolvimento",
         ),
     ]
@@ -133,7 +133,7 @@ class TestListaDoDesenvolvedor:
         por_id = {d["id"]: d for d in client.get(TODAS).json()}
 
         assert por_id["d-outro"]["issue_numero"] == 912
-        assert por_id["d-outro"]["issue_url"] == "https://github.com/pedrorezendefig/hospital-reunioes/issues/912"
+        assert por_id["d-outro"]["issue_url"] == "https://github.com/Vitta-Share/hospital-reunioes/issues/912"
         assert por_id["d-diretor"]["issue_numero"] is None
         assert por_id["d-diretor"]["issue_url"] is None
 
@@ -149,7 +149,7 @@ class TestListaDoDesenvolvedor:
         assert item["tem_vinculo"] is True
         assert item["raiz_numero"] == 912
         assert item["issue_numero"] == 912
-        assert item["issue_url"] == "https://github.com/pedrorezendefig/hospital-reunioes/issues/912"
+        assert item["issue_url"] == "https://github.com/Vitta-Share/hospital-reunioes/issues/912"
 
     def test_o_diretor_ve_o_numero_da_demanda_e_o_da_issue_lado_a_lado(self, monkeypatch):
         client, _, _ = _cenario(

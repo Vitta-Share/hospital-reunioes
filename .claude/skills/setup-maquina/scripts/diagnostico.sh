@@ -116,7 +116,7 @@ DENY
       falta "autoMode.$secao: $rotulo" "descreva $rotulo ($termo) em autoMode.$secao do ~/.claude/settings.json (docs/onboarding/claude-setup.md seção 5.1): $porque"
     fi
   done <<'AUTO'
-environment|repositório|pedrorezendefig/hospital-reunioes
+environment|repositório|vitta-share/hospital-reunioes
 environment|Coolify|coolify
 allow|fechar_onda.py|fechar_onda.py
 allow|minhas_issues.py|minhas_issues.py
@@ -166,7 +166,7 @@ eh_admin() { # quem roda é admin: o papel no repo ou, com o token fine-grained,
 admin_responde() { # rotulo conserto comando... -> FALTA se o comando lê as deploy keys
   local rotulo="$1" conserto="$2" erro
   shift 2
-  if erro="$("$@" api repos/pedrorezendefig/hospital-reunioes/keys --silent 2>&1 >/dev/null)"; then
+  if erro="$("$@" api repos/Vitta-Share/hospital-reunioes/keys --silent 2>&1 >/dev/null)"; then
     falta "$rotulo" "$conserto"
   else
     case "$erro" in

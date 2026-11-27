@@ -4,7 +4,7 @@
 // data, hora e observação vêm do último comentário com o marcador <!-- validacao-diretor -->.
 // Sem a label, o plano não está validado, mesmo com comentário antigo: a validação vale só
 // para a versão que o diretor viu.
-const REPO = 'pedrorezendefig/hospital-reunioes';
+const REPO = 'Vitta-Share/hospital-reunioes';
 const LABEL = 'validado:diretor';
 const MARCADOR = /<!-- validacao-diretor: (\S+) -->/;
 const DE_DENTRO = ['OWNER', 'MEMBER', 'COLLABORATOR'];

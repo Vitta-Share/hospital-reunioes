@@ -108,7 +108,7 @@ def test_validar_com_codigo_certo_grava_label_e_comentario_com_marcador():
     label, comentario = r["chamadas"][0], r["chamadas"][-1]
     assert label["method"] == "POST"
     assert label["url"].endswith(
-        "/repos/pedrorezendefig/hospital-reunioes/issues/1757/labels"
+        "/repos/Vitta-Share/hospital-reunioes/issues/1757/labels"
     )
     assert label["body"] == {"labels": ["validado:diretor"]}
     assert comentario["method"] == "POST"
@@ -166,7 +166,7 @@ def test_observacao_abre_ajuste_do_plano_que_bloqueia_so_as_fatias_iniciais():
     )
     assert r["status"] == 200 and r["resposta"]["ok"] is True
 
-    [card] = _chamadas(r, "POST", "/repos/pedrorezendefig/hospital-reunioes/issues")
+    [card] = _chamadas(r, "POST", "/repos/Vitta-Share/hospital-reunioes/issues")
     assert card["body"]["labels"] == ["ready-for-human"]
     assert card["body"]["assignees"] == ["pedrorezendefig"]
     assert card["body"]["title"].startswith("Ajuste do plano")
@@ -250,7 +250,7 @@ def test_com_observacao_o_ajuste_leva_o_que_o_diretor_escreveu_sem_chamar_o_app(
         "> \n"
         "> E o painel abre na escala, @\u200bfulano."
     )
-    [card] = _chamadas(r, "POST", "/repos/pedrorezendefig/hospital-reunioes/issues")
+    [card] = _chamadas(r, "POST", "/repos/Vitta-Share/hospital-reunioes/issues")
     assert "## O que o diretor quer mudar\n\n" + citado + "\n\n" in card["body"]["body"]
     assert "Tópico que o app inventou." not in card["body"]["body"]
 
@@ -267,8 +267,8 @@ def test_sem_a_chave_do_app_a_validacao_com_observacao_e_igual():
     )
     sem = _validar({"prd": 1757, "c": _hmac(1757), "observacao": OBSERVACAO}, SUB_ISSUES)
     assert _chamadas_ao_app(sem) == []
-    [card_com] = _chamadas(com, "POST", "/repos/pedrorezendefig/hospital-reunioes/issues")
-    [card_sem] = _chamadas(sem, "POST", "/repos/pedrorezendefig/hospital-reunioes/issues")
+    [card_com] = _chamadas(com, "POST", "/repos/Vitta-Share/hospital-reunioes/issues")
+    [card_sem] = _chamadas(sem, "POST", "/repos/Vitta-Share/hospital-reunioes/issues")
     assert card_com["body"]["body"] == card_sem["body"]["body"]
 
 
@@ -801,7 +801,7 @@ def bin_falso(tmp_path):
         'case "$*" in\n'
         f'  *"/labels --jq"*) [ -f "{tem_label}" ] && echo "validado:diretor"; echo "type:feature" ;;\n'
         f'  "api -X PATCH "*) for a; do ultimo="$a"; done; cp "$ultimo" "{prd}" ;;\n'
-        f'  "api repos/pedrorezendefig/hospital-reunioes/issues/1757") cat "{prd}" ;;\n'
+        f'  "api repos/Vitta-Share/hospital-reunioes/issues/1757") cat "{prd}" ;;\n'
         "esac\n",
         encoding="utf-8",
     )
@@ -851,7 +851,7 @@ def test_republicar_tira_a_label_validado_antes_do_deploy(bin_falso, mac):
     r, log = _publicar(bin_falso, mac)
     tira = next(i for i, x in enumerate(log) if x.startswith("gh api -X DELETE"))
     assert log[tira].endswith(
-        "repos/pedrorezendefig/hospital-reunioes/issues/1757/labels/validado:diretor"
+        "repos/Vitta-Share/hospital-reunioes/issues/1757/labels/validado:diretor"
     )
     sobe = next(i for i, x in enumerate(log) if x.startswith("npx"))
     assert tira < sobe
@@ -893,7 +893,7 @@ def test_publicar_grava_o_marcador_depois_do_deploy_e_republicar_nao_duplica(
     grava = next(i for i, x in enumerate(log) if x.startswith("gh api -X PATCH"))
     assert sobe < grava
     assert log[grava].startswith(
-        "gh api -X PATCH repos/pedrorezendefig/hospital-reunioes/issues/1757 --input"
+        "gh api -X PATCH repos/Vitta-Share/hospital-reunioes/issues/1757 --input"
     )
     # Só acrescenta o marcador no fim: nenhum outro byte do corpo muda.
     assert _corpo(bin_falso) == CORPO_DO_PRD + "\n" + MARCADOR_1757 + "\n"

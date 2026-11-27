@@ -208,10 +208,10 @@ describe("O Documento do card", () => {
   });
 
   it("o Desenvolvedor vê o número e o link da issue", () => {
-    montar({ ...VINCULADA, issue_numero: 912, issue_url: "https://github.com/pedrorezendefig/hospital-reunioes/issues/912" });
+    montar({ ...VINCULADA, issue_numero: 912, issue_url: "https://github.com/Vitta-Share/hospital-reunioes/issues/912" });
 
     const link = within(documento()).getByRole("link", { name: "#912" });
-    expect(link.getAttribute("href")).toBe("https://github.com/pedrorezendefig/hospital-reunioes/issues/912");
+    expect(link.getAttribute("href")).toBe("https://github.com/Vitta-Share/hospital-reunioes/issues/912");
   });
 
   it("o diretor vê o Número da Demanda no topo, sem cerquilha (issue #1585)", () => {
@@ -227,7 +227,7 @@ describe("O Documento do card", () => {
       ...VINCULADA,
       numero: 42,
       issue_numero: 912,
-      issue_url: "https://github.com/pedrorezendefig/hospital-reunioes/issues/912",
+      issue_url: "https://github.com/Vitta-Share/hospital-reunioes/issues/912",
     });
 
     const topo = documento().firstElementChild as HTMLElement;
@@ -251,7 +251,7 @@ describe("O Documento do card", () => {
       numero: 42,
       raiz_numero: 912,
       issue_numero: 912,
-      issue_url: "https://github.com/pedrorezendefig/hospital-reunioes/issues/912",
+      issue_url: "https://github.com/Vitta-Share/hospital-reunioes/issues/912",
     });
 
     const topo = documento().firstElementChild as HTMLElement;
@@ -417,7 +417,7 @@ describe("O Copiar link do Documento do card", () => {
       "em_producao",
       "nao_sera_feita",
     ];
-    const doDesenvolvedor = { issue_numero: 912, issue_url: "https://github.com/pedrorezendefig/hospital-reunioes/issues/912" };
+    const doDesenvolvedor = { issue_numero: 912, issue_url: "https://github.com/Vitta-Share/hospital-reunioes/issues/912" };
     for (const etapa of etapas) {
       for (const extra of [{}, doDesenvolvedor]) {
         montar({ ...VINCULADA, ...extra, etapa, numero: 42 });
@@ -526,7 +526,7 @@ describe("O plano validado e o Ajuste do plano (issue #1915)", () => {
   });
 
   it("o Desenvolvedor vê o número do Ajuste com o link na faixa", () => {
-    const url = "https://github.com/pedrorezendefig/hospital-reunioes/issues/1911";
+    const url = "https://github.com/Vitta-Share/hospital-reunioes/issues/1911";
     montar({ ...DO_1757, ajuste_numero: 1911, ajuste_url: url });
 
     const faixa = within(documento()).getByRole("status", { name: TITULO_AJUSTE_DO_PLANO });

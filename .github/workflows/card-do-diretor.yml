@@ -5,8 +5,10 @@
 # (repo de conta pessoal não tem papel Triage; todo colaborador é Write). Sem acesso,
 # ele não consegue pôr label nem dono. Esta Action faz isso por ele: quando a issue
 # abre por um login da variável DIRETOR_LOGINS (lista separada por vírgula), põe
-# needs-triage + origem:diretor e, se a issue nasceu sem dono, designa o dono do
-# repositório, que faz o grill técnico (/grill-with-docs #N).
+# needs-triage + origem:diretor e, se a issue nasceu sem dono, designa o Pedro
+# (pedrorezendefig), que faz o grill técnico (/grill-with-docs #N). O dono do
+# repositório é a organização Vitta-Share desde a issue #2303, e organização não
+# pode ser designada: por isso o login vai fixo.
 #
 # Desde a ADR 0113 (decisão 2) o diretor é colaborador e pode abrir o card já no nome
 # de quem vai desenvolver: a Action relê os assignees e mantém esse dono. A
@@ -34,6 +36,7 @@ jobs:
         with:
           script: |
             const { owner, repo } = context.repo;
+            const socio = 'pedrorezendefig';
             const issue_number = context.payload.issue.number;
             const autor = context.payload.issue.user.login.toLowerCase();
             const diretores = process.env.DIRETOR_LOGINS.split(',')
@@ -51,5 +54,5 @@ jobs:
               core.info(`#${issue_number}: card do diretor, já tem dono: ${atual.assignees.map((a) => a.login).join(', ')}`);
               return;
             }
-            await github.rest.issues.addAssignees({ owner, repo, issue_number, assignees: [owner] });
-            core.info(`#${issue_number}: card do diretor, needs-triage + origem:diretor, dono ${owner}`);
+            await github.rest.issues.addAssignees({ owner, repo, issue_number, assignees: [socio] });
+            core.info(`#${issue_number}: card do diretor, needs-triage + origem:diretor, dono ${socio}`);

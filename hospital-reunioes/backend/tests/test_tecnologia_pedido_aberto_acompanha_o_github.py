@@ -40,7 +40,7 @@ from app.services import tecnologia_email, tecnologia_perguntas  # noqa: E402
 AGORA = datetime(2026, 11, 21, 15, 0, tzinfo=UTC)
 DEMANDA = "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
 CARD = 1961
-REPO = "pedrorezendefig/hospital-reunioes"
+REPO = "Vitta-Share/hospital-reunioes"
 SEGREDO = "segredo-falso-de-teste-2281"
 
 PEDRO = _pessoa("P001", "Pedro Rezende", github_login="pedrorezendefig")
