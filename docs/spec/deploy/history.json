@@ -2,6 +2,54 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-27T02:11:07-03:00",
+      "sha": "2cfd7b685dca12305799d8885f9e4d1d3dd1384a",
+      "app_version": "0.394.0",
+      "subject": "Onda nsp-rt-onda2: O Responsável técnico assina o Ato, o Regimento e o Plano",
+      "raw_subject": "chore(deploy): registro da onda nsp-rt-onda2 (#2325)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        2247
+      ],
+      "result": "healthy",
+      "duration_seconds": 264,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp-rt-onda2: PR #2325 (issue #2250), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 23,
+          "frontend": 229
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-27T01:44:49-03:00",
       "sha": "3575805acba9068a7739a1773b235e4314a54755",
       "app_version": "0.393.0",
