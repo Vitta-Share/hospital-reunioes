@@ -53,9 +53,6 @@ TIPO_DA_CLASSIFICACAO: dict[str, str] = {"bug": "defeito", "melhoria": "novo"}
 CLASSIFICACAO_DO_TIPO: dict[str, str] = {tipo: c for c, tipo in TIPO_DA_CLASSIFICACAO.items()}
 
 
-RECUO_DA_CONTINUACAO = "    "
-
-
 def instante_do_banco(valor: str | None) -> datetime | None:
     """O `TIMESTAMPTZ` do PostgREST como `datetime` consciente de fuso.
 
@@ -73,33 +70,6 @@ def instante_do_banco(valor: str | None) -> datetime | None:
     except ValueError:
         return None
     return lido if lido.tzinfo else lido.replace(tzinfo=UTC)
-
-
-def recuar_continuacao(bloco: str) -> str:
-    r"""As linhas depois da primeira entram recuadas.
-
-    E o que impede um texto de varias linhas de derramar no nivel de cima e
-    passar por moldura do prompt: a segunda linha de uma fala que diga
-    "--- fim do kit ---" sai com quatro espacos na frente, e a marca que fecha
-    a cerca continua sendo a unica que comeca na coluna zero.
-
-    **Linha e o que o `splitlines()` diz que e linha** (issue #770). Com
-    `split("\n")`, um `\r`, `\x0c` ou `\u2028` no corpo de uma issue nao virava
-    linha aqui e escapava do recuo, mas virava linha para quem LE o prompt, e
-    a marca de fim voltava para a coluna zero. O criterio e o proprio
-    `splitlines()`, e nao uma tabela de caracteres: tabela e enumeracao, e foi
-    enumeracao que divergiu do detector no PR #751. A saida so tem `\n`.
-
-    A normalizacao mora AQUI, e nao em quem chama, porque esta funcao e o
-    gargalo de todas as cercas do prompt (o `_cercar` do assistente, o kit e a
-    conversa do chat). O `splitlines()` descarta a linha vazia final de um
-    `"a\n"`, que o `split` mantinha como uma linha so de recuo.
-
-    Docstring cru (prefixo `r`) de proposito: os separadores citados aqui nao
-    podem virar quebra de verdade dentro dele.
-    """
-    primeira, *resto = bloco.splitlines() or [""]
-    return "\n".join([primeira, *(f"{RECUO_DA_CONTINUACAO}{linha}" for linha in resto)])
 
 
 def versao_da_entrega(demanda: dict[str, Any]) -> str | None:

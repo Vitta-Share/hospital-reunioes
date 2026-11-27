@@ -567,8 +567,8 @@ def frase_dos_anexos(imagens: int, documentos: int = 0) -> str | None:
 #    apontaria a issue nova para outra Demanda, e nada quebraria. Vale igual
 #    para o `<!-- revisor-app -->`, que acende a `revisor-comentou` na Action, e
 #    para o `<!-- automacao -->`, que a faz calar.
-# 2. **A primeira coluna e do backend.** E a mesma disciplina das cercas do
-#    prompt (`recuar_continuacao`, no `tecnologia.py`), pela mesma razao: cabecalho
+# 2. **A primeira coluna e do backend.** E a mesma disciplina que as cercas do
+#    prompt da aba tinham (ate a issue #2308), pela mesma razao: cabecalho
 #    e separador so valem no comeco da linha, e e por eles que o corpo se
 #    divide entre o que e do diretor e o que e da Vitta. Um "## Origem" digitado
 #    na descricao fabricaria uma segunda secao dizendo que quem pediu foi outra

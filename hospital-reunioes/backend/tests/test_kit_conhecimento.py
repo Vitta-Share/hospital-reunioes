@@ -2,7 +2,7 @@
 
 Este arquivo cuida do KIT: os nove `.md` de `app/conhecimento/`, o que pode e o
 que nao pode estar escrito neles, e a prova de que os nove chegam ao prompt do
-chat. O teste da ROTA (gate, tetos, normalizacao do rascunho, cerca) vive em
+Assistente do app. O teste da ROTA (gate, tetos, normalizacao do rascunho, cerca) vive em
 `test_assistente_tecnologia.py`.
 
 Os dois ficam separados de proposito: o kit e um documento curado por gente e
@@ -19,7 +19,6 @@ from __future__ import annotations
 import os
 import re
 import sys
-import textwrap
 from pathlib import Path
 
 import pytest
@@ -28,7 +27,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
 from app.limiter import limiter  # noqa: E402
-from app.services import assistente_tecnologia  # noqa: E402
 from app.services.conhecimento import CONHECIMENTO_DIR, carregar_kit  # noqa: E402
 
 MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "supabase" / "migrations"
@@ -64,16 +62,6 @@ def _reset_rate_limiter():
     limiter._storage.reset()
     yield
     limiter._storage.reset()
-
-
-@pytest.fixture(autouse=True)
-def _llm_em_mock(monkeypatch):
-    """O pytest carrega o `.env` real (chave de PROD). Sem isto, o teste que
-    sobe a rota bateria no provedor de verdade."""
-    from app.services import ai_processor
-
-    monkeypatch.setattr(ai_processor, "_llm_provider", lambda: "mock")
-    yield
 
 
 def _texto(nome: str) -> str:
@@ -238,53 +226,73 @@ class TestOsDetectoresMordem:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 3. Os nove arquivos chegam ao prompt da IA da aba
+# 3. Os nove arquivos chegam ao prompt do Assistente do app
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+# O cabecalho com que o Assistente do app abre o kit no material do prompt.
+CABECALHO_DO_KIT = "# Kit de conhecimento"
+
+
 def _prompt_de_um_turno(monkeypatch) -> str:
-    """O `system` que a porta da IA da aba monta para o Envio aos
-    desenvolvedores, a chamada que sobrou depois que o chat saiu (issue #2279).
+    """O `system` que a rota do Assistente do app manda para a Anthropic num
+    turno, a unica chamada do app que leva o kit desde que o Envio aos
+    desenvolvedores saiu da ponte (issue #2281). Ate a issue #2308 este teste
+    lia o prompt do Envio.
 
-    O kit vai no bloco fixo do sistema (ADR 0077, decisao 9, com o
-    `cache_control`), e e de la que o teste o le. O kit e lido do disco pelo
-    backend (`carregar_kit`), e nao passado pelo teste.
+    A rota roda de verdade, sem pagina do Manual, e o cliente da Anthropic e o
+    `ClienteFalso`, que guarda o que sairia. O kit e lido do disco pelo
+    backend (`carregar_kit`, dentro da rota), e nao passado pelo teste.
     """
-    from app.services import planejamento_demanda, tecnologia_envio_aos_desenvolvedores
+    from anthropic_apoio import ClienteFalso
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
 
-    blocos = planejamento_demanda.bloco_fixo(carregar_kit(), tecnologia_envio_aos_desenvolvedores.PROMPT_DO_ENVIO)
-    return "\n".join(bloco["text"] for bloco in blocos)
+    from app.dependencies import get_current_user
+    from app.routers import assistente_do_app as assistente_router
+    from app.services import assistente_do_app
+
+    falso = ClienteFalso("Resposta do assistente.")
+    monkeypatch.setattr(assistente_do_app, "_cliente", lambda: falso)
+    app = FastAPI()
+    app.state.limiter = limiter
+    app.include_router(assistente_router.router, prefix="/api")
+
+    async def _usuario() -> dict:
+        return {"id": "auth-P23080", "email": "p23080@exemplo.test", "metadata": {}}
+
+    app.dependency_overrides[get_current_user] = _usuario
+    resposta = TestClient(app).post(
+        "/api/assistente-do-app/conversa",
+        json={"mensagens": [{"role": "user", "content": "Como eu abro um card?"}], "paginas_do_manual": []},
+    )
+    assert resposta.status_code == 200
+    [chamada] = falso.chamadas
+    return "\n".join(bloco["text"] for bloco in chamada["system"])
 
 
 def _secoes_do_kit(prompt: str) -> dict[str, str]:
-    """O prompt fatiado pelos cabecalhos que o carregador escreve.
+    """O prompt fatiado pelos cabecalhos que o carregador escreve, so do
+    cabecalho do kit em diante.
 
-    O corte na marca de FIM do kit nao e detalhe. `tecnologia.md` e o ultimo em
-    ordem alfabetica, entao sem ele a fatia do ultimo arquivo engole tudo o que
-    vem depois no prompt (as regras de leitura do codigo, por exemplo): seria
-    uma asserção que passa a medir o resto do prompt sem ninguem ter mexido
-    nela.
+    O corte no cabecalho do kit nao e detalhe: antes dele vem o Manual, e uma
+    pagina que tivesse uma linha `# site.md` viraria secao do kit aqui. Prompt
+    sem o cabecalho volta sem secao nenhuma, e o teste reprova com o arquivo
+    que faltou, em vez de medir o prompt inteiro.
     """
-    prompt = prompt.split(assistente_tecnologia.MARCA_FIM_KIT)[0]
+    _, cabecalho_do_kit, kit = prompt.partition(CABECALHO_DO_KIT)
+    if not cabecalho_do_kit:
+        return {}
     secoes: dict[str, str] = {}
     atual: str | None = None
-    for linha in prompt.splitlines():
-        cabecalho = re.fullmatch(r"\s*# ([a-z0-9-]+\.md)\s*", linha)
+    for linha in kit.splitlines():
+        cabecalho = re.fullmatch(r"# ([a-z0-9-]+\.md)", linha)
         if cabecalho:
             atual = cabecalho.group(1)
             secoes[atual] = ""
         elif atual is not None:
             secoes[atual] += linha + "\n"
-    # Tira o recuo que o BACKEND pos, e so ele: `dedent` remove o branco comum
-    # a todas as linhas, entao o recuo interno do proprio texto (uma lista
-    # aninhada, por exemplo) sobrevive.
-    #
-    # Sem isto o piso mediria caractere que o arquivo nao tem. O recuo de
-    # `recuar_continuacao` acrescenta quatro caracteres por linha, o que da de
-    # +116 a +276 por arquivo neste kit: `site.md` cortado para 790 caracteres
-    # reprovaria no teste de disco e passaria aqui, e o piso estaria medindo a
-    # moldura em vez do material.
-    return {nome: textwrap.dedent(corpo) for nome, corpo in secoes.items()}
+    return secoes
 
 
 class TestNoveArquivosNoPrompt:
@@ -294,7 +302,7 @@ class TestNoveArquivosNoPrompt:
 
     def test_o_carregador_ve_os_nove_arquivos(self):
         """Mutante: apagar um `.md` da pasta."""
-        assert sorted(_secoes_do_kit(carregar_kit())) == sorted(ARQUIVOS_DO_KIT)
+        assert sorted(_secoes_do_kit(f"{CABECALHO_DO_KIT}\n\n{carregar_kit()}")) == sorted(ARQUIVOS_DO_KIT)
 
     @pytest.mark.parametrize("arquivo", ARQUIVOS_DO_KIT)
     def test_o_arquivo_chega_ao_prompt_com_o_cabecalho_e_com_o_texto(self, secoes, arquivo):
@@ -307,31 +315,32 @@ class TestNoveArquivosNoPrompt:
         assert arquivo in secoes
         assert len(secoes[arquivo].strip()) >= PISO_DE_TAMANHO
 
-    def test_o_fatiador_para_na_marca_de_fim_do_kit(self):
-        """Mutante no proprio detector: tirar o corte faz a fatia do ULTIMO
-        arquivo engolir o resto do prompt, e a asserção de tamanho acima passa
-        a medir o resto do prompt em vez do material."""
+    def test_o_fatiador_comeca_no_cabecalho_do_kit(self):
+        """Mutante no proprio detector: tirar o corte faz uma linha `# site.md`
+        de uma pagina do Manual, que vem antes do kit, virar secao do kit, e o
+        arquivo que sumiu do kit passa aqui pelo texto do Manual."""
         prompt = "\n".join(
             [
-                "    # tecnologia.md",
-                "    material do arquivo",
-                assistente_tecnologia.MARCA_FIM_KIT,
-                "o que vem depois do kit no prompt",
+                "## Manual: Tecnologia",
+                "# site.md",
+                "texto da pagina do Manual",
+                CABECALHO_DO_KIT,
+                "",
+                "# tecnologia.md",
+                "material do arquivo",
             ]
         )
-        assert "depois do kit" not in _secoes_do_kit(prompt)["tecnologia.md"]
+        assert sorted(_secoes_do_kit(prompt)) == ["tecnologia.md"]
 
-    def test_o_fatiador_devolve_o_texto_sem_o_recuo_do_backend(self):
-        """Mutante no proprio detector: tirar o `dedent` faz o piso contar
-        quatro caracteres de moldura por linha, e um arquivo curto demais passa
-        aqui por causa do recuo, nao do material."""
-        prompt = "    # site.md\n    uma linha\n    outra linha\n"
-        assert _secoes_do_kit(prompt)["site.md"] == "uma linha\noutra linha\n"
+    def test_o_fatiador_sem_o_cabecalho_do_kit_nao_devolve_secao(self):
+        """Mutante no proprio detector: um prompt que perdeu o cabecalho do kit
+        nao pode ser fatiado inteiro, senao o teste mede o prompt todo."""
+        assert _secoes_do_kit("# site.md\numa linha\n") == {}
 
     def test_o_fatiador_nao_inventa_secao(self):
         """Mutante no proprio detector: se `_secoes_do_kit` casasse qualquer
         linha, o teste acima passaria com o prompt errado."""
-        assert _secoes_do_kit("# titulo de gente\ntexto\n") == {}
+        assert _secoes_do_kit(f"{CABECALHO_DO_KIT}\n# titulo de gente\ntexto\n") == {}
 
 
 # ═══════════════════════════════════════════════════════════════════════════
