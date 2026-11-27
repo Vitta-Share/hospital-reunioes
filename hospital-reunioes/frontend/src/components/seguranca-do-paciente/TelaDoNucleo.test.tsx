@@ -111,3 +111,50 @@ describe("a faixa do Termo de Adesão", () => {
     expect(urls).toEqual([]);
   });
 });
+
+/**
+ * O link de voltar no alto da tela (issue #2249, PRD #2247): o mesmo do
+ * Contas médicas, ícone de seta e texto, para um endereço fixo, que funciona
+ * na tela aberta por link de e-mail, sem histórico no navegador.
+ */
+describe("o link de voltar", () => {
+  function telaCom(voltar?: { href: string; texto: string } | null) {
+    entrar(["ver_modulo", "documentos"]);
+    return render(
+      <TelaDoNucleo titulo="Documentos" orientacao="Os documentos." recurso="documentos" voltar={voltar}>
+        <p>Conteúdo liberado</p>
+      </TelaDoNucleo>
+    );
+  }
+
+  it("por padrão leva à Visão geral do Núcleo, com a seta e o texto sem seta", () => {
+    telaCom();
+
+    const link = screen.getByRole("link", { name: "Núcleo de Segurança do Paciente" });
+    expect(link.getAttribute("href")).toBe("/seguranca-do-paciente");
+    expect(link.querySelector("svg")).not.toBeNull();
+    expect(link.textContent!.trim()).toBe("Núcleo de Segurança do Paciente");
+  });
+
+  it("o destino trocado muda o endereço e o texto", () => {
+    telaCom({ href: "/seguranca-do-paciente/notificacoes", texto: "Notificações" });
+
+    const link = screen.getByRole("link", { name: "Notificações" });
+    expect(link.getAttribute("href")).toBe("/seguranca-do-paciente/notificacoes");
+    expect(screen.queryByRole("link", { name: "Núcleo de Segurança do Paciente" })).toBeNull();
+  });
+
+  it("sem destino, a tela não mostra o link", () => {
+    telaCom(null);
+
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("a tela bloqueada também mostra o link", () => {
+    entrar(["ver_modulo"]);
+    meuTermo = { pendente: false, documento_url: null };
+    tela();
+
+    expect(screen.getByRole("link", { name: "Núcleo de Segurança do Paciente" })).toBeTruthy();
+  });
+});
