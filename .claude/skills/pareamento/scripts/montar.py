@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Monta a página do pareamento a partir do estado.json e do descricoes.json.
+"""Junta o estado.json com o descricoes.json nos dados da Ala Pareamento e imprime o resumo.
 
-Junta o estado coletado com as descrições funcionais, calcula as filas de bloqueio
-(o que solta o quê) e grava `pareamento.html` na pasta do pareamento, pronto para
-publicar como Artifact. O corpo das issues não vai para a página.
+Junta o estado coletado com as descrições funcionais e calcula as filas de bloqueio (o que
+solta o quê). A Ala Pareamento do PedroOS lê esses dados pelo acao.py; este script confere
+que toda descrição existe e imprime o resumo da rodada no terminal. O corpo das issues
+não sai daqui.
 
 Uso: python3 .claude/skills/pareamento/scripts/montar.py [--pasta DIR]
 """
@@ -20,9 +21,9 @@ AQUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(AQUI))
 import acoes  # noqa: E402
 
-MODELO = AQUI.parent / "references" / "modelo.html"
 RAIZ = Path(__file__).resolve().parents[4]
 PASTA = RAIZ / "local" / "pareamento"
+ALA = "http://localhost:4400/#/ala/pareamento"
 CAMPOS = ("para_que_serve", "o_que_muda", "como_acaba", "por_que_com_quem", "proximo", "proximo_porque")
 
 
@@ -150,12 +151,6 @@ def resumo(estado: dict) -> str:
     return "\n\n".join(partes)
 
 
-def html(dados: dict) -> str:
-    modelo = MODELO.read_text(encoding="utf-8")
-    bruto = json.dumps(dados, ensure_ascii=False).replace("</", "<\\/").replace("<!--", "<\\!--")
-    return modelo.replace("/*DADOS*/null", bruto)
-
-
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--pasta", type=Path, default=PASTA)
@@ -165,11 +160,8 @@ def main() -> int:
     descricoes = json.loads(arq.read_text(encoding="utf-8")) if arq.exists() else {}
     arq_p = args.pasta / "passagens.json"
     passagens = json.loads(arq_p.read_text(encoding="utf-8")) if arq_p.exists() else {}
-    dados, sem = dados_da_pagina(estado, descricoes, passagens)
-    saida = args.pasta / "pareamento.html"
-    saida.write_text(html(dados), encoding="utf-8")
-    print(f"página: {saida}")
-    print(f"painel local: python3 {Path(__file__).with_name('painel.py')} --fundo")
+    _, sem = dados_da_pagina(estado, descricoes, passagens)
+    print(f"Ala Pareamento: {ALA}")
     if sem:
         print(f"atenção: {len(sem)} cards sem descrição: {', '.join(sem)}")
     print()

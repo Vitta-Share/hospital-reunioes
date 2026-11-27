@@ -297,7 +297,7 @@ def main() -> int:
         "cards": cards,
     }
     (args.pasta / "estado.json").write_text(json.dumps(estado, ensure_ascii=False, indent=1), encoding="utf-8")
-    # O que o painel fez vale para a coleta anterior: a nova já vê o card passado e o bloqueio gravado.
+    # O que a Ala fez vale para a coleta anterior: a nova já vê o card passado e o bloqueio gravado.
     (args.pasta / "feitos.json").unlink(missing_ok=True)
 
     arq_desc = args.pasta / "descricoes.json"

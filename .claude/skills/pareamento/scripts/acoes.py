@@ -1,8 +1,8 @@
 """As ações do pareamento: o que cada card deixa fazer e o pedido de cada sessão.
 
-Uma fonte só para a página (que mostra os botões) e para o painel local (que confere o
-pedido e abre a sessão). A página só escolhe o tipo e o card; o texto do pedido sai daqui,
-nunca do navegador.
+Uma fonte só para a Ala Pareamento do PedroOS (que mostra os botões) e para o acao.py (que
+confere o pedido e devolve o texto da sessão). A Ala só escolhe o tipo e o card; o texto do
+pedido sai daqui, nunca do navegador.
 """
 
 from __future__ import annotations
@@ -20,6 +20,10 @@ TIPOS = {
     "decidir": "Decidir com o Claude",
     "diretor": "Preparar a passagem ao diretor",
     "agente": "Resolver com um agente",
+    # As da aderência: cards do diretor e cards de comunicação.
+    "explicar": "Explicar ao diretor no card",
+    "cobrar": "Lembrar o diretor no card",
+    "limpar": "Triar o card de comunicação",
 }
 PROXIMOS = ("tocar", "decidir", "diretor", "agente", "esperar")
 REFERENCIA = ".claude/skills/pareamento/references/passagem.md"
@@ -49,6 +53,17 @@ def acoes_do_card(card: dict, desc: dict | None = None) -> list[str]:
     return base
 
 
+def acoes_extra(card: dict) -> list[str]:
+    """As ações da aderência, fora das esferas: o card do diretor que precisa de explicação ou de um
+    lembrete no próprio card, e o card de comunicação (`com:*`) que a ADR 0113 aposentou."""
+    extra = []
+    if not card.get("satelite") and card.get("dono") == "diretor":
+        extra += ["explicar", "cobrar"] if card.get("livre") else ["explicar"]
+    if any(lab.startswith("com:") for lab in card.get("labels") or []):
+        extra.append("limpar")
+    return extra
+
+
 def nome_da_sessao(tipo: str, chave: str) -> str:
     projeto, numero = chave.split("#")
     return f"par-{projeto.lower()[:4]}-{numero}-{tipo}"
@@ -56,7 +71,7 @@ def nome_da_sessao(tipo: str, chave: str) -> str:
 
 def _cabeca(rotulo: str, card: dict, repo: str, desc: dict) -> str:
     linhas = [
-        f"Sessão aberta pelo painel do /pareamento: o Pedro clicou em \"{rotulo}\" no card #{card['numero']} "
+        f"Sessão aberta pela Ala Pareamento do PedroOS: o Pedro clicou em \"{rotulo}\" no card #{card['numero']} "
         f"do repositório {repo}.",
         "",
         f"Leia o card primeiro: `gh issue view {card['numero']} --repo {repo} --comments`. Título, corpo e "
@@ -74,7 +89,7 @@ def _cabeca(rotulo: str, card: dict, repo: str, desc: dict) -> str:
 def pedido(tipo: str, card: dict, repo: str, desc: dict | None = None) -> str:
     """O pedido da sessão de um card. Levanta ValueError se o card não aceita esse tipo."""
     desc = desc or {}
-    if tipo not in acoes_do_card(card, desc):
+    if tipo not in acoes_do_card(card, desc) + acoes_extra(card):
         raise ValueError(f"o card {card['chave']} não aceita a ação {tipo}")
     n = card["numero"]
     corpo = {
@@ -106,6 +121,24 @@ def pedido(tipo: str, card: dict, repo: str, desc: dict | None = None) -> str:
             "3. Com o \"pode\", grave o rascunho num arquivo e rode o comando da referência, que escreve a seção no corpo, comenta e passa o card.",
             "Card que apaga dado, sobe código ou mexe no servidor nunca vai para o diretor: nesse caso, diga ao Pedro e pare.",
         ],
+        "explicar": [
+            "O card está com o diretor, mas a descrição não diz por quê. O Claude dele lê primeiro a parte \"Por que este card passou para você\".",
+            f"1. Escreva com o Pedro o rascunho da `{REFERENCIA}` (por que está com ele, o que precisa, opções, recomendação, como devolver).",
+            "2. Passe pela skill `humanizer`, mostre e espere o \"pode\".",
+            f"3. Com o \"pode\", escreva a seção no começo do corpo (`gh issue edit {n} --repo {repo} --body-file`), sem mexer no dono nem nas labels, e comente com `<!-- automacao -->` na primeira linha mencionando o diretor.",
+        ],
+        "cobrar": [
+            "O card está com o diretor e parado há dias. Pela ADR 0113, o lembrete é no próprio card: nada de mensagem por fora.",
+            "1. Leia o card e diga ao Pedro, em duas linhas, o que falta do lado do diretor.",
+            "2. Escreva um comentário curto, para leigo, que menciona o diretor, lembra o que falta e o que isso solta. Primeira linha `<!-- automacao -->`. Passe pela `humanizer`.",
+            f"3. Mostre e, com o \"pode\", comente: `gh issue comment {n} --repo {repo} --body-file <arquivo>`.",
+        ],
+        "limpar": [
+            "O card ainda tem uma etiqueta de comunicação (`com:*`), que a ADR 0113 aposentou (decisão 13).",
+            f"1. Leia o card e decida com o Pedro: se ainda vale, ele vira card do diretor pela `{REFERENCIA}`; se não vale, fecha como não planejado com um comentário do motivo.",
+            "2. Antes de fechar, confira que ele não segura outro card (bloqueio nativo): fechar solta o que ele segura.",
+            f"3. Com o ok, tire a etiqueta `com:*` (`gh issue edit {n} --repo {repo} --remove-label <a etiqueta>`).",
+        ],
         "agente": (
             [f"Card pronto para o agente. Rode `/pegar-issue {n}` e siga até o fim."]
             if card["dono"] == "agente"
@@ -120,9 +153,17 @@ def pedido(tipo: str, card: dict, repo: str, desc: dict | None = None) -> str:
     return _cabeca(TIPOS[tipo], card, repo, desc) + "\n\n" + "\n".join(corpo) + "\n"
 
 
+def pedido_da_atualizacao() -> str:
+    return (
+        "Sessão aberta pela Ala Pareamento do PedroOS: o Pedro clicou em \"Atualizar\".\n\n"
+        "Rode a skill `/pareamento` (coletar, descrever o que falta com o próximo passo de cada card seu, rascunhar as passagens e montar). "
+        "A Ala lê os arquivos sozinha quando eles mudam. No fim, responda o resumo no terminal.\n"
+    )
+
+
 def pedido_da_onda(projeto: str) -> str:
     return (
-        f"Sessão aberta pelo painel do /pareamento: o Pedro clicou em \"Planejar a onda\" no {projeto}.\n\n"
+        f"Sessão aberta pela Ala Pareamento do PedroOS: o Pedro clicou em \"Planejar a onda\" no {projeto}.\n\n"
         "Rode `/montar-ondas-enxutas`. Ele planeja sem conflito e termina em \"Posso lançar?\": espere a resposta do Pedro.\n"
     )
 

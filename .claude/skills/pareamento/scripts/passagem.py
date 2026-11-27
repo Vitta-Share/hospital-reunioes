@@ -3,7 +3,7 @@
 
 Escreve no começo do corpo a seção "🔁 Por que este card passou para você", que o Claude
 do diretor lê quando ele pergunta "o que está no meu nome?" (`/setup-diretor`, Parte 11),
-comenta com a menção a ele e troca o dono e a label de estado. Quem chama é o painel local
+comenta com a menção a ele e troca o dono e a label de estado. Quem chama é a Ala Pareamento do PedroOS, pelo acao.py,
 (o botão Mandar ao diretor) ou a sessão de passagem, sempre depois do "pode" do Pedro.
 
 Rascunho (JSON): {"tipo": "needs-info" | "ready-for-human", "por_que": "...", "preciso": "...",

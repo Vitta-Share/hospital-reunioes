@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import re
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -173,29 +172,18 @@ def estado_exemplo(titulo="Card"):
     }
 
 
-def test_pagina_sem_corpo_com_descricao_e_aviso_de_faltante():
+def test_dados_sem_corpo_com_descricao_e_aviso_de_faltante():
     desc = {"Hospital#9": {"para_que_serve": "Serve para X.", "atualizado": "z"}}
     dados, sem = montar.dados_da_pagina(estado_exemplo(), desc)
-    pagina = montar.html(dados)
-    assert "SEGREDO" not in pagina
-    assert "Serve para X." in pagina
+    assert "SEGREDO" not in json.dumps(dados, ensure_ascii=False)
     assert sem == ["Hospital#1"]
-    m = re.search(r"const DADOS = (.*?);\n", pagina)
-    assert json.loads(m.group(1).replace("<\\/", "</"))["cards"]["Hospital#1"]["desc"]["para_que_serve"] == ""
+    assert dados["cards"]["Hospital#1"]["desc"]["para_que_serve"] == ""
 
 
-def test_titulo_malicioso_nao_fecha_o_script():
-    dados, _ = montar.dados_da_pagina(estado_exemplo("</script><script>alert(1)</script>"), {})
-    pagina = montar.html(dados)
-    assert pagina.count("</script>") == 1
-
-
-def test_modelo_sem_travessao_e_com_o_marcador():
-    modelo = (SKILL / "references" / "modelo.html").read_text(encoding="utf-8")
-    assert "/*DADOS*/null" in modelo
-    for arq in [SKILL / "SKILL.md", SKILL / "references" / "modelo.html"]:
+def test_skill_sem_travessao():
+    for arq in [SKILL / "SKILL.md", SKILL / "references" / "passagem.md"]:
         texto = arq.read_text(encoding="utf-8")
-        assert "—" not in texto and "–" not in texto, arq
+        assert chr(0x2014) not in texto and chr(0x2013) not in texto, arq
 
 
 def test_ask_pedro_cita_a_skill():
