@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Etiqueta do envelope</title>
+    <style>
+        {% if font_path %}
+        @font-face {
+            font-family: "HP Simplified";
+            src: url("{{ font_path }}") format("truetype");
+            font-weight: 400;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: "HP Simplified";
+            src: url("{{ font_path }}") format("truetype");
+            font-weight: 700;
+            font-style: normal;
+        }
+        {% endif %}
+
+        @page { size: A4; margin: 2cm 1.8cm; }
+
+        body {
+            font-family: "HP Simplified", sans-serif;
+            font-synthesis: weight style;
+            color: #1E293B;
+            line-height: 1.5;
+            margin: 0;
+            font-size: 12pt;
+        }
+
+        h1 { color: #2B2E7E; font-size: 20pt; text-transform: uppercase; margin: 0 0 6px 0; line-height: 1.15; }
+        .aviso { font-size: 13pt; font-weight: 700; text-transform: uppercase; border: 2px solid #1E293B; padding: 10px 12px; margin: 12px 0 18px 0; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; width: 32%; padding: 8px 10px; border: 1px solid #CBD5E1; background: #F1F5F9; font-weight: 700; vertical-align: top; }
+        td { padding: 8px 10px; border: 1px solid #CBD5E1; vertical-align: top; }
+        .protocolo { font-size: 16pt; font-weight: 700; }
+        .linha { border-bottom: 1px solid #1E293B; height: 26px; margin-bottom: 10px; }
+        .rotulo { font-size: 10pt; color: #475569; }
+        .lacre { border: 2px dashed #64748B; padding: 12px; margin-top: 18px; }
+    </style>
+</head>
+<body>
+    <h1>Canal de Conduta: documentos originais</h1>
+    <div class="aviso">Sigiloso. Abrir somente por membro do Comitê de Conduta</div>
+
+    <table>
+        <tr><th>Protocolo</th><td class="protocolo">{{ protocolo }}</td></tr>
+        <tr><th>Rito</th><td>{{ rito }}</td></tr>
+        <tr><th>Datas</th><td>Abertura: {{ aberto_em }}<br>Encerramento: {{ encerrado_em }}</td></tr>
+        <tr>
+            <th>Conteúdo</th>
+            <td>
+                {% for item in conteudo %}{{ item.tipo }}: {{ item.quantidade }}<br>{% else %}Nenhum original registrado{% endfor %}
+            </td>
+        </tr>
+        <tr><th>Guardar até</th><td>{{ guardar_ate }}</td></tr>
+    </table>
+
+    <div class="lacre">
+        <p><strong>Lacre</strong></p>
+        <p class="rotulo">Nome de quem lacrou</p>
+        <div class="linha"></div>
+        <p class="rotulo">Data</p>
+        <div class="linha"></div>
+        <p class="rotulo">Assinatura sobre o lacre</p>
+        <div class="linha"></div>
+    </div>
+</body>
+</html>

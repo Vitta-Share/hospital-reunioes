@@ -25,6 +25,7 @@ from app.services.conduta import (
     cifra,
     configuracoes,
     depoimentos,
+    guarda,
     impedimento,
     nota_ao_nucleo,
     protecao,
@@ -128,6 +129,8 @@ async def listar_casos(
 @router.get("/casos/{caso_id}")
 async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Client = Depends(get_supabase_client)):
     caso = aberto.caso
+    if caso.get("eliminado_em"):
+        return _caso_eliminado(supabase, aberto)
     try:
         relato = cifra.decifrar_texto(caso["relato_cifrado"])
         # Quem relatou com identificação (issue #1843): o nome fica só com o
@@ -193,6 +196,41 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         **trilha,
         **anexos_do_relato,
         **mensagens,
+        **guarda.para_a_tela(supabase, aberto, hoje_em_sao_paulo()),
+    }
+
+
+def _caso_eliminado(supabase, aberto: CasoAberto) -> dict:
+    """Depois da guarda (issue #1838): só os metadados, a guarda e a trilha.
+    Não há conteúdo para decifrar."""
+    caso = aberto.caso
+    olhar = triagem.olhar_do_caso(supabase, aberto)
+    da_trilha = trilha_do_caso.para_a_tela(supabase, aberto)
+    da_trilha["trilha"]["pode_baixar_dossie"] = False  # o Dossiê não tem mais o que levar
+    return {
+        **_metadados(caso),
+        "relato": None,
+        "relator_nome": None,
+        "situacao": situacao(caso),
+        "papel": aberto.pessoa.papel,
+        "trilho": trilho(caso),
+        "o_que_fazer_agora": o_que_fazer_agora(caso, olhar),
+        "prazo_vencido": False,
+        "contestacao": None,
+        "pode_contestar": False,
+        "prorrogacao": None,
+        "orientacao": None,
+        "notas_ao_nsp": [],
+        "membros_do_caso": [],
+        "citados": [],
+        "contestacoes_de_participacao": [],
+        "pode_contestar_participacao": False,
+        "depoimentos": [],
+        "avanco_da_apuracao": None,
+        "anexos": [],
+        "mensagens": None,
+        **da_trilha,
+        **guarda.para_a_tela(supabase, aberto, hoje_em_sao_paulo()),
     }
 
 

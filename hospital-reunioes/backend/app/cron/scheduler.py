@@ -100,6 +100,11 @@ Jobs:
      horas de um caso A, ainda não notificado à vigilância, está a menos de 24 horas
      do fim (issue #2000). Idempotente: cada pessoa recebe uma vez por caso (a linha
      em `nsp_avisos`). Sem IA.
+ 25. guarda_conduta: 07:40 diário, elimina o conteúdo dos casos do Canal de Conduta
+     com a guarda vencida (cinco anos do encerramento; um ano para o encaminhado),
+     registra a eliminação na trilha e avisa a coordenação do vencimento da guarda
+     do papel, sem nada do caso no e-mail (issue #1838). Caso congelado fica de
+     fora. Idempotente: o eliminado não volta à fila e o aviso sai uma vez. Sem IA.
 
 Nenhum job dispara IA por conta própria (ADR 0082): a recomendação da Validação
 e o segundo agente de Contas médicas rodam só pelo botão da tela. A fila de
@@ -676,6 +681,24 @@ def rodada_de_avisos_conduta() -> None:
         logger.info(f"[Cron] Avisos do Canal de Conduta: {resultado.get('enviados', 0)} enviado(s).")
 
 
+def guarda_conduta() -> None:
+    """A guarda do Canal de Conduta (issue #1838): a eliminação do conteúdo dos
+    casos vencidos e o aviso do papel à coordenação. A regra vive no serviço;
+    aqui, só o relógio. Sem IA."""
+    from app.services.conduta import guarda
+
+    try:
+        resultado = guarda.rodada(_supabase(), _hoje_em_sao_paulo())
+    except Exception as e:
+        logger.error(f"[Cron] Erro em guarda_conduta: {type(e).__name__}")
+        return
+    if any(resultado.values()):
+        logger.info(
+            f"[Cron] Guarda do Canal de Conduta: {resultado.get('eliminados', 0)} caso(s) eliminado(s), "
+            f"{resultado.get('avisados', 0)} aviso(s), {resultado.get('falhas', 0)} falha(s)."
+        )
+
+
 def encerrar_atas_do_nucleo() -> None:
     """O encerramento das atas do Núcleo (issue #1776). O prazo, o registro de
     quem não assinou e a guarda nos Documentos vivem no serviço; aqui, só o
@@ -1007,6 +1030,15 @@ def start_scheduler() -> None:
         hour=8,
         minute=0,
         id="avisos_conduta",
+        replace_existing=True,
+    )
+    # Canal de Conduta (issue #1838): a guarda vencida sai antes dos avisos.
+    scheduler.add_job(
+        guarda_conduta,
+        "cron",
+        hour=7,
+        minute=40,
+        id="guarda_conduta",
         replace_existing=True,
     )
     # 05:50, depois do reconciliar_clicksign. Dia
