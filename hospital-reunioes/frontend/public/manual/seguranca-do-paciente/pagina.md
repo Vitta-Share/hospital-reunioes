@@ -7,7 +7,9 @@ O módulo Segurança do Paciente é onde o Núcleo de Segurança do Paciente fun
 
 Ele fica no menu da esquerda, em **NSP**, a sigla do Núcleo de Segurança do Paciente, com os itens **Visão geral**, **Reuniões** e **Núcleo**. Dentro de **Núcleo** ficam **Membros**, **Documentos**, **Capacitações** e **Agenda regulatória**.
 
-A Presidência do Núcleo e quem tem Acesso pleno fazem tudo o que esta página descreve. O membro com o Termo de Adesão assinado abre as telas e as atas; cadastrar, publicar e validar ficam com a Presidência e com quem tem Acesso pleno. Quem ainda não assinou o Termo vê o calendário e a agenda; nas outras telas aparece a faixa **Assine o Termo de Adesão para liberar este acesso**, com o botão **Abrir o Termo de Adesão**.
+No alto de cada tela do módulo fica o link **Núcleo de Segurança do Paciente**, com a seta de voltar, que leva à **Visão geral**. No caso aberto de uma notificação, o link é **Notificações** e volta para a lista. O link funciona também na tela aberta pelo link de um e-mail.
+
+A Presidência do Núcleo e quem tem Acesso pleno fazem tudo o que esta página descreve, menos marcar o Responsável técnico, que é do Super admin. O membro com o Termo de Adesão assinado abre as telas e as atas; cadastrar, publicar e validar ficam com a Presidência e com quem tem Acesso pleno. Quem ainda não assinou o Termo vê o calendário e a agenda; nas outras telas aparece a faixa **Assine o Termo de Adesão para liberar este acesso**, com o botão **Abrir o Termo de Adesão**.
 
 Notificar um incidente é para qualquer profissional, com ou sem login, e todo usuário logado vê o botão **Notificar incidente** no alto do grupo **NSP** do menu. Quem abre os casos (a Presidência, quem tem Acesso pleno e o membro com o Termo assinado) vê também o item **Notificações**. A triagem, o encaminhamento e a **Configuração** ficam com a Presidência e com quem tem Acesso pleno.
 
@@ -58,10 +60,22 @@ Enquanto a pessoa não assina o Termo novo, ela continua no estado em que estava
 
    ![A publicação de uma revisão do Regimento](publicar-regimento.png)
 
-5. Clique em **Enviar para assinatura**. O Regimento vai por e-mail para a Diretoria Executiva e para a Presidência do Núcleo, e só vira o vigente quando os dois assinam. Até lá a versão atual continua valendo, e a nova aparece no alto como **Aguardando assinatura**, com quem já assinou.
-6. Se a assinatura travar, use **Reconsultar status da assinatura** ou **Reenviar para assinatura**, na caixa da versão que espera.
+5. Clique em **Enviar para assinatura**. O Regimento vai por e-mail para o Responsável técnico do hospital, a pessoa marcada no cadastro de usuários, e para a Presidência do Núcleo, e só vira o vigente quando os dois assinam. Até lá a versão atual continua valendo, e a nova aparece no alto como **Aguardando assinatura**, com quem já assinou.
+6. Se a assinatura travar, use **Reconsultar status da assinatura** ou **Reenviar para assinatura**, na caixa da versão que espera. O envio que saiu antes para a Diretoria Executiva se corrige pelo **Reenviar para assinatura**: o envio antigo é cancelado e o novo vai para o Responsável técnico.
 
-Nenhuma versão se apaga nem se edita: a correção é sempre uma versão nova. O ato de designação e o Plano de Segurança do Paciente seguem o mesmo caminho; o ato é assinado só pela Diretoria Executiva.
+Nenhuma versão se apaga nem se edita: a correção é sempre uma versão nova. O Plano de Segurança do Paciente segue o mesmo caminho, e o Ato de designação também, mas ele é assinado só pelo Responsável técnico.
+
+## Marcar o Responsável técnico
+
+1. No menu da esquerda, clique em **Admin** e depois em **Usuários**. Só o Super admin vê essa área.
+2. Clique no nome da pessoa e, na ficha dela, clique em **Editar**.
+3. Em **Acesso à Segurança do Paciente**, marque a caixa **Responsável técnico**. Só uma pessoa fica marcada por vez: marcar uma desmarca quem estava.
+
+   ![A caixa Responsável técnico no cadastro do usuário](responsavel-tecnico.png)
+
+4. Se quiser, escreva o **Motivo da alteração**, e clique em **Salvar**. A troca entra no **Histórico recente** da pessoa, com quem trocou e quando.
+
+Para deixar ninguém marcado, desmarque a caixa e salve. Sem ninguém marcado, o envio do Ato de designação, do Regimento e do Plano não sai, e a tela diz **Não há Responsável técnico marcado no cadastro para assinar**. Trocar o Responsável técnico não mexe no documento que já foi para assinatura: ele segue com quem estava nele, e o **Reenviar para assinatura** manda de novo para o Responsável técnico de agora.
 
 ## Registrar uma capacitação e confirmar presença
 

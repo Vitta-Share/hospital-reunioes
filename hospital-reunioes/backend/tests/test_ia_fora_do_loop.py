@@ -323,7 +323,9 @@ class TestTravaDaClasse:
         """Sem isto, uma varredura cega (conjunto vazio) passaria o teste acima."""
         chegam = funcoes_que_chegam_ao_provedor(APP)
         # A leitura do print do chat da Tecnologia saiu com o chat (issue #2279).
-        assert {"chamar_o_modelo", "chat_correcao", "chat_ata_guiada"} <= chegam
+        # O `chamar_o_modelo` saiu com o planejamento da Demanda (issue #2308);
+        # o `responder_a_duvida` do Assistente do app ocupa o lugar dele.
+        assert {"responder_a_duvida", "chat_correcao", "chat_ata_guiada"} <= chegam
 
     def test_rota_de_exemplo_escrita_do_jeito_errado_e_pega(self, tmp_path):
         (tmp_path / "servico.py").write_text(SERVICO_DE_EXEMPLO, encoding="utf-8")

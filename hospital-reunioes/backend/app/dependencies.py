@@ -101,6 +101,8 @@ _COLUNAS_OPCIONAIS = (
     "registro_uf",
     # Canal de Conduta (migration 175): quem cadastra membros do Comitê.
     "perfil_conduta",
+    # Responsável técnico (migration 241, issue #2248): a lista do admin.
+    "responsavel_tecnico",
 )
 
 _COLUNA_INEXISTENTE = "42703"

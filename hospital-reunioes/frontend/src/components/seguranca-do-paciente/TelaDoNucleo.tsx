@@ -1,12 +1,21 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { FileSignature, Inbox, Lock } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, FileSignature, Inbox, Lock } from "lucide-react";
 
 import { useCurrentParticipante } from "@/hooks/useCurrentParticipante";
 import { chamarNsp } from "@/lib/seguranca-do-paciente/membros";
 
 const CARTAO = "bg-white rounded-2xl border border-border shadow-premium";
+
+/** Para onde o link do alto da tela volta (issue #2249). */
+export interface VoltarDoNucleo {
+  href: string;
+  texto: string;
+}
+
+const VOLTAR_PADRAO: VoltarDoNucleo = { href: "/seguranca-do-paciente", texto: "Núcleo de Segurança do Paciente" };
 
 interface MeuTermo {
   pendente: boolean;
@@ -67,6 +76,9 @@ interface Props {
   children?: ReactNode;
   /** A tela de duas colunas (a triagem, issue #1992) ocupa mais largura. */
   larga?: boolean;
+  /** O link de voltar no alto (issue #2249): por padrão, a Visão geral do
+   * Núcleo. `null` tira o link (a própria Visão geral, a triagem do caso). */
+  voltar?: VoltarDoNucleo | null;
 }
 
 /**
@@ -81,7 +93,7 @@ interface Props {
  * assinou o Termo vê, no lugar da recusa, a faixa com o documento pendente
  * (issue #1768).
  */
-export function TelaDoNucleo({ titulo, orientacao, recurso, children, larga = false }: Props) {
+export function TelaDoNucleo({ titulo, orientacao, recurso, children, larga = false, voltar = VOLTAR_PADRAO }: Props) {
   const { participante } = useCurrentParticipante();
   const aceitos = typeof recurso === "string" ? [recurso] : recurso;
   const liberada = participante?.recursos_nsp?.some((r) => aceitos.includes(r)) ?? false;
@@ -89,6 +101,14 @@ export function TelaDoNucleo({ titulo, orientacao, recurso, children, larga = fa
 
   return (
     <div className={`p-4 md:p-8 ${larga ? "max-w-6xl" : "max-w-3xl"} mx-auto w-full`}>
+      {voltar && (
+        <Link
+          href={voltar.href}
+          className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-2"
+        >
+          <ArrowLeft className="w-4 h-4" aria-hidden="true" /> {voltar.texto}
+        </Link>
+      )}
       <h1 className="text-2xl font-bold text-slate-900">{titulo}</h1>
       <p className="text-slate-500 text-sm mt-0.5 mb-5">{orientacao}</p>
 

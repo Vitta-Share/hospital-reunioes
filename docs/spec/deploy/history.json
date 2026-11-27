@@ -2,6 +2,192 @@
   "schema_version": "1.0",
   "deploys": [
     {
+      "at": "2026-11-27T02:36:03-03:00",
+      "sha": "9d430a51e570fcb89684b7c9aacd8bdfdb121be5",
+      "app_version": "0.394.1",
+      "subject": "Onda nsp-rt-onda3: Manual diz quem assina os documentos e ensina a marcar o Responsável técnico",
+      "raw_subject": "chore(deploy): registro da onda nsp-rt-onda3 (#2326)",
+      "scope": [
+        "frontend"
+      ],
+      "prds": [
+        2247
+      ],
+      "result": "healthy",
+      "duration_seconds": 243,
+      "services_touched": [
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp-rt-onda3: PR #2326 (issue #2251), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 6,
+        "build_s": {
+          "frontend": 198
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
+      "at": "2026-11-27T02:11:07-03:00",
+      "sha": "2cfd7b685dca12305799d8885f9e4d1d3dd1384a",
+      "app_version": "0.394.0",
+      "subject": "Onda nsp-rt-onda2: O Responsável técnico assina o Ato, o Regimento e o Plano",
+      "raw_subject": "chore(deploy): registro da onda nsp-rt-onda2 (#2325)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        2247
+      ],
+      "result": "healthy",
+      "duration_seconds": 264,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp-rt-onda2: PR #2325 (issue #2250), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 3,
+        "build_s": {
+          "backend": 23,
+          "frontend": 229
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
+      "at": "2026-11-27T01:44:49-03:00",
+      "sha": "3575805acba9068a7739a1773b235e4314a54755",
+      "app_version": "0.393.0",
+      "subject": "Onda nsp-rt-onda1: Marca de Responsável técnico no cadastro de usuários; Link de voltar no alto das telas do Núcleo",
+      "raw_subject": "chore(deploy): registro da onda nsp-rt-onda1 (#2323 #2321)",
+      "scope": [
+        "backend",
+        "frontend"
+      ],
+      "prds": [
+        2247
+      ],
+      "result": "healthy",
+      "duration_seconds": 1076,
+      "services_touched": [
+        "backend",
+        "frontend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [
+        "241_nsp_responsavel_tecnico.sql"
+      ],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta nsp-rt-onda1: PR #2323 (issue #2248), PR #2321 (issue #2249), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 8,
+        "build_s": {
+          "backend": 25,
+          "frontend": 266
+        },
+        "health_s": 0
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
+      "at": "2026-11-27T01:36:17-03:00",
+      "sha": "54d34995c3d7b0e05b3cfffe3ad5de0bff5ac080",
+      "app_version": "0.392.5",
+      "subject": "Onda avulsos-27-onda1: Tira do app o planejamento_demanda e o PROMPT_DO_ENVIO sem chamador; Documentacao.html com o endereço da Vitta-Share",
+      "raw_subject": "chore(deploy): registro da onda avulsos-27-onda1 (#2324 #2320)",
+      "scope": [
+        "backend"
+      ],
+      "prds": [],
+      "result": "healthy",
+      "duration_seconds": 402,
+      "services_touched": [
+        "backend"
+      ],
+      "env_changes": [
+        {
+          "service": "backend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        },
+        {
+          "service": "frontend",
+          "action": "update",
+          "keys": [
+            "APP_VERSION"
+          ]
+        }
+      ],
+      "migrations_applied": [],
+      "rollback_target_sha": null,
+      "notes": "onda-enxuta avulsos-27-onda1: PR #2324 (issue #2308), PR #2320 (issue #2315), mergeados PR a PR. Merge pela API do GitHub, um build. Registro pela Action pos-merge depois do health.",
+      "etapas": {
+        "merge_s": 9,
+        "build_s": {
+          "backend": 16
+        },
+        "health_s": 10
+      },
+      "responsavel": "pedrorezendefig"
+    },
+    {
       "at": "2026-11-26T22:33:45-03:00",
       "sha": "f727075a25a7569930020b5cba06b4d596d1c0a1",
       "app_version": "0.392.4",

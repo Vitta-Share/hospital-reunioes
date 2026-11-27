@@ -66,11 +66,13 @@ A recalibração do agente:
 A fundação do módulo:
 
 - o item **NSP** no menu lateral, com o ícone de duas mãos juntas e o nome por extenso, Núcleo de Segurança do Paciente, ao passar o mouse, com a página inicial do módulo (o item Visão geral, para não se confundir com o Início de cada pessoa), as Reuniões e o grupo Núcleo (Membros, Documentos, Capacitações e Agenda regulatória). Cada tela abre com uma linha dizendo o que fazer ali;
+- no alto de toda tela do módulo, o link Núcleo de Segurança do Paciente, com a seta de voltar, igual ao de Contas médicas, que leva à Visão geral; o caso aberto de uma notificação volta para Notificações. O link é um endereço fixo e funciona também na tela aberta pelo link do e-mail. A Visão geral não tem o link, e a triagem do caso continua com o "Voltar à fila de triagem";
 - os itens Auditorias de adesão, Gestão de riscos e Comissões, que aparecem no menu desabilitados, com o selo "Em breve" e uma explicação do que vão fazer;
 - o Núcleo criado como o primeiro colegiado do hospital, ainda sem nenhum membro: a composição é cadastrada pela tela;
 - a tela **Membros**, com uma linha por membro (papel, área, conselho e registro, vigência, estado e situação do Termo). A Presidência e o Acesso pleno cadastram, editam, renovam a vigência, mudam o papel e encerram a participação. Os demais que abrem a tela só leem;
 - o cadastro de pessoas com conselho profissional, número de registro e UF;
-- o Acesso pleno ao NSP, marcado no cadastro da pessoa pela área administrativa.
+- o Acesso pleno ao NSP, marcado no cadastro da pessoa pela área administrativa;
+- o Responsável técnico do hospital, que o Super admin marca no cadastro de usuários da área administrativa: abre a pessoa e marca a caixa "Responsável técnico", ao lado do Acesso pleno ao NSP. Só uma pessoa fica marcada por vez: marcar outra desmarca a anterior, e desmarcar sem marcar outra deixa ninguém marcado. A troca fica no histórico da pessoa, com quem trocou e quando. É o Responsável técnico quem assina pela Direção o ato de designação, o Regimento e o Plano de Segurança do Paciente.
 
 O Termo de Adesão:
 
@@ -98,11 +100,11 @@ A tela Núcleo, Documentos:
 - ao publicar uma revisão do Regimento, a Presidência escolhe se ela é material (muda o conteúdo) ou só de redação, e a escolha fica gravada e aparece na tela;
 - publicar pelo botão Publicar não passa por assinatura;
 - publicar uma revisão material do Regimento gera um Termo novo, já com o texto revisado, para todos os membros em Ativo, A vencer e Em carência, e o manda para assinatura. A revisão só de redação não gera Termo nem pede assinatura de ninguém;
-- o ato de designação, o Regimento e o Plano de Segurança do Paciente também podem sair pelo botão **Enviar para assinatura**, no mesmo formulário. O ato de designação é assinado pela Diretoria Executiva (quem tem o Acesso pleno ao NSP); o Regimento e o Plano, pela Diretoria Executiva e pela Presidência do Núcleo. Cada pessoa recebe o documento por e-mail. Sem Presidência vigente, sem Diretoria Executiva cadastrada ou com alguém sem e-mail, nada é criado e a tela diz o que falta;
+- o ato de designação, o Regimento e o Plano de Segurança do Paciente também podem sair pelo botão **Enviar para assinatura**, no mesmo formulário. O ato de designação é assinado pelo Responsável técnico, a pessoa marcada no cadastro de usuários; o Regimento e o Plano, pelo Responsável técnico e pela Presidência do Núcleo. Quem é Responsável técnico e também Presidência assina uma vez só. O Acesso pleno ao NSP não entra na assinatura: é a permissão de ver e editar o Núcleo. Cada pessoa recebe o documento por e-mail. Sem Responsável técnico marcado, o envio não sai e a tela diz "Não há Responsável técnico marcado no cadastro para assinar". Sem Presidência vigente ou com alguém sem e-mail, também nada é criado e a tela diz o que falta;
 - a versão enviada aparece em Aguardando assinatura, com o nome de quem assina, quem já assinou e quando. Ela só vira a vigente quando todos assinam; até lá a anterior continua valendo, e o Termo de Adesão de quem for cadastrado sai com o Regimento que ainda vale;
 - quando a última assinatura chega, a versão vira a vigente sozinha e o arquivo assinado fica guardado nela, com o selo Assinado. Membro com o Termo assinado, Presidência e Acesso pleno abrem o arquivo pelo botão **Baixar o arquivo assinado**;
 - a revisão material do Regimento enviada para assinatura também gera o Termo novo, já com o texto revisado, para todos os membros em Ativo, A vencer e Em carência, uma vez só, quando a última assinatura chega e ela vira a vigente. Enquanto ela espera assinatura, ninguém fica com Termo pendente por causa dela;
-- na versão que espera assinatura, a Presidência e o Acesso pleno têm os botões **Reconsultar status da assinatura** (para quando alguém assinou e o aplicativo não ficou sabendo) e **Reenviar para assinatura** (cancela o link anterior e manda outro). Mandar outra versão do mesmo tipo para assinatura cancela a que esperava.
+- na versão que espera assinatura, a Presidência e o Acesso pleno têm os botões **Reconsultar status da assinatura** (para quando alguém assinou e o aplicativo não ficou sabendo) e **Reenviar para assinatura** (cancela o link anterior e manda outro). Mandar outra versão do mesmo tipo para assinatura cancela a que esperava. Trocar o Responsável técnico não mexe no envio que já saiu: ele segue com quem estava nele, e a tela mostra quem está assinando. O envio que saiu antes para a Diretoria Executiva aparece com esse nome e se corrige pelo **Reenviar para assinatura**, que cancela o antigo e manda o novo para o Responsável técnico.
 
 As reuniões do Núcleo:
 
@@ -212,6 +214,7 @@ Nas Capacitações, o profissional de fora do Núcleo que está na lista ainda n
 - Nenhum documento do Núcleo é apagado nem editado: a correção é uma versão nova, e a anterior fica na lista com quem publicou e quando.
 - O texto do Regimento entra pela tela, nunca por carga automática.
 - A versão do ato de designação, do Regimento ou do Plano enviada para assinatura só vale depois que todos os signatários assinam.
+- Quem assina esses três documentos pela Direção é o Responsável técnico do hospital, e não a Diretoria Executiva: é o que a regra sanitária pede, e sem ninguém marcado o envio trava, sem voltar para a Diretoria Executiva.
 - Revisão só de redação do Regimento não pede nova assinatura do Termo de Adesão; revisão material pede, de todos os membros em Ativo, A vencer e Em carência, quando passa a valer: pelo botão Publicar, na hora; pela assinatura, quando a última assinatura chega.
 - O lembrete de cada obrigação é uma pendência da Presidência no aplicativo, e não um e-mail, criada por uma rotina diária que não usa inteligência artificial.
 - A pauta é montada pelo aplicativo, sem inteligência artificial.

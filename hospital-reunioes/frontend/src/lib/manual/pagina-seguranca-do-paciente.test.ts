@@ -35,6 +35,8 @@ const TAREFAS = [
   "Registrar a ausência da Presidência",
   "Ajustar a tabela de prazos",
   "Recalibrar o agente",
+  // Quem assina os documentos do Núcleo (issue #2251, PRD #2247).
+  "Marcar o Responsável técnico",
 ];
 
 function pessoa(campos: Partial<CurrentParticipante>): CurrentParticipante {
@@ -167,6 +169,43 @@ describe("a página de Segurança do Paciente do manual", () => {
     expect(reenvio, "nenhum passo da reunião fala do Reenviar para assinatura").toBeDefined();
     expect(reenvio).toMatch(/todos os presentes/);
     expect(reenvio).toMatch(/5 dias úteis recomeçam/);
+  });
+});
+
+describe("quem assina os documentos do Núcleo (#2251)", () => {
+  /** Os passos numerados de uma seção, cada um com o texto até o próximo. */
+  function passos(titulo: string): string[] {
+    return secao(titulo).texto.split(/^(?=\d+\. )/m).filter((p) => /^\d+\. /.test(p));
+  }
+
+  it("o envio do Regimento vai para o Responsável técnico e para a Presidência, e não para a Diretoria Executiva", () => {
+    const envio = passos("Publicar uma revisão do Regimento").find((p) => /\*\*Enviar para assinatura\*\*/.test(p));
+    expect(envio, "nenhum passo do Regimento fala do Enviar para assinatura").toBeDefined();
+    expect(envio).toMatch(/Responsável técnico/);
+    expect(envio).toMatch(/Presidência do Núcleo/);
+    expect(envio).not.toMatch(/Diretoria Executiva/);
+  });
+
+  it("o fecho do Regimento diz que o Ato de designação é assinado só pelo Responsável técnico", () => {
+    const { texto } = secao("Publicar uma revisão do Regimento");
+    const fecho = texto.split("\n").filter((l) => /ato de designação/i.test(l) && !/^\d+\. /.test(l));
+    expect(fecho, "o fecho não fala do Ato de designação").toHaveLength(1);
+    expect(fecho[0]).toMatch(/só pelo Responsável técnico/);
+    expect(fecho[0]).not.toMatch(/Diretoria Executiva/);
+  });
+
+  it("marcar o Responsável técnico passa pelo cadastro de usuários e avisa que sem ninguém marcado o envio não sai", () => {
+    const { texto } = secao("Marcar o Responsável técnico");
+    expect(texto).toMatch(/\*\*Admin\*\*/);
+    expect(texto).toMatch(/\*\*Usuários\*\*/);
+    expect(texto).toMatch(/\*\*Responsável técnico\*\*/);
+    expect(texto).toMatch(/desmarca/);
+    expect(texto).toContain("Não há Responsável técnico marcado no cadastro para assinar");
+  });
+
+  it("a abertura da página cita o link de voltar do alto das telas (#2249)", () => {
+    const abertura = PAGINA!.corpo.split(/^## /m)[0];
+    expect(abertura).toMatch(/\*\*Núcleo de Segurança do Paciente\*\*, com a seta de voltar/);
   });
 });
 

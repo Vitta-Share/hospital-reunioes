@@ -3,9 +3,9 @@ ADR 0056).
 
 O Assistente de entrada, que montava o rascunho do formulario a mao, saiu do
 codigo com a ADR 0077 (issue #1386), e o chat da aba saiu na issue #2279
-(ADR 0113, decisao 7). Ficaram aqui a cerca do kit no prompt, que o Envio aos
-desenvolvedores usa, e a tabela dos tipos de anexo, que o bug do Assistente do
-app usa.
+(ADR 0113, decisao 7). Ficou aqui a tabela dos tipos de anexo, que o bug do
+Assistente do app usa. A cerca do kit no prompt, que so o Envio aos
+desenvolvedores usava, saiu na issue #2308.
 """
 
 from __future__ import annotations
@@ -17,18 +17,6 @@ from typing import Literal
 from app.services.transcricao_extractor import CONTENT_TYPE_BY_EXT, MAX_BYTES_BINARY, MAX_BYTES_TEXT
 
 logger = logging.getLogger(__name__)
-
-# A cerca do kit (ADR 0056). O kit e texto curado pela Vitta, mas entra cercado
-# do mesmo jeito: a moldura e o que deixa dito no prompt onde acaba a instrucao
-# e comeca o material de consulta.
-MARCA_INICIO_KIT = "--- início do kit ---"
-MARCA_FIM_KIT = "--- fim do kit ---"
-
-# A primeira linha de dentro da cerca e do backend, e nao do kit: e ela que faz
-# `recuar_continuacao` empurrar TODAS as linhas do material para a direita. Com
-# a primeira coluna sempre nossa, nenhuma linha escrita la dentro consegue
-# passar por marca de fim.
-TITULO_DO_KIT = "Material escrito pela Vitta sobre a plataforma:"
 
 
 # ─── O print de tela (issue #730) ────────────────────────────────────────────

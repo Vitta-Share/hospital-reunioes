@@ -5,10 +5,10 @@ desenvolvedores". Duas operacoes, e so estas duas tocam o envio:
 
 - `interpretar`: as mensagens do diretor (quem nao e Desenvolvedor) desde o
   ultimo envio, com o card e a ultima mensagem de um Desenvolvedor como
-  contexto, vao ao modelo pela mesma porta do planejamento
-  (`planejamento_demanda.chamar_o_modelo`), com o custo gravado. Volta o
-  "Entendi assim:" em topicos e o que muda em cada card, guardado como envio
-  `interpretado`. Sem mensagem nova do diretor, recusa;
+  contexto, iam ao modelo, com o custo gravado. Voltava o "Entendi assim:" em
+  topicos e o que muda em cada card, guardado como envio `interpretado`. A
+  chamada ao modelo e o prompt sairam do app na issue #2308, depois que o
+  Envio saiu da ponte (issue #2281);
 - `enviar`: a interpretacao aprovada vira o Ajuste do plano, sub-issue
   `ready-for-human` do dono na issue-raiz. O corpo leva so a interpretacao,
   pela peneira do repositorio publico (`texto_do_diretor`): a fala do diretor
@@ -61,8 +61,6 @@ ORIGEM_SISTEMA = "sistema"
 # De onde veio o envio (CHECK da migration 166): a Conversa da Demanda ou a
 # observacao do Validar da Apresentacao do PRD (issue #2013).
 ORIGEM_CONVERSA = "conversa"
-
-PROMPT_DO_ENVIO = "envio_aos_desenvolvedores_system"
 
 ESTADO_INTERPRETADO = "interpretado"
 ESTADO_ENVIANDO = "enviando"

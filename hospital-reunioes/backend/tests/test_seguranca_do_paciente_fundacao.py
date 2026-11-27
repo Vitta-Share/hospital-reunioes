@@ -395,3 +395,13 @@ class TestQrEEnderecoDaNotificacao:
         assert "**Configuração**" in no_ar
         assert "Baixar o QR" in no_ar
         assert "Copiar" in no_ar
+
+    def test_o_kit_de_conhecimento_diz_o_link_de_voltar_das_telas(self):
+        """O Assistente responde "como volto para a página do Núcleo?" pelo
+        kit (issue #2249). Mutante: apagar a frase do link de voltar."""
+        from app.services.conhecimento import CONHECIMENTO_DIR
+
+        texto = (CONHECIMENTO_DIR / "seguranca-do-paciente.md").read_text(encoding="utf-8")
+        no_ar = texto.split("## O que já está no ar\n", 1)[1].split("\n## ", 1)[0]
+        assert "o link Núcleo de Segurança do Paciente, com a seta de voltar" in no_ar
+        assert "o caso aberto de uma notificação volta para Notificações" in no_ar

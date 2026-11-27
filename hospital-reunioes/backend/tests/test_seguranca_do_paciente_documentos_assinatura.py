@@ -382,6 +382,7 @@ def _pessoa(pid: str, **campos) -> dict[str, Any]:
         "perfil_ouvidoria": None,
         "perfil_contas_medicas": None,
         "perfil_nsp": None,
+        "responsavel_tecnico": False,
         "github_login": None,
         "data_cadastro": "2026-01-01",
     }
@@ -403,14 +404,16 @@ def _participacao(pid: str, *, papel="membro", termo=True, **campos) -> dict[str
     }
 
 
-# P1 é o Acesso pleno (a Diretoria Executiva); P2, a Presidência; P3, um membro
-# com Termo; P4, um membro sem Termo; P5, o super admin; P6, a Diretoria.
+# P1 é o Acesso pleno; P2, a Presidência; P3, um membro com Termo; P4, um membro
+# sem Termo; P5, o super admin; P6, a Diretoria; P7, o Responsável técnico do
+# hospital, que assina pela Direção (issue #2250, ADR 0112).
 ACESSO_PLENO = _pessoa("P1", perfil_nsp="acesso_pleno")
 PRESIDENCIA = _pessoa("P2")
 MEMBRO = _pessoa("P3")
 SEM_TERMO = _pessoa("P4")
 SUPER_ADMIN = _pessoa("P5", access_profile="super_admin", is_super_admin=True)
 DIRETORIA = _pessoa("P6", role="diretor")
+RESPONSAVEL_TECNICO = _pessoa("P7", responsavel_tecnico=True)
 
 REGIMENTO_VIGENTE = {
     "id": "8d1f6a7e-0000-4000-8000-000000000001",
@@ -450,7 +453,7 @@ class _Cenario:
                 _participacao("P4", termo=False),
             ]
         if pessoas is None:
-            pessoas = [ACESSO_PLENO, PRESIDENCIA, MEMBRO, SEM_TERMO, SUPER_ADMIN, DIRETORIA]
+            pessoas = [ACESSO_PLENO, PRESIDENCIA, MEMBRO, SEM_TERMO, SUPER_ADMIN, DIRETORIA, RESPONSAVEL_TECNICO]
         self.banco = _Banco(
             {
                 "participantes": [dict(p) for p in pessoas],
@@ -530,15 +533,18 @@ def _signatarios_chamados(assinatura: _Assinatura) -> list[tuple[str, str]]:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+SEM_RESPONSAVEL_TECNICO = "Não há Responsável técnico marcado no cadastro para assinar"
+
+
 class TestSignatariosDoTipo:
-    def test_regimento_vai_para_a_diretoria_executiva_e_a_presidencia(self, assinatura):
+    def test_regimento_vai_para_o_responsavel_tecnico_e_a_presidencia(self, assinatura):
         """Mutante: tirar a Presidência dos signatários do Regimento."""
         cenario = _Cenario(PRESIDENCIA)
 
         corpo = cenario.enviar(tipo="regimento")
 
         assert _signatarios_chamados(assinatura) == [
-            ("Pessoa de Teste P1", "p1@hsm.test"),
+            ("Pessoa de Teste P7", "p7@hsm.test"),
             ("Pessoa de Teste P2", "p2@hsm.test"),
         ]
         assert assinatura.nomes().count("create_envelope") == 1
@@ -549,31 +555,52 @@ class TestSignatariosDoTipo:
         assert envio["documento_key"] == "doc-env-1"
         assert sorted(
             (s["participante_id"], s["qualidade"], s["signatario_id"]) for s in cenario.signatarios(envio["id"])
-        ) == [("P1", "diretoria_executiva", "sig-env-1-1"), ("P2", "presidencia", "sig-env-1-2")]
+        ) == [("P2", "presidencia", "sig-env-1-2"), ("P7", "responsavel_tecnico", "sig-env-1-1")]
 
-    def test_plano_vai_para_a_diretoria_executiva_e_a_presidencia(self, assinatura):
+    def test_plano_vai_para_o_responsavel_tecnico_e_a_presidencia(self, assinatura):
         cenario = _Cenario(ACESSO_PLENO)
 
-        cenario.enviar(tipo="plano_seguranca_paciente")
+        corpo = cenario.enviar(tipo="plano_seguranca_paciente")
 
-        assert [nome for nome, _ in _signatarios_chamados(assinatura)] == ["Pessoa de Teste P1", "Pessoa de Teste P2"]
+        assert [nome for nome, _ in _signatarios_chamados(assinatura)] == ["Pessoa de Teste P7", "Pessoa de Teste P2"]
+        [envio] = cenario.envios(corpo["documento"]["id"])
+        assert sorted(s["qualidade"] for s in cenario.signatarios(envio["id"])) == [
+            "presidencia",
+            "responsavel_tecnico",
+        ]
 
-    def test_ato_de_designacao_vai_so_para_a_diretoria_executiva(self, assinatura):
+    def test_ato_de_designacao_vai_so_para_o_responsavel_tecnico(self, assinatura):
+        """Mutante (critério 7): voltar a qualidade do Ato para a Diretoria Executiva."""
         cenario = _Cenario(PRESIDENCIA)
 
         corpo = cenario.enviar(tipo="ato_designacao")
 
-        assert _signatarios_chamados(assinatura) == [("Pessoa de Teste P1", "p1@hsm.test")]
+        assert _signatarios_chamados(assinatura) == [("Pessoa de Teste P7", "p7@hsm.test")]
         [envio] = cenario.envios(corpo["documento"]["id"])
-        assert [s["qualidade"] for s in cenario.signatarios(envio["id"])] == ["diretoria_executiva"]
+        assert [s["qualidade"] for s in cenario.signatarios(envio["id"])] == ["responsavel_tecnico"]
 
-    def test_quem_e_diretoria_executiva_e_presidencia_assina_uma_vez(self, assinatura):
-        pessoas = [_pessoa("P1", perfil_nsp="acesso_pleno"), SUPER_ADMIN]
-        cenario = _Cenario(pessoas[0], participacoes=[_participacao("P1", papel="presidencia")], pessoas=pessoas)
+    @pytest.mark.parametrize("tipo", ["ato_designacao", "regimento", "plano_seguranca_paciente"])
+    def test_acesso_pleno_sem_a_marca_nao_entra_no_envelope(self, tipo, assinatura):
+        """Mutante: buscar quem assina pelo Acesso pleno ao NSP, e não pela marca."""
+        cenario = _Cenario(ACESSO_PLENO)
 
-        cenario.enviar(tipo="regimento")
+        corpo = cenario.enviar(tipo=tipo)
 
-        assert _signatarios_chamados(assinatura) == [("Pessoa de Teste P1", "p1@hsm.test")]
+        assert "Pessoa de Teste P1" not in [nome for nome, _ in _signatarios_chamados(assinatura)]
+        [envio] = cenario.envios(corpo["documento"]["id"])
+        assert "P1" not in [s["participante_id"] for s in cenario.signatarios(envio["id"])]
+
+    def test_responsavel_tecnico_que_e_presidencia_assina_uma_vez(self, assinatura):
+        pessoas = [_pessoa("P7", responsavel_tecnico=True), ACESSO_PLENO]
+        cenario = _Cenario(ACESSO_PLENO, participacoes=[_participacao("P7", papel="presidencia")], pessoas=pessoas)
+
+        corpo = cenario.enviar(tipo="regimento")
+
+        assert _signatarios_chamados(assinatura) == [("Pessoa de Teste P7", "p7@hsm.test")]
+        [envio] = cenario.envios(corpo["documento"]["id"])
+        assert [(s["participante_id"], s["qualidade"]) for s in cenario.signatarios(envio["id"])] == [
+            ("P7", "responsavel_tecnico")
+        ]
 
     def test_o_pdf_tem_o_titulo_o_texto_sem_travessao_e_os_signatarios(self, assinatura):
         cenario = _Cenario(PRESIDENCIA)
@@ -585,7 +612,9 @@ class TestSignatariosDoTipo:
         assert "reúne-se mensalmente" in texto
         assert "10-15 dias corridos" in texto
         assert TRAVESSAO not in texto and MEIA_RISCA not in texto
-        assert "Pessoa de Teste P1" in texto and "Pessoa de Teste P2" in texto
+        assert "Responsável técnico: Pessoa de Teste P7" in texto
+        assert "Presidência do Núcleo: Pessoa de Teste P2" in texto
+        assert "Diretoria Executiva" not in texto
 
     def test_sem_presidencia_vigente_nada_e_criado(self, assinatura):
         cenario = _Cenario(ACESSO_PLENO, participacoes=[_participacao("P3")])
@@ -597,26 +626,51 @@ class TestSignatariosDoTipo:
         assert assinatura.chamadas == []
         assert len(cenario.tabela("nsp_documentos")) == 1
 
-    def test_sem_diretoria_executiva_nada_e_criado(self, assinatura):
-        pessoas = [PRESIDENCIA, MEMBRO]
+    @pytest.mark.parametrize(
+        "responsavel",
+        [None, _pessoa("P7", responsavel_tecnico=True, ativo=False)],
+        ids=["ninguem_marcado", "marcado_inativo"],
+    )
+    @pytest.mark.parametrize("tipo", ["ato_designacao", "regimento", "plano_seguranca_paciente"])
+    def test_sem_responsavel_tecnico_marcado_nada_e_criado(self, tipo, responsavel, assinatura):
+        """Mutante: cair na Diretoria Executiva (Acesso pleno) quando ninguém está marcado."""
+        pessoas = [ACESSO_PLENO, PRESIDENCIA, MEMBRO] + ([responsavel] if responsavel else [])
         cenario = _Cenario(PRESIDENCIA, pessoas=pessoas)
 
-        resposta = cenario.api.post(ENVIAR, json=_versao(tipo="ato_designacao"))
+        resposta = cenario.api.post(ENVIAR, json=_versao(tipo=tipo))
 
         assert resposta.status_code == 422, resposta.text
-        assert "Diretoria Executiva" in resposta.json()["detail"]
+        assert resposta.json()["detail"] == SEM_RESPONSAVEL_TECNICO
         assert assinatura.chamadas == []
         assert len(cenario.tabela("nsp_documentos")) == 1
+        assert cenario.tabela("nsp_documentos_envios") == []
+        assert cenario.tabela("nsp_documentos_signatarios") == []
 
-    def test_signatario_sem_email_nada_e_criado(self, assinatura):
-        pessoas = [_pessoa("P1", perfil_nsp="acesso_pleno", email=None), PRESIDENCIA]
+    def test_sem_responsavel_tecnico_o_reenvio_tambem_trava(self, assinatura):
+        cenario = _Cenario(PRESIDENCIA)
+        novo = cenario.enviar(tipo="regimento")["documento"]
+        chamadas = list(assinatura.chamadas)
+        cenario.tabela("participantes").remove(next(p for p in cenario.tabela("participantes") if p["id"] == "P7"))
+
+        resposta = _reenviar(cenario, novo["id"])
+
+        assert resposta.status_code == 422, resposta.text
+        assert resposta.json()["detail"] == SEM_RESPONSAVEL_TECNICO
+        assert assinatura.chamadas == chamadas
+        assert [e["situacao"] for e in cenario.envios(novo["id"])] == ["enviado"]
+
+    def test_responsavel_tecnico_sem_email_nada_e_criado(self, assinatura):
+        pessoas = [_pessoa("P7", responsavel_tecnico=True, email=None), PRESIDENCIA]
         cenario = _Cenario(PRESIDENCIA, pessoas=pessoas)
 
         resposta = cenario.api.post(ENVIAR, json=_versao(tipo="ato_designacao"))
 
         assert resposta.status_code == 422, resposta.text
-        assert "e-mail" in resposta.json()["detail"]
+        assert resposta.json()["detail"] == (
+            "Pessoa de Teste P7 não tem e-mail no cadastro, e o documento vai por e-mail para assinatura."
+        )
         assert assinatura.chamadas == []
+        assert cenario.tabela("nsp_documentos_envios") == []
 
     @pytest.mark.parametrize("tipo", ["termo", "ata", "outro"])
     def test_outros_tipos_nao_vao_para_assinatura_por_aqui(self, tipo, assinatura):
@@ -663,7 +717,7 @@ class TestVigenciaSoComTodasAsAssinaturas:
         [envio] = cenario.envios(corpo["documento"]["id"])
         assert envio["situacao"] == "enviado"
         assinou = {s["participante_id"]: s.get("assinado_em") for s in cenario.signatarios(envio["id"])}
-        assert assinou["P1"] and assinou["P2"] is None
+        assert assinou["P7"] and assinou["P2"] is None
 
     def test_a_ultima_assinatura_troca_a_vigente_e_guarda_o_arquivo(self):
         cenario = _Cenario(PRESIDENCIA)
@@ -877,7 +931,7 @@ class TestReconsultar:
 
         assert resposta.status_code == 200, resposta.text
         assinaturas = {s["nome"]: s["assinado_em"] for s in resposta.json()["signatarios"]}
-        assert assinaturas == {"Pessoa de Teste P1": None, "Pessoa de Teste P2": ASSINADO}
+        assert assinaturas == {"Pessoa de Teste P7": None, "Pessoa de Teste P2": ASSINADO}
         assert cenario.vigente("regimento")["id"] == REGIMENTO_VIGENTE["id"]
 
     def test_reconsulta_com_todos_assinados_troca_a_vigente(self, assinatura):
@@ -971,6 +1025,52 @@ class TestFalhaAntesDoCarimbo:
         cenario.retorno_da_assinatura("doc-env-2", "auto_close")
         assert cenario.vigente("regimento")["id"] == novo["id"]
 
+    def test_reenvio_do_envelope_da_diretoria_executiva_vai_para_o_responsavel_tecnico(self, assinatura):
+        """O envelope aberto saiu antes do Responsável técnico, para quem tem o
+        Acesso pleno (Diretoria Executiva): o Reenviar cancela esse envelope e
+        manda outro para o Responsável técnico e a Presidência."""
+        cenario = _Cenario(PRESIDENCIA)
+        novo = cenario.enviar(tipo="regimento")["documento"]
+        [antigo] = cenario.envios(novo["id"])
+        for linha in cenario.signatarios(antigo["id"]):
+            if linha["qualidade"] == "responsavel_tecnico":
+                linha.update(participante_id="P1", qualidade="diretoria_executiva")
+        assinatura.chamadas.clear()
+
+        resposta = _reenviar(cenario, novo["id"])
+
+        assert resposta.status_code == 200, resposta.text
+        assert ("cancel_envelope", "env-1") in assinatura.chamadas
+        assert _signatarios_chamados(assinatura) == [
+            ("Pessoa de Teste P7", "p7@hsm.test"),
+            ("Pessoa de Teste P2", "p2@hsm.test"),
+        ]
+        assert next(e for e in cenario.envios(novo["id"]) if e["id"] == antigo["id"])["situacao"] == "cancelado"
+        [atual] = [e for e in cenario.envios(novo["id"]) if e["situacao"] == "enviado"]
+        assert atual["envelope_id"] == "env-2"
+        assert sorted((s["participante_id"], s["qualidade"]) for s in cenario.signatarios(atual["id"])) == [
+            ("P2", "presidencia"),
+            ("P7", "responsavel_tecnico"),
+        ]
+        assert [(s["nome"], s["qualidade"]) for s in resposta.json()["signatarios"]] == [
+            ("Pessoa de Teste P7", "responsavel_tecnico"),
+            ("Pessoa de Teste P2", "presidencia"),
+        ]
+
+    def test_trocar_o_responsavel_tecnico_nao_mexe_no_envelope_aberto(self, assinatura):
+        cenario = _Cenario(PRESIDENCIA)
+        novo = cenario.enviar(tipo="ato_designacao")["documento"]
+        chamadas = list(assinatura.chamadas)
+        for pessoa in cenario.tabela("participantes"):
+            pessoa["responsavel_tecnico"] = pessoa["id"] == "P3"
+
+        situacao = cenario.api.get(SITUACAO).json()["assinaturas"]
+
+        [desta] = [a for a in situacao if a["documento_id"] == novo["id"]]
+        assert [s["nome"] for s in desta["signatarios"]] == ["Pessoa de Teste P7"]
+        assert assinatura.chamadas == chamadas
+        assert [e["situacao"] for e in cenario.envios(novo["id"])] == ["enviado"]
+
     def test_versao_vigente_ou_assinada_nao_se_reenvia(self):
         cenario = _Cenario(PRESIDENCIA)
         novo = _assinado(cenario)
@@ -1004,11 +1104,28 @@ class TestQuemJaAssinou:
         assert desta["situacao"] == "enviado"
         assert desta["pode_reenviar"] is True
         por_nome = {s["nome"]: s for s in desta["signatarios"]}
-        assert por_nome["Pessoa de Teste P1"]["qualidade"] == "diretoria_executiva"
-        assert por_nome["Pessoa de Teste P1"]["assinado_em"] is None
+        assert por_nome["Pessoa de Teste P7"]["qualidade"] == "responsavel_tecnico"
+        assert por_nome["Pessoa de Teste P7"]["assinado_em"] is None
         assert por_nome["Pessoa de Teste P2"]["qualidade"] == "presidencia"
         assert por_nome["Pessoa de Teste P2"]["assinado_em"]
-        assert "email" not in por_nome["Pessoa de Teste P1"]
+        assert "email" not in por_nome["Pessoa de Teste P7"]
+
+    def test_a_linha_antiga_da_diretoria_executiva_continua_na_tela(self):
+        cenario = _Cenario(PRESIDENCIA)
+        novo = cenario.enviar(tipo="regimento")["documento"]
+        [envio] = cenario.envios(novo["id"])
+        for linha in cenario.signatarios(envio["id"]):
+            if linha["qualidade"] == "responsavel_tecnico":
+                linha.update(participante_id="P1", qualidade="diretoria_executiva")
+
+        resposta = cenario.api.get(SITUACAO)
+
+        assert resposta.status_code == 200, resposta.text
+        [desta] = [a for a in resposta.json()["assinaturas"] if a["documento_id"] == novo["id"]]
+        assert [(s["nome"], s["qualidade"]) for s in desta["signatarios"]] == [
+            ("Pessoa de Teste P1", "diretoria_executiva"),
+            ("Pessoa de Teste P2", "presidencia"),
+        ]
 
     def test_o_membro_com_termo_le_a_situacao(self):
         cenario = _Cenario(PRESIDENCIA)

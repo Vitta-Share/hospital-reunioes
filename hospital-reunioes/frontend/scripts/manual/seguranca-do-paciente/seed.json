@@ -7,6 +7,23 @@
     "cargo": "Gerente de Enfermagem de exemplo"
   },
   "diretoria_executiva": "Augusto Ferraz",
+  "super_admin": {
+    "id": "P17810",
+    "nome": "Otávio Brandão",
+    "email": "otavio.brandao.admin@exemplo.local",
+    "senha": "ManualAdmin2251!",
+    "cargo": "Administrador do sistema de exemplo"
+  },
+  "responsavel_tecnico": {
+    "id": "P17811",
+    "nome": "Henrique Barbosa",
+    "email": "henrique.barbosa.rt@exemplo.local",
+    "cargo": "Diretor técnico de exemplo",
+    "setor": "Diretoria Técnica",
+    "conselho": "CRM",
+    "registro": "612904",
+    "uf": "RJ"
+  },
   "membros": [
     {
       "id": "P17800", "nome": "Marina Couto", "papel": "presidencia", "area": "Gerência de Enfermagem",
@@ -72,6 +89,7 @@
     "titulo": "Higiene das mãos nos cinco momentos",
     "carga": "2",
     "instrutor": "Rodrigo Teixeira",
+    "formacao": "Farmacêutico clínico",
     "temas": ["Higiene das mãos", "Identificação do paciente"],
     "participantes": ["Juliana Prado", "Felipe Andrade", "Lívia Castro"]
   },
