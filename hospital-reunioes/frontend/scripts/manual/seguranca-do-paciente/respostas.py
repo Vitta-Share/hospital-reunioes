@@ -175,6 +175,7 @@ def trilha(p: dict) -> list[dict]:
 def documentos() -> dict:
     presidencia = SEED["presidencia"]["nome"]
     diretoria = SEED["diretoria_executiva"]
+    responsavel_tecnico = SEED["responsavel_tecnico"]["nome"]
 
     def versao(id_: str, tipo: str, n: int, titulo: str, publicado_ha: int | None, **resto) -> dict:
         return {
@@ -214,12 +215,31 @@ def documentos() -> dict:
             "assinado_em": None,
             "pode_reenviar": True,
             "signatarios": [
-                {"nome": diretoria, "qualidade": "diretoria_executiva", "assinado_em": instante(1, "16:10")},
+                # Desde a issue #2250, o Regimento vai para o Responsável técnico e a Presidência.
+                {"nome": responsavel_tecnico, "qualidade": "responsavel_tecnico", "assinado_em": instante(1, "16:10")},
                 {"nome": presidencia, "qualidade": "presidencia", "assinado_em": None},
             ],
         }
     ]
     return {"nsp/documentos": {"documentos": lista}, "nsp/assinaturas-dos-documentos": {"assinaturas": assinaturas}}
+
+
+# ------------------------------------------------- cadastro de usuários
+
+
+def cadastro_do_responsavel_tecnico() -> dict:
+    """A ficha do usuário que o roteiro abre no Admin, com a caixa Responsável
+    técnico ainda desmarcada: o roteiro marca e fotografa, sem salvar (#2251)."""
+    rt = SEED["responsavel_tecnico"]
+    usuario = {
+        "id": rt["id"], "nome_completo": rt["nome"], "email": rt["email"], "cargo": rt["cargo"],
+        "setor": rt["setor"], "area": "Diretoria", "role": "coordenador", "ativo": True, "is_externo": False,
+        "is_super_admin": False, "access_profile": "regular", "perfil_pop": None, "perfil_ouvidoria": None,
+        "github_login": None, "perfil_nsp": None, "perfil_conduta": None, "responsavel_tecnico": False,
+        "conselho_profissional": rt["conselho"], "registro_profissional": rt["registro"], "registro_uf": rt["uf"],
+        "auth_user_id": None, "data_cadastro": dia(-400),
+    }
+    return {f"admin/usuarios/{rt['id']}": {"usuario": usuario, "audit_logs": []}}
 
 
 # ----------------------------------------------------------- capacitações
@@ -928,7 +948,8 @@ def notificacoes() -> dict:
 
 
 def tabela() -> dict:
-    return {**membros(), **documentos(), **capacitacoes(), **agenda(), **reunioes(), **notificacoes()}
+    return {**membros(), **documentos(), **capacitacoes(), **agenda(), **reunioes(), **notificacoes(),
+            **cadastro_do_responsavel_tecnico()}
 
 
 def do_roteiro() -> dict:
@@ -942,6 +963,7 @@ def do_roteiro() -> dict:
         "protocolo_da_triagem": casos()[CASO_DA_TRIAGEM]["protocolo"],
         "protocolo_classificado": casos()[CASO_CLASSIFICADO]["protocolo"],
         "contato_classificado": casos()[CASO_CLASSIFICADO]["notificante"]["contato"],
+        "responsavel_tecnico": SEED["responsavel_tecnico"]["id"],
     }
 
 

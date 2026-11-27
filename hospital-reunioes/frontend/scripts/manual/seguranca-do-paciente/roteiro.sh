@@ -315,4 +315,18 @@ esperar "Recalibrações"
 clicar "getByLabel('Manter o agente como está')"
 print_topo "locator('div.space-y-4').filter({ has: page.getByRole('heading', { name: 'Recalibrações' }) }).last()" 1000 "recalibracao.png"
 
+# Marcar o Responsável técnico (#2251): o cadastro de usuários é só do Super
+# admin, e o layout do Admin confere isso no servidor, então o roteiro troca de
+# login. A ficha da pessoa vem da tabela, e o Salvar nunca é clicado.
+pw run-code "async page => { await page.context().clearCookies(); await page.evaluate(() => localStorage.clear()) }"
+pw goto "$BASE/login"
+pw fill "#email" "$(seed "['super_admin']['email']")"
+pw fill "#password" "$(seed "['super_admin']['senha']")" --submit
+pw run-code "async page => { await page.waitForURL(u => !u.pathname.startsWith('/login')) }"
+pw goto "$BASE/admin/usuarios/$(roteiro responsavel_tecnico)"
+esperar "Dados cadastrais"
+clicar "getByRole('button', { name: 'Editar', exact: true })"
+pw run-code "async page => { await page.getByRole('dialog', { name: 'Editar usuário' }).getByLabel('Responsável técnico', { exact: true }).check() }"
+print "getByRole('dialog', { name: 'Editar usuário' }).locator('fieldset').filter({ has: page.getByLabel('Responsável técnico', { exact: true }) })" "responsavel-tecnico.png"
+
 pw close

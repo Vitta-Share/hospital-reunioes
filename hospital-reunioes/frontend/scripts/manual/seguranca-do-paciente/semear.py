@@ -3,8 +3,10 @@
 Paciente do manual (issue #1780, PRD #1764).
 
 O módulo abre pela permissão efetiva do servidor (ADR 0095), então o seed é
-uma pessoa só: a Presidência de exemplo do `seed.json`, com Acesso pleno ao
-NSP, na faixa P17800 a P17809, longe das pessoas dos outros roteiros. Os
+a Presidência de exemplo do `seed.json`, com Acesso pleno ao NSP, e o Super
+admin de exemplo, que abre o cadastro de usuários para o print da caixa
+Responsável técnico (issue #2251), na faixa P17800 a P17819, longe das
+pessoas dos outros roteiros. Os
 membros, os documentos, as reuniões e as atas não moram no banco: o roteiro
 responde no lugar do backend com o `respostas.py`, nenhuma ata chega à IA e
 nenhum envelope sai para assinatura. Nada aqui é gente de verdade, e o script
@@ -85,7 +87,8 @@ def login_de_exemplo(url: str, chave: str, email: str, senha: str, nome: str) ->
 def semear() -> None:
     url, chave = credenciais_locais()
     presidencia = SEED["presidencia"]
-    linha = {
+    super_admin = SEED["super_admin"]
+    presidencia_linha = {
         "id": presidencia["id"],
         "nome_completo": presidencia["nome"],
         "email": presidencia["email"],
@@ -102,9 +105,26 @@ def semear() -> None:
             url, chave, presidencia["email"], presidencia["senha"], presidencia["nome"]
         ),
     }
+    # O cadastro de usuários é só do Super admin (ADR 0101): o layout do Admin
+    # confere no servidor, então ele precisa estar no banco (issue #2251).
+    super_admin_linha = {
+        "id": super_admin["id"],
+        "nome_completo": super_admin["nome"],
+        "email": super_admin["email"],
+        "cargo": super_admin["cargo"],
+        "role": "coordenador",
+        "ativo": True,
+        "access_profile": "super_admin",
+        "is_super_admin": True,
+        "is_externo": False,
+        "perfil_nsp": None,
+        "auth_user_id": login_de_exemplo(
+            url, chave, super_admin["email"], super_admin["senha"], super_admin["nome"]
+        ),
+    }
     req = urllib.request.Request(
         f"{url}/rest/v1/participantes",
-        data=json.dumps([linha]).encode(),
+        data=json.dumps([presidencia_linha, super_admin_linha]).encode(),
         headers={**cabecalhos(chave), "Prefer": "resolution=merge-duplicates"},
         method="POST",
     )
@@ -112,7 +132,7 @@ def semear() -> None:
         urllib.request.urlopen(req, timeout=20).close()
     except urllib.error.HTTPError as e:
         raise SystemExit(f"participantes: {e.code} {e.read().decode()[:300]}") from e
-    print("pessoa de exemplo da página de Segurança do Paciente pronta.")
+    print("pessoas de exemplo da página de Segurança do Paciente prontas.")
 
 
 if __name__ == "__main__":
