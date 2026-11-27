@@ -96,7 +96,8 @@ export async function publicarVersao(token: string, nova: NovaVersao): Promise<s
  * todos assinam. Até lá a anterior continua valendo.
  */
 
-export type QualidadeDoSignatario = "diretoria_executiva" | "presidencia";
+/** `diretoria_executiva` fica nos envios de antes do Responsável técnico (issue #2250, ADR 0112). */
+export type QualidadeDoSignatario = "responsavel_tecnico" | "diretoria_executiva" | "presidencia";
 
 export interface SignatarioDoDocumento {
   nome: string | null;
@@ -116,12 +117,13 @@ export interface AssinaturaDoDocumento {
 
 /** Os tipos que vão para assinatura eletrônica, com quem assina. */
 export const TIPOS_COM_ASSINATURA: Partial<Record<TipoDeDocumento, string>> = {
-  ato_designacao: "assinado pela Diretoria Executiva",
-  regimento: "assinado pela Diretoria Executiva e pela Presidência do Núcleo",
-  plano_seguranca_paciente: "assinado pela Diretoria Executiva e pela Presidência do Núcleo",
+  ato_designacao: "assinado pelo Responsável técnico",
+  regimento: "assinado pelo Responsável técnico e pela Presidência do Núcleo",
+  plano_seguranca_paciente: "assinado pelo Responsável técnico e pela Presidência do Núcleo",
 };
 
 export const ROTULO_DA_QUALIDADE: Record<QualidadeDoSignatario, string> = {
+  responsavel_tecnico: "Responsável técnico",
   diretoria_executiva: "Diretoria Executiva",
   presidencia: "Presidência do Núcleo",
 };
