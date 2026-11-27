@@ -29,6 +29,8 @@ export interface AdminUsuario {
   perfil_nsp?: "acesso_pleno" | null;
   /** O perfil do Canal de Conduta (ADR 0097, decisão 3; issue #1835). */
   perfil_conduta?: PerfilConduta | null;
+  /** O Responsável técnico do hospital, uma pessoa só (ADR 0112; issue #2248). */
+  responsavel_tecnico?: boolean;
   /** O registro profissional (issue #1765). */
   conselho_profissional?: string | null;
   registro_profissional?: string | null;
@@ -77,6 +79,8 @@ export interface AdminUsuarioPayload {
   perfil_nsp?: "acesso_pleno" | null;
   /** `null` explícito tira o perfil do Canal de Conduta. */
   perfil_conduta?: PerfilConduta | null;
+  /** Marcar desmarca quem estava; `false` desmarca. */
+  responsavel_tecnico?: boolean;
   reason?: string;
 }
 

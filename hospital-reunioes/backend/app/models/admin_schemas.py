@@ -125,6 +125,8 @@ class AdminUsuarioResponse(BaseModel):
     registro_uf: str | None = None
     # Canal de Conduta (issue #1822): o perfil de cadastro de membros.
     perfil_conduta: PerfilConduta | None = None
+    # O Responsável técnico do hospital (issue #2248, ADR 0112): uma pessoa só.
+    responsavel_tecnico: bool = False
     auth_user_id: str | None = None
     data_cadastro: date | None = None
 
@@ -177,6 +179,9 @@ class AdminUsuarioUpdate(RegistroProfissional):
     perfil_nsp: PerfilNsp | None = None
     # `null` explícito tira o perfil de cadastro. Dar ou tirar avisa o Comitê.
     perfil_conduta: PerfilConduta | None = None
+    # Marcar desmarca quem estava (função `trocar_responsavel_tecnico`, issue
+    # #2248). `null` vale como ausente: a marca só sai com `false`.
+    responsavel_tecnico: bool | None = None
     reason: str | None = Field(None, max_length=1000)
 
 

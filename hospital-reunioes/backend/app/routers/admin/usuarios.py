@@ -66,7 +66,7 @@ router = APIRouter(prefix="/admin/usuarios", tags=["admin", "usuarios"])
 _SELECT_FIELDS = (
     "id, nome_completo, email, cargo, area, setor, role, ativo, is_externo, "
     "is_super_admin, access_profile, perfil_pop, perfil_ouvidoria, github_login, auth_user_id, data_cadastro, "
-    "perfil_nsp, conselho_profissional, registro_profissional, registro_uf, perfil_conduta"
+    "perfil_nsp, conselho_profissional, registro_profissional, registro_uf, perfil_conduta, responsavel_tecnico"
 )
 
 
@@ -457,6 +457,8 @@ async def update_usuario(
 
     data = body.model_dump(exclude_unset=True)
     reason = data.pop("reason", None)
+    if data.get("responsavel_tecnico", False) is None:
+        data.pop("responsavel_tecnico")
 
     if not data:
         raise HTTPException(
@@ -549,25 +551,37 @@ async def update_usuario(
         if "cargo" in data:
             data["cargo_id"] = resolved["cargo_id"]
 
-    update = supabase.table("participantes").update(data).eq("id", participante_id).execute()
-    if not update.data:
-        # Compensacao: o auth ja aponta pro email novo, mas a tabela nao
-        # acompanhou — reverte o auth pro email antigo (estado consistente).
-        if auth_email_sincronizado:
-            try:
-                supabase.auth.admin.update_user_by_id(
-                    atual["auth_user_id"],
-                    {"email": atual["email"], "email_confirm": True},
-                )
-            except Exception as e:  # noqa: BLE001
-                logger.error(
-                    f"[admin.usuarios] Compensacao falhou — auth e tabela divergem para {participante_id}: {e}"
-                )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro ao atualizar participante",
-        )
-    atualizado = update.data[0]
+    # A marca de Responsável técnico nunca vai pelo update da tabela: só a
+    # função do banco desmarca quem estava na mesma transação (issue #2248).
+    marca_rt = data.pop("responsavel_tecnico", None)
+    if "responsavel_tecnico" not in changes:
+        marca_rt = None
+
+    atualizado = dict(atual)
+    if data:
+        update = supabase.table("participantes").update(data).eq("id", participante_id).execute()
+        if not update.data:
+            # Compensacao: o auth ja aponta pro email novo, mas a tabela nao
+            # acompanhou — reverte o auth pro email antigo (estado consistente).
+            if auth_email_sincronizado:
+                try:
+                    supabase.auth.admin.update_user_by_id(
+                        atual["auth_user_id"],
+                        {"email": atual["email"], "email_confirm": True},
+                    )
+                except Exception as e:  # noqa: BLE001
+                    logger.error(
+                        f"[admin.usuarios] Compensacao falhou — auth e tabela divergem para {participante_id}: {e}"
+                    )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Erro ao atualizar participante",
+            )
+        atualizado = update.data[0]
+
+    if marca_rt is not None:
+        _trocar_responsavel_tecnico(supabase, actor, participante_id, marca_rt, reason, request)
+        atualizado = {**atualizado, "responsavel_tecnico": marca_rt}
 
     reativou = "ativo" in changes and bool(atualizado.get("ativo"))
     if "ativo" in changes:
@@ -613,6 +627,34 @@ async def update_usuario(
     )
 
     return atualizado
+
+
+def _trocar_responsavel_tecnico(
+    supabase: Client, actor: dict, participante_id: str, marcar: bool, reason: str | None, request: Request
+) -> None:
+    """Marca ou desmarca o Responsável técnico pela função do banco, que
+    desmarca quem estava na mesma transação (migration 241, ADR 0112). Quem
+    perdeu a marca para outra pessoa ganha a própria linha no `audit_log`,
+    para o histórico dela também contar a troca."""
+    anterior = (
+        supabase.rpc("trocar_responsavel_tecnico", {"p_participante_id": participante_id, "p_marcar": marcar})
+        .execute()
+        .data
+    )
+    if anterior:
+        audit.log_action(
+            supabase,
+            actor=actor,
+            action="EDIT_USUARIO",
+            target_type="participante",
+            target_id=anterior,
+            metadata={
+                "changes": {"responsavel_tecnico": {"antes": True, "depois": False}},
+                "substituido_por": participante_id,
+            },
+            reason=reason,
+            request=request,
+        )
 
 
 # O nome de cada perfil do Canal de Conduta no aviso ao Comitê (issue #1835).

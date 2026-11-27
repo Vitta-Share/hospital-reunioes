@@ -140,6 +140,46 @@ describe("o Acesso pleno à Segurança do Paciente", () => {
   });
 });
 
+describe("o Responsável técnico (issue #2248)", () => {
+  const caixa = () => screen.getByRole("checkbox", { name: /Responsável técnico/ }) as HTMLInputElement;
+
+  it("mostra a marca de quem já é o Responsável técnico", () => {
+    montar({ ...PESSOA, responsavel_tecnico: true }, "edit");
+
+    expect(caixa().checked).toBe(true);
+    expect(screen.getByText("Marcar aqui desmarca quem estava.")).toBeTruthy();
+  });
+
+  it("marcar manda a marca", async () => {
+    const enviados = montar(PESSOA, "edit");
+
+    expect(caixa().checked).toBe(false);
+    fireEvent.click(caixa());
+    salvar();
+
+    await vi.waitFor(() => expect(enviados[0]?.responsavel_tecnico).toBe(true));
+  });
+
+  it("desmarcar manda false", async () => {
+    const enviados = montar({ ...PESSOA, responsavel_tecnico: true }, "edit");
+
+    fireEvent.click(caixa());
+    salvar();
+
+    await vi.waitFor(() => expect(enviados[0]?.responsavel_tecnico).toBe(false));
+  });
+
+  it("quem não mexeu na marca não manda a marca", async () => {
+    const enviados = montar({ ...PESSOA, responsavel_tecnico: true }, "edit");
+
+    digitar("Área", "Assistencial");
+    salvar();
+
+    await vi.waitFor(() => expect(enviados).toHaveLength(1));
+    expect(enviados[0]).not.toHaveProperty("responsavel_tecnico");
+  });
+});
+
 describe("o perfil do Canal de Conduta (issues #1822 e #1835)", () => {
   const perfil = () => screen.getByRole("combobox", { name: "Perfil no Canal de Conduta" }) as HTMLSelectElement;
 

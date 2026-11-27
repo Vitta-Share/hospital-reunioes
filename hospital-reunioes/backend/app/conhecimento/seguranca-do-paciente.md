@@ -70,7 +70,8 @@ A fundação do módulo:
 - o Núcleo criado como o primeiro colegiado do hospital, ainda sem nenhum membro: a composição é cadastrada pela tela;
 - a tela **Membros**, com uma linha por membro (papel, área, conselho e registro, vigência, estado e situação do Termo). A Presidência e o Acesso pleno cadastram, editam, renovam a vigência, mudam o papel e encerram a participação. Os demais que abrem a tela só leem;
 - o cadastro de pessoas com conselho profissional, número de registro e UF;
-- o Acesso pleno ao NSP, marcado no cadastro da pessoa pela área administrativa.
+- o Acesso pleno ao NSP, marcado no cadastro da pessoa pela área administrativa;
+- o Responsável técnico do hospital, que o Super admin marca no cadastro de usuários da área administrativa: abre a pessoa e marca a caixa "Responsável técnico", ao lado do Acesso pleno ao NSP. Só uma pessoa fica marcada por vez: marcar outra desmarca a anterior, e desmarcar sem marcar outra deixa ninguém marcado. A troca fica no histórico da pessoa, com quem trocou e quando. Por enquanto a marca não muda quem assina os documentos do Núcleo.
 
 O Termo de Adesão:
 
