@@ -63,6 +63,22 @@ def test_a_troca_desmarca_a_anterior_e_marca_a_nova_numa_transacao():
     assert re.search(r"IF p_marcar THEN", corpo)
 
 
+def test_a_troca_devolve_quem_perdeu_a_marca():
+    """A linha de `audit_log` de quem perdeu a marca (rota do cadastro) só
+    existe porque a função devolve o id da anterior. Mutantes: apagar o
+    `RETURNING id INTO v_anterior` do UPDATE que desmarca, ou trocar o
+    `RETURN v_anterior`; nos dois a desmarcação some da auditoria."""
+    assert re.search(rf"FUNCTION {FUNCAO}\(.*?\)\s+RETURNS VARCHAR\(10\)\s+LANGUAGE plpgsql", _sql(), re.DOTALL)
+    corpo = _corpo()
+    assert re.search(
+        r"UPDATE participantes SET responsavel_tecnico = false\s+"
+        r"WHERE responsavel_tecnico AND id <> p_participante_id\s+"
+        r"RETURNING id INTO v_anterior\s*;",
+        corpo,
+    )
+    assert re.search(r"RETURN v_anterior\s*;", corpo)
+
+
 def test_a_troca_e_so_do_backend():
     assert re.search(rf"REVOKE EXECUTE ON FUNCTION {FUNCAO}\([^)]*\)\s+FROM PUBLIC, anon, authenticated;", _sql())
     assert re.search(rf"GRANT EXECUTE ON FUNCTION {FUNCAO}\([^)]*\) TO service_role;", _sql())
