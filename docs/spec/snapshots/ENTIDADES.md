@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-27T16:35+0000 -->
+<!-- last_update: 2026-11-27T17:21+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -165,6 +165,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_pendencias_live` em `(prazo)` (de `030_add_soft_delete.sql`)
 - `idx_pendencias_nota` em `(id_nota)` (de `042_add_id_nota_pendencias.sql`)
 - `ux_pendencias_reuniao_quadro_pos` em `(id_reuniao, quadro_pos)` (de `057_registro_aceites_incremental.sql`)
+- `ux_pendencias_reuniao_quadro_pos_responsavel` em `(id_reuniao, quadro_pos, COALESCE(responsavel_id, '')` (de `243_pendencia_por_participante_na_linha_de_todos.sql`)
 
 ## agendamentos_email
 
@@ -2506,6 +2507,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 **Indexes:**
 - `idx_rotinas_responsavel` em `(responsavel_id)` (de `177_rotina_e_verificacao.sql`)
+- `ux_rotinas_reuniao_quadro_pos_responsavel` em `(id_reuniao, quadro_pos, COALESCE(responsavel_id, '')` (de `243_pendencia_por_participante_na_linha_de_todos.sql`)
 
 ## definicoes_processo
 

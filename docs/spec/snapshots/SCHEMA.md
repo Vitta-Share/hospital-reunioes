@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-27T16:35+0000 -->
+<!-- last_update: 2026-11-27T17:21+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -1997,6 +1997,7 @@ erDiagram
 | `pendencias` | `idx_pendencias_live` | `prazo` | `030_add_soft_delete.sql` |
 | `pendencias` | `idx_pendencias_nota` | `id_nota` | `042_add_id_nota_pendencias.sql` |
 | `pendencias` | `ux_pendencias_reuniao_quadro_pos` | `id_reuniao, quadro_pos` | `057_registro_aceites_incremental.sql` |
+| `pendencias` | `ux_pendencias_reuniao_quadro_pos_responsavel` | `id_reuniao, quadro_pos, COALESCE(responsavel_id, ''` | `243_pendencia_por_participante_na_linha_de_todos.sql` |
 | `agendamentos_email` | `idx_agendamentos_disparo` | `data_disparo, enviado` | `003_create_pendencias.sql` |
 | `agendamentos_email` | `idx_agendamentos_email_id_acao` | `id_acao` | `038_fk_indexes.sql` |
 | `tokens_validacao` | `idx_tokens_reuniao` | `id_reuniao` | `004_create_tokens_validacao.sql` |
@@ -2190,6 +2191,7 @@ erDiagram
 | `conduta_trilha` | `idx_conduta_trilha_caso` | `caso_id, seq DESC` | `175_conduta_fundacao.sql` |
 | `conduta_trilha` | `idx_conduta_trilha_autor` | `autor_id` | `175_conduta_fundacao.sql` |
 | `rotinas` | `idx_rotinas_responsavel` | `responsavel_id` | `177_rotina_e_verificacao.sql` |
+| `rotinas` | `ux_rotinas_reuniao_quadro_pos_responsavel` | `id_reuniao, quadro_pos, COALESCE(responsavel_id, ''` | `243_pendencia_por_participante_na_linha_de_todos.sql` |
 | `nsp_notificacao_anexos` | `idx_nsp_notificacao_anexos_notificacao` | `notificacao_id, criado_em` | `181_nsp_anexos_da_notificacao.sql` |
 | `conduta_registro` | `idx_conduta_registro_quando` | `registrado_em DESC` | `184_conduta_membros_do_comite.sql` |
 | `conduta_registro` | `idx_conduta_registro_pessoa` | `participante_id` | `184_conduta_membros_do_comite.sql` |
