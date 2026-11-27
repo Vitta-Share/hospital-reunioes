@@ -107,8 +107,74 @@ def _entregue(no: dict[str, Any] | None) -> bool:
     return _fechada(no) and str((no or {}).get("motivo_do_fechamento") or "").lower() != FECHAMENTO_NAO_PLANEJADA
 
 
-def _partes(foto: dict[str, Any] | None) -> list[dict[str, Any]]:
+# A chave que marca, na foto, a sub-issue que e o Ajuste do plano (issue
+# #1915): ele trava partes, mas nao e parte da entrega.
+FATO_AJUSTE_DO_PLANO = "ajuste_do_plano"
+
+
+# A label do Card de implantacao (ADR 0113, decisao 9): a sub-issue da raiz
+# com o que o hospital faz depois que a entrega sobe. Nao e parte da entrega.
+LABEL_IMPLANTACAO = "implantacao"
+
+# A chave do dono do Card de implantacao na foto, a mesma do dono da raiz
+# (`github_client.FATO_ASSIGNEE`, issue #1534).
+FATO_DONO = "assignee"
+
+SITUACAO_DA_IMPLANTACAO_FEITO = "feito"
+SITUACAO_DA_IMPLANTACAO_ABERTO = "aberto"
+
+
+def _todas_as_sub_issues(foto: dict[str, Any] | None) -> list[dict[str, Any]]:
     return list((foto or {}).get("partes") or [])
+
+
+def e_card_de_implantacao(no: dict[str, Any] | None) -> bool:
+    """Se esta sub-issue e um Card de implantacao (issue #2266)."""
+    return LABEL_IMPLANTACAO in _labels(no)
+
+
+def _partes(foto: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """As partes da entrega: as sub-issues da raiz menos o Ajuste do plano
+    (issue #1915) e os Cards de implantacao (issue #2266), que nao contam para
+    a Etapa, as Ondas nem as partes entregues."""
+    return [
+        p
+        for p in _todas_as_sub_issues(foto)
+        if not (isinstance(p, dict) and (p.get(FATO_AJUSTE_DO_PLANO) or e_card_de_implantacao(p)))
+    ]
+
+
+def implantacao_da_foto(foto: dict[str, Any] | None) -> dict[str, Any] | None:
+    """A Implantacao da Demanda lida dos Cards de implantacao (issue #2266, ADR
+    0113, decisao 9): os fechados sobre o total e cada card, com o titulo, o
+    login do dono (quem chama troca pelo nome) e a situacao. `None` sem Card
+    de implantacao nenhum: a secao nao aparece."""
+    cards = [p for p in _todas_as_sub_issues(foto) if isinstance(p, dict) and e_card_de_implantacao(p)]
+    if not cards:
+        return None
+    return {
+        "feitos": sum(1 for c in cards if _fechada(c)),
+        "total": len(cards),
+        "pedidos": [
+            {
+                "titulo": str(c.get("titulo") or ""),
+                "destinatario": c.get(FATO_DONO) or None,
+                "situacao": SITUACAO_DA_IMPLANTACAO_FEITO if _fechada(c) else SITUACAO_DA_IMPLANTACAO_ABERTO,
+                "espera": None,
+            }
+            for c in cards
+        ],
+    }
+
+
+def ajuste_aberto_da_foto(foto: dict[str, Any] | None) -> dict[str, Any] | None:
+    """O Ajuste do plano ainda aberto da raiz (issue #1915): o numero e o
+    endereco, ou `None`."""
+    numero = (foto or {}).get("ajuste_aberto")
+    if not isinstance(numero, int):
+        return None
+    url = next((p.get("url") for p in _todas_as_sub_issues(foto) if p.get("numero") == numero), None)
+    return {"numero": numero, "url": url}
 
 
 def etapa_da_foto(
@@ -254,10 +320,13 @@ def partes_da_foto(foto: dict[str, Any] | None) -> tuple[int | None, int | None]
 
     partes_lidas = _partes(foto)
     ha_parte_recusada = any(_fechada(parte) and not _entregue(parte) for parte in partes_lidas)
+    # O resumo do GitHub conta o Ajuste do plano como parte (issue #1915): com
+    # ele entre as sub-issues, a conta propria manda, como na parte recusada.
+    ha_ajuste = len(partes_lidas) != len(_todas_as_sub_issues(foto))
     resumo = foto.get("resumo_das_partes") or {}
     total = resumo.get("total")
     entregues = resumo.get("entregues")
-    if isinstance(total, int) and isinstance(entregues, int) and not ha_parte_recusada:
+    if isinstance(total, int) and isinstance(entregues, int) and not ha_parte_recusada and not ha_ajuste:
         return (None, None) if total <= 0 else (entregues, total)
 
     if not partes_lidas:
@@ -371,6 +440,11 @@ def partes_para_o_diretor(foto: dict[str, Any] | None) -> list[dict[str, Any]]:
     """
     partes = _partes(foto)
     ondas = ondas_das_partes(partes)
+    # A bloqueadora que e o Ajuste do plano vira "Espera o ajuste do plano"
+    # (issue #1915): marcada aqui, porque so a foto inteira sabe quem e o Ajuste.
+    ajustes = {
+        p.get("numero") for p in _todas_as_sub_issues(foto) if isinstance(p, dict) and p.get(FATO_AJUSTE_DO_PLANO)
+    }
     return [
         {
             "numero": parte.get("numero"),
@@ -380,7 +454,10 @@ def partes_para_o_diretor(foto: dict[str, Any] | None) -> list[dict[str, Any]]:
             # fechada, e a reaberta volta a nulo.
             "fechada_em": parte.get("fechada_em") or None,
             "onda": onda,
-            "bloqueadoras": list(parte.get("bloqueadoras") or []),
+            "bloqueadoras": [
+                {**b, FATO_AJUSTE_DO_PLANO: True} if isinstance(b, dict) and b.get("numero") in ajustes else b
+                for b in (parte.get("bloqueadoras") or [])
+            ],
         }
         for parte, onda in zip(partes, ondas, strict=True)
     ]
@@ -630,17 +707,6 @@ def _escapar_para_o_github(texto: str, *, marcador_vira_link: bool = True) -> st
     return sanitizar_travessao(neutralizado).strip()
 
 
-def labels_da_issue_nova(tipo: str | None) -> list[str]:
-    """As labels com que a issue nasce.
-
-    `needs-triage` SEMPRE: e o contrato do protocolo de triagem
-    (docs/agents/triage-labels.md), e sem ela a issue nasce fora da fila de
-    quem cura, invisivel para a `/onda` e para o `/pegar-issue`.
-    """
-    label = LABEL_DO_TIPO.get(str(tipo or "").strip().lower())
-    return [LABEL_TRIAGEM, label] if label else [LABEL_TRIAGEM]
-
-
 def login_para_publicar(bruto: str | None) -> str | None:
     """O login que pode entrar num corpo de issue PUBLICA, ou `None`.
 
@@ -679,17 +745,6 @@ def link_da_demanda(demanda_id: str) -> str:
 # issue do repositorio publico, e o bloco volta para a tela do diretor, onde
 # numero de issue nao aparece (ADR 0054, decisao 9).
 _NUMERO_DE_ISSUE = re.compile(r"(?<!&)(?:#|\bGH-)(\d+)", re.IGNORECASE)
-
-SEM_DECISAO_NO_PRD = "Nenhuma pergunta respondida fechou uma decisão."
-NADA_EM_ABERTO_NO_PRD = "Nada ficou em aberto."
-SEM_TERMO_NO_PRD = "Nenhum termo novo."
-SEM_CANDIDATA_NO_PRD = "Nenhuma decisão candidata a ADR."
-SEM_LEITURA_DO_CODIGO_NO_PRD = "Nenhuma lida do código nesta conversa: o planejamento técnico completa."
-
-
-# O formato fixo do bloco "Para o diretor" (ADR 0084, decisao 7): no maximo
-# cinco topicos depois da frase de "O que muda".
-LIMITE_DE_TOPICOS_DO_BLOCO = 5
 
 
 def _linha_do_prd(bruto: str | None) -> str:
@@ -782,151 +837,6 @@ def inserir_bloco_do_desenvolvedor(corpo: str, bloco: str) -> str:
     return f"{antes}\n\n{bloco}\n\n{depois}" if depois else f"{antes}\n\n{bloco}\n"
 
 
-def corpo_do_prd_do_diretor(
-    *,
-    demanda_id: str,
-    titulo: str,
-    descricao: str | None,
-    resumo: dict[str, Any],
-    link: str,
-    anexos: int = 0,
-    documentos: int = 0,
-    documento: dict[str, Any] | None = None,
-) -> str:
-    """O corpo da issue que o "sim" do resumo cria (ADR 0075, decisao 1).
-
-    E o PRD do diretor: o bloco "Para o diretor", Problema, Solucao, Historias
-    de usuario, Decisoes de negocio, as Decisoes de implementacao e de teste
-    que o agente leu do codigo (issue #1385), "Ficou em
-    aberto" e "Para o glossario" (issue #1383, ADR 0077, decisao 7: os termos e
-    as decisoes candidatas a ADR, que o terminal grava no `CONTEXT.md` e nas
-    ADRs). O resto do planejamento tecnico nasce depois, no terminal.
-    Tambem e o corpo do "Criar o card" da melhoria no chat.
-
-    Funcao pura do resumo e da Demanda, sem IA: o que o diretor le na issue e o
-    que ele aprovou na tela, palavra por palavra. Nada aqui e escrito por um
-    modelo que nao foi o do resumo, e nenhuma decisao nasce fora do resumo.
-
-    Todo texto passa pelo `texto_do_diretor` (peneira de dado pessoal, escape
-    de marcador e de estrutura, sanitizador de travessao), como o corpo da
-    issue do bug. A Origem nao leva login: quem clicou e o diretor, que nao tem
-    um.
-
-    A primeira linha e a frase de resumo que o modelo escreveu no resumo
-    (issue #1532, ADR 0083, decisao 9), acima do bloco e fora dele, e cai no
-    titulo quando o resumo nao a tem. A conversa nao vai: o link a substitui
-    (decisao 4).
-
-    O bloco "Para o diretor" sai no formato fixo da ADR 0084 (decisao 7, issue
-    #1553): uma frase de "O que muda" e no maximo cinco topicos. Os dois vem do
-    `documento`, o rascunho que o planejamento montou ao lado do chat; sem ele
-    (conversa de antes do documento vivo), a frase e a do resumo e os topicos
-    sao as escolhas do diretor, cortados em cinco.
-    """
-    documento = documento or {}
-    problema = _linha_do_prd(descricao) or _linha_do_prd(titulo)
-    titulo_limpo = _linha_do_prd(titulo)
-    frase = _linha_do_prd(resumo.get("frase")) or titulo_limpo
-    o_que_muda = _linha_do_prd(documento.get("frase")) or frase
-    decisoes = [
-        (_linha_do_prd(d.get("pergunta")), _linha_do_prd(d.get("escolha")), _linha_do_prd(d.get("porque")))
-        for d in resumo.get("decisoes") or []
-    ]
-    em_aberto = [item for item in (_linha_do_prd(t) for t in resumo.get("em_aberto") or []) if item]
-    termos = [item for item in (_linha_do_prd(t) for t in resumo.get("termos") or []) if item]
-    candidatas = [item for item in (_linha_do_prd(t) for t in resumo.get("candidatas_a_adr") or []) if item]
-    # O que o agente leu do codigo (issue #1385, ADR 0077, decisao 7).
-    implementacao = [item for item in (_linha_do_prd(t) for t in resumo.get("decisoes_de_implementacao") or []) if item]
-    teste = [item for item in (_linha_do_prd(t) for t in resumo.get("decisoes_de_teste") or []) if item]
-
-    precisa_saber = [f"- {escolha}" for _, escolha, _ in decisoes]
-    if em_aberto:
-        pontos = "1 ponto" if len(em_aberto) == 1 else f"{len(em_aberto)} pontos"
-        precisa_saber.append(f"- Ficou em aberto: {pontos}, que a Vitta pergunta depois.")
-    topicos = [item for item in (_linha_do_prd(t) for t in documento.get("topicos") or []) if item]
-    if topicos:
-        precisa_saber = [f"- {item}" for item in topicos]
-    if not precisa_saber:
-        precisa_saber.append(f"- {SEM_DECISAO_NO_PRD}")
-    precisa_saber = precisa_saber[:LIMITE_DE_TOPICOS_DO_BLOCO]
-
-    historias = [f"1. Como quem pediu a Demanda, quero {titulo_limpo}, para resolver o problema acima."]
-    historias += [
-        f"{n}. Como quem pediu a Demanda, quero que valha o que decidi: {escolha}"
-        for n, (_, escolha, _) in enumerate(decisoes, start=2)
-    ]
-
-    linhas_das_decisoes: list[str] = []
-    for n, (pergunta, escolha, porque) in enumerate(decisoes, start=1):
-        linhas_das_decisoes += [f"{n}. **{pergunta}**", f"   Escolha: {escolha}", f"   Por quê: {porque}", ""]
-
-    corpo = "\n".join(
-        [
-            frase,
-            "",
-            CABECALHO_DO_BLOCO,
-            "",
-            f"**O que muda:** {o_que_muda}",
-            "",
-            "**O que você precisa saber:**",
-            *precisa_saber,
-            "",
-            "---",
-            "",
-            "## Problema",
-            "",
-            problema,
-            "",
-            "## Solução",
-            "",
-            f"{titulo_limpo}, do jeito que o diretor decidiu no planejamento com a IA, na aba Tecnologia. "
-            "As decisões dele estão em Decisões de negócio; as de implementação e de teste vêm do que a IA "
-            "leu do código, e o planejamento da Vitta completa o resto.",
-            "",
-            "## Histórias de usuário",
-            "",
-            *historias,
-            "",
-            "## Decisões de negócio",
-            "",
-            *(linhas_das_decisoes or [SEM_DECISAO_NO_PRD, ""]),
-            "## Decisões de implementação",
-            "",
-            *([f"- {item}" for item in implementacao] or [SEM_LEITURA_DO_CODIGO_NO_PRD]),
-            "",
-            "## Decisões de teste",
-            "",
-            *([f"- {item}" for item in teste] or [SEM_LEITURA_DO_CODIGO_NO_PRD]),
-            "",
-            "## Ficou em aberto",
-            "",
-            *([f"- {item}" for item in em_aberto] or [NADA_EM_ABERTO_NO_PRD]),
-            "",
-            "## Para o glossário",
-            "",
-            "Termos:",
-            *([f"- {item}" for item in termos] or [f"- {SEM_TERMO_NO_PRD}"]),
-            "",
-            "Decisões candidatas a ADR:",
-            *([f"- {item}" for item in candidatas] or [f"- {SEM_CANDIDATA_NO_PRD}"]),
-            "",
-            "## Origem",
-            "",
-            "Planejado com a IA na aba Tecnologia do aplicativo do hospital e mandado para o desenvolvimento "
-            "por quem planejou, depois de conferir o resumo.",
-            f"Abrir a Demanda: {link}",
-            *(["", frase] if (frase := frase_dos_anexos(anexos, documentos)) else []),
-            "",
-            marcador_da_demanda(demanda_id),
-        ]
-    )
-    # O bloco de quem programa (issue #1633) entra pela mesma funcao que o
-    # insere num corpo que ja existe: o PRD novo e o corpo antigo ganham o
-    # bloco no mesmo lugar e no mesmo formato.
-    bloco = bloco_do_desenvolvedor(resumo.get("para_o_desenvolvedor"))
-    return inserir_bloco_do_desenvolvedor(corpo, bloco) if bloco else corpo
-
-
 # ─── 2b. A issue do bug (issue #1381, ADR 0077) ──────────────────────────────
 
 # Os rotulos do Roteiro do bug, na ordem em que o Assistente pergunta e em que a
@@ -959,6 +869,13 @@ LABELS_DO_BUG = [LABEL_PRONTA_PARA_AGENTE, LABEL_DO_TIPO["defeito"]]
 LABEL_ORIGEM_DIRETOR = "origem:diretor"
 
 
+# A Origem do bug do chat da aba, o padrao do `corpo_da_issue_do_bug`.
+ORIGEM_DO_BUG_DO_CHAT = (
+    "Relatado na conversa com o Assistente de Tecnologia, no aplicativo do hospital, e mandado para o "
+    'desenvolvimento pelo clique em "Criar o card".'
+)
+
+
 def corpo_da_issue_do_bug(
     *,
     demanda_id: str,
@@ -967,6 +884,10 @@ def corpo_da_issue_do_bug(
     link: str,
     anexos: int = 0,
     documentos: int = 0,
+    prd_de_origem: str | None = None,
+    pedido_de_origem: str | None = None,
+    quem_relatou: str = "Bug relatado pelo diretor na aba Tecnologia",
+    como_chegou: str = ORIGEM_DO_BUG_DO_CHAT,
 ) -> str:
     """O corpo da issue que o "Criar o card" do Roteiro do bug cria.
 
@@ -981,8 +902,26 @@ def corpo_da_issue_do_bug(
 
     Com as seis partes de quem programa no resumo (issue #1634), o bloco "Para
     o desenvolvedor" entra logo depois do bloco do diretor, como no PRD.
+
+    O bug do "Achei um problema" (issue #2210, ADR 0111, decisao 9) cita, na
+    parte tecnica, o PRD de origem (`prd_de_origem`, a referencia ja pronta,
+    como "#1700") e o assunto do Pedido de implantacao: o PRD nao reabre.
+
+    O bug do Assistente do app (issue #2275, ADR 0113, decisao 8) passa pelo
+    mesmo corpo, com `quem_relatou` e `como_chegou` dele.
     """
     rotulos = [(rotulo, _linha_do_prd(resumo.get(campo))) for campo, rotulo in ROTULOS_DO_BUG.items()]
+    origem_do_prd = (
+        [
+            "## PRD de origem",
+            "",
+            f'{prd_de_origem}, no Pedido de implantação "{_linha_do_prd(pedido_de_origem)}". '
+            "O PRD continua fechado: a correção vem por este card.",
+            "",
+        ]
+        if prd_de_origem
+        else []
+    )
     esperado = dict(rotulos)["O que esperava"]
     o_que_muda = esperado if esperado and esperado != NAO_INFORMADO else _linha_do_prd(resumo.get("titulo"))
     criterios = [item for item in (_linha_do_prd(c) for c in resumo.get("criterios") or []) if item]
@@ -996,7 +935,7 @@ def corpo_da_issue_do_bug(
             f"**O que muda:** {o_que_muda}",
             "",
             "**O que você precisa saber:**",
-            f"- Bug relatado pelo diretor na aba Tecnologia, em {_linha_do_prd(produto_nome)}.",
+            f"- {quem_relatou}, em {_linha_do_prd(produto_nome)}.",
             "",
             "---",
             "",
@@ -1008,10 +947,10 @@ def corpo_da_issue_do_bug(
             "",
             *[f"- [ ] {criterio}" for criterio in criterios],
             "",
+            *origem_do_prd,
             "## Origem",
             "",
-            "Relatado na conversa com o Assistente de Tecnologia, no aplicativo do hospital, e mandado para o "
-            'desenvolvimento pelo clique em "Criar o card".',
+            como_chegou,
             f"Abrir a Demanda: {link}",
             *(["", frase] if (frase := frase_dos_anexos(anexos, documentos)) else []),
             "",
@@ -1078,15 +1017,4 @@ def _trecho_do_autor(trecho: str) -> str:
 MOTIVO_INTEGRACAO_DESLIGADA = (
     "A integração com o GitHub não está configurada neste ambiente. "
     "Sem ela o app não consegue criar o card: peça para configurar e tente de novo."
-)
-
-
-MOTIVO_CRIACAO_EM_ANDAMENTO = (
-    "O card desta conversa já está sendo criado neste instante. "
-    "Espere alguns segundos e recarregue a página para ver o card que nasceu."
-)
-
-
-MOTIVO_GITHUB_INDISPONIVEL = (
-    "O GitHub não respondeu agora. O Vínculo não foi criado: tente de novo em alguns instantes."
 )

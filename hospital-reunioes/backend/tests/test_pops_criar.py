@@ -11,6 +11,7 @@ terminologia conforme docs/pops/CONTEXT.md.
 from __future__ import annotations
 
 import os
+import re
 import sys
 from dataclasses import dataclass
 from typing import Any
@@ -40,6 +41,7 @@ class _TableQuery:
         self._table = table
         self._filters: dict = {}
         self._in_filters: dict = {}
+        self._or_filters: list[tuple[str, str, list[str]]] = []
         self._insert_payload: list[dict] | None = None
         self._update_payload: dict | None = None
 
@@ -52,6 +54,13 @@ class _TableQuery:
 
     def in_(self, col, values):
         self._in_filters[col] = list(values)
+        return self
+
+    def or_(self, filtro: str):
+        # Subconjunto do PostgREST usado pela lista: `col.eq.v` e `col.in.(a,b)`.
+        for col, op, valor in re.findall(r"(\w+)\.(eq|in)\.(\([^)]*\)|[^,]+)", filtro):
+            valores = valor.strip("()").split(",") if op == "in" else [valor]
+            self._or_filters.append((col, op, valores))
         return self
 
     def order(self, *_args, **_kwargs):
@@ -84,6 +93,7 @@ class _TableQuery:
             for r in self._rows
             if all(r.get(c) == v for c, v in self._filters.items())
             and all(r.get(c) in vs for c, vs in self._in_filters.items())
+            and (not self._or_filters or any(r.get(c) in vs for c, _op, vs in self._or_filters))
         ]
 
         if self._update_payload is not None:
@@ -598,6 +608,56 @@ class TestListaPorEstado:
         assert pop["versao"]["numero_versao"] == "1.0"
         assert pop["versao"]["estado"] == "A_ELABORAR"
 
+    def test_elaborador_designado_ve_o_pop_atribuido_fora_do_seu_setor(self):
+        # Issue #2044: o Elaborador é escolhido na criação e pode não ter
+        # vínculo com o Setor do POP. A designação formal vence o escopo de
+        # Setor (a mesma regra da leitura e da elaboração), então o POP
+        # atribuído a ele aparece na lista dele.
+        cenario = _cenario_lista()
+        client, _ = _client_para(
+            _pessoa("P2", perfil_pop="coordenador"),
+            participantes_extra=[_pessoa("P3", perfil_pop="gerente"), _pessoa("P4", perfil_pop="gestor_qualidade")],
+            setores=cenario["setores"],
+            pops=[cenario["pops"][0]],
+            versoes=cenario["versoes"],
+        )
+        r = client.get("/api/pops")
+        assert r.status_code == 200
+        assert [p["codigo"] for p in r.json()] == ["HSM_CTI-001"]
+
+    def test_designado_ve_o_atribuido_e_o_do_seu_setor_sem_repetir(self):
+        # Revisor e Validador seguem a mesma regra; POP que está no Setor dele
+        # e também designado a ele aparece uma vez só.
+        cenario = _cenario_lista()
+        cenario["pops"][1]["revisor_id"] = "P1"
+        cenario["pops"][0]["validador_id"] = "P1"
+        client, _ = _client_para(
+            _pessoa("P1", perfil_pop="coordenador"),
+            participantes_extra=_designados(),
+            setores=cenario["setores"],
+            vinculos=[("s-cti", "P1")],
+            pops=cenario["pops"],
+            versoes=cenario["versoes"],
+        )
+        r = client.get("/api/pops")
+        assert r.status_code == 200
+        assert [p["codigo"] for p in r.json()] == ["HSM_CTI-001", "HSM_FAR-001"]
+
+    def test_designado_fora_do_setor_nao_ve_pop_alheio(self):
+        # A designação abre só o POP atribuído; o resto do Setor segue fechado.
+        cenario = _cenario_lista()
+        cenario["pops"][1]["elaborador_id"] = "P9"
+        client, _ = _client_para(
+            _pessoa("P2", perfil_pop="coordenador"),
+            participantes_extra=[_pessoa("P3", perfil_pop="gerente"), _pessoa("P4", perfil_pop="gestor_qualidade")],
+            setores=cenario["setores"],
+            pops=cenario["pops"],
+            versoes=cenario["versoes"],
+        )
+        r = client.get("/api/pops")
+        assert r.status_code == 200
+        assert [p["codigo"] for p in r.json()] == ["HSM_CTI-001"]
+
     def test_sem_perfil_pop_recebe_403_na_lista(self):
         client, _ = _client_para(_pessoa("P1", perfil_pop=None, access_profile="regular"))
         r = client.get("/api/pops")
@@ -640,7 +700,7 @@ class TestApoioAoFormulario:
         assert {s["sigla"] for s in r.json()} == {"CTI", "FAR"}
 
     def test_coordenador_sem_vinculo_algum_ve_lista_vazia(self):
-        # Escopo vazio (set()) não chega ao banco: a guarda devolve [] direto.
+        # Escopo vazio (set()) e nenhum POP designado a ele: lista vazia.
         cenario = _cenario_lista()
         client, _ = _client_para(
             _pessoa("P1", perfil_pop="coordenador"),

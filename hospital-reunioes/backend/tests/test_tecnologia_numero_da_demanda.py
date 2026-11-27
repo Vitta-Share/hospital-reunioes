@@ -67,5 +67,5 @@ class TestKit:
         texto = (CONHECIMENTO_DIR / "tecnologia.md").read_text(encoding="utf-8")
 
         secao = texto.split("## O que é uma Demanda", 1)[1].split("\n## ", 1)[0]
-        for trecho in ("Demanda 42", "no topo do documento", "na lista", "antes do Criar o card"):
+        for trecho in ("Demanda 42", "no topo do documento", "card do Quadro"):
             assert trecho in secao, trecho

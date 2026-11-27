@@ -1,6 +1,7 @@
 ---
-status: accepted
+status: superseded
 amends: 0075, 0077
+superseded_by: 0113
 ---
 
 # O diretor escolhe o modelo de cada Demanda da Tecnologia: Sonnet 5.5 ou Opus 5.5

@@ -16,7 +16,9 @@ A base do sigilo e a tela Membros do Comitê:
 - o código de acompanhamento é mostrado uma vez só a quem relatou, e o aplicativo guarda apenas uma marca dele, que não permite recuperar o código;
 - a lista dos casos e a abertura de um caso, para quem está designado. Cada abertura fica registrada com quem abriu, quando e o quê;
 - o canal está fechado: a página pública responde como se não existisse, até a abertura;
-- a tela Configurações, só da coordenação do Comitê, com os contatos e os textos que o canal mostra (veja abaixo).
+- a tela Configurações, só da coordenação do Comitê, com os contatos e os textos que o canal mostra (veja abaixo);
+- a página "Como este canal protege você", sem login, com link no rodapé de toda tela pública do canal (veja abaixo);
+- as portas "Não é aqui", no mesmo rodapé: quem procura o canal por salário, contracheque, escala, férias ou benefícios vê o contato do DP, sem abrir protocolo e sem enviar nada; quem é paciente ou acompanhante vai ao formulário da Ouvidoria. O rodapé também abre o Código de Conduta que vale hoje.
 
 As telas do Comitê, em Comitê de Conduta:
 
@@ -142,6 +144,68 @@ A trilha confere a própria corrente toda vez que a tela abre. Se alguém trocar
 
 Só baixa o Dossiê quem é do Comitê no caso: a coordenação, o membro e o segundo leitor, ou o suplente convocado no lugar de um deles. O apurador, o membro da CIPA, o Presidente, a diretoria executiva e o super admin recebem a recusa. Cada download entra na trilha com quem baixou e quando, e sem esse registro o pacote não sai.
 
+## O relato em passos
+
+Quem trabalha no hospital relata pela página pública do Canal, sem login, em seis passos. A página funciona no celular e o relato completo leva poucos minutos:
+
+- a entrada cita o propósito AGIR CERTO, diz que dá para relatar sem dizer quem é, mostra os selos "Sem login", "Sem registro de IP" e "Só o Comitê lê", o que é assunto do canal e os botões Fazer relato e Acompanhar relato;
+- passo 1, antes de começar: os três avisos das Configurações (ou o texto padrão, enquanto a coordenação não salvou o dela), a linha que diz que a inteligência artificial organiza o relato, guarda o texto por até 30 dias e não o usa para treino, e a caixa "Li as orientações. Relato o que acredito ser verdade.". Sem a caixa marcada não se continua. O aplicativo grava a data, a hora e a versão de cada aviso que a pessoa leu, sem nada que a identifique;
+- passo 2, anônimo ou com identificação. Quem se identifica escreve o nome, que fica cifrado, fora do relato, e aparece só para o Comitê, na tela do caso, como "Relatou com identificação". O nome nunca vai ao agente;
+- passo 3, sobre o quê: se o relato envolve a Direção, a Presidência ou a família proprietária (Sim, Não ou Não sei, a única pergunta obrigatória), o assunto, entre as seis categorias, e se a pessoa sofreu, presenciou ou ficou sabendo;
+- passo 4, o que aconteceu: o texto, com até 10.000 caracteres, e os campos opcionais (quando, se ainda está acontecendo, onde, quem, testemunhas, se alguma liderança já sabe e o que foi feito, evidências). No anônimo, a página lembra de evitar detalhes que só a pessoa saberia. Os campos opcionais entram no relato do caso, embaixo do texto, cada um com o seu rótulo;
+- passo 5, a revisão: o resumo do que foi preenchido, o lembrete de que o relato pode iniciar a apuração da conduta de uma pessoa e o botão Enviar. Quando o assunto parece de outro lugar do hospital, aparece o aviso de assunto fora do canal (abaixo), e o botão vira Registrar mesmo assim;
+- passo 6, o protocolo e o código, mostrados uma única vez, com o botão Copiar, o aviso "Anote agora. Não há como recuperar.", a data a partir da qual voltar à página (o fim dos 5 dias úteis de leitura do Comitê) e a pergunta opcional "De 1 a 5, quanto você confia neste canal?", que vale uma resposta por relato.
+
+A barra de progresso e o botão Voltar aparecem em todos os passos, e voltar não perde nada do que foi preenchido. Sair da página perde o rascunho: nada fica guardado no aparelho, nem no cache do aplicativo, e nada vai no endereço da página.
+
+O que a página garante:
+
+- não pede login, não manda o login de quem esqueceu o aplicativo aberto no mesmo navegador, não grava cookie de rastreio e não carrega nada de fora do aplicativo;
+- não guarda IP, identificação do aparelho nem localização, nem na base de dados nem no registro de funcionamento do servidor;
+- segura a rajada de envios do mesmo aparelho sem guardar o endereço dele; quem passa do limite vê o aviso para esperar alguns minutos;
+- nenhuma mensagem de erro repete o protocolo, o código, o nome ou um trecho do relato: a recusa diz só quais campos conferir;
+- com o canal fechado, a página responde como se não existisse.
+
+### O aviso de assunto fora do canal na revisão
+
+Ao abrir a revisão, o agente lê o texto uma vez, não a cada tecla. Voltar e reabrir a revisão sem mudar o texto não gera leitura nova. O agente responde só se o assunto parece de fora, para onde ele vai e se há termo da regra de proteção; os textos do aviso são fixos, e o agente não escreve nada para a página.
+
+- Salário, contracheque, benefícios, férias, escala ou banco de horas: "Pelo que você escreveu, este assunto é do Departamento Pessoal. O Canal de Conduta não resolve esse tipo de questão.", com os botões Ver contato do DP e Registrar mesmo assim. Ver contato do DP mostra o contato salvo nas Configurações, sem enviar nada e sem guardar o texto, o nome ou o telefone de ninguém. O encaminhamento ao DP não sai por e-mail.
+- Atendimento a paciente ou acompanhante: "Pelo que você escreveu, este assunto é da Ouvidoria. O Canal de Conduta não trata de atendimento a pacientes.", com os botões Ir para a Ouvidoria e Registrar mesmo assim. Ir para a Ouvidoria abre o formulário da Ouvidoria com o texto já escrito, levado pela memória da aba do navegador, nunca pelo endereço da página.
+- Segurança do paciente: "Pelo que você escreveu, este é um assunto de segurança do paciente.", com a orientação do NSP das Configurações, e só Registrar mesmo assim.
+- Avaliação, decisão de gestão, sugestão ou queixa geral: "Pelo que você escreveu, este assunto é tratado com a sua liderança ou com o DP.", e só Registrar mesmo assim.
+
+O relato nunca é bloqueado: Registrar mesmo assim envia o relato como o Enviar de sempre. Se o texto fala de assédio, discriminação, ameaça, violência, retaliação, fraude, desvio ou falsificação, o aviso não aparece, mesmo que o assunto principal pareça de outro lugar. O aplicativo também confere essas palavras por conta própria, sem depender do agente. Antes de sair do aplicativo, o texto perde nome, CPF, telefone e e-mail, como na triagem. Cada leitura conta no teto de 100 leituras por dia do agente. Com o teto de leituras do dia estourado ou o agente fora do ar, a revisão abre sem aviso e o relato é enviado normalmente. Enquanto o agente estiver desligado, nenhum aviso aparece.
+
+## Os anexos do relato
+
+No passo 4, quem relata pode anexar até 10 arquivos: foto em JPG, PNG ou WEBP, PDF, e áudio em MP3, M4A, OGG ou WAV. A foto e o PDF vão até 20 MB, e o áudio até 50 MB. Ao lado do botão, a página avisa: "Os dados de origem do arquivo são apagados automaticamente."
+
+Antes de guardar, o aplicativo regrava o arquivo sem o que ele carrega escondido: da foto saem o EXIF e a localização (GPS), o modelo do celular e a data em que foi tirada; do PDF saem o autor e o programa que gerou o PDF, as datas e o XMP; e saem as etiquetas do áudio (nome, artista, lugar da gravação). O tipo do arquivo é reconhecido pelo conteúdo, não pelo nome. Formato fora da lista (foto HEIC do iPhone, documento do Word, vídeo) é recusado com a lista do que o canal aceita, e o relato segue sem ele: a pessoa pode enviar assim mesmo ou trocar o arquivo. A foto HEIC entra se for salva como JPG antes.
+
+O nome original do arquivo não é guardado, nem na base de dados nem no registro de funcionamento do servidor. O arquivo fica cifrado e só sai para quem abre o caso, pela tela do caso, em "Anexos do relato": cada abertura fica na trilha. O super admin, o impedido e o Citado não abrem.
+
+O complemento da página de acompanhamento também aceita anexo, com os mesmos formatos, o mesmo aviso e a mesma limpeza. Os anexos sobem depois que o complemento é enviado, e formato fora da lista é recusado sem impedir o complemento. O limite de 10 anexos conta o relato e os complementos juntos. Na tela do caso, o anexo que veio pelo complemento aparece marcado "(complemento)".
+
+## A página de acompanhamento e as Mensagens
+
+Quem relatou volta pelo botão Acompanhar relato, na entrada do canal, e digita o protocolo e o código. É o único caminho entre o Comitê e quem relatou: ninguém recebe aviso por e-mail, mensagem ou telefone.
+
+- A página mostra a situação do caso em uma de seis palavras: Recebido (ninguém fez a triagem ainda), Em análise (triagem feita), Em apuração (da apuração até o retorno, e no caso da Rota Especial), Aguardando sua resposta (o Comitê fez uma pergunta que ainda não teve complemento), Concluído e Encaminhado.
+- Embaixo vêm as mensagens do Comitê: as perguntas da coordenação e a resposta final, que é a orientação do Encaminhamento, a resposta do retorno aprovado ou o aviso de arquivamento por falta de elementos. Os complementos que a própria pessoa mandou também aparecem.
+- Nada interno aparece: nome de membro, voto, medida, rito ou etapa do caso. A página recebe do servidor só a situação e as mensagens.
+- O campo Complemento serve para responder a pergunta ou acrescentar informação a qualquer momento, até depois do encerramento. O complemento fica cifrado, entra no caso e na trilha, e marca que quem relatou informou algo, o que liga a verificação de retaliação também no caso anônimo. Responder a pergunta tira o caso de "Aguardando sua resposta".
+- Protocolo errado, código errado ou envio malformado dão a mesma resposta ("Não encontramos um relato com esse protocolo e esse código.") no mesmo tempo, para ninguém descobrir quais protocolos existem.
+- A página não guarda IP, aparelho nem localização. Depois de cinco tentativas por minuto (ou 30 por hora) do mesmo aparelho, ela pede para esperar alguns minutos, e o limite conta sem guardar o endereço.
+
+Do lado do Comitê, a tela do caso tem a área Mensagens, logo depois do relato original:
+
+- todo mundo que abre o caso lê a conversa, em ordem, com o que é pergunta do Comitê e o que é complemento de quem relatou;
+- só a coordenação escreve a pergunta. As perguntas que o agente sugeriu na triagem aparecem como atalho: um toque copia a sugestão para o campo, e a coordenação ajusta antes de enviar. A pergunta enviada não muda mais;
+- pedido de complemento sem resposta há 15 dias, contados da primeira pergunta ainda sem resposta, libera "ARQUIVAR POR FALTA DE ELEMENTOS". Antes disso, a área diz em que dia o botão aparece. Arquivado, o caso encerra, e a página de quem relatou passa a dizer Concluído, com o aviso de que ele pode ser reaberto se a informação chegar;
+- se quem relatou mandar complemento depois do arquivamento, aparece "REABRIR CASO", e o caso volta à etapa em que estava. O prazo do rito continua contado do envio do relato;
+- a conversa entra no Dossiê, no arquivo das mensagens com o denunciante, e cada pergunta, complemento, arquivamento e reabertura entra na trilha do caso.
+
 ## O papel original e a guarda
 
 Os originais assinados à caneta (o termo de declaração de cada pessoa ouvida e a ciência do Código pelo acusado) ficam num envelope lacrado por caso.
@@ -153,7 +217,7 @@ Os originais assinados à caneta (o termo de declaração de cada pessoa ouvida 
 A guarda vai até cinco anos depois do encerramento. O caso encerrado como Encaminhado é guardado por um ano.
 
 - "Congelar caso" é um botão que só a coordenação usa, para caso com processo judicial ou administrativo. Caso congelado não é eliminado nem gera aviso. "Descongelar" também é só da coordenação, e a guarda volta a contar. No caso da Rota Especial, que a coordenação nem vê, quem congela e descongela é o Grupo Especial do caso. As duas ações entram na trilha.
-- Um job diário, às 07:40, elimina o conteúdo do caso com a guarda vencida: o relato, os depoimentos, os termos, os votos, a ata, o relatório, o retorno e todos os arquivos. Ficam o protocolo, o rito, as datas e a trilha do caso continua, com a linha da eliminação. A base de dados confere o prazo de novo e recusa eliminar caso congelado ou ainda na guarda.
+- Um job diário, às 07:40, elimina o conteúdo do caso com a guarda vencida: o relato, o nome de quem relatou com identificação, as mensagens com quem relatou, os depoimentos, os termos, os votos, a ata, o relatório, o retorno, a verificação de retaliação e todos os arquivos, os anexos do relato inclusive. Ficam o protocolo, o rito, as datas e a trilha do caso continua, com a linha da eliminação. A base de dados confere o prazo de novo e recusa eliminar caso congelado ou ainda na guarda.
 - Depois da eliminação, a coordenação recebe o e-mail "Venceu a guarda de um envelope do Canal de Conduta.", sem protocolo nem nada do caso, para eliminar o envelope de papel. O aviso sai uma vez por caso.
 - O caso eliminado continua na lista e abre só com os metadados, a guarda e a trilha. O Dossiê dele não sai mais.
 - O job não chama IA.
@@ -175,9 +239,10 @@ Cada relato novo é lido uma vez pelo agente de triagem, sozinho, logo que chega
 A coordenação do Comitê edita, na tela Configurações:
 
 - o contato do DP, mostrado a quem procura o canal por salário, contracheque ou escala;
+- o contato do encarregado de dados do hospital, mostrado na página de proteção, como pede a LGPD;
 - a orientação do NSP, mostrada quando o assunto é segurança do paciente;
 - os três avisos do primeiro passo do relato;
-- os textos da página "Como este canal protege você", bloco a bloco;
+- os textos da página "Como este canal protege você", bloco a bloco, inclusive o da inteligência artificial;
 - o texto de consentimento lido no início de cada depoimento gravado;
 - o local padrão de guarda dos envelopes com os originais em papel.
 
@@ -186,6 +251,18 @@ Cada vez que alguém salva um item, nasce uma versão nova, com quem salvou e qu
 Quem não é da coordenação do Comitê, o super admin inclusive, não abre a tela. Item que ninguém salvou ainda aparece como "Ainda não preenchido".
 
 Não existe e-mail do DP nas configurações: o encaminhamento ao DP não sai por e-mail, e a página só mostra o contato dele.
+
+## A página "Como este canal protege você"
+
+A página mostra, bloco a bloco, a versão mais recente de cada texto das configurações: a frase de abertura, para quem relata, para quem é citado, quem lê e quem não lê, a inteligência artificial, o que acontece se o relato envolver a Direção ou a família, os prazos e o que o canal não garante.
+
+Enquanto a coordenação não salvou um bloco, ele mostra o texto inicial da especificação, já com o que o diretor decidiu: a Direção só lê a conclusão e a ata do caso, nunca o relato; não leem TI, DP, chefia nem a empresa que desenvolve o sistema; e o serviço de inteligência artificial guarda o texto por até 30 dias e não o usa para treinar a IA.
+
+O bloco do encarregado de dados só aparece depois que a coordenação salva o contato dele. O contato não tem texto inicial: quem diz quem é o encarregado é o hospital.
+
+A página não usa as palavras "independente", "100%" nem "risco zero". A tela Configurações recusa salvar um texto da página com qualquer uma delas.
+
+Cada versão da página fica arquivada pela data. No pé da página aparecem os dias em que ela mudou, e cada dia abre a página como ela estava no fim daquele dia, pelo horário de Brasília.
 
 ## O Código de Conduta
 
@@ -263,7 +340,7 @@ O relato que envolve a Direção, a Presidência ou a família proprietária é 
 - o parecer é entregue fora do aplicativo, à autoridade não envolvida que o grupo escolhe. No encerramento, o grupo registra na tela do caso a quem entregou e em que data, e o caso fica encerrado;
 - quem não é do grupo vê só a contagem, na tela Casos: casos da Rota Especial recebidos, concluídos e em aberto.
 
-Por enquanto o formulário público ainda não está no ar, então a pergunta sobre a Direção chega com ele, numa próxima entrega.
+A pergunta sobre a Direção é o passo 3 do relato em passos, e é a única obrigatória dele.
 
 ## O afastamento cautelar
 
@@ -298,6 +375,15 @@ Depois da decisão da Direção (ou, no caso improcedente ou inconclusivo, logo 
 - A comunicação ao acusado não cita quem relatou. Nenhum nome vai ao agente, e na volta só o nome do acusado reaparece; qualquer outra pessoa vira "uma pessoa". O aplicativo recusa a comunicação que cita o denunciante identificado.
 - Em todo caso procedente ou parcialmente procedente, o botão "SUGERIR CORREÇÕES" pede ao agente de uma a três correções no processo que permitiu o fato. Os membros votantes escolhem a correção e definem responsável e prazo. O retorno do caso procedente só é aprovado com ao menos uma correção escolhida.
 
+## A verificação de retaliação
+
+Concluído o caso, a coordenação verifica em 30, 90 e 180 dias se houve mudança desfavorável para quem relatou: desligamento, escala, transferência ou avaliação. Cada verificação aparece em MINHA VEZ da coordenação no dia dela, contado do encerramento, e fica lá até ser registrada. A de 90 dias só aparece depois de registrada a de 30.
+
+- Na tela do caso, "REGISTRAR VERIFICAÇÃO" pede uma resposta de um clique, "Não houve" ou "Houve", com um campo de observação opcional. A observação fica cifrada, e cada verificação registrada entra na trilha e não muda mais.
+- Quando houve, a tela oferece "ABRIR CASO DE RETALIAÇÃO": o aplicativo abre um caso novo de retaliação, que entra na triagem da fila comum na categoria Conduta e relações, com o protocolo do caso de origem e a observação no relato. O caso novo fica ligado à verificação, e cada verificação abre um só.
+- Só vale quando se sabe quem relatou (o denunciante identificado ouvido na apuração, ou o nome da manifestação que a Ouvidoria sinalizou) ou quando quem relatou avisou algo pela página de acompanhamento. Caso anônimo sem aviso de quem relatou não gera verificação. O caso Encaminhado e o da Rota Especial também não.
+- Só a coordenação registra a verificação e abre o caso novo. Os outros membros veem a caixa com o aviso de que é tarefa da coordenação.
+
 ## Quem vê
 
 Ninguém vê um caso por ter um cargo. Vê quem está designado naquele caso:
@@ -323,7 +409,7 @@ Quem não tem acesso recebe a mesma recusa, exista o caso ou não.
 
 ## O que ele ainda não faz
 
-O formulário público de relato, as páginas públicas que vão mostrar os textos das configurações, a página de acompanhamento, as perguntas ao relator, o roteiro de perguntas e o termo de declaração redigidos pelo agente chegam nas próximas entregas. A decisão da Direção e a conversa com o denunciante entram no Dossiê quando chegarem. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. Por enquanto ninguém relata pelo Canal: os relatos continuam chegando pela Ouvidoria.
+O roteiro de perguntas e o termo de declaração redigidos pelo agente chegam nas próximas entregas. A decisão da Direção entra no Dossiê quando chegar. Por enquanto, o termo de declaração é redigido fora do aplicativo e só a cópia assinada entra no cartão. O item Comitê de Conduta do menu lateral abre a tela Membros; MINHA VEZ, Casos e Configurações abrem pelo endereço do Comitê de Conduta. O relato em passos já existe, mas o canal segue fechado até a abertura: enquanto isso, os relatos continuam chegando pela Ouvidoria.
 
 ## O que já foi decidido
 
@@ -369,3 +455,5 @@ O formulário público de relato, as páginas públicas que vão mostrar os text
 - Pedido para trocar a decisão da medida já registrada: não existe; a decisão se registra uma vez.
 - "APROVAR RETORNO" que não libera: no caso procedente, falta a decisão da Direção ou uma correção de processo com responsável e prazo; a tela diz qual.
 - Resposta a quem relatou recusada ao salvar: ela cita a medida ou um nome; reescreva informando só a conclusão.
+- Caso concluído que não pede a verificação de retaliação: o relato é anônimo e quem relatou não avisou nada pela página de acompanhamento, ou o dia da verificação ainda não chegou.
+- Pedido para corrigir uma verificação de retaliação registrada: não existe; ela se registra uma vez. Se a situação mudou, abra um caso novo de retaliação.

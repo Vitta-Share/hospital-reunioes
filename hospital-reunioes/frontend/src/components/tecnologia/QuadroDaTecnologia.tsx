@@ -16,7 +16,8 @@
  * O card é compacto (decisão 4): Número da Demanda, título, Bug ou Melhoria,
  * iniciais do Responsável, partes do PRD, a versão em Em produção, o selo
  * "Envio falhou", o selo do Projeto (issue #1715, ADR 0093, decisão 8), o
- * botão do vídeo da Demonstração e o Ver o plano (issue #2010). Data, quem pediu e o
+ * botão do vídeo da Demonstração, o Ver o plano (issue #2010) e o selo
+ * "Implantação X de Y" enquanto falta Pedido de implantação (issue #2209). Data, quem pediu e o
  * "Conversar" ficam na Demanda aberta.
  */
 
@@ -39,6 +40,7 @@ import {
   partesDoCard,
   classeDoProjeto,
   rotuloDoProjeto,
+  seloDaImplantacao,
 } from "./demandas";
 
 const COLUNA_VAZIA = "Nenhum pedido.";
@@ -149,6 +151,7 @@ function CardDoQuadro({
   const numero = nomeDoNumero(demanda);
   const classificacao = demanda.classificacao;
   const versao = demanda.etapa === "em_producao" ? demanda.versao : null;
+  const implantacao = seloDaImplantacao(demanda);
   const demonstracao = linkDaDemonstracao(demanda);
   const plano = linkDoPlano(demanda);
   // Os selos abrem espaço para os botões do canto: um ou os dois.
@@ -202,6 +205,11 @@ function CardDoQuadro({
           {versao && (
             <span className="normal-case px-1.5 py-0.5 rounded text-[11px] font-medium bg-emerald-100 text-emerald-800">
               {versao}
+            </span>
+          )}
+          {implantacao && (
+            <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-amber-50 text-amber-800">
+              {implantacao}
             </span>
           )}
           {demanda.envio_falhou && (

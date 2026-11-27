@@ -23,6 +23,8 @@ TEXTO_PARA_FORA = {
     "divulgar",
     # A Apresentação do PRD, que o diretor lê para validar o plano (issue #1891).
     "apresentar-prd",
+    # O Guia passo a passo do card humano, que o Pedro lê como leigo.
+    "guia-humano",
     "mensagem-prd",
     "to-prd",
     "to-issues",
@@ -34,6 +36,8 @@ TEXTO_PARA_FORA = {
     "triage",
     # A Descrição de valor da Onda, que o PedroOS mostra a quem não é dev.
     "onda-enxuta",
+    # O card que o Claude do diretor abre e o passo a passo que ele lê (/setup-diretor).
+    "setup-diretor",
 }
 
 
@@ -62,11 +66,13 @@ def passos_do_humanizer(trecho: str) -> list[str]:
     [
         ("divulgar", "A página"),
         ("apresentar-prd", "Passo a passo"),
+        ("guia-humano", "Passo a passo"),
         ("mensagem-prd", "Fluxo"),
         ("to-prd", "Process"),
         ("grill-with-docs", "Fim"),
         ("triage", "Triage a specific issue"),
         ("to-issues", "5. Publish the issues"),
+        ("setup-diretor", "Parte 9: o card"),
     ],
 )
 def test_skill_de_texto_para_fora_passa_o_texto_pelo_humanizer_onde_ele_e_gravado(

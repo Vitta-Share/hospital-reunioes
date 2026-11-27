@@ -116,7 +116,7 @@ DENY
       falta "autoMode.$secao: $rotulo" "descreva $rotulo ($termo) em autoMode.$secao do ~/.claude/settings.json (docs/onboarding/claude-setup.md seção 5.1): $porque"
     fi
   done <<'AUTO'
-environment|repositório|pedrorezendefig/hospital-reunioes
+environment|repositório|vitta-share/hospital-reunioes
 environment|Coolify|coolify
 allow|fechar_onda.py|fechar_onda.py
 allow|minhas_issues.py|minhas_issues.py
@@ -166,7 +166,7 @@ eh_admin() { # quem roda é admin: o papel no repo ou, com o token fine-grained,
 admin_responde() { # rotulo conserto comando... -> FALTA se o comando lê as deploy keys
   local rotulo="$1" conserto="$2" erro
   shift 2
-  if erro="$("$@" api repos/pedrorezendefig/hospital-reunioes/keys --silent 2>&1 >/dev/null)"; then
+  if erro="$("$@" api repos/Vitta-Share/hospital-reunioes/keys --silent 2>&1 >/dev/null)"; then
     falta "$rotulo" "$conserto"
   else
     case "$erro" in
@@ -433,7 +433,13 @@ fi
 if [ "$NIVEL" -ge 3 ]; then
 titulo "Nível 3: app local (opcional, hoje ninguém usa)"
 if tem_bin docker && docker ps >/dev/null 2>&1; then ok "docker no ar"; else opc "docker no ar" "instale o Docker Desktop e abra"; fi
-no_path_do_shell supabase && ok "supabase" || opc "supabase" "brew install supabase/tap/supabase (se já instalou, adicione ao PATH do ~/.zshrc)"
+if no_path_do_shell supabase; then
+  # O config.toml usa [local_smtp], que só o CLI 3 lê (o 2 chamava de [inbucket] e recusa o nome novo).
+  SB_V="$(PATH="$PATH_SHELL" supabase --version 2>/dev/null | head -1 | tr -d v)"
+  versao_min "$SB_V" "3.0.0" && ok "supabase" "$SB_V" || opc "supabase" "tem $SB_V, o config.toml pede o CLI 3: brew upgrade supabase"
+else
+  opc "supabase" "brew install supabase/tap/supabase (se já instalou, adicione ao PATH do ~/.zshrc)"
+fi
 # node e corepack são conferidos no nível 2.
 [ -f "$APP/frontend/.env.local" ] && ok "frontend/.env.local" || opc "frontend/.env.local" "cp hospital-reunioes/frontend/.env.example hospital-reunioes/frontend/.env.local"
 fi

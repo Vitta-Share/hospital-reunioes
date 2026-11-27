@@ -431,33 +431,6 @@ SEM_ANONIMATO_A_PROTEGER = {
     # `TECNOLOGIA_AUTOMACAO_API_KEY`, credencial de máquina no molde da Ana:
     # quem chega é o script do sócio, não um visitante anônimo.
     "GET /api/automacao/tecnologia/demandas/{demanda_id}/anexos",
-    # A Mensagem pelo terminal (issue #1805, ADR 0096): mesma ponte, mesma
-    # chave de máquina. Quem chega é a sessão do terminal de um Desenvolvedor,
-    # não um visitante anônimo.
-    "GET /api/automacao/tecnologia/projetos/{projeto}/issues/{numero}/demanda",
-    "POST /api/automacao/tecnologia/demandas/{demanda_id}/conversa",
-    # A resposta do diretor lida pela ponte (issue #1806, ADR 0096, decisão 6):
-    # mesma chave de máquina, quem chega é a sessão do terminal.
-    "GET /api/automacao/tecnologia/demandas/{demanda_id}/conversa",
-    # Os destinatários da Vitta (issue #1966, PRD #1964): mesma chave de
-    # máquina, quem chega é o PedroOS escolhendo o Canal, não um visitante.
-    "GET /api/automacao/tecnologia/destinatarios",
-    # A Demanda do PRD de um Projeto novo (issue #1967, PRD #1964): mesma
-    # chave de máquina, quem chega é a sessão do terminal.
-    "POST /api/automacao/tecnologia/projetos/{projeto}/issues/{numero}/demanda",
-    # A Pergunta da Vitta (issue #2116, ADR 0109): mesma chave de máquina,
-    # quem chega é a sessão do terminal que cria a Pergunta e o PedroOS que lê
-    # a resposta, não um visitante anônimo.
-    "POST /api/automacao/tecnologia/demandas/{demanda_id}/perguntas",
-    "GET /api/automacao/tecnologia/perguntas/{pergunta_id}",
-    # Resolver e cancelar a Pergunta (issue #2121, ADR 0109, decisão 6): mesma
-    # chave de máquina, quem chega é o PedroOS depois do ok da Vitta.
-    "POST /api/automacao/tecnologia/perguntas/{pergunta_id}/resolver",
-    "POST /api/automacao/tecnologia/perguntas/{pergunta_id}/cancelar",
-    # A observação do Validar (issue #2013, ADR 0108, decisão 5): chave de
-    # máquina própria (`PLANOS_HSM_API_KEY`); quem chega é a função da Vercel
-    # da Apresentação do PRD, não um visitante anônimo.
-    "POST /api/automacao/tecnologia/validacoes",
     # O conector MCP da Central (ADR 0058, decisões 3 e 4). O transporte exige o
     # token OAuth do WorkOS (Super admin), não o login do app, então o schema não
     # o marca com `security`; e o metadata é documento público de descoberta

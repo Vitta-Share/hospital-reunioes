@@ -6,10 +6,13 @@
  * AGORA" chega pronta, com o motivo do botão bloqueado.
  */
 import type { Afastamento } from "@/lib/conduta/afastamento";
+import type { AnexoDoRelato } from "@/lib/conduta/anexos";
 import type { AtaDoCaso, ReuniaoDoComite } from "@/lib/conduta/ata";
 import type { Depoimento } from "@/lib/conduta/depoimentos";
 import type { GuardaDoCaso } from "@/lib/conduta/guarda";
+import type { MensagensDoCaso } from "@/lib/conduta/mensagens";
 import type { TextoDaApuracao } from "@/lib/conduta/relatorio";
+import type { VerificacaoDeRetaliacao } from "@/lib/conduta/retaliacao";
 import type { MedidaERetorno } from "@/lib/conduta/retorno";
 import type { TrilhaDoCaso } from "@/lib/conduta/trilha";
 import type { Trava, Votacao } from "@/lib/conduta/voto";
@@ -110,6 +113,10 @@ export interface CasoAberto extends CasoDaLista {
   citados: Citado[];
   /** Nulo depois da eliminação ao fim da guarda (issue #1838). */
   relato: string | null;
+  // O nome de quem relatou com identificação (issue #1843); nulo no anônimo.
+  relator_nome?: string | null;
+  // Os anexos do relato, já sem os dados de origem (issue #1844).
+  anexos?: AnexoDoRelato[];
   escopo: Escopo | null;
   destino: string | null;
   papel: string | null;
@@ -148,10 +155,14 @@ export interface CasoAberto extends CasoDaLista {
   pode_registrar_afastamento?: boolean;
   /** A decisão da Direção, o retorno e a correção de processo (issue #1835). */
   medida_e_retorno?: MedidaERetorno | null;
+  /** A verificação de retaliação do caso concluído (issue #1839). */
+  verificacao_de_retaliacao?: VerificacaoDeRetaliacao | null;
   /** A trilha do caso com as gavetas e o Dossiê (issue #1837). */
   trilha?: TrilhaDoCaso | null;
   /** O papel original, a guarda e o congelamento (issue #1838). */
   guarda?: GuardaDoCaso | null;
+  /** A conversa com quem relatou pela página de acompanhamento (issue #1845). */
+  mensagens?: MensagensDoCaso | null;
 }
 
 /** O que o Grupo Especial vê do caso dele (issue #1829). */
@@ -222,6 +233,7 @@ const ETAPAS: Record<string, string> = {
   medida: "Medida",
   retorno: "Retorno",
   encerrado: "Encerrado",
+  acompanhamento: "Acompanhamento",
 };
 
 export function rotuloDaEtapa(etapa: string | null): string {

@@ -48,6 +48,10 @@ function servidor({ status = 201 }: { status?: number } = {}) {
       if (url.includes("/publico/locais")) {
         return { ok: true, status: 200, json: async () => ({ locais: LOCAIS }) } as Response;
       }
+      // O Canal de Conduta fechado (issue #1847): a saída dele não entra aqui.
+      if (url.includes("/conduta/abertura")) {
+        return { ok: false, status: 404, json: async () => ({}) } as Response;
+      }
       const envio = JSON.parse(String(init?.body ?? "{}"));
       enviados.push(envio);
       // O código de acompanhamento só vem no recibo do anônimo (issue #1623).

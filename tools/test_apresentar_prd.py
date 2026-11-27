@@ -108,7 +108,7 @@ def test_validar_com_codigo_certo_grava_label_e_comentario_com_marcador():
     label, comentario = r["chamadas"][0], r["chamadas"][-1]
     assert label["method"] == "POST"
     assert label["url"].endswith(
-        "/repos/pedrorezendefig/hospital-reunioes/issues/1757/labels"
+        "/repos/Vitta-Share/hospital-reunioes/issues/1757/labels"
     )
     assert label["body"] == {"labels": ["validado:diretor"]}
     assert comentario["method"] == "POST"
@@ -166,7 +166,7 @@ def test_observacao_abre_ajuste_do_plano_que_bloqueia_so_as_fatias_iniciais():
     )
     assert r["status"] == 200 and r["resposta"]["ok"] is True
 
-    [card] = _chamadas(r, "POST", "/repos/pedrorezendefig/hospital-reunioes/issues")
+    [card] = _chamadas(r, "POST", "/repos/Vitta-Share/hospital-reunioes/issues")
     assert card["body"]["labels"] == ["ready-for-human"]
     assert card["body"]["assignees"] == ["pedrorezendefig"]
     assert card["body"]["title"].startswith("Ajuste do plano")
@@ -208,104 +208,68 @@ def test_falha_no_ajuste_nao_perde_a_validacao_e_avisa_no_comentario():
     assert _chamadas(r, "POST", "/dependencies/blocked_by") == []
 
 
-# --- A observação fica no app (issue #2013, ADR 0108, decisão 5) -------------
+# --- O Validar grava só no GitHub (issue #2268, ADR 0113, decisão 10) --------
 
 CHAVE_DO_APP = "chave-do-app-de-teste"
-# A observação do diretor: nada dela pode chegar ao GitHub.
-OBSERVACAO = "Quero que a enfermeira Joana do terceiro andar veja o painel antes"
-TOPICOS = ["A enfermagem vê o painel antes da reunião.", "O painel abre na escala."]
+# A observação do diretor, como ele escreveu: vai inteira ao GitHub, onde ele já escreve.
+OBSERVACAO = "Quero que a enfermagem veja o painel antes.\n\nE o painel abre na escala, @fulano."
+# O app no ar, pronto para responder: se a função ainda chamasse a rota, o teste veria.
+APP_NO_AR = {"APP": {"guardada": True, "topicos": ["Tópico que o app inventou."]}}
 
 
-def _no_github(r) -> str:
-    """Tudo o que a função mandou ao GitHub (títulos e corpos), num texto só."""
-    return json.dumps(
-        [c["body"] for c in r["chamadas"] if c["url"].startswith("https://api.github.com/")],
-        ensure_ascii=False,
-    )
+def _chamadas_ao_app(r) -> list:
+    return [c for c in r["chamadas"] if not c["url"].startswith("https://api.github.com/")]
 
 
-def _sem_trecho_da_observacao(texto: str) -> None:
-    palavras = OBSERVACAO.split()
-    for i in range(len(palavras) - 3):
-        trecho = " ".join(palavras[i : i + 4])
-        assert trecho not in texto, f"o GitHub recebeu a fala do diretor: {trecho!r}"
-
-
-def test_com_o_app_no_ar_o_comentario_e_o_ajuste_levam_so_os_topicos():
+def test_validar_sem_observacao_grava_label_e_comentario_sem_chamar_o_app():
     r = _validar(
-        {"prd": 1757, "c": _hmac(1757), "observacao": OBSERVACAO},
-        {**SUB_ISSUES, "APP": {"guardada": True, "topicos": TOPICOS}},
+        {"prd": 1757, "c": _hmac(1757), "observacao": "  "},
+        {**SUB_ISSUES, **APP_NO_AR},
         chave_do_app=CHAVE_DO_APP,
     )
     assert r["status"] == 200 and r["resposta"]["ok"] is True
-
-    [app] = [c for c in r["chamadas"] if not c["url"].startswith("https://api.github.com/")]
-    assert app["url"] == "https://api.hospitalsaomatheus.cloud/api/automacao/tecnologia/validacoes"
-    assert app["method"] == "POST"
-    assert app["headers"]["X-API-Key"] == CHAVE_DO_APP
-    assert app["body"] == {"prd": 1757, "observacao": OBSERVACAO}
-
-    [comentario] = _chamadas(r, "POST", "/issues/1757/comments")
-    assert (
-        "Observação dele:\n\n> A enfermagem vê o painel antes da reunião.\n> O painel abre na escala.\n\n"
-        in comentario["body"]["body"]
-    )
-    [card] = _chamadas(r, "POST", "/repos/pedrorezendefig/hospital-reunioes/issues")
-    assert "- A enfermagem vê o painel antes da reunião." in card["body"]["body"]
-    assert "- O painel abre na escala." in card["body"]["body"]
-    _sem_trecho_da_observacao(_no_github(r))
-
-
-@pytest.mark.parametrize(
-    "app, chave, aviso",
-    [
-        # O app guardou, mas a interpretação falhou.
-        (
-            {"guardada": True, "topicos": []},
-            CHAVE_DO_APP,
-            "Observação guardada fora do GitHub; leia no app.",
-        ),
-        # O app fora do ar, com erro ou sem rede.
-        ({"__falha": 502}, CHAVE_DO_APP, "Observação recebida; leia no e-mail de aviso."),
-        ({"__rede": True}, CHAVE_DO_APP, "Observação recebida; leia no e-mail de aviso."),
-        # A variável não existe: o app nem é chamado.
-        (
-            {"guardada": True, "topicos": TOPICOS},
-            None,
-            "Observação recebida; leia no e-mail de aviso.",
-        ),
-    ],
-)
-def test_sem_o_app_a_validacao_entra_e_o_github_nao_recebe_a_observacao(app, chave, aviso):
-    r = _validar(
-        {"prd": 1757, "c": _hmac(1757), "observacao": OBSERVACAO},
-        {**SUB_ISSUES, "APP": app},
-        chave_do_app=chave,
-    )
-    assert r["status"] == 200 and r["resposta"]["ok"] is True
+    assert _chamadas_ao_app(r) == []
     [label] = _chamadas(r, "POST", "/issues/1757/labels")
     assert label["body"] == {"labels": ["validado:diretor"]}
     [comentario] = _chamadas(r, "POST", "/issues/1757/comments")
-    assert f"Observação dele:\n\n> {aviso}" in comentario["body"]["body"]
-    # O Ajuste abre sem a citação nem os tópicos.
-    [card] = _chamadas(r, "POST", "/repos/pedrorezendefig/hospital-reunioes/issues")
-    assert "> " not in card["body"]["body"]
-    assert "A enfermagem vê o painel" not in card["body"]["body"]
-    _sem_trecho_da_observacao(_no_github(r))
-    if chave is None:
-        assert all(c["url"].startswith("https://api.github.com/") for c in r["chamadas"])
+    assert comentario["body"]["body"].endswith("Sem observação.")
+    assert [c["method"] for c in r["chamadas"]] == ["POST", "POST"]
 
 
-def test_sem_observacao_o_app_nao_e_chamado_e_nada_muda():
+def test_com_observacao_o_ajuste_leva_o_que_o_diretor_escreveu_sem_chamar_o_app():
     r = _validar(
-        {"prd": 1757, "c": _hmac(1757), "observacao": "  "},
-        {**SUB_ISSUES, "APP": {"guardada": True, "topicos": TOPICOS}},
+        {"prd": 1757, "c": _hmac(1757), "observacao": OBSERVACAO},
+        {**SUB_ISSUES, **APP_NO_AR},
         chave_do_app=CHAVE_DO_APP,
     )
-    assert r["status"] == 200
-    assert [c["method"] for c in r["chamadas"]] == ["POST", "POST"]
-    assert all(c["url"].startswith("https://api.github.com/") for c in r["chamadas"])
-    assert r["chamadas"][-1]["body"]["body"].endswith("Sem observação.")
+    assert r["status"] == 200 and r["resposta"]["ok"] is True
+    assert _chamadas_ao_app(r) == []
+
+    citado = (
+        "> Quero que a enfermagem veja o painel antes.\n"
+        "> \n"
+        "> E o painel abre na escala, @\u200bfulano."
+    )
+    [card] = _chamadas(r, "POST", "/repos/Vitta-Share/hospital-reunioes/issues")
+    assert "## O que o diretor quer mudar\n\n" + citado + "\n\n" in card["body"]["body"]
+    assert "Tópico que o app inventou." not in card["body"]["body"]
+
+    [comentario] = _chamadas(r, "POST", "/issues/1757/comments")
+    assert "Observação dele:\n\n" + citado + "\n\n" in comentario["body"]["body"]
+    assert "Ajuste do plano #1999" in comentario["body"]["body"]
+
+
+def test_sem_a_chave_do_app_a_validacao_com_observacao_e_igual():
+    com = _validar(
+        {"prd": 1757, "c": _hmac(1757), "observacao": OBSERVACAO},
+        {**SUB_ISSUES, **APP_NO_AR},
+        chave_do_app=CHAVE_DO_APP,
+    )
+    sem = _validar({"prd": 1757, "c": _hmac(1757), "observacao": OBSERVACAO}, SUB_ISSUES)
+    assert _chamadas_ao_app(sem) == []
+    [card_com] = _chamadas(com, "POST", "/repos/Vitta-Share/hospital-reunioes/issues")
+    [card_sem] = _chamadas(sem, "POST", "/repos/Vitta-Share/hospital-reunioes/issues")
+    assert card_com["body"]["body"] == card_sem["body"]["body"]
 
 
 def _como_o_pedroos_le(comentario: str) -> str | None:
@@ -325,12 +289,14 @@ def _como_o_pedroos_le(comentario: str) -> str | None:
 def test_o_comentario_continua_no_formato_que_o_pedroos_e_a_pagina_leem():
     r = _validar(
         {"prd": 1757, "c": _hmac(1757), "observacao": OBSERVACAO},
-        {**SUB_ISSUES, "APP": {"guardada": True, "topicos": TOPICOS}},
-        chave_do_app=CHAVE_DO_APP,
+        SUB_ISSUES,
     )
     [comentario] = _chamadas(r, "POST", "/issues/1757/comments")
     corpo = comentario["body"]["body"]
-    assert _como_o_pedroos_le(corpo) == " ".join(TOPICOS)
+    assert _como_o_pedroos_le(corpo) == (
+        "Quero que a enfermagem veja o painel antes. "
+        "E o painel abre na escala, @\u200bfulano."
+    )
     assert re.search(r"Ajuste do plano #1999", corpo)
 
     # A página do plano lê o mesmo comentário pela função de estado.
@@ -341,7 +307,10 @@ def test_o_comentario_continua_no_formato_que_o_pedroos_e_a_pagina_leem():
             "/issues/1757/comments": [_comentario(corpo)],
         },
     )
-    assert estado["resposta"]["observacao"] == "\n".join(TOPICOS)
+    assert estado["resposta"]["observacao"] == (
+        "Quero que a enfermagem veja o painel antes.\n\n"
+        "E o painel abre na escala, @\u200bfulano."
+    )
 
 
 def test_codigo_de_um_prd_nao_vale_para_outro():
@@ -832,7 +801,7 @@ def bin_falso(tmp_path):
         'case "$*" in\n'
         f'  *"/labels --jq"*) [ -f "{tem_label}" ] && echo "validado:diretor"; echo "type:feature" ;;\n'
         f'  "api -X PATCH "*) for a; do ultimo="$a"; done; cp "$ultimo" "{prd}" ;;\n'
-        f'  "api repos/pedrorezendefig/hospital-reunioes/issues/1757") cat "{prd}" ;;\n'
+        f'  "api repos/Vitta-Share/hospital-reunioes/issues/1757") cat "{prd}" ;;\n'
         "esac\n",
         encoding="utf-8",
     )
@@ -882,7 +851,7 @@ def test_republicar_tira_a_label_validado_antes_do_deploy(bin_falso, mac):
     r, log = _publicar(bin_falso, mac)
     tira = next(i for i, x in enumerate(log) if x.startswith("gh api -X DELETE"))
     assert log[tira].endswith(
-        "repos/pedrorezendefig/hospital-reunioes/issues/1757/labels/validado:diretor"
+        "repos/Vitta-Share/hospital-reunioes/issues/1757/labels/validado:diretor"
     )
     sobe = next(i for i, x in enumerate(log) if x.startswith("npx"))
     assert tira < sobe
@@ -924,7 +893,7 @@ def test_publicar_grava_o_marcador_depois_do_deploy_e_republicar_nao_duplica(
     grava = next(i for i, x in enumerate(log) if x.startswith("gh api -X PATCH"))
     assert sobe < grava
     assert log[grava].startswith(
-        "gh api -X PATCH repos/pedrorezendefig/hospital-reunioes/issues/1757 --input"
+        "gh api -X PATCH repos/Vitta-Share/hospital-reunioes/issues/1757 --input"
     )
     # Só acrescenta o marcador no fim: nenhum outro byte do corpo muda.
     assert _corpo(bin_falso) == CORPO_DO_PRD + "\n" + MARCADOR_1757 + "\n"

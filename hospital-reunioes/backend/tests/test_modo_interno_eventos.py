@@ -53,6 +53,7 @@ class _TableQuery:
         self._is_filters: dict = {}
         self._in_filters: dict = {}
         self._limit: int | None = None
+        self._offset = 0
         self._insert_payload: list[dict] | None = None
         self._update_payload: dict | None = None
 
@@ -76,6 +77,14 @@ class _TableQuery:
 
     def limit(self, n):
         self._limit = n
+        return self
+
+    def range(self, inicio, fim):
+
+        self._offset = inicio
+
+        self._limit = fim - inicio + 1
+
         return self
 
     def insert(self, payload: dict | list):
@@ -106,7 +115,7 @@ class _TableQuery:
                 row.update(self._update_payload)
             return _Result(data=[dict(r) for r in filtered])
         if self._limit is not None:
-            filtered = filtered[: self._limit]
+            filtered = filtered[self._offset : self._offset + self._limit]
         return _Result(data=[dict(r) for r in filtered])
 
 

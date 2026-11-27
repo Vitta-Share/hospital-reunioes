@@ -10,7 +10,7 @@ dia e o local de guarda, que vem preenchido das Configurações.
 A guarda vai até cinco anos depois do encerramento; um ano, no caso
 encaminhado. Vencida, o job diário (`rodada`) elimina o conteúdo do caso:
 os arquivos saem do bucket e o banco apaga o resto pela função da migration
-226, que confere o prazo de novo e recusa o caso congelado. A eliminação
+242, que confere o prazo de novo e recusa o caso congelado. A eliminação
 entra na trilha, que nunca se apaga. Depois, a coordenação recebe o aviso do
 vencimento da guarda do papel, sem nada do caso no e-mail.
 
@@ -70,7 +70,7 @@ def _mais_anos(dia: date, anos: int) -> date:
 
 def guardar_ate(caso: dict) -> date | None:
     """O último dia da guarda: cinco anos do encerramento; um ano para o
-    encaminhado. A mesma conta da função da migration 226."""
+    encaminhado. A mesma conta da função da migration 242."""
     if not caso.get("encerrado_em"):
         return None
     anos = ANOS_DO_ENCAMINHADO if caso.get("desfecho") == "encaminhado" else ANOS_DA_GUARDA
@@ -257,6 +257,7 @@ def _caminhos_do_caso(supabase, caso_id: str) -> list[str]:
         ("conduta_comunicacoes_da_medida", "storage_path"),
         ("conduta_assinaturas", "arquivo_assinado_path"),
         ("conduta_afastamentos", "parecer_storage_path"),
+        ("conduta_relato_anexos", "storage_path"),
     ):
         caminhos += [
             linha[coluna]

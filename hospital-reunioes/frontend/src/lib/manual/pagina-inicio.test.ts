@@ -128,8 +128,59 @@ describe("o fluxograma do Início", () => {
   });
 });
 
+/** O bloco ```fluxograma da página que fica dentro da seção `titulo`. */
+function blocoDaSecao(corpo: string, titulo: string): string {
+  const secao = secoes(corpo).find((s) => s.titulo === titulo);
+  if (!secao) throw new Error(`A página não tem a seção "${titulo}".`);
+  return blocoDoFluxograma(secao.texto);
+}
+
+describe("o fluxograma do Roteiro do bug no Assistente", () => {
+  const leitura = lerFluxograma(blocoDaSecao(INICIO?.corpo ?? "", "Tirar uma dúvida ou relatar um bug no Assistente"));
+  const fluxo = () => {
+    if (!leitura.ok) throw new Error(leitura.erros.join("\n"));
+    return leitura.fluxo;
+  };
+  const achar = (padrao: RegExp) => fluxo().passos.find((p) => padrao.test(p.rotulo));
+
+  it("começa em abrir o robô", () => {
+    const [primeiro] = ordemDoFluxo(fluxo());
+    expect(primeiro.forma).toBe("inicio");
+    expect(primeiro.rotulo).toMatch(/robô/);
+  });
+
+  it("vai do robô ao bug enviado passando pelas perguntas, o resumo e o envio, nesta ordem", () => {
+    const [robo] = ordemDoFluxo(fluxo());
+    const perguntas = achar(/perguntas/i);
+    const resumo = achar(/resumo/i);
+    const envio = achar(/^Enviar à Vitta/);
+    const enviado = achar(/^Bug enviado/);
+    expect(perguntas && resumo && envio && enviado, "falta as perguntas, o resumo, o envio ou o bug enviado").toBeTruthy();
+    expect(enviado!.forma).toBe("fim");
+
+    const percurso = caminho(fluxo(), robo.id, enviado!.id);
+    expect(percurso, "o bug enviado não se alcança a partir do robô").not.toBeNull();
+    const posicao = (id: string) => percurso!.indexOf(id);
+    expect(posicao(perguntas!.id)).toBeGreaterThan(0);
+    expect(posicao(resumo!.id)).toBeGreaterThan(posicao(perguntas!.id));
+    expect(posicao(envio!.id)).toBeGreaterThan(posicao(resumo!.id));
+  });
+
+  it("a falha do envio volta ao envio pelo Tentar de novo", () => {
+    const envio = achar(/^Enviar à Vitta/)!;
+    const denovo = achar(/^Tentar de novo/);
+    expect(denovo, "falta o Tentar de novo").toBeDefined();
+    expect(caminho(fluxo(), denovo!.id, envio.id)).not.toBeNull();
+  });
+});
+
 describe("as tarefas da página do Início", () => {
-  it.each([["Ver o que tenho para entregar"], ["Abrir um item da Minha Fila"], ["Acompanhar quem responde a você"]])(
+  it.each([
+    ["Ver o que tenho para entregar"],
+    ["Abrir um item da Minha Fila"],
+    ["Acompanhar quem responde a você"],
+    ["Tirar uma dúvida ou relatar um bug no Assistente"],
+  ])(
     "a tarefa %s tem passos numerados e pelo menos um print",
     (tarefa) => {
       const secao = secoes(INICIO!.corpo).find((s) => s.titulo === tarefa);

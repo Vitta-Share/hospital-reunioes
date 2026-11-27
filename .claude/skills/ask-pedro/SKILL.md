@@ -55,6 +55,7 @@ O diretor faz a metade de negócio do grill no app (ADR 0075). No card aberto de
 - Melhorar arquitetura → `/improve-codebase-architecture` (relatório HTML); sanity-check de design → `/prototype`. Vocabulário de módulos em `codebase-design`; glossário e ADRs em `domain-modeling`; RLS, índice e migration pelo checklist da Supabase em `supabase-postgres-best-practices` (skill de referência, cópia fiel do upstream, só travessão trocado).
 
 - PRD fatiado que o diretor precisa validar antes do trabalho → `/apresentar-prd <PRD>`: a Apresentação do PRD, o plano em etapas com o botão Validar, publicada em `https://planos-hsm.vercel.app/<PRD>`; o Validar grava a label `validado:diretor` e um comentário no PRD. Republicar tira a label. O texto do e-mail (link com o código) fica fora do repositório, e a sessão envia o e-mail ao diretor pelo Gmail. Fonte em `docs/comunicacao/planos/` (o segredo fica só no Mac e na Vercel).
+- Card humano (`ready-for-human`) que depende de gente do hospital (assinar, mandar texto, aprovar) → `/guia-humano <N>`: o Guia passo a passo, uma página para leigo no design do app com botão Copiar em toda mensagem, título e comando, publicada em `https://guias-hsm.vercel.app/<N>`; o marcador `<!-- guia: <url> -->` no corpo da issue dá ao card do PedroOS o status Guia pronto e o botão Abrir guia, e a sessão do card oferece abrir. Fonte em `docs/comunicacao/guias/`.
 
 ## Pós-entrega
 
@@ -63,10 +64,13 @@ O diretor faz a metade de negócio do grill no app (ADR 0075). No card aberto de
 - `/snapshot`: mapa factual da app (roda sozinho numa Action no push da `main`, depois do registro da subida, ADR 0068).
 - `/atualizar-app`: rebuild local docker-compose (não toca produção).
 - **Pendência humana pós-ciclo** (import na virada, credencial, ato externo): vira issue `ready-for-human` ligada ao PRD (`/ship` Passo 10); o Pedro acompanha pelo label `ready-for-human` (`/minhas-issues`) e fecha a issue ao concluir.
+- **Card de implantação** (ADR 0111 e ADR 0113, decisão 9): o card humano que vem depois do código e não segura nenhuma fatia (teste de aceite, configuração, abertura, treinamento) leva a label `implantacao` e nasce `ready-for-human` no nome do diretor, posto pelo `/to-issues` ao criar a fatia ou pelo `/triage` (regra em `docs/agents/triage-labels.md`). O PRD fecha com a última fatia de código, sem esperar esse card. O diretor delega a quem faz no hospital e fecha o card quando terminou; o `/mensagem-prd` lista os abertos na linha "Para começar a usar, falta".
+- **Tarefa do diretor** (ADR 0113, decisão 4): o que o diretor precisa responder ou fazer no meio de um PRD é card no nome dele, com menção: pergunta em `needs-info` (ele responde comentando e devolve o card), coisa a fazer em `ready-for-human` (ele fecha o card, e o bloqueio nativo solta as fatias). A baixa da `/onda-enxuta` que espera o diretor segue a mesma regra (nota `onda-enxuta` do `.claude/fluxo-notas.md`). Comandos em `docs/agents/issue-tracker.md`.
 
 ## Máquina nova
 
 - `/setup-maquina [--nivel N] [--env] [--mapa]`: diagnóstico de quem clonou (clone atualizado, binários, gh, plugins, Coolify, tokens) com o conserto ao lado e o item do 1Password de cada chave; `--mapa` explica cada pasta do repo pelo `README.md` da raiz e como se conectar a cada serviço. O app não roda local: nível 2 (deploy) é o alvo. Quem vai publicar a página da `/divulgar` roda `--nivel 4`.
+- `/setup-diretor`: o setup do diretor, que planeja e prototipa no Mac dele com o Claude Max desde 24/11/2026 (a aba Tecnologia saiu do refinamento). Guia de leigo, um passo por vez: conta no GitHub, ferramentas, fork do repositório, app local com o seed e IA simulada, a trava do merge no `settings.json` do Claude dele e o convite de colaborador (ADR 0113: recebe e fecha card, não mergeia; o check do PR do diretor espera a label `assumido`), `/grill-with-docs`, `/prototype` em PR rascunho do fork, o card no formato do PRD do diretor, o Arquivo de apoio no `hospital-arquivos` e a Tarefa do diretor. Bug ele relata pelo Assistente do app. A Action `card-do-diretor.yml` põe `needs-triage` e `origem:diretor` e designa o Pedro no card de quem está na variável `DIRETOR_LOGINS`; o grill técnico segue o caminho do PRD do diretor (`/grill-with-docs #N`). Só no Hospital, sem fonte no OS.
 
 ## Travessia de sessões
 

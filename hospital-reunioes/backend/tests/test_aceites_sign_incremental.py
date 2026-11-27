@@ -80,6 +80,7 @@ class _TableQuery:
         self._is_filters: dict = {}
         self._order: tuple[str, bool] | None = None
         self._limit: int | None = None
+        self._range: tuple[int, int] | None = None
         self._insert_payload: list[dict] | None = None
         self._update_payload: dict | None = None
 
@@ -105,6 +106,10 @@ class _TableQuery:
 
     def limit(self, n):
         self._limit = n
+        return self
+
+    def range(self, inicio, fim):
+        self._range = (inicio, fim)
         return self
 
     def insert(self, payload: dict | list):
@@ -149,6 +154,9 @@ class _TableQuery:
             filtered = sorted(filtered, key=lambda r: r.get(col) or "", reverse=desc)
         if self._limit is not None:
             filtered = filtered[: self._limit]
+        if self._range is not None:
+            inicio, fim = self._range
+            filtered = filtered[inicio : fim + 1]
         return _Result(data=[dict(r) for r in filtered])
 
 
@@ -516,6 +524,23 @@ class TestConcorrencia:
         assert res.status_code == 200
         criadas = _pendencias(sb)
         assert sorted(p["quadro_pos"] for p in criadas) == [0, 1, 2, 3, 4]  # nada duplicado
+
+    def test_auto_close_depois_da_pendencia_mil_marca_assinada(self):
+        """Issues #2085 e #1914, pelo webhook: em texto "A999" vem depois de
+        "A1000". Com a numeração passada de mil, todo insert colidia no A1000,
+        o fechamento respondia 500 e a Ata ficava em AGUARDANDO_ASSINATURA."""
+        sb = _sb()
+        sb.tables["pendencias"].extend(
+            {"id_acao": f"A{n:03d}", "id_reuniao": "R0", "status": "PENDENTE", "quadro_pos": n}
+            for n in (998, 999, 1000, 1001)
+        )
+
+        res = _post(_client(sb), _evento("auto_close"))
+
+        assert res.status_code == 200
+        assert sb.tables["reunioes"][0]["status_ata"] == "ASSINADA"
+        da_ata = sorted(p["id_acao"] for p in _pendencias(sb) if p["id_reuniao"] == "R1")
+        assert da_ata == ["A1002", "A1003", "A1004", "A1005", "A1006"]
 
     def test_aceite_concorrente_nao_quebra_nem_duplica(self):
         """Outra transacao grava o mesmo aceite entre a leitura e o insert."""

@@ -1,12 +1,13 @@
-"""O aviso da Conversa da Demanda por e-mail (issue #1538, ADR 0083, decisão 8).
+"""Os avisos da aba Tecnologia por e-mail (issue #1538, ADR 0083, decisão 8).
 
-Sai junto com o aviso do sino, para o mesmo destinatário: o diretor não fica
-com o app aberto. Leva o título da Demanda, quem escreveu e o link que abre a
-Demanda na aba Tecnologia. Não leva número de issue nem link do GitHub: o
-diretor não está no GitHub e o repositório é público.
+Saem junto com o aviso do sino, para o mesmo destinatário: o diretor não fica
+com o app aberto. Levam o título da Demanda e o link que abre a Demanda na aba
+Tecnologia. Não levam número de issue nem link do GitHub: o repositório é
+público. O aviso da Conversa da Demanda saiu com a escrita pela ponte (issue
+#2281); ficam o aviso de entrega e o lembrete do Pedido da Vitta.
 
-Best-effort como os demais e-mails do app: falha aqui nunca desfaz a mensagem
-gravada nem o aviso do sino.
+Best-effort como os demais e-mails do app: falha aqui nunca desfaz o que foi
+gravado nem o aviso do sino.
 """
 
 from __future__ import annotations
@@ -17,8 +18,6 @@ from urllib.parse import quote
 
 from app.config import settings
 from app.services.email_service import _enviar_email, jinja_env
-from app.services.github_client import repositorio_do_projeto
-from app.services.tecnologia import projeto_da_demanda
 
 logger = logging.getLogger(__name__)
 
@@ -26,61 +25,6 @@ logger = logging.getLogger(__name__)
 def link_da_demanda(demanda_id: str) -> str:
     """O mesmo endereço que o clique no sino abre."""
     return f"{settings.frontend_url}/admin/tecnologia?demanda={quote(str(demanda_id), safe='')}"
-
-
-def link_da_pergunta(pergunta_id: str) -> str:
-    """A aba Tecnologia com o cartão da Pergunta da Vitta em foco, o mesmo
-    endereço que o clique no aviso do sino dela abre (issue #2118)."""
-    return f"{settings.frontend_url}/admin/tecnologia?pergunta={quote(str(pergunta_id), safe='')}"
-
-
-def enviar_aviso_da_conversa(
-    supabase,
-    *,
-    destinatario_id: str,
-    aviso: str,
-    autor_nome: str,
-    demanda: dict,
-    assunto: str | None = None,
-    pergunta_id: str | None = None,
-) -> bool:
-    """Um e-mail para `destinatario_id` com o `aviso` do sino ("Fulano mencionou
-    você" ou "Fulano escreveu na Demanda"). Com `assunto`, a mensagem pede
-    resposta (ADR 0106): o assunto do e-mail é o aviso com o Assunto, e o corpo
-    leva o Assunto ao lado do título. `False` quando não saiu."""
-    try:
-        from app.services.email_constants import get_logo_data_uri
-
-        linhas = (
-            supabase.table("participantes").select("id, nome_completo, email").eq("id", destinatario_id).execute().data
-        )
-        destinatario = linhas[0] if linhas else None
-        if not destinatario or not destinatario.get("email"):
-            logger.warning(f"[tecnologia_conversa] {destinatario_id} sem e-mail: aviso por e-mail pulado")
-            return False
-
-        titulo = str(demanda.get("titulo") or "Demanda sem título")
-        # O aviso da Pergunta da Vitta abre o cartão dela (issue #2118).
-        link = link_da_pergunta(pergunta_id) if pergunta_id else link_da_demanda(demanda["id"])
-        html = jinja_env.get_template("email_tecnologia_conversa.html").render(
-            destinatario_nome=destinatario.get("nome_completo") or "",
-            aviso=aviso,
-            autor_nome=autor_nome,
-            titulo=titulo,
-            assunto=assunto,
-            link=link,
-            pergunta=bool(pergunta_id),
-            logo_base64=get_logo_data_uri(),
-        )
-        linha_do_assunto = f"Assunto: {assunto}\n" if assunto else ""
-        texto = (
-            f"{aviso}.\n\n{linha_do_assunto}Demanda: {titulo}\nQuem escreveu: {autor_nome}\n\n"
-            f"Para ler e responder: {link}\n"
-        )
-        return _enviar_email(destinatario["email"], f"{aviso}: {assunto or titulo}", html, texto)
-    except Exception as e:  # noqa: BLE001 (e-mail nunca desfaz a mensagem nem o sino)
-        logger.warning(f"[tecnologia_conversa] Falha no e-mail para {destinatario_id}: {e}")
-        return False
 
 
 # O rotulo em negrito que abre uma linha do bloco no formato fixo da ADR 0084
@@ -156,90 +100,13 @@ def enviar_aviso_da_entrega(supabase, *, destinatario_id: str, aviso: str, deman
 
 # ─── O email do card novo (issue #1635, PRD #1632) ──────────────────────────
 
-ASSUNTO_DO_CARD_NOVO = "Card novo do diretor"
-
-# A pagina da sessao no Vitta OS, que roda no computador de quem programa. O
-# formato `#/sessao/<dono>/<repositorio>/<numero>` e o combinado com o PRD do
-# Vitta OS: mudar aqui quebra o link do lado de la.
-VITTA_OS_LOCAL = "http://127.0.0.1:4500"
-AVISO_DO_VITTA_OS = "Este link abre o Vitta OS do seu próprio computador e só funciona com ele rodando."
 
 # Uma parte do bloco "Para o desenvolvedor": "**Rotulo:** texto".
 _PARTE_DO_BLOCO = re.compile(r"^\*\*([^*]+):\*\*\s*(.*)$")
 
 
-def link_do_vitta_os(numero: int, *, projeto: str) -> str:
-    """A sessao da issue `numero` no Vitta OS, com o dono e o repositorio do
-    Projeto da Demanda (issue #1713)."""
-    dono, _, repositorio = repositorio_do_projeto(projeto).partition("/")
-    return f"{VITTA_OS_LOCAL}/#/sessao/{quote(dono, safe='')}/{quote(repositorio, safe='')}/{numero}"
-
-
-def link_da_issue(numero: int, *, projeto: str) -> str:
-    return f"https://github.com/{repositorio_do_projeto(projeto)}/issues/{numero}"
-
-
-def enviar_card_novo(supabase, *, demanda: dict, resumo: dict | None) -> bool:
-    """O email ao Responsavel da Demanda quando o card nasce (issue #1635): o
-    bloco "Para o desenvolvedor" que entrou na issue e os tres links (Vitta OS,
-    issue, Demanda). `False` quando nao saiu, inclusive sem Responsavel ou sem
-    email no cadastro."""
-    demanda_id = demanda.get("id")
-    try:
-        from app.services.email_constants import get_logo_data_uri
-        from app.services.tecnologia_vinculo import bloco_do_desenvolvedor
-
-        responsavel_id = demanda.get("responsavel_id")
-        if not responsavel_id:
-            logger.warning(f"[tecnologia_card_novo] Demanda {demanda_id} sem Responsável: email do card pulado")
-            return False
-        linhas = (
-            supabase.table("participantes").select("id, nome_completo, email").eq("id", responsavel_id).execute().data
-        )
-        destinatario = linhas[0] if linhas else None
-        if not destinatario or not destinatario.get("email"):
-            logger.warning(f"[tecnologia_card_novo] {responsavel_id} sem e-mail: email do card {demanda_id} pulado")
-            return False
-
-        numero = int(demanda["github_issue_numero"])
-        projeto = projeto_da_demanda(demanda)
-        titulo = str(demanda.get("titulo") or "Demanda sem título")
-        bloco = bloco_do_desenvolvedor((resumo or {}).get("para_o_desenvolvedor"))
-        partes = [m.groups() for m in (_PARTE_DO_BLOCO.match(linha) for linha in (bloco or "").splitlines()) if m]
-        links = {
-            "vitta_os": link_do_vitta_os(numero, projeto=projeto),
-            "issue": link_da_issue(numero, projeto=projeto),
-            "demanda": link_da_demanda(demanda["id"]),
-        }
-        html = jinja_env.get_template("email_tecnologia_card_novo.html").render(
-            destinatario_nome=destinatario.get("nome_completo") or "",
-            titulo=titulo,
-            partes=partes,
-            aviso_do_vitta_os=AVISO_DO_VITTA_OS,
-            logo_base64=get_logo_data_uri(),
-            **links,
-        )
-        texto = "\n".join(
-            [
-                f"{ASSUNTO_DO_CARD_NOVO}: {titulo}",
-                "",
-                *([bloco, ""] if bloco else []),
-                f"Abrir a sessão no Vitta OS: {links['vitta_os']}",
-                AVISO_DO_VITTA_OS,
-                "",
-                f"Issue no GitHub: {links['issue']}",
-                f"Demanda no app: {links['demanda']}",
-                "",
-            ]
-        )
-        return _enviar_email(destinatario["email"], f"{ASSUNTO_DO_CARD_NOVO}: {titulo}", html, texto)
-    except Exception as e:  # noqa: BLE001 (email nunca desfaz o card)
-        logger.warning(f"[tecnologia_card_novo] Falha no email do card da Demanda {demanda_id}: {e}")
-        return False
-
-
 def enviar_lembrete_da_pergunta(
-    supabase, *, destinatario_id: str, assunto: str, dias: int, autor_nome: str, demanda: dict
+    supabase, *, destinatario_id: str, assunto: str, dias: int, autor_nome: str, demanda: dict, acao: bool = False
 ) -> bool:
     """O lembrete unico da Pergunta da Vitta (issue #2120, ADR 0109, decisao
     7): o Assunto, ha quantos dias a Pergunta espera e o link que abre a
@@ -257,8 +124,10 @@ def enviar_lembrete_da_pergunta(
 
         titulo = str(demanda.get("titulo") or "Demanda sem título")
         link = link_da_demanda(demanda["id"])
-        espera = f"Sua resposta espera há {dias} dias"
+        # O Passo a passo da Vitta (ADR 0110) tem o mesmo lembrete unico.
+        espera = f"Seu passo a passo espera há {dias} dias" if acao else f"Sua resposta espera há {dias} dias"
         html = jinja_env.get_template("email_tecnologia_lembrete_da_pergunta.html").render(
+            acao=acao,
             destinatario_nome=destinatario.get("nome_completo") or "",
             espera=espera,
             dias=dias,
@@ -269,8 +138,9 @@ def enviar_lembrete_da_pergunta(
             logo_base64=get_logo_data_uri(),
         )
         texto = (
-            f"{espera}.\n\nAssunto: {assunto}\nDemanda: {titulo}\nQuem perguntou: {autor_nome}\n\n"
-            f"Para ler e responder: {link}\n"
+            f"{espera}.\n\nAssunto: {assunto}\nDemanda: {titulo}\n"
+            f"{'Quem pediu' if acao else 'Quem perguntou'}: {autor_nome}\n\n"
+            f"{'Para ver os passos' if acao else 'Para ler e responder'}: {link}\n"
         )
         return _enviar_email(destinatario["email"], f"{espera}: {assunto}", html, texto)
     except Exception as e:  # noqa: BLE001 (o e-mail nunca desfaz o sino)

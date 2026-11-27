@@ -5,11 +5,13 @@ import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, Check, Loader2 } from "lucide-react";
 
 import { AfastamentoCautelar } from "@/components/conduta/AfastamentoCautelar";
+import { AnexosDoRelato } from "@/components/conduta/AnexosDoRelato";
 import { AtaEReuniao } from "@/components/conduta/AtaEReuniao";
 import { ConvidarAoCaso } from "@/components/conduta/ConvidarAoCaso";
 import { DepoimentosDaApuracao } from "@/components/conduta/DepoimentosDaApuracao";
 import { ImpedimentoECitados } from "@/components/conduta/ImpedimentoECitados";
 import { MedidaERetorno } from "@/components/conduta/MedidaERetorno";
+import { MensagensDoCaso } from "@/components/conduta/MensagensDoCaso";
 import { OQueFazerAgora } from "@/components/conduta/OQueFazerAgora";
 import { RelatorioDaApuracao } from "@/components/conduta/RelatorioDaApuracao";
 import { RotaEspecial } from "@/components/conduta/RotaEspecial";
@@ -17,6 +19,7 @@ import { SinalizarAoNsp } from "@/components/conduta/SinalizarAoNsp";
 import { SugestaoDoAgente } from "@/components/conduta/SugestaoDoAgente";
 import { ArquivarPapel } from "@/components/conduta/ArquivarPapel";
 import { TrilhaDoCaso } from "@/components/conduta/TrilhaDoCaso";
+import { VerificacaoDeRetaliacao } from "@/components/conduta/VerificacaoDeRetaliacao";
 import { VotoETrava } from "@/components/conduta/VotoETrava";
 import {
   CATEGORIAS,
@@ -357,6 +360,13 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
 
       <MedidaERetorno casoId={casoId} dados={caso.medida_e_retorno ?? null} aoMudar={carregar} />
 
+      <VerificacaoDeRetaliacao
+        casoId={casoId}
+        dados={caso.verificacao_de_retaliacao ?? null}
+        registrando={passo === "registrar_verificacao"}
+        aoMudar={carregar}
+      />
+
       <ArquivarPapel casoId={casoId} protocolo={caso.protocolo} guarda={caso.guarda ?? null} aoMudar={carregar} />
 
       {caso.triagem_em && (
@@ -447,10 +457,16 @@ export function TelaDoCaso({ casoId }: { casoId: string }) {
 
       <section aria-label="Relato original" className={`${CARTAO} px-4 py-4 space-y-1`}>
         <h2 className="text-base font-semibold text-slate-900">Relato original</h2>
+        {caso.relator_nome && (
+          <p className="text-sm text-slate-600">Relatou com identificação: {caso.relator_nome}</p>
+        )}
         <p className="text-sm text-slate-800 whitespace-pre-line break-words">
           {caso.relato ?? "O conteúdo deste caso foi eliminado ao fim da guarda."}
         </p>
+        <AnexosDoRelato casoId={casoId} anexos={caso.anexos ?? []} />
       </section>
+
+      <MensagensDoCaso casoId={casoId} dados={caso.mensagens ?? null} aoMudar={carregar} />
 
       <TrilhaDoCaso casoId={casoId} protocolo={caso.protocolo} trilha={caso.trilha ?? null} />
     </div>

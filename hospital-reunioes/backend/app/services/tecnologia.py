@@ -14,13 +14,8 @@ from typing import Any
 from app.dependencies import is_super_admin
 from app.services.github_client import FATO_ASSIGNEE, PROJETO_ANA, PROJETO_HOSPITAL
 from app.services.tecnologia_vinculo import (
-    ETAPA_EM_ANALISE,
-    ETAPA_EM_DESENVOLVIMENTO,
     ETAPA_EM_PRODUCAO,
     ETAPA_ENTREGUE,
-    ETAPA_NAO_SERA_FEITA,
-    ETAPA_PLANEJADA,
-    ETAPA_REGISTRADA,
 )
 
 # As tabelas da aba. Moram aqui, e nao no router, porque quem escreve nelas nao
@@ -45,22 +40,18 @@ ESTADOS_FECHADOS: tuple[str, ...] = ("concluida", "cancelada")
 # pelo chat da aba, ou a Vitta, pela issue-raiz do app aberta no terminal.
 ORIGEM_DIRETOR = "diretor"
 ORIGEM_VITTA = "vitta"
-ORIGENS: tuple[str, ...] = (ORIGEM_DIRETOR, ORIGEM_VITTA)
+# O bug relatado no Assistente do app (issue #2275, ADR 0113, decisao 8;
+# CHECK da migration 240): a tela diz "Relato no app".
+ORIGEM_RELATO = "relato"
+ORIGENS: tuple[str, ...] = (ORIGEM_DIRETOR, ORIGEM_VITTA, ORIGEM_RELATO)
 
-# O nome que a issue do bug leva quando a Demanda nao tem Produto.
-SEM_PRODUTO = "(sem Produto)"
+# A classificacao da tela e o Tipo do banco: bug e Defeito, melhoria e Novo.
+# O caminho de volta da o selo da lista (issue #1438): o Tipo que nao veio do
+# chat (os de antes dele) nao e bug nem melhoria, e fica sem selo. Moravam no
+# `chat_tecnologia`, que saiu com o chat da aba (issue #2279).
+TIPO_DA_CLASSIFICACAO: dict[str, str] = {"bug": "defeito", "melhoria": "novo"}
+CLASSIFICACAO_DO_TIPO: dict[str, str] = {tipo: c for c, tipo in TIPO_DA_CLASSIFICACAO.items()}
 
-# O rotulo que a gente le de cada Tipo. O banco guarda o valor sem acento
-# (CHECK da migration 102); o PRD do diretor escreve "Novo".
-TIPO_ROTULO: dict[str, str] = {
-    "decisao": "Decisão",
-    "informacao": "Informação",
-    "terceiro": "Terceiro",
-    "ajuste": "Ajuste",
-    "novo": "Novo",
-    "defeito": "Defeito",
-    "consultoria": "Consultoria",
-}
 
 RECUO_DA_CONTINUACAO = "    "
 
@@ -153,7 +144,8 @@ def e_desenvolvedor(pessoa: dict[str, Any] | None) -> bool:
 
 def origem_da_demanda(demanda: dict[str, Any]) -> str:
     """A Origem da Demanda; a linha de antes da coluna (migration 130) e do diretor."""
-    return ORIGEM_VITTA if demanda.get("origem") == ORIGEM_VITTA else ORIGEM_DIRETOR
+    origem = demanda.get("origem")
+    return origem if origem in (ORIGEM_VITTA, ORIGEM_RELATO) else ORIGEM_DIRETOR
 
 
 def projeto_da_demanda(demanda: dict[str, Any]) -> str:
@@ -189,95 +181,13 @@ def projetos_do_filtro(demandas: Sequence[dict[str, Any]]) -> list[dict[str, str
 
 
 def pode_ver(pessoa: dict[str, Any], demanda: dict[str, Any]) -> bool:
-    """Quem ve uma Demanda: o autor, o Desenvolvedor, que ve todas (ADR 0083),
-    e todo Super admin no card de Origem Vitta, aberto pelo terminal (ADR 0084,
-    decisao 4). A conversa de outro diretor continua fechada.
+    """Quem ve uma Demanda: todo Super admin, qualquer que seja o autor (issue
+    #2265, ADR 0113, decisao 6, que emenda a decisao 3 da ADR 0083). O login
+    do GitHub no cadastro nao entra aqui: ele so da nome ao Responsavel.
 
-    A regra e uma so, e a lista e a leitura da conversa leem daqui.
+    A regra e uma so, e toda rota de leitura da aba le daqui.
     """
-    return (
-        demanda.get("autor_id") == pessoa.get("id")
-        or e_desenvolvedor(pessoa)
-        or origem_da_demanda(demanda) == ORIGEM_VITTA
-    )
-
-
-# Ate onde a Demanda se apaga (ADR 0084, decisao 2): ate Planejada. Em
-# desenvolvimento ja existe PR aberto, e dali em diante o app recusa. Nao sera
-# feita tambem se apaga (issue #1637): ninguem vai fazer o pedido, e sem isto o
-# card fechado pelo GitHub ficava na lista para sempre.
-ETAPAS_QUE_SE_APAGAM: tuple[str, ...] = (ETAPA_REGISTRADA, ETAPA_EM_ANALISE, ETAPA_PLANEJADA, ETAPA_NAO_SERA_FEITA)
-
-MOTIVO_APAGAR_SO_O_AUTOR = "Só quem começou esta conversa pode apagá-la."
-MOTIVO_APAGAR_SO_O_DESENVOLVEDOR = "Pedido que já virou card, só a Vitta apaga. Peça na Conversa da Demanda."
-MOTIVO_APAGAR_JA_COMECOU = "Este pedido já começou a ser feito e não pode mais ser apagado."
-MOTIVO_APAGAR_DA_ANA = "Os pedidos da Ana aparecem aqui só para acompanhar e não se apagam pelo aplicativo."
-MOTIVO_APAGAR_DE_PROJETO_NOVO = "Os pedidos deste projeto não se apagam pelo aplicativo. Peça na Conversa da Demanda."
-
-
-def recusa_de_apagar(pessoa: dict[str, Any], demanda: dict[str, Any]) -> tuple[int, str] | None:
-    """Por que esta pessoa nao apaga esta Demanda, ou `None` se apaga (ADR 0084,
-    decisao 2). A recusa vem com o status HTTP e a frase da tela.
-
-    A conversa que nao virou card, quem apaga e o autor ou o Desenvolvedor
-    (issue #1637: a conversa velha de outra pessoa nao fica na lista para
-    sempre). O card criado, so o Desenvolvedor, ate Planejada ou em Nao sera
-    feita. Quem nao pode apagar e 403 antes de a Etapa ser olhada. A lista le
-    daqui para mostrar o botao so a quem pode.
-
-    O card da Ana e so leitura (issue #1714, ADR 0093, decisao 5): ninguem o
-    apaga pelo app, e o Apagar fecharia a issue no repositorio do Hospital.
-    """
-    if projeto_da_demanda(demanda) == PROJETO_ANA:
-        return 409, MOTIVO_APAGAR_DA_ANA
-    # O Apagar fecha a issue no repositorio do Hospital: no card de um Projeto
-    # que o app nao le (issue #1967), fecharia a issue de mesmo numero dele.
-    if projeto_da_demanda(demanda) != PROJETO_HOSPITAL:
-        return 409, MOTIVO_APAGAR_DE_PROJETO_NOVO
-    if not demanda.get("github_issue_numero"):
-        if demanda.get("autor_id") != pessoa.get("id") and not e_desenvolvedor(pessoa):
-            return 403, MOTIVO_APAGAR_SO_O_AUTOR
-        return None
-    if not e_desenvolvedor(pessoa):
-        return 403, MOTIVO_APAGAR_SO_O_DESENVOLVEDOR
-    if demanda.get("etapa") not in ETAPAS_QUE_SE_APAGAM:
-        return 409, MOTIVO_APAGAR_JA_COMECOU
-    return None
-
-
-# A Revisao com o codigo de hoje (ADR 0084, decisao 3): so no card Em analise
-# ou Planejada, e enquanto nenhuma parte esta em desenvolvimento.
-ETAPAS_QUE_SE_REVISAM: tuple[str, ...] = (ETAPA_EM_ANALISE, ETAPA_PLANEJADA)
-
-MOTIVO_REVISAR_SO_O_CARD_DA_MELHORIA = "Só a melhoria que já virou card se revisa com o código de hoje."
-MOTIVO_REVISAR_SO_O_AUTOR = "Só quem pediu e a Vitta revisam este pedido."
-MOTIVO_REVISAR_JA_COMECOU = "Este pedido já começou a ser feito e não pode mais ser revisado."
-
-
-def recusa_de_revisar(pessoa: dict[str, Any], demanda: dict[str, Any]) -> tuple[int, str] | None:
-    """Por que esta pessoa nao revisa esta Demanda, ou `None` se revisa (ADR
-    0084, decisao 3). A recusa vem com o status HTTP e a frase da tela.
-
-    Revisa-se a melhoria do chat que virou card: o bug e o card da Vitta nao
-    tem planejamento para retomar. Clicam o autor e o Desenvolvedor. A Etapa
-    tem de ser Em analise ou Planejada, sem parte Em desenvolvimento. A lista
-    le daqui para mostrar o botao so a quem pode.
-    """
-    if (
-        not demanda.get("github_issue_numero")
-        or demanda.get("tipo") != "novo"
-        or origem_da_demanda(demanda) == ORIGEM_VITTA
-    ):
-        return 409, MOTIVO_REVISAR_SO_O_CARD_DA_MELHORIA
-    if demanda.get("autor_id") != pessoa.get("id") and not e_desenvolvedor(pessoa):
-        return 403, MOTIVO_REVISAR_SO_O_AUTOR
-    partes = demanda.get("partes") if isinstance(demanda.get("partes"), list) else []
-    em_desenvolvimento = any(
-        isinstance(parte, dict) and parte.get("situacao") == ETAPA_EM_DESENVOLVIMENTO for parte in partes
-    )
-    if demanda.get("etapa") not in ETAPAS_QUE_SE_REVISAM or em_desenvolvimento:
-        return 409, MOTIVO_REVISAR_JA_COMECOU
-    return None
+    return is_super_admin(pessoa)
 
 
 def responsavel_da_demanda(demanda: dict[str, Any]) -> str | None:
@@ -291,30 +201,6 @@ def responsavel_da_demanda(demanda: dict[str, Any]) -> str | None:
     if not demanda.get("github_issue_numero"):
         return None
     return demanda.get("responsavel_id") or None
-
-
-def quem_avisar(
-    demanda: dict[str, Any], *, autor_id: str, mencoes: list[str], ja_escreveram: Sequence[str] = ()
-) -> list[str]:
-    """Quem a mensagem da Conversa da Demanda avisa no sino (ADR 0083, decisao 8).
-
-    Mencao avisa o mencionado, e so ele. Sem mencao, a mensagem do autor da
-    Demanda avisa o Responsavel, e a de qualquer outro (o Desenvolvedor, unico
-    que alem do autor escreve ali) avisa o autor. No card de Origem Vitta, que
-    toda a diretoria le e escreve (ADR 0084, decisao 4), avisa tambem quem ja
-    escreveu na conversa: o autor ali e o proprio Desenvolvedor, e sem isso a
-    resposta nunca chega ao diretor que perguntou. Ninguem e avisado da
-    propria mensagem.
-    """
-    if mencoes:
-        destino = list(mencoes)
-    elif autor_id == demanda.get("autor_id"):
-        destino = [responsavel_da_demanda(demanda)]
-    else:
-        destino = [demanda.get("autor_id")]
-    if not mencoes and origem_da_demanda(demanda) == ORIGEM_VITTA:
-        destino += list(ja_escreveram)
-    return sorted({str(d) for d in destino if d and d != autor_id})
 
 
 def login_do_responsavel(demanda: dict[str, Any]) -> str | None:

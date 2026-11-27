@@ -32,6 +32,16 @@ O `/to-prd` cria a issue grande (o **PRD**); o `/to-issues` quebra em fatias e r
 - **O assignee é o dono do card (grill de 07/11/2026).** Todo card tem um dono só, e o assignee diz quem é. Não é trava de agente: a trava é a label `in-progress`. A Action `.github/workflows/dono-do-card.yml` designa o autor quando a issue abre sem ninguém; o `/to-prd` põe quem fez o grilling como dono do PRD; o `/to-issues` cria as fatias com o dono do PRD; a issue nascida de uma Demanda (botão "Levar para desenvolvimento", ADR 0054) nasce com o responsável do card. A `/triage` não mexe no assignee.
 - **Passar o card para outra pessoa** troca o dono, não soma: `gh issue edit <N> --remove-assignee <dono-atual> --add-assignee <login>`. Com dois donos, a mesma issue entraria na fila dos dois.
 
+## Tarefa do diretor (ADR 0113)
+
+Tudo o que a Vitta precisa do diretor durante o desenvolvimento chega como card no nome dele, com menção ao login no comentário que pede (o login é o primeiro de `gh variable get DIRETOR_LOGINS`). Ele fica sabendo pela notificação do GitHub. Nada vai pelo app nem por mensagem.
+
+- **Pergunta** (`needs-info`): o card da própria fatia passa para ele, `gh issue edit <N> --add-label needs-info --remove-assignee <dono-atual> --add-assignee <login>`, e o comentário traz a pergunta, as opções e a recomendação. Ele responde comentando e devolve o card a quem perguntou; quem retoma grava a `## Decisão` e volta a fatia com `gh issue edit <N> --remove-label needs-info --add-label ready-for-agent`.
+- **Coisa a fazer** (`ready-for-human`): card novo, sub-issue do PRD, criado com `--assignee <login>` e o passo a passo no corpo. A fatia que espera fica bloqueada por ele (`blocked_by`, abaixo). Ele fecha o card quando terminou, e o bloqueio nativo solta a fatia.
+- **Card de implantação** (`implantacao` mais `ready-for-human`): a tarefa que vem depois do código. Nasce no nome dele pelo `/to-issues`; ele delega a quem faz no hospital e fecha o card quando terminou. O PRD fecha sem esperar.
+
+O diretor é colaborador do repositório, então o comentário dele vale como spec para os agentes (o filtro de `author_association` aceita `COLLABORATOR`).
+
 ## Higiene de fechamento (GitHub Action)
 
 A Action `.github/workflows/higiene-issues.yml` dispara no evento `issues.closed`, para **qualquer** fechamento (merge com `Closes #N`, web, ou manual), e garante que o status nunca minta (ADR 0068):

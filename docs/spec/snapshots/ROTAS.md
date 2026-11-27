@@ -1,6 +1,6 @@
 # ROTAS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T15:55+0000 -->
+<!-- last_update: 2026-11-27T00:25+0000 -->
 
 Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
@@ -36,6 +36,15 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 |--------|------|-----------|------|
 | POST | `/pops/{pop_id}/assinatura/reenviar` | Re-tenta o envio ao ClickSign de uma Versão EM_ASSINATURA. Exclusivo | ✅ |
 
+## assistente-do-app (`app/routers/assistente_do_app.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| POST | `/assistente-do-app/bug` | As quatro respostas viram a Demanda Registrada e o resumo. | ✅ |
+| POST | `/assistente-do-app/bug/{demanda_id}/enviar` | O clique de envio: cria a issue. A falha sai com o motivo, e só outro | ✅ |
+| POST | `/assistente-do-app/bug/{demanda_id}/print` | O print vira Anexo da Demanda, e nunca vai ao GitHub. | ✅ |
+| POST | `/assistente-do-app/conversa` | Conversa | ✅ |
+
 ## auth (`app/routers/auth.py`)
 
 | Método | Rota | O que faz | Auth |
@@ -69,6 +78,13 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/pendencias/{id_acao}/comentarios` | Cria um comentário na pendência e gera notificações de menção. | ✅ |
 | DELETE | `/pendencias/{id_acao}/comentarios/{comentario_id}` | Exclui um comentário. Apenas o autor pode excluir. | ✅ |
 | GET | `/pendencias/{id_acao}/mencionaveis` | Lista participantes mencionáveis no chat da Pendência (quem enxerga a Pendência). | ✅ |
+
+## canal-de-conduta-publico (`app/routers/conduta_acompanhamento.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| POST | `/conduta/acompanhamento` | A situação do caso e as mensagens do Comitê, com o protocolo e o | ❌ |
+| POST | `/conduta/acompanhamento/complemento` | O complemento de quem relatou. Devolve a página já com ele. | ❌ |
 
 ## canal-de-conduta (`app/routers/conduta_afastamento.py`)
 
@@ -108,6 +124,7 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 |--------|------|-----------|------|
 | GET | `/comite-de-conduta/casos` | Listar casos | ✅ |
 | GET | `/comite-de-conduta/casos/{caso_id}` | Abrir caso | ✅ |
+| GET | `/comite-de-conduta/casos/{caso_id}/anexos/{anexo_id}` | Um anexo do relato (issue #1844), decifrado e entregue pelo backend, | ✅ |
 | GET | `/comite-de-conduta/casos/{caso_id}/cadastro` | Para ligar o Citado ao cadastro: só id e nome. | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/citados` | Marcar citado | ✅ |
 | POST | `/comite-de-conduta/casos/{caso_id}/conferencia` | Conferir triagem | ✅ |
@@ -181,13 +198,33 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | POST | `/comite-de-conduta/membros/{participacao_id}/termo/reconsultar` | Pergunta à ClickSign e aplica o mesmo tratamento do webhook. | ✅ |
 | POST | `/comite-de-conduta/membros/{participacao_id}/termo/reenviar` | Cancela o envio aberto e manda outro Termo, com outro identificador. | ✅ |
 
+## canal-de-conduta (`app/routers/conduta_mensagens.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| POST | `/comite-de-conduta/casos/{caso_id}/arquivamento` | ARQUIVAR POR FALTA DE ELEMENTOS. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/mensagens` | ENVIAR PERGUNTA: aparece para quem relatou na página de acompanhamento. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/reabertura` | REABRIR CASO, com o complemento que chegou depois do arquivamento. | ✅ |
+
 ## canal-de-conduta-publico (`app/routers/conduta_publico.py`)
 
 | Método | Rota | O que faz | Auth |
 |--------|------|-----------|------|
 | GET | `/conduta/abertura` | Se o canal está aberto. Fechado, a rota nem aparece (404). | ❌ |
 | GET | `/conduta/codigo-de-conduta` | O PDF do Código de Conduta vigente hoje (issue #1841), num endereço que | ❌ |
+| GET | `/conduta/protecao` | A página "Como este canal protege você" (issue #1846), bloco a bloco, | ❌ |
+| POST | `/conduta/relatos` | Recebe o relato inteiro, do passo 1 ao 5, e devolve o protocolo e o | ❌ |
+| POST | `/conduta/relatos/anexos` | Um anexo do relato: imagem, PDF ou áudio. O backend apaga os dados de | ❌ |
+| POST | `/conduta/relatos/aviso` | Se o texto do relato parece de outro destino: `{"aviso": "DP" \| | ❌ |
+| POST | `/conduta/relatos/confianca` | A pergunta opcional do P6, de 1 a 5. Vale uma vez por relato. Código | ❌ |
 | GET | `/conduta/textos` | Os textos vigentes das telas públicas (issue #1826), cada um com o | ❌ |
+
+## canal-de-conduta (`app/routers/conduta_retaliacao.py`)
+
+| Método | Rota | O que faz | Auth |
+|--------|------|-----------|------|
+| POST | `/comite-de-conduta/casos/{caso_id}/verificacoes-de-retaliacao` | REGISTRAR VERIFICAÇÃO: um clique, houve ou não houve. | ✅ |
+| POST | `/comite-de-conduta/casos/{caso_id}/verificacoes-de-retaliacao/caso-novo` | ABRIR CASO DE RETALIAÇÃO: a verificação em que houve vira caso novo, na | ✅ |
 
 ## canal-de-conduta (`app/routers/conduta_retorno.py`)
 
@@ -850,33 +887,10 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 | Método | Rota | O que faz | Auth |
 |--------|------|-----------|------|
-| POST | `/admin/tecnologia/assistente/descrever-imagem` | O print anexado vira descricao, e a imagem some (ADR 0056, decisao 4). | ✅ |
-| POST | `/admin/tecnologia/assistente/ler-documento` | O documento anexado no chat vira texto (issue #1520, ADR 0069). | ✅ |
-| GET | `/admin/tecnologia/chat` | A lista ao lado do chat (issue #1384): as Demandas que o Super admin | ✅ |
-| POST | `/admin/tecnologia/chat` | O primeiro turno: a Demanda nasce aqui (ADR 0077, decisao 2). | ✅ |
-| DELETE | `/admin/tecnologia/chat/{demanda_id}` | O "Apagar" da Demanda (issue #1549, ADR 0084, decisao 2). | ✅ |
-| GET | `/admin/tecnologia/chat/{demanda_id}` | A conversa guardada, para retomar de onde parou. | ✅ |
-| POST | `/admin/tecnologia/chat/{demanda_id}` | Um turno: a fala do diretor entra, a da IA volta. | ✅ |
-| POST | `/admin/tecnologia/chat/{demanda_id}/atualizar-card` | O "Atualizar o card" no fim da revisão (ADR 0084, decisão 3). | ✅ |
-| GET | `/admin/tecnologia/chat/{demanda_id}/conversa` | A Conversa da Demanda, da mais antiga para a mais nova, e quem pode ser | ✅ |
-| POST | `/admin/tecnologia/chat/{demanda_id}/conversa` | Uma mensagem na Conversa da Demanda. Escreve quem ve a Demanda. Nada | ✅ |
-| POST | `/admin/tecnologia/chat/{demanda_id}/conversa/enviar` | O "Enviar" do "Entendi assim:": abre o Ajuste do plano e devolve a linha | ✅ |
-| POST | `/admin/tecnologia/chat/{demanda_id}/conversa/interpretar` | O "Entendi assim:" das mensagens do diretor desde o ultimo envio. A IA | ✅ |
-| POST | `/admin/tecnologia/chat/{demanda_id}/criar-card` | O "Criar o card" do resumo (ADR 0077, decisoes 6 e 7). | ✅ |
-| POST | `/admin/tecnologia/chat/{demanda_id}/designar-de-novo` | O "Designar de novo" da issue que nasceu sem o Responsavel (issue #1536, | ✅ |
-| PUT | `/admin/tecnologia/chat/{demanda_id}/modelo` | O seletor "Sonnet 5.5 \| Opus 5.5" da conversa (issue #1921, ADR 0103). | ✅ |
-| POST | `/admin/tecnologia/chat/{demanda_id}/nao-bateu` | O "Nao bateu" do resumo: o que nao bateu entra na conversa como fala do | ✅ |
-| POST | `/admin/tecnologia/chat/{demanda_id}/reenviar` | O "Reenviar" da Demanda em "Envio falhou" (issue #1535, ADR 0083, decisao 7). | ✅ |
-| POST | `/admin/tecnologia/chat/{demanda_id}/resumo` | O "Fechar e resumir" da melhoria (issue #1383): vale a qualquer altura do | ✅ |
-| GET | `/admin/tecnologia/chat/{demanda_id}/revisao` | A estimativa do diálogo de confirmação (ADR 0082): a faixa em dólar do | ✅ |
-| POST | `/admin/tecnologia/chat/{demanda_id}/revisao` | O "Revisar com o código de hoje" confirmado (ADR 0084, decisão 3). | ✅ |
+| GET | `/admin/tecnologia/chat` | A lista ao lado do chat (issue #1384): as Demandas, com o titulo e a | ✅ |
 | GET | `/admin/tecnologia/desenvolvedores` | O "Quem cuida disto?" do resumo (ADR 0083, decisao 5). `padrao` marca | ✅ |
 | GET | `/admin/tecnologia/entregas` | A aba Entregas como ritmo semanal (issue #1701, ADR 0092, decisoes 1 e 7). | ✅ |
 | GET | `/admin/tecnologia/eu` | Se quem esta logado e Desenvolvedor (ADR 0083, decisao 2). | ✅ |
-| GET | `/admin/tecnologia/perguntas/esperando` | As Perguntas da Vitta abertas de todos os Projetos, as do logado | ✅ |
-| GET | `/admin/tecnologia/perguntas/{pergunta_id}/me-explique` | A conversa do Me explique de quem esta logado, e so a dele. Nao chama a IA. | ✅ |
-| POST | `/admin/tecnologia/perguntas/{pergunta_id}/me-explique` | O clique no Me explique (sem `texto`) ou a pergunta da pessoa (com ele). | ✅ |
-| POST | `/admin/tecnologia/perguntas/{pergunta_id}/resposta` | A resposta da Pergunta da Vitta, pelo cartao: a opcao, o texto livre | ✅ |
 | GET | `/admin/tecnologia/projetos` | As opcoes do filtro Projeto do Quadro e das Entregas (issue #1967): o | ✅ |
 
 ## automacao (`app/routers/tecnologia_automacao.py`)
@@ -884,16 +898,6 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 | Método | Rota | O que faz | Auth |
 |--------|------|-----------|------|
 | GET | `/automacao/tecnologia/demandas/{demanda_id}/anexos` | Nome, tipo e URL assinada de cada anexo não apagado da Demanda. | ✅ |
-| GET | `/automacao/tecnologia/demandas/{demanda_id}/conversa` | A resposta do diretor (ADR 0096, decisao 6): as mensagens da Conversa | ✅ |
-| POST | `/automacao/tecnologia/demandas/{demanda_id}/conversa` | A Mensagem pelo terminal (ADR 0096): grava no perfil do Desenvolvedor | ✅ |
-| POST | `/automacao/tecnologia/demandas/{demanda_id}/perguntas` | Cria a Pergunta da Vitta aberta na Demanda, com a entrada na Conversa, | ✅ |
-| GET | `/automacao/tecnologia/destinatarios` | Quem pode ser Destinatario de uma mensagem na Conversa da Demanda | ✅ |
-| GET | `/automacao/tecnologia/perguntas/{pergunta_id}` | O estado da Pergunta da Vitta e, quando houver, a resposta (o Checar | ✅ |
-| POST | `/automacao/tecnologia/perguntas/{pergunta_id}/cancelar` | A Pergunta deixou de ser necessaria: a aberta ou a respondida passa a | ✅ |
-| POST | `/automacao/tecnologia/perguntas/{pergunta_id}/resolver` | A Vitta leu a resposta e deu o ok: a Pergunta respondida passa a | ✅ |
-| GET | `/automacao/tecnologia/projetos/{projeto}/issues/{numero}/demanda` | O id da Demanda vinculada a esta issue-raiz (ADR 0093: projeto mais | ✅ |
-| POST | `/automacao/tecnologia/projetos/{projeto}/issues/{numero}/demanda` | A Demanda do PRD de um Projeto novo (issue #1967, PRD #1964): 201 quando | ✅ |
-| POST | `/automacao/tecnologia/validacoes` | Guarda a observacao original junto da Demanda do PRD e devolve so os | ✅ |
 
 ## transcricao (`app/routers/transcricao.py`)
 
@@ -932,4 +936,4 @@ Endpoints HTTP expostos pelo backend FastAPI do Hospital Reuniões.
 
 ---
 
-**Totais:** 536 endpoints em 78 routers · 93% exigem auth.
+**Totais:** 520 endpoints em 82 routers · 91% exigem auth.

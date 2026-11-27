@@ -230,6 +230,20 @@ describe("a tela do caso", () => {
     expect(screen.getByText(CASO.relato)).toBeTruthy();
   });
 
+  it("quem relatou com identificação aparece pelo nome junto do relato, e o anônimo não (#1843)", async () => {
+    respostas = { "/casos/c1": { ...CASO, relator_nome: "Joana Prudente" } };
+    render(<TelaDoCaso casoId="c1" />);
+
+    const relato = await screen.findByRole("region", { name: "Relato original" });
+    expect(within(relato).getByText("Relatou com identificação: Joana Prudente")).toBeTruthy();
+
+    cleanup();
+    respostas = { "/casos/c1": { ...CASO, relator_nome: null } };
+    render(<TelaDoCaso casoId="c1" />);
+    const anonimo = await screen.findByRole("region", { name: "Relato original" });
+    expect(within(anonimo).queryByText(/Relatou com identificação/)).toBeNull();
+  });
+
   it("declarado o impedimento, o caso sai da tela e ela leva de volta aos casos (#1828)", async () => {
     respostas = { "/casos/c1": CASO, "/casos/c1/impedimento": { caso: {} } };
     render(<TelaDoCaso casoId="c1" />);

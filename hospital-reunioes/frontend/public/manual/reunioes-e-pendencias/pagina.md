@@ -82,7 +82,7 @@ sem -> pendencias
 
 ![O Calendário de Reuniões no mês](calendario.png)
 
-> As reuniões do Núcleo de Segurança do Paciente ficam no módulo **Segurança do Paciente**, em **Reuniões**. No Calendário elas só aparecem para quem tem acesso ao Núcleo.
+> As reuniões do Núcleo de Segurança do Paciente ficam no módulo Segurança do Paciente, que no menu aparece como **NSP**, em **Reuniões**. No Calendário elas só aparecem para quem tem acesso ao Núcleo.
 
 ## Marcar uma reunião
 

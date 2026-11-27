@@ -1,6 +1,6 @@
 # MIGRATIONS.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T15:55+0000 -->
+<!-- last_update: 2026-11-25T23:40+0000 -->
 
 Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 
@@ -168,10 +168,8 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 168 | `168_reunioes_setor_obrigatorio.sql` | o setor da Reunião aponta para a tabela de setores | 0 | 1 | 1 | 1 |
 | 169 | `169_ciclo_de_vida_da_pendencia.sql` | ciclo de vida da Pendencia (ADR 0098, decisoes 4 e 5; issue #1862) | 1 | 1 | 2 | 0 |
 | 171 | `171_nascimento_da_pendencia.sql` | evento de nascimento da Pendencia (ADR 0098, decisao 1; issue #1867) | 0 | 0 | 0 | 0 |
-| 172 | `172_ouvidoria_setor_id.sql` | o setor da manifestação aponta para a tabela de setores | 0 | 1 | 1 | 1 |
 | 172 | `172_pendencia_nao_cai_com_a_reuniao.sql` | nada apaga Pendencia (ADR 0098, decisao 6; issue #1864) | 0 | 0 | 0 | 0 |
 | 173 | `173_nsp_registro_de_email.sql` | o registro de e-mail do Núcleo, com retentativa | 0 | 1 | 3 | 0 |
-| 174 | `174_anexo_da_conclusao_da_pendencia.sql` | foto ou PDF anexado na conclusao da Pendencia (issue #1865, PRD #1757) | 1 | 0 | 1 | 0 |
 | 174 | `174_nsp_notificacao_de_incidente.sql` | a Notificação de incidente do Núcleo | 3 | 0 | 7 | 0 |
 | 175 | `175_conduta_fundacao.sql` | Canal de Conduta, a fundação do sigilo | 4 | 1 | 7 | 0 |
 | 176 | `176_contas_medicas_arquivar_por_competencia.sql` | Contas medicas, arquivar por Competencia | 0 | 2 | 1 | 0 |
@@ -217,6 +215,19 @@ Ordem cronológica das migrations do Postgres do Hospital Reuniões.
 | 223 | `223_conduta_recomendacao_medida_e_retorno.sql` | Canal de Conduta, a Recomendação do Comitê, a decisão da | 5 | 1 | 9 | 0 |
 | 224 | `224_conduta_trilha_e_dossie.sql` | Canal de Conduta, a trilha com gavetas e o Dossiê do caso | 0 | 4 | 0 | 0 |
 | 225 | `225_nsp_triagem_e_encaminhamento_sem_exclusao.sql` | a triagem e o encaminhamento não se apagam | 0 | 0 | 0 | 0 |
+| 228 | `228_nsp_capacitacao_formacao_do_instrutor.sql` | Segurança do Paciente, a formação do instrutor na capacitação | 0 | 1 | 0 | 0 |
+| 229 | `229_conduta_verificacao_de_retaliacao.sql` | Canal de Conduta, a verificação de retaliação em 30, 90 e | 1 | 1 | 2 | 0 |
+| 230 | `230_conduta_relato_em_passos.sql` | Canal de Conduta, o relato em passos | 0 | 1 | 0 | 0 |
+| 231 | `231_conduta_pagina_de_protecao.sql` | Canal de Conduta, dois itens novos nas configurações | 0 | 0 | 0 | 0 |
+| 232 | `232_pedido_da_vitta_passo_a_passo.sql` | o Pedido da Vitta, Pergunta ou Passo a passo | 1 | 1 | 2 | 0 |
+| 233 | `233_conduta_anexos_do_relato.sql` | Canal de Conduta, os anexos do relato | 0 | 0 | 1 | 0 |
+| 234 | `234_conduta_acompanhamento_e_mensagens.sql` | Canal de Conduta, a página de acompanhamento e as Mensagens | 0 | 1 | 2 | 0 |
+| 235 | `235_pedido_de_implantacao.sql` | o Pedido de implantacao, o terceiro tipo do Pedido da Vitta | 0 | 0 | 0 | 0 |
+| 236 | `236_pedido_espera_outro.sql` | um Pedido de implantacao espera outro | 0 | 1 | 1 | 0 |
+| 237 | `237_achei_um_problema.sql` | o Achei um problema do Pedido de implantacao | 0 | 3 | 3 | 0 |
+| 238 | `238_ouvidoria_setor_id.sql` | (era 172, renumerada na issue do banco do zero: dividia o número com outra; em p | 0 | 1 | 1 | 1 |
+| 239 | `239_anexo_da_conclusao_da_pendencia.sql` | (era 174, renumerada na issue do banco do zero: dividia o número com outra; em p | 1 | 0 | 1 | 0 |
+| 240 | `240_tecnologia_origem_relato.sql` | a Origem "Relato no app" da Demanda (issue #2275, PRD #2262, ADR 0113) | 0 | 0 | 0 | 0 |
 
 **Legenda:** C = CREATE TABLE · A = ALTER TABLE · I = CREATE INDEX · D = DROP.
-**Total:** 211 migrations.
+**Total:** 222 migrations.

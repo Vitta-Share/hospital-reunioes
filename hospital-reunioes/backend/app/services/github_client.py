@@ -43,13 +43,19 @@ import binascii
 import json
 import logging
 import re
+from datetime import datetime
 from typing import Any
-from urllib.parse import quote, urlencode, urlsplit
+from urllib.parse import quote, urlsplit
 
 import httpx
 
 from app.config import settings
-from app.services.tecnologia_vinculo import FECHAMENTO_NAO_PLANEJADA, bloco_para_o_diretor
+from app.services.tecnologia_vinculo import (
+    FATO_AJUSTE_DO_PLANO,
+    FECHAMENTO_NAO_PLANEJADA,  # noqa: F401 (o `tecnologia_perguntas` le daqui)
+    bloco_para_o_diretor,
+    e_card_de_implantacao,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -314,32 +320,6 @@ def ler_historico_de_deploys() -> list[dict[str, Any]]:
 # ─── A leitura do codigo pelo agente da aba (issue #1385, ADR 0077, decisao 5) ─
 
 
-def _caminho_do_repositorio(caminho: str) -> str:
-    """O caminho relativo a raiz, sem barra nas pontas e sem `..`: o caminho
-    entra na URL, e quem o escreve e o modelo."""
-    limpo = (caminho or "").strip().strip("/")
-    if any(parte in ("", ".", "..") for parte in limpo.split("/")) and limpo:
-        raise IssueNaoEncontradaError(caminho)
-    return limpo
-
-
-def ler_do_repositorio(caminho: str) -> str | list[str]:
-    """O texto de um arquivo da `main`, ou os nomes de uma pasta.
-
-    Pela API de conteudo, so GET. Arquivo que nao e texto (imagem, binario)
-    volta como indisponivel: o agente segue sem ele.
-    """
-    dados = _chamar("GET", f"/contents/{quote(_caminho_do_repositorio(caminho))}?ref=main", projeto=PROJETO_HOSPITAL)
-    if isinstance(dados, list):
-        return [str(item.get("name")) for item in dados if isinstance(item, dict) and item.get("name")]
-    if not isinstance(dados, dict) or dados.get("encoding") != "base64" or not isinstance(dados.get("content"), str):
-        raise GithubIndisponivelError("GitHub respondeu o arquivo fora do formato")
-    try:
-        return base64.b64decode(dados["content"]).decode("utf-8")
-    except (ValueError, binascii.Error) as exc:
-        raise GithubIndisponivelError("O arquivo nao e texto") from exc
-
-
 def ler_arquivo(caminho: str, *, projeto: str) -> bytes:
     """Os bytes de um arquivo da branch principal do repositorio do Projeto.
 
@@ -360,30 +340,6 @@ def ler_arquivo(caminho: str, *, projeto: str) -> bytes:
 
 # A primeira pagina da busca basta para o agente escolher o que abrir.
 _RESULTADOS_DA_BUSCA = 20
-
-
-def buscar_no_codigo(termo: str) -> list[str]:
-    """Os caminhos dos arquivos da `main` onde o termo aparece, pela busca de
-    codigo do GitHub restrita a este repositorio."""
-    _, repo = _exigir_configuracao(PROJETO_HOSPITAL)
-    consulta = urlencode({"q": f"{termo} repo:{repo}", "per_page": _RESULTADOS_DA_BUSCA})
-    dados = _chamar("GET", f"/search/code?{consulta}", projeto=PROJETO_HOSPITAL, no_repositorio=False)
-    itens = dados.get("items") if isinstance(dados, dict) else None
-    if not isinstance(itens, list):
-        raise GithubIndisponivelError("GitHub respondeu a busca fora do formato")
-    return [str(item["path"]) for item in itens if isinstance(item, dict) and item.get("path")]
-
-
-def listar_issues_abertas() -> list[dict[str, Any]]:
-    """As issues abertas (sem os PRs), numero e titulo, a primeira pagina."""
-    dados = _chamar("GET", "/issues?state=open&per_page=100", projeto=PROJETO_HOSPITAL)
-    if not isinstance(dados, list):
-        raise GithubIndisponivelError("GitHub respondeu a lista de issues fora do formato")
-    return [
-        {"numero": issue.get("number"), "titulo": str(issue.get("title") or "")}
-        for issue in dados
-        if isinstance(issue, dict) and isinstance(issue.get("number"), int) and not e_pull_request(issue)
-    ]
 
 
 _POR_PAGINA = 100
@@ -435,24 +391,6 @@ def e_pull_request(dados: dict[str, Any]) -> bool:
 def ler_issue(numero: int, *, projeto: str) -> dict[str, Any]:
     """O JSON cru da issue. Cru de proposito: quem decide se e PR e a rota."""
     return _chamar("GET", f"/issues/{numero}", projeto=projeto)
-
-
-def ler_comentarios(numero: int, *, projeto: str) -> list[dict[str, Any]]:
-    """Os comentarios da issue, do mais antigo ao mais novo, a primeira pagina
-    (issue #1557): quem escreveu, o texto e quando. E o que a Revisao com o
-    codigo de hoje le do que se combinou por fora do app."""
-    dados = _chamar("GET", f"/issues/{numero}/comments?per_page={_POR_PAGINA}", projeto=projeto)
-    if not isinstance(dados, list):
-        raise GithubIndisponivelError("GitHub respondeu os comentarios fora do formato")
-    return [
-        {
-            "autor": str((c.get("user") or {}).get("login") or ""),
-            "corpo": str(c.get("body") or ""),
-            "criado_em": c.get("created_at"),
-        }
-        for c in dados
-        if isinstance(c, dict)
-    ]
 
 
 def ler_sub_issues(numero: int, *, projeto: str) -> list[dict[str, Any]]:
@@ -563,26 +501,6 @@ def designar(numero: int, logins: list[str], *, projeto: str) -> dict[str, Any]:
     return dados
 
 
-def fechar_como_nao_planejada(numero: int, *, projeto: str, comentario: str) -> None:
-    """Comenta o motivo e fecha a issue como nao planejada (issue #1549, ADR 0084,
-    decisao 2).
-
-    O comentario vai antes, para o motivo aparecer na issue antes do fechamento.
-    Um 404 aqui nao e resposta (a issue estava vinculada): vira
-    indisponibilidade, e quem chama nao apaga nada no app.
-    """
-    try:
-        _chamar("POST", f"/issues/{numero}/comments", projeto=projeto, json={"body": comentario})
-        _chamar(
-            "PATCH",
-            f"/issues/{numero}",
-            projeto=projeto,
-            json={"state": "closed", "state_reason": FECHAMENTO_NAO_PLANEJADA},
-        )
-    except IssueNaoEncontradaError as exc:
-        raise GithubIndisponivelError(f"A issue #{numero} nao foi encontrada para fechar") from exc
-
-
 def comentar(numero: int, corpo: str, *, projeto: str) -> None:
     """Deixa um comentario na issue (issue #1558, ADR 0084, decisao 3): o que
     o "Atualizar o card" mudou. Um 404 aqui nao e resposta (a issue estava
@@ -620,19 +538,6 @@ def bloquear(numero: int, bloqueadora_id: int, *, projeto: str) -> None:
         raise GithubIndisponivelError(f"A issue #{numero} nao foi encontrada para bloquear") from exc
 
 
-def regravar(numero: int, *, projeto: str, corpo: str, labels: list[str]) -> dict[str, Any]:
-    """Regrava o corpo e as labels da issue num PATCH so (issue #1558, ADR
-    0084, decisao 3): o PRD revisado e a volta para a triagem saem juntos, ou
-    nenhum dos dois. Devolve a issue como o GitHub a devolve."""
-    try:
-        dados = _chamar("PATCH", f"/issues/{numero}", projeto=projeto, json={"body": corpo, "labels": labels})
-    except IssueNaoEncontradaError as exc:
-        raise GithubIndisponivelError(f"A issue #{numero} nao foi encontrada para regravar") from exc
-    if not isinstance(dados, dict):
-        raise GithubIndisponivelError(f"GitHub respondeu a issue #{numero} fora do formato")
-    return dados
-
-
 def regravar_corpo(numero: int, *, projeto: str, corpo: str) -> dict[str, Any]:
     """Regrava so o corpo da issue, sem tocar nas labels (issue #1636): a
     passada unica que poe o bloco "Para o desenvolvedor" nas Demandas abertas.
@@ -644,6 +549,68 @@ def regravar_corpo(numero: int, *, projeto: str, corpo: str) -> dict[str, Any]:
     if not isinstance(dados, dict):
         raise GithubIndisponivelError(f"GitHub respondeu a issue #{numero} fora do formato")
     return dados
+
+
+# A validacao do plano pelo diretor (issue #1915, ADR 0108): a label que o
+# Validar da Apresentacao grava na raiz e o marcador do comentario que ele
+# deixa. Vale so o comentario de quem e do repositorio, como no `estado.js` da
+# Apresentacao: o repositorio e publico, e qualquer um comenta.
+LABEL_DA_VALIDACAO = "validado:diretor"
+_MARCADOR_DA_VALIDACAO = re.compile(r"<!--\s*validacao-diretor:\s*(\S+)\s*-->", re.IGNORECASE)
+_DE_DENTRO_DO_REPOSITORIO = frozenset({"OWNER", "MEMBER", "COLLABORATOR"})
+# Teto de paginas das leituras da validacao: 1000 comentarios ou eventos.
+_PAGINAS_DA_VALIDACAO = 10
+
+
+def _instante_valido(texto: object) -> bool:
+    try:
+        datetime.fromisoformat(str(texto))
+    except ValueError:
+        return False
+    return True
+
+
+def _todas_as_paginas(caminho: str, *, projeto: str) -> list[dict[str, Any]]:
+    """A lista inteira, do mais antigo ao mais novo, ate a pagina curta."""
+    itens: list[dict[str, Any]] = []
+    for pagina in range(1, _PAGINAS_DA_VALIDACAO + 1):
+        dados = _chamar("GET", f"{caminho}?per_page={_POR_PAGINA}&page={pagina}", projeto=projeto)
+        if not isinstance(dados, list):
+            raise GithubIndisponivelError("GitHub respondeu a lista fora do formato")
+        itens.extend(d for d in dados if isinstance(d, dict))
+        if len(dados) < _POR_PAGINA:
+            break
+    return itens
+
+
+def ler_validacao_do_diretor(numero: int, *, projeto: str) -> str | None:
+    """Quando o diretor validou o plano desta raiz (issue #1915), em ISO.
+
+    A data do marcador `<!-- validacao-diretor: <ISO> -->` do comentario mais
+    recente de quem e do repositorio; sem ele, a hora em que a label
+    `validado:diretor` entrou pela ultima vez. `None` sem nenhum dos dois.
+
+    Levanta como o `_chamar`: quem chama mantem a data que ja sabia.
+    """
+    quando = None
+    for comentario in _todas_as_paginas(f"/issues/{numero}/comments", projeto=projeto):
+        if comentario.get("author_association") not in _DE_DENTRO_DO_REPOSITORIO:
+            continue
+        achados = [a for a in _MARCADOR_DA_VALIDACAO.findall(str(comentario.get("body") or "")) if _instante_valido(a)]
+        if achados:
+            quando = achados[-1]
+    if quando is not None:
+        return quando
+    for evento in _todas_as_paginas(f"/issues/{numero}/events", projeto=projeto):
+        label = evento.get("label")
+        if (
+            evento.get("event") == "labeled"
+            and isinstance(label, dict)
+            and label.get("name") == LABEL_DA_VALIDACAO
+            and _instante_valido(evento.get("created_at"))
+        ):
+            quando = evento["created_at"]
+    return quando
 
 
 # A chave do dono da raiz na foto (issue #1534).
@@ -683,6 +650,22 @@ _MARCADOR_DA_APRESENTACAO = re.compile(r"<!--\s*apresentacao:\s*(\S+)\s*-->", re
 
 # A unica pagina que o atalho do card abre: a dos planos do hospital.
 PAGINA_DOS_PLANOS = "https://planos-hsm.vercel.app/"
+
+# O Ajuste do plano (issue #1915, ADR 0108): a sub-issue que o Envio aos
+# desenvolvedores abre com `<!-- ajuste-do-plano: <raiz> -->` no corpo. Na
+# parte, `FATO_AJUSTE_DO_PLANO` marca o Ajuste, que nao e parte da entrega; na
+# raiz, `FATO_AJUSTE_ABERTO` guarda o numero do Ajuste ainda aberto.
+FATO_AJUSTE_ABERTO = "ajuste_aberto"
+_MARCADOR_DO_AJUSTE = re.compile(r"<!--\s*ajuste-do-plano:\s*(\d+)\s*-->", re.IGNORECASE)
+
+# Quando o diretor validou o plano da raiz (issue #1915): so com a label
+# `validado:diretor`, lido pela sincronizacao, e nao pela `montar_foto`.
+FATO_VALIDADO_EM = "validado_em"
+
+
+def e_ajuste_do_plano(corpo: str | None, raiz: object) -> bool:
+    """Se o corpo e o de um Ajuste do plano DESTA raiz (issue #1915)."""
+    return isinstance(raiz, int) and any(int(n) == raiz for n in _MARCADOR_DO_AJUSTE.findall(corpo or ""))
 
 
 def demonstracao_do_corpo(corpo: str | None) -> str | None:
@@ -739,7 +722,25 @@ def montar_foto(dados: dict[str, Any], partes: list[dict[str, Any]]) -> dict[str
     a Etapa olha a label de CADA uma.
     """
     foto = _no(dados)
-    foto["partes"] = [_no(parte) for parte in partes if isinstance(parte, dict)]
+    foto["partes"] = []
+    for parte in partes:
+        if not isinstance(parte, dict):
+            continue
+        no = _no(parte)
+        # O Ajuste do plano fica na foto, marcado, e nao some (issue #1915): o
+        # estado dele e o que as partes travadas por ele leem. So entra a chave
+        # no Ajuste, e a foto da parte comum continua identica.
+        if e_ajuste_do_plano(parte.get("body"), dados.get("number")):
+            no[FATO_AJUSTE_DO_PLANO] = True
+            if no["estado"] == "open" and FATO_AJUSTE_ABERTO not in foto:
+                foto[FATO_AJUSTE_ABERTO] = no["numero"]
+        # O dono do Card de implantacao (issue #2266): a secao Implantacao
+        # mostra com quem ele esta. So nele, e a parte comum continua identica.
+        if e_card_de_implantacao(no):
+            dono = _primeiro_assignee(parte)
+            if dono is not None:
+                no[FATO_ASSIGNEE] = dono
+        foto["partes"].append(no)
 
     # O dono da raiz no GitHub, de que o Responsavel da Demanda e derivado
     # (issue #1534, ADR 0083, decisao 6). So entra quando ha dono: a foto da

@@ -38,6 +38,8 @@ const COM_TODOS_OS_ACESSOS: CurrentParticipante = {
   // O super admin não entra em Segurança do Paciente (ADR 0095): o módulo vem
   // da permissão efetiva do servidor.
   recursos_nsp: ["ver_modulo"],
+  // O Comitê de Conduta também vem do servidor: quem está nele (issue #1851).
+  ve_membros_do_comite: true,
 };
 
 const PAGINAS = carregarPaginasDoManual();

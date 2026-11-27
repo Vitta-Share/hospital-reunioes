@@ -91,12 +91,15 @@ def prs_do_github(raiz: Path, numeros: list[int]) -> list[dict]:
     git(raiz, "fetch", "-q", "origin", "main")
     prs = []
     for n in numeros:
-        proc = subprocess.run(["gh", "pr", "view", str(n), "--json", "headRefName"], cwd=str(raiz),
-                              capture_output=True, text=True, encoding="utf-8", errors="replace")
+        proc = subprocess.run(["gh", "pr", "view", str(n), "--json", "headRefName,isCrossRepository"],
+                              cwd=str(raiz), capture_output=True, text=True, encoding="utf-8", errors="replace")
         if proc.returncode != 0:
             raise RuntimeError(f"gh pr view {n} -> {proc.returncode}: {proc.stderr.strip()[:300]}")
-        branch = json.loads(proc.stdout)["headRefName"]
-        git(raiz, "fetch", "-q", "origin", f"+refs/heads/{branch}:refs/remotes/origin/{branch}")
+        pr = json.loads(proc.stdout)
+        branch = pr["headRefName"]
+        # o PR do diretor assumido (#2300) vem do fork: aqui so existe a refs/pull/<n>/head
+        origem = f"refs/pull/{n}/head" if pr.get("isCrossRepository") else f"refs/heads/{branch}"
+        git(raiz, "fetch", "-q", "origin", f"+{origem}:refs/remotes/origin/{branch}")
         prs.append({"number": n, "branch": branch,
                     "head": git(raiz, "rev-parse", f"origin/{branch}").stdout.strip()})
     return prs

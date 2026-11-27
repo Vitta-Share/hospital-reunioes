@@ -3,7 +3,7 @@
  * substituiu a seção "O que muda" de texto corrido (issue #676).
  *
  * Seções fixas: Em uma frase, O que muda (até cinco tópicos, o resto atrás do
- * "Ver tudo"), Partes (com a Etapa e a data de fechamento) e Datas (criado,
+ * "Ver tudo"), Implantação só com Pedido de implantação (issue #2209), Partes (com a Etapa e a data de fechamento) e Datas (criado,
  * entregue, em produção). A Demonstração, num cartão próprio, só quando a
  * issue traz o link do vídeo (issue #1559). O texto vem do bloco "Para o diretor" da issue e do
  * de cada parte, lido do GitHub e guardado no cache da Demanda. Ninguém o
@@ -40,11 +40,14 @@ import {
   ETAPA_ROTULO,
   EtapaDemanda,
   linkDaDemonstracao,
+  ImplantacaoDaDemanda,
   linkDoPlano,
   nomeDoNumero,
   ParteDaEntrega,
   PedacoForte,
   rotuloDoProjeto,
+  SITUACAO_DA_IMPLANTACAO_CLASSE,
+  SITUACAO_DA_IMPLANTACAO_ROTULO,
   temSelo,
 } from "./demandas";
 
@@ -52,12 +55,18 @@ export const TITULO_DOCUMENTO = "Documento do card";
 export const TITULO_EM_UMA_FRASE = "Em uma frase";
 export const TITULO_O_QUE_MUDA = "O que muda";
 export const TITULO_PARTES = "Partes";
+export const TITULO_IMPLANTACAO = "Implantação";
 export const TITULO_DATAS = "Datas";
 export const TITULO_DEMONSTRACAO = "Demonstração";
 export const ASSISTIR_A_DEMONSTRACAO = "Assistir à demonstração";
 export const TITULO_PLANO_DO_PROJETO = "Plano do projeto";
 export const ABRIR_O_PLANO = "Abrir o plano";
 export const TITULO_PLANO = "Plano";
+export const PLANO_VALIDADO_EM = "Plano validado em";
+export const TITULO_AJUSTE_DO_PLANO = "Ajuste do plano";
+export const FAIXA_DO_AJUSTE =
+  "O Pedro está ajustando o plano pela sua observação. As partes que esperam por isso começam depois.";
+export const ESPERA_O_AJUSTE = "Espera o ajuste do plano";
 export const VER_O_PLANO = "Ver o plano";
 export const VER_TUDO = "Ver tudo";
 export const COPIAR_LINK = "Copiar link";
@@ -148,8 +157,12 @@ export function nomeDaOnda(onda: number): string {
   return `Onda ${onda}`;
 }
 
-/** A linha de uma bloqueadora aberta (ADR 0100, decisão 2). */
+/**
+ * A linha de uma bloqueadora aberta (ADR 0100, decisão 2). O Ajuste do plano
+ * vem sem número e diz o que é (issue #1915).
+ */
 export function esperaA(bloqueadora: BloqueadoraDaParte): string {
+  if (bloqueadora.ajuste_do_plano) return ESPERA_O_AJUSTE;
   return bloqueadora.de_outro_pedido
     ? `Espera a #${bloqueadora.numero}, de outro pedido`
     : `Espera a #${bloqueadora.numero}`;
@@ -181,13 +194,55 @@ function Parte({ parte }: { parte: ParteDaEntrega }) {
       {fechou && <span className="shrink-0 text-xs text-text-secondary pt-0.5">em {fechou}</span>}
       <div className="min-w-0 flex-1 space-y-1">
         <TextoSimples texto={parte.o_que_muda} />
-        {bloqueadoras.map((b) => (
-          <p key={b.numero} className="text-xs text-amber-800">
+        {bloqueadoras.map((b, i) => (
+          <p key={b.numero ?? `ajuste-${i}`} className="text-xs text-amber-800">
             {esperaA(b)}
           </p>
         ))}
       </div>
     </li>
+  );
+}
+
+/**
+ * O selo verde ao lado da Etapa (issue #1915): o diretor validou o plano pela
+ * página da Apresentação, e quando. Sem a data, sem selo: a Apresentação
+ * publicada de novo tira a validação.
+ */
+export function SeloDoPlanoValidado({ demanda }: { demanda: Demanda }) {
+  const dia = diaDoHospital(demanda.validado_em);
+  if (!dia) return null;
+  return (
+    <span className="px-2 py-0.5 rounded font-medium bg-emerald-50 text-emerald-700">
+      {PLANO_VALIDADO_EM} {dia}
+    </span>
+  );
+}
+
+/**
+ * A faixa do Ajuste do plano aberto (issue #1915): a observação do diretor
+ * fez o Pedro rever o plano, e as partes que esperam o Ajuste começam depois.
+ * O número com o link, só para o Desenvolvedor, a quem o servidor o manda.
+ */
+function FaixaDoAjuste({ demanda }: { demanda: Demanda }) {
+  if (!demanda.ajuste_aberto) return null;
+  const url = demanda.ajuste_url;
+  return (
+    <div
+      role="status"
+      aria-label={TITULO_AJUSTE_DO_PLANO}
+      className="px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-900"
+    >
+      {FAIXA_DO_AJUSTE}
+      {demanda.ajuste_numero && url?.startsWith("https://github.com/") ? (
+        <>
+          {" "}
+          <a href={url} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary underline">
+            #{demanda.ajuste_numero}
+          </a>
+        </>
+      ) : null}
+    </div>
   );
 }
 
@@ -359,6 +414,43 @@ function Demonstracao({ demanda }: { demanda: Demanda }) {
 }
 
 /**
+ * A seção Implantação (issue #2209, ADR 0111, decisão 5): o que o hospital faz
+ * depois que a entrega sobe, um Pedido de implantação por linha, com quem
+ * recebeu, a situação e o que ele espera, e quantos já foram feitos. Sem
+ * nenhum Pedido, a seção não existe.
+ */
+function Implantacao({ implantacao }: { implantacao: ImplantacaoDaDemanda | null | undefined }) {
+  if (!implantacao || implantacao.pedidos.length === 0) return null;
+  return (
+    <section aria-label={TITULO_IMPLANTACAO} className="space-y-1">
+      <div className="flex items-center gap-2">
+        <Titulo>{TITULO_IMPLANTACAO}</Titulo>
+        <span className="text-xs text-text-secondary">
+          {implantacao.feitos} de {implantacao.total} feitos
+        </span>
+      </div>
+      <ul className="space-y-2 text-sm text-text">
+        {implantacao.pedidos.map((pedido, i) => (
+          // Pela posição: o servidor manda os Pedidos sem id, na ordem em que nasceram.
+          <li key={i} className="flex items-start gap-2">
+            <span
+              className={`shrink-0 px-2 py-0.5 rounded text-xs font-medium ${SITUACAO_DA_IMPLANTACAO_CLASSE[pedido.situacao]}`}
+            >
+              {SITUACAO_DA_IMPLANTACAO_ROTULO[pedido.situacao]}
+            </span>
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <p>{pedido.titulo}</p>
+              {pedido.destinatario && <p className="text-xs text-text-secondary">Com {pedido.destinatario}</p>}
+              {pedido.espera && <p className="text-xs text-amber-800">{pedido.espera}</p>}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/**
  * A página do plano do pedido, num cartão no padrão da Demonstração (issue
  * #2010, ADR 0108, decisão 2). Só abre a página: validar segue pelo link do
  * e-mail, que leva o código.
@@ -456,7 +548,11 @@ export function DocumentoDoCard({ demanda }: { demanda: Demanda }) {
 
       <PlanoDoProjeto demanda={demanda} />
 
+      <FaixaDoAjuste demanda={demanda} />
+
       {!soOPlano && <FraseEOQueMuda texto={demanda.o_que_muda} chave={demanda.id} />}
+
+      <Implantacao implantacao={demanda.implantacao} />
 
       <Plano demanda={demanda} />
 

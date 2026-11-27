@@ -28,6 +28,9 @@ import {
   Send,
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
+import { useCanalDeCondutaAberto } from "@/hooks/useCanalDeCondutaAberto";
+import { ENDERECO_DO_CANAL } from "@/lib/conduta/publico";
+import { tomarTextoVindoDoCanal } from "@/lib/ouvidoria/texto-do-canal";
 import {
   ENVIO_RECUSADO_PELA_PAGINA,
   EXPECTATIVAS,
@@ -105,7 +108,11 @@ const LIMITE_RELATO = 10000;
 const TOTAL_DE_PASSOS = 5;
 const TITULOS = ["Identificação", "Sobre o quê", "Quando e onde", "O que aconteceu", "Contato"];
 
-const FALTA_CONTATO = "Para enviar, deixe seu nome e um telefone ou e-mail.";
+const SAIDA_DO_COLABORADOR = "Sou colaborador e quero relatar uma conduta";
+const TEXTO_DO_CANAL_JA_ESTA =
+  "O texto que você escreveu no Canal de Conduta já está no seu relato. Confira antes de enviar.";
+
+const FALTA_CONTATO ="Para enviar, deixe seu nome e um telefone ou e-mail.";
 
 // As classes que se repetem. Alvo de toque de 44 px em tudo que se aperta
 // (regra T4 da especificação): a tela é feita para o celular.
@@ -220,6 +227,17 @@ function FormularioPublico({ codigoDoCartaz, avaliacaoId = null, naturezaInicial
   const [telefone, setTelefone] = useState("");
   const [email, setEmail] = useState("");
 
+  // Quem veio do Canal de Conduta chega com o texto já escrito, lido da
+  // memória da aba e nunca do endereço (issue #1847). Só preenche o relato
+  // vazio, e o texto vale uma vez.
+  const [veioDoCanal, setVeioDoCanal] = useState(false);
+  useEffect(() => {
+    const texto = tomarTextoVindoDoCanal();
+    if (!texto) return;
+    setRelato((atual) => atual || texto.slice(0, LIMITE_RELATO));
+    setVeioDoCanal(true);
+  }, []);
+
   const [armadilha, setArmadilha] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -289,6 +307,8 @@ function FormularioPublico({ codigoDoCartaz, avaliacaoId = null, naturezaInicial
     }
     titulo.current?.focus();
   }, [passo]);
+
+  const canalDeCondutaAberto = useCanalDeCondutaAberto();
 
   const anonimo = identificacao === "anonimo";
   const nomesDaLista = locais.map((l) => l.nome);
@@ -432,6 +452,13 @@ function FormularioPublico({ codigoDoCartaz, avaliacaoId = null, naturezaInicial
         <p className="text-sm text-slate-500">{frases[passo]}</p>
       </div>
 
+      {veioDoCanal && (passo === 1 || passo === 4) && (
+        <div className="flex items-start gap-2 rounded-xl bg-sky-50 border border-sky-200 px-3 py-2.5">
+          <Info className="w-4 h-4 text-sky-600 mt-0.5 shrink-0" />
+          <p className="text-sm text-sky-900">{TEXTO_DO_CANAL_JA_ESTA}</p>
+        </div>
+      )}
+
       {passo === 1 && (
         // Dois cards lado a lado, empilhados no celular (M1 da especificação).
         // O texto do card fica `normal-case`: o card é botão, e a regra de
@@ -461,6 +488,19 @@ function FormularioPublico({ codigoDoCartaz, avaliacaoId = null, naturezaInicial
             </button>
           ))}
         </div>
+      )}
+
+      {/* A saída de quem trabalha no hospital (issue #1847, decisão 3 do
+          diretor no PRD #1786): o relato de conduta de colaborador é do Canal
+          de Conduta. Só com o canal aberto (ADR 0097, decisão 11). */}
+      {passo === 1 && canalDeCondutaAberto && (
+        <a
+          href={ENDERECO_DO_CANAL}
+          className="flex min-h-[44px] flex-col gap-0.5 rounded-xl border border-border bg-white px-4 py-3 text-left hover:border-primary/40"
+        >
+          <span className="text-sm font-semibold text-slate-800">{SAIDA_DO_COLABORADOR}</span>
+          <span className="text-sm text-slate-500">Ir para o Canal de Conduta</span>
+        </a>
       )}
 
       {passo === 2 && (

@@ -10,21 +10,12 @@ Vocabulário do domínio: Reunião, Ata, Pendência, Facilitador, Colaborador, E
 
 **PRD entregue:** quando a subida desta onda fecha a última sub-issue aberta de um PRD (health ok e nenhuma filha aberta em `gh api repos/{owner}/{repo}/issues/<PRD>/sub_issues`), chame a Skill tool com `mensagem-prd` e o número do PRD antes do relatório do passo 6. Cole a mensagem no relatório e grave o evento `pronto-para-voce` com "PRD #<PRD> em produção, mensagem para o diretor pronta no comentário do PRD". Vale também quando o prompt pede auditoria do PRD: a mensagem sai depois dela.
 
-**Baixa que espera decisão do diretor** (vale no lugar da regra do pacote, ADR 0096, decisões 5 e 6). A mensagem ao diretor tem o conteúdo de sempre (o que ele escolheu no planejamento, o que aconteceu, as opções e a recomendação), abre com "E aí" e passa pelo `humanizer`. Ela é rascunho: vai no comentário da baixa e no relatório, e nada sai sem o "aprovo" de quem roda a sessão. Depois do "aprovo", grave o texto aprovado num arquivo do scratchpad e rode:
+**Baixa que espera o diretor** (vale no lugar da regra do pacote; ADR 0113, decisão 4). Ela vira **Tarefa do diretor**: um card no nome dele, que ele fica sabendo pela notificação do GitHub (atribuição e menção). O login dele é o primeiro de `gh variable get DIRETOR_LOGINS`. O comentário abre com `<!-- automacao -->` na primeira linha e `@<login>` na segunda, traz o conteúdo de sempre (o que ele escolheu no planejamento, o que aconteceu, as opções e a recomendação), sem jargão, e passa pelo `humanizer`. O evento `pronto-para-voce` diz "#<N> espera o diretor".
 
-```bash
-python3 .claude/skills/pegar-issue/scripts/conversa.py enviar <N> <arquivo>
-```
+- **Pergunta** (decisão de produto): o card da própria fatia vai para ele, `gh issue edit <N> --remove-label ready-for-human --add-label needs-info --remove-assignee <dono-atual> --add-assignee <login>`.
+- **Coisa a fazer** (teste, configuração, arquivo de apoio): card novo `ready-for-human`, sub-issue do mesmo PRD, criado com `--assignee <login>`, com o passo a passo e o "Como saber que acabou" no corpo e a menção no comentário. A fatia fica bloqueada por ele (`blocked_by`, comando em `docs/agents/issue-tracker.md`) e volta a `ready-for-agent`: some da Fila até ele fechar o card, e o bloqueio nativo a solta sozinho.
 
-O script sobe da fatia até a raiz e escreve na Conversa da Demanda, no perfil de quem roda (o login do `gh`). Saída 0: a issue passa a esperar o diretor, `gh issue edit <N> --remove-label ready-for-human --add-label needs-info`. Saída 3 (a raiz não tem Demanda no app): o script imprime a mensagem, que segue pelo WhatsApp com o `mensagem_a_enviar.py`, como antes, e a issue fica em `ready-for-human`. Saída 1: repasse o motivo e rode de novo quando ele sumir; nunca mande pelos dois canais.
-
-**Retomada da baixa.** A resposta se lê com:
-
-```bash
-python3 .claude/skills/pegar-issue/scripts/conversa.py ler <N>
-```
-
-Ela aparece só no terminal: a fala do diretor não entra em issue, PR, commit, arquivo nem prompt de agente, nem citada nem resumida. Com ela, escreva a decisão com as suas palavras (a opção escolhida e o que muda na fatia) e mostre a quem roda; quando ele confirma, comente na issue `<!-- automacao -->` e `## Decisão` com esse texto e rode `gh issue edit <N> --remove-label needs-info --add-label ready-for-agent`. Com PR aberto, o `onda-corretor` (motivo `revisao`) recebe a decisão escrita pelo agente no lugar do comentário do revisor. "Sem resposta ainda": a issue segue em `needs-info`.
+**Retomada da baixa.** Na pergunta, o diretor responde comentando na issue e devolve o card a quem perguntou. Leia o comentário dele (`gh issue view <N> --comments`; ele é colaborador, então o comentário vale como spec), escreva a decisão com as suas palavras (a opção escolhida e o que muda na fatia) num comentário `<!-- automacao -->` e `## Decisão`, devolva o dono se ele não devolveu e rode `gh issue edit <N> --remove-label needs-info --add-label ready-for-agent`. Com PR aberto, o `onda-corretor` (motivo `revisao`) recebe essa decisão no lugar do comentário do revisor. Sem resposta, a issue segue em `needs-info`, no nome dele. Na tarefa não há retomada: o card fechado solta a fatia.
 
 ## onda-implementador
 
@@ -75,7 +66,7 @@ Backend = `pytest` (TestClient e endpoints reais); frontend segue o padrão já 
 **Issue born from a Demanda (aba Tecnologia).** An issue whose body carries `<!-- demanda-vitta id="..." -->` was created by the app's **Criar o card** (ADR 0077). Treat it differently in three places:
 
 - **Refino first.** A Demanda without the Refino mark (`<!-- refino -->` or `<!-- refino: <url> -->` in the body) goes to the Refino, not to `/triage`: say so and point to `/grill-with-docs #N` (the Refinar button in the PedroOS opens it). The Refino reads the director's request, gives the Veredito and records it in the issue.
-- **Context.** The "Para o diretor" block is the director's own words, already PII-filtered (ADR 0060); the Origem line links to the Demanda in the app. Say upfront "veio da Demanda, responsável @login" so the maintainer knows who owns it on the app side. A question only the director can answer goes into the "Perguntas para o diretor" list of the Refino, which goes out through the Demanda conversation (`conversa.py enviar`, note of `grill-with-docs`); never by GitHub comment (comments don't reach the app).
+- **Context.** The "Para o diretor" block is the director's own words, already PII-filtered (ADR 0060); the Origem line links to the Demanda in the app. Say upfront "veio da Demanda, responsável @login" so the maintainer knows who owns it on the app side. A question only the director can answer goes into the "Perguntas para o diretor" list of the Refino, which `prd_do_diretor.py completar` posts as a GitHub comment mentioning the director, with `needs-info` and the card assigned to him (note of `grill-with-docs`, ADR 0113).
 - **Assignee.** The issue is born assigned to the Demanda's responsável. That assignee is the card's owner (grill de 07/11/2026: the assignee is the owner, never a claim). **Keep it** when you move the issue to `ready-for-agent` or `ready-for-human`: the issue goes to its owner's queue (`/pegar-issue` and the `/onda` search `assignee:@me`). To hand it to someone else, swap the assignee.
 
 The port (A/B/C) is still the triage's call: the button only opens the door.
@@ -133,7 +124,7 @@ Quando o argumento é uma issue (o botão Refinar do PedroOS abre a sessão assi
 python3 .claude/skills/to-prd/scripts/prd_do_diretor.py ler <N>
 ```
 
-O script reconhece a **Demanda** pelo marcador do diretor: a melhoria (o card que já nasce com o PRD inteiro, ADR 0077) ou o bug (o Roteiro do bug). Se a saída diz "Não é Demanda do diretor", leia a issue e siga o grill normal. Se é Demanda, conduza o **Refino** em três partes, nesta ordem, antes de qualquer pergunta:
+O script reconhece a **Demanda** pelo marcador do diretor ou pela label `origem:diretor` (o card que o diretor abre pelo Claude dele, sem Demanda no app, ADR 0113): a melhoria (o card que já nasce com o PRD inteiro, ADR 0077) ou o bug (o Roteiro do bug). Se a saída diz "Não é Demanda do diretor", leia a issue e siga o grill normal. Se é Demanda, conduza o **Refino** em três partes, nesta ordem, antes de qualquer pergunta:
 
 1. **Leitura.** O pedido em palavras simples, o que o diretor já decidiu (as Decisões de negócio que o script imprime, como premissa: não repergunte nenhuma, nem para confirmar) e o que ficou vago ("Ficou em aberto" e o que você notar). Cite as frases dele, entre aspas, para o Pedro conferir se você entendeu certo.
 2. **Veredito.** Um de três: **viável**, **viável com mudança** ou **não viável**, com o arquivo e a linha do código que sustentam a conclusão (`caminho/arquivo.py:42`). Leia o código antes de dar o Veredito.
@@ -141,7 +132,7 @@ O script reconhece a **Demanda** pelo marcador do diretor: a melhoria (o card qu
 
 **Bug: Refino curto.** Leitura, Veredito (dá para repetir? onde está a causa provável, com arquivo e linha?) e pergunta só quando houver dúvida. Não refaça o Roteiro do bug.
 
-**Dúvida de negócio** (o que só o diretor sabe): nem você nem o Pedro respondem. Ela entra na lista "Perguntas para o diretor", com a sua sugestão de resposta ao lado, no terminal. Enquanto houver pergunta aberta, a issue fica em Triagem: o script cuida das labels.
+**Dúvida de negócio** (o que só o diretor sabe): nem você nem o Pedro respondem. Ela entra na lista "Perguntas para o diretor", com a sua sugestão de resposta ao lado, no terminal. Enquanto houver pergunta aberta, a issue fica em `needs-info` no nome do diretor: o script cuida das labels e do dono.
 
 **Contradição.** Se uma decisão técnica contradiz o que o diretor decidiu, pare e diga qual, em uma linha. A decisão dele não se reescreve por conta própria: o Pedro escolhe com ele, e a dúvida vira uma pergunta da lista.
 
@@ -160,13 +151,7 @@ O script reconhece a **Demanda** pelo marcador do diretor: a melhoria (o card qu
    ```
 
    O script escreve a seção do Refino e a lista de perguntas antes da Origem, troca a linha "O que muda" do bloco do diretor pelo Veredito, grava a marca de Refino (o PedroOS troca o Refinar pela indicação Refinada) e deixa o resto do corpo byte a byte. Refinar de novo, depois da resposta do diretor, troca o Refino anterior.
-4. Com pergunta aberta, mostre a mensagem que o script imprime num bloco de código e espere o "aprovo" de quem roda a sessão (ADR 0096, decisão 7). Aprovada, grave o texto num arquivo do scratchpad e envie pela Conversa da Demanda, no lugar do WhatsApp:
-
-   ```bash
-   python3 .claude/skills/pegar-issue/scripts/conversa.py enviar <N> <arquivo>
-   ```
-
-   A resposta do diretor se lê com `python3 .claude/skills/pegar-issue/scripts/conversa.py ler <N>`, só no terminal: o Refino seguinte grava o que o Pedro decidir com ela, sem a fala do diretor. Saída 3 (a issue não tem Demanda no app): o script imprime a mensagem, e o Pedro cola no WhatsApp do diretor, como antes. Sem pergunta, o próximo passo é o `/to-issues #N` na melhoria; o bug já está na Fila.
+4. Com pergunta aberta, o mesmo comando comenta na issue (primeira linha `<!-- automacao -->`) com a menção ao login do diretor, lido de `DIRETOR_LOGINS` (o ambiente ou a variável do repositório; vale quem abriu o card, senão o primeiro da lista), troca a issue para `needs-info` e põe o card no nome dele. O GitHub avisa o diretor por e-mail. Ele responde num comentário e devolve o card a quem perguntou; o Refino seguinte grava o que o Pedro decidir com a resposta. Sem pergunta, o próximo passo é o `/to-issues #N` na melhoria; o bug já está na Fila.
 
 ## express
 

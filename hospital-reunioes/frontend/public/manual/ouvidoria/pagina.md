@@ -7,6 +7,8 @@ Aqui chegam as reclamações, sugestões, elogios e denúncias de pacientes, aco
 
 Quem é da Ouvidoria ou da Diretoria Executiva, a secretária e o Super admin veem a lista de todos os casos. O responsável do setor vê os casos do setor dele e responde por eles no app. Os outros não veem a Ouvidoria no menu. As tarefas abaixo são de quem tem o acesso de ouvidor ou da Diretoria Executiva, menos a de responder um caso, que é do responsável do setor.
 
+O relato de conduta de quem trabalha no hospital, como assédio, fraude ou desvio, não é da Ouvidoria: é do Canal de Conduta, que o Comitê de Conduta apura. Com o canal aberto, o primeiro passo do formulário público da Ouvidoria mostra a saída **Sou colaborador e quero relatar uma conduta**. Ela leva ao Canal, onde a pessoa relata sem login e acompanha pelo protocolo. Se o paciente ou o acompanhante reclama da conduta grave de um profissional, o caso segue na Ouvidoria, e o ouvidor pode sinalizá-lo ao Canal (veja **Sinalizar ao Canal de Conduta**, abaixo).
+
 ## O caminho de uma manifestação
 
 Passe o mouse num passo para ver o detalhe, ou clique em **Percorrer** para andar um passo por vez. Os prazos são os padrões da tabela da Diretoria, que pode mudá-los na tela **Prazos**. Eles correm de segunda a sexta, das 8h às 17h, sem feriados. Só o aviso de recebimento conta horas corridas.
@@ -65,6 +67,17 @@ Todo caso novo fica no grupo **Em classificação** até a Ouvidoria conferir e 
 Se o responsável do setor tem login, ele também acha o caso no app, em **A responder**, e pode responder por lá ou pelo link do e-mail.
 
 Se o caso fala de um incidente com o paciente, como uma queda ou um erro de medicação, clique no número do protocolo, depois em **Enviar ao NSP** e em **Confirmar envio ao NSP**: o caso vira uma notificação do Núcleo de Segurança do Paciente, com o relato e sem o nome de quem manifestou, e o link do e-mail ao Núcleo pede login.
+
+## Sinalizar ao Canal de Conduta
+
+Use quando a manifestação de um paciente ou acompanhante fala de conduta grave de um profissional, como assédio, agressão ou desvio. O Comitê de Conduta apura a conduta, e a Ouvidoria continua respondendo a quem manifestou.
+
+1. Na lista, clique no número do protocolo do caso.
+2. Clique em **Sinalizar ao Canal de Conduta**.
+3. Leia o aviso e clique em **Confirmar sinalização**. Se mudar de ideia, clique em **Cancelar**.
+4. O bloco passa a dizer **Sinalizado ao Canal de Conduta**, e o botão some.
+
+O Canal recebe o relato integral, sem o nome nem o contato de quem manifestou. A manifestação continua aberta na Ouvidoria, no estado em que estava. Você não vê o caso do Canal depois, e nada dele volta para a Ouvidoria. Cada caso se sinaliza uma vez só.
 
 ## Responder um caso do seu setor pelo app
 

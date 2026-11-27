@@ -74,12 +74,16 @@ async def listar_pops(
 ):
     """Lista os POPs do escopo do perfil, com a versão corrente de cada um."""
     escopo = pops_dominio.setores_do_escopo(actor, supabase)
-    if escopo is not None and not escopo:
-        return []
 
     query = supabase.table("pops").select("*")
     if escopo is not None:
-        query = query.in_("setor_id", sorted(escopo))
+        # A designação formal vence o escopo de Setor (issue #2044), a mesma
+        # regra da leitura e da elaboração: o POP atribuído à pessoa entra na
+        # lista dela mesmo fora dos Setores do seu vínculo.
+        condicoes = [f"{papel}.eq.{actor['id']}" for papel in ("elaborador_id", "revisor_id", "validador_id")]
+        if escopo:
+            condicoes.insert(0, f"setor_id.in.({','.join(sorted(escopo))})")
+        query = query.or_(",".join(condicoes))
     pops = query.execute().data or []
     if not pops:
         return []

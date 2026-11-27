@@ -24,8 +24,15 @@
 CREATE INDEX IF NOT EXISTS idx_reunioes_facilitador
   ON reunioes(facilitador_id);
 
-CREATE INDEX IF NOT EXISTS idx_agendamentos_email_id_acao
-  ON agendamentos_email(id_acao);
+-- A 015 apaga agendamentos_email; num banco montado do zero a tabela não existe
+-- aqui, e o índice só nasce onde ela ainda existir.
+DO $$
+BEGIN
+  IF to_regclass('public.agendamentos_email') IS NOT NULL THEN
+    CREATE INDEX IF NOT EXISTS idx_agendamentos_email_id_acao
+      ON agendamentos_email(id_acao);
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_participantes_setor_id
   ON participantes(setor_id);

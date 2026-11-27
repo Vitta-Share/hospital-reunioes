@@ -354,11 +354,15 @@ def montar_painel(
     operadora_id: str | None = None,
     tipo: str | None = None,
     so_da_faturista: str | None = None,
+    com_custo_ia: bool = False,
 ) -> dict[str, Any]:
     """O payload do Painel: cada cartão e cada bloco na própria chave.
 
     `so_da_faturista` é o Painel de quem não tem "painel completo": só a linha
     de produção dela, e nenhum outro bloco.
+
+    `com_custo_ia` é só do Super admin (#1919): sem ele, a chave `custo_ia`
+    nem vem, para o número não trafegar para quem não deve ver.
     """
     segunda = segunda_da_semana(semana)
     primeira = segunda - timedelta(weeks=SEMANAS_NA_SERIE - 1)
@@ -390,7 +394,7 @@ def montar_painel(
     if so_da_faturista is not None:
         return {**cabecalho, "producao": producao}
 
-    return {
+    painel = {
         **cabecalho,
         "nota_media": {
             "semana": _nota_media(da_semana),
@@ -412,10 +416,12 @@ def montar_painel(
         "nivel_evidencia": [
             {"semana": s.isoformat(), **_incluido_por_nivel(linhas_de(por_semana[s]))} for s in semanas
         ],
-        "custo_ia": _custo_ia(
+        "faltou_isto": _faltou_isto(supabase, semanas, operadora_id, tipo),
+    }
+    if com_custo_ia:
+        painel["custo_ia"] = _custo_ia(
             da_semana,
             _do_auditor_nas_contas(supabase, da_semana),
             _do_auditor_na_semana(supabase, segunda, operadora_id),
-        ),
-        "faltou_isto": _faltou_isto(supabase, semanas, operadora_id, tipo),
-    }
+        )
+    return painel

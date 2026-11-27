@@ -15,9 +15,10 @@ desenvolvedores". Duas operacoes, e so estas duas tocam o envio:
   fica no app (ADR 0083, decisao 8). A conversa ganha a linha do sistema
   "Enviado aos desenvolvedores em <data>, as <hora>" com os topicos.
 
-A observacao do Validar da Apresentacao do PRD (issue #2013) passa pela mesma
-interpretacao (`interpretar_a_validacao`): o texto original fica nesta tabela,
-com a origem `validacao`, e so os topicos voltam para a funcao da Vercel.
+A observacao do Validar da Apresentacao do PRD (issue #2013) passava pela
+mesma interpretacao. Desde a issue #2281 (ADR 0113, decisao 10) o Validar
+grava so no GitHub, e a rota saiu da ponte; as linhas de origem `validacao`
+que ja estao nesta tabela ficam como historico.
 
 A trava contra o duplo clique segue a porta de envio do card
 (`tecnologia_envio`): estado, motivo e instante, com o UPDATE condicionado ao
@@ -33,17 +34,14 @@ from functools import partial
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, ConfigDict, field_validator
-
 from app.config import settings
 from app.dependencies import selecionar_participantes
-from app.services import ai_processor, github_client, planejamento_demanda
+from app.services import github_client
 from app.services.tecnologia import (
     TABELA_CONVERSA_DA_DEMANDA,
     e_desenvolvedor,
     instante_do_banco,
     projeto_da_demanda,
-    recuar_continuacao,
 )
 from app.services.tecnologia_vinculo import (
     LABEL_EM_ANDAMENTO,
@@ -52,7 +50,6 @@ from app.services.tecnologia_vinculo import (
     login_para_publicar,
     texto_do_diretor,
 )
-from app.utils.text_sanitizer import sanitizar_travessao
 
 logger = logging.getLogger(__name__)
 
@@ -64,9 +61,7 @@ ORIGEM_SISTEMA = "sistema"
 # De onde veio o envio (CHECK da migration 166): a Conversa da Demanda ou a
 # observacao do Validar da Apresentacao do PRD (issue #2013).
 ORIGEM_CONVERSA = "conversa"
-ORIGEM_VALIDACAO = "validacao"
 
-PASSO_DO_CUSTO = "envio"
 PROMPT_DO_ENVIO = "envio_aos_desenvolvedores_system"
 
 ESTADO_INTERPRETADO = "interpretado"
@@ -80,16 +75,8 @@ LABEL_DO_AJUSTE = "ready-for-human"
 # bastante para um processo morto no meio nao trancar o envio.
 JANELA_DO_ENVIO = timedelta(seconds=60)
 
-LIMITE_DE_TOPICOS = 5
 
-MOTIVO_SO_O_HOSPITAL = "Só quem é do hospital envia aos desenvolvedores."
 MOTIVO_SEM_CARD = "Este pedido ainda não virou card no desenvolvimento. O envio existe depois do Criar o card."
-MOTIVO_SEM_MENSAGEM_NOVA = (
-    "Não há mensagem sua nova desde o último envio. Escreva na conversa o que quer mandar e aperte de novo."
-)
-MOTIVO_INTERPRETACAO_FALHOU = (
-    "A IA não conseguiu ler a conversa agora, e nada foi enviado. A sua conversa ficou como estava: tente de novo."
-)
 MOTIVO_ENVIO_SUMIU = "Este resumo não vale mais. Aperte de novo em Enviar para os desenvolvedores."
 MOTIVO_EM_ANDAMENTO = "Este envio já está saindo agora. Espere alguns segundos e recarregue a página."
 MOTIVO_JA_ENVIADO = "Estas mensagens já foram enviadas aos desenvolvedores."
@@ -98,11 +85,6 @@ MOTIVO_GITHUB_FALHOU = (
 )
 
 FUSO_DO_HOSPITAL = ZoneInfo("America/Sao_Paulo")
-
-INTERPRETACAO_MOCK = {
-    "topicos": ["[MOCK] Enviar aos desenvolvedores exige a IA configurada."],
-    "cards": [],
-}
 
 
 class EnvioRecusadoError(RuntimeError):
@@ -188,183 +170,7 @@ def pendentes(supabase, demanda_id: str) -> tuple[list[dict[str, Any]], dict[str
     return do_diretor, (do_desenvolvedor[-1] if do_desenvolvedor else None)
 
 
-def mensagens_novas(supabase, demanda_id: str) -> int:
-    """Quantas mensagens do diretor esperam o proximo envio: e o que liga o botao."""
-    return len(pendentes(supabase, demanda_id)[0])
-
-
 # ─── O interpretar ───────────────────────────────────────────────────────────
-
-
-class _CardDoModelo(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
-    numero: int
-    muda: str
-
-
-class _SaidaDoEnvio(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
-    topicos: list[str]
-    cards: list[_CardDoModelo] = []
-
-    @field_validator("topicos")
-    @classmethod
-    def _com_topico(cls, valor: list[str]) -> list[str]:
-        if not any(t.strip() for t in valor):
-            raise ValueError("interpretacao sem topico")
-        return valor
-
-
-def _limpo(texto: str) -> str:
-    return sanitizar_travessao(" ".join((texto or "").split()))
-
-
-def _numeros_do_card(demanda: dict[str, Any]) -> list[int]:
-    partes = demanda.get("partes") if isinstance(demanda.get("partes"), list) else []
-    numeros = [demanda.get("github_issue_numero"), *[p.get("numero") for p in partes if isinstance(p, dict)]]
-    return [n for n in numeros if isinstance(n, int)]
-
-
-def interpretacao_limpa(saida: _SaidaDoEnvio, demanda: dict[str, Any]) -> dict[str, list]:
-    """Os topicos numa linha so, sem travessao e no teto; os cards so com
-    numero do proprio card (o modelo nao inventa issue)."""
-    validos = set(_numeros_do_card(demanda))
-    return {
-        "topicos": [t for t in (_limpo(t) for t in saida.topicos) if t][:LIMITE_DE_TOPICOS],
-        "cards": [
-            {"numero": c.numero, "muda": _limpo(c.muda)} for c in saida.cards if c.numero in validos and _limpo(c.muda)
-        ],
-    }
-
-
-def pedido_do_envio(
-    demanda: dict[str, Any],
-    do_diretor: list[dict[str, Any]],
-    do_desenvolvedor: dict[str, Any] | None,
-    *,
-    de_onde: str = "AS MENSAGENS DO DIRETOR DESDE O ÚLTIMO ENVIO",
-) -> str:
-    """O pedido ao modelo. Texto de gente entra recuado: nenhuma linha dele
-    chega a coluna zero."""
-    partes = demanda.get("partes") if isinstance(demanda.get("partes"), list) else []
-    linhas_das_partes = [
-        recuar_continuacao(f"- #{p.get('numero')}: {p.get('o_que_muda') or '(sem texto)'} ({p.get('situacao') or '?'})")
-        for p in partes
-        if isinstance(p, dict) and isinstance(p.get("numero"), int)
-    ] or ["(sem partes)"]
-    contexto = recuar_continuacao(f"    {do_desenvolvedor.get('texto') or ''}") if do_desenvolvedor else "(nenhuma)"
-    return "\n".join(
-        [
-            "PEDIDO: ENVIO AOS DESENVOLVEDORES",
-            "",
-            "O CARD",
-            recuar_continuacao(f"Título: {demanda.get('titulo') or ''}"),
-            f"Número da raiz: #{demanda.get('github_issue_numero')}",
-            recuar_continuacao(f"O que muda: {demanda.get('o_que_muda') or '(sem texto)'}"),
-            "Partes:",
-            *linhas_das_partes,
-            "",
-            "A ÚLTIMA MENSAGEM DE UM DESENVOLVEDOR (só contexto, não é pedido do diretor)",
-            contexto,
-            "",
-            de_onde,
-            *[recuar_continuacao(f"- {linha.get('texto') or ''}") for linha in do_diretor],
-        ]
-    )
-
-
-def _interpretacao(supabase, demanda: dict[str, Any], conteudo: str, *, kit: str) -> dict[str, list] | None:
-    """A chamada ao modelo do Envio, com o custo gravado: os topicos e o que
-    muda em cada card, ou `None` quando o modelo falhou."""
-    if ai_processor._llm_provider() == "mock":
-        logger.warning("Modo MOCK ativo para o Envio aos desenvolvedores (sem chave LLM)")
-        return {"topicos": list(INTERPRETACAO_MOCK["topicos"]), "cards": []}
-    saida, chamada = planejamento_demanda.chamar_o_modelo(
-        demanda=demanda,
-        passo=PASSO_DO_CUSTO,
-        conteudo=conteudo,
-        kit=kit,
-        validar=_SaidaDoEnvio.model_validate,
-        prompt=PROMPT_DO_ENVIO,
-        modelo=planejamento_demanda.modelo_da_linha(planejamento_demanda.ler(supabase, str(demanda["id"]))),
-    )
-    planejamento_demanda.gravar_chamada(supabase, chamada)
-    if saida is None:
-        return None
-    return interpretacao_limpa(saida, demanda)
-
-
-def interpretar(supabase, demanda: dict[str, Any], *, kit: str) -> dict[str, Any] | None:
-    """O "Entendi assim:" das mensagens novas do diretor, gravado como envio
-    `interpretado`, ou `None` quando o modelo falhou (a chamada fica gravada
-    do mesmo jeito). Levanta `EnvioRecusadoError` sem mensagem nova."""
-    demanda_id = str(demanda["id"])
-    do_diretor, do_desenvolvedor = pendentes(supabase, demanda_id)
-    if not do_diretor:
-        raise EnvioRecusadoError(MOTIVO_SEM_MENSAGEM_NOVA)
-
-    interpretacao = _interpretacao(supabase, demanda, pedido_do_envio(demanda, do_diretor, do_desenvolvedor), kit=kit)
-    if interpretacao is None:
-        return None
-
-    [linha] = (
-        supabase.table(TABELA_ENVIOS)
-        .insert(
-            {
-                "demanda_id": demanda_id,
-                "topicos": interpretacao["topicos"],
-                "cards": interpretacao["cards"],
-                "ate_mensagem_em": do_diretor[-1].get("criado_em"),
-                "estado": ESTADO_INTERPRETADO,
-                "estado_em": _agora(),
-            }
-        )
-        .execute()
-        .data
-    )
-    return linha
-
-
-def interpretar_a_validacao(supabase, demanda: dict[str, Any], observacao: str, *, kit: str) -> list[str]:
-    """A observacao do Validar da Apresentacao do PRD (issue #2013, ADR 0108,
-    decisao 5). Guarda o texto original junto da Demanda, com a origem
-    `validacao`, ANTES de chamar o modelo: a observacao fica no app mesmo
-    quando a interpretacao falha. Devolve os topicos pela peneira do
-    repositorio publico, prontos para o comentario e o Ajuste do GitHub, ou a
-    lista vazia quando o modelo falhou."""
-    demanda_id = str(demanda["id"])
-    [linha] = (
-        supabase.table(TABELA_ENVIOS)
-        .insert(
-            {
-                "demanda_id": demanda_id,
-                "origem": ORIGEM_VALIDACAO,
-                "texto_original": observacao,
-                "topicos": [],
-                "cards": [],
-                "ate_mensagem_em": _agora(),
-                "estado": ESTADO_INTERPRETADO,
-                "estado_em": _agora(),
-            }
-        )
-        .execute()
-        .data
-    )
-    conteudo = pedido_do_envio(
-        demanda,
-        [{"texto": observacao}],
-        None,
-        de_onde="A OBSERVAÇÃO DO DIRETOR AO VALIDAR O PLANO NA APRESENTAÇÃO",
-    )
-    interpretacao = _interpretacao(supabase, demanda, conteudo, kit=kit)
-    if interpretacao is None:
-        return []
-    supabase.table(TABELA_ENVIOS).update({"topicos": interpretacao["topicos"], "cards": interpretacao["cards"]}).eq(
-        "id", linha["id"]
-    ).execute()
-    return [t for t in (texto_do_diretor(t) for t in interpretacao["topicos"]) if t]
 
 
 # ─── O enviar ────────────────────────────────────────────────────────────────

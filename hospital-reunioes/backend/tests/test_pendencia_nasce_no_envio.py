@@ -51,6 +51,7 @@ class _TableQuery:
         self._payload: Any = None
         self._filtros: list = []
         self._limit: int | None = None
+        self._offset = 0
 
     def select(self, *_a, **_kw):
         self._op = "select"
@@ -103,6 +104,14 @@ class _TableQuery:
         self._limit = n
         return self
 
+    def range(self, inicio, fim):
+
+        self._offset = inicio
+
+        self._limit = fim - inicio + 1
+
+        return self
+
     def execute(self):
         if self._op == "insert":
             items = self._payload if isinstance(self._payload, list) else [self._payload]
@@ -111,7 +120,7 @@ class _TableQuery:
             return _Result(data=[dict(it) for it in items])
         matched = [r for r in self._rows if all(f(r) for f in self._filtros)]
         if self._limit is not None:
-            matched = matched[: self._limit]
+            matched = matched[self._offset : self._offset + self._limit]
         if self._op == "update":
             for r in matched:
                 r.update(self._payload or {})

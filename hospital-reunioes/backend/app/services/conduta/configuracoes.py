@@ -30,6 +30,7 @@ class Item:
 ITENS: tuple[Item, ...] = (
     Item("contato_dp", "Contato do DP exibido", "Contatos", True),
     Item("orientacao_nsp", "Orientação do NSP", "Contatos", True),
+    Item("contato_encarregado", "Contato do encarregado de dados", "Contatos", True),
     Item("aviso_p1_anonimato", "Aviso 1: relatar sem se identificar", "Avisos do passo 1", True),
     Item("aviso_p1_protocolo", "Aviso 2: guardar o protocolo e o código", "Avisos do passo 1", True),
     Item("aviso_p1_boa_fe", "Aviso 3: boa-fé e acusação falsa", "Avisos do passo 1", True),
@@ -37,6 +38,7 @@ ITENS: tuple[Item, ...] = (
     Item("protecao_quem_relata", "Para quem relata", "Página de proteção", True),
     Item("protecao_quem_e_citado", "Para quem é citado", "Página de proteção", True),
     Item("protecao_quem_le", "Quem lê e quem não lê", "Página de proteção", True),
+    Item("protecao_ia", "Inteligência artificial", "Página de proteção", True),
     Item("protecao_direcao", "Se envolver a Direção ou a família", "Página de proteção", True),
     Item("protecao_prazos", "Prazos", "Página de proteção", True),
     Item("protecao_nao_garante", "O que o canal não garante", "Página de proteção", True),

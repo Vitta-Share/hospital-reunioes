@@ -11,14 +11,16 @@ As listas levam só metadados: nenhum nome e nenhum trecho de relato.
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field, field_validator
 from supabase import Client
 
 from app.dependencies import get_supabase_client
 from app.services.conduta import (
+    acompanhamento,
     afastamento,
     agente_de_triagem,
+    anexos,
     avisos,
     cifra,
     configuracoes,
@@ -26,14 +28,16 @@ from app.services.conduta import (
     guarda,
     impedimento,
     nota_ao_nucleo,
+    protecao,
     relatorio,
+    retaliacao,
     retorno,
     rota_especial,
     triagem,
     trilha_do_caso,
     voto,
 )
-from app.services.conduta.acesso import CAMPOS_DA_LISTA, hoje_em_sao_paulo
+from app.services.conduta.acesso import CAMPOS_DA_LISTA, PAPEIS_DA_FILA_COMUM, hoje_em_sao_paulo
 from app.services.conduta.portao import (
     INDISPONIVEL,
     CasoAberto,
@@ -129,6 +133,14 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         return _caso_eliminado(supabase, aberto)
     try:
         relato = cifra.decifrar_texto(caso["relato_cifrado"])
+        # Quem relatou com identificação (issue #1843): o nome fica só com o
+        # Comitê, pelo papel no caso (o suplente convocado herda o do
+        # substituído). O apurador convidado e a CIPA abrem o caso sem ele.
+        relator_nome = (
+            cifra.decifrar_texto(caso["relator_nome_cifrado"])
+            if caso.get("relator_nome_cifrado") and aberto.pessoa.papel in PAPEIS_DA_FILA_COMUM
+            else None
+        )
         contestacao = triagem.contestacao_para_a_tela(supabase, caso["id"])
         prorrogacao = cifra.decifrar_texto(caso["prorrogacao_cifrada"]) if caso.get("prorrogacao_cifrada") else None
         orientacao = cifra.decifrar_texto(caso["orientacao_cifrada"]) if caso.get("orientacao_cifrada") else None
@@ -145,7 +157,10 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         votacao = voto.para_a_tela(supabase, aberto)
         afastamentos = afastamento.para_a_tela(supabase, aberto)
         medida_e_retorno = retorno.para_a_tela(supabase, aberto)
+        verificacao = retaliacao.para_a_tela(supabase, aberto, hoje_em_sao_paulo())
         trilha = trilha_do_caso.para_a_tela(supabase, aberto)
+        anexos_do_relato = anexos.para_a_tela(supabase, caso["id"])
+        mensagens = acompanhamento.para_a_tela(supabase, aberto, hoje_em_sao_paulo())
     except cifra.CifraIndisponivelError as erro:
         raise _indisponivel(erro) from erro
     vencidos = triagem.registrar_vencidos(supabase, [caso], hoje_em_sao_paulo())
@@ -156,6 +171,7 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         **impedimentos,
         **_metadados(caso),
         "relato": relato,
+        "relator_nome": relator_nome,
         "situacao": situacao(caso),
         "papel": aberto.pessoa.papel,
         "trilho": trilho(caso),
@@ -176,7 +192,10 @@ async def abrir_caso(aberto: CasoAberto = Depends(portao_do_caso), supabase: Cli
         **votacao,
         **afastamentos,
         **medida_e_retorno,
+        **verificacao,
         **trilha,
+        **anexos_do_relato,
+        **mensagens,
         **guarda.para_a_tela(supabase, aberto, hoje_em_sao_paulo()),
     }
 
@@ -191,6 +210,7 @@ def _caso_eliminado(supabase, aberto: CasoAberto) -> dict:
     return {
         **_metadados(caso),
         "relato": None,
+        "relator_nome": None,
         "situacao": situacao(caso),
         "papel": aberto.pessoa.papel,
         "trilho": trilho(caso),
@@ -207,9 +227,31 @@ def _caso_eliminado(supabase, aberto: CasoAberto) -> dict:
         "pode_contestar_participacao": False,
         "depoimentos": [],
         "avanco_da_apuracao": None,
+        "anexos": [],
+        "mensagens": None,
         **da_trilha,
         **guarda.para_a_tela(supabase, aberto, hoje_em_sao_paulo()),
     }
+
+
+@router.get("/casos/{caso_id}/anexos/{anexo_id}")
+async def abrir_anexo(
+    anexo_id: UUID, aberto: CasoAberto = Depends(portao_da_acao), supabase: Client = Depends(get_supabase_client)
+) -> Response:
+    """Um anexo do relato (issue #1844), decifrado e entregue pelo backend,
+    com a abertura gravada na trilha. Nada de cache no navegador nem no
+    caminho."""
+    try:
+        conteudo, content_type = anexos.abrir(supabase, aberto, str(anexo_id))
+    except anexos.AnexoRecusadoError as recusa:
+        raise HTTPException(status_code=recusa.status, detail=recusa.mensagem) from recusa
+    except cifra.CifraIndisponivelError as erro:
+        raise _indisponivel(erro) from erro
+    return Response(
+        content=conteudo,
+        media_type=content_type,
+        headers={"Cache-Control": "no-store", "Content-Disposition": "inline"},
+    )
 
 
 def _executar(funcao, supabase, aberto: CasoAberto, **argumentos):
@@ -394,4 +436,9 @@ async def salvar_configuracao(
 ) -> dict:
     if chave not in configuracoes.POR_CHAVE:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item de configuração inexistente")
+    if chave in protecao.CHAVES_DA_PAGINA and (palavra := protecao.palavra_proibida(corpo.texto)):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f'A página de proteção não usa "{palavra}": tire a palavra e salve de novo',
+        )
     return configuracoes.salvar(supabase, chave, corpo.texto, me["id"])

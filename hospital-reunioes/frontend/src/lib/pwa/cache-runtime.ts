@@ -34,7 +34,9 @@ import { NetworkOnly, type RuntimeCaching } from "serwist";
  * por protocolo), que carrega a manifestação do cidadão do mesmo jeito;
  * `/api/aceite/` é o link tokenizado do participante convocado (issue #508);
  * `/api/nsp/recebimento/` é o link de uso único do Núcleo ao setor (issue #1996);
- * `/api/minhas-pendencias/` é o link pessoal de quem nunca entrou (issue #1878).
+ * `/api/minhas-pendencias/` é o link pessoal de quem nunca entrou (issue #1878);
+ * `/api/conduta/` é o lado público do Canal de Conduta, cuja resposta do envio
+ * traz o protocolo e o código (issue #1843).
  */
 const PREFIXOS_DE_API_SEM_CACHE = [
   "/api/aceite/",
@@ -42,6 +44,7 @@ const PREFIXOS_DE_API_SEM_CACHE = [
   "/api/ouvidoria/",
   "/api/nsp/recebimento/",
   "/api/minhas-pendencias/",
+  "/api/conduta/",
 ] as const;
 
 /**
@@ -66,6 +69,10 @@ const PREFIXOS_DE_TELA_SEM_CACHE = [
   "/ouvidoria-setor",
   "/notificar/recebido/",
   "/minhas-pendencias/",
+  // A página pública do Canal de Conduta (issue #1843): fica fora do cache do
+  // aplicativo inteira, a tela sem barra (`/conduta`) e o que vier abaixo dela.
+  // O lado do Comitê mora em `/comite-de-conduta`, que este prefixo não casa.
+  "/conduta",
 ] as const;
 
 /** Os prefixos cujo GET nunca é gravado no aparelho. */

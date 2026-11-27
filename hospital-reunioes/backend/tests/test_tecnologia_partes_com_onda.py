@@ -112,7 +112,7 @@ class TestAOndaDeCadaParte:
 # A foto guarda as bloqueadoras de cada parte
 # ═══════════════════════════════════════════════════════════════════════════
 
-REPO_URL = "https://github.com/pedrorezendefig/hospital-reunioes/issues"
+REPO_URL = "https://github.com/Vitta-Share/hospital-reunioes/issues"
 
 
 def _bloqueadora(numero: int, estado: str = "open", *, url: str | None = None) -> dict:
@@ -235,7 +235,7 @@ def _foto_com_partes() -> dict:
 
 
 class TestAApiDoDocumento:
-    def test_quem_nao_tem_github_login_recebe_numeros_onda_e_bloqueadoras_abertas_sem_link(self, monkeypatch):
+    def test_quem_nao_tem_github_login_recebe_numeros_onda_e_bloqueadoras_abertas(self, monkeypatch):
         cache = tecnologia_sincronizacao.mudanca_da_foto(_foto_com_partes())
         client, _, _ = _cenario(
             monkeypatch,
@@ -247,12 +247,21 @@ class TestAApiDoDocumento:
         [item] = client.get(CHAT).json()
 
         assert item["raiz_numero"] == 673
-        assert (item["issue_numero"], item["issue_url"]) == (None, None)
+        # O numero da raiz sai tambem como `issue_numero` desde a issue #2265
+        # (ADR 0113, decisao 6); as partes continuam sem titulo, link e labels.
+        assert item["issue_numero"] == 673
         assert [(p["numero"], p["onda"], p["bloqueadoras"]) for p in item["partes"]] == [
             (678, 1, []),
             # A 678 ja fechou: conta para a Onda, mas nao aparece como espera.
             (679, 2, []),
-            (680, 3, [{"numero": 679, "de_outro_pedido": False}, {"numero": 1830, "de_outro_pedido": True}]),
+            (
+                680,
+                3,
+                [
+                    {"numero": 679, "de_outro_pedido": False, "ajuste_do_plano": False},
+                    {"numero": 1830, "de_outro_pedido": True, "ajuste_do_plano": False},
+                ],
+            ),
         ]
         textos = [str(v) for p in item["partes"] for v in p.values()]
         assert not [t for t in textos if "github.com" in t or "Tecnologia: webhook" in t]

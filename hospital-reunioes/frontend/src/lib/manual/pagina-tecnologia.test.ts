@@ -3,8 +3,12 @@
  *
  * Lê o Markdown de verdade, em `public/manual/tecnologia/pagina.md`, e prova o
  * que a issue promete dele: só quem acessa Tecnologia vê a página, cada tarefa
- * tem passos numerados e print, e o fluxograma desenha o caminho de um pedido,
- * da conversa com o Assistente até Entregue.
+ * tem passos numerados e print, e o fluxograma desenha o caminho de um pedido.
+ *
+ * Desde a issue #2282 (PRD #2262, ADR 0113) a página é a da aba de
+ * acompanhamento: o Quadro, as Entregas e o que falta para começar a usar. O
+ * pedido nasce no Claude do diretor ou no Assistente do app, e saíram as
+ * tarefas das telas que a issue #2279 tirou da aba.
  */
 
 import { renderToStaticMarkup } from "react-dom/server";
@@ -19,14 +23,46 @@ import { fluxogramasCitados, imagensCitadas, paginasVisiveis } from "./paginas";
 const PAGINAS = carregarPaginasDoManual();
 const TECNOLOGIA = PAGINAS.find((p) => p.modulo === "tecnologia");
 const TAREFAS = [
-  "Pedir um bug ou uma melhoria ao Assistente",
   "Acompanhar o pedido no Quadro",
-  "Ver o que espera sua resposta",
-  "Responder uma pergunta da Vitta",
-  "Pedir explicação ao assistente (Me explique)",
-  "Mandar o que você escreveu aos desenvolvedores",
+  "Ver o que falta para começar a usar",
   "Filtrar por Projeto",
   "Ver as Entregas",
+];
+const FLUXOGRAMA = "O caminho de um pedido";
+/** O nome, na tela, do que saiu da aba com a issue #2279 (ADR 0113, decisão 7). */
+const TELAS_QUE_SAIRAM = [
+  "Novo pedido",
+  "Criar o card",
+  "Não bateu",
+  "Conversar",
+  "Conversa da Demanda",
+  "Esperando você",
+  "Me explique",
+  "Pede sua resposta",
+  "Pede sua ação",
+  "Passo a passo da Vitta",
+  "Achei um problema",
+  "Enviar para os desenvolvedores",
+  "Entendi assim",
+  "Concluir",
+  "Reenviar",
+];
+/** Os prints das tarefas que saíram: nenhum volta à página. */
+const PRINTS_QUE_SAIRAM = [
+  "novo-pedido.png",
+  "pergunta-da-melhoria.png",
+  "resumo-do-bug.png",
+  "esperando-sua-resposta.png",
+  "aviso-pede-resposta.png",
+  "cartao-da-pergunta.png",
+  "projeto-novo.png",
+  "concluir-passo-a-passo.png",
+  "pedido-de-implantacao.png",
+  "problema-no-assistente.png",
+  "espera-a-demanda.png",
+  "me-explique.png",
+  "entendi-assim.png",
+  "enviado-aos-desenvolvedores.png",
 ];
 
 function pessoa(campos: Partial<CurrentParticipante>): CurrentParticipante {
@@ -81,6 +117,14 @@ function passoPorRotulo(fluxo: Fluxo, rotulo: RegExp): Passo {
   return passo;
 }
 
+
+/** Os passos numerados de uma tarefa, cada um com o texto que vem até o próximo número. */
+function passosDa(tarefa: string): string[] {
+  return secao(tarefa)
+    .texto.split(/^(?=\d+\. )/m)
+    .filter((bloco) => /^\d+\. /.test(bloco));
+}
+
 describe("a página de Tecnologia do manual", () => {
   it("existe e aparece para o Super admin, que tem Tecnologia no menu", () => {
     expect(TECNOLOGIA?.pasta).toBe("tecnologia");
@@ -93,6 +137,11 @@ describe("a página de Tecnologia do manual", () => {
     ["a Secretária", pessoa({ access_profile: "secretaria" })],
   ])("não aparece para %s", (_quem, participante) => {
     expect(paginasVisiveis(PAGINAS, participante).map((p) => p.modulo)).not.toContain("tecnologia");
+  });
+
+  it("tem as tarefas da aba de acompanhamento, e só elas", () => {
+    const titulos = secoes(TECNOLOGIA!.corpo).map((s) => s.titulo);
+    expect(titulos.filter((t) => t !== FLUXOGRAMA)).toEqual(TAREFAS);
   });
 
   it.each(TAREFAS)("a tarefa %s tem passos numerados e pelo menos um print", (tarefa) => {
@@ -112,172 +161,97 @@ describe("a página de Tecnologia do manual", () => {
     expect(html.match(/<ol[ >]/g) ?? []).toHaveLength(1);
     expect(html.match(/<li[ >]/g) ?? []).toHaveLength(numeros.length);
   });
-});
 
-/** Os passos numerados de uma tarefa, cada um com o texto que vem até o próximo número. */
-function passosDa(tarefa: string): string[] {
-  return secao(tarefa)
-    .texto.split(/^(?=\d+\. )/m)
-    .filter((bloco) => /^\d+\. /.test(bloco));
-}
-
-describe("a pergunta da Vitta na tarefa de responder a ela (issues #1807 e #1968, ADR 0096)", () => {
-  const TAREFA = "Responder uma pergunta da Vitta";
-
-  it("um passo diz que a pergunta chega na Conversa da Demanda, com aviso no sino e por e-mail", () => {
-    const chegada = passosDa(TAREFA).find((p) => /pergunta/i.test(p) && /decisão sua/.test(p));
-    expect(chegada, "nenhum passo diz onde chega a pergunta da Vitta").toBeDefined();
-    expect(chegada).toMatch(/Conversa da Demanda/);
-    // O aviso vem pelos dois canais; o "link do e-mail" do mesmo passo não conta como aviso.
-    expect(chegada).toMatch(/aviso no sino e por e-mail/);
-  });
-
-  it("um passo depois diz para responder ali mesmo, pelo Conversar", () => {
-    const passos = passosDa(TAREFA);
-    const i = passos.findIndex((p) => /pergunta/i.test(p) && /decisão sua/.test(p));
-    expect(i, "nenhum passo diz onde chega a pergunta da Vitta").toBeGreaterThanOrEqual(0);
-    const resposta = passos.slice(i + 1).find((p) => /\*\*Conversar\*\*/.test(p)) ?? "";
-    expect(resposta).toMatch(/responda ali mesmo/);
-  });
-
-  it("não traz travessão nem meia-risca, nem o nome de quem manda a pergunta", () => {
+  it("não traz travessão nem meia-risca, nem o nome de gente da Vitta de verdade", () => {
     expect(TECNOLOGIA!.corpo).not.toMatch(/[–—]/);
     expect(TECNOLOGIA!.corpo).not.toMatch(/\bPedro\b/);
   });
 });
 
-describe("o aviso Pede sua resposta e o pedido de projeto novo (issue #1968, PRD #1964)", () => {
-  const TAREFA = "Responder uma pergunta da Vitta";
-
-  function passoDoAviso(): string {
-    const passo = passosDa(TAREFA).find((p) => /\*\*Pede sua resposta\*\*/.test(p));
-    expect(passo, "nenhum passo mostra o aviso Pede sua resposta").toBeDefined();
-    return passo!;
-  }
-
-  it("um passo mostra o aviso Pede sua resposta no sino, com o assunto, e só para quem responde", () => {
-    const passo = passoDoAviso();
-    expect(passo).toMatch(/sino/);
-    expect(passo).toMatch(/assunto/);
-    expect(passo).toMatch(/mesmo num pedido que você não abriu/);
-    expect(imagensCitadas(passo)).toContain("aviso-pede-resposta.png");
+describe("a aba mostrada como ela é, sem as telas que saíram (issue #2282, ADR 0113, decisões 6 e 7)", () => {
+  it.each(TELAS_QUE_SAIRAM)("a página não ensina mais %s", (tela) => {
+    expect(TECNOLOGIA!.corpo).not.toContain(tela);
   });
 
-  it("um passo diz o assunto do e-mail, com quem pergunta e sobre o quê", () => {
-    const passo = passosDa(TAREFA).find((p) => /e-mail/.test(p) && /pede sua resposta: /.test(p));
-    expect(passo, "nenhum passo diz o assunto do e-mail").toBeDefined();
+  it("a abertura diz que a aba só acompanha, e de onde nasce o pedido: o Claude do diretor ou o Assistente do app", () => {
+    const abertura = TECNOLOGIA!.corpo.split(/^## /m)[0];
+    expect(abertura).toMatch(/só acompanha/);
+    expect(abertura).toMatch(/seu Claude/);
+    expect(abertura).toMatch(/Assistente do app/);
+    expect(abertura).toMatch(/GitHub/);
   });
 
-  it("responder no cartão da lista vem primeiro, e a Conversa da Demanda depois, com o print do cartão (issues #2123 e #2145)", () => {
-    const passos = passosDa(TAREFA).filter((p) => /responda ali mesmo/.test(p));
-    expect(passos.length, "faltam os passos de responder na lista e na Conversa").toBeGreaterThanOrEqual(2);
-    const [naLista, naConversa] = passos;
-    expect(naLista).toMatch(/no cartão da lista/);
-    expect(naLista).toMatch(/sem abrir o pedido/);
-    expect(naConversa).toMatch(/Conversa da Demanda/);
-    expect(imagensCitadas(naConversa)).toContain("cartao-da-pergunta.png");
+  it("a Origem do pedido aparece ao abrir o pedido, porque o card do Quadro não a desenha", () => {
+    const abertura = TECNOLOGIA!.corpo.split(/^## /m)[0];
+    const frase = abertura.split(/(?<=\.)\s+/).find((f) => /\*\*Pedido do diretor\*\*/.test(f));
+    expect(frase, "a abertura não diz de onde vem o pedido").toBeDefined();
+    expect(frase).toMatch(/^Ao abrir o pedido, o painel mostra de onde ele veio/);
+    expect(frase).toMatch(/\*\*Relato no app\*\*/);
   });
 
-  it("a tarefa Acompanhar o pedido no Quadro manda para a tarefa nova, sem repetir os passos", () => {
-    const passos = passosDa("Acompanhar o pedido no Quadro");
-    expect(passos.some((p) => /\*\*Responder uma pergunta da Vitta\*\*/.test(p))).toBe(true);
-    expect(passos.some((p) => /responda ali mesmo/.test(p))).toBe(false);
+  it("o bug do Assistente aparece no Quadro, em Registrada, assim que você responde às perguntas", () => {
+    const abertura = TECNOLOGIA!.corpo.split(/^## /m)[0];
+    expect(abertura).toMatch(/aparece no Quadro, em Registrada, assim que você responde às perguntas/);
   });
 
-  it("explica o pedido de projeto novo: Vitta, nome do projeto, Abrir o plano, filtro Projeto, com print", () => {
+  it("só o aviso sobre um pedido abre o painel; o aviso antigo que pedia resposta ou ação abre só a aba", () => {
+    const { texto } = secao("Acompanhar o pedido no Quadro");
+    expect(texto).toMatch(/aviso do sino ou do e-mail sobre um pedido abre o pedido no painel/);
+    expect(texto).toMatch(/aviso antigo que pedia a sua resposta ou a sua ação, e o lembrete dele, abrem só a aba, no Quadro, sem pedido aberto/);
+  });
+
+  it("nenhum print da página é de uma tela que saiu", () => {
+    const citadas = imagensCitadas(TECNOLOGIA!.corpo);
+    for (const velho of PRINTS_QUE_SAIRAM) expect(citadas).not.toContain(velho);
+  });
+});
+
+describe("ver o que falta para começar a usar (issue #2282, ADR 0113, decisão 9)", () => {
+  const TAREFA = "Ver o que falta para começar a usar";
+
+  it("um passo mostra o selo Implantação 1 de 3 do card no Quadro, com print", () => {
+    const passo = passosDa(TAREFA).find((p) => /selo \*\*Implantação 1 de 3\*\*/.test(p));
+    expect(passo, "nenhum passo mostra o selo Implantação do card").toBeDefined();
+    expect(imagensCitadas(passo!)).toContain("selo-da-implantacao.png");
+  });
+
+  it("um passo explica a seção Implantação do card aberto: quantos feitos, Feito ou Aberto, e com quem, com print", () => {
+    const passo = passosDa(TAREFA).find((p) => /seção \*\*Implantação\*\*/.test(p));
+    expect(passo, "nenhum passo explica a seção Implantação do card").toBeDefined();
+    expect(passo).toMatch(/\*\*1 de 3 feitos\*\*/);
+    expect(passo).toMatch(/\*\*Feito\*\*/);
+    expect(passo).toMatch(/\*\*Aberto\*\*/);
+    expect(passo).toMatch(/com quem/);
+    expect(imagensCitadas(passo!)).toContain("implantacao-no-card.png");
+  });
+
+  it("cada linha é um card de implantação no GitHub, que se fecha lá, e a conta anda sozinha", () => {
     const { texto } = secao(TAREFA);
-    const trecho = texto.split(/\n\s*\n/).filter((p) => /projeto novo|ainda não aparecia/.test(p) || /projeto-novo\.png/.test(p)).join("\n");
-    expect(trecho, "a tarefa não explica o pedido de projeto novo").toMatch(/ainda não aparecia no aplicativo/);
-    expect(trecho).toMatch(/\*\*Vitta\*\*/);
-    expect(trecho).toMatch(/nome do projeto/);
-    expect(trecho).toMatch(/\*\*Abrir o plano\*\*/);
-    expect(trecho).toMatch(/\*\*Projeto\*\*/);
-    expect(imagensCitadas(trecho)).toContain("projeto-novo.png");
+    expect(texto).toMatch(/card de implantação/);
+    expect(texto).toMatch(/no GitHub/);
+    expect(texto).toMatch(/fecha o card/);
+    expect(texto).toMatch(/anda sozinha/);
   });
 
-  it("o filtro Projeto lista os projetos novos da Vitta que já têm pedido na aba, sem prender a pergunta a quem lê", () => {
-    // O Super admin vê todo pedido de Origem Vitta e /projetos lista todo projeto novo com pedido,
-    // não só os que têm pergunta para quem lê (revisão do PR #1977).
+  it("diz que a entrega fica Em produção mesmo com a implantação por fazer, e que o selo some no fim", () => {
+    const { texto } = secao(TAREFA);
+    expect(texto).toMatch(/Em produção mesmo com a implantação por fazer/);
+    expect(texto).toMatch(/o selo some/);
+  });
+
+  it("o Acompanhar o pedido no Quadro manda para a tarefa nova, sem repetir os passos", () => {
+    const passos = passosDa("Acompanhar o pedido no Quadro");
+    expect(passos.some((p) => new RegExp(`\\*\\*${TAREFA}\\*\\*`).test(p))).toBe(true);
+    expect(passos.some((p) => /seção \*\*Implantação\*\*/.test(p))).toBe(false);
+  });
+});
+
+describe("o filtro Projeto (issue #1715 e #1967)", () => {
+  it("o filtro Projeto lista os projetos novos da Vitta que já têm pedido na aba", () => {
     const { texto } = secao("Filtrar por Projeto");
     const abertura = texto.split(/\n\s*\n/).find((p) => /projetos novos da Vitta/.test(p));
     expect(abertura, "a tarefa não diz que a aba junta os projetos novos da Vitta").toBeDefined();
     expect(abertura).toMatch(/projetos novos da Vitta que já têm pedido na aba/);
-    expect(abertura).not.toMatch(/pergunta para você/);
-  });
-});
-
-describe("a lista Esperando sua resposta, o cartão e o Me explique (issue #2123, PRD #2112, ADR 0109)", () => {
-  const LISTA = "Ver o que espera sua resposta";
-  const RESPONDER = "Responder uma pergunta da Vitta";
-  const ME_EXPLIQUE = "Pedir explicação ao assistente (Me explique)";
-
-  it("a lista Esperando sua resposta fica no alto da aba, com as suas perguntas primeiro e o cartão em destaque pelo aviso", () => {
-    const passos = passosDa(LISTA);
-    const daLista = passos.find((p) => /\*\*Esperando sua resposta\*\*/.test(p));
-    expect(daLista, "nenhum passo mostra a lista Esperando sua resposta").toBeDefined();
-    expect(daLista).toMatch(/no alto da aba/);
-    expect(imagensCitadas(daLista!)).toContain("esperando-sua-resposta.png");
-    expect(passos.some((p) => /as suas vêm primeiro/.test(p))).toBe(true);
-    expect(passos.some((p) => /aviso do sino ou no link do e-mail/.test(p) && /em destaque/.test(p))).toBe(true);
-  });
-
-  it("o cartão diz por que precisa de você, o que está parado, o que anda depois e o que o hospital ganha", () => {
-    const { texto } = secao(LISTA);
-    for (const linha of [
-      "Por que precisa de você",
-      "O que está parado",
-      "O que anda quando você responder",
-      "O que o hospital ganha",
-    ]) {
-      expect(texto).toContain(`**${linha}**`);
-    }
-  });
-
-  it("responder no cartão: a opção, com a Recomendada em destaque, ou o campo livre e o Responder", () => {
-    const passos = passosDa(RESPONDER);
-    const i = passos.findIndex((p) => /responda ali mesmo/.test(p));
-    expect(i, "nenhum passo manda responder no cartão").toBeGreaterThanOrEqual(0);
-    const noCartao = passos.slice(i).find((p) => /\*\*Recomendada\*\*/.test(p));
-    expect(noCartao, "nenhum passo mostra as opções com a Recomendada").toBeDefined();
-    expect(noCartao).toMatch(/clique na opção/);
-    expect(noCartao).toMatch(/\*\*Responder\*\*/);
-  });
-
-  it("a resposta deixa a pergunta Respondida, sai da lista na hora, e só destrava com o ok da Vitta", () => {
-    const passo = passosDa(RESPONDER).find((p) => /\*\*Respondida\*\*/.test(p));
-    expect(passo, "nenhum passo diz o que acontece depois de responder").toBeDefined();
-    // Desde a issue #2145 a lista tira a Pergunta respondida na hora, sem reler a aba.
-    expect(passo).toMatch(/sai da lista \*\*Esperando sua resposta\*\* na hora/);
-    const daLista = secao(LISTA).texto.split(/\n\s*\n/).find((p) => /sai da lista/.test(p));
-    expect(daLista, "a tarefa da lista não diz quando a pergunta respondida sai").toBeDefined();
-    expect(daLista).toMatch(/responda ali mesmo, no cartão da lista/);
-    expect(daLista).toMatch(/\*\*Me explique\*\*/);
-    expect(daLista).toMatch(/sai da lista na hora/);
-    const tudo = secao(LISTA).texto + secao(RESPONDER).texto;
-    expect(tudo).not.toMatch(/na próxima vez que a aba abre/);
-    expect(tudo).not.toMatch(/serve para ler\. Para responder, abra o pedido/);
-    expect(tudo).not.toMatch(/continua na lista como \*\*Aberta\*\*/);
-    const { texto } = secao(RESPONDER);
-    expect(texto).toMatch(/\*\*Resolvida\*\*/);
-    expect(texto).toMatch(/\*\*O que foi decidido\*\*/);
-    expect(texto).toMatch(/\*\*Cancelada\*\*/);
-    expect(texto).toMatch(/depois de 3 dias/);
-  });
-
-  it("o Me explique é uma conversa só sua, o rascunho vai para o campo pelo Usar este rascunho, e quem envia é o Responder", () => {
-    const passos = passosDa(ME_EXPLIQUE);
-    const abrir = passos.findIndex((p) => /clique em \*\*Me explique\*\*/.test(p));
-    const rascunho = passos.findIndex((p) => /\*\*Usar este rascunho\*\*/.test(p));
-    const responder = passos.findIndex((p, i) => i > rascunho && /\*\*Responder\*\*/.test(p));
-    expect([abrir, rascunho, responder].every((i) => i >= 0), `faltam passos: ${abrir}, ${rascunho}, ${responder}`).toBe(true);
-    expect(abrir).toBeLessThan(rascunho);
-    expect(imagensCitadas(passos.slice(abrir, rascunho + 1).join("\n"))).toContain("me-explique.png");
-    expect(secao(ME_EXPLIQUE).texto).toMatch(/só sua/);
-    expect(secao(ME_EXPLIQUE).texto).toMatch(/nada do Me explique vai para a Conversa da Demanda/);
-  });
-
-  it("a Pergunta da Vitta nunca se chama Pendência, que é a Ação da Ata (ADR 0109, decisão 2)", () => {
-    expect(TECNOLOGIA!.corpo).not.toMatch(/pend[êe]ncia/i);
   });
 });
 
@@ -333,78 +307,7 @@ describe("o atalho Ver o plano na tarefa de acompanhar o pedido (issue #2015, PR
   });
 });
 
-describe("a tarefa de mandar o que você escreveu aos desenvolvedores (issue #2015, ADR 0108)", () => {
-  const TAREFA = "Mandar o que você escreveu aos desenvolvedores";
-
-  /** O índice do primeiro passo que casa com o padrão, ou -1. */
-  function indice(padrao: RegExp): number {
-    return passosDa(TAREFA).findIndex((p) => padrao.test(p));
-  }
-
-  it("os passos vão na ordem: escrever na Conversa, Enviar para os desenvolvedores, Entendi assim, Enviar ou Corrigir, a linha Enviado", () => {
-    const ordem = [
-      indice(/Escreva/),
-      indice(/clique em \*\*Enviar para os desenvolvedores\*\*/),
-      indice(/\*\*Entendi assim:\*\*/),
-      indice(/clique em \*\*Enviar\*\*[\s\S]*\*\*Corrigir\*\*/),
-      indice(/\*\*Enviado aos desenvolvedores\*\*/),
-    ];
-    expect(ordem.every((i) => i >= 0), `faltam passos: ${ordem.join(", ")}`).toBe(true);
-    expect(ordem).toEqual([...ordem].sort((a, b) => a - b));
-    expect(new Set(ordem).size).toBe(ordem.length);
-  });
-
-  it("o passo da escrita fica na Conversa da Demanda, com quantas mensagens quiser", () => {
-    const passos = passosDa(TAREFA);
-    expect(passos.some((p) => /\*\*Conversar\*\*/.test(p))).toBe(true);
-    expect(passos[indice(/Escreva/)]).toMatch(/quantas mensagens quiser/);
-  });
-
-  it("o botão fica desligado sem mensagem nova desde o último envio", () => {
-    expect(passosDa(TAREFA)[indice(/clique em \*\*Enviar para os desenvolvedores\*\*/)]).toMatch(
-      /desligado enquanto não há mensagem sua nova desde o último envio/,
-    );
-  });
-
-  it("o Corrigir leva à caixa: manda a mensagem pelo botão ao lado dela antes de Enviar para os desenvolvedores de novo", () => {
-    const passo = passosDa(TAREFA)[indice(/\*\*Corrigir\*\*/)];
-    const corrigir = passo.slice(passo.indexOf("**Corrigir**"));
-    const mandar = corrigir.search(/clique no botão de enviar, ao lado da caixa/);
-    const deNovo = corrigir.search(/de novo em Enviar para os desenvolvedores/);
-    expect(mandar).toBeGreaterThan(0);
-    expect(deNovo).toBeGreaterThan(mandar);
-    expect(corrigir).toMatch(/resumo seguinte já leva em conta o que você escreveu/);
-    // A caixa nunca sai da tela: o Corrigir só fecha o Entendi assim e põe o cursor nela.
-    expect(corrigir).not.toMatch(/caixa[^.]*volta/);
-  });
-
-  it("a linha Enviado traz a data, a hora e os tópicos, e o que vem depois entra no próximo envio", () => {
-    const passo = passosDa(TAREFA)[indice(/\*\*Enviado aos desenvolvedores\*\*/)];
-    expect(passo).toMatch(/data, a hora e os tópicos/);
-    expect(passo).toMatch(/entra no próximo envio/);
-  });
-
-  it("diz que quem cuida do pedido lê a conversa, e que do aplicativo sai só o resumo aprovado (ADR 0083, decisão 8; ADR 0108, decisão 5)", () => {
-    const { texto } = secao(TAREFA);
-    expect(texto).toMatch(/Quem cuida do pedido lê a conversa no aplicativo/);
-    expect(texto).toMatch(/Do aplicativo sai só o resumo que você aprovou/);
-    // Só o GitHub recebe apenas o resumo: os desenvolvedores leem a conversa no app.
-    expect(texto).not.toMatch(/desenvolvedores recebem só/i);
-  });
-
-  it("o Entendi assim e a linha Enviado têm print, cada um no seu passo", () => {
-    expect(imagensCitadas(passosDa(TAREFA)[indice(/\*\*Entendi assim:\*\*/)])).toContain("entendi-assim.png");
-    expect(imagensCitadas(passosDa(TAREFA)[indice(/\*\*Enviado aos desenvolvedores\*\*/)])).toContain(
-      "enviado-aos-desenvolvedores.png",
-    );
-  });
-
-  it("a falha diz o motivo e o Tente de novo, sem perder o que você escreveu", () => {
-    expect(secao(TAREFA).texto).toMatch(/\*\*Tente de novo\*\*, sem perder nada do que você escreveu/);
-  });
-});
-
-describe("o fluxograma do caminho de um pedido", () => {
+describe("o fluxograma do caminho de um pedido (issue #2282)", () => {
   function fluxo(): Fluxo {
     const blocos = fluxogramasCitados(TECNOLOGIA!.corpo);
     expect(blocos).toHaveLength(1);
@@ -413,89 +316,90 @@ describe("o fluxograma do caminho de um pedido", () => {
     return leitura.fluxo;
   }
 
-  it("lê sem erro de bloco e começa num só lugar, a conversa com o Assistente", () => {
-    const inicios = fluxo().passos.filter((p) => p.forma === "inicio");
-    expect(inicios).toHaveLength(1);
-    expect(inicios[0].rotulo).toMatch(/Assistente/);
+  const inicios = (f: Fluxo) => f.passos.filter((p) => p.forma === "inicio");
+
+  it("fica na seção O caminho de um pedido", () => {
+    expect(fluxogramasCitados(secao(FLUXOGRAMA).texto)).toHaveLength(1);
   });
 
-  it("termina em Entregue, que se alcança a partir da conversa", () => {
-    const f = fluxo();
-    const entregue = passoPorRotulo(f, /^Entregue$/);
-    expect(entregue.forma).toBe("fim");
-    const inicio = f.passos.find((p) => p.forma === "inicio")!;
-    expect(alcancaveis(f, inicio.id).has(entregue.id)).toBe(true);
+  it("o pedido nasce em dois lugares: a melhoria no Claude do diretor e o bug no Assistente do app", () => {
+    const [claude, assistente] = [/Claude/, /Assistente do app/].map((r) => {
+      const achado = inicios(fluxo()).find((p) => r.test(p.rotulo));
+      expect(achado, `nenhum início ${r}`).toBeDefined();
+      return achado!;
+    });
+    expect(inicios(fluxo())).toHaveLength(2);
+    expect(claude.detalhe).toMatch(/[Mm]elhoria/);
+    expect(claude.detalhe).toMatch(/GitHub/);
+    expect(assistente.detalhe).toMatch(/[Bb]ug/);
   });
 
-  it("nada chega a Entregue sem o clique em Criar o card", () => {
+  it("os dois inícios chegam ao Quadro sem o Enviar à Vitta: o bug aparece em Registrada antes do envio", () => {
     const f = fluxo();
-    const inicio = f.passos.find((p) => p.forma === "inicio")!;
-    const criar = passoPorRotulo(f, /^Criar o card$/);
-    const entregue = passoPorRotulo(f, /^Entregue$/);
-    expect(alcancaveis(f, inicio.id, new Set([criar.id])).has(entregue.id)).toBe(false);
-  });
-
-  it("o bug e a melhoria são os dois lados da primeira decisão, e os dois chegam ao Criar o card", () => {
-    const f = fluxo();
-    const decisao = passoPorRotulo(f, /[Bb]ug ou melhoria/);
-    expect(decisao.forma).toBe("decisao");
-    const criar = passoPorRotulo(f, /^Criar o card$/);
-    const saidas = f.ligacoes.filter((l) => l.de === decisao.id);
-    expect(saidas.map((l) => l.rotulo).sort()).toEqual(["bug", "melhoria"]);
-    for (const saida of saidas) {
-      expect(alcancaveis(f, saida.para).has(criar.id), `o lado ${saida.rotulo} não chega ao Criar o card`).toBe(true);
+    const quadro = passoPorRotulo(f, /Quadro/);
+    const enviar = passoPorRotulo(f, /^Enviar à Vitta$/);
+    for (const inicio of inicios(f)) {
+      expect(alcancaveis(f, inicio.id, new Set([enviar.id])).has(quadro.id), inicio.rotulo).toBe(true);
     }
+    expect(quadro.detalhe).toMatch(/bug aparece em Registrada/);
+    expect(quadro.detalhe).not.toMatch(/selo/);
   });
 
-  it("depois do card, o pedido passa pelas Etapas Em análise, Planejada e Em desenvolvimento, nessa ordem", () => {
+  it("o bug só entra na fila da Vitta depois do Enviar à Vitta, que vem depois do Quadro", () => {
     const f = fluxo();
-    const criar = passoPorRotulo(f, /^Criar o card$/);
-    const etapas = [/^Em análise$/, /^Planejada$/, /^Em desenvolvimento$/, /^Entregue$/].map((r) => passoPorRotulo(f, r));
-    expect(alcancaveis(f, criar.id).has(etapas[0].id)).toBe(true);
+    const quadro = passoPorRotulo(f, /Quadro/);
+    const enviar = passoPorRotulo(f, /^Enviar à Vitta$/);
+    const planejada = passoPorRotulo(f, /^Planejada$/);
+    const assistente = inicios(f).find((p) => /Assistente do app/.test(p.rotulo))!;
+    expect(f.ligacoes.some((l) => l.de === assistente.id && l.para === enviar.id)).toBe(false);
+    expect(alcancaveis(f, quadro.id).has(enviar.id)).toBe(true);
+    expect(f.ligacoes.filter((l) => l.de === quadro.id && l.para === planejada.id)).toEqual([]);
+    expect(alcancaveis(f, enviar.id).has(planejada.id)).toBe(true);
+  });
+
+  it("depois do Quadro, o pedido passa pelas Etapas Em análise, Planejada, Em desenvolvimento, Entregue e Em produção, nessa ordem", () => {
+    const f = fluxo();
+    const quadro = passoPorRotulo(f, /Quadro/);
+    const etapas = [/^Em análise$/, /^Planejada$/, /^Em desenvolvimento$/, /^Entregue$/, /^Em produção$/].map((r) =>
+      passoPorRotulo(f, r),
+    );
+    expect(alcancaveis(f, quadro.id).has(etapas[0].id)).toBe(true);
     for (let i = 0; i < etapas.length - 1; i++) {
       expect(alcancaveis(f, etapas[i].id).has(etapas[i + 1].id), `${etapas[i].rotulo} não leva a ${etapas[i + 1].rotulo}`).toBe(true);
       expect(alcancaveis(f, etapas[i + 1].id).has(etapas[i].id), `${etapas[i + 1].rotulo} volta para ${etapas[i].rotulo}`).toBe(false);
     }
   });
 
-  it("o passo do Envio aos desenvolvedores só se alcança depois do Criar o card (issue #2015)", () => {
+  it("a Implantação vem depois de Em produção, nos cards de implantação do GitHub, e termina num fim só", () => {
     const f = fluxo();
-    const inicio = f.passos.find((p) => p.forma === "inicio")!;
-    const criar = passoPorRotulo(f, /^Criar o card$/);
-    const envio = passoPorRotulo(f, /^Enviar para os desenvolvedores$/);
-    expect(alcancaveis(f, criar.id).has(envio.id)).toBe(true);
-    expect(alcancaveis(f, inicio.id, new Set([criar.id])).has(envio.id)).toBe(false);
+    const producao = passoPorRotulo(f, /^Em produção$/);
+    const implantacao = passoPorRotulo(f, /^Implantação$/);
+    const fins = f.passos.filter((p) => p.forma === "fim");
+    expect(fins).toHaveLength(1);
+    expect(alcancaveis(f, producao.id).has(implantacao.id)).toBe(true);
+    for (const inicio of inicios(f)) {
+      expect(alcancaveis(f, inicio.id, new Set([producao.id])).has(implantacao.id)).toBe(false);
+      expect(alcancaveis(f, inicio.id).has(fins[0].id)).toBe(true);
+    }
+    expect(alcancaveis(f, implantacao.id).has(producao.id), "a Implantação volta para Em produção").toBe(false);
+    expect(alcancaveis(f, implantacao.id).has(fins[0].id)).toBe(true);
+    expect(implantacao.detalhe).toMatch(/Implantação 1 de 3/);
+    expect(implantacao.detalhe).toMatch(/card de implantação/);
+    expect(implantacao.detalhe).toMatch(/GitHub/);
   });
 
-  it("o Entendi assim decide entre Enviar, que chega ao Enviado, e Corrigir, que volta ao botão (issue #2015)", () => {
+  it("a entrega sem nada a fazer pelo hospital vai direto ao fim, sem passar pela Implantação", () => {
     const f = fluxo();
-    const envio = passoPorRotulo(f, /^Enviar para os desenvolvedores$/);
-    const entendi = passoPorRotulo(f, /Entendi assim/);
-    const enviado = passoPorRotulo(f, /^Enviado aos desenvolvedores$/);
-    expect(entendi.forma).toBe("decisao");
-    expect(f.ligacoes.some((l) => l.de === envio.id && l.para === entendi.id)).toBe(true);
-    const saidas = f.ligacoes.filter((l) => l.de === entendi.id);
-    expect(saidas.map((l) => l.rotulo).sort()).toEqual(["Corrigir", "Enviar"]);
-    const enviar = saidas.find((l) => l.rotulo === "Enviar")!;
-    const corrigir = saidas.find((l) => l.rotulo === "Corrigir")!;
-    expect(alcancaveis(f, enviar.para).has(enviado.id)).toBe(true);
-    expect(alcancaveis(f, corrigir.para, new Set([enviado.id])).has(envio.id)).toBe(true);
-    expect(enviado.detalhe).toMatch(/só o resumo que você aprovou/);
+    const producao = passoPorRotulo(f, /^Em produção$/);
+    const implantacao = passoPorRotulo(f, /^Implantação$/);
+    const fim = f.passos.find((p) => p.forma === "fim")!;
+    expect(alcancaveis(f, producao.id, new Set([implantacao.id])).has(fim.id)).toBe(true);
   });
 
-  it("a pergunta da Vitta entra pela lista Esperando sua resposta, e o trabalho só anda depois da resposta e do ok da Vitta (issue #2123)", () => {
-    const f = fluxo();
-    const inicio = f.passos.find((p) => p.forma === "inicio")!;
-    const lista = passoPorRotulo(f, /^Esperando sua resposta$/);
-    const responder = passoPorRotulo(f, /^Responder no cartão$/);
-    const resolvida = passoPorRotulo(f, /^Resolvida$/);
-    const desenvolvimento = passoPorRotulo(f, /^Em desenvolvimento$/);
-    expect(alcancaveis(f, inicio.id).has(lista.id)).toBe(true);
-    // A lista é a entrada: nenhum caminho chega ao cartão sem passar por ela.
-    expect(alcancaveis(f, inicio.id, new Set([lista.id])).has(responder.id)).toBe(false);
-    expect(alcancaveis(f, lista.id).has(responder.id)).toBe(true);
-    expect(alcancaveis(f, responder.id, new Set([resolvida.id])).has(desenvolvimento.id)).toBe(false);
-    expect(alcancaveis(f, resolvida.id).has(desenvolvimento.id)).toBe(true);
-    expect(responder.detalhe).toMatch(/Me explique/);
+  it("nenhum passo é de uma tela que saiu", () => {
+    const texto = fluxo()
+      .passos.map((p) => `${p.rotulo} ${p.detalhe}`)
+      .join("\n");
+    for (const tela of TELAS_QUE_SAIRAM) expect(texto).not.toContain(tela);
   });
 });

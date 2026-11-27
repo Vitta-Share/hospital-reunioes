@@ -20,9 +20,7 @@ import os
 import sys
 from datetime import UTC, datetime, timedelta
 
-import httpx
 import pytest
-from postgrest.exceptions import APIError
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -244,107 +242,6 @@ class TestAnexar:
         assert recusa.status_code == 503
         assert str(recusa) == MOTIVO_NAO_GUARDOU
         assert sb.storage.arquivos == {}
-
-
-# ─── 2. O print do chat vira Anexo quando a fala entra (issue #1062) ─────────
-
-
-@pytest.fixture
-def _memoria_dos_prints():
-    tecnologia_anexos.esquecer_prints()
-    yield
-    tecnologia_anexos.esquecer_prints()
-
-
-def _guardar(quem_id: str = PEDRO["id"], nome: str = "Captura de tela.png") -> str:
-    return tecnologia_anexos.guardar_print(quem_id=quem_id, nome=nome, conteudo=PNG)
-
-
-def _fala_com(sb, print_ids: list[str], quem_id: str = PEDRO["id"]) -> str | None:
-    demanda = sb.tabelas["tecnologia_demandas"][0]
-    return tecnologia_anexos.anexar_prints(sb, demanda=demanda, print_ids=print_ids, quem_id=quem_id)
-
-
-@pytest.mark.usefixtures("_memoria_dos_prints")
-class TestPrintDoChat:
-    def test_a_fala_grava_o_print_descrito_como_anexo(self):
-        _, sb, _ = _cenario(demandas=[_demanda("d-1")])
-
-        aviso = _fala_com(sb, [_guardar()])
-
-        assert aviso is None
-        anexos = _anexos(sb)
-        assert len(anexos) == 1
-        assert anexos[0]["demanda_id"] == "d-1"
-        assert anexos[0]["nome_original"] == "Captura de tela.png"
-        assert sb.storage.arquivos == {f"{BUCKET}/{anexos[0]['storage_path']}": PNG}
-
-    def test_sem_a_fala_nenhum_registro_nem_binario_fica(self):
-        _, sb, _ = _cenario(demandas=[_demanda("d-1")])
-
-        _guardar()
-        _guardar(nome="outro.png")
-
-        assert _anexos(sb) == []
-        assert sb.storage.arquivos == {}
-
-    def test_o_print_entra_uma_vez_so(self):
-        _, sb, _ = _cenario(demandas=[_demanda("d-1")])
-        print_id = _guardar()
-        assert _fala_com(sb, [print_id]) is None
-
-        segunda = _fala_com(sb, [print_id])
-
-        assert len(_anexos(sb)) == 1
-        assert segunda == tecnologia_anexos.aviso_dos_prints(1)
-
-    def test_print_que_se_perdeu_vira_aviso(self):
-        _, sb, _ = _cenario(demandas=[_demanda("d-1")])
-
-        assert _fala_com(sb, ["sumiu-com-o-reinicio"]) == tecnologia_anexos.aviso_dos_prints(1)
-        assert _anexos(sb) == []
-
-    def test_o_print_de_outra_pessoa_nao_entra(self):
-        _, sb, _ = _cenario(demandas=[_demanda("d-1")])
-        print_id = _guardar(quem_id=PEDRO["id"])
-
-        aviso = _fala_com(sb, [print_id], quem_id="P2")
-
-        assert _anexos(sb) == []
-        assert aviso == tecnologia_anexos.aviso_dos_prints(1)
-
-    @pytest.mark.parametrize("falha", (APIError({"message": "fora do ar"}), httpx.ReadTimeout("timeout")))
-    def test_falha_do_banco_vira_aviso_e_nao_derruba_a_fala(self, falha):
-        """A fala ja entrou quando os prints entram: um 500 aqui mandaria o
-        diretor mandar a fala de novo."""
-        _, sb, _ = _cenario(demandas=[_demanda("d-1")])
-        print_id = _guardar()
-        original = sb.table
-
-        def _table(nome):
-            consulta = original(nome)
-            if nome == "tecnologia_anexos":
-
-                def execute():
-                    raise falha
-
-                consulta.execute = execute
-            return consulta
-
-        sb.table = _table
-
-        assert _fala_com(sb, [print_id]) == tecnologia_anexos.aviso_dos_prints(1)
-
-    def test_o_aviso_manda_mandar_o_print_de_novo_na_conversa(self):
-        """O formulario e o card sairam: o caminho de volta e a propria
-        conversa, e a frase nao manda abrir tela nenhuma."""
-        assert tecnologia_anexos.aviso_dos_prints(1) == (
-            "Um print da conversa não entrou como imagem. Mande o print de novo na conversa."
-        )
-        assert tecnologia_anexos.aviso_dos_prints(0) is None
-
-
-# ─── 3. A Etapa nao apaga o print ────────────────────────────────────────────
 
 
 class TestAEtapaNaoApaga:

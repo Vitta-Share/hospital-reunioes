@@ -17,7 +17,7 @@ import {
   BookOpenCheck,
   Target,
   ReceiptText,
-  HeartPulse,
+  Handshake,
   Users,
   FileText,
   GraduationCap,
@@ -75,11 +75,16 @@ export type NavItem = {
   // "Em breve" e esta explicação (Segurança do Paciente, seção 14 da
   // especificação). Não navega: o href só identifica o item.
   emBreve?: string;
+  // Nome por extenso de um rótulo em sigla: vai no `title` (o hover) e no
+  // nome acessível do item (o NSP, issue #1918).
+  nomeCompleto?: string;
 };
 
 const HREF_DA_SEGURANCA_DO_PACIENTE = "/seguranca-do-paciente";
 const GRUPO_DA_SEGURANCA_DO_PACIENTE = "grupo:seguranca-do-paciente";
 const GRUPO_DO_NUCLEO = "grupo:seguranca-do-paciente/nucleo";
+// No menu o grupo se chama NSP, a sigla, a pedido do diretor (issue #1918).
+const NOME_DO_NSP = "Núcleo de Segurança do Paciente";
 // O botão "Notificar incidente" (issue #1987): fora de /seguranca-do-paciente
 // porque todo usuário logado o abre, mesmo sem acesso ao resto do módulo.
 const HREF_DE_NOTIFICAR = "/notificar/modulo";
@@ -195,6 +200,8 @@ export function Sidebar({
         <div key={item.href} className="flex flex-col">
           <button
             onClick={() => toggleExpand(item.href)}
+            title={item.nomeCompleto}
+            aria-label={item.nomeCompleto}
             className={`flex items-center justify-between w-full ${buttonBase} text-sm font-medium transition-all duration-200 cursor-pointer ${
               isWithinGroup
                 ? "bg-primary/5 text-primary"
@@ -409,16 +416,18 @@ export function itensDoMenu(participante: CurrentParticipante | null): NavItem[]
     ? [
         {
           href: GRUPO_DA_SEGURANCA_DO_PACIENTE,
-          label: "Segurança do Paciente",
-          icon: HeartPulse,
+          label: "NSP",
+          nomeCompleto: NOME_DO_NSP,
+          icon: Handshake,
           subItems: [notificarIncidente],
         },
       ]
     : [
         {
           href: GRUPO_DA_SEGURANCA_DO_PACIENTE,
-          label: "Segurança do Paciente",
-          icon: HeartPulse,
+          label: "NSP",
+          nomeCompleto: NOME_DO_NSP,
+          icon: Handshake,
           subItems: [
             notificarIncidente,
             { href: HREF_DA_SEGURANCA_DO_PACIENTE, label: "Visão geral", icon: Home },

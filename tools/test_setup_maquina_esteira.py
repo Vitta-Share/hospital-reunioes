@@ -275,14 +275,8 @@ def test_o_script_confere_o_studio_do_project_json():
 # ------------------------------------------------- o script inteiro
 
 
-def test_o_script_inteiro_liga_as_tres_conferencias(tmp_path):
-    """As funções acima só valem se o fluxo do script as chama.
-
-    Roda o `diagnostico.sh` de verdade, numa cópia mínima do repo com o
-    `project.json` real, e confere que as três linhas aparecem: a do e-mail
-    (depende do `GH_OK`), a do Coolify (depende do `tem_bin coolify`) e a do
-    Studio, com o curl chamado no endereço que o jq tira do contrato de deploy.
-    """
+def script_inteiro(tmp_path: Path, nivel: str, chamadas_curl: Path) -> str:
+    """Roda o `diagnostico.sh` de verdade numa cópia mínima do repo, com os falsos no PATH."""
     repo = tmp_path / "repo"
     pasta_script = repo / ".claude" / "skills" / "setup-maquina" / "scripts"
     pasta_script.mkdir(parents=True)
@@ -303,7 +297,6 @@ def test_o_script_inteiro_liga_as_tres_conferencias(tmp_path):
 
     gh_falso(tmp_path, VERIFICADO)
     coolify_falso(tmp_path, TABELA)
-    chamadas_curl = tmp_path / "curl.args"
     falso(tmp_path, "curl", f'printf "%s\\n" "$@" > "{chamadas_curl}"; printf 401')
     pasta = tmp_path / "bin"
     (pasta / "jq").symlink_to(shutil.which("jq"))
@@ -312,14 +305,27 @@ def test_o_script_inteiro_liga_as_tres_conferencias(tmp_path):
     (casa / ".local" / "bin").symlink_to(pasta)  # o script põe ~/.local/bin na frente do PATH
 
     r = subprocess.run(
-        ["bash", str(pasta_script / "diagnostico.sh"), "--nivel", "2"],
+        ["bash", str(pasta_script / "diagnostico.sh"), "--nivel", nivel],
         cwd=casa,
         env={"PATH": f"{pasta}:/usr/bin:/bin", "HOME": str(casa)},
         capture_output=True,
         text=True,
         timeout=120,
     )
-    saida = r.stdout + r.stderr
+    return r.stdout + r.stderr
+
+
+def test_o_script_inteiro_liga_as_tres_conferencias(tmp_path):
+    """As funções acima só valem se o fluxo do script as chama.
+
+    Roda o `diagnostico.sh` de verdade, numa cópia mínima do repo com o
+    `project.json` real, e confere que as três linhas aparecem: a do e-mail
+    (depende do `GH_OK`), a do Coolify (depende do `tem_bin coolify`) e a do
+    Studio, com o curl chamado no endereço que o jq tira do contrato de deploy.
+    """
+    chamadas_curl = tmp_path / "curl.args"
+    saida = script_inteiro(tmp_path, "2", chamadas_curl)
+    projeto = RAIZ / "docs" / "spec" / "deploy" / "project.json"
 
     assert linha(saida, "git user.email é da conta gh").split()[0] == "OK", saida
     assert linha(saida, "contexto hsm").split()[0] == "OK", saida
@@ -332,6 +338,30 @@ def test_o_script_inteiro_liga_as_tres_conferencias(tmp_path):
     )
     assert fqdn in chamadas_curl.read_text(encoding="utf-8").splitlines()
     assert SEGREDO not in saida
+
+
+# ------------------------------------------------- Supabase CLI no nível 3
+
+
+def linha_supabase(saida: str) -> str:
+    achadas = [li for li in saida.splitlines() if li.split()[1:2] == ["supabase"]]
+    assert len(achadas) == 1, f"esperava uma linha do supabase: {saida}"
+    return achadas[0]
+
+
+def test_nivel_3_acusa_o_supabase_cli_abaixo_de_3(tmp_path):
+    """O config.toml usa [local_smtp], que o CLI 2 recusa: pede o upgrade."""
+    falso(tmp_path, "supabase", 'echo "2.84.0"')
+    li = linha_supabase(script_inteiro(tmp_path, "3", tmp_path / "curl.args"))
+    assert li.split()[0] == "OPC", li
+    assert "2.84.0" in li
+    assert "brew upgrade supabase" in li
+
+
+def test_nivel_3_aceita_o_supabase_cli_3(tmp_path):
+    falso(tmp_path, "supabase", 'echo "3.4.0"')
+    li = linha_supabase(script_inteiro(tmp_path, "3", tmp_path / "curl.args"))
+    assert li.split()[:3] == ["OK", "supabase", "3.4.0"], li
 
 
 # ------------------------------------------------- segredo

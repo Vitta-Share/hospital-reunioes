@@ -24,9 +24,14 @@ import {
   ASSISTIR_A_DEMONSTRACAO,
   COPIAR_LINK,
   DocumentoDoCard,
+  ESPERA_O_AJUSTE,
+  FAIXA_DO_AJUSTE,
   LINK_COPIADO,
   NAO_COPIOU_O_LINK,
+  PLANO_VALIDADO_EM,
   SEM_O_QUE_MUDA,
+  SeloDoPlanoValidado,
+  TITULO_AJUSTE_DO_PLANO,
   TITULO_DATAS,
   TITULO_DEMONSTRACAO,
   TITULO_DOCUMENTO,
@@ -203,10 +208,10 @@ describe("O Documento do card", () => {
   });
 
   it("o Desenvolvedor vê o número e o link da issue", () => {
-    montar({ ...VINCULADA, issue_numero: 912, issue_url: "https://github.com/pedrorezendefig/hospital-reunioes/issues/912" });
+    montar({ ...VINCULADA, issue_numero: 912, issue_url: "https://github.com/Vitta-Share/hospital-reunioes/issues/912" });
 
     const link = within(documento()).getByRole("link", { name: "#912" });
-    expect(link.getAttribute("href")).toBe("https://github.com/pedrorezendefig/hospital-reunioes/issues/912");
+    expect(link.getAttribute("href")).toBe("https://github.com/Vitta-Share/hospital-reunioes/issues/912");
   });
 
   it("o diretor vê o Número da Demanda no topo, sem cerquilha (issue #1585)", () => {
@@ -222,7 +227,7 @@ describe("O Documento do card", () => {
       ...VINCULADA,
       numero: 42,
       issue_numero: 912,
-      issue_url: "https://github.com/pedrorezendefig/hospital-reunioes/issues/912",
+      issue_url: "https://github.com/Vitta-Share/hospital-reunioes/issues/912",
     });
 
     const topo = documento().firstElementChild as HTMLElement;
@@ -246,7 +251,7 @@ describe("O Documento do card", () => {
       numero: 42,
       raiz_numero: 912,
       issue_numero: 912,
-      issue_url: "https://github.com/pedrorezendefig/hospital-reunioes/issues/912",
+      issue_url: "https://github.com/Vitta-Share/hospital-reunioes/issues/912",
     });
 
     const topo = documento().firstElementChild as HTMLElement;
@@ -412,7 +417,7 @@ describe("O Copiar link do Documento do card", () => {
       "em_producao",
       "nao_sera_feita",
     ];
-    const doDesenvolvedor = { issue_numero: 912, issue_url: "https://github.com/pedrorezendefig/hospital-reunioes/issues/912" };
+    const doDesenvolvedor = { issue_numero: 912, issue_url: "https://github.com/Vitta-Share/hospital-reunioes/issues/912" };
     for (const etapa of etapas) {
       for (const extra of [{}, doDesenvolvedor]) {
         montar({ ...VINCULADA, ...extra, etapa, numero: 42 });
@@ -452,5 +457,85 @@ describe("O pedido de um projeto novo da Vitta (issue #1967)", () => {
     montar({ ...DO_PEDRO_OS, raiz_url: "javascript:alert(1)" });
 
     expect(within(documento()).queryByRole("link", { name: ABRIR_O_PLANO })).toBeNull();
+  });
+});
+
+describe("O plano validado e o Ajuste do plano (issue #1915)", () => {
+  // A Demanda do PRD #1757 como o diretor a recebe: validada em 16/11/2026,
+  // com o Ajuste aberto travando as partes iniciais, sem o número dele.
+  const DO_1757 = demanda({
+    ...VINCULADA,
+    etapa: "planejada",
+    validado_em: "2026-11-16T13:05:00.000Z",
+    ajuste_aberto: true,
+    partes: [
+      {
+        numero: 1758,
+        o_que_muda: "A primeira parte.",
+        situacao: "planejada",
+        onda: 1,
+        bloqueadoras: [{ numero: null, de_outro_pedido: false, ajuste_do_plano: true }],
+      },
+      {
+        numero: 1762,
+        o_que_muda: "A parte de depois.",
+        situacao: "planejada",
+        onda: 2,
+        bloqueadoras: [{ numero: 1758, de_outro_pedido: false, ajuste_do_plano: false }],
+      },
+    ],
+  });
+
+  function selo(d: Demanda) {
+    return render(<SeloDoPlanoValidado demanda={d} />);
+  }
+
+  it("o selo diz Plano validado em e a data, no fuso do hospital", () => {
+    selo(DO_1757);
+
+    expect(screen.getByText(`${PLANO_VALIDADO_EM} 16/11/2026`)).toBeTruthy();
+  });
+
+  it("sem a data, não há selo", () => {
+    const { container } = selo({ ...DO_1757, validado_em: null });
+
+    expect(container.textContent).toBe("");
+  });
+
+  it("com o Ajuste aberto, a faixa diz que o Pedro está ajustando o plano", () => {
+    montar(DO_1757);
+
+    const faixa = within(documento()).getByRole("status", { name: TITULO_AJUSTE_DO_PLANO });
+    expect(faixa.textContent).toBe(FAIXA_DO_AJUSTE);
+    expect(within(faixa).queryByRole("link")).toBeNull();
+  });
+
+  it("sem o Ajuste aberto, não há faixa", () => {
+    montar({ ...DO_1757, ajuste_aberto: false });
+
+    expect(within(documento()).queryByRole("status", { name: TITULO_AJUSTE_DO_PLANO })).toBeNull();
+  });
+
+  it("a parte travada pelo Ajuste diz Espera o ajuste do plano no lugar do número", () => {
+    montar(DO_1757);
+
+    const [primeira, depois] = within(secao(TITULO_PARTES)).getAllByRole("listitem");
+    expect(within(primeira).getByText(ESPERA_O_AJUSTE)).toBeTruthy();
+    expect(within(primeira).queryByText(/Espera a #/)).toBeNull();
+    expect(within(depois).getByText("Espera a #1758")).toBeTruthy();
+  });
+
+  it("o Desenvolvedor vê o número do Ajuste com o link na faixa", () => {
+    const url = "https://github.com/Vitta-Share/hospital-reunioes/issues/1911";
+    montar({ ...DO_1757, ajuste_numero: 1911, ajuste_url: url });
+
+    const faixa = within(documento()).getByRole("status", { name: TITULO_AJUSTE_DO_PLANO });
+    expect(within(faixa).getByRole("link", { name: "#1911" }).getAttribute("href")).toBe(url);
+  });
+
+  it("os textos novos não têm travessão nem meia-risca", () => {
+    for (const texto of [PLANO_VALIDADO_EM, FAIXA_DO_AJUSTE, ESPERA_O_AJUSTE, TITULO_AJUSTE_DO_PLANO]) {
+      expect(texto).not.toMatch(/[\u2013\u2014]/);
+    }
   });
 });

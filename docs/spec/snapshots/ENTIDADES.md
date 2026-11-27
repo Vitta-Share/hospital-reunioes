@@ -1,6 +1,6 @@
 # ENTIDADES.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T15:55+0000 -->
+<!-- last_update: 2026-11-25T16:50+0000 -->
 
 Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
@@ -845,7 +845,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## tecnologia_demandas
 
-> Origem: `102_tecnologia_fundacao.sql` (alterada em: 103_tecnologia_vinculo.sql, 115_tecnologia_anexos_e_em_producao.sql, 128_tecnologia_envio_falhou.sql, 130_tecnologia_adr_0084.sql, 133_tecnologia_demonstracao.sql, 134_tecnologia_numero_da_demanda.sql, 145_tecnologia_projeto_da_demanda.sql, 163_tecnologia_projeto_novo.sql, 164_tecnologia_atalho_do_plano.sql)
+> Origem: `102_tecnologia_fundacao.sql` (alterada em: 103_tecnologia_vinculo.sql, 115_tecnologia_anexos_e_em_producao.sql, 128_tecnologia_envio_falhou.sql, 130_tecnologia_adr_0084.sql, 133_tecnologia_demonstracao.sql, 134_tecnologia_numero_da_demanda.sql, 145_tecnologia_projeto_da_demanda.sql, 163_tecnologia_projeto_novo.sql, 164_tecnologia_atalho_do_plano.sql, 237_achei_um_problema.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -891,6 +891,8 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `raiz_url` | `TEXT` | — | — | — |
 | `apresentacao_url` | `TEXT` | — | — | — |
 | `plano_validado` | `BOOLEAN` | NOT NULL | `false` | — |
+| `pedido_origem_id` | `uuid` | — | — | `tecnologia_perguntas.id` |
+| `demanda_origem_id` | `uuid` | — | — | `tecnologia_demandas.id` |
 
 **Indexes:**
 - `idx_tecnologia_demandas_estado` em `(estado)` (de `102_tecnologia_fundacao.sql`)
@@ -898,6 +900,8 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_tecnologia_demandas_produto` em `(produto_id)` (de `102_tecnologia_fundacao.sql`)
 - `tecnologia_demandas_github_issue_numero_idx` em `(github_issue_numero)` (de `103_tecnologia_vinculo.sql`)
 - `tecnologia_demandas_projeto_github_issue_numero_idx` em `(projeto, github_issue_numero)` (de `145_tecnologia_projeto_da_demanda.sql`)
+- `tecnologia_demandas_pedido_origem_id_idx` em `(pedido_origem_id)` (de `237_achei_um_problema.sql`)
+- `tecnologia_demandas_demanda_origem_id_idx` em `(demanda_origem_id)` (de `237_achei_um_problema.sql`)
 
 ## tecnologia_conversas
 
@@ -2143,7 +2147,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## nsp_capacitacoes
 
-> Origem: `155_nsp_capacitacoes.sql`
+> Origem: `155_nsp_capacitacoes.sql` (alterada em: 228_nsp_capacitacao_formacao_do_instrutor.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2156,6 +2160,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `tema_ids` | `UUID[]` | NOT NULL | `'{}'` | — |
 | `criado_por` | `VARCHAR(10)` | — | — | `participantes.id` |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `instrutor_formacao` | `TEXT` | — | — | — |
 
 **Indexes:**
 - `idx_nsp_capacitacoes_data` em `(data DESC)` (de `155_nsp_capacitacoes.sql`)
@@ -2305,24 +2310,6 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_pendencia_historico_contestacao` em `(id_acao, criado_em)` (de `187_contestacao_do_item_da_ata.sql`)
 - `idx_pendencia_historico_rotina` em `(rotina_id)` (de `190_fluxo_continuo_vira_rotina.sql`)
 
-## pendencia_anexos
-
-> Origem: `174_anexo_da_conclusao_da_pendencia.sql`
-
-| Campo | Tipo | Constraints | Default | FK |
-|-------|------|-------------|---------|-----|
-| `id` | `BIGINT` | PK | — | — |
-| `id_acao` | `VARCHAR(10)` | NOT NULL | — | `pendencias.id_acao` |
-| `evento_id` | `BIGINT` | UNIQUE, NOT NULL | — | `pendencia_historico.id` |
-| `storage_path` | `TEXT` | NOT NULL | — | — |
-| `nome_original` | `TEXT` | NOT NULL | — | — |
-| `content_type` | `TEXT` | NOT NULL | — | — |
-| `tamanho_bytes` | `BIGINT` | NOT NULL | — | — |
-| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
-
-**Indexes:**
-- `idx_pendencia_anexos_acao` em `(id_acao)` (de `174_anexo_da_conclusao_da_pendencia.sql`)
-
 ## nsp_protocolos
 
 > Origem: `174_nsp_notificacao_de_incidente.sql`
@@ -2393,7 +2380,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## conduta_casos
 
-> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql, 202_conduta_sinalizacao_da_ouvidoria.sql, 214_conduta_rota_especial.sql, 216_conduta_voto_e_trava_de_robustez.sql, 221_conduta_ata_de_deliberacao.sql, 223_conduta_recomendacao_medida_e_retorno.sql)
+> Origem: `175_conduta_fundacao.sql` (alterada em: 185_conduta_triagem_e_ritos.sql, 202_conduta_sinalizacao_da_ouvidoria.sql, 214_conduta_rota_especial.sql, 216_conduta_voto_e_trava_de_robustez.sql, 221_conduta_ata_de_deliberacao.sql, 223_conduta_recomendacao_medida_e_retorno.sql, 229_conduta_verificacao_de_retaliacao.sql, 230_conduta_relato_em_passos.sql, 234_conduta_acompanhamento_e_mensagens.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -2414,6 +2401,9 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `rodada_do_voto` | `INTEGER` | NOT NULL | — | `participantes.id` |
 | `reuniao_concluida_em` | `TIMESTAMPTZ` | — | — | `participantes.id` |
 | `enviado_a_direcao_em` | `TIMESTAMPTZ` | — | — | `participantes.id` |
+| `denunciante_informou_em` | `TIMESTAMPTZ` | — | — | — |
+| `relator_nome_cifrado` | `TEXT` | — | — | — |
+| `etapa_ao_arquivar` | `TEXT` | — | — | — |
 
 **Indexes:**
 - `idx_conduta_casos_rota_etapa` em `(rota, etapa, recebido_em DESC)` (de `175_conduta_fundacao.sql`)
@@ -3113,7 +3103,7 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 
 ## tecnologia_perguntas
 
-> Origem: `211_tecnologia_pergunta_da_vitta.sql`
+> Origem: `211_tecnologia_pergunta_da_vitta.sql` (alterada em: 232_pedido_da_vitta_passo_a_passo.sql, 236_pedido_espera_outro.sql, 237_achei_um_problema.sql)
 
 | Campo | Tipo | Constraints | Default | FK |
 |-------|------|-------------|---------|-----|
@@ -3143,11 +3133,17 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 | `cancelada_em` | `TIMESTAMPTZ` | — | — | — |
 | `lembrete_enviado_em` | `TIMESTAMPTZ` | — | — | — |
 | `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `tipo` | `TEXT` | NOT NULL | `'pergunta'` | `participantes.id` |
+| `espera_pedido_id` | `uuid` | — | — | `tecnologia_perguntas.id` |
+| `espera_demanda_id` | `uuid` | — | — | `tecnologia_demandas.id` |
 
 **Indexes:**
 - `idx_tecnologia_perguntas_demanda` em `(demanda_id, criado_em)` (de `211_tecnologia_pergunta_da_vitta.sql`)
 - `idx_tecnologia_perguntas_abertas` em `(criado_em)` (de `211_tecnologia_pergunta_da_vitta.sql`)
 - `idx_tecnologia_perguntas_destinatario` em `(destinatario_id)` (de `211_tecnologia_pergunta_da_vitta.sql`)
+- `idx_tecnologia_perguntas_card` em `(card_projeto, card_numero)` (de `232_pedido_da_vitta_passo_a_passo.sql`)
+- `tecnologia_perguntas_espera_pedido_id_idx` em `(espera_pedido_id)` (de `236_pedido_espera_outro.sql`)
+- `tecnologia_perguntas_espera_demanda_id_idx` em `(espera_demanda_id)` (de `237_achei_um_problema.sql`)
 
 ## tecnologia_conversas_do_me_explique
 
@@ -3509,6 +3505,60 @@ Modelo de dados do Hospital Reuniões. Tabelas no Postgres (via Supabase).
 - `idx_conduta_correcoes_caso` em `(caso_id)` (de `223_conduta_recomendacao_medida_e_retorno.sql`)
 - `idx_conduta_correcoes_escolhida_por` em `(escolhida_por)` (de `223_conduta_recomendacao_medida_e_retorno.sql`)
 
+## conduta_verificacoes_de_retaliacao
+
+> Origem: `229_conduta_verificacao_de_retaliacao.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `caso_id` | `UUID` | NOT NULL | — | `conduta_casos.id` |
+| `marco` | `SMALLINT` | NOT NULL | — | — |
+| `houve` | `BOOLEAN` | NOT NULL | — | — |
+| `observacao_cifrada` | `TEXT` | — | — | — |
+| `verificada_por` | `VARCHAR(10)` | NOT NULL | — | `participantes.id` |
+| `verificada_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+| `caso_novo_id` | `UUID` | — | — | `conduta_casos.id` |
+
+**Indexes:**
+- `idx_conduta_verificacoes_de_retaliacao_verificada_por` em `(verificada_por)` (de `229_conduta_verificacao_de_retaliacao.sql`)
+- `idx_conduta_verificacoes_de_retaliacao_caso_novo` em `(caso_novo_id)` (de `229_conduta_verificacao_de_retaliacao.sql`)
+
+## tecnologia_checks_do_pedido
+
+> Origem: `232_pedido_da_vitta_passo_a_passo.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `UUID` | PK | `gen_random_uuid()` | — |
+| `pedido_id` | `UUID` | NOT NULL | — | `tecnologia_perguntas.id` |
+| `passo` | `SMALLINT` | NOT NULL | — | — |
+| `marcado` | `BOOLEAN` | NOT NULL | — | — |
+| `por` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `em_nome_de` | `VARCHAR(10)` | — | — | `participantes.id` |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_tecnologia_checks_do_pedido_pedido` em `(pedido_id, criado_em)` (de `232_pedido_da_vitta_passo_a_passo.sql`)
+
+## pendencia_anexos
+
+> Origem: `239_anexo_da_conclusao_da_pendencia.sql`
+
+| Campo | Tipo | Constraints | Default | FK |
+|-------|------|-------------|---------|-----|
+| `id` | `BIGINT` | PK | — | — |
+| `id_acao` | `VARCHAR(10)` | NOT NULL | — | `pendencias.id_acao` |
+| `evento_id` | `BIGINT` | UNIQUE, NOT NULL | — | `pendencia_historico.id` |
+| `storage_path` | `TEXT` | NOT NULL | — | — |
+| `nome_original` | `TEXT` | NOT NULL | — | — |
+| `content_type` | `TEXT` | NOT NULL | — | — |
+| `tamanho_bytes` | `BIGINT` | NOT NULL | — | — |
+| `criado_em` | `TIMESTAMPTZ` | NOT NULL | `now()` | — |
+
+**Indexes:**
+- `idx_pendencia_anexos_acao` em `(id_acao)` (de `239_anexo_da_conclusao_da_pendencia.sql`)
+
 ---
 
-**Resumo:** 176 tabelas vivas.
+**Resumo:** 178 tabelas vivas.

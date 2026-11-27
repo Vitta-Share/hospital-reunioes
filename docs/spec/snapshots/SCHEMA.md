@@ -1,6 +1,6 @@
 # SCHEMA.md
 <!-- gerado automaticamente por /snapshot — não editar -->
-<!-- last_update: 2026-11-22T15:55+0000 -->
+<!-- last_update: 2026-11-25T16:50+0000 -->
 
 Diagrama relacional do Hospital Reuniões. Renderiza nativo no GitHub.
 
@@ -92,6 +92,8 @@ erDiagram
     conduta_casos ||--o{ conduta_trava_confirmacoes : "caso_id"
     conduta_casos ||--o{ conduta_trava_preenchimentos : "caso_id"
     conduta_casos ||--o{ conduta_trilha : "caso_id"
+    conduta_casos ||--o{ conduta_verificacoes_de_retaliacao : "caso_id"
+    conduta_casos ||--o{ conduta_verificacoes_de_retaliacao : "caso_novo_id"
     conduta_casos ||--o{ conduta_votos : "caso_id"
     conduta_citados ||--o{ conduta_afastamentos : "citado_id"
     conduta_contestacoes ||--o{ conduta_contestacao_votos : "contestacao_id"
@@ -195,6 +197,7 @@ erDiagram
     participantes ||--o{ conduta_trava_confirmacoes : "participante_id"
     participantes ||--o{ conduta_trava_preenchimentos : "autor_id"
     participantes ||--o{ conduta_trilha : "que"
+    participantes ||--o{ conduta_verificacoes_de_retaliacao : "verificada_por"
     participantes ||--o{ conduta_votos : "participante_id"
     participantes ||--o{ email_de_segunda : "participante_id"
     participantes ||--o{ notificacoes : "destinatario_id"
@@ -251,6 +254,8 @@ erDiagram
     participantes ||--o{ reunioes : "nome_arquivo_original"
     participantes ||--o{ rotinas : "responsavel_id"
     participantes ||--o{ tecnologia_anexos : "anexado_por"
+    participantes ||--o{ tecnologia_checks_do_pedido : "em_nome_de"
+    participantes ||--o{ tecnologia_checks_do_pedido : "por"
     participantes ||--o{ tecnologia_conversa_da_demanda : "autor_id"
     participantes ||--o{ tecnologia_conversas : "autor_id"
     participantes ||--o{ tecnologia_conversas_do_me_explique : "participante_id"
@@ -265,6 +270,7 @@ erDiagram
     participantes ||--o{ tecnologia_perguntas : "destinatario_id"
     participantes ||--o{ tecnologia_perguntas : "respondida_em_nome_de"
     participantes ||--o{ tecnologia_perguntas : "respondida_por"
+    participantes ||--o{ tecnologia_perguntas : "tipo"
     participantes ||--o{ tecnologia_planejamentos : "revisao_por"
     participantes ||--o{ tecnologia_produtos : "dono_id"
     participantes ||--o{ user_preferences : "participante_id"
@@ -296,10 +302,15 @@ erDiagram
     tecnologia_demandas ||--o{ tecnologia_chamadas_ia : "demanda_id"
     tecnologia_demandas ||--o{ tecnologia_conversa_da_demanda : "demanda_id"
     tecnologia_demandas ||--o{ tecnologia_conversas : "demanda_id"
+    tecnologia_demandas ||--o{ tecnologia_demandas : "demanda_origem_id"
     tecnologia_demandas ||--o{ tecnologia_envios_aos_desenvolvedores : "demanda_id"
     tecnologia_demandas ||--o{ tecnologia_perguntas : "demanda_id"
+    tecnologia_demandas ||--o{ tecnologia_perguntas : "espera_demanda_id"
     tecnologia_demandas ||--o{ tecnologia_planejamentos : "demanda_id"
+    tecnologia_perguntas ||--o{ tecnologia_checks_do_pedido : "pedido_id"
     tecnologia_perguntas ||--o{ tecnologia_conversas_do_me_explique : "pergunta_id"
+    tecnologia_perguntas ||--o{ tecnologia_demandas : "pedido_origem_id"
+    tecnologia_perguntas ||--o{ tecnologia_perguntas : "espera_pedido_id"
     tecnologia_produtos ||--o{ tecnologia_demandas : "produto_id"
     tipos_reuniao ||--o{ reunioes : "tipo_id"
 
@@ -681,7 +692,7 @@ erDiagram
         TEXT estado
         VARCHAR responsavel_id FK
         VARCHAR autor_id FK
-        _ mais_colunas "+34"
+        _ mais_colunas "+36"
     }
     tecnologia_conversas {
         UUID id PK
@@ -1291,7 +1302,7 @@ erDiagram
         TEXT publico
         UUID[] tema_ids
         VARCHAR criado_por FK
-        _ mais_colunas "+1"
+        _ mais_colunas "+2"
     }
     nsp_capacitacao_participantes {
         UUID id PK
@@ -1357,16 +1368,6 @@ erDiagram
         DATE prazo_antes
         _ mais_colunas "+5"
     }
-    pendencia_anexos {
-        BIGINT id PK
-        VARCHAR id_acao FK
-        BIGINT evento_id FK
-        TEXT storage_path
-        TEXT nome_original
-        TEXT content_type
-        BIGINT tamanho_bytes
-        TIMESTAMPTZ criado_em
-    }
     nsp_protocolos {
         SMALLINT ano PK
         INTEGER ultimo
@@ -1401,7 +1402,7 @@ erDiagram
         TEXT categoria
         TIMESTAMPTZ recebido_em
         DATE prazo_em
-        _ mais_colunas "+8"
+        _ mais_colunas "+11"
     }
     conduta_atribuicoes {
         UUID id PK
@@ -1741,7 +1742,7 @@ erDiagram
         TEXT assunto
         TEXT texto
         TEXT por_que_precisa
-        _ mais_colunas "+18"
+        _ mais_colunas "+21"
     }
     tecnologia_conversas_do_me_explique {
         UUID id PK
@@ -1920,6 +1921,35 @@ erDiagram
         VARCHAR escolhida_por FK
         TIMESTAMPTZ escolhida_em
     }
+    conduta_verificacoes_de_retaliacao {
+        UUID id PK
+        UUID caso_id FK
+        SMALLINT marco
+        BOOLEAN houve
+        TEXT observacao_cifrada
+        VARCHAR verificada_por FK
+        TIMESTAMPTZ verificada_em
+        UUID caso_novo_id FK
+    }
+    tecnologia_checks_do_pedido {
+        UUID id PK
+        UUID pedido_id FK
+        SMALLINT passo
+        BOOLEAN marcado
+        VARCHAR por FK
+        VARCHAR em_nome_de FK
+        TIMESTAMPTZ criado_em
+    }
+    pendencia_anexos {
+        BIGINT id PK
+        VARCHAR id_acao FK
+        BIGINT evento_id FK
+        TEXT storage_path
+        TEXT nome_original
+        TEXT content_type
+        BIGINT tamanho_bytes
+        TIMESTAMPTZ criado_em
+    }
 ```
 
 ## Indexes principais
@@ -2028,6 +2058,8 @@ erDiagram
 | `tecnologia_demandas` | `idx_tecnologia_demandas_produto` | `produto_id` | `102_tecnologia_fundacao.sql` |
 | `tecnologia_demandas` | `tecnologia_demandas_github_issue_numero_idx` | `github_issue_numero` | `103_tecnologia_vinculo.sql` |
 | `tecnologia_demandas` | `tecnologia_demandas_projeto_github_issue_numero_idx` | `projeto, github_issue_numero` | `145_tecnologia_projeto_da_demanda.sql` |
+| `tecnologia_demandas` | `tecnologia_demandas_pedido_origem_id_idx` | `pedido_origem_id` | `237_achei_um_problema.sql` |
+| `tecnologia_demandas` | `tecnologia_demandas_demanda_origem_id_idx` | `demanda_origem_id` | `237_achei_um_problema.sql` |
 | `tecnologia_conversas` | `idx_tecnologia_conversas_demanda` | `demanda_id, criado_em` | `102_tecnologia_fundacao.sql` |
 | `tecnologia_anexos` | `idx_tecnologia_anexos_conversa` | `conversa_id` | `115_tecnologia_anexos_e_em_producao.sql` |
 | `cm_operadora_plano` | `idx_cm_operadora_plano_nome_mv` | `(lower(nome_mv` | `116_contas_medicas_fundacao.sql` |
@@ -2126,7 +2158,6 @@ erDiagram
 | `pendencia_historico` | `idx_pendencia_historico_repactuacao` | `id_acao` | `169_ciclo_de_vida_da_pendencia.sql` |
 | `pendencia_historico` | `idx_pendencia_historico_contestacao` | `id_acao, criado_em` | `187_contestacao_do_item_da_ata.sql` |
 | `pendencia_historico` | `idx_pendencia_historico_rotina` | `rotina_id` | `190_fluxo_continuo_vira_rotina.sql` |
-| `pendencia_anexos` | `idx_pendencia_anexos_acao` | `id_acao` | `174_anexo_da_conclusao_da_pendencia.sql` |
 | `nsp_notificacoes` | `idx_nsp_notificacoes_criado_em` | `criado_em DESC` | `174_nsp_notificacao_de_incidente.sql` |
 | `nsp_notificacoes` | `idx_nsp_notificacoes_setor` | `setor_id` | `174_nsp_notificacao_de_incidente.sql` |
 | `nsp_notificacoes` | `idx_nsp_notificacoes_notificante` | `notificante_id` | `174_nsp_notificacao_de_incidente.sql` |
@@ -2204,6 +2235,9 @@ erDiagram
 | `tecnologia_perguntas` | `idx_tecnologia_perguntas_demanda` | `demanda_id, criado_em` | `211_tecnologia_pergunta_da_vitta.sql` |
 | `tecnologia_perguntas` | `idx_tecnologia_perguntas_abertas` | `criado_em` | `211_tecnologia_pergunta_da_vitta.sql` |
 | `tecnologia_perguntas` | `idx_tecnologia_perguntas_destinatario` | `destinatario_id` | `211_tecnologia_pergunta_da_vitta.sql` |
+| `tecnologia_perguntas` | `idx_tecnologia_perguntas_card` | `card_projeto, card_numero` | `232_pedido_da_vitta_passo_a_passo.sql` |
+| `tecnologia_perguntas` | `tecnologia_perguntas_espera_pedido_id_idx` | `espera_pedido_id` | `236_pedido_espera_outro.sql` |
+| `tecnologia_perguntas` | `tecnologia_perguntas_espera_demanda_id_idx` | `espera_demanda_id` | `237_achei_um_problema.sql` |
 | `tecnologia_conversas_do_me_explique` | `idx_tecnologia_conversas_do_me_explique_participante` | `participante_id` | `211_tecnologia_pergunta_da_vitta.sql` |
 | `nsp_ausencias_da_presidencia` | `idx_nsp_ausencias_da_presidencia_participacao` | `participacao_id, inicio, fim` | `212_nsp_suplente_em_exercicio.sql` |
 | `nsp_ausencias_da_presidencia` | `idx_nsp_ausencias_da_presidencia_autor` | `autor_id` | `212_nsp_suplente_em_exercicio.sql` |
@@ -2233,6 +2267,10 @@ erDiagram
 | `conduta_correcoes_sugeridas` | `idx_conduta_correcoes_sugeridas_autor` | `autor_id` | `223_conduta_recomendacao_medida_e_retorno.sql` |
 | `conduta_correcoes` | `idx_conduta_correcoes_caso` | `caso_id` | `223_conduta_recomendacao_medida_e_retorno.sql` |
 | `conduta_correcoes` | `idx_conduta_correcoes_escolhida_por` | `escolhida_por` | `223_conduta_recomendacao_medida_e_retorno.sql` |
+| `conduta_verificacoes_de_retaliacao` | `idx_conduta_verificacoes_de_retaliacao_verificada_por` | `verificada_por` | `229_conduta_verificacao_de_retaliacao.sql` |
+| `conduta_verificacoes_de_retaliacao` | `idx_conduta_verificacoes_de_retaliacao_caso_novo` | `caso_novo_id` | `229_conduta_verificacao_de_retaliacao.sql` |
+| `tecnologia_checks_do_pedido` | `idx_tecnologia_checks_do_pedido_pedido` | `pedido_id, criado_em` | `232_pedido_da_vitta_passo_a_passo.sql` |
+| `pendencia_anexos` | `idx_pendencia_anexos_acao` | `id_acao` | `239_anexo_da_conclusao_da_pendencia.sql` |
 
 ---
-**Resumo:** 176 tabelas · 294 relacionamentos FK detectados.
+**Resumo:** 178 tabelas · 305 relacionamentos FK detectados.

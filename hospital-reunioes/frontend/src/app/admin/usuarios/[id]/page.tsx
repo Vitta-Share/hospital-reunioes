@@ -23,6 +23,7 @@ import {
 } from "@/components/admin/types";
 import { UsuarioFormModal } from "@/components/admin/UsuarioFormModal";
 import { ReasonModal } from "@/components/admin/ReasonModal";
+import { confirmacaoDaExclusao } from "@/components/admin/confirmacaoDaExclusao";
 import { NewPasswordModal } from "@/components/admin/NewPasswordModal";
 import { useRouter } from "next/navigation";
 
@@ -138,7 +139,7 @@ export default function AdminUsuarioDetailPage({
       toast(`Erro ao deletar: ${await res.text()}`, "error");
       return false;
     }
-    toast("Usuário deletado", "success");
+    toast(await confirmacaoDaExclusao(res), "success");
     router.push("/admin/usuarios");
     return true;
   }

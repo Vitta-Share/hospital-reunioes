@@ -78,6 +78,7 @@ class _Consulta:
         self._filtros: list = []
         self._ordem: tuple[str, bool] | None = None
         self._teto: int | None = None
+        self._inicio = 0
         self._acao = "select"
         self._valores: Any = None
 
@@ -138,6 +139,7 @@ class _Consulta:
         return self
 
     def range(self, inicio, fim):
+        self._inicio = inicio
         self._teto = fim + 1
         return self
 
@@ -158,7 +160,7 @@ class _Consulta:
             coluna, desc = self._ordem
             casam.sort(key=lambda linha: (linha.get(coluna) is None, str(linha.get(coluna))), reverse=desc)
         total = len(casam)
-        return SimpleNamespace(data=casam[: self._teto] if self._teto is not None else casam, count=total)
+        return SimpleNamespace(data=casam[self._inicio : self._teto] if self._teto is not None else casam, count=total)
 
     def _inserir(self) -> list[dict]:
         novas = self._valores if isinstance(self._valores, list) else [self._valores]

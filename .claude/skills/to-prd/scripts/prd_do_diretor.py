@@ -4,7 +4,9 @@ O "Criar o card" da aba Tecnologia cria a issue da Demanda (ADR 0077): a
 melhoria já nasce com o PRD inteiro, "Decisões de implementação" inclusive, em
 `needs-triage`; o bug nasce com o Roteiro do bug, em `ready-for-agent`. O
 Refino (`/grill-with-docs #N`, aberto pelo botão Refinar do PedroOS) lê a
-issue, diz se o pedido é viável e grava o resultado na mesma issue.
+issue, diz se o pedido é viável e grava o resultado na mesma issue. O card que
+o diretor abre pelo Claude dele não tem Demanda no app: o `ler` o reconhece pela
+label `origem:diretor` (ADR 0113, decisão 5).
 
 Uso:
   python3 prd_do_diretor.py ler <N>                                  roteiro do Refino
@@ -14,14 +16,16 @@ Uso:
 e, quando há, `## Perguntas para o diretor`), escreve a seção do Refino e a
 lista de perguntas antes da Origem, troca a linha "O que muda" do bloco do
 diretor pelo Veredito, grava a marca de Refino (com o link do painel) e mexe
-nas labels: com pergunta aberta a issue fica em Triagem (`needs-triage`); sem
-pergunta ela vai para `ready-for-agent`. Refinar de novo troca o Refino
-anterior. O resto do corpo fica byte a byte.
+nas labels. Com pergunta aberta, comenta na issue com a menção ao diretor
+(login lido de `DIRETOR_LOGINS`), troca para `needs-info` e põe o card no nome
+dele; sem pergunta a issue vai para `ready-for-agent`. Refinar de novo troca o
+Refino anterior. O resto do corpo fica byte a byte.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -29,8 +33,12 @@ import tempfile
 from pathlib import Path
 
 MARCADOR_DA_DEMANDA = re.compile(r'<!--\s*demanda-vitta id="[^"]*"\s*-->')
+# o card que o diretor abre pelo Claude dele não tem Demanda no app: a label basta (ADR 0113, decisão 5)
+LABEL_DO_DIRETOR = "origem:diretor"
 # a marca que o coletor do PedroOS lê (coletor/collect.py, MARCADOR_REFINO): a Demanda refinada e o link do painel
 MARCA_DE_REFINO = re.compile(r"<!-- refino(?:: (\S+))? -->")
+# a primeira linha de todo comentário do agente (o PedroOS não confunde com o revisor)
+MARCA_DE_AUTOMACAO = "<!-- automacao -->"
 LINK_HTTPS = re.compile(r"https://[^\s<>\"']+")
 # o cabeçalho do bloco que o app mostra ao diretor ("## 👔 Para o diretor"); a seção das perguntas não é ele
 CABECALHO_DO_DIRETOR = re.compile(r"^#{1,6}(?![^\n]*Perguntas)[^\n]*para o diretor[^\n]*$", re.IGNORECASE | re.MULTILINE)
@@ -38,7 +46,9 @@ LINHA_O_QUE_MUDA = re.compile(r"^\*\*O que muda:\*\*.*$", re.MULTILINE)
 
 TITULO_TOMADAS = "Já decidido pelo diretor (não pergunte de novo):"
 TITULO_EM_ABERTO = "Ficou em aberto (a Leitura começa por aqui):"
-NAO_E_DEMANDA = "Não é Demanda do diretor (sem o marcador da Demanda): siga o /grill-with-docs normal."
+NAO_E_DEMANDA = (
+    "Não é Demanda do diretor (sem o marcador da Demanda nem a label origem:diretor): siga o /grill-with-docs normal."
+)
 SECOES_OBRIGATORIAS = ("Decisões de implementação", "Decisões de teste")
 SECOES_TECNICAS = (*SECOES_OBRIGATORIAS, "Fora de escopo", "Notas adicionais")
 SECAO_DO_REFINO = "Refino"
@@ -68,11 +78,11 @@ def _itens(texto: str | None) -> list[str]:
     return [linha[2:].strip() for linha in (texto or "").splitlines() if linha.startswith("- ") and linha[2:].strip()]
 
 
-def ler(corpo: str) -> dict:
+def ler(corpo: str, labels: list[str] | tuple[str, ...] = ()) -> dict:
     em_aberto = _secao(corpo, "Ficou em aberto")
     marca = MARCA_DE_REFINO.search(corpo)
     return {
-        "demanda": bool(MARCADOR_DA_DEMANDA.search(corpo)),
+        "demanda": bool(MARCADOR_DA_DEMANDA.search(corpo)) or LABEL_DO_DIRETOR in labels,
         "tipo": "melhoria" if em_aberto is not None else "bug" if _secao(corpo, "O bug") is not None else None,
         "decisoes": _secao(corpo, "Decisões de negócio") or "",
         "em_aberto": _itens(em_aberto),
@@ -84,19 +94,19 @@ def ler(corpo: str) -> dict:
     }
 
 
-def mensagem_ao_diretor(titulo: str, perguntas: list[str]) -> str:
-    """A mensagem que o Pedro cola no WhatsApp do diretor com as perguntas abertas."""
-    pedido = f' "{titulo.strip()}"' if titulo.strip() else ""
-    pedir = "uma coisa" if len(perguntas) == 1 else "umas coisas"
-    linhas = [f"E aí, tudo bem? Olhei o seu pedido{pedido} e, antes de começar, preciso que você me responda {pedir}:", ""]
+def comentario_ao_diretor(diretor: str, perguntas: list[str], quem_pergunta: str) -> str:
+    """O comentário da issue com as perguntas abertas: a menção avisa o diretor por e-mail (ADR 0113, decisão 4)."""
+    pedir = "esta pergunta" if len(perguntas) == 1 else "estas perguntas"
+    linhas = [MARCA_DE_AUTOMACAO, f"@{diretor}, antes de começar preciso que você responda {pedir}:", ""]
     linhas += [f"{n}. {p}" for n, p in enumerate(perguntas, start=1)]
-    linhas += ["", "Me responde por aqui quando puder, tá? Qualquer coisa me chama."]
+    devolver = f"@{quem_pergunta}" if quem_pergunta else "quem perguntou"
+    linhas += ["", f"Responda aqui num comentário e devolva o card para {devolver}."]
     return "\n".join(linhas)
 
 
-def roteiro_do_grill(corpo: str, titulo: str = "") -> str:
+def roteiro_do_grill(corpo: str, titulo: str = "", labels: list[str] | tuple[str, ...] = ()) -> str:
     """O que o /grill-with-docs #N mostra antes da Leitura."""
-    lido = ler(corpo)
+    lido = ler(corpo, labels)
     if not lido["demanda"]:
         return NAO_E_DEMANDA
     if lido["tipo"] == "bug":
@@ -120,8 +130,8 @@ def roteiro_do_grill(corpo: str, titulo: str = "") -> str:
     if lido["refinada"]:
         linhas += ["", "Atenção: esta Demanda já foi refinada. Refinar de novo troca a seção do Refino."]
         if lido["perguntas"]:
-            linhas += ["Perguntas abertas para o diretor:", *[f"- {p}" for p in lido["perguntas"]], ""]
-            linhas += ["Mensagem para colar no WhatsApp:", "", mensagem_ao_diretor(titulo, lido["perguntas"])]
+            linhas += ["Perguntas abertas para o diretor (já comentadas na issue):"]
+            linhas += [f"- {p}" for p in lido["perguntas"]]
         else:
             linhas += ["Nenhuma pergunta aberta para o diretor."]
     return "\n".join(linhas)
@@ -140,9 +150,11 @@ def _troca_o_que_muda(corpo: str, veredito: str) -> str:
     return corpo[: linha.start()] + f"**O que muda:** {veredito}" + corpo[linha.end() :]
 
 
-def completar(corpo: str, refino: str, painel: str | None = None) -> tuple[str, list[str]]:
+def completar(
+    corpo: str, refino: str, painel: str | None = None, labels: list[str] | tuple[str, ...] = ()
+) -> tuple[str, list[str]]:
     """O corpo com o Refino gravado e as perguntas abertas para o diretor."""
-    lido = ler(corpo)
+    lido = ler(corpo, labels)
     if not lido["demanda"]:
         raise ValueError("a issue não é Demanda do diretor; use o /to-prd normal")
     if CABECALHO_DO_DIRETOR.search(refino):
@@ -172,54 +184,91 @@ def completar(corpo: str, refino: str, painel: str | None = None) -> tuple[str, 
     if perguntas:
         bloco += f"## {SECAO_DAS_PERGUNTAS}\n\n" + "\n".join(f"- {p}" for p in perguntas) + "\n\n"
     origem = re.search(r"^## Origem\s*$", novo, re.MULTILINE) or MARCADOR_DA_DEMANDA.search(novo)
-    novo = novo[: origem.start()] + bloco + novo[origem.start() :]
+    # o card que o diretor abre não tem Origem: o Refino vai no fim
+    corte = origem.start() if origem else len(novo)
+    novo = novo[:corte] + ("\n\n" if not origem else "") + bloco + novo[corte:]
     marca = f"<!-- refino: {painel} -->" if painel else "<!-- refino -->"
     return f"{novo.rstrip()}\n{marca}", perguntas
 
 
 def labels_do_refino(labels: list[str], perguntas: list[str]) -> dict[str, list[str]]:
-    """Com pergunta aberta a issue fica (ou volta) em Triagem; sem pergunta ela vai para o agente."""
-    fica, sai = ("needs-triage", "ready-for-agent") if perguntas else ("ready-for-agent", "needs-triage")
-    return {"add": [fica] if fica not in labels else [], "remove": [sai] if sai in labels else []}
+    """Com pergunta aberta a issue espera o diretor (`needs-info`); sem pergunta ela vai para o agente."""
+    fica = "needs-info" if perguntas else "ready-for-agent"
+    saem = ("needs-triage", "ready-for-agent") if perguntas else ("needs-triage", "needs-info")
+    return {"add": [fica] if fica not in labels else [], "remove": [l for l in saem if l in labels]}
+
+
+def diretor_do_card(logins: str, autor: str) -> str | None:
+    """O login do diretor em `DIRETOR_LOGINS` (lista separada por vírgula): quem abriu o card, senão o primeiro."""
+    diretores = [l.strip().lower() for l in logins.split(",") if l.strip()]
+    if autor.lower() in diretores:
+        return autor.lower()
+    return diretores[0] if diretores else None
 
 
 def _gh(*args: str) -> str:
     return subprocess.run(["gh", *args], capture_output=True, text=True, check=True).stdout
 
 
-def _gravar(numero: str, corpo: str, mudar: dict[str, list[str]], gh) -> None:
+def _com_arquivo(texto: str, gh, *args: str) -> None:
     with tempfile.NamedTemporaryFile("w", suffix=".md", encoding="utf-8", delete=False) as f:
-        f.write(corpo)
-    args = ["issue", "edit", numero, "--body-file", f.name]
-    args += [a for l in mudar["add"] for a in ("--add-label", l)]
-    args += [a for l in mudar["remove"] for a in ("--remove-label", l)]
+        f.write(texto)
     try:
-        gh(*args)
+        gh(*args, "--body-file", f.name)
     finally:
         Path(f.name).unlink(missing_ok=True)
 
 
+def _gravar(numero: str, corpo: str, mudar: dict[str, list[str]], gh, dono: str | None, donos: list[str]) -> None:
+    args = ["issue", "edit", numero]
+    args += [a for l in mudar["add"] for a in ("--add-label", l)]
+    args += [a for l in mudar["remove"] for a in ("--remove-label", l)]
+    if dono:
+        args += ["--add-assignee", dono] if dono not in donos else []
+        args += [a for d in donos if d != dono for a in ("--remove-assignee", d)]
+    _com_arquivo(corpo, gh, *args)
+
+
+def _logins_do_diretor(gh) -> str:
+    """`DIRETOR_LOGINS` do ambiente ou, sem ele, a variável do repositório que a Action card-do-diretor.yml lê."""
+    if os.environ.get("DIRETOR_LOGINS"):
+        return os.environ["DIRETOR_LOGINS"]
+    try:
+        return gh("variable", "get", "DIRETOR_LOGINS").strip()
+    except subprocess.CalledProcessError:
+        return ""
+
+
 def main(argv: list[str], gh=_gh) -> int:
     if len(argv) == 2 and argv[0] == "ler" and argv[1].isdigit():
-        dados = json.loads(gh("issue", "view", argv[1], "--json", "body,title"))
-        print(roteiro_do_grill(dados.get("body") or "", dados.get("title") or ""))
+        dados = json.loads(gh("issue", "view", argv[1], "--json", "body,title,labels"))
+        labels = [l["name"] for l in dados.get("labels") or []]
+        print(roteiro_do_grill(dados.get("body") or "", dados.get("title") or "", labels))
         return 0
     painel_ok = len(argv) == 3 or (len(argv) == 5 and argv[3] == "--painel")
     if argv and argv[0] == "completar" and painel_ok and argv[1].isdigit():
         numero, arquivo = argv[1], argv[2]
-        dados = json.loads(gh("issue", "view", numero, "--json", "body,labels,title"))
+        dados = json.loads(gh("issue", "view", numero, "--json", "body,labels,title,author,assignees"))
+        labels = [l["name"] for l in dados.get("labels") or []]
         try:
             novo, perguntas = completar(dados.get("body") or "", Path(arquivo).read_text(encoding="utf-8"),
-                                        argv[4] if len(argv) == 5 else None)
+                                        argv[4] if len(argv) == 5 else None, labels)
         except ValueError as erro:
             print(f"não gravei o Refino na #{numero}: {erro}", file=sys.stderr)
             return 1
-        labels = [l["name"] for l in dados.get("labels") or []]
-        _gravar(numero, novo, labels_do_refino(labels, perguntas), gh)
-        print(f"Refino gravado na #{numero}: a issue ganhou a marca Refinada.")
+        diretor = None
         if perguntas:
-            print("A issue fica em Triagem até o diretor responder. Mensagem para colar no WhatsApp:\n")
-            print(mensagem_ao_diretor(dados.get("title") or "", perguntas))
+            diretor = diretor_do_card(_logins_do_diretor(gh), (dados.get("author") or {}).get("login") or "")
+            if not diretor:
+                print(f"não gravei o Refino na #{numero}: há perguntas e DIRETOR_LOGINS está vazio", file=sys.stderr)
+                return 1
+        donos = [d["login"].lower() for d in dados.get("assignees") or []]
+        _gravar(numero, novo, labels_do_refino(labels, perguntas), gh, diretor, donos)
+        print(f"Refino gravado na #{numero}: a issue ganhou a marca Refinada.")
+        if diretor:
+            quem_pergunta = gh("api", "user", "--jq", ".login").strip()
+            _com_arquivo(comentario_ao_diretor(diretor, perguntas, quem_pergunta), gh, "issue", "comment", numero)
+            print(f"Perguntas comentadas na #{numero} com menção a @{diretor}: a issue fica em needs-info no nome dele.")
         else:
             print("Sem pergunta aberta para o diretor: a issue está em ready-for-agent.")
         return 0

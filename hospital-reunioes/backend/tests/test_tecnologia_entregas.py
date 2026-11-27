@@ -451,13 +451,14 @@ class TestRitmoPelaRota:
         ]
         assert "agrupar" not in corpo and "periodos" not in corpo
 
-    def test_o_diretor_conta_as_dele_e_as_da_vitta(self, entregas):
-        """A mesma regra da lista do chat (`pode_ver`): o pedido de outra
-        diretora nao entra, nem no topo."""
+    def test_o_diretor_conta_o_mesmo_que_o_desenvolvedor(self, entregas):
+        """A mesma regra da lista do chat (`pode_ver`): desde a issue #2265
+        (ADR 0113, decisao 6) todo Super admin ve todas, e o pedido de outra
+        diretora entra tambem para o diretor."""
         resposta = entregas(DIRETOR)
 
-        assert _topo(resposta) == (4, 0)
-        assert "e-outra-diretora" not in _ids(resposta)
+        assert _topo(resposta) == _topo(entregas(PEDRO))
+        assert "e-outra-diretora" in _ids(resposta)
 
     def test_a_lista_vem_agrupada_por_semana_a_mais_nova_em_cima(self, entregas):
         """As semanas do grafico, so as que tem entrega (issue #1703)."""
@@ -701,12 +702,12 @@ def _secao(titulo: str) -> str:
 
 
 class TestKit:
-    def test_o_kit_diz_que_a_aba_tem_conversas_e_entregas(self):
+    def test_o_kit_diz_que_a_aba_tem_quadro_e_entregas(self):
         """O Assistente fala pela lingua do Kit: sem isto, ele diria que a aba
         e uma tela so."""
         abertura = _kit().split("\n## ", 1)[0]
 
-        assert "**Conversas**" in abertura
+        assert "**Quadro**" in abertura
         assert "**Entregas**" in abertura
         assert "tela só" not in _kit()
 

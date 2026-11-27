@@ -20,7 +20,9 @@ import logging
 import re
 import secrets
 
+import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from postgrest.exceptions import APIError
 from starlette.requests import Request
 from supabase import Client
 
@@ -652,8 +654,16 @@ async def delete_usuario(
     request: Request,
     actor: dict = Depends(require_super_admin),
     supabase: Client = Depends(get_supabase_client),
+    # O FastAPI injeta pelo tipo; a chamada direta (testes) fica sem.
+    tarefas: BackgroundTasks = None,
 ) -> dict:
-    """Hard delete. Motivo obrigatorio. Bloqueia auto-delete."""
+    """Hard delete. Motivo obrigatorio. Bloqueia auto-delete.
+
+    Quem tem histórico (reunião, pendência, nota, POP, aceite) não sai: as FKs
+    de histórico apontam para `participantes` com RESTRICT, e o banco recusa
+    com 23503 (issue #2043, que subia 500 genérico). Nesse caso o mesmo clique
+    desliga o cadastro, e a resposta diz qual dos dois aconteceu.
+    """
     if actor.get("id") == participante_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -662,7 +672,21 @@ async def delete_usuario(
 
     alvo = _fetch_usuario(supabase, participante_id)
 
-    delete = supabase.table("participantes").delete().eq("id", participante_id).execute()
+    try:
+        delete = supabase.table("participantes").delete().eq("id", participante_id).execute()
+    except APIError as exc:
+        if exc.code != _VIOLACAO_DE_FK:
+            raise
+        return await _desligar_no_lugar_de_excluir(
+            alvo, body.reason, request=request, actor=actor, supabase=supabase, tarefas=tarefas
+        )
+    except httpx.HTTPError as exc:
+        # O timeout do PostgREST sobe cru, fora do APIError.
+        logger.error(f"[admin.usuarios] Falha de rede ao excluir {participante_id}: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="O banco não respondeu e o usuário não foi excluído. Tente de novo em instantes.",
+        )
     if not delete.data:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -686,7 +710,55 @@ async def delete_usuario(
         request=request,
     )
 
-    return {"success": True, "id": participante_id}
+    return {"success": True, "id": participante_id, "resultado": "excluido"}
+
+
+# foreign_key_violation do Postgres, que o PostgREST repassa em `code`.
+_VIOLACAO_DE_FK = "23503"
+
+
+async def _desligar_no_lugar_de_excluir(
+    alvo: dict,
+    motivo: str,
+    *,
+    request: Request,
+    actor: dict,
+    supabase: Client,
+    tarefas: BackgroundTasks | None,
+) -> dict:
+    """Desliga quem o banco não deixa excluir, pelo mesmo caminho do desligar
+    da edição (`update_usuario`: login fechado e EDIT_USUARIO), e grava o
+    motivo da exclusão pedida. Nenhum histórico é apagado (issue #2043)."""
+    participante_id = alvo["id"]
+    ja_estava_desligado = alvo.get("ativo") is False
+    if not ja_estava_desligado:
+        await update_usuario(
+            participante_id,
+            AdminUsuarioUpdate(ativo=False, reason=motivo),
+            request,
+            actor=actor,
+            supabase=supabase,
+            tarefas=tarefas,
+        )
+
+    audit.log_action(
+        supabase,
+        actor=actor,
+        action="DESLIGAR_USUARIO",
+        target_type="participante",
+        target_id=participante_id,
+        metadata={
+            "pedido": "exclusao",
+            "por_que_nao_excluiu": "historico",
+            "ja_estava_desligado": ja_estava_desligado,
+            "email": alvo.get("email"),
+            "nome_completo": alvo.get("nome_completo"),
+        },
+        reason=motivo,
+        request=request,
+    )
+
+    return {"success": True, "id": participante_id, "resultado": "desligado"}
 
 
 @router.post(

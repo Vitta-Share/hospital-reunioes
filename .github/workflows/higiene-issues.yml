@@ -54,11 +54,12 @@ jobs:
               `query($owner: String!, $repo: String!, $number: Int!) {
                 repository(owner: $owner, name: $repo) {
                   issue(number: $number) {
+                    subIssues(first: 100) { nodes { number title state labels(first: 20) { nodes { name } } } }
                     parent {
                       number
                       state
                       labels(first: 20) { nodes { name } }
-                      subIssues(first: 100) { totalCount nodes { state } }
+                      subIssues(first: 100) { totalCount nodes { state labels(first: 20) { nodes { name } } } }
                     }
                   }
                 }
@@ -66,20 +67,48 @@ jobs:
               { owner, repo, number: issue.number }
             );
 
+            // 3. Issue fechada como concluída com sub-issue aberta volta a abrir
+            //    (issue #2191): o PRD só fecha quando a última fatia fecha. Em
+            //    22/11/2026 um `Closes` no corpo do PR #2185 fechou o PRD #2176
+            //    com a #2184 aberta, e o card saiu do quadro antes de acabar.
+            //    Reabrir com GITHUB_TOKEN não re-dispara esta Action.
+            //    O Card de implantação (label `implantacao`) não segura o PRD
+            //    (ADR 0111, decisão 5, e ADR 0113, decisão 9, issue #2266):
+            //    aberto, ele não reabre a raiz nem impede que ela feche.
+            const eImplantacao = (s) => ((s.labels && s.labels.nodes) || []).some((l) => l.name === 'implantacao');
+            const filhasAbertas = repository.issue.subIssues.nodes.filter((s) => s.state === 'OPEN' && !eImplantacao(s));
+            if (filhasAbertas.length > 0) {
+              const lista = filhasAbertas.map((s) => `- #${s.number} ${s.title}`).join('\n');
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issue.number,
+                body: `<!-- automacao -->\nReaberta: esta issue fechou como concluída com sub-issues ainda abertas.\n\n${lista}\n\nEla fecha sozinha quando a última dessas fechar. _(Action de higiene, issue #2191.)_`,
+              });
+              await github.rest.issues.update({ owner, repo, issue_number: issue.number, state: 'open' });
+              core.info(`#${issue.number} reaberta: ${filhasAbertas.length} sub-issue(s) em aberto.`);
+              return;
+            }
+
             const parent = repository.issue.parent;
             if (!parent || parent.state !== 'OPEN') return;
 
-            const abertas = parent.subIssues.nodes.filter((s) => s.state === 'OPEN').length;
+            const abertas = parent.subIssues.nodes.filter((s) => s.state === 'OPEN' && !eImplantacao(s)).length;
             if (abertas > 0) {
               core.info(`PRD #${parent.number} segue aberto: ${abertas} sub-issue(s) em aberto.`);
               return;
             }
 
+            const implantacoes = parent.subIssues.nodes.filter((s) => s.state === 'OPEN' && eImplantacao(s)).length;
+            const resumo =
+              implantacoes > 0
+                ? `Todas as fatias deste PRD foram concluídas (a #${issue.number} era a última), e os ${implantacoes} cards de implantação abertos seguem com o hospital. Fechando automaticamente. _(Action de higiene, ADR 0007 e ADR 0113.)_`
+                : `Todas as ${parent.subIssues.totalCount} sub-issues deste PRD foram concluídas (a #${issue.number} era a última). Fechando automaticamente. _(Action de higiene, ADR 0007.)_`;
             await github.rest.issues.createComment({
               owner,
               repo,
               issue_number: parent.number,
-              body: `Todas as ${parent.subIssues.totalCount} sub-issues deste PRD foram concluídas (a #${issue.number} era a última) — fechando automaticamente. _(Action de higiene — ADR 0007.)_`,
+              body: resumo,
             });
 
             // Fechar o pai com GITHUB_TOKEN não re-dispara esta Action (anti-recursão

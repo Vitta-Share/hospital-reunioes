@@ -1,0 +1,158 @@
+{
+ "prd": 2247,
+ "contexto": "Segurança do Paciente",
+ "titulo_aba": "Plano do Responsável técnico no Núcleo",
+ "descricao": "O plano que leva os documentos do Núcleo de Segurança do Paciente para o Responsável técnico assinar e põe o link de voltar nas telas do módulo, em 3 etapas, para o diretor validar antes do trabalho começar.",
+ "selo": "Plano para validar · Segurança do Paciente",
+ "titulo": "Os documentos do Núcleo vão para o Responsável técnico assinar,",
+ "destaque": "e toda tela do módulo ganha o caminho de volta.",
+ "resumo": "Este é o plano do pedido que você fez no primeiro dia de uso do Núcleo, depois da correção da gerência de enfermagem. São 5 partes, em 3 etapas, e nenhuma foi entregue ainda. A última parte é sua: marcar o Dr. Jorge e reenviar os três documentos. Os envios que já chegaram para você não precisam ser assinados. Passe o mouse em cada parte para ver o que muda, do que ela depende e como vamos saber que ficou pronta. No fim da página, você valida o plano.",
+ "numeros": [
+  {
+   "valor": 5,
+   "rotulo": "partes"
+  },
+  {
+   "valor": 3,
+   "rotulo": "etapas, uma depois da outra"
+  },
+  {
+   "valor": 3,
+   "rotulo": "documentos que mudam de quem assina"
+  }
+ ],
+ "decidido": {
+  "titulo": "O plano segue a regra sanitária",
+  "texto": "Estas decisões vieram do planejamento de 25/11. Se quiser outra coisa em alguma delas, escreva na observação ao validar: só a parte ligada a ela muda.",
+  "blocos": [
+   {
+    "titulo": "Quem assina",
+    "numerado": false,
+    "itens": [
+     "O Ato de designação vai só para o Responsável técnico.",
+     "O Regimento e o Plano de Segurança do Paciente vão para o Responsável técnico e para a Presidência do Núcleo.",
+     "O Termo de Adesão e a ata do Núcleo não mudam.",
+     "O Acesso pleno ao NSP continua dando acesso a tudo no módulo, e não assina nada."
+    ]
+   },
+   {
+    "titulo": "A marca no cadastro",
+    "numerado": false,
+    "itens": [
+     "O Responsável técnico é uma caixa no cadastro de usuários, de uma pessoa só por vez. Quem marca é o Super admin, e a troca fica no histórico.",
+     "A marca vale para o hospital todo, porque o Responsável técnico responde pelo hospital à vigilância sanitária. Por enquanto, só o Núcleo usa.",
+     "Sem ninguém marcado, o envio não sai. Ele nunca volta sozinho para a Diretoria Executiva."
+    ]
+   },
+   {
+    "titulo": "Os envios que já saíram",
+    "numerado": false,
+    "itens": [
+     "Trocar o Responsável técnico não cancela envio em andamento, para não perder uma assinatura já começada.",
+     "Os três documentos que foram para você se corrigem com \"Reenviar para assinatura\", que cancela o envio antigo e manda o novo.",
+     "As versões antigas assinadas pela Diretoria Executiva continuam no histórico com esse nome."
+    ]
+   }
+  ]
+ },
+ "fora": {
+  "itens": [
+   "Cancelar e reenviar sozinho os envios abertos",
+   "Tirar a Presidência da assinatura do Regimento e do Plano",
+   "Mudar quem assina o Termo de Adesão e a ata",
+   "Usar o Responsável técnico nos POPs e na Ouvidoria",
+   "Mudar o Acesso pleno ao NSP"
+  ],
+  "texto": "O reenvio dos três documentos é um clique seu em cada um, na última parte. Os outros módulos continuam como estão."
+ },
+ "etapas": [
+  {
+   "nome": "A base",
+   "texto": "A caixa de Responsável técnico no cadastro de usuários e o link de voltar nas telas do Núcleo. As outras etapas dependem desta."
+  },
+  {
+   "nome": "Quem assina",
+   "texto": "Os três documentos do Núcleo passam a ir para o Responsável técnico."
+  },
+  {
+   "nome": "O manual e a sua parte",
+   "texto": "O manual explica quem assina, e você marca o Dr. Jorge e reenvia os três documentos."
+  }
+ ],
+ "partes": [
+  {
+   "id": 1,
+   "etapa": 1,
+   "titulo": "Caixa de Responsável técnico",
+   "muda": "O cadastro de usuários ganha a caixa \"Responsável técnico\", para você marcar quem responde pelo hospital.",
+   "vale": "É dessa marca que o NSP vai tirar quem assina os documentos do Núcleo.",
+   "saber": [
+    "Só uma pessoa fica marcada por vez: marcar outra desmarca a anterior.",
+    "A troca fica no histórico do usuário, com quem trocou e quando.",
+    "Por enquanto a marca não muda os envios. Isso vem na parte seguinte."
+   ],
+   "pronto": "O Super admin marca uma pessoa como Responsável técnico e, ao marcar outra, a primeira fica desmarcada. A lista de usuários mostra quem está marcado hoje, e a troca aparece no histórico do usuário, com quem trocou e quando.",
+   "depende": []
+  },
+  {
+   "id": 2,
+   "etapa": 1,
+   "titulo": "Link de voltar no Núcleo",
+   "muda": "Toda tela do NSP ganha no alto um link para voltar à Visão geral do Núcleo.",
+   "vale": "Hoje quem entra em Documentos, Membros ou Capacitações só sai clicando de novo em NSP no menu.",
+   "saber": [
+    "O link fica no alto da tela, com a seta de voltar, igual ao de Contas médicas.",
+    "Num caso aberto, o link volta para a lista de Notificações."
+   ],
+   "pronto": "Em Documentos, Membros ou Capacitações, o link \"Núcleo de Segurança do Paciente\" no alto leva de volta à Visão geral, mesmo para quem chegou pelo link de um e-mail. No caso aberto de uma notificação, o link volta para Notificações.",
+   "depende": []
+  },
+  {
+   "id": 3,
+   "etapa": 2,
+   "titulo": "O Responsável técnico assina os três",
+   "muda": "O Ato de designação, o Regimento e o Plano de Segurança do Paciente passam a ir para o Responsável técnico assinar no seu lugar.",
+   "vale": "É o que a regra sanitária pede, e foi a correção da gerência de enfermagem.",
+   "saber": [
+    "O Regimento e o Plano continuam indo também para a Presidência do Núcleo.",
+    "Sem ninguém marcado como Responsável técnico, o envio não sai e a tela diz por quê.",
+    "O que já foi para você se corrige com \"Reenviar para assinatura\": o envio antigo é cancelado e o novo vai para o Responsável técnico."
+   ],
+   "pronto": "Ao publicar o Ato de designação, o envio vai só para o Responsável técnico, e o Regimento vai para ele e para a Presidência, com \"Responsável técnico\" ao lado do nome no documento. Sem ninguém marcado, a tela avisa \"Não há Responsável técnico marcado no cadastro para assinar\" e nada sai.",
+   "depende": [
+    1
+   ]
+  },
+  {
+   "id": 4,
+   "etapa": 3,
+   "titulo": "O manual explica quem assina",
+   "muda": "O manual do NSP passa a explicar quem assina os documentos do Núcleo e como marcar o Responsável técnico.",
+   "vale": "Quem for publicar um documento do Núcleo acha no manual para quem ele vai.",
+   "saber": [
+    "A tarefa de publicar o Regimento diz que ele vai para o Responsável técnico e para a Presidência.",
+    "Nasce a tarefa curta \"Marcar o Responsável técnico\"."
+   ],
+   "pronto": "No manual do Núcleo, a tarefa de publicar o Regimento diz que ele vai para o Responsável técnico e para a Presidência, e a tarefa nova \"Marcar o Responsável técnico\" mostra o caminho no cadastro, com passos e prints de dados fictícios.",
+   "depende": [
+    2,
+    3
+   ]
+  },
+  {
+   "id": 5,
+   "etapa": 3,
+   "titulo": "Você marca o Dr. Jorge",
+   "muda": "Você marca o Dr. Jorge como Responsável técnico e reenvia os três documentos do Núcleo para a assinatura certa.",
+   "vale": "Assim o Ato de designação, o Regimento e o Plano saem do envio errado, e o Núcleo passa a ter documentos vigentes.",
+   "saber": [
+    "Os envelopes que chegaram para você não precisam ser assinados: o Reenviar cancela cada um.",
+    "Quando o Dr. Jorge e a Presidência assinam, cada documento vira o vigente sozinho."
+   ],
+   "pronto": "O Dr. Jorge aparece marcado como Responsável técnico, os três documentos mostram o nome dele como quem assina, e os envios antigos aparecem cancelados.",
+   "depende": [
+    3
+   ]
+  }
+ ]
+}

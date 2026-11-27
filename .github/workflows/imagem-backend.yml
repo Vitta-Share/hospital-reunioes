@@ -38,7 +38,7 @@ jobs:
     name: Publicar a imagem do squash
     runs-on: ubuntu-latest
     env:
-      IMAGEM_BACKEND: ghcr.io/pedrorezendefig/hospital-reunioes-backend
+      IMAGEM_BACKEND: ghcr.io/vitta-share/hospital-reunioes-backend
       # Entrada vai por env, nunca interpolada no shell (injeção de script).
       SHA: ${{ inputs.sha }}
       ORIGENS: ${{ inputs.origens }}

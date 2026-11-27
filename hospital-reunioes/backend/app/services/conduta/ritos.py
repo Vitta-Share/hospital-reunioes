@@ -146,6 +146,10 @@ class Olhar:
     # rodada (`voto.olhar_do_voto`).
     vota: bool = False
     ja_votou: bool = False
+    # O acompanhamento contra retaliação (issue #1839): o marco (30, 90 ou
+    # 180 dias) da verificação que chegou e não foi registrada
+    # (`retaliacao.pendente`).
+    verificacao_pendente: int | None = None
 
 
 def trilho(caso: dict[str, Any]) -> list[dict[str, str]]:
@@ -204,6 +208,11 @@ _COMO_RETORNO = (
     "A comunicação ao acusado não cita quem relatou",
     "Nada sai antes de você aprovar",
 )
+_COMO_ACOMPANHAMENTO = (
+    "Consulte desligamento, escala, transferência e avaliação",
+    "Registre a resposta com um clique, e a observação se quiser",
+    "Se houver, abra novo caso de retaliação",
+)
 _COMO_ESPECIAL = (
     "Convide o membro eleito da CIPA indicado pelos eleitos",
     "Ouça as pessoas e delibere sem nenhum diretor",
@@ -252,11 +261,31 @@ def o_que_fazer_agora(caso: dict[str, Any], olhar: Olhar) -> dict[str, Any]:
             _COMO_ESPECIAL,
             "apurar_rota_especial",
         )
+    if caso.get("encerrado_em") and caso.get("desfecho") == "concluido" and olhar.verificacao_pendente:
+        return _caixa(
+            "Verifique se houve mudança desfavorável para quem relatou.",
+            "REGISTRAR VERIFICAÇÃO",
+            _COMO_ACOMPANHAMENTO,
+            "registrar_verificacao",
+            None if coordena else "Só a coordenação registra a verificação.",
+        )
     if caso.get("encerrado_em") and caso.get("desfecho") == "concluido":
         return _caixa(
             "Este caso foi concluído. O retorno aprovado já saiu.",
             None,
             ("Consulte a trilha do caso", "O retorno aprovado fica guardado", "Novo assunto vira novo relato"),
+            None,
+        )
+    if caso.get("encerrado_em") and caso.get("desfecho") == "arquivado":
+        # Pedido de complemento sem resposta em 15 dias (issue #1845).
+        return _caixa(
+            "Este caso foi arquivado por falta de elementos. Se quem relatou mandar a informação, reabra o caso.",
+            None,
+            (
+                "Consulte as Mensagens do caso",
+                "O complemento novo aparece ali",
+                "Reabrir volta o caso à etapa em que estava",
+            ),
             None,
         )
     if caso.get("encerrado_em"):
@@ -376,6 +405,7 @@ ACOES_DA_MINHA_VEZ = {
     "apurar_rota_especial": "Apurar o caso da Rota Especial",
     "enviar_a_direcao": "Enviar à Direção",
     "preparar_retorno": "Preparar o retorno",
+    "registrar_verificacao": "Verificar se houve retaliação",
 }
 
 

@@ -239,7 +239,7 @@ jobs:
       contents: read
       packages: write
     env:
-      IMAGEM_BACKEND: ghcr.io/pedrorezendefig/hospital-reunioes-backend
+      IMAGEM_BACKEND: ghcr.io/vitta-share/hospital-reunioes-backend
       # Só PR deste repositório publica: o de fork não tem token que escreva no
       # GHCR, e o push na main não precisa (a imagem do squash é do workflow
       # que a subida dispara).

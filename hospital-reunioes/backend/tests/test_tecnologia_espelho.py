@@ -36,7 +36,6 @@ from test_tecnologia_webhook_github import (  # noqa: E402
 )
 
 from app.limiter import limiter  # noqa: E402
-from app.services import tecnologia_email  # noqa: E402
 from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
 from app.services.tecnologia_espelho import CRIA, IGNORA, JA_EXISTE, decidir  # noqa: E402
 from app.services.tecnologia_vinculo import ETAPA_EM_ANALISE, ETAPA_EM_DESENVOLVIMENTO  # noqa: E402
@@ -137,6 +136,27 @@ class TestTabelaDoEspelho:
 
     def test_pull_request_ignora(self):
         assert decidir(_issue_raiz(pull_request={"url": "x"}), None) == IGNORA
+
+    @pytest.mark.parametrize("labels", [("origem:diretor",), ("Origem:Diretor", "needs-triage")])
+    def test_card_do_diretor_sem_tipo_nem_area_cria(self, labels):
+        """O card que o diretor abre pelo Claude dele e raiz de produto pela
+        label `origem:diretor` (issue #2264, ADR 0113, decisao 6)."""
+        assert decidir(_issue_raiz(labels=labels), None) == CRIA
+
+    @pytest.mark.parametrize(
+        "labels",
+        [
+            ("origem:diretor", "area:skills"),
+            ("origem:diretor", "area:docs"),
+            ("origem:diretor", "type:feature", "area:infra"),
+        ],
+    )
+    def test_card_do_diretor_de_ferramenta_ignora(self, labels):
+        assert decidir(_issue_raiz(labels=labels), None) == IGNORA
+
+    def test_card_do_diretor_que_e_parte_ignora(self):
+        corpo = "## Pai\n\n#2262\n\n## O que construir\n\nY."
+        assert decidir(_issue_raiz(labels=("origem:diretor",), corpo=corpo), None) == IGNORA
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -256,6 +276,52 @@ class TestWebhookCriaADemandaVitta:
         assert _demandas(sb)[0]["github_foto"] is None
         assert gh.leituras == []
 
+    def test_o_card_do_diretor_aberto_vira_pedido_do_diretor(self, monkeypatch):
+        """Issue #2264: a raiz com `origem:diretor`, sem `type:` nem `area:`."""
+        issue = _issue_raiz(labels=("origem:diretor",))
+
+        resposta, sb, _ = _entregar_issue(monkeypatch, issue)
+
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["espelhada"] is True
+        [demanda] = _demandas(sb)
+        assert demanda["origem"] == "diretor"
+        assert demanda["github_issue_numero"] == 1700
+
+    def test_o_card_do_diretor_de_ferramenta_nao_vira_demanda(self, monkeypatch):
+        issue = _issue_raiz(labels=("origem:diretor", "area:skills"))
+
+        resposta, sb, gh = _entregar_issue(monkeypatch, issue)
+
+        assert resposta.json() == {"ignorado": "sem_vinculo"}
+        assert _demandas(sb) == []
+        assert gh.leituras == []
+
+    def test_a_label_que_chega_depois_cria_no_labeled_uma_vez_so(self, monkeypatch):
+        """A Action do card do diretor poe `origem:diretor` depois que a issue
+        abre: o `opened` nao tem a label, o `labeled` tem, e o segundo
+        `labeled` nao cria outra Demanda (issue #2264)."""
+        aberta = _issue_raiz(labels=())
+        gh = _GithubFalso({1700: aberta})
+        cliente, sb, _ = _montar(participantes=[PEDRO], produtos=PRODUTOS, github=gh, monkeypatch=monkeypatch)
+
+        no_opened = _entregar(cliente, _corpo_do_evento(aberta, "opened"))
+        assert no_opened.json() == {"ignorado": "sem_vinculo"}
+        assert _demandas(sb) == []
+
+        rotulada = _issue_raiz(labels=("origem:diretor",))
+        gh.issues[1700] = rotulada
+        no_labeled = _entregar(cliente, _corpo_do_evento(rotulada, "labeled"))
+        assert no_labeled.json()["espelhada"] is True
+
+        mais_uma = _issue_raiz(labels=("origem:diretor", "needs-triage"))
+        gh.issues[1700] = mais_uma
+        segundo = _entregar(cliente, _corpo_do_evento(mais_uma, "labeled"))
+        assert segundo.status_code == 200, segundo.text
+        assert "espelhada" not in segundo.json()
+
+        assert [(d["origem"], d["github_issue_numero"]) for d in _demandas(sb)] == [("diretor", 1700)]
+
     def test_a_releitura_manda_quando_o_payload_ficou_velho(self, monkeypatch):
         """O payload diz raiz de app, mas a issue relida ja virou parte: quem
         cria e a releitura, nunca o corpo do evento."""
@@ -320,16 +386,18 @@ def _ids(resposta) -> list[str]:
 
 
 class TestQuemVe:
-    def test_o_diretor_ve_as_dele_e_os_cards_vitta(self, monkeypatch):
+    def test_o_diretor_ve_todas_na_lista_sem_recorte(self, monkeypatch):
+        """Issue #2265 (ADR 0113, decisao 6): a lista do diretor traz as dele,
+        os cards Vitta e as de outro autor."""
         client, _ = _aba(monkeypatch, DIRETOR)
 
-        assert _ids(client.get(CHAT)) == ["d-vitta", "d-minha"]
+        assert _ids(client.get(CHAT)) == ["d-vitta", "d-minha", "d-outra"]
 
-    def test_o_diretor_nao_ve_a_conversa_de_outro_autor_nem_em_todas(self, monkeypatch):
+    def test_o_diretor_ve_todas_no_recorte_todas(self, monkeypatch):
+        """Issue #2265 (ADR 0113, decisao 6): todo Super admin ve todas."""
         client, _ = _aba(monkeypatch, DIRETOR)
 
-        assert _ids(client.get(f"{CHAT}?filtro=todas")) == ["d-vitta", "d-minha"]
-        assert client.get(f"{CHAT}/d-outra/conversa").status_code == 404
+        assert _ids(client.get(f"{CHAT}?filtro=todas")) == ["d-vitta", "d-minha", "d-outra"]
 
     def test_o_card_vitta_nao_e_do_diretor(self, monkeypatch):
         client, _ = _aba(monkeypatch, DIRETOR)
@@ -337,8 +405,7 @@ class TestQuemVe:
         vitta = next(d for d in client.get(CHAT).json() if d["id"] == "d-vitta")
 
         assert vitta["minha"] is False
-        assert vitta["issue_numero"] is None
-        assert vitta["pode_apagar"] is False
+        assert vitta["issue_numero"] == 1700
 
     def test_o_desenvolvedor_em_minhas_continua_so_com_as_dele(self, monkeypatch):
         client, _ = _aba(monkeypatch, PEDRO)
@@ -370,7 +437,7 @@ class TestOrigemNaLista:
         ("logado", "consulta", "esperado"),
         [
             (DIRETOR, "origem=vitta", ["d-vitta"]),
-            (DIRETOR, "origem=diretor", ["d-minha"]),
+            (DIRETOR, "origem=diretor", ["d-minha", "d-outra"]),
             (PEDRO, "filtro=todas&origem=diretor", ["d-minha", "d-outra"]),
             (PEDRO, "filtro=todas&origem=vitta&etapa=em_analise", ["d-vitta"]),
         ],
@@ -384,54 +451,6 @@ class TestOrigemNaLista:
         client, _ = _aba(monkeypatch, DIRETOR)
 
         assert client.get(f"{CHAT}?origem=terminal").status_code == 422
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 5. A Demanda Vitta abre o documento e a Conversa da Demanda, sem o chat
-# ═══════════════════════════════════════════════════════════════════════════
-
-
-class TestDemandaVittaAberta:
-    def test_o_diretor_le_e_escreve_na_conversa_da_demanda_vitta(self, monkeypatch):
-        enviados: list[dict] = []
-        monkeypatch.setattr(tecnologia_email, "_enviar_email", lambda *a, **kw: enviados.append(a) or True)
-        client, sb = _aba(monkeypatch, DIRETOR)
-
-        assert client.get(f"{CHAT}/d-vitta/conversa").status_code == 200
-        escrita = client.post(f"{CHAT}/d-vitta/conversa", json={"texto": "Quando fica pronto?"})
-
-        assert escrita.status_code == 201, escrita.text
-        [linha] = sb.tabelas["tecnologia_conversa_da_demanda"]
-        assert (linha["demanda_id"], linha["autor_id"]) == ("d-vitta", DIRETOR["id"])
-
-    def test_a_resposta_da_vitta_sem_mencao_avisa_o_diretor_que_escreveu(self, monkeypatch):
-        """No card Vitta o autor e o Responsavel sao o proprio Desenvolvedor: a
-        resposta dele, sem mencao, avisa quem ja escreveu na conversa, e so."""
-        monkeypatch.setattr(tecnologia_email, "_enviar_email", lambda *a, **kw: True)
-        diretor, sb = _aba(monkeypatch, DIRETOR)
-        pedro, _, _ = _cenario(monkeypatch, logado=PEDRO, supabase=sb)
-        diretor.post(f"{CHAT}/d-vitta/conversa", json={"texto": "Quando fica pronto?"})
-        sb.tabelas["notificacoes"] = []
-
-        assert pedro.post(f"{CHAT}/d-vitta/conversa", json={"texto": "Na semana que vem."}).status_code == 201
-
-        assert [n["destinatario_id"] for n in sb.tabelas["notificacoes"]] == [DIRETOR["id"]]
-
-    def test_a_vitta_menciona_qualquer_diretor_no_card_vitta(self, monkeypatch):
-        """Quem ve o card Vitta e toda a diretoria: e quem a mencao alcanca."""
-        monkeypatch.setattr(tecnologia_email, "_enviar_email", lambda *a, **kw: True)
-        pedro, sb = _aba(monkeypatch, PEDRO)
-
-        nomes = [p["nome"] for p in pedro.get(f"{CHAT}/d-vitta/conversa").json()["mencionaveis"]]
-        pedro.post(f"{CHAT}/d-vitta/conversa", json={"texto": "@Outra Diretora, pode testar?"})
-
-        assert {"Diretor do Hospital", "Outra Diretora"} <= set(nomes)
-        assert [n["destinatario_id"] for n in sb.tabelas["notificacoes"]] == [OUTRO_DIRETOR["id"]]
-
-    def test_a_demanda_vitta_nao_tem_chat_do_agente(self, monkeypatch):
-        client, _ = _aba(monkeypatch, DIRETOR)
-
-        assert client.get(f"{CHAT}/d-vitta").status_code == 404
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -451,10 +470,14 @@ class TestKit:
             assert trecho in secao, trecho
         assert "cada diretor vê só as suas conversas" not in secao
 
-    def test_o_kit_diz_que_o_card_da_vitta_nao_tem_conversa_com_a_ia(self):
-        secao = _secao("O que é uma Demanda")
-        assert "pelo desenvolvimento" in secao
-        assert "sem conversa com a IA" in secao
+    def test_o_kit_diz_que_o_card_aberto_pelo_claude_do_diretor_vira_demanda(self):
+        """Issue #2264: o card do diretor vira Demanda sozinho, com a Etapa, e
+        leva o selo Pedido do diretor."""
+        demanda = _secao("O que é uma Demanda")
+        assert "O card que você abre pelo seu Claude" in demanda
+        assert "Pedido do diretor" in demanda
+        quem_ve = _secao("Quem vê")
+        assert "do card que você abriu pelo seu Claude" in quem_ve
 
     def test_o_kit_diz_que_ajuste_interno_nao_aparece(self):
         secao = _secao("O que é uma Demanda")

@@ -32,7 +32,7 @@ from app.services.conhecimento import CONHECIMENTO_DIR  # noqa: E402
 from app.services.pdf_generator import env  # noqa: E402
 
 FRASE = "Venceu a guarda de um envelope do Canal de Conduta."
-# O conteúdo do caso que a eliminação leva (a migration 226 apaga essas e
+# O conteúdo do caso que a eliminação leva (a migration 242 apaga essas e
 # outras; aqui, as que o caso de teste tem).
 CONTEUDO = ("conduta_depoimentos", "conduta_depoimento_arquivos", "conduta_votos")
 
@@ -313,6 +313,18 @@ class TestEliminacao:
         assert [c for c in arquivos if ("conduta-arquivos", c) in comite.banco.storage.objetos] == []
         assert "eliminou_o_conteudo" in comite.acoes(caso)
 
+    def test_o_anexo_do_relato_sai_do_bucket_na_eliminacao(self, comite, emails):
+        caso = comite.encerrado(dia=VENCIDO_HA_CINCO_ANOS)
+        caminho = f"relatos/{caso}/anexo-1"
+        comite.banco.storage.objetos[("conduta-arquivos", caminho)] = b"cifrado"
+        comite.banco.tabelas.setdefault("conduta_relato_anexos", []).append(
+            {"id": "anexo-1", "caso_id": caso, "origem": "relato", "tipo": "pdf", "storage_path": caminho}
+        )
+
+        assert guarda.rodada(comite.banco, HOJE)["eliminados"] == 1
+
+        assert ("conduta-arquivos", caminho) not in comite.banco.storage.objetos
+
     def test_no_ultimo_dia_da_guarda_o_caso_fica(self, comite, emails):
         caso = comite.encerrado(dia=_anos_antes(HOJE, 5))
         comite.com_voto(caso)
@@ -395,6 +407,9 @@ class TestEliminacao:
         tela = comite.abrir(COORDENACAO, caso)
 
         assert tela["relato"] is None
+        assert tela["relator_nome"] is None
+        assert tela["anexos"] == []
+        assert tela["mensagens"] is None
         assert tela["guarda"]["eliminado_em"]
         assert tela["trilha"]["pode_baixar_dossie"] is False
         assert comite.baixar(COORDENACAO, caso).status_code == 409

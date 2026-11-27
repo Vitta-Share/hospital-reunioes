@@ -157,9 +157,9 @@ export function NotificacoesDropdown() {
       } else if (notif.tipo === "CONTAS_MEDICAS") {
         router.push("/contas-medicas");
       } else if (notif.tipo === "TECNOLOGIA" && notif.referencia_id.startsWith("pergunta:")) {
-        // O aviso da Pergunta da Vitta abre a aba no cartão dela (issue #2118).
-        const pergunta = notif.referencia_id.slice("pergunta:".length);
-        router.push(`/admin/tecnologia?pergunta=${encodeURIComponent(pergunta)}`);
+        // O aviso da Pergunta da Vitta abria o cartão dela na lista Esperando
+        // você, que saiu da aba (issue #2279): o aviso antigo abre a aba.
+        router.push("/admin/tecnologia");
       } else if (notif.tipo === "TECNOLOGIA") {
         router.push(`/admin/tecnologia?demanda=${encodeURIComponent(notif.referencia_id)}`);
       } else if (notif.tipo === "ACEITE_INTERNO") {

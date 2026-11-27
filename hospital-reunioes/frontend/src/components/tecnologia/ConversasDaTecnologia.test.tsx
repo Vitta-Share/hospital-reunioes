@@ -3,12 +3,13 @@
  */
 
 /**
- * A lista lateral das conversas da Tecnologia (issue #1384, PRD #1380, ADR 0077).
+ * O Quadro e a lista da aba Tecnologia, só para ler (issue #1384, PRD #1380;
+ * issue #2279, ADR 0113, decisões 6 e 7).
  *
- * A tela inteira da aba Assistente, com o `fetch` dublado: a lista das
- * Demandas de quem está logado, com o título e a Etapa; o clique que retoma
- * a conversa sem card; o que mostra O que muda na que já tem Vínculo; o
- * "Nova conversa"; e a lista como tela própria no celular.
+ * A tela inteira do Quadro, com o `fetch` dublado: a lista das Demandas, com
+ * o título e a Etapa; o clique que abre o Documento do card; os filtros; o
+ * endereço que acompanha o card aberto; e a lista como tela própria no
+ * celular. O chat, a Conversa da Demanda e os botões que agiam saíram.
  */
 
 import { readFileSync } from "node:fs";
@@ -20,23 +21,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "@/components/ui/Toast";
 import { caixaDoDado } from "@/lib/testes/caixaDoDado";
 
-import { ABERTURA, SEM_CONVERSA_GUARDADA } from "./ChatDaTecnologia";
 import {
+  ACOMPANHAMENTO,
   AMPLIAR,
-  APAGAR,
   ConversasDaTecnologia,
-  DESIGNAR_DE_NOVO,
   FECHAR_O_PAINEL,
   MOSTRAR_AS_QUE_NAO_SERAO_FEITAS,
-  NOVA_CONVERSA,
-  NOVO_PEDIDO,
-  REENVIAR,
-  REVISAR_COM_O_CODIGO_DE_HOJE,
   SEM_ACESSO,
   VOLTAR_AO_QUADRO,
   VOLTAR_PARA_A_LISTA,
 } from "./ConversasDaTecnologia";
-import { ConversaDoChat, FalaDoChat } from "./chat";
 import { Demanda } from "./demandas";
 
 beforeEach(() => {
@@ -63,31 +57,6 @@ function demanda(id: string, titulo: string, extra: Partial<Demanda> = {}): Dema
     tem_vinculo: false,
     o_que_muda: null,
     partes: [],
-    ...extra,
-  };
-}
-
-const ABERTURA_GUARDADA: FalaDoChat = {
-  autor: "ia",
-  texto: ABERTURA,
-  fonte: null,
-  opcoes: ["Bug", "Melhoria"],
-  nao_bateu: false,
-};
-
-function conversa(demandaId: string, extra: Partial<ConversaDoChat> = {}): ConversaDoChat {
-  return {
-    demanda_id: demandaId,
-    estado: "em_andamento",
-    mensagens: [
-      ABERTURA_GUARDADA,
-      { autor: "diretor", texto: "Bug", fonte: null, opcoes: [], nao_bateu: false },
-      { autor: "ia", texto: "Onde isso aconteceu?", fonte: null, opcoes: [], nao_bateu: false },
-    ],
-    resumo: null,
-    anexos: 0,
-    planejamento: false,
-    aviso_dos_anexos: null,
     ...extra,
   };
 }
@@ -134,7 +103,7 @@ function aPaginaLeOEndereco() {
 }
 
 function lista() {
-  return screen.getByRole("navigation", { name: "Suas conversas" });
+  return screen.getByRole("navigation", { name: "Pedidos" });
 }
 
 const SEM_CARD = demanda("d-1", "Botão de responder some na Ouvidoria");
@@ -194,90 +163,39 @@ describe("A lista", () => {
     expect(within(itens[1]).getByText("Demanda 7")).toBeTruthy();
   });
 
-  it("sem conversa nenhuma, diz que ainda não há", async () => {
+  it("sem pedido nenhum, diz que ainda não há", async () => {
     montar(() => ({ status: 200, corpo: [] }));
 
-    expect(await within(lista()).findByText("Nenhuma conversa ainda.")).toBeTruthy();
-  });
-});
-
-describe("Retomar", () => {
-  it("clicar numa conversa sem card retoma o chat de onde parou", async () => {
-    const chamadas = montar((url, metodo) => {
-      if (url === LISTA && metodo === "GET") return { status: 200, corpo: [SEM_CARD] };
-      if (url === `${LISTA}/d-1` && metodo === "GET") return { status: 200, corpo: conversa("d-1") };
-      if (url === `${LISTA}/d-1` && metodo === "POST") {
-        const mais: FalaDoChat[] = [
-          { autor: "diretor", texto: "Na Ouvidoria", fonte: null, opcoes: [], nao_bateu: false },
-          { autor: "ia", texto: "O que aconteceu?", fonte: null, opcoes: [], nao_bateu: false },
-        ];
-        return { status: 200, corpo: conversa("d-1", { mensagens: [...conversa("d-1").mensagens, ...mais] }) };
-      }
-      return { status: 404, corpo: {} };
-    });
-
-    fireEvent.click(await within(lista()).findByRole("button", { name: /Botão de responder some/ }));
-
-    expect(await screen.findByText("Onde isso aconteceu?")).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Sua mensagem"), { target: { value: "Na Ouvidoria" } });
-    fireEvent.click(screen.getByRole("button", { name: "Enviar mensagem" }));
-
-    expect(await screen.findByText("O que aconteceu?")).toBeTruthy();
-    expect(chamadas.find((c) => c.metodo === "POST")).toMatchObject({
-      url: `${LISTA}/d-1`,
-      corpo: { texto: "Na Ouvidoria", prints: [] },
-    });
-  });
-});
-
-describe("O custo da conversa (issue #1439)", () => {
-  it("aparece no alto da conversa aberta, e nunca na lista", async () => {
-    montar((url) => {
-      if (url === LISTA) return { status: 200, corpo: [SEM_CARD] };
-      if (url === `${LISTA}/d-1`) {
-        return { status: 200, corpo: conversa("d-1", { custo: { modelo: "Opus 5.5", custo_usd: 1.84 } }) };
-      }
-      return { status: 404, corpo: {} };
-    });
-
-    fireEvent.click(await within(lista()).findByRole("button", { name: /Botão de responder some/ }));
-
-    expect(await screen.findByText("Opus 5.5 · US$ 1,84 até agora")).toBeTruthy();
-    expect(within(lista()).queryByText(/US\$|Opus/)).toBeNull();
-  });
-});
-
-describe("O pedido de antes do chat (issue #1386)", () => {
-  it("sem conversa guardada, diz que ela não ficou aqui e não manda a tela nenhuma", async () => {
-    montar((url, metodo) => {
-      if (url === LISTA && metodo === "GET") return { status: 200, corpo: [SEM_CARD] };
-      return { status: 404, corpo: { detail: "Esta conversa não foi encontrada." } };
-    });
-
-    fireEvent.click(await within(lista()).findByRole("button", { name: /Botão de responder some/ }));
-
-    expect(await screen.findByText(SEM_CONVERSA_GUARDADA)).toBeTruthy();
-    // A tela do Planejamento de antes saiu: nenhum link leva a ela.
-    expect(screen.queryByRole("link")).toBeNull();
+    expect(await within(lista()).findByText("Nenhum pedido ainda.")).toBeTruthy();
   });
 });
 
 describe("Acompanhar", () => {
-  it("clicar numa conversa com Vínculo mostra a conversa e o Documento do card", async () => {
+  it("clicar num pedido com Vínculo mostra o Documento do card, sem conversa", async () => {
     montar((url) => {
       if (url === LISTA) return { status: 200, corpo: [COM_VINCULO] };
-      if (url === `${LISTA}/d-2`) {
-        return { status: 200, corpo: conversa("d-2", { estado: "enviado" }) };
-      }
       return { status: 404, corpo: {} };
     });
 
     fireEvent.click(await within(lista()).findByRole("button", { name: /Aviso quando a ata sair/ }));
 
-    const oQueMuda = await screen.findByRole("region", { name: "Documento do card" });
+    const oQueMuda = await screen.findByRole("region", { name: ACOMPANHAMENTO });
     expect(within(oQueMuda).getByText("Agora o aviso da ata chega por e-mail.")).toBeTruthy();
-    expect(await screen.findByText("Onde isso aconteceu?")).toBeTruthy();
+    // Só para ler (issue #2279): nem a conversa com o agente, nem a Conversa da Demanda.
+    expect(screen.queryByRole("region", { name: "Conversa da Demanda" })).toBeNull();
     expect(screen.queryByLabelText("Sua mensagem")).toBeNull();
+  });
+
+  it("o pedido validado mostra Plano validado em ao lado da Etapa (issue #1915)", async () => {
+    montar((url) => {
+      if (url === LISTA) return { status: 200, corpo: [{ ...COM_VINCULO, validado_em: "2026-11-16T13:05:00.000Z" }] };
+      return { status: 404, corpo: {} };
+    });
+
+    fireEvent.click(await within(lista()).findByRole("button", { name: /Aviso quando a ata sair/ }));
+
+    const selo = await screen.findByText("Plano validado em 16/11/2026");
+    expect(selo.parentElement?.querySelector('[aria-label^="Etapa: "]')).toBeTruthy();
   });
 
   it("sem o texto da Vitta, diz Descrição em preparação", async () => {
@@ -288,34 +206,8 @@ describe("Acompanhar", () => {
 
     fireEvent.click(await within(lista()).findByRole("button", { name: /Aviso quando a ata sair/ }));
 
-    const oQueMuda = await screen.findByRole("region", { name: "Documento do card" });
+    const oQueMuda = await screen.findByRole("region", { name: ACOMPANHAMENTO });
     expect(within(oQueMuda).getByText("Descrição em preparação")).toBeTruthy();
-  });
-});
-
-describe("Nova conversa", () => {
-  it("abre o chat do zero, e o primeiro turno faz a Demanda entrar na lista", async () => {
-    let demandas: Demanda[] = [SEM_CARD];
-    const chamadas = montar((url, metodo) => {
-      if (url === LISTA && metodo === "GET") return { status: 200, corpo: demandas };
-      if (url === `${LISTA}/d-1`) return { status: 200, corpo: conversa("d-1") };
-      if (url === LISTA && metodo === "POST") {
-        demandas = [demanda("d-9", "O relatório some"), SEM_CARD];
-        return { status: 201, corpo: conversa("d-9") };
-      }
-      return { status: 404, corpo: {} };
-    });
-    fireEvent.click(await within(lista()).findByRole("button", { name: /Botão de responder some/ }));
-    await screen.findByText("Onde isso aconteceu?");
-
-    fireEvent.click(screen.getByRole("button", { name: NOVA_CONVERSA }));
-
-    expect(screen.getByText(ABERTURA)).toBeTruthy();
-    expect(screen.queryByText("Onde isso aconteceu?")).toBeNull();
-    const chat = screen.getByRole("region", { name: "Conversa aberta" });
-    fireEvent.click(within(chat).getByRole("button", { name: "Bug" }));
-    expect(await within(lista()).findByText("O relatório some")).toBeTruthy();
-    expect(chamadas.find((c) => c.metodo === "POST")).toMatchObject({ url: LISTA, corpo: { escolha: "bug" } });
   });
 });
 
@@ -323,7 +215,6 @@ describe("Caixa alta (ADR 0080, issue #1455)", () => {
   it("o título da Demanda aparece como foi escrito, na lista e no alto da conversa", async () => {
     montar((url) => {
       if (url === LISTA) return { status: 200, corpo: [COM_VINCULO] };
-      if (url === `${LISTA}/d-2`) return { status: 200, corpo: conversa("d-2", { estado: "enviado" }) };
       return { status: 404, corpo: {} };
     });
 
@@ -340,11 +231,10 @@ describe("No celular", () => {
   it("a lista é a tela de entrada, e a conversa aberta tem o caminho de volta", async () => {
     montar((url) => {
       if (url === LISTA) return { status: 200, corpo: [SEM_CARD] };
-      if (url === `${LISTA}/d-1`) return { status: 200, corpo: conversa("d-1") };
       return { status: 404, corpo: {} };
     });
     const painelDaLista = () => lista().parentElement as HTMLElement;
-    const painelDoChat = () => screen.getByRole("region", { name: "Conversa aberta" });
+    const painelDoChat = () => screen.getByRole("region", { name: "Pedido na tela" });
 
     // Na largura do celular só um dos dois aparece: `hidden` esconde, e o
     // `md:` devolve os dois lado a lado na tela larga.
@@ -353,7 +243,7 @@ describe("No celular", () => {
     expect(painelDoChat().className).toMatch(/(^|\s)hidden(\s|$)/);
 
     fireEvent.click(within(lista()).getByRole("button", { name: /Botão de responder some/ }));
-    await screen.findByText("Onde isso aconteceu?");
+    await screen.findByRole("region", { name: ACOMPANHAMENTO });
     expect(painelDaLista().className).toMatch(/(^|\s)hidden(\s|$)/);
     expect(painelDoChat().className).not.toMatch(/(^|\s)hidden(\s|$)/);
 
@@ -374,7 +264,7 @@ describe("O Desenvolvedor (issue #1531, ADR 0083)", () => {
     etapa: "em_desenvolvimento",
     tem_vinculo: true,
     issue_numero: 912,
-    issue_url: "https://github.com/pedrorezendefig/hospital-reunioes/issues/912",
+    issue_url: "https://github.com/Vitta-Share/hospital-reunioes/issues/912",
   });
 
   it("vê o filtro Todas, que traz as Demandas de todos com o autor em cada linha", async () => {
@@ -407,43 +297,17 @@ describe("O Desenvolvedor (issue #1531, ADR 0083)", () => {
     expect(screen.queryByRole("button", { name: "Todas" })).toBeNull();
   });
 
-  it("abre a Demanda de outro autor só para ler: a entrevista inteira e os Anexos", async () => {
-    montar((url) => {
-      if (url === EU) return { status: 200, corpo: { desenvolvedor: true } };
-      if (url === PARA_MIM) return { status: 200, corpo: [DO_DIRETOR] };
-      if (url === `${LISTA}/d-7`) {
-        return {
-          status: 200,
-          corpo: conversa("d-7", {
-            anexos: 1,
-            anexos_da_demanda: [{ nome: "tela.png", tipo: "image/png", url: "https://storage.local/tela.png?t=1" }],
-          }),
-        };
-      }
-      return { status: 404, corpo: {} };
-    });
-
-    fireEvent.click(await within(lista()).findByRole("button", { name: /O relatório some/ }));
-
-    expect(await screen.findByText("Onde isso aconteceu?")).toBeTruthy();
-    expect(screen.getByText(ABERTURA)).toBeTruthy();
-    const anexo = await screen.findByRole("link", { name: /tela\.png/ });
-    expect(anexo.getAttribute("href")).toBe("https://storage.local/tela.png?t=1");
-    expect(screen.queryByLabelText("Sua mensagem")).toBeNull();
-  });
-
   it("vê o número e o link da issue na Demanda que já tem card", async () => {
     montar((url) => {
       if (url === EU) return { status: 200, corpo: { desenvolvedor: true } };
       if (url === PARA_MIM) return { status: 200, corpo: [COM_CARD_DE_OUTRO] };
-      if (url === `${LISTA}/d-8`) return { status: 200, corpo: conversa("d-8", { estado: "enviado" }) };
       return { status: 404, corpo: {} };
     });
 
     fireEvent.click(await within(lista()).findByRole("button", { name: /O botão sumiu/ }));
 
     const link = await screen.findByRole("link", { name: "#912" });
-    expect(link.getAttribute("href")).toBe("https://github.com/pedrorezendefig/hospital-reunioes/issues/912");
+    expect(link.getAttribute("href")).toBe("https://github.com/Vitta-Share/hospital-reunioes/issues/912");
   });
 
   // ─── O Responsável e o Para mim (issue #1533, ADR 0083, decisão 5) ────────
@@ -525,92 +389,12 @@ describe("O Responsável na lista (issue #1533, ADR 0083)", () => {
   });
 });
 
-describe("A Conversa da Demanda e o aviso do sino (issue #1537, ADR 0083)", () => {
-  const EU = "/api/admin/tecnologia/eu";
-  const TODAS = `${LISTA}?filtro=todas`;
-  const PARA_MIM = `${LISTA}?filtro=para_mim`;
-  const DO_DIRETOR = demanda("d-7", "O relatório some", { minha: false, autor: "Diretor do Hospital" });
-  const CONVERSA_DA_DEMANDA = { mensagens: [], mencionaveis: [] };
-
-  it("a Demanda aberta mostra a Conversa da Demanda numa área própria, e a conversa nova não", async () => {
-    montar((url) => {
-      if (url === LISTA) return { status: 200, corpo: [COM_VINCULO] };
-      if (url === `${LISTA}/d-2`) return { status: 200, corpo: conversa("d-2", { estado: "enviado" }) };
-      if (url === `${LISTA}/d-2/conversa`) return { status: 200, corpo: CONVERSA_DA_DEMANDA };
-      return { status: 404, corpo: {} };
-    });
-
-    await within(lista()).findByText("Aviso quando a ata sair");
-    expect(screen.queryByRole("region", { name: "Conversa da Demanda" })).toBeNull();
-
-    fireEvent.click(within(lista()).getByRole("button", { name: /Aviso quando a ata sair/ }));
-
-    expect(await screen.findByRole("region", { name: "Conversa da Demanda" })).toBeTruthy();
-  });
-
-  it("o aviso do sino abre a Demanda do diretor", async () => {
-    const chamadas = montar(
-      (url) => {
-        if (url === EU) return { status: 200, corpo: { desenvolvedor: false } };
-        if (url === LISTA) return { status: 200, corpo: [SEM_CARD, COM_VINCULO] };
-        if (url === `${LISTA}/d-2`) return { status: 200, corpo: conversa("d-2", { estado: "enviado" }) };
-        if (url === `${LISTA}/d-2/conversa`) return { status: 200, corpo: CONVERSA_DA_DEMANDA };
-        return { status: 404, corpo: {} };
-      },
-      "d-2",
-    );
-
-    expect(await screen.findByText("Agora o aviso da ata chega por e-mail.")).toBeTruthy();
-    await waitFor(() => expect(chamadas.some((c) => c.url === `${LISTA}/d-2/conversa`)).toBe(true));
-    expect(within(lista()).getByRole("button", { name: /Aviso quando a ata sair/ }).getAttribute("aria-current")).toBe(
-      "true",
-    );
-  });
-
-  it("com a Demanda escondida pelo Para mim, o filtro muda para Todas e o card abre (issue #1586)", async () => {
-    const chamadas = montar(
-      (url) => {
-        if (url === EU) return { status: 200, corpo: { desenvolvedor: true } };
-        if (url === PARA_MIM) return { status: 200, corpo: [] };
-        if (url === TODAS) return { status: 200, corpo: [SEM_CARD, DO_DIRETOR] };
-        if (url === `${LISTA}/d-7`) return { status: 200, corpo: conversa("d-7") };
-        if (url === `${LISTA}/d-7/conversa`) return { status: 200, corpo: CONVERSA_DA_DEMANDA };
-        return { status: 404, corpo: {} };
-      },
-      "d-7",
-    );
-
-    // Duas voltas de lista (Para mim, depois Todas) antes de o card abrir: folga no tempo.
-    expect(await screen.findByText("Onde isso aconteceu?", {}, { timeout: 3000 })).toBeTruthy();
-    expect(await screen.findByRole("region", { name: "Conversa da Demanda" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Todas" }).getAttribute("aria-pressed")).toBe("true");
-    expect(chamadas.filter((c) => c.url.startsWith(`${LISTA}?`)).map((c) => c.url)).toEqual([PARA_MIM, TODAS]);
-  });
-});
-
-describe("Envio falhou (issue #1535, ADR 0083, decisão 7)", () => {
-  const EU = "/api/admin/tecnologia/eu";
-  const REENVIAR = `${LISTA}/d-1/reenviar`;
+describe("O selo Envio falhou (issue #1535, ADR 0083, decisão 7)", () => {
   const FALHOU = demanda("d-1", "Botão de responder some na Ouvidoria", {
     classificacao: "bug",
     envio_falhou: true,
     envio_motivo: null,
   });
-  const CRIADA = demanda("d-1", "Botão de responder some na Ouvidoria", {
-    classificacao: "bug",
-    tem_vinculo: true,
-    etapa: "em_analise",
-    envio_falhou: false,
-  });
-  const RESUMO = {
-    titulo: "Botão de responder some na Ouvidoria",
-    onde: "Ouvidoria",
-    o_que_aconteceu: "O botão sumiu",
-    o_que_esperava: "Ver o botão",
-    como_repetir: "não informado",
-    criterios: ["O botão aparece"],
-  };
-  const RESUMIDA = conversa("d-1", { estado: "resumido", resumo: RESUMO });
 
   function linha(titulo: RegExp) {
     return within(lista()).getByRole("button", { name: titulo });
@@ -622,221 +406,6 @@ describe("Envio falhou (issue #1535, ADR 0083, decisão 7)", () => {
     await within(lista()).findByText("Botão de responder some na Ouvidoria");
     expect(within(linha(/Botão de responder/)).getByText("Envio falhou")).toBeTruthy();
     expect(within(linha(/Aviso quando a ata/)).queryByText("Envio falhou")).toBeNull();
-  });
-
-  it("o diretor clica em Reenviar, o card nasce e o selo sai, sem ver motivo técnico", async () => {
-    let enviado = false;
-    const chamadas = montar((url, metodo) => {
-      if (url === LISTA) return { status: 200, corpo: [enviado ? CRIADA : FALHOU] };
-      if (url === `${LISTA}/d-1` && metodo === "GET") return { status: 200, corpo: RESUMIDA };
-      if (url === REENVIAR && metodo === "POST") {
-        enviado = true;
-        return { status: 200, corpo: { ...RESUMIDA, estado: "enviado" } };
-      }
-      return { status: 404, corpo: {} };
-    });
-
-    fireEvent.click(await within(lista()).findByRole("button", { name: /Botão de responder/ }));
-    const aviso = await screen.findByRole("region", { name: "Envio falhou" });
-    expect(aviso.textContent).not.toContain("GitHub");
-    fireEvent.click(within(aviso).getByRole("button", { name: "Reenviar" }));
-
-    await waitFor(() => expect(screen.queryByRole("region", { name: "Envio falhou" })).toBeNull());
-    expect(chamadas.filter((c) => c.url === REENVIAR && c.metodo === "POST")).toHaveLength(1);
-    await waitFor(() => expect(within(linha(/Botão de responder/)).queryByText("Envio falhou")).toBeNull());
-  });
-
-  it("o Desenvolvedor filtra Envio falhou, vê o motivo e reenvia o pedido de outro autor", async () => {
-    const deOutro = { ...FALHOU, minha: false, autor: "Diretor do Hospital", envio_motivo: "GitHub respondeu 502" };
-    const chamadas = montar((url, metodo) => {
-      if (url === EU) return { status: 200, corpo: { desenvolvedor: true } };
-      // A lista abre em Para mim, e a rota de verdade devolve aqui as falhas de
-      // todos os autores, sem card e sem Responsavel: e o que prova
-      // `test_envio_falhou_partindo_de_para_mim_mostra_as_falhas_de_todos`.
-      if (url === `${LISTA}?filtro=para_mim&envio_falhou=true`) return { status: 200, corpo: [deOutro] };
-      if (url === `${LISTA}/d-1` && metodo === "GET") return { status: 200, corpo: RESUMIDA };
-      if (url === REENVIAR) return { status: 200, corpo: { ...RESUMIDA, estado: "enviado" } };
-      return { status: 200, corpo: [] };
-    });
-
-    fireEvent.click(await screen.findByRole("switch", { name: "Só envio falhou" }));
-    fireEvent.click(await within(lista()).findByRole("button", { name: /Botão de responder/ }));
-
-    const aviso = await screen.findByRole("region", { name: "Envio falhou" });
-    expect(within(aviso).getByText("GitHub respondeu 502")).toBeTruthy();
-    fireEvent.click(within(aviso).getByRole("button", { name: "Reenviar" }));
-    await waitFor(() => expect(chamadas.some((c) => c.url === REENVIAR && c.metodo === "POST")).toBe(true));
-  });
-
-  it("o Reenviar que falha de novo mostra a frase do servidor e o aviso fica", async () => {
-    montar((url, metodo) => {
-      if (url === LISTA) return { status: 200, corpo: [FALHOU] };
-      if (url === `${LISTA}/d-1` && metodo === "GET") return { status: 200, corpo: RESUMIDA };
-      if (url === REENVIAR) return { status: 502, corpo: { detail: "O GitHub não respondeu. Tente de novo." } };
-      return { status: 404, corpo: {} };
-    });
-
-    fireEvent.click(await within(lista()).findByRole("button", { name: /Botão de responder/ }));
-    const aviso = await screen.findByRole("region", { name: "Envio falhou" });
-    fireEvent.click(within(aviso).getByRole("button", { name: "Reenviar" }));
-
-    expect(await within(aviso).findByText("O GitHub não respondeu. Tente de novo.")).toBeTruthy();
-    expect(screen.getByRole("region", { name: "Envio falhou" })).toBeTruthy();
-  });
-
-  it("o Criar o card que falha faz a lista reler e mostrar o selo", async () => {
-    let falhou = false;
-    montar((url, metodo) => {
-      if (url === LISTA) return { status: 200, corpo: [falhou ? FALHOU : { ...FALHOU, envio_falhou: false }] };
-      if (url === `${LISTA}/d-1` && metodo === "GET") return { status: 200, corpo: RESUMIDA };
-      if (url === `${LISTA}/d-1/criar-card` && metodo === "POST") {
-        falhou = true;
-        return { status: 502, corpo: { detail: "O GitHub não respondeu. Tente de novo." } };
-      }
-      return { status: 404, corpo: {} };
-    });
-
-    fireEvent.click(await within(lista()).findByRole("button", { name: /Botão de responder/ }));
-    fireEvent.click(await screen.findByRole("button", { name: "Criar o card" }));
-
-    await waitFor(() => expect(within(linha(/Botão de responder/)).getByText("Envio falhou")).toBeTruthy());
-  });
-});
-
-describe("Designação falhou (issue #1536, ADR 0083, decisão 7)", () => {
-  const EU = "/api/admin/tecnologia/eu";
-  const PARA_MIM = `${LISTA}?filtro=para_mim`;
-  const DESIGNAR = `${LISTA}/d-1/designar-de-novo`;
-  const SEM_DONO = demanda("d-1", "Botão de responder some na Ouvidoria", {
-    classificacao: "bug",
-    tem_vinculo: true,
-    etapa: "em_analise",
-    issue_numero: 900,
-    designacao_falhou: true,
-    envio_motivo: "A issue #900 nasceu sem o Responsável (lucas-vitta)",
-  });
-  const DESIGNADA = { ...SEM_DONO, designacao_falhou: false, envio_motivo: null };
-
-  it("o Desenvolvedor vê o estado com o motivo e Designar de novo o resolve", async () => {
-    let designada = false;
-    const chamadas = montar((url, metodo) => {
-      if (url === EU) return { status: 200, corpo: { desenvolvedor: true } };
-      if (url === PARA_MIM) return { status: 200, corpo: [designada ? DESIGNADA : SEM_DONO] };
-      if (url === DESIGNAR && metodo === "POST") {
-        designada = true;
-        return { status: 200, corpo: DESIGNADA };
-      }
-      return { status: 404, corpo: {} };
-    });
-
-    fireEvent.click(await within(lista()).findByRole("button", { name: /Botão de responder/ }));
-    const aviso = await screen.findByRole("region", { name: "Designação falhou" });
-    expect(within(aviso).getByText("A issue #900 nasceu sem o Responsável (lucas-vitta)")).toBeTruthy();
-    fireEvent.click(within(aviso).getByRole("button", { name: "Designar de novo" }));
-
-    await waitFor(() => expect(screen.queryByRole("region", { name: "Designação falhou" })).toBeNull());
-    expect(chamadas.filter((c) => c.url === DESIGNAR && c.metodo === "POST")).toHaveLength(1);
-  });
-
-  it("o Designar de novo que falha mostra a frase do servidor e o aviso fica", async () => {
-    montar((url) => {
-      if (url === EU) return { status: 200, corpo: { desenvolvedor: true } };
-      if (url === PARA_MIM) return { status: 200, corpo: [SEM_DONO] };
-      if (url === DESIGNAR) return { status: 502, corpo: { detail: "O GitHub não respondeu. Tente de novo." } };
-      return { status: 404, corpo: {} };
-    });
-
-    fireEvent.click(await within(lista()).findByRole("button", { name: /Botão de responder/ }));
-    const aviso = await screen.findByRole("region", { name: "Designação falhou" });
-    fireEvent.click(within(aviso).getByRole("button", { name: "Designar de novo" }));
-
-    expect(await within(aviso).findByText("O GitHub não respondeu. Tente de novo.")).toBeTruthy();
-  });
-
-  it("o diretor não vê o estado nem o botão", async () => {
-    montar((url) => (url === LISTA ? { status: 200, corpo: [SEM_DONO] } : { status: 404, corpo: {} }));
-
-    fireEvent.click(await within(lista()).findByRole("button", { name: /Botão de responder/ }));
-
-    await screen.findByRole("heading", { name: "Botão de responder some na Ouvidoria" });
-    expect(screen.queryByRole("region", { name: "Designação falhou" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Designar de novo" })).toBeNull();
-  });
-});
-
-describe("Apagar a Demanda (issue #1549, ADR 0084, decisão 2)", () => {
-  const APAGAR_URL = `${LISTA}/d-1`;
-  const PODE = demanda("d-1", "Botão de responder some na Ouvidoria", { pode_apagar: true });
-  const NAO_PODE = demanda("d-1", "Botão de responder some na Ouvidoria", { pode_apagar: false });
-
-  function dialogo() {
-    return screen.queryByRole("dialog");
-  }
-
-  it("quem pode apagar vê o botão Apagar na conversa aberta, e quem não pode não vê", async () => {
-    montar((url) => (url === LISTA ? { status: 200, corpo: [PODE] } : { status: 200, corpo: conversa("d-1") }));
-    fireEvent.click(await within(lista()).findByRole("button", { name: /Botão de responder/ }));
-    expect(await screen.findByRole("button", { name: "Apagar" })).toBeTruthy();
-    cleanup();
-
-    montar((url) => (url === LISTA ? { status: 200, corpo: [NAO_PODE] } : { status: 200, corpo: conversa("d-1") }));
-    fireEvent.click(await within(lista()).findByRole("button", { name: /Botão de responder/ }));
-    await screen.findByText("Onde isso aconteceu?");
-    expect(screen.queryByRole("button", { name: "Apagar" })).toBeNull();
-  });
-
-  it("o clique pede confirmação antes de apagar, e Cancelar não apaga nada", async () => {
-    const chamadas = montar((url) =>
-      url === LISTA ? { status: 200, corpo: [PODE] } : { status: 200, corpo: conversa("d-1") },
-    );
-    fireEvent.click(await within(lista()).findByRole("button", { name: /Botão de responder/ }));
-
-    fireEvent.click(await screen.findByRole("button", { name: "Apagar" }));
-
-    const confirmacao = await screen.findByRole("dialog");
-    expect(within(confirmacao).getByRole("heading", { name: "Apagar este pedido?" })).toBeTruthy();
-    expect(chamadas.some((c) => c.metodo === "DELETE")).toBe(false);
-    fireEvent.click(within(confirmacao).getByRole("button", { name: "Cancelar" }));
-
-    await waitFor(() => expect(dialogo()).toBeNull());
-    expect(chamadas.some((c) => c.metodo === "DELETE")).toBe(false);
-  });
-
-  it("confirmar apaga, e o pedido some da lista", async () => {
-    let apagada = false;
-    const chamadas = montar((url, metodo) => {
-      if (url === LISTA) return { status: 200, corpo: apagada ? [COM_VINCULO] : [PODE, COM_VINCULO] };
-      if (url === APAGAR_URL && metodo === "DELETE") {
-        apagada = true;
-        return { status: 204, corpo: null };
-      }
-      return { status: 200, corpo: conversa("d-1") };
-    });
-    fireEvent.click(await within(lista()).findByRole("button", { name: /Botão de responder/ }));
-    fireEvent.click(await screen.findByRole("button", { name: "Apagar" }));
-
-    const confirmacao = await screen.findByRole("dialog");
-    fireEvent.click(within(confirmacao).getByRole("button", { name: "Apagar" }));
-
-    await waitFor(() => expect(within(lista()).queryByText("Botão de responder some na Ouvidoria")).toBeNull());
-    expect(chamadas.filter((c) => c.url === APAGAR_URL && c.metodo === "DELETE")).toHaveLength(1);
-    expect(within(lista()).getByText("Aviso quando a ata sair")).toBeTruthy();
-  });
-
-  it("a recusa do servidor aparece na tela e o pedido fica", async () => {
-    montar((url, metodo) => {
-      if (url === LISTA) return { status: 200, corpo: [PODE] };
-      if (url === APAGAR_URL && metodo === "DELETE") {
-        return { status: 502, corpo: { detail: "O GitHub não respondeu, e o card não foi fechado lá." } };
-      }
-      return { status: 200, corpo: conversa("d-1") };
-    });
-    fireEvent.click(await within(lista()).findByRole("button", { name: /Botão de responder/ }));
-    fireEvent.click(await screen.findByRole("button", { name: "Apagar" }));
-    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Apagar" }));
-
-    expect(await screen.findByText("O GitHub não respondeu, e o card não foi fechado lá.")).toBeTruthy();
-    expect(within(lista()).getByText("Botão de responder some na Ouvidoria")).toBeTruthy();
   });
 });
 
@@ -993,15 +562,13 @@ describe("O pedido ao lado da lista e o Ampliar (issue #1593)", () => {
   function comDuas() {
     return montar((url) => {
       if (url === LISTA) return { status: 200, corpo: [SEM_CARD, OUTRO] };
-      if (url === `${LISTA}/d-1`) return { status: 200, corpo: conversa("d-1") };
-      if (url === `${LISTA}/d-3`) return { status: 200, corpo: conversa("d-3") };
       return { status: 404, corpo: {} };
     });
   }
 
   const painelDaLista = () => lista().parentElement as HTMLElement;
   const filtros = () => screen.getByRole("region", { name: "Filtros da lista" });
-  const aberto = () => screen.getByRole("region", { name: "Conversa aberta" });
+  const aberto = () => screen.getByRole("region", { name: "Pedido na tela" });
   const voltar = () => screen.getByRole("button", { name: VOLTAR_PARA_A_LISTA });
   const cardDe = (titulo: RegExp) =>
     within(lista())
@@ -1027,7 +594,7 @@ describe("O pedido ao lado da lista e o Ampliar (issue #1593)", () => {
     await within(lista()).findByText("Botão de responder some na Ouvidoria");
 
     fireEvent.click(within(lista()).getByRole("button", { name: /Botão de responder some/ }));
-    await screen.findByText("Onde isso aconteceu?");
+    await screen.findByRole("region", { name: ACOMPANHAMENTO });
 
     listaAoLado();
   });
@@ -1037,7 +604,7 @@ describe("O pedido ao lado da lista e o Ampliar (issue #1593)", () => {
     await within(lista()).findByText("Botão de responder some na Ouvidoria");
 
     fireEvent.click(within(cardDe(/Botão de responder some/)).getByRole("button", { name: AMPLIAR }));
-    await screen.findByText("Onde isso aconteceu?");
+    await screen.findByRole("region", { name: ACOMPANHAMENTO });
     listaRecolhida();
 
     fireEvent.click(voltar());
@@ -1050,7 +617,7 @@ describe("O pedido ao lado da lista e o Ampliar (issue #1593)", () => {
     await within(lista()).findByText("Botão de responder some na Ouvidoria");
 
     fireEvent.click(within(lista()).getByRole("button", { name: /Botão de responder some/ }));
-    await screen.findByText("Onde isso aconteceu?");
+    await screen.findByRole("region", { name: ACOMPANHAMENTO });
     listaAoLado();
 
     fireEvent.click(within(aberto()).getByRole("button", { name: AMPLIAR }));
@@ -1071,7 +638,7 @@ describe("O pedido ao lado da lista e o Ampliar (issue #1593)", () => {
     await within(lista()).findByText("Botão de responder some na Ouvidoria");
 
     fireEvent.click(within(cardDe(/Botão de responder some/)).getByRole("button", { name: AMPLIAR }));
-    await screen.findByText("Onde isso aconteceu?");
+    await screen.findByRole("region", { name: ACOMPANHAMENTO });
     listaRecolhida();
     fireEvent.click(voltar());
 
@@ -1080,17 +647,6 @@ describe("O pedido ao lado da lista e o Ampliar (issue #1593)", () => {
     listaAoLado();
   });
 
-  it("o Ampliar do cartão fica visível sem passar o mouse, e o Conversar segue no hover", async () => {
-    comDuas();
-    await within(lista()).findByText("Botão de responder some na Ouvidoria");
-    const card = cardDe(/Botão de responder some/);
-
-    const ampliar = within(card).getByRole("button", { name: AMPLIAR }).className.split(/\s+/);
-    expect(ampliar.filter((c) => /opacity-0/.test(c))).toEqual([]);
-    expect(ampliar).toContain("md:inline-flex");
-    const conversar = within(card).getByRole("button", { name: "Conversar" }).className.split(/\s+/);
-    expect(conversar).toContain("md:opacity-0");
-  });
 });
 
 describe("O card da conversa (issue #1578)", () => {
@@ -1161,51 +717,6 @@ describe("O card da conversa (issue #1578)", () => {
     for (const c of comTranslate) expect(c.startsWith("motion-safe:")).toBe(true);
   });
 
-  it("Conversar abre a Demanda com a caixa da Conversa da Demanda em foco", async () => {
-    comCard();
-    const item = await card();
-
-    fireEvent.click(within(item).getByRole("button", { name: "Conversar" }));
-
-    const caixa = await screen.findByRole("textbox", { name: "Mensagem para a Conversa" });
-    await waitFor(() => expect(document.activeElement).toBe(caixa));
-  });
-
-  it("clicar no card abre a Demanda sem roubar o foco para a Conversa", async () => {
-    comCard();
-    const item = await card();
-
-    fireEvent.click(within(item).getByRole("button", { name: /Ata de reunião longa/ }));
-
-    const caixa = await screen.findByRole("textbox", { name: "Mensagem para a Conversa" });
-    expect(document.activeElement).not.toBe(caixa);
-  });
-
-  it("na vista ao lado a Conversa da Demanda fica embaixo do documento, sem terceira coluna (issue #1593)", async () => {
-    comCard();
-    const item = await card();
-
-    fireEvent.click(within(item).getByRole("button", { name: /Ata de reunião longa/ }));
-
-    const conversaDaDemanda = await screen.findByRole("region", { name: "Conversa da Demanda" });
-    const coluna = conversaDaDemanda.parentElement as HTMLElement;
-    expect(coluna.className).not.toMatch(/xl:sticky/);
-    expect((coluna.parentElement as HTMLElement).className).not.toMatch(/xl:grid-cols-/);
-    const documento = screen.getByRole("heading", { name: "Ata de reunião longa para com erro" });
-    expect(documento.compareDocumentPosition(conversaDaDemanda) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-
-  it("ampliado, a Conversa da Demanda fica numa coluna à direita, fixa na rolagem", async () => {
-    comCard();
-    const item = await card();
-
-    fireEvent.click(within(item).getByRole("button", { name: AMPLIAR }));
-
-    const conversaDaDemanda = await screen.findByRole("region", { name: "Conversa da Demanda" });
-    const coluna = conversaDaDemanda.parentElement as HTMLElement;
-    expect(coluna.className).toMatch(/xl:sticky/);
-    expect((coluna.parentElement as HTMLElement).className).toMatch(/xl:grid-cols-/);
-  });
 });
 
 describe("Os cards que a Vitta abre pelo terminal (issue #1554, ADR 0084, decisão 4)", () => {
@@ -1256,133 +767,6 @@ describe("Os cards que a Vitta abre pelo terminal (issue #1554, ADR 0084, decis�
     await waitFor(() => expect(chamadas.at(-1)?.url).toBe(`${LISTA}?origem=diretor`));
   });
 
-  it("o card Vitta abre o documento e a Conversa da Demanda, sem o chat do agente", async () => {
-    const chamadas = comoDiretor();
-    await within(lista()).findByText("Ouvidoria: prazo por setor");
-
-    fireEvent.click(within(lista()).getByRole("button", { name: /Ouvidoria: prazo por setor/ }));
-
-    expect(await screen.findByRole("region", { name: "Conversa da Demanda" })).toBeTruthy();
-    const aberta = screen.getByRole("region", { name: "Conversa aberta" });
-    expect(within(aberta).getByText("o prazo aparece por setor.")).toBeTruthy();
-    expect(within(aberta).queryByText(ABERTURA)).toBeNull();
-    expect(chamadas.map((c) => c.url)).not.toContain(`${LISTA}/d-v`);
-  });
-});
-
-describe("Revisar com o código de hoje (issue #1557, ADR 0084, decisão 3)", () => {
-  const REVISAO = `${LISTA}/d-2/revisao`;
-  const CARD = demanda("d-2", "Retorno marcado na saída", {
-    etapa: "em_analise",
-    tem_vinculo: true,
-    classificacao: "melhoria",
-    pode_revisar: true,
-  });
-  const EM_REVISAO = { ...CARD, pode_revisar: false, em_revisao: true };
-  const ESTIMATIVA = { modelo: "Opus 5.5", minimo_usd: 0.42, maximo_usd: 3.1 };
-  const ITEM = "A recepção já marca o retorno na saída do paciente.";
-  const NA_REVISAO = conversa("d-2", {
-    planejamento: true,
-    mensagens: [
-      {
-        autor: "diretor",
-        texto: "Só a recepção.",
-        fonte: null,
-        opcoes: [],
-        nao_bateu: false,
-        respondido_por: "Diretor do Hospital",
-      },
-      {
-        autor: "ia",
-        texto: "Retrato de hoje: o que o sistema já faz, o que mudou desde o card e o que continua em aberto.",
-        fonte: null,
-        opcoes: [],
-        nao_bateu: false,
-        retrato: {
-          ja_existe: [{ item: ITEM, versao: "v0.245.0" }],
-          mudou: ["A enfermagem também vê o retorno."],
-          em_aberto: ["Quem confirma o retorno com o paciente."],
-        },
-      },
-      {
-        autor: "ia",
-        texto: `Isso atende? Já existe desde a v0.245.0: ${ITEM}`,
-        fonte: null,
-        opcoes: ["Atende, pode sair do pedido.", "Não atende, continua no pedido."],
-        recomendada: "B",
-        nao_bateu: false,
-      },
-    ],
-  });
-
-  function abrirOCard() {
-    return within(lista()).findByRole("button", { name: /Retorno marcado na saída/ });
-  }
-
-  it("o botão aparece só no card que o servidor diz que se revisa", async () => {
-    montar((url) => (url === LISTA ? { status: 200, corpo: [CARD] } : { status: 200, corpo: conversa("d-2") }));
-    fireEvent.click(await abrirOCard());
-    expect(await screen.findByRole("button", { name: "Revisar com o código de hoje" })).toBeTruthy();
-    cleanup();
-
-    montar((url) =>
-      url === LISTA
-        ? { status: 200, corpo: [{ ...CARD, pode_revisar: false }] }
-        : { status: 200, corpo: conversa("d-2") },
-    );
-    fireEvent.click(await abrirOCard());
-    await screen.findByRole("heading", { name: "Retorno marcado na saída" });
-    expect(screen.queryByRole("button", { name: "Revisar com o código de hoje" })).toBeNull();
-  });
-
-  it("o clique mostra a estimativa em dólar, e Cancelar não começa a revisão", async () => {
-    const chamadas = montar((url) => {
-      if (url === LISTA) return { status: 200, corpo: [CARD] };
-      if (url === REVISAO) return { status: 200, corpo: ESTIMATIVA };
-      return { status: 200, corpo: conversa("d-2") };
-    });
-    fireEvent.click(await abrirOCard());
-
-    fireEvent.click(await screen.findByRole("button", { name: "Revisar com o código de hoje" }));
-
-    const confirmacao = await screen.findByRole("dialog");
-    expect(
-      await within(confirmacao).findByText(/O Retrato de hoje deve custar entre US\$ 0,42 e US\$ 3,10 no Opus 5\.5\./),
-    ).toBeTruthy();
-    fireEvent.click(within(confirmacao).getByRole("button", { name: "Cancelar" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(chamadas.some((c) => c.url === REVISAO && c.metodo === "POST")).toBe(false);
-  });
-
-  it("confirmar começa a revisão e abre a conversa com o Retrato de hoje e o nome de quem respondeu", async () => {
-    let revisando = false;
-    const chamadas = montar((url, metodo) => {
-      if (url === LISTA) return { status: 200, corpo: [revisando ? EM_REVISAO : CARD] };
-      if (url === REVISAO && metodo === "GET") return { status: 200, corpo: ESTIMATIVA };
-      if (url === REVISAO && metodo === "POST") {
-        revisando = true;
-        return { status: 200, corpo: NA_REVISAO };
-      }
-      return { status: 200, corpo: revisando ? NA_REVISAO : conversa("d-2") };
-    });
-    fireEvent.click(await abrirOCard());
-    fireEvent.click(await screen.findByRole("button", { name: "Revisar com o código de hoje" }));
-    const confirmacao = await screen.findByRole("dialog");
-    await within(confirmacao).findByText(/US\$ 0,42/);
-
-    fireEvent.click(within(confirmacao).getByRole("button", { name: "Revisar" }));
-
-    const retrato = await screen.findByRole("region", { name: "Retrato de hoje" });
-    expect(within(retrato).getByText(ITEM)).toBeTruthy();
-    expect(within(retrato).getByText("desde a v0.245.0")).toBeTruthy();
-    expect(within(retrato).getByText("A enfermagem também vê o retorno.")).toBeTruthy();
-    expect(within(retrato).getByText("Quem confirma o retorno com o paciente.")).toBeTruthy();
-    expect(screen.getByText("Diretor do Hospital")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Não atende, continua no pedido\./ })).toBeTruthy();
-    expect(chamadas.filter((c) => c.url === REVISAO && c.metodo === "POST").map((c) => c.corpo)).toEqual([
-      { confirmado: true },
-    ]);
-  });
 });
 
 describe("O endereço acompanha o card aberto (issue #1586)", () => {
@@ -1391,8 +775,6 @@ describe("O endereço acompanha o card aberto (issue #1586)", () => {
   function comDuas(demandaInicial: string | null = null) {
     return montar((url) => {
       if (url === LISTA) return { status: 200, corpo: [SEM_CARD, OUTRO] };
-      if (url === `${LISTA}/d-1`) return { status: 200, corpo: conversa("d-1") };
-      if (url === `${LISTA}/d-3`) return { status: 200, corpo: conversa("d-3", { mensagens: [ABERTURA_GUARDADA] }) };
       return { status: 404, corpo: {} };
     }, demandaInicial);
   }
@@ -1404,7 +786,7 @@ describe("O endereço acompanha o card aberto (issue #1586)", () => {
     await within(lista()).findByText("Botão de responder some na Ouvidoria");
 
     fireEvent.click(within(lista()).getByRole("button", { name: /Botão de responder some/ }));
-    await screen.findByText("Onde isso aconteceu?");
+    await screen.findByRole("region", { name: ACOMPANHAMENTO });
 
     expect(window.location.pathname).toBe("/admin/tecnologia");
     expect(demandaDaUrl()).toBe("d-1");
@@ -1421,11 +803,11 @@ describe("O endereço acompanha o card aberto (issue #1586)", () => {
     comDuas();
     await within(lista()).findByText("Botão de responder some na Ouvidoria");
     fireEvent.click(within(lista()).getByRole("button", { name: /Botão de responder some/ }));
-    await screen.findByText("Onde isso aconteceu?");
+    await screen.findByRole("region", { name: ACOMPANHAMENTO });
     aPaginaLeOEndereco();
     fireEvent.click(within(lista()).getByRole("button", { name: /Relatório de leitos atrasa/ }));
     aPaginaLeOEndereco();
-    await waitFor(() => expect(screen.queryByText("Onde isso aconteceu?")).toBeNull());
+    await waitFor(() => expect(screen.getAllByText("Relatório de leitos atrasa").length).toBeGreaterThan(1));
 
     // Recarregar: a tela nasce de novo, só com o que está no endereço.
     cleanup();
@@ -1449,7 +831,7 @@ describe("O endereço acompanha o card aberto (issue #1586)", () => {
       .find((item) => within(item).queryByRole("button", { name: /Botão de responder some/ })) as HTMLElement;
 
     fireEvent.click(within(card).getByRole("button", { name: AMPLIAR }));
-    await screen.findByText("Onde isso aconteceu?");
+    await screen.findByRole("region", { name: ACOMPANHAMENTO });
     aPaginaLeOEndereco();
 
     expect((lista().parentElement as HTMLElement).className).toMatch(/(^|\s)md:hidden(\s|$)/);
@@ -1460,12 +842,11 @@ describe("O endereço acompanha o card aberto (issue #1586)", () => {
     const chamadas = comDuas("d-99");
     await within(lista()).findByText("Botão de responder some na Ouvidoria");
 
-    const aberto = screen.getByRole("region", { name: "Conversa aberta" });
+    const aberto = screen.getByRole("region", { name: "Pedido na tela" });
     expect(await within(aberto).findByText(SEM_ACESSO)).toBeTruthy();
     expect(aberto.className).not.toMatch(/(^|\s)hidden(\s|$)/);
     expect(within(aberto).queryByText(DE_OUTRO_DIRETOR)).toBeNull();
     expect(within(aberto).queryByText(/#\d+/)).toBeNull();
-    expect(within(aberto).queryByText(ABERTURA)).toBeNull();
     expect(chamadas.some((c) => c.url.startsWith(`${LISTA}/d-99`))).toBe(false);
 
     const voltar = screen.getByRole("button", { name: VOLTAR_PARA_A_LISTA });
@@ -1481,7 +862,7 @@ describe("O endereço acompanha o card aberto (issue #1586)", () => {
     comDuas();
     await within(lista()).findByText("Botão de responder some na Ouvidoria");
     fireEvent.click(within(lista()).getByRole("button", { name: /Botão de responder some/ }));
-    await screen.findByText("Onde isso aconteceu?");
+    await screen.findByRole("region", { name: ACOMPANHAMENTO });
     aPaginaLeOEndereco();
     fireEvent.click(screen.getByRole("button", { name: VOLTAR_PARA_A_LISTA }));
     aPaginaLeOEndereco();
@@ -1495,7 +876,7 @@ describe("O endereço acompanha o card aberto (issue #1586)", () => {
         within(lista()).getByRole("button", { name: /Relatório de leitos atrasa/ }).getAttribute("aria-current"),
       ).toBe("true"),
     );
-    expect(screen.getByRole("region", { name: "Conversa aberta" }).className).not.toMatch(/(^|\s)hidden(\s|$)/);
+    expect(screen.getByRole("region", { name: "Pedido na tela" }).className).not.toMatch(/(^|\s)hidden(\s|$)/);
   });
 });
 
@@ -1535,9 +916,7 @@ describe("O Quadro na tela larga (issue #1642, ADR 0090)", () => {
     expect(titulos).toEqual(["Registrada2", "Em análise1", "Planejada0", "Em desenvolvimento1", "Entregue1"]);
     expect(within(colunaDe("Registrada")).getByText("Escala some no domingo")).toBeTruthy();
     expect(within(colunaDe("Entregue")).getByText("Ouvidoria no celular")).toBeTruthy();
-    expect(screen.queryByRole("navigation", { name: "Suas conversas" })).toBeNull();
-    // O Assistente saiu da tela inicial (ADR 0090, decisão 6).
-    expect(screen.queryByText(ABERTURA)).toBeNull();
+    expect(screen.queryByRole("navigation", { name: "Pedidos" })).toBeNull();
   });
 
   it("as colunas não têm rolagem própria e o cabeçalho de cada uma fica fixo no topo", async () => {
@@ -1733,7 +1112,6 @@ describe("O Quadro na tela larga (issue #1642, ADR 0090)", () => {
     telaLarga();
     montar((url) => {
       if (url === LISTA) return { status: 200, corpo: NO_QUADRO };
-      if (url === `${LISTA}/q-3`) return { status: 200, corpo: conversa("q-3", { estado: "enviado" }) };
       return { status: 404, corpo: {} };
     });
     await screen.findByRole("region", { name: "Quadro" });
@@ -1745,7 +1123,7 @@ describe("O Quadro na tela larga (issue #1642, ADR 0090)", () => {
     const painel = await screen.findByRole("complementary", { name: "Pedido aberto" });
     fireEvent.click(within(painel).getByRole("button", { name: AMPLIAR }));
 
-    const aberto = await screen.findByRole("region", { name: "Conversa aberta" });
+    const aberto = await screen.findByRole("region", { name: "Pedido na tela" });
     expect(screen.queryByRole("complementary", { name: "Pedido aberto" })).toBeNull();
     expect(await within(aberto).findByRole("heading", { level: 2, name: "Aviso da ata por e-mail" })).toBeTruthy();
     expect(screen.queryByRole("region", { name: "Quadro" })).toBeNull();
@@ -1759,43 +1137,9 @@ describe("O Quadro na tela larga (issue #1642, ADR 0090)", () => {
     fireEvent.click(voltar);
 
     expect(await screen.findByRole("region", { name: "Quadro" })).toBeTruthy();
-    expect(screen.queryByRole("region", { name: "Conversa aberta" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Pedido na tela" })).toBeNull();
     expect(screen.getByRole("region", { name: "Filtros da lista" }).className).not.toMatch(/(^|\s)hidden(\s|$)/);
     expect(demandaDaUrl()).toBeNull();
-  });
-
-  it("Novo pedido, no topo da aba, abre o Assistente na largura toda", async () => {
-    telaLarga();
-    montar((url) => (url === LISTA ? { status: 200, corpo: NO_QUADRO } : { status: 404, corpo: {} }));
-    await screen.findByRole("region", { name: "Quadro" });
-    // O Nova conversa da barra é o da lista do celular.
-    expect(screen.queryByRole("button", { name: NOVA_CONVERSA })).toBeNull();
-
-    fireEvent.click(screen.getByRole("button", { name: NOVO_PEDIDO }));
-
-    const aberto = await screen.findByRole("region", { name: "Conversa aberta" });
-    expect(within(aberto).getByText(ABERTURA)).toBeTruthy();
-    expect(screen.queryByRole("region", { name: "Quadro" })).toBeNull();
-    expect(aberto.className).not.toMatch(/(^|\s)hidden(\s|$)/);
-    expect(screen.getByRole("button", { name: VOLTAR_AO_QUADRO }).className).not.toMatch(/(^|\s)md:hidden(\s|$)/);
-  });
-
-  it("o card Registrada do autor reabre a conversa com o agente na largura toda", async () => {
-    telaLarga();
-    montar((url) => {
-      if (url === LISTA) return { status: 200, corpo: NO_QUADRO };
-      if (url === `${LISTA}/q-2`) return { status: 200, corpo: conversa("q-2") };
-      return { status: 404, corpo: {} };
-    });
-    await screen.findByRole("region", { name: "Quadro" });
-
-    fireEvent.click(within(colunaDe("Registrada")).getByRole("button", { name: /Escala some no domingo/ }));
-
-    const aberto = await screen.findByRole("region", { name: "Conversa aberta" });
-    expect(await within(aberto).findByText("Onde isso aconteceu?")).toBeTruthy();
-    expect(screen.queryByRole("region", { name: "Quadro" })).toBeNull();
-    expect(screen.getByRole("button", { name: VOLTAR_AO_QUADRO }).className).not.toMatch(/(^|\s)md:hidden(\s|$)/);
-    expect(demandaDaUrl()).toBe("q-2");
   });
 
   it("abaixo de 1280px a lista de antes aparece, com o filtro de Etapa", async () => {
@@ -1806,8 +1150,8 @@ describe("O Quadro na tela larga (issue #1642, ADR 0090)", () => {
     expect(within(lista()).getAllByRole("listitem")).toHaveLength(NO_QUADRO.length);
     expect(screen.queryByRole("region", { name: "Quadro" })).toBeNull();
     expect(screen.getByText("Etapa")).toBeTruthy();
-    expect(screen.getByRole("button", { name: NOVA_CONVERSA })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: NOVO_PEDIDO })).toBeNull();
+    // Nenhum botão de pedido novo: o pedido nasce no GitHub (issue #2279).
+    expect(screen.queryByRole("button", { name: /Nova conversa|Novo pedido/ })).toBeNull();
   });
 
   describe("a barra do Quadro (issue #1644, ADR 0090, decisões 2 e 8)", () => {
@@ -1884,7 +1228,6 @@ describe("O Quadro na tela larga (issue #1642, ADR 0090)", () => {
     montar(
       (url) => {
         if (url === LISTA) return { status: 200, corpo: [SEM_CARD, COM_VINCULO] };
-        if (url === `${LISTA}/d-2`) return { status: 200, corpo: conversa("d-2", { estado: "enviado" }) };
         return { status: 404, corpo: {} };
       },
       "d-2",
@@ -1924,8 +1267,6 @@ describe("O card do Quadro abre num painel à direita (issue #1643, ADR 0090, de
     telaLarga();
     return montar((url) => {
       if (url === LISTA) return { status: 200, corpo: lidas };
-      if (url === `${LISTA}/p-1`) return { status: 200, corpo: conversa("p-1", { estado: "enviado" }) };
-      if (url === `${LISTA}/p-2`) return { status: 200, corpo: conversa("p-2") };
       if (url.endsWith("/conversa")) return { status: 200, corpo: { mensagens: [], mencionaveis: [] } };
       return { status: 404, corpo: {} };
     }, demandaInicial);
@@ -1934,7 +1275,7 @@ describe("O card do Quadro abre num painel à direita (issue #1643, ADR 0090, de
   const quadro = () => screen.getByRole("region", { name: "Quadro" });
   const cardDe = (titulo: RegExp) => within(quadro()).getByRole("button", { name: titulo });
 
-  it("o clique num card que não é Registrada do autor abre o painel com o Documento e a Conversa da Demanda, com o Quadro à vista", async () => {
+  it("o clique num card abre o painel só com o Documento, sem Conversa, Revisar nem Apagar, com o Quadro à vista (issue #2279)", async () => {
     comOQuadro();
     await screen.findByRole("region", { name: "Quadro" });
 
@@ -1942,8 +1283,14 @@ describe("O card do Quadro abre num painel à direita (issue #1643, ADR 0090, de
 
     const aberto = await screen.findByRole("complementary", { name: "Pedido aberto" });
     expect(await within(aberto).findByRole("heading", { level: 2, name: "Aviso da ata por e-mail" })).toBeTruthy();
+    expect(within(aberto).getByRole("region", { name: "Documento do card" })).toBeTruthy();
     expect(within(aberto).getByText("O aviso da ata chega por e-mail.")).toBeTruthy();
-    expect(await within(aberto).findByRole("region", { name: "Conversa da Demanda" })).toBeTruthy();
+    // Só para ler (ADR 0113, decisão 7): nada que agia ficou no painel.
+    expect(within(aberto).queryByRole("region", { name: "Conversa da Demanda" })).toBeNull();
+    expect(within(aberto).queryByRole("textbox")).toBeNull();
+    for (const nome of [/Conversar/, /Revisar/, /Apagar/, /Reenviar/, /Designar de novo/]) {
+      expect(within(aberto).queryByRole("button", { name: nome })).toBeNull();
+    }
     // O painel não é modal: o Quadro segue na página, atrás dele.
     expect(quadro()).toBeTruthy();
     expect(aberto.getAttribute("aria-modal")).toBeNull();
@@ -2027,7 +1374,7 @@ describe("O card do Quadro abre num painel à direita (issue #1643, ADR 0090, de
     await screen.findByRole("region", { name: "Quadro" });
     fireEvent.click(cardDe(/Aviso da ata por e-mail/));
     const painel = await screen.findByRole("complementary", { name: "Pedido aberto" });
-    await within(painel).findByRole("textbox", { name: "Mensagem para a Conversa" });
+    await within(painel).findByRole("region", { name: "Documento do card" });
 
     fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
 
@@ -2035,69 +1382,13 @@ describe("O card do Quadro abre num painel à direita (issue #1643, ADR 0090, de
     expect(document.activeElement).toBe(cardDe(/Aviso da ata por e-mail/));
   });
 
-  it("com a lista de nomes da Conversa aberta, o Esc fecha só a lista, e o painel fica", async () => {
-    telaLarga();
-    montar((url) => {
-      if (url === LISTA) return { status: 200, corpo: [ACOMPANHADA] };
-      if (url === `${LISTA}/p-1`) return { status: 200, corpo: conversa("p-1", { estado: "enviado" }) };
-      if (url === `${LISTA}/p-1/conversa`)
-        return { status: 200, corpo: { mensagens: [], mencionaveis: [{ id: "u-1", nome: "Pedro Rezende" }] } };
-      return { status: 404, corpo: {} };
-    });
-    await screen.findByRole("region", { name: "Quadro" });
-    fireEvent.click(cardDe(/Aviso da ata por e-mail/));
-    const painel = await screen.findByRole("complementary", { name: "Pedido aberto" });
-    const caixa = await within(painel).findByRole("textbox", { name: "Mensagem para a Conversa" });
-    fireEvent.change(caixa, { target: { value: "@ped", selectionStart: 4 } });
-    expect(await within(painel).findByRole("listbox", { name: "Quem vê este pedido" })).toBeTruthy();
-
-    fireEvent.keyDown(caixa, { key: "Escape" });
-
-    expect(within(painel).queryByRole("listbox", { name: "Quem vê este pedido" })).toBeNull();
-    expect(screen.getByRole("complementary", { name: "Pedido aberto" })).toBeTruthy();
-  });
-
-  it("Apagar, Reenviar, Designar de novo e Revisar com o código de hoje aparecem no painel nas mesmas condições de hoje", async () => {
-    const COM_TUDO = demanda("p-3", "Pedido com tudo", {
-      etapa: "em_analise",
-      tem_vinculo: true,
-      pode_apagar: true,
-      pode_revisar: true,
-      envio_falhou: true,
-      designacao_falhou: true,
-    });
-    const SEM_NADA = demanda("p-4", "Pedido sem botão", { etapa: "planejada", tem_vinculo: true });
-    telaLarga();
-    montar((url) => {
-      if (url === "/api/admin/tecnologia/eu") return { status: 200, corpo: { desenvolvedor: true } };
-      if (url === `${LISTA}?filtro=para_mim`) return { status: 200, corpo: [COM_TUDO, SEM_NADA] };
-      if (url.endsWith("/conversa")) return { status: 200, corpo: { mensagens: [], mencionaveis: [] } };
-      if (url.startsWith(`${LISTA}/`)) return { status: 200, corpo: conversa("p-3", { estado: "enviado" }) };
-      return { status: 404, corpo: {} };
-    });
-    await within(await screen.findByRole("region", { name: "Quadro" })).findByText("Pedido com tudo");
-    const BOTOES = [APAGAR, REENVIAR, DESIGNAR_DE_NOVO, REVISAR_COM_O_CODIGO_DE_HOJE];
-
-    fireEvent.click(cardDe(/Pedido com tudo/));
-    let painel = await screen.findByRole("complementary", { name: "Pedido aberto" });
-    for (const nome of BOTOES) expect(within(painel).getByRole("button", { name: nome })).toBeTruthy();
-
-    fireEvent.click(within(painel).getByRole("button", { name: FECHAR_O_PAINEL }));
-    fireEvent.click(cardDe(/Pedido sem botão/));
-    painel = await screen.findByRole("complementary", { name: "Pedido aberto" });
-    await within(painel).findByRole("heading", { level: 2, name: "Pedido sem botão" });
-    for (const nome of BOTOES) expect(within(painel).queryByRole("button", { name: nome })).toBeNull();
-  });
-
-  it("o card da Ana, como a lista o serve, abre sem Apagar nem Revisar e com o link no repositório da Ana (issue #1714)", async () => {
+  it("o card da Ana, como a lista o serve, abre com o link no repositório da Ana (issue #1714)", async () => {
     const DA_ANA = demanda("a-12", "Ana: responder o preparo do exame", {
       etapa: "planejada",
       origem: "vitta",
       tem_vinculo: true,
-      pode_apagar: false,
-      pode_revisar: false,
       issue_numero: 12,
-      issue_url: "https://github.com/pedrorezendefig/programa-ana/issues/12",
+      issue_url: "https://github.com/Vitta-Share/programa-ana/issues/12",
     });
     telaLarga();
     montar((url) => {
@@ -2112,25 +1403,11 @@ describe("O card do Quadro abre num painel à direita (issue #1643, ADR 0090, de
     const painel = await screen.findByRole("complementary", { name: "Pedido aberto" });
     await within(painel).findByRole("heading", { level: 2, name: "Ana: responder o preparo do exame" });
 
-    for (const nome of [APAGAR, REVISAR_COM_O_CODIGO_DE_HOJE]) {
+    for (const nome of [/Apagar/, /Revisar/]) {
       expect(within(painel).queryByRole("button", { name: nome })).toBeNull();
     }
     const link = within(painel).getByRole("link", { name: "#12" });
-    expect(link.getAttribute("href")).toBe("https://github.com/pedrorezendefig/programa-ana/issues/12");
-  });
-
-  it("Conversar, no painel, põe a caixa da Conversa da Demanda em foco", async () => {
-    comOQuadro();
-    await screen.findByRole("region", { name: "Quadro" });
-    fireEvent.click(cardDe(/Aviso da ata por e-mail/));
-    const painel = await screen.findByRole("complementary", { name: "Pedido aberto" });
-    const caixa = await within(painel).findByRole("textbox", { name: "Mensagem para a Conversa" });
-    // O clique no card abre o painel sem roubar o foco para a Conversa.
-    expect(document.activeElement).not.toBe(caixa);
-
-    fireEvent.click(within(painel).getByRole("button", { name: "Conversar" }));
-
-    expect(document.activeElement).toBe(caixa);
+    expect(link.getAttribute("href")).toBe("https://github.com/Vitta-Share/programa-ana/issues/12");
   });
 
   it("com prefers-reduced-motion, o painel abre sem animação", async () => {
@@ -2148,117 +1425,6 @@ describe("O card do Quadro abre num painel à direita (issue #1643, ADR 0090, de
     const regra = reduzido.match(/([^{}]*)\{([^}]*)\}/)!;
     expect(regra[1].split(",").map((s) => s.trim())).toContain(".animate-fade-in-right");
     expect(regra[2]).toMatch(/animation:\s*none/);
-  });
-});
-
-/**
- * O Número e o Copiar link no topo do chat (issue #1669): a conversa Registrada
- * do próprio autor e o card em revisão abrem no chat do Assistente, e não no
- * Documento do card, mas são Demandas e mostram o mesmo cabeçalho dele.
- */
-describe("O Número e o Copiar link no chat (issue #1669)", () => {
-  const REGISTRADA_DO_AUTOR = demanda("r-1", "Escala some no domingo", { numero: 40, minha: true });
-  const EM_REVISAO = demanda("r-2", "Retorno marcado na saída", {
-    etapa: "em_analise",
-    tem_vinculo: true,
-    numero: 41,
-    minha: true,
-    em_revisao: true,
-  });
-
-  function comAs(lidas: Demanda[]) {
-    return montar((url) => {
-      if (url === LISTA) return { status: 200, corpo: lidas };
-      if (url.startsWith(`${LISTA}/`)) return { status: 200, corpo: conversa(url.slice(LISTA.length + 1)) };
-      return { status: 404, corpo: {} };
-    });
-  }
-
-  function areaDeTransferencia() {
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
-    return writeText;
-  }
-
-  async function abrirNoChat(titulo: RegExp) {
-    fireEvent.click(await within(lista()).findByRole("button", { name: titulo }));
-    const aberta = screen.getByRole("region", { name: "Conversa aberta" });
-    // Abriu no chat, não no Documento do card.
-    expect(await within(aberta).findByText("Onde isso aconteceu?")).toBeTruthy();
-    expect(within(aberta).queryByRole("region", { name: "Documento do card" })).toBeNull();
-    return aberta;
-  }
-
-  it("o autor vê Demanda N e copia as duas linhas na própria conversa Registrada", async () => {
-    const writeText = areaDeTransferencia();
-    comAs([REGISTRADA_DO_AUTOR]);
-
-    const aberta = await abrirNoChat(/Escala some no domingo/);
-
-    expect(within(aberta).getByText("Demanda 40")).toBeTruthy();
-    fireEvent.click(within(aberta).getByRole("button", { name: "Copiar link" }));
-    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
-    expect(writeText).toHaveBeenCalledWith(
-      "Demanda 40: Escala some no domingo\nhttp://localhost:3000/admin/tecnologia?demanda=r-1",
-    );
-    expect((await within(aberta).findByText("Link copiado")).getAttribute("role")).toBe("status");
-  });
-
-  it("o autor vê Demanda N e copia as duas linhas no card em revisão", async () => {
-    const writeText = areaDeTransferencia();
-    comAs([EM_REVISAO]);
-
-    const aberta = await abrirNoChat(/Retorno marcado na saída/);
-
-    expect(within(aberta).getByText("Demanda 41")).toBeTruthy();
-    fireEvent.click(within(aberta).getByRole("button", { name: "Copiar link" }));
-    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
-    expect(writeText).toHaveBeenCalledWith(
-      "Demanda 41: Retorno marcado na saída\nhttp://localhost:3000/admin/tecnologia?demanda=r-2",
-    );
-  });
-
-  it("trocar de Demanda depois de copiar não leva o Link copiado para a outra", async () => {
-    areaDeTransferencia();
-    const OUTRA = demanda("r-3", "Senha do ponto expira", { numero: 42, minha: true });
-    comAs([REGISTRADA_DO_AUTOR, OUTRA]);
-
-    const aberta = await abrirNoChat(/Escala some no domingo/);
-    fireEvent.click(within(aberta).getByRole("button", { name: "Copiar link" }));
-    expect(await within(aberta).findByText("Link copiado")).toBeTruthy();
-
-    await abrirNoChat(/Senha do ponto expira/);
-    const outra = screen.getByRole("region", { name: "Conversa aberta" });
-    expect(within(outra).getByText("Demanda 42")).toBeTruthy();
-    expect(within(outra).queryByText("Link copiado")).toBeNull();
-  });
-
-  it("trocar de Demanda depois de o navegador recusar a cópia não mostra o link da anterior", async () => {
-    const writeText = vi.fn().mockRejectedValue(new Error("negado"));
-    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const OUTRA = demanda("r-3", "Senha do ponto expira", { numero: 42, minha: true });
-    comAs([REGISTRADA_DO_AUTOR, OUTRA]);
-
-    const aberta = await abrirNoChat(/Escala some no domingo/);
-    fireEvent.click(within(aberta).getByRole("button", { name: "Copiar link" }));
-    expect(await within(aberta).findByRole("textbox", { name: "Link da Demanda" })).toBeTruthy();
-
-    await abrirNoChat(/Senha do ponto expira/);
-    const outra = screen.getByRole("region", { name: "Conversa aberta" });
-    expect(within(outra).getByText("Demanda 42")).toBeTruthy();
-    expect(within(outra).queryByRole("textbox", { name: "Link da Demanda" })).toBeNull();
-  });
-
-  it("a conversa nova, que ainda não é Demanda, segue sem o cabeçalho", async () => {
-    comAs([REGISTRADA_DO_AUTOR]);
-    await within(lista()).findByText("Escala some no domingo");
-
-    fireEvent.click(screen.getByRole("button", { name: NOVA_CONVERSA }));
-
-    const aberta = screen.getByRole("region", { name: "Conversa aberta" });
-    expect(await within(aberta).findByText(ABERTURA)).toBeTruthy();
-    expect(within(aberta).queryByRole("button", { name: "Copiar link" })).toBeNull();
   });
 });
 
@@ -2422,3 +1588,4 @@ describe("O filtro Projeto e o selo (issue #1715, ADR 0093, decisão 8)", () => 
     });
   });
 });
+

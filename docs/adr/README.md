@@ -33,7 +33,8 @@ Só `status: accepted` vale como decisão; `superseded` é histórico (CLAUDE.md
 | [0094](0094-manual-novo-dentro-do-app-com-abas-hospital-e-ana.md) | accepted | Manual novo dentro do app, com as abas Aplicativo do Hospital e Ana (Retrato), e a fatia de manual de volta sem vídeo (emenda 0078 e 0068) |
 | [0095](0095-modulo-do-nucleo-de-seguranca-do-paciente-fundacao.md) | accepted | O módulo do Núcleo de Segurança do Paciente: fundação, fases e exceções de IA (emenda 0082) |
 | [0107](0107-nsp-fase-2-notificacao-triagem-e-prazos.md) | accepted | Núcleo de Segurança do Paciente, Fase 2: notificação, triagem e prazos (emenda 0095 e 0088) |
-| [0096](0096-mensagem-pelo-terminal-na-conversa-da-demanda.md) | accepted | Mensagem pelo terminal: a sessão do desenvolvedor escreve e lê na Conversa da Demanda, pela ponte de automação (emenda 0069 e 0083) |
+| [0112](0112-nsp-responsavel-tecnico-assina-os-documentos-do-nucleo.md) | accepted | Núcleo de Segurança do Paciente: o Responsável técnico assina os documentos do Núcleo (emenda 0095) |
+| [0096](0096-mensagem-pelo-terminal-na-conversa-da-demanda.md) | superseded | Mensagem pelo terminal: a sessão do desenvolvedor escreve e lê na Conversa da Demanda, pela ponte de automação (emenda 0069 e 0083) |
 | [0097](0097-canal-de-conduta-fundacao.md) | accepted | Canal de Conduta: fundação, sigilo do conteúdo e exceções de IA (emenda 0082, 0088 e 0095) |
 | [0101](0101-dados-do-atendimento-e-espelho-so-para-super-admin.md) | accepted | Dados do Atendimento e o Espelho da Global Health ficam só com o Super admin (emenda 0031 e 0038) |
 
@@ -59,16 +60,19 @@ Só `status: accepted` vale como decisão; `superseded` é histórico (CLAUDE.md
 | [0056](0056-assistente-de-tecnologia-rascunho-confirmado-kit-proprio.md) | accepted | Assistente de Tecnologia: rascunho confirmado por gente, kit próprio embarcado, responde do kit ou registra |
 | [0075](0075-planejamento-da-demanda-grill-no-app-e-prd-do-diretor.md) | superseded | Planejamento da Demanda: o grill de negócio roda no app, e o "sim" do diretor cria o PRD do diretor (emenda 0054 e 0056) |
 | [0077](0077-tecnologia-vira-o-chat-do-agente-bug-ou-melhoria.md) | accepted | Tecnologia vira o chat do agente: bug ou melhoria, com Opus lendo o código, e o card nasce no GitHub (substitui 0075; emenda 0050, 0054, 0056, 0069 e 0076) |
-| [0079](0079-planejamento-sem-teto-e-custo-na-tela.md) | accepted | Planejamento da Demanda sem teto de perguntas, parada por "nada em aberto" e o custo da conversa na tela (emenda 0077) |
+| [0079](0079-planejamento-sem-teto-e-custo-na-tela.md) | superseded | Planejamento da Demanda sem teto de perguntas, parada por "nada em aberto" e o custo da conversa na tela (emenda 0077) |
 | [0083](0083-tecnologia-responsavel-escolhido-pelo-diretor-e-conversa-da-demanda-no-app.md) | accepted | Tecnologia: o diretor escolhe o Responsável, o Desenvolvedor vê as Demandas de todos e a Conversa da Demanda volta, só no app (emenda 0077) |
 | [0084](0084-tecnologia-entregas-documento-do-card-revisao-apagar-e-demonstracao.md) | accepted | Tecnologia: Entregas, documento do card, revisão com o código de hoje, apagar e demonstração (emenda 0050, 0054, 0077 e 0083) |
 | [0060](0060-texto-que-sai-para-a-issue-publica-passa-pela-peneira-de-dado-pessoal.md) | accepted | Texto que sai para a issue pública passa pela peneira de dado pessoal (emenda 0054) |
 | [0069](0069-anexo-da-demanda-fica-no-app-e-em-producao-devolve-ao-diretor.md) | accepted | Anexo da Demanda fica no app e quem desenvolve busca; Em produção é a Etapa que devolve ao diretor (emenda 0054) |
 | [0100](0100-partes-do-card-com-numero-o-que-trava-e-onda.md) | accepted | As Partes do Documento do card mostram o número, o que trava cada uma e a Onda (emenda 0054 e 0084) |
-| [0103](0103-modelo-da-tecnologia-escolhido-por-demanda.md) | accepted | O diretor escolhe o modelo de cada Demanda da Tecnologia: Sonnet 5.5 ou Opus 5.5 (emenda 0075 e 0077) |
-| [0106](0106-pergunta-da-vitta-avisa-o-destinatario-com-o-assunto-em-qualquer-projeto.md) | accepted | Pergunta da Vitta na Conversa da Demanda: avisa o Destinatário com o Assunto, em qualquer Projeto (emenda 0093 e 0096) |
+| [0103](0103-modelo-da-tecnologia-escolhido-por-demanda.md) | superseded | O diretor escolhe o modelo de cada Demanda da Tecnologia: Sonnet 5.5 ou Opus 5.5 (emenda 0075 e 0077) |
+| [0106](0106-pergunta-da-vitta-avisa-o-destinatario-com-o-assunto-em-qualquer-projeto.md) | superseded | Pergunta da Vitta na Conversa da Demanda: avisa o Destinatário com o Assunto, em qualquer Projeto (emenda 0093 e 0096) |
 | [0108](0108-apresentacao-com-estado-real-e-envio-aos-desenvolvedores.md) | accepted | Apresentação do PRD com o estado real e link no card, e Envio aos desenvolvedores pela Conversa da Demanda (emenda 0083 e 0096) |
-| [0109](0109-pergunta-da-vitta-vira-registro-com-cartao-lista-e-me-explique.md) | accepted | Pergunta da Vitta vira registro: cartão, lista Esperando sua resposta, Me explique e a Conversa da Demanda reformada (emenda 0077, 0083, 0096 e 0106) |
+| [0109](0109-pergunta-da-vitta-vira-registro-com-cartao-lista-e-me-explique.md) | superseded | Pergunta da Vitta vira registro: cartão, lista Esperando sua resposta, Me explique e a Conversa da Demanda reformada (emenda 0077, 0083, 0096 e 0106) |
+| [0110](0110-pedido-da-vitta-pergunta-ou-passo-a-passo-que-fecha-o-card.md) | superseded | Pedido da Vitta: Pergunta ou Passo a passo, e o Passo a passo concluído fecha o card no GitHub (emenda 0109) |
+| [0111](0111-pedido-de-implantacao-o-prd-fecha-e-o-hospital-implanta.md) | accepted | Pedido de implantação: o PRD fecha com o código, e o que o hospital faz depois vira uma lista no card (emenda 0110) |
+| [0113](0113-tecnologia-vira-espelho-e-o-diretor-age-pelo-github.md) | accepted | Tecnologia vira espelho: o diretor prototipa e age pelo GitHub, e o agente do app fica só com manual e bug (substitui 0079, 0096, 0103, 0106, 0109 e 0110; emenda 0056, 0069, 0077, 0083, 0084, 0108 e 0111) |
 
 ## Central de Comando (números do ecossistema digital)
 

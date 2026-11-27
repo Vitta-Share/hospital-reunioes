@@ -140,8 +140,20 @@ describe("a página de Segurança do Paciente do manual", () => {
     const menu = PAGINA!.corpo.split("\n").find((linha) => linha.startsWith("Ele fica no menu da esquerda"));
     expect(menu, "a página não diz onde o módulo fica no menu").toBeDefined();
     const itens = Array.from(menu!.split(". Dentro de")[0].matchAll(/\*\*([^*]+)\*\*/g), (m) => m[1]);
-    expect(itens).toEqual(["Segurança do Paciente", "Visão geral", "Reuniões", "Núcleo"]);
+    expect(itens).toEqual(["NSP", "Visão geral", "Reuniões", "Núcleo"]);
     expect(PAGINA!.corpo).not.toMatch(/\*\*Início\*\*/);
+  });
+
+  it("o registro da capacitação pede a formação do instrutor e diz o que aparece nas antigas (#1931)", () => {
+    const { texto } = secao(TAREFAS[3]);
+    expect(texto).toContain("**Formação do instrutor**");
+    expect(texto).toContain('"Formação não informada"');
+  });
+
+  it("leva ao menu pelo nome que a pessoa vê, NSP, e não pelo antigo (issue #1918)", () => {
+    expect(PAGINA!.corpo).toMatch(/\*\*NSP\*\*/);
+    expect(PAGINA!.corpo).not.toMatch(/\*\*Segurança do Paciente\*\*/);
+    expect(PAGINA!.corpo).not.toMatch(/grupo \**Segurança do Paciente/);
   });
 
   it("não traz travessão nem meia-risca", () => {

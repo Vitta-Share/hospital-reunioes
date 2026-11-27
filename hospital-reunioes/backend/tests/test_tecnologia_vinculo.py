@@ -54,12 +54,10 @@ from app.services.tecnologia_vinculo import (  # noqa: E402
     ETAPA_PLANEJADA,
     ETAPA_REGISTRADA,
     ETAPAS,
-    LABEL_TRIAGEM,
     MOTIVO_LOGIN_INVALIDO,
     bloco_para_o_diretor,
     corpo_da_issue_do_bug,
     etapa_da_foto,
-    labels_da_issue_nova,
     marcador_da_demanda,
     motivo_github_login_invalido,
     motivo_github_login_repetido,
@@ -119,7 +117,7 @@ def _integracao_configurada(monkeypatch):
     teste que APAGA a variavel, e nao a ausencia dela por acidente.
     """
     monkeypatch.setattr(settings, "github_integracao_token", "token-de-teste")
-    monkeypatch.setattr(settings, "github_integracao_repo", "pedrorezendefig/hospital-reunioes")
+    monkeypatch.setattr(settings, "github_integracao_repo", "Vitta-Share/hospital-reunioes")
 
 
 # ─── 1. A tabela de Etapas ───────────────────────────────────────────────────
@@ -137,7 +135,7 @@ def _foto(
     foto = {
         "numero": numero,
         "titulo": "PRD de teste",
-        "url": f"https://github.com/pedrorezendefig/hospital-reunioes/issues/{numero}",
+        "url": f"https://github.com/Vitta-Share/hospital-reunioes/issues/{numero}",
         "estado": estado,
         "motivo_do_fechamento": motivo,
         "labels": list(labels),
@@ -152,7 +150,7 @@ def _parte(numero: int, *, estado: str = "open", motivo: str | None = None, labe
     return {
         "numero": numero,
         "titulo": "Fatia",
-        "url": f"https://github.com/pedrorezendefig/hospital-reunioes/issues/{numero}",
+        "url": f"https://github.com/Vitta-Share/hospital-reunioes/issues/{numero}",
         "estado": estado,
         "motivo_do_fechamento": motivo,
         "labels": list(labels),
@@ -1144,7 +1142,7 @@ def _issue(
     dados = {
         "number": numero,
         "title": "Tecnologia: fundação do Vínculo",
-        "html_url": f"https://github.com/pedrorezendefig/hospital-reunioes/issues/{numero}",
+        "html_url": f"https://github.com/Vitta-Share/hospital-reunioes/issues/{numero}",
         "state": estado,
         "state_reason": motivo,
         "labels": [{"name": nome} for nome in labels],
@@ -1258,29 +1256,6 @@ class TestOQueMudaNaSincronizacao:
 # separador de secao dentro da issue.
 
 
-class TestLabelsDaIssueNova:
-    """A traducao do tipo da Demanda em label do repositorio (issue #677)."""
-
-    def test_defeito_vira_type_fix(self):
-        assert labels_da_issue_nova("defeito") == [LABEL_TRIAGEM, "type:fix"]
-
-    @pytest.mark.parametrize("tipo", ("ajuste", "novo"))
-    def test_ajuste_e_novo_viram_type_feature(self, tipo):
-        assert labels_da_issue_nova(tipo) == [LABEL_TRIAGEM, "type:feature"]
-
-    @pytest.mark.parametrize("tipo", ("decisao", "informacao", "terceiro", "consultoria"))
-    def test_os_demais_tipos_nao_ganham_label_de_tipo(self, tipo):
-        """Sem label de tipo, e nao com uma inventada: a triagem e humana, e um
-        `type:feature` chutado num pedido de Decisao mentiria para quem cura."""
-        assert labels_da_issue_nova(tipo) == [LABEL_TRIAGEM]
-
-    def test_a_triagem_entra_sempre(self):
-        """`needs-triage` e o contrato do protocolo de triagem: sem ela a issue
-        nasce fora da fila de quem cura."""
-        for tipo in ("defeito", "ajuste", "novo", "decisao", "consultoria", "tipo-que-nao-existe", ""):
-            assert labels_da_issue_nova(tipo)[0] == LABEL_TRIAGEM
-
-
 class _TransporteGithub:
     """O `httpx.request` do cliente trocado por um gravador (PR #1050).
 
@@ -1314,7 +1289,7 @@ class TestADesignacaoNaoDerrubaACriacao:
     """O assignee e conveniencia: login que o GitHub recusa nao pode virar
     "GitHub indisponivel" no botao (must-fix da revisao do PR #1050)."""
 
-    URL = "https://api.github.com/repos/pedrorezendefig/hospital-reunioes"
+    URL = "https://api.github.com/repos/Vitta-Share/hospital-reunioes"
 
     def test_com_login_a_issue_nasce_e_e_designada_pelo_patch(self, monkeypatch):
         transporte = _TransporteGithub()

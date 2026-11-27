@@ -9,6 +9,7 @@ import { MobileDrawer } from "@/components/layout/MobileDrawer";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { Footer } from "@/components/layout/Footer";
 import { useNovidadesOuvidoria } from "@/hooks/useNovidadesOuvidoria";
+import { AssistenteDoApp } from "@/components/assistente-do-app/AssistenteDoApp";
 
 interface AppShellProps {
   userName: string;
@@ -75,6 +76,8 @@ export function AppShell({
         </main>
         <BottomNav novidadesOuvidoria={novidadesOuvidoria} />
       </div>
+      {/* O robô do Assistente do app, em toda área logada (issue #2267). */}
+      <AssistenteDoApp />
     </div>
   );
 }

@@ -4,7 +4,7 @@ Segurança do Paciente é o módulo em que o Núcleo de Segurança do Paciente f
 
 O Núcleo continua recebendo os casos da Ouvidoria como hoje. O módulo é outra coisa: é onde o Núcleo trabalha.
 
-Toda Demanda sobre o item Segurança do Paciente do menu, sobre quem vê o quê no módulo ou sobre uma tela do Núcleo pertence a este Produto.
+Toda Demanda sobre o item NSP do menu, sobre quem vê o quê no módulo ou sobre uma tela do Núcleo pertence a este Produto.
 
 ## O que já está no ar
 
@@ -12,7 +12,7 @@ A notificação de incidente:
 
 - qualquer profissional notifica um incidente pelo celular ou pelo computador, sem login, em quatro telas curtas: o que aconteceu (com as próprias palavras, com o aviso de não escrever o nome do paciente e o campo opcional de leito ou atendimento), onde e quando (setor, data, que vem com hoje, turno e, se quiser, a hora aproximada), se o paciente foi atingido (não chegou, chegou sem dano, chegou com dano ou não sei; com dano ou não sei, pergunta se foi grave ou se houve morte; e, se quiser, se a família ou o paciente percebeu ou se há risco de reclamação) e a identificação. Quem notifica conta o que aconteceu e não classifica nada. Toda tela traz, no rodapé, "Notificar não gera punição" e, no topo, uma linha dizendo o que fazer ali;
 - na primeira tela, quem notifica pode anexar até três fotos ou PDFs, somando menos de 9 MB. A foto grande é reduzida no próprio celular antes do envio. O quarto arquivo, o tipo que não é foto nem PDF e a soma acima do limite são recusados com a explicação na tela. Os arquivos ficam guardados em lugar fechado e só abrem para quem abre os casos do Núcleo, pelo próprio aplicativo; o super admin sem o Acesso pleno não abre. O nome original do arquivo não é guardado, e nenhum anexo vai para a inteligência artificial;
-- há três portas para o mesmo formulário: o QR do Núcleo, o endereço da página (que a TI usa para criar o ícone nos computadores do hospital) e o botão **Notificar incidente**, dentro do grupo Segurança do Paciente do menu. Cada notificação guarda por qual porta chegou. Não há atalho no topo do aplicativo;
+- há três portas para o mesmo formulário: o QR do Núcleo, o endereço da página (que a TI usa para criar o ícone nos computadores do hospital) e o botão **Notificar incidente**, dentro do grupo NSP do menu. Cada notificação guarda por qual porta chegou. Não há atalho no topo do aplicativo;
 - o QR e o endereço ficam no item **Configuração**, dentro do módulo, na seção "QR e endereço da notificação", que só aparece para quem abre a Configuração: a Presidência e o Acesso pleno. O botão **Baixar o QR** baixa a imagem do QR, boa para o cartaz e para o papel de parede; o endereço completo da página aparece em texto, com o botão **Copiar**, para a TI criar o ícone nos computadores. A seção é só de leitura: não há nada para editar. O ícone nos computadores é criado pela TI do hospital, fora do aplicativo;
 - pelo botão do módulo, a identificação já vem preenchida com o nome e o e-mail da conta, sem digitar;
 - a identificação vem marcada como "Com o meu nome", com a explicação de que o nome aparece só para a Presidência do Núcleo e o Diretor Executivo. Quem escolhe "Sem me identificar" não deixa nome nem contato;
@@ -65,7 +65,7 @@ A recalibração do agente:
 
 A fundação do módulo:
 
-- o item **Segurança do Paciente** no menu lateral, com a página inicial do módulo (o item Visão geral, para não se confundir com o Início de cada pessoa), as Reuniões e o grupo Núcleo (Membros, Documentos, Capacitações e Agenda regulatória). Cada tela abre com uma linha dizendo o que fazer ali;
+- o item **NSP** no menu lateral, com o ícone de duas mãos juntas e o nome por extenso, Núcleo de Segurança do Paciente, ao passar o mouse, com a página inicial do módulo (o item Visão geral, para não se confundir com o Início de cada pessoa), as Reuniões e o grupo Núcleo (Membros, Documentos, Capacitações e Agenda regulatória). Cada tela abre com uma linha dizendo o que fazer ali;
 - os itens Auditorias de adesão, Gestão de riscos e Comissões, que aparecem no menu desabilitados, com o selo "Em breve" e uma explicação do que vão fazer;
 - o Núcleo criado como o primeiro colegiado do hospital, ainda sem nenhum membro: a composição é cadastrada pela tela;
 - a tela **Membros**, com uma linha por membro (papel, área, conselho e registro, vigência, estado e situação do Termo). A Presidência e o Acesso pleno cadastram, editam, renovam a vigência, mudam o papel e encerram a participação. Os demais que abrem a tela só leem;
@@ -137,8 +137,8 @@ A Agenda regulatória do Núcleo:
 
 A tela Núcleo, Capacitações:
 
-- mostra cada capacitação com título, data, carga horária, instrutor, público (membros do Núcleo ou profissionais), os temas tratados e a lista de participantes, com quem já confirmou a presença e quando;
-- a Presidência e o Acesso pleno registram a capacitação pelo botão Registrar capacitação, escolhendo os temas tratados e os participantes. Os demais que abrem a tela só leem;
+- mostra cada capacitação com título, data, carga horária, instrutor e a formação dele, público (membros do Núcleo ou profissionais), os temas tratados e a lista de participantes, com quem já confirmou a presença e quando;
+- a Presidência e o Acesso pleno registram a capacitação pelo botão Registrar capacitação, escolhendo os temas tratados e os participantes. A formação do instrutor é obrigatória na capacitação nova, porque o comprovante de capacitação do caderno nº 6 da ANVISA pede o nome e a formação de quem deu o treinamento. A capacitação registrada antes desse campo existir mostra "Formação não informada". Os demais que abrem a tela só leem;
 - quem está na lista de uma capacitação vê o botão **Confirmar minha presença** no cartão dela e confirma com um toque. O aplicativo grava a data e a hora. Ninguém confirma pelo outro, nem a Presidência;
 - a seção Temas mínimos por membro mostra, para cada membro com participação vigente, quantos temas mínimos já cobriu e quais. Conta só a capacitação com presença confirmada: estar na lista sem confirmar não cobre o tema;
 - a lista de temas mínimos fica no fim da tela. A Presidência e o Acesso pleno incluem, renomeiam e desativam os temas. A lista vem com os 17 temas mínimos do caderno nº 6 da ANVISA. Tema desativado sai da cobertura e da escolha no cadastro, mas continua aparecendo nas capacitações antigas.
@@ -155,14 +155,14 @@ O Núcleo no Início:
 As notas do Comitê de Conduta:
 
 - quando um caso do Canal de Conduta descreve um risco ao paciente, o Comitê de Conduta manda ao Núcleo uma nota escrita por ele: um membro do Comitê escreve a nota na tela do caso, pela ação **Sinalizar ao NSP**, e só a coordenação do Comitê a envia. O envio fica registrado na trilha do caso, do lado do Comitê;
-- a nota aparece no item **Notas do Comitê de Conduta**, dentro de Segurança do Paciente, da mais nova à mais antiga, com o texto e a data do envio. Só a Presidência do Núcleo e o Acesso pleno leem; o membro do Núcleo não vê o item;
+- a nota aparece no item **Notas do Comitê de Conduta**, dentro do grupo NSP do menu, da mais nova à mais antiga, com o texto e a data do envio. Só a Presidência do Núcleo e o Acesso pleno leem; o membro do Núcleo não vê o item;
 - a nota não leva o protocolo do caso, o relato, os anexos nem quem relatou, e nada nela leva ao caso do Canal. A nota com o protocolo do caso é recusada antes de sair. O relato nunca sai do Canal de Conduta;
 - quem lê a nota não abre nenhum caso do Canal de Conduta só por isso: o caso continua fechado para quem não é do Comitê;
 - a nota é só uma lista para leitura. Ela não vira notificação de incidente sozinha: se o Núcleo quiser tratar o risco como caso, registra a notificação pelo caminho de sempre.
 
 ## Quem vê
 
-O item Segurança do Paciente aparece para todo usuário logado, com o botão Notificar incidente, inclusive para quem só tem papel nas Reuniões e para o super admin. As telas do Núcleo aparecem para quem tem participação vigente no Núcleo, para quem tem o Acesso pleno ao NSP e para a Diretoria. Os demais veem só o botão Notificar incidente.
+O item NSP do menu aparece para todo usuário logado, com o botão Notificar incidente, inclusive para quem só tem papel nas Reuniões e para o super admin. As telas do Núcleo aparecem para quem tem participação vigente no Núcleo, para quem tem o Acesso pleno ao NSP e para a Diretoria. Os demais veem só o botão Notificar incidente.
 
 Dentro do módulo, cada pessoa vê conforme o papel:
 

@@ -1,8 +1,8 @@
-"""A migration 226, o papel, a guarda, o congelamento e a eliminação, num
+"""A migration 242, o papel, a guarda, o congelamento e a eliminação, num
 Postgres de verdade (issue #1838).
 
-Sobe um Postgres descartável, aplica as migrations do Canal de que a 226
-depende e a 226 duas vezes, e prova no banco:
+Sobe um Postgres descartável, aplica as migrations do Canal de que a 242
+depende e a 242 duas vezes, e prova no banco:
 
 - a função de eliminação apaga o conteúdo do caso vencido (cinco anos do
   encerramento; um ano para o encaminhado), marca a eliminação e deixa a
@@ -46,8 +46,12 @@ ANTERIORES = (
     "221_conduta_ata_de_deliberacao.sql",
     "223_conduta_recomendacao_medida_e_retorno.sql",
     "224_conduta_trilha_e_dossie.sql",
+    "229_conduta_verificacao_de_retaliacao.sql",
+    "230_conduta_relato_em_passos.sql",
+    "233_conduta_anexos_do_relato.sql",
+    "234_conduta_acompanhamento_e_mensagens.sql",
 )
-MIGRATION = PASTA / "226_conduta_papel_guarda_e_eliminacao.sql"
+MIGRATION = PASTA / "242_conduta_papel_guarda_e_eliminacao.sql"
 CODIGO = "c" * 64
 
 
@@ -110,6 +114,13 @@ def _caso(banco, *, encerrado_ha: str | None = "5 years 2 days", desfecho: str =
         INSERT INTO conduta_citados (caso_id, participante_id, nome_cifrado) VALUES ('{caso}', 'P1', 'v1:CITADO');
         INSERT INTO conduta_citados (caso_id, nome_cifrado) VALUES ('{caso}', 'v1:SEM_CADASTRO');
         INSERT INTO conduta_atribuicoes (caso_id, participante_id, motivo) VALUES ('{caso}', 'P1', 'apurador');
+        UPDATE conduta_casos SET relator_nome_cifrado = 'v1:QUEM_RELATOU' WHERE id = '{caso}';
+        INSERT INTO conduta_relato_anexos
+          (caso_id, tipo, content_type, tamanho_bytes, storage_path, codigo_integridade)
+          VALUES ('{caso}', 'pdf', 'application/pdf', 10, 'relatos/' || gen_random_uuid(), '{CODIGO}');
+        INSERT INTO conduta_mensagens (caso_id, tipo, texto_cifrado) VALUES ('{caso}', 'complemento', 'v1:COMPLEMENTO');
+        INSERT INTO conduta_verificacoes_de_retaliacao (caso_id, marco, houve, observacao_cifrada, verificada_por)
+          VALUES ('{caso}', 30, false, 'v1:OBSERVACAO', 'P1');
         INSERT INTO conduta_trilha (caso_id, autor_id, acao, registrado_em, codigo)
           VALUES ('{caso}', 'P1', 'leitura', now(), md5(random()::text) || md5(random()::text));
         SET session_replication_role = origin;
@@ -136,6 +147,9 @@ CONTEUDO = (
     "conduta_votos",
     "conduta_atas",
     "conduta_retornos",
+    "conduta_relato_anexos",
+    "conduta_mensagens",
+    "conduta_verificacoes_de_retaliacao",
 )
 
 
@@ -149,10 +163,11 @@ class TestEliminacao:
         assert r.returncode == 0, r.stderr
         assert all(_conta(banco, t, caso) == 0 for t in CONTEUDO)
         linha = banco.ok(
-            "SELECT relato_cifrado IS NULL, eliminado_em IS NOT NULL, protocolo IS NOT NULL "
+            "SELECT relato_cifrado IS NULL, relator_nome_cifrado IS NULL, "
+            "eliminado_em IS NOT NULL, protocolo IS NOT NULL "
             f"FROM conduta_casos WHERE id = '{caso}';"
         )
-        assert linha == "t|t|t"
+        assert linha == "t|t|t|t"
         assert _conta(banco, "conduta_trilha", caso) == 1
         assert _conta(banco, "conduta_atribuicoes", caso) == 1
 

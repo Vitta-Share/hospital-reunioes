@@ -79,6 +79,19 @@ Quando a seção "Manual: páginas que mudam" do PRD lista alguma página, o PRD
 
 PRD com "Nenhuma: este PRD não muda tela", ou sem a seção, não ganha a fatia.
 
+#### A fatia que continua o protótipo do diretor
+
+PRD do diretor (label `origem:diretor`) com o link de um PR na seção "Protótipo": o PR rascunho dele é o ponto de partida (ADR 0113, decisão 3), e o link vai para uma fatia só, a que continua nele (a que entrega o comportamento que o protótipo mostra). Ela leva a seção `## Protótipo` com o link inteiro do PR (`https://github.com/<dono>/<repo>/pull/<n>`), que o `pr_do_diretor.py` do `/pegar-issue` lê para fazer o checkout da branch do fork. As outras fatias não citam o PR: duas fatias no mesmo PR se atropelariam na branch dele. Na lista do passo 4, a fatia mostra "Continua o protótipo: sim".
+
+#### A fatia humana depois do código (label `implantacao`)
+
+A fatia HITL que vem depois do código e não segura nenhuma fatia (teste de aceite, configuração, abertura, treinamento) é o Card de implantação: nasce com a label `implantacao` junto com `ready-for-human` (ADR 0111, decisões 2 e 3) e já no nome do diretor, que delega e fecha quando o hospital terminou (ADR 0113, decisão 9). O login dele é o primeiro de `gh variable get DIRETOR_LOGINS`; sem a variável, o card fica com o dono do PRD. O PRD fecha sem esperar por ela. A fatia HITL que segura código (alguma fatia tem o `blocked_by` dela) não ganha a label. A regra vive em `docs/agents/triage-labels.md`.
+
+- **Ganha:** "Teste de aceite do Canal de Conduta: acesso e anonimato", depois da última fatia do canal, sem nenhuma fatia esperando por ela.
+- **Não ganha:** "Criar a chave da API no Coolify", que a fatia de integração espera (`blocked_by`) para subir.
+
+Na lista do passo 4, a fatia mostra "Implantação: sim" ao lado do Tipo. No passo 5, acrescente `--label implantacao` ao `gh issue create` dela, no lugar do `--label ready-for-agent` vai `--label ready-for-human`, e no lugar do dono do PRD vai `--assignee <login do diretor>`.
+
 ### 4. Quiz the user
 
 Apresente a divisão como uma **lista numerada em pt-BR**. Para cada fatia, mostre:
@@ -154,6 +167,10 @@ Se o endpoint de sub-issues falhar (feature indisponível ou permissão), **não
 ## Pai
 
 `#$PRD`: a issue-PRD de onde esta fatia saiu. **Sempre preencha** quando houver um PRD pai; use "Nenhum" só para fatia avulsa. Além desta menção, a fatia é registrada como **sub-issue nativa** do PRD (passo 5).
+
+## Protótipo
+
+Só na fatia que continua o PR rascunho do diretor (seção "A fatia que continua o protótipo do diretor"): o link inteiro do PR. Nas outras, tire a seção.
 
 ## O que construir
 

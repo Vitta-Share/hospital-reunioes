@@ -748,24 +748,6 @@ async def require_tecnologia_automacao_api_key(x_api_key: str | None = Header(de
         )
 
 
-async def require_planos_hsm_api_key(x_api_key: str | None = Header(default=None)) -> None:
-    """A chave da Apresentação do PRD (issue #2013, ADR 0108, decisão 5): a
-    função Validar da Vercel manda a observação do diretor com ela. Mesmo molde
-    da chave da ponte: não configurada responde 503, ausente ou errada 401, com
-    comparação constante e sem ecoar a chave."""
-    chave_configurada = settings.planos_hsm_api_key
-    if not chave_configurada:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Observação do Validar desligada: PLANOS_HSM_API_KEY não está configurada no servidor",
-        )
-    if not x_api_key or not secrets.compare_digest(x_api_key.encode("utf-8"), chave_configurada.encode("utf-8")):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="API key inválida ou ausente",
-        )
-
-
 def require_role(*allowed_roles: str):
     """Dependency factory que verifica se o usuário tem um dos roles permitidos.
 

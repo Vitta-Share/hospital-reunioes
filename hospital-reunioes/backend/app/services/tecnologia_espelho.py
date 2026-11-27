@@ -13,6 +13,10 @@ Por dentro estao as regras da issue-raiz do app:
 - **Entrega do app:** `type:feature`, `type:fix` ou `type:bug`, e alguma
   `area:` de app (backend, frontend ou supabase). Ferramenta (`area:skills`,
   `area:docs` ou `area:infra` sozinhas) fica de fora.
+- **O card do diretor** (issue #2264, ADR 0113, decisao 6): a raiz com
+  `origem:diretor` vira Demanda mesmo sem `type:` e `area:`, com a Origem
+  "Pedido do diretor". Ferramenta, que tem `area:` e nenhuma do app, fica de
+  fora.
 - **Uma Demanda por issue.** A issue que ja tem Demanda devolve "ja existe";
   a lapide do Apagar devolve "ignora", para a issue fechada nao voltar.
 
@@ -23,9 +27,10 @@ Como o repositorio da Ana e publico e qualquer conta abre issue sem label, so
 entra a issue aberta por quem e do time (`author_association`), e so a aberta:
 a concluida antiga nao nasce nem por um `edited` (revisao do PR #1746).
 
-Quem chama e o webhook (`issues.opened` e `issues.edited`) e a carga do
-historico. `espelhar` e a costura com o GitHub e o banco: rele a issue e so
-cria pelo que releu, nunca pelo corpo do evento.
+Quem chama e o webhook (`issues.opened`, `issues.edited` e `issues.labeled`,
+este porque a Action do card do diretor poe a label depois que a issue abre) e
+a carga do historico. `espelhar` e a costura com o GitHub e o banco: rele a
+issue e so cria pelo que releu, nunca pelo corpo do evento.
 """
 
 from __future__ import annotations
@@ -39,9 +44,9 @@ from postgrest.exceptions import APIError
 from app.config import settings
 from app.services import github_client
 from app.services.github_client import PROJETO_ANA, PROJETO_HOSPITAL
-from app.services.tecnologia import ORIGEM_VITTA, TABELA_DEMANDAS, TABELA_PRODUTOS
+from app.services.tecnologia import ORIGEM_DIRETOR, ORIGEM_VITTA, TABELA_DEMANDAS, TABELA_PRODUTOS
 from app.services.tecnologia_sincronizacao import demanda_vinculada
-from app.services.tecnologia_vinculo import ETAPA_REGISTRADA, normalizar_github_login
+from app.services.tecnologia_vinculo import ETAPA_REGISTRADA, LABEL_ORIGEM_DIRETOR, normalizar_github_login
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +55,9 @@ IGNORA = "ignora"
 JA_EXISTE = "ja_existe"
 
 # As acoes do evento `issues` que passam pelo espelho.
-ACOES_DO_ESPELHO = ("opened", "edited")
+# O `labeled` e o do card do diretor: a Action poe `origem:diretor` depois que
+# a issue abre (issue #2264).
+ACOES_DO_ESPELHO = ("opened", "edited", "labeled")
 
 # O Tipo da Demanda pela label de natureza da issue (`docs/agents/triage-labels.md`).
 TIPO_DA_LABEL: dict[str, str] = {"type:feature": "novo", "type:fix": "defeito", "type:bug": "defeito"}
@@ -98,14 +105,27 @@ def decidir(issue: dict[str, Any], demanda: dict[str, Any] | None, *, projeto: s
         if issue.get("state") != "open" or issue.get("author_association") not in AUTORES_DO_TIME_DA_ANA:
             return IGNORA
         return IGNORA if AREA_DE_FERRAMENTA_DA_ANA in labels else CRIA
+    if LABEL_ORIGEM_DIRETOR in labels:
+        return IGNORA if _e_ferramenta(labels) else CRIA
     if not labels & TIPO_DA_LABEL.keys() or not labels & AREAS_DO_APP:
         return IGNORA
     return CRIA
 
 
+def _e_ferramenta(labels: set[str]) -> bool:
+    """Tem `area:` e nenhuma do app: `area:skills`, `area:docs` ou `area:infra`
+    sozinhas. O card do diretor sem `area:` nenhuma e de produto."""
+    return any(label.startswith("area:") for label in labels) and not labels & AREAS_DO_APP
+
+
 def _tipo(issue: dict[str, Any]) -> str:
     labels = _labels(issue)
     return "defeito" if labels & {"type:fix", "type:bug"} else "novo"
+
+
+def _origem(issue: dict[str, Any]) -> str:
+    """A Origem "Pedido do diretor" quando a raiz tem `origem:diretor` (ADR 0113, decisao 6)."""
+    return ORIGEM_DIRETOR if LABEL_ORIGEM_DIRETOR in _labels(issue) else ORIGEM_VITTA
 
 
 def _autor_id(supabase, issue: dict[str, Any]) -> str | None:
@@ -163,7 +183,7 @@ def criar(supabase, issue: dict[str, Any], *, projeto: str) -> dict[str, Any] | 
         "responsavel_id": None,
         "autor_id": _autor_id(supabase, issue),
         "prioridade": "normal",
-        "origem": ORIGEM_VITTA,
+        "origem": _origem(issue),
         "projeto": projeto,
         "github_issue_numero": numero,
         "etapa": ETAPA_REGISTRADA,
@@ -175,70 +195,6 @@ def criar(supabase, issue: dict[str, Any], *, projeto: str) -> dict[str, Any] | 
             return None
         raise
     return criada[0] if criada else None
-
-
-class DemandaDeProjetoNovoRecusadaError(ValueError):
-    """A ponte nao cria a Demanda; a mensagem e o motivo, em palavras."""
-
-
-MOTIVO_PROJETO_COM_REPOSITORIO = (
-    "Este Projeto tem o repositório lido pelo aplicativo: a Demanda dele nasce pelo espelho da issue."
-)
-MOTIVO_DEMANDA_APAGADA = "A Demanda deste PRD foi apagada no aplicativo."
-MOTIVO_SEM_PRODUTO = "O aplicativo não tem Produto ativo para a Demanda nova."
-
-
-def demanda_de_projeto_novo(
-    supabase, projeto: str, numero: int, *, nome_do_projeto: str, titulo: str, link: str
-) -> tuple[dict[str, Any], bool]:
-    """A Demanda do PRD de um Projeto que o app nao conhece (issue #1967, PRD
-    #1964), e se ela nasceu agora.
-
-    Nao e espelho: o app nao le o repositorio desse Projeto, e quem diz o nome,
-    o titulo e o link e a ponte. A Demanda nasce de Origem Vitta, em
-    Registrada, e nenhuma Etapa vem do GitHub (`sincronizar_demanda` e a
-    conferencia de hora em hora so leem os Projetos de `github_client.PROJETOS`).
-
-    A chave e a mesma do Vinculo, projeto mais numero: a que ja existe volta
-    como esta. A lapide do Apagar recusa, para a Demanda apagada nao voltar. Um
-    Projeto que o app le (Hospital e Ana) recusa, porque a Demanda dele nasce
-    pelo espelho, com as regras dele. A corrida de dois pedidos para no indice
-    unico, e quem perde le a que o outro gravou.
-    """
-    existente = demanda_vinculada(supabase, projeto, numero)
-    if existente is not None:
-        if existente.get("apagada_em"):
-            raise DemandaDeProjetoNovoRecusadaError(MOTIVO_DEMANDA_APAGADA)
-        return existente, False
-    if projeto in github_client.PROJETOS:
-        raise DemandaDeProjetoNovoRecusadaError(MOTIVO_PROJETO_COM_REPOSITORIO)
-    produto = _produto_padrao(supabase)
-    if produto is None:
-        raise DemandaDeProjetoNovoRecusadaError(MOTIVO_SEM_PRODUTO)
-    linha = {
-        "titulo": titulo,
-        "descricao": None,
-        "tipo": "novo",
-        "produto_id": produto["id"],
-        "estado": "nova",
-        "responsavel_id": None,
-        "autor_id": _autor_id(supabase, {}),
-        "prioridade": "normal",
-        "origem": ORIGEM_VITTA,
-        "projeto": projeto,
-        "projeto_nome": nome_do_projeto,
-        "raiz_url": link,
-        "github_issue_numero": numero,
-        "etapa": ETAPA_REGISTRADA,
-    }
-    try:
-        criada = supabase.table(TABELA_DEMANDAS).insert(linha).execute().data
-    except APIError:
-        vencedora = demanda_vinculada(supabase, projeto, numero)
-        if vencedora is None or vencedora.get("apagada_em"):
-            raise
-        return vencedora, False
-    return criada[0], True
 
 
 def conferir_raizes_da_ana(supabase) -> dict[str, int]:

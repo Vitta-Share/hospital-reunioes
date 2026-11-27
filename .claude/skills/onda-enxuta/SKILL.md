@@ -49,7 +49,7 @@ Você, orquestrador, **não lê código, diff, PRD nem spec**: mantém a tabela 
 
 **Baixa:** `gh issue edit <N> --remove-label in-progress --add-label ready-for-human`, comentário com branch, gate que falhou e hipótese, e o evento `pronto-para-voce` (abaixo) com "#<N> ficou com você: <gate>" e `--espera-issue <N>` (mais `--espera-pr <PR>`, se há PR).
 
-**Baixa que espera decisão do leitor:** se a baixa depende de uma decisão de produto num PRD que o `leitor` do `fluxo.json` planejou, o comentário da baixa e o relatório levam também uma mensagem de WhatsApp para o `humano` colar no grupo, num bloco de código e no tom das mensagens dele (CLAUDE.md global): o que o leitor escolheu no planejamento (o bloco `bloco` e as decisões do PRD), o que aconteceu, as opções, a recomendação e "o que vocês acham?". Enxuta, informal, sem lista e sem jargão; passa pelo `humanizer`. A gravação no `mensagem_a_enviar.py` só acontece depois do "aprovo" do humano.
+**Baixa que espera decisão do leitor:** se a baixa depende de uma decisão de produto num PRD que o `leitor` do `fluxo.json` planejou, o comentário da baixa e o relatório levam também uma mensagem de WhatsApp para o `humano` colar no grupo, num bloco de código e no tom das mensagens dele (CLAUDE.md global): o que o leitor escolheu no planejamento (o bloco `bloco` e as decisões do PRD), o que aconteceu, as opções, a recomendação e "o que vocês acham?". Enxuta, informal, sem lista e sem jargão; passa pelo `humanizer`. O envio é do humano, por fora do PedroOS (ADR 0113 do Hospital, decisão 12).
 
 ## Estado da Onda e aviso no celular
 

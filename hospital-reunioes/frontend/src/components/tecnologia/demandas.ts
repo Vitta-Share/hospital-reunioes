@@ -1,9 +1,9 @@
 /**
  * O vocabulário da Demanda, do lado da tela (issue #637, PRD #634; ADR 0077).
  *
- * Desde a issue #1386 a aba é o chat do agente: aqui ficam o que a lista das
- * conversas e a conversa aberta leem da Demanda (a Etapa, o selo e O que muda)
- * e o tratamento comum das respostas do servidor.
+ * Desde a issue #2279 (ADR 0113, decisões 6 e 7) a aba só lê: aqui fica o que
+ * o Quadro, a lista do celular e o Documento do card leem da Demanda (a Etapa,
+ * o selo e O que muda) e o tratamento comum das respostas do servidor.
  */
 
 /** O prefixo da API da aba. */
@@ -105,12 +105,6 @@ export type Demanda = {
   /** O motivo técnico da falha, só para o Desenvolvedor. Para o diretor o servidor manda nulo. */
   envio_motivo?: string | null;
   /**
-   * Se quem está logado pode apagar a Demanda (issue #1549, ADR 0084): o autor
-   * na conversa Registrada, o Desenvolvedor no card até Planejada. Quem decide
-   * é o servidor; sem o campo, o botão não aparece.
-   */
-  pode_apagar?: boolean;
-  /**
    * Quem abriu o card (issue #1554, ADR 0084, decisão 4): o diretor, pelo
    * chat, ou a Vitta, pela issue aberta no terminal. O card da Vitta não tem
    * conversa com o agente. Sem o campo, a linha fica sem selo.
@@ -126,13 +120,6 @@ export type Demanda = {
   projeto_nome?: string | null;
   raiz_url?: string | null;
   /**
-   * A Revisão com o código de hoje (issue #1557, ADR 0084, decisão 3):
-   * `pode_revisar` mostra o botão, pela regra do servidor; `em_revisao` abre a
-   * conversa para responder, e não só para ler.
-   */
-  pode_revisar?: boolean;
-  em_revisao?: boolean;
-  /**
    * O vídeo de demonstração da entrega (issue #1559): o link `https` lido do
    * marcador da issue-raiz e quando ele chegou. Sem link, sem selo nem seção.
    */
@@ -145,7 +132,63 @@ export type Demanda = {
    */
   apresentacao_url?: string | null;
   plano_validado?: boolean;
+  /**
+   * O plano validado pelo diretor e o Ajuste do plano (issue #1915): quando
+   * ele validou, para o selo, e se há Ajuste aberto, para a faixa. O número e
+   * o link do Ajuste, só para o Desenvolvedor; para o diretor vêm nulos.
+   */
+  validado_em?: string | null;
+  ajuste_aberto?: boolean;
+  ajuste_numero?: number | null;
+  ajuste_url?: string | null;
+  /**
+   * Os Pedidos de implantação da Demanda (issue #2209, ADR 0111, decisão 5):
+   * o que o hospital faz depois que a entrega sobe. Nulo, ou ausente, sem
+   * nenhum: o Documento fica sem a seção, e o Quadro, sem o selo.
+   */
+  implantacao?: ImplantacaoDaDemanda | null;
 };
+
+/** A situação de um Pedido de implantação, como o servidor a manda. */
+export type SituacaoDaImplantacao = "feito" | "esperando" | "aberto";
+
+/** Um Pedido de implantação na seção Implantação: o que é, quem recebeu, a situação e o que ele espera. */
+export type PedidoDaImplantacao = {
+  titulo: string;
+  destinatario: string | null;
+  situacao: SituacaoDaImplantacao;
+  espera?: string | null;
+};
+
+/** A Implantação da Demanda: os feitos sobre o total e cada Pedido. */
+export type ImplantacaoDaDemanda = {
+  feitos: number;
+  total: number;
+  pedidos: PedidoDaImplantacao[];
+};
+
+export const SITUACAO_DA_IMPLANTACAO_ROTULO: Record<SituacaoDaImplantacao, string> = {
+  feito: "Feito",
+  esperando: "Esperando",
+  aberto: "Aberto",
+};
+
+export const SITUACAO_DA_IMPLANTACAO_CLASSE: Record<SituacaoDaImplantacao, string> = {
+  feito: "bg-emerald-50 text-emerald-700",
+  esperando: "bg-amber-50 text-amber-800",
+  aberto: "bg-slate-100 text-slate-600",
+};
+
+/**
+ * O selo do card no Quadro (ADR 0111, decisão 5): "Implantação 1 de 3"
+ * enquanto falta algum Pedido de implantação; nulo com todos concluídos ou
+ * sem nenhum.
+ */
+export function seloDaImplantacao(demanda: Demanda): string | null {
+  const implantacao = demanda.implantacao;
+  if (!implantacao || implantacao.total <= 0 || implantacao.feitos >= implantacao.total) return null;
+  return `Implantação ${implantacao.feitos} de ${implantacao.total}`;
+}
 
 /**
  * O Número da Demanda como a tela o escreve (issue #1585): "Demanda 42", sem
@@ -176,17 +219,19 @@ export function linkDoPlano(demanda: Demanda): string | null {
   return url && url.startsWith(PAGINA_DOS_PLANOS) ? url : null;
 }
 
-export type Origem = "diretor" | "vitta";
+export type Origem = "diretor" | "vitta" | "relato";
 
-/** O selo da Origem na lista (issue #1554). */
+/** O selo da Origem na lista (issue #1554); o bug do Assistente do app é "Relato no app" (issue #2275). */
 export const ORIGEM_ROTULO: Record<Origem, string> = {
   diretor: "Pedido do diretor",
   vitta: "Vitta",
+  relato: "Relato no app",
 };
 
 export const ORIGEM_CLASSE: Record<Origem, string> = {
   diretor: "bg-slate-100 text-slate-700",
   vitta: "bg-sky-50 text-sky-700",
+  relato: "bg-amber-50 text-amber-700",
 };
 
 /** Os dois Projetos cujo repositório o app lê (ADR 0093, decisão 1). */
@@ -236,6 +281,22 @@ export const PROJETOS_FIXOS: OpcaoDeProjeto[] = (Object.keys(PROJETO_ROTULO) as 
 
 export const URL_DOS_PROJETOS = `${BASE_TECNOLOGIA}/projetos`;
 
+/** A lista do Quadro e do celular (issue #1384): as Demandas, com os filtros na consulta. */
+export const URL_DA_LISTA = `${BASE_TECNOLOGIA}/chat`;
+
+/** As opções do filtro Responsável do Desenvolvedor (issue #1533, ADR 0083, decisão 5). */
+export const URL_DOS_DESENVOLVEDORES = `${BASE_TECNOLOGIA}/desenvolvedores`;
+
+export type Desenvolvedor = { id: string; nome: string; padrao: boolean };
+
+export function desenvolvedoresValidos(corpo: unknown): Desenvolvedor[] {
+  if (!Array.isArray(corpo)) return [];
+  return corpo.filter(
+    (d): d is Desenvolvedor =>
+      typeof d === "object" && d !== null && typeof d.id === "string" && typeof d.nome === "string",
+  );
+}
+
 /** A lista do servidor, só com as opções bem formadas; nula quando não é uma lista. */
 export function projetosValidos(corpo: unknown): OpcaoDeProjeto[] | null {
   if (!Array.isArray(corpo)) return null;
@@ -261,9 +322,12 @@ export const CLASSIFICACAO_CLASSE: Record<Classificacao, string> = {
 
 /** Uma issue aberta que trava a parte (issue #1902, ADR 0100, decisão 2). */
 export type BloqueadoraDaParte = {
-  numero: number;
+  /** Nulo no Ajuste do plano (issue #1915), que a tela diz sem o número. */
+  numero: number | null;
   /** A bloqueadora não é parte deste pedido: a tela diz "de outro pedido". */
   de_outro_pedido: boolean;
+  /** A bloqueadora é o Ajuste do plano (issue #1915): "Espera o ajuste do plano". */
+  ajuste_do_plano?: boolean;
 };
 
 /** Uma parte da entrega: o que ela muda, em que pé está e quando fechou. */
