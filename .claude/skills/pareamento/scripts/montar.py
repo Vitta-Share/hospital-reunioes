@@ -92,6 +92,46 @@ def dados_da_pagina(estado: dict, descricoes: dict) -> tuple[dict, list[str]]:
     }, sem
 
 
+def resumo(estado: dict) -> str:
+    """O essencial da rodada para o terminal: quem anda já, o que vai para a onda, o que espera o diretor.
+
+    O que solta mais cards vem primeiro. Título de fora do time não aparece.
+    """
+    cards = {k: c for k, c in estado["cards"].items() if c["dono"] in ("eu", "diretor", "agente")}
+
+    def ordem(k: str) -> tuple:
+        return (-len(cards[k]["segura"]), k.split("#")[0], int(k.split("#")[1]))
+
+    def linha(k: str) -> str:
+        c = cards[k]
+        titulo = c["titulo"][:80] if c.get("confiavel", True) else "(título de fora do time)"
+        solta = f" · solta {', '.join(c['segura'])}" if c["segura"] else ""
+        return f"  {k} {titulo}{solta}"
+
+    def bloco(titulo: str, chaves: list[str], extra: list[str] = ()) -> str:
+        chaves = sorted(chaves, key=ordem)
+        corpo = [linha(k) for k in chaves] or ["  nada"]
+        return "\n".join([f"{titulo} ({len(chaves)}):", *corpo, *extra])
+
+    livre = {k for k, c in cards.items() if c["livre"] and not c.get("rodando")}
+    eu = [k for k in livre if cards[k]["dono"] == "eu"]
+    onda = [k for k in livre if cards[k]["dono"] == "agente"]
+    diretor = [k for k in livre if cards[k]["dono"] == "diretor"]
+    rodando = [k for k, c in cards.items() if c.get("rodando")]
+    projetos = sorted({cards[k]["projeto"] for k in onda})
+    lancar = [f"  lançar {'na' if p == 'Ana' else 'no'} {p}: /montar-ondas-enxutas" for p in projetos]
+    presos = Counter(cards[k]["dono"] for k in cards if k not in livre and k not in rodando)
+    nomes = {"eu": "você", "diretor": "diretor", "agente": "agente"}
+    partes = [
+        bloco("Você pode tocar já", eu),
+        bloco("Pode ir para a onda", onda, lancar),
+        bloco("Rodando agora", rodando),
+        bloco("Com o diretor e livre", diretor),
+        "Preso: " + ", ".join(f"{nomes[d]} {presos[d]}" for d in ("eu", "diretor", "agente")),
+    ]
+    return "\n\n".join(partes)
+
+
 def html(dados: dict) -> str:
     modelo = MODELO.read_text(encoding="utf-8")
     bruto = json.dumps(dados, ensure_ascii=False).replace("</", "<\\/").replace("<!--", "<\\!--")
@@ -111,6 +151,8 @@ def main() -> int:
     print(f"página: {saida}")
     if sem:
         print(f"atenção: {len(sem)} cards sem descrição: {', '.join(sem)}")
+    print()
+    print(resumo(estado))
     return 0
 
 
