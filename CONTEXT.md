@@ -603,7 +603,7 @@ A página na Vercel (`https://planos-hsm.vercel.app/<PRD>`) em que o diretor lê
 _Evitar_: estado guardado só no navegador de quem validou; o código de validação no app ou no GitHub; confundir com a [Demonstração], que mostra o que já foi entregue.
 
 **Demonstração**:
-O vídeo curto e a página na Vercel do que um card entregue mudou, feitos pelo `/divulgar` (ADR 0045; o vídeo sai do Estúdio de Vídeos do PedroOS e, sem ele, fica só a página) numa sessão aberta pelo botão "Gerar demonstração" do PedroOS, sempre por clique do Pedro (ADR 0084). A sessão grava na issue-raiz o marcador `<!-- demonstracao: <url> -->`, o webhook leva o link ao card e o card ganha o selo "Tem demonstração". Nem todo card tem. Quando fica pronta, o diretor recebe aviso por sino e e-mail, como recebe quando o card entra Em produção, com o resumo montado do [Documento do card], sem IA.
+A página na Vercel do que um card entregue mudou, feita pelo `/divulgar` (ADR 0045; sem vídeo desde que o Estúdio de Vídeos saiu) numa sessão aberta pelo botão "Gerar demonstração" do PedroOS, sempre por clique do Pedro (ADR 0084). A sessão grava na issue-raiz o marcador `<!-- demonstracao: <url> -->`, o webhook leva o link ao card e o card ganha o selo "Tem demonstração". Nem todo card tem. Quando fica pronta, o diretor recebe aviso por sino e e-mail, como recebe quando o card entra Em produção, com o resumo montado do [Documento do card], sem IA.
 _Evitar_: vídeo gerado pela Subida; link digitado no app; resumo do aviso escrito por IA.
 
 **Anexo da Demanda**:

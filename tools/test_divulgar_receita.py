@@ -1,6 +1,6 @@
-"""O `/divulgar` faz o vídeo pelo Estúdio de Vídeos e a página com ele (issue #1761).
+"""O `/divulgar` publica só a página, sem vídeo.
 
-O estúdio antigo (Motion studio) saiu em 14/11/2026; o vídeo volta pelo Estúdio do PedroOS.
+O Estúdio de Vídeos antigo saiu em 27/11/2026, e com ele o pedido de vídeo pelo `pedir_video.py`.
 A receita é texto que um agente segue: estes testes leem o `SKILL.md` como o agente lê.
 """
 
@@ -20,10 +20,23 @@ def _texto() -> str:
 
 @pytest.mark.parametrize(
     "citacao",
-    ["motion-studio", "Motion studio", "PedroDev/Videos", "regras-de-video", "skill `som`", "remotion", "render.mjs"],
+    [
+        "motion-studio", "Motion studio", "PedroDev/Videos", "regras-de-video", "skill `som`", "remotion", "render.mjs",
+        "pedir_video", "profitize-estreia", "Nova Feature", "video_do_estudio", "video-start", "<video",
+    ],
 )
-def test_receita_nao_cita_o_estudio_de_video_apagado(citacao):
+def test_receita_nao_cita_estudio_nem_pedido_de_video(citacao):
     assert citacao.lower() not in _texto().lower()
+
+
+def test_script_do_pedido_de_video_saiu():
+    assert not (SKILL.parent / "scripts" / "video_do_estudio.py").exists()
+
+
+def test_descricao_nao_fala_de_video():
+    frente = _texto().split("---")[1].lower()
+    for termo in ("vídeo", "video", "mp4", "estúdio"):
+        assert termo not in frente
 
 
 def test_sintaxe_e_so_o_numero_da_entrega():
@@ -33,32 +46,14 @@ def test_sintaxe_e_so_o_numero_da_entrega():
         assert flag not in frente
 
 
-def test_receita_nao_diz_mais_que_a_demonstracao_e_sem_video():
-    texto = _texto()
-    assert "sem vídeo" not in texto.lower()
-    assert "não faz vídeo" not in texto.lower()
+def test_pagina_nova_sai_sem_as_abas_do_video():
+    assert "tirar o que é do vídeo: a barra de abas, a aba Demonstração por Vídeo, o CTA e o script das abas" in _texto()
 
 
-@pytest.mark.parametrize(
-    "passo",
-    [
-        "playwright-cli video-start",  # a gravação nas telas reais
-        "playwright-cli video-stop",
-        "video/roteiro.md",  # o texto
-        "scripts/video_do_estudio.py",  # o pedido ao Estúdio
-        "~/PedroDev/OS/scripts/estudio/pedir_video.py",
-        "<video controls",  # a página com o vídeo embutido
-    ],
-)
-def test_receita_descreve_gravacao_texto_pedido_e_pagina_com_video(passo):
-    assert passo in _texto()
-
-
-def test_receita_decide_pelos_codigos_de_saida_do_comando():
-    texto = _texto()
-    for codigo in ("Saída 0", "Saída 1", "Saída 2", "Saída 3"):
-        assert codigo in texto
-    assert "Só a página:" in texto
+def test_publicacao_nao_copia_mp4():
+    publicacao = _texto().split("**Publicação")[1].split("## Checklist")[0]
+    assert "npx vercel@latest deploy --prod --yes" in publicacao
+    assert ".mp4" not in publicacao
 
 
 def test_link_na_issue_segue_pelo_marcar_demonstracao():
