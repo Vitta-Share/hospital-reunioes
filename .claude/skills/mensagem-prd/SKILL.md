@@ -69,5 +69,5 @@ Qualquer coisa me chama.
 ## O que esta skill não faz
 
 - Não manda a mensagem: o envio é do Pedro.
-- Não gera vídeo nem página (`/divulgar`).
+- Não gera a página (`/divulgar`).
 - Não descreve o que ainda não subiu.
