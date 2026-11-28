@@ -71,7 +71,7 @@
   const FX = { A: 'Óbito ou evento que nunca deveria ocorrer', B: 'Dano grave', C: 'Dano moderado', D: 'Dano leve ou sem dano', E: 'Quase erro ou circunstância de risco' };
   const faixa = (f) => `<span class="nsp-faixa f${f}" title="Faixa ${f}: ${FX[f]}">${f}</span>`;
   const idade = (h) => h < 24 ? `há ${h} horas` : `há ${Math.round(h / 24)} ${Math.round(h / 24) === 1 ? 'dia' : 'dias'}`;
-  const naFila = () => CASOS.filter((c) => sitDe(c) === 'triagem').sort((a, b) => (b.grave ? 1 : 0) - (a.grave ? 1 : 0) || b.h - a.h);
+  const naFila = () => CASOS.filter((c) => sitDe(c) === 'triagem').sort((a, b) => (b.grave ? 1 : 0) - (a.grave ? 1 : 0) || (a.grave && b.grave ? a.sug.localeCompare(b.sug) : 0) || b.h - a.h);
   const graves = () => naFila().filter((c) => c.grave);
 
   const ABAS = (atual) => N.abasModulo([['#nsp', 'Visão geral'], ['#nspnotificacoes', 'Notificações', naFila().length, graves().length > 0], ['#nspreunioes', 'Reuniões'], ['#nspnucleo', 'Núcleo'], ['#nspconfig', 'Configuração']], atual);
@@ -154,7 +154,7 @@
     const corpo = `${ABAS('#nspnotificacoes')}
       ${est.nsp.loteLigado ? `<p class="aviso">${I.info}Aprovação em lote ligada pela Diretoria Executiva em ${curto(dia(-6))}, com concordância de 93% nas últimas 4 semanas. Só as faixas D e E podem ir em lote.</p>` : ''}
       <section class="cartao bloco" style="margin-top:14px">
-        <div class="cab"><h2 class="titulo-bloco">Graves primeiro, depois da mais antiga para a mais nova</h2>
+        <div class="cab"><h2 class="titulo-bloco">Graves primeiro (faixa A antes da B), depois da mais antiga para a mais nova</h2>
           ${est.nsp.loteLigado ? `<button class="btn" data-acao="nsp-lote" ${marcados.length ? '' : 'disabled style="opacity:.5;cursor:default"'}>Confirmar em lote (${marcados.length})</button>` : ''}</div>
         <ul class="linhas">${fila.map((c) => { const podeLote = est.nsp.loteLigado && ['D', 'E'].includes(c.sug);
           return `<li class="linha" style="grid-template-columns:32px 40px minmax(0,1fr) 150px 120px">

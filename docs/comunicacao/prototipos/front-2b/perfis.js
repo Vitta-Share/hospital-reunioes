@@ -86,9 +86,33 @@
 
   // ------------------------------------------------------------------ peças comuns
   // Cabeçalho de módulo: o herói do Início, mais baixo. "resumo" são os cartões que sobem sobre ele.
+  // Uma foto do site do hospital por módulo (hospitalsaomatheus.com.br). O Início fica com a do designer.
+  const FOTOS = [
+    [/^(pendencias|quadro|concluidas|rotinas|calendario)$/, 'meu-trabalho'],
+    [/^(reunioes|reuniao|ataguiada|dashboard|processos)$/, 'reunioes'],
+    [/^pop/, 'pops'],
+    [/^ouv/, 'ouvidoria'],
+    [/^(nsp|notificar$)/, 'nsp'],
+    [/^contas/, 'contas'],
+    [/^comite/, 'conduta'],
+    [/^(central|tecnologia)/, 'tecnologia'],
+    [/^(admin|atendimento)/, 'admin'],
+    [/^secretaria/, 'secretaria'],
+    [/^(perfil|configuracoes|manual)$/, 'conta'],
+    [/^mapa$/, 'mapa'],
+    [/^(manifestacao|acompanhar)$/, 'alta'],
+    [/^notificarpublico$/, 'emergencia'],
+    [/^(conduta|condutaacompanhar)$/, 'conduta'],
+    [/^(login|responder|aceite|minhaspendencias)$/, 'ouvidoria']
+  ];
+  N.fotoDaTela = function () {
+    const pag = (location.hash || '#inicio').slice(1).split('-')[0];
+    const achada = FOTOS.find(([re]) => re.test(pag));
+    return achada ? `assets/modulos/${achada[1]}.jpg` : 'assets/quarto-hsm.jpg';
+  };
   N.cabModulo = function ({ sobre, titulo, frase, acoes, resumo }) {
     return `<section class="cab-modulo${resumo ? '' : ' sem-resumo'}" aria-label="${esc(titulo)}">
-      <img src="assets/quarto-hsm.jpg" alt=""><div class="veu-foto" aria-hidden="true"></div>
+      <img src="${N.fotoDaTela()}" alt=""><div class="veu-foto" aria-hidden="true"></div>
       <div class="dentro">
         <div style="flex:1 1 380px;min-width:0">${sobre ? `<p class="sobre">${sobre}</p>` : ''}<h1>${titulo}</h1>${frase ? `<p class="frase">${frase}</p>` : ''}<div class="risco" aria-hidden="true"></div></div>
         ${acoes ? `<div class="acoes-cab">${acoes}</div>` : ''}

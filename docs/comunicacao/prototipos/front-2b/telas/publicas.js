@@ -75,7 +75,7 @@
 
   function casca({ titulo, frase, corpo, depois }) {
     return `<div class="publica">
-      <section class="faixa"><img class="foto" src="assets/quarto-hsm.jpg" alt=""><div class="veu-foto" aria-hidden="true"></div>
+      <section class="faixa"><img class="foto" src="${N.fotoDaTela()}" alt=""><div class="veu-foto" aria-hidden="true"></div>
         <div class="dentro"><img class="logo" src="assets/logo-hsm-branco.png" alt="Hospital São Matheus" width="112" height="58"><h1>${titulo}</h1>${frase ? `<p>${frase}</p>` : ''}</div></section>
       <div class="miolo">${corpo}</div>
       ${depois || ''}
