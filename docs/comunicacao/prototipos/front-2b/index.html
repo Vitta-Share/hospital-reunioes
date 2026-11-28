@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt-BR" data-modelo="2b">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Novidades | Hospital Reuniões</title>
+<meta name="description" content="Protótipo navegável da nova tela inicial do Hospital Reuniões, com dados de demonstração.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="preload" href="assets/HPSimplified_Rg.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="stylesheet" href="estilo.css">
+<link rel="stylesheet" href="atual.css">
+</head>
+<body>
+<a class="pular" href="#conteudo">Pular para o conteúdo</a>
+<div class="app">
+  <nav class="menu" id="menu" aria-label="Menu principal">
+    <div class="logo-atual so-atual"><img src="assets/logo-hsm.png" alt="Hospital São Matheus"></div>
+    <div class="marca so-novo">
+      <img class="logo-cor" src="assets/logo-hsm-cor.png" alt="Hospital São Matheus" width="112" height="58">
+      <img class="logo-branco" src="assets/logo-hsm-branco.png" alt="Hospital São Matheus" width="112" height="58">
+      <svg class="marca-simbolo" width="40" height="22" viewBox="0 0 46 24" aria-hidden="true"><path d="M3 22A10 10 0 0 1 23 22" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/><path d="M19 22A12 12 0 0 1 43 22" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" opacity=".7"/></svg>
+    </div>
+    <div id="menu-itens" class="menu-itens"></div>
+    <div class="manual-atual so-atual"><a href="#fora-manual">Manual</a></div>
+    <div class="rodape-menu so-novo">
+      <div id="menu-rodape" class="menu-rodape"></div>
+      <p class="vitta"><span>desenvolvido por</span><svg viewBox="40 36 930 125" role="img" aria-label="VITTA"><path d="M40 40 L64 40 L122 127 L180 40 L204 40 L134 151 C126 159 118 159 110 151 Z"/><path d="M279 40 L301 40 L301 157 L279 157 Z"/><path d="M385 40 L525 40 L525 62 L385 62 Z"/><path d="M444 40 L466 40 L466 157 L444 157 Z"/><path d="M610 40 L750 40 L750 62 L610 62 Z"/><path d="M669 40 L691 40 L691 157 L669 157 Z"/><path d="M810 157 L874 47 C882.667 33.667 891.333 33.667 900 47 L964 157 L939 157 L887 68 L835 157 Z"/><path d="M864 157 C864 140 874 133 887 133 C900 133 910 140 910 157 Z"/></svg></p>
+    </div>
+    <div class="quem so-novo">
+      <span class="avatar" aria-hidden="true">RA</span>
+      <div><b>Renata Alves</b><span>Diretoria Assistencial</span></div>
+    </div>
+  </nav>
+  <button class="veu" id="veu" type="button" aria-label="Fechar o menu" hidden></button>
+
+  <div class="lado-direito">
+    <header class="topo">
+      <div class="topo-esq">
+        <button class="icone-btn so-celular" id="abrir-menu" type="button" aria-label="Abrir o menu" aria-controls="menu" aria-expanded="false">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <span class="trilha so-novo" id="trilha">INÍCIO</span>
+        <div class="busca-atual so-atual"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><label for="busca-topo" class="sr">Buscar</label><input id="busca-topo" type="text" placeholder="Buscar..."></div>
+      </div>
+      <div class="topo-dir">
+        <div class="modelos" role="group" aria-label="Modelo da tela">
+          <span class="modelos-rot">Modelo</span>
+          <button type="button" data-modelo="atual">Atual</button>
+          <button type="button" data-modelo="2b">2B</button>
+          <button type="button" data-modelo="2c">2C</button>
+          <button type="button" data-modelo="2c-escuro">2C escuro</button>
+        </div>
+        <button class="icone-btn sino" id="sino" type="button" aria-label="Notificações, 3 novas" aria-expanded="false">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 17V11a6 6 0 0 1 12 0v6l2 2H4zM10 21h4"/></svg>
+          <span class="bolinha" id="bolinha">3</span>
+        </button>
+        <span class="data-hoje so-novo" id="data-hoje"></span>
+        <span class="divisor so-atual" aria-hidden="true"></span>
+        <button type="button" class="perfil-atual so-atual" data-acao="demo" data-msg="No sistema, abre o menu do perfil."><span class="perfil-txt"><b>Renata Alves</b><small>renata.alves@exemplo.com</small></span><span class="perfil-av" aria-hidden="true">RA</span></button>
+      </div>
+      <div class="caixa-sino" id="caixa-sino" hidden></div>
+    </header>
+
+    <main id="conteudo" tabindex="-1"></main>
+    <footer class="rodape-atual so-atual"><span aria-label="Versão 0.163.2">v0.163.2</span></footer>
+  </div>
+</div>
+<div class="modal-fundo" id="modal" hidden></div>
+<div class="aviso-flutuante" id="toast" role="status" aria-live="polite" hidden></div>
+<script src="app.js"></script>
+<script src="atual.js"></script>
+<script src="menu.js"></script>
+</body>
+</html>
