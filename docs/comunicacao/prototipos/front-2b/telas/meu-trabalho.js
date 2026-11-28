@@ -224,7 +224,7 @@
     const r = reu(a.dataset.id); const [c, t] = COR[estadoReu(r)];
     const pend = PEND.filter((p) => p.reu === r.id && p.sit !== 'concluida');
     N.abrirGaveta({ sobre: `<span class="${c}">${t}</span>`, titulo: esc(r.titulo),
-      corpo: `<dl class="pares"><dt>Quando</dt><dd>${N.longo(deIso(r.data))}, ${r.hora}</dd><dt>Seu papel</dt><dd>${r.papel === 'facilitador' ? 'Você conduz' : 'Você participa'}</dd><dt>Ata</dt><dd>${esc(r.ata)}</dd></dl>
+      corpo: `<dl class="pares"><dt>Quando</dt><dd>${N.longo(deIso(r.data))}, ${r.hora}</dd><dt>Seu papel</dt><dd>${r.papel === 'facilitador' ? 'Você conduz' : 'Você participa'}</dd><dt>Ata</dt><dd>${N.infoAssinatura ? N.infoAssinatura(r) : esc(r.ata)}</dd></dl>
         <div><h3 class="titulo-bloco" style="font-size:15px">Pauta</h3><ol style="margin:8px 0 0;padding-left:20px">${r.pauta.map((x) => `<li>${esc(x)}</li>`).join('')}</ol></div>
         <div><h3 class="titulo-bloco" style="font-size:15px">Participantes</h3><p style="margin:6px 0 0">${r.participantes.map(esc).join(', ')}</p></div>
         ${pend.length ? `<div><h3 class="titulo-bloco" style="font-size:15px">Pendências em aberto desta Reunião</h3><ul class="linhas">${pend.map((p) => `<li class="linha" style="grid-template-columns:minmax(0,1fr) auto"><span class="t">${esc(p.t)}<small>${esc(p.resp)}</small></span>${N.estado(...SIT[sitDe(p)])}</li>`).join('')}</ul></div>` : ''}`,

@@ -200,17 +200,37 @@
     if (y + h > innerHeight - 12) y = py - h - 16;
     previa.style.left = Math.max(12, x) + 'px'; previa.style.top = Math.max(12, y) + 'px';
   }
+  // Cartão com links (o do Calendário, como no app de hoje) fica preso ao item e aceita clique.
+  let fixo = false, timer = null;
   function mostrar(el, ev) {
+    clearTimeout(timer);
     alvoPrevia = el; previa.innerHTML = el.dataset.previa; previa.hidden = false;
-    if (ev) posicionar(ev.clientX, ev.clientY);
-    else { const r = el.getBoundingClientRect(); posicionar(r.left - 16, r.bottom - 8); }
+    fixo = previa.querySelector('a, button') !== null;
+    previa.classList.toggle('interativa', fixo);
+    const r = el.getBoundingClientRect();
+    if (fixo) {
+      const w = previa.offsetWidth, h = previa.offsetHeight;
+      let x = r.right + 6, y = r.top - 8;
+      if (x + w > innerWidth - 12) x = r.left - w - 6;
+      if (y + h > innerHeight - 12) y = innerHeight - h - 12;
+      previa.style.left = Math.max(12, x) + 'px'; previa.style.top = Math.max(12, y) + 'px';
+    } else if (ev) posicionar(ev.clientX, ev.clientY);
+    else posicionar(r.left - 16, r.bottom - 8);
   }
-  function esconder() { alvoPrevia = null; previa.hidden = true; }
-  document.addEventListener('mouseover', (e) => { const el = e.target.closest('[data-previa]'); if (el && el !== alvoPrevia) mostrar(el, e); else if (!el && alvoPrevia) esconder(); });
-  document.addEventListener('mousemove', (e) => { if (alvoPrevia && !previa.hidden) posicionar(e.clientX, e.clientY); });
-  document.addEventListener('focusin', (e) => { const el = e.target.closest('[data-previa]'); if (el && el.matches(':focus-visible')) mostrar(el); else esconder(); });
-  ['scroll', 'hashchange', 'click'].forEach((ev) => window.addEventListener(ev, esconder, true));
+  function esconder() { clearTimeout(timer); alvoPrevia = null; previa.hidden = true; }
+  document.addEventListener('mouseover', (e) => {
+    if (e.target.closest('.previa')) { clearTimeout(timer); return; }
+    const el = e.target.closest('[data-previa]');
+    if (el && el !== alvoPrevia) mostrar(el, e);
+    else if (!el && alvoPrevia) { if (fixo) { clearTimeout(timer); timer = setTimeout(esconder, 220); } else esconder(); }
+  });
+  document.addEventListener('mousemove', (e) => { if (alvoPrevia && !previa.hidden && !fixo) posicionar(e.clientX, e.clientY); });
+  previa.addEventListener('click', () => setTimeout(esconder, 0));
+  document.addEventListener('focusin', (e) => { if (e.target.closest('.previa')) return; const el = e.target.closest('[data-previa]'); if (el && el.matches(':focus-visible')) mostrar(el); else esconder(); });
+  ['scroll', 'hashchange'].forEach((ev) => window.addEventListener(ev, esconder, true));
+  window.addEventListener('click', (e) => { if (!e.target.closest('.previa')) esconder(); }, true);
   N.css(`.previa{position:fixed;z-index:70;width:290px;background:var(--cartao);color:var(--texto);border:1px solid var(--borda);border-radius:10px;box-shadow:var(--sombra-alta);padding:14px 16px;font-size:13.5px;pointer-events:none;animation:entra .15s ease both}
+    .previa.interativa{pointer-events:auto;width:300px}
     .previa b{display:block;color:var(--titulo);font-size:15px;line-height:1.3;margin-bottom:4px}.previa .sub{display:block;margin-top:2px}.previa .dica{display:block;margin-top:10px;padding-top:8px;border-top:1px solid var(--linha);color:var(--acento);font-weight:700;font-size:12.5px}
     table.tab tbody tr{transition:background-color .12s ease}table.tab tbody tr:hover{background:var(--suave)}
     .linhas .linha{transition:background-color .12s ease}.linhas .linha:hover{background:var(--suave)}

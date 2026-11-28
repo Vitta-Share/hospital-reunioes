@@ -5,6 +5,7 @@
   const { esc, I, IC, dia, fmt, curto, est, reunioes, deIso, difDias, HOJE, iso } = N;
   const T = N.telas;
   const PEND = N.PEND || [];
+  N.css('.faixa-verde{display:flex;gap:8px;align-items:flex-start;margin:0 0 10px;padding:10px 12px;border-radius:8px;background:#E3F4EA;color:var(--verde);font-weight:700;font-size:13.5px;line-height:1.35}.faixa-verde svg{flex:none;margin-top:1px}');
   est.rm = { aba: {}, busca: '', estados: [], chipPapel: 'todas', periodo: '90', tirados: {}, estado: {}, sig: {}, resolvidos: {}, guiada: {} };
 
   // ------------------------------------------------------------------ dados extras: Reuniões em outros estados
@@ -31,6 +32,30 @@
   const reu = (id) => reunioes.find((r) => r.id === id);
 
   const SIG_INICIAL = { r0: ['Renata Alves', 'Carla Nogueira', 'Rodrigo Sales', 'Paulo Mendes', 'Juliana Prado'], rm1: ['Fernanda Lima', 'Carla Nogueira', 'Rodrigo Sales'], rh: ['Juliana Prado', 'Carla Nogueira'] };
+  // Quando cada Signatário assinou: [dias depois da Reunião, hora]. A última assinatura fecha a Ata.
+  const SIG_QUANDO = {
+    r0: { 'Renata Alves': [0, '17:12'], 'Carla Nogueira': [1, '08:40'], 'Rodrigo Sales': [1, '14:05'], 'Paulo Mendes': [2, '09:31'], 'Juliana Prado': [2, '16:48'] },
+    rm1: { 'Fernanda Lima': [0, '18:02'], 'Carla Nogueira': [1, '10:15'], 'Rodrigo Sales': [3, '11:47'] },
+    rh: { 'Juliana Prado': [0, '13:20'], 'Carla Nogueira': [1, '09:05'] }
+  };
+  const APROVADA_EM = { ra: [0, '09:10'] };
+  const INFO = { r0: ['Diretoria', 'Diretoria Assistencial, quinzenal', 'Acompanhar escalas, insumos e indicadores da Diretoria Assistencial.'],
+    r1: ['Diretoria', 'Diretoria Assistencial, quinzenal', 'Acompanhar escalas, insumos e indicadores da Diretoria Assistencial.'],
+    r5: ['Diretoria', 'Diretoria Assistencial, quinzenal', 'Fechamento do mês da Diretoria Assistencial.'],
+    rm1: ['Comissão', '', 'Indicadores de infecção e campanhas da CCIH.'], r2: ['Comissão', '', 'Resultado da ronda de higienização e protocolo de isolamento.'],
+    r3: ['Comissão', '', 'Preparação para a acreditação.'], r4: ['Núcleo', '', 'Indicadores de queda e notificações do mês.'],
+    rv: ['Comissão', '', 'Padronização de medicamentos.'], rr: ['Operacional', '', 'Primeiro tempo cirúrgico e EPIs.'], rh: ['Operacional', '', 'Enxoval e lavanderia.'], ra: ['Operacional', '', 'Passagem de plantão da UTI.'] };
+  const dataHora = (r, d) => { const x = deIso(r.data); x.setDate(x.getDate() + d[0]); return `${fmt(x)} às ${d[1]}`; };
+  N.quandoAssinou = (r, nome) => { if (est.rm.agora && est.rm.agora[r.id + nome]) return est.rm.agora[r.id + nome]; const q = (SIG_QUANDO[r.id] || {})[nome]; return q ? dataHora(r, q) : ''; };
+  const ultimaAssinatura = (r) => { const nomes = est.rm.sig[r.id] || SIG_INICIAL[r.id] || []; const ds = nomes.map((n) => N.quandoAssinou(r, n)).filter(Boolean);
+    const ord = ds.map((t) => { const [d, h] = t.split(' às '); const [dd, mm, aa] = d.split('/'); return [aa + mm + dd + h, t]; }).sort((a, b) => a[0].localeCompare(b[0])); return ord.length ? ord[ord.length - 1][1] : ''; };
+  // Uma linha para o calendário, a gaveta e a página: o que aconteceu com a Ata e quando.
+  N.infoAssinatura = (r) => { const e = estadoDe(r), n = (est.rm.sig[r.id] || SIG_INICIAL[r.id] || []).length;
+    if (e === 'ASSINADA') return `Assinada por todos em ${ultimaAssinatura(r)}, pela ClickSign`;
+    if (e === 'AGUARDANDO_ASSINATURA') return `${n} de ${r.participantes.length} assinaram${n ? `, a última em ${ultimaAssinatura(r)}` : ''}`;
+    if (e === 'APROVADA') return APROVADA_EM[r.id] ? `Aprovada sem assinatura em ${dataHora(r, APROVADA_EM[r.id])}` : 'Aprovada sem assinatura';
+    return NOME[e] ? NOME[e][1] : esc(r.ata); };
+  N.estadoReuniao = (r) => estadoDe(r);
   const assinou = (r, nome) => (est.rm.sig[r.id] || SIG_INICIAL[r.id] || []).includes(nome);
   const faltaMinha = (r) => estadoDe(r) === 'AGUARDANDO_ASSINATURA' && r.participantes.includes('Renata Alves') && !assinou(r, 'Renata Alves');
 
@@ -195,8 +220,8 @@
       return card(`${n} de ${r.participantes.length} assinaram`, 'A Ata está na ClickSign. As Pendências nascem quando a última assinatura chegar.', `${faltaMinha(r) ? `<button class="btn" data-acao="rm-assinar" data-id="${r.id}">Assinar a Ata</button>` : `<button class="btn" data-acao="rm-lembrar" data-id="${r.id}">Lembrar quem falta</button>`}<button class="btn contorno" data-acao="rm-aba" data-id="${r.id}" data-v="signatarios">Ver os Signatários</button>`); }
     const daPend = PEND.filter((p) => p.reu === r.id);
     const abertas = daPend.length ? daPend.filter((p) => p.sit !== 'concluida').length : quadro(r).filter((q) => q[3] === 'Ação').length;
-    return card(e === 'ASSINADA' ? 'Ata assinada por todos' : 'Ata aprovada sem assinatura', `${abertas ? `${abertas === 1 ? 'Uma Pendência desta Reunião segue aberta' : N.cap(N.ext(abertas)) + ' Pendências desta Reunião seguem abertas'}.` : 'Todas as Pendências desta Reunião foram entregues.'}`,
-      `<a class="btn" href="#pendencias">Ver as Pendências</a><button class="btn contorno" data-acao="toast" data-msg="No sistema, baixa o PDF ${e === 'ASSINADA' ? 'assinado' : 'da Ata'}.">${IC.baixar}Baixar o PDF</button><button class="btn contorno" data-acao="agendar">Agendar a próxima</button>`);
+    return card(e === 'ASSINADA' ? 'Ata assinada por todos' : 'Ata aprovada sem assinatura', `<span class="faixa-verde">${IC.escudo}<span>${N.infoAssinatura(r)}.</span></span>${abertas ? `${abertas === 1 ? 'Uma Pendência desta Reunião segue aberta' : N.cap(N.ext(abertas)) + ' Pendências desta Reunião seguem abertas'}.` : 'Todas as Pendências desta Reunião foram entregues.'}`,
+      `<a class="btn" href="#pendencias">Ver as Pendências</a><button class="btn contorno" data-acao="toast" data-msg="No sistema, baixa o PDF ${e === 'ASSINADA' ? 'assinado' : 'da Ata'}.">${IC.baixar}${e === 'ASSINADA' ? 'PDF assinado' : 'Baixar o PDF'}</button><button class="btn contorno" data-acao="agendar">Agendar a próxima</button>`);
   }
 
   // ------------------------------------------------------------------ seções da Ata (abas internas)
@@ -222,7 +247,7 @@
         ${e === 'AGUARDANDO_VALIDACAO' ? `<p class="aviso">${I.info}As Pendências nascem quando você enviar para assinatura (na última assinatura) ou finalizar sem assinatura (na hora).</p>` : ''}` : '<p class="vazio">Nenhuma ação registrada nesta Ata.</p>'; }
     if (aba === 'participantes') return `<ul class="linhas">${r.participantes.map((n) => `<li class="linha" style="grid-template-columns:42px minmax(0,1fr) auto"><span class="ini" style="width:36px;height:36px;border-radius:999px;background:var(--suave2);color:var(--titulo);display:inline-flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700">${N.ini(n)}</span><span class="t">${esc(n)}${n === 'Renata Alves' ? ' (você)' : ''}<small>${n === facil(r) ? 'Facilitador' : 'Participante'}</small></span>${e === 'PROGRAMADA' && conduzo(r) && n !== 'Renata Alves' ? `<button class="btn contorno" data-acao="rm-tirar" data-id="${r.id}" data-nome="${esc(n)}">Tirar</button>` : ''}</li>`).join('')}</ul>
       ${e === 'PROGRAMADA' && (conduzo(r) || souSecretaria()) ? `<button class="btn contorno" style="margin-top:12px" data-acao="rm-part" data-id="${r.id}">${IC.mais}Incluir Participante</button>` : ''}`;
-    if (aba === 'signatarios') return `<ul class="linhas">${r.participantes.map((n) => { const ok = assinou(r, n); return `<li class="linha" style="grid-template-columns:minmax(0,1fr) auto auto"><span class="t">${esc(n)}${n === 'Renata Alves' ? ' (você)' : ''}</span>${N.estado(ok ? 'e-ok' : 'e-hoje', ok ? 'Assinou' : 'Falta assinar')}${!ok && n !== 'Renata Alves' && e === 'AGUARDANDO_ASSINATURA' && conduzo(r) ? `<button class="btn contorno" data-acao="toast" data-msg="Lembrete enviado para ${esc(n.split(' ')[0])} pela ClickSign.">Lembrar</button>` : '<span></span>'}</li>`; }).join('')}</ul>`;
+    if (aba === 'signatarios') return `<ul class="linhas">${r.participantes.map((n) => { const ok = assinou(r, n); return `<li class="linha" style="grid-template-columns:minmax(0,1fr) auto auto"><span class="t">${esc(n)}${n === 'Renata Alves' ? ' (você)' : ''}</span>${N.estado(ok ? 'e-ok' : 'e-hoje', ok ? `Assinou em ${N.quandoAssinou(r, n) || 'data não registrada'}` : 'Falta assinar')}${!ok && n !== 'Renata Alves' && e === 'AGUARDANDO_ASSINATURA' && conduzo(r) ? `<button class="btn contorno" data-acao="toast" data-msg="Lembrete enviado para ${esc(n.split(' ')[0])} pela ClickSign.">Lembrar</button>` : '<span></span>'}</li>`; }).join('')}</ul>`;
     if (aba === 'resolucao') return `<p class="sub" style="margin:0 0 6px">A IA encontrou estes nomes na Transcrição e não teve certeza de quem são.</p>
       ${RESOLVER.map((x) => `<div class="nome-res"><span><b style="color:var(--titulo)">"${esc(x.citado)}"</b><span class="sub" style="display:block">citado no Quadro de atribuições</span></span>
         <label><span class="sr">Quem é ${esc(x.citado)}</span><select data-res="${x.k}">${x.opcoes.map((o) => `<option>${esc(o)}</option>`).join('')}<option>Externo, só o nome (sem cobrança)</option><option>Ignorar este nome</option></select></label></div>`).join('')}
@@ -268,6 +293,7 @@
   N.acoes['rm-corrigir-ok'] = (a) => { set(a.dataset.id, 'CORRIGINDO', 'A IA está corrigindo a parte apontada.'); setTimeout(() => { est.rm.estado[a.dataset.id] = 'AGUARDANDO_VALIDACAO'; N.desenhar(); N.aviso('Correção feita. Confira e valide.'); }, 2200); };
   N.acoes['rm-assinar'] = (a) => N.modal('Assinar a Ata', `<p class="sub" style="margin:0">Você vai para a ClickSign assinar com o seu e-mail. Leva menos de um minuto.</p>`, `<button type="button" class="btn" data-acao="rm-assinar-ok" data-id="${a.dataset.id}">Assinar agora</button>`);
   N.acoes['rm-assinar-ok'] = (a) => { const r = reu(a.dataset.id); est.rm.sig[r.id] = [...(est.rm.sig[r.id] || SIG_INICIAL[r.id] || []), 'Renata Alves'];
+    const agora = new Date(); est.rm.agora = est.rm.agora || {}; est.rm.agora[r.id + 'Renata Alves'] = `${fmt(HOJE)} às ${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}`;
     const todos = r.participantes.every((n) => assinou(r, n)); set(r.id, todos ? 'ASSINADA' : 'AGUARDANDO_ASSINATURA', todos ? 'Assinatura registrada. A Ata está assinada por todos.' : 'Assinatura registrada.'); };
   N.acoes['rm-lembrar'] = (a) => { const r = reu(a.dataset.id); const faltam = r.participantes.filter((n) => !assinou(r, n)); N.aviso(`Lembrete enviado para ${faltam.map((n) => n.split(' ')[0]).join(', ')}.`); };
   N.acoes['rm-desmarcar'] = (a) => N.modal('Desmarcar a Reunião', `<p class="sub" style="margin:0">Os Participantes recebem o aviso por e-mail. A Reunião some do Calendário.</p><div class="campo" style="margin-top:12px"><label for="rm-mot">Motivo (vai no aviso)</label><textarea id="rm-mot"></textarea></div>`,
@@ -421,4 +447,32 @@
   N.acoes['rm-tirar-proc'] = (a) => { const d = PROC.find((x) => x.id === a.dataset.id);
     N.modal('Tirar da lista', `<p class="sub" style="margin:0 0 12px">${esc(d.t)}</p><div class="campo"><label for="tp-anot">Por que sai da lista</label><textarea id="tp-anot" placeholder="Ex.: virou POP, ou o combinado mudou"></textarea></div>`, `<button type="button" class="btn" data-acao="rm-tirar-proc-ok" data-id="${d.id}">Tirar da lista</button>`); };
   N.acoes['rm-tirar-proc-ok'] = (a) => { est.rm.tirados[a.dataset.id] = true; N.fecharModal(); N.desenhar(); N.aviso('Definição tirada da lista, com a anotação.'); };
+
+  // ------------------------------------------------------------------ cartão do calendário (hover), igual ao do app de hoje e com a assinatura
+  N.previaReuniao = (r) => {
+    const e = estadoDe(r), [tipo, serie, objetivo] = INFO[r.id] || ['', '', ''];
+    const f = facil(r), nomes = r.participantes.slice(0, 4);
+    const fim = (() => { const [h, m] = r.hora.split(':').map(Number); return `${String(h + 1).padStart(2, '0')}:${String(m).padStart(2, '0')}`; })();
+    return esc(`<b>${esc(r.titulo)}</b>
+      <span class="pv-estado"><i class="${/ASSINADA|APROVADA/.test(e) ? 'ok' : /AGUARDANDO|PROCESS|CORRIG/.test(e) ? 'meio' : ''}"></i>${NOME[e] ? NOME[e][1] : ''}${tipo ? ` <em>|</em> ${tipo}` : ''}</span>
+      ${serie ? `<span class="pv-serie">Série: ${esc(serie)}</span>` : ''}
+      <span class="sub">${N.longo(deIso(r.data))}, ${r.hora} às ${fim}</span>
+      ${objetivo ? `<span class="sub pv-obj">${esc(objetivo)}</span>` : ''}
+      ${/ASSINADA|APROVADA|AGUARDANDO_ASSINATURA/.test(e) ? `<span class="pv-assin">${N.infoAssinatura(r)}</span>` : ''}
+      <span class="pv-part"><span class="rot-mini">Participantes</span>${nomes.map((n) => `<span class="${n === f ? 'pv-fac' : ''}">${esc(n)}${n === f ? ' · Facilitador' : ''}</span>`).join('')}${r.participantes.length > 4 ? `<span class="sub">+${r.participantes.length - 4} mais</span>` : ''}</span>
+      <span class="pv-links"><a href="#reuniao-${r.id}">Ver detalhe</a>${e === 'ASSINADA' ? `<a href="#" data-acao="toast" data-msg="No sistema, baixa o PDF assinado.">PDF assinado</a>` : e === 'APROVADA' ? `<a href="#" data-acao="toast" data-msg="No sistema, baixa o PDF da Ata.">PDF da Ata</a>` : ''}${serie && e === 'PROGRAMADA' ? `<a href="#" class="pv-excluir" data-acao="rm-excluir-serie" data-id="${r.id}">Excluir toda a série recorrente</a>` : ''}</span>`);
+  };
+  N.acoes['rm-excluir-serie'] = (a) => { const r = reu(a.dataset.id); const [, serie] = INFO[r.id] || [];
+    N.modal('Excluir toda a série?', `<p>Saem do calendário todas as Reuniões programadas da série <b>${esc(serie)}</b>. As que já aconteceram ficam, com as Atas.</p>`, `<button type="button" class="btn" style="background:var(--verm);border-color:var(--verm)" data-acao="toast" data-msg="Série excluída. Os Participantes foram avisados.">Excluir a série</button>`); };
+  N.css(`.previa .pv-estado{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--texto2);margin:2px 0 6px}
+    .previa .pv-estado i{width:7px;height:7px;border-radius:999px;background:var(--ponto-azul)}.previa .pv-estado i.ok{background:var(--verde)}.previa .pv-estado i.meio{background:var(--ponto-laranja)}
+    .previa .pv-estado em{font-style:normal;opacity:.4}
+    .previa .pv-serie{display:inline-block;margin:0 0 6px;padding:2px 8px;border-radius:6px;background:var(--suave2);color:var(--titulo);font-size:12px;font-weight:700}
+    .previa .pv-obj{margin-top:4px}
+    .previa .pv-assin{display:block;margin-top:8px;padding:7px 10px;border-radius:7px;background:#E3F4EA;color:var(--verde);font-weight:700;font-size:12.5px;line-height:1.35}
+    .previa .pv-part{display:flex;flex-direction:column;gap:1px;margin-top:8px;padding-top:8px;border-top:1px solid var(--linha);font-size:13px}
+    .previa .pv-part .rot-mini{margin-bottom:2px}.previa .pv-fac{color:var(--laranja);font-weight:700}
+    .previa .pv-links{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;padding-top:8px;border-top:1px solid var(--linha)}
+    .previa .pv-links a{font-size:12.5px;font-weight:700;color:var(--acento);text-decoration:none}.previa .pv-links a:hover{text-decoration:underline}
+    .previa .pv-links a.pv-excluir{color:var(--verm)}`);
 })();
