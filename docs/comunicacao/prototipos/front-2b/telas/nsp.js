@@ -8,7 +8,7 @@
   const T = N.telas;
   const SOBRE = 'Segurança do Paciente';
   const ANO = HOJE.getFullYear();
-  est.nsp = { busca: '', faixa: 'todas', sit: 'abertos', lote: {}, conferidos: {}, nucleoAba: 'membros', passo: 1, form: {}, recibo: null, loteLigado: true, ajuste: {}, triados: {} };
+  est.nsp = { busca: '', faixas: [], sits: ['triagem', 'investigacao'], lote: {}, conferidos: {}, nucleoAba: 'membros', passo: 1, form: {}, recibo: null, loteLigado: true, ajuste: {}, triados: {} };
 
   N.css(`
     .nsp-alerta{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;margin-top:14px;padding:16px 20px;border-radius:10px;background:var(--cartao);border:1px solid var(--borda);border-left:5px solid var(--ponto-verm);box-shadow:var(--sombra)}
@@ -47,6 +47,7 @@
     .nsp-toggle[aria-pressed="true"] i{background:var(--btn-fundo)}
     .nsp-toggle[aria-pressed="true"] i::after{transform:translateX(18px)}
     .nsp-recibo{font-size:30px;font-weight:700;color:var(--titulo);letter-spacing:.02em;font-variant-numeric:tabular-nums}
+    .nsp-dd-op b{color:var(--titulo)}.dd-pop .nsp-dd-op b::before{content:"Faixa "}.dd-pop .nsp-dd-desc{display:block;font-size:12px;color:var(--texto2)}.dd>button .nsp-dd-desc{display:none}.dd>button .nsp-dd-op{margin-right:-6px}
     .nsp-naopune{margin-top:14px;padding:14px 16px;border-radius:8px;background:var(--aviso-fundo);border:1px solid var(--aviso-borda);font-size:14px;color:var(--titulo)}
   `);
 
@@ -73,6 +74,8 @@
   const idade = (h) => h < 24 ? `há ${h} horas` : `há ${Math.round(h / 24)} ${Math.round(h / 24) === 1 ? 'dia' : 'dias'}`;
   const naFila = () => CASOS.filter((c) => sitDe(c) === 'triagem').sort((a, b) => (b.grave ? 1 : 0) - (a.grave ? 1 : 0) || (a.grave && b.grave ? a.sug.localeCompare(b.sug) : 0) || b.h - a.h);
   const graves = () => naFila().filter((c) => c.grave);
+  const primeira = (t) => (t.match(/^[^.]+\.?/) || [t])[0];
+  const previaCaso = (c, dica) => esc(`<b>${prot(c)} · ${esc(c.tipo)}</b><span class="sub">${esc(c.setor)} · ${idade(c.h)} · ${esc(c.origem)}</span><span class="sub">Faixa ${faixaDe(c) ? 'confirmada ' + faixaDe(c) : 'sugerida ' + c.sug}: ${FX[faixaDe(c) || c.sug]}</span><span class="sub" style="margin-top:6px;color:var(--texto)">${esc(primeira(c.relato))}</span><span class="dica">${dica}</span>`);
 
   const ABAS = (atual) => N.abasModulo([['#nsp', 'Visão geral'], ['#nspnotificacoes', 'Notificações', naFila().length, graves().length > 0], ['#nspreunioes', 'Reuniões'], ['#nspnucleo', 'Núcleo'], ['#nspconfig', 'Configuração']], atual);
   const resumoNsp = () => [
@@ -122,30 +125,28 @@
   function linhaCaso(c, comBotao) {
     const f = faixaDe(c); const [cls, txt] = SIT[sitDe(c)];
     return `<tr><td>${f ? faixa(f) : `<span class="sub" title="Sugestão do agente">${faixa(c.sug)}</span>`}</td>
-      <td><a href="#nspcaso-${c.id}">${prot(c)}</a>${c.grave && sitDe(c) === 'triagem' ? ` <span class="pill verm">Grave ou houve morte</span>` : ''}<div class="sub">${esc(c.tipo)} · ${esc(c.setor)}</div></td>
+      <td><a href="#nspcaso-${c.id}" data-previa="${previaCaso(c, sitDe(c) === 'triagem' && comBotao ? 'Clique em Triar para classificar' : 'Clique para abrir o caso')}">${prot(c)}</a>${c.grave && sitDe(c) === 'triagem' ? ` <span class="pill verm">Grave ou houve morte</span>` : ''}<div class="sub">${esc(c.tipo)} · ${esc(c.setor)}</div></td>
       <td style="max-width:360px"><span class="sub" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(c.relato)}</span></td>
       <td>${N.estado(cls, c.sit === 'encaminhado' ? 'Encaminhado: ' + c.destino : txt)}<div class="sub">${esc(c.origem)} · ${idade(c.h)}</div></td>
       <td style="text-align:right">${comBotao && sitDe(c) === 'triagem' ? `<a class="btn" href="#nsptriar-${c.id}">Triar</a>` : `<a class="btn contorno" href="#nspcaso-${c.id}">Abrir</a>`}</td></tr>`;
   }
   T.nspnotificacoes = { trilha: 'Notificações do Núcleo', menu: 'nspnotificacoes', mapa: [SOBRE, 'Notificações'], render() {
     const t = est.nsp.busca.trim().toLowerCase();
-    const SITS = [['abertos', 'Abertos'], ['triagem', 'Aguardando triagem'], ['investigacao', 'Em investigação'], ['encaminhado', 'Encaminhados'], ['encerrado', 'Encerrados'], ['todos', 'Todos']];
-    const lista = CASOS.filter((c) => est.nsp.sit === 'todos' || (est.nsp.sit === 'abertos' ? !['encerrado', 'encaminhado'].includes(sitDe(c)) : sitDe(c) === est.nsp.sit))
-      .filter((c) => est.nsp.faixa === 'todas' || (faixaDe(c) || c.sug) === est.nsp.faixa)
+    const SITS = [['triagem', 'Aguardando triagem'], ['investigacao', 'Em investigação'], ['encaminhado', 'Encaminhados'], ['encerrado', 'Encerrados']];
+    const FAIXAS = ['A', 'B', 'C', 'D', 'E'].map((f) => [f, `<span class="nsp-dd-op"><b>${f}</b><span class="nsp-dd-desc">${FX[f]}</span></span>`]);
+    const lista = CASOS.filter((c) => N.passa(est.nsp.sits, sitDe(c)))
+      .filter((c) => N.passa(est.nsp.faixas, faixaDe(c) || c.sug))
       .filter((c) => !t || (prot(c) + ' ' + c.tipo + ' ' + c.setor + ' ' + c.relato).toLowerCase().includes(t));
     const corpo = `${ABAS('#nspnotificacoes')}<section class="cartao bloco" style="margin-top:14px">
-      <div class="ferramentas"><div class="chips" role="group" aria-label="Situação">${SITS.map(([k, x]) => `<button class="chip" data-acao="nsp-sit" data-v="${k}" aria-pressed="${est.nsp.sit === k}">${x}</button>`).join('')}</div>
+      <div class="ferramentas"><div class="filtros-linha">${N.filtro({ id: 'nsp-sit', rotulo: 'Situação', opcoes: SITS, multi: true, obj: 'nsp', campo: 'sits', todos: 'Todas as situações' })}${N.filtro({ id: 'nsp-faixa', rotulo: 'Faixa', opcoes: FAIXAS, multi: true, obj: 'nsp', campo: 'faixas', todos: 'Todas as faixas' })}</div>
         <label class="busca-lista">${IC.busca}<span class="sr">Buscar</span><input id="nsp-busca" data-digita="nsp-busca" type="search" placeholder="Protocolo, setor ou palavra do relato" value="${esc(est.nsp.busca)}"></label></div>
-      <div class="chips" role="group" aria-label="Faixa" style="margin:4px 0 6px"><span class="rot-mini" style="align-self:center;margin-right:4px">Faixa</span>${['todas', 'A', 'B', 'C', 'D', 'E'].map((f) => `<button class="chip" data-acao="nsp-faixa" data-v="${f}" aria-pressed="${est.nsp.faixa === f}" title="${FX[f] || 'Todas as faixas'}">${f === 'todas' ? 'Todas' : f}</button>`).join('')}</div>
       <div class="tabela-rola"><table class="tab"><thead><tr><th>Faixa</th><th>Protocolo</th><th>Relato</th><th>Situação</th><th></th></tr></thead><tbody>${lista.map((c) => linhaCaso(c, true)).join('')}</tbody></table>
-      ${lista.length ? '' : '<p class="vazio">Nenhum caso com esse filtro. Troque a situação ou a faixa, ou limpe a busca.</p>'}</div>
+      ${lista.length ? '' : '<p class="vazio">Nenhum caso com esse filtro. Troque a situação ou a faixa no filtro, ou limpe a busca.</p>'}</div>
       <p class="sub" style="margin:10px 0 0">A faixa em tom claro é a sugestão do agente; ela só vale depois da triagem da Presidência.</p></section>`;
     return N.modulo({ sobre: SOBRE, titulo: 'Notificações', frase: `${CASOS.length} notificações de incidente. ${naFila().length} esperam a triagem da Presidência.`,
       acoes: `<a class="btn claro grande" href="#nsptriagem">Fila de triagem (${naFila().length})</a><button class="btn vidro grande" data-acao="nsp-rapido">Registro rápido</button>` }, null, '', corpo);
   } };
   N.digitar['nsp-busca'] = (v) => { est.nsp.busca = v; };
-  N.acoes['nsp-sit'] = (a) => { est.nsp.sit = a.dataset.v; N.desenhar(); };
-  N.acoes['nsp-faixa'] = (a) => { est.nsp.faixa = a.dataset.v; N.desenhar(); };
 
   // ------------------------------------------------------------------ Fila de triagem
   T.nsptriagem = { trilha: 'Fila de triagem', menu: 'nspnotificacoes', mapa: [SOBRE, 'Fila de triagem'], render() {
@@ -160,7 +161,7 @@
           return `<li class="linha" style="grid-template-columns:32px 40px minmax(0,1fr) 150px 120px">
             <span>${podeLote ? `<input type="checkbox" aria-label="Incluir ${prot(c)} no lote" data-lote="${c.id}" ${est.nsp.lote[c.id] ? 'checked' : ''} style="width:20px;height:20px">` : ''}</span>
             ${faixa(c.sug)}
-            <span class="t">${prot(c)} · ${esc(c.tipo)}${c.grave ? ' <span class="pill verm">Grave ou houve morte</span>' : ''}<small>${esc(c.setor)} · ${esc(c.origem)}</small></span>
+            <span class="t"><span data-previa="${previaCaso(c, 'Clique em Triar para ver o relato e a sugestão do agente')}" tabindex="0">${prot(c)} · ${esc(c.tipo)}</span>${c.grave ? ' <span class="pill verm">Grave ou houve morte</span>' : ''}<small>${esc(c.setor)} · ${esc(c.origem)}</small></span>
             <span class="estado ${c.h > 48 ? 'e-venc' : 'e-hoje'}"><i aria-hidden="true"></i>${idade(c.h)}</span>
             <a class="btn" href="#nsptriar-${c.id}">Triar</a></li>`; }).join('')}</ul>
         ${fila.length ? '' : '<p class="vazio">Fila vazia. Toda notificação já foi triada.</p>'}
@@ -266,8 +267,9 @@
   T.nspreunioes = { trilha: 'Reuniões do Núcleo', menu: 'nspreunioes', mapa: [SOBRE, 'Reuniões do Núcleo'], render() {
     const ord = [...REU].sort((a, b) => a.off - b.off);
     const corpo = `${ABAS('#nspreunioes')}<section class="cartao bloco" style="margin-top:14px"><ul class="linhas">${ord.map((r) => { const d = dia(r.off); const passada = r.off < 0;
+      const pv = esc(`<b>Reunião ${r.tipo === 'Ordinária' ? 'ordinária' : 'rápida de segurança'} do Núcleo</b><span class="sub">${N.longo(d)}, ${r.hora}</span><span class="sub">${passada ? `Presentes: ${r.pres} de ${r.total} · Ata ${r.ata.toLowerCase()}` : `${r.total} membros convocados`}</span><span class="sub" style="margin-top:6px;color:var(--texto)">${r.pauta.map(esc).join('<br>')}</span><span class="dica">Clique em Pauta ou Presença para editar</span>`);
       return `<li class="linha" style="grid-template-columns:130px minmax(0,1fr) 150px 110px 110px"><span class="num">${curto(d)}, ${r.hora}<small class="sub" style="display:block">${quando(d)}</small></span>
-        <span class="t">Reunião ${r.tipo === 'Ordinária' ? 'ordinária' : 'rápida de segurança'} do Núcleo<small>${r.pauta.map(esc).join(' · ')}</small></span>
+        <span class="t"><span data-previa="${pv}" tabindex="0">Reunião ${r.tipo === 'Ordinária' ? 'ordinária' : 'rápida de segurança'} do Núcleo</span><small>${r.pauta.map(esc).join(' · ')}</small></span>
         <span class="pill ${passada ? 'verde' : ''}">${passada ? 'Ata ' + r.ata.toLowerCase() : r.tipo}</span>
         <button class="btn contorno" data-acao="nsp-pauta" data-id="${r.id}">Pauta</button>
         <button class="btn ${passada ? 'contorno' : ''}" data-acao="nsp-presenca-r" data-id="${r.id}">${passada ? 'Presença' : 'Presença'}</button></li>`; }).join('')}</ul></section>`;
@@ -301,7 +303,7 @@
     const a = est.nsp.nucleoAba;
     let miolo = '';
     if (a === 'membros') miolo = `<div class="ferramentas"><span class="sub">Participação vencida não recebe caso nem conta para quórum. O histórico fica.</span><button class="btn" data-acao="toast" data-msg="No sistema, abre a inclusão de membro com vigência e o envio do Termo de Adesão.">Incluir membro</button></div>
-      <div class="tabela-rola"><table class="tab"><thead><tr><th>Membro</th><th>Papel</th><th>Vigência</th><th>Termo de Adesão</th><th>Situação</th><th></th></tr></thead><tbody>${MEMBROS.map((m, i) => `<tr><td><a href="#" data-acao="nsp-membro" data-i="${i}">${esc(m.nome)}</a><div class="sub">${esc(m.setor)}</div></td><td>${esc(m.papel)}</td><td class="num">${m.vig}</td><td>${N.estado(m.termo === 'Assinado' ? 'e-ok' : 'e-hoje', m.termo)}</td><td><span class="pill ${m.sit === 'Vigente' ? 'verde' : 'cinza'}">${m.sit}</span></td><td style="text-align:right"><button class="btn contorno" data-acao="nsp-membro" data-i="${i}">Abrir</button></td></tr>`).join('')}</tbody></table></div>`;
+      <div class="tabela-rola"><table class="tab"><thead><tr><th>Membro</th><th>Papel</th><th>Vigência</th><th>Termo de Adesão</th><th>Situação</th><th></th></tr></thead><tbody>${MEMBROS.map((m, i) => `<tr><td><a href="#" data-acao="nsp-membro" data-i="${i}" data-previa="${esc(`<b>${esc(m.nome)}</b><span class="sub">${esc(m.papel)} · ${esc(m.setor)}</span><span class="sub">Vigência: ${m.vig}</span><span class="sub">Termo de Adesão: ${m.termo.toLowerCase()}</span><span class="dica">Clique para ver o histórico e o Termo</span>`)}">${esc(m.nome)}</a><div class="sub">${esc(m.setor)}</div></td><td>${esc(m.papel)}</td><td class="num">${m.vig}</td><td>${N.estado(m.termo === 'Assinado' ? 'e-ok' : 'e-hoje', m.termo)}</td><td><span class="pill ${m.sit === 'Vigente' ? 'verde' : 'cinza'}">${m.sit}</span></td><td style="text-align:right"><button class="btn contorno" data-acao="nsp-membro" data-i="${i}">Abrir</button></td></tr>`).join('')}</tbody></table></div>`;
     if (a === 'documentos') miolo = `<div class="ferramentas"><span class="sub">A versão nova vale depois de assinada. As anteriores ficam no histórico.</span><button class="btn" data-acao="toast" data-msg="No sistema, abre o envio da versão nova: publicar ou enviar para assinatura.">Publicar versão nova</button></div>
       <div class="grade g2">${DOCS.map(([t, v, s, ass]) => `<section class="cartao bloco"><div class="cab"><span class="pill ${s.startsWith('Em') ? 'laranja' : 'verde'}">v${v}</span><span class="sub">${s}</span></div><h3 class="titulo-bloco" style="margin-top:10px">${t}</h3><p class="sub" style="margin:4px 0 12px">${ass}</p><div class="acoes-item"><button class="btn contorno" data-acao="toast" data-msg="No sistema, abre o PDF.">${IC.baixar}Baixar</button>${s.startsWith('Em') ? '<button class="btn contorno" data-acao="toast" data-msg="Lembrete de assinatura reenviado.">Lembrar quem falta</button>' : ''}</div></section>`).join('')}</div>`;
     if (a === 'capacitacoes') miolo = `<div class="grade g2"><section class="cartao bloco"><h3 class="titulo-bloco">Próximas</h3><ul class="linhas"><li class="linha" style="grid-template-columns:minmax(0,1fr) auto"><span class="t">Comunicação de evento adverso<small>${quando(dia(1))}, 15:00, auditório · 6 de 8 confirmados</small></span>${est.feitos.p13 ? N.estado('e-ok', 'Confirmada') : '<button class="btn" data-acao="nsp-presenca">Confirmar minha presença</button>'}</li><li class="linha" style="grid-template-columns:minmax(0,1fr) auto"><span class="t">Análise de causa raiz<small>${fmt(dia(19))}, 14:00 · 3 de 8 confirmados</small></span><button class="btn contorno" data-acao="toast" data-msg="Presença confirmada.">Confirmar</button></li></ul></section>

@@ -8,7 +8,7 @@
   const T = N.telas;
   let introVisto = false;
   try { introVisto = localStorage.getItem('prototipo-comite-intro') === '1'; } catch (e) { /* sem armazenamento */ }
-  est.cd = { aba: 'triagem', casosFiltro: 'abertos', rito: 'todos', termo: true, intro: 0, introVisto, data: 'hoje', triagem: {}, medida: null, decisao: {} };
+  est.cd = { aba: 'triagem', situacao: ['abertos'], ritos: [], termo: true, intro: 0, introVisto, data: 'hoje', triagem: {}, medida: null, decisao: {} };
 
   N.css(`
     .cd-aviso-sigilo{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:8px;background:var(--suave);border:1px solid var(--borda);font-size:13.5px;color:var(--texto2)}
@@ -90,8 +90,9 @@
 
   function linhaCaso(c, comAcao) {
     const [cls, txt] = prazoEstado(c);
+    const previa = esc(`<b>${c.prot}</b><span class="sub">Rito ${esc(c.rito)} · etapa ${esc(etapaNome(c))}</span><span class="sub">${esc(c.cat)}${c.especial ? ' · Rota Especial' : ''}</span><span class="sub">${c.arquivado ? 'Arquivado' : 'Prazo do rito até ' + fmt(dia(prazoDe(c))) + ' (' + txt.toLowerCase() + ')'}</span>${c.acao && !c.arquivado ? `<span class="sub">Ação pendente: ${esc(c.acao)}</span>` : ''}<span class="dica">Clique para abrir o caso. O relato só aparece dentro dele.</span>`);
     return `<tr>
-      <td><a href="#comitecaso-${c.id}" class="num">${c.prot}</a>${c.especial ? '<div class="sub">Rota Especial</div>' : ''}</td>
+      <td><a href="#comitecaso-${c.id}" class="num" data-previa="${previa}">${c.prot}</a>${c.especial ? '<div class="sub">Rota Especial</div>' : ''}</td>
       <td><span class="pill">${c.rito}</span></td>
       <td>${esc(etapaNome(c))}<div class="sub">${esc(c.cat)}</div></td>
       <td>${N.estado(cls, txt)}<div class="sub num">${c.arquivado ? '' : 'até ' + fmt(dia(prazoDe(c)))}</div></td>
@@ -182,15 +183,14 @@
   // ------------------------------------------------------------------ Casos
   T.comitecasos = { trilha: 'Comitê de Conduta', menu: 'comite', mapa: ['Comitê de Conduta', 'Casos'], render() {
     const F = [['abertos', 'Abertos'], ['vencidos', 'Prazo vencido'], ['especial', 'Rota Especial'], ['arquivados', 'Arquivados']];
-    const R = ['todos', 'Encaminhamento', 'Rápido', 'Completo', 'Especial'];
-    let lista = est.cd.casosFiltro === 'arquivados' ? CASOS.filter((c) => c.arquivado) : abertos();
-    if (est.cd.casosFiltro === 'vencidos') lista = lista.filter((c) => prazoDe(c) < 0);
-    if (est.cd.casosFiltro === 'especial') lista = lista.filter((c) => c.especial);
-    if (est.cd.rito !== 'todos') lista = lista.filter((c) => c.rito === est.cd.rito);
+    const R = ['Encaminhamento', 'Rápido', 'Completo', 'Especial'];
+    const sit = est.cd.situacao;
+    const casa = { abertos: (c) => !c.arquivado, vencidos: (c) => !c.arquivado && prazoDe(c) < 0, especial: (c) => !c.arquivado && c.especial, arquivados: (c) => c.arquivado };
+    let lista = CASOS.filter((c) => !sit.length || sit.some((k) => casa[k](c)));
+    lista = lista.filter((c) => N.passa(est.cd.ritos, c.rito));
     lista = [...lista].sort((a, b) => prazoDe(a) - prazoDe(b));
     const corpo = `${avisoAdmin()}<section class="cartao bloco" style="margin-top:14px">
-      <div class="ferramentas"><div class="chips" role="group" aria-label="Situação">${F.map(([k, t]) => `<button class="chip" data-acao="cd-filtro" data-v="${k}" aria-pressed="${est.cd.casosFiltro === k}">${t}</button>`).join('')}</div>
-        <div class="chips" role="group" aria-label="Rito">${R.map((r) => `<button class="chip" data-acao="cd-rito" data-v="${r}" aria-pressed="${est.cd.rito === r}">${r === 'todos' ? 'Todos os ritos' : r}</button>`).join('')}</div></div>
+      <div class="ferramentas"><div class="filtros-linha">${N.filtro({ id: 'cd-situacao', rotulo: 'Situação', opcoes: F, multi: true, obj: 'cd', campo: 'situacao', todos: 'Todas as situações' })}${N.filtro({ id: 'cd-ritos', rotulo: 'Rito', opcoes: R.map((r) => [r, r]), multi: true, obj: 'cd', campo: 'ritos', todos: 'Todos os ritos' })}</div></div>
       ${lista.length ? tabelaCasos(lista, false) : '<p class="vazio">Nenhum caso com esse filtro. Troque a situação ou o rito acima.</p>'}
       ${sigilo('Não há busca por texto do relato: o conteúdo é cifrado. Ache casos parecidos pelo rito, pela categoria e pelas datas.')}
     </section>
@@ -201,8 +201,6 @@
     </section>`;
     return N.modulo({ ...CAB, titulo: 'Casos', frase: `${abertos().length} casos abertos, ${abertos().filter((c) => prazoDe(c) < 0).length} com o prazo do rito vencido. ${CASOS.filter((c) => c.arquivado).length} arquivado neste ano.` }, null, abas('#comitecasos'), corpo);
   } };
-  N.acoes['cd-filtro'] = (a) => { est.cd.casosFiltro = a.dataset.v; N.desenhar(); };
-  N.acoes['cd-rito'] = (a) => { est.cd.rito = a.dataset.v; N.desenhar(); };
 
   // ------------------------------------------------------------------ o caso: etapas no topo, "O que fazer agora" ao lado, o resto em abas
   const ABAS_CASO = [['triagem', 'Triagem'], ['depoimentos', 'Depoimentos e relatório'], ['voto', 'Voto e ata'], ['medida', 'Medida e retorno'], ['relato', 'Relato original e anexos'], ['trilha', 'Mensagens e trilha']];
@@ -404,13 +402,13 @@
   T.comitemembros = { trilha: 'Comitê de Conduta', menu: 'comitemembros', mapa: ['Comitê de Conduta', 'Membros'], render() {
     const vigentes = MEMBROS.filter((m) => est.cd.data === 'hoje' ? !m.encerrado : true);
     const corpo = `<section class="cartao bloco" style="margin-top:14px">
-      <div class="ferramentas"><div class="chips" role="group" aria-label="Composição"><button class="chip" data-acao="cd-data" data-v="hoje" aria-pressed="${est.cd.data === 'hoje'}">Composição de hoje</button><button class="chip" data-acao="cd-data" data-v="passada" aria-pressed="${est.cd.data === 'passada'}">Composição em ${fmt(dia(-30))}</button></div>
+      <div class="ferramentas"><div class="modelos" role="group" aria-label="Composição"><button type="button" data-acao="cd-data" data-v="hoje" aria-pressed="${est.cd.data === 'hoje'}">Composição de hoje</button><button type="button" data-acao="cd-data" data-v="passada" aria-pressed="${est.cd.data === 'passada'}">Composição em ${fmt(dia(-30))}</button></div>
         <button class="btn" data-acao="cd-incluir">${IC.mais}Incluir membro</button></div>
       <div class="tabela-rola"><table class="tab"><thead><tr><th>Membro</th><th>Cadeira</th><th>Vigência</th><th>Termo de sigilo</th><th></th></tr></thead><tbody>
       ${vigentes.map((m) => `<tr><td><b style="color:var(--titulo)">${m.nome}</b>${m.diretor ? '<div class="sub">Diretor: fica fora da Rota Especial</div>' : ''}</td><td>${m.cadeira}</td>
         <td class="num">${fmt(dia(m.desde))} a ${fmt(dia(m.ate))}${m.encerrado ? '<div class="sub">Encerrada</div>' : ''}</td>
         <td>${N.estado(m.termo === 'Assinado' ? 'e-ok' : 'e-hoje', m.termo)}</td>
-        <td style="text-align:right"><button class="btn contorno" data-acao="cd-membro" data-id="${m.id}">Ver</button></td></tr>`).join('')}
+        <td style="text-align:right"><button class="btn contorno" data-acao="cd-membro" data-id="${m.id}" data-previa="${esc(`<b>${esc(m.nome)}</b><span class="sub">${esc(m.cadeira)}</span><span class="sub">Vigência de ${fmt(dia(m.desde))} a ${fmt(dia(m.ate))}</span><span class="sub">Termo de sigilo: ${esc(m.termo)}</span><span class="dica">Clique para o Termo e o histórico</span>`)}">Ver</button></td></tr>`).join('')}
       </tbody></table></div></section>
       <section class="cartao bloco" style="margin-top:14px"><h2 class="titulo-bloco" style="margin-bottom:10px">Registro das mudanças</h2>
         <ul class="tempo">${REGISTRO.map(([q, t]) => `<li class="feito"><i aria-hidden="true"></i><b>${t}</b><span>${q}</span></li>`).join('')}</ul></section>`;
@@ -446,7 +444,7 @@
     <p class="aviso">${I.info}O prazo de todo rito conta do envio do relato, não da triagem.</p>`;
     return N.modulo({ ...CAB, titulo: 'Guia dos ritos', frase: 'Os quatro caminhos que um caso pode seguir, com o prazo e quem faz o quê.', acoes: `<a class="btn claro grande" href="#comite">Ir para Minha vez</a>` }, null, abas('#comiteguia'), corpo);
   } };
-  N.acoes['cd-ver-rito'] = (a) => { est.cd.rito = a.dataset.v; est.cd.casosFiltro = 'abertos'; location.hash = '#comitecasos'; };
+  N.acoes['cd-ver-rito'] = (a) => { est.cd.ritos = [a.dataset.v]; est.cd.situacao = ['abertos']; location.hash = '#comitecasos'; };
 
   // ------------------------------------------------------------------ Configurações
   const TEXTOS = [

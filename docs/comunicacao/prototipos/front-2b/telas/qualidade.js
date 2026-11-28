@@ -5,10 +5,12 @@
   const N = window.NOVIDADES;
   const { esc, I, IC, dia, fmt, curto, est, HOJE } = N;
   const T = N.telas;
-  est.pops2 = { chip: 'todos', busca: '', bibBusca: '', chat: [], secFeitas: 7 };
-  est.ouv = { chip: 'todos', busca: '', arquivados: false, aba: 'resumo', painelSel: null, email: 'e1', emailAba: 'pendentes', avPeriodo: 30, avFiltro: 'todas', resp: 'aresponder', prazosMudou: false };
+  est.pops2 = { de: 'todos', estados: [], crits: [], busca: '', bibBusca: '', chat: [], secFeitas: 7 };
+  est.ouv = { gravs: [], prazos: [], tipos: [], setores: [], exibir: 'ativos', avPontos: [], avNotas: [], busca: '', arquivados: false, aba: 'resumo', painelSel: null, email: 'e1', emailAba: 'pendentes', avPeriodo: 30, avFiltro: 'todas', resp: 'aresponder', prazosMudou: false };
 
   N.css(`
+  .barra-botao{width:100%;border:0;background:transparent;font:inherit;color:inherit;text-align:left;cursor:pointer;padding:4px 6px;margin-top:4px;border-radius:7px}.barra-botao:hover{background:var(--suave)}
+  .q-abas{margin-top:0}
   .q-mais{position:relative;display:inline-flex}
   .q-acoes-linha{display:flex;align-items:center;justify-content:flex-end;gap:6px}
   .ouv-grupo{margin-top:14px}
@@ -111,9 +113,9 @@
 
   T.pops = { trilha: 'POPs', menu: 'pops', mapa: ['POPs', 'Gestão de POPs'], render() {
     const c = cabPops('#pops');
-    const CH = [['todos', 'Todos'], ['comigo', 'Com você'], ['elaboracao', 'Em elaboração'], ['revisao', 'Em revisão'], ['validacao', 'Em validação'], ['assinatura', 'Em assinatura'], ['publicada', 'Publicados']];
+    const ESTOPS = [['elaboracao', 'Em elaboração'], ['revisao', 'Em revisão'], ['validacao', 'Em validação'], ['assinatura', 'Em assinatura'], ['publicada', 'Publicados']];
     const t = est.pops2.busca.trim().toLowerCase();
-    const lista = POPS.filter((p) => est.pops2.chip === 'todos' || (est.pops2.chip === 'comigo' ? comigo(p) : p.est === est.pops2.chip || (est.pops2.chip === 'elaboracao' && p.est === 'elaborar')))
+    const lista = POPS.filter((p) => est.pops2.de === 'todos' || comigo(p)).filter((p) => N.passa(est.pops2.estados, p.est === 'elaborar' ? 'elaboracao' : p.est)).filter((p) => N.passa(est.pops2.crits, p.crit))
       .filter((p) => !t || (p.nome + ' ' + p.cod + ' ' + p.setor).toLowerCase().includes(t))
       .sort((a, b) => (comigo(b) - comigo(a)) || ((a.est === 'publicada') - (b.est === 'publicada')) || ((a.prazo ?? 99) - (b.prazo ?? 99)));
     const linha = (p) => {
@@ -136,14 +138,14 @@
         <td><div class="q-acoes-linha">${principal}${menu}</div></td></tr>`;
     };
     const corpo = `<section class="cartao bloco" style="margin-top:14px">
-      <div class="ferramentas"><div class="chips" role="group" aria-label="Filtrar por estado">${CH.map(([k, t2]) => `<button type="button" class="chip" data-acao="pop-chip" data-v="${k}" aria-pressed="${est.pops2.chip === k}">${t2}</button>`).join('')}</div>
+      <div class="ferramentas"><div class="filtros-linha">${N.filtro({ id: 'pop-de', rotulo: 'De quem', opcoes: [['todos', 'Todo o escopo'], ['comigo', 'Com você']], valor: est.pops2.de, acao: 'pop-de' })}${N.filtro({ id: 'pop-est', rotulo: 'Estado', multi: true, obj: 'pops2', campo: 'estados', todos: 'Todos', opcoes: ESTOPS })}${N.filtro({ id: 'pop-crit', rotulo: 'Criticidade', multi: true, obj: 'pops2', campo: 'crits', todos: 'Todas', opcoes: [['Alta', 'Alta'], ['Média', 'Média'], ['Baixa', 'Baixa']] })}</div>
         <label class="busca-lista">${IC.busca}<span class="sr">Buscar POP</span><input id="pop-busca" data-digita="pop-busca" type="search" placeholder="Buscar por nome, código ou setor" value="${esc(est.pops2.busca)}"></label></div>
       <div class="tabela-rola"><table class="tab"><thead><tr><th>Código</th><th>POP</th><th>Criticidade</th><th>Versão</th><th>Com quem está</th><th></th></tr></thead><tbody>${lista.map(linha).join('')}</tbody></table>
       ${lista.length ? '' : '<p class="vazio">Nenhum POP neste filtro. Troque o filtro ou crie um POP novo pelo botão no alto.</p>'}</div></section>`;
     return N.modulo(c.cab, c.resumo, c.abas, corpo);
   } };
   N.digitar['pop-busca'] = (v) => { est.pops2.busca = v; };
-  N.acoes['pop-chip'] = (a) => { est.pops2.chip = a.dataset.v; N.desenhar(); };
+  N.acoes['pop-de'] = (a) => { est.pops2.de = a.dataset.v; N.desenhar(); };
   N.acoes['pop-lembrar'] = (a) => { const p = popDe(a.dataset.id); fecharPop(); N.aviso(`Lembrete enviado para ${p.com.split(' ')[0]}.`); };
   N.acoes['pop-pdf'] = (a) => { const p = popDe(a.dataset.id); fecharPop(); N.aviso(`No sistema, baixa o PDF de ${p.cod} v${p.v}.`); };
   N.acoes['pop-papeis'] = (a) => {
@@ -175,7 +177,7 @@
   N.envios['form-pop-novo'] = () => {
     const nome = document.getElementById('pn-nome').value.trim(); const setor = document.getElementById('pn-setor').value; const el = document.getElementById('pn-el').value;
     POPS.unshift({ id: 'popn' + Date.now(), cod: 'POP-NOV-' + String(POPS.length + 1).padStart(3, '0'), nome, setor, crit: document.getElementById('pn-crit').value, v: 1, est: 'elaborar', com: el, papel: 'Elaborador', el, rev: document.getElementById('pn-rev').value, val: document.getElementById('pn-val').value, prazo: 21 });
-    N.fecharModal(); est.pops2.chip = 'todos'; N.desenhar(); N.aviso(`POP criado. ${el.split(' ')[0]} recebeu o aviso para começar a elaboração.`);
+    N.fecharModal(); est.pops2.de = 'todos'; est.pops2.estados = []; est.pops2.crits = []; N.desenhar(); N.aviso(`POP criado. ${el.split(' ')[0]} recebeu o aviso para começar a elaboração.`);
   };
 
   // Ficha em gaveta (Biblioteca e Gestão)
@@ -202,7 +204,7 @@
       <div class="ferramentas"><p class="sub" style="margin:0">Clique num POP para ver a ficha e baixar o PDF assinado.</p>
         <label class="busca-lista">${IC.busca}<span class="sr">Buscar na Biblioteca</span><input id="bib-busca" data-digita="bib-busca" type="search" placeholder="Buscar por nome, código ou setor" value="${esc(est.pops2.bibBusca)}"></label></div>
       ${setores.map((s) => `<h2 class="titulo-bloco" style="margin-top:18px;font-size:15px">${esc(s)} <span class="sub" style="font-weight:400">${pubs.filter((p) => p.setor === s).length}</span></h2>
-        <ul class="linhas">${pubs.filter((p) => p.setor === s).map((p) => `<li class="linha" style="grid-template-columns:110px minmax(0,1fr) 150px 160px"><span class="num sub">${p.cod}</span><span class="t"><a href="#" data-acao="pop-ficha" data-id="${p.id}" style="color:var(--texto);font-weight:700;text-decoration:none">${esc(p.nome)}</a><small>Versão ${p.v} · vigente desde ${fmt(dia(p.pub))}</small></span>
+        <ul class="linhas">${pubs.filter((p) => p.setor === s).map((p) => `<li class="linha" style="grid-template-columns:110px minmax(0,1fr) 150px 160px"><span class="num sub">${p.cod}</span><span class="t"><a href="#" data-acao="pop-ficha" data-id="${p.id}" data-previa="${esc(`<b>${esc(p.nome)}</b><span class="sub">${p.cod} · versão ${p.v} · ${esc(p.setor)}</span><span class="sub">Elaboração: ${esc(p.el || '')}</span><span class="sub">Revisão: ${esc(p.rev || '')} · Validação: ${esc(p.val || '')}</span><span class="sub">Próxima revisão em ${p.revisao} dias</span><span class="dica">Clique para a ficha e o PDF assinado</span>`)}" style="color:var(--texto);font-weight:700;text-decoration:none">${esc(p.nome)}</a><small>Versão ${p.v} · vigente desde ${fmt(dia(p.pub))}</small></span>
           <span>${p.revisao <= 30 ? pill('laranja', 'Revisão em ' + p.revisao + ' dias') : pill('verde', 'Em dia')}</span>
           <button class="btn contorno" data-acao="toast" data-msg="No sistema, baixa o PDF assinado de ${p.cod} v${p.v}.">${IC.baixar}PDF assinado</button></li>`).join('')}</ul>`).join('')}
       ${pubs.length ? '' : '<p class="vazio">Nenhum POP publicado com esse texto. Tente o código (ex.: POP-CCI) ou o nome do setor.</p>'}
@@ -392,7 +394,7 @@
   function cardCaso(c) {
     return `<article class="ouv-card">${c.novo ? '<span class="novo" title="Novidade desde a sua última visita"></span>' : ''}
       <div class="topo-c"><span class="prot num">${prot(c)}</span></div>
-      <h3><a href="#ouvcaso-${c.n}">${esc(c.tit)}</a></h3>
+      <h3><a href="#ouvcaso-${c.n}" data-previa="${esc(`<b>${prot(c)}</b><span class="sub">${esc(c.tipo)} · ${esc(c.grav)} · ${esc(c.setor)}</span><span class="sub">Manifestante: ${esc(c.quem || 'Anônimo')} · ${esc(c.canal || '')}</span>${c.relato ? `<span class="sub" style="margin-top:6px;color:var(--texto)">${esc(c.relato.length > 150 ? c.relato.slice(0, 150) + '...' : c.relato)}</span>` : ''}<span class="dica">Clique para abrir o Dossiê</span>`)}">${esc(c.tit)}</a></h3>
       <div style="display:flex;flex-wrap:wrap;gap:6px">${pill('', c.tipo)}${pill(GRAV[c.grav], c.grav)}</div>
       <p class="meta" style="margin:0">${esc(c.setor)}${c.resp ? ' · ' + esc(c.resp) : ' · área a definir'} · ${esc(c.canal)}</p>
       ${semaforo(c)}
@@ -417,15 +419,17 @@
     const estour = CASOS.filter((c) => c.off < 0 && ['area', 'triagem'].includes(c.est));
     const triagem = CASOS.filter((c) => c.est === 'triagem');
     const h2 = CASOS.filter((c) => c.off >= 0 && c.off <= 2 && ['area', 'triagem'].includes(c.est));
-    const CH = [['todos', 'Todos'], ['estourado', 'Prazo estourado'], ['grave', 'Graves'], ['novos', 'Com novidade']];
+    est.ouv.arquivados = est.ouv.exibir === 'arquivados';
+    const prazoDe = (c) => !['area', 'triagem'].includes(c.est) ? 'fora' : c.off < 0 ? 'estourado' : c.off <= 2 ? 'vence' : 'noprazo';
+    const unicos = (k) => [...new Set(CASOS.map((c) => c[k]))].sort().map((v) => [v, v]);
     const t = est.ouv.busca.trim().toLowerCase();
-    const filtra = (c) => (est.ouv.chip === 'todos' || (est.ouv.chip === 'estourado' && c.off < 0 && ['area', 'triagem'].includes(c.est)) || (est.ouv.chip === 'grave' && c.grav === 'Grave') || (est.ouv.chip === 'novos' && c.novo))
+    const filtra = (c) => N.passa(est.ouv.prazos, prazoDe(c)) && N.passa(est.ouv.gravs, c.grav) && N.passa(est.ouv.tipos, c.tipo) && N.passa(est.ouv.setores, c.setor) && (est.ouv.exibir !== 'novos' || c.novo)
       && (!t || (prot(c) + c.tit + c.setor + (c.resp || '') + c.quem).toLowerCase().includes(t));
     const ordem = est.ouv.arquivados ? ['resposta', 'triagem', 'area', 'encerrado', 'arquivado'] : ['resposta', 'triagem', 'area', 'encerrado'];
     const TIT = { resposta: 'Aguardando o seu encerramento', triagem: 'Aguardando validação', area: 'Com a área', encerrado: 'Encerrados', arquivado: 'Arquivados' };
     const corpo = `<section class="cartao bloco" style="margin-top:14px">
-      <div class="ferramentas"><div class="chips" role="group" aria-label="Filtrar">${CH.map(([k, t2]) => `<button type="button" class="chip" data-acao="ouv-chip" data-v="${k}" aria-pressed="${est.ouv.chip === k}">${t2}</button>`).join('')}
-        <button type="button" class="chip" data-acao="ouv-arq" aria-pressed="${est.ouv.arquivados}">Mostrar arquivados</button></div>
+      <div class="ferramentas"><div class="filtros-linha">${N.filtro({ id: 'ouv-exibir', rotulo: 'Exibir', opcoes: [['ativos', 'Sem os arquivados'], ['novos', 'Só com novidade'], ['arquivados', 'Com os arquivados']], valor: est.ouv.exibir, acao: 'ouv-exibir' })}${N.filtro({ id: 'ouv-prazo', rotulo: 'Prazo', multi: true, obj: 'ouv', campo: 'prazos', todos: 'Todos', opcoes: [['estourado', 'Prazo estourado'], ['vence', 'Vence em 2 dias úteis'], ['noprazo', 'No prazo']] })}${N.filtro({ id: 'ouv-grav', rotulo: 'Gravidade', multi: true, obj: 'ouv', campo: 'gravs', todos: 'Todas', opcoes: [['Grave', 'Grave'], ['Moderada', 'Moderada'], ['Leve', 'Leve']] })}${N.filtro({ id: 'ouv-tipo', rotulo: 'Tipo', multi: true, obj: 'ouv', campo: 'tipos', todos: 'Todos', opcoes: unicos('tipo') })}${N.filtro({ id: 'ouv-setor', rotulo: 'Setor', multi: true, obj: 'ouv', campo: 'setores', todos: 'Todos', opcoes: unicos('setor') })}</div>
+
         <label class="busca-lista">${IC.busca}<span class="sr">Buscar caso</span><input id="ouv-busca" data-digita="ouv-busca" type="search" placeholder="Protocolo, assunto, setor ou pessoa" value="${esc(est.ouv.busca)}"></label></div>
       ${ordem.map((k) => { const cs = CASOS.filter((c) => c.est === k).filter(filtra).sort((a, b) => a.off - b.off); if (!cs.length) return '';
         return `<div class="ouv-grupo"><div class="cab"><h2>${TIT[k]} <span class="n num">${cs.length}</span></h2>${k === 'encerrado' ? `<button class="btn contorno" data-acao="ouv-arquivar-todos">Arquivar todos os encerrados</button>` : ''}</div>
@@ -438,8 +442,7 @@
     ABAS_OUV(), corpo);
   } };
   N.digitar['ouv-busca'] = (v) => { est.ouv.busca = v; };
-  N.acoes['ouv-chip'] = (a) => { est.ouv.chip = a.dataset.v; N.desenhar(); };
-  N.acoes['ouv-arq'] = () => { est.ouv.arquivados = !est.ouv.arquivados; N.desenhar(); };
+  N.acoes['ouv-exibir'] = (a) => { est.ouv.exibir = a.dataset.v; N.desenhar(); };
 
   // ---------- visão do Responsável do setor
   function filaDoSetor() {
@@ -448,7 +451,7 @@
     const resps = meus.filter((c) => c.est !== 'area');
     const lista = est.ouv.resp === 'aresponder' ? aResp : resps;
     const corpo = `<section class="cartao bloco" style="margin-top:14px">
-      <div class="chips" role="tablist" aria-label="Casos do setor"><button class="chip" data-acao="ouv-resp" data-v="aresponder" aria-pressed="${est.ouv.resp === 'aresponder'}">A responder (${aResp.length})</button><button class="chip" data-acao="ouv-resp" data-v="respondidos" aria-pressed="${est.ouv.resp === 'respondidos'}">Respondidos (${resps.length})</button></div>
+      <div class="abas q-abas" role="tablist" aria-label="Casos do setor"><button type="button" role="tab" data-acao="ouv-resp" data-v="aresponder" aria-selected="${est.ouv.resp === 'aresponder'}">A responder (${aResp.length})</button><button type="button" role="tab" data-acao="ouv-resp" data-v="respondidos" aria-selected="${est.ouv.resp === 'respondidos'}">Respondidos (${resps.length})</button></div>
       <div class="ouv-grade">${lista.map((c) => `<article class="ouv-card"><div class="topo-c"><span class="prot num">${prot(c)}</span>${pill(GRAV[c.grav], c.grav)}</div>
         <h3>${esc(c.tit)}</h3><div>${pill('', c.tipo)}</div>${semaforo(c)}
         <div class="pe-c">${c.est === 'area' ? `<button class="btn" data-acao="ouv-responder" data-n="${c.n}">${c.tipo === 'Elogio' ? 'Ver o elogio' : 'Responder'}</button>` : `<button class="btn contorno" data-acao="ouv-responder" data-n="${c.n}">Ver a resposta</button>`}</div></article>`).join('')}</div>
@@ -646,22 +649,23 @@
   T.ouvavaliacoes = { trilha: 'Ouvidoria', menu: 'ouvidoria', mapa: ['Ouvidoria', 'Avaliações do QR'], render() {
     if (!ehOuvidor()) return semAcesso();
     const F = [['todas', 'Todas'], ['comentario', 'Só com comentário'], ['revisar', `Para revisar (${AVAL.filter((a2) => a2.revisar && !a2.feito).length})`]];
-    const lista = AVAL.filter((a2) => est.ouv.avFiltro === 'todas' || (est.ouv.avFiltro === 'comentario' ? a2.txt : a2.revisar && !a2.feito));
+    const lista = AVAL.filter((a2) => est.ouv.avFiltro === 'todas' || (est.ouv.avFiltro === 'comentario' ? a2.txt : a2.revisar && !a2.feito)).filter((a2) => N.passa(est.ouv.avPontos, a2.ponto) && N.passa(est.ouv.avNotas, String(a2.nota)));
     const media = (AVAL.reduce((s, a2) => s + a2.nota, 0) / AVAL.length).toFixed(1).replace('.', ',');
     const dist = [5, 4, 3, 2, 1].map((n) => [n, AVAL.filter((a2) => a2.nota === n).length]);
     const pontos = [...new Set(AVAL.map((a2) => a2.ponto))].map((p) => [p, AVAL.filter((a2) => a2.ponto === p)]);
     const est5 = (n) => `<span class="estrelas" aria-label="${n} de 5">${'★'.repeat(n)}<span class="apag">${'★'.repeat(5 - n)}</span></span>`;
-    const corpo = `<div class="ferramentas" style="margin-top:14px"><div class="chips">${[7, 30, 90].map((p) => `<button class="chip" data-acao="ouv-av-per" data-v="${p}" aria-pressed="${est.ouv.avPeriodo === p}">Últimos ${p} dias</button>`).join('')}</div></div>
+    const corpo = `<div class="ferramentas" style="margin-top:14px"><div class="filtros-linha">${N.filtro({ id: 'av-per', rotulo: 'Período', opcoes: [7, 30, 90].map((p) => [String(p), `Últimos ${p} dias`]), valor: String(est.ouv.avPeriodo), acao: 'ouv-av-per' })}</div></div>
       <div class="grade g4"><div class="cartao bloco"><span class="rot-mini">Avaliações</span><span class="numero" style="display:block;margin-top:6px">${AVAL.length * (est.ouv.avPeriodo / 7) | 0}</span></div><div class="cartao bloco"><span class="rot-mini">Nota média</span><span class="numero" style="display:block;margin-top:6px">${media}</span></div><div class="cartao bloco"><span class="rot-mini">Notas 4 e 5</span><span class="numero verde" style="display:block;margin-top:6px">63%</span></div><div class="cartao bloco"><span class="rot-mini">Para revisar</span><span class="numero ${AVAL.some((a2) => a2.revisar && !a2.feito) ? 'verm' : ''}" style="display:block;margin-top:6px">${AVAL.filter((a2) => a2.revisar && !a2.feito).length}</span></div></div>
       <div class="grade g2"><section class="cartao bloco"><h2 class="titulo-bloco">Por nota</h2>${dist.map(([n, q]) => `<div class="barra-h"><span>${est5(n).replace('aria-label', 'title')}</span><div class="prog ${n <= 2 ? 'verm' : n >= 4 ? 'verde' : ''}"><span style="width:${q / AVAL.length * 100}%"></span></div><span class="num sub">${q}</span></div>`).join('')}</section>
-        <section class="cartao bloco"><h2 class="titulo-bloco">Por ponto de escuta</h2>${pontos.map(([p, l]) => { const m = l.reduce((s, a2) => s + a2.nota, 0) / l.length; return `<div class="barra-h" style="grid-template-columns:170px 1fr 40px"><span>${esc(p)}</span><div class="prog ${m < 3 ? 'verm' : m >= 4 ? 'verde' : ''}"><span style="width:${m / 5 * 100}%"></span></div><span class="num sub">${m.toFixed(1).replace('.', ',')}</span></div>`; }).join('')}</section></div>
-      <section class="cartao bloco" style="margin-top:14px"><div class="ferramentas"><div class="chips">${F.map(([k, t2]) => `<button class="chip" data-acao="ouv-av-f" data-v="${k}" aria-pressed="${est.ouv.avFiltro === k}">${t2}</button>`).join('')}</div></div>
+        <section class="cartao bloco"><h2 class="titulo-bloco">Por ponto de escuta</h2>${pontos.map(([p, l]) => { const m = l.reduce((s, a2) => s + a2.nota, 0) / l.length; const ult = l.find((a2) => a2.txt); return `<button type="button" class="barra-h barra-botao" style="grid-template-columns:170px 1fr 40px" data-acao="ouv-av-ponto" data-v="${esc(p)}" data-previa="${esc(`<b>${esc(p)}</b><span class="sub">${l.length} ${l.length === 1 ? 'avaliação' : 'avaliações'} · nota média ${m.toFixed(1).replace('.', ',')}</span>${ult ? `<span class="sub" style="margin-top:6px;color:var(--texto)">Último comentário: ${esc(ult.txt)}</span>` : ''}<span class="dica">Clique para ver só as avaliações deste ponto</span>`)}"><span>${esc(p)}</span><span class="prog ${m < 3 ? 'verm' : m >= 4 ? 'verde' : ''}" style="display:block"><span style="width:${m / 5 * 100}%"></span></span><span class="num sub">${m.toFixed(1).replace('.', ',')}</span></button>`; }).join('')}</section></div>
+      <section class="cartao bloco" style="margin-top:14px" id="av-lista"><div class="ferramentas"><div class="filtros-linha">${N.filtro({ id: 'av-rec', rotulo: 'Mostrar', opcoes: F, valor: est.ouv.avFiltro, acao: 'ouv-av-f' })}${N.filtro({ id: 'av-ponto', rotulo: 'Ponto', multi: true, obj: 'ouv', campo: 'avPontos', todos: 'Todos', opcoes: pontos.map(([p]) => [p, esc(p)]) })}${N.filtro({ id: 'av-nota', rotulo: 'Nota', multi: true, obj: 'ouv', campo: 'avNotas', todos: 'Todas', opcoes: ['5', '4', '3', '2', '1'].map((n) => [n, n + (n === '1' ? ' estrela' : ' estrelas')]) })}</div></div>
         <ul class="linhas">${lista.map((a2) => `<li class="linha" style="grid-template-columns:110px minmax(0,1fr) auto"><span>${est5(a2.nota)}</span><span class="t">${a2.txt ? esc(a2.txt) : '<span class="sub">Sem comentário</span>'}<small>${esc(a2.ponto)} · ${N.quando(dia(a2.d))}${a2.feito ? ' · ' + a2.feito : ''}</small></span>
           <span class="acoes-item">${a2.revisar && !a2.feito ? `<button class="btn" data-acao="ouv-av-conv" data-id="${a2.id}">Converter em manifestação</button><button class="btn contorno" data-acao="ouv-av-arq" data-id="${a2.id}">Arquivar revisão</button>` : ''}</span></li>`).join('') || '<li class="vazio">Nenhuma avaliação neste filtro.</li>'}</ul></section>`;
     return subOuv('Avaliações do QR', `Nota média ${media} nos últimos ${est.ouv.avPeriodo} dias. Notas 1 e 2 com comentário entram em Para revisar.`, corpo);
   } };
   N.acoes['ouv-av-per'] = (a) => { est.ouv.avPeriodo = +a.dataset.v; N.desenhar(); };
   N.acoes['ouv-av-f'] = (a) => { est.ouv.avFiltro = a.dataset.v; N.desenhar(); };
+  N.acoes['ouv-av-ponto'] = (a) => { est.ouv.avPontos = [a.dataset.v]; est.ouv.avNotas = []; est.ouv.avFiltro = 'todas'; N.desenhar(); const l = document.getElementById('av-lista'); if (l) l.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   N.acoes['ouv-av-conv'] = (a) => {
     const av = AVAL.find((x) => x.id === a.dataset.id);
     N.modal('Converter em manifestação?', `<p style="margin:0">A avaliação de ${av.nota} estrelas do ponto ${esc(av.ponto)} vira um caso em Aguardando validação, com o comentário como relato.</p>`, `<button type="button" class="btn" data-acao="ouv-av-conv-ok" data-id="${av.id}">Converter</button>`);
@@ -685,7 +689,7 @@
     const lista = EMAILS.filter((e) => (est.ouv.emailAba === 'pendentes') === !e.decidido);
     const atual = EMAILS.find((e) => e.id === est.ouv.email) || lista[0];
     const corpo = `<div class="email-duas">
-      <section class="cartao bloco"><div class="chips"><button class="chip" data-acao="ouv-email-aba" data-v="pendentes" aria-pressed="${est.ouv.emailAba === 'pendentes'}">Pendentes (${EMAILS.filter((e) => !e.decidido).length})</button><button class="chip" data-acao="ouv-email-aba" data-v="decididos" aria-pressed="${est.ouv.emailAba === 'decididos'}">Decididos</button></div>
+      <section class="cartao bloco"><div class="abas q-abas" role="tablist" aria-label="E-mails"><button type="button" role="tab" data-acao="ouv-email-aba" data-v="pendentes" aria-selected="${est.ouv.emailAba === 'pendentes'}">Pendentes (${EMAILS.filter((e) => !e.decidido).length})</button><button type="button" role="tab" data-acao="ouv-email-aba" data-v="decididos" aria-selected="${est.ouv.emailAba === 'decididos'}">Decididos (${EMAILS.filter((e) => e.decidido).length})</button></div>
         <ul class="email-lista">${lista.map((e) => `<li><button data-acao="ouv-email" data-id="${e.id}" aria-current="${atual && e.id === atual.id}"><b>${esc(e.de)}</b>${esc(e.assunto)}<small>${N.quando(dia(e.d))}${e.decidido ? ' · ' + esc(e.decidido) : ''}</small></button></li>`).join('') || '<li class="vazio">Caixa em dia. Nenhum e-mail esperando decisão.</li>'}</ul></section>
       <section class="cartao bloco">${atual ? `<div class="cab"><div><h2>${esc(atual.assunto)}</h2><p class="sub" style="margin:4px 0 0">${esc(atual.de)} &lt;${esc(atual.email)}&gt; · ${fmt(dia(atual.d))}</p></div></div>
         <p class="q-relato" style="margin-top:14px">${esc(atual.corpo)}</p>

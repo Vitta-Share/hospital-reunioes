@@ -151,6 +151,85 @@
   document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') document.getElementById('modal').className = 'modal-fundo'; });
   document.getElementById('modal').addEventListener('click', (ev) => { if (ev.target.id === 'modal') ev.target.className = 'modal-fundo'; });
 
+  // ------------------------------------------------------------------ filtro em dropdown (o mesmo do "Todas" e "Prioridade" do Início)
+  // Único: N.filtro({ id, rotulo, opcoes: [[v, texto]], valor, acao, dados })  chama N.acoes[acao] com o botão da opção (data-v e os data-* de "dados").
+  // Múltiplo: N.filtro({ id, rotulo, opcoes, multi: true, obj, campo, todos })  guarda a lista em est[obj][campo]; lista vazia = todos.
+  const baixo = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M5 9l7 7 7-7"/></svg>';
+  N.filtro = function ({ id, rotulo, opcoes, valor, acao, dados, multi, obj, campo, todos }) {
+    const aberto = N.est.pop === 'dd-' + id;
+    const extra = Object.entries(dados || {}).map(([k, v]) => ` data-${k}="${esc(v)}"`).join('');
+    let texto, itens;
+    if (multi) {
+      const sel = (N.est[obj] && N.est[obj][campo]) || [];
+      const nomes = opcoes.filter(([v]) => sel.includes(v)).map(([, t]) => t);
+      texto = !nomes.length ? (todos || 'Todos') : nomes.length <= 2 ? nomes.join(', ') : `${nomes.length} selecionados`;
+      itens = `<button type="button" role="menuitemcheckbox" aria-checked="${!sel.length}" data-acao="dd-multi" data-obj="${obj}" data-campo="${campo}" data-v="" data-dd="${id}"><span class="dd-caixa" aria-hidden="true"></span>${esc(todos || 'Todos')}</button>
+        ${opcoes.map(([v, t]) => `<button type="button" role="menuitemcheckbox" aria-checked="${sel.includes(v)}" data-acao="dd-multi" data-obj="${obj}" data-campo="${campo}" data-v="${esc(v)}" data-dd="${id}"><span class="dd-caixa" aria-hidden="true"></span>${t}</button>`).join('')}
+        ${sel.length ? `<button type="button" class="dd-limpar" data-acao="dd-multi" data-obj="${obj}" data-campo="${campo}" data-v="" data-dd="${id}">Limpar a seleção</button>` : ''}`;
+    } else {
+      const atual = opcoes.find(([v]) => String(v) === String(valor));
+      texto = atual ? atual[1] : opcoes[0][1];
+      itens = opcoes.map(([v, t]) => `<button type="button" role="menuitemradio" aria-checked="${String(v) === String(valor)}" data-acao="dd-unico" data-real="${acao}" data-v="${esc(v)}"${extra}>${t}</button>`).join('');
+    }
+    const ativo = multi ? ((N.est[obj] && N.est[obj][campo]) || []).length > 0 : false;
+    return `<div class="filtro dd"><button type="button" class="${ativo ? 'dd-ativo' : ''}" data-pop="dd-${id}" aria-expanded="${aberto}" aria-haspopup="menu">${rotulo ? `<span class="dd-rot">${rotulo}:</span>` : ''}${texto}${baixo}</button>${aberto ? `<div class="pop dd-pop" role="menu" aria-label="${esc(rotulo || '')}">${itens}</div>` : ''}</div>`;
+  };
+  N.acoes['dd-unico'] = (a) => { N.est.pop = null; const f = N.acoes[a.dataset.real]; if (f) f(a); else N.desenhar(); };
+  N.acoes['dd-multi'] = (a) => {
+    const { obj, campo, v } = a.dataset;
+    N.est[obj] = N.est[obj] || {};
+    let sel = (N.est[obj][campo] || []).slice();
+    if (!v) sel = []; else sel = sel.includes(v) ? sel.filter((x) => x !== v) : [...sel, v];
+    N.est[obj][campo] = sel;
+    N.est.pop = 'dd-' + a.dataset.dd;
+    N.desenhar();
+  };
+  N.passa = (lista, valor) => !lista || !lista.length || lista.includes(valor);
+
+  // ------------------------------------------------------------------ prévia no hover (e no foco do teclado)
+  // data-previa="<html já escapado>" mostra um cartão ao lado. É ajuda: o clique continua levando ao detalhe.
+  const previa = document.createElement('div');
+  previa.className = 'previa'; previa.setAttribute('role', 'tooltip'); previa.hidden = true;
+  document.addEventListener('DOMContentLoaded', () => document.body.appendChild(previa));
+  let alvoPrevia = null;
+  // Com o mouse, o cartão acompanha o ponteiro; no foco do teclado, abre logo abaixo do item.
+  function posicionar(px, py) {
+    const w = previa.offsetWidth, h = previa.offsetHeight;
+    let x = px + 16, y = py + 16;
+    if (x + w > innerWidth - 12) x = px - w - 16;
+    if (y + h > innerHeight - 12) y = py - h - 16;
+    previa.style.left = Math.max(12, x) + 'px'; previa.style.top = Math.max(12, y) + 'px';
+  }
+  function mostrar(el, ev) {
+    alvoPrevia = el; previa.innerHTML = el.dataset.previa; previa.hidden = false;
+    if (ev) posicionar(ev.clientX, ev.clientY);
+    else { const r = el.getBoundingClientRect(); posicionar(r.left - 16, r.bottom - 8); }
+  }
+  function esconder() { alvoPrevia = null; previa.hidden = true; }
+  document.addEventListener('mouseover', (e) => { const el = e.target.closest('[data-previa]'); if (el && el !== alvoPrevia) mostrar(el, e); else if (!el && alvoPrevia) esconder(); });
+  document.addEventListener('mousemove', (e) => { if (alvoPrevia && !previa.hidden) posicionar(e.clientX, e.clientY); });
+  document.addEventListener('focusin', (e) => { const el = e.target.closest('[data-previa]'); if (el && el.matches(':focus-visible')) mostrar(el); else esconder(); });
+  ['scroll', 'hashchange', 'click'].forEach((ev) => window.addEventListener(ev, esconder, true));
+  N.css(`.previa{position:fixed;z-index:70;width:290px;background:var(--cartao);color:var(--texto);border:1px solid var(--borda);border-radius:10px;box-shadow:var(--sombra-alta);padding:14px 16px;font-size:13.5px;pointer-events:none;animation:entra .15s ease both}
+    .previa b{display:block;color:var(--titulo);font-size:15px;line-height:1.3;margin-bottom:4px}.previa .sub{display:block;margin-top:2px}.previa .dica{display:block;margin-top:10px;padding-top:8px;border-top:1px solid var(--linha);color:var(--acento);font-weight:700;font-size:12.5px}
+    table.tab tbody tr{transition:background-color .12s ease}table.tab tbody tr:hover{background:var(--suave)}
+    .linhas .linha{transition:background-color .12s ease}.linhas .linha:hover{background:var(--suave)}
+    .cal .dia{position:relative;transition:border-color .12s ease}.cal .dia:hover{border-color:var(--acento)}
+    .cal .dia .dia-num::after{content:"+ Agendar";margin-left:6px;font-size:11px;color:var(--acento);font-weight:700;opacity:0;transition:opacity .12s ease}
+    .cal .dia:hover .dia-num::after,.cal .dia .dia-num:focus-visible::after{opacity:1}
+    .cal .ev{transition:background-color .12s ease,color .12s ease}
+    .cartao.bloco.cartao-link:hover,.ficha-q:hover{border-color:var(--acento)}
+    @media (hover:none){.cal .dia .dia-num::after{display:none}}`);
+  N.previaReuniao = (r) => esc(`<b>${esc(r.titulo)}</b><span class="sub">${N.longo(N.deIso(r.data))}, ${r.hora}</span><span class="sub">${r.papel === 'facilitador' ? 'Você conduz' : 'Você participa'} · ${r.participantes.length} Participantes</span><span class="sub">Ata: ${esc(r.ata)}</span><span class="dica">Clique para ver a pauta e as Pendências</span>`);
+  N.css(`.dd>button{gap:6px}.dd .dd-rot{color:var(--texto2);font-weight:400}.dd>button.dd-ativo{border-color:var(--titulo);box-shadow:inset 0 0 0 1px var(--titulo)}
+    .filtro.dd .pop{left:0;right:auto;max-height:340px;overflow:auto}.ferramentas .filtro.dd:last-child .pop{left:auto;right:0}
+    .dd-pop button[role="menuitemradio"][aria-checked="true"]::after{content:"";margin-left:auto;width:8px;height:8px;border-radius:999px;background:var(--titulo)}
+    .dd-caixa{flex:none;width:18px;height:18px;border:1.5px solid var(--campo-borda);border-radius:4px;display:inline-flex;align-items:center;justify-content:center;background:var(--campo)}
+    .dd-pop [aria-checked="true"] .dd-caixa{background:var(--titulo);border-color:var(--titulo)}
+    .dd-pop [aria-checked="true"] .dd-caixa::after{content:"";width:9px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(1px,-1px)}
+    .dd-limpar{border-top:1px solid var(--linha) !important;border-radius:0 0 7px 7px !important;color:var(--acento) !important;font-weight:700}
+    .filtros-linha{display:flex;flex-wrap:wrap;align-items:center;gap:8px}`);
+
   // Modal simples no padrão do designer.
   N.modal = function (titulo, corpo, acoes, idForm) {
     N.abrirModal(`<form class="modal entra" ${idForm ? `id="${idForm}"` : ''} role="dialog" aria-modal="true" aria-labelledby="md-tit">

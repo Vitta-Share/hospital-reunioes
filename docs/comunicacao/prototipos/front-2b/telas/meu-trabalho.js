@@ -58,7 +58,7 @@
   function ferramentas() {
     const R = [['minhas', 'No meu nome'], ['equipe', 'Das minhas Reuniões'], ['todas', 'Todas']];
     return `<div class="ferramentas">
-      <div class="chips" role="group" aria-label="De quem">${R.map(([k, t]) => `<button type="button" class="chip" data-acao="mt-recorte" data-v="${k}" aria-pressed="${est.mt.recorte === k}">${t}</button>`).join('')}</div>
+      <div class="filtros-linha">${N.filtro({ id: 'mt-recorte', rotulo: 'De quem', opcoes: R, valor: est.mt.recorte, acao: 'mt-recorte' })}</div>
       <label class="busca-lista">${IC.busca}<span class="sr">Buscar</span><input id="mt-busca" data-digita="mt-busca" type="search" placeholder="Buscar por título, pessoa ou setor" value="${esc(est.mt.busca)}"></label>
     </div>`;
   }
@@ -194,7 +194,7 @@
     let miolo = '';
     if (est.mt.calVista === 'lista') {
       const ord = [...reunioes].sort((a, b) => (a.data + a.hora).localeCompare(b.data + b.hora));
-      miolo = `<ul class="linhas">${ord.map((r) => { const [c, t] = COR[estadoReu(r)]; return `<li class="linha" style="grid-template-columns:120px minmax(0,1fr) 170px 110px"><span class="num">${curto(deIso(r.data))}, ${r.hora}</span><span class="t">${esc(r.titulo)}<small>${r.papel === 'facilitador' ? 'Você conduz' : 'Você participa'} · ${r.participantes.length} pessoas</small></span><span class="${c}">${t}</span><button class="btn contorno" data-acao="reu-gaveta" data-id="${r.id}">Ver</button></li>`; }).join('')}</ul>`;
+      miolo = `<ul class="linhas">${ord.map((r) => { const [c, t] = COR[estadoReu(r)]; return `<li class="linha" style="grid-template-columns:120px minmax(0,1fr) 170px 110px"><span class="num">${curto(deIso(r.data))}, ${r.hora}</span><span class="t">${esc(r.titulo)}<small>${r.papel === 'facilitador' ? 'Você conduz' : 'Você participa'} · ${r.participantes.length} pessoas</small></span><span class="${c}">${t}</span><button class="btn contorno" data-acao="reu-gaveta" data-id="${r.id}" data-previa="${N.previaReuniao(r)}">Ver</button></li>`; }).join('')}</ul>`;
     } else {
       const ini = new Date(base); ini.setDate(1 - ((base.getDay() + 6) % 7));
       let dias = [];
@@ -204,16 +204,16 @@
         ${dias.map((d) => { const evs = reunioes.filter((r) => r.data === iso(d)).sort((a, b) => a.hora.localeCompare(b.hora));
           return `<div class="dia ${est.mt.calVista === 'mes' && d.getMonth() !== base.getMonth() ? 'fora' : ''} ${iso(d) === iso(HOJE) ? 'hoje' : ''}" style="${est.mt.calVista === 'semana' ? 'min-height:260px' : ''}">
             <button type="button" class="dia-num" data-acao="agendar" data-dia="${iso(d)}" aria-label="Agendar em ${fmt(d)}"><b class="num">${d.getDate()}</b></button>
-            ${evs.map((r) => `<a class="ev" href="#" data-acao="reu-gaveta" data-id="${r.id}" title="${esc(r.titulo)}" style="${estadoReu(r) !== 'programada' ? 'background:var(--suave);color:var(--texto2)' : ''}">${r.hora} ${esc(r.titulo)}</a>`).join('')}</div>`; }).join('')}</div>`;
+            ${evs.map((r) => `<a class="ev" href="#" data-acao="reu-gaveta" data-id="${r.id}" data-previa="${N.previaReuniao(r)}" style="${estadoReu(r) !== 'programada' ? 'background:var(--suave);color:var(--texto2)' : ''}">${r.hora} ${esc(r.titulo)}</a>`).join('')}</div>`; }).join('')}</div>`;
     }
     const titulo = est.mt.calVista === 'lista' ? 'Todas as Reuniões' : `${cap(MES[base.getMonth()])} de ${base.getFullYear()}`;
     const corpo = `<section class="cartao bloco" style="margin-top:14px">
       <div class="ferramentas"><div style="display:flex;align-items:center;gap:8px">
         ${est.mt.calVista !== 'lista' ? `<button class="pg-btn" data-acao="cal-mover" data-v="-1" aria-label="Anterior"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 6l-6 6 6 6"/></svg></button><button class="btn contorno" data-acao="cal-mover" data-v="0">Hoje</button><button class="pg-btn" data-acao="cal-mover" data-v="1" aria-label="Próximo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 6l6 6-6 6"/></svg></button>` : ''}
         <h2 class="titulo-bloco" style="margin-left:6px">${titulo}</h2></div>
-        <div class="chips">${V.map(([k, t]) => `<button class="chip" data-acao="cal-vista" data-v="${k}" aria-pressed="${est.mt.calVista === k}">${t}</button>`).join('')}</div></div>
+        <div class="modelos" role="group" aria-label="Forma de ver">${V.map(([k, t]) => `<button type="button" data-acao="cal-vista" data-v="${k}" aria-pressed="${est.mt.calVista === k}">${t}</button>`).join('')}</div></div>
       ${miolo}
-      <div class="legenda" style="flex-wrap:wrap"><span><i style="background:var(--pill-fundo)"></i>Programada</span><span><i style="background:var(--suave);border:1px solid var(--borda)"></i>Já aconteceu</span><span>Clique num dia vazio para agendar.</span></div>
+      <div class="legenda" style="flex-wrap:wrap"><span><i style="background:var(--pill-fundo)"></i>Programada</span><span><i style="background:var(--suave);border:1px solid var(--borda)"></i>Já aconteceu</span><span>Passe o mouse numa Reunião para o resumo; clique para a pauta e as Pendências. Clique num dia para agendar.</span></div>
     </section>`;
     return N.modulo({ sobre: 'Meu trabalho', titulo: 'Calendário', frase: 'As Reuniões que você conduz ou participa. Clique numa Reunião para ver o resumo sem sair do mês.',
       acoes: `<button class="btn claro grande" data-acao="agendar">Agendar Reunião</button><button class="btn vidro grande" data-acao="toast" data-msg="No sistema, abre o envio da Transcrição de uma Reunião que já aconteceu.">Importar Transcrição</button>` }, null, '', corpo);

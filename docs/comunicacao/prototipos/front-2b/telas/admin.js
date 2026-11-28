@@ -5,8 +5,8 @@
   const N = window.NOVIDADES;
   const { esc, I, IC, dia, fmt, curto, est, HOJE } = N;
   const T = N.telas;
-  est.adm = { busca: '', chip: 'ativos', cadAba: 'setores', cadVer: 'ativos', cadBusca: '', atAba: 'consultas', atBusca: '', periodo: '28', esp: 'Cardiologia', conv: 'Particular',
-    tTipo: 'todos', tOrigem: 'todas', tProjeto: 'todos', tBusca: '', semana: null, atualizado: 'há 6 minutos' };
+  est.adm = { busca: '', sit: 'ativos', vinc: 'todos', setores: [], perfis: [], cadAba: 'setores', cadVer: 'ativos', cadBusca: '', atAba: 'consultas', atBusca: '', periodo: '28', esp: 'Cardiologia', conv: 'Particular',
+    tTipo: [], tOrigem: [], tProjeto: [], tResp: 'todos', tBusca: '', semana: null, atualizado: 'há 6 minutos' };
   const A = est.adm;
 
   N.css(`
@@ -50,7 +50,6 @@
   const soAdmin = (fn) => (id) => (N.perfil() === 'admin' ? fn(id) : restrito());
   const pop = (chave, itens) => `<span class="mais-wrap" style="position:relative;display:inline-block"><button type="button" class="mais" data-pop="${chave}" aria-expanded="${est.pop === chave}" aria-label="Mais ações">${I.tres}</button>${est.pop === chave ? `<div class="pop" role="menu">${itens}</div>` : ''}</span>`;
   const fechaPop = () => { est.pop = null; };
-  const chips = (acao, opcoes, atual, rot) => `<div class="chips" role="group" aria-label="${rot || 'Filtro'}">${opcoes.map(([k, t]) => `<button type="button" class="chip" data-acao="${acao}" data-v="${k}" aria-pressed="${atual === k}">${t}</button>`).join('')}</div>`;
   const busca = (id, chave, ph, valor) => `<label class="busca-lista">${IC.busca}<span class="sr">Buscar</span><input id="${id}" data-digita="${chave}" type="search" placeholder="${ph}" value="${esc(valor)}"></label>`;
   const dd = (n) => String(n).padStart(2, '0');
   const brl = (v) => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -93,17 +92,22 @@
     };
   }
   N.digitar['adm-busca'] = (v) => { A.busca = v; };
-  N.acoes['adm-chip'] = (a) => { A.chip = a.dataset.v; N.desenhar(); };
+  N.acoes['adm-sit'] = (a) => { A.sit = a.dataset.v; N.desenhar(); };
+  N.acoes['adm-vinc'] = (a) => { A.vinc = a.dataset.v; N.desenhar(); };
   T.adminusuarios = { trilha: 'Colaboradores e acessos', menu: 'adminusuarios', mapa: ['Administração', 'Colaboradores e acessos'], render: soAdmin(() => {
     const c = cabColab('#adminusuarios');
     const t = A.busca.trim().toLowerCase();
-    const lista = COLAB.filter((p) => A.chip === 'todos' || (A.chip === 'ativos' ? p.ativo : A.chip === 'inativos' ? !p.ativo : A.chip === 'externos' ? !p.interno : p.sa))
+    const lista = COLAB.filter((p) => A.sit === 'todos' || (A.sit === 'ativos' ? p.ativo : !p.ativo))
+      .filter((p) => A.vinc === 'todos' || (A.vinc === 'interno' ? p.interno : !p.interno))
+      .filter((p) => N.passa(A.setores, p.setor || 'semsetor'))
+      .filter((p) => !A.perfis.length || A.perfis.some((k) => (k === 'sa' ? p.sa : p.p && p.p[k])))
       .filter((p) => !t || (p.nome + ' ' + p.email + ' ' + p.setor + ' ' + p.cargo).toLowerCase().includes(t));
     const corpo = `<section class="cartao bloco" style="margin-top:14px">
-      <div class="ferramentas">${chips('adm-chip', [['ativos', 'Ativos'], ['inativos', 'Desativados'], ['externos', 'Externos'], ['sa', 'Super admin'], ['todos', 'Todos']], A.chip, 'Quem mostrar')}${busca('adm-busca-i', 'adm-busca', 'Buscar por nome, e-mail ou setor', A.busca)}</div>
+      <div class="ferramentas"><div class="filtros-linha">${N.filtro({ id: 'adm-sit', rotulo: 'Situação', opcoes: [['ativos', 'Ativos'], ['inativos', 'Desativados'], ['todos', 'Todos']], valor: A.sit, acao: 'adm-sit' })}${N.filtro({ id: 'adm-vinc', rotulo: 'Vínculo', opcoes: [['todos', 'Internos e externos'], ['interno', 'Internos'], ['externo', 'Externos']], valor: A.vinc, acao: 'adm-vinc' })}${N.filtro({ id: 'adm-setores', rotulo: 'Setor', multi: true, obj: 'adm', campo: 'setores', todos: 'Todos os setores', opcoes: [...[...new Set(COLAB.map((p) => p.setor).filter(Boolean))].sort().map((x) => [x, x]), ['semsetor', 'Sem setor']] })}${N.filtro({ id: 'adm-perfis', rotulo: 'Acesso', multi: true, obj: 'adm', campo: 'perfis', todos: 'Qualquer acesso', opcoes: [['sa', 'Super admin'], ...MODULOS.map(([k, n]) => [k, n])] })}</div>${busca('adm-busca-i', 'adm-busca', 'Buscar por nome, e-mail ou setor', A.busca)}</div>
       <div class="tabela-rola"><table class="tab"><thead><tr><th>Pessoa</th><th>Cargo e setor</th><th>Acessos</th><th>Último acesso</th><th></th></tr></thead><tbody>
       ${lista.map((p) => { const mods = MODULOS.filter(([k]) => p.p[k]).map(([, n]) => n.split(' ')[0]);
-        return `<tr style="${p.ativo ? '' : 'opacity:.6'}"><td><span style="display:inline-flex;align-items:center;gap:10px"><span style="width:34px;height:34px;border-radius:999px;background:var(--suave2);color:var(--titulo);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">${N.ini(p.nome.replace('Dra. ', ''))}</span><span><a href="#adminusuario-${p.id}">${esc(p.nome)}</a><span class="sub" style="display:block">${p.email ? esc(p.email) : 'Sem e-mail, só o nome'}</span></span></span></td>
+        const prev = esc(`<b>${esc(p.nome)}</b><span class="sub">${esc(p.cargo)}${p.setor ? ' · ' + esc(p.setor) : ' · sem setor'}</span><span class="sub">Último acesso: ${p.ativo ? esc(p.acesso) : 'desativado'}</span><span class="sub">Acessos: ${p.sa ? 'Super admin' : mods.length ? esc(MODULOS.filter(([k]) => p.p[k]).map(([k, n]) => n + ' (' + p.p[k] + ')').join(', ')) : 'nenhum'}</span><span class="dica">Clique no nome para abrir a ficha</span>`);
+        return `<tr style="${p.ativo ? '' : 'opacity:.6'}" data-previa="${prev}"><td><span style="display:inline-flex;align-items:center;gap:10px"><span style="width:34px;height:34px;border-radius:999px;background:var(--suave2);color:var(--titulo);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">${N.ini(p.nome.replace('Dra. ', ''))}</span><span><a href="#adminusuario-${p.id}">${esc(p.nome)}</a><span class="sub" style="display:block">${p.email ? esc(p.email) : 'Sem e-mail, só o nome'}</span></span></span></td>
           <td>${esc(p.cargo)}<div class="sub">${p.setor ? esc(p.setor) : '<span style="color:var(--verm)">Sem setor</span>'}</div></td>
           <td>${p.sa ? '<span class="pill escuro" style="margin-right:6px">Super admin</span>' : ''}${!p.interno ? '<span class="pill cinza">Externo</span>' : mods.length ? `<span class="sub">${mods.join(', ')}</span>` : '<span class="sub">Nenhum</span>'}</td>
           <td>${p.ativo ? esc(p.acesso) : '<span class="pill cinza">Desativado</span>'}</td>
@@ -112,7 +116,7 @@
             ${!p.interno ? `<button role="menuitem" data-acao="adm-externo" data-id="${p.id}">Ligar a um cadastro interno</button>` : ''}
             <button role="menuitem" data-acao="adm-sa" data-id="${p.id}">${p.sa ? 'Tirar o Super admin' : 'Tornar Super admin'}</button>
             <hr><button role="menuitem" class="perigo" data-acao="adm-desativar" data-id="${p.id}">${p.ativo ? 'Desativar' : 'Reativar'}</button>`)}</td></tr>`; }).join('')}
-      </tbody></table>${lista.length ? '' : '<p class="vazio">Ninguém com esse filtro. Tente "Todos" ou limpe a busca.</p>'}</div></section>`;
+      </tbody></table>${lista.length ? '' : '<p class="vazio">Ninguém com esse filtro. Abra os filtros e escolha "Todos", ou limpe a busca.</p>'}</div></section>`;
     return N.modulo(c.cab, c.resumo, c.abas, corpo);
   }) };
 
@@ -186,7 +190,7 @@
       const [titulo, um, dados] = CAD[A.cadAba];
       const t = A.cadBusca.trim().toLowerCase();
       const lista = dados.filter((d) => A.cadVer === 'todos' || (A.cadVer === 'ativos' ? d.ativo : !d.ativo)).filter((d) => !t || d.nome.toLowerCase().includes(t));
-      miolo = `<div class="ferramentas" style="margin-top:14px">${chips('cad-ver', [['ativos', 'Ativos'], ['arquivados', 'Arquivados'], ['todos', 'Todos']], A.cadVer, 'Situação')}<div style="display:flex;gap:8px;align-items:center;flex:0 1 560px;justify-content:flex-end">${busca('cad-busca-i', 'cad-busca', 'Buscar ' + titulo.toLowerCase(), A.cadBusca)}<button class="btn" data-acao="cad-editar" data-id="">${IC.mais}Novo ${um.toLowerCase()}</button></div></div>
+      miolo = `<div class="ferramentas" style="margin-top:14px"><div class="filtros-linha">${N.filtro({ id: 'cad-ver', rotulo: 'Situação', opcoes: [['ativos', 'Ativos'], ['arquivados', 'Arquivados'], ['todos', 'Todos']], valor: A.cadVer, acao: 'cad-ver' })}</div><div style="display:flex;gap:8px;align-items:center;flex:0 1 560px;justify-content:flex-end">${busca('cad-busca-i', 'cad-busca', 'Buscar ' + titulo.toLowerCase(), A.cadBusca)}<button class="btn" data-acao="cad-editar" data-id="">${IC.mais}Novo ${um.toLowerCase()}</button></div></div>
         <div class="tabela-rola"><table class="tab"><thead><tr><th>${um}</th><th>Situação</th><th>Atualizado</th><th></th></tr></thead><tbody>
         ${lista.map((d) => `<tr><td><b style="color:var(--titulo)">${esc(d.nome)}</b></td><td>${d.ativo ? N.estado('e-ok', 'Ativo') : N.estado('e-sem', 'Arquivado')}</td><td class="num">${fmt(d.quando)}</td>
           <td style="text-align:right;white-space:nowrap"><button class="btn contorno" data-acao="cad-editar" data-id="${d.id}">Editar</button> <button class="btn contorno" data-acao="cad-arquivar" data-id="${d.id}">${d.ativo ? 'Arquivar' : 'Reativar'}</button></td></tr>`).join('')}
@@ -218,8 +222,7 @@
       const ESP = ['Cardiologia', 'Ortopedia', 'Pediatria', 'Dermatologia'], CONV = ['Particular', 'Unimed', 'Amil', 'Bradesco Saúde'];
       const horarios = ['08:00', '08:30', '09:30', '10:00', '14:00', '15:30'].map((h, i) => [curto(dia(i < 3 ? 1 : 2)), h, i % 2 ? 'Dra. Lívia Torres' : 'Dr. Henrique Lobo']);
       miolo = `<p class="aviso">${I.info}Só consulta: são os horários que a Global Health mostra agora, para conferir o que a Ana responde. Nada se edita aqui.</p>
-        <div class="grade g2" style="margin-top:14px"><div><p class="rot-mini">1. Especialidade</p><div class="chips" style="margin-top:8px">${ESP.map((e) => `<button class="chip" data-acao="at-esp" data-campo="esp" data-v="${e}" aria-pressed="${A.esp === e}">${e}</button>`).join('')}</div></div>
-        <div><p class="rot-mini">2. Convênio</p><div class="chips" style="margin-top:8px">${CONV.map((e) => `<button class="chip" data-acao="at-esp" data-campo="conv" data-v="${e}" aria-pressed="${A.conv === e}">${e}</button>`).join('')}</div></div></div>
+        <div class="filtros-linha" style="margin-top:14px">${N.filtro({ id: 'at-esp', rotulo: '1. Especialidade', opcoes: ESP.map((e) => [e, e]), valor: A.esp, acao: 'at-esp', dados: { campo: 'esp' } })}${N.filtro({ id: 'at-conv', rotulo: '2. Convênio', opcoes: CONV.map((e) => [e, e]), valor: A.conv, acao: 'at-esp', dados: { campo: 'conv' } })}</div>
         <div class="cab" style="margin-top:18px"><p class="rot-mini">3. Horários livres de ${esc(A.esp)}, ${esc(A.conv)}</p><button class="btn contorno" data-acao="toast" data-msg="Espelho atualizado agora.">Atualizar</button></div>
         <ul class="linhas">${horarios.map(([d, h, p]) => `<li class="linha" style="grid-template-columns:120px 80px minmax(0,1fr)"><span class="num">${d}</span><b class="num" style="color:var(--titulo)">${h}</b><span class="t">${p}</span></li>`).join('')}</ul>`;
     } else {
@@ -269,7 +272,7 @@
       abas: N.abasModulo([['#central', 'Visão geral'], ['#centralobjetivos', 'Objetivos', 4], ['#centralgoogle', 'Google'], ['#centralinstagram', 'Instagram']], atual) };
   }
   const barraFrescor = () => `<div class="frescor"><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><span class="aovivo"><i aria-hidden="true"></i>Ao vivo: 23 pessoas no Site agora</span><span class="sub">Números de ${A.atualizado}</span></div>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${chips('cc-periodo', PER, A.periodo, 'Período')}<button class="btn contorno" data-acao="cc-atualizar">Atualizar agora</button></div></div>`;
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${N.filtro({ id: 'cc-periodo', rotulo: 'Período', opcoes: PER, valor: A.periodo, acao: 'cc-periodo' })}<button class="btn contorno" data-acao="cc-atualizar">Atualizar agora</button></div></div>`;
   const mult = () => Number(A.periodo) / 28;
   T.central = { trilha: 'Central de Comando', menu: 'central', mapa: ['Administração', 'Central de Comando: Visão geral'], render: soAdmin(() => {
     const vis = Math.round(8420 * mult());
@@ -287,7 +290,8 @@
   }) };
   function cartaoObj(o) {
     if (o.breve) return `<div class="cartao bloco objetivo breve"><span class="rot-mini">Em construção</span><h3 class="titulo-bloco" style="font-size:15.5px;margin-top:6px">${o.t}</h3><p class="sub" style="margin:6px 0 0">Ainda não tem número. Entra quando o conector chegar.</p></div>`;
-    return `<a class="cartao bloco cartao-link objetivo" href="#centralobjetivo-${o.id}"><span class="rot-mini">${o.meta}</span><h3 class="titulo-bloco" style="font-size:15.5px;margin-top:6px">${o.t}</h3><p class="numero" style="margin-top:8px">${o.v}</p><div class="prog"><span style="width:${o.p}%"></span></div><p class="sub" style="margin:8px 0 0">${o.delta}</p><span class="ir">Ver a lente ${IC.seta}</span></a>`;
+    const prev = esc(`<b>${esc(o.t)}</b><span class="sub">Hoje: ${esc(o.v)} (${esc(o.meta)})</span><span class="sub">${o.p}% da meta · ${esc(o.delta)}</span><span class="dica">Clique para ver a lente e as sugestões</span>`);
+    return `<a class="cartao bloco cartao-link objetivo" href="#centralobjetivo-${o.id}" data-previa="${prev}"><span class="rot-mini">${o.meta}</span><h3 class="titulo-bloco" style="font-size:15.5px;margin-top:6px">${o.t}</h3><p class="numero" style="margin-top:8px">${o.v}</p><div class="prog"><span style="width:${o.p}%"></span></div><p class="sub" style="margin:8px 0 0">${o.delta}</p><span class="ir">Ver a lente ${IC.seta}</span></a>`;
   }
   T.centralobjetivos = { trilha: 'Central de Comando', menu: 'central', mapa: ['Administração', 'Central de Comando: Objetivos'], render: soAdmin(() => {
     const c = cabCentral('#centralobjetivos', 'Objetivos', 'Cada objetivo junta os números que mostram se o hospital está chegando lá, com sugestões do que fazer.');
@@ -349,14 +353,12 @@
   const OQM = ['A Pendência atrasada avisa o responsável no WhatsApp, uma vez por dia, às 8h.', 'O aviso leva o link direto para a Pendência.', 'Quem não quer receber desliga no próprio perfil.', 'O Facilitador vê no Início quem já foi avisado.'];
   const filtraDem = () => {
     const t = A.tBusca.trim().toLowerCase();
-    return DEM.filter((d) => (A.tTipo === 'todos' || d.tipo === A.tTipo) && (A.tOrigem === 'todas' || d.origem === A.tOrigem) && (A.tProjeto === 'todos' || d.proj === A.tProjeto) && (!t || (d.t + ' ' + d.n).toLowerCase().includes(t)));
+    return DEM.filter((d) => N.passa(A.tTipo, d.tipo) && N.passa(A.tOrigem, d.origem) && N.passa(A.tProjeto, d.proj) && (A.tResp === 'todos' || d.resp === A.tResp) && (!t || (d.t + ' ' + d.n).toLowerCase().includes(t)));
   };
   N.digitar['tec-busca'] = (v) => { A.tBusca = v; };
-  N.acoes['tec-f'] = (a) => { A[a.dataset.campo] = a.dataset.v; A.semana = null; N.desenhar(); };
+  N.acoes['tec-resp'] = (a) => { A.tResp = a.dataset.v; A.semana = null; N.desenhar(); };
   function filtrosTec() {
-    const ch = (campo, ops) => `<div class="chips">${ops.map(([k, t]) => `<button class="chip" data-acao="tec-f" data-campo="${campo}" data-v="${k}" aria-pressed="${A[campo] === k}">${t}</button>`).join('')}</div>`;
-    return `<div class="ferramentas">${busca('tec-busca-i', 'tec-busca', 'Buscar pelo título ou número', A.tBusca)}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;margin:6px 0 2px">${ch('tTipo', [['todos', 'Bug e Melhoria'], ['Bug', 'Bug'], ['Melhoria', 'Melhoria']])}${ch('tOrigem', [['todas', 'Toda origem'], ['Pedido do diretor', 'Pedido do diretor'], ['Vitta', 'Vitta'], ['Relato no app', 'Relato no app']])}${ch('tProjeto', [['todos', 'Os dois projetos'], ['Aplicativo do Hospital', 'Aplicativo'], ['Ana', 'Ana']])}</div>`;
+    return `<div class="ferramentas"><div class="filtros-linha">${N.filtro({ id: 'tec-tipo', rotulo: 'Tipo', multi: true, obj: 'adm', campo: 'tTipo', todos: 'Bug e Melhoria', opcoes: [['Bug', 'Bug'], ['Melhoria', 'Melhoria']] })}${N.filtro({ id: 'tec-origem', rotulo: 'Origem', multi: true, obj: 'adm', campo: 'tOrigem', todos: 'Toda origem', opcoes: [['Pedido do diretor', 'Pedido do diretor'], ['Vitta', 'Vitta'], ['Relato no app', 'Relato no app']] })}${N.filtro({ id: 'tec-projeto', rotulo: 'Projeto', multi: true, obj: 'adm', campo: 'tProjeto', todos: 'Os dois projetos', opcoes: [['Aplicativo do Hospital', 'Aplicativo do Hospital'], ['Ana', 'Ana']] })}${N.filtro({ id: 'tec-resp', rotulo: 'Responsável', opcoes: [['todos', 'Todos'], ['PR', 'Pedro Rezende'], ['LC', 'Lucas Campos']], valor: A.tResp, acao: 'tec-resp' })}</div>${busca('tec-busca-i', 'tec-busca', 'Buscar pelo título ou número', A.tBusca)}</div>`;
   }
   function cabTec(atual) {
     const em = DEM.filter((d) => d.etapa === 'desenvolvimento').length, ent = DEM.filter((d) => d.etapa === 'entregue' && d.dias <= 30).length;
@@ -370,7 +372,7 @@
     const corpo = `<section class="cartao bloco" style="margin-top:14px">${filtrosTec()}
       <div class="quadro" style="grid-auto-columns:minmax(188px,1fr)">${ETAPAS.map(([k, t]) => { const fs = lista.filter((d) => d.etapa === k).slice(0, k === 'entregue' ? 8 : 99);
         return `<div class="coluna"><h3><span>${t}</span><span class="num">${fs.length}</span></h3>
-          ${fs.map((d) => `<button type="button" class="ficha-q" data-acao="tec-card" data-n="${d.n}"><small style="margin:0 0 4px">Demanda ${d.n}</small><b>${esc(d.t)}</b>
+          ${fs.map((d) => `<button type="button" class="ficha-q" data-acao="tec-card" data-n="${d.n}" data-previa="${esc(`<b>Demanda ${d.n}: ${esc(d.t)}</b><span class="sub">${d.tipo === 'Bug' ? 'Corrige o problema relatado para a tela voltar a funcionar.' : 'Melhoria pedida por ' + esc(d.origem.toLowerCase()) + '.'}</span><span class="sub">${d.partes ? d.partes[0] + ' de ' + d.partes[1] + ' partes prontas' : 'Ainda sem partes'} · ${d.resp === 'PR' ? 'Pedro Rezende' : 'Lucas Campos'}</span><span class="sub">Na etapa há ${d.dias} ${d.dias === 1 ? 'dia' : 'dias'}</span><span class="dica">Clique para abrir o documento do card</span>`)}"><small style="margin:0 0 4px">Demanda ${d.n}</small><b>${esc(d.t)}</b>
             ${d.partes ? `<span class="partes"><span class="prog"><span style="width:${d.partes[0] / d.partes[1] * 100}%"></span></span>${d.partes[0]} de ${d.partes[1]} partes</span>` : ''}
             <span class="rodape-f"><span style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill ${d.tipo === 'Bug' ? 'verm' : ''}">${d.tipo}</span><span class="pill cinza">${d.proj === 'Ana' ? 'Ana' : 'Aplicativo'}</span></span>${playBtn(d)}</span>
             ${d.versao ? `<small>Em produção desde ${esc(d.versao)}</small>` : ''}</button>`).join('')}

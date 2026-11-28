@@ -5,7 +5,7 @@
   const { esc, I, IC, dia, fmt, curto, est, reunioes, deIso, difDias, HOJE, iso } = N;
   const T = N.telas;
   const PEND = N.PEND || [];
-  est.rm = { aba: {}, busca: '', chipEst: 'todas', chipPapel: 'todas', periodo: '90', tirados: {}, estado: {}, sig: {}, resolvidos: {}, guiada: {} };
+  est.rm = { aba: {}, busca: '', estados: [], chipPapel: 'todas', periodo: '90', tirados: {}, estado: {}, sig: {}, resolvidos: {}, guiada: {} };
 
   // ------------------------------------------------------------------ dados extras: Reuniões em outros estados
   const EXTRA = [
@@ -74,6 +74,7 @@
     .sec-viva{padding:14px;border-radius:10px;border:1px solid var(--linha);transition:background-color .4s ease}
     .sec-viva.mexeu{background:var(--suave)}
     .respostas{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+    .resp-rapida{display:inline-flex;align-items:center;min-height:34px;padding:0 12px;border:1px solid var(--campo-borda);border-radius:999px;background:var(--cartao);color:var(--titulo);font-size:13px;cursor:pointer}.resp-rapida:hover{background:var(--suave);border-color:var(--acento)}
     .barra-setor{display:grid;grid-template-columns:150px minmax(0,1fr) 90px;gap:12px;align-items:center;padding:8px 6px;border-radius:8px;text-decoration:none;color:var(--texto)}
     .barra-setor:hover{background:var(--suave);color:var(--texto)}
     .barra-setor .trilho{display:flex;height:12px;border-radius:999px;overflow:hidden;background:var(--suave2)}
@@ -86,13 +87,15 @@
 
   // ------------------------------------------------------------------ lista de Reuniões
   function precisa(r) { const p = pedido(r); return !!p[2]; }
+  // Categoria do estado para o filtro: Programadas, Ata em andamento, Assinadas e aprovadas, Desmarcadas ou com erro.
+  function catEst(e) { return e === 'PROGRAMADA' ? 'programadas' : /AGUARDANDO|PROCESSANDO|CORRIGINDO/.test(e) ? 'ata' : /ASSINADA|APROVADA/.test(e) ? 'fechadas' : 'outras'; }
   function linhaReu(r) {
     const d = deIso(r.data); const hoje = difDias(d) === 0;
     const [cls, txt] = NOME[estadoDe(r)]; const [rot, href, forte] = pedido(r);
     const MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
     return `<li class="linha linha-reu entra">
       <span class="datinha${hoje ? ' hoje' : ''}"><b>${d.getDate()}</b><small>${hoje ? 'hoje' : MES[d.getMonth()]}</small></span>
-      <span class="t"><a href="#reuniao-${r.id}" style="color:var(--texto);text-decoration:none;font-weight:700">${esc(r.titulo)}</a><small>${r.hora} · ${conduzo(r) ? 'Você conduz' : 'Conduz: ' + esc(facil(r))} · ${r.participantes.length} Participantes</small></span>
+      <span class="t"><a href="#reuniao-${r.id}" data-previa="${N.previaReuniao(r)}" style="color:var(--texto);text-decoration:none;font-weight:700">${esc(r.titulo)}</a><small>${r.hora} · ${conduzo(r) ? 'Você conduz' : 'Conduz: ' + esc(facil(r))} · ${r.participantes.length} Participantes</small></span>
       <span class="x-papel"><span class="pill ${conduzo(r) ? 'escuro' : ''}">${souSecretaria() ? N.ini(facil(r)) + ', Facilitador' : conduzo(r) ? 'Conduzo' : 'Participo'}</span></span>
       <span class="x-est"><span class="${cls}">${txt}</span></span>
       <a class="btn${forte ? '' : ' contorno'}" href="${href}">${rot}</a>
@@ -102,20 +105,19 @@
     const t = est.rm.busca.trim().toLowerCase();
     const todas = reunioes.filter((r) => !t || (r.titulo + ' ' + r.participantes.join(' ') + ' ' + r.pauta.join(' ')).toLowerCase().includes(t))
       .filter((r) => est.rm.chipPapel === 'todas' || (est.rm.chipPapel === 'conduzo' ? conduzo(r) : !conduzo(r)))
-      .filter((r) => { const e = estadoDe(r); return est.rm.chipEst === 'todas' || (est.rm.chipEst === 'programadas' && e === 'PROGRAMADA') || (est.rm.chipEst === 'ata' && /AGUARDANDO|PROCESSANDO|CORRIGINDO/.test(e)) || (est.rm.chipEst === 'fechadas' && /ASSINADA|APROVADA/.test(e)); });
+      .filter((r) => N.passa(est.rm.estados, catEst(estadoDe(r))));
     const ord = (a, b) => (a.data + a.hora).localeCompare(b.data + b.hora);
     const urg = todas.filter(precisa).sort(ord);
     const prox = todas.filter((r) => !precisa(r) && difDias(deIso(r.data)) >= 0).sort(ord);
     const pass = todas.filter((r) => !precisa(r) && difDias(deIso(r.data)) < 0).sort((a, b) => -ord(a, b));
     const grupo = (tit, lista, vazio) => `<p class="grupo-tit">${tit}<span class="n">${lista.length}</span></p>${lista.length ? `<ul class="linhas">${lista.map(linhaReu).join('')}</ul>` : `<p class="vazio">${vazio}</p>`}`;
-    const CE = [['todas', 'Todas'], ['programadas', 'Programadas'], ['ata', 'Ata em andamento'], ['fechadas', 'Assinadas e aprovadas']];
+    const CE = [['programadas', 'Programadas'], ['ata', 'Ata em andamento'], ['fechadas', 'Assinadas e aprovadas'], ['outras', 'Desmarcadas ou com erro']];
     const CP = [['todas', 'Todos os papéis'], ['conduzo', 'Conduzo'], ['participo', 'Participo']];
     const corpo = `<section class="cartao bloco" style="margin-top:14px">
       <div class="ferramentas">
-        <div class="chips" role="group" aria-label="Estado">${CE.map(([k, x]) => `<button type="button" class="chip" data-acao="rm-chip" data-g="chipEst" data-v="${k}" aria-pressed="${est.rm.chipEst === k}">${x}</button>`).join('')}</div>
+        <div class="filtros-linha">${N.filtro({ id: 'rm-estado', rotulo: 'Estado', opcoes: CE, multi: true, obj: 'rm', campo: 'estados', todos: 'Todos' })}${souSecretaria() ? '' : N.filtro({ id: 'rm-papel', rotulo: 'Papel', opcoes: CP, valor: est.rm.chipPapel, acao: 'rm-chip', dados: { g: 'chipPapel' } })}</div>
         <label class="busca-lista">${IC.busca}<span class="sr">Buscar Reunião</span><input id="rm-busca" data-digita="rm-busca" type="search" placeholder="Buscar por título, pauta ou Participante" value="${esc(est.rm.busca)}"></label>
       </div>
-      <div class="chips" role="group" aria-label="Papel" style="margin-top:6px${souSecretaria() ? ';display:none' : ''}">${CP.map(([k, x]) => `<button type="button" class="chip" data-acao="rm-chip" data-g="chipPapel" data-v="${k}" aria-pressed="${est.rm.chipPapel === k}">${x}</button>`).join('')}</div>
       ${todas.length ? grupo('Precisam de você', urg, 'Nada esperando você nas Reuniões. Bom sinal.') + grupo('Próximas', prox, 'Nenhuma Reunião marcada com esse filtro. Use Agendar Reunião para marcar a próxima.') + grupo('Já aconteceram', pass, 'Nenhuma Reunião passada com esse filtro.')
         : `<p class="vazio">Nenhuma Reunião encontrada com "${esc(est.rm.busca)}". Tente o nome de um Participante ou um item da pauta.</p>`}
     </section>`;
@@ -316,7 +318,7 @@
         <section class="cartao bloco chat" aria-label="Conversa com o agente">
           <div class="cab"><h2 class="titulo-bloco" style="font-size:16px">Conversa</h2>${g.ponto ? `<span class="pill laranja">Corrigindo: ${esc(g.ponto)}</span>` : ''}</div>
           <div class="conversa" id="ag-conversa" aria-live="polite" style="margin-top:10px">${g.conversa.map(([q, t]) => `<div class="balao ${q}"><small>${q === 'eu' ? 'Você' : 'Agente da Ata'}</small>${esc(t)}</div>`).join('')}
-            ${ultimas && ultimas.length ? `<div class="respostas">${ultimas.map((o) => `<button class="chip" data-acao="ag-resp" data-id="${r.id}" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div>` : ''}</div>
+            ${ultimas && ultimas.length ? `<div class="respostas">${ultimas.map((o) => `<button type="button" class="resp-rapida" data-acao="ag-resp" data-id="${r.id}" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div>` : ''}</div>
           <form class="escrever" id="ag-form" data-id="${r.id}"><label class="btn contorno" style="cursor:pointer;padding:0 12px" title="Anexar documento de apoio">${IC.anexo}<span class="sr">Anexar documento de apoio</span><input type="file" hidden></label>
             <label for="ag-txt" class="sr">Mensagem</label><textarea id="ag-txt" placeholder="${g.gravando ? 'Ouvindo... fale normalmente' : 'Conte o que foi decidido'}"></textarea>
             <button type="button" class="btn ${g.gravando ? '' : 'contorno'}" data-acao="ag-voz" data-id="${r.id}" aria-pressed="${g.gravando}" aria-label="Falar">${IC.microfone}</button><button class="btn" type="submit" aria-label="Enviar">${IC.enviar}</button></form>
@@ -362,10 +364,10 @@
     const PER = [['30', '30 dias'], ['90', '90 dias'], ['ano', 'Este ano']];
     const corpo = `
       <p class="aviso" style="margin-top:14px">${I.info}<span>Este painel olha as Reuniões e os setores. O que depende de você está no <a href="#inicio">Início</a>.</span></p>
-      <div class="ferramentas" style="margin-top:14px"><div class="chips">${PER.map(([k, t]) => `<button class="chip" data-acao="rm-chip" data-g="periodo" data-v="${k}" aria-pressed="${est.rm.periodo === k}">${t}</button>`).join('')}</div></div>
+      <div class="ferramentas" style="margin-top:14px"><div class="filtros-linha">${N.filtro({ id: 'rm-periodo', rotulo: 'Período', opcoes: PER, valor: est.rm.periodo, acao: 'rm-chip', dados: { g: 'periodo' } })}</div></div>
       <div class="duas" style="margin-top:6px">
         <section class="cartao bloco larga"><div class="cab"><h2 class="titulo-bloco">Pendências abertas por setor</h2><span class="sub">Clique num setor para ver as Pendências dele</span></div>
-          <div style="margin-top:10px">${lista.map(([s, v]) => `<a class="barra-setor" href="#pendencias" data-acao="rm-setor" data-v="${esc(s)}"><span>${esc(s)}</span><span class="trilho" style="width:${(v.ok + v.atr) / maxS * 100}%"><span style="width:${v.ok / (v.ok + v.atr) * 100}%;background:var(--btn-fundo)"></span><span style="width:${v.atr / (v.ok + v.atr) * 100}%;background:var(--ponto-verm)"></span></span><span class="num sub" style="text-align:right">${v.atr ? `<b style="color:var(--verm)">${v.atr} atrasada${v.atr > 1 ? 's' : ''}</b>` : `${v.ok} no prazo`}</span></a>`).join('')}</div>
+          <div style="margin-top:10px">${lista.map(([s, v]) => `<a class="barra-setor" href="#pendencias" data-acao="rm-setor" data-v="${esc(s)}" data-previa="${esc(`<b>${esc(s)}</b><span class="sub">${v.ok + v.atr} Pendências abertas</span><span class="sub">${v.ok} no prazo, ${v.atr} atrasada${v.atr === 1 ? '' : 's'}</span><span class="dica">Clique para ver as Pendências do setor</span>`)}"><span>${esc(s)}</span><span class="trilho" style="width:${(v.ok + v.atr) / maxS * 100}%"><span style="width:${v.ok / (v.ok + v.atr) * 100}%;background:var(--btn-fundo)"></span><span style="width:${v.atr / (v.ok + v.atr) * 100}%;background:var(--ponto-verm)"></span></span><span class="num sub" style="text-align:right">${v.atr ? `<b style="color:var(--verm)">${v.atr} atrasada${v.atr > 1 ? 's' : ''}</b>` : `${v.ok} no prazo`}</span></a>`).join('')}</div>
           <div class="legenda"><span><i style="background:var(--btn-fundo)"></i>No prazo</span><span><i style="background:var(--ponto-verm)"></i>Atrasadas</span></div></section>
         <section class="cartao bloco estreita"><h2 class="titulo-bloco">Evolução semanal</h2><p class="sub" style="margin:4px 0 0">Conformidade das últimas 8 semanas</p>
           <svg class="linha-graf" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Conformidade por semana: ${SEMANAS.join(', ')} por cento"><path class="a" d="${linha} L${pts[pts.length - 1][0]},${H} L${pts[0][0]},${H} Z"/><path class="l" d="${linha}"/></svg>
@@ -395,14 +397,14 @@
     { id: 'd4', setor: 'CCIH', t: 'Isolamento de contato na admissão', obj: 'Isolar na entrada o paciente que vem transferido de outro hospital.', trecho: 'Paciente transferido entra em isolamento de contato até o resultado do swab.', reu: 'rm1' },
     { id: 'd5', setor: 'Suprimentos', t: 'Estoque mínimo de EPIs do Centro Cirúrgico', obj: 'Não faltar avental nem máscara N95 nas salas.', trecho: 'Suprimentos mantém 15 dias de estoque mínimo e avisa a Diretoria quando cair para 7.', reu: 'r0' }
   ];
-  est.rm.setorProc = 'todos';
+  est.rm.setores = [];
   T.processos = { trilha: 'Definições de processo', menu: 'processos', mapa: ['Reuniões e metas', 'Definições de processo'], render() {
     const ativos = PROC.filter((d) => !est.rm.tirados[d.id]);
     const setores = [...new Set(PROC.map((d) => d.setor))];
-    const lista = ativos.filter((d) => est.rm.setorProc === 'todos' || d.setor === est.rm.setorProc);
+    const lista = ativos.filter((d) => N.passa(est.rm.setores, d.setor));
     const porSetor = setores.map((s) => [s, lista.filter((d) => d.setor === s)]).filter(([, l]) => l.length);
     const corpo = `<section class="cartao bloco" style="margin-top:14px">
-      <div class="ferramentas"><div class="chips">${[['todos', 'Todos os setores'], ...setores.map((s) => [s, s])].map(([k, t]) => `<button class="chip" data-acao="rm-chip" data-g="setorProc" data-v="${esc(k)}" aria-pressed="${est.rm.setorProc === k}">${esc(t)}</button>`).join('')}</div></div>
+      <div class="ferramentas"><div class="filtros-linha">${N.filtro({ id: 'rm-setores', rotulo: 'Setor', opcoes: setores.map((x) => [x, esc(x)]), multi: true, obj: 'rm', campo: 'setores', todos: 'Todos os setores' })}</div></div>
       ${porSetor.length ? porSetor.map(([s, l]) => `<p class="grupo-tit">${esc(s)}<span class="n">${l.length}</span></p>
         <div class="grade g2" style="margin-top:6px">${l.map((d) => { const r = reu(d.reu); return `<article class="cartao bloco" style="box-shadow:none;background:var(--cartao)">
           <h3 class="titulo-bloco" style="font-size:16px">${esc(d.t)}</h3>

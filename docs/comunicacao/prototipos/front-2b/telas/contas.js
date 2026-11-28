@@ -7,7 +7,7 @@
   const T = N.telas;
   const R$ = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const nota = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-  est.cm = { busca: '', recorte: 'todas', etapa: 'fila', feitos: {}, vez: null, regra: 'diarias', semana: 'esta', operadora: 'todas', perms: {}, pessoaBusca: '', arq: {} };
+  est.cm = { busca: '', recorte: 'todas', etapa: 'fila', feitos: {}, vez: null, regra: 'diarias', semana: 'esta', operadoras: [], perms: {}, pessoaBusca: '', arq: {} };
 
   N.css(`
 .cm-faixa{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:14px}
@@ -80,6 +80,22 @@
   };
   const itensDe = (id) => ITENS[id] || ITENS.c2775.map((x) => ({ ...x }));
   const decisao = (cid, it) => est.cm.feitos[cid + it.id] || it.dec || null;
+  // Prévias no hover: ajudam a decidir antes de clicar; o clique continua sendo o caminho.
+  function previaConta(c) {
+    const e = est.cm.arq[c.id] ? 'Arquivada' : { envio: 'Envio', fila: 'Fila', analise: 'Em análise', concluida: 'Concluída', pend: 'Concluída com pendência' }[c.etapa];
+    const its = c.etapa === 'envio' ? [] : itensDe(c.id);
+    const faltam = its.filter((it) => !decisao(c.id, it)).length;
+    const quem = c.com ? (c.com === EU ? 'com você' : 'com ' + esc(c.com)) : c.etapa === 'fila' ? 'livre, ninguém pegou' : 'enviada por ' + esc(c.por || '');
+    const dica = c.etapa === 'fila' ? 'Clique em Pegar para abrir a Mesa' : c.etapa === 'analise' && c.com === EU ? 'Clique em Continuar para voltar à Mesa' : c.etapa === 'envio' ? 'Clique em Resolver para ver o envio' : 'A conta abre pela Mesa de trabalho';
+    return esc(`<b>Conta ${c.at} · ${esc(op(c.op).n)}</b><span class="sub">${e} · ${quem}</span><span class="sub">${c.comp ? 'Competência ' + esc(c.comp) : c.ini ? 'Internação de ' + curto(dia(c.ini)) + ' a ' + curto(dia(c.fim)) : 'Guia ainda não pronto'}</span>${c.valor ? `<span class="sub">Valor da conta ${R$(c.valor)}${c.ajuste !== undefined ? ' · ajuste ' + R$(c.ajuste) : ''}</span>` : ''}${its.length ? `<span class="sub">${faltam ? faltam + ' de ' + its.length + ' itens ainda sem decisão' : 'Todos os ' + its.length + ' itens decididos'}</span>` : ''}<span class="dica">${dica}</span>`);
+  }
+  function previaContrato(o) {
+    return esc(`<b>${esc(o.n)}</b><span class="sub">Vigência de ${N.fmt(dia(o.venc - 365))} a ${N.fmt(dia(o.venc))}</span><span class="sub">${o.adit ? o.adit + (o.adit === 1 ? ' aditivo assinado' : ' aditivos assinados') : 'Nenhum aditivo'}</span><span class="sub">${o.venc < 0 ? 'Venceu há ' + -o.venc + ' dias: as contas seguem pela tabela antiga' : 'Faltam ' + o.venc + ' dias para vencer'}</span><span class="dica">${o.venc <= 45 ? 'Clique em Enviar aditivo: a IA preenche e você confirma' : 'Clique em Enviar documento para juntar um anexo'}</span>`);
+  }
+  function previaOper(o) {
+    const naFila = CONTAS.filter((c) => c.op === o.s && c.etapa === 'fila').length;
+    return esc(`<b>${esc(o.n)} (${o.s})</b><span class="sub">${o.mem ? 'Memória v' + o.mem : 'Sem memória: as contas param no envio'}</span><span class="sub">${o.tabelas} de 4 tabelas de preço</span><span class="sub">${naFila} ${naFila === 1 ? 'conta' : 'contas'} na Fila · contrato ${o.venc < 0 ? 'vencido' : 'vigente'}</span><span class="dica">Clique para abrir a Memória da operadora</span>`);
+  }
 
   // ------------------------------------------------------------------ cabeçalho e abas
   const ABAS = () => N.abasModulo([
@@ -92,13 +108,15 @@
   // ------------------------------------------------------------------ Painel
   T.contas = { trilha: 'Contas médicas', menu: 'contas', mapa: ['Contas médicas', 'Painel'], render() {
     const S = [['esta', 'Esta semana'], ['passada', 'Semana passada'], ['mes', 'Últimas 4 semanas']];
-    const O = [['todas', 'Todas as operadoras'], ...OPER.map((o) => [o.s, o.n])];
+    const O = OPER.map((o) => [o.s, o.n]);
+    const selOp = est.cm.operadoras;
+    const nomesOp = selOp.length ? OPER.filter((o) => selOp.includes(o.s)).map((o) => o.n).join(', ') : 'todas as operadoras';
     const perda = [['UTI adulto', 9840, 100], ['Centro cirúrgico', 6120, 62], ['Enfermaria', 3310, 34], ['Pronto-socorro', 1270, 13]];
     const faltam = [['Glicemia capilar', 38, 912.0], ['Oxigênio contínuo', 21, 2016.0], ['Equipo macrogotas', 19, 349.6], ['Curativo de média complexidade', 14, 595.0], ['Taxa de sala de observação', 12, 1080.0], ['Dipirona 1 g injetável', 11, 34.32], ['Bomba de infusão, diária', 9, 1170.0], ['Ficha anestésica sem gás', 8, 2240.0], ['Sonda vesical de demora', 6, 222.0], ['Eletrodo descartável', 6, 21.6]];
     const prod = [['Bruno Araújo', 31, 7.6], ['Daniela Costa', 28, 7.9], ['Patrícia Melo', 24, 7.2]];
     const corpo = `<section class="cartao bloco" style="margin-top:14px"><div class="ferramentas">
-        <div class="chips" role="group" aria-label="Período">${S.map(([k, t]) => `<button class="chip" data-acao="cm-semana" data-v="${k}" aria-pressed="${est.cm.semana === k}">${t}</button>`).join('')}</div>
-        <div class="chips" role="group" aria-label="Operadora">${O.map(([k, t]) => `<button class="chip" data-acao="cm-oper" data-v="${k}" aria-pressed="${est.cm.operadora === k}">${t}</button>`).join('')}</div></div></section>
+        <div class="filtros-linha">${N.filtro({ id: 'cm-semana', rotulo: 'Período', opcoes: S, valor: est.cm.semana, acao: 'cm-semana' })}${N.filtro({ id: 'cm-oper', rotulo: 'Operadora', opcoes: O, multi: true, obj: 'cm', campo: 'operadoras', todos: 'Todas as operadoras' })}</div>
+        <p class="sub" style="margin:0">Números de ${S.find(([k]) => k === est.cm.semana)[1].toLowerCase()}, ${esc(nomesOp)}.</p></div></section>
       <div class="grade g2">
         <section class="cartao bloco"><h2 class="titulo-bloco">Onde a perda nasce</h2><p class="sub" style="margin:4px 0 0">O que entrou de ajuste, por setor da conta.</p>
           ${perda.map(([s, v, p]) => `<div class="cm-barra"><span>${s}</span><div class="prog"><span style="width:${p}%"></span></div><span class="num" style="text-align:right">${R$(v)}</span></div>`).join('')}</section>
@@ -123,12 +141,11 @@
       ABAS(), corpo);
   } };
   N.acoes['cm-semana'] = (a) => { est.cm.semana = a.dataset.v; N.desenhar(); };
-  N.acoes['cm-oper'] = (a) => { est.cm.operadora = a.dataset.v; N.desenhar(); };
   N.acoes['cm-reler'] = () => N.modal('Reler contas concluídas', `<p style="margin:0 0 10px">O segundo agente relê as <b>83 contas</b> concluídas nesta semana e aponta o que ficou para trás.</p>
     <dl class="pares"><dt>Custo estimado</dt><dd class="num"><b>${R$(38.9)}</b> de IA</dd><dt>Tempo</dt><dd>cerca de 40 minutos, sem travar a Esteira</dd><dt>Resultado</dt><dd>os achados chegam na Validação</dd></dl>`,
     `<button type="button" class="btn" data-acao="toast" data-msg="Releitura começou. Você recebe um aviso quando os achados chegarem na Validação.">Reler por ${R$(38.9)}</button>`);
   N.acoes['cm-item-painel'] = (a) => N.abrirGaveta({ sobre: '<span class="pill">Item que mais falta</span>', titulo: esc(a.dataset.t),
-    corpo: `<p class="sub" style="margin:0">Apareceu em ${a.dataset.n} contas no período.</p><ul class="linhas">${CONTAS.filter((c) => c.etapa === 'concluida' || c.etapa === 'pend').map((c) => `<li class="linha" style="grid-template-columns:minmax(0,1fr) auto"><span class="t">${c.at} · ${esc(c.rot)}<small>${op(c.op).n} · ${c.com === EU ? 'Você' : esc(c.com)}</small></span><span class="pill">${esc(c.comp)}</span></li>`).join('')}</ul>` });
+    corpo: `<p class="sub" style="margin:0">Apareceu em ${a.dataset.n} contas no período.</p><ul class="linhas">${CONTAS.filter((c) => (c.etapa === 'concluida' || c.etapa === 'pend') && N.passa(est.cm.operadoras, c.op)).map((c) => `<li class="linha" style="grid-template-columns:minmax(0,1fr) auto"><span class="t">${c.at} · ${esc(c.rot)}<small>${op(c.op).n} · ${c.com === EU ? 'Você' : esc(c.com)}</small></span><span class="pill">${esc(c.comp)}</span></li>`).join('')}</ul>` });
 
   // ------------------------------------------------------------------ Esteira
   const ETAPAS = [['envio', 'Envios'], ['fila', 'Fila'], ['analise', 'Em análise'], ['concluida', 'Concluídas'], ['arquivada', 'Arquivadas']];
@@ -136,14 +153,14 @@
   const NOME_ETAPA = { envio: 'Envios', fila: 'Fila', analise: 'Em análise', concluida: 'Concluídas', arquivada: 'Arquivadas' };
   T.contasesteira = { trilha: 'Contas médicas', menu: 'contasesteira', mapa: ['Contas médicas', 'Esteira das contas'], render() {
     const t = est.cm.busca.trim().toLowerCase();
-    const base = CONTAS.filter((c) => est.cm.recorte === 'todas' || c.com === EU || (c.etapa === 'envio'));
+    const base = CONTAS.filter((c) => (est.cm.recorte === 'todas' || c.com === EU || (c.etapa === 'envio')) && N.passa(est.cm.operadoras, c.op));
     const conta_ = (k) => base.filter((c) => etapaDe(c) === k).length;
     const minha = CONTAS.find((c) => c.etapa === 'analise' && c.com === EU);
     let lista;
     if (t) {
-      const achadas = CONTAS.filter((c) => (c.at + ' ' + c.rot).toLowerCase().includes(t));
+      const achadas = CONTAS.filter((c) => (c.at + ' ' + c.rot).toLowerCase().includes(t) && N.passa(est.cm.operadoras, c.op));
       lista = `<p class="sub" style="margin:8px 0 0">${achadas.length ? `${achadas.length} ${achadas.length === 1 ? 'conta encontrada' : 'contas encontradas'} em todas as etapas, inclusive as arquivadas.` : 'Nenhuma conta com esse número ou rótulo.'}</p>
-        <ul class="linhas">${achadas.map((c) => `<li class="linha" style="grid-template-columns:90px minmax(0,1fr) 150px 160px 120px"><b class="num" style="color:var(--titulo)">${c.at}</b><span class="t">${esc(c.rot)}, ${c.idade} anos<small>${op(c.op).n}</small></span><span class="pill">${NOME_ETAPA[etapaDe(c)]}</span><span class="sub">${c.com ? (c.com === EU ? 'Com você' : 'Com ' + esc(c.com)) : c.etapa === 'fila' ? 'Livre' : 'Enviada por ' + esc(c.por || '')}</span>${acaoConta(c)}</li>`).join('')}</ul>`;
+        <ul class="linhas">${achadas.map((c) => `<li class="linha" style=""grid-template-columns:90px minmax(0,1fr) 150px 160px 120px"><b class="num" style="color:var(--titulo)">${c.at}</b><span class="t" tabindex="0" data-previa="${previaConta(c)}">${esc(c.rot)}, ${c.idade} anos<small>${op(c.op).n}</small></span><span class="pill">${NOME_ETAPA[etapaDe(c)]}</span><span class="sub">${c.com ? (c.com === EU ? 'Com você' : 'Com ' + esc(c.com)) : c.etapa === 'fila' ? 'Livre' : 'Enviada por ' + esc(c.por || '')}</span>${acaoConta(c)}</li>`).join('')}</ul>`;
     } else lista = listaEtapa(base.filter((c) => etapaDe(c) === est.cm.etapa));
     const corpo = `${minha ? `<section class="cartao bloco" style="margin-top:14px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between">
         <div><span class="rot-mini">Continue de onde parou</span><h2 class="titulo-bloco" style="margin-top:4px">${minha.at} · ${esc(minha.rot)}, ${op(minha.op).n}</h2><p class="sub" style="margin:2px 0 0">${itensDe(minha.id).filter((it) => decisao(minha.id, it)).length} de ${itensDe(minha.id).length} itens decididos</p></div>
@@ -151,7 +168,7 @@
       <section class="cartao bloco" style="margin-top:14px">
         <div class="ferramentas">
           <label class="busca-lista">${IC.busca}<span class="sr">Buscar conta</span><input id="cm-busca" data-digita="cm-busca" type="search" placeholder="Atendimento ou paciente, ex.: 2775" value="${esc(est.cm.busca)}"></label>
-          <div class="chips" role="group" aria-label="De quem">${[['todas', 'Todas'], ['minhas', 'Minhas']].map(([k, x]) => `<button class="chip" data-acao="cm-recorte" data-v="${k}" aria-pressed="${est.cm.recorte === k}">${x}</button>`).join('')}</div>
+          <div class="filtros-linha">${N.filtro({ id: 'cm-recorte', rotulo: 'De quem', opcoes: [['todas', 'Todas'], ['minhas', 'Minhas']], valor: est.cm.recorte, acao: 'cm-recorte' })}${N.filtro({ id: 'cm-oper-est', rotulo: 'Operadora', opcoes: OPER.map((o) => [o.s, o.n]), multi: true, obj: 'cm', campo: 'operadoras', todos: 'Todas as operadoras' })}</div>
         </div>
         ${t ? '' : `<div class="abas" role="tablist" aria-label="Etapas da Esteira">${ETAPAS.map(([k, x]) => `<button type="button" role="tab" aria-selected="${est.cm.etapa === k}" data-acao="cm-etapa" data-v="${k}">${x} (${conta_(k)})</button>`).join('')}</div>`}
         ${lista}
@@ -177,14 +194,14 @@
   function listaEtapa(cs) {
     const e = est.cm.etapa;
     if (!cs.length) return `<p class="vazio">${{ envio: 'Nenhum envio esperando. O que você sobe aparece aqui até ficar pronto.', fila: 'A Fila está vazia. Toda conta com Guia pronto entra aqui, por ordem de envio.', analise: 'Ninguém está com conta aberta agora.', concluida: 'Nenhuma conta concluída à vista. As do mês arquivado ficam em Arquivadas.', arquivada: 'Nada arquivado ainda.' }[e]}</p>`;
-    if (e === 'envio') return `<ul class="linhas">${cs.map((c) => `<li class="linha" style="grid-template-columns:90px minmax(0,1fr) 260px 120px"><b class="num" style="color:var(--titulo)">${c.at}</b><span class="t">${esc(c.rot)}<small>Enviada por ${esc(c.por)}, hoje</small></span>${N.estado(c.envio.startsWith('Erro') ? 'e-venc' : c.envio === 'Processando' ? 'e-prox' : 'e-hoje', esc(c.envio.split(':')[0]))}${acaoConta(c)}</li>`).join('')}</ul>`;
+    if (e === 'envio') return `<ul class="linhas">${cs.map((c) => `<li class="linha" style=""grid-template-columns:90px minmax(0,1fr) 260px 120px"><b class="num" style="color:var(--titulo)">${c.at}</b><span class="t" tabindex="0" data-previa="${previaConta(c)}">${esc(c.rot)}<small>Enviada por ${esc(c.por)}, hoje</small></span>${N.estado(c.envio.startsWith('Erro') ? 'e-venc' : c.envio === 'Processando' ? 'e-prox' : 'e-hoje', esc(c.envio.split(':')[0]))}${acaoConta(c)}</li>`).join('')}</ul>`;
     if (e === 'concluida') {
       const comps = [...new Set(cs.map((c) => c.comp))];
       return comps.map((m) => { const doMes = cs.filter((c) => c.comp === m); const minhas = doMes.filter((c) => c.com === EU);
         return `<div style="margin-top:16px"><div class="cab"><h3 class="titulo-bloco" style="font-size:15px">Competência ${m} <span class="sub" style="font-weight:400">· ${doMes.length} contas</span></h3>${minhas.length ? `<button class="btn contorno" data-acao="cm-arq-mes" data-m="${m}">Arquivar as minhas de ${m.split(' ')[0]}</button>` : ''}</div>
-          <ul class="linhas">${doMes.map((c) => `<li class="linha" style="grid-template-columns:90px minmax(0,1fr) 150px 130px 120px"><b class="num" style="color:var(--titulo)">${c.at}</b><span class="t">${esc(c.rot)}<small>${op(c.op).n} · ${c.com === EU ? 'Você' : esc(c.com)}</small></span>${N.estado(c.etapa === 'pend' ? 'e-hoje' : 'e-ok', c.etapa === 'pend' ? 'Com pendência' : 'Concluída')}<span class="num" style="text-align:right">${R$(c.ajuste)}</span>${acaoConta(c)}</li>`).join('')}</ul></div>`; }).join('');
+          <ul class="linhas">${doMes.map((c) => `<li class="linha" style=""grid-template-columns:90px minmax(0,1fr) 150px 130px 120px"><b class="num" style="color:var(--titulo)">${c.at}</b><span class="t" tabindex="0" data-previa="${previaConta(c)}">${esc(c.rot)}<small>${op(c.op).n} · ${c.com === EU ? 'Você' : esc(c.com)}</small></span>${N.estado(c.etapa === 'pend' ? 'e-hoje' : 'e-ok', c.etapa === 'pend' ? 'Com pendência' : 'Concluída')}<span class="num" style="text-align:right">${R$(c.ajuste)}</span>${acaoConta(c)}</li>`).join('')}</ul></div>`; }).join('');
     }
-    return `<ul class="linhas">${cs.map((c) => `<li class="linha" style="grid-template-columns:90px minmax(0,1fr) 120px 140px 130px"><b class="num" style="color:var(--titulo)">${c.at}</b><span class="t">${esc(c.rot)}, ${c.idade} anos<small>${op(c.op).n}${c.ini ? ' · ' + curto(dia(c.ini)) + ' a ' + curto(dia(c.fim)) : ''}${c.com ? ' · ' + (c.com === EU ? 'com você' : 'com ' + esc(c.com)) : ''}</small></span><span class="sub">Nota ${nota(c.nota)}</span><span class="num" style="text-align:right">${R$(c.valor)}</span>${acaoConta(c)}</li>`).join('')}</ul>`;
+    return `<ul class="linhas">${cs.map((c) => `<li class="linha" style=""grid-template-columns:90px minmax(0,1fr) 120px 140px 130px"><b class="num" style="color:var(--titulo)">${c.at}</b><span class="t" tabindex="0" data-previa="${previaConta(c)}">${esc(c.rot)}, ${c.idade} anos<small>${op(c.op).n}${c.ini ? ' · ' + curto(dia(c.ini)) + ' a ' + curto(dia(c.fim)) : ''}${c.com ? ' · ' + (c.com === EU ? 'com você' : 'com ' + esc(c.com)) : ''}</small></span><span class="sub">Nota ${nota(c.nota)}</span><span class="num" style="text-align:right">${R$(c.valor)}</span>${acaoConta(c)}</li>`).join('')}</ul>`;
   }
   N.digitar['cm-busca'] = (v) => { est.cm.busca = v; };
   N.acoes['cm-recorte'] = (a) => { est.cm.recorte = a.dataset.v; N.desenhar(); };
@@ -337,7 +354,7 @@
   T.contascontratos = { trilha: 'Contas médicas', menu: 'contascontratos', mapa: ['Contas médicas', 'Contratos'], render() {
     const sit = (o) => o.venc < 0 ? ['e-venc', 'Vencido'] : o.venc <= 15 ? ['e-venc', 'Vence logo'] : o.venc <= 45 ? ['e-hoje', 'Renovar em breve'] : ['e-ok', 'Vigente'];
     const corpo = `<section class="cartao bloco" style="margin-top:14px"><div class="tabela-rola"><table class="tab"><thead><tr><th>Operadora</th><th>Assinatura</th><th>Aditivos</th><th>Vencimento</th><th>Situação</th><th></th></tr></thead><tbody>
-      ${OPER.map((o) => { const [cl, tx] = sit(o); return `<tr><td><b style="color:var(--titulo)">${o.n}</b><div class="sub">${o.s}</div></td><td class="num">${curto(dia(o.venc - 365))}/${dia(o.venc - 365).getFullYear()}</td><td class="num">${o.adit}</td>
+      ${OPER.map((o) => { const [cl, tx] = sit(o); return `<tr><td data-previa="${previaContrato(o)}" tabindex="0"><b style="color:var(--titulo)">${o.n}</b><div class="sub">${o.s}</div></td><td class="num">${curto(dia(o.venc - 365))}/${dia(o.venc - 365).getFullYear()}</td><td class="num">${o.adit}</td>
         <td class="num">${N.fmt(dia(o.venc))}<div class="sub">${o.venc < 0 ? 'há ' + -o.venc + ' dias' : 'faltam ' + o.venc + ' dias'}</div></td><td>${N.estado(cl, tx)}</td>
         <td style="text-align:right;white-space:nowrap"><button class="btn${o.venc <= 45 ? '' : ' contorno'}" data-acao="cm-contrato" data-s="${o.s}">${o.venc <= 45 ? 'Enviar aditivo' : 'Enviar documento'}</button> <button class="btn contorno" data-acao="toast" data-msg="No sistema, baixa o contrato e os aditivos." aria-label="Baixar o contrato da ${o.n}">${IC.baixar}</button></td></tr>`; }).join('')}
       </tbody></table></div></section>`;
@@ -355,7 +372,7 @@
   // ------------------------------------------------------------------ Operadoras
   const CATS = ['Diárias e taxas', 'Materiais', 'Medicamentos', 'Gases'];
   T.contasoperadoras = { trilha: 'Contas médicas', menu: 'contasoperadoras', mapa: ['Contas médicas', 'Operadoras'], render() {
-    const corpo = `<div class="grade g3">${OPER.map((o) => `<a class="cartao bloco cartao-link" href="#contasoperadora-${o.s}">
+    const corpo = `<div class="grade g3">${OPER.map((o) => `<a class="cartao bloco cartao-link" href="#contasoperadora-${o.s}" data-previa="${previaOper(o)}">
         <div class="cab"><span class="pill escuro">${o.s}</span>${o.situ === 'ok' ? N.estado('e-ok', 'Pronta') : o.situ === 'tabela' ? N.estado('e-hoje', 'Falta uma tabela') : N.estado('e-venc', 'Sem memória')}</div>
         <h2 class="titulo-bloco" style="margin-top:10px">${o.n}</h2>
         <p class="sub" style="margin:4px 0 10px">${o.mem ? 'Memória v' + o.mem : 'Nenhuma memória enviada'}</p>
