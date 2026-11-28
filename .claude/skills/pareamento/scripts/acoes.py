@@ -26,6 +26,8 @@ TIPOS = {
     "limpar": "Triar o card de comunicação",
 }
 PROXIMOS = ("tocar", "decidir", "diretor", "agente", "esperar")
+# O que mostra ao diretor por que o card está com ele (a aderência usa a mesma lista).
+EXPLICACAO = ("🔁 Por que este card", "👔 Para o diretor")
 REFERENCIA = ".claude/skills/pareamento/references/passagem.md"
 
 
@@ -58,10 +60,19 @@ def acoes_extra(card: dict) -> list[str]:
     lembrete no próprio card, e o card de comunicação (`com:*`) que a ADR 0113 aposentou."""
     extra = []
     if not card.get("satelite") and card.get("dono") == "diretor":
-        extra += ["explicar", "cobrar"] if card.get("livre") else ["explicar"]
+        if not any(m in (card.get("corpo") or "") for m in EXPLICACAO):
+            extra.append("explicar")
+        if card.get("livre"):
+            extra.append("cobrar")
     if any(lab.startswith("com:") for lab in card.get("labels") or []):
         extra.append("limpar")
     return extra
+
+
+def rotulo(chave: str) -> str:
+    """"#2330" no Hospital, "Ana #4" na Ana: como a Ala mostra o card."""
+    projeto, numero = chave.split("#")
+    return f"#{numero}" if projeto == "Hospital" else f"{projeto} #{numero}"
 
 
 def nome_da_sessao(tipo: str, chave: str) -> str:

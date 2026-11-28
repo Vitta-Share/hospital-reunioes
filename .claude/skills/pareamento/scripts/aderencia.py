@@ -8,11 +8,15 @@ a favor, porque é uma decisão e não um esquecimento.
 
 from __future__ import annotations
 
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from acoes import EXPLICACAO, rotulo  # noqa: E402
 
 HORAS_DA_COLETA = 12
 DIAS_PARADO = 3
-EXPLICACAO = ("🔁 Por que este card", "👔 Para o diretor")
 # A ordem em que a Ala mostra o que falta: o que destrava mais gente primeiro.
 PESO = {"voltou": 0, "bloqueio": 1, "explicar": 2, "cobrar": 3, "diretor": 4, "limpar": 5, "atualizar": 6}
 
@@ -64,7 +68,7 @@ def checagens(estado: dict, descricoes: dict, passagens: dict, feitos: dict, ago
             if feitos.get(f"bloqueio:{k}:{m}"):
                 continue
             itens.append(_item(k, "bloqueio", "falta", "O GitHub sabe o que o card espera",
-                               f"O texto diz que espera o {m}, mas o bloqueio não está gravado.",
+                               f"O texto diz que espera o {rotulo(m)}, mas o bloqueio não está gravado.",
                                "Grave o bloqueio: o card passa a aparecer preso até o outro fechar.",
                                {"tipo": "bloqueio", "chave": k, "espera": m}))
         if c["dono"] == "eu" and c["livre"] and not c.get("voltou"):
