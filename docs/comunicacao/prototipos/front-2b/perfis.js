@@ -21,7 +21,7 @@
   function desenharVerComo() {
     const el = document.getElementById('ver-como');
     if (!el) return;
-    el.innerHTML = `<span class="rot">Ver como</span>${Object.entries(N.PERFIS).map(([k, p]) => `<button type="button" data-acao="ver-como" data-perfil="${k}" aria-pressed="${k === N.est.perfil}" title="${p.nome}, ${p.cargo}">${p.rot}</button>`).join('')}`;
+    el.innerHTML = `<span class="rot">Ver como</span>${Object.entries(N.PERFIS).map(([k, p]) => `<button type="button" data-acao="ver-como" data-perfil="${k}" aria-pressed="${k === N.est.perfil}" title="${p.nome}, ${p.cargo}">${p.rot}</button>`).join('')}<a class="mapa-link" href="#mapa" title="Todas as telas do protótipo">Todas as telas</a>`;
     const p = N.PERFIS[N.est.perfil];
     const q = document.querySelector('.quem');
     if (q) q.innerHTML = `<span class="avatar" aria-hidden="true">${p.ini}</span><div><b>${p.nome}</b><span>${p.cargo}</span></div>`;

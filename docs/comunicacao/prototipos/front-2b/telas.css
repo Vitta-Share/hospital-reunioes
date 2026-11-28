@@ -8,6 +8,8 @@
 .ver-como button{min-height:34px;padding:0 11px;border:0;border-radius:7px;background:transparent;color:var(--texto2);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
 .ver-como button:hover{color:var(--titulo);background:var(--suave)}
 .ver-como button[aria-pressed="true"]{background:var(--btn-fundo);color:var(--btn-texto)}
+.ver-como .mapa-link{display:inline-flex;align-items:center;min-height:34px;padding:0 11px;margin-left:4px;border-left:1px solid var(--borda);color:var(--acento);font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap}
+.ver-como .mapa-link:hover{color:var(--titulo);text-decoration:underline}
 @media (max-width:1180px){.ver-como .rot{display:none}.ver-como button{padding:0 8px;font-size:12px}}
 
 /* ---------- cabeçalho de módulo: o herói do Início em versão compacta ---------- */
@@ -104,7 +106,7 @@
 .etapas li.agora::before{background:var(--ponto-laranja);color:#fff}
 
 /* ---------- quadro por colunas (kanban) ---------- */
-.quadro{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(260px,1fr);gap:12px;overflow-x:auto;padding-bottom:6px;margin-top:14px}
+.quadro{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(214px,1fr);gap:12px;overflow-x:auto;padding-bottom:6px;margin-top:14px}
 .coluna{background:var(--suave);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:200px}
 .coluna h3{margin:2px 4px 4px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--texto2);display:flex;justify-content:space-between}
 .ficha-q{display:block;background:var(--cartao);border:1px solid var(--borda);border-radius:8px;padding:12px;text-decoration:none;color:var(--texto);box-shadow:var(--sombra);cursor:pointer;text-align:left;width:100%;font:inherit}
