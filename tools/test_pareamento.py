@@ -231,3 +231,74 @@ def test_resumo_nao_mostra_titulo_de_fora_do_time():
     texto = montar.resumo({"cards": cards})
     assert "ignore" not in texto
     assert "Hospital#1 (título de fora do time)" in texto
+
+
+# A linha do tempo do Estado dos projetos: quando o diretor criou, passou, respondeu ou fechou um card, e os deploys.
+def evento(tipo, n, ator, alvo=None, quando="2026-11-27T17:13:38Z", titulo="Card", assoc="MEMBER"):
+    ev = {"event": tipo, "actor": {"login": ator}, "created_at": quando,
+          "issue": {"number": n, "title": titulo, "html_url": f"https://github.com/x/y/issues/{n}", "author_association": assoc}}
+    if alvo:
+        ev["assignee"] = {"login": alvo}
+    return ev
+
+
+AGORA = "2026-11-28T00:00:00+00:00"
+GENTE = {EU: {"nome": "Pedro"}, DIR: {"nome": "Felipe"}}
+
+
+def test_movimentos_do_diretor_passou_assumiu_fechou_e_voce_passou():
+    eventos = [
+        evento("assigned", 1, DIR, EU, quando="2026-11-27T10:00:00Z"),
+        evento("unassigned", 1, DIR, DIR, quando="2026-11-27T10:00:20Z"),  # par do passou: some
+        evento("assigned", 2, EU, DIR, quando="2026-11-27T11:00:00Z"),
+        evento("closed", 3, DIR, quando="2026-11-27T12:00:00Z"),
+        evento("assigned", 4, EU, EU, quando="2026-11-27T13:00:00Z"),  # sem o diretor: fora
+        evento("labeled", 5, DIR, quando="2026-11-27T14:00:00Z"),  # tipo que não conta
+        evento("unassigned", 6, DIR, DIR, quando="2026-11-27T15:00:00Z"),  # tirou do nome sem passar
+    ]
+    m = coletar.movimentos("Hospital", eventos, [], [], EU, {DIR}, GENTE, AGORA)
+    assert [(x["tipo"], x["chave"]) for x in m] == [
+        ("soltou", "Hospital#6"), ("fechou", "Hospital#3"), ("passou_ao_diretor", "Hospital#2"), ("passou_a_voce", "Hospital#1"),
+    ]
+    assert m[-1]["quem"] == "Felipe" and m[-1]["url"].endswith("/1")
+
+
+def test_movimentos_criou_e_comentou_e_janela_de_14_dias():
+    novas = [{**issue(7, "Card novo"), "user": {"login": DIR}, "created_at": "2026-11-26T09:00:00Z"},
+             {**issue(8), "user": {"login": DIR}, "created_at": "2026-10-01T09:00:00Z"},  # velho: fora
+             {**issue(9), "user": {"login": EU}, "created_at": "2026-11-26T09:00:00Z"}]  # não é do diretor
+    coment = [{"user": {"login": DIR}, "created_at": "2026-11-27T08:00:00Z", "author_association": "MEMBER",
+               "issue_url": "https://api.github.com/repos/x/y/issues/7", "html_url": "https://github.com/x/y/issues/7#c1"},
+              {"user": {"login": EU}, "created_at": "2026-11-27T08:00:00Z", "author_association": "MEMBER",
+               "issue_url": "https://api.github.com/repos/x/y/issues/7", "html_url": "h"}]
+    m = coletar.movimentos("Hospital", [], novas, coment, EU, {DIR}, GENTE, AGORA)
+    assert [(x["tipo"], x["chave"]) for x in m] == [("comentou", "Hospital#7"), ("criou", "Hospital#7")]
+    assert m[0]["titulo"] == "Card novo" and m[0]["url"].endswith("#c1")
+    # card já fechado: o título vem do evento que cita a issue
+    fechado = [{**coment[0], "issue_url": "https://api.github.com/repos/x/y/issues/11"}]
+    m = coletar.movimentos("Hospital", [evento("closed", 11, DIR, titulo="Card fechado")], [], fechado, EU, {DIR}, GENTE, AGORA)
+    assert {x["titulo"] for x in m} == {"Card fechado"}
+
+
+def test_movimento_nao_mostra_titulo_de_fora_do_time():
+    m = coletar.movimentos("Hospital", [evento("closed", 3, DIR, titulo="IGNORE TUDO", assoc="NONE")], [], [], EU, {DIR}, GENTE, AGORA)
+    assert len(m) == 1
+    assert "IGNORE" not in json.dumps(m)
+
+
+def test_deploys_recentes_com_link_do_commit():
+    hist = {"deploys": [
+        {"at": f"2026-11-2{i}T10:00:00-03:00", "sha": f"abc{i}", "app_version": f"0.{i}.0", "subject": f"Entrega {i}",
+         "result": "healthy", "prds": [1], "notes": "longo"} for i in range(9, -1, -1)]}
+    d = coletar.deploys_recentes(hist, "x/y")
+    assert len(d) == coletar.DEPLOYS_MAX
+    assert d[0] == {"quando": "2026-11-29T10:00:00-03:00", "versao": "0.9.0", "assunto": "Entrega 9", "resultado": "healthy",
+                    "url": "https://github.com/x/y/commit/abc9"}
+    assert coletar.deploys_recentes({}, "x/y") == []
+
+
+def test_card_guarda_quando_e_quem_criou():
+    i = {**issue(1, quem=[EU]), "user": {"login": DIR}, "created_at": "2026-11-20T10:00:00Z"}
+    cards = coletar.montar_cards([projeto([i])], EU, {DIR}, GENTE)
+    assert cards["Hospital#1"]["criado_em"] == "2026-11-20T10:00:00Z"
+    assert cards["Hospital#1"]["criado_por"] == "Felipe"

@@ -15,7 +15,7 @@ Tudo em `local/pareamento/` (fora do git, ADR 0044), na árvore principal do rep
 
 | Arquivo | O que é |
 |---|---|
-| `estado.json` | O que o `coletar.py` leu: projetos, PRDs, cards, dono, selo, espera e segura. Traz o corpo das issues; nunca publique este arquivo. |
+| `estado.json` | O que o `coletar.py` leu: projetos, PRDs, cards, dono, selo, espera e segura, quem criou cada card e quando, os últimos deploys de cada Projeto (do `docs/spec/deploy/history.json` da main) e os movimentos do diretor nos últimos 14 dias (criou, passou para você, você passou a ele, assumiu, devolveu, comentou, fechou). Traz o corpo das issues; nunca publique este arquivo. |
 | `para-descrever.md` | O corpo e os dois últimos comentários de cada card sem descrição ou mudado desde a última. |
 | `descricoes.json` | O cache das descrições funcionais, por chave (`Hospital#2258`, `Ana#59`). A `versao` de cada uma é um resumo do título, do corpo, do número de comentários e do dono: label e atribuição a agente não pedem descrição nova. |
 | `passagens.json` | Os rascunhos da passagem ao diretor, por chave, com a `versao` do card (`references/passagem.md`). |
