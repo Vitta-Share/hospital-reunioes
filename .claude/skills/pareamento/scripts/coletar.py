@@ -164,6 +164,8 @@ def montar_cards(projetos: list[dict], eu: str, diretores: set[str], nomes: dict
                 "segura": [chave(p["nome"], m) for m in d.get("segura", [])],
                 "prd": chave(p["nome"], p["pais"][n]) if n in p["pais"] else None,
                 "atualizado": i["updated_at"],
+                "criado_em": i.get("created_at", ""),
+                "criado_por": nomes.get((i.get("user") or {}).get("login", ""), {}).get("nome", (i.get("user") or {}).get("login", "")),
                 "versao": versao(i, quem),
                 "corpo": corpo_do_card(i),
                 "confiavel": confiavel(i),
@@ -189,6 +191,107 @@ def montar_cards(projetos: list[dict], eu: str, diretores: set[str], nomes: dict
                     "atualizado": i["updated_at"] if i else "", "corpo": "", "satelite": True,
                 }
     return cards
+
+
+JANELA_DIAS = 14
+MOVIMENTOS_MAX = 40
+DEPLOYS_MAX = 8
+PAGINAS_DE_EVENTOS = 3
+
+
+def _data(iso: str) -> datetime:
+    return datetime.fromisoformat((iso or "1970-01-01T00:00:00+00:00").replace("Z", "+00:00"))
+
+
+def movimentos(nome: str, eventos: list[dict], issues: list[dict], comentarios: list[dict], eu: str,
+               diretores: set[str], gente: dict, agora: str) -> list[dict]:
+    """O que o diretor fez nos cards nos últimos 14 dias, o mais novo primeiro: criou, passou para você,
+    assumiu, tirou do nome, comentou, fechou ou reabriu; e o card que você passou a ele.
+
+    O "tirou do nome" que vem junto do "passou para você" (o mesmo card, até 2 minutos) não conta duas
+    vezes. Título de issue aberta por quem não é do time não aparece.
+    """
+    limite = _data(agora).timestamp() - JANELA_DIAS * 86400
+    nome_de = lambda login: gente.get(login, {}).get("nome", login)  # noqa: E731
+    # O comentário não traz o título: vem da issue aberta ou, no card já fechado, do evento que a cita.
+    por_numero = {**{e["issue"]["number"]: e["issue"] for e in eventos if e.get("issue")}, **{i["number"]: i for i in issues}}
+
+    def titulo(item: dict | None, n: int) -> str:
+        if not item:
+            return f"#{n}"
+        return (item.get("title") or f"#{n}") if confiavel(item) else "(título de fora do time)"
+
+    def mov(quando, tipo, quem, n, item, url):
+        return {"quando": quando, "tipo": tipo, "quem": nome_de(quem), "chave": chave(nome, n), "numero": n,
+                "titulo": titulo(item, n), "url": url}
+
+    passou_em = [(e["issue"]["number"], _data(e["created_at"]).timestamp()) for e in eventos
+                 if e.get("event") == "assigned" and (e.get("assignee") or {}).get("login") == eu
+                 and e["actor"]["login"] in diretores]
+    saida = []
+    for e in eventos:
+        tipo, ator = e.get("event"), (e.get("actor") or {}).get("login", "")
+        alvo = (e.get("assignee") or {}).get("login")
+        i = e.get("issue") or {}
+        n, quando = i.get("number"), e.get("created_at", "")
+        if n is None or _data(quando).timestamp() < limite:
+            continue
+        if tipo == "assigned" and alvo in diretores:
+            o_que = "assumiu" if ator in diretores else "passou_ao_diretor"
+        elif tipo == "assigned" and alvo == eu and ator in diretores:
+            o_que = "passou_a_voce"
+        elif tipo == "unassigned" and alvo in diretores and ator in diretores:
+            t = _data(quando).timestamp()
+            if any(m == n and abs(t - s) <= 120 for m, s in passou_em):
+                continue
+            o_que = "soltou"
+        elif tipo in ("closed", "reopened") and ator in diretores:
+            o_que = "fechou" if tipo == "closed" else "reabriu"
+        else:
+            continue
+        saida.append(mov(quando, o_que, ator, n, i, i.get("html_url", "")))
+    for i in issues:
+        quem = (i.get("user") or {}).get("login")
+        if "pull_request" not in i and quem in diretores and _data(i.get("created_at", "")).timestamp() >= limite:
+            saida.append(mov(i["created_at"], "criou", quem, i["number"], i, i["html_url"]))
+    for c in comentarios:
+        quem = (c.get("user") or {}).get("login")
+        if quem not in diretores or not confiavel(c) or _data(c.get("created_at", "")).timestamp() < limite:
+            continue
+        n = int(c["issue_url"].rstrip("/").split("/")[-1])
+        saida.append(mov(c["created_at"], "comentou", quem, n, por_numero.get(n), c.get("html_url", "")))
+    saida.sort(key=lambda m: _data(m["quando"]), reverse=True)
+    return saida[:MOVIMENTOS_MAX]
+
+
+def deploys_recentes(historico: dict, repo: str) -> list[dict]:
+    """Os últimos deploys do `docs/spec/deploy/history.json` do Projeto, o mais novo primeiro."""
+    deploys = sorted((historico or {}).get("deploys") or [], key=lambda d: _data(d.get("at", "")), reverse=True)
+    return [{"quando": d.get("at", ""), "versao": d.get("app_version") or "", "assunto": d.get("subject") or "",
+             "resultado": d.get("result") or "", "url": f"https://github.com/{repo}/commit/{d['sha']}" if d.get("sha") else ""}
+            for d in deploys[:DEPLOYS_MAX]]
+
+
+def ler_linha_do_tempo(repo: str, issues: list[dict], eu: str, diretores: set[str], gente: dict, nome: str, agora: str) -> dict:
+    """Os deploys e os movimentos do diretor de um Projeto. Falha de leitura vira lista vazia: a linha do
+    tempo é um extra da Ala, não pode derrubar a coleta."""
+    try:
+        historico = gh("api", "-H", "Accept: application/vnd.github.raw", f"repos/{repo}/contents/docs/spec/deploy/history.json")
+    except (RuntimeError, ValueError):
+        historico = {}
+    eventos: list[dict] = []
+    try:
+        for pagina in range(1, PAGINAS_DE_EVENTOS + 1):
+            lote = gh("api", f"repos/{repo}/issues/events?per_page=100&page={pagina}") or []
+            eventos += lote
+            if len(lote) < 100:
+                break
+        desde = datetime.fromtimestamp(_data(agora).timestamp() - JANELA_DIAS * 86400, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        comentarios = gh_paginado(f"repos/{repo}/issues/comments?since={desde}&per_page=100")
+    except (RuntimeError, ValueError):
+        eventos, comentarios = [], []
+    return {"deploys": deploys_recentes(historico, repo),
+            "movimentos": movimentos(nome, eventos, issues, comentarios, eu, diretores, gente, agora)}
 
 
 def ler_projeto(cfg: dict) -> dict:
@@ -287,13 +390,18 @@ def main() -> int:
             comentarios[c["chave"]] = gh("api", f"repos/{repo_de[c['projeto']]}/issues/{c['numero']}/comments?per_page=100")
             c["voltou"] = voltou_do_diretor(c["dono"], c["labels"], comentarios[c["chave"]], diretores)
 
+    agora = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    for p in projetos:
+        p.update(ler_linha_do_tempo(p["repo"], p["issues"], eu, diretores, gente, p["nome"], agora))
+
     estado = {
-        "gerado_em": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "gerado_em": agora,
         "eu": {"login": eu, "nome": gente.get(eu, {}).get("nome", eu)},
         "diretor": {"login": ",".join(sorted(diretores)),
                     "nome": ", ".join(gente[d]["nome"] for d in sorted(diretores)) or "diretor"},
         "projetos": [{"nome": p["nome"], "repo": p["repo"], "versao": p["versao"], "migracao": p["migracao"],
-                      "abertas": len(p["issues"]), "prs": p["prs"], "prds": p["prds"]} for p in projetos],
+                      "abertas": len(p["issues"]), "prs": p["prs"], "prds": p["prds"],
+                      "deploys": p["deploys"], "movimentos": p["movimentos"]} for p in projetos],
         "cards": cards,
     }
     (args.pasta / "estado.json").write_text(json.dumps(estado, ensure_ascii=False, indent=1), encoding="utf-8")
