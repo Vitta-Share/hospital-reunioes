@@ -64,7 +64,7 @@
     { k: 'contas', t: 'Painel', ic: 'inicio' }, { k: 'contasesteira', t: 'Esteira das contas', ic: 'pendencias' },
     { k: 'contascontratos', t: 'Contratos', ic: 'processos' }, { k: 'contasoperadoras', t: 'Operadoras', ic: 'cadastros' }, { k: 'contashabilitacao', t: 'Habilitação', ic: 'usuarios' }] };
   const CONDUTA = { g: 'conduta', t: 'Comitê de Conduta', nome: 'Comitê de Conduta', ic: 'conduta', filhos: [
-    { k: 'comite', t: 'Casos', ic: 'pendencias' }, { k: 'comiterecomendacoes', t: 'Recomendações', ic: 'processos' },
+    { k: 'comite', t: 'Minha vez', ic: 'inicio' }, { k: 'comitecasos', t: 'Casos', ic: 'pendencias' }, { k: 'comiterecomendacoes', t: 'Recomendações', ic: 'processos' },
     { k: 'comitemembros', t: 'Membros', ic: 'reunioes' }, { k: 'comiteguia', t: 'Guia do Comitê', ic: 'manual' }] };
   const SECOES_POR_PERFIL = {
     facilitadora: SECOES_FACILITADORA,

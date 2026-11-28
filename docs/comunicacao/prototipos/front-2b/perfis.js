@@ -42,6 +42,8 @@
     document.body.classList.toggle('modo-publico', !!(tl && tl.publica));
   }
   window.addEventListener('hashchange', modoPublico);
+  // Trocar de tela fecha a gaveta ou o modal que estava aberto.
+  window.addEventListener('hashchange', () => { const m = document.getElementById('modal'); if (!m.hidden) { m.className = 'modal-fundo'; m.hidden = true; m.innerHTML = ''; } });
   document.addEventListener('DOMContentLoaded', modoPublico);
   // CSS próprio de um módulo, sem mexer nas folhas comuns.
   N.css = function (texto) { const s = document.createElement('style'); s.textContent = texto; document.head.appendChild(s); };

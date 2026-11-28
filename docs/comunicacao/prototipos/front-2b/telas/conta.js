@@ -92,7 +92,7 @@
     const ordem = ['Meu trabalho', 'Reuniões e metas', 'POPs', 'Ouvidoria', 'Segurança do Paciente', 'Contas médicas', 'Comitê de Conduta', 'Administração', 'Secretaria', 'Conta', 'Telas públicas'];
     const nomes = Object.keys(grupos).sort((a, b) => (ordem.indexOf(a) + 99) % 99 - (ordem.indexOf(b) + 99) % 99);
     const total = Object.values(grupos).reduce((n, g) => n + g.length, 0) + 1;
-    const exemplo = { reuniao: 'r1', ouvcaso: '482', popversao: 'pop1', popelaboracao: 'pop6', nspcaso: '1', nsptriar: '1', contasguia: '1', contasoperadora: 'UNI', comitecaso: '12', comiterecomendacao: '12', adminusuario: 'cn', centralobjetivo: 'google', responder: 'demo', aceite: 'demo', minhaspendencias: 'demo', ataguiada: 'r1', secretarianova: '' };
+    const exemplo = { reuniao: 'r1', ouvcaso: '0481', popversao: 'pop1', popelaboracao: 'pop6', nspcaso: '0418', nsptriar: '0418', contasguia: '', contasoperadora: 'UNI', comitecaso: '12', comiterecomendacao: '12', adminusuario: 'cn', centralobjetivo: 'google', responder: 'demo', aceite: 'demo', minhaspendencias: 'demo', ataguiada: 'r1', secretarianova: '' };
     return `${N.cabModulo({ sobre: 'Protótipo 2B', titulo: 'Todas as telas', frase: `${total} telas no modelo 2B, a partir do Início do designer. Troque o perfil em "Ver como" no topo para ver o menu de cada papel.` })}
     <div class="corpo-modulo"><div class="mapa-mod">
       <section class="cartao bloco"><h2 class="titulo-bloco">Início</h2><ul><li><a href="#inicio">Início <small>fiel ao designer</small></a></li></ul></section>
