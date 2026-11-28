@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Novidades | Hospital Reuniões</title>
-<meta name="description" content="Protótipo navegável da nova tela inicial do Hospital Reuniões, com dados de demonstração.">
+<title>Protótipo 2B | Hospital Reuniões</title>
+<meta name="description" content="Protótipo navegável de todas as telas do Hospital Reuniões no modelo 2B, com dados de demonstração.">
 <meta name="robots" content="noindex, nofollow">
 <link rel="preload" href="assets/HPSimplified_Rg.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="estilo.css">
-<link rel="stylesheet" href="atual.css">
+<link rel="stylesheet" href="telas.css">
 </head>
 <body>
 <a class="pular" href="#conteudo">Pular para o conteúdo</a>
@@ -43,13 +43,7 @@
         <div class="busca-atual so-atual"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><label for="busca-topo" class="sr">Buscar</label><input id="busca-topo" type="text" placeholder="Buscar..."></div>
       </div>
       <div class="topo-dir">
-        <div class="modelos" role="group" aria-label="Modelo da tela">
-          <span class="modelos-rot">Modelo</span>
-          <button type="button" data-modelo="atual">Atual</button>
-          <button type="button" data-modelo="2b">2B</button>
-          <button type="button" data-modelo="2c">2C</button>
-          <button type="button" data-modelo="2c-escuro">2C escuro</button>
-        </div>
+        <div class="ver-como" id="ver-como"></div>
         <button class="icone-btn sino" id="sino" type="button" aria-label="Notificações, 3 novas" aria-expanded="false">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 17V11a6 6 0 0 1 12 0v6l2 2H4zM10 21h4"/></svg>
           <span class="bolinha" id="bolinha">3</span>
@@ -68,7 +62,16 @@
 <div class="modal-fundo" id="modal" hidden></div>
 <div class="aviso-flutuante" id="toast" role="status" aria-live="polite" hidden></div>
 <script src="app.js"></script>
-<script src="atual.js"></script>
 <script src="menu.js"></script>
+<script src="perfis.js"></script>
+<script src="telas/meu-trabalho.js"></script>
+<script src="telas/reunioes.js"></script>
+<script src="telas/qualidade.js"></script>
+<script src="telas/nsp.js"></script>
+<script src="telas/contas.js"></script>
+<script src="telas/gestao.js"></script>
+<script src="telas/admin.js"></script>
+<script src="telas/publicas.js"></script>
+<script src="telas/conta.js"></script>
 </body>
 </html>

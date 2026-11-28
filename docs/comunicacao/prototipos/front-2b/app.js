@@ -100,7 +100,7 @@
   try {
     const q = new URLSearchParams(location.search).get('modelo');
     const guardado = localStorage.getItem('novidades-modelo');
-    if (MODELOS.includes(q)) est.modelo = q; else if (MODELOS.includes(guardado)) est.modelo = guardado;
+    void q; void guardado; /* protótipo de todas as telas: só o 2B */
     est.recolhido = localStorage.getItem('novidades-recolhido') === '1';
   } catch (e) { /* sem armazenamento: fica no 2B */ }
 
@@ -201,7 +201,8 @@
   function rota() {
     const h = (location.hash || '#inicio').slice(1);
     const [pag, ...resto] = h.split('-');
-    return { pag: TRILHA[pag] ? pag : 'inicio', id: resto.join('-') };
+    const T = (window.NOVIDADES && window.NOVIDADES.telas) || {};
+    return { pag: TRILHA[pag] || T[pag] ? pag : 'inicio', id: resto.join('-') };
   }
 
   // ------------------------------------------------------------------ peças
@@ -601,19 +602,22 @@
     const { pag, id } = rota();
     document.documentElement.setAttribute('data-modelo', est.modelo);
     document.querySelectorAll('.modelos button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.modelo === est.modelo)));
-    const ativo = MENU_ATIVO[pag] || pag;
+    const TL = window.NOVIDADES.telas[pag];
+    const ativo = MENU_ATIVO[pag] || (TL && TL.menu) || pag;
     const atual = est.modelo === 'atual';
     const chave = pag === 'fora' ? 'fora-' + id : ativo;
     $('menu-itens').innerHTML = atual ? `<ul>${menuArvore(ARVORE, chave, 0)}</ul>` : window.NOVIDADES.menuNovo(chave);
     $('menu-rodape').innerHTML = atual ? '' : window.NOVIDADES.rodapeNovo(chave);
     document.querySelector('.app').classList.toggle('recolhido', !atual && !!est.recolhido);
-    $('trilha').textContent = TRILHA[pag].toUpperCase();
+    const nomeTela = (TL && pag !== 'inicio' && (typeof TL.trilha === 'function' ? TL.trilha(id) : TL.trilha)) || TRILHA[pag];
+    $('trilha').textContent = nomeTela.toUpperCase();
     $('data-hoje').textContent = longo(HOJE);
     const venc = fila().filter((i) => grupo(i) === 'venc').length;
-    document.title = (venc ? `(${venc}) ` : '') + TRILHA[pag] + ' | Hospital Reuniões';
+    document.title = (venc ? `(${venc}) ` : '') + nomeTela + ' | Hospital Reuniões';
     const P = { fora: () => pFora(id), inicio: atual ? window.NOVIDADES.pInicioAtual : pInicio, reunioes: pReunioes, reuniao: () => pReuniao(id), dashboard: pDashboard, calendario: pCalendario, pendencias: pPendencias,
       item: () => pItem(id), rotinas: pRotinas, pops: pPops, ouvidoria: pOuvidoria, notificar: pNotificar, nsp: pNsp, pessoas: pPessoas, pessoa: () => pPessoa(id) };
-    $('conteudo').innerHTML = P[pag]();
+    $('conteudo').innerHTML = (TL && pag !== 'inicio') ? TL.render(id) : P[pag]();
+    if (TL && TL.depois) TL.depois(id);
     if (atual && pag === 'inicio') est.jaEntrou = true;
     $('menu').classList.toggle('aberto', est.menu);
     $('veu').hidden = !est.menu;
@@ -690,6 +694,7 @@
     if (d.fechaPaleta) { ev.preventDefault(); const destino = alvo.getAttribute('href'); fecharModal(); if (location.hash === destino) desenhar(true); else location.hash = destino; return; }
     if (d.vista) { aviso('No sistema, abre as Pendências em Kanban, por coluna de situação.'); return; }
     if (d.acao === 'fechar-modal') { fecharModal(); return; }
+    if (d.acao && window.NOVIDADES.acoes[d.acao]) { ev.preventDefault(); window.NOVIDADES.acoes[d.acao](alvo, ev); return; }
     if (d.acao === 'demo') { aviso(d.msg); return; }
     if (d.acao === 'anotar') { aviso('Anotação registrada. A Pendência continua aberta.'); return; }
     if (d.acao === 'nova-notif') { est.notifEnviada = null; desenhar(true); return; }
@@ -697,6 +702,7 @@
   });
   document.addEventListener('submit', (ev) => {
     ev.preventDefault();
+    if (window.NOVIDADES.envios[ev.target.id]) { window.NOVIDADES.envios[ev.target.id](ev.target); return; }
     if (ev.target.id === 'form-agendar') {
       const titulo = $('ag-titulo').value.trim(), data = $('ag-data').value, hora = $('ag-hora').value;
       if (!titulo || !data || !hora) return;
@@ -717,6 +723,10 @@
     if (ev.target.id === 'por-pagina') { est.porPagina = Number(ev.target.value); est.pagina = 1; desenhar(); const s = $('por-pagina'); if (s) s.focus(); }
   });
   document.addEventListener('input', (ev) => {
+    if (ev.target.dataset && ev.target.dataset.digita && window.NOVIDADES.digitar[ev.target.dataset.digita]) {
+      const id = ev.target.id, pos = ev.target.selectionStart; window.NOVIDADES.digitar[ev.target.dataset.digita](ev.target.value); desenhar();
+      const novo = $(id); if (novo) { novo.focus(); try { novo.setSelectionRange(pos, pos); } catch (e) { /* campo sem seleção */ } } return;
+    }
     if (ev.target.id === 'nv-busca-input') {
       const pos = ev.target.selectionStart; est.busca = ev.target.value; desenhar();
       const c = $('nv-busca-input'); c.focus(); c.setSelectionRange(pos, pos); return;
@@ -740,6 +750,8 @@
   $('modal').addEventListener('click', (ev) => { if (ev.target.id === 'modal') fecharModal(); });
   window.addEventListener('hashchange', () => { est.busca = null; est.pop = null; est.sino = false; est.menu = false; desenhar(true); });
 
-  window.NOVIDADES = { itens, reunioes, pessoas, est, dia, deIso, difDias, curto, longo, esc, ext, cap, EU, HOJE, I };
+  window.NOVIDADES = { itens, reunioes, pessoas, pops, notificacoes, est, dia, deIso, difDias, curto, longo, fmt, iso, quando, esc, ext, cap, EU, HOJE, I, ESTADO, ACAO, grupo, fila, abertos, linhaFila, popMenu,
+    telas: {}, acoes: {}, envios: {}, digitar: {}, desenhar: (f) => desenhar(f), aviso: (m) => aviso(m), fecharModal: () => fecharModal(),
+    abrirModal: (html, foco) => { const m = $('modal'); m.hidden = false; m.innerHTML = html; if (foco) setTimeout(() => { const el = $(foco); if (el) el.focus(); }, 30); } };
   document.addEventListener('DOMContentLoaded', () => desenhar());
 })();

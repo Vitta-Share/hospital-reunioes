@@ -25,7 +25,16 @@
     abrir: ic('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M13 10l2 2-2 2"/>', 18),
     seta: ic('<path d="M9 6l6 6-6 6"/>', 14),
     capacitacao: ic('<path d="M2 9l10-5 10 5-10 5zM6 11v5c3 2 9 2 12 0v-5"/>'),
-    agenda: ic('<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v4M16 3v4M12 13v3l2 1"/>')
+    agenda: ic('<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v4M16 3v4M12 13v3l2 1"/>'),
+    contas: ic('<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M7 9v.5M17 14.5v.5"/>'),
+    conduta: ic('<path d="M12 4v16M6 20h12M5 8h14M7 8l-3 7a3 3 0 0 0 6 0zM17 8l-3 7a3 3 0 0 0 6 0z"/>'),
+    usuarios: ic('<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.6 6-5.6s6 2.3 6 5.6M16 4.5a3.2 3.2 0 0 1 0 6.3M18 14.5c2 .7 3 2.7 3 5.5"/>'),
+    cadastros: ic('<path d="M4 21V5l8-3 8 3v16M9 21v-5h6v5M8 8h1M12 8h1M15 8h1M8 12h1M12 12h1M15 12h1"/>'),
+    central: ic('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M12 12l6-6"/>'),
+    tecnologia: ic('<path d="M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/>'),
+    secretaria: ic('<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v4M16 3v4M9 15h6M12 12v6"/>'),
+    mapa: ic('<path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14"/>'),
+    atendimento: ic('<path d="M4 5h16v11H10l-5 4v-4H4z"/><path d="M8 9h8M8 12h5"/>')
   };
 
   // Contadores: o que espera a pessoa em cada área (vermelho quando há atraso).
@@ -38,18 +47,48 @@
     return n ? { n, verm: false, dica: `${n} esperando você` } : null;
   }
 
-  const SECOES = [
+  const SECOES_FACILITADORA = [
     { itens: [{ k: 'inicio', t: 'Início' }] },
     { k: 'trabalho', t: 'Meu trabalho', itens: [{ k: 'pendencias', t: 'Pendências', c: 'pendencias' }, { k: 'rotinas', t: 'Rotinas', c: 'rotinas' }, { k: 'calendario', t: 'Calendário' }] },
-    { k: 'metas', t: 'Reuniões e metas', itens: [{ k: 'reunioes', t: 'Reuniões' }, { k: 'dashboard', t: 'Dashboard' }, { k: 'fora-processos', t: 'Definições de processo', ic: 'processos' }] },
+    { k: 'metas', t: 'Reuniões e metas', itens: [{ k: 'reunioes', t: 'Reuniões' }, { k: 'dashboard', t: 'Dashboard' }, { k: 'processos', t: 'Definições de processo', ic: 'processos' }] },
     { k: 'qualidade', t: 'Qualidade e segurança', itens: [
       { k: 'pops', t: 'POPs', c: 'pops' }, { k: 'ouvidoria', t: 'Ouvidoria', c: 'ouvidoria' },
       { g: 'nsp', t: 'NSP', nome: 'Núcleo de Segurança do Paciente', c: 'nsp', filhos: [
-        { k: 'nsp', t: 'Visão geral', ic: 'inicio' }, { k: 'fora-reunioes-do-nucleo', t: 'Reuniões', ic: 'calendario' },
-        { k: 'fora-membros', t: 'Membros', ic: 'reunioes' }, { k: 'fora-documentos', t: 'Documentos', ic: 'processos' },
-        { k: 'fora-capacitacoes', t: 'Capacitações', ic: 'capacitacao' }, { k: 'fora-agenda', t: 'Agenda regulatória', ic: 'agenda' },
+        { k: 'nsp', t: 'Visão geral', ic: 'inicio' }, { k: 'nspnotificacoes', t: 'Notificações', ic: 'notificar' },
+        { k: 'nspreunioes', t: 'Reuniões do Núcleo', ic: 'calendario' }, { k: 'nspnucleo', t: 'Núcleo', ic: 'reunioes' },
+        { k: 'nspconfig', t: 'Configuração', ic: 'manual' },
         { breve: 'Auditorias de adesão' }, { breve: 'Gestão de riscos' }, { breve: 'Comissões' }] }] }
   ];
+  const NSP_GRUPO = SECOES_FACILITADORA[3].itens[2];
+  const CONTAS = { g: 'contas', t: 'Contas médicas', nome: 'Contas médicas', ic: 'contas', filhos: [
+    { k: 'contas', t: 'Painel', ic: 'inicio' }, { k: 'contasesteira', t: 'Esteira das contas', ic: 'pendencias' },
+    { k: 'contascontratos', t: 'Contratos', ic: 'processos' }, { k: 'contasoperadoras', t: 'Operadoras', ic: 'cadastros' }, { k: 'contashabilitacao', t: 'Habilitação', ic: 'usuarios' }] };
+  const CONDUTA = { g: 'conduta', t: 'Comitê de Conduta', nome: 'Comitê de Conduta', ic: 'conduta', filhos: [
+    { k: 'comite', t: 'Casos', ic: 'pendencias' }, { k: 'comiterecomendacoes', t: 'Recomendações', ic: 'processos' },
+    { k: 'comitemembros', t: 'Membros', ic: 'reunioes' }, { k: 'comiteguia', t: 'Guia do Comitê', ic: 'manual' }] };
+  const SECOES_POR_PERFIL = {
+    facilitadora: SECOES_FACILITADORA,
+    colaborador: [
+      { itens: [{ k: 'inicio', t: 'Início' }] },
+      { k: 'trabalho', t: 'Meu trabalho', itens: [{ k: 'pendencias', t: 'Pendências', c: 'pendencias' }, { k: 'rotinas', t: 'Rotinas', c: 'rotinas' }, { k: 'calendario', t: 'Calendário' }] },
+      { k: 'qualidade', t: 'Qualidade e segurança', itens: [{ k: 'pops', t: 'POPs' }] }],
+    secretaria: [
+      { itens: [{ k: 'secretaria', t: 'Agenda das Reuniões', ic: 'secretaria' }] },
+      { k: 'agenda', t: 'Agenda', itens: [{ k: 'secretarianova', t: 'Nova Reunião', ic: 'agenda' }, { k: 'calendario', t: 'Calendário' }] },
+      { k: 'qualidade', t: 'Qualidade e segurança', itens: [{ k: 'ouvidoria', t: 'Ouvidoria', c: 'ouvidoria' }] }],
+    faturista: [
+      { itens: [{ k: 'inicio', t: 'Início' }] },
+      { k: 'gestao', t: 'Contas médicas', itens: CONTAS.filhos.map((f) => ({ ...f })) },
+      { k: 'qualidade', t: 'Qualidade e segurança', itens: [{ k: 'pops', t: 'POPs' }] }],
+    admin: [
+      ...SECOES_FACILITADORA,
+      { k: 'gestao', t: 'Gestão', itens: [CONTAS, CONDUTA] },
+      { k: 'administracao', t: 'Administração', itens: [
+        { k: 'adminusuarios', t: 'Usuários e acessos', ic: 'usuarios' }, { k: 'admincadastros', t: 'Cadastros', ic: 'cadastros' },
+        { k: 'atendimento', t: 'Dados do atendimento', ic: 'atendimento' },
+        { k: 'central', t: 'Central de Comando', ic: 'central' }, { k: 'tecnologia', t: 'Tecnologia', ic: 'tecnologia' }] }]
+  };
+  void NSP_GRUPO;
 
   function item(it, ativo) {
     const on = it.k === ativo;
@@ -59,18 +98,19 @@
   }
 
   N.menuNovo = function (ativo) {
-    const nspAtivo = ['nsp', 'fora-reunioes-do-nucleo', 'fora-membros', 'fora-documentos', 'fora-capacitacoes', 'fora-agenda'].includes(ativo);
-    const nspAberto = est.grupos.nspNovo !== undefined ? est.grupos.nspNovo : nspAtivo;
     const pequeno = (svg) => svg.replace(/width="19" height="19"/, 'width="16" height="16"');
+    const SECOES = SECOES_POR_PERFIL[est.perfil] || SECOES_FACILITADORA;
     const secoes = SECOES.map((s) => {
       // A seção encolhe pelo título; com o menu recolhido os ícones aparecem sempre.
       const fechada = s.k && est.secoes[s.k] === false && !est.recolhido;
       const titulo = s.t ? `<button type="button" class="nv-titulo" data-secao="${s.k}" aria-expanded="${!fechada}"><span>${s.t}</span>${ICONES.seta}</button>` : '';
       const lista = s.itens.map((it) => {
         if (!it.g) return item(it, ativo);
-        const c = contador(it.c);
-        return `<li><button type="button" class="nv-item nv-grupo${nspAtivo ? ' com-ativo' : ''}" data-grupo="nspNovo" aria-expanded="${nspAberto}" title="${it.nome}">${ICONES.nsp}<span class="nv-txt">${it.t}<span class="nv-chev">${ICONES.seta}</span></span>${c ? `<span class="nv-cont" aria-label="${c.dica}">${c.n}</span>` : ''}</button>
-          ${nspAberto ? `<ul class="nv-sub">${it.filhos.map((f) => f.breve
+        const c = it.c ? contador(it.c) : null;
+        const gAtivo = it.filhos.some((f) => f.k === ativo);
+        const gAberto = est.grupos['m-' + it.g] !== undefined ? est.grupos['m-' + it.g] : gAtivo;
+        return `<li><button type="button" class="nv-item nv-grupo${gAtivo ? ' com-ativo' : ''}" data-grupo="m-${it.g}" aria-expanded="${gAberto}" title="${it.nome}">${ICONES[it.ic || it.g] || ICONES.nsp}<span class="nv-txt">${it.t}<span class="nv-chev">${ICONES.seta}</span></span>${c ? `<span class="nv-cont" aria-label="${c.dica}">${c.n}</span>` : ''}</button>
+          ${gAberto ? `<ul class="nv-sub">${it.filhos.map((f) => f.breve
             ? `<li><span class="nv-breve"><span class="nv-txt">${f.breve}</span><span class="nv-selo">Em breve</span></span></li>`
             : `<li><a href="#${f.k}" class="${f.k === ativo ? 'on' : ''}"${f.k === ativo ? ' aria-current="page"' : ''}>${pequeno(ICONES[f.ic] || '')}<span class="nv-txt">${f.t}</span></a></li>`).join('')}</ul>` : ''}</li>`;
       }).join('');
@@ -83,7 +123,7 @@
   N.rodapeNovo = function (ativo) {
     return `<a href="#notificar" class="nv-notificar${ativo === 'notificar' ? ' on' : ''}" title="Notificar incidente"><span class="nv-alerta">${ICONES.notificar}</span><span class="nv-txt">Notificar incidente</span></a>
       <div class="nv-linha-baixo">
-        <a href="#fora-manual" class="nv-mini" title="Manual">${ICONES.manual}<span class="nv-txt">Manual</span></a>
+        <a href="#manual" class="nv-mini" title="Manual">${ICONES.manual}<span class="nv-txt">Manual</span></a>
         <button type="button" class="nv-mini nv-recolher" data-acao="recolher" aria-pressed="${!!est.recolhido}" title="${est.recolhido ? 'Abrir o menu' : 'Recolher o menu'}">${est.recolhido ? ICONES.abrir : ICONES.recolher}<span class="sr">${est.recolhido ? 'Abrir o menu' : 'Recolher o menu'}</span></button>
       </div>`;
   };

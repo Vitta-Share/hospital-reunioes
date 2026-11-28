@@ -1,0 +1,174 @@
+/* Peças das telas novas do protótipo. Tudo sai das variáveis do 2B (estilo.css):
+   nada de cor nova, só combinações das que o designer já definiu. */
+.so-atual{display:none !important}
+
+/* ---------- "Ver como" (só do protótipo, no lugar do seletor de modelo) ---------- */
+.ver-como{display:flex;align-items:center;gap:2px;padding:3px;border:1px dashed var(--campo-borda);border-radius:10px;background:var(--cartao)}
+.ver-como .rot{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--texto2);padding:0 8px 0 6px;white-space:nowrap}
+.ver-como button{min-height:34px;padding:0 11px;border:0;border-radius:7px;background:transparent;color:var(--texto2);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+.ver-como button:hover{color:var(--titulo);background:var(--suave)}
+.ver-como button[aria-pressed="true"]{background:var(--btn-fundo);color:var(--btn-texto)}
+@media (max-width:1180px){.ver-como .rot{display:none}.ver-como button{padding:0 8px;font-size:12px}}
+
+/* ---------- cabeçalho de módulo: o herói do Início em versão compacta ---------- */
+.cab-modulo{position:relative;overflow:hidden;background:var(--heroi-fundo);color:var(--heroi-texto)}
+.cab-modulo img{position:absolute;right:0;top:0;width:100%;height:100%;object-fit:cover;object-position:58% 42%}
+.cab-modulo .veu-foto{position:absolute;inset:0;background:var(--heroi-veu)}
+.cab-modulo .dentro{position:relative;padding:26px clamp(16px,2.4vw,36px) 82px;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:20px}
+.cab-modulo.sem-resumo .dentro{padding-bottom:30px}
+.cab-modulo .sobre{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.75;margin:0 0 8px}
+.cab-modulo h1{margin:0;font-size:clamp(28px,2.8vw,38px);font-weight:700;line-height:1.1}
+.cab-modulo .frase{margin:10px 0 0;font-size:17px;max-width:52ch;opacity:.95}
+.cab-modulo .risco{width:54px;height:4px;border-radius:4px;background:var(--heroi-risco);margin-top:14px}
+.cab-modulo .acoes-cab{display:flex;flex-wrap:wrap;gap:10px}
+.btn.claro{background:var(--reuniao-btn-fundo);color:var(--reuniao-btn-texto);border-color:var(--reuniao-btn-fundo)}
+.btn.claro:hover{filter:brightness(.95);background:var(--reuniao-btn-fundo);color:var(--reuniao-btn-texto)}
+.btn.vidro{background:var(--reuniao-fundo);color:var(--reuniao-texto);border-color:var(--reuniao-borda)}
+.btn.vidro:hover{background:rgba(255,255,255,.22);color:var(--reuniao-texto);border-color:var(--reuniao-borda)}
+.corpo-modulo{padding:0 clamp(16px,2.4vw,36px) 40px}
+.corpo-modulo .resumo{margin-top:-50px}
+.cab-modulo.sem-resumo + .corpo-modulo{padding-top:18px}
+
+/* ---------- abas do módulo (as subtelas, logo abaixo do resumo) ---------- */
+.abas-modulo{display:flex;flex-wrap:wrap;gap:2px;margin-top:16px;padding:4px;border:1px solid var(--borda);border-radius:10px;background:var(--cartao);box-shadow:var(--sombra)}
+.abas-modulo a{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 14px;border-radius:7px;color:var(--texto2);font-size:14px;text-decoration:none;white-space:nowrap}
+.abas-modulo a:hover{background:var(--suave);color:var(--titulo)}
+.abas-modulo a[aria-current="page"]{background:var(--btn-fundo);color:var(--btn-texto);font-weight:700}
+.abas-modulo .n{min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--suave2);color:var(--titulo);font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.abas-modulo a[aria-current="page"] .n{background:rgba(255,255,255,.2);color:#fff}
+.abas-modulo .n.verm{background:var(--ponto-verm);color:#fff}
+
+/* ---------- grade e cartões ---------- */
+.grade{display:grid;gap:14px;margin-top:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.rot-mini{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--texto2);font-weight:700}
+.numero{font-size:30px;font-weight:700;line-height:1.1;color:var(--titulo);font-variant-numeric:tabular-nums}
+.numero.verm{color:var(--verm)} .numero.verde{color:var(--verde)}
+.sub{font-size:13.5px;color:var(--texto2)}
+.cartao-link{display:block;text-decoration:none;color:var(--texto);transition:transform .2s ease,box-shadow .2s ease}
+.cartao-link:hover{transform:translateY(-2px);box-shadow:var(--sombra-alta);color:var(--texto)}
+.cartao-link .ir{display:inline-flex;align-items:center;gap:6px;margin-top:12px;font-size:13.5px;font-weight:700;color:var(--acento)}
+
+/* ---------- barra de ferramentas da lista ---------- */
+.ferramentas{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.ferramentas .busca-lista{display:flex;align-items:center;gap:8px;min-height:40px;padding:0 12px;border:1px solid var(--campo-borda);border-radius:8px;background:var(--campo);color:var(--texto2);flex:0 1 340px}
+.ferramentas .busca-lista input{flex:1;min-width:0;border:0;background:transparent;min-height:38px;color:var(--texto)}
+.ferramentas .busca-lista input:focus{outline:none}
+.ferramentas .busca-lista:focus-within{outline:3px solid var(--foco);outline-offset:1px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:0 12px;border:1px solid var(--campo-borda);border-radius:999px;background:var(--cartao);color:var(--texto2);font-size:13px;cursor:pointer;white-space:nowrap}
+.chip:hover{background:var(--suave);color:var(--titulo)}
+.chip[aria-pressed="true"]{background:var(--titulo);border-color:var(--titulo);color:#fff;font-weight:700}
+[data-modelo="2c-escuro"] .chip[aria-pressed="true"]{color:var(--btn-texto)}
+
+/* ---------- selos de situação além dos do designer ---------- */
+.pill.verde{background:#E3F4EA;color:var(--verde)}
+.pill.verm{background:#FDECEA;color:var(--verm)}
+.pill.laranja{background:#FEF3E2;color:var(--laranja)}
+.pill.cinza{background:var(--suave);color:var(--texto2)}
+.pill.escuro{background:var(--titulo);color:#fff}
+
+/* ---------- gaveta: o detalhe abre ao lado, sem perder a lista ---------- */
+.gaveta-fundo{position:fixed;inset:0;z-index:50;background:rgba(10,10,30,.45);display:flex;justify-content:flex-end}
+.gaveta{width:min(560px,100%);height:100%;overflow:auto;background:var(--cartao);color:var(--texto);box-shadow:-20px 0 50px -20px rgba(10,10,30,.5);display:flex;flex-direction:column;animation:gaveta .25s cubic-bezier(.2,.8,.2,1) both}
+@keyframes gaveta{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
+.gaveta-topo{position:sticky;top:0;z-index:2;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 22px 14px;background:var(--cartao);border-bottom:1px solid var(--borda)}
+.gaveta-topo h2{margin:6px 0 0;font-size:20px;color:var(--titulo);line-height:1.25}
+.gaveta-corpo{padding:18px 22px;display:flex;flex-direction:column;gap:16px;flex:1}
+.gaveta-pe{position:sticky;bottom:0;display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;padding:14px 22px;background:var(--cartao);border-top:1px solid var(--borda)}
+.fechar{width:40px;height:40px;flex:none;border:0;border-radius:8px;background:transparent;color:var(--titulo);cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.fechar:hover{background:var(--suave)}
+
+/* ---------- linha do tempo ---------- */
+.tempo{list-style:none;margin:0;padding:0;position:relative}
+.tempo li{position:relative;padding:0 0 16px 26px}
+.tempo li::before{content:"";position:absolute;left:6px;top:8px;bottom:-2px;width:2px;background:var(--linha)}
+.tempo li:last-child::before{display:none}
+.tempo li i{position:absolute;left:0;top:4px;width:14px;height:14px;border-radius:999px;background:var(--cartao);border:3px solid var(--acento)}
+.tempo li.feito i{background:var(--acento)}
+.tempo li.agora i{border-color:var(--ponto-laranja)}
+.tempo b{display:block;font-size:14.5px;color:var(--titulo)}
+.tempo span{display:block;font-size:13px;color:var(--texto2)}
+
+/* ---------- etapas (máquina de estados vista de cima) ---------- */
+.etapas{display:flex;flex-wrap:wrap;gap:0;counter-reset:etapa;margin:6px 0 0}
+.etapas li{list-style:none;flex:1 1 120px;min-width:0;position:relative;padding:28px 6px 0;font-size:12.5px;color:var(--texto2);text-align:center}
+.etapas li::before{counter-increment:etapa;content:counter(etapa);position:absolute;left:50%;top:0;transform:translateX(-50%);width:22px;height:22px;border-radius:999px;background:var(--suave2);color:var(--titulo);font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center;z-index:1}
+.etapas li::after{content:"";position:absolute;top:10px;left:50%;width:100%;height:2px;background:var(--suave2)}
+.etapas li:last-child::after{display:none}
+.etapas li.feito::before{background:var(--btn-fundo);color:#fff;content:"✓"}
+.etapas li.feito::after{background:var(--btn-fundo)}
+.etapas li.agora{color:var(--titulo);font-weight:700}
+.etapas li.agora::before{background:var(--ponto-laranja);color:#fff}
+
+/* ---------- quadro por colunas (kanban) ---------- */
+.quadro{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(260px,1fr);gap:12px;overflow-x:auto;padding-bottom:6px;margin-top:14px}
+.coluna{background:var(--suave);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:200px}
+.coluna h3{margin:2px 4px 4px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--texto2);display:flex;justify-content:space-between}
+.ficha-q{display:block;background:var(--cartao);border:1px solid var(--borda);border-radius:8px;padding:12px;text-decoration:none;color:var(--texto);box-shadow:var(--sombra);cursor:pointer;text-align:left;width:100%;font:inherit}
+.ficha-q:hover{border-color:var(--acento);color:var(--texto)}
+.ficha-q b{display:block;font-size:14.5px;font-weight:700;color:var(--titulo);line-height:1.3}
+.ficha-q small{display:block;font-size:12.5px;color:var(--texto2);margin-top:4px}
+.ficha-q .rodape-f{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px}
+
+/* ---------- barra de progresso e mini gráficos ---------- */
+.prog{height:8px;border-radius:999px;background:var(--suave2);overflow:hidden}
+.prog span{display:block;height:100%;background:var(--btn-fundo);border-radius:999px}
+.prog.verm span{background:var(--ponto-verm)} .prog.verde span{background:var(--verde)}
+.linha-graf{width:100%;height:120px;display:block}
+.linha-graf path.l{fill:none;stroke:var(--acento);stroke-width:2.5}
+.linha-graf path.a{fill:var(--suave2);opacity:.7}
+
+/* ---------- lista de definição em duas colunas ---------- */
+.pares{display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:8px 18px;margin:0;font-size:14.5px}
+.pares dt{color:var(--texto2)} .pares dd{margin:0;color:var(--texto)}
+
+/* ---------- caixa de conversa (Ata Guiada, chat da Pendência, Assistente) ---------- */
+.conversa{display:flex;flex-direction:column;gap:10px}
+.balao{max-width:85%;padding:10px 14px;border-radius:12px;font-size:14.5px;line-height:1.4}
+.balao.ela{align-self:flex-start;background:var(--suave);color:var(--texto);border-top-left-radius:4px}
+.balao.eu{align-self:flex-end;background:var(--btn-fundo);color:var(--btn-texto);border-top-right-radius:4px}
+.balao small{display:block;font-size:11.5px;opacity:.7;margin-bottom:2px}
+.escrever{display:flex;gap:8px;align-items:flex-end}
+.escrever textarea{flex:1;min-height:44px;max-height:140px;padding:10px 12px;border:1px solid var(--campo-borda);border-radius:8px;background:var(--campo);color:var(--texto);resize:vertical}
+
+/* ---------- área de arrastar arquivo ---------- */
+.solta{border:2px dashed var(--campo-borda);border-radius:10px;padding:26px;text-align:center;color:var(--texto2);background:var(--suave)}
+.solta b{display:block;color:var(--titulo);font-size:15.5px;margin-bottom:4px}
+
+/* ---------- casca pública (sem menu) ---------- */
+.publica{min-height:100vh;background:var(--fundo)}
+.publica .faixa{background:var(--heroi-fundo);color:#fff;position:relative;overflow:hidden}
+.publica .faixa img.foto{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:58% 42%}
+.publica .faixa .veu-foto{position:absolute;inset:0;background:var(--heroi-veu)}
+.publica .faixa .dentro{position:relative;max-width:760px;margin:0 auto;padding:28px 20px 90px}
+.publica .faixa .logo{width:112px;height:auto;display:block;margin-bottom:26px}
+.publica .faixa h1{margin:0;font-size:clamp(28px,4vw,40px);line-height:1.1}
+.publica .faixa p{margin:10px 0 0;font-size:17px;opacity:.95;max-width:52ch}
+.publica .miolo{max-width:760px;margin:-60px auto 0;padding:0 16px 48px;position:relative}
+.publica .rodape-pub{text-align:center;font-size:12.5px;color:var(--texto2);padding:0 16px 32px}
+.passos-pub{display:flex;gap:6px;margin-bottom:16px}
+.passos-pub span{flex:1;height:5px;border-radius:999px;background:var(--suave2)}
+.passos-pub span.on{background:var(--btn-fundo)}
+.opcoes-grandes{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.opcao-g{display:flex;flex-direction:column;gap:4px;padding:16px;border:1px solid var(--campo-borda);border-radius:10px;background:var(--cartao);text-align:left;cursor:pointer;color:var(--texto);font-size:15px}
+.opcao-g:hover{border-color:var(--acento);background:var(--suave)}
+.opcao-g[aria-pressed="true"]{border-color:var(--titulo);box-shadow:inset 0 0 0 1px var(--titulo);background:var(--suave)}
+.opcao-g b{color:var(--titulo);font-size:15.5px}
+.opcao-g small{color:var(--texto2);font-size:13px}
+
+/* ---------- índice de protótipo (a página "Mapa") ---------- */
+.mapa-mod{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-top:14px}
+.mapa-mod ul{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:2px}
+.mapa-mod li a{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:7px;text-decoration:none;color:var(--texto);font-size:14.5px}
+.mapa-mod li a:hover{background:var(--suave);color:var(--titulo)}
+.mapa-mod li a small{color:var(--texto2);font-size:12px}
+
+@media (max-width:640px){
+  .cab-modulo .dentro{padding:20px 16px 76px}
+  .corpo-modulo{padding-left:12px;padding-right:12px}
+  .gaveta{width:100%}
+  .pares{grid-template-columns:1fr}
+}
